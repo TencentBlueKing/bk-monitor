@@ -26,28 +26,9 @@
 
 import type { MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
-// 时序性图表类型 bar: 柱状图 line: 线性图
-export type TimeSeriesType = 'bar' | 'line';
-
-export interface ITimeSeriesItem extends MonitorEchartSeries {
-  // 时序型图表数据 [x, y][]  x: 时间戳 y: 数值
-  data: [number, number][];
-  // 图例名称
-  name: string;
-  // 单位
-  unit: string;
-  // 图表显示类型 bar | line
-  type: TimeSeriesType;
-  // 数据堆叠，同个类目轴上系列配置相同的stack值可以堆叠放置。
-  stack?: string;
-  color?: string;
-  metricField?: string; // 指标
-  traceData?: Record<number, IProfilingTraceInfo[]>;
-}
-
 export interface IProfilingTraceInfo {
-  time: string;
   span_id: string;
+  time: string;
 }
 
 export interface ITimeSeriesData {
@@ -56,3 +37,22 @@ export interface ITimeSeriesData {
   // 图表数据
   series: ITimeSeriesItem[];
 }
+
+export interface ITimeSeriesItem extends MonitorEchartSeries {
+  color?: string;
+  // 时序型图表数据 [x, y][]  x: 时间戳 y: 数值
+  data: [number, number][];
+  metricField?: string; // 指标
+  // 图例名称
+  name: string;
+  // 数据堆叠，同个类目轴上系列配置相同的stack值可以堆叠放置。
+  stack?: string;
+  traceData?: Record<number, IProfilingTraceInfo[]>;
+  // 图表显示类型 bar | line
+  type: TimeSeriesType;
+  // 单位
+  unit: string;
+}
+
+// 时序性图表类型 bar: 柱状图 line: 线性图
+export type TimeSeriesType = 'bar' | 'line';

@@ -40,7 +40,7 @@ const BkIpSelector = create({
 });
 export type CommomParams = Record<string, any>;
 export type IObjectType = 'HOST' | 'SERVICE';
-export type INodeType = 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
+export type INodeType = 'DYNAMIC_GROUP' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
 
 export interface IScopeItme {
   scope_type: string;
@@ -193,6 +193,7 @@ export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
       }));
     case 'SERVICE_TEMPLATE':
     case 'SET_TEMPLATE':
+    case 'DYNAMIC_GROUP':
       return nodes.map(item => ({
         id: item.bk_inst_id,
       }));
@@ -230,6 +231,11 @@ export function toTransformNode(nodes: Array<IHost | INode>, nodeType: INodeType
     case 'SET_TEMPLATE':
       return nodes.map((item: INode) => ({
         bk_obj_id: nodeType,
+        bk_inst_id: item.id,
+      }));
+    case 'DYNAMIC_GROUP':
+      return nodes.map((item: INode) => ({
+        bk_obj_id: 'host',
         bk_inst_id: item.id,
       }));
     default:
@@ -503,8 +509,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     return res?.data || [];
   }
   // 获取动态分组列表
-  async fetchDynamicGroup(): Promise<Array<IGroupItem>[]> {
-    const res = await $http.request('ipChooser/dynamicGroups', { data: { scope_list: this.scopeList } });
+  async fetchDynamicGroup(p): Promise<Array<IGroupItem>[]> {
+    const res = await $http.request('ipChooser/dynamicGroups', { data: { scope_list: this.scopeList, ...(p ?? {}) } });
     return res?.data || [];
   }
   // 获取动态分组下的主机列表

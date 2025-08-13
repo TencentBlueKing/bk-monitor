@@ -31,11 +31,11 @@ import Collapse from '../../../components/collapse/collapse';
 import './fav-list.scss';
 
 export interface IFavListItem {
+  children?: IFavListItem[];
+  expend?: boolean;
   id: number | string;
   name: string;
-  expend?: boolean;
   uid?: string;
-  children?: IFavListItem[];
   url?: string;
 }
 interface IEvents {

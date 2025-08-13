@@ -80,6 +80,7 @@ from bkmonitor.strategy.serializers import (
     HostAnomalyDetectionSerializer,
     IntelligentDetectSerializer,
     MultivariateAnomalyDetectionSerializer,
+    NewSeriesSerializer,
     PrometheusTimeSeriesSerializer,
     QueryConfigSerializer,
     RingRatioAmplitudeSerializer,
@@ -130,9 +131,7 @@ def get_metric_id(
             DataTypeLabel.TIME_SERIES: f"{data_source_label}.{result_table_id}.{metric_field}",
             DataTypeLabel.EVENT: f"{data_source_label}.{metric_field}",
             DataTypeLabel.LOG: f"{data_source_label}.{data_type_label}.{result_table_id}",
-            DataTypeLabel.ALERT: "{}.{}.{}".format(
-                data_source_label, data_type_label, bkmonitor_strategy_id or metric_field
-            ),
+            DataTypeLabel.ALERT: f"{data_source_label}.{data_type_label}.{bkmonitor_strategy_id or metric_field}",
         },
         DataSourceLabel.PROMETHEUS: {DataTypeLabel.TIME_SERIES: promql[:125] + "..." if len(promql) > 128 else promql},
         DataSourceLabel.CUSTOM: {
@@ -911,6 +910,7 @@ class ActionRelation(BaseActionRelation):
     class Serializer(BaseActionRelation.Serializer):
         class OptionsSerializer(serializers.Serializer):
             converge_config = ConvergeConfigSlz()
+            skip_delay = serializers.IntegerField(required=False, default=0)
 
             def validate_converge_config(self, data):
                 # 默认防御维度
@@ -930,6 +930,7 @@ class Algorithm(AbstractConfig):
     class Serializer(serializers.Serializer):
         AlgorithmSerializers = {
             "Threshold": partial(ThresholdSerializer, allow_empty=True),
+            "NewSeries": NewSeriesSerializer,
             "SimpleRingRatio": SimpleRingRatioSerializer,
             "AdvancedRingRatio": AdvancedRingRatioSerializer,
             "SimpleYearRound": SimpleYearRoundSerializer,
@@ -1307,9 +1308,9 @@ class QueryConfig(AbstractConfig):
         )
         self.id = obj.id
 
-    def save(self):
+    def save(self, instance=None):
         self._clean_empty_dimension()
-        self.supplement_adv_condition_dimension()
+        self.supplement_adv_condition_dimension(instance)
 
         try:
             if self.id > 0:
@@ -1358,12 +1359,16 @@ class QueryConfig(AbstractConfig):
             records.append(record)
         return records
 
-    def supplement_adv_condition_dimension(self):
+    def supplement_adv_condition_dimension(self, instance=None):
         """
         高级条件补全维度
         """
         if not hasattr(self, "agg_dimension"):
             return
+        if instance is not None:
+            # 多指标时，不进行维度补充
+            if len(instance.query_configs) > 1:
+                return
         data_source = load_data_source(self.data_source_label, self.data_type_label)
         has_advance_method = False
         dimensions = set()
@@ -1590,7 +1595,7 @@ class Item(AbstractConfig):
         )
 
         for query_config in self.query_configs:
-            query_config.save()
+            query_config.save(self)
 
     def save(self):
         try:
@@ -1750,10 +1755,10 @@ class Strategy(AbstractConfig):
         self.priority_group_key = priority_group_key or ""
         self.instance = instance
 
-        if isinstance(self.update_time, (int, str)):
+        if isinstance(self.update_time, int | str):
             self.update_time = arrow.get(update_time).datetime
 
-        if isinstance(self.create_time, (int, str)):
+        if isinstance(self.create_time, int | str):
             self.create_time = arrow.get(create_time).datetime
 
         for item in self.items:

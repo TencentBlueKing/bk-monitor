@@ -41,8 +41,8 @@ import type { BookMarkModel, IPanelModel, IViewOptions } from 'monitor-ui/chart-
 import './log-info.scss';
 
 interface IProps {
-  show?: boolean;
   detail?: IDetail;
+  show?: boolean;
 }
 
 @Component

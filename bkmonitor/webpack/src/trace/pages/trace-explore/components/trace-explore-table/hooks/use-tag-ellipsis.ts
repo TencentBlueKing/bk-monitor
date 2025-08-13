@@ -24,22 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, shallowRef, watch, nextTick, type ShallowRef, onBeforeUnmount } from 'vue';
+import { type Ref, type ShallowRef, nextTick, onBeforeUnmount, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 
 interface TagsEllipsisOptions {
+  /** 折叠标签实例 */
+  collapseTagRef: Ref<HTMLElement | null>;
+  debounceDelay?: number;
+  /** tag之间的间距 */
+  horizontalSpacing: number;
   /** 显示tag的容器 */
   tagContainerRef: Ref<HTMLElement>;
   /** tag元素集合 */
   tagsRef: ShallowRef<HTMLElement[]>;
-  /** 折叠标签实例 */
-  collapseTagRef: Ref<HTMLElement | null>;
   /** 需要渲染的tag总数 */
   tagTotal: number;
-  /** tag之间的间距 */
-  horizontalSpacing: number;
-  debounceDelay?: number;
 }
 
 /**

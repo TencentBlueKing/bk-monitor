@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import copy
 from unittest import TestCase
 
@@ -13,7 +12,7 @@ from alarm_backends.tests.service.detect.mocked_data import mocked_item
 from bkmonitor.models import CacheNode
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases="__all__")
 class TestAbnormalCluster(TestCase):
     def setUp(self):
         # 重置测试用例的Item防止ID超过用例上限
@@ -60,7 +59,7 @@ class TestAbnormalCluster(TestCase):
         anomaly_result = detect_engine.detect(datapoint_1)
         alert_message = parse_cluster(datapoint_1.values["cluster"])
         assert len(anomaly_result) == 1
-        assert anomaly_result[0].anomaly_message == " {} 维度值发生离群".format(alert_message)
+        assert anomaly_result[0].anomaly_message == f" {alert_message} 维度值发生离群"
 
     def test_value_gt_10_message(self):
         datapoint_10 = DataPoint(
@@ -81,4 +80,4 @@ class TestAbnormalCluster(TestCase):
         anomaly_result = detect_engine.detect(datapoint_10)
         alert_message = parse_cluster(datapoint_10.values["cluster"])
         assert len(anomaly_result) == 1
-        assert anomaly_result[0].anomaly_message == " {} 等{}组维度值发生离群".format(alert_message, datapoint_10.value)
+        assert anomaly_result[0].anomaly_message == f" {alert_message} 等{datapoint_10.value}组维度值发生离群"

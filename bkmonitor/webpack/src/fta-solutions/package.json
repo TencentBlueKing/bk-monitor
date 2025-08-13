@@ -34,7 +34,10 @@
     "vuex": "^3.6.2",
     "vuex-module-decorators": "^1.2.0"
   },
-  "keywords": ["monitor", "self healing"],
+  "keywords": [
+    "monitor",
+    "self healing"
+  ],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {

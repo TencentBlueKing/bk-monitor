@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { random } from 'monitor-common/utils/utils';
 
 import loadingIcon from '../../../icons/spinner.svg';
-import { type IQueryParams, PanelModel, type TimeSeriesType } from '../../../typings';
+import { type IQueryParams, type TimeSeriesType, PanelModel } from '../../../typings';
 import TimeSeries from '../../time-series/time-series';
 import TraceChart from '../trace-chart/trace-chart';
 
@@ -47,15 +47,15 @@ const DEFAULT_PANEL_CONFIG = {
   targets: [],
 };
 
-interface ITrendChartProps {
-  queryParams: IQueryParams;
-  diffDate: number[][];
-}
-
 interface ITrendChartEvents {
   (series: any[]): void;
-  onOptionsLoaded(): void;
   onLoonSeriesDataading(loading: boolean): void;
+  onOptionsLoaded(): void;
+}
+
+interface ITrendChartProps {
+  diffDate: number[][];
+  queryParams: IQueryParams;
 }
 
 @Component
@@ -77,8 +77,8 @@ export default class TrendChart extends tsc<ITrendChartProps, ITrendChartEvents>
   @Watch('queryParams', { deep: true })
   handleQueryParamsChange() {
     let type: TimeSeriesType = 'bar';
-    let targetApi = undefined;
-    let targetData = undefined;
+    let targetApi;
+    let targetData;
     if (this.chartType === 'all') {
       type = 'line';
       targetApi = 'apm_profile.query';

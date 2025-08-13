@@ -36,23 +36,23 @@ import type { IFieldItem, TGetValueFn } from './value-selector-typing';
 
 import './value-options.scss';
 
+interface IProps {
+  fieldInfo?: IFieldItem;
+  getValueFn?: TGetValueFn;
+  isPopover?: boolean;
+  needUpDownCheck?: boolean;
+  noDataSimple?: boolean;
+  search?: string;
+  selected?: string[];
+  show?: boolean;
+  width?: number;
+  onIsChecked?: (v: boolean) => void;
+  onSelect?: (item: IValue) => void;
+}
+
 interface IValue {
   id: string;
   name: string;
-}
-
-interface IProps {
-  search?: string;
-  selected?: string[];
-  fieldInfo?: IFieldItem;
-  show?: boolean;
-  isPopover?: boolean;
-  width?: number;
-  needUpDownCheck?: boolean;
-  noDataSimple?: boolean;
-  onIsChecked?: (v: boolean) => void;
-  onSelect?: (item: IValue) => void;
-  getValueFn?: TGetValueFn;
 }
 
 @Component

@@ -59,8 +59,8 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
       }
     });
   }
-  async beforeRouteLeave(to, from, next) {
-    if (this.needCheck && !allowJumpMap.includes(to.name) && this.$store.getters.bizIdChangePedding !== to.name) {
+  async beforeRouteLeave(to, _from, next) {
+    if (this.needCheck && !allowJumpMap.includes(to.name) && this.$store.getters.bizIdChangePending !== to.name) {
       const needNext = await this.handleCancel(false);
       if (needNext) {
         destroyTimezone();

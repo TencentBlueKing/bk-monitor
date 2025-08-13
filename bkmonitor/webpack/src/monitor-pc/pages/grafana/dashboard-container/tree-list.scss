@@ -23,17 +23,17 @@
     }
 
     .list-item-icon {
+      flex: 0 0 22px;
       width: 22px;
       height: 22px;
-      flex: 0 0 22px;
     }
 
     .list-item-name {
       flex: 1;
       flex-wrap: nowrap;
       overflow: hidden;
-      white-space: nowrap;
       text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     &.checked {
@@ -68,18 +68,18 @@
 
     .rename-input {
       .bk-form-input {
-        border: 0 !important;
         background-color: #252f43 !important;
+        border: 0 !important;
       }
     }
   }
 
   .list-item-icon {
     display: flex;
-    justify-content: center;
     align-items: center;
-    height: 22px;
+    justify-content: center;
     width: 22px;
+    height: 22px;
     font-size: 14px;
 
     &.is-null {
@@ -87,20 +87,20 @@
 
       &::after {
         position: absolute;
-        content: '';
         top: 50%;
         left: 50%;
         width: 5px;
         height: 5px;
+        content: '';
+        background-color: #394561;
         border-radius: 50%;
         transform: translate3d(-50%, -50%, 0);
-        background-color: #394561;
       }
     }
   }
 
   .list-item-handle {
-    margin-left: auto;
     padding-right: 5px;
+    margin-left: auto;
   }
 }

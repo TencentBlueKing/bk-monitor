@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import type { DirectiveOptions } from 'vue';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 
-import type { DirectiveOptions } from 'vue';
 import type { DirectiveBinding } from 'vue/types/options';
 
 interface ICustomElements extends HTMLElement {

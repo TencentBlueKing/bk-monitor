@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { Input, Popover, Tree, Switcher } from 'bkui-vue';
+import { Input, Popover, Switcher, Tree } from 'bkui-vue';
 import { Search } from 'bkui-vue/lib/icon';
+import { useI18n } from 'vue-i18n';
 
 import Collapse from '../components/collapse';
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -25,14 +24,14 @@ from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
 from monitor_web.plugin.manager import PluginManagerFactory
 
 
-class BaseParse(object):
+class BaseParse:
     def __init__(self, file_path):
         self.file_path = file_path
         self.file_content = {}
         self.plugin_path = None
 
     def read_file(self):
-        with open(self.file_path, "r") as fs:
+        with open(self.file_path) as fs:
             self.file_content = json.loads(fs.read())
 
     @abc.abstractmethod
@@ -180,7 +179,7 @@ class StrategyConfigParse(BaseParse):
                     if isinstance(v, dict):
                         error_msg(v)
                     elif isinstance(v, list) and isinstance(v[0], ErrorDetail):
-                        error_list.append("{}{}".format(k, v[0][:-1]))
+                        error_list.append(f"{k}{v[0][:-1]}")
                     else:
                         for v_msg in v:
                             error_msg(v_msg)
@@ -205,7 +204,9 @@ class StrategyConfigParse(BaseParse):
                     continue
 
                 if isinstance(condition_msg["value"], list):
-                    bk_collect_config_ids.extend(map(int, condition_msg["value"]))
+                    bk_collect_config_ids.extend(
+                        [int(value) for value in condition_msg["value"] if str(value).isdigit()]
+                    )
                 else:
                     bk_collect_config_id = condition_msg["value"].split("(")[0]
                     bk_collect_config_ids.append(int(bk_collect_config_id))

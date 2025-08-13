@@ -195,7 +195,7 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
         """
         self._build_connection()
         try:
-            index_results = self._client.indices.get_alias(result_table_id if result_table_id else "*")
+            index_results = self._client.indices.get(result_table_id if result_table_id else "*")
         except Exception as e:  # pylint: disable=broad-except
             self.catch_timeout_raise(e)
             raise EsClientAliasException(EsClientAliasException.MESSAGE.format(error=e))

@@ -51,14 +51,14 @@ import type { IQueryOption } from '../performance/performance-type';
 import './view-detail-new.scss';
 // import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-interface IViewConfig {
-  config: PanelModel;
-  compareValue?: IQueryOption;
-}
-
 interface IProps {
   show?: boolean;
   viewConfig?: IViewConfig;
+}
+
+interface IViewConfig {
+  compareValue?: IQueryOption;
+  config: PanelModel;
 }
 
 @Component
@@ -342,7 +342,7 @@ export default class ViewDetailNew extends tsc<IProps> {
           item.filter_dict[key] = val;
         }
       } else {
-        if (Object.prototype.hasOwnProperty.call(item.filter_dict, key)) {
+        if (Object.hasOwn(item.filter_dict, key)) {
           hasChanged = true;
           this.$delete(item.filter_dict, key);
         }

@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import SimpleSelectInput from '../../alarm-shield/components/simple-select-input';
 import SelectMenu from '../../strategy-config/strategy-config-set-new/components/select-menu';
-import { CONDITIONS, type ICondtionItem, METHODS, type TContionType, type TMthodType } from '../typing';
+import { type ICondtionItem, type TContionType, type TMthodType, CONDITIONS, METHODS } from '../typing';
 
 import type { TGroupKeys, TValueMap } from '../typing/condition';
 
@@ -40,27 +40,27 @@ const nullOptions = {
   name: `- ${window.i18n.tc('空')} -`,
 };
 
-interface IListItem {
-  id: string;
-  name: string;
-  isCheck?: boolean;
+interface ICondition {
+  condition?: TContionType;
+  field: string;
+  method?: TMthodType;
+  name?: string;
+  value?: string[];
 }
 
-interface ICondition {
-  field: string;
-  value?: string[];
-  method?: TMthodType;
-  condition?: TContionType;
-  name?: string;
+interface IListItem {
+  id: string;
+  isCheck?: boolean;
+  name: string;
 }
 
 interface IProps {
-  value: ICondtionItem[];
+  groupKey?: string[];
+  groupKeys?: TGroupKeys;
   keyList?: IListItem[];
+  value: ICondtionItem[];
   valueList?: IListItem[];
   valueMap?: TValueMap;
-  groupKeys?: TGroupKeys;
-  groupKey?: string[];
   onChange?: (v: ICondtionItem[]) => void;
 }
 

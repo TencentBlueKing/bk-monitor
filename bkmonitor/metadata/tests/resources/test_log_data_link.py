@@ -38,11 +38,13 @@ def create_or_delete_records(mocker):
     )
 
     # Space
-    models.Space.objects.create(
+    models.Space.objects.update_or_create(
         space_type_id="bkcc",
         space_id=2,
-        space_code="2_space",
-        space_name="2_space",
+        defaults={
+            "space_code": "2_space",
+            "space_name": "2_space",
+        },
     )
 
     # 平台公共默认Doris集群
@@ -169,7 +171,9 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
             space_client = SpaceTableIDRedis()
-            space_client.push_doris_table_id_detail(table_id_list=[non_exist_doris_table_id], is_publish=True)
+            space_client.push_doris_table_id_detail(
+                bk_tenant_id="system", table_id_list=[non_exist_doris_table_id], is_publish=True
+            )
             expected_rt_detail_router = {
                 non_exist_doris_table_id: '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
                 '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839"}'
@@ -244,6 +248,7 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
         source_type="bkdata",
         bkbase_table_id="2_bklog_pure_es,2_bklog_es_log",
         storage_type="elasticsearch",
+        origin_table_id=non_exist_es_table_id,
     )
 
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
@@ -260,7 +265,7 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
                 '"measurement":"__default__","source_type":"bkdata","options":{},'
                 '"storage_type":"elasticsearch","storage_cluster_records":[{'
                 '"storage_id":3,"enable_time":1747130440}],'
-                '"data_label":"bkdata_index_set_6788"}'
+                '"data_label":"bkdata_index_set_6788","field_alias":{}}'
             )
 
             detail_string = detail_string.replace(
@@ -294,6 +299,7 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
             assert es_storage_ins.index_set == "2_bklog_pure_es,2_bklog_es_log"
             assert es_storage_ins.storage_cluster_id == 3
             assert es_storage_ins.source_type == "bkdata"
+            assert es_storage_ins.origin_table_id == non_exist_es_table_id
 
             result_table_ins = models.ResultTable.objects.get(table_id=non_exist_es_table_id)
             assert result_table_ins.data_label == "bkdata_index_set_6788"

@@ -24,31 +24,31 @@
  * IN THE SOFTWARE.
  */
 
-export type IntervalType = 'auto' | number;
-export interface IProps {
-  value?: IntervalType;
-  appendTo?: string;
-  needAuto?: boolean;
-  minSec?: number;
-  isNeedDefaultVal?: boolean;
-}
-
 export interface IEvent {
   onChange?: IntervalType;
-}
-
-export interface IOption {
-  id: number | string;
-  name: number | string;
-  children?: IIntervalOption[];
 }
 export interface IIntervalOption {
   id: IntervalType;
   name: number | string;
 }
-export type unitType = 'm' | 's';
 
-export interface ITimeVal {
-  value: number;
-  unit: unitType;
+export type IntervalType = 'auto' | number;
+
+export interface IOption {
+  children?: IIntervalOption[];
+  id: number | string;
+  name: number | string;
 }
+export interface IProps {
+  appendTo?: string;
+  isNeedDefaultVal?: boolean;
+  minSec?: number;
+  needAuto?: boolean;
+  value?: IntervalType;
+}
+export interface ITimeVal {
+  unit: unitType;
+  value: number;
+}
+
+export type unitType = 'm' | 's';

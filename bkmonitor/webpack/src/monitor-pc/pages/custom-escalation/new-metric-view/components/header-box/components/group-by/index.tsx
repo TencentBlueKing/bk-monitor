@@ -23,31 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 
 import { formatTipsContent } from '../../../../metric-chart-view/utils';
 import SelectPanel from './components/select-panel';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './index.scss';
 
+interface IEmit {
+  onChange: (value: IProps['value']) => void;
+}
+
 interface IProps {
+  splitable?: boolean;
+  customDemensionList?: {
+    alias: string;
+    name: string;
+  }[];
   value: {
     field: string;
     split: boolean;
   }[];
-  splitable?: boolean;
-  customDemensionList?: {
-    name: string;
-    alias: string;
-  }[];
-}
-
-interface IEmit {
-  onChange: (value: IProps['value']) => void;
 }
 
 @Component
@@ -78,7 +78,7 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
       return this.customDemensionList;
     }
     const demenesionNameMap = {};
-    return this.currentSelectedMetricList.reduce<{ name: string; alias: string }[]>((result, item) => {
+    return this.currentSelectedMetricList.reduce<{ alias: string; name: string }[]>((result, item) => {
       for (const demesionItem of item.dimensions) {
         if (!demenesionNameMap[demesionItem.name]) {
           result.push(demesionItem);

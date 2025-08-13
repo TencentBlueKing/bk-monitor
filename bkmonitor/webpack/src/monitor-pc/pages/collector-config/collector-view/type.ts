@@ -24,38 +24,32 @@
  * IN THE SOFTWARE.
  */
 
-export interface metric {
-  aliaName?: string;
-  englishName?: string;
-  groupId?: string;
-  metric?: string;
-  type?: string;
-  unit?: string;
-  dimension_list?: { id: string; name: string }[];
+export interface addSceneResult {
+  name: string;
+  order: orderList[];
+  variables: sceneList['variables'];
 }
-export interface variable {
-  value: string[];
-  dimension: string;
-  dimensionList: metric[];
-  aliaName: string;
-  preview: { label?: string; value?: string }[];
-}
-
 export interface collectConfigParams {
-  variableResult: { key: string; value: string[]; groupId?: string; name: string }[]; // 变量结果
+  dimensionsPreviews?: { [propName: string]: variable['preview'] };
+  groupBy?: { groupId?: string; key: string; name: string; value: string[] }[];
+  type: 'collect-config';
+  variableResult: { groupId?: string; key: string; name: string; value: string[] }[]; // 变量结果
   metricGroup: {
     id: string;
     metrics: metric[];
     result_table_id: string;
   }[]; // 指标集
-  type: 'collect-config';
-  groupBy?: { key: string; value: string[]; groupId?: string; name: string }[];
-  dimensionsPreviews?: { [propName: string]: variable['preview'] };
-}
-export interface viewSettingParams {
-  variableResult: collectConfigParams['groupBy'];
 }
 
+export interface metric {
+  aliaName?: string;
+  dimension_list?: { id: string; name: string }[];
+  englishName?: string;
+  groupId?: string;
+  metric?: string;
+  type?: string;
+  unit?: string;
+}
 export interface orderList {
   id: string;
   title: string;
@@ -71,8 +65,14 @@ export interface sceneList {
   variables: { id: string; name: string }[];
 }
 
-export interface addSceneResult {
-  name: string;
-  variables: sceneList['variables'];
-  order: orderList[];
+export interface variable {
+  aliaName: string;
+  dimension: string;
+  dimensionList: metric[];
+  preview: { label?: string; value?: string }[];
+  value: string[];
+}
+
+export interface viewSettingParams {
+  variableResult: collectConfigParams['groupBy'];
 }

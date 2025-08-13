@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref as deepRef, watch, shallowRef } from 'vue';
+import { ref as deepRef, defineComponent, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 
 import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP } from '../../../../store/constant';

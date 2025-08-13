@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import logging
 import time
-from typing import Dict
 
 from pika.adapters.blocking_connection import BlockingChannel
 from pika.spec import Basic
@@ -44,7 +43,7 @@ class BaseAccessIncidentProcess(BaseAccessProcess):
 
 class AccessIncidentProcess(BaseAccessIncidentProcess):
     def __init__(self, broker_url: str, queue_name: str) -> None:
-        super(AccessIncidentProcess, self).__init__()
+        super().__init__()
 
         self.broker_url = broker_url
         self.queue_name = queue_name
@@ -53,7 +52,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         self.actions = []
 
     def process(self) -> None:
-        def callback(ch: BlockingChannel, method: Basic.Deliver, properties: Dict, body: str):
+        def callback(ch: BlockingChannel, method: Basic.Deliver, properties: dict, body: str):
             sync_info = json.loads(body)
             self.handle_sync_info(sync_info)
             ch.basic_ack(method.delivery_tag)
@@ -66,7 +65,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             return True
         return False
 
-    def handle_sync_info(self, sync_info: Dict) -> None:
+    def handle_sync_info(self, sync_info: dict) -> None:
         """处理rabbitmq中的内容.
 
         :param sync_info: 同步内容
@@ -76,7 +75,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         elif sync_info["sync_type"] == IncidentSyncType.UPDATE.value:
             self.update_incident(sync_info)
 
-    def create_incident(self, sync_info: Dict) -> None:
+    def create_incident(self, sync_info: dict) -> None:
         """根据同步信息，从AIOPS接口获取故障详情，并创建到监控的ES中.
 
         :param sync_info: 同步内容
@@ -99,7 +98,14 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             incident_info = sync_info["incident_info"]
             incident_info["incident_id"] = sync_info["incident_id"]
             incident_document = IncidentDocument(**incident_info)
-            snapshot_info = api.bkdata.get_incident_snapshot(snapshot_id=sync_info["fpp_snapshot_id"])
+
+            if sync_info["fpp_snapshot_id"] == "fpp:None":
+                snapshot_info = {
+                    "bk_biz_id": incident_info["bk_biz_id"],
+                    "incident_alerts": [{"id": alert_id} for alert_id in sync_info.get("scope", {}).get("alerts", [])],
+                }
+            else:
+                snapshot_info = api.bkdata.get_incident_snapshot(snapshot_id=sync_info["fpp_snapshot_id"])
 
             snapshot = IncidentSnapshotDocument(
                 incident_id=sync_info["incident_id"],
@@ -157,7 +163,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
     def update_alert_incident_relations(
         self, incident_document: IncidentDocument, snapshot: IncidentSnapshotDocument
-    ) -> Dict[int, AlertDocument]:
+    ) -> dict[int, AlertDocument]:
         """更新告警关联故障的关联关系
 
         :param incident_document: 故障实例
@@ -179,7 +185,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
         return snapshot_alerts
 
-    def update_incident(self, sync_info: Dict) -> None:
+    def update_incident(self, sync_info: dict) -> None:
         """根据同步信息，从AIOPS接口获取故障详情，并更新到监控的ES中.
 
         :param sync_info: 同步内容
@@ -193,7 +199,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             incident_document = IncidentDocument.get(
                 f"{incident_info['create_time']}{incident_info['incident_id']}", fetch_remote=False
             )
-            if "fpp_snapshot_id" in sync_info and sync_info["fpp_snapshot_id"]:
+            if "fpp_snapshot_id" in sync_info and sync_info["fpp_snapshot_id"] != "fpp:None":
                 snapshot_info = api.bkdata.get_incident_snapshot(snapshot_id=sync_info["fpp_snapshot_id"])
 
                 snapshot = IncidentSnapshotDocument(
@@ -216,12 +222,12 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             logger.error(f"[UPDATE]Access incident error: {e}", exc_info=True)
             return
 
-        # 更新告警所属故障
-        snapshot_alerts = self.update_alert_incident_relations(incident_document, snapshot)
-
         # 生成故障快照记录
         try:
             if snapshot:
+                # 更新告警所属故障
+                snapshot_alerts = self.update_alert_incident_relations(incident_document, snapshot)
+
                 IncidentSnapshotDocument.bulk_create([snapshot], action=BulkActionType.CREATE)
 
                 # 补充快照记录并写入ES
@@ -292,7 +298,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         incident.labels = whole_labels
 
     def generate_alert_operations(
-        self, last_snapshot: IncidentSnapshotDocument, snapshot_alerts: Dict[int, AlertDocument]
+        self, last_snapshot: IncidentSnapshotDocument, snapshot_alerts: dict[int, AlertDocument]
     ) -> None:
         """生成故障快照记录的告警操作记录."""
         last_snapshot_alerts = {item["id"]: item for item in last_snapshot.content.incident_alerts}

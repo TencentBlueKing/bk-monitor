@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -20,8 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from typing import Dict, List, Union
-
 from django.conf import settings
 from django.utils.translation import gettext as _
 from iam import (
@@ -42,7 +39,6 @@ from iam.apply.models import (
 )
 from iam.exceptions import AuthAPIError
 from iam.meta import setup_action, setup_resource, setup_system
-from iam.utils import gen_perms_apply_data
 
 from apps.iam.exceptions import (
     ActionNotExistError,
@@ -53,29 +49,40 @@ from apps.iam.handlers.actions import ActionMeta, _all_actions, get_action_by_id
 from apps.iam.handlers.compatible import CompatibleIAM
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
-from apps.utils.local import get_request, get_request_username
+from apps.iam.utils import gen_perms_apply_data
+from apps.utils.local import get_request, get_request_username, get_local_username
 from apps.utils.log import logger
 
 
-class Permission(object):
+class Permission:
     """
     权限中心鉴权封装
     """
 
-    def __init__(self, username: str = "", request=None):
-        if username:
+    def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
+        if username and bk_tenant_id:
             self.username = username
-            self.bk_token = ""
+            self.bk_tenant_id = bk_tenant_id
         else:
             try:
-                request = request or get_request()
-                self.bk_token = request.COOKIES.get("bk_token", "")
-                self.username = request.user.username
+                request = request or get_request(peaceful=True)
+                # web请求
+                if request:
+                    self.username = request.user.username
+                    self.bk_tenant_id = request.user.tenant_id
+                else:
+                    self.bk_tenant_id = settings.DEFAULT_TENANT_ID
+                    logger.warning(
+                        "IAM Permission init with local username, use default bk_tenant_id: %s", self.bk_tenant_id
+                    )
+                    # 后台设置
+                    self.username = get_local_username()
+                    if self.username is None:
+                        raise ValueError("must provide `username` or `request` param to init")
             except Exception:  # pylint: disable=broad-except
-                self.bk_token = ""
                 self.username = get_request_username()
 
-        self.iam_client = self.get_iam_client()
+        self.iam_client = self.get_iam_client(bk_tenant_id)
         # 是否跳过权限中心校验
         # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
         self.skip_check = getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False)
@@ -83,10 +90,12 @@ class Permission(object):
             self.skip_check = True
 
     @classmethod
-    def get_iam_client(cls):
-        return CompatibleIAM(settings.APP_CODE, settings.SECRET_KEY, settings.BK_IAM_INNER_HOST, settings.PAAS_API_HOST)
+    def get_iam_client(cls, bk_tenant_id: str):
+        return CompatibleIAM(
+            settings.APP_CODE, settings.SECRET_KEY, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id
+        )
 
-    def make_request(self, action: Union[ActionMeta, str], resources: List[Resource] = None) -> Request:
+    def make_request(self, action: ActionMeta | str, resources: list[Resource] = None) -> Request:
         """
         获取请求对象
         """
@@ -102,7 +111,7 @@ class Permission(object):
         return request
 
     def make_multi_action_request(
-        self, actions: List[Union[ActionMeta, str]], resources: List[Resource] = None
+        self, actions: list[ActionMeta | str], resources: list[Resource] = None
     ) -> MultiActionRequest:
         """
         获取多个动作请求对象
@@ -119,7 +128,7 @@ class Permission(object):
         return request
 
     def _make_application(
-        self, action_ids: List[str], resources: List[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
+        self, action_ids: list[str], resources: list[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
     ) -> Application:
         resources = resources or []
         actions = []
@@ -162,19 +171,19 @@ class Permission(object):
         return application
 
     def get_apply_url(
-        self, action_ids: List[str], resources: List[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
+        self, action_ids: list[str], resources: list[Resource] = None, system_id: str = settings.BK_IAM_SYSTEM_ID
     ):
         """
         处理无权限 - 跳转申请列表
         """
         application = self._make_application(action_ids, resources, system_id)
-        ok, message, url = self.iam_client.get_apply_url(application, self.bk_token, self.username)
+        ok, message, url = self.iam_client.get_apply_url(application)
         if not ok:
             logger.error(f"iam generate apply url fail: {message}")
             return settings.BK_IAM_SAAS_HOST
         return url
 
-    def get_apply_data(self, actions: List[Union[ActionMeta, str]], resources: List[Resource] = None):
+    def get_apply_data(self, actions: list[ActionMeta | str], resources: list[Resource] = None):
         """
         生成本系统无权限数据
         """
@@ -212,7 +221,7 @@ class Permission(object):
         return data, url
 
     @staticmethod
-    def is_demo_biz_resource(resources: List[Resource] = None):
+    def is_demo_biz_resource(resources: list[Resource] = None):
         """
         判断资源是否为demo业务的资源
         """
@@ -236,9 +245,7 @@ class Permission(object):
             return True
         return False
 
-    def is_allowed(
-        self, action: Union[ActionMeta, str], resources: List[Resource] = None, raise_exception: bool = False
-    ):
+    def is_allowed(self, action: ActionMeta | str, resources: list[Resource] = None, raise_exception: bool = False):
         """
         校验用户是否有动作的权限
         :param action: 动作
@@ -274,7 +281,7 @@ class Permission(object):
 
         return result
 
-    def is_allowed_by_biz(self, bk_biz_id: int, action: Union[ActionMeta, str], raise_exception: bool = False):
+    def is_allowed_by_biz(self, bk_biz_id: int, action: ActionMeta | str, raise_exception: bool = False):
         """
         判断用户对当前动作在该业务下是否有权限
         """
@@ -284,7 +291,7 @@ class Permission(object):
         resources = [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)]
         return self.is_allowed(action, resources, raise_exception)
 
-    def batch_is_allowed(self, actions: List[ActionMeta], resources: List[List[Resource]]):
+    def batch_is_allowed(self, actions: list[ActionMeta], resources: list[list[Resource]]):
         """
         查询某批资源某批操作是否有权限
         """
@@ -315,7 +322,7 @@ class Permission(object):
         return resource_meta.create_instance(instance_id)
 
     @classmethod
-    def batch_make_resource(cls, resources: List[Dict]):
+    def batch_make_resource(cls, resources: list[dict]):
         """
         批量构造resource对象
         """
@@ -331,8 +338,8 @@ class Permission(object):
         return data
 
     def filter_space_list_by_action(
-        self, action: Union[ActionMeta, str], bk_tenant_id: str = "", space_list: List = None
-    ) -> List:
+        self, action: ActionMeta | str, bk_tenant_id: str = "", space_list: list = None
+    ) -> list:
         """
         根据动作过滤用户有权限的业务列表
         """
@@ -424,7 +431,7 @@ class Permission(object):
         grant_result = None
 
         try:
-            grant_result = self.iam_client.grant_resource_creator_actions(application, self.bk_token, self.username)
+            grant_result = self.iam_client.grant_resource_creator_actions(application)
             logger.info(f"[grant_creator_action] Success! resource: {resource.to_dict()}, result: {grant_result}")
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"[grant_creator_action] Failed! resource: {resource.to_dict()}, result: {e}")

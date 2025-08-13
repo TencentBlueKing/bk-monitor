@@ -24,27 +24,27 @@
  * IN THE SOFTWARE.
  */
 export interface IExtendMetricData {
+  collect_config?: string;
   collect_interval?: number;
+  data_source_label?: string;
+  data_type_label?: string;
+  description?: string;
+  metric_field?: string;
+  metric_field_name?: string;
   metric_id?: string;
   related_id?: string;
   related_name?: string;
   result_table_id?: string;
-  result_table_name?: string;
-  metric_field?: string;
-  metric_field_name?: string;
-  description?: string;
   result_table_label?: string;
-  collect_config?: string;
-  data_source_label?: string;
-  data_type_label?: string;
-  extend_fields?: {
-    scenario_name?: string;
-    storage_cluster_name?: string;
-    bk_data_id?: string;
-  };
+  result_table_name?: string;
   dimensions: {
     id: string;
-    name: string;
     is_dimension?: boolean;
+    name: string;
   }[];
+  extend_fields?: {
+    bk_data_id?: string;
+    scenario_name?: string;
+    storage_cluster_name?: string;
+  };
 }

@@ -25,7 +25,78 @@
  */
 import { useI18n } from 'vue-i18n';
 
-import { FrequencyType, type Report } from '../types';
+import { type Report, FrequencyType } from '../types';
+
+// 生成一个有 默认数据 的对象
+export function getDefaultReportData(): Report {
+  return {
+    id: 0,
+    is_enabled: false,
+    is_deleted: false,
+    create_user: '',
+    create_time: '1970-01-01 00:00:00+0000',
+    update_user: '',
+    update_time: '1970-01-01 00:00:00+0000',
+    name: '',
+    bk_biz_id: 0,
+    scenario: 'clustering',
+    frequency: {
+      // TODO：补齐类型
+      type: 5,
+      hour: 0.5,
+      day_list: [],
+      run_time: '',
+      week_list: [],
+      data_range: null,
+    },
+    content_config: {
+      title: '',
+      is_link_enabled: true,
+    },
+    scenario_config: {
+      index_set_id: null,
+      // 需要从 slider 上进行转换
+      pattern_level: '09',
+      log_display_count: 30,
+      year_on_year_hour: 1,
+      generate_attachment: true,
+      // 是否只展示新类
+      is_show_new_pattern: false,
+      // 这个同比配置不需要前端展示，暂不开放配置入口 （不用管）
+      year_on_year_change: 'all',
+    },
+    start_time: 0,
+    end_time: 0,
+    send_mode: '',
+    // 给他人/仅自己 订阅，在 新增订阅 页面里强制写 others
+    subscriber_type: 'others',
+    send_round: 0,
+    is_manager_created: false,
+    channels: [
+      {
+        is_enabled: true,
+        subscribers: [],
+        channel_name: 'user',
+      },
+      {
+        is_enabled: false,
+        subscribers: [],
+        send_text: '',
+        channel_name: 'email',
+      },
+      {
+        is_enabled: false,
+        subscribers: [],
+        channel_name: 'wxbot',
+      },
+    ],
+    is_invalid: false,
+    is_self_subscribed: false,
+    last_send_time: null,
+    send_status: '',
+    timerange: [],
+  };
+}
 
 export function getSendFrequencyText(data: Report) {
   const { t } = useI18n();
@@ -133,76 +204,5 @@ export function switchReportDataForUpdate(data: Report) {
     frequency,
     content_config,
     channels,
-  };
-}
-
-// 生成一个有 默认数据 的对象
-export function getDefaultReportData(): Report {
-  return {
-    id: 0,
-    is_enabled: false,
-    is_deleted: false,
-    create_user: '',
-    create_time: '1970-01-01 00:00:00+0000',
-    update_user: '',
-    update_time: '1970-01-01 00:00:00+0000',
-    name: '',
-    bk_biz_id: 0,
-    scenario: 'clustering',
-    frequency: {
-      // TODO：补齐类型
-      type: 5,
-      hour: 0.5,
-      day_list: [],
-      run_time: '',
-      week_list: [],
-      data_range: null,
-    },
-    content_config: {
-      title: '',
-      is_link_enabled: true,
-    },
-    scenario_config: {
-      index_set_id: null,
-      // 需要从 slider 上进行转换
-      pattern_level: '09',
-      log_display_count: 30,
-      year_on_year_hour: 1,
-      generate_attachment: true,
-      // 是否只展示新类
-      is_show_new_pattern: false,
-      // 这个同比配置不需要前端展示，暂不开放配置入口 （不用管）
-      year_on_year_change: 'all',
-    },
-    start_time: 0,
-    end_time: 0,
-    send_mode: '',
-    // 给他人/仅自己 订阅，在 新增订阅 页面里强制写 others
-    subscriber_type: 'others',
-    send_round: 0,
-    is_manager_created: false,
-    channels: [
-      {
-        is_enabled: true,
-        subscribers: [],
-        channel_name: 'user',
-      },
-      {
-        is_enabled: false,
-        subscribers: [],
-        send_text: '',
-        channel_name: 'email',
-      },
-      {
-        is_enabled: false,
-        subscribers: [],
-        channel_name: 'wxbot',
-      },
-    ],
-    is_invalid: false,
-    is_self_subscribed: false,
-    last_send_time: null,
-    send_status: '',
-    timerange: [],
   };
 }

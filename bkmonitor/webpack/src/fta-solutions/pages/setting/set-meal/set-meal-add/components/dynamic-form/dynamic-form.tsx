@@ -34,11 +34,11 @@ import AutoInput from '../auto-input/auto-input';
 import './dynamic-form.scss';
 
 interface IDynamicForm {
-  formRules?: any;
-  formModel: any;
   formList: any;
-  noAutoInput?: boolean; // 无需提示输入
+  formModel: any;
+  formRules?: any;
   labelWidth?: number;
+  noAutoInput?: boolean; // 无需提示输入
 }
 
 @Component

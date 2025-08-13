@@ -72,15 +72,15 @@
     </van-row>
     <!-- 事件详情 -->
     <van-collapse
-      class="alarm-detail-group"
       v-model="active"
+      class="alarm-detail-group"
     >
       <van-collapse-item
         v-for="(val, key) in detailFieldMap"
+        :key="key"
         :border="!expand.includes(key)"
         :disabled="!expand.includes(key)"
         :is-link="expand.includes(key)"
-        :key="key"
         :name="key"
         :title="val"
       >
@@ -118,34 +118,34 @@ import AlarmModule from '../../store/modules/alarm-info';
 import EventModule from '../../store/modules/event-detail';
 import Icon from './icon.vue';
 
+type AlarmStatus = 'ABNORMAL' | 'CLOSED' | 'RECOVERED';
+
+interface IEventDetail {
+  anomalyMessage: string;
+  createTime: string;
+  currentValue: number | string;
+  dataTypeLabel?: string;
+  dimensionMessage: string;
+  duration: string;
+  firstAnomalyTime: string;
+  id: number | string;
+  isShield?: boolean;
+  latestAnomalyTime: string;
+  level?: Level;
+  noticeStatus?: number | string;
+  status?: AlarmStatus;
+  strategyName: string;
+}
+
 type Level = 1 | 2 | 3;
 
 type LevelMap = {
   [k in Level]: string;
 };
 
-type AlarmStatus = 'ABNORMAL' | 'CLOSED' | 'RECOVERED';
-
 type StatusMap = {
   [k in AlarmStatus]: string;
 };
-
-interface IEventDetail {
-  strategyName: string;
-  firstAnomalyTime: string;
-  latestAnomalyTime: string;
-  createTime: string;
-  duration: string;
-  anomalyMessage: string;
-  currentValue: number | string;
-  id: number | string;
-  dimensionMessage: string;
-  status?: AlarmStatus;
-  level?: Level;
-  noticeStatus?: number | string;
-  isShield?: boolean;
-  dataTypeLabel?: string;
-}
 
 @Component({
   name: 'alarm-detail',
@@ -368,7 +368,7 @@ export default class AlarmDetail extends Vue {
 }
 </script>
 <style lang="scss" scoped>
-@import '../../static/scss/variate.scss';
+@import '../../static/scss/variate';
 
 .alarm-detail {
   min-height: 100vh;
@@ -390,7 +390,7 @@ export default class AlarmDetail extends Vue {
       justify-content: center;
       height: 32px;
       color: #63656e;
-      background-color: rgba(240, 241, 245, 0.6);
+      background-color: rgb(240 241 245 / 60%);
       border-radius: 2px;
     }
   }

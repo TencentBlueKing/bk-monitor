@@ -30,22 +30,22 @@ import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 
 import './group-select.scss';
 
-interface IGroupSelect {
-  list?: IGroupItem[];
-  value?: number | string;
-  readonly?: boolean;
-  placeholder?: string;
-}
-
 export interface IGroupItem {
-  id: string;
-  name: string;
   children?: IGroupItem[];
   fatherName?: string;
+  id: string;
+  name: string;
+}
+
+interface IGroupSelect {
+  list?: IGroupItem[];
+  placeholder?: string;
+  readonly?: boolean;
+  value?: number | string;
 }
 interface IGroupSelectEvent {
-  onClear?: any;
   onChange?: number | string;
+  onClear?: any;
 }
 @Component({
   name: 'GroupSelect',

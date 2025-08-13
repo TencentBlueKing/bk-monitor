@@ -83,8 +83,16 @@ export default defineComponent({
       emit('params-change', { isParamsChange, option });
     };
 
+    const getExceptionMessage = () => {
+      if (props.grepRequestResult.is_loading) {
+        return t('loading...'); // Loading message
+      }
+
+      return props.fieldName ? props.grepRequestResult.exception_msg || t('检索结果为空') : '请选择字段';
+    };
+
     const getResultRender = () => {
-      if (!props.grepRequestResult.is_loading && (props.grepRequestResult.list.length === 0 || !props.fieldName)) {
+      if (props.grepRequestResult.list.length === 0 || !props.fieldName) {
         return (
           <bk-exception
             style={{ minHeight: '300px', paddingTop: '100px' }}
@@ -92,7 +100,7 @@ export default defineComponent({
             scene='part'
             type='search-empty'
           >
-            {props.fieldName ? props.grepRequestResult.exception_msg || t('检索结果为空') : '请选择字段'}
+            <span style='font-size: 12px;'>{getExceptionMessage()}</span>
           </bk-exception>
         );
       }
@@ -128,8 +136,8 @@ export default defineComponent({
           style={{ minHeight: '32px', width: '100%', justifyContent: 'center' }}
           class='cli-result-line'
         >
-          {isLoadingValue.value && (
-            <div style={{ minHeight: '64px', fontSize: '18px', padding: '20px' }}>loading...</div>
+          {isLoadingValue.value && props.grepRequestResult.list.length > 0 && (
+            <div style={{ minHeight: '64px', fontSize: '12px', padding: '20px' }}>loading...</div>
           )}
         </div>
         <ScrollTop></ScrollTop>

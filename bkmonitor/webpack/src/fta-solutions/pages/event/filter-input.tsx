@@ -28,7 +28,9 @@ import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { getTopoList } from 'monitor-api/modules/alert';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { Debounce } from 'monitor-common/utils/utils';
 import { getEventPaths } from 'monitor-pc/utils';
 
 import debounceDecorator from '../../common/debounce-decorator';
@@ -39,38 +41,39 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './filter-input.scss';
 
-type PanelType = 'favorite' | 'field' | 'history';
-type PanelShowType = 'condition' | 'field' | 'method' | 'value' | false;
-interface IFocusData {
-  show?: PanelShowType;
-  replaceStart?: number;
-  nextText?: string;
-  filedId?: string;
-}
-interface IListItem extends ICommonItem {
-  queryString?: string;
-  edit?: boolean;
-  fakeName?: string;
-  special?: boolean;
-}
-interface IFilterInputProps {
-  value: string;
-  searchType?: SearchType;
-  inputStatus?: FilterInputStatus;
-  valueMap?: Record<string, ICommonItem[]>;
-  isFillId?: boolean;
-}
 interface IFilterInputEvent {
   onBlur: string;
+  onChange: string;
   onClear: string;
   onFavorite: string;
-  onChange: string;
 }
+interface IFilterInputProps {
+  bkBizIds?: number[];
+  inputStatus?: FilterInputStatus;
+  isFillId?: boolean;
+  searchType?: SearchType;
+  value: string;
+  valueMap?: Record<string, ICommonItem[]>;
+}
+interface IFocusData {
+  filedId?: string;
+  nextText?: string;
+  replaceStart?: number;
+  show?: PanelShowType;
+}
+interface IListItem extends ICommonItem {
+  edit?: boolean;
+  fakeName?: string;
+  queryString?: string;
+  special?: string;
+}
+type PanelShowType = 'condition' | 'field' | 'method' | 'value' | false;
+type PanelType = 'favorite' | 'field' | 'history';
 
 interface SuggestionType {
-  type: string;
   label: string;
   prefix: string;
+  type: string;
 }
 
 const textTypeList = ['field', 'method', 'value', 'condition'];
@@ -129,6 +132,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   @Prop({ default: 'success', type: String }) inputStatus: FilterInputStatus;
   // top n数据列表 用于构造
   @Prop({ default: () => ({}), type: Object }) valueMap: Record<string, ICommonItem[]>;
+  @Prop({ default: () => [], type: Array }) bkBizIds: number[];
   @Prop({ default: false, type: Boolean }) isFillId: boolean; // 选择候选值时填id还是填name
   @Ref('filterPanel') filterPanelRef: HTMLDivElement;
   @Ref('filterSearch') filterSearchRef: HTMLDivElement;
@@ -182,10 +186,25 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     { type: 'fuzzy', label: this.$t('模糊匹配') as string, prefix: '' },
   ];
 
+  searchTopoList = {
+    set_id: [],
+    module_id: [],
+  };
+
+  get isTopoList() {
+    return ['set_id', 'module_id'].includes(this.focusData?.filedId);
+  }
+
   get menuList() {
     if (this.focusData.show === 'condition') return this.conditionList;
     if (this.focusData.show === 'method') return this.methodList;
-    if (this.focusData.show === 'value') return this.valueMap?.[this.focusData.filedId] || [];
+    // if (this.focusData.show === 'value') return this.valueMap?.[this.focusData.filedId] || [];
+    if (this.focusData.show === 'value') {
+      // 搜索过滤的集群和模块value从另外接口获取的
+      return this.isTopoList
+        ? this.searchTopoList?.[this.focusData.filedId]
+        : this.valueMap?.[this.focusData.filedId] || [];
+    }
     return [];
   }
   get fieldList() {
@@ -220,8 +239,16 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   }
   @Watch('searchType', { immediate: true })
   handleSearchTypeChange() {
+    this.handlebkBizIdsChange();
     this.handleGetSearchHistory();
     this.handleGetSearchFavorite();
+  }
+
+  @Watch('bkBizIds')
+  handlebkBizIdsChange() {
+    if (this.searchType === 'alert' && this.bkBizIds.length) {
+      this.getTopoListData();
+    }
   }
 
   @Watch('inputValue', { immediate: true })
@@ -305,7 +332,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       {
         id: 'tags',
         name: this.$t('维度'),
-        special: true,
+        special: 'tags.',
       },
       {
         id: 'action_id',
@@ -318,6 +345,16 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       {
         id: 'stage',
         name: this.$t('处理阶段'),
+      },
+      {
+        id: 'set_id',
+        name: this.$t('集群'),
+        special: 'set_id : ',
+      },
+      {
+        id: 'module_id',
+        name: this.$t('模块'),
+        special: 'module_id : ',
       },
     ];
     // 事件建议字段列表
@@ -593,14 +630,14 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     this.isOnlyInput = false;
     if (id === 'field') {
       if (!this.inputValue?.length) {
-        this.inputValue = item.special ? `${item.id}.` : `${item.name} : `;
+        this.inputValue = item.special ? `${item.special}` : `${item.name} : `;
         setTimeout(() => {
           this.handleInputFocus();
         }, 20);
         return;
       }
       this.handleReplaceInputValue(
-        item.special ? `${item.id}.` : `${item.name.toString()} : `,
+        item.special ? `${item.special}` : `${item.name.toString()} : `,
         item.special ? '' : ' '
       );
     } else if (id === 'history') {
@@ -825,6 +862,23 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       this.destroyPopoverInstance();
       this.focusData = {};
       this.placeholderText = '';
+    }
+  }
+
+  // 搜索过滤的集群和模块value通过另外接口获取
+  @Debounce(300)
+  async getTopoListData() {
+    for (const key in this.searchTopoList) {
+      const list = await getTopoList({
+        bk_biz_ids: this.bkBizIds,
+        bk_obj_id: key === 'module_id' ? 'module' : 'set',
+      }).catch(() => []);
+      if (!list.length) return;
+      const keyType = key === 'module_id' ? 'bk_module' : 'bk_set';
+      this.searchTopoList[key] = list.map(item => ({
+        id: item[`${keyType}_id`],
+        name: `${item[`${keyType}_name`]}(${item[`${keyType}_id`]})`,
+      }));
     }
   }
 

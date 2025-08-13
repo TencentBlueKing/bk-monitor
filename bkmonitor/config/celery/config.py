@@ -30,7 +30,7 @@ class Config:
 
     timezone = "Asia/Shanghai"
 
-    schedule = {
+    beat_schedule = {
         "monitor_web.tasks.update_external_approval_status": {
             "task": "monitor_web.tasks.update_external_approval_status",
             "schedule": crontab(minute="*/10"),
@@ -112,6 +112,11 @@ class Config:
         "monitor_web.tasks.update_target_detail": {
             "task": "monitor_web.tasks.update_target_detail",
             "schedule": crontab(minute="*/15"),
+            "enabled": True,
+        },
+        "monitor_web.tasks.soft_delete_expired_shields": {
+            "task": "monitor_web.tasks.soft_delete_expired_shields",
+            "schedule": crontab(minute=0, hour=2),  # 每天凌晨2点执行
             "enabled": True,
         },
     }

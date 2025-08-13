@@ -34,7 +34,7 @@ import { transformMonitorToValue, transformValueToMonitor } from '../../../compo
 import { type HostValueItem, targetFieldMap } from '../types';
 import { handleSetTargetDesc } from './common';
 
-import type { CoutIntanceName, IIpV6Value, INodeType } from '../../../components/monitor-ip-selector/typing';
+import type { CountInstanceName, IIpV6Value, INodeType } from '../../../components/monitor-ip-selector/typing';
 
 import './ip-selector.scss';
 
@@ -55,7 +55,7 @@ export default class IpSelector extends tsc<IProps> {
   /* 当前选中的IP */
   ipCheckValue: IIpV6Value = {};
   /* 当前实例类型 */
-  countInstanceType: CoutIntanceName = 'host';
+  countInstanceType: CountInstanceName = 'host';
   /* 当前选择的节点类型 */
   ipNodeType: INodeType = 'TOPO';
   /* 上一份数据 用于对比 */
@@ -200,7 +200,9 @@ export default class IpSelector extends tsc<IProps> {
           value={this.ipCheckValue}
           onChange={this.handleIpChange}
           onCloseDialog={this.closeDialog}
-          onTargetTypeChange={v => (this.ipNodeType = v)}
+          onTargetTypeChange={v => {
+            this.ipNodeType = v;
+          }}
         />
       </div>
     );

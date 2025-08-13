@@ -47,13 +47,31 @@ def get_platform_data_ids(space_type: str | None = None, bk_tenant_id=DEFAULT_TE
     """获取平台级的数据源
     NOTE: 仅针对当前空间类型，比如 bkcc，特殊的是 all 类型
     """
-    if settings.ENABLE_MULTI_TENANT_MODE:  # 若开启多租户,则仅返回租户下的全局数据
-        # TODO: 1001基础采集数据有两种形态,需要通过开关控制决定使用哪种
-        qs = models.DataSource.objects.filter(is_tenant_specific_global=True, bk_tenant_id=bk_tenant_id).values(
-            "bk_data_id", "space_type_id"
+    qs = models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id, is_platform_data_id=True).values(
+        "bk_data_id", "space_type_id"
+    )
+
+    # 如果是多租户的情况下，需要去除单租户模式下的全局数据源
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        qs = qs.exclude(
+            bk_data_id__in=[
+                settings.SNAPSHOT_DATAID,
+                settings.MYSQL_METRIC_DATAID,
+                settings.REDIS_METRIC_DATAID,
+                settings.APACHE_METRIC_DATAID,
+                settings.NGINX_METRIC_DATAID,
+                settings.TOMCAT_METRIC_DATAID,
+                settings.PROCESS_PERF_DATAID,
+                settings.PROCESS_PORT_DATAID,
+                settings.UPTIMECHECK_HEARTBEAT_DATAID,
+                settings.UPTIMECHECK_TCP_DATAID,
+                settings.UPTIMECHECK_UDP_DATAID,
+                settings.UPTIMECHECK_HTTP_DATAID,
+                settings.UPTIMECHECK_ICMP_DATAID,
+                settings.PING_SERVER_DATAID,
+                settings.GSE_CUSTOM_EVENT_DATAID,
+            ]
         )
-    else:  # 非多租户环境下,即全局数据
-        qs = models.DataSource.objects.filter(is_platform_data_id=True).values("bk_data_id", "space_type_id")
 
     # 针对 bkcc 类型，这要是插件，不属于某个业务空间，也没有传递空间类型，因此，需要包含 all 类型
     if space_type and space_type != SpaceTypes.BKCC.value:
@@ -68,12 +86,10 @@ def get_table_info_for_influxdb_and_vm(
     bk_tenant_id: str | None = DEFAULT_TENANT_ID,
 ) -> dict:
     """获取influxdb 和 vm的结果表"""
-    vm_tables = models.AccessVMRecord.objects.values(
+    vm_tables = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id).values(
         "result_table_id", "vm_cluster_id", "vm_result_table_id", "bk_tenant_id"
     )
     # 如果结果表存在，则过滤指定的结果表
-    if settings.ENABLE_MULTI_TENANT_MODE and bk_tenant_id:
-        vm_tables = vm_tables.filter(bk_tenant_id=bk_tenant_id)
     if table_id_list:
         vm_tables = vm_tables.filter(result_table_id__in=table_id_list)
 
@@ -132,10 +148,23 @@ def get_table_info_for_influxdb_and_vm(
     }
     # 处理 vm 的数据信息
     for table_id, detail in vm_table_map.items():
+        cmdb_level_vm_rt_opts = models.ResultTableOption.objects.filter(
+            table_id=table_id, name="cmdb_level_vm_rt", bk_tenant_id=bk_tenant_id
+        ).first()
+        if cmdb_level_vm_rt_opts:
+            detail["cmdb_level_vm_rt"] = cmdb_level_vm_rt_opts.value
+        else:
+            detail["cmdb_level_vm_rt"] = ""
+
         storage_name = vm_cluster_id_name.get(detail["storage_id"], "")
         if table_id in table_id_info:
             table_id_info[table_id].update(
-                {"vm_rt": detail["vm_rt"], "storage_name": storage_name, "storage_type": models.ClusterInfo.TYPE_VM}
+                {
+                    "vm_rt": detail["vm_rt"],
+                    "storage_name": storage_name,
+                    "storage_type": models.ClusterInfo.TYPE_VM,
+                    "cmdb_level_vm_rt": detail["cmdb_level_vm_rt"],
+                }
             )
         else:
             detail.update(
@@ -155,6 +184,7 @@ def get_table_info_for_influxdb_and_vm(
 def compose_monitor_table_detail_for_bkbase_type(table_id_list: list | None = None) -> dict:
     """
     针对接入过计算平台类型的结果表，组装其详情信息，为RESULT_TABLE_DETAIL使用,现阶段只有VM类型
+    TODO 该方法暂时未启用
     @param table_id_list: 监控平台自身结果表列表
     """
     # 0. 先从BkBaseResultTable中提取必要信息：监控平台RT、计算平台RT、存储集群
@@ -181,8 +211,18 @@ def compose_monitor_table_detail_for_bkbase_type(table_id_list: list | None = No
     table_id_info = {}
     for table_id, detail in bkbase_table_map.items():
         storage_name = bkbase_cluster_id_name.get(detail["storage_id"], "")
+        cmdb_level_vm_rt_opts = models.ResultTableOption.objects.filter(
+            table_id=table_id, name="cmdb_level_vm_rt"
+        ).first()
+        if cmdb_level_vm_rt_opts:
+            detail["cmdb_level_vm_rt"] = cmdb_level_vm_rt_opts.value
+        else:
+            detail["cmdb_level_vm_rt"] = ""
+
         if table_id in table_id_info:
-            table_id_info[table_id].update({"vm_rt": detail["vm_rt"], "storage_name": storage_name})
+            table_id_info[table_id].update(
+                {"vm_rt": detail["vm_rt"], "storage_name": storage_name, "cmdb_level_vm_rt": detail["cmdb_level_vm_rt"]}
+            )
         else:
             detail.update(
                 {

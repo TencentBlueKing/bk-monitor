@@ -26,11 +26,11 @@
 
 import { graphic } from 'echarts';
 import {
-  eventTags,
   eventGetTagConfig,
+  eventTagDetail,
+  eventTags,
   eventTimeSeries,
   eventUpdateTagConfig,
-  eventTagDetail,
 } from 'monitor-api/modules/apm_event';
 import svg from 'monitor-common/svg/base64';
 export enum StatisticsEventType {
@@ -38,14 +38,11 @@ export enum StatisticsEventType {
   Normal = 'Normal',
   Warning = 'Warning',
 }
-export interface IEventTagsItem {
-  app_name: string;
-  service_name: string;
-  interval?: number;
-  where?: Record<string, string | string[]>[];
-  start_time: number;
-  end_time: number;
-}
+export type EventTagColumn = {
+  alias: string;
+  list: { alias: string; value: string }[];
+  name: string;
+};
 export type EventTagConfig = {
   is_enabled_metric_tags: boolean;
   source: {
@@ -57,11 +54,14 @@ export type EventTagConfig = {
     list: string[];
   };
 };
-export type EventTagColumn = {
-  alias: string;
-  name: string;
-  list: { alias: string; value: string }[];
-};
+export interface IEventTagsItem {
+  app_name: string;
+  end_time: number;
+  interval?: number;
+  service_name: string;
+  start_time: number;
+  where?: Record<string, string | string[]>[];
+}
 function scaleArrayToRange(inputArray: number[], minRange = 4, maxRange = 16): number[] {
   if (inputArray.length === 0) {
     return [];
@@ -196,42 +196,42 @@ export const getCustomEventTagsDetailPanelParams = (params: IEventTagsItem) => {
     limit: 5,
   };
 };
-export interface ICustomEventTagsItem {
-  time: number;
-  items: {
-    domain: string;
-    source: string;
-    count: number;
-    statistics: Partial<Record<StatisticsEventType, number>>;
-  }[];
-}
-interface ILabelItem {
-  label: string;
-  value: string;
-  alias?: string;
-}
 export interface ICustomEventDetail {
-  total?: number;
   time?: number;
+  total?: number;
   list?: {
-    [key: string]: { value: string; alias: string; url?: string };
+    [key: string]: { alias: string; url?: string; value: string };
     'event.content': {
-      value: string;
       alias: string;
       detail: {
-        [key: string]: {
+        [key: string]: ILabelItem & {
           [key: string]: string;
-        } & ILabelItem;
+        };
       };
+      value: string;
     };
   }[];
   topk?: {
     count: number;
-    proportions: number;
     domain: ILabelItem;
-    source: ILabelItem;
     event_name: ILabelItem;
+    proportions: number;
+    source: ILabelItem;
   }[];
+}
+export interface ICustomEventTagsItem {
+  time: number;
+  items: {
+    count: number;
+    domain: string;
+    source: string;
+    statistics: Partial<Record<StatisticsEventType, number>>;
+  }[];
+}
+interface ILabelItem {
+  alias?: string;
+  label: string;
+  value: string;
 }
 /**
  * 获取自定义事件标签数量聚合列表
@@ -435,8 +435,8 @@ export const getCustomEventAnalysisConfig = async (
 
 export const updateCustomEventAnalysisConfig = async (
   params: Pick<IEventTagsItem, 'app_name' | 'service_name'> & {
-    key: string;
     config: Partial<EventTagConfig>;
+    key: string;
   }
 ) => {
   return await eventUpdateTagConfig(params)

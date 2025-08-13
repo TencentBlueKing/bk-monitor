@@ -77,7 +77,6 @@ class BaseEventRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     start_time = serializers.IntegerField(label="开始时间", required=False)
     end_time = serializers.IntegerField(label="结束时间", required=False)
-    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
 
 
 class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
@@ -107,6 +106,9 @@ class EventLogsRequestSerializer(BaseEventRequestSerializer):
     limit = serializers.IntegerField(label="数量限制", required=False, default=10)
     offset = serializers.IntegerField(label="偏移量", required=False, default=0)
     query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+    sort = serializers.ListSerializer(
+        label="排序字段", required=False, child=serializers.CharField(), default=[], allow_empty=True
+    )
 
     def validate(self, attrs):
         EventFilterSerializer.drop_group_by(attrs.get("query_configs") or [])
@@ -168,3 +170,19 @@ class EventStatisticsGraphRequestSerializer(EventTimeSeriesRequestSerializer):
 
 class EventGenerateQueryStringRequestSerializer(serializers.Serializer):
     where = serializers.ListField(label="过滤条件", default=[], child=serializers.DictField())
+
+
+class EventTagDetailRequestSerializer(EventTimeSeriesRequestSerializer):
+    limit = serializers.IntegerField(label="数量限制", required=False, default=5)
+    interval = serializers.IntegerField(label="汇聚周期（秒）", required=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        attrs["expression"] = "a"
+        for query_config in attrs["query_configs"]:
+            attrs["interval"] = query_config.get("interval") or 60
+
+        attrs["end_time"] = attrs["start_time"] + attrs["interval"]
+
+        return attrs

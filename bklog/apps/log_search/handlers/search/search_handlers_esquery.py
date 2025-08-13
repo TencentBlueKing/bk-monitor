@@ -39,7 +39,7 @@ from apps.api.base import DataApiRetryClass
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.exceptions import ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
+from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH, LOG_DESENSITIZE
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
@@ -121,7 +121,8 @@ from apps.log_search.models import (
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
 )
-from apps.log_search.utils import sort_func
+from apps.log_search.permission import Permission
+from apps.log_search.utils import sort_func, handle_es_query_error
 from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -133,6 +134,7 @@ from apps.utils.local import (
     get_request_app_code,
     get_request_external_username,
     get_request_username,
+    get_request,
 )
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter, generate_query_string
@@ -313,7 +315,7 @@ class SearchHandler:
         # 导出字段
         self.export_fields = export_fields
 
-        self.is_desensitize = search_dict.get("is_desensitize", True)
+        self.is_desensitize = self._init_desensitize()
 
         # 初始化DB脱敏配置
         desensitize_config_obj = DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).first()
@@ -412,6 +414,7 @@ class SearchHandler:
 
         result_dict: dict = {
             "fields": field_result,
+            "default_sort_list": self._get_default_sort_list(),
             "display_fields": display_fields,
             "sort_list": sort_field_list,
             "time_field": self.time_field,
@@ -421,6 +424,7 @@ class SearchHandler:
         }
 
         if is_union_search:
+            result_dict["config"].append(self.analyze_fields(field_result))
             return result_dict
 
         for fields_config in [
@@ -825,7 +829,7 @@ class SearchHandler:
 
                 return data
             except Exception as e:
-                raise LogSearchException(LogSearchException.MESSAGE.format(e=e))
+                raise handle_es_query_error(e)
 
         storage_cluster_ids = {self.storage_cluster_id}
 
@@ -1940,12 +1944,42 @@ class SearchHandler:
                 if sort_list:
                     return sort_list
         # 安全措施, 用户未设置排序规则，且未创建默认配置时, 使用默认排序规则
+        return self._get_default_sort_list()
+
+    def _get_default_sort_list(self):
+        """获取默认排序配置"""
+        index_set_id = self.search_dict.get("index_set_id")
         return self.mapping_handlers.get_default_sort_list(
             index_set_id=index_set_id,
             scenario_id=self.scenario_id,
-            scope=scope,
             default_sort_tag=self.search_dict.get("default_sort_tag", False),
         )
+
+    def _init_desensitize(self) -> bool:
+        # 查询原始日志时不进行脱敏  original_search参数不由用户传入
+        if self.search_dict.get("original_search", False):
+            return False
+
+        is_desensitize = self.search_dict.get("is_desensitize", True)
+
+        if not is_desensitize:
+            request = get_request(peaceful=True)
+            if request:
+                auth_info = Permission.get_auth_info(request, raise_exception=False)
+                # 应用不在白名单 → 强制开启脱敏
+                if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
+                    is_desensitize = True
+
+        if is_desensitize:
+            bk_biz_id = self.search_dict.get("bk_biz_id", "")
+            request_user = get_request_username()
+            feature_toggle = FeatureToggleObject.toggle(LOG_DESENSITIZE)
+            if feature_toggle and isinstance(feature_toggle.feature_config, dict):
+                user_white_list = feature_toggle.feature_config.get("user_white_list", {})
+                if request_user in user_white_list.get(str(bk_biz_id), []):
+                    is_desensitize = False  # 特权用户关闭脱敏
+
+        return is_desensitize
 
     @property
     def filter(self) -> list:
@@ -2109,7 +2143,7 @@ class SearchHandler:
             "fields": {"*": {"number_of_fragments": 0}},
             "require_field_match": require_field_match,
         }
-        if self.index_set and self.index_set.max_analyzed_offset:
+        if self.index_set and self.index_set.max_analyzed_offset and not self.using_clustering_proxy:
             highlight["max_analyzed_offset"] = self.index_set.max_analyzed_offset
 
         if self.export_log:
@@ -2192,8 +2226,7 @@ class SearchHandler:
             else:
                 log = self.convert_keys(log)
             # 联合检索补充索引集信息
-            if self.search_dict.get("is_union_search", False):
-                log["__index_set_id__"] = self.index_set_id
+            log["__index_set_id__"] = self.index_set_id
             log = self._add_cmdb_fields(log)
             if self.export_fields:
                 new_origin_log = {}
@@ -2337,10 +2370,9 @@ class SearchHandler:
             # 判断原文字段是否存在log中
             if text_field not in log.keys():
                 continue
-
-            for _config in self.field_configs:
-                field_name = _config["field_name"]
-                if field_name not in log.keys() or field_name == text_field:
+            # 原始内容替换成脱敏后的内容
+            for field_name in log.keys():
+                if field_name == text_field:
                     continue
                 log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
 
@@ -2720,6 +2752,7 @@ class UnionSearchHandler:
                 search_dict["begin"] = union_config.get("begin", 0)
                 search_dict["sort_list"] = self._init_sort_list(index_set_id=union_config["index_set_id"])
                 search_dict["is_desensitize"] = union_config.get("is_desensitize", True)
+                search_dict["custom_indices"] = union_config.get("custom_indices", "")
                 search_handler = SearchHandler(index_set_id=union_config["index_set_id"], search_dict=search_dict)
                 multi_execute_func.append(f"union_search_{union_config['index_set_id']}", search_handler.search)
 
@@ -3046,13 +3079,20 @@ class UnionSearchHandler:
         union_field_names = list()
         union_display_fields = list()
         union_time_fields = set()
-        union_time_fields_type = set()
         union_time_fields_unit = set()
+        context_and_realtime_config = {"name": "context_and_realtime", "is_active": False, "extra": []}
         for index_set_id in index_set_ids:
             result = multi_result[f"union_search_fields_{index_set_id}"]
             fields = result["fields"]
             fields_info[index_set_id] = fields
             display_fields = result["display_fields"]
+            result_config = result["config"][0]
+            if result_config["is_active"]:
+                context_and_realtime_config["is_active"] = True
+            extra = result_config["extra"]
+            extra.update({"index_set_id": index_set_id})
+            context_and_realtime_config["extra"].append(extra)
+
             for field_info in fields:
                 field_name = field_info["field_name"]
                 field_type = field_info["field_type"]
@@ -3063,8 +3103,14 @@ class UnionSearchHandler:
                 else:
                     # 判断字段类型是否一致  不一致则标记为类型冲突
                     _index = union_field_names.index(field_name)
-                    if field_type != total_fields[_index]["field_type"]:
-                        total_fields[_index]["field_type"] = "conflict"
+                    _field_type = total_fields[_index]["field_type"]
+                    if field_type != _field_type:
+                        if (field_type == "date" and _field_type == "date_nanos") or (
+                            field_type == "date_nanos" and _field_type == "date"
+                        ):
+                            total_fields[_index]["field_type"] = "date_nanos"
+                        else:
+                            total_fields[_index]["field_type"] = "conflict"
                     total_fields[_index]["index_set_ids"].append(index_set_id)
 
             # 处理默认显示字段
@@ -3081,17 +3127,17 @@ class UnionSearchHandler:
             if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
                 raise SearchUnKnowTimeField()
             union_time_fields.add(index_set_obj.time_field)
-            union_time_fields_type.add(index_set_obj.time_field_type)
             union_time_fields_unit.add(index_set_obj.time_field_unit)
 
         # 处理公共的时间字段
-        if len(union_time_fields) != 1 or len(union_time_fields_type) != 1 or len(union_time_fields_unit) != 1:
+        if len(union_time_fields) != 1:
             time_field = "unionSearchTimeStamp"
             time_field_type = "date"
             time_field_unit = "millisecond"
         else:
             time_field = list(union_time_fields)[0]
-            time_field_type = list(union_time_fields_type)[0]
+            time_field_idx = union_field_names.index(time_field)
+            time_field_type = total_fields[time_field_idx]["field_type"]
             time_field_unit = list(union_time_fields_unit)[0]
 
         if not union_display_fields_all:
@@ -3131,10 +3177,9 @@ class UnionSearchHandler:
             obj = self.get_or_create_default_config(
                 index_set_ids=index_set_ids, display_fields=union_display_fields_all, sort_list=default_sort_list
             )
-
         ret = {
             "config_id": obj.id,
-            "config": self.get_fields_config(),
+            "config": self.get_fields_config(context_and_realtime_config),
             "fields": total_fields,
             "fields_info": fields_info,
             "display_fields": obj.display_fields,
@@ -3142,6 +3187,7 @@ class UnionSearchHandler:
             "time_field": time_field,
             "time_field_type": time_field_type,
             "time_field_unit": time_field_unit,
+            "default_sort_list": default_sort_list,
         }
         return ret
 
@@ -3173,17 +3219,17 @@ class UnionSearchHandler:
         return obj
 
     @staticmethod
-    def get_fields_config():
+    def get_fields_config(context_and_realtime_config: dict):
         return [
             {"name": "bcs_web_console", "is_active": False},
             {"name": "trace", "is_active": False},
-            {"name": "context_and_realtime", "is_active": False},
             {"name": "bkmonitor", "is_active": False},
             {"name": "async_export", "is_active": False},
             {"name": "ip_topo_switch", "is_active": False},
             {"name": "apm_relation", "is_active": False},
             {"name": "clustering_config", "is_active": False},
             {"name": "clean_config", "is_active": False},
+            context_and_realtime_config,
         ]
 
     @property

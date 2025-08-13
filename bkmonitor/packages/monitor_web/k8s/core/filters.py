@@ -62,6 +62,7 @@ class NamespaceFilter(ResourceFilter):
     resource_type = "namespace"
     filter_field = "namespace"
 
+    @property
     def filter_dict(self):
         """
         namespace:a

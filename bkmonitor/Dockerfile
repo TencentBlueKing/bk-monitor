@@ -51,13 +51,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM node:20-bullseye-slim AS node-builder
 
 # pnpm
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@10
 
 WORKDIR /app
 
 # build frontend
 COPY ./webpack /app/webpack
-RUN cd /app/webpack/ && pnpm i && npm run prod \
+RUN cd /app/webpack/ && npm run prod \
     && mkdir -p /app/dist && mv apm monitor fta weixin trace external /app/dist/
 
 # final image

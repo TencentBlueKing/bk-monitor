@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import './metrics-collapse.scss';
 

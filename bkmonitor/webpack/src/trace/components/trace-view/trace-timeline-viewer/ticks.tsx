@@ -31,11 +31,11 @@ import type { TNil } from '../typings';
 import './ticks.scss';
 
 type TicksProps = {
-  endTime?: TNil | number;
-  numTicks: number;
-  showLabels?: TNil | boolean;
-  startTime?: TNil | number;
+  endTime?: number | TNil;
   hideLine?: boolean;
+  numTicks: number;
+  showLabels?: boolean | TNil;
+  startTime?: number | TNil;
 };
 
 const Ticks = (props: TicksProps) => {

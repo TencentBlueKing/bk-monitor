@@ -401,42 +401,8 @@ GRAFANA = {
     "PERMISSION_CLASSES": ["monitor_web.grafana.permissions.DashboardPermission"],
     "CODE_INJECTIONS": {
         "<head>": """<head>
-<style>
-      .sidemenu {
-        display: none !important;
-      }
-      .navbar-page-btn .gicon-dashboard {
-        display: none !important;
-      }
-      .navbar .navbar-buttons--tv {
-        display: none !important;
-      }
-    .css-1jrggg2 {
-          left: 0 !important;
-      }
-      .css-9nwlx8 {
-        display: none;
-      }
-</style>
 <script>
 var is_external = false;
-var _wr = function(type) {
-    var orig = history[type];
-    return function() {
-        var rv = orig.apply(this, arguments);
-        var e = new Event(type);
-        e.arguments = arguments;
-        window.dispatchEvent(e);
-        return rv;
-    };
-};
-   history.pushState = _wr('pushState');
-   history.replaceState = _wr('replaceState');
-  ["popstate", "replaceState", "pushState"].forEach(function(eventName) {
-    window.addEventListener(eventName, function() {
-      window.parent.postMessage({ pathname: this.location.pathname, search: this.location.search }, "*");
-    });
-  });
 </script>
 """,
     },

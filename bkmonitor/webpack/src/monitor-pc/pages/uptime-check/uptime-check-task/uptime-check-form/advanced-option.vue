@@ -447,7 +447,7 @@ export default {
     },
     setAdvancedOptionsData(data) {
       let responseFormat = 'nin';
-      if (!!data.response_format) {
+      if (data.response_format) {
         const res = data.response_format.split(JOINER);
         if (res.length > 1) {
           this.resFormat = res[0];

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,10 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import sys
 import time
 from multiprocessing.pool import ThreadPool
-from typing import List
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -36,6 +35,7 @@ from iam.exceptions import AuthAPIError
 from apps.api import TransferApi
 from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
+from apps.iam.handlers.compatible import CompatibleIAM
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import GlobalConfig, LogIndexSet, Space
@@ -58,11 +58,11 @@ ACTIONS_TO_UPGRADE = [
 
 class ApiBatchAuthRequest(OldApiBatchAuthRequest):
     def __init__(self, *args, expired_at=None, **kwargs):
-        super(ApiBatchAuthRequest, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.expired_at = expired_at
 
     def to_dict(self):
-        request_dict = super(ApiBatchAuthRequest, self).to_dict()
+        request_dict = super().to_dict()
         if self.expired_at is not None:
             request_dict["expired_at"] = self.expired_at
         return request_dict
@@ -77,7 +77,7 @@ class Command(BaseCommand):
         parser.add_argument("-u", "--username")
 
     def __init__(self, *args, **kwargs):
-        super(Command, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.collector_configs = {
             str(config["collector_config_id"]): config["collector_config_name"]
@@ -97,11 +97,15 @@ class Command(BaseCommand):
             str(cluster["cluster_config"]["cluster_id"]): cluster["cluster_config"]["cluster_name"]
             for cluster in TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True})
         }
-        self.iam_client = Permission.get_iam_client()
+        self.iam_client: CompatibleIAM | None = None
         self.system_id = settings.BK_IAM_SYSTEM_ID
         self.username = ""
 
-    def handle(self, action=None, concurrency=None, username=None, **options):
+    def handle(self, action=None, concurrency=None, username=None, bk_tenant_id=None, **options):
+        if not bk_tenant_id:
+            bk_tenant_id = settings.DEFAULT_TENANT_ID
+        self.iam_client = Permission.get_iam_client(bk_tenant_id)
+
         start_time = time.time()
         print("[upgrade_iam_action_v2] ##### START #####")
 
@@ -191,7 +195,7 @@ class Command(BaseCommand):
                 try:
                     results.append(future.get())
                 except Exception as e:
-                    print("[grant_resource] grant permission for action: {}, something wrong: {}".format(action.id, e))
+                    print(f"[grant_resource] grant permission for action: {action.id}, something wrong: {e}")
 
             progress += len(resources)
             global_progress += len(resources)
@@ -274,7 +278,7 @@ class Command(BaseCommand):
 
         return policies
 
-    def expression_to_resource_paths(self, expression, paths: List):
+    def expression_to_resource_paths(self, expression, paths: list):
         """
         将权限表达式转换为资源路径
         """

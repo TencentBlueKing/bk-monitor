@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, Watch, Emit, Provide } from 'vue-property-decorator';
+import { Component, Emit, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import axios from 'axios';
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
-import { commonPageSizeSet, commonPageSizeGet } from 'monitor-common/utils';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
@@ -48,8 +48,8 @@ import type { IGroupData } from 'monitor-pc/pages/strategy-config/strategy-confi
 
 import './apm-home-list.scss';
 interface IProps {
-  appName: string;
   appData: Partial<IAppListItem>;
+  appName: string;
   authority: boolean;
   authorityDetail: string;
   timeRange?: TimeRangeType;
@@ -61,8 +61,8 @@ interface IProps {
 export default class ApmServiceList extends tsc<
   IProps,
   {
-    onRouteUrlChange: (params: Record<string, any>) => void;
     onGoToServiceByLink?: () => void;
+    onRouteUrlChange: (params: Record<string, any>) => void;
   }
 > {
   @Prop() appData: Partial<IAppListItem>;

@@ -30,19 +30,19 @@ import AppStore from '../../store/modules/app';
 
 import './app-select.scss';
 
-interface IProps {
-  placement?: string;
-  list: IAppSelectOptItem[];
-  tipsPlacement?: string;
+export interface IAppSelectOptItem {
+  desc: string;
+  icon: string;
+  id: string;
+  name: string;
 }
 interface IEvents {
   onSelected: IAppSelectOptItem;
 }
-export interface IAppSelectOptItem {
-  id: string;
-  name: string;
-  icon: string;
-  desc: string;
+interface IProps {
+  list: IAppSelectOptItem[];
+  placement?: string;
+  tipsPlacement?: string;
 }
 @Component
 export default class AppSelect extends tsc<IProps, IEvents> {

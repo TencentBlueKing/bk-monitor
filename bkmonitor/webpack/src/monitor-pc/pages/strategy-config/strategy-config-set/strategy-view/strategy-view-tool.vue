@@ -26,8 +26,8 @@
 <template>
   <div class="tool-panel">
     <div
-      class="panel-wrap"
       ref="panelWrap"
+      class="panel-wrap"
     >
       <div class="panel-wrap-left">
         {{ $t('数据预览') }}
@@ -56,15 +56,15 @@
             <!-- </monitor-date-range> -->
           </div>
           <drop-down-menu
+            v-model="refreshInterval"
             :show-name="showText"
             :icon="'icon-zidongshuaxin'"
             class="time-interval"
-            v-model="refreshInterval"
             :text-active="refreshInterval !== -1"
-            @on-icon-click="$emit('on-immediate-refresh')"
-            @change="handleValueChange('interval')"
             :is-refresh-interval="true"
             :list="refreshList"
+            @on-icon-click="$emit('on-immediate-refresh')"
+            @change="handleValueChange('interval')"
           />
         </slot>
       </div>
@@ -72,16 +72,17 @@
   </div>
 </template>
 <script lang="ts">
+import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+
 // import MonitorDateRange from '../../../../components/monitor-date-range/monitor-date-range.vue';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-/* eslint-disable @typescript-eslint/member-ordering */
-import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { DEFAULT_REFLESH_LIST } from '../../../../common/constant';
 import DropDownMenu from '../../../../components/monitor-dropdown/dropdown-menu.vue';
 import TimeRange, { type TimeRangeType } from '../../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
 import { getDefaultTimezone, updateTimezone } from '../../../../i18n/dayjs';
+
 import type { ICompareChangeType, IOption } from '../../../performance/performance-type';
 
 @Component({

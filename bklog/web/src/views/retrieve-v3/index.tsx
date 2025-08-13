@@ -46,7 +46,6 @@ export default defineComponent({
     const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
       useAppInit();
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
-    const isEnLanguage = computed(() => store.getters.isEnLanguage)
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         return [
@@ -73,7 +72,7 @@ export default defineComponent({
         class={[
           'v3-bklog-root',
           { 'is-start-text-ellipsis': isStartTextEllipsis.value },
-          { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value,'language-en':isEnLanguage.value },
+          { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value },
         ]}
       >
         <V3Collection></V3Collection>

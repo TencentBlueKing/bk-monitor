@@ -35,9 +35,12 @@ import type { IFilterVarList } from '../typings/filters';
 
 import './filter-var.scss';
 
+export interface IFilterVarEvents {
+  onVarChange: IFilterVarList[];
+}
 export interface IFilterVarProps {
-  varOptions: IVarOptions[];
   tabActive: string;
+  varOptions: IVarOptions[];
 }
 export interface IVarOptions {
   checked: boolean;
@@ -45,9 +48,6 @@ export interface IVarOptions {
   name: string;
   value: string[];
   where: IWhere[];
-}
-export interface IFilterVarEvents {
-  onVarChange: IFilterVarList[];
 }
 @Component
 export default class FilterVar extends tsc<IFilterVarProps, IFilterVarEvents> {

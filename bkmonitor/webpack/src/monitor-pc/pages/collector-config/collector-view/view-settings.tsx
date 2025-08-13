@@ -36,21 +36,21 @@ import type { addSceneResult, metric, orderList, sceneList, viewSettingParams } 
 
 import './view-settings.scss';
 
-interface IViewSettings {
-  orderList?: any;
-  id?: number;
-  sceneList?: any[];
-  routeType?: 'collect' | 'custom';
-  dimensions?: metric[];
-}
 interface IPanels {
-  name: string;
   label: string;
+  name: string;
+}
+interface IViewSettings {
+  dimensions?: metric[];
+  id?: number;
+  orderList?: any;
+  routeType?: 'collect' | 'custom';
+  sceneList?: any[];
 }
 
 interface IViewSettingsEvent {
-  onDelScene?: string;
   onAddScene?: addSceneResult;
+  onDelScene?: string;
   onUpdateSceneList?: void;
 }
 

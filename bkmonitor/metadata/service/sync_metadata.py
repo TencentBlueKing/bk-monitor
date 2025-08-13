@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -43,7 +42,7 @@ def sync_kafka_metadata(kafka_info, ds, bk_data_id):
     """
     kafka_cluster = None
     try:
-        kafka_cluster = models.ClusterInfo.objects.get(domain_name=kafka_info['host'])
+        kafka_cluster = models.ClusterInfo.objects.get(domain_name=kafka_info["host"])
     except models.ClusterInfo.DoesNotExist:
         logger.info(
             "sync_kafka_metadata: data different,kafka_cluster does not exist,try to create,data->[%s],"
@@ -51,7 +50,7 @@ def sync_kafka_metadata(kafka_info, ds, bk_data_id):
             kafka_info,
             bk_data_id,
         )
-        if kafka_info['auth']:  # TODO：当Kafka带鉴权时，需要后续介入补充
+        if kafka_info["auth"]:  # TODO：当Kafka带鉴权时，需要后续介入补充
             logger.warning(
                 "sync_kafka_metadata: kafka auth is not empty,please add auth info later,data->[%s],bk_data_id->[%s]",
                 kafka_info,
@@ -63,10 +62,10 @@ def sync_kafka_metadata(kafka_info, ds, bk_data_id):
                 "sync_kafka_metadata: try to write to db,switch on,data->[%s],bk_data_id->[%s]", kafka_info, bk_data_id
             )
             kafka_cluster = models.ClusterInfo.objects.create(
-                cluster_name=kafka_info['host'],
-                domain_name=kafka_info['host'],
+                cluster_name=kafka_info["host"],
+                domain_name=kafka_info["host"],
                 cluster_type=models.ClusterInfo.TYPE_KAFKA,
-                port=kafka_info['port'],
+                port=kafka_info["port"],
                 is_default_cluster=False,
             )
 
@@ -79,7 +78,7 @@ def sync_kafka_metadata(kafka_info, ds, bk_data_id):
     # 更新 KafkaTopicInfo 信息，按需更新
     try:
         kafka_topic_ins = models.KafkaTopicInfo.objects.get(bk_data_id=bk_data_id)
-        if kafka_topic_ins.topic != kafka_info['topic'] or kafka_topic_ins.partition != kafka_info['partitions']:
+        if kafka_topic_ins.topic != kafka_info["topic"] or kafka_topic_ins.partition != kafka_info["partitions"]:
             logger.info(
                 "sync_kafka_metadata: data different,kafka_topic_info is different from old,try to update,"
                 "bk_data_id->[%s],"
@@ -88,7 +87,7 @@ def sync_kafka_metadata(kafka_info, ds, bk_data_id):
                 kafka_topic_ins.topic,
                 kafka_info["topic"],
                 kafka_topic_ins.partition,
-                kafka_info['partitions'],
+                kafka_info["partitions"],
             )
             if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
                 logger.info(
@@ -96,13 +95,13 @@ def sync_kafka_metadata(kafka_info, ds, bk_data_id):
                     kafka_info,
                     bk_data_id,
                 )
-                kafka_topic_ins.topic = kafka_info['topic']
-                kafka_topic_ins.partition = kafka_info['partitions']
+                kafka_topic_ins.topic = kafka_info["topic"]
+                kafka_topic_ins.partition = kafka_info["partitions"]
                 kafka_topic_ins.save()
     except models.KafkaTopicInfo.DoesNotExist:
         # 如果 KafkaTopicInfo 不存在，创建新 KafkaTopicInfo
         kafka_topic_ins = models.KafkaTopicInfo.objects.create(
-            bk_data_id=bk_data_id, topic=kafka_info['topic'], partition=kafka_info['partitions']
+            bk_data_id=bk_data_id, topic=kafka_info["topic"], partition=kafka_info["partitions"]
         )
 
     # 更新 DataSource 信息，按需更新
@@ -139,12 +138,12 @@ def sync_es_metadata(es_info, table_id):
         return
 
     # 对es_info进行排序，按照时间进行倒排序
-    es_info_sorted = sorted(es_info, key=lambda x: parse_time(x['update_time']), reverse=True)
+    es_info_sorted = sorted(es_info, key=lambda x: parse_time(x["update_time"]), reverse=True)
 
     # 先同步当前ES信息
     current_es_info = es_info_sorted[0]
     try:
-        es_cluster = models.ClusterInfo.objects.get(domain_name=current_es_info['host'])
+        es_cluster = models.ClusterInfo.objects.get(domain_name=current_es_info["host"])
     except models.ClusterInfo.DoesNotExist:
         # 如果 ES 集群信息不存在，创建新集群（理论上不应出现这种情况）
         logger.error(
@@ -155,11 +154,11 @@ def sync_es_metadata(es_info, table_id):
         if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
             logger.info("sync_es_metadata: try to write to db,switch on,data->[%s],table_id->[%s]", es_info, table_id)
             models.ClusterInfo.objects.create(
-                domain_name=current_es_info['host'],
-                port=current_es_info['port'],
+                domain_name=current_es_info["host"],
+                port=current_es_info["port"],
                 cluster_type=models.ClusterInfo.TYPE_ES,
                 is_default_cluster=False,
-                cluster_name=current_es_info['host'],
+                cluster_name=current_es_info["host"],
             )
 
     if not es_cluster:
@@ -192,18 +191,18 @@ def sync_es_metadata(es_info, table_id):
     clusters = []
     valid_cluster_ids = []
     for idx, info in enumerate(es_info_sorted):
-        host = info['host']
+        host = info["host"]
         try:
             cluster = models.ClusterInfo.objects.get(domain_name=host)
-            enable_time = info['update_time']
+            enable_time = info["update_time"]
             # 停用时间：上一条更晚记录的启用时间（若存在）
-            disable_time = parse_time(es_info_sorted[idx - 1]['update_time']) if idx > 0 else None
+            disable_time = parse_time(es_info_sorted[idx - 1]["update_time"]) if idx > 0 else None
             clusters.append(
                 {
-                    'cluster': cluster,
-                    'enable_time': enable_time,
-                    'disable_time': disable_time,
-                    'is_current': idx == 0,  # 仅第一个为当前集群
+                    "cluster": cluster,
+                    "enable_time": enable_time,
+                    "disable_time": disable_time,
+                    "is_current": idx == 0,  # 仅第一个为当前集群
                 }
             )
             valid_cluster_ids.append(cluster.cluster_id)
@@ -222,21 +221,21 @@ def sync_es_metadata(es_info, table_id):
     # 遍历处理每个集群记录
     for cluster_data in clusters:
         try:
-            cluster = cluster_data['cluster']
-            enable_time = parse_time(cluster_data['enable_time'])
-            disable_time = parse_time(cluster_data['disable_time'])
-            is_current = cluster_data['is_current']
+            cluster = cluster_data["cluster"]
+            enable_time = parse_time(cluster_data["enable_time"])
+            disable_time = parse_time(cluster_data["disable_time"])
+            is_current = cluster_data["is_current"]
 
             # 查找或创建记录
             record, created = models.StorageClusterRecord.objects.get_or_create(
                 table_id=table_id,
                 cluster_id=cluster.cluster_id,
                 defaults={
-                    'creator': 'system',  # 根据实际需求调整创建者
-                    'disable_time': disable_time,
-                    'enable_time': enable_time,
-                    'is_current': is_current,
-                    'is_deleted': False,
+                    "creator": "system",  # 根据实际需求调整创建者
+                    "disable_time": disable_time,
+                    "enable_time": enable_time,
+                    "is_current": is_current,
+                    "is_deleted": False,
                 },
             )
 
@@ -245,13 +244,13 @@ def sync_es_metadata(es_info, table_id):
                 update_fields = []
                 if record.disable_time != disable_time:
                     record.disable_time = disable_time
-                    update_fields.append('disable_time')
+                    update_fields.append("disable_time")
                 if record.is_current != is_current:
                     record.is_current = is_current
-                    update_fields.append('is_current')
+                    update_fields.append("is_current")
                 if record.is_deleted:
                     record.is_deleted = False
-                    update_fields.append('is_deleted')
+                    update_fields.append("is_deleted")
                 if update_fields:
                     record.save(update_fields=update_fields)
         except Exception as e:  # pylint: disable=broad-except
@@ -263,8 +262,8 @@ def sync_es_metadata(es_info, table_id):
         latest_cluster = clusters[0]
         models.StorageClusterRecord.objects.filter(
             table_id=table_id,
-            cluster_id=latest_cluster['cluster'].cluster_id,
-            enable_time=parse_time(latest_cluster['enable_time']),
+            cluster_id=latest_cluster["cluster"].cluster_id,
+            enable_time=parse_time(latest_cluster["enable_time"]),
         ).update(is_current=True)
 
     # 推送路由
@@ -275,49 +274,73 @@ def sync_es_metadata(es_info, table_id):
     logger.info("sync_es_metadata: sync es metadata successfully, table_id->[%s]", table_id)
 
 
-def sync_vm_metadata(vm_info, table_id):
+def sync_vm_metadata(vm_info):
     """
     同步 VM 元数据信息
+    vm: {rt1:{},rt2:{},rt3:{}}
     @param vm_info: VM 元数据信息
     @param table_id: 结果表ID
     """
-    try:
-        access_vm_record = models.AccessVMRecord.objects.get(result_table_id=table_id)
-    except models.AccessVMRecord.DoesNotExist:
-        logger.error("sync_vm_metadata: access_vm_record does not exist,table_id->[%s]", table_id)
-        return
-
-    vm_cluster = None
-    try:
-        vm_cluster = models.ClusterInfo.objects.get(domain_name=vm_info['insert_host'])
-    except models.ClusterInfo.DoesNotExist:
-        # 如果 VM 集群信息不存在，创建新集群
+    # 从Redis中拉取到的数据结构发生了变化
+    for vm_result_table_id, detail in vm_info.items():
         logger.info(
-            "sync_vm_metadata: data different,vm cluster does not exist,try to create it,vm_info->[%s]", vm_info
+            "sync_vm_metadata: start to sync vm record,vm_result_table_id->[%s],detail->[%s]",
+            vm_result_table_id,
+            detail,
         )
-        if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
-            logger.info("sync_vm_metadata: try to write to db,switch on,data->[%s],table_id->[%s]", vm_info, table_id)
-            vm_cluster = models.ClusterInfo.objects.create(
-                cluster_name=vm_info['name'],
-                domain_name=vm_info['insert_host'],
-                port=vm_info['insertPort'],
-                cluster_type=models.ClusterInfo.TYPE_VM,
-                is_default_cluster=False,
+        access_vm_records = models.AccessVMRecord.objects.filter(vm_result_table_id=vm_result_table_id)
+        if not access_vm_records:  # 若不存在对应的VMRT接入记录,记录日志并跳过
+            logger.warning(
+                "sync_vm_metadata: access_vm_record does not exist,vm_result_table_id->[%s]", vm_result_table_id
             )
+            continue
 
-    if not vm_cluster:
-        logger.error("sync_vm_metadata: vm_cluster does not exist,table_id->[%s],data->[%s]", table_id, vm_info)
-        return
-    # 更新 AccessVMRecord 信息，按需更新
-    if access_vm_record.vm_cluster_id != vm_cluster.cluster_id:
-        logger.info(
-            "sync_vm_metadata: data different,vm storage info is different from old,try to update,table_id->["
-            "%s],old_vm_cluster_id->[%s],new_vm_cluster_id->[%s]",
-            table_id,
-            access_vm_record.vm_cluster_id,
-            vm_cluster.cluster_id,
-        )
-        if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
-            logger.info("sync_vm_metadata: try to write to db,switch on,data->[%s],table_id->[%s]", vm_info, table_id)
-            access_vm_record.vm_cluster_id = vm_cluster.cluster_id
-            access_vm_record.save()
+        vm_cluster = None
+        try:
+            vm_cluster = models.ClusterInfo.objects.get(domain_name=detail["insert_host"])
+        except models.ClusterInfo.DoesNotExist:
+            # 如果 VM 集群信息不存在，创建新集群
+            logger.info(
+                "sync_vm_metadata: data different,vm cluster does not exist,try to create it,detail->[%s]", detail
+            )
+            # 激活元数据一致性写入模式的情况下才进行写入
+            if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+                logger.info(
+                    "sync_vm_metadata: try to write to db,switch on,detail->[%s],vm_result_table_id->[%s]",
+                    detail,
+                    vm_result_table_id,
+                )
+                vm_cluster = models.ClusterInfo.objects.create(
+                    cluster_name=detail["name"],
+                    domain_name=detail["insert_host"],
+                    port=detail["insert_port"],
+                    cluster_type=models.ClusterInfo.TYPE_VM,
+                    is_default_cluster=False,
+                )
+
+        if not vm_cluster:  # 若对应的VM集群仍不存在,跳过并记录日志
+            logger.error(
+                "sync_vm_metadata: vm_cluster does not exist,vm_result_table_id->[%s],detail->[%s]",
+                vm_result_table_id,
+                detail,
+            )
+            continue
+
+        for access_vm_record in access_vm_records:
+            if access_vm_record.vm_cluster_id != vm_cluster.cluster_id:
+                logger.info(
+                    "sync_vm_metadata: data different,vm storage info is different from old,try to update,"
+                    "access_vm_record->[%s],old_vm_cluster_id->[%s],new_vm_cluster_id->[%s]",
+                    access_vm_record,
+                    access_vm_record.vm_cluster_id,
+                    vm_cluster.cluster_id,
+                )
+                # 激活元数据一致性写入模式的情况下才进行写入
+                if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+                    logger.info(
+                        "sync_vm_metadata: try to write to db,switch on,detail->[%s],vm_result_table_id->[%s]",
+                        detail,
+                        vm_result_table_id,
+                    )
+                    access_vm_record.vm_cluster_id = vm_cluster.cluster_id
+                    access_vm_record.save()

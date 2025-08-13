@@ -31,10 +31,10 @@ import { defineStore } from 'pinia';
 import { type IPanelModel, PanelModel } from '../../plugins/typings';
 
 export interface ISearchState {
-  // 图表配置列表
-  chartPanelList: PanelModel[];
   // loading
   chartLoading: boolean;
+  // 图表配置列表
+  chartPanelList: PanelModel[];
   dashboardId: string;
 }
 export const useSearchStore = defineStore('search', {

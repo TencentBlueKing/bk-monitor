@@ -26,22 +26,22 @@
 import { Component, Emit, Prop, PropSync, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type IScenarioItem, type MetricDetail, MetricType, type strategyType } from '../typings/index';
+import { type IScenarioItem, type MetricDetail, type strategyType, MetricType } from '../typings/index';
 import StrategyMetricAlert from './strategy-metric-alert';
 import StrategyMetricCommon from './strategy-metric-common-new';
 import StrategyMetricWrap, { type TMode } from './strategy-metric-wrap';
 
 interface IStrategyMetricSelectorProps {
-  type: string;
-  show: boolean;
   isEdit: boolean;
-  monitorType?: string;
-  scenarioList: IScenarioItem[];
-  multiple: boolean;
-  metricData: MetricDetail[];
-  readonly?: boolean;
   maxLength?: number;
+  metricData: MetricDetail[];
+  monitorType?: string;
+  multiple: boolean;
+  readonly?: boolean;
+  scenarioList: IScenarioItem[];
+  show: boolean;
   strategyType?: strategyType;
+  type: string;
 }
 
 @Component({

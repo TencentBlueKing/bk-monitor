@@ -35,15 +35,15 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './change-record.scss';
 
+export interface ILabelRecordMap {
+  createTime?: string | TranslateResult;
+  createUser?: string | TranslateResult;
+  updateTime?: string | TranslateResult;
+  updateUser?: string | TranslateResult;
+}
 interface IChangeRecordProps {
   recordData: ILabelRecordMap;
   show: boolean;
-}
-export interface ILabelRecordMap {
-  createUser?: TranslateResult | string;
-  createTime?: TranslateResult | string;
-  updateUser?: TranslateResult | string;
-  updateTime?: TranslateResult | string;
 }
 @Component({
   name: 'ChangeRecord',

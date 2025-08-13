@@ -262,21 +262,6 @@ const trim = function (string) {
 };
 
 /**
- *  判断元素含有类
- *
- *  @param {Object} el 指定的 DOM 元素
- *  @param {string} cls 类名
- */
-export function hasClass(el: Element, cls) {
-  if (!el || !cls) return false;
-  if (cls.indexOf(' ') !== -1) throw new Error('className should not contain space.');
-  if (el.classList) {
-    return el.classList.contains(cls);
-  }
-  return ` ${el.className} `.indexOf(` ${cls} `) > -1;
-}
-
-/**
  *  对元素添加样式类
  *
  *  @param {Object} el 指定的 DOM 元素
@@ -299,6 +284,21 @@ export function addClass(el: Element, cls: string) {
   if (!el.classList) {
     el.className = curClass;
   }
+}
+
+/**
+ *  判断元素含有类
+ *
+ *  @param {Object} el 指定的 DOM 元素
+ *  @param {string} cls 类名
+ */
+export function hasClass(el: Element, cls) {
+  if (!el || !cls) return false;
+  if (cls.indexOf(' ') !== -1) throw new Error('className should not contain space.');
+  if (el.classList) {
+    return el.classList.contains(cls);
+  }
+  return ` ${el.className} `.indexOf(` ${cls} `) > -1;
 }
 
 /**

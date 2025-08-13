@@ -89,6 +89,17 @@
   dest_http_method: GET
   is_hidden: True
 
+- path: /v2/bk_log/cat_indices/
+  name: cat_indices
+  label: ES-查询索引状态信息
+  label_en: ES-ROUTE api
+  method: GET
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/esquery/cat_indices/
+  dest_http_method: GET
+  is_hidden: True
+
 - path: /v2/bk_log/search_index_set/
   name: search_index_set
   label: 日志平台-索引集列表
@@ -1007,12 +1018,34 @@
 - path: /v2/bk_log/search/index_set/{index_set_id}/date_histogram/
   name: date_histogram
   label: 日志平台-按照时间聚合
-  label_en: bk_log update databus storage
+  label_en: bk_log date_histogram
   method: POST
   api_type: query
   comp_codename: generic.v2.bk_log.bk_log_component
   dest_path: /api/v1/search/index_set/{index_set_id}/aggs/date_histogram/
   dest_http_method: POST
+  is_hidden: True
+
+- path: /v2/bk_log/search/index_set/{index_set_id}/terms/
+  name: search_terms
+  label: 日志平台-字段值聚合
+  label_en: bk_log terms
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/search/index_set/{index_set_id}/aggs/terms/
+  dest_http_method: POST
+  is_hidden: True
+
+- path: /v2/bk_log/index_set/{index_set_id}/
+  name: index_set_retrieve
+  label: 日志平台-索引集详情
+  label_en: bk_log index-set retrieve
+  method: GET
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/index_set/{index_set_id}/
+  dest_http_method: GET
   is_hidden: True
 
 - path: /v2/bk_log/databus_data_link/
@@ -1191,6 +1224,17 @@
   dest_http_method: POST
   is_hidden: True
 
+- path: /v2/bk_log/search_index_set/aggs/union_search/terms/
+  name: union_search_terms
+  label: 日志平台-联合检索-字段值聚合
+  label_en: bk_log union search terms
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/search/index_set/aggs/union_search/terms/
+  dest_http_method: POST
+  is_hidden: True
+
 - path: /v2/bk_log/databus_collectors/list_namespace/
   name: databus_collector_list_bcs_namespace
   label: 日志平台-获取集群namespace列表
@@ -1267,7 +1311,7 @@
   dest_path: /api/v1/meta/esb/create_es_snapshot_repository/
   dest_http_method: POST
   is_hidden: True
-  
+
 - path: /v2/bk_log/databus/delete_es_snapshot_repository/
   name: delete_es_snapshot_repository
   label: 日志平台-日志归档-删除归档仓库

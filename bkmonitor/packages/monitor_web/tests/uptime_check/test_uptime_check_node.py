@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,14 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import pytest
 
 from core.errors.uptime_check import UptimeCheckProcessError
 
 
-@pytest.mark.django_db
-class TestUptimeCheckNode(object):
+@pytest.mark.django_db(databases="__all__")
+class TestUptimeCheckNode:
     # def test_query_result(self, mocker):
     #     from monitor_web.uptime_check.serializers import UptimeCheckNodeSerializer
     #

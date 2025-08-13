@@ -25,44 +25,38 @@
  */
 import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick } from 'vue';
 
-import {
-  parseTableRowData,
-  formatDateNanos,
-  formatDate,
-  setDefaultTableWidth,
-  TABLE_LOG_FIELDS_SORT_REGULAR,
-} from '@/common/util';
+import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
+import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 
 import PopInstanceUtil from '../../../../global/pop-instance-util';
+import { BK_LOG_STORAGE } from '../../../../store/store.type';
+import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
+import ScrollTop from '../../components/scroll-top/index';
+import useTextAction from '../../hooks/use-text-action';
 import LogCell from './log-cell';
+import LogResultException from './log-result-exception';
 import {
   LOG_SOURCE_F,
   ROW_EXPAND,
-  ROW_F_JSON,
   ROW_F_ORIGIN_CTX,
   ROW_F_ORIGIN_OPT,
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
   ROW_KEY,
   SECTION_SEARCH_INPUT,
+  ROW_SOURCE,
 } from './log-row-attributes';
 import RowRender from './row-render';
-import ScrollTop from '../../components/scroll-top/index';
 import ScrollXBar from './scroll-x-bar';
-import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
-import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
-import LogResultException from './log-result-exception';
-import { BK_LOG_STORAGE } from '../../../../store/store.type';
-import useTextAction from '../../hooks/use-text-action';
 
 import './log-rows.scss';
 
@@ -90,13 +84,33 @@ export default defineComponent({
     const refTableHead: Ref<HTMLElement> = ref();
     const refLoadMoreElement: Ref<HTMLElement> = ref();
     const refResultRowBox: Ref<HTMLElement> = ref();
+    const refSegmentContent: Ref<HTMLElement> = ref();
+    const { handleOperation } = useTextAction(emit, 'origin');
+    let savedSelection: Range = null;
 
     const popInstanceUtil = new PopInstanceUtil({
-      refContent: ref('智能分析'),
+      refContent: () => refSegmentContent.value,
       tippyOptions: {
+        hideOnClick: true,
+        theme: 'segment-light',
+        placement: 'bottom',
         appendTo: document.body,
-        placement: 'top',
-        theme: 'dark',
+      },
+    });
+
+    const useSegmentPop = new UseSegmentProp({
+      delineate: true,
+      stopPropagation: true,
+      onclick: (e, ...args) => {
+        const [type] = args;
+        handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
+        popInstanceUtil.hide();
+
+        if (savedSelection) {
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(savedSelection);
+        }
       },
     });
 
@@ -106,17 +120,17 @@ export default defineComponent({
     const isRending = ref(false);
 
     const tableRowConfig = new WeakMap();
-    const hasMoreList = ref(true);
     const isPageLoading = ref(RetrieveHelper.isSearching);
+    // 前端本地分页loadmore触发器
+    // renderList 没有使用响应式，这里需要手动触发更新，所以这里使用一个计数器来触发更新
+    const localUpdateCounter = ref(0);
 
     let renderList = Object.freeze([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
-    const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
     const tableShowRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
-    const tableLineIsWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
@@ -124,11 +138,17 @@ export default defineComponent({
     const kvShowFieldsList = computed(() => indexFieldInfo.value?.fields.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
-    const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
+    const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
 
+    // 检索第一页数据时，loading状态
+    const isFirstPageLoading = computed(() => isLoading.value && !isRequesting.value);
+
+    const hasMoreList = computed(() => {
+      return indexSetQueryResult.value.total > tableDataSize.value;
+    });
     const exceptionMsg = computed(() => {
       if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
         return $t('检索结果为空');
@@ -136,66 +156,31 @@ export default defineComponent({
 
       return indexSetQueryResult.value?.exception_msg || $t('检索结果为空');
     });
-
+    const isShowSourceField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
-    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, isSearching => {
+
+    const handleSearchingChange = isSearching => {
       isPageLoading.value = isSearching;
-    });
-
-    const setRenderList = (length?) => {
-      const targetLength = length ?? tableDataSize.value;
-      const inteval = 50;
-
-      const appendChildNodes = () => {
-        const appendLength = targetLength - renderList.length;
-        const stepLength = appendLength > inteval ? inteval : appendLength;
-        const startIndex = renderList.length;
-
-        if (appendLength > 0) {
-          const arr = [];
-          const endIndex = startIndex + stepLength;
-          const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
-          for (let i = 0; i < lastIndex; i++) {
-            arr.push({
-              item: tableList.value[i],
-              [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
-            });
-          }
-
-          renderList = Object.freeze(arr);
-          appendChildNodes();
-          return;
-        }
-      };
-
-      appendChildNodes();
     };
 
-    /**
-     * 分步更新行属性
-     * 主要是是否Json格式化
-     * @param startIndex
-     */
-    const stepUpdateRowProp = (startIndex = 0, formatJson = false) => {
-      const inteval = 50;
-      const endIndex = startIndex + inteval;
+    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
 
-      for (let i = startIndex; i < endIndex; i++) {
-        if (i < tableList.value.length) {
-          const row = tableList.value[i];
-          const config = tableRowConfig.get(row);
-          config.value[ROW_F_JSON] = formatJson;
-        }
+    const setRenderList = (length?) => {
+      const arr = [];
+      const endIndex = length ?? tableDataSize.value;
+      const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
+      for (let i = 0; i < lastIndex; i++) {
+        arr.push({
+          item: tableList.value[i],
+          [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
+        });
       }
 
-      if (endIndex < tableList.value.length) {
-        requestAnimationFrame(() => stepUpdateRowProp(endIndex, formatJson));
-      }
+      renderList = arr;
     };
 
     const searchContainerHeight = ref(52);
-
     const resultContainerId = ref(RetrieveHelper.logRowsContainerId);
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
@@ -214,7 +199,16 @@ export default defineComponent({
           resize: false,
           minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
           renderBodyCell: ({ row }) => {
-            return <span class='time-field'>{getOriginTimeShow(row[timeField.value])}</span>;
+            return h(
+              'span',
+              {
+                class: 'time-field',
+                domProps: {
+                  innerHTML: xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value)),
+                },
+              },
+              [],
+            );
           },
         },
         {
@@ -230,8 +224,8 @@ export default defineComponent({
               <JsonFormatter
                 class='bklog-column-wrapper'
                 fields={visibleFields.value}
-                formatJson={formatJson.value}
                 jsonValue={row}
+                limitRow={null}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
               ></JsonFormatter>
             );
@@ -250,22 +244,17 @@ export default defineComponent({
         align: 'top',
         resize: true,
         renderBodyCell: ({ row }) => {
-          const config: RowConfig = tableRowConfig.get(row).value;
           return (
-            // @ts-ignore
-            <TableColumn
-              content={getTableColumnContent(row, field)}
-              field={field}
-              formatJson={config[ROW_F_JSON]}
-              row={row}
-              onIcon-click={(type, content, isLink, depth, isNestedField) =>
-                handleIconClick(type, content, field, row, isLink, depth, isNestedField)
-              }
-            ></TableColumn>
+            <JsonFormatter
+              class='bklog-column-wrapper'
+              fields={field}
+              jsonValue={parseTableRowData(row, field.field_name, field.field_type, false) as any}
+              onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, { row, field })}
+            ></JsonFormatter>
           );
         },
         renderHeaderCell: () => {
-          const sortable = field.es_doc_values && field.tag !== 'union-source';
+          const sortable = field.es_doc_values && field.tag !== 'union-source' && field.field_type !== 'flattened';
           return renderHead(field, order => {
             if (sortable) {
               const sortList = order ? [[field.field_name, order]] : [];
@@ -277,9 +266,10 @@ export default defineComponent({
                 }
                 return item;
               });
+              const temporarySortList = syncSpecifiedFieldSort(field.field_name, sortList);
               store.commit('updateLocalSort', true);
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
-              store.commit('updateIndexItemParams', { sort_list: sortList });
+              store.commit('updateIndexItemParams', { sort_list: temporarySortList });
               store.dispatch('requestIndexSetQuery');
             }
           });
@@ -287,7 +277,7 @@ export default defineComponent({
       };
     };
 
-    const setColWidth = (col, w = '100%') => {
+    const setColWidth = col => {
       col.minWidth = col.width - 4;
       col.width = '100%';
     };
@@ -345,25 +335,8 @@ export default defineComponent({
         fixed: 'left',
         renderBodyCell: ({ row }) => {
           const config: RowConfig = tableRowConfig.get(row).value;
-
-          const hanldeExpandClick = event => {
-            event.stopPropagation();
-            event.preventDefault();
-            event.stopImmediatePropagation();
-
-            config.expand = !config.expand;
-            nextTick(() => {
-              if (config.expand) {
-                hanldeAfterExpandClick(event.target);
-              }
-            });
-          };
-
           return (
-            <span
-              class={['bklog-expand-icon', { 'is-expaned': config.expand }]}
-              onClick={hanldeExpandClick}
-            >
+            <span class={['bklog-expand-icon', { 'is-expaned': config.expand }]}>
               <i
                 style={{ color: '#4D4F56', fontSize: '9px' }}
                 class='bk-icon icon-play-shape'
@@ -383,6 +356,28 @@ export default defineComponent({
         class: tableShowRowIndex.value ? 'is-show' : 'is-hidden',
         renderBodyCell: ({ row }) => {
           return tableRowConfig.get(row).value[ROW_INDEX] + 1;
+        },
+      },
+      {
+        field: '',
+        key: ROW_SOURCE,
+        title: '日志来源',
+        width: 230,
+        align: 'left',
+        resize: false,
+        fixed: 'left',
+        disabled: !isShowSourceField.value || !indexSetType.value,
+        renderBodyCell: ({ row }) => {
+          const indeSetName =
+            unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
+            '';
+          const hanldeSoureClick = event => {
+            event.stopPropagation();
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          };
+
+          return <span onClick={hanldeSoureClick}>{indeSetName}</span>;
         },
       },
     ]);
@@ -419,7 +414,6 @@ export default defineComponent({
                     handleRowAIClcik(event, row);
                     return;
                   }
-
                   props.handleClickTools(
                     type,
                     row,
@@ -437,43 +431,20 @@ export default defineComponent({
       ];
     });
 
-    const getTableColumnContent = (row, field) => {
-      // 日志来源 展示来源的索引集名称
-      if (field?.tag === 'union-source') {
-        return (
-          unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
-          ''
-        );
-      }
-      return parseTableRowData(row, field.field_name, field.field_type, false);
-    };
-
-    const formatDateValue = (data, field_type) => {
-      if (field_type === 'date') {
-        return formatDate(Number(data)) || data;
-      }
-      // 处理纳秒精度的UTC时间格式
-      if (field_type === 'date_nanos') {
-        return formatDateNanos(data);
-      }
-      return data;
-    };
-
-    const getOriginTimeShow = data => {
-      return formatDateValue(data, timeFieldType.value);
-    };
-
-    const { handleOperation } = useTextAction(emit, 'origin');
-
     // 替换原有的handleIconClick
     const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
       handleOperation(type, { content, field, row, isLink, depth, isNestedField, operation: type });
     };
 
     // 替换原有的handleMenuClick
-    const handleMenuClick = (option, isLink) => {
+    const handleMenuClick = (option, isLink, fieldOption?: { row: any; field: any }) => {
+      const timeTypes = ['date', 'date_nanos'];
+
       handleOperation(option.operation, {
-        value: option.value,
+        ...option,
+        value: timeTypes.includes(fieldOption?.field.field_type ?? null)
+          ? `${fieldOption?.row[fieldOption?.field.field_name]}`.replace(/<\/?mark>/gim, '')
+          : option.value,
         fieldName: option.fieldName,
         operation: option.operation,
         isLink,
@@ -529,7 +500,6 @@ export default defineComponent({
               ref({
                 [ROW_KEY]: rowKey,
                 [ROW_INDEX]: index,
-                [ROW_F_JSON]: formatJson.value,
                 ...getRowConfigWithCache(),
               }),
             );
@@ -573,7 +543,6 @@ export default defineComponent({
     };
 
     const resetRowListState = (oldValSize?) => {
-      hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
       setRenderList(null);
       debounceSetLoading();
       updateTableRowConfig(oldValSize ?? 0);
@@ -583,36 +552,51 @@ export default defineComponent({
       }
     };
 
+    const syncSpecifiedFieldSort = (field_name, updatedSortList) => {
+      const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
+      if (!requiredFields.includes(field_name) || !updatedSortList.length) {
+        return updatedSortList;
+      }
+      const fields = store.state.indexFieldInfo.fields.map(item => item.field_name);
+      const currentSort = updatedSortList.find(([key]) => key === field_name)[1];
+
+      requiredFields.forEach(field => {
+        if (field === field_name) return;
+        if (fields.includes(field)) {
+          const index = updatedSortList.findIndex(([key]) => key === field);
+          const sortItem = [field, currentSort];
+
+          if (index !== -1) {
+            updatedSortList[index] = sortItem;
+          } else {
+            updatedSortList.push(sortItem);
+          }
+        }
+      });
+      return updatedSortList;
+    };
     watch(
       () => [tableShowRowIndex.value],
       () => {
-        setTimeout(() => {
-          computeRect();
-        });
-      },
-    );
-
-    watch(
-      () => [props.contentType, formatJson.value, tableLineIsWrap.value],
-      () => {
-        scrollXOffsetLeft = 0;
-        refScrollXBar.value?.scrollLeft(0);
-
-        showCtxType.value = props.contentType;
-        stepUpdateRowProp(0, formatJson.value);
         computeRect();
       },
     );
 
-    watch(
-      () => [fieldRequestCounter.value],
-      () => {
+    const handleResultBoxResize = () => {
+      setTimeout(() => {
         scrollXOffsetLeft = 0;
         refScrollXBar.value?.scrollLeft(0);
+        computeRect(refResultRowBox.value);
+      }, 180);
+    };
 
-        setTimeout(() => {
-          computeRect();
-        });
+    watch(
+      () => [props.contentType],
+      () => {
+        showCtxType.value = props.contentType;
+        pageIndex.value = 1;
+        setRenderList(50);
+        handleResultBoxResize();
       },
     );
 
@@ -622,26 +606,17 @@ export default defineComponent({
         if (!visibleFields.value.length) {
           setFullColumns();
         }
+
+        handleResultBoxResize();
       },
     );
 
+    // 第一页数据加载完毕，更新滚动条位置
     watch(
-      () => isLoading.value,
+      () => [indexSetQueryResult.value.is_loading],
       () => {
-        if (!isRequesting.value) {
-          isRequesting.value = true;
-
-          if (isLoading.value) {
-            scrollToTop(0);
-            renderList = [];
-            return;
-          }
-
-          setRenderList();
-        }
-
-        if (!isLoading.value) {
-          debounceSetLoading();
+        if (!indexSetQueryResult.value.is_loading && !isRequesting.value) {
+          setTimeout(handleResultBoxResize, 180);
         }
       },
     );
@@ -654,6 +629,16 @@ export default defineComponent({
       {
         immediate: true,
       },
+    );
+
+    RetrieveHelper.on(
+      [
+        RetrieveEvent.FAVORITE_WIDTH_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
+        RetrieveEvent.FAVORITE_SHOWN_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
+      ],
+      handleResultBoxResize,
     );
 
     const handleColumnWidthChange = (w, col) => {
@@ -710,6 +695,7 @@ export default defineComponent({
         setRenderList(maxLength);
         debounceSetLoading(0);
         nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+        localUpdateCounter.value++;
         return;
       }
 
@@ -721,6 +707,8 @@ export default defineComponent({
             if (resp?.size === 50) {
               pageIndex.value++;
             }
+
+            handleResultBoxResize();
           })
           .finally(() => {
             debounceSetLoading(0);
@@ -740,14 +728,13 @@ export default defineComponent({
 
     const afterScrollTop = () => {
       pageIndex.value = 1;
-
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
       renderList = renderList.slice(0, maxLength);
     };
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { offsetWidth, scrollWidth, computeRect, scrollToTop } = useLazyRender({
+    const { offsetWidth, scrollWidth, computeRect } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
@@ -758,6 +745,7 @@ export default defineComponent({
       if (refResultRowBox.value && refRootElement.value) {
         refResultRowBox.value.scrollLeft = scrollXOffsetLeft;
         if (refTableHead.value) {
+          refTableHead.value.style.setProperty('width', `${scrollWidth.value}px`);
           refTableHead.value.style.transform = `translateX(-${scrollXOffsetLeft}px)`;
           const fixedRight = refTableHead.value?.querySelector(
             '.bklog-list-row .bklog-row-cell.header-cell.right',
@@ -774,10 +762,32 @@ export default defineComponent({
     });
 
     let isAnimating = false;
+
     useWheel({
       target: refRootElement,
       callback: (event: WheelEvent) => {
         const maxOffset = scrollWidth.value - offsetWidth.value;
+
+        // 检查是否按住 shift 键
+        if (event.shiftKey) {
+          // 当按住 shift 键时，让 refScrollXBar 执行系统默认的横向滚动能力
+          if (hasScrollX.value && refScrollXBar.value) {
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            event.preventDefault();
+
+            // 使用系统默认的滚动行为，通过 refScrollXBar 执行横向滚动
+            const currentScrollLeft = refScrollXBar.value.getScrollLeft?.() || 0;
+            const scrollStep = event.deltaY || event.deltaX;
+            const newScrollLeft = Math.max(0, Math.min(maxOffset, currentScrollLeft + scrollStep));
+
+            refScrollXBar.value.scrollLeft(newScrollLeft);
+            scrollXOffsetLeft = newScrollLeft;
+            setRowboxTransform();
+          }
+          return;
+        }
+
         if (event.deltaX !== 0 && hasScrollX.value) {
           event.stopPropagation();
           event.stopImmediatePropagation();
@@ -818,24 +828,40 @@ export default defineComponent({
     });
 
     const renderHeadVNode = () => {
+      if (isFirstPageLoading.value) {
+        return null;
+      }
+
+      const columnLength = allColumns.value.length;
+      let hasFullWidth = false;
+
       return (
         <div
           ref={refTableHead}
           class={['bklog-row-container row-header']}
         >
           <div class='bklog-list-row'>
-            {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].map(column => (
-              <LogCell
-                key={column.key}
-                width={column.width}
-                class={[column.class ?? '', 'bklog-row-cell header-cell', column.fixed]}
-                minWidth={column.minWidth > 0 ? column.minWidth : column.width}
-                resize={column.resize}
-                onResize-width={w => handleColumnWidthChange(w, column)}
-              >
-                {column.renderHeaderCell?.({ column }, h) ?? column.title}
-              </LogCell>
-            ))}
+            {allColumns.value.map((column, index) => {
+              const cellStyle = getColumnWidth(
+                column,
+                !hasFullWidth && (column.width === '100%' || index === columnLength - 2),
+              );
+              hasFullWidth = hasFullWidth || column.width === '100%' || index === columnLength - 2;
+
+              return (
+                <LogCell
+                  key={column.key}
+                  width={column.width}
+                  class={[column.class ?? '', 'bklog-row-cell header-cell', column.fixed]}
+                  customStyle={cellStyle}
+                  minWidth={column.minWidth > 0 ? column.minWidth : column.width}
+                  resize={column.resize}
+                  onResize-width={w => handleColumnWidthChange(w, column)}
+                >
+                  {column.renderHeaderCell?.({ column }, h) ?? column.title}
+                </LogCell>
+              );
+            })}
           </div>
         </div>
       );
@@ -845,8 +871,35 @@ export default defineComponent({
       return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
     };
 
+    const getColumnWidth = (column, fullWidth = false) => {
+      if (fullWidth) {
+        return {
+          width: '100%',
+          minWidth: `${Math.max(column.minWidth, column.width)}px`,
+        };
+      }
+
+      if (typeof column.width === 'number') {
+        return {
+          width: `${column.width}px`,
+          minWidth: `${column.width}px`,
+          maxWidth: `${column.width}px`,
+        };
+      }
+      return {
+        width: column.width,
+        minWidth: `${column.minWidth ?? 80}px`,
+      };
+    };
+
+    const allColumns = computed(() =>
+      [...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].filter(item => !item.disabled),
+    );
+
     const renderRowCells = (row, rowIndex) => {
       const { expand } = tableRowConfig.get(row).value;
+      const columnLength = allColumns.value.length;
+      let hasFullWidth = false;
 
       return [
         <div
@@ -854,15 +907,13 @@ export default defineComponent({
           data-row-index={rowIndex}
           data-row-click
         >
-          {[...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].map(column => {
-            const width = ['100%', 'default', 'auto'].includes(column.width) ? column.width : `${column.width}px`;
-            const cellStyle = {
-              width,
-              minWidth: column.minWidth ? `${column.minWidth}px` : `${column.width}px`,
-            };
-            if (typeof column.minWidth === 'number' && column.width < column.minWidth) {
-              cellStyle.minWidth = `${column.width}px`;
-            }
+          {allColumns.value.map((column, index) => {
+            const cellStyle = getColumnWidth(
+              column,
+              !hasFullWidth && (column.width === '100%' || index === columnLength - 2),
+            );
+            hasFullWidth = hasFullWidth || column.width === '100%' || index === columnLength - 2;
+
             return (
               <div
                 key={`${rowIndex}-${column.key}`}
@@ -878,7 +929,49 @@ export default defineComponent({
       ];
     };
 
+    const handleRowMousedown = (e: MouseEvent) => {
+      if (RetrieveHelper.isClickOnSelection(e, 2)) {
+        RetrieveHelper.stopEventPropagation(e);
+        return;
+      }
+
+      RetrieveHelper.setMousedownEvent(e);
+      savedSelection = null;
+    };
+
+    const handleRowMouseup = (e: MouseEvent, item: any) => {
+      if (RetrieveHelper.isClickOnSelection(e, 2) || RetrieveHelper.isMouseSelectionUpEvent(e)) {
+        RetrieveHelper.stopEventPropagation(e);
+        RetrieveHelper.setMousedownEvent(null);
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          savedSelection = selection.getRangeAt(0);
+        }
+        popInstanceUtil.show(e.target);
+        return;
+      }
+
+      const target = e.target as HTMLElement;
+      const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
+
+      if (target.classList.contains('valid-text') || expandCell?.contains(target)) {
+        return;
+      }
+
+      const config: RowConfig = tableRowConfig.get(item).value;
+      config.expand = !config.expand;
+      nextTick(() => {
+        if (config.expand) {
+          hanldeAfterExpandClick(target);
+        }
+      });
+    };
+
     const renderRowVNode = () => {
+      if (isFirstPageLoading.value) {
+        return null;
+      }
+
       return renderList.map((row, rowIndex) => {
         const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
 
@@ -887,6 +980,8 @@ export default defineComponent({
             key={row[ROW_KEY]}
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
+            on-row-mousedown={handleRowMousedown}
+            on-row-mouseup={e => handleRowMouseup(e, row.item)}
           >
             {renderRowCells(row.item, rowIndex)}
           </RowRender>,
@@ -912,7 +1007,7 @@ export default defineComponent({
 
     const loadingText = computed(() => {
       if (isLoading.value && !isRequesting.value) {
-        return;
+        return '';
       }
 
       if (hasMoreList.value && (isLoading.value || isRending.value)) {
@@ -926,13 +1021,42 @@ export default defineComponent({
       return '';
     });
 
+    const updateLoader = () => {
+      if (refLoadMoreElement.value) {
+        const targetElement = refLoadMoreElement.value.firstElementChild as HTMLElement;
+        targetElement.style.width = `${offsetWidth.value}px`;
+        targetElement.textContent = loadingText.value;
+      }
+    };
+
+    const updateRootElementClass = () => {
+      if (refRootElement.value) {
+        refRootElement.value.classList.toggle('has-scroll-x', hasScrollX.value);
+        refRootElement.value.classList.toggle('show-header', showHeader.value);
+      }
+    };
+
+    watch(
+      () => [offsetWidth.value, loadingText.value],
+      () => {
+        updateLoader();
+      },
+    );
+
+    watch(
+      () => [hasScrollX.value, showHeader.value],
+      () => {
+        updateRootElementClass();
+      },
+    );
+
     const renderLoader = () => {
       return (
         <div
           ref={refLoadMoreElement}
-          class={['bklog-requsting-loading']}
+          class='bklog-requsting-loading'
         >
-          <div style={{ width: `${offsetWidth.value}px`, minWidth: '100%' }}>{loadingText.value}</div>
+          <div style='min-width: 100%'></div>
         </div>
       );
     };
@@ -955,7 +1079,7 @@ export default defineComponent({
     });
 
     const exceptionType = computed(() => {
-      if (tableDataSize.value === 0) {
+      if (tableDataSize.value === 0 || indexFieldInfo.value.is_loading) {
         if (isRequesting.value || isLoading.value || isPageLoading.value) {
           return 'loading';
         }
@@ -981,52 +1105,35 @@ export default defineComponent({
     const getExceptionRender = () => {
       return (
         <LogResultException
-          type={exceptionType.value}
           message={exceptionMsg.value}
+          type={exceptionType.value}
         ></LogResultException>
       );
     };
 
-    const onRootClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-
-      if (
-        (target?.hasAttribute('data-row-click') && target?.hasAttribute('data-row-index')) ||
-        !(
-          target?.classList.contains('segment-content') ||
-          target?.classList.contains('bklog-json-view-icon-expand') ||
-          target?.classList.contains('bklog-json-view-icon-text') ||
-          target?.classList.contains('black-mark') ||
-          target?.parentElement?.classList.contains('segment-content')
-        )
-      ) {
-        const row = target.hasAttribute('data-row-index') ? target : target.closest('[data-row-click]');
-        const index = parseInt(row?.getAttribute?.('data-row-index') ?? '-1', 10);
-
-        if (index >= 0) {
-          const { item } = renderList[index] ?? {};
-          if (item) {
-            const config: RowConfig = tableRowConfig.get(item).value;
-            config.expand = !config.expand;
-            nextTick(() => {
-              if (config.expand) {
-                hanldeAfterExpandClick(target);
-              }
-            });
-          }
-        }
-      }
+    const renderDelineatePopContent = () => {
+      return <div style='display: none;'>{useSegmentPop.createSegmentContent(refSegmentContent)}</div>;
     };
 
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
+      RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+      [
+        RetrieveEvent.FAVORITE_WIDTH_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
+        RetrieveEvent.FAVORITE_SHOWN_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
+      ].forEach(event => {
+        RetrieveHelper.off(event, handleResultBoxResize);
+      });
     });
 
     return {
       refRootElement,
       refResultRowBox,
       isTableLoading,
+      renderDelineatePopContent,
       renderRowVNode,
       renderFixRightShadow,
       renderScrollTop,
@@ -1034,28 +1141,27 @@ export default defineComponent({
       renderLoader,
       renderHeadVNode,
       getExceptionRender,
-      onRootClick,
       tableDataSize,
       resultContainerId,
       hasScrollX,
       showHeader,
       isRequesting,
       exceptionMsg,
+      localUpdateCounter,
     };
   },
   render() {
     return (
       <div
         ref='refRootElement'
-        class={['bklog-result-container', { 'has-scroll-x': this.hasScrollX, 'show-header': this.showHeader }]}
-        v-bkloading={{ isLoading: this.isTableLoading, opacity: 0.1 }}
-        onClick={this.onRootClick}
+        class='bklog-result-container'
       >
         {this.renderHeadVNode()}
         <div
           id={this.resultContainerId}
           ref='refResultRowBox'
-          class={['bklog-row-box']}
+          class='bklog-row-box'
+          data-local-update-counter={this.localUpdateCounter}
         >
           {this.renderRowVNode()}
         </div>
@@ -1064,6 +1170,7 @@ export default defineComponent({
         {this.renderScrollXBar()}
         {this.renderLoader()}
         {this.renderScrollTop()}
+        {this.renderDelineatePopContent()}
         <div class='resize-guide-line'></div>
       </div>
     );

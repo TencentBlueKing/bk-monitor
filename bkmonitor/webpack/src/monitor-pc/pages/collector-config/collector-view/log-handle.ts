@@ -31,11 +31,11 @@ import type { IFilterCondition } from '../../data-retrieval/typings/index';
 
 interface hideOptions {
   chartTypeHide?: boolean; // 切换一行多图隐藏
-  viewSortHide?: boolean; // 视图设置隐藏
   compareHide?: boolean; // 对比隐藏
-  searchHide?: boolean; // 搜索隐藏
-  dashboardHide?: boolean; // 通用图表隐藏
   convergeHide?: boolean; // 汇聚隐藏
+  dashboardHide?: boolean; // 通用图表隐藏
+  searchHide?: boolean; // 搜索隐藏
+  viewSortHide?: boolean; // 视图设置隐藏
 }
 /**
  * @description: 日志采集特殊处理(隐藏不需要的功能)

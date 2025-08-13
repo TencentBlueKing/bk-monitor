@@ -18,6 +18,7 @@
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import TimeSetting from './time-setting';
   import FieldSetting from '@/global/field-setting.vue';
+  import FildAlias from '../field-filter-comp/update/field-alias.vue'
   import VersionSwitch from '@/global/version-switch.vue';
   import ClusterSetting from '../setting-modal/index.vue';
   import BarGlobalSetting from './bar-global-setting.tsx';
@@ -50,7 +51,7 @@
   const store = useStore();
 
   const fieldSettingRef = ref(null);
-
+  const fieldAliasRef  = ref(null);
   const isShowClusterSetting = ref(false);
   const indexSetParams = computed(() => store.state.indexItem);
 
@@ -178,23 +179,25 @@
           indexSetDefaultCondition = {
             keyword: payload.items[0].query_string,
             search_mode: 'sql',
-            addition: []
-          }
+            addition: [],
+          };
         } else if (payload.items[0]?.addition) {
           indexSetDefaultCondition = {
             addition: [...payload.items[0].addition],
             search_mode: 'ui',
-            keyword: ''
-          }
+            keyword: '',
+          };
         }
         if (indexSetDefaultCondition.search_mode) {
-          store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(indexSetDefaultCondition.search_mode) });
+          store.commit('updateStorage', {
+            [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(indexSetDefaultCondition.search_mode),
+          });
         }
       }
 
       RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single', false);
       store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
-      store.commit('updateIndexItem', {...payload, ...indexSetDefaultCondition});
+      store.commit('updateIndexItem', { ...payload, ...indexSetDefaultCondition });
 
       if (!payload.isUnionIndex) {
         store.commit('updateIndexId', payload.ids[0]);
@@ -204,6 +207,8 @@
       store.commit('updateIndexSetQueryResult', {
         origin_log_list: [],
         list: [],
+        exception_msg: '',
+        is_error: false,
       });
 
       store.dispatch('requestIndexSetFieldInfo').then(resp => {
@@ -327,6 +332,7 @@
    */
   function handleIndexConfigSliderOpen() {
     if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
+      // fieldAliasRef.value?.handleOpenSidebar?.();
       fieldSettingRef.value?.handleShowSlider?.();
     } else {
       bkMessage({
@@ -372,6 +378,11 @@
         ref="fieldSettingRef"
         class="custom-border-right"
       />
+      <!-- <FildAlias
+        v-if="false"
+        ref="fieldAliasRef"
+        class="custom-border-right"
+      ></FildAlias> -->
       <WarningSetting
         v-if="!isExternal"
         class="custom-border-right"

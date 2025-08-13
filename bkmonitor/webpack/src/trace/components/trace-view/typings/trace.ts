@@ -26,7 +26,20 @@
 
 import type tNil from './TNil';
 
-export type TNil = tNil;
+export type CrossRelation = {
+  app_name: string;
+  bk_app_code: number;
+  bk_biz_id: number;
+  bk_biz_name: string;
+  permission: boolean;
+  trace_id: string;
+};
+
+export type GroupInfo = {
+  duration: number;
+  id: string;
+  members: string[];
+};
 
 export type KeyValuePair = {
   key: string;
@@ -34,13 +47,13 @@ export type KeyValuePair = {
 };
 
 export type Link = {
-  url: string;
   text: string;
+  url: string;
 };
 
 export type Log = {
-  timestamp: number;
   fields: Array<KeyValuePair>;
+  timestamp: number;
 };
 
 export type Process = {
@@ -48,27 +61,15 @@ export type Process = {
   tags: Array<KeyValuePair>;
 };
 
-export type SpanReference = {
-  refType: 'CHILD_OF' | 'FOLLOWS_FROM';
-
-  span: null | Span | undefined;
-  spanID: string;
-  traceID: string;
-};
-
-export type CrossRelation = {
-  app_name: string;
-  bk_app_code: number;
-  bk_biz_id: number;
-  bk_biz_name: string;
-  trace_id: string;
-  permission: boolean;
-};
-
-export type GroupInfo = {
-  id: string;
-  members: string[];
-  duration: number;
+export type Span = SpanData & {
+  depth: number;
+  hasChildren: boolean;
+  process: Process;
+  references: NonNullable<SpanData['references']>;
+  relativeStartTime: number;
+  subsidiarilyReferencedBy: Array<SpanReference>;
+  tags: NonNullable<SpanData['tags']>;
+  warnings: NonNullable<SpanData['warnings']>;
 };
 
 export type SpanAttributesItem = {
@@ -80,58 +81,57 @@ export type SpanAttributesItem = {
 };
 
 export type SpanData = {
-  span_id: string;
-  spanID: string;
-  traceID: string;
-  processID: string;
-  operationName: string;
   app_name: string;
-  startTime: number;
-  duration: number;
-  logs: Array<Log>;
-  tags?: Array<KeyValuePair>;
-  references?: Array<SpanReference>;
-  warnings?: Array<string> | null;
   attributes?: Array<SpanAttributesItem>;
-  error?: boolean;
-  icon?: string;
-  service_name: string;
+  bgColor?: string;
   color?: string;
   cross_relation: CrossRelation;
-  kind?: number;
-  source?: string;
-  is_virtual: boolean; // 是否推断（虚拟）span
+  duration: number;
   ebpf_kind: string; // ebpf 类型
-  ebpf_thread_name?: string;
-  ebpf_tap_side?: string;
   ebpf_tap_port_name?: string;
+  ebpf_tap_side?: string;
+  ebpf_thread_name?: string;
+  error?: boolean;
   group_info: GroupInfo; // 折叠分组信息
+  icon?: string;
   is_expand: boolean; // 折叠节点当前被展开
+  is_virtual: boolean; // 是否推断（虚拟）span
+  kind?: number;
+  logs: Array<Log>;
   mark?: string;
-  bgColor?: string;
+  operationName: string;
+  processID: string;
+  references?: Array<SpanReference>;
+  service_name: string;
+  source?: string;
+  span_id: string;
+  spanID: string;
+  startTime: number;
+  tags?: Array<KeyValuePair>;
+  traceID: string;
+  warnings?: Array<string> | null;
 };
 
-export type Span = SpanData & {
-  depth: number;
-  hasChildren: boolean;
-  process: Process;
-  relativeStartTime: number;
-  tags: NonNullable<SpanData['tags']>;
-  references: NonNullable<SpanData['references']>;
-  warnings: NonNullable<SpanData['warnings']>;
-  subsidiarilyReferencedBy: Array<SpanReference>;
+export type SpanReference = {
+  refType: 'CHILD_OF' | 'FOLLOWS_FROM';
+
+  span: null | Span | undefined;
+  spanID: string;
+  traceID: string;
+};
+
+export type TNil = tNil;
+
+export type Trace = TraceData & {
+  duration: number;
+  endTime: number;
+  services: { name: string; numberOfSpans: number }[];
+  spans: Span[];
+  startTime: number;
+  traceName: string;
 };
 
 export type TraceData = {
   processes: Record<string, Process>;
   traceID: string;
-};
-
-export type Trace = TraceData & {
-  duration: number;
-  endTime: number;
-  spans: Span[];
-  startTime: number;
-  traceName: string;
-  services: { name: string; numberOfSpans: number }[];
 };

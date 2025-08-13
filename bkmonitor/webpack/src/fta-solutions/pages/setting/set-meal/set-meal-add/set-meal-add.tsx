@@ -298,8 +298,8 @@ export default class SetMealAdd extends tsc<object> {
             >
               <div class='set-warpper'>
                 <div
-                  v-en-style='width: 120px'
                   class='set-title'
+                  v-en-style='width: 120px'
                 >
                   {this.$t('基本信息')}
                 </div>

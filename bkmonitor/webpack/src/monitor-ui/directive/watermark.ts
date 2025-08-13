@@ -26,8 +26,8 @@
 import type { VueConstructor } from 'vue';
 
 interface WatermarkOptions {
-  text: string; // 文本
   font: string; // canvas font
+  text: string; // 文本
   textColor: string; // 文本颜色
 }
 

@@ -1,3 +1,6 @@
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { docCookies } from 'monitor-common/utils/utils';
+import { mergeI18nJson } from 'monitor-pc/i18n/common';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -23,11 +26,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { createI18n, type Locale, type Path } from 'vue-i18n';
-
-import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
-import { docCookies } from 'monitor-common/utils/utils';
-import { mergeI18nJson } from 'monitor-pc/i18n/common';
+import { type Locale, type Path, createI18n } from 'vue-i18n';
 
 import './dayjs';
 

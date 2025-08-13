@@ -29,26 +29,26 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
-import { EOptionKind, EDataType } from '../details-side';
+import { EDataType, EOptionKind } from '../details-side';
 import CompareTopoGraph from './compare-topo-graph';
 
 import './compare-topo-fullscreen.scss';
-type CompareTopoFullscreenProps = {
-  show: boolean;
-  isService: boolean;
-  /** 对比时间，时间戳 */
-  compareTime: number;
-  /** 参照时间 */
-  referTime: number;
-  /** 调用类型 */
-  callType: EOptionKind;
-  /** 数据类型 */
-  dataType: EDataType;
-  secondSelectList: { id: string; name: string }[];
-};
-
 type CompareTopoFullscreenEvent = {
   onShowChange: (val?: boolean) => void;
+};
+
+type CompareTopoFullscreenProps = {
+  /** 调用类型 */
+  callType: EOptionKind;
+  /** 对比时间，时间戳 */
+  compareTime: number;
+  /** 数据类型 */
+  dataType: EDataType;
+  isService: boolean;
+  /** 参照时间 */
+  referTime: number;
+  secondSelectList: { id: string; name: string }[];
+  show: boolean;
 };
 
 @Component

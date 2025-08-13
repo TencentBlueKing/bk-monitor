@@ -60,6 +60,7 @@ import {
   ref,
   watch,
 } from 'vue';
+
 import { useRoute } from 'vue-router';
 
 import { useTraceStore } from '../../../../store/modules/trace';
@@ -79,16 +80,16 @@ import Positions from './positions';
 
 import type { Span, TNil } from '../../typings';
 
-type TWrapperProps = {
-  style: CSSProperties;
-  onScroll?: () => void;
-};
-
 type RowState = {
+  bgColorIndex?: number;
   isDetail: boolean;
   span: Span;
   spanIndex: number;
-  bgColorIndex?: number;
+};
+
+type TWrapperProps = {
+  onScroll?: () => void;
+  style: CSSProperties;
 };
 
 const NUM_TICKS = 5;

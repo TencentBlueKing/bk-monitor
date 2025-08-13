@@ -59,10 +59,10 @@ export default class MetricsManager extends tsc<object> {
   /* 左侧统计数据 */
   leftFilter: {
     checkedData: IFilterData[];
-    filterList: IGroupData[];
     defaultActiveName: string[];
-    show: boolean;
+    filterList: IGroupData[];
     key: string;
+    show: boolean;
   } = {
     filterList: [],
     checkedData: [],

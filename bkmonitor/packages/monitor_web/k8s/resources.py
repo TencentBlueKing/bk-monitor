@@ -23,6 +23,7 @@ from core.drf_resource import Resource, resource
 from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.meta import K8sResourceMeta, load_resource_meta
 from monitor_web.k8s.scenario import get_all_metrics, get_metrics
+from metadata import models
 
 
 class SpaceRelatedSerializer(serializers.Serializer):
@@ -42,7 +43,22 @@ class ListBCSCluster(Resource):
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
-        return resource.scene_view.get_kubernetes_cluster_choices(bk_biz_id=bk_biz_id)
+        cluster_list = resource.scene_view.get_kubernetes_cluster_choices(bk_biz_id=bk_biz_id)
+        cluster_id_list = [cluster["id"] for cluster in cluster_list]
+        event_data_id_values = models.BCSClusterInfo.objects.filter(
+            cluster_id__in=cluster_id_list, status=models.BCSClusterInfo.CLUSTER_STATUS_RUNNING
+        ).values("cluster_id", "K8sEventDataID")
+        event_data_id_map = {}
+        for data_id_info in event_data_id_values:
+            event_data_id_map[data_id_info["cluster_id"]] = data_id_info["K8sEventDataID"]
+        for cluster in cluster_list:
+            event_data_id = event_data_id_map.get(cluster["id"]) or 0
+            data_source_result = models.DataSourceResultTable.objects.filter(bk_data_id=event_data_id).first()
+            result_table_id = ""
+            if data_source_result:
+                result_table_id = data_source_result.table_id
+            cluster["event_table_id"] = result_table_id
+        return cluster_list
 
 
 class WorkloadOverview(Resource):

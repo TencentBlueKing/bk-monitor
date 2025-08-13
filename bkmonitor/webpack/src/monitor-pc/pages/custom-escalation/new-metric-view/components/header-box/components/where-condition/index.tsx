@@ -26,43 +26,20 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 import { Debounce } from 'monitor-common/utils';
 
 import RenderCommonList from './components/render-common-list/index';
 import RenderCustomList from './components/render-custom-list';
 import RenderResultList from './components/render-result-list/index';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import type { IValue } from './components/render-result-list/components/edit-panel';
 
 import './index.scss';
 
-interface IProps {
-  value?: IValue[];
-  commonConditionValue?: {
-    key: string;
-    alias: string;
-    method: string;
-    value: string[];
-  }[];
-  commonDimensionEnable?: boolean;
-  customData?: {
-    key: string;
-    alias: string;
-    method: string;
-    value: string[];
-  }[];
-}
-
 interface IEmit {
   onChange: (value: {
-    where: {
-      key: string;
-      method: string;
-      condition: string;
-      value: string[];
-    }[];
     common_conditions: {
       key: string;
       method: string;
@@ -73,7 +50,30 @@ interface IEmit {
       method: string;
       value: string[];
     }[];
+    where: {
+      condition: string;
+      key: string;
+      method: string;
+      value: string[];
+    }[];
   }) => void;
+}
+
+interface IProps {
+  commonDimensionEnable?: boolean;
+  value?: IValue[];
+  commonConditionValue?: {
+    alias: string;
+    key: string;
+    method: string;
+    value: string[];
+  }[];
+  customData?: {
+    alias: string;
+    key: string;
+    method: string;
+    value: string[];
+  }[];
 }
 
 const URL_CACHE_KEY = 'showCommonly';

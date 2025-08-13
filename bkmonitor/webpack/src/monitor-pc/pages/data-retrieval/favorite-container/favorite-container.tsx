@@ -44,16 +44,16 @@ import type { IFavList } from '../typings';
 
 import './favorite-container.scss';
 
-interface IProps {
-  favoriteSearchType: string;
-  isShowFavorite: boolean;
-  dataId?: string;
-}
-
 interface IEvent {
+  onFavoriteListChange: (list: IFavList.favGroupList[]) => void;
   onSelectFavorite: (favorite: IFavList.favList) => void;
   onShowChange: (show: boolean) => void;
-  onFavoriteListChange: (list: IFavList.favGroupList[]) => void;
+}
+
+interface IProps {
+  dataId?: string;
+  favoriteSearchType: string;
+  isShowFavorite: boolean;
 }
 
 @Component

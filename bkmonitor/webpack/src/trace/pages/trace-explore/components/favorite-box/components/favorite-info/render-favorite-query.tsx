@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
+
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
@@ -36,8 +37,8 @@ import './render-favorite-query.scss';
 import 'vue-json-pretty/lib/styles.css';
 
 interface IWhereItem {
-  key: string;
   condition: string;
+  key: string;
   method: string;
   value: string[];
   options?: {

@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import './middle-omitted.scss';
 
 interface IProps {
-  value: string;
   lengthNum?: number;
+  value: string;
   click?: () => void;
 }
 

@@ -275,17 +275,20 @@ class ResultTableFlow(BaseModelWithTime):
         :param schemaless: 是否是标准四元祖数据
         :return: bool 是否接入成功
         """
-        # 组装参数
-        req_data = {
-            "project_id": settings.BK_DATA_RECORD_RULE_PROJECT_ID,
-            "flow_name": cls.compose_flow_name(table_id),
-        }
         # 获取预计算结果表数据
         try:
             rule_obj = RecordRule.objects.get(table_id=table_id)
         except RecordRule.DoesNotExist:
             logger.error("create_flow：table_id->[%s] not found record rule", table_id)
             return False
+
+        # 组装参数
+        req_data = {
+            "project_id": settings.BK_DATA_RECORD_RULE_PROJECT_ID,
+            "flow_name": cls.compose_flow_name(table_id),
+            "bk_tenant_id": rule_obj.bk_tenant_id,
+        }
+
         # 检测并授权结果表
         if not batch_add_permission(
             settings.BK_DATA_RECORD_RULE_PROJECT_ID, settings.BK_DATA_BK_BIZ_ID, rule_obj.src_vm_table_ids

@@ -33,11 +33,11 @@ import './dimension-tab-detail.scss';
 
 // 维度详情接口
 interface DimensionDetail {
-  name: string;
-  description: string;
-  disabled: boolean;
   common: boolean;
   create_time?: number;
+  description: string;
+  disabled: boolean;
+  name: string;
   update_time?: number;
 }
 
@@ -151,7 +151,7 @@ export default class DimensionTabDetail extends tsc<any> {
         width: 300,
         label: this.$t('别名'),
         scopedSlots: {
-          default: (props: { row: DimensionDetail; $index: number }) => (
+          default: (props: { $index: number; row: DimensionDetail }) => (
             <div
               class='description-cell'
               onClick={() => this.handleDescFocus(props)}

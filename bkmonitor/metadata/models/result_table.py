@@ -34,7 +34,7 @@ from .common import BaseModel, Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .result_table_manage import EnableManager
 from .space import SpaceDataSource, SpaceTypeToResultTableFilterAlias
-from .space.constants import EtlConfigs, SpaceTypes
+from .space.constants import SpaceTypes
 from .storage import (
     ArgusStorage,
     BkDataStorage,
@@ -282,7 +282,7 @@ class ResultTable(models.Model):
     def create_result_table(
         cls,
         bk_data_id,
-        table_id,
+        table_id: str,
         table_name_zh,
         is_custom_table,
         schema_type,
@@ -333,6 +333,8 @@ class ResultTable(models.Model):
         :param bk_biz_id_alias: 结果表所属业务名称
         :return: result_table instance | raise Exception
         """
+        from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
+
         logger.info(
             "create_result_table: start to create result table for bk_data_id->[%s],table_id->[%s],bk_biz_id->[%s],"
             "bk_biz_id_alias->[%s]",
@@ -340,14 +342,6 @@ class ResultTable(models.Model):
             table_id,
             bk_biz_id,
             bk_biz_id_alias,
-        )
-        logger.info(
-            "create_result_table: start to create result table for bk_tenant_id->[%s],bk_data_id->[%s],"
-            "table_id->[%s],bk_biz_id->[%s]",
-            bk_tenant_id,
-            bk_data_id,
-            table_id,
-            bk_biz_id,
         )
 
         # 判断label是否真实存在的配置
@@ -368,7 +362,7 @@ class ResultTable(models.Model):
             logger.error("create_result_table: bk_data_id->[%s] is not exists, nothing will do.", bk_data_id)
             raise ValueError(_("数据源ID不存在，请确认"))
         datasource = datasource_qs.first()
-        allow_access_v2_data_link = datasource.etl_config == EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value
+        allow_access_v2_data_link = datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
 
         # 非系统创建的结果表，不可以使用容器监控的表前缀名
         if operator != "system" and table_id.startswith(config.BCS_TABLE_ID_PREFIX):
@@ -390,17 +384,12 @@ class ResultTable(models.Model):
             )
             raise ValueError(_("结果表ID在租户下已经存在，请确认"))
 
-        # TODO: 多租户 是否要变更RT命名标准
         # 校验biz_id是否符合要求
         if str(bk_biz_id) > "0":
             # 如果有指定表的对应业务信息，需要校验结果表的命名是否符合规范
-            # 若开启多租户模式，需要获取租户ID
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                start_string = f"{bk_tenant_id}_{bk_biz_id}_"
-            else:  # 若未开启多租户模式，沿用此前的命名规范
-                start_string = f"{bk_biz_id}_"
-
-            if not table_id.startswith(start_string):
+            tenant_start_string = f"{bk_tenant_id}_{bk_biz_id}_"
+            start_string = f"{bk_biz_id}_"
+            if not table_id.startswith((start_string, tenant_start_string)):
                 logger.error(
                     "create_result_table: user->[%s] try to set table->[%s] under biz->[%s] in bk_tenant_id->[%s] but "
                     "table_id is not start with->[%s], maybe something go wrong?",
@@ -1329,9 +1318,14 @@ class ResultTable(models.Model):
 
         # 更新结果表option配置
         if option is not None:
-            result_table_option_ids = ResultTableOption.objects.filter(
-                table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
-            ).values_list("id", flat=True)
+            # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
+            # 目前在option配置的时候并没有标记option的类型，因此只能通过名单的方式进行管理
+            # TODO: 后续需要优化option的配置方式，增加option的类型标记
+            result_table_option_ids = (
+                ResultTableOption.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+                .exclude(name__in=list(set(ResultTableFieldOption.QUERY_OPTION_NAME_LIST) - set(option.keys())))
+                .values_list("id", flat=True)
+            )
             self.raw_delete(result_table_option_ids)
 
             logger.info(

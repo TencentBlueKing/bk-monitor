@@ -26,6 +26,12 @@
 
 import { BK_LOG_STORAGE } from '../store/store.type';
 
+/**
+ * 根据字段信息返回别名
+ * @param field 字段信息
+ * @param store
+ * @returns 返回别名，如果没有别名则返回字段名
+ */
 export const getFieldNameByField = (field, store) => {
   if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
     return field.query_alias || field.field_name;
@@ -35,7 +41,11 @@ export const getFieldNameByField = (field, store) => {
 };
 
 export default ({ store }) => {
-  // 用于筛选并展示别名的情况
+  /**
+   * 根据字段名返回别名
+   * @param name  字段名field_name
+   * @returns 返回别名，如果没有别名则返回字段名
+   */
   const getFieldName = (name: string) => {
     if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
       const field = store.state.indexFieldInfo.fields.filter(item => item.field_name === name);
@@ -48,7 +58,11 @@ export default ({ store }) => {
     return getFieldNameByField(field, store);
   };
 
-  // 用于只返回字段名数组的情况
+  /**
+   * 根据字段列表返回别名数组
+   * @param fields  字段列表
+   * @returns 返回别名数组，如果没有别名则返回字段名
+   */
   const getFieldNames = (fields: any) => {
     if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
       return fields.map(fieldInfo => fieldInfo.query_alias || fieldInfo.field_name);
@@ -56,7 +70,12 @@ export default ({ store }) => {
       return fields.map(fieldInfo => fieldInfo.field_name);
     }
   };
-  // 用于返回拼接字段名的情况
+
+  /**
+   * 根据字段信息返回拼接字段名
+   * @param fields  字段信息
+   * @returns 返回拼接字段名
+   */
   const getConcatenatedFieldName = (fields: any) => {
     const { field_name: id, field_alias: alias, query_alias: query } = fields;
     if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS] && query) {
@@ -64,16 +83,36 @@ export default ({ store }) => {
     }
     return { id, name: alias ? `${id}(${alias})` : id };
   };
-  // 用于直接返回字段名的情况
+  /**
+   * 根据字段信息返回别名
+   * @param fields  字段信息
+   * @returns 返回别名
+   */
   const getQueryAlias = (field: any) => {
     return store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
       ? field.query_alias || field.field_name
       : field.field_name;
   };
-  // 用于返回query_alias对应的field_name的情况
+  /**
+   * 根据别名返回字段名
+   * @param name  别名query_alias
+   * @returns 返回字段名，如果没有字段名则返回别名
+   */
   const changeFieldName = (name: string) => {
     const field = store.state.indexFieldInfo.fields.filter(item => item.query_alias === name);
     return field[0]?.field_name || name;
+  };
+  /**
+   * 根据字段名返回拼接字段名
+   * @param name  字段名field_name
+   * @returns 返回拼接字段名
+   */
+  const getQualifiedFieldName = (field_name: string) => {
+    const field = store.state.indexFieldInfo.fields.filter(item => item.field_name === field_name);
+    if (field[0].query_alias) {
+      return `${field[0].query_alias}(${field_name})`;
+    }
+    return field_name;
   };
   return {
     getFieldName,
@@ -82,5 +121,6 @@ export default ({ store }) => {
     getQueryAlias,
     changeFieldName,
     getFieldNameByField: mGetFieldNameByField,
+    getQualifiedFieldName,
   };
 };

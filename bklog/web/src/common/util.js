@@ -32,6 +32,7 @@
 import { set } from 'vue';
 
 import dayjs from 'dayjs';
+import DOMPurify from 'dompurify';
 import JSONBigNumber from 'json-bignumber';
 
 import store from '../store';
@@ -352,41 +353,6 @@ export function getWindowHeight() {
   return windowHeight;
 }
 
-/**
- * 深拷贝扩展对象
- * @param target
- * @param ...sources
- * @returns {object}
- */
-export function deepAssign(target, ...sources) {
-  const sourcesArray = [...sources];
-  const { length } = sourcesArray;
-  if (typeof target !== 'object' && typeof target !== 'function') {
-    target = {};
-  }
-  if (length === 0) {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    target = this;
-  }
-
-  sourcesArray.forEach(source => {
-    for (const key in source) {
-      if (Object.prototype.hasOwnProperty.call(source, key)) {
-        const targetValue = target[key];
-        if (Array.isArray(targetValue)) {
-          target[key].push(...(source[key] || []));
-        } else if (typeof targetValue === 'object') {
-          target[key] = deepAssign.call(targetValue, source[key]);
-        } else {
-          target[key] = source[key];
-        }
-      }
-    }
-  });
-
-  return target;
-}
-
 export function projectManage(menuProject, projectName, childName) {
   let project = '';
   try {
@@ -481,37 +447,57 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
  * @return {String}
  */
 export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
-  const date = new Date(val);
+  try {
+    const date = new Date(val);
+    if (isNaN(date.getTime())) {
+      console.warn('无效的时间');
+      return '';
+    }
 
-  if (isNaN(date.getTime())) {
-    console.warn('无效的时间');
-    return '';
+    // 如果是 2024-04-09T13:02:11.502064896Z 格式，则需要 formatDateNanos 转换
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z$/.test(val)) {
+      return formatDateNanos(val);
+    }
+
+    if (isTimzone) {
+      let timestamp = val;
+
+      if (/^\d+\.?\d*$/.test(val)) {
+        // 将时间戳转换为毫秒级别，如果是10位时间戳则乘以1000
+        if (val.toString().length === 10) {
+          timestamp = Number(val) * 1000;
+        }
+      }
+
+      // 获取毫秒部分的最后三位
+      const milliseconds = timestamp % 1000;
+      // 创建 dayjs 对象
+      const date = dayjs.tz(timestamp);
+
+      // 如果毫秒部分不为 000，展示毫秒精度的时间
+      const formatStr = formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
+      return date.format(formatStr);
+    }
+
+    const yyyy = date.getFullYear();
+    const mm = `0${date.getMonth() + 1}`.slice(-2);
+    const dd = `0${date.getDate()}`.slice(-2);
+    const time = date.toTimeString().slice(0, 8);
+    return `${yyyy}-${mm}-${dd} ${time}`;
+  } catch (e) {
+    console.warn(e);
+    return val;
   }
-
-  if (isTimzone) {
-    // 将时间戳转换为毫秒级别，如果是10位时间戳则乘以1000
-    if (val.toString().length === 10) val *= 1000;
-    // 获取毫秒部分的最后三位
-    const milliseconds = val % 1000;
-    // 创建 dayjs 对象
-    const date = dayjs.tz(Number(val));
-
-    // 如果毫秒部分不为 000，展示毫秒精度的时间
-    const formatStr = formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
-    return date.format(formatStr);
-  }
-
-  const yyyy = date.getFullYear();
-  const mm = `0${date.getMonth() + 1}`.slice(-2);
-  const dd = `0${date.getDate()}`.slice(-2);
-  const time = date.toTimeString().slice(0, 8);
-  return `${yyyy}-${mm}-${dd} ${time}`;
 }
 
 /**
  * 将ISO 8601格式 2024-04-09T13:02:11.502064896Z 转换成 普通日期格式 2024-04-09 13:02:11.502064896
  */
 export function formatDateNanos(val) {
+  if (/^\d+$/.test(`${val}`)) {
+    return formatDate(Number(val), true, `${val}`.length > 10);
+  }
+
   // dayjs不支持纳秒 从符串中提取毫秒之后的纳秒部分
   const nanoseconds = `${val}`.slice(23, -1);
 
@@ -919,13 +905,30 @@ export const parseTableRowData = (
     data = emptyCharacter;
   }
 
-  if (isFormatDate && fieldType === 'date') {
-    return formatDate(Number(data)) || data || emptyCharacter;
-  }
+  if (isFormatDate && ['date', 'date_nanos'].includes(fieldType)) {
+    let formatData = data;
+    let formatValue = data;
+    let isMark = false;
 
-  // 处理纳秒精度的UTC时间格式
-  if (isFormatDate && fieldType === 'date_nanos') {
-    return formatDateNanos(data) || emptyCharacter;
+    if (`${data}`.startsWith('<mark>')) {
+      formatData = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
+      isMark = true;
+    }
+
+    if (fieldType === 'date' && /^\d+$/.test(formatData)) {
+      formatValue = formatDate(Number(formatData)) || data || emptyCharacter;
+    }
+
+    // 处理纳秒精度的UTC时间格式
+    if (fieldType === 'date_nanos') {
+      formatValue = formatDateNanos(formatData) || emptyCharacter;
+    }
+
+    if (isMark) {
+      return `<mark>${formatValue}</mark>`;
+    }
+
+    return formatValue;
   }
 
   if (Array.isArray(data) && !data.length) {
@@ -1146,20 +1149,7 @@ export const blobDownload = (data, fileName = 'default', type = 'text/plain') =>
 };
 
 export const xssFilter = str => {
-  return (
-    str?.replace?.(/[&<>"]/gi, function (match) {
-      switch (match) {
-        case '&':
-          return '&amp;';
-        case '<':
-          return '&lt;';
-        case '>':
-          return '&gt;';
-        case '"':
-          return '&quot;';
-      }
-    }) || str
-  );
+  return DOMPurify.sanitize(str);
 };
 /** 数字千分位处理 */
 export const formatNumberWithRegex = number => {

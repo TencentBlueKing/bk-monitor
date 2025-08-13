@@ -40,31 +40,31 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './ai-settings-set.scss';
 
-interface HostData {
-  default_plan_id: number;
-  default_sensitivity: number;
-  is_enabled: boolean;
-  exclude_target: HostValueItem[][];
-  intelligent_detect: Record<string, any>; // 可能需要根据实际需要调整类型
-}
 enum AISettingType {
   IntelligentDetect = 'IntelligentDetect',
   MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
 }
+interface HostData {
+  default_plan_id: number;
+  default_sensitivity: number;
+  exclude_target: HostValueItem[][];
+  intelligent_detect: Record<string, any>; // 可能需要根据实际需要调整类型
+  is_enabled: boolean;
+}
 
 interface SettingsData {
+  errorsMsg?: Record<string, string | TranslateResult>;
+  title: string | TranslateResult;
   type: AISettingType;
-  title: TranslateResult | string;
   data:
+    | any
     | {
-        type: string;
-        title: TranslateResult | string;
         data: HostData;
-        errorsMsg?: Record<string, TranslateResult | string>;
+        errorsMsg?: Record<string, string | TranslateResult>;
+        title: string | TranslateResult;
+        type: string;
       }[]
-    | { default_plan_id: number }
-    | any;
-  errorsMsg?: Record<string, TranslateResult | string>;
+    | { default_plan_id: number };
 }
 
 @Component

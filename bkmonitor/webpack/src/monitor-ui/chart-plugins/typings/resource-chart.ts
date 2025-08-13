@@ -25,12 +25,12 @@
  */
 
 export interface IResourceData {
-  value: string;
+  color: string;
   name: string;
+  tips: string;
+  value: string;
   link: {
     target: string;
     url: string;
   };
-  color: string;
-  tips: string;
 }

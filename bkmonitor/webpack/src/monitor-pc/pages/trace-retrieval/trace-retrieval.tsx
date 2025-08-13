@@ -26,11 +26,16 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { loadApp, unmount, mount } from '@blueking/bk-weweb';
+import { loadApp, mount, unmount } from '@blueking/bk-weweb';
 
+import aiWhaleStore from '@/store/modules/ai-whale';
 import '@blueking/bk-weweb';
 
+import type { AIBluekingShortcut } from '@/components/ai-whale/types';
+import type { Vue3WewebData } from '@/types/weweb/weweb';
+
 import './trace-retrieval.scss';
+
 const traceAppId = 'trace-explore';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
@@ -46,12 +51,15 @@ export default class TraceRetrieval extends tsc<object> {
       ? `${this.traceHost}/?bizId=${this.$store.getters.bizId}/#/trace/home`
       : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/home`;
   }
-  get traceData() {
+  get traceData(): Vue3WewebData {
     return {
       host: this.traceHost,
       baseroute: '/trace/',
       setUnmountCallback: (callback: () => void) => {
         this.unmountCallback = callback;
+      },
+      handleAIBluekingShortcut: (shortcut: AIBluekingShortcut) => {
+        aiWhaleStore.setCustomFallbackShortcut(shortcut);
       },
     };
   }

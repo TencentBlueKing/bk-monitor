@@ -70,13 +70,13 @@
           <span class="field-text">{{ getFieldName(field) }}</span>
         </div>
         <div class="field-value">
-          <template v-if="isJsonFormat(formatterStr(data, field.field_name))">
+          <!-- <template v-if="isJsonFormat(formatterStr(data, field.field_name))">
             <JsonFormatter
               :fields="getFieldItem(field.field_name)"
               :json-value="formatterStr(data, field.field_name)"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
-          </template>
+          </template> -->
 
           <span
             v-if="getRelationMonitorField(field.field_name)"
@@ -86,15 +86,11 @@
             <span>{{ getRelationMonitorField(field.field_name) }}</span>
             <i class="bklog-icon bklog-jump"></i>
           </span>
-          <template v-if="!isJsonFormat(formatterStr(data, field.field_name))">
-            <text-segmentation
-              :auto-width="true"
-              :content="formatterStr(data, field.field_name)"
-              :field="getFieldItem(field.field_name)"
-              :force-all="true"
-              @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
-            />
-          </template>
+          <JsonFormatter
+            :fields="getFieldItem(field.field_name)"
+            :json-value="formatterStr(data, field.field_name)"
+            @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
+          ></JsonFormatter>
         </div>
       </div>
     </div>
@@ -109,12 +105,12 @@
   import _escape from 'lodash/escape';
   import { mapGetters, mapState } from 'vuex';
 
-  import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
+  // import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
   import { BK_LOG_STORAGE } from '@/store/store.type';
 
   export default {
     components: {
-      TextSegmentation,
+      // TextSegmentation,
       JsonFormatter,
     },
     mixins: [tableRowDeepViewMixin],
@@ -259,7 +255,7 @@
         const fieldType = this.getFieldType(field);
         // const rowData = fieldType === '__virtual__' ? this.listData : row;
         const rowData = this.listData;
-        return this.tableRowDeepView(rowData, field, fieldType);
+        return this.tableRowDeepView(rowData, field, fieldType) ?? '--';
       },
       getFieldType(field) {
         const target = this.fieldList.find(item => item.field_name === field);
@@ -442,6 +438,10 @@
       padding-left: 8px;
 
       .field-value {
+        display: flex;
+        align-items: flex-start;
+        color: #16171a;
+        word-break: break-all;
         :deep(.valid-text) {
           &:hover {
             text-decoration: underline; /* 悬停时添加下划线 */
@@ -503,13 +503,6 @@
           height: 22px;
           transform: translateX(-3px) scale(0.7);
         }
-      }
-
-      .field-value {
-        display: flex;
-        align-items: flex-start;
-        color: #16171a;
-        word-break: break-all;
       }
     }
 

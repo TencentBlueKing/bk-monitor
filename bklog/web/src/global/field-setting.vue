@@ -38,7 +38,7 @@
             ref="validateForm"
             class="field-setting-form"
             :class="!isEdit ? 'field-preview-form' : ''"
-            :label-width="94"
+            :label-width="labelWidth"
             :model="formData"
             :rules="basicRules"
           >
@@ -251,6 +251,7 @@
   import settingTable from './setting-table.vue';
   import http from '@/api';
   import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper'
+
   const { t } = useLocale();
   const store = useStore();
   const route = useRoute();
@@ -276,6 +277,8 @@
       retain_original_text: false,
       original_text_tokenize_on_chars: '',
       original_text_is_case_sensitive: '',
+      path_regexp: '',
+      metadata_fields: [],
     },
     etl_config: '',
     fields: [],
@@ -405,6 +408,9 @@
   const isShowAddFields = computed(() => {
     return cleanType.value === 'bk_log_json';
   });
+  const labelWidth = computed(() => {
+      return store.state.isEnLanguage ?  130 : 94;
+    });
   const indexfieldTable = ref(null);
   const addNewField = () => {
     const fields = deepClone(indexfieldTable.value.getData());
@@ -521,6 +527,8 @@
             !item.is_delete,
         );
         formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
+        formData.value.etl_params.path_regexp = res?.data?.etl_params.path_regexp || '';
+        formData.value.etl_params.metadata_fields = res?.data?.etl_params.metadata_fields || [];
       });
     sliderLoading.value = false;
   };

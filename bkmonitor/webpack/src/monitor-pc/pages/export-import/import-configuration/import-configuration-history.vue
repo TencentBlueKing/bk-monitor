@@ -61,7 +61,15 @@
         <bk-table-column
           :label="$t('操作人')"
           prop="createUser"
-        />
+        >
+          <template #default="{ row }">
+            <bk-user-display-name
+              v-if="row.createUser"
+              :user-id="row.createUser"
+            />
+            <template v-else>--</template>
+          </template>
+        </bk-table-column>
         <bk-table-column
           :label="$t('执行结果')"
           width="220"

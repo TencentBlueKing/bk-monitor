@@ -26,8 +26,8 @@
 import {
   getConvergeFunction,
   getDimensions,
-  getPluginTemplates,
   getPlugins,
+  getPluginTemplates,
   getTemplateDetail,
   getVariables,
 } from 'monitor-api/modules/action';
@@ -37,8 +37,8 @@ import { transformDataKey } from 'monitor-common/utils/utils';
 import { defineStore } from 'pinia';
 
 export interface ISetMealAddState {
-  noticeWayList: any;
   getNoticeWayList: any;
+  noticeWayList: any;
 }
 
 export default defineStore('SetMealAdd', {

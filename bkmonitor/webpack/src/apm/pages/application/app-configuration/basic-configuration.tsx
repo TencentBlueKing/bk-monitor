@@ -59,13 +59,14 @@ import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
 import CustomService from './custom-service';
 import {
-  ETelemetryDataType,
   type IApdexConfig,
   type IAppInfo,
   type IApplicationSamplerConfig,
   type IInstanceOption,
   type ISamplingRule,
+  ETelemetryDataType,
 } from './type';
+
 // } from 'monitor-pc/components/cycle-input/utils';
 import type { IIpV6Value, INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
 
@@ -92,30 +93,30 @@ const nullOptions = {
   id: '',
   name: `- ${window.i18n.tc('空')} -`,
 };
-interface IProps {
-  appInfo: IAppInfo;
-  recordData: Record<string, string>;
-}
-
 type IFormData = IApdexConfig &
   IApplicationSamplerConfig & {
     app_alias: string;
     description: string;
   } & {
     plugin_config: {
-      target_nodes: any[];
-      paths: string[];
-      data_encoding: string;
-      target_node_type: INodeType;
-      target_object_type: TargetObjectType;
-      bk_data_id: number | string;
       bk_biz_id: number | string;
+      bk_data_id: number | string;
+      data_encoding: string;
+      paths: string[];
+      target_node_type: INodeType;
+      target_nodes: any[];
+      target_object_type: TargetObjectType;
     };
   };
 
+interface IProps {
+  appInfo: IAppInfo;
+  recordData: Record<string, string>;
+}
+
 type ISamplingOption = {
-  name: string;
   id: string;
+  name: string;
   type: string;
 };
 
@@ -697,7 +698,7 @@ export default class BasicInfo extends tsc<IProps> {
     this.DBTypeRules.splice(index, 1);
   }
 
-  handleSelectorChange(data: { value: IIpV6Value; nodeType: INodeType }) {
+  handleSelectorChange(data: { nodeType: INodeType; value: IIpV6Value }) {
     // TODO: 将数据拍平，不知道最后是否用得着
     const value = transformValueToMonitor(data.value, data.nodeType);
     this.formData.plugin_config.target_nodes = value.map(item => ({
@@ -1197,11 +1198,17 @@ export default class BasicInfo extends tsc<IProps> {
                 class='item-row'
               >
                 <EditableFormItem
-                  formType='input'
+                  formType='custom'
                   label={this.$t('创建人')}
                   showEditable={false}
                   value={this.appInfo.create_user}
-                />
+                >
+                  <template slot='custom'>
+                    <span class='text-content'>
+                      {this.appInfo.create_user ? <bk-user-display-name user-id={this.appInfo.create_user} /> : '--'}
+                    </span>
+                  </template>
+                </EditableFormItem>
                 <EditableFormItem
                   authority={this.authority.MANAGE_AUTH}
                   authorityName={authorityMap.MANAGE_AUTH}

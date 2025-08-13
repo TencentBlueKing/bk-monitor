@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, shallowRef } from 'vue';
+
 import { useI18n } from 'vue-i18n';
 
 import MonitorDrag from '../../../components/monitor-drag/monitor-drag';

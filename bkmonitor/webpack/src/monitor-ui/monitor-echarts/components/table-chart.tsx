@@ -33,8 +33,8 @@ import type { ITableSeries } from '../options/type-interface';
 import './table-chart.scss';
 
 interface TableChartProps {
-  series: ITableSeries;
   maxHeight: number;
+  series: ITableSeries;
 }
 @Component({
   name: 'table-chart',

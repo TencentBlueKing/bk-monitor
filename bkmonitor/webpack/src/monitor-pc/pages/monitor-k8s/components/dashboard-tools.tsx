@@ -26,19 +26,70 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-// import Vue from 'vue';
-import type { TranslateResult } from 'vue-i18n';
-
 //
 // import MonitorDateRange from '../../../components/monitor-date-range';
 import MonitorDropdown from '../../../components/monitor-dropdown';
 import TimeRange, { type TimeRangeType } from '../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../../components/time-range/utils';
 import { PANEL_INTERVAL_LIST } from '../../../constant/constant';
-import { COMMON_SETTINGS_LIST, type IMenuItem } from '../typings';
+import { type IMenuItem, COMMON_SETTINGS_LIST } from '../typings';
 import ListMenu from './list-menu';
 
+// import Vue from 'vue';
+import type { TranslateResult } from 'vue-i18n';
+
 import './dashboard-tools.scss';
+
+export interface IRefreshItem {
+  // 自动刷新间隔值
+  id: number | string;
+  // 刷新间隔名称
+  name: string | TranslateResult;
+}
+interface IHeadToolEvent {
+  // 自动刷新数据间隔修改触发
+  onRefreshChange: number;
+  // 数据间隔修改触发
+  onTimeRangeChange: TimeRangeType;
+  // 选择粒度
+  onDownSampleRangeChange?: (v: number | string) => void;
+  // 点击全屏功能触发
+  onFullscreenChange: (v: boolean) => void;
+  // 触发立即刷新
+  onImmediateRefresh: () => void;
+  onIntervalChange?: (v: number | string) => void;
+  // 选择menu触发
+  onSelectedMenu: (v: IMenuItem) => void;
+  // 点击分屏功能触发
+  onSplitPanelChange: (v: boolean) => void;
+  // 选择时区
+  onTimezoneChange?: (v: string) => void;
+}
+interface IHeadToolProps {
+  // 粒度
+  downSampleRange?: number | string;
+  interval?: number | string;
+  // 是否显示分屏功能
+  isSplitPanel: boolean;
+  // menu list
+  menuList?: IMenuItem[];
+  // 自动刷新数据间隔
+  refreshInterval?: number;
+  // 是否显示粒度
+  showDownSampleRange?: boolean;
+  showFullscreen?: boolean;
+  showInterval?: boolean;
+  // 是否展示列表功能
+  showListMenu?: boolean;
+  // 是否显示分屏功能
+  showSplitPanel?: boolean;
+  // 是否显示timerange 功能
+  showTimeRange?: boolean;
+  // 数据间隔
+  timeRange?: TimeRangeType;
+  // 时区
+  timezone?: string;
+}
 
 // Vue.use(DatePicker);
 // Vue.use(DropdownMenu);
@@ -47,57 +98,6 @@ interface ITimeRangeItem {
   name: string | TranslateResult;
   // 间隔值 如 60 * 60 * 1000 = 1h
   value: number | string;
-}
-export interface IRefreshItem {
-  // 刷新间隔名称
-  name: string | TranslateResult;
-  // 自动刷新间隔值
-  id: number | string;
-}
-interface IHeadToolProps {
-  // 数据间隔
-  timeRange?: TimeRangeType;
-  // 时区
-  timezone?: string;
-  // 自动刷新数据间隔
-  refreshInterval?: number;
-  // 是否显示分屏功能
-  isSplitPanel: boolean;
-  // 是否展示列表功能
-  showListMenu?: boolean;
-  // 是否显示timerange 功能
-  showTimeRange?: boolean;
-  // 是否显示分屏功能
-  showSplitPanel?: boolean;
-  // menu list
-  menuList?: IMenuItem[];
-  // 粒度
-  downSampleRange?: number | string;
-  interval?: number | string;
-  // 是否显示粒度
-  showDownSampleRange?: boolean;
-  showInterval?: boolean;
-  showFullscreen?: boolean;
-}
-
-interface IHeadToolEvent {
-  // 数据间隔修改触发
-  onTimeRangeChange: TimeRangeType;
-  // 自动刷新数据间隔修改触发
-  onRefreshChange: number;
-  // 触发立即刷新
-  onImmediateRefresh: () => void;
-  // 点击全屏功能触发
-  onFullscreenChange: (v: boolean) => void;
-  // 点击分屏功能触发
-  onSplitPanelChange: (v: boolean) => void;
-  // 选择menu触发
-  onSelectedMenu: (v: IMenuItem) => void;
-  // 选择粒度
-  onDownSampleRangeChange?: (v: number | string) => void;
-  onIntervalChange?: (v: number | string) => void;
-  // 选择时区
-  onTimezoneChange?: (v: string) => void;
 }
 @Component
 export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> {

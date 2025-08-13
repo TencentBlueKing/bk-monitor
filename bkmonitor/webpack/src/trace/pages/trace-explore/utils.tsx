@@ -105,6 +105,38 @@ const checkboxFilterMapByMode = {
   },
 };
 
+/** 维度列表转换tree结构 */
+export function convertToTree(data: IDimensionField[]): IDimensionFieldTreeItem[] {
+  const root: IDimensionFieldTreeItem[] = [];
+  for (const item of data) {
+    const parts = item.name.split('.');
+    if (parts.length < 2) {
+      root.push({ ...item, levelName: item.alias });
+      continue;
+    }
+
+    let currentLevel = root;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      let node = currentLevel.find(n => n.levelName === part);
+      if (!node) {
+        // 若非末层节点，初始化
+        if (i < parts.length - 1) {
+          node = { ...item, type: 'object', levelName: part, name: part, alias: part, children: [] };
+        } else {
+          node = { ...item, levelName: item.alias };
+        }
+        currentLevel.push(node);
+      }
+      // 更新当前层级到子节点
+      if (node.children) currentLevel = node.children;
+      else currentLevel = []; // 末层节点无需children
+    }
+  }
+  root.forEach(node => calculateCounts(node));
+  return root;
+}
+
 /**
  * @description 根据当前激活视角和checkbox值获取filter配置
  * @param mode 当前激活的视角
@@ -152,38 +184,6 @@ export function tryURLDecodeParse<T>(str: string, defaultValue: T) {
     }
   }
   return result || defaultValue;
-}
-
-/** 维度列表转换tree结构 */
-export function convertToTree(data: IDimensionField[]): IDimensionFieldTreeItem[] {
-  const root: IDimensionFieldTreeItem[] = [];
-  for (const item of data) {
-    const parts = item.name.split('.');
-    if (parts.length < 2) {
-      root.push({ ...item, levelName: item.alias });
-      continue;
-    }
-
-    let currentLevel = root;
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      let node = currentLevel.find(n => n.levelName === part);
-      if (!node) {
-        // 若非末层节点，初始化
-        if (i < parts.length - 1) {
-          node = { ...item, type: 'object', levelName: part, name: part, alias: part, children: [] };
-        } else {
-          node = { ...item, levelName: item.alias };
-        }
-        currentLevel.push(node);
-      }
-      // 更新当前层级到子节点
-      if (node.children) currentLevel = node.children;
-      else currentLevel = []; // 末层节点无需children
-    }
-  }
-  root.forEach(node => calculateCounts(node));
-  return root;
 }
 
 // 递归计算所有节点的count值

@@ -25,12 +25,12 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, reactive, ref, shallowRef, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
 import { listAlertTags } from 'monitor-api/modules/alert';
 // import { getStrategyListV2 } from 'monitor-api/modules/strategies';
 import { deepClone, random } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { useAppStore } from '../../store/modules/app';

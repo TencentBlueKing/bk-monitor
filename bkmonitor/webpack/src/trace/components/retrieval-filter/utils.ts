@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { formatDuration } from './duration-input-utils';
-import { ECondition, EMethod, type IFilterItem, type IWhereItem } from './typing';
-
 import type { ShallowRef } from 'vue';
+
+import { formatDuration } from './duration-input-utils';
+import { type IFilterItem, type IWhereItem, ECondition, EMethod } from './typing';
 
 export const fieldTypeMap = {
   all: {
@@ -81,12 +81,14 @@ export const fieldTypeMap = {
 };
 
 export const RETRIEVAL_FILTER_UI_DATA_CACHE_KEY = '__vue3_RETRIEVAL_FILTER_UI_DATA_CACHE_KEY__';
-/**
- * @description 缓存ui数据
- * @param v
- */
-export function setCacheUIData(v: IFilterItem[]) {
-  localStorage.setItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY, JSON.stringify(v));
+export function defaultWhereItem(params = {}): IWhereItem {
+  return {
+    condition: ECondition.and,
+    key: '',
+    method: EMethod.eq,
+    value: [],
+    ...params,
+  };
 }
 export function getCacheUIData(): IFilterItem[] {
   const uiDataSrt = localStorage.getItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY);
@@ -102,33 +104,6 @@ export function getCacheUIData(): IFilterItem[] {
     console.log(err);
     return [];
   }
-}
-export function isNumeric(str) {
-  return /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(str);
-}
-export function getTitleAndSubtitle(str) {
-  const regex = /^(.*?)（(.*?)）$/;
-  const match = str.match(regex);
-  return {
-    title: match?.[1] || str,
-    subtitle: match?.[2],
-  };
-}
-export function onClickOutside(element, callback, { once = false } = {}) {
-  const handler = (event: MouseEvent) => {
-    let isInside = false;
-    if (Array.isArray(element)) {
-      isInside = element.some(el => !!el?.contains?.(event.target));
-    } else {
-      isInside = element.contains(event.target);
-    }
-    if (!isInside) {
-      callback(event);
-      if (once) window.removeEventListener('click', handler);
-    }
-  };
-  window.addEventListener('click', handler);
-  return () => window.removeEventListener('click', handler);
 }
 /**
  * 获取字符长度，汉字两个字节
@@ -147,7 +122,17 @@ export function getCharLength(str) {
   }
   return bitLen;
 }
-
+export function getTitleAndSubtitle(str) {
+  const regex = /^(.*?)（(.*?)）$/;
+  const match = str.match(regex);
+  return {
+    title: match?.[1] || str,
+    subtitle: match?.[2],
+  };
+}
+export function isNumeric(str) {
+  return /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(str);
+}
 /**
  * @description 合并where条件 （不相同的条件往后添加）
  * @param source
@@ -181,14 +166,29 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
   return result;
 }
 
-export function defaultWhereItem(params = {}): IWhereItem {
-  return {
-    condition: ECondition.and,
-    key: '',
-    method: EMethod.eq,
-    value: [],
-    ...params,
+export function onClickOutside(element, callback, { once = false } = {}) {
+  const handler = (event: MouseEvent) => {
+    let isInside = false;
+    if (Array.isArray(element)) {
+      isInside = element.some(el => !!el?.contains?.(event.target));
+    } else {
+      isInside = element.contains(event.target);
+    }
+    if (!isInside) {
+      callback(event);
+      if (once) window.removeEventListener('click', handler);
+    }
   };
+  window.addEventListener('click', handler);
+  return () => window.removeEventListener('click', handler);
+}
+
+/**
+ * @description 缓存ui数据
+ * @param v
+ */
+export function setCacheUIData(v: IFilterItem[]) {
+  localStorage.setItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY, JSON.stringify(v));
 }
 
 export const TIME_CONSUMING_REGEXP = /^([1-9][0-9]*|0)(\.[0-9]*[1-9])?(ns|μs|ms|s|m|h|d)$/;
@@ -245,14 +245,11 @@ export const TRACE_DEFAULT_RESIDENT_SETTING_KEY = [
 export const SPAN_DEFAULT_RESIDENT_SETTING_KEY = ['trace_id', 'elapsed_time', 'resource.service.name', 'span_name'];
 export const INPUT_TAG_KEYS = ['span_id', 'trace_id'];
 
-export function triggerShallowRef<T>(shallowRef: ShallowRef<T>) {
-  shallowRef.value = structuredClone(shallowRef.value);
-}
-
 export function getDurationDisplay(value: Array<number | string>) {
   const str = value.map(v => (v ? `${formatDuration(Number(v))}` : '0ms')).join('~');
   return str;
 }
+
 export function getTopDocument(node = document) {
   let currentRoot = node.getRootNode();
   let nodeTemp: any = node;
@@ -268,6 +265,9 @@ export function getTopDocument(node = document) {
   }
   // 返回最终的顶层 document
   return currentRoot === document ? document : currentRoot;
+}
+export function triggerShallowRef<T>(shallowRef: ShallowRef<T>) {
+  shallowRef.value = structuredClone(shallowRef.value);
 }
 
 /* 通配符字段key */

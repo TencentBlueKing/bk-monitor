@@ -33,10 +33,10 @@ import './common-status.scss';
 export type CommonStatusType = ITableItemStatus;
 
 interface IProps {
-  type: CommonStatusType;
+  icon?: string;
   text?: string;
   tips?: string;
-  icon?: string;
+  type: CommonStatusType;
 }
 
 /**

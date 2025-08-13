@@ -30,13 +30,13 @@ import AppAddForm from './add-app-form';
 
 import './add-app-side.scss';
 
-interface IProps {
-  isShow: boolean;
-}
-
 interface IEvent {
   onShowChange?: (val: boolean) => void;
   onSuccess?: (val: string) => void;
+}
+
+interface IProps {
+  isShow: boolean;
 }
 
 @Component

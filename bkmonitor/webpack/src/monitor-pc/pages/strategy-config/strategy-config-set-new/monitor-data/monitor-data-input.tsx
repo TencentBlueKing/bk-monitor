@@ -53,23 +53,23 @@ const expressPlaceholders = (type: string) => {
   return String(window.i18n.t('支持四则运算 + - * / % ^ ( ) ,如(A+B)/100'));
 };
 interface IMericDataInputProps {
-  metricData: MetricDetail[];
-  metricNameLabel: string | TranslateResult;
-  expression: string;
-  isRealTimeModel?: boolean;
-  readonly: boolean;
-  hasAIntelligentDetect: boolean;
-  expFunctions: IFunctionsValue[];
   dataTypeLabel?: string;
+  expFunctions: IFunctionsValue[];
+  expression: string;
+  hasAIntelligentDetect: boolean;
   hasAiOpsDetect?: boolean;
   isKpiAnomalySdkEnabled?: boolean;
+  isRealTimeModel?: boolean;
+  metricData: MetricDetail[];
+  metricNameLabel: string | TranslateResult;
+  readonly: boolean;
 }
 interface IMetricDataInputEvent {
-  onExpressionBlur: string;
-  onMethodChange: string;
-  onFunctionChange: any;
-  onExpFunctionsChange: unknown[];
   onAddNullMetric: string;
+  onExpFunctionsChange: unknown[];
+  onExpressionBlur: string;
+  onFunctionChange: any;
+  onMethodChange: string;
   onShowExpress: boolean;
 }
 

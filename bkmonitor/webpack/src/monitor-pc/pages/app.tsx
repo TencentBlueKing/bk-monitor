@@ -28,19 +28,19 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
+import { getLinkMapping, listStickySpaces } from 'monitor-api/modules/commons';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
-import { docCookies, getUrlParam, random } from 'monitor-common/utils/utils';
+import { docCookies, random } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal';
 
 import OverseasLogo from '../components/overseas-logo/overseas-logo';
 import introduce from '../common/introduce';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { isAuthority } from '../router/router';
-import { GLOBAL_FEATURE_LIST, type IRouteConfigItem, getRouteConfig } from '../router/router-config';
+import { type IRouteConfigItem, getRouteConfig, GLOBAL_FEATURE_LIST } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
 import type { IOverseasConfig, ISpaceItem } from '../types';
 import { useCheckVersion } from './check-version';
@@ -63,6 +63,7 @@ import './app.scss';
 import '@blueking/notice-component-vue2/dist/style.css';
 import GlobalConfigMixin from '../mixins/globalConfig';
 import aiWhaleStore from '../store/modules/ai-whale';
+import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
 const changeNoticeRouteList = [
   'strategy-config-add',
   'strategy-config-edit',
@@ -124,7 +125,7 @@ export default class App extends tsc<object> {
   // 全局设置弹窗
   globalSettingShow = false;
   @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToggle') === 'true';
-  @ProvideReactive('readonly') readonly: boolean = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
+  @ProvideReactive('readonly') readonly: boolean = window.__BK_WEWEB_DATA__?.readonly ?? globalUrlFeatureMap.READONLY;
   routeViewKey = random(10);
   // 是否显示AI智能助手
   get enableAiAssistant() {
@@ -333,9 +334,9 @@ export default class App extends tsc<object> {
   }
   // 设置是否需要menu
   handleSetNeedMenu() {
-    const needMenu = getUrlParam('needMenu');
-    this.readonly = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
-    this.needMenu = `${needMenu}` !== 'false' && this.$route?.name !== 'share' && !window.__BK_WEWEB_DATA__?.readonly;
+    this.readonly = window.__BK_WEWEB_DATA__?.readonly ?? globalUrlFeatureMap.READONLY;
+    this.needMenu =
+      globalUrlFeatureMap.NEED_MENU && this.$route?.name !== 'share' && !window.__BK_WEWEB_DATA__?.readonly;
   }
   handleGotoPage(name: string) {
     this.$router.push({ name });

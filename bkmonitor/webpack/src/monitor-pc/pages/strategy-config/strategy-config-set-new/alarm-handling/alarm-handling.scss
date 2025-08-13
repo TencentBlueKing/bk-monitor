@@ -11,6 +11,21 @@
     &.no-label {
       padding-left: 63px!important;
     }
+
+    &.skip-delay {
+      position: relative;
+
+      .defense-wrap {
+        flex: none;
+      }
+      
+      .error-tips {
+        position: absolute;
+        left: 215px;
+        bottom: -15px;
+      }
+    }
+    
     .converge-config-option {
       margin-right: 8px;
     }
@@ -29,6 +44,7 @@
     &.simple {
       padding-right: 2px;
     }
+
     .small-input {
       width: 66px;
       input {
@@ -39,6 +55,12 @@
       flex: 1;
     }
   }
+
+  .error-tips {
+    font-size: 12px;
+    color: #ea3636;
+  }
+
   .tips-key1 {
     background: #f0f8ff;
     border: 1px solid #c5daff;

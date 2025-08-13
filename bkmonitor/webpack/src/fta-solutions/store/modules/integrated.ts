@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { listEventPlugin } from 'monitor-api/modules/event_plugin';
-import { Action, Module, VuexModule, getModule } from 'vuex-module-decorators';
+import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 import store from '../store';
 

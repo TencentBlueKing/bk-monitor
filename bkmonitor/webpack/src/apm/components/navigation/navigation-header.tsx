@@ -28,13 +28,13 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './navigation-header.scss';
 
+export interface IFtaNavigationHeaderProps {
+  active: string;
+  list: INavItem[];
+}
 interface INavItem {
   id: string;
   name: string;
-}
-export interface IFtaNavigationHeaderProps {
-  list: INavItem[];
-  active: string;
 }
 @Component
 export default class FtaNavigationHeader extends tsc<IFtaNavigationHeaderProps> {

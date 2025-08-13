@@ -33,7 +33,6 @@ import dayjs from 'dayjs';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 
 import $http from '../../api';
-import { deepClone } from '../../common/util';
 import { AngleType, EditModel } from './authorization-list';
 
 import './authorization-dialog.scss';
@@ -141,15 +140,25 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
       this.formRef.clearError();
       this.authorizedUsersList = await this.getAuthListData();
       if (this.rowData) {
-        this.formData = deepClone(this.rowData);
+        Object.keys(this.rowData ?? {}).forEach(key => {
+          if (Array.isArray(this.rowData[key])) {
+            this.formData[key].splice(0, this.formData[key].length, ...this.rowData[key]); // 清空数组
+          } else {
+            this.$set(this.formData, key, this.rowData[key]);
+          }
+        });
+
+        this.$nextTick(() => {
+          this.formData.resources.splice(0, this.formData.resources.length, ...(this.rowData.resources || []));
+        });
       } else {
-        this.formData = {
+        Object.assign(this.formData, {
           action_id: '',
           authorized_users: [],
           resources: [],
           expire_time: '',
           action_multiple: [],
-        };
+        });
       }
     }
   }

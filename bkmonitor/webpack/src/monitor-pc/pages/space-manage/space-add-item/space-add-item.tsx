@@ -30,13 +30,13 @@ import type { IAddItemData } from '../space-add-list/space-add-list';
 
 import './space-add-item.scss';
 
-interface IProps {
-  data: IAddItemData;
-  checked: boolean;
-  disabled?: boolean;
-}
 interface IEvents {
   onChecked: boolean;
+}
+interface IProps {
+  checked: boolean;
+  data: IAddItemData;
+  disabled?: boolean;
 }
 @Component
 export default class SpaceAddItem extends tsc<IProps, IEvents> {

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { PropType, defineComponent, ref } from 'vue';
+import { type PropType, defineComponent, ref } from 'vue';
 
 import { Popover } from 'bkui-vue';
 import { CONDITION } from 'monitor-pc/constant/constant';
@@ -64,7 +64,7 @@ export default defineComponent({
               class='condition-item condition-item-condition mb-8'
               value={props.item.condition.toLocaleUpperCase()}
               readonly
-            ></input>
+            />
           ),
           content: () => (
             <div>

@@ -34,8 +34,8 @@
         <van-radio-group v-model="shieldType">
           <van-radio
             v-for="item in radioList.type"
-            class="content-radio"
             :key="item.value"
+            class="content-radio"
             :name="item.value"
           >
             {{ item.name }}
@@ -51,8 +51,8 @@
       <div class="shield-section-detail">
         <div
           v-for="(item, index) in shieldContent"
-          :class="['detail-item', { 'is-dimension': item.name === $t('维度') }]"
           :key="index"
+          :class="['detail-item', { 'is-dimension': item.name === $t('维度') }]"
         >
           <template v-if="item.type === shieldType">
             <span>
@@ -61,8 +61,8 @@
             <!-- 维度信息需要可复选 -->
             <van-checkbox-group
               v-if="item.name === $t('维度') && Array.isArray(item.value)"
-              class="detail-item-span"
               v-model="selectedDimension"
+              class="detail-item-span"
               icon-size="16px"
             >
               <van-checkbox
@@ -93,8 +93,8 @@
         <van-grid :column-num="3">
           <van-grid-item
             v-for="item in dataPickerList"
-            :class="active === item.id ? 'active' : ''"
             :key="item.id"
+            :class="active === item.id ? 'active' : ''"
             :text="item.name"
             @click="handleShowDatePicker(item.id, item.value)"
           />
@@ -110,8 +110,8 @@
         <van-radio-group v-model="reason">
           <van-radio
             v-for="item in radioList.reason"
-            class="content-radio"
             :key="item.value"
+            class="content-radio"
             :name="item.value"
           >
             {{ item.name }}
@@ -124,8 +124,48 @@
       :show.sync="isShowDatePicker"
       @confirm="handleDateTimeConfirm"
     />
+    <van-popup
+      v-model="showPicker"
+      :overlay-style="{ 'background-color': 'rgba(0, 0, 0, 0.1)' }"
+      class="next-day-picker__field"
+      :close-on-click-overlay="false"
+      position="bottom"
+      round
+    >
+      <van-picker
+        ref="nextDayPicker"
+        :columns="hourList"
+        default-index="10"
+        show-toolbar
+      >
+        <div class="next-day-picker__title">{{ $t('选择截止时间') }}</div>
+        <template slot="columns-top">
+          <div class="next-day-picker__text">
+            <span class="item-hd">{{ $t('选择至次日') }}</span>
+            <span class="item-ft">{{ $t('选择至次日点') }}</span>
+          </div>
+        </template>
+        <div
+          slot="columns-bottom"
+          class="next-day-picker__bottom"
+        >
+          <div
+            class="next-day-picker__cancel"
+            @click="showPicker = false"
+          >
+            取消
+          </div>
+          <div
+            class="next-day-picker__confirm"
+            @click="handleNextDayConfirm()"
+          >
+            {{ $t('确定') }}
+          </div>
+        </div>
+      </van-picker>
+    </van-popup>
     <footer-button
-      v-show="!isShowDatePicker"
+      v-show="!isShowDatePicker && !showPicker"
       :loading="loading"
       @click="handleSubmit"
     >
@@ -135,9 +175,9 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import { Checkbox, CheckboxGroup, Grid, GridItem, Popup, Radio, RadioGroup } from 'vant';
+import { Checkbox, CheckboxGroup, Grid, GridItem, Picker, Popup, Radio, RadioGroup, Toast } from 'vant';
 
 import { quickShield } from '../../../monitor-api/modules/mobile_event';
 import DatetimePicker, { type ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
@@ -145,41 +185,43 @@ import FooterButton from '../../components/footer-button/footer-button.vue';
 import AlarmModule from '../../store/modules/alarm-info';
 import EventModule from '../../store/modules/event-detail';
 
-interface IRadioList {
-  name: string;
-  value: string;
-}
-interface IDimensionItem {
-  displayValue: string;
-  displayKey: string;
-  value: string;
-  key: string;
+enum TimeSemantics {
+  Custom = 8,
+  CustomNextDay = 7,
+  OneDays = 5,
+  SevenDays = 6,
+  TenMinutes = 1,
+  ThirtyMinutes = 2,
+  ThreeHour = 3,
+  TwelveHour = 4,
 }
 interface IDataPickerList {
   id: number;
   name: string;
   value: number;
 }
-interface IShieldItem {
-  type: string;
-  name: string;
-  value: IDimensionItem[] | string;
+interface IDimensionItem {
+  displayKey: string;
+  displayValue: string;
+  key: string;
+  value: string;
 }
 interface IEentDetail {
-  dimensions: IDimensionItem[];
+  anomalyMessage: string;
   dimensionMessage: string;
+  dimensions: IDimensionItem[];
+  levelName: string;
   strategyName: string;
   targetMessage: string;
-  anomalyMessage: string;
-  levelName: string;
 }
-enum TimeSemantics {
-  TenMinutes = 1,
-  ThirtyMinutes = 2,
-  TwelveHour = 3,
-  OneDays = 4,
-  SevenDays = 5,
-  Custom = 6,
+interface IRadioList {
+  name: string;
+  value: string;
+}
+interface IShieldItem {
+  name: string;
+  type: string;
+  value: IDimensionItem[] | string;
 }
 
 @Component({
@@ -190,6 +232,7 @@ enum TimeSemantics {
     [CheckboxGroup.name]: CheckboxGroup,
     [Checkbox.name]: Checkbox,
     DatetimePicker,
+    [Picker.name]: Picker,
     [Popup.name]: Popup,
     [Grid.name]: Grid,
     [GridItem.name]: GridItem,
@@ -199,11 +242,12 @@ enum TimeSemantics {
 export default class AlarmDetail extends Vue {
   @Prop({ default: 0 }) readonly eventId!: number | string;
   @Prop() readonly routeKey: string;
+  @Ref('nextDayPicker') nextDayPickerRef: Picker;
   private active = TimeSemantics.TenMinutes; // 屏蔽时间当前项
   private shieldType = 'event'; // 屏蔽类型 value
   private reason = '变更中'; // 屏蔽原因 value
   private customTime = ''; // 自定义时间
-  private radioList: { type: IRadioList[]; reason: IRadioList[] }; // type: 屏蔽类型列表 reason: 屏蔽原因列表
+  private radioList: { reason: IRadioList[]; type: IRadioList[] }; // type: 屏蔽类型列表 reason: 屏蔽原因列表
   private isShowDatePicker = false; // 是否展示时间选择器
   private dataPickerList: IDataPickerList[] = []; // 时间选择列表
   private loading = false;
@@ -220,6 +264,12 @@ export default class AlarmDetail extends Vue {
     anomalyMessage: '',
     levelName: '',
   };
+  private showPicker = false;
+  private hourList: number[] = []; // 至次日可选小时
+
+  get getNextDaySelectedHour() {
+    return Number(...this.nextDayPickerRef.getValues());
+  }
 
   @Watch('routeKey')
   onRouteKeyChange() {
@@ -240,11 +290,14 @@ export default class AlarmDetail extends Vue {
     this.dataPickerList = [
       { id: 1, name: String(this.$t('分钟', { num: 10 })), value: 60000 * 10 },
       { id: 2, name: String(this.$t('分钟', { num: 30 })), value: 60000 * 30 },
-      { id: 3, name: String(this.$t('小时', { num: 12 })), value: 60000 * 60 * 12 },
-      { id: 4, name: String(this.$t('天', { num: 1 })), value: 60000 * 60 * 24 },
-      { id: 5, name: String(this.$t('天', { num: 7 })), value: 60000 * 60 * 24 * 7 },
-      { id: 6, name: this.$tc('自定义'), value: 0 },
+      { id: 3, name: String(this.$t('小时', { num: 3 })), value: 60000 * 60 * 3 },
+      { id: 4, name: String(this.$t('小时', { num: 12 })), value: 60000 * 60 * 12 },
+      { id: 5, name: String(this.$t('天', { num: 1 })), value: 60000 * 60 * 24 },
+      { id: 6, name: String(this.$t('天', { num: 7 })), value: 60000 * 60 * 24 * 7 },
+      { id: 7, name: String(this.$t('至次日', { num: 10 })), value: -1 },
+      { id: 8, name: this.$tc('自定义'), value: 0 },
     ];
+    this.hourList = Array.from({ length: 24 }, (_, index) => index);
   }
 
   activated() {
@@ -269,11 +322,11 @@ export default class AlarmDetail extends Vue {
     this.selectedDimension = this.eventDetail.dimensions?.map(item => item.key) || []; // 默认选中所有维度信息
     this.handleSetRadioList();
     this.shieldContent = [
-      {
-        type: 'event',
-        name: this.$tc('级别'),
-        value: this.eventDetail.levelName,
-      },
+      // {
+      //   type: 'event',
+      //   name: this.$tc('级别'),
+      //   value: this.eventDetail.levelName,
+      // },
       {
         type: 'event',
         name: this.$tc('维度'),
@@ -313,11 +366,18 @@ export default class AlarmDetail extends Vue {
   }
 
   //  屏蔽时间选择
-  handleShowDatePicker(id, value) {
+  async handleShowDatePicker(id, value) {
     this.active = id;
     //  弹出自定义时间框
     if (this.active === TimeSemantics.Custom) {
       this.isShowDatePicker = true;
+      return;
+    }
+    // 弹出至次日时间选择框
+    if (this.active === TimeSemantics.CustomNextDay) {
+      this.showPicker = true;
+      await this.$nextTick();
+      this.setNextDaytime(this.getNextDaySelectedHour);
       return;
     }
     const endTime = new Date(new Date().getTime() + value);
@@ -330,6 +390,22 @@ export default class AlarmDetail extends Vue {
     const date = timeObj.dateObj;
     data.name = this.handleEndTime(date);
     this.endTime = data.name;
+  }
+
+  // 至次日picker确定
+  handleNextDayConfirm() {
+    const selectedHour = this.getNextDaySelectedHour;
+    const data = this.dataPickerList.find(item => item.id === TimeSemantics.CustomNextDay);
+    data.name = this.$t('至次日', { num: selectedHour }) as string;
+    this.setNextDaytime(selectedHour);
+    this.showPicker = false;
+  }
+
+  setNextDaytime(hour: number) {
+    const endTime = new Date();
+    endTime.setDate(endTime.getDate() + 1);
+    endTime.setHours(hour, 0, 0, 0);
+    this.endTime = this.handleEndTime(endTime);
   }
 
   //  拼接自定义截止时间
@@ -345,8 +421,13 @@ export default class AlarmDetail extends Vue {
 
   //  提交快捷屏蔽
   handleSubmit() {
-    if (this.active === TimeSemantics.Custom && this.dataPickerList[5].name === '自定义') {
-      this.$notify('选择自定义时间');
+    if (this.active === TimeSemantics.Custom && this.dataPickerList[7].name === '自定义') {
+      // this.$notify('选择自定义时间');
+      Toast({
+        message: this.$tc('选择自定义时间'),
+        duration: 2000,
+        position: 'bottom',
+      });
       return;
     }
     this.loading = true;
@@ -360,8 +441,29 @@ export default class AlarmDetail extends Vue {
       params.dimension_keys = this.selectedDimension;
     }
     quickShield(params)
-      .then(() => {
-        this.$router.back();
+      .then(e => {
+        Toast({
+          message: e?.message || this.$tc('操作成功'),
+          duration: 2000,
+          position: 'bottom',
+        });
+        const params = new URLSearchParams(window.location.search);
+        const batchAction = params.get('batchAction');
+        if (!batchAction) {
+          this.$router.back();
+          return;
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.delete('batchAction');
+        url.hash = '#/alarm-info';
+        location.href = url.toString();
+      })
+      .catch(e => {
+        Toast({
+          message: e?.message || this.$tc('操作失败'),
+          duration: 2000,
+          position: 'bottom',
+        });
       })
       .finally(() => {
         this.loading = false;
@@ -371,7 +473,7 @@ export default class AlarmDetail extends Vue {
 </script>
 
 <style lang="scss" scoped>
-@import '../../static/scss/variate.scss';
+@import '../../static/scss/variate';
 
 .quick-alarm-shield {
   padding: 13px 16px;
@@ -392,7 +494,7 @@ export default class AlarmDetail extends Vue {
       padding: 0 20px;
       background: #fff;
       border-radius: 4px;
-      box-shadow: 0 1px 0 0 rgba(99, 101, 110, 0.05);
+      box-shadow: 0 1px 0 0 rgb(99 101 110 / 5%);
 
       .content-radio {
         position: relative;
@@ -403,7 +505,7 @@ export default class AlarmDetail extends Vue {
           color: $defaultFontColor;
         }
 
-        &:after {
+        &::after {
           position: absolute;
           right: 0;
           bottom: 0;
@@ -497,6 +599,79 @@ export default class AlarmDetail extends Vue {
           }
         }
       }
+    }
+  }
+
+  .next-day-picker__field {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    width: auto;
+    padding: 20px 0;
+    border-radius: 16px;
+
+    :deep(.van-picker__toolbar) {
+      height: auto;
+    }
+
+    .next-day-picker__text {
+      position: absolute;
+      top: calc(50% - 9px);
+      right: 20px;
+      left: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 16px;
+      line-height: 44px;
+      transform: translateY(-50%);
+    }
+
+    .next-day-picker__title {
+      padding: 0 20px;
+      font-size: 20px;
+
+      // line-height: 1.75rem;
+      color: #313238;
+    }
+
+    .next-day-picker__bottom {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 20px;
+      margin-top: 16px;
+      font-size: 20px;
+      color: #3a84ff;
+
+      .next-day-picker__cancel {
+        position: relative;
+
+        &::after {
+          position: absolute;
+          top: 50%;
+          right: 0;
+          width: 1px;
+          height: 18px;
+          content: '';
+          background-color: #eaebef;
+          transform: translateY(-50%);
+        }
+      }
+
+      .next-day-picker__confirm,
+      .next-day-picker__cancel {
+        flex: 1;
+        text-align: center;
+      }
+    }
+
+    :deep(.van-picker-column__item) {
+      padding: 0 20px;
+    }
+
+    :deep(.van-picker__confirm) {
+      color: #3a84ff;
     }
   }
 }

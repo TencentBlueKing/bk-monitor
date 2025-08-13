@@ -26,13 +26,13 @@
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
 
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
-import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
+import { type IDetectionTypeRuleData, DetectionRuleTypeEnum } from '../../../typings';
 import Form from '../form/form';
-import { FormItem, type IFormDataItem } from '../form/utils';
+import { type IFormDataItem, FormItem } from '../form/utils';
 
 import type { IModelData } from '../time-series-forecast/time-series-forecast';
 
@@ -43,29 +43,29 @@ const LEVEL_FIELD = 'level'; /** 告警级别key */
 
 // 图表显示类型: none-无, boundary-上下界, score-异常分值, forecasting-预测
 export type ChartType = 'boundary' | 'forecasting' | 'none' | 'score';
+export interface ITipsData {
+  message: string;
+  status: 'error' | 'info' | 'success';
+}
+
 interface IAiOpsValue {
+  args: { [key in string]: number | string };
   [MODEL_FIELD]: string;
   visual_type: ChartType;
-  args: { [key in string]: number | string };
+}
+
+interface IntelligentDetectEvents {
+  onChartTypeChange: ChartType;
+  onDataChange: IDetectionTypeRuleData<IAiOpsValue>;
+  onModelChange: IModelData;
 }
 
 interface IntelligentDetectProps {
   data?: IDetectionTypeRuleData<IAiOpsValue>;
-  readonly?: boolean;
-  isEdit?: boolean;
   interval: number;
+  isEdit?: boolean;
+  readonly?: boolean;
   resultTableId: string;
-}
-
-interface IntelligentDetectEvents {
-  onDataChange: IDetectionTypeRuleData<IAiOpsValue>;
-  onChartTypeChange: ChartType;
-  onModelChange: IModelData;
-}
-
-export interface ITipsData {
-  status: 'error' | 'info' | 'success';
-  message: string;
 }
 @Component({})
 export default class IntelligentDetect extends tsc<IntelligentDetectProps, IntelligentDetectEvents> {
@@ -195,10 +195,10 @@ export default class IntelligentDetect extends tsc<IntelligentDetectProps, Intel
     const modelItem: FormItem = this.staticFormItem.find(item => item.field === MODEL_FIELD);
     // 根据服务端返回的 is_default 字段 是否 默认选中 特定的模型。
     let defaultSelectModelId = null;
-    if (!!resData.length) {
+    if (resData.length) {
       this.modelList = resData;
       modelItem.options = resData.map(item => {
-        if (!!item.is_default) defaultSelectModelId = item.id;
+        if (item.is_default) defaultSelectModelId = item.id;
         return {
           id: item.id,
           name: item.name,

@@ -32,7 +32,7 @@ import { copyText } from 'monitor-common/utils/utils.js';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import { allSpaceRegex, emojiRegex } from '../../../utils/index';
 import { PLUGIN_MANAGE_AUTH } from '../authority-map';
-import { TabEnum, type TabValue, type TabProperty, type ChangeConfig } from './typings/detail';
+import { type ChangeConfig, type TabProperty, type TabValue, TabEnum } from './typings/detail';
 
 import './collector-configuration.scss';
 
@@ -46,13 +46,13 @@ enum ETargetColumn {
 }
 
 interface IProps {
-  id: number | string;
-  show: boolean;
   collectConfigData?: any;
   detailData?: any;
-  targetInfo?: any;
+  id: number | string;
   loading: boolean;
+  show: boolean;
   tableLoading: boolean;
+  targetInfo?: any;
   onHandleAllDataChange: <T extends TabEnum, K extends TabProperty<T>>(changeConfig: ChangeConfig<T, K>) => void;
 }
 
@@ -408,6 +408,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
                     return this.basicInfo?.[key]?.map((word, wordIndex) => (
                       <span key={wordIndex}>{`${word.name}=${word.pattern}`}</span>
                     ));
+                  }
+                  if (key === 'update_user') {
+                    return this.basicInfo?.[key] ? <bk-user-display-name user-id={this.basicInfo?.[key]} /> : '--';
                   }
                   if (this.basicInfo?.collect_type === 'Process' && key === 'match') {
                     return (

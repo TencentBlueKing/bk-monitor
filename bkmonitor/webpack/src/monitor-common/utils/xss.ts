@@ -23,19 +23,27 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const xssFilter = (str: any) => {
-  return (
-    str?.replace?.(/[&<>"]/gi, match => {
-      switch (match) {
-        case '&':
-          return '&amp;';
-        case '<':
-          return '&lt;';
-        case '>':
-          return '&gt;';
-        case '"':
-          return '&quot;';
-      }
-    }) || str
-  );
+import 'xss/dist/xss';
+// <a style="color:red">dsafsd</a> <img src onerror="alert(1)" />
+export const xssFilter = (str: string) => {
+  if (!str) return str;
+  try {
+    return window.filterXSS(str);
+  } catch (err) {
+    console.error(err);
+    return (
+      str?.replace?.(/[&<>"]/gi, match => {
+        switch (match) {
+          case '&':
+            return '&amp;';
+          case '<':
+            return '&lt;';
+          case '>':
+            return '&gt;';
+          case '"':
+            return '&quot;';
+        }
+      }) || str
+    );
+  }
 };

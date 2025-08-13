@@ -23,14 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, type Ref, TransitionGroup, computed, defineComponent, inject, reactive, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import {
+  type PropType,
+  type Ref,
+  type VNode,
+  computed,
+  defineComponent,
+  inject,
+  reactive,
+  TransitionGroup,
+  watch,
+} from 'vue';
 
 import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
+import { type IUserInfo, getDefaultUserGroupListSync } from 'monitor-pc/components/user-selector/user-group';
 import { isEn } from 'monitor-pc/i18n/lang';
+import { useI18n } from 'vue-i18n';
 
-import MemberSelect, { type TagItemModel } from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum } from '../typings/common';
 import { validTimeOverlap } from '../utils';
 import CalendarSelect from './calendar-select';
@@ -38,10 +48,27 @@ import DataTimeSelect from './data-time-select';
 import FormItem from './form-item';
 import TimeTagPicker from './time-tag-picker';
 import WeekSelect from './week-select';
+import UserSelector from '@/components/user-selector/user-selector';
 
 import './replace-rotation-table-item.scss';
-type CustomTabType = 'classes' | 'duration';
-type WorkTimeType = 'datetime_range' | 'time_range';
+export interface ReplaceItemDataModel {
+  id?: number;
+  users: ReplaceRotationUsersModel;
+  date: {
+    /** 自定义：指定时长/指定班次 */
+    customTab: CustomTabType;
+    /** 自定义轮值有效日期 */
+    customWorkDays: number[];
+    /** 是否是自定义轮值类型 */
+    isCustom: boolean;
+    /** 单班时长 */
+    periodSettings: { duration: number; unit: 'day' | 'hour' };
+    type: RotationSelectTypeEnum;
+    value: ReplaceRotationDateModel[];
+    /** 每周、每月：时间范围/起止时间 */
+    workTimeType: WorkTimeType;
+  };
+}
 export interface ReplaceRotationDateModel {
   key: number;
   workDays?: number[];
@@ -50,27 +77,11 @@ export interface ReplaceRotationDateModel {
 export interface ReplaceRotationUsersModel {
   groupNumber?: number;
   groupType: 'auto' | 'specified';
-  value: { key: number; value: { type: 'group' | 'user'; id: string }[]; orderIndex: number }[];
+  value: { key: number; orderIndex: number; value: { id: string; type: 'group' | 'user' }[] }[];
 }
+type CustomTabType = 'classes' | 'duration';
 
-export interface ReplaceItemDataModel {
-  id?: number;
-  date: {
-    type: RotationSelectTypeEnum;
-    /** 每周、每月：时间范围/起止时间 */
-    workTimeType: WorkTimeType;
-    /** 是否是自定义轮值类型 */
-    isCustom: boolean;
-    /** 自定义：指定时长/指定班次 */
-    customTab: CustomTabType;
-    /** 自定义轮值有效日期 */
-    customWorkDays: number[];
-    /** 单班时长 */
-    periodSettings: { unit: 'day' | 'hour'; duration: number };
-    value: ReplaceRotationDateModel[];
-  };
-  users: ReplaceRotationUsersModel;
-}
+type WorkTimeType = 'datetime_range' | 'time_range';
 
 export default defineComponent({
   name: 'ReplaceRotationTableItem',
@@ -83,9 +94,10 @@ export default defineComponent({
   emits: ['change', 'drop'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const colorList = inject<{ value: string[]; setValue: (val: string[]) => void }>('colorList');
+    const colorList = inject<{ setValue: (val: string[]) => void; value: string[] }>('colorList');
 
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
+    const defaultUserGroupList = computed(() => getDefaultUserGroupListSync(defaultGroup.value?.[0]?.children || []));
     const labelWidth = computed(() => (isEn ? 110 : 70));
 
     const rotationTypeList: { label: string; value: RotationSelectTypeEnum }[] = [
@@ -579,8 +591,11 @@ export default defineComponent({
       localValue.users.value.splice(ind, 1);
       handleEmitData();
     }
-    function handMemberSelectChange(ind: number, val: ReplaceRotationUsersModel['value'][0]['value']) {
-      localValue.users.value[ind].value = val;
+    function handMemberSelectChange(ind: number, userInfos: IUserInfo[]) {
+      localValue.users.value[ind].value = userInfos.map(user => ({
+        id: user.id,
+        type: user?.type === 'userGroup' ? 'group' : 'user',
+      }));
       handleEmitData();
     }
 
@@ -590,34 +605,22 @@ export default defineComponent({
      * @param index 人员索引
      * @returns 模板
      */
-    function autoGroupTagTpl(data: TagItemModel, index: number) {
-      function handleCloseTag(e: Event) {
-        e.stopPropagation();
-        localValue.users.value[0].value.splice(index, 1);
-        handleEmitData();
-      }
-      return [
-        <div
-          key={1}
-          style={{ 'background-color': colorList.value[getOrderIndex(index)] }}
-          class='auto-group-tag-color'
-        />,
-        <span
-          key={2}
-          class='icon-monitor icon-mc-tuozhuai'
-        />,
-        <span
-          key={3}
-          class='user-name'
-        >
-          {data?.username}
-        </span>,
-        <span
-          key={4}
-          class='icon-monitor icon-mc-close'
-          onClick={e => handleCloseTag(e)}
-        />,
-      ];
+    function autoGroupTagTpl(_, userInfo: IUserInfo) {
+      const index = localValue.users.value[0].value.findIndex(item => item.id === userInfo.id);
+      return (
+        <div class='auto-group-tag-item'>
+          <div class='auto-group-tag-prefix'>
+            <div
+              style={{ 'background-color': colorList.value[getOrderIndex(index)] }}
+              class='auto-group-tag-color'
+            />
+            <span class='icon-monitor icon-mc-tuozhuai' />
+          </div>
+          <div class='auto-group-tag-main'>
+            <span class='auto-group-tag-item-name'>{userInfo.name}</span>
+          </div>
+        </div>
+      ) as unknown as VNode;
     }
 
     /**
@@ -688,6 +691,7 @@ export default defineComponent({
       labelWidth,
       colorList,
       defaultGroup,
+      defaultUserGroupList,
       rotationTypeList,
       localValue,
       rotationSelectType,
@@ -759,24 +763,20 @@ export default defineComponent({
                       onDragstart={e => this.handleDragstart(e, ind)}
                       onDrop={e => this.handleDrop(e, ind)}
                     >
-                      <MemberSelect
-                        v-model={item.value}
-                        defaultGroup={this.defaultGroup}
-                        hasDefaultGroup={true}
-                        showType='avatar'
-                        onSelectEnd={val => this.handMemberSelectChange(ind, val)}
-                      >
-                        {{
-                          prefix: () => (
-                            <div
-                              style={{ 'border-left-color': this.colorList.value[this.getOrderIndex(ind)] }}
-                              class='member-select-prefix'
-                            >
-                              <span class='icon-monitor icon-mc-tuozhuai' />
-                            </div>
-                          ),
-                        }}
-                      </MemberSelect>
+                      <div class='user-select-wrapper'>
+                        <div
+                          style={{ 'background-color': this.colorList.value[item.orderIndex] }}
+                          class='user-select-prefix'
+                        >
+                          <span class='icon-monitor icon-mc-tuozhuai' />
+                        </div>
+                        <UserSelector
+                          class='user-selector'
+                          modelValue={item.value.map(user => user.id)}
+                          userGroupList={this.defaultUserGroupList}
+                          onChange={userInfos => this.handMemberSelectChange(ind, userInfos)}
+                        />
+                      </div>
                       {this.localValue.users.value.length > 1 && (
                         <i
                           class='icon-monitor icon-mc-delete-line del-icon'
@@ -806,14 +806,14 @@ export default defineComponent({
                   label={this.t('轮值人员')}
                   labelWidth={this.labelWidth}
                 >
-                  <MemberSelect
-                    v-model={this.localValue.users.value[0].value}
-                    defaultGroup={this.defaultGroup}
-                    hasDefaultGroup={true}
-                    showType='tag'
-                    tagTpl={this.autoGroupTagTpl}
-                    onDrop={this.handleAutoGroupDrop}
-                    onSelectEnd={val => this.handMemberSelectChange(0, val)}
+                  <UserSelector
+                    class='auto-user-selector'
+                    draggable={true}
+                    modelValue={this.localValue.users.value[0].value.map(user => user.id)}
+                    renderTag={this.autoGroupTagTpl}
+                    userGroupList={this.defaultUserGroupList}
+                    onChange={userInfos => this.handMemberSelectChange(0, userInfos)}
+                    onDragEnd={dragEvent => this.handleAutoGroupDrop(dragEvent?.oldIndex, dragEvent?.newIndex)}
                   />
                 </FormItem>
                 <FormItem

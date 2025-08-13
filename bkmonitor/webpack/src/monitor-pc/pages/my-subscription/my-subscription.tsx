@@ -28,21 +28,21 @@ import { ofType, Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { cancelOrResubscribeReport, getReportList, getSendRecords, sendReport } from 'monitor-api/modules/new_report';
-import { LANGUAGE_COOKIE_KEY, deepClone } from 'monitor-common/utils';
+import { deepClone, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { docCookies } from 'monitor-common/utils/utils';
 
 import ReportDetail from '../my-apply/components/report-detail';
 import QueryTypeRadio from './components/query-type-radio';
 import { Scenario, SendMode, SendStatus } from './mapping';
-import { FrequencyType, type Report, type ReportQueryType, type ReportSendRecord, type SendResult } from './types';
+import { type Report, type ReportQueryType, type ReportSendRecord, type SendResult, FrequencyType } from './types';
 import { getDefaultReportData, getDefaultSingleSendRecord, getSendFrequencyText } from './utils';
 
 import './my-subscription.scss';
 
 /** 发送记录 中点击 重新发送会给原先的记录额外添加其他数据。这里补上 */
 type ExtraSendReportData = {
-  tempSendResult: (SendResult & { is_enabled: boolean })[];
   selectedTag: string[];
+  tempSendResult: (SendResult & { is_enabled: boolean })[];
 };
 
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY);
@@ -78,7 +78,7 @@ class MySubscription extends tsc<object> {
   /** 发送记录 中 popover 的实例，用作选择重新发送选择 */
   popoverInstance: unknown = null;
   /** 发送记录 单条数据 */
-  currentTableRowOfSendingRecord: ReportSendRecord & ExtraSendReportData = Object.assign(getDefaultSingleSendRecord(), {
+  currentTableRowOfSendingRecord: ExtraSendReportData & ReportSendRecord = Object.assign(getDefaultSingleSendRecord(), {
     tempSendResult: [],
     selectedTag: [],
   });
@@ -524,7 +524,7 @@ class MySubscription extends tsc<object> {
                   this.page = 1;
                   this.fetchSubscriptionList();
                 },
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
                 'sort-change': ({ column, prop, order }) => {
                   if (prop) {
                     this.order = `${order === 'ascending' ? '' : '-'}${prop}`;

@@ -25,27 +25,27 @@
  */
 import type { TranslateResult } from 'vue-i18n';
 
-export type NavBarMode = 'copy' | 'display' | 'share';
+export interface ICommonNavBarProps {
+  backGotoItem?: IRouteBackItem;
+  navMode?: NavBarMode;
+  needBack?: boolean;
+  needCopyLink?: boolean;
+  needShadow?: boolean;
+  positionText?: string;
+  routeList?: INavItem[];
+  callbackRouterBack?: () => void;
+}
 export interface INavItem {
   id: string;
-  name: TranslateResult | string;
-  subName?: string;
+  name: string | TranslateResult;
   query?: Record<string, any>;
+  subName?: string;
 }
 export interface IRouteBackItem {
   id?: string;
+  isBack?: boolean;
   name?: string;
   query?: Record<string, any>;
-  isBack?: boolean;
 }
 
-export interface ICommonNavBarProps {
-  routeList?: INavItem[];
-  needBack?: boolean;
-  needShadow?: boolean;
-  needCopyLink?: boolean;
-  positionText?: string;
-  backGotoItem?: IRouteBackItem;
-  navMode?: NavBarMode;
-  callbackRouterBack?: () => void;
-}
+export type NavBarMode = 'copy' | 'display' | 'share';

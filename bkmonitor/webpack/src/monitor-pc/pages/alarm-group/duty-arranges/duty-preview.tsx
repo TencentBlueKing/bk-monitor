@@ -29,34 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import './duty-preview.scss';
 //
 
-export interface IUserGroup {
-  // 用户组 一维为行 二维为个
-  users: {
-    id: string;
-    name: string;
-  }[];
-  color: string; // 颜色
-  time: string; // 详细时间
-  range: number[]; // 长度
-}
-interface IDateGroup {
-  // 日期组
-  dateStr: { name: string } | any | string; // 日期
-  userGroups: IUserGroup[][];
-}
-interface IGroup {
-  title: string;
-  dateGroups: IDateGroup[];
-}
-interface IEvents {
-  onCycleType?: 'left' | 'right';
-}
 export interface IPreviewValue {
-  // 空闲期 例子 leisure: [ range: [[1,10],[50,100]], dateStr: '2-18' ]
-  leisure: {
-    col: { range: number[]; time: string }[];
-    dateStr: string;
-  }[];
   // 日期组 例子 dateStrArr：['2-18','2-19']
   dateStrArr: string[];
   // 轮值组
@@ -67,12 +40,39 @@ export interface IPreviewValue {
   crossDayGroups?: {
     // 轮值组
     groups: {
+      range: number[]; // max: 1440 * 7
       // 用户组
       time: string;
-      range: number[]; // max: 1440 * 7
       userGroup: IUserGroup;
     }[];
   }[];
+  // 空闲期 例子 leisure: [ range: [[1,10],[50,100]], dateStr: '2-18' ]
+  leisure: {
+    col: { range: number[]; time: string }[];
+    dateStr: string;
+  }[];
+}
+export interface IUserGroup {
+  color: string; // 颜色
+  range: number[]; // 长度
+  time: string; // 详细时间
+  // 用户组 一维为行 二维为个
+  users: {
+    id: string;
+    name: string;
+  }[];
+}
+interface IDateGroup {
+  // 日期组
+  dateStr: any | string | { name: string }; // 日期
+  userGroups: IUserGroup[][];
+}
+interface IEvents {
+  onCycleType?: 'left' | 'right';
+}
+interface IGroup {
+  dateGroups: IDateGroup[];
+  title: string;
 }
 
 interface IProps {

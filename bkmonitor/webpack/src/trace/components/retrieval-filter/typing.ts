@@ -26,10 +26,6 @@
 
 import type { PropType } from 'vue';
 
-export enum EMode {
-  queryString = 'queryString',
-  ui = 'ui',
-}
 export enum EFieldType {
   all = 'all',
   boolean = 'boolean',
@@ -39,7 +35,6 @@ export enum EFieldType {
   long = 'long',
   text = 'text',
 }
-
 export enum EMethod {
   eq = 'equal',
   exclude = 'exclude',
@@ -49,6 +44,11 @@ export enum EMethod {
   ne = 'not_equal',
   notExists = 'not exists',
   notLike = 'not_like',
+}
+
+export enum EMode {
+  queryString = 'queryString',
+  ui = 'ui',
 }
 
 export const METHOD_MAP = {
@@ -63,126 +63,8 @@ export enum APIType {
   MONITOR = 'monitor', // monitor default
 }
 
-export interface IValue {
-  id: string;
-  name: string;
-}
-
-export interface IFilterField {
-  name: string;
-  alias: string;
-  type: EFieldType;
-  // is_option_enabled: boolean;
-  is_dimensions?: boolean;
-  is_searched?: boolean;
-  can_displayed?: boolean;
-  isEnableOptions?: boolean;
-  supported_operations: {
-    alias: string;
-    value: EMethod;
-    placeholder?: string;
-    operator?: string;
-    wildcard_operator?: string;
-    label?: string;
-    options?: {
-      default?: boolean | string;
-      label: string;
-      name: string;
-      children?: {
-        label: string;
-        value: string;
-      }[];
-    }[];
-  }[]; // 支持的操作
-}
-
 export enum ECondition {
   and = 'and',
-}
-export interface IWhereItem {
-  key: string;
-  condition?: ECondition;
-  method?: EMethod | string;
-  operator?: string;
-  value: number[] | string[];
-  options?: {
-    is_wildcard?: boolean;
-    group_relation?: boolean;
-  };
-}
-
-export interface IGetValueFnParams {
-  limit?: number;
-  where?: IWhereItem[];
-  fields?: string[];
-  queryString?: string;
-  search?: string;
-  field?: string;
-  isInit__?: boolean; // 此字段不传给后台
-}
-export interface IOptionsInfo {
-  count: 0;
-  list: IValue[];
-}
-export type TGetValueFn = (params: IGetValueFnParams) => Promise<IOptionsInfo>;
-
-export interface IWhereValueOptionsItem {
-  count: number;
-  list: {
-    id: string;
-    name: string;
-  }[];
-}
-
-export interface IFilterItem {
-  key: { id: string; name: string };
-  condition: { id: ECondition; name: string };
-  method: { id: EMethod; name: string };
-  value: { id: string; name: string }[];
-  options?: {
-    is_wildcard?: boolean;
-    group_relation?: string;
-  };
-  hide?: boolean;
-  isSetting?: boolean; // 是否是设置项
-}
-
-interface FavList {
-  config: any;
-  create_user: string;
-  group_id: number | object;
-  id: number;
-  name: string;
-  update_time: string;
-  update_user: string;
-  disabled?: boolean;
-  groupName?: string;
-}
-
-export interface IFavoriteListItem {
-  id: string;
-  name: string;
-  favorites: {
-    name: string;
-    config: {
-      queryConfig: {
-        query_string: string;
-        where: IWhereItem[];
-      };
-    };
-  }[];
-}
-
-export interface IFieldItem {
-  /* 字段名 */
-  field: string;
-  /* 字段别名 */
-  alias: string;
-  /* 是否含有可选项选项 */
-  isEnableOptions: boolean;
-  /* 包含的method */
-  methods: IValue[];
-  type?: EFieldType;
 }
 
 export enum EQueryStringTokenType {
@@ -193,6 +75,124 @@ export enum EQueryStringTokenType {
   split = 'split',
   value = 'value',
   valueCondition = 'value-condition',
+}
+
+export interface IFavoriteListItem {
+  id: string;
+  name: string;
+  favorites: {
+    config: {
+      queryConfig: {
+        query_string: string;
+        where: IWhereItem[];
+      };
+    };
+    name: string;
+  }[];
+}
+export interface IFieldItem {
+  /* 字段别名 */
+  alias: string;
+  /* 字段名 */
+  field: string;
+  /* 是否含有可选项选项 */
+  isEnableOptions: boolean;
+  /* 包含的method */
+  methods: IValue[];
+  type?: EFieldType;
+}
+
+export interface IFilterField {
+  alias: string;
+  can_displayed?: boolean;
+  // is_option_enabled: boolean;
+  is_dimensions?: boolean;
+  is_searched?: boolean;
+  isEnableOptions?: boolean;
+  name: string;
+  type: EFieldType;
+  supported_operations: {
+    alias: string;
+    label?: string;
+    operator?: string;
+    options?: {
+      children?: {
+        label: string;
+        value: string;
+      }[];
+      default?: boolean | string;
+      label: string;
+      name: string;
+    }[];
+    placeholder?: string;
+    value: EMethod;
+    wildcard_operator?: string;
+  }[]; // 支持的操作
+}
+export interface IFilterItem {
+  condition: { id: ECondition; name: string };
+  hide?: boolean;
+  isSetting?: boolean; // 是否是设置项
+  key: { id: string; name: string };
+  method: { id: EMethod; name: string };
+  value: { id: string; name: string }[];
+  options?: {
+    group_relation?: string;
+    is_wildcard?: boolean;
+  };
+}
+export interface IGetValueFnParams {
+  field?: string;
+  fields?: string[];
+  isInit__?: boolean; // 此字段不传给后台
+  limit?: number;
+  queryString?: string;
+  search?: string;
+  where?: IWhereItem[];
+}
+
+export interface IOptionsInfo {
+  count: 0;
+  list: IValue[];
+}
+
+export interface IValue {
+  id: string;
+  name: string;
+}
+
+export interface IWhereItem {
+  condition?: ECondition;
+  key: string;
+  method?: EMethod | string;
+  operator?: string;
+  value: number[] | string[];
+  options?: {
+    group_relation?: boolean;
+    is_wildcard?: boolean;
+  };
+}
+
+export interface IWhereValueOptionsItem {
+  count: number;
+  list: {
+    id: string;
+    name: string;
+  }[];
+}
+
+export type TGetValueFn = (params: IGetValueFnParams) => Promise<IOptionsInfo>;
+
+interface FavList {
+  config: any;
+  create_user: string;
+  disabled?: boolean;
+  group_id: number | object;
+  groupName?: string;
+  id: number;
+  name: string;
+  update_time: string;
+  update_user: string;
 }
 export const NOT_TYPE_METHODS = [EMethod.ne, EMethod.exclude, EMethod.notExists, EMethod.notLike];
 

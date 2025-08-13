@@ -1,3 +1,13 @@
+export interface IStatusItemData {
+  color: string;
+  tips: string;
+  value: number;
+  link: {
+    target: string;
+    url: string;
+  };
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,16 +34,6 @@
  * IN THE SOFTWARE.
  */
 export interface IStatusListData {
-  name: string;
   items: IStatusItemData[];
-}
-
-export interface IStatusItemData {
-  value: number;
-  link: {
-    target: string;
-    url: string;
-  };
-  color: string;
-  tips: string;
+  name: string;
 }

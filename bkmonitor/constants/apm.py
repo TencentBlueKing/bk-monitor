@@ -1,7 +1,7 @@
 import base64
 from dataclasses import dataclass
 from enum import Enum
-from functools import lru_cache
+from functools import lru_cache, cache
 from typing import Any
 
 from django.db.models import TextChoices
@@ -1155,36 +1155,6 @@ class FormatType:
         return [(cls.DEFAULT, cls.DEFAULT), (cls.SIMPLE, cls.SIMPLE)]
 
 
-class BkCollectorComp:
-    """一些 bk-collector 的固定值"""
-
-    NAMESPACE = "bkmonitor-operator"
-
-    DEPLOYMENT_NAME = "bkm-collector"
-
-    # ConfigMap 模版
-    # ConfigMap: 平台配置名称
-    CONFIG_MAP_PLATFORM_TPL_NAME = "bk-collector-platform.conf.tpl"
-    # ConfigMap: 应用配置名称
-    CONFIG_MAP_APPLICATION_TPL_NAME = "bk-collector-application.conf.tpl"
-
-    # Secrets 配置
-    SECRET_PLATFORM_NAME = "bk-collector-platform"
-    SECRET_SUBCONFIG_APM_NAME = "bk-collector-subconfig-apm-{}-{}"  # 这里的名字不能随意变，逻辑上依赖
-    SECRET_PLATFORM_CONFIG_FILENAME_NAME = "platform.conf"
-    SECRET_APPLICATION_CONFIG_FILENAME_NAME = "application-{}.conf"  # 这里的名字不能随意变，逻辑上依赖
-    SECRET_APPLICATION_CONFIG_MAX_COUNT = 20  # 每个 Secret 存放 20 个 APM 应用配置
-
-    # Labels 过滤条件
-    LABEL_COMPONENT_VALUE = "bk-collector"
-    LABEL_TYPE_SUB_CONFIG = "subconfig"
-    LABEL_TYPE_PLATFORM_CONFIG = "platform"
-    LABEL_SOURCE_APPLICATION_CONFIG = "apm"
-
-    # 缓存 KEY: 安装了 bk-collector 的集群 id 列表
-    CACHE_KEY_CLUSTER_IDS = "bk-collector:clusters"
-
-
 class MetricTemporality:
     # 累积（Cumulative）：指标为 Counter 类型，数值只增不减，计算固定间隔（比如 1 分钟内）的请求量，需要用 increase 函数
     CUMULATIVE: str = "cumulative"
@@ -1225,7 +1195,7 @@ class Vendor:
 
 class CachedEnum(Enum):
     @classmethod
-    @lru_cache(maxsize=None)
+    @cache
     def from_value(cls, value):
         try:
             return cls(value)
@@ -1560,3 +1530,18 @@ class OperatorGroupRelation(str, Enum):
     @classmethod
     def choices(cls):
         return [(relation.name, relation.value) for relation in cls]
+
+
+# APM 自定义指标过滤规则，避免因数据量过大导致查询超时。
+CUSTOM_METRICS_PROMQL_FILTER = ",".join(
+    [
+        # 排除 RPC 主被调相关指标
+        # SDK 会将主被调指标分组为 client_metrics & server_metrics
+        'scope_name!~"^(client|server)_metrics$"',
+        # 按指标名精确排除
+        '__name__!~"^rpc_(client|server)_(handled|started)_total"',
+        '__name__!~"^rpc_(client|server)_handled_seconds_(sum|min|max|count|bucket)"',
+        # 排除 Span 聚合指标
+        '__name__!~"^(bk_apm_|apm_).*"',
+    ]
+)

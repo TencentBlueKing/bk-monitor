@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
-import { type TranslateResult, useI18n } from 'vue-i18n';
 
 import { Select, Tag } from 'bkui-vue';
 import { incidentValidateQueryString } from 'monitor-api/modules/incident';
+import { type TranslateResult, useI18n } from 'vue-i18n';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
 import FilterSearchInput from './filter-search-input';
@@ -55,7 +55,7 @@ export type AnlyzeField =
   | 'strategy_id';
 export interface ICommonItem {
   id: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
 }
 interface TagInfoType {
   bk_biz_id: number;
@@ -79,7 +79,7 @@ export default defineComponent({
     const searchType = ref('incident');
     const queryString = ref('');
     const spaceData = ref(null);
-    const valueMap = ref<Record<Partial<AnlyzeField>, ICommonItem[]> | null>(null);
+    const valueMap = ref<null | Record<Partial<AnlyzeField>, ICommonItem[]>>(null);
     const tagInfoData = computed(() => {
       return props.tagInfo || [];
     });
@@ -113,6 +113,9 @@ export default defineComponent({
       val => {
         const { current_snapshot } = val;
         spaceFilter.value = (current_snapshot?.bk_biz_ids || []).map(item => item.bk_biz_id);
+      },
+      {
+        immediate: true,
       }
     );
     const currentBizList = computed(() => {
@@ -201,21 +204,8 @@ export default defineComponent({
         <div class='main-top'>
           <Select
             ref='selectRef'
-            selected-style='checkbox'
             class={['main-select', { error: this.isErr }]}
-            trigger={this.trigger}
             v-model={this.spaceFilter}
-            clearable={false}
-            inputSearch={false}
-            filterable
-            multiple
-            onChange={this.changeSpace}
-            onBlur={() => {
-              this.isErr && this.selectRef.showPopover();
-            }}
-            onToggle={() => {
-              this.showPopover = !this.showPopover;
-            }}
             v-slots={{
               prefix: () => {
                 return (
@@ -227,6 +217,19 @@ export default defineComponent({
                   </>
                 );
               },
+            }}
+            clearable={false}
+            inputSearch={false}
+            selected-style='checkbox'
+            trigger={this.trigger}
+            filterable
+            multiple
+            onBlur={() => {
+              this.isErr && this.selectRef.showPopover();
+            }}
+            onChange={this.changeSpace}
+            onToggle={() => {
+              this.showPopover = !this.showPopover;
             }}
           >
             {this.spaceDataList.map(item => (

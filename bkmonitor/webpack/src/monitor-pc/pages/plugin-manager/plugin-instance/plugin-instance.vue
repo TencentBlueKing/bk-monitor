@@ -97,18 +97,18 @@ export default {
     };
   },
   mixins: [authorityMixinCreate(pluginManageAuth)],
-  beforeRouteEnter(to, from, next) {
+  beforeRouteEnter(_to, from, next) {
     next(vm => {
       // 缓存上一页过来的路由名字
       vm.fromRouteName = from.name;
     });
   },
-  async beforeRouteLeave(to, from, next) {
+  async beforeRouteLeave(to, _from, next) {
     if (
       to.name !== 'plugin-add' &&
       to.name !== 'plugin-edit' &&
       this.left.step < 2 &&
-      this.$store.getters.bizIdChangePedding !== to.name
+      this.$store.getters.bizIdChangePending !== to.name
     ) {
       const needNext = await this.handleCancel(false);
       next(needNext);
@@ -247,8 +247,8 @@ export default {
 
     .mo-icon-cc-attribute {
       font-size: 18px;
-      color: #3a84ff;
       vertical-align: sub;
+      color: #3a84ff;
     }
 
     .text {

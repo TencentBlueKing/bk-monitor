@@ -25,12 +25,12 @@
  */
 import VueRouter from 'vue-router';
 
+import { TimeRangeType } from '@/components/time-range/time-range';
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
 import { type RouteParams, BK_LOG_STORAGE } from './store.type';
 import RouteUrlResolver from './url-resolver';
-import { TimeRangeType } from '@/components/time-range/time-range';
 
 const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -121,7 +121,6 @@ const getUrlArgs = (_route?) => {
       // #code return route.resolved.query.indexId ? `${route.resolved.query.indexId}` : '';
       // #endif
     });
-    urlResolver.setResolver('search_mode', () => route.resolved.query.search_mode);
   } else {
     urlResolver = new RouteUrlResolver({ route: _route });
     urlResolver.setResolver('index_id', () => {
@@ -131,14 +130,24 @@ const getUrlArgs = (_route?) => {
       // #code return _route.query.indexId ? `${_route.query.indexId}` : '';
       // #endif
     });
-    urlResolver.setResolver('search_mode', () => _route.query.search_mode);
   }
 
   const result = urlResolver.convertQueryToStore<RouteParams>();
 
-  if (result.search_mode) {
-    updateLocalstorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: result.search_mode === 'sql' ? 1 : 0 });
-  }
+  const storageKeys = [
+    ['search_mode', BK_LOG_STORAGE.SEARCH_TYPE, () => (result.search_mode === 'sql' ? 1 : 0)],
+    ['bizId', BK_LOG_STORAGE.BK_BIZ_ID, () => result.bizId],
+    ['spaceUid', BK_LOG_STORAGE.BK_SPACE_UID, () => result.spaceUid],
+  ];
+
+  const storageValue = storageKeys.reduce((out, [key, storageKey, fn]: [string, string, (...args: any[]) => any]) => {
+    if (result[key] !== undefined) {
+      out[storageKey] = fn?.(result[key]);
+    }
+    return out;
+  }, {});
+
+  updateLocalstorage(storageValue);
   return result;
 };
 
@@ -182,7 +191,6 @@ export const IndexSetQueryResult = {
   is_loading: false,
   exception_msg: '',
   is_error: false,
-  request_counter: 0,
   search_count: 0,
   aggregations: {},
   _shards: {},
@@ -196,10 +204,10 @@ export const IndexSetQueryResult = {
 
 export const IndexFieldInfo = {
   is_loading: false,
-  request_counter: 0,
   fields: [],
   display_fields: [],
   sort_list: [],
+  default_sort_list: [],
   time_field: '',
   time_field_type: '',
   time_field_unit: '',
@@ -347,6 +355,8 @@ export const getStorageOptions = (values?: any) => {
         width: DEFAULT_FIELDS_WIDTH,
       },
       [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
+      [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
+      [BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]: false,
     },
     storage,
   );

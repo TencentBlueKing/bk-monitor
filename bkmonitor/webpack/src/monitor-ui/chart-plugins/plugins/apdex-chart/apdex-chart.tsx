@@ -28,7 +28,7 @@ import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -44,22 +44,22 @@ import type { ILegendItem, ITimeSeriesItem, PanelModel } from '../../typings';
 
 import './apdex-chart.scss';
 
-interface IApdexChartTipItem {
-  name: string;
-  color: string;
-  tips: string;
-}
 export enum APDEX_CHART_TYPE {
   APDEX = 'apdex',
   EVENT = 'event',
+}
+interface IApdexChartEvent {
+  onDataZoom: () => void;
+  onDblClick: () => void;
 }
 interface IApdexChartProps {
   panel: PanelModel;
   splitNumber?: number;
 }
-interface IApdexChartEvent {
-  onDataZoom: () => void;
-  onDblClick: () => void;
+interface IApdexChartTipItem {
+  color: string;
+  name: string;
+  tips: string;
 }
 @Component
 export class ApdexChart extends LineChart {
@@ -100,7 +100,7 @@ export class ApdexChart extends LineChart {
     try {
       this.unregisterObserver();
       // const series = apdexData.series || [];
-      const series = [];
+      let series = [];
       // const metrics = apdexData.series || [];
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -151,11 +151,11 @@ export class ApdexChart extends LineChart {
       }
       await Promise.all(promiseList).catch(() => false);
       if (series.length) {
+        series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
         const seriesList = this.handleTransformSeries(
           series.map(item => ({
             name: item.target,
             cursor: 'auto',
-            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: item.unit,
@@ -386,8 +386,12 @@ export class ApdexChart extends LineChart {
               ref='chart'
               class='chart-instance'
               onContextmenu={this.handleChartContextmenu}
-              onMouseenter={() => (this.showMouseTips = true)}
-              onMouseleave={() => (this.showMouseTips = false)}
+              onMouseenter={() => {
+                this.showMouseTips = true;
+              }}
+              onMouseleave={() => {
+                this.showMouseTips = false;
+              }}
             >
               {this.initialized && (
                 <BaseEchart

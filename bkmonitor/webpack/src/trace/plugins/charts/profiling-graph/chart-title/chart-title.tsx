@@ -25,11 +25,11 @@
  */
 
 import { type PropType, computed, defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Dropdown, Input } from 'bkui-vue';
 import { type ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import type { DirectionType } from '../../../../typings';
 

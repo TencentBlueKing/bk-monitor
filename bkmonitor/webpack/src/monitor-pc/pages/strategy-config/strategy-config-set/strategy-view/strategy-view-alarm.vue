@@ -25,25 +25,23 @@
 -->
 <template>
   <div class="strategy-view-alarm">
-    <div class="alarm-title">
-      图表标题
-    </div>
+    <div class="alarm-title">图表标题</div>
     <div class="alarm-content-wrap">
       <div class="alarm-bar" />
       <div class="alarm-label mt10">
         <span
-          class="alarm-label-item"
           v-for="(item, index) in labels"
           :key="index"
+          class="alarm-label-item"
         >
           {{ item }}
         </span>
       </div>
       <div class="alarm-legend mt20">
         <div
-          class="alarm-legend-item"
           v-for="item in data.alarmAggregation"
           :key="item.level"
+          class="alarm-legend-item"
         >
           <span
             class="legend-icon"
@@ -56,8 +54,9 @@
   </div>
 </template>
 <script lang="ts">
-import dayjs from 'dayjs';
 import { Component, Vue } from 'vue-property-decorator';
+
+import dayjs from 'dayjs';
 
 import { handleTimeRange } from '../../../../utils/index';
 

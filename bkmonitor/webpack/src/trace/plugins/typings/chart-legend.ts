@@ -24,22 +24,22 @@
  * IN THE SOFTWARE.
  */
 export interface ILegendItem {
-  name: string;
   alias?: string;
-  min?: number | string;
-  max?: number | string;
   avg?: number | string;
-  total?: number | string;
-  color: string;
-  show: boolean;
-  value?: number | string;
-  borderColor?: string;
-  hidden?: boolean;
-  minSource?: number;
-  maxSource?: number;
   avgSource?: number;
-  totalSource?: number;
+  borderColor?: string;
+  color: string;
+  hidden?: boolean;
+  max?: number | string;
+  maxSource?: number;
   metricField?: string;
+  min?: number | string;
+  minSource?: number;
+  name: string;
+  show: boolean;
+  total?: number | string;
+  totalSource?: number;
+  value?: number | string;
 }
-export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';
 export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
+export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';

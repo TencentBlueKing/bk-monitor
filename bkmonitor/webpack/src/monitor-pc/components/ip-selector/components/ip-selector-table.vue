@@ -25,12 +25,12 @@
 -->
 <template>
   <bk-table
+    :key="maxHeight"
     :data="data"
     :outer-border="false"
     :header-border="false"
     :pagination="pagination"
     :max-height="maxHeight"
-    :key="maxHeight"
     :empty-text="emptyText"
     :cell-class-name="handleCellClass"
     :header-cell-class-name="handleCellClass"
@@ -38,14 +38,20 @@
     @page-change="handlePageChange"
     @page-limit-change="handlePageLimitChange"
   >
-    <div slot='empty' v-if="!!tableKeyword">
-      <EmptyStatus type="search-empty" @operation="handleOperation"></EmptyStatus>
+    <div
+      v-if="!!tableKeyword"
+      slot="empty"
+    >
+      <EmptyStatus
+        type="search-empty"
+        @operation="handleOperation"
+      />
     </div>
     <bk-table-column
+      v-if="showSelectionColumn"
       :render-header="renderHeader"
       width="50"
       :resizable="false"
-      v-if="showSelectionColumn"
     >
       <template #default="{ row }">
         <bk-checkbox
@@ -57,7 +63,7 @@
       </template>
     </bk-table-column>
     <bk-table-column
-      v-for="item in config.filter((item) => !item.hidden)"
+      v-for="item in config.filter(item => !item.hidden)"
       :key="item.prop"
       :label="item.label"
       :prop="item.prop"
@@ -82,13 +88,16 @@
   </bk-table>
 </template>
 <script lang="ts">
-import { random } from 'monitor-common/utils/utils';
 import type { CreateElement } from 'vue';
+
 import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
+import { random } from 'monitor-common/utils/utils';
+
 import EmptyStatus from '../../empty-status/empty-status';
-import type { EmptyStatusOperationType } from '../../empty-status/types';
 import SelectionColumn from '../components/selection-column.vue';
+
+import type { EmptyStatusOperationType } from '../../empty-status/types';
 import type { CheckType, CheckValue, IPagination, ITableConfig } from '../types/selector-type';
 
 @Component({
@@ -115,7 +124,7 @@ export default class IpSelectorTable extends Vue {
   private handleDefaultSelectionsChange() {
     this.selections = this.defaultSelections;
     // 重新计算当前页未被check的数据
-    this.excludeData = this.data.reduce<(string | number)[]>((pre, next) => {
+    this.excludeData = this.data.reduce<(number | string)[]>((pre, next) => {
       if (this.selections.indexOf(next) === -1) {
         pre.push(next);
       }
@@ -145,8 +154,8 @@ export default class IpSelectorTable extends Vue {
     });
   }
   // 全选和取消全选操作
-  // eslint-disable-next-line @typescript-eslint/member-ordering
-  public handleSelectionChange({ value, type }: { value: CheckValue; type: CheckType }) {
+
+  public handleSelectionChange({ value, type }: { type: CheckType; value: CheckValue }) {
     this.checkValue = value;
     this.checkType = type;
     this.excludeData = value === 0 ? [...this.data] : [];
@@ -184,7 +193,6 @@ export default class IpSelectorTable extends Vue {
 
   private getDisabledStatus() {}
 
-  // eslint-disable-next-line @typescript-eslint/member-ordering
   public resetCheckedStatus() {
     this.checkType = 'current';
     this.checkValue = 0;
@@ -193,7 +201,7 @@ export default class IpSelectorTable extends Vue {
   }
 
   // 设置当前行选中状态
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   public setRowSelection(row: any, checked: boolean) {
     if (checked) {
       this.selections.push(row);
@@ -204,7 +212,7 @@ export default class IpSelectorTable extends Vue {
 
     if (this.checkType === 'current') {
       // 重新计算当前页未被check的数据
-      this.excludeData = this.data.reduce<(string | number)[]>((pre, next) => {
+      this.excludeData = this.data.reduce<(number | string)[]>((pre, next) => {
         if (this.selections.indexOf(next) === -1) {
           pre.push(next);
         }

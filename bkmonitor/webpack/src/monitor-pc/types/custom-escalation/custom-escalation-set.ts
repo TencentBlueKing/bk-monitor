@@ -1,3 +1,22 @@
+export interface IFormData {
+  bkDataId: string;
+  bkEventGroupId: string;
+  dataLabel: string;
+  desc?: string;
+  isPlatform: boolean;
+  name: string;
+  protocol?: string;
+  scenario: string;
+  token: string;
+}
+
+export interface IParams {
+  bk_event_group_id?: string;
+  code?: number;
+  message?: string;
+  time_series_group_id?: string;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,29 +43,10 @@
  * IN THE SOFTWARE.
  */
 export interface IRule {
-  name: boolean;
-  scenario: boolean;
-  nameTips: string;
   dataLabel: boolean;
   dataLabelTips: string;
+  name: boolean;
+  nameTips: string;
   protocol: boolean;
-}
-
-export interface IFormData {
-  bkEventGroupId: string;
-  bkDataId: string;
-  name: string;
-  scenario: string;
-  token: string;
-  dataLabel: string;
-  isPlatform: boolean;
-  protocol?: string;
-  desc?: string;
-}
-
-export interface IParams {
-  bk_event_group_id?: string;
-  time_series_group_id?: string;
-  message?: string;
-  code?: number;
+  scenario: boolean;
 }

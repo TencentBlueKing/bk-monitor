@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, reactive } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { defineComponent, reactive, shallowRef } from 'vue';
 
-import { Input, Button, Form } from 'bkui-vue';
+import { Button, Form, Input } from 'bkui-vue';
 import { createFavoriteGroup } from 'monitor-api/modules/model';
+import { useI18n } from 'vue-i18n';
 
 import { useAppStore } from '../../../../../store/modules/app';
 import useFavoriteType from '../hooks/use-favorite-type';

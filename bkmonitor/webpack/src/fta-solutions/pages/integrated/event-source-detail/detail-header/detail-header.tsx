@@ -132,7 +132,9 @@ const HeaderFunctional = ctx => {
               </td>
               <td class='value'>{scenarioMap[scenario] || scenario}</td>
               <td class='label right'>{i18n.t('最近更新人')}</td>
-              <td class='value'>{updateUser}</td>
+              <td class='value'>
+                <bk-user-display-name user-id={updateUser} />
+              </td>
               <td class='label right'>{i18n.t('最近更新时间')}</td>
               <td class='value'>{updateTime}</td>
             </tr>

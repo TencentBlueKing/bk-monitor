@@ -65,9 +65,9 @@ export default class UserConfigMixin extends Vue {
    * @param {string} value
    * @return {*}
    */
-  public async handleSetUserConfig(key: string, value: string, configId?: string): Promise<boolean> {
+  public async handleSetUserConfig(key: string, value: string): Promise<boolean> {
     if (!this.hasBusinessAuth) return false;
-    return await partialUpdateUserConfig(this.storeId || configId, { value }, { reject403: true })
+    return await partialUpdateUserConfig(this.storeId || key, { value }, { reject403: true })
       .then(() => true)
       .catch(() => false);
   }

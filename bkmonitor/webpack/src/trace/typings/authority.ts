@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 export interface IAuthority {
-  map: { [key: string]: string };
   auth: { [key: string]: boolean };
+  map: { [key: string]: string };
   showDetail: (_v: string[]) => void;
 }

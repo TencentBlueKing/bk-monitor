@@ -43,8 +43,8 @@
       <div class="header-filter">
         <div
           v-for="item in statusList"
-          :class="['header-filter-item', { active: item.id === header.status }]"
           :key="item.id"
+          :class="['header-filter-item', { active: item.id === header.status }]"
           @click="header.status = item.id"
         >
           <span
@@ -127,6 +127,7 @@
     >
       <right-panel
         v-for="(item, index) in content"
+        :key="index"
         :style="{
           borderBottomWidth: item.expand ? '0' : '1px',
           marginBottom: index === content.length - 1 ? '20px' : '10px',
@@ -136,7 +137,6 @@
         :collapse="item.expand"
         :collapse-color="item.child.length ? '#313238' : '#C4C6CC'"
         :content-render="false"
-        :key="index"
         title-bg-color="#F0F1F5"
         need-border
         @change="handleCollapseChange(item, $event)"
@@ -239,8 +239,8 @@
           </div>
         </template>
         <div
-          class="panel-title"
           slot="title"
+          class="panel-title"
         >
           <span class="title-name">{{ item.node_path }}</span>
           <div class="total">
@@ -299,9 +299,9 @@
       :width="900"
     >
       <div
-        class="side-detail"
         slot="content"
         v-bkloading="{ isLoading: side.loading }"
+        class="side-detail"
       >
         <!-- eslint-disable-next-line vue/no-v-html -->
         <pre

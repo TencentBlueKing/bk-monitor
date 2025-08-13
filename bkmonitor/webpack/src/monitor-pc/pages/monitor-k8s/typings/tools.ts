@@ -26,34 +26,34 @@
 import type { SceneType } from '../components/common-page';
 import type { TranslateResult } from 'vue-i18n';
 
-export interface ITabItem {
-  id: number | string;
-  name: string;
-  show_panel_count?: boolean;
-  panel_count?: number;
-  type?: SceneType;
-  queryType?: string[];
-  params?: Record<string, string> /** 额外的参数 */;
-  selector_panel?: any;
-}
+/** 更多菜单id */
+export type IMenuId = 'edit-dashboard' | 'edit-tab' | 'edit-variate' | 'view-demo';
 
 // nav 导航栏设置数据item
 export interface INavItem {
   id: string;
-  name: TranslateResult | string;
-  subName?: string;
+  name: string | TranslateResult;
   query?: Record<string, any>;
+  subName?: string;
 }
 
 // nav 导航栏设置数据item
 export interface IRouteBackItem {
   id?: string;
+  isBack?: boolean;
   name?: string;
   query?: Record<string, any>;
-  isBack?: boolean;
 }
-/** 更多菜单id */
-export type IMenuId = 'edit-dashboard' | 'edit-tab' | 'edit-variate' | 'view-demo';
+export interface ITabItem {
+  id: number | string;
+  name: string;
+  panel_count?: number;
+  params?: Record<string, string> /** 额外的参数 */;
+  queryType?: string[];
+  selector_panel?: any;
+  show_panel_count?: boolean;
+  type?: SceneType;
+}
 
 export const COMMON_TAB_LIST: ITabItem[] = [
   {
@@ -67,8 +67,8 @@ export const COMMON_TAB_LIST: ITabItem[] = [
 ];
 export interface IMenuItem extends ITabItem {
   disable?: boolean;
-  show?: boolean;
   id: IMenuId | string;
+  show?: boolean;
 }
 export const COMMON_SETTINGS_LIST: IMenuItem[] = [
   {
@@ -90,8 +90,8 @@ export const COMMON_SETTINGS_LIST: IMenuItem[] = [
 ];
 
 export interface IUptimeCheckType {
-  task: 'uptime-check-task';
   node: 'uptime-check-node';
+  task: 'uptime-check-task';
 }
 export const UPTIME_CHECK_TYPE: IUptimeCheckType = {
   task: 'uptime-check-task',

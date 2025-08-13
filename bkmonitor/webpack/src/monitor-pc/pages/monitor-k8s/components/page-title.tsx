@@ -33,55 +33,55 @@ import { throttle } from 'throttle-debounce';
 
 import {
   type BookMarkMode,
-  COMMON_TAB_LIST,
   type CommonTabType,
   type IMenuItem,
   type ISearchItem,
   type ITabItem,
   type SearchType,
+  COMMON_TAB_LIST,
 } from '../typings';
 
 import './page-title.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 const SMALL_SCREEN = 1440;
+interface IPageTitleEvent {
+  onFilterChange: boolean;
+  onInfoChange: boolean;
+  onListPanelChange: boolean;
+  onSearchClick: boolean;
+  onSelectPanelChange: boolean;
+  onTabChange: ITabItem;
+  onAddTab: () => void;
+  onSearchChange: (a: SearchType, b: ISearchItem[]) => void;
+}
 interface IPageTitleProps {
-  // tab列表
-  tabList?: ITabItem[];
   // active tab
   activeTab?: CommonTabType | string;
-  // 是否显示搜索
-  showSearch?: boolean;
   bookMarkMode?: BookMarkMode;
+  // 概览与列表选项（概览选项不可点击且置灰）
+  disableOverview?: boolean;
+  filterActive?: boolean;
+  filterCount?: number;
+  // info active
+  infoActive?: boolean;
+  listPanelActive?: boolean;
+  needAddViewBtn?: boolean;
+  searchData?: ISearchItem[];
+  searchValue?: ISearchItem[] | string[];
+  selectPanelActive?: boolean;
   // 是否显示过滤
   showFilter?: boolean;
   // 是否显示详情
   showInfo?: boolean;
   // 是否显示列表
   showListPanel?: boolean;
-  filterActive?: boolean;
-  searchData?: ISearchItem[];
-  searchValue?: ISearchItem[] | string[];
+  // 是否显示搜索
+  showSearch?: boolean;
   // 是否显示左侧栏设置
   showSelectPanel?: boolean;
-  selectPanelActive?: boolean;
-  listPanelActive?: boolean;
-  // info active
-  infoActive?: boolean;
-  // 概览与列表选项（概览选项不可点击且置灰）
-  disableOverview?: boolean;
-  filterCount?: number;
-  needAddViewBtn?: boolean;
-}
-interface IPageTitleEvent {
-  onTabChange: ITabItem;
-  onSearchClick: boolean;
-  onFilterChange: boolean;
-  onInfoChange: boolean;
-  onSearchChange: (a: SearchType, b: ISearchItem[]) => void;
-  onSelectPanelChange: boolean;
-  onListPanelChange: boolean;
-  onAddTab: () => void;
+  // tab列表
+  tabList?: ITabItem[];
 }
 @Component
 export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {

@@ -42,31 +42,31 @@ import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings'
 
 import './ai-panel.scss';
 
-interface IAiPanelTableItem {
-  id?: string;
-  metric_id?: string;
-  score: number;
-  value: number | string;
-  dtEventTime: number | string;
-  name: string;
-  panel?: any;
-}
 interface IAiPanelResData {
   anomaly_info: Omit<IAiPanelTableItem, 'name'>[];
   metrics: {
-    metric_id: string;
-    metric_field_name: string;
     data_source_label: string;
     data_type_label: string;
-    result_table_id: string;
     metric_field: string;
+    metric_field_name: string;
+    metric_id: string;
+    result_table_id: string;
     unit?: string;
   }[];
 }
+interface IAiPanelTableItem {
+  dtEventTime: number | string;
+  id?: string;
+  metric_id?: string;
+  name: string;
+  panel?: any;
+  score: number;
+  value: number | string;
+}
 interface ICommonListProps {
+  allPanelId?: string[];
   // panel实例
   panel: PanelModel;
-  allPanelId?: string[];
 }
 
 @Component

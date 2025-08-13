@@ -29,8 +29,8 @@ import { downFile } from '../../utils';
 
 export interface IUnifyQuerySeriesItem {
   datapoints: Array<[number, number]>;
-  target: string;
   key: string;
+  target: string;
 }
 /**
  * 根据图表接口响应的数据转换成表格展示的原始数据
@@ -123,7 +123,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
 };
 
 export interface IIableTdArrItem {
-  value: number;
+  value: number | string;
 }
 /**
  * 根据表格数据转换成csv字符串

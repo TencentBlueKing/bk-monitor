@@ -24,36 +24,36 @@
  * IN THE SOFTWARE.
  */
 import {
+  type ComputedRef,
+  type Ref,
+  computed,
   defineComponent,
   inject,
-  ref,
-  computed,
-  type Ref,
-  onMounted,
   nextTick,
-  watch,
-  type ComputedRef,
   onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
 } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { useTraceExploreStore } from '@/store/modules/explore';
 import {
-  MonitorTraceLog as Log,
-  initMonitorState,
-  initGlobalComponents,
-  Vue2,
-  logStore,
   i18n,
+  initGlobalComponents,
+  initMonitorState,
+  MonitorTraceLog as Log,
+  logStore,
+  Vue2,
 } from '@blueking/monitor-trace-log/main';
 import { Button, Exception } from 'bkui-vue';
-import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
+import { serviceLogInfo, serviceRelationList } from 'monitor-api/modules/apm_log';
+import { useI18n } from 'vue-i18n';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
 import { useSpanDetailQueryStore } from '../../../store/modules/span-detail-query';
 import { REFRESH_IMMEDIATE_KEY, REFRESH_INTERVAL_KEY, useTimeRangeInject } from '../../hooks';
+import { useTraceExploreStore } from '@/store/modules/explore';
 
 import './monitor-trace-log.scss';
 import '@blueking/monitor-trace-log/css/main.css';

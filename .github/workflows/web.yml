@@ -4,6 +4,9 @@ defaults:
   run:
     working-directory: bklog
 
+permissions:
+  contents: read
+
 on:
   push:
     paths:

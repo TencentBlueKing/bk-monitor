@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="global-config"
     v-monitor-loading="{ isLoading: loading }"
+    class="global-config"
   >
     <bk-form v-bind="formProps">
       <bk-form-item
@@ -37,9 +37,9 @@
           <ul class="channel-list">
             <li
               v-for="item in staticForm.ENABLED_NOTICE_WAYS"
+              :key="item.id"
               class="channel-list-item"
               :class="{ 'is-checked': item.check }"
-              :key="item.id"
               @click="item.check = !item.check"
             >
               <bk-checkbox
@@ -63,9 +63,9 @@
               {{ $t('配置指引') }}
             </span>
             <div
+              v-show="validate.channel && isValidateChannel"
               style="bottom: -18px"
               class="error-message"
-              v-show="validate.channel && isValidateChannel"
             >
               {{ $t('选择消息通知渠道') }}
             </div>
@@ -76,16 +76,16 @@
         <ul class="notice-list">
           <li
             v-for="item in staticForm.MESSAGE_QUEUE_DSN"
-            class="notice-list-item"
             :key="item.id"
+            class="notice-list-item"
           >
             <bk-checkbox v-model="item.check">
               {{ item.name }}
             </bk-checkbox>
             <template v-if="item.id === 'message-queue'">
               <div
-                class="message-set"
                 v-show="item.check"
+                class="message-set"
               >
                 <bk-select
                   :style="{ marginBottom: item.check ? '5px' : '0px' }"
@@ -101,14 +101,22 @@
                     :name="set.name"
                   />
                 </bk-select>
-                <bk-input
-                  class="message-set-input"
-                  v-model="item.value"
-                  :placeholder="item.placeholder"
-                />
+                <template v-if="typeof (item.value ?? '') === 'string'">
+                  <bk-input
+                    v-model="item.value"
+                    class="message-set-input"
+                    :placeholder="item.placeholder"
+                  />
+                </template>
+                <template v-else>
+                  <bk-input
+                    disabled
+                    :value="JSON.stringify(item.value)"
+                  />
+                </template>
                 <div
-                  class="error-message"
                   v-show="validate.notice && isValidateNotice"
+                  class="error-message"
                 >
                   {{ $t('输入正确的格式') }}
                 </div>
@@ -395,6 +403,7 @@ export default {
   min-height: calc(100vh - 100px);
   margin: 20px 24px;
   font-size: 12px;
+
   // transform: translate3d(0,0,0);
   .notice-list {
     display: flex;
@@ -406,7 +415,7 @@ export default {
       line-height: 28px;
 
       &:first-child {
-        margin-bottom: 0px;
+        margin-bottom: 0;
       }
 
       .item-check {
@@ -457,6 +466,7 @@ export default {
       .item-img {
         width: 32px;
         height: 32px;
+
         // background-color: #699DF4;
         margin-top: 23px;
       }
@@ -479,7 +489,7 @@ export default {
       &:hover {
         cursor: pointer;
         border-color: #699df4;
-        box-shadow: 0px 0px 0px 2px #e1ecff;
+        box-shadow: 0 0 0 2px #e1ecff;
 
         .item-check {
           visibility: visible;

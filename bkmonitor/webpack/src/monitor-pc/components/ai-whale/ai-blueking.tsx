@@ -23,26 +23,37 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, Ref } from 'vue-property-decorator';
+import { Component, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
+import { random } from 'monitor-common/utils/utils';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
+import { type AIBluekingShortcut, AI_BLUEKING_SHORTCUTS } from './types';
 
 import '@blueking/ai-blueking/dist/vue2/style.css';
 
 @Component
 export default class AiBluekingWrapper extends tsc<object> {
   @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
+  headers = {
+    Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
+  };
   get apiUrl() {
-    return window.ai_xiao_jing_base_url?.replace('https:', location.protocol);
+    return '/ai_agents/chat';
   }
   get showDialog() {
     return aiWhaleStore.showAIBlueking;
   }
   get message() {
     return aiWhaleStore.message;
+  }
+  get customFallbackShortcut() {
+    return aiWhaleStore.customFallbackShortcut;
+  }
+  get shortcuts() {
+    return [...AI_BLUEKING_SHORTCUTS];
   }
   @Watch('showDialog')
   handleShowDialogChange(newVal: boolean) {
@@ -60,16 +71,29 @@ export default class AiBluekingWrapper extends tsc<object> {
     this.aiBluekingRef.handleStop();
     this.aiBluekingRef.handleSendMessage(newVal);
   }
+  @Watch('customFallbackShortcut')
+  handleCustomFallbackShortcutChange(shortcut: AIBluekingShortcut) {
+    if (shortcut?.id) {
+      this.aiBluekingRef.handleShow();
+      this.aiBluekingRef.handleShortcutClick?.({ shortcut });
+    }
+  }
   render() {
     return (
       <div class='ai-blueking-wrapper'>
         <AIBlueking
           ref='aiBlueking'
-          enablePopup={false}
+          requestOptions={{
+            headers: this.headers,
+          }}
+          enablePopup={true}
           hideNimbus={true}
           prompts={[]}
-          shortcuts={[]}
+          shortcuts={this.shortcuts}
           url={this.apiUrl}
+          on-send-message={() => {
+            this.headers.Traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+          }}
           onClose={() => {
             aiWhaleStore.setShowAIBlueking(false);
           }}

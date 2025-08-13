@@ -31,7 +31,7 @@ import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import { GridItem, GridLayout } from 'monitor-vue-grid-layout';
 
-import { type DashboardColumnType, type IGridPos, type IPanelModel, PanelModel, type ZrClickEvent } from '../typings';
+import { type DashboardColumnType, type IGridPos, type IPanelModel, type ZrClickEvent, PanelModel } from '../typings';
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
 
@@ -40,28 +40,28 @@ import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
 export const UPDATE_SCENES_TAB_DATA = 'UPDATE_SCENES_TAB_DATA';
+interface IDashboardPanelEvents {
+  onLintToDetail: ITableItem<'link'>;
+  onBackToOverview: () => void;
+  onZrClick: (e: ZrClickEvent) => void;
+}
 interface IDashboardPanelProps {
-  // 视图集合
-  panels: IPanelModel[];
-  // dashboard id
-  id: string;
+  backToType?: SceneType;
   // 自动展示初始化列数
   column?: DashboardColumnType;
   /** 根据column */
   customHeightFn?: ((a: any) => number) | null;
+  dashboardId?: string;
+  // dashboard id
+  id: string;
+  isSingleChart?: boolean;
   // 是否在分屏展示
   isSplitPanel?: boolean;
-  isSingleChart?: boolean;
-  needOverviewBtn?: boolean;
-  backToType?: SceneType;
-  dashboardId?: string;
-  singleChartNoPadding?: boolean;
   layoutMargin?: [number, number];
-}
-interface IDashboardPanelEvents {
-  onBackToOverview: () => void;
-  onLintToDetail: ITableItem<'link'>;
-  onZrClick: (e: ZrClickEvent) => void;
+  needOverviewBtn?: boolean;
+  // 视图集合
+  panels: IPanelModel[];
+  singleChartNoPadding?: boolean;
 }
 @Component
 export default class DashboardPanel extends tsc<IDashboardPanelProps, IDashboardPanelEvents> {

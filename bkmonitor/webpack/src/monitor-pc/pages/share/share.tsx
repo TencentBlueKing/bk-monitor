@@ -33,8 +33,8 @@ import { getShareParams } from 'monitor-api/modules/share';
 import './share.scss';
 
 interface IWebData {
-  host: string;
   baseroute: string;
+  host: string;
 }
 @Component
 export default class SharePage extends tsc<object> {

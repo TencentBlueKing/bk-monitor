@@ -49,7 +49,8 @@
           <span
             class="log"
             @click="handleShowDetai(row)"
-          >{{ row['event.content'] }}</span>
+            >{{ row['event.content'] }}</span
+          >
         </template>
       </bk-table-column>
     </bk-table>
@@ -63,25 +64,26 @@
       :width="700"
       :title="detailTitle"
     >
-        <JsonViewer
-          class="log-content"
-          :preview-mode="true"
-          :value="logDetail"
-        />
+      <JsonViewer
+        class="log-content"
+        :preview-mode="true"
+        :value="logDetail"
+      />
     </bk-dialog>
   </div>
 </template>
 <script lang="ts">
-import dayjs from 'dayjs';
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
+
+import dayjs from 'dayjs';
 import JsonViewer from 'vue-json-viewer';
 
 @Component({
   name: 'strategy-view-log',
   components: {
-    JsonViewer
-  }
- })
+    JsonViewer,
+  },
+})
 export default class StrategyViewLog extends Vue {
   @Prop({ default: () => [], type: Array }) private readonly data!: any[];
   @Prop({ default: false, type: Boolean }) private readonly isLast!: boolean;
@@ -112,7 +114,7 @@ export default class StrategyViewLog extends Vue {
     }
   }
   handleShowDetai(row) {
-    const content = row.content || row['event.content']
+    const content = row.content || row['event.content'];
     try {
       this.logDetail = JSON.parse(content);
     } catch {

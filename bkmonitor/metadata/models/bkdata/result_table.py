@@ -64,6 +64,7 @@ class BkBaseResultTable(models.Model):
     bkbase_rt_name = models.CharField(
         verbose_name="计算平台结果表名称", max_length=128, unique=True, null=True, blank=True
     )
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
         verbose_name = "接入计算平台记录表"

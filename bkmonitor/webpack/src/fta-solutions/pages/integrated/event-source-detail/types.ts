@@ -25,17 +25,6 @@
  */
 const { i18n } = window;
 
-// 已启用 ENABLED
-// 有更新 UPDATABLE
-// 无数据 NO_DATA
-// 将下架 REMOVE_SOON
-// 已下架 REMOVED
-// 已停用 DISABLED
-// 未安装 AVAILABLE
-export type StatusType = 'AVAILABLE' | 'DISABLED' | 'ENABLED' | 'NO_DATA' | 'REMOVE_SOON' | 'REMOVED' | 'UPDATABLE';
-
-export type MapType<T extends string> = { [key in T]?: any };
-
 export enum EStatusMap {
   AVAILABLE = 'notInstalled', // 未安装
   DISABLED = 'terminated', // 已停用
@@ -45,6 +34,17 @@ export enum EStatusMap {
   REMOVED = 'removed', // 已下架
   UPDATABLE = 'update', // 有更新
 }
+
+export type MapType<T extends string> = { [key in T]?: any };
+
+// 已启用 ENABLED
+// 有更新 UPDATABLE
+// 无数据 NO_DATA
+// 将下架 REMOVE_SOON
+// 已下架 REMOVED
+// 已停用 DISABLED
+// 未安装 AVAILABLE
+export type StatusType = 'AVAILABLE' | 'DISABLED' | 'ENABLED' | 'NO_DATA' | 'REMOVE_SOON' | 'REMOVED' | 'UPDATABLE';
 export const bgColorMap: MapType<string> = {
   notInstalled: '', // 未安装
   installed: '#679EF3', // 已安装
@@ -75,66 +75,66 @@ export const textMap: MapType<string> = {
   removed: i18n.t('已下架'),
 };
 
-export interface ITabListItem {
-  id: number;
-  name: string;
-  warning?: boolean;
-}
-
 export enum EPluginType {
   email = 'email_pull',
   pull = 'http_pull',
   push = 'http_push',
-}
-export type TPluginType = 'email_pull' | 'http_pull' | 'http_push';
-
-export type TPluginTypeObj = { [key in TPluginType]?: string };
-
-export type IScenario = 'EMAIL' | 'MONITOR' | 'REST_API';
-
-export type TScenaris = { [key in IScenario]?: string };
-
-export interface IBaseInfo {
-  name: string;
-  label: string[];
-  createUser: string;
-  popularity: number;
-  pluginId: string;
-  updateUser: string;
-  updateTime: string;
-  pluginTypeDisplay: string;
-  pluginType: TPluginType;
-  logo: string;
-  version: string;
-  sourceCode: string;
-  categoryDisplay: string;
-  scenario: IScenario;
-  isInstalled?: boolean;
-}
-
-export interface IPushConfigData {
-  ingesterHost: string;
-  sourceFormat: string;
-  pluginId: string;
-  pushUrl?: string;
-}
-
-export interface INormalizationTable {
-  field: string;
-  displayName: string;
-  type: string;
-  description: string;
-  expr: string;
 }
 
 export interface IAlertConfigTable {
   name: string;
   rules: IConditionRules[];
 }
+export interface IBaseInfo {
+  categoryDisplay: string;
+  createUser: string;
+  isInstalled?: boolean;
+  label: string[];
+  logo: string;
+  name: string;
+  pluginId: string;
+  pluginType: TPluginType;
+  pluginTypeDisplay: string;
+  popularity: number;
+  scenario: IScenario;
+  sourceCode: string;
+  updateTime: string;
+  updateUser: string;
+  version: string;
+}
 
 export interface IConditionRules {
-  key: string;
-  value: string[];
-  method: string;
   condition?: string;
+  key: string;
+  method: string;
+  value: string[];
 }
+
+export interface INormalizationTable {
+  description: string;
+  displayName: string;
+  expr: string;
+  field: string;
+  type: string;
+}
+
+export interface IPushConfigData {
+  ingesterHost: string;
+  pluginId: string;
+  pushUrl?: string;
+  sourceFormat: string;
+}
+
+export type IScenario = 'EMAIL' | 'MONITOR' | 'REST_API';
+
+export interface ITabListItem {
+  id: number;
+  name: string;
+  warning?: boolean;
+}
+
+export type TPluginType = 'email_pull' | 'http_pull' | 'http_push';
+
+export type TPluginTypeObj = { [key in TPluginType]?: string };
+
+export type TScenaris = { [key in IScenario]?: string };

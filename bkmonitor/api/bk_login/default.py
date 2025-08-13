@@ -71,7 +71,7 @@ class ListTenantResource(BkUserApiResource):
             return [{"id": "system", "name": "Blueking", "status": "enabled"}]
 
         result = super().perform_request({"bk_tenant_id": DEFAULT_TENANT_ID})
-        result = [item for item in result if item["id"] in settings.INITIALIZED_TENANT_LIST]
+        # result = [item for item in result if item["id"] in settings.INITIALIZED_TENANT_LIST]
         return result
 
 
@@ -87,7 +87,7 @@ class GetAllUserResource(BkUserApiResource):
     def perform_request(self, params):
         # 如果使用apigw，则直接返回空列表，这种情况下要求前端直接请求bk-user的接口获取用户展示信息
         if self.use_apigw():
-            return []
+            return {"count": 0, "results": []}
         return super().perform_request(params)
 
 
@@ -271,10 +271,23 @@ class BatchLookupVirtualUserResource(BkUserApiResource):
         lookups = serializers.CharField()
 
 
-class ListCommonUserResource(BkUserApiResource):
+class ListTenantVariablesResource(BkUserApiResource):
     """
-    查询公共用户列表
+    查询租户变量列表
     """
 
     action = "/api/v3/open/tenant/common-variables/"
     method = "GET"
+
+
+class BatchQueryUserDisplayInfoResource(BkUserApiResource):
+    """
+    批量查询用户展示信息
+    """
+
+    cache_type = CacheType.USER
+    action = "/api/v3/open/tenant/users/-/display_info/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_usernames = serializers.CharField(required=True)

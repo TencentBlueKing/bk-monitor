@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, ProvideReactive, Provide } from 'vue-property-decorator';
+import { Component, Prop, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random, deepClone } from 'monitor-common/utils';
+import { deepClone, random } from 'monitor-common/utils';
 import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
@@ -39,22 +39,22 @@ import CheckViewTable from './check-view-table';
 
 import type { IDimensionItem, IRefreshItem } from '../../type';
 import type { IMetricAnalysisConfig } from 'monitor-pc/pages/custom-escalation/new-metric-view/type';
-import type { IPanelModel, ILegendItem } from 'monitor-ui/chart-plugins/typings';
+import type { ILegendItem, IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './index.scss';
-interface IViewConfig {
-  config: IPanelModel;
-  filterOption?: IMetricAnalysisConfig;
+interface IDrillAnalysisViewEvents {
+  onClose?: () => void;
 }
 /** 维度下钻 */
 interface IDrillAnalysisViewProps {
-  dimensionsList?: IDimensionItem[];
   currentMethod?: string;
+  dimensionsList?: IDimensionItem[];
   panel?: IPanelModel;
   timeRangeData?: TimeRangeType;
 }
-interface IDrillAnalysisViewEvents {
-  onClose?: () => void;
+interface IViewConfig {
+  config: IPanelModel;
+  filterOption?: IMetricAnalysisConfig;
 }
 @Component
 export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrillAnalysisViewEvents> {

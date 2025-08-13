@@ -31,16 +31,16 @@ import type { EmptyStatusOperationType, EmptyStatusType, IEmptyStatusTextMap } f
 
 import './empty-status.scss';
 
+interface IEmptyStatusEvent {
+  onOperation: (type: EmptyStatusOperationType) => void;
+}
+
 /* bk-exception组件Type */
 interface IEmptyStatusProps {
-  type?: EmptyStatusType;
   scene?: 'page' | 'part';
   showOperation?: boolean;
   textMap?: IEmptyStatusTextMap;
-}
-
-interface IEmptyStatusEvent {
-  onOperation: (type: EmptyStatusOperationType) => void;
+  type?: EmptyStatusType;
 }
 
 // 默认类型对应的文本枚举

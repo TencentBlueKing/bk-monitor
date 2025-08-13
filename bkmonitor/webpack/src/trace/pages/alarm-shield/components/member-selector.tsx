@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { TagInput } from 'bkui-vue';
 import { listUsersUser } from 'monitor-api/modules/model';
 import { debounce, random } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import './member-selector.scss';
 

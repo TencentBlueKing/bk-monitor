@@ -27,19 +27,20 @@ import { type FormattedValue, toFixed } from './valueFormats';
 
 import type { DecimalCount } from '../types/displayValue';
 
-export function toPercent(size: number, decimals?: DecimalCount): FormattedValue {
-  if (size === null) {
+export function sci(value: number, decimals: DecimalCount = 2): FormattedValue {
+  if (value === null) {
     return { text: '' };
   }
-  return { text: toFixed(size, decimals < 7 ? decimals : 2), suffix: '%' };
+  return { text: value.toExponential(decimals as number) };
 }
 
-export function toPercentUnit(size: number, decimals?: DecimalCount): FormattedValue {
-  if (size === null) {
+export function toHex(value: number, decimals: DecimalCount = 2): FormattedValue {
+  if (value === null) {
     return { text: '' };
   }
-
-  return { text: toFixed(100 * size, decimals < 7 ? decimals : 2), suffix: '%' };
+  return {
+    text: Number.parseFloat(toFixed(value, decimals)).toString(16).toUpperCase(),
+  };
 }
 
 export function toHex0x(value: number, decimals: DecimalCount = 2): FormattedValue {
@@ -55,18 +56,17 @@ export function toHex0x(value: number, decimals: DecimalCount = 2): FormattedVal
   return asHex;
 }
 
-export function toHex(value: number, decimals: DecimalCount = 2): FormattedValue {
-  if (value === null) {
+export function toPercent(size: number, decimals?: DecimalCount): FormattedValue {
+  if (size === null) {
     return { text: '' };
   }
-  return {
-    text: Number.parseFloat(toFixed(value, decimals)).toString(16).toUpperCase(),
-  };
+  return { text: toFixed(size, decimals < 7 ? decimals : 2), suffix: '%' };
 }
 
-export function sci(value: number, decimals: DecimalCount = 2): FormattedValue {
-  if (value === null) {
+export function toPercentUnit(size: number, decimals?: DecimalCount): FormattedValue {
+  if (size === null) {
     return { text: '' };
   }
-  return { text: value.toExponential(decimals as number) };
+
+  return { text: toFixed(100 * size, decimals < 7 ? decimals : 2), suffix: '%' };
 }

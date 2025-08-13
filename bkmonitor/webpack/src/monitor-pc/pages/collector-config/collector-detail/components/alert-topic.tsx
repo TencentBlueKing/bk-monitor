@@ -39,9 +39,9 @@ import './alert-topic.scss';
 
 interface IProps {
   alarmGroupList?: IAlarmGroupList[];
+  alarmGroupListLoading?: boolean;
   stage: TCollectorAlertStage;
   updateKey?: string;
-  alarmGroupListLoading?: boolean;
   onAlarmGroupListRefresh?: () => void;
 }
 

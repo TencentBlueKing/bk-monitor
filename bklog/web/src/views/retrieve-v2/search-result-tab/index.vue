@@ -19,6 +19,7 @@
   const emit = defineEmits(['input']);
 
   const indexSetId = computed(() => store.state.indexId);
+  const bkBizId = computed(() => store.state.bkBizId);
 
   const indexSetItem = computed(() =>
     store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
@@ -27,10 +28,20 @@
   const retrieveParams = computed(() => store.getters.retrieveParams);
 
   const isAiopsToggle = computed(() => {
-    return (
-      (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
+      // 日志聚类总开关
+      const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
+      const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
+      const isLocalToggle = (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
       indexSetItem.value?.scenario_id === 'bkdata'
-    );
+
+      switch (bkdataAiopsToggle) {
+        case 'on':
+          return isLocalToggle;
+        case 'off':
+          return false;
+        default:
+          return aiopsBizList ? aiopsBizList.some(item => item.toString() === bkBizId.value) : isLocalToggle;
+      }
   });
 
   const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
@@ -105,6 +116,21 @@
 
     emit('input', panel, panel === 'origin');
   };
+
+  watch(
+    () => [indexSetItem.value?.support_doris, isChartEnable.value, isAiopsToggle.value],
+    ([grepEnable, graphEnable, aiopsEnable]) => {
+      if (['clustering', 'graphAnalysis', 'grep'].includes(route.query.tab)) {
+        if (
+          (!grepEnable && route.query.tab === 'grep') ||
+          (!graphEnable && route.query.tab === 'graphAnalysis') ||
+          (!aiopsEnable && route.query.tab === 'clustering')
+        ) {
+          handleActive('origin');
+        }
+      }
+    },
+  );
 
   onMounted(() => {
     const tabName = route.query.tab ?? 'origin';

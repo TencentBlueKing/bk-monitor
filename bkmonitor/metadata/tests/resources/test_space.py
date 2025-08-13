@@ -1,12 +1,13 @@
 import json
+from unittest.mock import patch
 
 import pytest
 from django.core.cache import cache
-from mockredis.redis import mock_redis_client
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.local import local
 from core.drf_resource.exceptions import CustomException
+from core.errors.bkmonitor.space import SpaceNotFound
 from metadata import models
 from metadata.models.space import (
     Space,
@@ -40,6 +41,11 @@ CLUSTER_ID = generate_random_string()
 
 @pytest.fixture
 def create_and_delete_space_record():
+    SpaceResource.objects.all().delete()
+    SpaceDataSource.objects.all().delete()
+    Space.objects.all().delete()
+    SpaceType.objects.all().delete()
+
     SpaceType.objects.create(type_id=TYPE_ID, type_name=SPACE_NAME, dimension_fields=["project_id"])
     Space.objects.create(space_type_id=TYPE_ID, space_id=SPACE_ID, space_name=SPACE_NAME, space_code=SPACE_ID)
     SpaceDataSource.objects.create(space_type_id=TYPE_ID, space_id=SPACE_ID, bk_data_id=BK_DATA_ID)
@@ -86,7 +92,7 @@ def test_get_biz_related_bkci_spaces_resource(create_or_delete_records):
 
 def test_list_space_types(create_and_delete_space_record):
     result = ListSpaceTypesResource().request()
-    assert len(result) == 1
+    assert len(result) == SpaceType.objects.count()
 
 
 def test_list_space(create_and_delete_space_record):
@@ -94,7 +100,7 @@ def test_list_space(create_and_delete_space_record):
     assert "count" in result
     assert "list" in result
     assert isinstance(result["list"], list)
-    assert result["count"] == 1
+    assert result["count"] == Space.objects.count()
 
     result = ListSpacesResource().request(space_id="notfound")
     assert result["count"] == 0
@@ -109,7 +115,7 @@ def test_list_space(create_and_delete_space_record):
     Space.objects.create(space_type_id=type_id, space_id=space_id, space_name=name, space_code=space_id)
 
     result = ListSpacesResource().request()
-    assert result["count"] == 2
+    assert result["count"] == Space.objects.count()
 
     result = ListSpacesResource().request(page=1, page_size=1)
     assert len(result["list"]) == 1
@@ -123,7 +129,7 @@ def test_list_space(create_and_delete_space_record):
 
 def test_get_space_detail(create_and_delete_space_record):
     # 判断空间 ID 不存在
-    with pytest.raises(ValueError):
+    with pytest.raises(SpaceNotFound):
         GetSpaceDetailResource().request(space_type_id="notexist", space_id="notfound")
 
     # 获取详情
@@ -135,7 +141,9 @@ def test_get_space_detail(create_and_delete_space_record):
     assert result["data_sources"][0]["bk_data_id"] == BK_DATA_ID
 
 
-def test_create_space(create_and_delete_space_record, mocker):
+@patch("metadata.task.tasks.push_space_to_redis.delay")
+@patch("metadata.task.tasks.push_and_publish_space_router.delay")
+def test_create_space(push_and_publish_space_router, push_space_to_redis, create_and_delete_space_record):
     space_id = generate_random_string()
     space_name = generate_random_string()
     req_data = {
@@ -172,7 +180,6 @@ def test_create_space(create_and_delete_space_record, mocker):
         CreateSpaceResource().request(**_req_data)
 
     # 创建空间
-    mocker.patch("metadata.task.tasks.push_space_to_redis.delay", return_value=True)
     result = CreateSpaceResource().request(**req_data)
     for key in ["space_type_id", "space_id", "space_name", "space_code"]:
         assert key in result
@@ -190,7 +197,9 @@ def test_create_space(create_and_delete_space_record, mocker):
     assert space_obj.is_bcs_valid
 
 
-def test_update_space(create_and_delete_space_record):
+@patch("metadata.task.tasks.push_space_to_redis.delay")
+@patch("metadata.task.tasks.push_and_publish_space_router.delay")
+def test_update_space(push_and_publish_space_router, push_space_to_redis, create_and_delete_space_record):
     space_name = generate_random_string()
     resource_id = "100149"
     resource_type = "bkcc"
@@ -247,21 +256,6 @@ def test_disable_space(create_and_delete_space_record):
 
 @pytest.fixture
 def patch_redis_tools(mocker):
-    client = mock_redis_client()
-
-    def mock_hget_redis(*args, **kwargs):
-        return client.hget(*args, **kwargs)
-
-    def mock_hmset_redis(*args, **kwargs):
-        client.hmset(*args, **kwargs)
-
-    def mock_publish(*args, **kwargs):
-        client.publish(*args, **kwargs)
-
-    mocker.patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis", side_effect=mock_hmset_redis)
-    mocker.patch("metadata.utils.redis_tools.RedisTools.hget", side_effect=mock_hget_redis)
-    mocker.patch("metadata.utils.redis_tools.RedisTools.publish", side_effect=mock_publish)
-
     data = {
         "type": "bkcc",
         "db": "555_bkmonitor_time_series_539389",
@@ -277,7 +271,7 @@ def patch_redis_tools(mocker):
         "retention_policies": {"autogen": {"is_default": True, "resolution": 0}},
     }
     # 预设数据
-    mock_hmset_redis(
+    RedisTools.hmset_to_redis(
         f"{constants.SPACE_REDIS_KEY}:{RefreshMetricForKihan.SPACE_UID}",
         {RefreshMetricForKihan.TABLE_ID: json.dumps(data)},
     )
@@ -293,7 +287,7 @@ class TestRefreshMetricForKihan:
         # 调整为 0, 跳过校验
         cache.set(RefreshMetricForKihan.RATE_LIMIT_KEY, 0, RefreshMetricForKihan.RATE_LIMIT_TIMEOUT)
 
-        self._mocker_data(mocker, patch_redis_tools)
+        self._mocker_data(mocker)
 
         # 更新数据
         RefreshMetricForKihan().request()
@@ -301,13 +295,18 @@ class TestRefreshMetricForKihan:
         redis_data = RedisTools.hget(
             f"{constants.SPACE_CHANNEL}:{RefreshMetricForKihan.SPACE_UID}", RefreshMetricForKihan.TABLE_ID
         )
+        assert redis_data is not None
         redis_data = json.loads(redis_data.decode("utf-8"))
         assert len(redis_data["field"]) == 5
 
-    def test_check_metric_count(self, mocker, patch_redis_tools):
+    def test_check_metric_count(
+        self,
+        mocker,
+        patch_redis_tools,
+    ):
         cache.set(RefreshMetricForKihan.RATE_LIMIT_KEY, 0, RefreshMetricForKihan.RATE_LIMIT_TIMEOUT)
 
-        self._mocker_data(mocker, patch_redis_tools)
+        self._mocker_data(mocker)
 
         class MockerResult:
             def json(self):
@@ -318,7 +317,7 @@ class TestRefreshMetricForKihan:
         with pytest.raises(ValidationError):
             RefreshMetricForKihan().request()
 
-    def _mocker_data(self, mocker, patch_redis_tools):
+    def _mocker_data(self, mocker):
         class MockerResult:
             def json(self):
                 return {"data": [{"metric": "a"}, {"metric": "d"}, {"metric": "e"}]}

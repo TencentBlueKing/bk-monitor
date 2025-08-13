@@ -28,7 +28,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AutoWidthInput from './auto-width-input';
-import { getTitleAndSubtitle, METHOD_MAP, onClickOutside, OPPOSE_METHODS, type IWhereItem } from './utils';
+import { type IWhereItem, getTitleAndSubtitle, METHOD_MAP, onClickOutside, OPPOSE_METHODS } from './utils';
 import ValueOptions from './value-options';
 import ValueTagInput from './value-tag-input';
 
@@ -38,9 +38,9 @@ import './setting-kv-selector.scss';
 
 interface IProps {
   fieldInfo?: IFieldItem;
-  value?: IWhereItem;
-  maxWidth?: number;
   getValueFn?: TGetValueFn;
+  maxWidth?: number;
+  value?: IWhereItem;
   onChange?: (value: IWhereItem) => void;
 }
 

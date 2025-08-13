@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getLinkMapping } from 'monitor-api/modules/commons';
 import { APP_NAV_COLORS } from 'monitor-common/utils';
-import { getUrlParam } from 'monitor-common/utils/utils';
+import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import AuthorityModal from 'monitor-ui/authority-modal';
 
@@ -56,7 +57,7 @@ export default class App extends tsc<object> {
   private needBack = false;
   private needMenu = !window.__POWERED_BY_BK_WEWEB__;
   // eslint-disable-next-line @typescript-eslint/member-ordering
-  @ProvideReactive('readonly') readonly: boolean = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
+  @ProvideReactive('readonly') readonly: boolean = window.__BK_WEWEB_DATA__?.readonly ?? globalUrlFeatureMap.READONLY;
   get navRouteList() {
     return this.$store.getters.navRouteList;
   }
@@ -103,8 +104,8 @@ export default class App extends tsc<object> {
   }
   // 设置是否需要menu
   handleSetNeedMenu() {
-    const needMenu = getUrlParam('needMenu');
-    this.readonly = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
+    const needMenu = globalUrlFeatureMap.NEED_MENU;
+    this.readonly = window.__BK_WEWEB_DATA__?.readonly ?? globalUrlFeatureMap.READONLY;
     this.needMenu = `${needMenu}` !== 'false' && this.$route.name !== 'share' && !window.__BK_WEWEB_DATA__?.readonly;
   }
   /**

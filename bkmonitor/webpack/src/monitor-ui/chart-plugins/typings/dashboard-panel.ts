@@ -30,41 +30,273 @@ import { filterDictConvertedToWhere, getMetricId } from '../utils/utils';
 import type { MonitorEchartOptions } from './index';
 import type { TimeSeriesType } from './time-series';
 
-// 图例呈现模式
-export type LegendDisplayMode = 'hidden' | 'list' | 'table';
-// 图例展示位置
-export type LegendPlacement = 'bottom' | 'right';
-// 图例计算配置
-export type LegendCalcs = 'avg' | 'max' | 'min' | 'sum';
+export type DashboardColumnType = 'custom' | number;
+export interface DataQueryOptions {
+  table_chart?: {
+    async_columns: string[];
+    // 异步获取表格部分数据相关配置
+    async_dict_key: string;
+  };
+  time_series_forecast?: {
+    forecast_time_range: [number, number] /** 时间范围 [开始时间， 结束时间] 单位：秒*/;
+    no_result: boolean /** 过滤掉_result_的数据 */;
+  };
+}
+export type FieldsSortType = Array<[string, string]>;
+
+export interface IApdexChartOption {
+  apdex_chart?: {
+    enableContextmenu?: boolean; // 是否开启全局的右键菜单
+    sceneType?: string;
+  };
+}
+
+export interface IApmRelationGraphOption {
+  apm_relation_graph?: {
+    app_name?: string;
+    service_name?: string;
+  };
+}
+
+export interface IApmTimeSeriesOption {
+  apm_time_series?: {
+    app_name?: string;
+    disableZoom?: boolean;
+    enableContextmenu?: boolean; // 是否开启全局的右键菜单
+    enableSeriesContextmenu?: boolean; // 是否开启series的右键菜单
+    metric?: string;
+    sceneType?: string;
+    service_name?: string;
+    unit?: string; // 详情单位
+    xAxisSplitNumber?: number;
+  };
+}
+
+/** 面板图表的通用配置 */
+export interface IDashboardCommon {
+  dashboard_common?: {
+    static_width?: boolean; // true: dashboard的图表宽度不受布局影响一直为24
+  };
+}
+
+export interface IDashbordConfig {
+  id: number | string;
+  panels: IPanelModel[];
+}
+export interface IDataQuery {
+  // 别名 用于图例 设置有变量
+  alias?: string;
+  // 数据api
+  api?: string;
+  // 查询图表配置
+  data: any;
+  datasource?: null | string;
+  // 数据类型 table time_series ...
+  dataType?: string;
+  // 映射的字段 变量的映射关系
+  fields?: Record<string, string>;
+  /** 排序后的fields, 用于前端id拼接 */
+  fieldsSort?: FieldsSortType;
+  /** 查询的单独配置 */
+  options?: DataQueryOptions;
+  handleCreateFilterDictValue?: (
+    item: object,
+    isFilterDict?: boolean,
+    fieldsSort?: FieldsSortType
+  ) => Record<string, any>;
+  /** 根据接口数据提取对应的filter_dict值  */
+
+  /** 根据当前请求接口数据的映射规则生成id */
+  handleCreateItemId?: (item: object, isFilterDict?: boolean, fieldsSort?: FieldsSortType) => string;
+}
+
+export interface IFields {
+  [key: string]: any;
+}
 
 export interface IFilterListItem {
   id: string;
   name: string;
 }
 
+// 视图位置信息 宽度 100% 分为 24
+export interface IGridPos {
+  h: number; // 高度 默认1 = 30px
+  i?: number | string; // id
+  isDraggable?: boolean; // 是否可以拖动
+  isResizable?: boolean; // 是否可以改变大小
+  maxH?: number; // max height
+  maxW?: number; // max width
+  minH?: number; // min height
+  minW?: number; // min width
+  static?: boolean; // 是否不可拖动 视图碰撞时不计算
+  w: number; // 宽度 100% 分为24分  24即为100%
+  x: number; // 左边距 类似left 默认1 = 30px
+  y: number; // 上边距 类似top 默认1 = 30px
+}
 // 图例配置
 export interface ILegendOption {
+  // 图例额外计算配置
+  calcs?: LegendCalcs[];
   // 模式
   displayMode?: LegendDisplayMode;
   // 布局位置
   placement?: LegendPlacement;
-  // 图例额外计算配置
-  calcs?: LegendCalcs[];
+}
+export interface IPanelModel {
+  // 图表分类
+  anomaly_dimension_class?: string;
+  // 是否勾选图表
+  checked?: boolean;
+  // 是否折叠
+  collapsed?: boolean;
+  // 数据步长
+  collect_interval?: number;
+  // 图表dashboard id
+  dashboardId?: number | string;
+  // 图标带icon说明
+  description?: string;
+  // 维度列表
+  dimensions?: string[];
+  // 图表位置
+  gridPos?: IGridPos;
+  // 组id
+  groupId?: number | string;
+  id: number | string;
+  // 是否实时
+  instant?: boolean;
+  // 匹配显示字段
+  matchDisplay?: Record<string, any>;
+  // 图表配置
+  options?: PanelOption;
+  // 组内视图列表
+  panels?: IPanelModel[];
+  // 是否显示
+  show?: boolean;
+  // 图表subTitle
+  subTitle?: string;
+  // 图表数据源
+  targets: IDataQuery[];
+  // 图表title
+  title: string;
+  // 图表类型 如 line-chart bar-chart status-chart group
+  type: string;
 }
 
-export type FieldsSortType = Array<[string, string]>;
+export interface IPercentageBarOption {
+  percentage_bar?: {
+    filter_key?: string; // 切换数据源的参数名
+    filter_list?: IFilterListItem[];
+    filter_value?: string; // 切换数据源的默认参数值
+  };
+}
 
-// 变量特有配置
-export interface IVariablesOption {
-  variables?: {
-    // 是否可以多选 default true
-    multiple?: boolean;
-    // 是否必选 default false
-    required?: boolean;
-    // 是否内置
-    internal?: boolean;
-    // 是否可以清空  default true
-    clearable?: boolean;
+export interface IRatioRingChartOption {
+  hideLabel?: boolean; // 是否隐藏圆环中间label
+}
+
+export interface IRelatedLogChartoption {
+  related_log_chart?: {
+    defaultKeyword: string;
+    isSimpleChart?: boolean; // 是否为精简模式
+  };
+}
+
+export interface IResourceChartOption {
+  alert_filterable?: {
+    data?: {
+      bcs_cluster_id?: string; // 集群id
+      data_source_label?: string; // 事件类型 custom表示自定义上报事件
+      data_type_label?: string; // 数据类型 event表示查询的是事件数据
+      where?: {
+        // 过滤条件
+        key: string;
+        method: string;
+        value: string[];
+      }[];
+    };
+    event_center?: {
+      query_string?: {
+        // 查询字符串
+        metric?: string; // 指标ID的值
+      }[];
+    };
+    filter_type?: string; // 点击检索跳转到的页面类型 event 事件检索
+    save_to_dashboard?: boolean; // 是否显示保存到仪表盘
+  };
+}
+export interface ISelectorList {
+  selector_list?: {
+    default_sort_field?: string; // 宽窄如果支持排序，需默认排序字段
+    field_sort?: boolean; // 是否启用字段排序
+    query_update_url?: boolean; // 是否更新搜索条件到url
+    status_filter?: boolean; // 是否启用状态筛选组件
+  };
+}
+
+export interface ITableChartAsyncOption {
+  async_field: string;
+  async_field_key: string;
+  async_field_request_name: string;
+}
+
+export interface ITableChartOption {
+  table_chart?: {
+    async_config?: Record<string, ITableChartAsyncOption>;
+    json_viewer_data_empty_text?: string; // json格式数据为空的情况下提示内容 show_expand=true生效
+    json_viewer_data_key?: string; // 显示json格式数据的key show_expand=true生效
+    need_filters?: boolean; // 是否需要表格筛选tab
+    need_title?: boolean; // 表格图是否需要标题栏
+    query_update_url?: boolean; // 是否更新表格搜索条件到url
+    search_type?: 'input' | 'none' | 'search_select'; // 普通搜索 | search select组件
+    show_expand?: boolean; // 是否需要点击展开内容
+  };
+}
+
+export interface ITargetListOption {
+  target_list?: {
+    placeholder?: string;
+    show_overview?: boolean;
+    show_status_bar?: boolean;
+    status_tab_list?: {
+      id: string;
+      name: string;
+      status: string;
+      tips: string;
+    }[];
+    time_range_change_refresh?: boolean; // 时间范围变化是否刷新列表数据
+  };
+}
+
+export interface ITimeSeriesForecastOption {
+  time_series_forecast?: {
+    duration: number /** 预测时长 单位：秒 */;
+    markArea?: Record<string, any>;
+    markLine?: Record<string, any>;
+    need_hover_style?: boolean;
+  };
+}
+
+export interface ITimeSeriesListOption {
+  disable_wrap_check?: boolean;
+  time_series_list?: {
+    need_hover_style?: boolean;
+  };
+}
+
+export interface ITimeSeriesOption {
+  time_series?: {
+    custom_timerange?: boolean;
+    echart_option?: MonitorEchartOptions;
+    hoverAllTooltips?: boolean;
+    markArea?: Record<string, any>;
+    markLine?: Record<string, any>;
+    nearSeriesNum?: number;
+    needAllAlertMarkArea?: boolean;
+    noTransformVariables?: boolean;
+    only_one_result?: boolean;
+    type?: TimeSeriesType;
+    YAxisLabelWidth?: number;
   };
 }
 
@@ -77,139 +309,81 @@ export interface ITopoTreeOption {
     show_status_bar?: boolean;
   };
 }
-export interface ITimeSeriesOption {
-  time_series?: {
-    type?: TimeSeriesType;
-    only_one_result?: boolean;
-    echart_option?: MonitorEchartOptions;
-    markLine?: Record<string, any>;
-    markArea?: Record<string, any>;
-    custom_timerange?: boolean;
-    nearSeriesNum?: number;
-    noTransformVariables?: boolean;
-    hoverAllTooltips?: boolean;
-    YAxisLabelWidth?: number;
-    needAllAlertMarkArea?: boolean;
-  };
-}
 
-export interface ITimeSeriesListOption {
-  disable_wrap_check?: boolean;
-  time_series_list?: {
-    need_hover_style?: boolean;
-  };
-}
-
-export interface ITimeSeriesForecastOption {
-  time_series_forecast?: {
-    need_hover_style?: boolean;
-    duration: number /** 预测时长 单位：秒 */;
-    markLine?: Record<string, any>;
-    markArea?: Record<string, any>;
-  };
-}
-
-export interface ISelectorList {
-  selector_list?: {
-    status_filter?: boolean; // 是否启用状态筛选组件
-    field_sort?: boolean; // 是否启用字段排序
-    default_sort_field?: string; // 宽窄如果支持排序，需默认排序字段
-    query_update_url?: boolean; // 是否更新搜索条件到url
-  };
-}
-export interface ITargetListOption {
-  target_list?: {
-    show_overview?: boolean;
-    show_status_bar?: boolean;
-    placeholder?: string;
-    time_range_change_refresh?: boolean; // 时间范围变化是否刷新列表数据
-    status_tab_list?: {
-      id: string;
-      name: string;
-      status: string;
-      tips: string;
-    }[];
-  };
-}
-export interface ITableChartOption {
-  table_chart?: {
-    need_filters?: boolean; // 是否需要表格筛选tab
-    need_title?: boolean; // 表格图是否需要标题栏
-    search_type?: 'input' | 'none' | 'search_select'; // 普通搜索 | search select组件
-    json_viewer_data_key?: string; // 显示json格式数据的key show_expand=true生效
-    json_viewer_data_empty_text?: string; // json格式数据为空的情况下提示内容 show_expand=true生效
-    show_expand?: boolean; // 是否需要点击展开内容
-    query_update_url?: boolean; // 是否更新表格搜索条件到url
-    async_config?: Record<string, ITableChartAsyncOption>;
-  };
-}
-
-export interface ITableChartAsyncOption {
-  async_field_key: string;
-  async_field_request_name: string;
-  async_field: string;
-}
-
-/** 面板图表的通用配置 */
-export interface IDashboardCommon {
-  dashboard_common?: {
-    static_width?: boolean; // true: dashboard的图表宽度不受布局影响一直为24
-  };
-}
-
-// 视图位置信息 宽度 100% 分为 24
-export interface IGridPos {
-  x: number; // 左边距 类似left 默认1 = 30px
-  y: number; // 上边距 类似top 默认1 = 30px
-  w: number; // 宽度 100% 分为24分  24即为100%
-  h: number; // 高度 默认1 = 30px
-  static?: boolean; // 是否不可拖动 视图碰撞时不计算
-  i?: number | string; // id
-  maxW?: number; // max width
-  maxH?: number; // max height
-  minW?: number; // min width
-  minH?: number; // min height
-  isDraggable?: boolean; // 是否可以拖动
-  isResizable?: boolean; // 是否可以改变大小
-}
-
-export interface DataQueryOptions {
-  time_series_forecast?: {
-    forecast_time_range: [number, number] /** 时间范围 [开始时间， 结束时间] 单位：秒*/;
-    no_result: boolean /** 过滤掉_result_的数据 */;
-  };
-  table_chart?: {
-    // 异步获取表格部分数据相关配置
-    async_dict_key: string;
-    async_columns: string[];
-  };
-}
-export interface IDataQuery {
-  datasource?: null | string;
-  // 查询图表配置
-  data: any;
-  // 数据api
-  api?: string;
-  // 数据类型 table time_series ...
-  dataType?: string;
-  // 别名 用于图例 设置有变量
-  alias?: string;
-  // 映射的字段 变量的映射关系
-  fields?: Record<string, string>;
-  /** 排序后的fields, 用于前端id拼接 */
-  fieldsSort?: FieldsSortType;
-  /** 查询的单独配置 */
-  options?: DataQueryOptions;
+export interface IVariableModel {
+  checked: boolean; // 是否选中的变量
+  fields: IFields; // 变量接口数据映射关系
+  fieldsKey: string; // 变量的唯一key
+  fieldsSort: FieldsSortType; // 有序的变量字段映射关系
+  isMultiple: boolean; // 是否多选
+  options?: IVariablesOption; // 变量的配置
+  targets: DataQuery[]; // 变量的接口数据
+  title: string; // 变量的标题
+  type: string; // 接口数据类型
+  value: Record<string, any>; // 值
   /** 根据当前请求接口数据的映射规则生成id */
-  handleCreateItemId?: (item: object, isFilterDict?: boolean, fieldsSort?: FieldsSortType) => string;
-  /** 根据接口数据提取对应的filter_dict值  */
-
-  handleCreateFilterDictValue?: (
-    item: object,
-    isFilterDict?: boolean,
-    fieldsSort?: FieldsSortType
-  ) => Record<string, any>;
+  handleCreateItemId: (item: object, isFilterDict?: boolean) => string;
 }
+
+// 变量特有配置
+export interface IVariablesOption {
+  variables?: {
+    // 是否可以清空  default true
+    clearable?: boolean;
+    // 是否内置
+    internal?: boolean;
+    // 是否可以多选 default true
+    multiple?: boolean;
+    // 是否必选 default false
+    required?: boolean;
+  };
+}
+
+// 图例计算配置
+export type LegendCalcs = 'avg' | 'max' | 'min' | 'sum';
+
+// 图例呈现模式
+export type LegendDisplayMode = 'hidden' | 'list' | 'table';
+
+// 图例展示位置
+export type LegendPlacement = 'bottom' | 'right';
+
+export interface ObservablePanelField {
+  [key: number | string]: Pick<IPanelModel, 'checked' | 'collapsed' | 'show'>;
+}
+// 视图特殊配置
+export type PanelOption = {
+  child_panels_selector_variables?: {
+    id?: string;
+    title?: string;
+  };
+  collect_interval_display?: string; // 数据步长（步长过大情况时需要，正常情况无此字段）
+  enable_panels_selector?: boolean;
+  header?: {
+    tips: string; // 提示
+  };
+  is_support_compare?: boolean;
+  is_support_group_by?: boolean;
+  legend?: ILegendOption;
+  need_zr_click_event?: boolean; // 是否需要zrender click 事件
+  precision?: number; // 单位精度
+  unit?: string; // 单位
+} & IApdexChartOption &
+  IApmRelationGraphOption &
+  IApmTimeSeriesOption &
+  IDashboardCommon &
+  IPercentageBarOption &
+  IRatioRingChartOption &
+  IRelatedLogChartoption &
+  IResourceChartOption &
+  ISelectorList &
+  ITableChartOption &
+  ITargetListOption &
+  ITimeSeriesForecastOption &
+  ITimeSeriesListOption &
+  ITimeSeriesOption &
+  ITopoTreeOption &
+  IVariablesOption;
 
 export class DataQuery implements IDataQuery {
   // 别名 用于图例 设置有变量
@@ -363,153 +537,28 @@ export class DataQuery implements IDataQuery {
   }
 }
 
-export interface IRatioRingChartOption {
-  hideLabel?: boolean; // 是否隐藏圆环中间label
-}
-
-export interface IPercentageBarOption {
-  percentage_bar?: {
-    filter_key?: string; // 切换数据源的参数名
-    filter_value?: string; // 切换数据源的默认参数值
-    filter_list?: IFilterListItem[];
-  };
-}
-
-export interface IResourceChartOption {
-  alert_filterable?: {
-    filter_type?: string; // 点击检索跳转到的页面类型 event 事件检索
-    save_to_dashboard?: boolean; // 是否显示保存到仪表盘
-    data?: {
-      bcs_cluster_id?: string; // 集群id
-      data_source_label?: string; // 事件类型 custom表示自定义上报事件
-      data_type_label?: string; // 数据类型 event表示查询的是事件数据
-      where?: {
-        // 过滤条件
-        key: string;
-        method: string;
-        value: string[];
-      }[];
-    };
-    event_center?: {
-      query_string?: {
-        // 查询字符串
-        metric?: string; // 指标ID的值
-      }[];
-    };
-  };
-}
-
-export interface IRelatedLogChartoption {
-  related_log_chart?: {
-    defaultKeyword: string;
-    isSimpleChart?: boolean; // 是否为精简模式
-  };
-}
-
-export interface IApmTimeSeriesOption {
-  apm_time_series?: {
-    unit?: string; // 详情单位
-    metric?: string;
-    app_name?: string;
-    service_name?: string;
-    enableSeriesContextmenu?: boolean; // 是否开启series的右键菜单
-    enableContextmenu?: boolean; // 是否开启全局的右键菜单
-    xAxisSplitNumber?: number;
-    disableZoom?: boolean;
-    sceneType?: string;
-  };
-}
-
-export interface IApmRelationGraphOption {
-  apm_relation_graph?: {
-    app_name?: string;
-    service_name?: string;
-  };
-}
-
-export interface IApdexChartOption {
-  apdex_chart?: {
-    enableContextmenu?: boolean; // 是否开启全局的右键菜单
-    sceneType?: string;
-  };
-}
-
-// 视图特殊配置
-export type PanelOption = {
-  legend?: ILegendOption;
-  unit?: string; // 单位
-  precision?: number; // 单位精度
-  is_support_compare?: boolean;
-  is_support_group_by?: boolean;
-  enable_panels_selector?: boolean;
-  child_panels_selector_variables?: {
-    id?: string;
-    title?: string;
-  };
-  need_zr_click_event?: boolean; // 是否需要zrender click 事件
-  header?: {
-    tips: string; // 提示
-  };
-  collect_interval_display?: string; // 数据步长（步长过大情况时需要，正常情况无此字段）
-} & ISelectorList &
-  IDashboardCommon &
-  IVariablesOption &
-  ITopoTreeOption &
-  ITimeSeriesOption &
-  ITargetListOption &
-  ITableChartOption &
-  ITimeSeriesListOption &
-  ITimeSeriesForecastOption &
-  IRatioRingChartOption &
-  IPercentageBarOption &
-  IResourceChartOption &
-  IRelatedLogChartoption &
-  IApmTimeSeriesOption &
-  IApmRelationGraphOption &
-  IApdexChartOption;
-
-export interface IPanelModel {
-  id: number | string;
-  // 图表位置
-  gridPos?: IGridPos;
-  // 图表类型 如 line-chart bar-chart status-chart group
-  type: string;
-  // 图表分类
-  anomaly_dimension_class?: string;
-  // 图表title
-  title: string;
-  // 图表subTitle
-  subTitle?: string;
-  // 图标带icon说明
-  description?: string;
-  // 是否折叠
-  collapsed?: boolean;
-  // 图表数据源
-  targets: IDataQuery[];
-  // 图表配置
-  options?: PanelOption;
-  // 图表dashboard id
-  dashboardId?: number | string;
-  // 组内视图列表
-  panels?: IPanelModel[];
-  // 是否显示
-  show?: boolean;
-  // 组id
-  groupId?: number | string;
-  // 是否实时
-  instant?: boolean;
-  // 数据步长
-  collect_interval?: number;
-  // 维度列表
-  dimensions?: string[];
-  // 匹配显示字段
-  matchDisplay?: Record<string, any>;
-  // 是否勾选图表
-  checked?: boolean;
-}
-
-export interface ObservablePanelField {
-  [key: number | string]: Pick<IPanelModel, 'checked' | 'collapsed' | 'show'>;
+class VariableDataQuery extends DataQuery {
+  /** 根据接口数据提取对应的filter_dict值 */
+  handleCreateFilterDictValue(data: object, isFilterDict = false, fieldsSort?: FieldsSortType) {
+    const localFieldsSort = fieldsSort || this.fieldsSort;
+    let isExist = true;
+    const result = localFieldsSort.reduce((total, cur) => {
+      const [itemKey, filterDictKey] = cur;
+      let value = data?.[isFilterDict ? filterDictKey : itemKey];
+      value === undefined && isExist && (isExist = false);
+      value =
+        this.isMultiple || ['pod_name_list'].includes(itemKey)
+          ? Array.isArray(value)
+            ? value
+            : [value]
+          : isObject(value)
+            ? value.value
+            : value; // 兼容对象结构的value
+      total[filterDictKey] = value;
+      return total;
+    }, {});
+    return isExist ? result : null;
+  }
 }
 
 export class PanelModel implements IPanelModel {
@@ -765,48 +814,6 @@ export class PanelModel implements IPanelModel {
   }
 }
 
-export interface IFields {
-  [key: string]: any;
-}
-export interface IVariableModel {
-  options?: IVariablesOption; // 变量的配置
-  targets: DataQuery[]; // 变量的接口数据
-  title: string; // 变量的标题
-  type: string; // 接口数据类型
-  fields: IFields; // 变量接口数据映射关系
-  fieldsKey: string; // 变量的唯一key
-  fieldsSort: FieldsSortType; // 有序的变量字段映射关系
-  value: Record<string, any>; // 值
-  checked: boolean; // 是否选中的变量
-  isMultiple: boolean; // 是否多选
-  /** 根据当前请求接口数据的映射规则生成id */
-  handleCreateItemId: (item: object, isFilterDict?: boolean) => string;
-}
-
-class VariableDataQuery extends DataQuery {
-  /** 根据接口数据提取对应的filter_dict值 */
-  handleCreateFilterDictValue(data: object, isFilterDict = false, fieldsSort?: FieldsSortType) {
-    const localFieldsSort = fieldsSort || this.fieldsSort;
-    let isExist = true;
-    const result = localFieldsSort.reduce((total, cur) => {
-      const [itemKey, filterDictKey] = cur;
-      let value = data?.[isFilterDict ? filterDictKey : itemKey];
-      value === undefined && isExist && (isExist = false);
-      value =
-        this.isMultiple || ['pod_name_list'].includes(itemKey)
-          ? Array.isArray(value)
-            ? value
-            : [value]
-          : isObject(value)
-            ? value.value
-            : value; // 兼容对象结构的value
-      total[filterDictKey] = value;
-      return total;
-    }, {});
-    return isExist ? result : null;
-  }
-}
-
 /** 变量数据类 */
 export class VariableModel implements IVariableModel {
   checked = true;
@@ -859,10 +866,3 @@ export class VariableModel implements IVariableModel {
     return isExits ? resData.join(JOINER) : null;
   }
 }
-
-export interface IDashbordConfig {
-  id: number | string;
-  panels: IPanelModel[];
-}
-
-export type DashboardColumnType = 'custom' | number;

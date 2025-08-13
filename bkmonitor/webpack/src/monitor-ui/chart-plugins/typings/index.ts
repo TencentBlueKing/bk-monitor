@@ -41,8 +41,8 @@ export * from './status-map';
 export * from './time-series';
 export * from 'monitor-pc/pages/monitor-k8s/typings/book-mark';
 export type ZrClickEvent = {
-  xAxis: number;
-  yAxis?: number;
   dimensions?: Record<string, any>;
   interval?: number;
+  xAxis: number;
+  yAxis?: number;
 };

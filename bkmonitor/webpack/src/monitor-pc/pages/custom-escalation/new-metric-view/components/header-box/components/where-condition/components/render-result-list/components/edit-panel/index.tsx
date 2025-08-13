@@ -23,20 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import KeySelect from './panel-key-select';
 import ValueSelect from './panel-value-select';
 
 import './index.scss';
-
-export interface IValue {
-  key: string;
-  method: string;
-  value: string[];
-  condition: string;
-}
 
 export interface IMetrics {
   alias: string;
@@ -45,6 +38,13 @@ export interface IMetrics {
     alias: string;
     name: string;
   }[];
+}
+
+export interface IValue {
+  condition: string;
+  key: string;
+  method: string;
+  value: string[];
 }
 
 export const methodMap = {
@@ -58,13 +58,13 @@ export const methodMap = {
   nreg: 'nregex',
 };
 
-interface IProps {
-  value?: IValue;
-  metricsList: IMetrics[];
-}
-
 interface IEmit {
   onChange: (value: IProps['value']) => void;
+}
+
+interface IProps {
+  metricsList: IMetrics[];
+  value?: IValue;
 }
 
 const genDefaultVallue = (payload: Partial<IProps['value']> = {}) => ({

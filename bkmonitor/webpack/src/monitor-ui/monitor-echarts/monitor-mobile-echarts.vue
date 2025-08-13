@@ -106,17 +106,18 @@ import { debounce } from 'throttle-debounce';
 import ChartLegend from './components/chart-legend.vue';
 import { colorList } from './options/constant';
 import EchartOptions from './options/echart-options';
-import type { ILegendItem } from './options/type-interface';
 import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
 import watermarkMaker from './utils/watermarkMaker';
 
+import type { ILegendItem } from './options/type-interface';
+
 interface ICurValue {
-  xAxis: number | string;
-  yAxis: number | string;
-  dataIndex: number;
   color: string;
+  dataIndex: number;
   name: string;
   seriesIndex: number;
+  xAxis: number | string;
+  yAxis: number | string;
 }
 
 @Component({
@@ -144,7 +145,7 @@ export default class MonitorMobileEcharts extends Vue {
   refreshIntervalInstance = 0;
   chartOptionInstance = null;
   hasInitChart = false;
-  legend: { show: boolean; list: ILegendItem[] } = {
+  legend: { list: ILegendItem[]; show: boolean } = {
     show: false,
     list: [],
   };
@@ -387,7 +388,7 @@ export default class MonitorMobileEcharts extends Vue {
       this.chartUnit = unit || this.unit || '';
       const hasSeries =
         (series && series.length > 0 && series.some(item => item.datapoints?.length)) ||
-        (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+        (series && Object.hasOwn(series, 'series') && series.series.length);
       this.chartOptionInstance = new EchartOptions({
         chartType: this.chartType,
         colors: this.colors,
@@ -400,7 +401,7 @@ export default class MonitorMobileEcharts extends Vue {
         this.legend.show = this.showLegend && hasSeries && optionData.legendData.length > 0;
       } else {
         this.legend.show = optionData.options.lengend
-          ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
+          ? Object.hasOwn(optionData.options.lengend, 'show')
             ? optionData.options.lengend.show
             : true
           : false;

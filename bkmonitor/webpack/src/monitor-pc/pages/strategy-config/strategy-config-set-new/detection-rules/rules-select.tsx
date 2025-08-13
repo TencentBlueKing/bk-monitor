@@ -29,19 +29,19 @@ import { Component as tsc } from 'vue-tsx-support';
 import FuctionalDependency from '@blueking/functional-dependency/vue2';
 import { skipToDocsLink } from 'monitor-common/utils/docs';
 
-import { DetectionRuleTypeEnum, type IDetectionTypeItem } from '../typings/index';
+import { type IDetectionTypeItem, DetectionRuleTypeEnum } from '../typings/index';
 
 import './rules-select.scss';
 import '@blueking/functional-dependency/vue2/vue2.css';
 
-interface IRulesSelect {
-  readonly?: boolean;
-  typeList?: IDetectionTypeItem[];
-  isFirst?: boolean;
-}
-
 interface IEvent {
   onTypeChange: IDetectionTypeItem;
+}
+
+interface IRulesSelect {
+  isFirst?: boolean;
+  readonly?: boolean;
+  typeList?: IDetectionTypeItem[];
 }
 
 @Component({ name: 'RulesSelect' })

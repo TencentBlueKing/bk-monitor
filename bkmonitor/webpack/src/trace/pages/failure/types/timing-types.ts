@@ -25,19 +25,19 @@
  */
 
 export interface IExtraInfoData {
-  incident_key: string;
   from_value: string;
+  incident_key: string;
   to_value: string;
 }
 export interface IIncidentOperation {
-  incident_id: number;
-  operation_type: string;
   create_time: number;
   extra_info: IExtraInfoData;
   id: string;
-  operator: null | string;
-  update_time: null | number;
-  operation_class: string;
-  str: string;
+  incident_id: number;
   isActive: boolean;
+  operation_class: string;
+  operation_type: string;
+  operator: null | string;
+  str: string;
+  update_time: null | number;
 }

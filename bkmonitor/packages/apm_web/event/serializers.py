@@ -134,6 +134,9 @@ def filter_by_relation(
 # 稳定的元数据，设置一个较长时间的 Redis 缓存，便于共享
 @using_cache(CacheType.APM(60 * 60))
 def get_cluster_table_map(cluster_ids: tuple[str, ...]) -> dict[str, str]:
+    if not cluster_ids:
+        return {}
+
     cluster_infos: list[dict[str, Any]] = api.metadata.list_bcs_cluster_info(cluster_ids=list(cluster_ids))
     cluster_to_data_id: dict[str, int] = {
         cluster_info["cluster_id"]: cluster_info["k8s_event_data_id"] for cluster_info in cluster_infos
@@ -186,6 +189,10 @@ def process_query_config(
         if relation["table"] not in filtered_tables:
             continue
 
+        if relation["table"] == EventCategory.CICD_EVENT.value and not relation["relations"]:
+            # CICD 事件必须有关联条件才能查询。
+            continue
+
         if relation["table"] == EventCategory.K8S_EVENT.value:
             cluster_conditions_map: dict[str, list[dict[str, Any]]] = {}
             for cond in relation["relations"]:
@@ -195,6 +202,9 @@ def process_query_config(
                 cluster_conditions_map.setdefault(cluster_id, []).append(cond)
 
             cluster_table_map: dict[str, str] = get_cluster_table_map(tuple(sorted(cluster_conditions_map.keys())))
+            if not cluster_table_map:
+                continue
+
             for cluster_id, conditions in cluster_conditions_map.items():
                 table: str | None = cluster_table_map.get(cluster_id)
                 if not table:
@@ -210,7 +220,11 @@ def process_query_config(
 
         queryset = queryset.add_query(filter_by_relation(base_q, relation, data_labels_map))
 
-    return queryset.config["query_configs"]
+    return [
+        query_config
+        for query_config in queryset.config["query_configs"]
+        if "data_type_label" in query_config and "data_source_label" in query_config
+    ]
 
 
 class BaseEventRequestSerializer(serializers.Serializer):
@@ -314,16 +328,6 @@ class EventTotalRequestSerializer(event_serializers.EventTotalRequestSerializer,
         return attrs
 
 
-class EventTagsRequestSerializer(EventTimeSeriesRequestSerializer):
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        attrs["expression"] = "a"
-        for query_config in attrs["query_configs"]:
-            query_config["metrics"] = [{"field": "_index", "method": "SUM", "alias": "a"}]
-            query_config["group_by"] = ["type"]
-        return attrs
-
-
 class EventTagDetailRequestSerializer(EventTimeSeriesRequestSerializer):
     limit = serializers.IntegerField(label="数量限制", required=False, default=5)
     interval = serializers.IntegerField(label="汇聚周期（秒）", required=False)
@@ -337,13 +341,6 @@ class EventTagDetailRequestSerializer(EventTimeSeriesRequestSerializer):
 
         attrs["end_time"] = attrs["start_time"] + attrs["interval"]
 
-        return attrs
-
-
-class EventTagStatisticsRequestSerializer(EventTotalRequestSerializer):
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        attrs["expression"] = "a"
         return attrs
 
 

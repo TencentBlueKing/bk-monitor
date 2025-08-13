@@ -40,22 +40,22 @@ const START_TIME = '00:00:00';
 const TIME_FORMATER = 'HH:mm';
 const TIME_FORMAT_REG = /HH|mm|ss/g;
 
-type TimeRange = [string, string];
-export interface IProps {
-  value?: Array<TimeRange>; // [['09:00:00', '10:00:00']]
-  placeholder?: string;
-  autoSort?: boolean;
-  needHandle?: boolean;
-  allowNextFocus?: boolean;
-  format?: 'HH:mm' | 'HH:mm:ss';
-}
-interface IEvents {
-  onChange: IProps['value'];
-}
 enum EMode {
   add = 'add', // 新增时间范围
   edit = 'edit', // 编辑时间范围
 }
+export interface IProps {
+  allowNextFocus?: boolean;
+  autoSort?: boolean;
+  format?: 'HH:mm' | 'HH:mm:ss';
+  needHandle?: boolean;
+  placeholder?: string;
+  value?: Array<TimeRange>; // [['09:00:00', '10:00:00']]
+}
+interface IEvents {
+  onChange: IProps['value'];
+}
+type TimeRange = [string, string];
 /**
  * 多选的时间范围组件
  */
@@ -143,7 +143,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
     const timeList = time.split(':');
     return methodList.reduce((moment, method, index) => {
       const val = timeList[index];
-      if (!!val) {
+      if (val) {
         return moment[method]?.(timeList[index]);
       }
       return moment;
@@ -179,7 +179,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
   handleDelItem() {
     if (this.triggerInputText.length > 0) return;
     this.localValue.splice(this.currentIndex, 1);
-    if (!!this.currentIndex) {
+    if (this.currentIndex) {
       this.currentIndex -= 1;
       this.targetEl = this.timeRangeListRef.children[this.currentIndex];
       this.timeRange = [...this.localValue[this.currentIndex]];
@@ -325,10 +325,10 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
       const endTime = timeRange[1];
       const fn = (timeStr: string, index: number): string => {
         const time = timeStr.split(':');
-        const [hour = '00', min = '00', sec = !!index ? '59' : '00'] = time;
+        const [hour = '00', min = '00', sec = index ? '59' : '00'] = time;
         const timeList = [hour, min, sec];
         return timeList.reduce((total, cur, index) => {
-          const reg = !!index ? /^\d$|^[0-5]\d$/ : /^\d$|^[0-1]\d$|^[2][0-4]$/;
+          const reg = index ? /^\d$|^[0-5]\d$/ : /^\d$|^[0-1]\d$|^[2][0-4]$/;
           if (!reg.test(cur)) throw Error('时间格式错误');
           return total.concat(`${cur.padStart(2, '0')}${index !== timeList.length - 1 ? ':' : ''}`);
         }, '');

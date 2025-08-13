@@ -117,6 +117,11 @@ import ChartLegend from './components/chart-legend.vue';
 import ChartTitle from './components/chart-title.vue';
 import ChartTools from './components/chart-tools.vue';
 import EchartOptions from './options/echart-options';
+import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
+import ChartInView from './utils/chart-in-view';
+import watermarkMaker from './utils/watermarkMaker';
+import { getValueFormat } from './valueFormats';
+
 import type {
   ChartType,
   IAnnotation,
@@ -127,10 +132,6 @@ import type {
   ITextChartOption,
   ITextSeries,
 } from './options/type-interface';
-import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
-import ChartInView from './utils/chart-in-view';
-import watermarkMaker from './utils/watermarkMaker';
-import { getValueFormat } from './valueFormats';
 
 const hexToRgbA = (hex, apacity = 1) => {
   let c;
@@ -145,12 +146,12 @@ const hexToRgbA = (hex, apacity = 1) => {
   throw new Error('Bad Hex');
 };
 interface ICurValue {
-  xAxis: number | string;
-  yAxis: number | string;
-  dataIndex: number;
   color: string;
+  dataIndex: number;
   name: string;
   seriesIndex: number;
+  xAxis: number | string;
+  yAxis: number | string;
 }
 @Component({
   name: 'monitor-echarts',
@@ -290,7 +291,7 @@ export default class MonitorEcharts extends Vue {
   refreshIntervalInstance = 0;
   chartOptionInstance = null;
   hasInitChart = false;
-  legend: { show: boolean; list: ILegendItem[] } = {
+  legend: { list: ILegendItem[]; show: boolean } = {
     show: false,
     list: [],
   };
@@ -492,7 +493,7 @@ export default class MonitorEcharts extends Vue {
       if (
         !this.isEchartsRender ||
         (Array.isArray(data) && data.length && data.some(item => item)) ||
-        (data && Object.prototype.hasOwnProperty.call(data, 'series') && data.series.length)
+        (data && Object.hasOwn(data, 'series') && data.series.length)
       ) {
         await this.handleSetChartData(data);
       } else {
@@ -533,7 +534,7 @@ export default class MonitorEcharts extends Vue {
         const series: any = deepMerge([], data || []);
         const hasSeries =
           (series && series.length > 0 && series.some(item => item.datapoints?.length)) ||
-          (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+          (series && Object.hasOwn(series, 'series') && series.series.length);
 
         this.chartOptionInstance = new EchartOptions({
           chartType: this.chartType,
@@ -546,7 +547,7 @@ export default class MonitorEcharts extends Vue {
           this.legend.show = hasSeries && optionData.legendData.length > 0;
         } else {
           this.legend.show = optionData.options.lengend
-            ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
+            ? Object.hasOwn(optionData.options.lengend, 'show')
               ? optionData.options.lengend.show
               : true
             : false;

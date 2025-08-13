@@ -685,6 +685,10 @@ export default {
   发送频率: 'Send Frequency',
   数据范围: 'Data Range',
   子标题: 'Subtitle',
+  单图宽高: 'Image Size',
+  图片宽度: 'Image Width',
+  宽: 'Width',
+  高: 'Height',
   模块布局: 'Layout',
   订阅时间: 'Time',
   已订阅: 'Subscribed',
@@ -1944,5 +1948,7 @@ export default {
   总行数: 'Total number of branches',
   出现行数: 'Number of rows appearing',
   日志条数: 'Number of logs',
+  非空数据: 'Non-empty data',
+  非空数据占比: 'Proportion of non-empty data',
   添加方式: 'Add method',
 };

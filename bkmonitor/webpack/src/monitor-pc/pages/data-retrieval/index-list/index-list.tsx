@@ -33,21 +33,21 @@ import type { EmptyStatusOperationType, EmptyStatusType } from '../../../compone
 import './index-list.scss';
 
 export interface IIndexListItem {
+  children?: IIndexListItem[];
   id: string;
   name: string;
-  children?: IIndexListItem[];
 }
-interface IProps {
-  list: IIndexListItem[];
-  type?: 'list' | 'tree';
-  height?: number;
-  tipsPlacement?: string;
-  emptyStatusType?: EmptyStatusType;
+interface IEvents {
+  onEmptyStatusOperation: EmptyStatusOperationType;
+  onSelect: IIndexListItem;
 }
 
-interface IEvents {
-  onSelect: IIndexListItem;
-  onEmptyStatusOperation: EmptyStatusOperationType;
+interface IProps {
+  emptyStatusType?: EmptyStatusType;
+  height?: number;
+  list: IIndexListItem[];
+  tipsPlacement?: string;
+  type?: 'list' | 'tree';
 }
 @Component
 export default class IndexList extends tsc<IProps, IEvents> {

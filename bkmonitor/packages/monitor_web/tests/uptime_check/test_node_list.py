@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,14 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest.mock import Mock, patch
 
 import pytest
-from mock import Mock, patch
+
 from monitor_web.models.uptime_check import UptimeCheckNode
 from monitor_web.uptime_check.resources import UptimeCheckBeatResource
 
 
-class MockUptimeCheckNode(object):
+class MockUptimeCheckNode:
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
 
@@ -141,7 +141,7 @@ DATA_COMMON = [
 ]
 
 
-class MockRequest(object):
+class MockRequest:
     def __init__(self, method, params=None):
         params = params or {}
         if method.upper() == "GET":
@@ -152,7 +152,7 @@ class MockRequest(object):
             self.data = params
 
 
-class MockSerializer(object):
+class MockSerializer:
     def __init__(self, queryset, *arg, **kwargs):
         self.data = []
         for i in queryset:
@@ -187,8 +187,8 @@ def mock_node_task_count():
     UptimeCheckNode.objects.get.side_effect = mock_count_side_effect
 
 
-@pytest.mark.django_db
-class TestNodeList(object):
+@pytest.mark.django_db(databases="__all__")
+class TestNodeList:
     # def test_list(self, mocker):
     #     from monitor_web.uptime_check.views import UptimeCheckNodeViewSet
     #

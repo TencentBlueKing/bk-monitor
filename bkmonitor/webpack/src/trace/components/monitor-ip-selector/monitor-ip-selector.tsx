@@ -27,13 +27,16 @@
 import { computed, defineComponent } from 'vue';
 
 import {
+  agentStatisticsIpChooserDynamicGroup,
   agentStatisticsIpChooserTemplate,
   agentStatisticsIpChooserTopo,
   batchGetIpChooserConfig,
   checkIpChooserHost,
   detailsIpChooserHost,
   detailsIpChooserServiceInstance,
+  executeIpChooserDynamicGroup,
   globalConfigIpChooserConfig,
+  groupsIpChooserDynamicGroup,
   hostsIpChooserTemplate,
   nodesIpChooserTemplate,
   queryHostIdInfosIpChooserTopo,
@@ -44,19 +47,16 @@ import {
   templatesIpChooserTemplate,
   treesIpChooserTopo,
   updateConfigIpChooserConfig,
-  groupsIpChooserDynamicGroup,
-  executeIpChooserDynamicGroup,
-  agentStatisticsIpChooserDynamicGroup,
 } from 'monitor-api/modules/model';
 
 import { useAppStore } from '../../store/modules/app';
 import {
-  type CommomParams,
+  type CommonParams,
   type IFetchNode,
   type IHost,
   type INode,
   type IQuery,
-  type IScopeItme,
+  type IScopeItem,
   type IStatistics,
   type ITemplateHost,
   type ITemplateItem,
@@ -78,7 +78,7 @@ export default defineComponent({
   props: componentProps,
   setup(props) {
     const store = useAppStore();
-    const scopeList: IScopeItme[] = [
+    const scopeList: IScopeItem[] = [
       {
         scope_type: 'biz',
         scope_id: store.bizId as string,
@@ -273,7 +273,7 @@ export default defineComponent({
      * @param params
      * @returns
      */
-    async function fetchSeriviceInstanceList(params: CommomParams): Promise<ITreeItem[]> {
+    async function fetchSeriviceInstanceList(params: CommonParams): Promise<ITreeItem[]> {
       return await queryServiceInstancesIpChooserTopo({
         scope_list: scopeList,
         ...params,
@@ -284,7 +284,7 @@ export default defineComponent({
      * @param params
      * @returns
      */
-    async function fetchSeriviceInstanceDetails(params: CommomParams): Promise<ITreeItem[]> {
+    async function fetchSeriviceInstanceDetails(params: CommonParams): Promise<ITreeItem[]> {
       return await detailsIpChooserServiceInstance({
         scope_list: scopeList,
         ...params,
@@ -330,7 +330,7 @@ export default defineComponent({
       }).catch(() => []);
     }
     // 获取服务模板Agent统计状态
-    async function fetchHostAgentStatisticsServiceTemplate(query: CommomParams) {
+    async function fetchHostAgentStatisticsServiceTemplate(query: CommonParams) {
       const params = {
         scope_list: scopeList,
         template_type: 'SERVICE_TEMPLATE',
@@ -397,7 +397,7 @@ export default defineComponent({
      * @param query
      * @returns
      */
-    async function fetchHostAgentStatisticsSetTemplate(query: CommomParams) {
+    async function fetchHostAgentStatisticsSetTemplate(query: CommonParams) {
       const params = {
         scope_list: scopeList,
         template_type: 'SET_TEMPLATE',
@@ -425,7 +425,7 @@ export default defineComponent({
      * @param params
      * @returns
      */
-    async function fetchCustomSettings(params: CommomParams) {
+    async function fetchCustomSettings(params: CommonParams) {
       return await batchGetIpChooserConfig(params).catch(() => ({}));
     }
     /**
@@ -433,7 +433,7 @@ export default defineComponent({
      * @param params
      * @returns
      */
-    async function updateCustomSettings(params: CommomParams) {
+    async function updateCustomSettings(params: CommonParams) {
       return await updateConfigIpChooserConfig(params).catch(() => ({}));
     }
     async function fetchConfig() {

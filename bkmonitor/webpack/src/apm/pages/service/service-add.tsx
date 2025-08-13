@@ -37,8 +37,8 @@ import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import './service-add.scss';
 
 interface IProps {
-  pluginId: string;
   appName: string;
+  pluginId: string;
 }
 
 Component.registerHooks(['beforeRouteEnter']);

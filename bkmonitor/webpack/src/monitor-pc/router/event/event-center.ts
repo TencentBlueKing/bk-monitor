@@ -124,7 +124,7 @@ export default [
     name: 'event-center-detail',
     props: true,
     beforeEnter(to, from, next) {
-      !!to.params.id ? next() : next(false);
+      to.params.id ? next() : next(false);
     },
     component: EventCenterDetail,
     meta: Object.assign(
@@ -157,7 +157,7 @@ export default [
     name: 'event-center-action-detail',
     props: true,
     beforeEnter(to, from, next) {
-      !!to.params.id ? next() : next(false);
+      to.params.id ? next() : next(false);
     },
     component: ActionDetail,
     meta: Object.assign(
@@ -192,7 +192,7 @@ export default [
       noCache: true,
     },
     beforeEnter(to, from, next) {
-      !!to.params.id ? next() : next(false);
+      to.params.id ? next() : next(false);
     },
     components: {
       noCache: IncidentDetail,

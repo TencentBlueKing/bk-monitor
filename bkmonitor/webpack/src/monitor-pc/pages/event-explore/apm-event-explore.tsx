@@ -27,10 +27,10 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ECondition, EMode, type IWhereItem } from '../../components/retrieval-filter/utils';
+import { type IWhereItem, ECondition, EMode } from '../../components/retrieval-filter/utils';
 import { APIType } from './api-utils';
 import EventExplore from './event-explore';
-import { ExploreSourceTypeEnum, type IFormData } from './typing';
+import { type IFormData, ExploreSourceTypeEnum } from './typing';
 
 import './apm-event-explore.scss';
 const APM_EVENT_DATA_ID = 'builtin';
@@ -78,7 +78,7 @@ export default class ApmEventExplore extends tsc<object> {
             },
           },
         ] = targetsList;
-        this.dataTypeLabel = data_type_label;
+        this.dataTypeLabel = data_type_label || 'event';
         this.where = where || [];
         const hasSource = this.where.find(item => item.key === 'source');
         if (hasSource) {

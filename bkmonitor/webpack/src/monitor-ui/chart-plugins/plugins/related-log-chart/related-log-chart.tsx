@@ -395,8 +395,8 @@ class RelatedLogChart extends CommonSimpleChart {
     try {
       this.unregisterObserver();
 
-      let startTime = undefined;
-      let endTime = undefined;
+      let startTime;
+      let endTime;
       if (this.isScrollLoadTableData) {
         // 分页请求
         [startTime, endTime] = this.localTimeRange;

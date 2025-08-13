@@ -350,7 +350,7 @@ class MappingHandlers:
         ):
             default_sort_tag = True
         sort_list = self.get_default_sort_list(
-            index_set_id=self.index_set_id, scenario_id=self.scenario_id, scope=scope, default_sort_tag=default_sort_tag
+            index_set_id=self.index_set_id, scenario_id=self.scenario_id, default_sort_tag=default_sort_tag
         )
         obj, created = IndexSetFieldsConfig.objects.get_or_create(
             index_set_id=self.index_set_id,
@@ -376,7 +376,6 @@ class MappingHandlers:
         self,
         index_set_id: int = None,
         scenario_id: str = None,
-        scope: str = SearchScopeEnum.DEFAULT.value,
         default_sort_tag: bool = False,
     ):
         """默认字段排序规则"""
@@ -524,7 +523,6 @@ class MappingHandlers:
         }
         if not storage_cluster_record_objs.exists():
             return self._direct_latest_mapping(params)
-
         multi_execute_func = MultiExecuteFunc()
         multi_num = 1
         storage_cluster_ids = {self.storage_cluster_id}
@@ -555,7 +553,6 @@ class MappingHandlers:
         except Exception as e:
             logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
             raise MultiFieldsErrorException()
-
         return merge_result
 
     @staticmethod
@@ -578,13 +575,15 @@ class MappingHandlers:
     @classmethod
     def tokenize_on_chars(cls, field_dict: dict[str, Any]) -> str:
         # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer,analyzer_details,tokenizer_details
-        if not field_dict.get("analyzer"):
-            return ""
         if not field_dict.get("analyzer_details"):
             return ""
         # tokenizer_details在analyzer_details中
         if not field_dict["analyzer_details"].get("tokenizer_details", {}):
             return ""
+        if not field_dict.get("analyzer"):
+            return ""
+        elif field_dict.get("analyzer") == "bkbase_custom":
+            return field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", "")
         result = "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
         return unicode_str_encode(result)
 
@@ -822,9 +821,11 @@ class MappingHandlers:
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
-        alias_dict = {
-            _field["origin_field"]: _field["field_name"] for _field in fields_list if _field.get("origin_field")
-        }
+        alias_dict = {}
+        if query_alias_settings := self.index_set.query_alias_settings:
+            for item in query_alias_settings:
+                alias_dict[item["field_name"]] = item["query_alias"]
+
         remove_field_list = list()
         # 增加description别名字段
         for _field in fields_list:

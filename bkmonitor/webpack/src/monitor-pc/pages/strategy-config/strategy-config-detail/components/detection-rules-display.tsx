@@ -50,13 +50,13 @@ import './detection-rules-display.scss';
 export interface IDetectionRulesItem extends IDetectionTypeRuleData {
   unit_prefix: string;
 }
-interface IProps {
-  value: IDetectionRulesItem;
-  metricData: MetricDetail[];
-}
 interface IEvents {
   onAiopsTypeChange: ChartType;
   onModelChange: IModelData;
+}
+interface IProps {
+  metricData: MetricDetail[];
+  value: IDetectionRulesItem;
 }
 @Component
 export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {

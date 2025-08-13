@@ -37,12 +37,12 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import {
   type BaseDataType,
   type BaseRect,
-  ColorTypes,
   type IFlameChartOptions,
   type IFlameData,
   type ILineData,
   type IOtherData,
   type ThreadPos,
+  ColorTypes,
 } from '../../../typings';
 import { findChildById, findRegionById, getHashVal } from './utils';
 import 'd3-transition';

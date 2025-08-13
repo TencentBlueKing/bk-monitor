@@ -19,6 +19,7 @@ from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
+from bkmonitor.utils.user import get_user_display_name
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor.models import NODE_IP_TYPE_DICT
@@ -76,7 +77,7 @@ class GetUptimeCheckTaskInfo(ApiAuthResource):
         result.extend(
             [
                 {"name": _("状态"), "type": "string", "value": task.get_status_display()},
-                {"name": _("创建人"), "type": "string", "value": task.create_user},
+                {"name": _("创建人"), "type": "string", "value": get_user_display_name(task.create_user)},
                 {"name": _("创建时间"), "type": "string", "value": strftime_local(task.create_time)},
             ]
         )

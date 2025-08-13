@@ -34,41 +34,41 @@ import UserSelector, { type IGroupListItem } from './user-selector';
 import './user-list-sort.scss';
 
 export interface IUserListItem {
+  color: string;
+  key: string;
+  userList?: {
+    id: string; // 用户id
+    name: string; // 用户名称
+    type: 'group' | 'user'; // 角色类型
+  }[];
   users: {
     // 用户组
     id: string; // 用户id
     name: string; // 用户名
     type: 'group' | 'user';
   }[];
-  userList?: {
-    id: string; // 用户id
-    name: string; // 用户名称
-    type: 'group' | 'user'; // 角色类型
-  }[];
-  color: string;
-  key: string;
 }
-interface IProps {
-  value?: IUserListItem[]; // 轮值组
-  hasAdd?: boolean;
-  defaultGroupList?: IGroupListItem[];
-  colorIndex?: number; // 第几个颜色
-}
-
 interface IEvents {
   onChange?: IUserListItem[];
+}
+
+interface IProps {
+  colorIndex?: number; // 第几个颜色
+  defaultGroupList?: IGroupListItem[];
+  hasAdd?: boolean;
+  value?: IUserListItem[]; // 轮值组
 }
 
 interface IUserItem {
   color: string;
   draggable: boolean; // 是否可抓取
+  key: string;
+  users: string[]; // 用于绑定到人员选择器
   userList: {
     id: string; // 用户id
     name: string; // 用户名称
     type: 'group' | 'user'; // 角色类型
   }[];
-  users: string[]; // 用于绑定到人员选择器
-  key: string;
 }
 
 const defaultUserItem = (index: number) => {

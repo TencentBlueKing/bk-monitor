@@ -26,7 +26,7 @@
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CMDBInfoList, applicationList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
+import { applicationList, CMDBInfoList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
 import {
   logServiceRelationBkLogIndexSet,
   serviceConfig,
@@ -39,15 +39,15 @@ import EditableFormItem from '../../../components/editable-form-item/editable-fo
 import PanelItem from '../../../components/panel-item/panel-item';
 import {
   type IAppInfoItem,
+  type IApplicationItem,
   type IBaseParams,
+  type IBaseServiceInfo,
   type ICmdbInfoItem,
   type ICmdbRelation,
   type IIndexSetItem,
-  type IApplicationItem,
   type ILocationRelation,
   type ILogInfoItem,
   type IServiceInfo,
-  type IBaseServiceInfo,
   RelationEventType,
 } from '../../../typings';
 import * as authorityMap from '../../home/authority-map';

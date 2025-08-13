@@ -38,62 +38,62 @@ import { handleToAlertList } from './event-detail/action-detail';
 import { getStatusInfo } from './event-detail/type';
 
 import type { TType as TSliderType } from './event-detail/event-detail-slider';
-import type { IEventItem, IPagination, SearchType, eventPanelType } from './typings/event';
+import type { eventPanelType, IEventItem, IPagination, SearchType } from './typings/event';
 import type { TranslateResult } from 'vue-i18n';
 
 import './event-table.scss';
 
 const alertStoreKey = '__ALERT_EVENT_COLUMN__';
 const actionStoreKey = '__ACTION_EVENT_COLUMN__';
-type TableSizeType = 'large' | 'medium' | 'small';
-interface IEventTableProps {
-  tableData: IEventItem[];
-  pagination: IPagination;
-  loading?: boolean;
-  searchType: SearchType;
-  bizIds: number[];
-  doLayout: eventPanelType;
-  selectedList?: string[];
-}
-interface IEventStatusMap {
-  color: string;
-  bgColor: string;
-  name: string | TranslateResult;
+export interface IShowDetail {
+  activeTab?: string;
+  bizId: number;
+  id: string;
+  type: TSliderType;
 }
 interface IColumnItem {
+  checked: boolean;
+  disabled: boolean;
   id: string;
   name: string | TranslateResult;
-  disabled: boolean;
-  checked: boolean;
   props?: {
-    width?: number | string;
     fixed?: 'left' | 'right';
+    formatter?: (value: any) => string; // Replace `Function` with a more specific function type
     minWidth?: number | string;
     resizable?: boolean;
-    formatter?: (value: any) => string; // Replace `Function` with a more specific function type
     sortable?: 'custom' | boolean;
+    width?: number | string;
   };
 }
+interface IEventStatusMap {
+  bgColor: string;
+  color: string;
+  name: string | TranslateResult;
+}
 interface IEventTableEvent {
-  onPageChange: number;
-  onLimitChange: number;
-  onShowDetail?: { id: string; type: TSliderType };
-  onSelectChange: string[];
-  onAlertConfirm?: IEventItem;
-  onQuickShield?: IEventItem;
-  onSortChange: string;
-  onBatchSet: string;
-  onManualProcess?: IEventItem;
-  onChatGroup?: IEventItem;
   onAlarmDispatch?: IEventItem;
+  onAlertConfirm?: IEventItem;
+  onBatchSet: string;
+  onChatGroup?: IEventItem;
+  onLimitChange: number;
+  onManualProcess?: IEventItem;
+  onPageChange: number;
+  onQuickShield?: IEventItem;
+  onSelectChange: string[];
+  onShowDetail?: { id: string; type: TSliderType };
+  onSortChange: string;
+}
+interface IEventTableProps {
+  bizIds: number[];
+  doLayout: eventPanelType;
+  loading?: boolean;
+  pagination: IPagination;
+  searchType: SearchType;
+  selectedList?: string[];
+  tableData: IEventItem[];
 }
 
-export interface IShowDetail {
-  id: string;
-  bizId: number;
-  type: TSliderType;
-  activeTab?: string;
-}
+type TableSizeType = 'large' | 'medium' | 'small';
 @Component
 export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> {
   @Prop({ required: true }) tableData: IEventItem[];
@@ -228,12 +228,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   return self.indexOf(value) === index;
                 })
                 ?.map(name => (
-                  <span
+                  <bk-user-display-name
                     key={name}
                     class='tag-item'
-                  >
-                    {name}
-                  </span>
+                    user-id={name}
+                  />
                 )) || '--',
           },
         },
@@ -513,12 +512,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             minWidth: 200,
             formatter: (row: IEventItem) =>
               row.appointee?.map((appointee, index) => (
-                <span
+                <bk-user-display-name
                   key={index}
                   class='tag-item'
-                >
-                  {appointee}
-                </span>
+                  user-id={appointee}
+                />
               )) || '--',
           },
         },
@@ -532,12 +530,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             minWidth: 200,
             formatter: (row: IEventItem) =>
               row.assignee?.map((assignee, index) => (
-                <span
+                <bk-user-display-name
                   key={index}
                   class='tag-item'
-                >
-                  {assignee}
-                </span>
+                  user-id={assignee}
+                />
               )) || '--',
           },
         },
@@ -551,12 +548,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
             minWidth: 200,
             formatter: (row: IEventItem) =>
               row.follower?.map((follower, index) => (
-                <span
+                <bk-user-display-name
                   key={index}
                   class='tag-item'
-                >
-                  {follower}
-                </span>
+                  user-id={follower}
+                />
               )) || '--',
           },
         },
@@ -1001,7 +997,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         .join('')
     );
   }
-  handleOverflowEnter(e: MouseEvent, list) {
+  handleOverflowEnter(e: MouseEvent) {
+    // @ts-ignore
+    const list = Array.from(e?.currentTarget?.childNodes || []).map(spanDom => spanDom?.textContent);
     this.handlePopoverShow(e, list.join('、 '));
   }
 
@@ -1140,7 +1138,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         <div class='col-classifiy'>
           {props.row[type]?.length > 0 ? (
             <div
-              onMouseenter={e => this.handleOverflowEnter(e, props.row[type])}
+              onMouseenter={e => this.handleOverflowEnter(e)}
               onMouseleave={this.handlePopoverHide}
             >
               {props.row[type].map(item => (
@@ -1148,7 +1146,10 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                   key={item}
                   class='tag-item'
                 >
-                  <span class='text-overflow'>{item}</span>
+                  <bk-user-display-name
+                    class='text-overflow'
+                    user-id={item}
+                  />
                 </span>
               ))}
             </div>
@@ -1228,8 +1229,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                     $index,
                     row,
                   }: {
-                    row: IEventItem;
                     $index: number;
+                    row: IEventItem;
                   }) => (
                     <div class='status-column'>
                       <span
@@ -1365,7 +1366,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 prop={column.id}
                 {...{ props: column.props }}
                 scopedSlots={{
-                  default: ({ row: { dimensions, description } }: { row: IEventItem; $index: number }) => (
+                  default: ({ row: { dimensions, description } }: { $index: number; row: IEventItem }) => (
                     <div
                       onMouseenter={e => this.handleDescEnter(e, dimensions, description)}
                       onMouseleave={this.handlePopoverHide}

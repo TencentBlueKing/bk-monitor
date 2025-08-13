@@ -25,7 +25,7 @@
  */
 import Vue from 'vue';
 
-import { LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY, docCookies } from 'monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
 
 export const SET_TITLE = 'SET_TITLE';
 export const SET_BACK = 'SET_BACK';
@@ -78,13 +78,12 @@ const state = {
   bizBgColor: '', // 业务颜色
   navRouteList: [], // 路由面包屑数据,
   lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn',
-  bizIdChangePedding: '', // 业务id是否切换
+  bizIdChangePending: '', // 业务id是否切换
   spaceUidMap: new Map(),
   bizIdMap: new Map(),
   paddingRoute: null,
   k8sV2EnableList: [],
   defaultBizId: '',
-  defaultBizIdApiId: '',
 };
 
 const mutations = {
@@ -153,7 +152,7 @@ const mutations = {
     state.bizBgColor = val;
   },
   [SET_BIZ_CHANGE_PENDING](state, val) {
-    state.bizIdChangePedding = val;
+    state.bizIdChangePending = val;
   },
   setNavToggle(state, status) {
     state.navToggle = status;

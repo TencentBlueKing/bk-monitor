@@ -36,7 +36,7 @@ import eventImg from '../../../../static/images/png/event.png';
 import intelligentImg from '../../../../static/images/png/intelligent.png';
 import logImg from '../../../../static/images/png/log.png';
 import metricImg from '../../../../static/images/png/metric.png';
-import { MetricType, type strategyType } from '../typings/index';
+import { type strategyType, MetricType } from '../typings/index';
 
 import './monitor-data-empty.scss';
 

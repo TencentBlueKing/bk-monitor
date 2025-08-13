@@ -28,6 +28,8 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { xssFilter } from '@/common/util';
+
 import $http from '../../../api';
 import * as authorityMap from '../../../common/authority-map';
 import EmptyStatus from '../../../components/empty-status/index.vue';
@@ -850,7 +852,7 @@ export default class SelectIndexSet extends tsc<object> {
     this.destroyPopoverInstance();
     if (!this.namePopoverInstance) {
       this.namePopoverInstance = this.$bkPopover(e.target, {
-        content: `<span style='font-size: 12px;'>${str}</span>`,
+        content: `<span style='font-size: 12px;'>${xssFilter(str)}</span>`,
         arrow: true,
         boundary: 'viewport',
         placement: 'top-start',

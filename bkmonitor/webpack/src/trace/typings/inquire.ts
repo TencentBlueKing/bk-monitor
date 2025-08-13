@@ -25,70 +25,63 @@
  */
 
 export interface IAppItem {
-  application_id: number;
   app_alias: string;
   app_name: string;
+  application_id: number;
   permission: Record<string, string>;
 }
 
+export interface IScopeOption {
+  id: string;
+  options: { id: string; name: string }[];
+}
 export interface IScopeSelect {
   /* 范围查询动态表单选项 */ id: string;
+  key: string;
   metric_key: string;
   name: string;
   trace_key: string;
   value: string[];
-  key: string;
-}
-export interface IScopeOption {
-  id: string;
-  options: { id: string; name: string }[];
 }
 
 // 收藏列表
 export declare namespace IFavList {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   interface favList {
-    name?: string;
     config: any;
     id?: number;
-  }
-  interface IProps {
-    value: favList[];
-    checkedValue: favList;
+    name?: string;
   }
   interface IEvent {
     deleteFav?: number;
     selectFav?: any;
   }
+  interface IProps {
+    checkedValue: favList;
+    value: favList[];
+  }
 }
 
 export interface IAppItem {
-  application_id: number;
   app_alias: string;
   app_name: string;
+  application_id: number;
   is_enabled_profiling?: boolean;
 }
-export type SearchType = 'accurate' | 'scope';
-
-export interface ISearchTypeItem {
-  id: SearchType;
-  name: string;
-}
-
 export interface IFavoriteItem {
+  config: any;
   id: number | string;
   name: string;
-  config: any;
 }
 
 export interface ISearchSelectItem {
-  id: string;
-  name: string;
-  multiple: boolean;
-  placeholder: string;
   async: boolean;
-  validate: boolean;
   children: { id: string; name: string }[];
+  id: string;
+  multiple: boolean;
+  name: string;
+  placeholder: string;
+  validate: boolean;
 }
 
 export interface ISearchSelectValue {
@@ -96,3 +89,10 @@ export interface ISearchSelectValue {
   name?: string;
   values: { id: string; name: string }[];
 }
+
+export interface ISearchTypeItem {
+  id: SearchType;
+  name: string;
+}
+
+export type SearchType = 'accurate' | 'scope';

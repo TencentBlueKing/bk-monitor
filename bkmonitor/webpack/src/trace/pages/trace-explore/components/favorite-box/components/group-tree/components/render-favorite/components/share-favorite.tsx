@@ -23,17 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, type UnwrapRef, watch, computed } from 'vue';
+import { type PropType, type UnwrapRef, computed, defineComponent, watch } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { useAppStore } from '@store/modules/app';
-import { Dialog, Input, Radio, Button, Checkbox, Exception, Message } from 'bkui-vue';
+import { Button, Checkbox, Dialog, Exception, Input, Message, Radio } from 'bkui-vue';
 import _ from 'lodash';
 import { shareFavorite } from 'monitor-api/modules/model';
-import { SPACE_TYPE_MAP, ETagsType } from 'monitor-common/utils/biz';
+import { ETagsType, SPACE_TYPE_MAP } from 'monitor-common/utils/biz';
+import { useI18n } from 'vue-i18n';
 
 import useFavoriteType from '../../../../../hooks/use-favorite-type';
+import { useAppStore } from '@store/modules/app';
 
 import type { IFavoriteGroup } from '../../../../../types';
 

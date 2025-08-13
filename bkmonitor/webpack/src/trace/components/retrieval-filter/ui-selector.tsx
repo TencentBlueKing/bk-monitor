@@ -24,16 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, useTemplateRef, watch, onUnmounted, shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { isEn } from '../../i18n/i18n';
+import { defineComponent, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useEventListener } from '@vueuse/core';
 import tippy from 'tippy.js';
+import { useI18n } from 'vue-i18n';
 
-import { isEn } from '../../i18n/i18n';
 import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
-import { ECondition, EMethod, type IFilterItem, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
+import { type IFilterItem, ECondition, EMethod, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
 import UiSelectorOptions from './ui-selector-options';
 import { DURATION_KEYS, getDurationDisplay, triggerShallowRef } from './utils';
 

@@ -46,18 +46,18 @@ const MAX_NUM_METRIC_DIM_SNMP = 500; /** snmp插件允许指标维度最大条�
 const GROUP_DEFAULT_NAME = 'group_default'; /* 默认分组名 */
 
 interface IProps {
-  show?: boolean;
   dataTime?: string;
-  osTypeList?: string[];
-  metricJson?: any[];
   isRoutePage?: boolean;
   isToken?: boolean;
+  metricJson?: any[];
+  osTypeList?: string[];
   pluginType?: string;
-  onShowChange?: (v: boolean) => void;
+  show?: boolean;
   onBackDebug?: () => void;
-  onRefreshData?: () => any;
-  onChangeVersion?: () => any;
   onBackPlugin?: () => void;
+  onChangeVersion?: () => any;
+  onRefreshData?: () => any;
+  onShowChange?: (v: boolean) => void;
 }
 
 @Component

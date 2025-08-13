@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, onMounted, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import './calendar-select.scss';
 

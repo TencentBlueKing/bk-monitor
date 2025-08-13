@@ -23,14 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, Ref, ref } from 'vue';
 
-import useResizeObserve from '@/hooks/use-resize-observe';
+// import useResizeObserve from '@/hooks/use-resize-observe';
 import { debounce } from 'lodash';
 
-import RetrieveHelper from '../../../retrieve-helper';
-
 import useIntersectionObserver from '../../../../hooks/use-intersection-observer';
+import RetrieveHelper from '../../../retrieve-helper';
 function deepQueryShadowSelector(selector) {
   // 搜索当前根下的元素
   const searchInRoot = (root: HTMLElement | ShadowRoot) => {
@@ -54,7 +53,16 @@ function deepQueryShadowSelector(selector) {
   return searchInRoot(document.body);
 }
 
-export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
+export default ({
+  loadMoreFn,
+  container,
+  refLoadMoreElement,
+}: {
+  rootElement?: Ref<HTMLElement>;
+  loadMoreFn?: () => void;
+  container: string;
+  refLoadMoreElement: Ref<HTMLElement>;
+}) => {
   // const searchBarHeight = ref(0);
   const offsetWidth = ref(0);
   const scrollWidth = ref(0);
@@ -92,30 +100,18 @@ export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
 
   const hasScrollX = computed(() => scrollWidth.value > offsetWidth.value);
 
-  const getParentContainer = () => {
-    return rootElement.value as HTMLElement;
-  };
-
-  const computeRect = () => {
-    const current = getCurrentElement();
-    scrollWidth.value = (current?.scrollWidth ?? 6) - 6;
+  const computeRect = (targetElement?: HTMLElement) => {
+    const current = targetElement ?? getCurrentElement();
+    scrollWidth.value = (current?.scrollWidth ?? 2) - 2;
     offsetWidth.value = current?.offsetWidth ?? 0;
   };
 
-  const debounceComputeRect = debounce(computeRect, 120);
+  const debounceComputeRect = debounce(computeRect, 300);
 
   useIntersectionObserver(refLoadMoreElement, inter => {
     if (inter.isIntersecting) {
       loadMoreFn?.();
     }
-  });
-
-  useResizeObserve(getCurrentElement, () => {
-    debounceComputeRect();
-  });
-
-  useResizeObserve(getParentContainer, () => {
-    debounceComputeRect();
   });
 
   onMounted(() => {
@@ -125,7 +121,7 @@ export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
   return {
     scrollToTop,
     hasScrollX,
-    computeRect,
+    computeRect: debounceComputeRect,
     scrollDirection,
     offsetWidth,
     scrollWidth,

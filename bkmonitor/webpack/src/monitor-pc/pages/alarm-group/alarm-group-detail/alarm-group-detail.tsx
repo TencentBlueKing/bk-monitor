@@ -42,43 +42,45 @@ import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import RotationPreview from '../rotation/rotation-preview';
 import { getCalendarOfNum, setPreviewDataOfServer } from '../rotation/utils';
 
+import type { DutyNotice } from '../rotation/typing';
+
 import './alarm-group-detail.scss';
 
 const ALERT_NOTICE = 'alert_notice';
 const ACTION_NOTICE = 'action_notice';
 
 export interface IAlarmGroupDetail {
-  id: number | string;
-  show?: boolean;
   customEdit?: boolean;
   hasEditBtn?: boolean;
+  id: number | string;
+  show?: boolean;
+}
+interface IAlert {
+  key?: string;
+  notify_config?: INoticeWayValue[];
+  time_range?: string;
 }
 interface IEvent {
-  onShowChange?: boolean;
   onEditGroup?: number | string;
-}
-interface IFormData {
-  channels: string[];
-  name: string;
-  bizId: string;
-  desc: string;
-  users: any[];
-  needDuty?: boolean;
-  mention_list: any[];
+  onShowChange?: boolean;
 }
 
-interface IAlert {
-  time_range?: string;
-  notify_config?: INoticeWayValue[];
-  key?: string;
+interface IFormData {
+  bizId: string;
+  channels: string[];
+  desc: string;
+  mention_list: any[];
+  name: string;
+  needDuty?: boolean;
+  users: any[];
 }
 interface INotice {
-  [ALERT_NOTICE]: IAlert[]; // 所有通知方式数据
   [ACTION_NOTICE]: IAlert[];
-  alertData: IAlert; // 当前通知方式数据
-  actionData: IAlert;
-  alertActive: string; // 当前通知方式选项
   actionActive: string;
+  actionData: IAlert;
+  [ALERT_NOTICE]: IAlert[]; // 所有通知方式数据
+  alertActive: string; // 当前通知方式选项
+  alertData: IAlert; // 当前通知方式数据
 }
 
 const noticeTypeMap = {
@@ -144,7 +146,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
   dutyList = [];
 
   /* 值班通知设置  */
-  dutyNotice = {
+  dutyNotice: DutyNotice = {
     plan_notice: {
       enabled: false,
       chat_ids: ['apsojgldjgngmfmdkgjfhdhsjfkdjfld'],
@@ -239,10 +241,15 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
           if (data.duty_notice?.personal_notice?.enabled) {
             this.dutyNotice.personal_notice = data.duty_notice.personal_notice;
           }
+          if (data.duty_notice?.hit_first_duty !== undefined) {
+            this.dutyNotice.hit_first_duty = data.duty_notice.hit_first_duty;
+          }
         } else {
-          data.duty_arranges.forEach(item => {
-            item.users && users.push(...item.users);
-          });
+          for (const item of data.duty_arranges) {
+            if (item.users) {
+              users.push(...item.users);
+            }
+          }
         }
         this.formData.users = users;
         this.detailData.createTime = createTime;
@@ -264,12 +271,12 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
     const dutyList = [];
     const allDutyList = (await listDutyRule().catch(() => [])) as any;
     const sets = new Set(list);
-    allDutyList.forEach(item => {
+    for (const item of allDutyList) {
       if (sets.has(item.id)) {
         item.isCheck = true;
         dutyList.push(item);
       }
-    });
+    }
     this.dutyList = list
       .map(l => {
         const temp = dutyList.find(d => String(d.id) === String(l));
@@ -290,7 +297,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
     const data = await previewUserGroupPlan(params).catch(() => []);
     this.previewData = setPreviewDataOfServer(data, this.dutyList);
   }
-  async handleStartTimeChange(startTime) {
+  async handleStartTimeChange(startTime?: string) {
     const params = {
       source_type: 'DB',
       id: this.id,
@@ -508,9 +515,12 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                         <RotationPreview
                           v-bkloading={{ isLoading: this.previewLoading }}
                           alarmGroupId={this.id}
+                          dutyNotice={this.dutyNotice}
                           dutyPlans={this.dutyPlans}
                           value={this.previewData}
-                          onStartTimeChange={this.handleStartTimeChange}
+                          onStartTimeChange={() => {
+                            this.handleStartTimeChange();
+                          }}
                         />
                         {/* 值班通知设置 */}
                         {this.dutyNotice.plan_notice.enabled && (
@@ -586,7 +596,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                           ]}
                         </div>
                         <span class='person-name'>
-                          {item.id}
+                          <bk-user-display-name user-id={item.id} />
                           {`(${item.display_name})`}
                         </span>
                       </div>
@@ -639,7 +649,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                       ]}
                     </div>
                     <span class='person-name'>
-                      {item.id}
+                      <bk-user-display-name user-id={item.id} />
                       {`(${this.getMappingDisplayName(item.display_name)})`}
                     </span>
                   </div>
@@ -686,7 +696,9 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                       notifyConfig={this.notice.alertData.notify_config}
                       readonly={true}
                       refreshKey={this.refreshKey.alertKey}
-                      onRefreshKeyChange={() => (this.refreshKey.alertKey = false)}
+                      onRefreshKeyChange={() => {
+                        this.refreshKey.alertKey = false;
+                      }}
                     />
                   </div>
                 </div>
@@ -726,7 +738,9 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                       readonly={true}
                       refreshKey={this.refreshKey.actionKey}
                       type={1}
-                      onRefreshKeyChange={() => (this.refreshKey.actionKey = false)}
+                      onRefreshKeyChange={() => {
+                        this.refreshKey.actionKey = false;
+                      }}
                     />
                   </div>
                 </div>

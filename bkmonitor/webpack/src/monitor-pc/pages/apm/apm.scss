@@ -2,6 +2,7 @@
 .apm-wrap {
   width: 100% !important;
   height: 100% !important;
+  overflow: hidden;
 
   &-iframe {
     width: 100%;
@@ -20,9 +21,9 @@
     }
 
     .text-wrap {
-      color: #979ba5;
-      font-size: 14px;
       margin-top: 16px;
+      font-size: 14px;
+      color: #979ba5;
     }
   }
 }

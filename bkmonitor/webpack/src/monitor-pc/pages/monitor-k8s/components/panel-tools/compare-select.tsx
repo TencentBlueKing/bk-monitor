@@ -1,3 +1,5 @@
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,36 +30,35 @@ import { modifiers, Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { COMPARE_KEY, COMPARE_LIST, COMPARE_TIME_OPTIONS, type PanelToolsType } from '../../typings/panel-tools';
+import { type PanelToolsType, COMPARE_KEY, COMPARE_LIST, COMPARE_TIME_OPTIONS } from '../../typings/panel-tools';
 import TargetCompareSelect from './target-compare-select';
 
 import type { IOption } from '../../typings';
 import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
-import type { VNode } from 'vue';
 
 import './compare-select.scss';
 
+interface IEvents {
+  onMetricChange: string[];
+  onTargetChange: IViewOptions;
+  onTimeChange: string[];
+  onTypeChange: PanelToolsType.CompareId;
+}
 interface IProps {
   compareListEnable?: PanelToolsType.CompareId[];
   compareTimeOptions?: PanelToolsType.ICompareListItem[];
-  needTargetSelect?: boolean;
-  targetOptions?: IOption[];
-  type: PanelToolsType.CompareId;
-  timeValue: string[];
-  targetValue?: IViewOptions;
-  metricValue?: string[];
-  metricOptions?: IOption[];
-  panel?: PanelModel;
   curTarget?: string;
+  metricOptions?: IOption[];
+  metricValue?: string[];
   needCompare?: boolean;
   needMetricSelect?: boolean;
+  needTargetSelect?: boolean;
+  panel?: PanelModel;
+  targetOptions?: IOption[];
+  targetValue?: IViewOptions;
+  timeValue: string[];
+  type: PanelToolsType.CompareId;
   zIndex?: number;
-}
-interface IEvents {
-  onTimeChange: string[];
-  onTypeChange: PanelToolsType.CompareId;
-  onTargetChange: IViewOptions;
-  onMetricChange: string[];
 }
 @Component
 export default class CompareSelect extends tsc<IProps, IEvents> {
@@ -120,7 +121,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
 
   get compareFieldsSort() {
     const compareFieldsSort = this.panel.targets?.[0]?.compareFieldsSort;
-    return !!compareFieldsSort.length ? compareFieldsSort : null;
+    return compareFieldsSort.length ? compareFieldsSort : null;
   }
 
   /* 目标对比时如果此属性有值时需要按照当前的数据配置字典 */
@@ -162,7 +163,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
   get targetOptionsFilter() {
     const filterDict = this.targetValue.filters;
     if (!filterDict) return [];
-    if (!!this.currentSelectTargetId) return this.targetOptions.filter(item => item.id !== this.currentSelectTargetId);
+    if (this.currentSelectTargetId) return this.targetOptions.filter(item => item.id !== this.currentSelectTargetId);
     return Object.keys(this.queryFileds).length
       ? this.targetOptions.filter(item => item.id !== `${filterDict[this.queryFileds.id]}`)
       : this.targetOptions.filter(item => item.id !== filterDict.bk_host_id);
@@ -233,7 +234,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
    * @description: 自定义按下回车
    */
   handleAddCustomTime() {
-    const regular = /^([1-9][0-9]*)+(m|h|d|w|M|y)$/;
+    const regular = /^([1-9][0-9]+)+(m|h|d|w|M|y)$/;
     const str = this.customTimeVal.trim();
     if (regular.test(str)) {
       this.handleAddCustom(str);

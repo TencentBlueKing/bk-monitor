@@ -18,8 +18,8 @@ to the current version of the project delivered to anyone in the future.
 import copy
 import datetime
 import logging
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 from django.db.models import Q
 from django.utils.functional import cached_property, classproperty
@@ -31,8 +31,8 @@ from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
 from apm.utils.base import get_bar_interval_number
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.apm import OperatorGroupRelation
+from constants.data_source import DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger("apm")
 
@@ -81,7 +81,7 @@ class FilterOperator:
     def _between_operator_handler(
         cls, q: Q, operator: str, field: str, value: types.FilterValue, options: dict[str, Any]
     ) -> Q:
-        return q & Q(**{f"{field}__gte": value[0], f"{field}__lte": value[1]})
+        return q & Q(**{f"{field}__gte": value[0], f"{field}__lt": value[1]})
 
     @classmethod
     def _default_operator_handler(

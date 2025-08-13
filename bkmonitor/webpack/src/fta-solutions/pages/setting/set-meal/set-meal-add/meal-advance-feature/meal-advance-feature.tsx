@@ -32,19 +32,19 @@ import NoticeMode from '../notice-mode/notice-mode';
 
 import './meal-advance-feature.scss';
 
+interface IConvergeConfig {
+  condition: number;
+  convergeFunc: string;
+  count: number | string;
+  dimension: Array<{ dimession: string; value: Array<any> }>;
+  timedelta: number | string;
+}
 interface IFailedRetry {
   timeout: number | string;
 }
-interface IConvergeConfig {
-  timedelta: number | string;
-  count: number | string;
-  condition: number;
-  convergeFunc: string;
-  dimension: Array<{ dimession: string; value: Array<any> }>;
-}
 interface IMealAdvanceFeature {
-  failedRetry: IFailedRetry;
   convergeConfig: IConvergeConfig;
+  failedRetry: IFailedRetry;
   mealType: number | string;
 }
 @Component({

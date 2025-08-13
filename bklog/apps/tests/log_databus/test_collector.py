@@ -24,7 +24,6 @@ from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
-from apps.exceptions import ApiRequestError, ApiResultError
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
 from apps.log_databus.exceptions import CollectorConfigNotExistException
 from apps.log_databus.handlers.collector import CollectorHandler
@@ -1429,18 +1428,6 @@ class TestCollector(TestCase):
         self.assertEqual(result2["contents"][0]["bk_obj_name"], "主机")
         self.assertEqual(result2["contents"][0]["node_path"], "主机")
         self.assertEqual(result2["contents"][0]["bk_obj_id"], "host")
-
-    def test_check_task_ready_exception(self, *args, **kwargs):
-        self.assertEqual(HostCollectorHandler._check_task_ready_exception(ApiRequestError("test1", 111)), True)
-        self.assertEqual(
-            HostCollectorHandler._check_task_ready_exception(ApiResultError("test2", code=1306201, errors="test2")),
-            True,
-        )
-        with self.assertRaises(BaseException):
-            HostCollectorHandler._check_task_ready_exception(ApiResultError("test2", code=111, errors="test2"))
-
-        with self.assertRaises(BaseException):
-            HostCollectorHandler._check_task_ready_exception(BaseException())
 
     @patch("apps.api.TransferApi.create_data_id", lambda _: {"bk_data_id": BK_DATA_ID})
     @patch(

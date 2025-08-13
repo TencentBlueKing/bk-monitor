@@ -26,15 +26,16 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { customTimeSeriesList } from 'monitor-api/modules/custom_report';
 import { copyText } from 'monitor-common/utils/utils';
+
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './index.scss';
 
 @Component
 export default class PageHeader extends tsc<object> {
-  customTimeSeriesList: Readonly<{ time_series_group_id: number; name: string; data_label: string }[]> = [];
+  customTimeSeriesList: Readonly<{ data_label: string; name: string; time_series_group_id: number }[]> = [];
 
   currentCustomTimeSeriesId = 0;
   get currentCustomTimeSeriesName() {

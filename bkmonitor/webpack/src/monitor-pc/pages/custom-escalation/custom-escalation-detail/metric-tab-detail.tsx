@@ -34,9 +34,9 @@ import { ALL_LABEL, NULL_LABEL } from './type';
 import './metric-tab-detail.scss';
 
 interface IGroup {
+  icon: string;
   id: string;
   name: string;
-  icon: string;
 }
 @Component({
   inheritAttrs: false,
@@ -83,7 +83,7 @@ export default class MetricTabDetail extends tsc<any, any> {
   isSearchMode: boolean;
   delGroupName = '';
 
-  created() { }
+  created() {}
 
   // 过滤后的自定义分组
   get filteredCustomGroups() {

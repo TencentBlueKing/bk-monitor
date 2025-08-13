@@ -773,6 +773,7 @@ class DutyNoticeSerializer(serializers.Serializer):
 
     plan_notice = PlanNoticeSerializer(label="告警组排班计划", required=False)
     personal_notice = PersonalNoticeSerializer(label="个人排班通知", required=False)
+    hit_first_duty = serializers.BooleanField(label="是否命中第一班", required=False, default=True)
 
 
 class UserGroupDetailSlz(UserGroupSlz):

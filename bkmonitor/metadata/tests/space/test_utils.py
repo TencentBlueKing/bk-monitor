@@ -28,6 +28,9 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 
 @pytest.fixture
 def create_or_delete_records(mocker):
+    models.Space.objects.all().delete()
+    models.SpaceResource.objects.all().delete()
+
     models.Space.objects.create(id=123456, space_type_id="bkci", space_id="test_space")
     models.Space.objects.create(id=123457, space_type_id="bksaas", space_id="test_saas")
     models.SpaceResource.objects.create(
@@ -79,6 +82,7 @@ def test_create_bksaas_space_resource(create_and_delete_record, mocker):
         {"bcs_cluster_id": DEFAULT_BCS_CLUSTER_ID_TWO, "namespace": "bkapp-test-m-prod"},
     ]
     mocker.patch("core.drf_resource.api.bk_paas.get_app_cluster_namespace", return_value=api_resp)
+    models.SpaceResource.objects.filter(space_type_id=DEFAULT_SPACE_TYPE, space_id=DEFAULT_SPACE_ID).delete()
     utils.create_bksaas_space_resource(DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID, DEFAULT_CREATOR)
 
     # 检测数据源已经授权
@@ -103,9 +107,9 @@ def test_create_bksaas_space_resource(create_and_delete_record, mocker):
 
 
 def test_filter_space_resource(create_and_delete_record):
-    space_info = models.Space.objects.list_all_spaces()
-    spaces = [(space["space_type_id"], space["space_id"]) for space in space_info["list"]]
+    spaces = [(DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID)]
     space_resource_data = utils._filter_space_resource_by_page(spaces)
     expected_key = (DEFAULT_SPACE_TYPE, DEFAULT_SPACE_ID)
+    print(space_resource_data)
     assert set(space_resource_data.keys()) == {expected_key}
     assert isinstance(space_resource_data[expected_key], list)

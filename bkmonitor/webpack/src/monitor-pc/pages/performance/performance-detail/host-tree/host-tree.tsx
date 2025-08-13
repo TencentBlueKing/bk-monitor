@@ -54,64 +54,28 @@ const DEFAULT_SEARCH_INPUT_HEIGHT = 32;
 /** big-tree 默认的高度 */
 const DEFAULT_TREE_HEIGHT = 500;
 
-/** 成功 | 无数据 | 失败 | 警告 | 不展示状态 */
-export type StatusClassNameType = 'failed' | 'nodata' | 'none' | 'success' | 'warning';
-export interface TreeNodeItem {
-  id: number | string;
-  name: string;
-  alias_name?: string;
-  ip?: string;
-  bk_host_name?: string;
-  bk_cloud_id?: string;
-  bk_inst_id?: string;
-  bk_obj_id?: string;
-  bk_host_id?: string;
-  status?: number | string;
-  bk_inst_name?: string;
-  display_name?: string;
-  children: TreeNodeItem[];
-  bk_obj_name?: string;
-  service_instance_id?: number; // 服务实例ID
-  os_type?: string;
-}
-export interface ICurNode {
-  id: number | string; // ip + cloudId 或者 bkInstId + bkObjId
-  ip?: string;
-  cloudId?: number | string;
-  bkInstId?: number | string;
-  bkObjId?: string;
-  type: NodeType;
-  processId?: number | string;
-  osType?: number;
-}
-
-type NodeType = 'host' | 'node' | 'overview' | 'service'; // host类型时：IP、bkCloudId不为空；node类型时：bkInstId、bkObjId不为空 overview：数据总览 service: 服务实例
-
-export interface IProps {
-  panel: PanelModel;
-  isTargetCompare?: boolean;
-  compareTargets?: string[];
-  checkedNode?: FilterDictType;
-  viewOptions: IViewOptions;
-  height?: number;
-  width: number;
-  tabActive: string;
-  statusMapping?: IStatusMapping[];
-}
-
-export interface IEvents {
-  onCompareChange: string[];
-  onCheckedChange: IViewOptions;
-  onListChange: IHostNode[];
-  onTitleChange: (a: string, b: TreeNodeItem) => void;
-  onChange: IViewOptions;
-  onOverviewChange?: () => void;
-  onSearchChange: any[];
-}
-
 export type FilterDictType = {
   [key in string]: any;
 };
+export interface ICurNode {
+  bkInstId?: number | string;
+  bkObjId?: string;
+  cloudId?: number | string;
+  id: number | string; // ip + cloudId 或者 bkInstId + bkObjId
+  ip?: string;
+  osType?: number;
+  processId?: number | string;
+  type: NodeType;
+}
+export interface IEvents {
+  onChange: IViewOptions;
+  onCheckedChange: IViewOptions;
+  onCompareChange: string[];
+  onListChange: IHostNode[];
+  onSearchChange: any[];
+  onOverviewChange?: () => void;
+  onTitleChange: (a: string, b: TreeNodeItem) => void;
+}
 
 export interface IHostNode {
   bk_biz_id: number;
@@ -123,11 +87,47 @@ export interface IHostNode {
   plat_id: number;
 }
 
+export interface IProps {
+  checkedNode?: FilterDictType;
+  compareTargets?: string[];
+  height?: number;
+  isTargetCompare?: boolean;
+  panel: PanelModel;
+  statusMapping?: IStatusMapping[];
+  tabActive: string;
+  viewOptions: IViewOptions;
+  width: number;
+}
+
+/** 成功 | 无数据 | 失败 | 警告 | 不展示状态 */
+export type StatusClassNameType = 'failed' | 'nodata' | 'none' | 'success' | 'warning';
+
+export interface TreeNodeItem {
+  alias_name?: string;
+  bk_cloud_id?: string;
+  bk_host_id?: string;
+  bk_host_name?: string;
+  bk_inst_id?: string;
+  bk_inst_name?: string;
+  bk_obj_id?: string;
+  bk_obj_name?: string;
+  children: TreeNodeItem[];
+  display_name?: string;
+  id: number | string;
+  ip?: string;
+  name: string;
+  os_type?: string;
+  service_instance_id?: number; // 服务实例ID
+  status?: number | string;
+}
+
 interface IStatusMapping {
   color?: string;
   id?: string;
   name?: string;
 }
+
+type NodeType = 'host' | 'node' | 'overview' | 'service'; // host类型时：IP、bkCloudId不为空；node类型时：bkInstId、bkObjId不为空 overview：数据总览 service: 服务实例
 
 /**
  * 属性主机数据列表
@@ -509,7 +509,7 @@ export default class HostTree extends tsc<IProps, IEvents> {
   }
 
   /** big-tree搜索回调方法 */
-  filterMethod(filterObj: { status: string; keyword: string }, node: { data: TreeNodeItem }): boolean {
+  filterMethod(filterObj: { keyword: string; status: string }, node: { data: TreeNodeItem }): boolean {
     const { data } = node;
     if (data.name) {
       const searchTarget = [data.name, data.bk_host_name];

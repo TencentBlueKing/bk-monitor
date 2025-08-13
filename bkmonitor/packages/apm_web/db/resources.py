@@ -436,7 +436,9 @@ class ListDbSystemResource(Resource):
         app_name: str = validated_data["app_name"]
         service_name: str | None = validated_data.get("service_name")
 
-        node: dict[str, Any] = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
+        node: dict[str, Any] = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
+        if not node:
+            return []
         predicate_value = node["extra_data"]["predicate_value"]
         if service_name and predicate_value and predicate_value in service_name:
             return [

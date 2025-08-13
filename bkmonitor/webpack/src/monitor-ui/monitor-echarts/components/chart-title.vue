@@ -83,23 +83,23 @@ import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 import ChartMenu from './chart-menu.vue';
 
 interface IExtendMetricData {
+  collect_config?: string;
   collect_interval?: number;
+  data_source_label?: string;
+  data_type_label?: string;
+  description?: string;
+  metric_field?: string;
+  metric_field_name?: string;
   metric_id?: string;
   related_id?: string;
   related_name?: string;
   result_table_id?: string;
-  result_table_name?: string;
-  metric_field?: string;
-  metric_field_name?: string;
-  description?: string;
   result_table_label?: string;
-  collect_config?: string;
-  data_source_label?: string;
-  data_type_label?: string;
+  result_table_name?: string;
   extend_fields?: {
+    bk_data_id?: string;
     scenario_name?: string;
     storage_cluster_name?: string;
-    bk_data_id?: string;
   };
 }
 @Component({
@@ -112,7 +112,7 @@ export default class ChartTitle extends Vue {
   @Prop({ default: '' }) title: string;
   @Prop({ default: '' }) subtitle: string;
   @Prop({ default: () => ({ status: 0, number: 0 }) })
-  alarmStatus: { status: number; alert_number: number; strategy_number: number };
+  alarmStatus: { alert_number: number; status: number; strategy_number: number };
   @Prop({
     default() {
       return {};

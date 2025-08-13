@@ -39,9 +39,9 @@
 <script lang="ts">
 import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 
-import type { ITableCheckData, ITableConfig, ITemplateDataOptions, SearchDataFuncType } from '../types/selector-type';
-
 import ServiceTemplate from './service-template.vue';
+
+import type { ITableCheckData, ITableConfig, ITemplateDataOptions, SearchDataFuncType } from '../types/selector-type';
 
 // 集群
 @Component({
@@ -77,7 +77,6 @@ export default class Cluster extends Vue {
     return data;
   }
 
-  // eslint-disable-next-line @typescript-eslint/member-ordering
   public handleGetDefaultSelections() {
     this.serviceRef?.handleGetDefaultSelections();
   }

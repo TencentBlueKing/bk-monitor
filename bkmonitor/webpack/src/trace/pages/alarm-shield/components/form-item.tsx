@@ -28,8 +28,8 @@ import { defineComponent } from 'vue';
 import './form-item.scss';
 
 interface IProps {
-  label?: string;
   errMsg?: string;
+  label?: string;
   require?: boolean;
 }
 

@@ -19,7 +19,7 @@ from api.kubernetes.default import FetchK8sClusterListResource
 from metadata import models
 from metadata.models.bcs.resource import BCSClusterInfo
 from metadata.task.bcs import discover_bcs_clusters, update_bcs_cluster_cloud_id_config
-from metadata.tests.common_utils import MockCache, consul_client
+from metadata.tests.common_utils import consul_client
 
 logger = logging.getLogger("metadata")
 
@@ -238,7 +238,6 @@ def test_discover_bcs_clusters(
     monkeypatch.setattr(settings, "BCS_CLUSTER_SOURCE", "cluster-manager")
     monkeypatch.setattr(settings, "BCS_API_GATEWAY_TOKEN", "token")
     monkeypatch.setattr(FetchK8sClusterListResource, "cache_type", None)
-    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=MockCache())
 
     # 测试状态标记为删除
     discover_bcs_clusters()

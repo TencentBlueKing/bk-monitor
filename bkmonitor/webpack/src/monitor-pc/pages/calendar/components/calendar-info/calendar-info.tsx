@@ -29,16 +29,16 @@ import { Component as tsc } from 'vue-tsx-support';
 import './calendar-info.scss';
 
 export interface IProps {
-  value?: boolean;
-  infoTitle: string;
-  infoDesc?: string;
-  okText?: string;
   cancelText?: string;
+  infoDesc?: string;
+  infoTitle: string;
+  okText?: string;
+  value?: boolean;
   zIndex?: number;
 }
 interface IEvents {
-  onConfirm: void;
   onCancel: void;
+  onConfirm: void;
   onValueChange: boolean;
 }
 /**

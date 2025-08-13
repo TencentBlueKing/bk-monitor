@@ -32,12 +32,12 @@ import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/compo
 
 import './empty-table.scss';
 
+export interface IEmptyTableEvent {
+  onApplyAuth: string[];
+}
 export interface IEmptyTableProps {
   emptyType: EmptyStatusType;
   handleOperation: (val: EmptyStatusOperationType) => void;
-}
-export interface IEmptyTableEvent {
-  onApplyAuth: string[];
 }
 @Component
 export default class EmptyTable extends tsc<IEmptyTableProps, IEmptyTableEvent> {

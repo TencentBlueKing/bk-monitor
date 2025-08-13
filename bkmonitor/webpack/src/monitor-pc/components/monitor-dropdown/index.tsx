@@ -29,17 +29,17 @@ import Component from './dropdown-menu.vue';
 
 import type { IOption } from '../../pages/performance/performance-type';
 
-export interface IDropdownProps {
-  value?: number | string;
-  list?: IOption[];
-  icon?: string;
-  showName?: boolean;
-  textActive?: boolean;
-  readonly?: boolean;
-  iconTitle?: string;
-  isRefreshInterval?: boolean;
-}
 export interface IDropdownEvent {
   onChange: number | string;
+}
+export interface IDropdownProps {
+  icon?: string;
+  iconTitle?: string;
+  isRefreshInterval?: boolean;
+  list?: IOption[];
+  readonly?: boolean;
+  showName?: boolean;
+  textActive?: boolean;
+  value?: number | string;
 }
 export default ofType<IDropdownProps, IDropdownEvent>().convert(Component);

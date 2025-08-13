@@ -121,10 +121,10 @@ export default class ResizeMixin extends Vue {
     hideLabel = false,
   }: {
     actionType: LegendActionType;
-    item: ILegendItem;
-    option: MonitorEchartOptions;
-    needResetChart?: boolean;
     hideLabel?: boolean;
+    item: ILegendItem;
+    needResetChart?: boolean;
+    option: MonitorEchartOptions;
   }) {
     const chartInstance = this.$refs.baseChart as any;
     if (['highlight', 'downplay'].includes(actionType)) {

@@ -27,20 +27,20 @@
 import { random } from 'monitor-common/utils/utils.js';
 
 import type { IEdge, IRank, ITopoData } from '../failure-topo/types';
-export enum NodeStatus {
-  Error = 'error',
-  Normal = 'normal',
-  Root = 'root',
+export enum ComboStatus {
+  DataCenter = '数据中心',
+  Host = '主机',
+  Instance = '服务',
 }
 
 export enum EdgeStatus {
   Include = 'include',
   Invoke = 'invoke',
 }
-export enum ComboStatus {
-  DataCenter = '数据中心',
-  Host = '主机',
-  Instance = '服务',
+export enum NodeStatus {
+  Error = 'error',
+  Normal = 'normal',
+  Root = 'root',
 }
 export interface IRanksMap {
   [key: string]: IRank[];

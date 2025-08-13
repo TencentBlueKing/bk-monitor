@@ -25,66 +25,66 @@
  */
 import type { ModelConfig } from '@antv/g6';
 
-export interface IEntityTag {
-  cluster_id: string;
-  name: string;
-  namespace: string;
+export interface IEdge {
+  [key: string]: any;
+  edge_type: string;
+  events: Record<string, any>[];
+  is_anomaly: boolean;
 }
 
 export interface IEntity {
   aggregated_entites: IEntity[];
+  alert_all_recorved: boolean;
   anomaly_score: number;
   anomaly_type: string;
-  rank_name?: string;
-  alert_all_recorved: boolean;
+  dimensions: Record<string, any>;
   entity_id: string;
   entity_name: string;
   entity_type: string;
-  properties?: Record<string, any>;
   is_anomaly: boolean;
   is_feedback_root: boolean;
-  is_root: boolean;
   is_on_alert: boolean;
+  is_root: boolean;
+  properties?: Record<string, any>;
   rank: IRank;
-  dimensions: Record<string, any>;
-  tags?: {
-    BcsService?: IEntityTag;
-    BcsWorkload?: IEntityTag;
-  };
+  rank_name?: string;
   observe_time_rage?: {
-    start_at: number | string;
     end_at: number | string;
+    start_at: number | string;
   };
   rca_trace_info?: {
     abnormal_message: string;
     abnormal_traces: Record<string, any>[];
     abnormal_traces_query: Record<string, any>;
   };
+  tags?: {
+    BcsService?: IEntityTag;
+    BcsWorkload?: IEntityTag;
+  };
 }
 
-export interface IEdge {
-  [key: string]: any;
-  is_anomaly: boolean;
-  edge_type: string;
-  events: Record<string, any>[];
+export interface IEntityTag {
+  cluster_id: string;
+  name: string;
+  namespace: string;
 }
 export interface IncidentDetailData {
-  id: string;
-  incident_id: string;
   bk_biz_id: string;
-  end_time: number;
   create_time: number;
   current_snapshot?: any;
+  end_time: number;
+  id: string;
+  incident_id: string;
 }
 
 export interface IRank {
+  anomaly_count: number;
+  is_sub_rank: boolean;
+  nodes: ITopoNode[];
+  rank_alias: string;
   rank_id: number;
   rank_name: string;
-  rank_alias: string;
-  nodes: ITopoNode[];
-  anomaly_count: number;
   total: number;
-  is_sub_rank: boolean;
   rank_category: {
     category_alias: string;
     category_id: number;
@@ -92,38 +92,11 @@ export interface IRank {
   };
 }
 
-export interface ITopoNode extends ModelConfig {
-  node?: any;
-  aggregated_nodes?: ITopoNode[];
-  comboId?: string;
-  entity?: IEntity;
-  originComboId?: string;
-  is_feedback_root?: boolean;
-  id?: string;
-  is_deleted?: boolean;
-  subComboId?: string;
-  bk_biz_id?: string;
-  bk_biz_name?: string;
-  alert_display?: {
-    alert_id: string;
-    alert_name: string;
-  };
-  alert_ids?: string[];
-}
-
-export interface ITopoEdge extends ModelConfig {
-  count: number;
-  source: string;
-  target: string;
-  type: 'dependency' | 'invoke';
-  aggregated: boolean;
-}
-
 export interface ITopoCombo extends ModelConfig {
+  [key: string]: any;
   dataType?: string;
   id: number | string;
   label?: string;
-  [key: string]: any;
 }
 
 export interface ITopoData {
@@ -132,9 +105,36 @@ export interface ITopoData {
   nodes: ITopoNode[];
 }
 
+export interface ITopoEdge extends ModelConfig {
+  aggregated: boolean;
+  count: number;
+  source: string;
+  target: string;
+  type: 'dependency' | 'invoke';
+}
+
+export interface ITopoNode extends ModelConfig {
+  aggregated_nodes?: ITopoNode[];
+  alert_ids?: string[];
+  bk_biz_id?: string;
+  bk_biz_name?: string;
+  comboId?: string;
+  entity?: IEntity;
+  id?: string;
+  is_deleted?: boolean;
+  is_feedback_root?: boolean;
+  node?: any;
+  originComboId?: string;
+  subComboId?: string;
+  alert_display?: {
+    alert_id: string;
+    alert_name: string;
+  };
+}
+
 export interface TopoRawData {
+  content: ITopoData[];
   create_time: number;
   fpp_snapshot_id: string;
   incident_id: string;
-  content: ITopoData[];
 }

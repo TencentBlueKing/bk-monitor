@@ -28,18 +28,18 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './simple-form.scss';
 
+interface IEvents {
+  onChange?: Iform[];
+}
 interface Iform {
-  value?: string;
   lable?: string;
   placeholder?: string;
-  subTitle?: string;
   required?: boolean;
+  subTitle?: string;
+  value?: string;
 }
 interface IProps {
   forms: Iform[];
-}
-interface IEvents {
-  onChange?: Iform[];
 }
 
 @Component

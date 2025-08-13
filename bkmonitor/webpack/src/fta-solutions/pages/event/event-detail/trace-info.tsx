@@ -50,8 +50,8 @@ const traceTableColumns: ITableColumn[] = [
 ];
 
 interface IProps {
-  show?: boolean;
   detail?: IDetail;
+  show?: boolean;
   traceIds?: string[];
 }
 
@@ -86,9 +86,9 @@ export default class TraceInfo extends tsc<IProps> {
     limit: 10,
   };
   errDataParams: {
+    filter: string;
     filterDict: IFilterDict;
     sortKey: string;
-    filter: string;
   } = {
     filterDict: {},
     sortKey: '',

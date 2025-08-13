@@ -51,7 +51,7 @@ export default class Metric extends tsc<IProps> {
   };
   render() {
     const statusSlot = {
-      default: (props: { row: IMetricStorageInfo; index: string }) => {
+      default: (props: { index: string; row: IMetricStorageInfo }) => {
         return (
           <span
             key={props.index}
@@ -96,6 +96,7 @@ export default class Metric extends tsc<IProps> {
                 scopedSlots={statusSlot}
               />
               <bk-table-column
+                formatter={row => (row.created_by ? <bk-user-display-name user-id={row.created_by} /> : '--')}
                 label={this.$t('创建者')}
                 prop={'created_by'}
               />

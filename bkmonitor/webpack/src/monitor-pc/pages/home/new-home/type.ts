@@ -24,50 +24,68 @@
  * IN THE SOFTWARE.
  */
 
+export interface IAlarmGraphConfig {
+  name: string;
+  status?: IAlarmGraphStatus[];
+  strategy_ids: number[];
+  strategy_names?: string[];
+}
 export interface IDataItem {
   [key: string]: any;
 }
+
+export interface IRecentAlarmTab {
+  bk_biz_id: number;
+  bk_biz_name: string;
+}
+export interface IRecentList {
+  function: string;
+  icon?: string;
+  items: IRecentItem[];
+  name: string;
+}
+
+export interface IRouteItem {
+  canStore?: boolean;
+  href?: string;
+  icon?: string;
+  id?: string;
+  name?: string;
+  path?: string;
+}
+
 export interface ISearchItem {
+  alert_id?: number;
+  app_name?: string;
+  bcs_cluster_id?: string;
   bk_biz_id?: string;
   bk_biz_name?: string;
-  name?: string;
-  bk_host_innerip?: string;
   bk_cloud_id?: string;
   bk_cloud_name?: string;
-  bk_host_name?: string;
   bk_host_id?: string;
-  url?: string;
-  alert_id?: number;
-  nameSearch?: string;
-  type?: string;
-  strategy_id?: number;
-  app_name?: string;
-  trace_id?: string;
-  bcs_cluster_id?: string;
-  project_name?: string;
+  bk_host_innerip?: string;
+  bk_host_name?: string;
   compare_hosts?: IDataItem[];
   height?: string;
+  name?: string;
+  nameSearch?: string;
+  project_name?: string;
+  strategy_id?: number;
+  trace_id?: string;
+  type?: string;
+  url?: string;
 }
 
 export interface ISearchListItem {
-  type: string;
-  name: string;
   items: ISearchItem[];
-}
-export interface IRouteItem {
-  name?: string;
-  icon?: string;
-  id?: string;
-  path?: string;
-  href?: string;
-  canStore?: boolean;
+  name: string;
+  type: string;
 }
 
-export interface IRecentList {
-  function: string;
-  items: IRecentItem[];
+interface IAlarmGraphStatus {
   name: string;
-  icon?: string;
+  status: string;
+  strategy_id: number;
 }
 
 interface IRecentItem {
@@ -75,22 +93,4 @@ interface IRecentItem {
   bk_biz_name: string;
   name?: string;
   url?: string;
-}
-
-export interface IRecentAlarmTab {
-  bk_biz_id: number;
-  bk_biz_name: string;
-}
-
-export interface IAlarmGraphConfig {
-  name: string;
-  strategy_ids: number[];
-  status?: IAlarmGraphStatus[];
-  strategy_names?: string[];
-}
-
-interface IAlarmGraphStatus {
-  name: string;
-  status: string;
-  strategy_id: number;
 }

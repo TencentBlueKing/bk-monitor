@@ -28,11 +28,11 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './upload-content.scss';
 
-interface IUploadContentProps {
-  imgSrc?: string;
-}
 interface IUploadContentEvents {
   onChangeImg?: string;
+}
+interface IUploadContentProps {
+  imgSrc?: string;
 }
 
 @Component({

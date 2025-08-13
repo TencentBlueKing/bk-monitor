@@ -32,13 +32,13 @@ import './custom-select.scss';
 
 interface IListItem {
   id: string;
-  name: string;
   isCheck?: boolean;
+  name: string;
 }
 
 interface IProps {
-  value?: string[];
   list?: IListItem[];
+  value?: string[];
   onChange?: (v: string[]) => void;
   onPack?: () => void;
 }

@@ -243,7 +243,7 @@ export default class AlarmShieldDimension extends tsc<IProps> {
       } else {
         this.metricMeta = null;
       }
-      this.dimensionList = !!this.metricList.length
+      this.dimensionList = this.metricList.length
         ? this.metricList.reduce((pre, cur) => {
             const dimensionList = pre
               .concat(cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension))

@@ -31,8 +31,8 @@ import type { TranslateResult } from 'vue-i18n';
 import './panel-item.scss';
 
 interface IPanelItemProps {
-  title: TranslateResult | string;
   flexDirection?: string;
+  title: string | TranslateResult;
 }
 
 @Component

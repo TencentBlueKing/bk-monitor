@@ -23,12 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, ProvideReactive, Provide } from 'vue-property-decorator';
+import { Component, Prop, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { graphDrillDown } from 'monitor-api/modules/scene_view';
-import { random, deepClone } from 'monitor-common/utils';
+import { deepClone, random } from 'monitor-common/utils';
 import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -39,21 +38,22 @@ import DrillAnalysisFilter from './drill-analysis-filter';
 import DrillAnalysisTable from './drill-analysis-table';
 import NewMetricChart from './metric-chart';
 import { refreshList } from './utils';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import type { IDimensionItem, IRefreshItem, IResultItem } from '../type';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './drill-analysis-view.scss';
 
-/** 维度下钻 */
-interface IDrillAnalysisViewProps {
-  dimensionsList?: IDimensionItem[];
-  currentMethod?: string;
-  panel?: IPanelModel;
-  timeRangeData?: TimeRangeType;
-}
 interface IDrillAnalysisViewEvents {
   onClose?: () => void;
+}
+/** 维度下钻 */
+interface IDrillAnalysisViewProps {
+  currentMethod?: string;
+  dimensionsList?: IDimensionItem[];
+  panel?: IPanelModel;
+  timeRangeData?: TimeRangeType;
 }
 @Component
 export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDrillAnalysisViewEvents> {
@@ -94,7 +94,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     drill_group_by: [],
     limit: {
       function: 'top',
-      limit: 10,
+      limit: 50,
     },
     function: {
       time_compare: [],
@@ -263,6 +263,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
 
     for (let i = 0; i < keysArray.length; i++) {
       const key = keysArray[i];
+      if (key === '__proto__' || key === 'constructor') continue;
       if (i === keysArray.length - 1) {
         current[key] = value;
       } else {
@@ -324,6 +325,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       group_by: this.filterConfig.drill_group_by,
     };
     const params = len > 0 ? { ...baseParams, ...{ function: this.filterConfig.function } } : baseParams;
+    // biome-ignore lint/performance/noDelete: <explanation>
     len === 0 && delete this.panelData.targets[0].function;
 
     graphDrillDown({ ...this.panelData.targets[0], ...params })
@@ -353,7 +355,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     this.setPanelConfigAndRefresh('limit', item);
   }
   /** 修改过滤条件 */
-  handleConditionChange(payload: { where: IResultItem['where']; custom_data: IResultItem['common_conditions'] }) {
+  handleConditionChange(payload: { custom_data: IResultItem['common_conditions']; where: IResultItem['where'] }) {
     this.setPanelConfigAndRefresh('where', payload.where);
     const concatFilter = deepClone(this.defaultCommonConditions);
     payload.custom_data.map(item => {

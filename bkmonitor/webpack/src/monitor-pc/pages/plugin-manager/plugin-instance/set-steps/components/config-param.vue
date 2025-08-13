@@ -40,8 +40,8 @@
     >
       <div
         v-for="(item, index) in readonlyParam"
-        class="item"
         :key="index"
+        class="item"
       >
         <div class="label">{{ item.label }} ：</div>
         <div class="value">
@@ -93,11 +93,11 @@
       <div class="item-param">
         <span> {{ $t('默认值') }} </span>
         <i
-          class="bk-icon icon-info"
+          v-show="config.types.type === 'dms_insert'"
           v-bk-tooltips="{
             content: defaultTipContentByDefaultType(config.default.type),
           }"
-          v-show="config.types.type === 'dms_insert'"
+          class="bk-icon icon-info"
         />
         <verify-input
           :show-validate="dmsInsertError"
@@ -125,14 +125,14 @@
               />
               <bk-input
                 v-else-if="['password', 'encrypt'].includes(config.default.type)"
-                ext-cls="value-password"
                 v-model="config.default.value"
+                ext-cls="value-password"
                 type="password"
               />
               <bk-switcher
                 v-else-if="config.default.type === 'switch'"
-                class="value-switch"
                 v-model="config.default.value"
+                class="value-switch"
                 false-value="false"
                 true-value="true"
               />

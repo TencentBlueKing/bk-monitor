@@ -115,6 +115,13 @@ axiosInstance.interceptors.response.use(
     return responsePromise();
   },
   error => {
+    const reject = e => {
+      if (typeof e === 'object' && e !== null) {
+        return Promise.reject(e);
+      }
+
+      return Promise.reject(new Error(`${e}`));
+    }
     if (error?.response?.data instanceof Blob) {
       return readBlobRespToJson(error.response.data).then(resp => {
         return handleReject(
@@ -123,11 +130,12 @@ axiosInstance.interceptors.response.use(
             response: resp,
           },
           { globalError: true, catchIsShowMessage: true, ...error.config },
+          reject
         );
       });
     }
 
-    return handleReject(error, { globalError: true, catchIsShowMessage: true, ...error.config });
+    return handleReject(error, { globalError: true, catchIsShowMessage: true, ...error.config }, reject);
   },
 );
 

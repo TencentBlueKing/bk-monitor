@@ -26,7 +26,7 @@ from django.db import IntegrityError, transaction
 from apps.api import CCApi, NodeApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
-from apps.exceptions import ApiRequestError, ApiResultError
+from apps.exceptions import ApiRequestError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_COLLECTOR_ITSM
 from apps.log_databus.models import CollectorConfig
@@ -41,7 +41,6 @@ from apps.log_databus.constants import (
     CC_HOST_FIELDS,
     TargetNodeTypeEnum,
     LogPluginInfo,
-    CHECK_TASK_READY_NOTE_FOUND_EXCEPTION_CODE,
     CollectStatus,
     BIZ_TOPO_INDEX,
     INTERNAL_TOPO_INDEX,
@@ -629,32 +628,6 @@ class HostCollectorHandler(CollectorHandler):
 
         return res
 
-    @classmethod
-    def _check_task_ready_exception(cls, error: BaseException):
-        """
-        处理task_ready_exception 返回error
-        @param error {BaseException} 返回错误
-        """
-        task_ready = True
-        if isinstance(error, ApiRequestError):
-            return task_ready
-        if isinstance(error, ApiResultError) and str(error.code) == CHECK_TASK_READY_NOTE_FOUND_EXCEPTION_CODE:
-            return task_ready
-        logger.error(f"Call NodeApi check_task_ready error: {error}")
-        raise error
-
-    def _check_task_ready(self, param: dict):
-        """
-        查询任务是否下发: 兼容节点管理未发布的情况
-        @param param {Dict} NodeApi.check_subscription_task_ready 请求
-        """
-        try:
-            task_ready = NodeApi.check_subscription_task_ready(param)
-        # 如果节点管理路由不存在或服务异常等request异常情况
-        except BaseException as e:  # pylint: disable=broad-except
-            task_ready = self._check_task_ready_exception(e)
-        return task_ready
-
     @staticmethod
     def get_instance_log(instance_obj):
         """
@@ -924,19 +897,6 @@ class HostCollectorHandler(CollectorHandler):
                 ),
                 params=self.data.params,
             )
-        # 查询采集任务状态
-        param = {
-            "subscription_id": self.data.subscription_id,
-            "bk_biz_id": self.data.bk_biz_id,
-        }
-        if self.data.task_id_list:
-            param["task_id_list"] = self.data.task_id_list
-
-        task_ready = self._check_task_ready(param=param)
-
-        # 如果任务未启动，则直接返回结果
-        if not task_ready:
-            return {"task_ready": task_ready, "contents": []}
 
         status_result = NodeApi.get_subscription_task_status.bulk_request(
             params={
@@ -965,7 +925,7 @@ class HostCollectorHandler(CollectorHandler):
                     "child": instance_status,
                 }
             ]
-            return {"task_ready": task_ready, "contents": content_data}
+            return {"task_ready": True, "contents": content_data}
 
         # 如果采集目标是HOST-TOPO
         # 获取target_nodes获取采集目标及差异节点target_subscription_diff合集
@@ -1003,7 +963,7 @@ class HostCollectorHandler(CollectorHandler):
                 ] in host_result:
                     content_obj["child"].append(instance_obj)
             content_data.append(content_obj)
-        return {"task_ready": task_ready, "contents": content_data}
+        return {"task_ready": True, "contents": content_data}
 
     @staticmethod
     def format_subscription_instance_status(instance_data, plugin_data):
@@ -1176,8 +1136,8 @@ class HostCollectorHandler(CollectorHandler):
         scope_data = [
             {"field": "bk_module_id", "name": "模块ID", "group_name": "基础信息"},
             {"field": "bk_set_id", "name": "集群ID", "group_name": "基础信息"},
-            # {"field": "bk_module_name", "name": "模块名称", "group_name": "基础信息"},
-            # {"field": "bk_set_name", "name": "集群名称", "group_name": "基础信息"},
+            {"field": "bk_module_name", "name": "模块名称", "group_name": "基础信息"},
+            {"field": "bk_set_name", "name": "集群名称", "group_name": "基础信息"},
         ]
         return_data["scope"] = scope_data
         return return_data

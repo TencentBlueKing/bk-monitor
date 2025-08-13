@@ -48,7 +48,7 @@ class UseSaaSAuthInfoMixin:
 
 class BkDataAPIGWResource(APIResource, metaclass=abc.ABCMeta):
     base_url_statement = None
-    base_url = settings.BKDATA_API_BASE_URL or "%s/api/bk-base/prod/" % settings.BK_COMPONENT_API_URL
+    base_url = settings.BKDATA_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/bk-base/prod/"
 
     # 模块名
     module_name = "bkdata"
@@ -219,7 +219,7 @@ class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
 
 class QueryProfileDataResource(QueryDataResource):
     """
-    临时提供给 Profile 类型，一个独立的查询地址 (you can delete me if you need)
+    Profile专用查询入口，可以独立切换查询地址
     """
 
     base_url = settings.BKDATA_PROFILE_QUERY_API_BASE_URL or QueryDataResource.base_url
@@ -1341,6 +1341,18 @@ class GetIncidentTopoByEntity(DataAccessAPIResource):
         incident_id = serializers.IntegerField(required=True, label="故障ID")
         entity_id = serializers.CharField(required=True, label="图谱实体ID")
         snapshot_id = serializers.CharField(required=True, label="图谱快照ID")
+
+
+class GetIncidentAnalysisResults(DataAccessAPIResource):
+    """
+    获取故障根因定位快照数据
+    """
+
+    action = "/v3/aiops/incident/analysis_results/{incident_id}/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        incident_id = serializers.IntegerField(required=True, label="故障ID")
 
 
 class GetStorageMetricsDataCount(DataAccessAPIResource):

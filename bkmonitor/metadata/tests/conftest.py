@@ -10,8 +10,10 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import json
-
 from unittest import mock
+from unittest.mock import PropertyMock
+
+import fakeredis
 import pytest
 from mockredis import MockRedis
 
@@ -137,8 +139,15 @@ MOCK_CMDB_GET_HOST_BY_IP = [
 def pytest_configure():
     # 在初始化的时候，就需要对外部的gse zookeeper依赖进行mock，防止migration失败
     mock.patch("metadata.models.DataSource.refresh_gse_config", return_value=True)
-
     mock.patch("metadata.models.DataSource.create_mq", return_value=True)
+    mock.patch(
+        "metadata.utils.redis_tools.RedisTools.client",
+        new_callable=PropertyMock,
+        return_value=fakeredis.FakeRedis(decode_responses=False),
+    ).start()
+    mock.patch(
+        "alarm_backends.core.storage.redis.redis.Redis", return_value=fakeredis.FakeRedis(decode_responses=True)
+    ).start()
 
 
 @pytest.fixture

@@ -37,12 +37,12 @@ export const MAX_ITEM_HEIGHT = 6;
 
 export default function renderIntoCanvas(
   canvas: HTMLCanvasElement,
-  items: { valueWidth: number; valueOffset: number; serviceName: string; color: string; isVirtual: boolean }[],
+  items: { color: string; isVirtual: boolean; serviceName: string; valueOffset: number; valueWidth: number }[],
   totalValueWidth: number,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   getFillColor: (serviceName: string) => [number, number, number]
 ) {
-  const fillCache: Map<string, TNil | string> = new Map();
+  const fillCache: Map<string, string | TNil> = new Map();
   const cHeight = items.length < MIN_TOTAL_HEIGHT ? MIN_TOTAL_HEIGHT : Math.min(items.length, MAX_TOTAL_HEIGHT);
   const cWidth = window.innerWidth * 2;
 

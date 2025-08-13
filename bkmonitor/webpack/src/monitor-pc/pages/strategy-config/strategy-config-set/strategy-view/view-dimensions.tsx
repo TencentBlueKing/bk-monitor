@@ -30,19 +30,19 @@ import { Debounce } from 'monitor-common/utils';
 
 import './view-dimensions.scss';
 
+interface IDimensionOption {
+  id: string;
+  list: IMenu[];
+  name: string;
+  show: boolean;
+}
+
 interface IMenu {
+  disabled?: boolean;
+  hidden?: boolean;
   id: number | string;
   name: string;
   readonly?: boolean;
-  disabled?: boolean;
-  hidden?: boolean;
-}
-
-interface IDimensionOption {
-  id: string;
-  name: string;
-  show: boolean;
-  list: IMenu[];
 }
 
 interface IProps {

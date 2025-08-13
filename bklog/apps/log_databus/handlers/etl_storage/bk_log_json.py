@@ -101,20 +101,11 @@ class BkLogJsonEtlStorage(EtlStorage):
             fields_configs.extend(
                 [
                     {
-                        "type": "access",
-                        "subtype": "access_obj",
-                        "label": "label2c773e" + str(count),
-                        "key": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),
-                        "result": f"{field.get('alias_name') if field.get('alias_name') else field.get('field_name')}_json",
-                        "default_type": "text",
-                        "default_value": "",
-                        "next": {
-                            "type": "assign",
-                            "subtype": "assign_json",
-                            "label": "label6d9ab9" + str(count),
-                            "assign": [self._to_bkdata_assign_obj(field)],
-                            "next": None,
-                        },
+                        "type": "assign",
+                        "subtype": "assign_json",
+                        "label": "label6d9ab9" + str(count),
+                        "assign": [self._to_bkdata_assign_obj(field)],
+                        "next": None,
                     }
                     for count, field in enumerate(fields_type_object)
                 ]

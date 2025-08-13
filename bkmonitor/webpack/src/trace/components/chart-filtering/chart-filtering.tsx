@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType, ref, shallowRef, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, defineComponent, ref, shallowRef, watch } from 'vue';
 
 import { Slider } from 'bkui-vue';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import { formatDuration } from '../trace-view/utils/date';
 import BarChart from './bar-chart';
@@ -42,20 +42,20 @@ import './chart-filtering.scss';
 
 export interface DurationRangeItem {
   alias: string;
-  value: string;
   count: number;
   proportions: number;
+  value: string;
 }
 
 export interface ISliderItem {
-  overallText?: string;
   curValText?: string;
   curValue: number[];
-  scaleRange: number[];
-  min: number;
-  max: number;
-  step: number;
   disable?: boolean;
+  max: number;
+  min: number;
+  overallText?: string;
+  scaleRange: number[];
+  step: number;
 }
 
 export default defineComponent({

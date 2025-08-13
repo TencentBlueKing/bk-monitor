@@ -40,24 +40,24 @@ export interface IAlarmGroupList {
 }
 
 interface IAlarmList {
-  value?: number[];
-  list: any[];
-  disabledList?: number[];
   disabled?: boolean;
-  readonly?: boolean;
-  strategyId?: number | string;
-  showAddTip?: boolean;
-  isSimple?: boolean; // 简洁模式（无预览，无回填）
+  disabledList?: number[];
   isOpenNewPage?: boolean; // 点击创建按钮新开页
-  tagClick?: (id: number, e: Event) => void;
   isRefresh?: boolean;
+  isSimple?: boolean; // 简洁模式（无预览，无回填）
+  list: any[];
   loading?: boolean;
+  readonly?: boolean;
+  showAddTip?: boolean;
+  strategyId?: number | string;
+  value?: number[];
+  tagClick?: (id: number, e: Event) => void;
 }
 interface IEvent {
-  onChange?: number[];
   onAddGroup?: void;
-  onToggle?: (v: boolean) => void;
+  onChange?: number[];
   onRefresh?: () => void;
+  onToggle?: (v: boolean) => void;
 }
 @Component({ name: 'AlarmGroup' })
 export default class AlarmGroup extends tsc<IAlarmList, IEvent> {

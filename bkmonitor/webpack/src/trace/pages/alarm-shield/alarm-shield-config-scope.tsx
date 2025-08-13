@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Button, Popover, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import CommonTip from '../../components/common-tip/common-tip';
 import AlarmShieldIpv6 from './components/alarm-shield-ipv6';

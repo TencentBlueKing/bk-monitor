@@ -38,14 +38,15 @@ import {
 import { copyText } from 'monitor-common/utils/utils.js';
 
 import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { transformJobUrl } from '../../../utils/index';
 import {
+  type IContentsItem,
+  colorMap,
   EStatus,
   FILTER_TYPE_LIST,
-  type IContentsItem,
-  STATUS_LIST,
-  colorMap,
   labelMap,
+  STATUS_LIST,
   statusMap,
 } from '../collector-host-detail/utils';
 import AlertHistogram from './components/alert-histogram';
@@ -63,6 +64,7 @@ enum EColumn {
 
 interface IProps {
   data: any;
+  tableLoading?: boolean;
   updateKey: string;
   onCanPolling: (_v) => void;
   onRefresh: () => void;
@@ -73,6 +75,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) data: any;
   @Prop({ type: String, default: '' }) updateKey: boolean;
   @Prop({ type: Boolean, default: true }) isRunning: boolean;
+  @Prop({ type: Boolean, default: false }) tableLoading: boolean;
 
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
@@ -181,7 +184,8 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         return {
           ...item,
           ...nums,
-          table,
+          table: Object.freeze(table),
+          child: Object.freeze(item.child),
           showAlertHistogram,
           isExpand: index < 1,
         };
@@ -545,234 +549,241 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           </div>
         </div>
         <div class='table-content'>
-          {this.contents
-            .filter(content => !!content.table?.length)
-            .map((content, index) => (
-              <ExpandWrapper
-                key={index}
-                class='mt-20'
-                value={content.isExpand}
-                onChange={v => {
-                  content.isExpand = v;
-                }}
-              >
-                {!!content.is_label && (
-                  <span slot='pre-header'>
-                    <span
-                      style={{
-                        backgroundColor: labelMap[content.label_name].color,
-                      }}
-                      class='pre-panel-name fix-same-code'
-                    >
-                      {labelMap[content.label_name].name}
-                    </span>
-                    <span
-                      style={{
-                        borderColor: labelMap[content.label_name].color,
-                      }}
-                      class='pre-panel-mark fix-same-code'
-                    />
-                  </span>
-                )}
-                <span slot='header'>
-                  {(() => {
-                    if (this.isRunning) {
-                      const temp = [];
-                      if (content.successNum && this.header.status !== EStatus.FAILED) {
-                        temp.push(
-                          <span class='num fix-same-code'>
-                            <i18n path='{0}个成功'>
-                              <span style={{ color: '#2dcb56' }}>{content.successNum}</span>
-                            </i18n>
-                            {(content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) ||
-                            content.pendingNum
-                              ? ','
-                              : undefined}
-                          </span>
-                        );
-                      }
-                      if (content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) {
-                        temp.push(
-                          <span class='num fix-same-code'>
-                            <i18n path='{0}个失败'>
-                              <span style={{ color: '#ea3636' }}>{content.failedNum}</span>
-                            </i18n>
-                            {content.pendingNum ? ',' : undefined}
-                          </span>
-                        );
-                      }
-                      if (content.pendingNum) {
-                        temp.push(
-                          <span class='num fix-same-code'>
-                            <i18n path='{0}个执行中'>
-                              <span style={{ color: '#3a84ff' }}>{content.failedNum}</span>
-                            </i18n>
-                          </span>
-                        );
-                      }
-                      if (!content.child.length) {
-                        return (
-                          <span class='num'>
-                            {this.config?.target_object_type ? (
-                              <i18n path='共{0}台主机'>
-                                <span style='color: #63656e;'>0</span>
-                              </i18n>
-                            ) : (
-                              <i18n path='共{0}个实例'>
-                                <span style='color: #63656e;'>0</span>
-                              </i18n>
-                            )}
-                          </span>
-                        );
-                      }
-                      return temp;
-                    }
-                    return (
-                      <span class='num fix-same-code'>
-                        <i18n
-                          path={`共{0}${
-                            this.config?.target_object_type === 'HOST' ? this.$t('台主机') : this.$t('个实例')
-                          }`}
-                        >
-                          {content.successNum + content.failedNum + content.pendingNum}
-                        </i18n>
+          {this.tableLoading ? (
+            <TableSkeleton
+              style={{
+                marginTop: '20px',
+              }}
+              type={1}
+            />
+          ) : (
+            this.contents
+              .filter(content => !!content.table?.length)
+              .map((content, index) => (
+                <ExpandWrapper
+                  key={index}
+                  class='mt-20'
+                  value={content.isExpand}
+                  onChange={v => {
+                    content.isExpand = v;
+                  }}
+                >
+                  {!!content.is_label && (
+                    <span slot='pre-header'>
+                      <span
+                        style={{
+                          backgroundColor: labelMap[content.label_name].color,
+                        }}
+                        class='pre-panel-name fix-same-code'
+                      >
+                        {labelMap[content.label_name].name}
                       </span>
-                    );
-                  })()}
-                </span>
-                {content.isExpand && (
-                  <div
-                    class='table-content-wrap'
-                    slot='content'
-                  >
-                    <bk-table
-                      {...{
-                        props: {
-                          data: content.table,
-                        },
-                      }}
-                    >
-                      {this.tableColumns
-                        .filter(column => (column.id === EColumn.alert ? !!content?.showAlertHistogram : true))
-                        .map(column => {
-                          const key = `column_${column.id}`;
-                          return (
-                            <bk-table-column
-                              key={key}
-                              width={column.width}
-                              formatter={(row: any) => {
-                                switch (column.id) {
-                                  case EColumn.name: {
-                                    return <span>{row.instance_name}</span>;
-                                  }
-                                  case EColumn.alert: {
-                                    return <AlertHistogram value={row.alertHistogram} />;
-                                  }
-                                  case EColumn.status: {
-                                    return (
-                                      <span class='col-status'>
-                                        {[
-                                          this.isRunning && STATUS_LIST.includes(row.status) ? (
-                                            <bk-spin
-                                              key='bk-spin'
-                                              class='mr-3'
-                                              size='mini'
-                                            />
-                                          ) : undefined,
-                                          this.isRunning &&
-                                          [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
-                                            row.status
-                                          ) ? (
-                                            <span
-                                              key='point'
-                                              style={{ background: colorMap[row.status][0] }}
-                                              class='point mr-3'
-                                            >
-                                              <span
-                                                style={{ background: colorMap[row.status][1] }}
-                                                class='s-point'
-                                              />
-                                            </span>
-                                          ) : undefined,
-                                          this.isRunning ? (
-                                            <span
-                                              key='content-panel-span'
-                                              class='content-panel-span'
-                                            >
-                                              {statusMap[row.status].name}
-                                            </span>
-                                          ) : (
-                                            <span key='--'>--</span>
-                                          ),
-                                        ]}
-                                      </span>
-                                    );
-                                  }
-                                  case EColumn.version: {
-                                    return <span>{row.plugin_version}</span>;
-                                  }
-                                  case EColumn.detail: {
-                                    return (
-                                      <span class='col-detail'>
-                                        <span class='col-detail-data'>{row.log || '--'}</span>
-                                        {this.isRunning && row.status === EStatus.FAILED && (
-                                          <span
-                                            class='col-detail-more fix-same-code'
-                                            onClick={() => this.handleGetMoreDetail(row)}
-                                          >
-                                            {this.$t('详情')}
-                                          </span>
-                                        )}
-                                      </span>
-                                    );
-                                  }
-                                  case EColumn.operate: {
-                                    return [
-                                      this.isRunning && row.status === EStatus.FAILED ? (
-                                        <div
-                                          key='col-retry'
-                                          class='col-retry'
-                                          onClick={() =>
-                                            this.authority.MANAGE_AUTH
-                                              ? this.handleRetry(row, content)
-                                              : this.handleShowAuthorityDetail()
-                                          }
-                                        >
-                                          {this.$t('重试')}
-                                        </div>
-                                      ) : undefined,
-                                      this.isRunning &&
-                                      !this.isK8SCollect &&
-                                      ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(row.status) ? (
-                                        <div
-                                          key='col-retry'
-                                          class='col-retry fix-same-code'
-                                          onClick={() =>
-                                            ['DEPLOYING', 'RUNNING', 'PENDING'].includes(row.status) &&
-                                            this.handleRevoke(row, content)
-                                          }
-                                        >
-                                          {this.$t('终止')}
-                                        </div>
-                                      ) : undefined,
-                                    ];
-                                  }
-                                  default: {
-                                    return <span>--</span>;
-                                  }
-                                }
-                              }}
-                              label={column.name}
-                              minWidth={column?.minWidth}
-                              prop={column.id}
-                            />
+                      <span
+                        style={{
+                          borderColor: labelMap[content.label_name].color,
+                        }}
+                        class='pre-panel-mark fix-same-code'
+                      />
+                    </span>
+                  )}
+                  <span slot='header'>
+                    {(() => {
+                      if (this.isRunning) {
+                        const temp = [];
+                        if (content.successNum && this.header.status !== EStatus.FAILED) {
+                          temp.push(
+                            <span class='num fix-same-code'>
+                              <i18n path='{0}个成功'>
+                                <span style={{ color: '#2dcb56' }}>{content.successNum}</span>
+                              </i18n>
+                              {(content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) ||
+                              content.pendingNum
+                                ? ','
+                                : undefined}
+                            </span>
                           );
-                        })}
-                    </bk-table>
-                  </div>
-                )}
-              </ExpandWrapper>
-            ))}
+                        }
+                        if (content.failedNum && [EStatus.ALL, EStatus.FAILED].includes(this.header.status)) {
+                          temp.push(
+                            <span class='num fix-same-code'>
+                              <i18n path='{0}个失败'>
+                                <span style={{ color: '#ea3636' }}>{content.failedNum}</span>
+                              </i18n>
+                              {content.pendingNum ? ',' : undefined}
+                            </span>
+                          );
+                        }
+                        if (content.pendingNum) {
+                          temp.push(
+                            <span class='num fix-same-code'>
+                              <i18n path='{0}个执行中'>
+                                <span style={{ color: '#3a84ff' }}>{content.failedNum}</span>
+                              </i18n>
+                            </span>
+                          );
+                        }
+                        if (!content.child.length) {
+                          return (
+                            <span class='num'>
+                              {this.config?.target_object_type ? (
+                                <i18n path='共{0}台主机'>
+                                  <span style='color: #63656e;'>0</span>
+                                </i18n>
+                              ) : (
+                                <i18n path='共{0}个实例'>
+                                  <span style='color: #63656e;'>0</span>
+                                </i18n>
+                              )}
+                            </span>
+                          );
+                        }
+                        return temp;
+                      }
+                      return (
+                        <span class='num fix-same-code'>
+                          <i18n
+                            path={`共{0}${
+                              this.config?.target_object_type === 'HOST' ? this.$t('台主机') : this.$t('个实例')
+                            }`}
+                          >
+                            {content.successNum + content.failedNum + content.pendingNum}
+                          </i18n>
+                        </span>
+                      );
+                    })()}
+                  </span>
+                  {content.isExpand && (
+                    <div
+                      class='table-content-wrap'
+                      slot='content'
+                    >
+                      <bk-table
+                        height={600}
+                        data={content.table}
+                        virtual-render={true}
+                      >
+                        {this.tableColumns
+                          .filter(column => (column.id === EColumn.alert ? !!content?.showAlertHistogram : true))
+                          .map(column => {
+                            const key = `column_${column.id}`;
+                            return (
+                              <bk-table-column
+                                key={key}
+                                width={column.width}
+                                formatter={(row: any) => {
+                                  switch (column.id) {
+                                    case EColumn.name: {
+                                      return <span>{row.instance_name}</span>;
+                                    }
+                                    case EColumn.alert: {
+                                      return <AlertHistogram value={row.alertHistogram} />;
+                                    }
+                                    case EColumn.status: {
+                                      return (
+                                        <span class='col-status'>
+                                          {[
+                                            this.isRunning && STATUS_LIST.includes(row.status) ? (
+                                              <bk-spin
+                                                key='bk-spin'
+                                                class='mr-3'
+                                                size='mini'
+                                              />
+                                            ) : undefined,
+                                            this.isRunning &&
+                                            [EStatus.FAILED, EStatus.WARNING, EStatus.SUCCESS, 'STOPPED'].includes(
+                                              row.status
+                                            ) ? (
+                                              <span
+                                                key='point'
+                                                style={{ background: colorMap[row.status][0] }}
+                                                class='point mr-3'
+                                              >
+                                                <span
+                                                  style={{ background: colorMap[row.status][1] }}
+                                                  class='s-point'
+                                                />
+                                              </span>
+                                            ) : undefined,
+                                            this.isRunning ? (
+                                              <span
+                                                key='content-panel-span'
+                                                class='content-panel-span'
+                                              >
+                                                {statusMap[row.status].name}
+                                              </span>
+                                            ) : (
+                                              <span key='--'>--</span>
+                                            ),
+                                          ]}
+                                        </span>
+                                      );
+                                    }
+                                    case EColumn.version: {
+                                      return <span>{row.plugin_version}</span>;
+                                    }
+                                    case EColumn.detail: {
+                                      return (
+                                        <span class='col-detail'>
+                                          <span class='col-detail-data'>{row.log || '--'}</span>
+                                          {this.isRunning && row.status === EStatus.FAILED && (
+                                            <span
+                                              class='col-detail-more fix-same-code'
+                                              onClick={() => this.handleGetMoreDetail(row)}
+                                            >
+                                              {this.$t('详情')}
+                                            </span>
+                                          )}
+                                        </span>
+                                      );
+                                    }
+                                    case EColumn.operate: {
+                                      return [
+                                        this.isRunning && row.status === EStatus.FAILED ? (
+                                          <div
+                                            key='col-retry'
+                                            class='col-retry'
+                                            onClick={() =>
+                                              this.authority.MANAGE_AUTH
+                                                ? this.handleRetry(row, content)
+                                                : this.handleShowAuthorityDetail()
+                                            }
+                                          >
+                                            {this.$t('重试')}
+                                          </div>
+                                        ) : undefined,
+                                        this.isRunning &&
+                                        !this.isK8SCollect &&
+                                        ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(row.status) ? (
+                                          <div
+                                            key='col-retry'
+                                            class='col-retry fix-same-code'
+                                            onClick={() =>
+                                              ['DEPLOYING', 'RUNNING', 'PENDING'].includes(row.status) &&
+                                              this.handleRevoke(row, content)
+                                            }
+                                          >
+                                            {this.$t('终止')}
+                                          </div>
+                                        ) : undefined,
+                                      ];
+                                    }
+                                    default: {
+                                      return <span>--</span>;
+                                    }
+                                  }
+                                }}
+                                label={column.name}
+                                minWidth={column?.minWidth}
+                                prop={column.id}
+                              />
+                            );
+                          })}
+                      </bk-table>
+                    </div>
+                  )}
+                </ExpandWrapper>
+              ))
+          )}
         </div>
         <bk-sideslider
           width={900}

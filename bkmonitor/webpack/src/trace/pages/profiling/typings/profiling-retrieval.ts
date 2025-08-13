@@ -24,16 +24,43 @@
  * IN THE SOFTWARE.
  */
 
-export enum SearchType {
-  Profiling = 'profiling',
-  Upload = 'upload',
-}
-
 export enum ConditionType {
   /** 对比项 */
   Comparison = 'comparison',
   /** 查询项 */
   Where = 'where',
+}
+
+export enum SearchType {
+  Profiling = 'profiling',
+  Upload = 'upload',
+}
+
+export interface ApplicationItem {
+  app_alias: string;
+  app_name: string;
+  application_id: number;
+  bk_biz_id: number;
+  description: string;
+  services: ServiceItem[];
+}
+
+export interface ApplicationList {
+  no_data: ApplicationItem[];
+  normal: ApplicationItem[];
+}
+export interface DataTypeItem {
+  default_agg_method?: string;
+  key: string;
+  name: string;
+}
+
+/** 时间对比 */
+export interface DateComparison {
+  diffEnd?: number;
+  diffStart?: number;
+  end?: number;
+  start?: number;
 }
 
 export interface IConditionItem {
@@ -42,56 +69,29 @@ export interface IConditionItem {
   value: string | string[];
 }
 
-/** 时间对比 */
-export interface DateComparison {
-  start?: number;
-  end?: number;
-  diffStart?: number;
-  diffEnd?: number;
-}
 export interface RetrievalFormData {
-  /** 查询类型 */
-  type: SearchType;
+  /** 对比项条件 */
+  comparisonWhere: IConditionItem[];
+  /** 时间对比开关 */
+  dateComparisonEnable: boolean;
+  endTime?: number;
   /** 是否开启对比模式 */
   isComparison: boolean;
+  /** 上传 profiling 用于上传文件查询的开始和结束时间 */
+  startTime?: number;
+  /** 查询类型 */
+  type: SearchType;
+  /** 查询项条件 */
+  where: IConditionItem[];
   /** 应用/服务 */
   server: {
     app_name: string;
     service_name: string;
   };
-  /** 时间对比开关 */
-  dateComparisonEnable: boolean;
-  /** 查询项条件 */
-  where: IConditionItem[];
-  /** 对比项条件 */
-  comparisonWhere: IConditionItem[];
-  /** 上传 profiling 用于上传文件查询的开始和结束时间 */
-  startTime?: number;
-  endTime?: number;
-}
-
-export interface DataTypeItem {
-  key: string;
-  name: string;
-  default_agg_method?: string;
 }
 
 export interface ServiceItem {
+  has_data: boolean;
   id: number;
   name: string;
-  has_data: boolean;
-}
-
-export interface ApplicationItem {
-  bk_biz_id: number;
-  application_id: number;
-  app_name: string;
-  app_alias: string;
-  description: string;
-  services: ServiceItem[];
-}
-
-export interface ApplicationList {
-  normal: ApplicationItem[];
-  no_data: ApplicationItem[];
 }

@@ -32,9 +32,9 @@
     <div class="item-title">
       <span>{{ title }}</span>
       <i
+        v-if="isHoverStatus"
         class="icon-monitor icon-mc-close"
         @click="handleClose"
-        v-if="isHoverStatus"
       />
     </div>
     <div class="item-content">
@@ -47,8 +47,8 @@
           @input="handleUpdateValue"
         />
         <bk-checkbox-group
-          class="item-content-checkbox"
           v-else-if="type === 'checkbox'"
+          class="item-content-checkbox"
           :value="value"
           @change="handleUpdateValue"
         >
@@ -72,8 +72,8 @@
         >
           <bk-option
             v-for="item in sortOptions"
-            :key="item.id"
             :id="item.id"
+            :key="item.id"
             :name="item.name"
           >
             {{ item.name }}
@@ -81,13 +81,13 @@
         </bk-select>
         <bk-cascade
           v-else-if="type === 'cascade'"
+          ref="cascade"
           :value="value"
           :list="cascadeOptions"
           clearable
           :popover-options="{ boundary: 'window' }"
           check-any-level
           :scroll-width="cascaderScrollWidth"
-          ref="cascade"
           :multiple="multiple"
           filterable
           @toggle="handleCascadeToggle"
@@ -103,15 +103,15 @@
             <div class="condition-left">
               <!-- 条件 -->
               <bk-select
+                v-model="data.condition"
                 class="condition-select"
                 :popover-options="{ boundary: 'window' }"
-                v-model="data.condition"
                 @change="handleConditionChange"
               >
                 <bk-option
                   v-for="item in conditions"
-                  :key="item.id"
                   :id="item.id"
+                  :key="item.id"
                   :name="item.name"
                 >
                   {{ item.name }}
@@ -119,8 +119,8 @@
               </bk-select>
               <!-- 值 -->
               <bk-input
-                class="condition-input"
                 v-model="data.value"
+                class="condition-input"
                 type="number"
                 @change="handleConditionChange"
               />
@@ -143,10 +143,11 @@
   </div>
 </template>
 <script lang="ts">
-import { sort } from 'monitor-common/utils/utils.js';
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import type { FieldValue, IConditionValue, IOption, InputType } from '../performance-type';
+import { sort } from 'monitor-common/utils/utils.js';
+
+import type { FieldValue, IConditionValue, InputType, IOption } from '../performance-type';
 
 @Component({ name: 'filter-panel-item' })
 export default class PanelItem extends Vue {
@@ -352,9 +353,8 @@ export default class PanelItem extends Vue {
   handleCascadeChange(val: any[]) {
     const allIndex = val.findIndex(item => item.includes('__all__'));
     if (allIndex >= 0) {
-      // eslint-disable-next-line no-param-reassign
       val = [];
-      // eslint-disable-next-line no-restricted-syntax
+
       for (const item of this.cascadeRef.searchList) {
         if (!item.id.includes('__all__')) {
           val.push(item.id);

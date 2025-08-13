@@ -34,7 +34,7 @@ from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTyp
 from apps.decorators import user_operation_record
 from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE, UNIFY_QUERY_SEARCH
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH, UNIFY_QUERY_SQL
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -52,11 +52,13 @@ from apps.log_search.constants import (
     ExportStatus,
     ExportType,
     IndexSetType,
-    QueryMode,
     SearchScopeEnum,
+    QueryMode,
+    SQL_PREFIX,
+    SQL_SUFFIX,
 )
 from apps.log_search.decorators import search_history_record
-from apps.log_search.exceptions import BaseSearchIndexSetException
+from apps.log_search.exceptions import BaseSearchIndexSetException, TokenMissingException
 from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
     IndexSetCustomConfigHandler,
@@ -98,6 +100,8 @@ from apps.log_search.serializers import (
     UnionSearchSearchExportSerializer,
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
+    AliasSettingsSerializer,
+    SearchLogForCodeSerializer,
 )
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.builder.context import build_context_params
@@ -108,6 +112,7 @@ from apps.log_unifyquery.handler.async_export_handlers import (
 )
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
+from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
 from apps.utils.local import get_request_external_username, get_request_username
@@ -356,21 +361,6 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAttrSerializer)
-        if not data.get("is_desensitize"):
-            # 只针对白名单中的APP_CODE开放不脱敏的权限
-            auth_info = Permission.get_auth_info(self.request, raise_exception=False)
-            if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
-                data["is_desensitize"] = True
-        if data.get("is_desensitize"):
-            # 对脱敏白名单中的用户开放不脱敏的权限
-            bk_biz_id = data.get("bk_biz_id", "")
-            request_user = get_request_username()
-            feature_toggle = FeatureToggleObject.toggle(LOG_DESENSITIZE)
-            if feature_toggle and isinstance(feature_toggle.feature_config, dict):
-                user_white_list = feature_toggle.feature_config.get("user_white_list", {})
-                if request_user in user_white_list.get(str(bk_biz_id), []):
-                    # 用户在脱敏白名单中,开放不脱敏权限
-                    data["is_desensitize"] = False
         search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
@@ -438,7 +428,8 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(OriginalSearchAttrSerializer)
         data["original_search"] = True
         data["is_desensitize"] = False
-        search_handler = SearchHandlerEsquery(index_set_id, data)
+        # TODO: 需要切换为 UnifyQuery 查询
+        search_handler = SearchHandlerEsquery(index_set_id, data, only_for_agg=True)
         return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="context")
@@ -1932,53 +1923,28 @@ class SearchViewSet(APIViewSet):
         {
           "result": true,
           "data": {
-            "total_records": 2,
-            "time_taken": 0.092,
-            "list": [
-              {
-                "aa": "aa",
-                "number": 16.3
-                "time": 1731260184
-              },
-              {
-                "aa": "bb",
-                "number": 20.56
-                "time": 1731260184
-              }
-            ],
-            "select_fields_order": [
-              "aa",
-              "number",
-              "time"
-            ],
-            "result_schema": [
-            {
-                "field_type": "string",
-                "field_name": "aa",
-                "field_alias": "aa",
-                "field_index": 0
-            },
-            {
-                "field_type": "double",
-                "field_name": "number",
-                "field_alias": "number",
-                "field_index": 1
-            },
-            {
-                "field_type": "long",
-                "field_name": "time",
-                "field_alias": "time",
-                "field_index": 2
-            }
-            ]
-          },
+            "list": [{
+              "__index": "1001.axa.aa",
+              "__result_table": "abcd.__default__",
+              "log": "xxx1",
+              "time": xxx,
+              ...
+              }],
           "code": 0,
           "message": ""
         }
         """
         params = self.params_valid(ChartSerializer)
-        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
-        result = instance.get_chart_data(params)
+        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+            params["index_set_ids"] = [index_set_id]
+            params["bk_biz_id"] = bk_biz_id
+            query_handler = UnifyQueryChartHandler(params)
+            result = query_handler.get_chart_data()
+        else:
+            instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
+            result = instance.get_chart_data(params)
         return Response(result)
 
     @detail_route(methods=["POST"], url_path="generate_sql")
@@ -1999,14 +1965,23 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UISearchSerializer)
-        data = ChartHandler.generate_sql(
-            addition=params["addition"],
-            start_time=params["start_time"],
-            end_time=params["end_time"],
-            sql_param=params["sql"],
-            keyword=params["keyword"],
-            alias_mappings=params["alias_mappings"],
-        )
+        params["sql"] = params["sql"] or f"{SQL_PREFIX} {SQL_SUFFIX}"
+        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+            params["index_set_ids"] = [index_set_id]
+            params["bk_biz_id"] = bk_biz_id
+            query_handler = UnifyQueryChartHandler(params)
+            data = query_handler.generate_sql()
+        else:
+            data = ChartHandler.generate_sql(
+                addition=params["addition"],
+                start_time=params["start_time"],
+                end_time=params["end_time"],
+                sql_param=params["sql"],
+                keyword=params["keyword"],
+                alias_mappings=params["alias_mappings"],
+            )
         return Response(data)
 
     @list_route(methods=["POST"], url_path="generate_querystring")
@@ -2072,3 +2047,63 @@ class SearchViewSet(APIViewSet):
         instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
         data = instance.fetch_grep_query_data(params)
         return Response(data)
+
+    @detail_route(methods=["POST"], url_path="alias_settings")
+    def alias_settings(self, request, index_set_id):
+        params = self.params_valid(AliasSettingsSerializer)
+        return Response(IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"]))
+
+    @list_route(methods=["POST"], url_path="search_log_for_code")
+    def search_log_for_code(self, request):
+        """
+        @api {post} /search/index_set/search_log_for_code/ CodeCC日志搜索
+        @apiDescription 根据CodeCC token进行日志搜索，需要在请求头中传入 X-BKLOG-TOKEN
+        @apiParam 接口参数参考query_ts_raw
+        @apiParamExample {Json} 请求参数
+        {
+            "query_list": [
+                {
+                    "data_source": "bklog",
+                    "reference_name": "a",
+                    "time_field": "time",
+                    "query_string": "log:error AND path:/var/log/app/*",
+                    "table_id": "",
+                    "conditions": {"field_list": [], "condition_list": []},
+                    "field_name": "dtEventTimeStamp",
+                    "keep_columns": ["log", "path", "serverIp"]
+                }
+            ],
+            "start_time": "1753859263536",
+            "end_time": "1753945663536",
+            "timezone": "UTC",
+            "from_index": 0,
+            "limit": 10000
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+                'result': True,
+                'data': {
+                    'total': 1,
+                    'list': [
+                        {
+                            'log': 'Jul 31 11:53:01 VM-6-xxx-centos systemd: Started Session 170380 of user root.',
+                            'path': '/var/log/xxxx'
+                        }
+                    ],
+                    'done': False,
+                    'trace_id': 'xxxxx',
+                    'result_table_options': {
+                        'bklog_index_set_xxx_bklog_codecc.__default__|http://10.x.x.x:xxxx': {
+                            'search_after': [xxxxxx]
+                        }
+                    }
+                },
+                'code': 0,
+                'message': ''
+            }
+        """
+        data = self.params_valid(SearchLogForCodeSerializer)
+        token = getattr(request, "token")
+        if not token:
+            raise TokenMissingException()
+        return Response(UnifyQueryHandler.search_log_for_code(token, data))

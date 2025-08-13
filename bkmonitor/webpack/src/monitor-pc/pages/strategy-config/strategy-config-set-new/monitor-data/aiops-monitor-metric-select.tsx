@@ -33,10 +33,10 @@ import { type IScenarioItem, MetricDetail, MetricType } from '../typings';
 import './aiops-monitor-metric-select.scss';
 
 interface IProps {
-  value?: string[];
+  defaultScenario?: string;
   metrics?: MetricDetail[];
   scenarioList?: IScenarioItem[];
-  defaultScenario?: string;
+  value?: string[];
   onChange?: (v: string[]) => void;
 }
 

@@ -33,9 +33,9 @@ import type { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import './status-tab.scss';
 
 interface IProps {
+  maxWidth?: number;
   statusList: ITableFilterItem[];
   value?: string;
-  maxWidth?: number;
   onChange?: (va: string) => void;
 }
 

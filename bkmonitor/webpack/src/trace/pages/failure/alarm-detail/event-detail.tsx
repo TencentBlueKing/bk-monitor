@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { activated, deactivated, loadApp } from '@blueking/bk-weweb';
 import { Loading, Sideslider } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import './event-detail.scss';
 

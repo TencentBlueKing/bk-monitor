@@ -25,6 +25,24 @@
  */
 import type * as monacoEditor from 'monaco-editor/esm/vs/editor/editor.api';
 
+export type ChangeHandler = (value: string, event: monacoEditor.editor.IModelContentChangedEvent) => void;
+
+export type DiffChangeHandler = ChangeHandler;
+
+export type DiffEditorDidMount = (
+  editor: monacoEditor.editor.IStandaloneDiffEditor,
+  monaco: typeof monacoEditor
+) => void;
+
+export type DiffEditorWillMount = (
+  monaco: typeof monacoEditor
+) => monacoEditor.editor.IStandaloneEditorConstructionOptions | void;
+
+export type DiffEditorWillUnmount = (
+  editor: monacoEditor.editor.IStandaloneDiffEditor,
+  monaco: typeof monacoEditor
+) => void;
+
 /**
  * @remarks
  * This will be `IStandaloneEditorConstructionOptions` in newer versions of monaco-editor, or
@@ -32,32 +50,85 @@ import type * as monacoEditor from 'monaco-editor/esm/vs/editor/editor.api';
  */
 export type EditorConstructionOptions = NonNullable<Parameters<typeof monacoEditor.editor.create>[1]>;
 
-export type EditorWillMount = (monaco: typeof monacoEditor) => EditorConstructionOptions | void;
-
 export type EditorDidMount = (editor: monacoEditor.editor.IStandaloneCodeEditor, monaco: typeof monacoEditor) => void;
+
+// ============ Diff Editor ============
+
+export type EditorWillMount = (monaco: typeof monacoEditor) => EditorConstructionOptions | void;
 
 export type EditorWillUnmount = (
   editor: monacoEditor.editor.IStandaloneCodeEditor,
   monaco: typeof monacoEditor
 ) => EditorConstructionOptions | void;
 
-export type ChangeHandler = (value: string, event: monacoEditor.editor.IModelContentChangedEvent) => void;
+export interface MonacoDiffEditorProps extends MonacoEditorBaseProps {
+  /**
+   * An event emitted when the editor has been mounted (similar to componentDidMount of React).
+   */
+  editorDidMount?: DiffEditorDidMount;
+
+  /**
+   * An event emitted before the editor mounted (similar to componentWillMount of React).
+   */
+  editorWillMount?: DiffEditorWillMount;
+
+  /**
+   * An event emitted before the editor unmount (similar to componentWillUnmount of React).
+   */
+  editorWillUnmount?: DiffEditorWillUnmount;
+
+  /**
+   * An event emitted when the content of the current model has changed.
+   */
+  onChange?: DiffChangeHandler;
+
+  /**
+   * Refer to Monaco interface {monaco.editor.IDiffEditorConstructionOptions}.
+   */
+  options?: monacoEditor.editor.IDiffEditorConstructionOptions;
+
+  /**
+   * The original value to compare against.
+   */
+  original?: string;
+
+  /**
+   * Refer to Monaco interface {monaco.editor.IEditorOverrideServices}.
+   */
+  overrideServices?: monacoEditor.editor.IEditorOverrideServices;
+
+  /**
+   * Value of the auto created model in the editor.
+   * If you specify value property, the component behaves in controlled mode. Otherwise, it behaves in uncontrolled mode.
+   */
+  value?: string;
+
+  /**
+   * Let the language be inferred from the uri
+   */
+  modifiedUri?: (monaco: typeof monacoEditor) => monacoEditor.Uri;
+
+  /**
+   * Let the language be inferred from the uri
+   */
+  originalUri?: (monaco: typeof monacoEditor) => monacoEditor.Uri;
+}
 
 export interface MonacoEditorBaseProps {
   /**
-   * Width of editor. Defaults to 100%.
+   * Optional string classname to append to the editor.
    */
-  width?: number | string;
-
-  /**
-   * Height of editor. Defaults to 100%.
-   */
-  height?: number | string;
+  className?: null | string;
 
   /**
    * The initial value of the auto created model in the editor.
    */
   defaultValue?: string;
+
+  /**
+   * Height of editor. Defaults to 100%.
+   */
+  height?: number | string;
 
   /**
    * The initial language of the auto created model in the editor. Defaults to 'javascript'.
@@ -72,38 +143,21 @@ export interface MonacoEditorBaseProps {
   theme?: null | string;
 
   /**
-   * Optional string classname to append to the editor.
+   * Width of editor. Defaults to 100%.
    */
-  className?: null | string;
+  width?: number | string;
 }
 
 export interface MonacoEditorProps extends MonacoEditorBaseProps {
   /**
-   * Value of the auto created model in the editor.
-   * If you specify `null` or `undefined` for this property, the component behaves in uncontrolled mode.
-   * Otherwise, it behaves in controlled mode.
+   * An event emitted when the editor has been mounted (similar to componentDidMount of React).
    */
-  value?: null | string;
-
-  /**
-   * Refer to Monaco interface {monaco.editor.IStandaloneEditorConstructionOptions}.
-   */
-  options?: monacoEditor.editor.IStandaloneEditorConstructionOptions;
-
-  /**
-   * Refer to Monaco interface {monaco.editor.IEditorOverrideServices}.
-   */
-  overrideServices?: monacoEditor.editor.IEditorOverrideServices;
+  editorDidMount?: EditorDidMount;
 
   /**
    * An event emitted before the editor mounted (similar to componentWillMount of React).
    */
   editorWillMount?: EditorWillMount;
-
-  /**
-   * An event emitted when the editor has been mounted (similar to componentDidMount of React).
-   */
-  editorDidMount?: EditorDidMount;
 
   /**
    * An event emitted before the editor unmount (similar to componentWillUnmount of React).
@@ -116,45 +170,9 @@ export interface MonacoEditorProps extends MonacoEditorBaseProps {
   onChange?: ChangeHandler;
 
   /**
-   * Let the language be inferred from the uri
+   * Refer to Monaco interface {monaco.editor.IStandaloneEditorConstructionOptions}.
    */
-  uri?: (monaco: typeof monacoEditor) => monacoEditor.Uri;
-}
-
-// ============ Diff Editor ============
-
-export type DiffEditorWillMount = (
-  monaco: typeof monacoEditor
-) => monacoEditor.editor.IStandaloneEditorConstructionOptions | void;
-
-export type DiffEditorDidMount = (
-  editor: monacoEditor.editor.IStandaloneDiffEditor,
-  monaco: typeof monacoEditor
-) => void;
-
-export type DiffEditorWillUnmount = (
-  editor: monacoEditor.editor.IStandaloneDiffEditor,
-  monaco: typeof monacoEditor
-) => void;
-
-export type DiffChangeHandler = ChangeHandler;
-
-export interface MonacoDiffEditorProps extends MonacoEditorBaseProps {
-  /**
-   * The original value to compare against.
-   */
-  original?: string;
-
-  /**
-   * Value of the auto created model in the editor.
-   * If you specify value property, the component behaves in controlled mode. Otherwise, it behaves in uncontrolled mode.
-   */
-  value?: string;
-
-  /**
-   * Refer to Monaco interface {monaco.editor.IDiffEditorConstructionOptions}.
-   */
-  options?: monacoEditor.editor.IDiffEditorConstructionOptions;
+  options?: monacoEditor.editor.IStandaloneEditorConstructionOptions;
 
   /**
    * Refer to Monaco interface {monaco.editor.IEditorOverrideServices}.
@@ -162,32 +180,14 @@ export interface MonacoDiffEditorProps extends MonacoEditorBaseProps {
   overrideServices?: monacoEditor.editor.IEditorOverrideServices;
 
   /**
-   * An event emitted before the editor mounted (similar to componentWillMount of React).
+   * Value of the auto created model in the editor.
+   * If you specify `null` or `undefined` for this property, the component behaves in uncontrolled mode.
+   * Otherwise, it behaves in controlled mode.
    */
-  editorWillMount?: DiffEditorWillMount;
-
-  /**
-   * An event emitted when the editor has been mounted (similar to componentDidMount of React).
-   */
-  editorDidMount?: DiffEditorDidMount;
-
-  /**
-   * An event emitted before the editor unmount (similar to componentWillUnmount of React).
-   */
-  editorWillUnmount?: DiffEditorWillUnmount;
-
-  /**
-   * An event emitted when the content of the current model has changed.
-   */
-  onChange?: DiffChangeHandler;
+  value?: null | string;
 
   /**
    * Let the language be inferred from the uri
    */
-  originalUri?: (monaco: typeof monacoEditor) => monacoEditor.Uri;
-
-  /**
-   * Let the language be inferred from the uri
-   */
-  modifiedUri?: (monaco: typeof monacoEditor) => monacoEditor.Uri;
+  uri?: (monaco: typeof monacoEditor) => monacoEditor.Uri;
 }

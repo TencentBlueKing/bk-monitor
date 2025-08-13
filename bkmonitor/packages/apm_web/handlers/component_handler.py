@@ -249,7 +249,7 @@ class ComponentHandler:
         构件组件节点的APM API查询参数
         filter_params: [{key: "", op: "", value:[]}]
         """
-        component_node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
+        component_node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
 
         if not cls.is_component_by_node(component_node):
             return

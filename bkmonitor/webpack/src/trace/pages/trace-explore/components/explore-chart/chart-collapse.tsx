@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, computed, shallowRef, onMounted } from 'vue';
+import { computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { get, set } from '@vueuse/core';
 

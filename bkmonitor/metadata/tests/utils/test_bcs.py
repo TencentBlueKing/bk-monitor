@@ -20,6 +20,11 @@ FAKE_PROJECT_ID = "testbcs"
 
 @pytest.fixture
 def create_or_delete_records():
+    # 清理数据
+    models.Space.objects.all().delete()
+    models.BCSClusterInfo.objects.all().delete()
+    models.SpaceDataSource.objects.all().delete()
+
     # 创建模拟数据
     space_records = [
         models.Space(id=1, space_type_id="bkcc", space_name="bkccname", space_id="1", space_code=""),

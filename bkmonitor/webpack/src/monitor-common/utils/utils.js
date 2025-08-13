@@ -79,7 +79,7 @@ export const random = (n, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
   // const str = 'abcdefghijklmnopqrstuvwxyz0123456789' // 可以作为常量放到random外面
   let result = '';
   for (let i = 0; i < n; i++) {
-    result += str[parseInt(Math.random() * str.length, 10)];
+    result += str[Number.parseInt(Math.random() * str.length, 10)];
   }
   return result;
 };
@@ -152,7 +152,8 @@ export const typeTools = {
  * @param {Date} time
  * @param {String} fmt yyyy-MM-dd hh:mm:ss
  */
-export const formatDatetime = (time, fmt) => {
+export const formatDatetime = (time, str) => {
+  let fmt = str;
   const obj = {
     'M+': time.getMonth() + 1, // 月份
     'd+': time.getDate(), // 日
@@ -319,7 +320,8 @@ export const docCookies = {
     if (vEnd) {
       switch (vEnd.constructor) {
         case Number:
-          sExpires = vEnd === Infinity ? '; expires=Fri, 31 Dec 9999 23:59:59 GMT' : `; max-age=${vEnd}`;
+          sExpires =
+            vEnd === Number.POSITIVE_INFINITY ? '; expires=Fri, 31 Dec 9999 23:59:59 GMT' : `; max-age=${vEnd}`;
           break;
         case String:
           sExpires = `; expires=${vEnd}`;
@@ -344,7 +346,9 @@ export const docCookies = {
     return true;
   },
   hasItem(sKey) {
-    return new RegExp(`(?:^|;\\s*)${encodeURIComponent(sKey).replace(/[-.+*]/g, '\\$&')}\\s*\\=`).test(document.cookie);
+    return new RegExp(`(?:^|;\\s*)${encodeURIComponent(sKey).replace(/[-.+*]/g, '\\$&')}\\s*\\=`, 'g').test(
+      document.cookie
+    );
   },
   keys() {
     const aKeys = document.cookie
@@ -362,7 +366,7 @@ export const docCookies = {
  * @returns { string }
  */
 export const byteConvert = bytes => {
-  if (isNaN(bytes)) {
+  if (Number.isNaN(bytes)) {
     return '';
   }
   const symbols = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
@@ -372,7 +376,7 @@ export const byteConvert = bytes => {
   }
   const i = Math.floor(exp / 10);
 
-  bytes = bytes / Math.pow(2, 10 * i);
+  bytes = bytes / 2 ** (10 * i);
 
   if (bytes.toString().length > bytes.toFixed(2).toString().length) {
     bytes = bytes.toFixed(2);
@@ -388,9 +392,7 @@ export const byteConvert = bytes => {
 export const debounce = function (func, wait, immediate = true) {
   let timeout;
   return function () {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const context = this;
-
+    // biome-ignore lint/style/noArguments: <explanation>
     const args = [...arguments];
     if (timeout) clearTimeout(timeout);
     if (immediate) {
@@ -398,10 +400,10 @@ export const debounce = function (func, wait, immediate = true) {
       timeout = setTimeout(() => {
         timeout = null;
       }, wait);
-      if (callNow) func.apply(context, args);
+      if (callNow) func.apply(this, args);
     } else {
       timeout = setTimeout(() => {
-        func.apply(context, args);
+        func.apply(this, args);
       }, wait);
     }
   };

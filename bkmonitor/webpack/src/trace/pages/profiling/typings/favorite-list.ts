@@ -26,10 +26,10 @@
 // 收藏列表
 export declare namespace IFavList {
   interface favGroupList {
-    name: string;
-    id: number;
     editable: boolean;
     favorites: favList[];
+    id: number;
+    name: string;
   }
   interface favList {
     config: any;
@@ -41,12 +41,12 @@ export declare namespace IFavList {
     update_user: string;
   }
   interface groupList {
-    group_name: string;
     group_id: number;
+    group_name: string;
   }
   interface IProps {
-    value: favList[];
     checkedValue: favList;
+    value: favList[];
   }
   interface IEvent {
     deleteFav?: number;

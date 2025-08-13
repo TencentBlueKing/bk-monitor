@@ -59,12 +59,12 @@ const intervalModeList = [
   { id: 'increasing', name: window.i18n.t('递增') },
 ];
 
-interface IAlertNoticeProps {
-  noticeData?: INotice;
-}
-
 interface IAlertNoticeEvent {
   onChange?: INotice;
+}
+
+interface IAlertNoticeProps {
+  noticeData?: INotice;
 }
 
 @Component({
@@ -212,7 +212,7 @@ export default class AlertNotice extends tsc<IAlertNoticeProps, IAlertNoticeEven
     this.alertData = this.data.alert.find(item => item.key === v);
   }
   // 编辑时间段
-  handleEditTimeRang(v: { value: string[]; key: string }) {
+  handleEditTimeRang(v: { key: string; value: string[] }) {
     const curTimeRange = deepClone(this.alertData.timeRange);
     // 时间段校验
     if (

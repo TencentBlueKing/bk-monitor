@@ -110,7 +110,7 @@ export default class EchartsSeries {
     return { legendData, series };
   }
   // 设置阈值面板
-  public handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
+  public handleSetThresholdBand(plotBands: { from: number; to: number }[]) {
     return {
       silent: true,
       show: true,
@@ -135,7 +135,7 @@ export default class EchartsSeries {
     };
   }
   // 设置阈值线
-  public handleSetThresholdLine(thresholdLine: { value: number; name: string }[]) {
+  public handleSetThresholdLine(thresholdLine: { name: string; value: number }[]) {
     return {
       symbol: [],
       label: {

@@ -25,8 +25,8 @@
 -->
 <template>
   <article
-    class="strategy-config-target"
     v-bkloading="{ isLoading: loading }"
+    class="strategy-config-target"
   >
     <section
       ref="targetContainer"

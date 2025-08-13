@@ -32,35 +32,35 @@ import store from '../store';
 
 export interface IEventCenterState {
   allList?: IListItem[];
-  filterList?: IListItem[];
   count?: ICount;
-  page?: number;
-  limit?: number;
-  viewList?: IListItem[];
+  filterList?: IListItem[];
   finished?: boolean;
+  limit?: number;
+  page?: number;
+  viewList?: IListItem[];
 }
 interface ICount {
   shield?: number;
   strategy?: number;
   target?: number;
 }
-interface IListItem {
-  target?: string;
-  strategyId?: string;
-  name?: string;
-  level?: string;
-  events: IEventsItem[];
+interface IData {
+  count: ICount;
+  groups: IListItem[];
 }
 interface IEventsItem {
   dimensionMessage: string;
   duration: string;
   eventId: number;
-  target?: string;
   strategyName?: string;
+  target?: string;
 }
-interface IData {
-  count: ICount;
-  groups: IListItem[];
+interface IListItem {
+  events: IEventsItem[];
+  level?: string;
+  name?: string;
+  strategyId?: string;
+  target?: string;
 }
 
 @Module({ dynamic: true, name: 'eventCenter', namespaced: true, store })

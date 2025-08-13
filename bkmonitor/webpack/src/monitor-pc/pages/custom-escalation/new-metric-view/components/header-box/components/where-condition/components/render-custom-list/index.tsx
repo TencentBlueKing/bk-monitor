@@ -32,17 +32,17 @@ import KeyValueSelector from '../commom/key-value-selector';
 
 import './index.scss';
 
+interface IEmit {
+  onChange: (value: IProps['data']) => void;
+}
+
 interface IProps {
   data: {
-    key: string;
     alias: string;
+    key: string;
     method: string;
     value: string[];
   }[];
-}
-
-interface IEmit {
-  onChange: (value: IProps['data']) => void;
 }
 
 @Component

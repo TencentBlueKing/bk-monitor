@@ -30,11 +30,11 @@ import type { PanelModel } from '../../typings';
 
 import './chart-row.scss';
 
-interface IChartRowProps {
-  panel: PanelModel;
-}
 interface IChartRowEvent {
   onCollapse: boolean;
+}
+interface IChartRowProps {
+  panel: PanelModel;
 }
 @Component
 export default class ChartRow extends tsc<IChartRowProps, IChartRowEvent> {

@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { shallowRef, onBeforeUnmount, computed, watch } from 'vue';
+import { computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 
 import { useStorage } from '@vueuse/core';
 import _ from 'lodash';
 import { listByGroupFavorite } from 'monitor-api/modules/model';
 
-import { VIEW_DATA_ID_KEY, FAVORITE_SORT_TYPE_KEY } from '../constants';
+import { FAVORITE_SORT_TYPE_KEY, VIEW_DATA_ID_KEY } from '../constants';
 import { GROUP_ID_NOT } from '../constants';
 import useEventFavoriteDataId from './use-event-favorite-data-id';
 

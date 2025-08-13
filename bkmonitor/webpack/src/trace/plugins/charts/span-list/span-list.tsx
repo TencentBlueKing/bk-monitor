@@ -25,9 +25,9 @@
  */
 
 import { type PropType, computed, defineComponent, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Pagination, Popover } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import { customFormatTime, formatDate, formatDuration } from '../../../components/trace-view/utils/date';
 import { getSpanKindIcon } from '../../../utils';
@@ -35,18 +35,18 @@ import { getSpanKindIcon } from '../../../utils';
 import './span-list.scss';
 
 export interface SpanListItem {
-  icon: string;
-  kind: number;
-  name: string;
-  operationName: string;
-  duration: number;
+  bgColor?: string;
   collapsed?: boolean;
   collapsedSpanNum?: number;
-  spanIds?: string[];
-  spanId: string;
   color: string;
-  bgColor?: string;
+  duration: number;
+  icon: string;
+  kind: number;
   mark?: string;
+  name: string;
+  operationName: string;
+  spanId: string;
+  spanIds?: string[];
   startTime: number;
 }
 

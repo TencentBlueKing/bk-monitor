@@ -32,14 +32,14 @@ import type { IOption } from '../../pages/monitor-k8s/typings';
 
 import './custom-select.scss';
 
+export interface ICustomSelectEvents {
+  onSelected: ICustomSelectProps['value'];
+}
 export interface ICustomSelectProps {
-  value?: (number | string)[] | number | string;
   multiple?: boolean;
   options?: IOption[];
   searchable?: boolean;
-}
-export interface ICustomSelectEvents {
-  onSelected: ICustomSelectProps['value'];
+  value?: (number | string)[] | number | string;
 }
 /**
  * 自定义触发目标的下拉选择器功能跟bk-select一致
