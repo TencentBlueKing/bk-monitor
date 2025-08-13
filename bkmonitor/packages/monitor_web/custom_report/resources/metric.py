@@ -416,7 +416,13 @@ class CustomTimeSeriesList(Resource):
         if not table_ids:
             return {}
 
-        query_configs = (
+        # 先查询策略ID（当有业务过滤条件时）
+        strategy_ids = None
+        if request_bk_biz_id:
+            strategy_ids = set(StrategyModel.objects.filter(bk_biz_id=request_bk_biz_id).values_list("pk", flat=True))
+
+        # 查询自定义时间序列类型的查询配置
+        query_configs_queryset = (
             QueryConfigModel.objects.annotate(result_table_id=models.F("config__result_table_id"))
             .filter(
                 reduce(lambda x, y: x | y, (Q(result_table_id=table_id) for table_id in table_ids)),
@@ -426,16 +432,15 @@ class CustomTimeSeriesList(Resource):
             .values("result_table_id", "strategy_id")
         )
 
-        strategy_ids = []
-        if request_bk_biz_id:
-            strategy_ids = StrategyModel.objects.filter(bk_biz_id=request_bk_biz_id).values_list("pk", flat=True)
+        # 如果有业务过滤条件，进一步筛选query_configs
+        if strategy_ids:
+            query_configs_queryset = query_configs_queryset.filter(strategy_id__in=strategy_ids)
 
+        query_configs = list(query_configs_queryset)
+
+        # 构建结果表ID到策略ID的映射关系
         table_id_strategy_mapping = defaultdict(set)
         for query_config in query_configs:
-            # 当存在 biz 请求条件且策略 id 未命中时不纳入统计
-            if request_bk_biz_id and query_config["strategy_id"] not in strategy_ids:
-                continue
-
             table_id_strategy_mapping[query_config["result_table_id"]].add(query_config["strategy_id"])
 
         return {key: len(value) for key, value in table_id_strategy_mapping.items()}
