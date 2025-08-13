@@ -28,12 +28,12 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
-import { QueryTemplateSliderTabEnum, TABLE_DEFAULT_DISPLAY_FIELDS, TABLE_FIXED_DISPLAY_FIELDS } from '../../constants';
-import QueryTemplateSlider from '../query-template-slider/query-template-slider';
+import { TABLE_DEFAULT_DISPLAY_FIELDS, TABLE_FIXED_DISPLAY_FIELDS, TemplateDetailTabEnum } from '../../constants';
+import QueryTemplateSlider from '../../detail/template-detail';
 import DeleteConfirm from './components/delete-confirm';
 
 import type { IPagination, ITableSettingChangeEvent, ITableSettingSize, ITableSort } from '../../typings';
-import type { QueryTemplateSliderTabEnumType } from '../../typings/constants';
+import type { TemplateDetailTabEnumType } from '../../typings/constants';
 
 import './query-template-table.scss';
 
@@ -82,7 +82,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   /** 模板详情 - 侧弹抽屉显示状态 */
   sliderShow = false;
   /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
-  sliderActiveTab: QueryTemplateSliderTabEnumType = null;
+  sliderActiveTab: TemplateDetailTabEnumType = null;
   /** 删除二次确认 popover 实例 */
   deletePopoverInstance = null;
   /** 删除二次确认 popover 延迟打开定时器 */
@@ -294,8 +294,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   ) {
     let sliderTab = null;
     if (isShow) {
-      sliderTab =
-        showEvent?.columnKey === 'name' ? QueryTemplateSliderTabEnum.CONFIG : QueryTemplateSliderTabEnum.CONSUME;
+      sliderTab = showEvent?.columnKey === 'name' ? TemplateDetailTabEnum.CONFIG : TemplateDetailTabEnum.CONSUME;
     }
 
     this.sliderActiveTab = sliderTab;
