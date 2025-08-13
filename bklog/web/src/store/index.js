@@ -1244,12 +1244,8 @@ const store = new Vuex.Store({
       // 如果是第一次请求
       // 分页请求后面请求{ start_time, end_time }要保证和初始值一致
       if (!payload?.isPagination) {
-        dateFieldSortList = payload?.defaultSortList;
-        commit('updateIndexFieldInfo', {
-          default_sort_list:
-            payload?.defaultSortList ??
-            (state.indexFieldInfo.default_sort_list ?? []).map(item => [item[0], undefined]),
-        });
+        dateFieldSortList = payload?.defaultSortList?.filter(([fieldName, sort]) => fieldName && sort);
+
         // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
         // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
         const { datePickerValue } = state.indexItem;
