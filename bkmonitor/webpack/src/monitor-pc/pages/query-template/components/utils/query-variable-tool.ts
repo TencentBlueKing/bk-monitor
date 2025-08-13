@@ -29,6 +29,8 @@ interface QueryVariablesTransformResult {
   isVariable: boolean;
   /** 转换后的变量值 */
   value: unknown;
+  /** 变量名 */
+  variableName: string;
 }
 type ScopedVariable = Record<string, any>;
 
@@ -76,11 +78,11 @@ export class QueryVariablesTool {
    * @param source 目标字符串
    * @param scopedVariable 自定义变量对应数据
    */
-  public replace(source: string, scopedVariable?: ScopedVariable): unknown {
+  public replace(source: string, scopedVariable?: ScopedVariable): { value: unknown; variableName: string } {
     this.regex.lastIndex = 0;
     const variableName = this.regex.exec(source)?.[1];
     const value = this.getVariableValue(variableName, scopedVariable);
-    return value ?? source;
+    return { value: value ?? source, variableName };
   }
 
   /**
@@ -96,11 +98,12 @@ export class QueryVariablesTool {
       return {
         value: source,
         isVariable: false,
+        variableName: '',
       };
     }
     const result = this.replace(source, scopedVariable);
     return {
-      value: result,
+      ...result,
       isVariable: true,
     };
   }

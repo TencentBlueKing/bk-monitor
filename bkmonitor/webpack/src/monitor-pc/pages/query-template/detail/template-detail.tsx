@@ -23,14 +23,122 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { TemplateDetailTabEnum } from '../constants';
+import ConfigPanel from './components/config-panel';
+import ConsumePanel from './components/consume-panel';
+import MonitorTab from '@/components/monitor-tab/monitor-tab';
+
+import type { TemplateDetailTabEnumType } from '../typings/constants';
 
 import './template-detail.scss';
 
+interface TemplateDetailEmits {
+  /** 模板详情 - 侧弹抽屉展示状态改变回调 */
+  onSliderShowChange: (isShow: boolean) => void;
+}
+interface TemplateDetailProps {
+  /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
+  defaultActiveTab?: TemplateDetailTabEnumType;
+  /** 模板详情 - 侧弹抽屉是否可见 */
+  sliderShow: boolean;
+}
 @Component
-export default class TemplateDetail extends tsc<object> {
+export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDetailEmits> {
+  /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
+  @Prop({ type: String, default: TemplateDetailTabEnum.CONFIG }) defaultActiveTab?: TemplateDetailTabEnumType;
+  /** 模板详情 - 侧弹抽屉是否可见 */
+  @Prop({ type: Boolean, default: false }) sliderShow: boolean;
+
+  /** 当前激活的 tab 面板 */
+  activeTab: TemplateDetailTabEnumType = TemplateDetailTabEnum.CONFIG;
+
+  @Watch('sliderShow')
+  sliderShowChange() {
+    if (!this.sliderShow) return;
+    this.activeTab = this.defaultActiveTab || TemplateDetailTabEnum.CONFIG;
+  }
+
+  /**
+   * @description 模板详情 - 侧弹抽屉展示状态改变回调
+   */
+  @Emit('sliderShowChange')
+  handleSliderShowChange(isShow: boolean) {
+    return isShow;
+  }
+
+  handleTabChange(tab: TemplateDetailTabEnumType) {
+    this.activeTab = tab;
+  }
   render() {
-    return <div class='template-detail' />;
+    return (
+      <bk-sideslider
+        width='60vw'
+        ext-cls='template-detail'
+        is-show={this.sliderShow}
+        quick-close={true}
+        show-mask={true}
+        transfer={true}
+        {...{ on: { 'update:isShow': this.handleSliderShowChange } }}
+      >
+        <div
+          class='template-detail-header'
+          slot='header'
+        >
+          <div class='header-info'>
+            <div class='header-info-title'>
+              <span>{this.$t('模板详情')}</span>
+            </div>
+            <div class='header-info-division' />
+            <div class='header-info-template-name'>
+              <span>模板名称占位AA</span>
+            </div>
+          </div>
+          <div class='header-operations'>
+            <bk-button
+              theme='primary'
+              title={this.$t('编辑')}
+              onClick={this.handleSliderShowChange.bind(this, false)}
+            >
+              {this.$t('编辑')}
+            </bk-button>
+            <bk-button
+              title={this.$t('删除')}
+              onClick={this.handleSliderShowChange.bind(this, false)}
+            >
+              {this.$t('删除')}
+            </bk-button>
+          </div>
+        </div>
+        <div
+          class='template-detail-content'
+          slot='content'
+        >
+          <MonitorTab
+            class='template-detail-tabs'
+            // @ts-ignore
+            active={this.activeTab}
+            on-tab-change={v => this.handleTabChange(v)}
+          >
+            <bk-tab-panel
+              label={this.$t('配置信息')}
+              name={TemplateDetailTabEnum.CONFIG}
+              renderDirective='if'
+            >
+              <ConfigPanel />
+            </bk-tab-panel>
+            <bk-tab-panel
+              label={`${this.$t('消费场景')} (6)`}
+              name={TemplateDetailTabEnum.CONSUME}
+              renderDirective='if'
+            >
+              <ConsumePanel />
+            </bk-tab-panel>
+          </MonitorTab>
+        </div>
+      </bk-sideslider>
+    );
   }
 }
