@@ -4,28 +4,10 @@
   align-items: center;
   justify-items: center;
   background-color: #ffff;
-  @media (max-width: 1366px) {
-    .low-resolution-hide{
-      display: none;
-    }
-
-    .low-resolution-show{
-      display: block;
-    }
-
-    .box-right-option {
-      .low-resolution-icon {
-        width: 40px;
-        padding: 0;
-        margin: 0;
-
-        .bklog-icon{
-          margin: 0;
-        }
-      }
-    }
+  // @media (max-width: 1366px) {
+   
     
-  }
+  // }
 
   .collection-box {
     display: flex;
@@ -46,9 +28,5 @@
     &:hover {
       background-color: #eaebf0;
     }
-  }
-
-  .low-resolution-show{
-    display: none;
   }
 }

@@ -2,20 +2,7 @@
   position: sticky;
   top: 0px;
   z-index: 4;
-  @media (max-width: 1366px) {
-    .search-bar-container .search-options {
-      width: 44px;
-      color: #313238;;
-
-      .mode-text{
-        display: none;
-      }
-
-      .low-resolution{
-        display: inline-flex;
-      }
-    }
-  }
+  
 
   .search-bar-container {
     display: flex;
@@ -39,9 +26,6 @@
         color: #313238;
       }
 
-      .low-resolution{
-        display: none;
-      }
 
       .bklog-qiehuan-2 {
         margin-left: 4px;
