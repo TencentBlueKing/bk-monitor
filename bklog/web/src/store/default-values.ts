@@ -207,6 +207,7 @@ export const IndexFieldInfo = {
   fields: [],
   display_fields: [],
   sort_list: [],
+  default_sort_list: [],
   time_field: '',
   time_field_type: '',
   time_field_unit: '',
@@ -355,6 +356,7 @@ export const getStorageOptions = (values?: any) => {
       },
       [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
       [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
+      [BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]: false,
     },
     storage,
   );

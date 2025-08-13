@@ -56,7 +56,7 @@ class DataLinkResourceConfigBase(models.Model):
         """
         from metadata.models.data_link.service import get_data_link_component_status
 
-        return get_data_link_component_status(self.kind, self.name, self.namespace)
+        return get_data_link_component_status(self.bk_tenant_id, self.kind, self.name, self.namespace)
 
     @property
     def component_config(self):
@@ -65,7 +65,12 @@ class DataLinkResourceConfigBase(models.Model):
         """
         from metadata.models.data_link.service import get_data_link_component_config
 
-        return get_data_link_component_config(kind=self.kind, namespace=self.namespace, component_name=self.name)
+        return get_data_link_component_config(
+            bk_tenant_id=self.bk_tenant_id,
+            kind=self.kind,
+            namespace=self.namespace,
+            component_name=self.name,
+        )
 
     @classmethod
     def compose_config(cls, *args, **kwargs):

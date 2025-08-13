@@ -1948,6 +1948,8 @@ export default {
   总行数: 'Total number of branches',
   出现行数: 'Number of rows appearing',
   日志条数: 'Number of logs',
+  非空数据: 'Non-empty data',
+  非空数据占比: 'Proportion of non-empty data',
   添加方式: 'Add method',
 
   // 查询模板

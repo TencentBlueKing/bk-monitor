@@ -134,7 +134,7 @@ class UseSegmentProp {
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'new-search-page-is', true),
         iconName: 'icon bk-icon icon-plus-circle',
         text: this.$t('新建检索'),
-        disabled: false,
+        disabled: this.delineate,
         link: {
           iconName: 'bklog-icon bklog-jump',
         },

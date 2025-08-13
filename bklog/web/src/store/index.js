@@ -1142,7 +1142,11 @@ const store = new Vuex.Store({
           isUnionIndex ? {} : { catchIsShowMessage: false },
         )
         .then(res => {
-          commit('updateIndexFieldInfo', res.data ?? {});
+          const { default_sort_list = [], sort_list = [] } = res.data ?? {};
+          const defaultSortList = (((default_sort_list?.length ?? 0) > 0 ? default_sort_list : sort_list) ?? []).map(
+            ([field_name]) => [field_name, undefined],
+          );
+          commit('updateIndexFieldInfo', Object.assign({}, res.data ?? {}, { default_sort_list: defaultSortList }));
           commit('updataOperatorDictionary', res.data ?? {});
           commit('updateNotTextTypeFields', res.data ?? {});
           commit('updateIndexSetFieldConfig', res.data ?? {});
@@ -1213,7 +1217,7 @@ const store = new Vuex.Store({
      */
     requestIndexSetQuery(
       { commit, state, getters },
-      payload = { isPagination: false, cancelToken: null, searchCount: undefined },
+      payload = { isPagination: false, cancelToken: null, searchCount: undefined, defaultSortList: undefined },
     ) {
       if (!payload?.isPagination) {
         commit('updateIndexSetQueryResult', {
@@ -1278,12 +1282,12 @@ const store = new Vuex.Store({
         start_time,
         end_time,
         addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
-        sort_list: state.localSort ? otherPrams.sort_list : getters.custom_sort_list,
+        sort_list: payload?.defaultSortList ?? (state.localSort ? otherPrams.sort_list : getters.custom_sort_list),
       };
 
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
-        begin: payload.isPagination
+        begin: payload?.isPagination
           ? state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
           : 0,
         index_set_id: item,
