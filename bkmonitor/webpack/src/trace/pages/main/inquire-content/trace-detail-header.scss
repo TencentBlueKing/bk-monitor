@@ -8,6 +8,22 @@
   margin-right: 100px;
   white-space: nowrap;
 
+  .icon-monitor {
+    margin-left: 12px;
+    font-size: 16px;
+    color: #979ba5;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .trace-header-title {
+    display: flex;
+    align-items: center;
+  }
+
   &.is-in-table {
     margin: 0;
   }
@@ -44,16 +60,5 @@
     line-height: 24px;
     color: #313238;
     letter-spacing: 0;
-  }
-
-  .icon-monitor {
-    margin-left: 12px;
-    font-size: 16px;
-    color: #979ba5;
-    cursor: pointer;
-
-    &:hover {
-      color: #3a84ff;
-    }
   }
 }

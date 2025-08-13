@@ -399,7 +399,7 @@ class CustomReportSubscription(models.Model):
 
         # 判断是否下发全部业务配置
         if bk_biz_id is None:
-            all_bk_biz_ids = {b.bk_biz_id for b in api.cmdb.get_business()}
+            all_bk_biz_ids = {b.bk_biz_id for b in api.cmdb.get_business(bk_tenant_id=bk_tenant_id)}
             bk_biz_ids = {
                 bk_biz_id
                 for bk_biz_id in biz_id_to_data_id_config.keys()

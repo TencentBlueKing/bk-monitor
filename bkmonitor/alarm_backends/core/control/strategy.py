@@ -284,7 +284,7 @@ class Strategy:
             is_aiops_algorithm = all(is_aiops_list) and len(is_aiops_list) > 0
 
         trigger_config = {}
-        for detect in strategy["detects"]:
+        for detect in strategy.get("detects") or []:
             # 如果只有AIOPS算法，则写死 check_window_size 为 5，trigger_count 为 1
             if is_aiops_algorithm:
                 trigger_config[str(detect["level"])] = {

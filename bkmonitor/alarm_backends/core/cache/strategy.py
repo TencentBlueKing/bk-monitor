@@ -407,6 +407,21 @@ class StrategyCacheManager(CacheManager):
                 continue
 
             try:
+                is_aiops_algorithm = False
+                items = strategy_config.get("items", [])
+                if items:
+                    is_aiops_list = [
+                        algorithm["type"] in AlgorithmModel.AIOPS_ALGORITHMS
+                        for item in items
+                        for algorithm in item.get("algorithms") or []
+                    ]
+                    is_aiops_algorithm = all(is_aiops_list) and len(is_aiops_list) > 0
+
+                if is_aiops_algorithm:
+                    for detect in strategy_config.get("detects") or []:
+                        detect["trigger_config"]["count"] = 1
+                        detect["trigger_config"]["check_window"] = 5
+
                 if cls.handle_strategy(strategy_config, invalid_strategy_dict):
                     result_map[strategy_id] = strategy_config
             except Exception as e:
