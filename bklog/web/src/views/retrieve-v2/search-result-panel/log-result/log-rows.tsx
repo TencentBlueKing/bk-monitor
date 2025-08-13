@@ -583,9 +583,11 @@ export default defineComponent({
     );
 
     const handleResultBoxResize = () => {
-      scrollXOffsetLeft = 0;
-      refScrollXBar.value?.scrollLeft(0);
-      computeRect(refResultRowBox.value);
+      setTimeout(() => {
+        scrollXOffsetLeft = 0;
+        refScrollXBar.value?.scrollLeft(0);
+        computeRect(refResultRowBox.value);
+      }, 180);
     };
 
     watch(
@@ -614,7 +616,7 @@ export default defineComponent({
       () => [indexSetQueryResult.value.is_loading],
       () => {
         if (!indexSetQueryResult.value.is_loading && !isRequesting.value) {
-          handleResultBoxResize();
+          setTimeout(handleResultBoxResize, 180);
         }
       },
     );
@@ -705,6 +707,8 @@ export default defineComponent({
             if (resp?.size === 50) {
               pageIndex.value++;
             }
+
+            handleResultBoxResize();
           })
           .finally(() => {
             debounceSetLoading(0);

@@ -55,12 +55,15 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    isSearch: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['refresh', 'select-item'],
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
-    const route = useRoute();
     const expandedMap = ref({});
     /** 当前选中的收藏 */
     const selectedId = ref(null);
@@ -455,19 +458,18 @@ export default defineComponent({
         </div>
       );
     };
-
     return () => (
       <div
         class='collect-list-box'
         v-bkloading={{ isLoading: props.loading }}
       >
-        {props.list.map(item => (
+        {(props.list || []).map(item => (
           <div
             key={item.group_id}
+            style={{ display: props.isSearch && item.favorites.length === 0 ? 'none' : 'block' }}
             class='collect-list-item'
           >
             <div
-              style='cursor:pointer;'
               class='collect-list-item-main'
               onClick={() => handleToggleExpand(item.group_id)}
             >
