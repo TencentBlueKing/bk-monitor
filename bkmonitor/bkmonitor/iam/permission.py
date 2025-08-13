@@ -112,8 +112,8 @@ class Permission:
         # 是否跳过权限中心校验
         # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
         self.skip_check = getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False)
-        if request and getattr(request, "skip_check", False):
-            self.skip_check = True
+        if request and hasattr(request, "skip_check"):
+            self.skip_check = request.skip_check
 
     @classmethod
     def get_iam_client(cls, bk_tenant_id: str):
