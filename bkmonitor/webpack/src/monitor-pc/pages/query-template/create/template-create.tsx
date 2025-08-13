@@ -108,11 +108,11 @@ export default class TemplateCreate extends tsc<object> {
     this.handleGetMetricFunctions();
   }
 
-  handleCreateVariable(val: VariableModel) {
-    if (this.variablesList.find(item => item.name === val.name)) {
-      return;
-    }
-    this.variablesList.push(val);
+  handleCreateVariable(_val: VariableModelType) {
+    // if (this.variablesList.find(item => item.name === val.name)) {
+    //   return;
+    // }
+    // this.variablesList.push(val);
   }
 
   async handleGetMetricFunctions() {
