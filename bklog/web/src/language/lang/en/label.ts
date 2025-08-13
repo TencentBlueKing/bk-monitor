@@ -822,6 +822,8 @@ export default {
   综合时间排序: 'Comprehensive Time Sorting',
   日志时间排序: 'Log Time Sorting',
   '已选择{0}个动态组': 'Selected {0} dynamic groups',
+  收藏排序: 'Favorite Sort',
+  解散: 'Dissolve',
   请输入仓库名称: 'Please enter a store name',
   请输入名称: 'Please enter a name',
   时间格式化: 'Time formatting',

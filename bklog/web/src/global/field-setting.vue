@@ -277,6 +277,8 @@
       retain_original_text: false,
       original_text_tokenize_on_chars: '',
       original_text_is_case_sensitive: '',
+      path_regexp: '',
+      metadata_fields: [],
     },
     etl_config: '',
     fields: [],
@@ -525,6 +527,8 @@
             !item.is_delete,
         );
         formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
+        formData.value.etl_params.path_regexp = res?.data?.etl_params.path_regexp || '';
+        formData.value.etl_params.metadata_fields = res?.data?.etl_params.metadata_fields || [];
       });
     sliderLoading.value = false;
   };

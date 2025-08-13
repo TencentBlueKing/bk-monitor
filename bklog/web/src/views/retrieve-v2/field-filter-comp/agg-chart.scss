@@ -71,6 +71,7 @@
           .percent-bar {
             position: absolute;
             height: 6px;
+            width: 100%;
             background-color: var(--bar-bg-color);
             border-radius: 4px;
           }

@@ -104,6 +104,12 @@ export const fieldTypeMap = {
     color: '#E8EAF0',
     textColor: '#979BA5',
   },
+  flattened: {
+    name: i18n.t('扁平化对象'),
+    icon: 'bklog-icon bklog-fllatend',
+    color: '#E8EAF0',
+    textColor: '#63656e',
+  },
 };
 
 export const SPACE_TYPE_MAP = {

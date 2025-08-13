@@ -70,6 +70,8 @@ Vue.use(Vuex);
 
 export const SET_APP_STATE = 'SET_APP_STATE';
 
+let dateFieldSortList = [];
+
 const stateTpl = {
   userMeta: {}, // /meta/mine
   pageLoading: true,
@@ -1142,7 +1144,11 @@ const store = new Vuex.Store({
           isUnionIndex ? {} : { catchIsShowMessage: false },
         )
         .then(res => {
-          commit('updateIndexFieldInfo', res.data ?? {});
+          const { default_sort_list = [], sort_list = [] } = res.data ?? {};
+          const defaultSortList = (((default_sort_list?.length ?? 0) > 0 ? default_sort_list : sort_list) ?? []).map(
+            ([field_name]) => [field_name, undefined],
+          );
+          commit('updateIndexFieldInfo', Object.assign({}, res.data ?? {}, { default_sort_list: defaultSortList }));
           commit('updataOperatorDictionary', res.data ?? {});
           commit('updateNotTextTypeFields', res.data ?? {});
           commit('updateIndexSetFieldConfig', res.data ?? {});
@@ -1213,7 +1219,7 @@ const store = new Vuex.Store({
      */
     requestIndexSetQuery(
       { commit, state, getters },
-      payload = { isPagination: false, cancelToken: null, searchCount: undefined },
+      payload = { isPagination: false, cancelToken: null, searchCount: undefined, defaultSortList: undefined },
     ) {
       if (!payload?.isPagination) {
         commit('updateIndexSetQueryResult', {
@@ -1238,6 +1244,8 @@ const store = new Vuex.Store({
       // 如果是第一次请求
       // 分页请求后面请求{ start_time, end_time }要保证和初始值一致
       if (!payload?.isPagination) {
+        dateFieldSortList = payload?.defaultSortList?.filter(([fieldName, sort]) => fieldName && sort);
+
         // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
         // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
         const { datePickerValue } = state.indexItem;
@@ -1278,12 +1286,12 @@ const store = new Vuex.Store({
         start_time,
         end_time,
         addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
-        sort_list: state.localSort ? otherPrams.sort_list : getters.custom_sort_list,
+        sort_list: dateFieldSortList ?? (state.localSort ? otherPrams.sort_list : getters.custom_sort_list),
       };
 
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
-        begin: payload.isPagination
+        begin: payload?.isPagination
           ? state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
           : 0,
         index_set_id: item,

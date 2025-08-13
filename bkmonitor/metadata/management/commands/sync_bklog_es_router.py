@@ -49,6 +49,9 @@ class Command(BaseCommand):
             _data = data_queue.get()
             es_router_list.extend(_data)
 
+        # 过滤doris数据
+        es_router_list = [router for router in es_router_list if router.get("storage_type") != "doris"]
+
         # 批量创建或更新结果表及 es 存储
         update_space_set, update_rt_set, update_data_label_set = self._update_or_create_es_data(es_router_list)
         # 推送并发布
