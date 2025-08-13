@@ -186,12 +186,13 @@ export default class AlarmDetail extends Vue {
 
   // 事件列表全部为已屏蔽状态时，隐藏告警确认按钮
   get alarmConfirmButtonShow() {
+    if (!this.eventList.length) return false;
     const isAllShielded = this.eventList.every(item => {
       if (item.isAck) return false; // 已确认
       if (['closed', 'recovered'].includes(item.status.toLocaleLowerCase())) return false; // 已恢复、已关闭
-      return item.isShielded && item.shieldType === 'saas_config' // 已屏蔽状态
-    })
-    return this.eventList.length > 0 && !isAllShielded;
+      return item.isShielded && item.shieldType === 'saas_config'; // 已屏蔽状态
+    });
+    return !isAllShielded;
   }
   get chartOption() {
     return {
