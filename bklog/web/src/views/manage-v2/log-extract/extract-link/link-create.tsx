@@ -1,10 +1,9 @@
-import { defineComponent, ref, reactive, computed, onMounted, getCurrentInstance } from 'vue';
+import { defineComponent, ref, reactive, computed, onMounted } from 'vue';
 import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
 import useLocale from '@/hooks/use-locale';
 import http from '@/api';
 import BkUserSelector from '@blueking/user-selector';
-import { InfoBox } from 'bk-magic-vue';
 
 import './link-create.scss';
 
@@ -54,7 +53,6 @@ export default defineComponent({
       qcloud_secret_id: [{ required: true, trigger: 'blur' }],
       qcloud_cos_region: [{ required: true, trigger: 'blur' }],
     };
-    const showRouterLeaveTip = computed(() =>  store.state.showRouterLeaveTip ); // 是否展示路由离开提示
     const isK8sDeploy = computed(() => store.getters['globals/globalsData']?.is_k8s_deploy); // 是否k8s部署
     const isShowCommon = computed(() => router.currentRoute?.params?.linkId && editInitLinkType.value === 'common'); // 是否展示内网链路
 
@@ -124,13 +122,17 @@ export default defineComponent({
         for (const inputEl of inputList) {
           if (!inputEl.value) {
             isError = true;
+            console.log('输入框验证失败:', inputEl);
             inputEl.classList.add('error');
           } else {
             inputEl.classList.remove('error');
           }
         }
+
         await formRef.value.validate();
+
         if (isError || isAdminError.value) return;
+
         submitLoading.value = true;
         const requestData = { ...formData };
         if (requestData.link_type === 'common') {
@@ -196,16 +198,6 @@ export default defineComponent({
       init();
     });
 
-    // 离开提示
-    // const handleLeaveCreate = () => {
-    //   InfoBox({
-    //     title: t('是否放弃本次操作？'),
-    //     confirmFn: () => {
-    //         router.push({ name: 'extract-link-list', query: { spaceUid: store.state.spaceUid } });
-    //     },
-    //   });
-    // };
-
     // 主渲染函数
     return () => (
       <div
@@ -223,8 +215,12 @@ export default defineComponent({
             ref={formRef}
             class='king-form'
             label-width={160}
-            model={formData}
-            rules={formRules}
+            {...{
+              props: {
+                model: formData,
+                rules: formRules,
+              },
+            }}
           >
             {/* 链路名称 */}
             <bk-form-item
