@@ -23,6 +23,11 @@
       border-radius: 0;
     }
 
+    // .cycle-unit-popover {
+    //   border: 1px solid #fff;
+    //   height: 30px;
+    // }
+
     .cycle-unit {
       display: flex;
       align-items: center;
@@ -61,7 +66,8 @@
       }
 
       &.unit-active {
-        box-shadow: none;
+        border: 1px solid #3a84ff;
+        box-shadow: 0 0 4px rgb(58 132 255 / 40%);
 
         .expand-wrap {
           .icon-mc-arrow-down {

@@ -26,8 +26,11 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getFunctions } from 'monitor-api/modules/grafana';
+
 import BasicInfoCreate from '../components/basic-info/basic-info-create';
-import TemplateConfig from '../components/template-config/template-config';
+import ExpressionPanel from '../components/expression-panel/expression-panel';
+import QueryPanel from '../components/query-panel/query-panel';
 import { type VariableModelType, getVariableModel } from '../variables';
 import VariablesManage from '../variables/variables-manage/variables-manage';
 
@@ -56,6 +59,9 @@ export default class TemplateCreate extends tsc<object> {
   };
 
   metricsList: MetricDetail[] = [];
+  queryConfigs = [{}];
+
+  metricFunctions = [];
 
   variablesList: VariableModelType[] = [
     getVariableModel({ type: 'method', name: 'cup_agg', metric: null }),
@@ -98,6 +104,28 @@ export default class TemplateCreate extends tsc<object> {
     this.resizeObserver.unobserve(this.createContentWrap);
   }
 
+  created() {
+    this.handleGetMetricFunctions();
+  }
+
+  handleCreateVariable(val: VariableModel) {
+    if (this.variablesList.find(item => item.name === val.name)) {
+      return;
+    }
+    this.variablesList.push(val);
+  }
+
+  async handleGetMetricFunctions() {
+    this.metricFunctions = await getFunctions().catch(() => []);
+  }
+
+  handleAdd(index: number) {
+    this.queryConfigs.splice(index, 0, {});
+  }
+  handleDelete(index: number) {
+    this.queryConfigs.splice(index, 1);
+  }
+
   render() {
     return (
       <div class='template-create'>
@@ -121,7 +149,24 @@ export default class TemplateCreate extends tsc<object> {
           >
             <div class='create-config'>
               <BasicInfoCreate formData={this.basicInfoData} />
-              <TemplateConfig />
+              <div class='template-config-wrap-component'>
+                <div class='template-config-title'>{this.$t('模板配置')}</div>
+                <div class='template-config-content'>
+                  {this.queryConfigs.map((_item, index) => (
+                    <QueryPanel
+                      key={index}
+                      hasAdd={index === this.queryConfigs.length - 1}
+                      hasDelete={this.queryConfigs.length >= 2}
+                      metricFunctions={this.metricFunctions}
+                      variables={this.variablesList}
+                      onAdd={() => this.handleAdd(index)}
+                      onCreateVariable={this.handleCreateVariable}
+                      onDelete={() => this.handleDelete(index)}
+                    />
+                  ))}
+                  <ExpressionPanel />
+                </div>
+              </div>
             </div>
             <div class={['submit-btns', { sticky: this.isSticky }]}>
               <bk-button

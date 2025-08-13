@@ -50,6 +50,7 @@ import './ui-selector-options.scss';
 
 interface IProps {
   fields: IFilterField[];
+  hasVariableOperate?: boolean;
   keyword?: string; // 上层传的关键字，用于搜索
   show?: boolean;
   value?: IFilterItem;
@@ -72,6 +73,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) value: IFilterItem;
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: String, default: '' }) keyword: string;
+  /* 是否含有变量操作模式 */
+  @Prop({ type: Boolean, default: false }) hasVariableOperate: boolean;
 
   @Ref('allInput') allInputRef;
   @Ref('valueSelector') valueSelectorRef: ValueTagSelector;
@@ -518,6 +521,17 @@ export default class UiSelectorOptions extends tsc<IProps> {
               />
             </div>
             <div class='options-wrap'>
+              {this.hasVariableOperate && (
+                <div
+                  key={'variable-operate'}
+                  class={['option']}
+                >
+                  <span class='option-name-title'>
+                    {this.$t('创建变量')}
+                    {'${}'}
+                  </span>
+                </div>
+              )}
               {this.searchLocalFields.map((item, index) => {
                 const { title, subtitle } = getTitleAndSubtitle(item.alias);
                 return (

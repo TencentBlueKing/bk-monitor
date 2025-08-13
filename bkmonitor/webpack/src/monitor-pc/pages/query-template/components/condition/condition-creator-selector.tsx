@@ -36,7 +36,6 @@ import {
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
   ECondition,
-  EFieldType,
   EMethod,
 } from '../../../../components/retrieval-filter/utils';
 
@@ -337,6 +336,7 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
         {this.localValue.map((item, index) => (
           <KvTag
             key={`${index}_kv`}
+            hasHideBtn={false}
             value={item}
             onDelete={() => this.handleDeleteTag(index)}
             onHide={() => this.handleHideTag(index)}
@@ -346,17 +346,9 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
         <div style='display: none;'>
           <div ref='selector'>
             <UiSelectorOptions
-              fields={[
-                {
-                  type: EFieldType.all,
-                  name: '*',
-                  alias: this.$tc('全文检索'),
-                  is_option_enabled: false,
-                  supported_operations: [],
-                },
-                ...this.fields,
-              ]}
+              fields={[...this.fields]}
               getValueFn={this.getValueFn}
+              hasVariableOperate={true}
               keyword={this.inputValue}
               show={this.showSelector}
               value={this.localValue?.[this.updateActive]}
