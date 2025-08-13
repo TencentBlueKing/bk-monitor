@@ -247,11 +247,13 @@ class ApiTokenAuthType(ChoicesEnum):
     GRAFANA = "Grafana"
     SEARCH = "Search"
     CODECC = "CodeCC"
+    UNIFY_QUERY = "UnifyQuery"
 
     _choices_labels = (
         (GRAFANA, _("Grafana")),
         (SEARCH, "Search"),
         (CODECC, "CodeCC"),
+        (UNIFY_QUERY, "UnifyQuery"),
     )
 
 
