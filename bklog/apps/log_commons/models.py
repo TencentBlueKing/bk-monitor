@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from urllib.parse import urljoin
 
 import pytz
@@ -33,6 +33,7 @@ from apps.utils.local import get_local_username, get_request_username
 from apps.utils.log import logger
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
+import builtins
 
 
 def get_random_string_16() -> str:
@@ -50,7 +51,7 @@ class ApiAuthToken(OperateRecordModel):
     token = models.CharField(_("鉴权令牌"), max_length=32, default=get_random_string_16)
     type = models.CharField(_("鉴权类型"), max_length=32, choices=ApiTokenAuthType.get_choices())
     params = models.JSONField(_("鉴权参数"), default=dict)
-    expire_time = models.DateTimeField(_("过期时间"), null=True, default=None)
+    expire_time = models.DateTimeField(_("过期时间"), blank=True, null=True, default=None)
 
     class Meta:
         verbose_name = _("API鉴权令牌")
@@ -156,7 +157,7 @@ class ExternalPermission(OperateRecordModel):
         return space_uid_to_bk_biz_id(self.space_uid)
 
     @classmethod
-    def get_authorized_user_space_list(cls, authorized_user: str) -> List[str]:
+    def get_authorized_user_space_list(cls, authorized_user: str) -> list[str]:
         """
         获取被授权人的空间列表
         :param authorized_user: 被授权人
@@ -164,8 +165,8 @@ class ExternalPermission(OperateRecordModel):
         """
         return (
             ExternalPermission.objects.filter(authorized_user=authorized_user, expire_time__gt=timezone.now())
-                .values_list("space_uid", flat=True)
-                .distinct()
+            .values_list("space_uid", flat=True)
+            .distinct()
         )
 
     @property
@@ -182,7 +183,7 @@ class ExternalPermission(OperateRecordModel):
                 # is_allowed_by_biz里针对bk_biz_id的判断, 当非BKCC的时候需要传入space_uid
                 bk_biz_id = self.bk_biz_id if self.bk_biz_id > 0 else self.space_uid
                 if not Permission(username=authorizer).is_allowed_by_biz(
-                        bk_biz_id=bk_biz_id, action=ActionEnum.MANAGE_EXTRACT_CONFIG, raise_exception=False
+                    bk_biz_id=bk_biz_id, action=ActionEnum.MANAGE_EXTRACT_CONFIG, raise_exception=False
                 ):
                     status = TokenStatusEnum.INVALID.value
             elif self.action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
@@ -210,7 +211,7 @@ class ExternalPermission(OperateRecordModel):
 
     @classmethod
     def create(
-            cls, authorized_users: List[str], space_uid: str, action_id: str, resources: List[str], expire_time: str
+        cls, authorized_users: list[str], space_uid: str, action_id: str, resources: list[str], expire_time: str
     ):
         """
         新增权限
@@ -220,9 +221,9 @@ class ExternalPermission(OperateRecordModel):
         """
         exist_authorized_users = set()
         for permission_obj in cls.objects.filter(
-                authorized_user__in=authorized_users,
-                action_id=action_id,
-                space_uid=space_uid,
+            authorized_user__in=authorized_users,
+            action_id=action_id,
+            space_uid=space_uid,
         ):
             exist_authorized_users.add(permission_obj.authorized_user)
             all_resources = set(resources) | set(permission_obj.resources)
@@ -243,7 +244,7 @@ class ExternalPermission(OperateRecordModel):
         )
 
     @classmethod
-    def build_itsm_resources_display_name(cls, action_id: str, space_uid: str, resources: List[Any]) -> str:
+    def build_itsm_resources_display_name(cls, action_id: str, space_uid: str, resources: list[Any]) -> str:
         """
         拼接资源列表, 用于ITSM审批单据展示
         :param action_id: ExternalPermissionActionEnum 定义的模块操作ID
@@ -251,7 +252,7 @@ class ExternalPermission(OperateRecordModel):
         :param resources:
         :return:
         """
-        allowed_resources: List[Dict[str, Any]] = cls.get_resource_by_action(action_id=action_id, space_uid=space_uid)
+        allowed_resources: list[dict[str, Any]] = cls.get_resource_by_action(action_id=action_id, space_uid=space_uid)
         if not resources or not allowed_resources:
             return ""
         return ", ".join(
@@ -263,7 +264,7 @@ class ExternalPermission(OperateRecordModel):
         )
 
     @classmethod
-    def create_approval_ticket(cls, authorized_users: List[str], params: Dict[str, Any]):
+    def create_approval_ticket(cls, authorized_users: list[str], params: dict[str, Any]):
         """
         创建ITSM审批单据并创建审批记录，保存单据号和跳转url
         1. 新增权限 - 被授权人视角
@@ -316,7 +317,7 @@ class ExternalPermission(OperateRecordModel):
         record.save()
 
     @classmethod
-    def create_or_update(cls, validated_request_data: Dict[str, Any]):
+    def create_or_update(cls, validated_request_data: dict[str, Any]):
         """
         1. 基于被授权人视角：
            1.1 新增：需走审批流程
@@ -330,8 +331,8 @@ class ExternalPermission(OperateRecordModel):
                 cls.objects.filter(
                     space_uid=validated_request_data["space_uid"],
                 )
-                    .values_list("authorized_user", flat=True)
-                    .distinct()
+                .values_list("authorized_user", flat=True)
+                .distinct()
             )
 
         view_type = validated_request_data.pop("view_type", ViewTypeEnum.USER.value)
@@ -351,8 +352,8 @@ class ExternalPermission(OperateRecordModel):
             origin_authorized_users = set(authorized_users)
             # 遍历与该实例相关的授权信息
             for permission in cls.objects.filter(
-                    action_id=validated_request_data["action_id"],
-                    space_uid=validated_request_data["space_uid"],
+                action_id=validated_request_data["action_id"],
+                space_uid=validated_request_data["space_uid"],
             ):
                 resource_id = resources[0]
                 if resource_id not in permission.resources:
@@ -404,7 +405,7 @@ class ExternalPermission(OperateRecordModel):
         return {"need_approval": need_approval}
 
     @classmethod
-    def destroy(cls, validated_request_data: Dict[str, Any]):
+    def destroy(cls, validated_request_data: dict[str, Any]):
         """
         1. 基于被授权人视角：修改资源列表
         2. 基于实例资源视角：修改对应被授权人的资源列表
@@ -416,9 +417,9 @@ class ExternalPermission(OperateRecordModel):
         if view_type == ViewTypeEnum.RESOURCE.value:
             resource_id = resources[0]
             for permission in cls.objects.filter(
-                    authorized_user__in=authorized_users,
-                    action_id=validated_request_data["action_id"],
-                    space_uid=validated_request_data["space_uid"],
+                authorized_user__in=authorized_users,
+                action_id=validated_request_data["action_id"],
+                space_uid=validated_request_data["space_uid"],
             ):
                 permission.resources = [
                     exist_resource for exist_resource in permission.resources if exist_resource != resource_id
@@ -508,7 +509,7 @@ class ExternalPermission(OperateRecordModel):
             AuthorizerSettings.enable_space(space_uid=space_uid, authorized_user=authorizer)
 
     @classmethod
-    def list_authorizer(cls, space_uid: str) -> List[str]:
+    def list_authorizer(cls, space_uid: str) -> builtins.list[str]:
         return get_maintainers(space_uid=space_uid)
 
     @classmethod
@@ -516,7 +517,7 @@ class ExternalPermission(OperateRecordModel):
         return AuthorizerSettings.get_authorizer(space_uid=space_uid)
 
     @classmethod
-    def get_resource_by_action(cls, action_id: str, space_uid: str = "") -> List[Dict[str, Any]]:
+    def get_resource_by_action(cls, action_id: str, space_uid: str = "") -> builtins.list[dict[str, Any]]:
         if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
             return cls._get_log_search_resource(space_uid=space_uid)
         if action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value:
@@ -524,7 +525,7 @@ class ExternalPermission(OperateRecordModel):
         return []
 
     @classmethod
-    def _get_log_search_resource(cls, space_uid: str) -> List[Dict[str, Any]]:
+    def _get_log_search_resource(cls, space_uid: str) -> builtins.list[dict[str, Any]]:
         from apps.log_search.handlers.index_set import IndexSetHandler
         from apps.log_search.models import LogIndexSet
 
@@ -546,7 +547,7 @@ class ExternalPermission(OperateRecordModel):
         ]
 
     @classmethod
-    def _get_log_extract_resource(cls, space_uid: str) -> List[Dict[str, Any]]:
+    def _get_log_extract_resource(cls, space_uid: str) -> builtins.list[dict[str, Any]]:
         from apps.log_extract.models import Strategies
 
         # 只过滤授权人有的策略
@@ -570,7 +571,7 @@ class ExternalPermission(OperateRecordModel):
         ]
 
     @classmethod
-    def get_authorizer_permission(cls, authorizer: str, space_uid: str = "") -> Dict[str, List[str]]:
+    def get_authorizer_permission(cls, authorizer: str, space_uid: str = "") -> dict[str, builtins.list[str]]:
         """
         获取授权人的各个业务ID的权限列表
         """
@@ -648,7 +649,10 @@ class ExternalPermissionApplyRecord(OperateRecordModel):
     approval_sn = models.CharField("审批单号", max_length=128, default="", null=True, blank=True)
     approval_url = models.CharField("审批地址", default="", max_length=1024, null=True, blank=True)
     status = models.CharField(
-        "状态", max_length=32, choices=ITSMStatusChoicesEnum.get_choices(), default=ITSMStatusChoicesEnum.NO_STATUS.value
+        "状态",
+        max_length=32,
+        choices=ITSMStatusChoicesEnum.get_choices(),
+        default=ITSMStatusChoicesEnum.NO_STATUS.value,
     )
 
     class Meta:
