@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from bkmonitor.views.renderers import MonitorJSONRenderer
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from core.drf_resource import resource as r
 from metadata import resources as resource
 
 RENDER_CLASSES = [MonitorJSONRenderer]
@@ -303,7 +304,10 @@ class ListSpaceTypesViewSet(MetaViewSet):
 
 
 class ListSpacesViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.ListSpacesResource)]
+    resource_routes = [
+        ResourceRoute("GET", resource.ListSpacesResource),
+        ResourceRoute("GET", r.commons.list_spaces, endpoint="by_user"),
+    ]
 
 
 class GetSpaceDetailViewSet(MetaViewSet):
