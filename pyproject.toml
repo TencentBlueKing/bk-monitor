@@ -40,6 +40,7 @@ exclude = "*config*,*migrations*,*.pyc,.git,__pycache__.tox,docs,old,build,dist,
 src = ["bkmonitor", "bklog", "bkmonitor/packages"]
 line-length = 120
 target-version = "py310"
+ignore = ["E741"]
 exclude = [
     ".git",
     "venv",

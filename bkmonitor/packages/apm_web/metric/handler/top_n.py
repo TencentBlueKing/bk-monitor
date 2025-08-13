@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import urllib.parse
 from collections import defaultdict
@@ -21,6 +21,7 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric_handler import AvgDurationInstance, RequestCountInstance
 from apm_web.models import Application
+from apm_web.utils import check_app_integration_status
 from bkmonitor.utils import group_by
 from constants.apm import OtlpKey
 from core.unit import load_unit
@@ -87,6 +88,9 @@ class TopNHandler:
     ):
         if self.filter_dict.get(self.service_name_key) and not self.node:
             # 如果存在服务过滤但是没有查询到节点 说明此服务无数据
+            return []
+
+        if check_app_integration_status(self.application) is False:
             return []
 
         return self.top_n()[: self.size]
