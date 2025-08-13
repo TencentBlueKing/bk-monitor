@@ -11,9 +11,9 @@ specific language governing permissions and limitations under the License.
 from dateutil import parser
 
 from apps.constants import ApiTokenAuthType
+from apps.iam.exceptions import PermissionDeniedError
 from apps.log_commons.models import ApiAuthToken
 from apps.log_search.constants import OperatorEnum
-from apps.log_search.exceptions import TokenMissingException
 from apps.log_unifyquery.constants import ADVANCED_OP_MAP
 from bkm_space.utils import bk_biz_id_to_space_uid
 
@@ -65,11 +65,11 @@ def verify_unify_query_token(request, auth_info):
     # 获取并验证参数
     bk_biz_id = request.data.get("bk_biz_id")
     if not bk_biz_id:
-        raise ValueError("bk_biz_id是必填参数")
+        raise ValueError("bk_biz_id is required")
 
     space_uid = bk_biz_id_to_space_uid(bk_biz_id)
     if not space_uid:
-        raise ValueError(f"无法从bk_biz_id {bk_biz_id} 获取有效的space_uid")
+        raise ValueError(f"Unable to get valid space_uid from bk_biz_id {bk_biz_id}")
 
     # 查询 token 表，根据 space_uid 和 app_code 查找对应的 token
     token_obj = ApiAuthToken.objects.filter(
@@ -79,4 +79,4 @@ def verify_unify_query_token(request, auth_info):
     ).first()
 
     if not token_obj or token_obj.is_expired():
-        raise TokenMissingException()
+        raise PermissionDeniedError(action_name="unify_query", permission={}, apply_url="")
