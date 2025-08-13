@@ -35,6 +35,7 @@ import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config'
 import './function-creator-pop.scss';
 
 interface IProps {
+  hasCreateVariable?: boolean;
   isExpSupport?: boolean;
   options?: IFunctionOptionsItem[];
   variables?: IVariablesItem[];
@@ -47,6 +48,7 @@ interface IProps {
 export default class FunctionCreatorPop extends tsc<IProps> {
   /* 变量列表 */
   @Prop({ default: () => [] }) variables: IVariablesItem[];
+  @Prop({ default: true }) hasCreateVariable: boolean;
   /* 可选项列表 */
   @Prop({ default: () => [] }) options: IFunctionOptionsItem[];
   /** 只展示支持表达式的函数 */
@@ -141,15 +143,17 @@ export default class FunctionCreatorPop extends tsc<IProps> {
         />
         <div class='panel-list'>
           <ul class='panel-item'>
-            <li
-              key={'create'}
-              class={['list-item', { 'item-active': this.isCreateVar }]}
-              on-mouseenter={() => this.handleClickCreateVar()}
-            >
-              {this.$t('创建变量')}
-              {'${}'}
-              <i class='icon-monitor icon-arrow-right arrow-icon' />
-            </li>
+            {this.hasCreateVariable && (
+              <li
+                key={'create'}
+                class={['list-item', { 'item-active': this.isCreateVar }]}
+                on-mouseenter={() => this.handleClickCreateVar()}
+              >
+                {this.$t('创建变量')}
+                {'${}'}
+                <i class='icon-monitor icon-arrow-right arrow-icon' />
+              </li>
+            )}
             {this.getVariables.map((item, index) => (
               <li
                 key={index}
