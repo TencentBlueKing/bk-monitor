@@ -26,60 +26,53 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { METHOD_LIST } from '../../../../../constant/constant';
+import { Debounce } from 'monitor-common/utils';
+
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { VariableModel } from '../../../typings';
-interface AggMethodVariableEvents {
-  onDataChange: (data: VariableModel) => void;
+import type { ConstantVariableModel } from '../../index';
+
+interface ConstantVariableEvents {
+  onDataChange: (data: ConstantVariableModel) => void;
 }
-interface AggMethodVariableProps {
-  data: VariableModel;
+interface ConstantVariableProps {
+  data: ConstantVariableModel;
 }
 
 @Component
-export default class AggMethodVariable extends tsc<AggMethodVariableProps, AggMethodVariableEvents> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+export default class ConstantVariable extends tsc<ConstantVariableProps, ConstantVariableEvents> {
+  @Prop({ type: Object, required: true }) data!: ConstantVariableModel;
 
-  get aggMethodList() {
-    return METHOD_LIST;
-  }
-
-  handleValueChange(value: string) {
+  handleValueChange(value) {
     this.handleDataChange({
       ...this.data,
       value,
     });
   }
 
-  handleDataChange(data: VariableModel) {
+  @Debounce(200)
+  handleDataChange(data: ConstantVariableModel) {
     this.$emit('dataChange', data);
   }
 
   render() {
     return (
-      <div class='agg-method-variable'>
+      <div class='constant-variable'>
         <VariableCommonForm
           data={this.data}
           onDataChange={this.handleDataChange}
         >
           <bk-form-item
+            label={this.$t('数据类型')}
+            property='value'
+          >
+            <bk-select />
+          </bk-form-item>
+          <bk-form-item
             label={this.$t('默认值')}
             property='value'
           >
-            <bk-select
-              clearable={false}
-              value={this.data.value}
-              onChange={this.handleValueChange}
-            >
-              {this.aggMethodList.map(item => (
-                <bk-option
-                  id={item.id}
-                  key={item.id}
-                  name={item.name}
-                />
-              ))}
-            </bk-select>
+            <bk-input />
           </bk-form-item>
         </VariableCommonForm>
       </div>

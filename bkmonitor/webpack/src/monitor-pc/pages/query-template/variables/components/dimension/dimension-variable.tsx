@@ -26,22 +26,25 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { Debounce } from 'monitor-common/utils';
+
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { VariableModel } from '../../../typings';
+import type { DimensionVariableModel } from '../../index';
+
 interface DimensionVariableEvents {
-  onDataChange: (data: VariableModel) => void;
+  onDataChange: (data: DimensionVariableModel) => void;
 }
 interface DimensionVariableProps {
-  data: VariableModel;
+  data: DimensionVariableModel;
 }
 
 @Component
 export default class DimensionVariable extends tsc<DimensionVariableProps, DimensionVariableEvents> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+  @Prop({ type: Object, required: true }) data!: DimensionVariableModel;
 
   rules = {
-    optionalDimension: [
+    dimensionOption: [
       {
         required: true,
         message: this.$t('可选维度值必选'),
@@ -50,6 +53,25 @@ export default class DimensionVariable extends tsc<DimensionVariableProps, Dimen
     ],
   };
 
+  get nullMetricGroupByList() {
+    if (!this.data.metric) return null;
+    return this.data.metric.isNullMetric
+      ? this.data.metric.agg_dimension.map(item => ({ id: item, name: item, disabled: false }))
+      : null;
+  }
+
+  get dimensionList() {
+    const list = this.nullMetricGroupByList || [];
+    return [{ id: 'all', name: '- ALL -', disabled: false }, { id: 1, name: 1 }, ...list];
+  }
+
+  checkboxDisabled(dimension) {
+    const isAllDisabled =
+      dimension.id === 'all' && this.data.dimensionOption.length && !this.data.dimensionOption.includes('all');
+    const isOtherDisabled = dimension.id !== 'all' && this.data.dimensionOption.includes('all');
+    return isAllDisabled || isOtherDisabled;
+  }
+
   handleValueChange(value: string) {
     this.handleDataChange({
       ...this.data,
@@ -57,7 +79,15 @@ export default class DimensionVariable extends tsc<DimensionVariableProps, Dimen
     });
   }
 
-  handleDataChange(data: VariableModel) {
+  handleDimensionChange(value) {
+    this.handleDataChange({
+      ...this.data,
+      dimensionOption: value,
+    });
+  }
+
+  @Debounce(200)
+  handleDataChange(data: DimensionVariableModel) {
     this.$emit('dataChange', data);
   }
 
@@ -71,19 +101,31 @@ export default class DimensionVariable extends tsc<DimensionVariableProps, Dimen
         >
           <bk-form-item label={this.$t('关联指标')}>
             <bk-input
-              value={'cpu_userage'}
+              value={this.data.metric?.readable_name}
               readonly
             />
           </bk-form-item>
           <bk-form-item
-            label={this.$t('可选维度值')}
-            property='optionalDimension'
+            label={this.$t('可选维度')}
+            property='dimensionOption'
             required
           >
             <bk-select
               clearable={false}
+              selected-style='checkbox'
+              value={this.data.dimensionOption}
               multiple
-            />
+              onChange={this.handleDimensionChange}
+            >
+              {this.dimensionList.map(item => (
+                <bk-option
+                  id={item.id}
+                  key={item.id}
+                  disabled={this.checkboxDisabled(item)}
+                  name={item.name}
+                />
+              ))}
+            </bk-select>
           </bk-form-item>
           <bk-form-item
             label={this.$t('默认值')}

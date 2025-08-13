@@ -50,16 +50,16 @@ export const VariableTypeEnum = {
   FUNCTION: 'function',
   DIMENSION: 'dimension',
   DIMENSION_VALUE: 'dimension_value',
-  AGG_METHOD: 'agg_method',
+  METHOD: 'method',
   CONDITION: 'condition',
-  GENERAL: 'general',
+  CONSTANT: 'constant',
 } as const;
 
 export const VariableTypeMap = {
   [VariableTypeEnum.FUNCTION]: window.i18n.tc('函数变量'),
   [VariableTypeEnum.DIMENSION]: window.i18n.tc('维度变量'),
   [VariableTypeEnum.DIMENSION_VALUE]: window.i18n.tc('维度值变量'),
-  [VariableTypeEnum.AGG_METHOD]: window.i18n.tc('汇聚变量'),
+  [VariableTypeEnum.METHOD]: window.i18n.tc('汇聚变量'),
   [VariableTypeEnum.CONDITION]: window.i18n.tc('条件变量'),
-  [VariableTypeEnum.GENERAL]: window.i18n.tc('常规变量'),
+  [VariableTypeEnum.CONSTANT]: window.i18n.tc('常规变量'),
 };

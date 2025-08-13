@@ -26,21 +26,21 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { VariableModel } from '../../../typings';
+import type { VariableModelType } from '../../index';
 
 import './variable-common-form.scss';
 interface VariableCommonFormEvents {
-  onDataChange: (data: VariableModel) => void;
+  onDataChange: (data: VariableModelType) => void;
 }
 
 interface VariableCommonFormProps {
-  data: VariableModel;
+  data: VariableModelType;
   rules?: Record<string, Record<string, any>[]>;
 }
 
 @Component
 export default class VariableCommonForm extends tsc<VariableCommonFormProps, VariableCommonFormEvents> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+  @Prop({ type: Object, required: true }) data!: VariableModelType;
   @Prop({ type: Object, default: () => ({}) }) rules: VariableCommonFormProps['rules'];
   @Ref('form') formRef: any;
 
@@ -76,6 +76,7 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
         label-width={76}
       >
         <bk-form-item
+          class='variable-name-form-item'
           label={this.$t('变量名')}
           property='name'
           required
@@ -95,8 +96,9 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
         </bk-form-item>
         <bk-form-item
           desc={{
-            content: this.$t('消费场景优先显示“变量别名”变量别名留空，则显示“变量名”'),
+            content: `${this.$t('消费场景优先显示“变量别名”')}<br />${this.$t('变量别名留空，则显示“变量名”')}`,
             width: 200,
+            allowHTML: true,
           }}
           label={this.$t('变量别名')}
           property='alias'

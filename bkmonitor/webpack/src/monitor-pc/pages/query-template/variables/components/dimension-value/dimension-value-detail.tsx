@@ -53,14 +53,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
 
-import type { VariableModel } from '../../../typings';
+import type { DimensionValueVariableModel } from '../../index';
 interface DimensionValueDetailProps {
-  data: VariableModel;
+  data: DimensionValueVariableModel;
 }
 
 @Component
 export default class DimensionValueDetail extends tsc<DimensionValueDetailProps> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+  @Prop({ type: Object, required: true }) data!: DimensionValueVariableModel;
 
   render() {
     return (

@@ -23,3 +23,125 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { random } from 'monitor-common/utils';
+
+import { VariableTypeEnum } from '../constants';
+
+import type { MetricDetail } from '../components/type/query-config';
+import type { VariableTypeEnumType } from '../typings';
+import type { IDimensionVariableModel, IMethodVariableModel } from '../typings';
+import type {
+  ICommonVariableModel,
+  IConditionVariableModel,
+  IConstantVariableModel,
+  IDimensionValueVariableModel,
+  IFunctionVariableModel,
+  IVariableModel,
+} from '../typings/variables';
+
+export type VariableModelType =
+  | ConditionVariableModel
+  | ConstantVariableModel
+  | DimensionValueVariableModel
+  | DimensionVariableModel
+  | FunctionVariableModel
+  | MethodVariableModel;
+
+abstract class VariableBase {
+  alias = '';
+  desc = '';
+  id = '';
+  name = '';
+  type: VariableTypeEnumType;
+  abstract value: any;
+  constructor(config: ICommonVariableModel<VariableTypeEnumType>) {
+    this.name = config.name;
+    this.alias = config.alias;
+    this.desc = config.desc;
+    this.type = config.type;
+    this.id = random(5);
+  }
+}
+
+export class ConditionVariableModel extends VariableBase {
+  dimensionOption = [];
+  /** 关联指标 */
+  metric: MetricDetail = null;
+  value: IConditionVariableModel['value'] = [];
+  constructor(config: IConditionVariableModel) {
+    super(config);
+    this.metric = config.metric;
+    this.value = config.value || [];
+    this.dimensionOption = config.dimensionOption || ['all'];
+  }
+}
+
+export class ConstantVariableModel extends VariableBase {
+  value = '';
+  constructor(config: IConstantVariableModel) {
+    super(config);
+    this.value = config.value || '';
+  }
+}
+
+export class DimensionValueVariableModel extends VariableBase {
+  /** 关联指标 */
+  metric: MetricDetail = null;
+  /** 关联维度 */
+  relationDimension = '';
+  value = '';
+  constructor(config: IDimensionValueVariableModel) {
+    super(config);
+    this.metric = config.metric;
+    this.relationDimension = config.relationDimension || '';
+    this.value = config.value || '';
+  }
+}
+
+export class DimensionVariableModel extends VariableBase {
+  dimensionOption = [];
+  metric: MetricDetail = null;
+  value = '';
+  constructor(config: IDimensionVariableModel) {
+    super(config);
+    this.metric = config.metric;
+    this.dimensionOption = config.dimensionOption || ['all'];
+    this.value = config.value || '';
+  }
+}
+
+export class FunctionVariableModel extends VariableBase {
+  value = null;
+  constructor(config: IFunctionVariableModel) {
+    super(config);
+    this.value = config.value || null;
+  }
+}
+
+export class MethodVariableModel extends VariableBase {
+  metric: MetricDetail = null;
+  value = '';
+  constructor(config: IMethodVariableModel) {
+    super(config);
+    this.value = config.value || '';
+    this.metric = config.metric;
+  }
+}
+
+export function getVariableModel(config: IVariableModel): VariableModelType {
+  switch (config.type) {
+    case VariableTypeEnum.METHOD:
+      return new MethodVariableModel(config);
+    case VariableTypeEnum.DIMENSION:
+      return new DimensionVariableModel(config);
+    case VariableTypeEnum.DIMENSION_VALUE:
+      return new DimensionValueVariableModel(config);
+    case VariableTypeEnum.FUNCTION:
+      return new FunctionVariableModel(config);
+    case VariableTypeEnum.CONDITION:
+      return new ConditionVariableModel(config);
+    case VariableTypeEnum.CONSTANT:
+      return new ConstantVariableModel(config);
+  }
+}
