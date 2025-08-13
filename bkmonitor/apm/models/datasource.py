@@ -178,7 +178,7 @@ class ApmDataSourceConfigBase(models.Model):
 
 
 class MetricDataSource(ApmDataSourceConfigBase):
-    DATASOURCE_TYPE = ApmDataSourceConfigBase.METRIC_DATASOURCE
+    DATASOURCE_TPE = ApmDataSourceConfigBase.METRIC_DATASOURCE
 
     DEFAULT_MEASUREMENT = "__default__"
 
