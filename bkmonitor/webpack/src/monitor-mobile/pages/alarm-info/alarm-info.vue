@@ -136,6 +136,7 @@
       </div>
     </van-list>
     <footer-button
+      v-show="alarmConfirmButtonShow"
       :disabled="alarmConfirmDisabled"
       @click="handleAlarmCheck"
     >
@@ -181,6 +182,16 @@ export default class AlarmDetail extends Vue {
 
   get alarmConfirmDisabled() {
     return this.eventList.every(item => item.isAck);
+  }
+
+  // 事件列表全部为已屏蔽状态时，隐藏告警确认按钮
+  get alarmConfirmButtonShow() {
+    const isAllShielded = this.eventList.every(item => {
+      if (item.isAck) return false; // 已确认
+      if (['closed', 'recovered'].includes(item.status.toLocaleLowerCase())) return false; // 已恢复、已关闭
+      return item.isShielded && item.shieldType === 'saas_config' // 已屏蔽状态
+    })
+    return this.eventList.length > 0 && !isAllShielded;
   }
   get chartOption() {
     return {
