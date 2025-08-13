@@ -10,10 +10,12 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+from typing import ClassVar
 
 from django.conf import settings
 from django.db import models
 
+from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from metadata.models.data_link import constants, utils
 from metadata.models.data_link.constants import DataLinkKind
 
@@ -43,11 +45,11 @@ class DataLinkResourceConfigBase(models.Model):
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
     status = models.CharField(verbose_name="状态", max_length=64)
     data_link_name = models.CharField(verbose_name="数据链路名称", max_length=64)
-    bk_biz_id = models.BigIntegerField(verbose_name="业务ID", default=settings.DEFAULT_BKDATA_BIZ_ID)
+    bk_biz_id = models.BigIntegerField(verbose_name="业务ID")
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
-        abstract = True
+        abstract: ClassVar[bool] = True
 
     @property
     def component_status(self):
@@ -71,6 +73,13 @@ class DataLinkResourceConfigBase(models.Model):
             namespace=self.namespace,
             component_name=self.name,
         )
+
+    @property
+    def datalink_biz_ids(self):
+        """
+        数据链路业务ID
+        """
+        return get_tenant_datalink_biz_id(bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id)
 
     @classmethod
     def compose_config(cls, *args, **kwargs):
@@ -117,8 +126,8 @@ class DataIdConfig(DataLinkResourceConfigBase):
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
-            "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
+            "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
             "maintainers": json.dumps(maintainer),
             "event_type": event_type,
         }
@@ -177,12 +186,11 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
             }
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
-
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
-            "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
+            "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
             "data_type": self.data_type,
             "maintainers": json.dumps(maintainer),
         }
@@ -247,8 +255,8 @@ class LogResultTableConfig(DataLinkResourceConfigBase):
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
-            "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
+            "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
             "data_type": self.data_type,
             "maintainers": json.dumps(maintainer),
             "fields": json.dumps(fields, ensure_ascii=False),
@@ -337,7 +345,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "storage_cluster_name": storage_cluster_name,
             "unique_field_list": json.dumps(unique_field_list),
             "write_alias_format": write_alias_format,
@@ -374,7 +382,6 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name = "VM存储配置"
         verbose_name_plural = verbose_name
 
-    # TODO 多租户yaml改造
     def compose_config(
         self,
     ) -> dict:
@@ -418,7 +425,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "rt_name": self.name,
             "vm_name": self.vm_cluster_name,
             "maintainers": json.dumps(maintainer),
@@ -507,7 +514,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.bk_biz_id,  # 接入者的业务ID
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,
             "sinks": json.dumps(sinks),
             "sink_name": self.name,
             "data_id_name": self.data_id_name,
@@ -570,7 +577,7 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
         render_params = {
             "name": self.name,
             "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-            "bk_biz_id": self.bk_biz_id,
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "conditions": json.dumps(conditions),
         }
 
@@ -649,7 +656,7 @@ class LogDataBusConfig(DataLinkResourceConfigBase):
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "maintainers": json.dumps(maintainer),
         }
 

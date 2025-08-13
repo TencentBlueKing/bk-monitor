@@ -98,6 +98,8 @@ class CreateDataIDResource(Resource):
     """创建数据源ID"""
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=False, label="租户ID")
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         data_name = serializers.CharField(required=True, label="数据源名称")
         etl_config = serializers.CharField(required=True, label="清洗模板配置")
         operator = serializers.CharField(required=True, label="操作者")
@@ -116,19 +118,22 @@ class CreateDataIDResource(Resource):
         is_platform_data_id = serializers.CharField(required=False, label="是否为平台级 ID", default=False)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=SpaceTypes.ALL.value)
 
+        def validate(self, attrs):
+            # 多租户模式下，必须指定dataid所属业务ID和租户ID
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                if not attrs.get("bk_biz_id"):
+                    raise ValueError(_("多租户下，必须指定dataid所属业务ID"))
+
+                bk_tenant_id = attrs.get("bk_tenant_id") or get_request_tenant_id()
+                if not bk_tenant_id:
+                    raise ValueError(_("多租户下，必须指定dataid所属租户ID"))
+                attrs["bk_tenant_id"] = bk_tenant_id
+            else:
+                attrs["bk_tenant_id"] = DEFAULT_TENANT_ID
+            return attrs
+
     def perform_request(self, validated_request_data):
         space_uid = validated_request_data.pop("space_uid", None)
-
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("CreateDataIDResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
 
         if space_uid:
             try:
@@ -150,7 +155,6 @@ class CreateDataIDResource(Resource):
         # 默认来源系统标识
         default_source_system = "unknown"
         validated_request_data["source_system"] = bk_app_code or default_source_system
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
 
         new_data_source = models.DataSource.create_data_source(**validated_request_data)
 

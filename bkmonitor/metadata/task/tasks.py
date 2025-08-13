@@ -1271,7 +1271,7 @@ def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
         )
         data_source = models.DataSource.create_data_source(
             data_name=data_name,
-            etl_config=EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG,
+            etl_config=EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
             operator="system",
             source_label="bk_monitor",
             type_label="event",

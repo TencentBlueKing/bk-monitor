@@ -14,14 +14,13 @@ import math
 import operator
 import re
 from functools import reduce
-from typing import Optional, Any
+from typing import Any, ClassVar, Optional
 
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -34,13 +33,13 @@ from apm.constants import (
 from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.models.doris import BkDataDorisProvider
 from apm.utils.es_search import EsSearch
-from bkmonitor.data_source.unify_query.builder import UnifyQuerySet, QueryConfigBuilder
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
-from constants.apm import FlowType, OtlpKey, SpanKind, TRACE_RESULT_TABLE_OPTION, TraceDataSourceConfig
+from constants.apm import TRACE_RESULT_TABLE_OPTION, FlowType, OtlpKey, SpanKind, TraceDataSourceConfig
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
@@ -72,8 +71,8 @@ class ApmDataSourceConfigBase(models.Model):
     }
 
     # target字段配置
-    DATA_ID_PARAM = None
-    DATASOURCE_TYPE = None
+    DATA_ID_PARAM: ClassVar[dict[str, Any]]
+    DATASOURCE_TYPE: ClassVar[str]
 
     bk_biz_id = models.IntegerField("业务id")
     app_name = models.CharField("所属应用", max_length=255)
@@ -141,14 +140,16 @@ class ApmDataSourceConfigBase(models.Model):
                 if self.DATASOURCE_TYPE == self.TRACE_DATASOURCE:
                     if data_link.trace_transfer_cluster_id:
                         data_link_param["transfer_cluster"] = data_link.trace_transfer_cluster_id
-            param = {
-                "data_name": self.data_name,
-                "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
-                "data_description": self.data_name,
-                **self.DATA_ID_PARAM,
-                **data_link_param,
-            }
-            data_id_info = resource.metadata.create_data_id(param)
+            data_id_info = resource.metadata.create_data_id(
+                {
+                    "bk_biz_id": self.bk_biz_id,
+                    "data_name": self.data_name,
+                    "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+                    "data_description": self.data_name,
+                    **self.DATA_ID_PARAM,
+                    **data_link_param,
+                }
+            )
         bk_data_id = data_id_info["bk_data_id"]
         self.bk_data_id = bk_data_id
         self.save()
@@ -1140,19 +1141,19 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def create_builtin_source(cls):
-        builtin_biz = api.cmdb.get_blueking_biz()
         # datasource is enough, no real app created.
-        cls.apply_datasource(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME, option=True)
-        cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+        cls.apply_datasource(bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME, option=True)
+        cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(
+            bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME
+        )
 
     @classmethod
     def get_builtin_source(cls) -> Optional["ProfileDataSource"]:
         if cls._CACHE_BUILTIN_DATASOURCE:
             return cls._CACHE_BUILTIN_DATASOURCE
 
-        builtin_biz = api.cmdb.get_blueking_biz()
         try:
-            return cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+            return cls.objects.get(bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME)
         except cls.DoesNotExist:
             return None
 
