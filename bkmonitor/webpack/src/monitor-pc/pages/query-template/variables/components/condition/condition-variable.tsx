@@ -26,20 +26,36 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { Debounce } from 'monitor-common/utils';
+
+import ConditionCreator from '../../../components/condition/condition-creator';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { VariableModel } from '../../../typings';
+import type { ConditionVariableModel } from '../../index';
 
+import './condition-variable.scss';
 interface ConditionVariableEvents {
-  onDataChange: (data: VariableModel) => void;
+  onDataChange: (data: ConditionVariableModel) => void;
 }
 interface ConditionVariableProps {
-  data: VariableModel;
+  data: ConditionVariableModel;
 }
 
 @Component
 export default class ConditionVariable extends tsc<ConditionVariableProps, ConditionVariableEvents> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+  @Prop({ type: Object, required: true }) data!: ConditionVariableModel;
+
+  get nullMetricGroupByList() {
+    if (!this.data.metric) return null;
+    return this.data.metric.isNullMetric
+      ? this.data.metric.agg_dimension.map(item => ({ id: item, name: item, disabled: false }))
+      : null;
+  }
+
+  get dimensionList() {
+    const list = this.nullMetricGroupByList || [];
+    return [{ id: 'all', name: '- ALL -', disabled: false }, { id: 1, name: 1 }, ...list];
+  }
 
   handleValueChange(value) {
     this.handleDataChange({
@@ -48,7 +64,22 @@ export default class ConditionVariable extends tsc<ConditionVariableProps, Condi
     });
   }
 
-  handleDataChange(data: VariableModel) {
+  checkboxDisabled(dimension) {
+    const isAllDisabled =
+      dimension.id === 'all' && this.data.dimensionOption.length && !this.data.dimensionOption.includes('all');
+    const isOtherDisabled = dimension.id !== 'all' && this.data.dimensionOption.includes('all');
+    return isAllDisabled || isOtherDisabled;
+  }
+
+  handleDimensionChange(value) {
+    this.handleDataChange({
+      ...this.data,
+      dimensionOption: value,
+    });
+  }
+
+  @Debounce(200)
+  handleDataChange(data: ConditionVariableModel) {
     this.$emit('dataChange', data);
   }
 
@@ -64,7 +95,7 @@ export default class ConditionVariable extends tsc<ConditionVariableProps, Condi
             property='value'
           >
             <bk-input
-              value={'cpu_userage'}
+              value={this.data?.metric?.related_name}
               readonly
             />
           </bk-form-item>
@@ -72,12 +103,29 @@ export default class ConditionVariable extends tsc<ConditionVariableProps, Condi
             label={this.$t('可选维度')}
             property='value'
           >
-            <bk-select />
+            <bk-select
+              clearable={false}
+              selected-style='checkbox'
+              value={this.data.dimensionOption}
+              multiple
+              onChange={this.handleDimensionChange}
+            >
+              {this.dimensionList.map(item => (
+                <bk-option
+                  id={item.id}
+                  key={item.id}
+                  disabled={this.checkboxDisabled(item)}
+                  name={item.name}
+                />
+              ))}
+            </bk-select>
           </bk-form-item>
           <bk-form-item
             label={this.$t('默认值')}
             property='value'
-          />
+          >
+            <ConditionCreator showLabel={false} />
+          </bk-form-item>
         </VariableCommonForm>
       </div>
     );

@@ -26,50 +26,62 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { Debounce } from 'monitor-common/utils';
+
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { VariableModel } from '../../../typings';
-
-interface GeneralVariableEvents {
-  onDataChange: (data: VariableModel) => void;
+import type { MethodVariableModel } from '../../index';
+interface MethodVariableEvents {
+  onDataChange: (data: MethodVariableModel) => void;
 }
-interface GeneralVariableProps {
-  data: VariableModel;
+interface MethodVariableProps {
+  data: MethodVariableModel;
 }
 
 @Component
-export default class GeneralVariable extends tsc<GeneralVariableProps, GeneralVariableEvents> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+export default class MethodVariable extends tsc<MethodVariableProps, MethodVariableEvents> {
+  @Prop({ type: Object, required: true }) data!: MethodVariableModel;
 
-  handleValueChange(value) {
+  get aggMethodList() {
+    return this.data.metric?.aggMethodList || [];
+  }
+
+  handleValueChange(value: string) {
     this.handleDataChange({
       ...this.data,
       value,
     });
   }
 
-  handleDataChange(data: VariableModel) {
+  @Debounce(200)
+  handleDataChange(data: MethodVariableModel) {
     this.$emit('dataChange', data);
   }
 
   render() {
     return (
-      <div class='general-variable'>
+      <div class='method-variable'>
         <VariableCommonForm
           data={this.data}
           onDataChange={this.handleDataChange}
         >
           <bk-form-item
-            label={this.$t('数据类型')}
-            property='value'
-          >
-            <bk-select />
-          </bk-form-item>
-          <bk-form-item
             label={this.$t('默认值')}
             property='value'
           >
-            <bk-input />
+            <bk-select
+              clearable={false}
+              value={this.data.value}
+              onChange={this.handleValueChange}
+            >
+              {this.aggMethodList.map(item => (
+                <bk-option
+                  id={item.id}
+                  key={item.id}
+                  name={item.name}
+                />
+              ))}
+            </bk-select>
           </bk-form-item>
         </VariableCommonForm>
       </div>

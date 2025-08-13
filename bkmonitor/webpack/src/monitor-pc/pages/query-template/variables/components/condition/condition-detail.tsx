@@ -53,14 +53,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
 
-import type { VariableModel } from '../../../typings';
+import type { ConditionVariableModel } from '../../index';
 interface ConditionDetailProps {
-  data: VariableModel;
+  data: ConditionVariableModel;
 }
 
 @Component
 export default class ConditionDetail extends tsc<ConditionDetailProps> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+  @Prop({ type: Object, required: true }) data!: ConditionVariableModel;
 
   render() {
     return (
