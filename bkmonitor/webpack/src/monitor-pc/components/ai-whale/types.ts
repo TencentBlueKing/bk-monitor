@@ -75,32 +75,32 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
       },
     ],
   },
-  {
-    id: AI_BLUEKING_SHORTCUTS_ID.TRANSLATE,
-    name: window.i18n.t('翻译'),
-    // icon: 'bkai-translate',
-    components: [
-      {
-        type: 'textarea',
-        key: 'content',
-        name: window.i18n.t('待翻译文本'),
-        fillBack: true,
-        placeholder: window.i18n.t('请输入需要翻译的内容'),
-      },
-      {
-        type: 'select',
-        key: 'language',
-        name: window.i18n.t('语言'),
-        fillBack: false,
-        placeholder: window.i18n.t('请选择语言'),
-        default: 'english',
-        options: [
-          { label: 'English', value: 'english' },
-          { label: '中文', value: 'chinese' },
-        ],
-      },
-    ],
-  },
+  // {
+  //   id: AI_BLUEKING_SHORTCUTS_ID.TRANSLATE,
+  //   name: window.i18n.t('翻译'),
+  //   // icon: 'bkai-translate',
+  //   components: [
+  //     {
+  //       type: 'textarea',
+  //       key: 'content',
+  //       name: window.i18n.t('待翻译文本'),
+  //       fillBack: true,
+  //       placeholder: window.i18n.t('请输入需要翻译的内容'),
+  //     },
+  //     {
+  //       type: 'select',
+  //       key: 'language',
+  //       name: window.i18n.t('语言'),
+  //       fillBack: false,
+  //       placeholder: window.i18n.t('请选择语言'),
+  //       default: 'english',
+  //       options: [
+  //         { label: 'English', value: 'english' },
+  //         { label: '中文', value: 'chinese' },
+  //       ],
+  //     },
+  //   ],
+  // },
   {
     id: AI_BLUEKING_SHORTCUTS_ID.PROMQL_HELPER,
     name: window.i18n.t('PromQL助手'),
