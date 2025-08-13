@@ -27,10 +27,9 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { type VariableModelType } from '../../variables';
 import { QueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
-
-import type { VariablePanelParams } from '../../typings';
 
 import './method-detail.scss';
 
@@ -38,7 +37,7 @@ interface MethodProps {
   /* 汇聚方法 */
   method: string;
   /* 变量列表 */
-  variables?: VariablePanelParams[];
+  variables?: VariableModelType[];
 }
 
 @Component
@@ -46,7 +45,7 @@ export default class MethodDetail extends tsc<MethodProps> {
   /* 汇聚方法 */
   @Prop({ type: String, default: '' }) method: string;
   /* 变量列表 */
-  @Prop({ default: () => [] }) variables?: VariablePanelParams[];
+  @Prop({ default: () => [] }) variables?: VariableModelType[];
   variablesToolInstance = new QueryVariablesTool();
 
   get variableMap() {
@@ -72,7 +71,12 @@ export default class MethodDetail extends tsc<MethodProps> {
       <div class='template-method-detail-component'>
         <span class='method-label'>{`${this.$t('汇聚方法')}`}</span>
         <span class='method-colon'>:</span>
-        <this.methodViewDom class='method-name'>{this.methodConfig.value || '--'}</this.methodViewDom>
+        <this.methodViewDom
+          id={this.methodConfig.variableName}
+          class='method-name'
+        >
+          {this.methodConfig.value || '--'}
+        </this.methodViewDom>
       </div>
     );
   }
