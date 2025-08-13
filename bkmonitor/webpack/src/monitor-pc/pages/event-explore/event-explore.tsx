@@ -685,12 +685,14 @@ export default class EventExplore extends tsc<
               </div>
             )}
 
-            <div class='btn-alert-policy__wrap'>
+            {this.source === APIType.MONITOR && (
+              <div class='btn-alert-policy__wrap'>
               <div class='btn-alert-policy' onClick={this.handleAddAlertPolicy}>
                 <i class='icon-monitor icon-a-celve' />
-                <span class='btn-alert-policy-text'>添加告警策略</span>
+                <span class='btn-alert-policy-text'>{this.$t('添加告警策略')}</span>
               </div>
             </div>
+            )}
 
             <EventRetrievalLayout
               ref='eventRetrievalLayout'
