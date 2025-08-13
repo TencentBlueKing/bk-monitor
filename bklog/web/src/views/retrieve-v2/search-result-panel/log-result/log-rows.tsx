@@ -705,6 +705,8 @@ export default defineComponent({
             if (resp?.size === 50) {
               pageIndex.value++;
             }
+
+            handleResultBoxResize();
           })
           .finally(() => {
             debounceSetLoading(0);
