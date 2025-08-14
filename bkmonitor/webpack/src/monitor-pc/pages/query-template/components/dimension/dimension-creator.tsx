@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AddVariableOption from '../utils/add-variable-option';
@@ -55,6 +55,8 @@ export default class DimensionCreator extends tsc<IProps> {
   /* 是否展示变量 */
   @Prop({ default: false }) showVariables: boolean;
 
+  @Ref('inputRef') inputRef: AutoWidthInput;
+
   showSelect = false;
   popClickHide = true;
 
@@ -62,6 +64,7 @@ export default class DimensionCreator extends tsc<IProps> {
   curTags: IDimensionOptionsItem[] = [];
 
   inputValue = '';
+  popOffsetLeft = 0;
 
   @Watch('options', { immediate: true })
   handleWatchOptions() {
@@ -71,6 +74,12 @@ export default class DimensionCreator extends tsc<IProps> {
   @Watch('variables', { immediate: true })
   handleWatchVariables() {
     this.getAllOptions();
+  }
+  @Watch('curTags')
+  handleWatchCurTags() {
+    this.$nextTick(() => {
+      this.popOffsetLeft = this.inputRef.$el.offsetLeft;
+    });
   }
 
   handleOpenChange(v) {
@@ -136,6 +145,7 @@ export default class DimensionCreator extends tsc<IProps> {
           minWidth={408}
           needPop={true}
           popClickHide={this.popClickHide}
+          popOffset={this.popOffsetLeft}
           onOpenChange={this.handleOpenChange}
         >
           <div class='tags-wrap'>
@@ -155,6 +165,7 @@ export default class DimensionCreator extends tsc<IProps> {
               </div>
             ))}
             <AutoWidthInput
+              ref='inputRef'
               placeholder={this.$t('请选择') as string}
               value={this.inputValue}
               onEnter={this.handleInputEnter}
