@@ -443,12 +443,3 @@ class QueryFieldStatisticsInfoResource(ApmAPIGWResource):
 class QueryFieldStatisticsGraphResource(ApmAPIGWResource):
     action = "/app/apm/query_apm_field_statistics_graph/"
     method = "POST"
-
-
-class SetTopoNodePermanentResource(ApmAPIGWResource):
-    """
-    设置拓扑节点永久保存状态
-    """
-
-    action = "/app/apm/set_topo_node_permanent/"
-    method = "POST"

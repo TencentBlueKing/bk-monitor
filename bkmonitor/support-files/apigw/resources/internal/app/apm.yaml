@@ -989,21 +989,3 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm field statistics graph
-  /app/apm/set_topo_node_permanent/:
-    post:
-      operationId: set_topo_node_permanent
-      description: 设置拓扑节点永久保存状态
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: post
-          path: /apm_api/v1/topo/set_topo_node_permanent/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: set topo node permanent status

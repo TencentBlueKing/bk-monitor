@@ -630,24 +630,6 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         return round(get_bar_interval_number(start_time, end_time) / 60) * 60
 
 
-class UpdateServicePermanentResource(Resource):
-    """设置服务永久资源"""
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.CharField(label="应用名称", max_length=50)
-        topo_key = serializers.CharField(label="Topo Key")
-        is_permanent = serializers.BooleanField(label="是否永久保存")
-
-    def perform_request(self, validate_data):
-        app = Application.objects.filter(
-            bk_biz_id=validate_data["bk_biz_id"], app_name=validate_data["app_name"]
-        ).first()
-        if not app:
-            raise ValueError(_("应用{}不存在").format(validate_data["app_name"]))
-        api.apm_api.set_topo_node_permanent(validate_data)
-
-
 class ServiceListResource(PageListResource):
     """服务列表接口"""
 

@@ -32,7 +32,6 @@ from apm_web.metric.resources import (
     ServiceQueryExceptionResource,
     TopNQueryResource,
     UnifyQueryResource,
-    UpdateServicePermanentResource,
 )
 from apm_web.models import Application
 from bkmonitor.iam import ActionEnum, ResourceEnum
@@ -68,12 +67,6 @@ class MetricViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
-        ResourceRoute(
-            "POST",
-            UpdateServicePermanentResource,
-            "update_service_permanent",
-            decorators=[user_visit_record],
-        ),
         ResourceRoute(
             "POST",
             ServiceListResource,

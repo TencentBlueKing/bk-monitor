@@ -63,7 +63,6 @@ from apm.resources import (
     StopApplicationSimpleResource,
     UpdateMetricFieldsResource,
     QueryFieldStatisticsGraphResource,
-    SetTopoNodePermanentResource,
 )
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -130,7 +129,6 @@ class TopoViewSet(ResourceViewSet):
         ResourceRoute("POST", QueryRemoteServiceRelationResource, endpoint="query_remote_service_relation"),
         ResourceRoute("POST", QueryTopoRelationResource, endpoint="query_topo_relation"),
         ResourceRoute("GET", QueryTopoNodeResource, endpoint="query_topo_node"),
-        ResourceRoute("POST", SetTopoNodePermanentResource, endpoint="set_topo_node_permanent"),
     ]
 
 

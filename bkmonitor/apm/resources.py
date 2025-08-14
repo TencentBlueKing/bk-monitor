@@ -611,22 +611,6 @@ class AppConfigResource(Resource):
         }
 
 
-class SetTopoNodePermanentResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.CharField(label="应用名称", max_length=50)
-        topo_key = serializers.CharField(label="Topo Key")
-        is_permanent = serializers.BooleanField(label="是否永久保存")
-
-    def perform_request(self, validated_data):
-        TopoNode.set_permanent_status(
-            bk_biz_id=validated_data["bk_biz_id"],
-            app_name=validated_data["app_name"],
-            topo_key=validated_data["topo_key"],
-            is_permanent=validated_data["is_permanent"],
-        )
-
-
 class QueryTopoNodeResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")

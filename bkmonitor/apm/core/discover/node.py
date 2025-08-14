@@ -393,6 +393,11 @@ class NodeDiscover(DiscoverBase):
             instance_map[instance_key]["extra_data"]["predicate_value"] = extract_field_value(predicate_key, span)
 
     def clear_expired(self):
-        self.model.clear_expired(
-            bk_biz_id=self.bk_biz_id, app_name=self.app_name, filter_params={"is_permanent": False}
-        )
+        boundary = datetime.now() - timedelta(self.application.trace_datasource.retention)
+        filter_params = {
+            "bk_biz_id": self.bk_biz_id,
+            "app_name": self.app_name,
+            "updated_at__lte": boundary,
+            "is_permanent": False,
+        }
+        self.model.objects.filter(**filter_params).delete()

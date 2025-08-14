@@ -36,14 +36,18 @@ class TopoBase(models.Model):
         index_together = ["bk_biz_id", "app_name"]
 
     @classmethod
-    def clear_expired(cls, bk_biz_id, app_name, filter_params: dict = None):
+    def clear_expired(cls, bk_biz_id, app_name):
         from apm.models import ApmApplication
 
         application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not application:
             raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         last = datetime.datetime.now() - datetime.timedelta(application.trace_datasource.retention)
-        filter_params = {"bk_biz_id": bk_biz_id, "app_name": app_name, "updated_at__lte": last, **(filter_params or {})}
+        filter_params = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "updated_at__gte": last,
+        }
 
         cls.objects.filter(**filter_params).delete()
 
@@ -87,22 +91,6 @@ class TopoNode(TopoBase):
             "predicate_value": "",
             "service_language": "",
         }
-
-    @classmethod
-    def set_permanent_status(cls, bk_biz_id: int, app_name: str, topo_key: str, is_permanent: bool):
-        """
-        设置节点永久保存状态
-        :param bk_biz_id: 业务ID
-        :param app_name: 应用名称
-        :param topo_key: 节点key
-        :param is_permanent: 是否永久保存
-        """
-        node = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, topo_key=topo_key).first()
-        if not node:
-            raise CustomException(_("节点不存在"))
-
-        node.is_permanent = is_permanent
-        node.save()
 
 
 class TopoRelation(TopoBase):
