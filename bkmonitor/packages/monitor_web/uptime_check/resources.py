@@ -1180,7 +1180,7 @@ class TaskGraphAndMapResource(Resource):
         return []
 
 
-def get_node_host_dict(nodes):
+def get_node_host_dict(bk_tenant_id: str, nodes: list[UptimeCheckNode]):
     # 配置hostid的节点
     bk_host_ids = []
     # 配置ip的节点
@@ -1193,10 +1193,10 @@ def get_node_host_dict(nodes):
         else:
             ips.append(node.ip)
     if bk_host_ids:
-        hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
+        hosts = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, bk_host_ids=bk_host_ids)["hosts"]
         # 兼容bk_host_id不存在的拨测节点
     if ips:
-        hosts += api.cmdb.get_host_without_biz(ips=ips)["hosts"]
+        hosts += api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, ips=ips)["hosts"]
 
     # 按id 和 host_key 记录节点主机信息
     node_to_host = {host.bk_host_id: host for host in hosts}
@@ -1274,17 +1274,16 @@ class UptimeCheckBeatResource(Resource):
         validated_request_data = self.validate_request_data(request_data)
         bk_biz_id = validated_request_data.get("bk_biz_id")
         hosts = validated_request_data.get("hosts", None)
+        bk_tenant_id = validated_request_data.get("bk_tenant_id") or get_request_tenant_id()
 
         # nodes -> hosts
         if not hosts:
-            nodes = UptimeCheckNode.objects.filter(
-                bk_tenant_id=validated_request_data.get("bk_tenant_id") or get_request_tenant_id()
-            )
+            nodes = UptimeCheckNode.objects.filter(bk_tenant_id=bk_tenant_id)
             if bk_biz_id:
                 # 过滤业务下所有节点时，同时还应该加上通用节点
                 nodes = nodes.filter(Q(bk_biz_id=bk_biz_id) | Q(is_common=True))
 
-            node_to_host_dict = resource.uptime_check.get_node_host_dict(nodes)
+            node_to_host_dict = resource.uptime_check.get_node_host_dict(bk_tenant_id=bk_tenant_id, nodes=nodes)
             bk_host_ids = {host.bk_host_id for host in node_to_host_dict.values()}
             hosts = [node_to_host_dict[host_id] for host_id in bk_host_ids]
 
@@ -2993,6 +2992,7 @@ class TopoTemplateHostResource(Resource):
     """
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = validated_request_data["bk_biz_id"]
         output_fields = validated_request_data.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS)
         new_hosts = []
@@ -3025,7 +3025,9 @@ class TopoTemplateHostResource(Resource):
                 getattr(host, field, "") for host in new_hosts for field in output_fields if getattr(host, field, "")
             ]
         else:
-            hosts = api.cmdb.get_host_without_biz(bk_host_ids=[host["bk_host_id"] for host in hosts])["hosts"]
+            hosts = api.cmdb.get_host_without_biz(
+                bk_tenant_id=bk_tenant_id, bk_host_ids=[host["bk_host_id"] for host in hosts]
+            )["hosts"]
             new_hosts = [
                 getattr(host, field, "") for host in hosts for field in output_fields if getattr(host, field, "")
             ]
