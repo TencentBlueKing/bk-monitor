@@ -72,7 +72,8 @@
           const { bkBizId } = this.$store.state;
 
           const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${this.taskId}&bk_biz_id=${bkBizId}`;
-          copyMessage(downloadUrl, this.$t('已复制到剪切板'));
+          // copyMessage(downloadUrl, this.$t('已复制到剪切板'));
+          copyMessage(new URL(downloadUrl, window.location.origin).href, this.$t('已复制到剪切板'));
         } catch (e) {
           console.warn(e);
         } finally {
