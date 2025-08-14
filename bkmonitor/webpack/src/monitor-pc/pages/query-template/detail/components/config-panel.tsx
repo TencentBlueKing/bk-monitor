@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import ExploreCollapseWrapper from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/components/explore-collapse-wrapper';
 
 import QueryConfigDetail from '../../components/query-config/query-config-detail';
-import { TVariableType } from '../../components/type/query-config';
+import { VariableTypeEnum } from '../../constants';
 
 import './config-panel.scss';
 
@@ -122,7 +122,7 @@ export default class ConfigPanel extends tsc<object> {
               {
                 name: 'dimension',
                 value: ['bk_agent_id', 'device_name'],
-                type: TVariableType.DIMENSION,
+                type: VariableTypeEnum.DIMENSION,
               },
             ]}
           />
@@ -183,7 +183,7 @@ export default class ConfigPanel extends tsc<object> {
               {
                 name: 'method_var',
                 value: 'SUM',
-                type: TVariableType.METHOD,
+                type: VariableTypeEnum.METHOD,
               },
             ]}
           />
