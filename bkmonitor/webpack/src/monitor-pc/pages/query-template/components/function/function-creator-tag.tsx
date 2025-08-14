@@ -33,6 +33,7 @@ import './function-creator-tag.scss';
 
 interface IProps {
   value?: IFunctionOptionsItem;
+  onChange?: (val) => void;
 }
 
 @Component
@@ -41,19 +42,23 @@ export default class FunctionCreatorTag extends tsc<IProps> {
 
   @Ref('menuList') menuListRef: HTMLElement;
 
-  isHover = false;
+  curFuncIndex = -1;
   curFuncParam = null;
   popoverInstance = null;
   params: IFunctionParam[] = [];
 
   created() {
-    this.params = this.value?.params || [];
+    this.params = (this.value?.params || []).map(item => ({
+      ...item,
+      value: item?.value || item.default || '',
+      edit: false,
+    }));
   }
 
   // 选中函数参数时触发
   async handleClickParam(e: MouseEvent, index: number, refKey: string) {
     e.stopPropagation();
-    this.isHover = true;
+    this.curFuncIndex = -1;
     this.curFuncParam = this.params[index];
     this.params[index].edit = true;
     await this.$nextTick();
@@ -70,10 +75,13 @@ export default class FunctionCreatorTag extends tsc<IProps> {
   }
 
   handleValueChange() {
-    this.$emit('change', {
-      id: this.value.id,
-      params: this.value.params,
-    });
+    this.$emit(
+      'change',
+      this.params.map(param => ({
+        id: param.id,
+        value: param.value,
+      }))
+    );
   }
 
   // 显示参数或者函数列表
@@ -123,7 +131,7 @@ export default class FunctionCreatorTag extends tsc<IProps> {
       <span class='template-function-creator-component-tag'>
         <span class={['is-hover', 'func-name']}>{this.value?.name}</span>
         {this.params?.length ? <span class='brackets'>&nbsp;(&nbsp;</span> : undefined}
-        {this.params?.map((param, pIndex) => (
+        {this.params.map((param, pIndex) => (
           <span
             key={`item-${pIndex}}`}
             class='params-item'
@@ -147,7 +155,7 @@ export default class FunctionCreatorTag extends tsc<IProps> {
             {pIndex !== this.params.length - 1 && <span>,&nbsp;</span>}
           </span>
         ))}
-        {this.params?.length ? <span class='brackets'>&nbsp;)&nbsp;</span> : undefined}
+        {this.params.length ? <span class='brackets'>&nbsp;)&nbsp;</span> : undefined}
         <div style='display: none'>
           <div
             ref='menuList'
@@ -165,7 +173,7 @@ export default class FunctionCreatorTag extends tsc<IProps> {
                   </li>
                 ))}
             </ul>
-            {this.isHover && (
+            {this.curFuncIndex > -1 && (
               <div
                 class='select-btn del-btn'
                 on-click={this.handleDeleteSelect}
