@@ -16,6 +16,7 @@ from django.utils.translation import gettext as _
 from alarm_backends.core.alert.alert import Alert, AlertKey
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
+from alarm_backends.core.control.mixins.double_check import DoubleCheckStrategy
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.service.fta_action.double_check import DoubleCheckHandler
 from bkmonitor.documents import EventDocument
@@ -274,7 +275,7 @@ class ActionContext:
     @cached_property
     def level_name(self):
         # 判定是否是疑似异常
-        if DoubleCheckHandler(self.alert).is_point_missing():
+        if DoubleCheckStrategy.DOUBLE_CHECK_CONTEXT_KEY in DoubleCheckHandler(self.alert).tags:
             prefix = _("[疑似异常]")
         else:
             prefix = ""
