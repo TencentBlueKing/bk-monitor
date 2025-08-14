@@ -106,4 +106,6 @@ class QcloudCollectingViewSet(ResourceViewSet):
     resource_routes = [
         # 腾讯云产品映射接口
         ResourceRoute("GET", resource.collecting.cloud_product_mapping, endpoint="mapping"),
+        # 腾讯云产品实例预览接口 - 对应 POST /cloud-products/instances_query
+        ResourceRoute("POST", resource.collecting.cloud_product_instance_query, endpoint="instances_query"),
     ]
