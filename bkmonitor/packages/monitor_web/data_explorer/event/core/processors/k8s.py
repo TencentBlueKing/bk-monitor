@@ -36,6 +36,37 @@ class K8sEventProcessor(BaseEventProcessor):
         super().__init__(*args, **kwargs)
         self.bcs_cluster_context = bcs_cluster_context
 
+    # 对象场景映射
+    OBJECT_SCENES_MAP = {
+        "namespace": ["performance", "network"],
+        "Pod": ["performance", "network"],
+        "Service": ["network"],
+        "Endpoints": ["network"],
+        "Ingress": ["network"],
+        "Node": ["capacity"],
+        "workload": ["performance"],
+        "host": ["capacity"],
+    }
+
+    # 场景标签映射翻译
+    SCENE_LABEL_MAP = {
+        "performance": "性能",
+        "network": "网络",
+        "capacity": "容量",
+    }
+
+    @classmethod
+    def _get_supported_scenes(cls, level: str, kind: str) -> list[str]:
+        """根据 level 和 kind 获取支持的场景列表"""
+        if level == "namespace":
+            return cls.OBJECT_SCENES_MAP.get("namespace")
+        if level == "host":
+            return cls.OBJECT_SCENES_MAP.get("host")
+        if level in {"kind", "workload"}:
+            # 直接用 K8s 标准 kind，未知类型默认为 workload
+            return cls.OBJECT_SCENES_MAP.get(kind, cls.OBJECT_SCENES_MAP.get("workload"))
+        return []
+
     @classmethod
     def _need_process(cls, origin_event: dict[str, Any]) -> bool:
         return (origin_event["_meta"]["__domain"], origin_event["_meta"]["__source"]) == (
@@ -320,28 +351,8 @@ class K8sEventProcessor(BaseEventProcessor):
         name: str = k8s_info["name"]["value"]
         namespace = k8s_info["namespace"]["value"]
 
-        # 1. 计算支持的场景集合
-        # - namespace: 性能、网络
-        # - kind/workload:
-        #   Pod: 性能、网络
-        #   Service/Endpoints/Ingress: 网络
-        #   Node: 容量
-        #   其他(workload/CRD): 性能
-        # - host: 容量
-        scenes: list[str] = []
-        if level == "namespace":
-            scenes = ["performance", "network"]
-        elif level == "host":
-            scenes = ["capacity"]
-        elif level in {"kind", "workload"}:
-            if kind == "Pod":
-                scenes = ["performance", "network"]
-            elif kind in {"Service", "Endpoints", "Ingress"}:
-                scenes = ["network"]
-            elif kind == "Node":
-                scenes = ["capacity"]
-            else:
-                scenes = ["performance"]
+        # 1. 计算支持的场景集合（数据驱动）
+        scenes: list[str] = cls._get_supported_scenes(level, kind)
 
         # 2. 构造各场景 URL
         scene_to_url: dict[str, str] = {}
@@ -357,10 +368,4 @@ class K8sEventProcessor(BaseEventProcessor):
             if url:
                 scene_to_url[scene] = url
 
-        scene_label_map = {
-            "performance": "性能",
-            "network": "网络",
-            "capacity": "容量",
-        }
-
-        return [{"scene": scene_label_map.get(s, s), "url": scene_to_url[s]} for s in scenes if s in scene_to_url]
+        return [{"scene": cls.SCENE_LABEL_MAP.get(s, s), "url": scene_to_url[s]} for s in scenes if s in scene_to_url]
