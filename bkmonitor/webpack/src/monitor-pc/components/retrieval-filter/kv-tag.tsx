@@ -33,8 +33,8 @@ import './kv-tag.scss';
 interface IProps {
   value: IFilterItem;
   onDelete?: () => void;
-  onUpdate?: (event: MouseEvent) => void;
   onHide?: () => void;
+  onUpdate?: (event: MouseEvent) => void;
 }
 @Component
 export default class KvTag extends tsc<IProps> {

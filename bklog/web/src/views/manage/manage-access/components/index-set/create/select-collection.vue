@@ -47,6 +47,7 @@
         <bk-form-item
           :label="$t('索引')"
           property="resultTableId"
+          v-if="scenarioId === 'bkdata'"
           required
         >
           <bk-select
@@ -65,9 +66,37 @@
               :name="`${item.result_table_name_alias}(${item.result_table_id})`"
             >
               <div
-                v-if="
-                  scenarioId === 'log' && !(item.permission && item.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-                "
+                class="option-slot-container"
+              >
+                {{ item.result_table_name_alias }}
+              </div>
+            </bk-option>
+          </bk-select>
+        </bk-form-item>
+        <bk-form-item
+          v-else
+          :label="$t('索引')"
+          property="resultTableIds"
+          required
+        >
+          <bk-select
+            v-model="formData.resultTableIds"
+            :clearable="false"
+            multiple
+            data-test-id="addIndex_multiple_select_selectIndex"
+            searchable
+            @selected="(value) => handleLogSelected(value)"
+          >
+            <bk-option
+              v-for="item in getShowCollectionList"
+              class="custom-no-padding-option"
+              :disabled="parentData.indexes.some(selectedItem => item.result_table_id === selectedItem.result_table_id)"
+              :id="item.result_table_id"
+              :key="item.result_table_id"
+              :name="`${item.result_table_name_alias}(${item.result_table_id})`"
+            >
+              <div
+                v-if="!(item.permission && item.permission[authorityMap.MANAGE_COLLECTION_AUTH])"
                 class="option-slot-container no-authority"
                 @click.stop
               >
@@ -92,6 +121,7 @@
             v-bkloading="{ isLoading: tableLoading }"
             :data="tableData"
             max-height="400"
+            ext-cls="table-container-collection"
           >
             <bk-table-column
               :label="$t('字段')"
@@ -153,7 +183,6 @@
 <script>
   import EmptyStatus from '@/components/empty-status';
   import { mapState } from 'vuex';
-
   import * as authorityMap from '../../../../../../common/authority-map';
 
   export default {
@@ -178,6 +207,7 @@
         tableData: [], // log bkdata 表格
         formData: {
           resultTableId: '',
+          resultTableIds: [],
         },
         formRules: {
           resultTableId: [
@@ -186,7 +216,14 @@
               trigger: 'blur',
             },
           ],
+          resultTableIds: [
+            {
+              required: true,
+              trigger: 'blur',
+            },
+          ],
         },
+        searchData:[],// log 多选时搜索结果
       };
     },
     computed: {
@@ -215,6 +252,7 @@
           tableData: [], // log bkdata 表格
           formData: {
             resultTableId: '',
+            resultTableIds: [],
           },
         });
       },
@@ -264,6 +302,53 @@
           console.warn(e);
         }
       },
+      // 选择采集项获取字段列表
+      async handleMultipleSelected(id) {
+        try {
+          const res = await this.$http.request(
+            '/resultTables/info',
+            {
+              params: {
+                result_table_id: id,
+              },
+              query: {
+                scenario_id: this.scenarioId,
+                bk_biz_id: this.bkBizId,
+              },
+            },
+          );
+           return res.data?.fields || [];
+        } catch (e) {
+          console.warn(e);
+          return [];
+        }
+      },
+      async handleLogSelected(value){
+        const existingIds = new Set(this.searchData.map(item => item.id));
+        this.searchData = this.searchData.filter(item => value.includes(item.id));
+        const newEntriesPromises = value
+          .filter(id => !existingIds.has(id)) 
+          .map(async id => {
+            try {
+              const data = await this.handleMultipleSelected(id);
+              return { id, data };
+            } catch (error) {
+              console.error(`Error fetching data for id ${id}:`, error);
+              return null; 
+            }
+          });
+        const newEntries = await Promise.all(newEntriesPromises);
+        this.searchData.push(...newEntries.filter(entry => entry !== null));
+        const collectionMap = new Map();
+        this.searchData.forEach(item => {
+          item.data.forEach(el => {
+            if (!collectionMap.has(el.field_name)) {
+              collectionMap.set(el.field_name, el);
+            }
+          });
+        });
+        this.tableData = [...collectionMap.values()];
+      },
       // 采集项-申请权限
       async applyCollectorAccess(option) {
         try {
@@ -290,20 +375,29 @@
         try {
           await this.$refs.formRef.validate();
           this.confirmLoading = true;
-          const data = {
-            scenario_id: this.scenarioId,
-            basic_indices: this.parentData.indexes.map(item => ({
-              index: item.result_table_id,
-            })),
-            append_index: {
-              index: this.formData.resultTableId,
-            },
-          };
-          await this.$http.request('/resultTables/adapt', { data });
-          this.$emit(
-            'selected',
-            this.collectionList.find(item => item.result_table_id === this.formData.resultTableId),
-          );
+          if(this.scenarioId === 'log') {
+            this.formData.resultTableIds.forEach(resultTableId => {
+              this.$emit(
+              'selected',
+              this.collectionList.find(item => item.result_table_id === resultTableId),
+            );
+            });
+          }else{
+            const data = {
+              scenario_id: this.scenarioId,
+              basic_indices: this.parentData.indexes.map(item => ({
+                index: item.result_table_id,
+              })),
+              append_index: {
+                index: this.formData.resultTableId,
+              },
+            };
+            await this.$http.request('/resultTables/adapt', { data });
+            this.$emit(
+              'selected',
+              this.collectionList.find(item => item.result_table_id === this.formData.resultTableId),
+            );
+          }
           this.showDialog = false;
         } catch (e) {
           console.warn(e);
@@ -347,5 +441,11 @@
 
   .overflow-tips {
     @include overflow-tips;
+  }
+
+  .table-container-collection{
+    :deep(.bk-table-body-wrapper){
+      overflow-x: hidden;
+    }
   }
 </style>

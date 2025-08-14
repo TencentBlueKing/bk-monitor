@@ -1,3 +1,5 @@
+import type { CreateElement } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -39,19 +41,18 @@ import CommonCollapse from './common-collapse';
 import HttpUrlInput from './http-url-input';
 
 import type { IIpV6Value } from '../../../../components/monitor-ip-selector/typing';
-import type { CreateElement } from 'vue';
 
 import './tcp-target.scss';
 
+export interface CommonItem {
+  id: string;
+  name: string;
+}
 export type DomainSelectType = 'record' | 'type';
 interface IDomainItem {
   record: string;
   type: string[];
   value: string;
-}
-export interface CommonItem {
-  id: string;
-  name: string;
 }
 const RecordList: CommonItem[] = [
   {
@@ -83,8 +84,8 @@ export const OutputFiledsMap = {
   outer_ipv6: 'bk_host_outerip_v6',
   outer_ip: 'bk_host_outerip',
 };
-export type TargetIpType = 0 | 4 | 6;
 export type DnsCheckMode = 'all' | 'single';
+export type TargetIpType = 0 | 4 | 6;
 export const NodeTypeMap = {
   host_list: 'INSTANCE',
   node_list: 'TOPO',
@@ -93,12 +94,12 @@ export const NodeTypeMap = {
 };
 interface ITcpTargetProps {
   defaultValue: {
-    node_list?: any[];
-    url_list?: string[];
+    dns_check_mode?: DnsCheckMode;
     ip_list?: string[];
+    node_list?: any[];
     output_fields?: string[];
     target_ip_type?: TargetIpType;
-    dns_check_mode?: DnsCheckMode;
+    url_list?: string[];
   };
 }
 @Component

@@ -30,12 +30,12 @@ import AccessRequestDialog from './access-request-dialog';
 const Component = Vue.extend(AccessRequestDialog);
 
 interface IDialog {
-  visible: boolean;
-  originAccessURL: string;
   bizId: string;
+  originAccessURL: string;
+  visible: boolean;
 }
 
-type RequestDialog = InstanceType<typeof Component> & IDialog;
+type RequestDialog = IDialog & InstanceType<typeof Component>;
 
 let instance: RequestDialog = null;
 /**

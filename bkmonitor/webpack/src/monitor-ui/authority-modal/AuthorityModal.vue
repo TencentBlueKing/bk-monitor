@@ -36,8 +36,8 @@
     @value-change="handleValueChange"
   >
     <div
-      class="permission-modal"
       v-bkloading="{ isLoading: loading }"
+      class="permission-modal"
     >
       <div class="permission-header">
         <span class="title-icon">
@@ -77,8 +77,8 @@
                 <td width="50%">
                   <p
                     v-for="(reItem, reIndex) in getResource(action.relatedResourceTypes)"
-                    class="resource-type-item"
                     :key="reIndex"
+                    class="resource-type-item"
                   >
                     {{ reItem }}
                   </p>
@@ -98,8 +98,8 @@
       </div>
     </div>
     <div
-      class="permission-footer"
       slot="footer"
+      class="permission-footer"
     >
       <div class="button-group">
         <bk-button
@@ -117,12 +117,14 @@
   </bk-dialog>
 </template>
 <script lang="ts">
+import { Component, Vue, Watch } from 'vue-property-decorator';
+
+import lockImg from 'monitor-pc/static/images/svg/lock-radius.svg';
+
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
 // @ts-ignore
 import authorityStore from '@store/modules/authority';
-import lockImg from 'monitor-pc/static/images/svg/lock-radius.svg';
-import { Component, Vue, Watch } from 'vue-property-decorator';
 
 @Component
 export default class AuthorityModal extends Vue {

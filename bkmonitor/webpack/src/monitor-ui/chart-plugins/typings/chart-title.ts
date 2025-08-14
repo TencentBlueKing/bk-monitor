@@ -1,3 +1,36 @@
+export type ChartTitleMenuType =
+  | 'area'
+  | 'drill-down'
+  | 'explore'
+  | 'fullscreen'
+  | 'more'
+  | 'relate-alert'
+  | 'save'
+  | 'screenshot'
+  | 'set'
+  | 'strategy';
+
+export type ChildIdMap = Record<ChartTitleMenuType, string>;
+/**
+ * 子菜单id类型
+ */
+export type ChildMenuId<T extends ChartTitleMenuType> = Pick<ChildIdMap, T>[T];
+
+export type CurrentTargetType = {
+  bk_inst_id?: number;
+  bk_obj_id?: string;
+} & {
+  bk_target_cloud_id?: string;
+  bk_target_ip?: number;
+};
+
+export interface IMenuChildItem {
+  icon?: string;
+  id: string;
+  name: string;
+  needTips?: boolean;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,53 +57,20 @@
  * IN THE SOFTWARE.
  */
 export interface IMenuItem {
-  id: ChartTitleMenuType;
-  name: string;
-  nextName?: string;
   checked: boolean;
-  icon: string;
-  hasLink?: boolean;
-  nextIcon?: string;
   children?: IMenuChildItem[];
   childValue?: string;
-}
-
-/**
- * 子菜单id类型
- */
-export type ChildMenuId<T extends ChartTitleMenuType> = Pick<ChildIdMap, T>[T];
-export type ChildIdMap = Record<ChartTitleMenuType, string>;
-
-export interface IMenuChildItem {
-  id: string;
+  hasLink?: boolean;
+  icon: string;
+  id: ChartTitleMenuType;
   name: string;
-  icon?: string;
-  needTips?: boolean;
+  nextIcon?: string;
+  nextName?: string;
 }
 
 export interface ITitleAlarm {
-  status: number;
   alert_number: number;
+  status: number;
   strategy_number: number;
   targetStr?: string;
 }
-
-export type CurrentTargetType = {
-  bk_target_ip?: number;
-  bk_target_cloud_id?: string;
-} & {
-  bk_inst_id?: number;
-  bk_obj_id?: string;
-};
-
-export type ChartTitleMenuType =
-  | 'area'
-  | 'drill-down'
-  | 'explore'
-  | 'fullscreen'
-  | 'more'
-  | 'relate-alert'
-  | 'save'
-  | 'screenshot'
-  | 'set'
-  | 'strategy';

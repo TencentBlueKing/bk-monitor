@@ -166,26 +166,28 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.k8s_bk_collector_discover_cron", "*/15 * * * *", "global"),
     # apm 定时检查预计算任务是否正常执行 每15分钟触发
     ("apm.task.tasks.bmw_task_cron", "*/15 * * * *", "global"),
+    # metadata 更新 bkcc 空间名称任务，因为不要求实时性，每6分钟执行一次
+    ("metadata.task.sync_space.refresh_bkcc_space_name", "*/6 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:
     DEFAULT_CRONTAB += [
         # bcs资源同步
-        ("api.bcs.tasks.sync_bcs_cluster_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_service_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_workload_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_pod_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_node_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_service_monitor_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "*/10 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_ingress_to_db", "*/10 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_cluster_to_db", "*/15 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_service_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_workload_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_pod_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_node_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_service_monitor_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "*/25 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_ingress_to_db", "*/25 * * * *", "global"),
         # bcs资源数据状态同步
-        ("api.bcs.tasks.sync_bcs_cluster_resource", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_workload_resource", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_service_resource", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_pod_resource", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_container_resource", "*/15 * * * *", "global"),
-        ("api.bcs.tasks.sync_bcs_node_resource", "*/15 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_cluster_resource", "*/260 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_workload_resource", "*/260 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_service_resource", "*/260 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_pod_resource", "*/260 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_container_resource", "*/260 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_node_resource", "*/260 * * * *", "global"),
         # bcs集群安装operator信息，一天同步一次
         ("api.bcs.tasks.sync_bkmonitor_operator_info", "0 2 * * *", "global"),
     ]
@@ -223,6 +225,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.ping_server.refresh_ping_server_2_node_man", "*/10 * * * *", "global"),
     # metadata同步自定义上报配置到节点管理，完成配置订阅，理论上，在配置变更的时候，会执行一次，所以这里运行周期可以放大
     ("metadata.task.custom_report.refresh_all_custom_report_2_node_man", "*/5 * * * *", "global"),
+    # metadata同步自定义日志配置到节点管理，虽然 1 分钟一次，实际只会运行ID对30取模后和当前分钟对齐的任务
+    ("metadata.task.custom_report.refresh_all_log_config", "* * * * *", "global"),
     # metadata自动部署bkmonitorproxy
     ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
     ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
@@ -277,8 +281,6 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.custom_report.check_event_update", "*/3 * * * *", "global"),
     # metadata 同步 bkci 空间名称任务，因为不要求实时性，每天3点执行一次
     ("metadata.task.sync_space.refresh_bkci_space_name", "0 3 * * *", "global"),
-    # metadata 更新 bkcc 空间名称任务，因为不要求实时性，每天3点半执行一次
-    ("metadata.task.sync_space.refresh_bkcc_space_name", "30 3 * * *", "global"),
     # metadata 刷新 unify_query 视图需要的字段，因为变动性很低，每天 4 点执行一次
     # ("metadata.task.config_refresh.refresh_unify_query_additional_config", "0 4 * * *", "global"),
     # 删除数据库中已经不存在的数据源
@@ -336,6 +338,10 @@ ANOMALY_RECORD_CONVERGED_ACTION_WINDOW = 3
 
 # access模块策略拉取耗时限制（每10分钟）
 ACCESS_TIME_PER_WINDOW = 30
+
+# access 模块流控数据源列表
+QOS_DATASOURCE_LABELS = []
+QOS_INTERVAL_EXPAND = 3
 
 # 环境变量
 PYTHON_HOME = sys.executable.rsplit("/", 1)[0]  # virtualenv path

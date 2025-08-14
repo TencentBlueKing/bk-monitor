@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,11 +18,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.conf.urls import include
 from django.urls import re_path
-from iam.contrib.django.dispatcher import DjangoBasicResourceApiDispatcher
 from rest_framework import routers
 
 from apps.iam import Permission
@@ -34,7 +33,11 @@ from apps.iam.views.resources import (
     IndicesResourceProvider,
 )
 
-dispatcher = DjangoBasicResourceApiDispatcher(Permission.get_iam_client(), settings.BK_IAM_SYSTEM_ID)
+from apps.iam.views import resources
+
+dispatcher = resources.ResourceApiDispatcher(
+    Permission.get_iam_client(settings.DEFAULT_TENANT_ID), settings.BK_IAM_SYSTEM_ID
+)
 dispatcher.register("collection", CollectionResourceProvider())
 dispatcher.register("es_source", EsSourceResourceProvider())
 dispatcher.register("indices", IndicesResourceProvider())

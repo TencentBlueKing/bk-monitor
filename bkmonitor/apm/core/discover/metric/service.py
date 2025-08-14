@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,12 +7,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from datetime import datetime
+from typing import Any
 
+from apm.core.discover.base import combine_list
 from apm.core.discover.metric.base import Discover
 from apm.models import TopoNode
-from constants.apm import TelemetryDataType
+from constants.apm import TelemetryDataType, CUSTOM_METRICS_PROMQL_FILTER
 from core.drf_resource import api
 
 logger = logging.getLogger(__name__)
@@ -28,92 +30,128 @@ class ServiceDiscover(Discover):
             for i in TopoNode.objects.filter(
                 bk_biz_id=self.bk_biz_id,
                 app_name=self.app_name,
-            ).values("id", "topo_key", "source")
+            ).values("id", "topo_key", "source", "system")
         }
 
-    def discover(self, start_time, end_time):
-        # Step1: 查询普通指标中的 service_name 维度
-        params = {
+    def query_dimensions(self, promql: str, start_time: int, end_time: int) -> list[dict[str, str | None]]:
+        query_params: dict[str, Any] = {
             "bk_biz_ids": [self.bk_biz_id],
             "start": start_time,
             "end": end_time,
+            "promql": promql,
             "step": f"{end_time - start_time}s",
         }
-        normal_pql = f'count by (service_name) ({{__name__=~"custom:{self.result_table_id}:.*"}})'
-        params["promql"] = normal_pql
-        response = api.unify_query.query_data_by_promql(params)
+        logger.info(
+            f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) query series with params: {query_params}"
+        )
 
-        # Step2: 查询框架中的 target 维度
-        trpc_pql = f'count by (target) ({{__name__=~"custom:{self.result_table_id}:trpc.*"}})'
-        params["promql"] = trpc_pql
-        target_response = api.unify_query.query_data_by_promql(params)
+        try:
+            response: dict[str, Any] = api.unify_query.query_data_by_promql(query_params)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) query dimensions failed: "
+                f"error -> {e}, promql -> {promql}"
+            )
+            return []
 
-        dimensions = [
-            {i: item.get("group_values")[index] for index, i in enumerate(item["group_keys"])}
+        return [
+            {group_key: item.get("group_values")[index] for index, group_key in enumerate(item["group_keys"])}
             for item in response.get("series", [])
-            if item.get("group_keys")
-        ] + [
-            {i: item.get("group_values")[index] for index, i in enumerate(item["group_keys"])}
-            for item in target_response.get("series", [])
             if item.get("group_keys")
         ]
 
-        logger.info(f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) query series with params: {params}")
-        if not response:
+    @classmethod
+    def merge_dimensions(cls, dimensions_list: list[list[dict[str, str | None]]]) -> list[dict[str, str | None]]:
+        merged_dimensions: dict[str, dict[str, str | None]] = {}
+        for dimensions in dimensions_list:
+            for item in dimensions:
+                service_name: str | None = item.get("service_name")
+                if not service_name:
+                    continue
+                merged_dimensions.setdefault(service_name, {}).update(item)
+        return list(merged_dimensions.values())
+
+    def discover(self, start_time, end_time):
+        # 1 - 查询自定义指标中的 service_name 和 rpc_system 维度。
+        custom_metric_promql: str = (
+            f"count by (service_name, rpc_system) "
+            f'({{__name__=~"custom:{self.result_table_id}:.*",{CUSTOM_METRICS_PROMQL_FILTER}}})'
+        )
+        # 2 - 查询 RPC 指标中的 service_name 和 rpc_system 维度。
+        #     相较于上一个实现版本，去掉 target 维度（已由接收端清洗为 service_name），增加 rpc_system 维度（兼容更多 RPC 框架）。
+        rpc_metric_promql: str = (
+            f"count by (service_name, rpc_system) "
+            f'({{__name__=~"custom:{self.result_table_id}:rpc_(client|server)_handled_total"}})'
+        )
+        dimensions: list[dict[str, str | None]] = self.merge_dimensions(
+            [
+                self.query_dimensions(custom_metric_promql, start_time, end_time),
+                self.query_dimensions(rpc_metric_promql, start_time, end_time),
+            ]
+        )
+        logger.info(f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) find {len(dimensions)} dimensions")
+        if not dimensions:
+            logger.warning(f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) no dimensions found, skipped")
             return
 
-        logger.info(f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) find {len(dimensions)} dimensions")
-        exists_mapping = self.list_exists_mapping()
-        update_instances = []
-        create_instances = []
-        found_topo_keys = []
+        found_topo_keys: set[str] = set()
+        to_be_created_topo_nodes: list[TopoNode] = []
+        to_be_updated_topo_nodes: list[TopoNode] = []
+        exists_mapping: dict[str, dict[str, Any]] = self.list_exists_mapping()
         for item in dimensions:
-            service_name = item.get("service_name")
-            target = item.get("target")
-            # TODO 获取其他指标的维度信息
-
-            if not service_name and target:
-                # 满足 [a].<b>.<c> 格式才认为是节点
-                targets = target.split(".")
-                if 2 <= len(targets) <= 3:
-                    target = ".".join(targets[-2:])
-                else:
-                    continue
-
-            topo_key = service_name or target
+            topo_key: str | None = item.get("service_name")
             if not topo_key or topo_key in found_topo_keys:
                 continue
 
+            rpc_system: str | None = item.get("rpc_system")
+            system: list[dict[str, Any]] = [{"name": "trpc", "extra_data": {}}]
+            if rpc_system:
+                # 如果存在 rpc_system，才添加到 system 中，避免空值覆盖有值。
+                system[0]["extra_data"]["rpc_system"] = rpc_system
+
             if topo_key in exists_mapping:
-                source = exists_mapping[topo_key]["source"]
-                if not source:
-                    source = [TelemetryDataType.METRIC.value]
-                elif TelemetryDataType.METRIC.value not in source:
+                source: list[str] = exists_mapping[topo_key]["source"] or [TelemetryDataType.METRIC.value]
+                if TelemetryDataType.METRIC.value not in source:
                     source.append(TelemetryDataType.METRIC.value)
-                update_instances.append(
+
+                to_be_updated_topo_nodes.append(
                     TopoNode(
                         bk_biz_id=self.bk_biz_id,
                         app_name=self.app_name,
                         **{
                             **exists_mapping[topo_key],
                             "source": source,
+                            "system": combine_list(exists_mapping[topo_key]["system"], system),
                         },
                         updated_at=datetime.now(),
                     )
                 )
             else:
-                create_instances.append(
+                to_be_created_topo_nodes.append(
                     TopoNode(
                         bk_biz_id=self.bk_biz_id,
                         app_name=self.app_name,
                         topo_key=topo_key,
                         extra_data=TopoNode.get_empty_extra_data(),
                         source=[TelemetryDataType.METRIC.value],
+                        system=system,
                     )
                 )
 
-            found_topo_keys.append(topo_key)
+            found_topo_keys.add(topo_key)
 
-        # 注意与 trace 拓扑发现可能会同时更新 但是这里我们的 source 字段只有往里面添加的情况不会出现脏数据
-        TopoNode.objects.bulk_update(update_instances, fields=["source", "updated_at"])
-        TopoNode.objects.bulk_create(create_instances)
+        if to_be_updated_topo_nodes:
+            TopoNode.objects.bulk_update(
+                to_be_updated_topo_nodes, fields=["source", "system", "updated_at"], batch_size=200
+            )
+            logger.info(
+                f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) "
+                f"updated {len(to_be_updated_topo_nodes)} topo nodes"
+            )
+
+        if to_be_created_topo_nodes:
+            TopoNode.objects.bulk_create(to_be_created_topo_nodes, batch_size=200)
+            logger.info(
+                f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) "
+                f"creating {len(to_be_created_topo_nodes)} topo nodes"
+            )

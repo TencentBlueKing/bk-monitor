@@ -83,6 +83,7 @@ webpack/monitor-static/*
 .cache/
 package.old.json
 yarn.lock
+pnpm-lock.yaml
 .babelcache
 src/views/playground/*
 /monitor-retrieve/*

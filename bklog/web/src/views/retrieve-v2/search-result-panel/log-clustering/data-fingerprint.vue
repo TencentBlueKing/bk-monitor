@@ -447,8 +447,7 @@
   import { getConditionRouterParams } from '../panel-util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import { BK_LOG_STORAGE } from '@/store/store.type';
-  import RetrieveHelper from '@/views/retrieve-helper';
-
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
   export default {
     components: {
       ClusterEventPopover,
@@ -558,6 +557,7 @@
           },
         ],
         ownerList: [],
+        timer: null,
         // ownerLoading: false,
       };
     },
@@ -633,6 +633,13 @@
     },
     beforeDestroy() {
       this.scrollEvent('close');
+      if (this.timer) {
+        clearInterval(this.timer);
+      }
+      if (this.popoverInstance) {
+        this.popoverInstance?.destroy();
+        this.popoverInstance = null;
+      }
     },
     methods: {
       handleMenuClick(option, row, isLink = false) {
@@ -681,6 +688,7 @@
             window.open(openUrl, '_blank');
             // 新开页后当前页面回填聚类参数
             this.$store.commit('updateClusterParams', this.requestData);
+            return
           } else {
             this.$emit('show-change', 'origin');
           }
@@ -703,6 +711,7 @@
           // 触发索引集查询
           this.$nextTick(() => {
             store.dispatch('requestIndexSetQuery');
+            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           });
         });
       },
@@ -859,7 +868,7 @@
       handleScroll() {
         if (this.throttle) return;
         this.throttle = true;
-        setTimeout(() => {
+        this.timer = setTimeout(() => {
           this.throttle = false;
           // scroll变化时判断是否展示返回顶部的Icon
           this.$emit('handle-scroll-is-show');

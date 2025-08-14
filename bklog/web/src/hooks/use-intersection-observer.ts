@@ -73,5 +73,5 @@ export default (
     destroyObserver();
   });
 
-  return { isIntersecting };
+  return { isIntersecting, destroyObserver };
 };

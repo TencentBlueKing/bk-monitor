@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 interface Config {
-  onUpdate?: (registration: ServiceWorkerRegistration) => void;
   onSuccess?: (registration: ServiceWorkerRegistration) => void;
+  onUpdate?: (registration: ServiceWorkerRegistration) => void;
 }
 
 const isLocalhost = Boolean(

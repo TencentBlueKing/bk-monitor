@@ -2941,7 +2941,7 @@ class ServiceQueryExceptionResource(PageListResource):
         filter_params = self.build_filter_params(data["filter_params"])
         service_name = get_service_from_params(filter_params)
         if service_name:
-            node = ServiceHandler.get_node(data["bk_biz_id"], data["app_name"], service_name)
+            node = ServiceHandler.get_node(data["bk_biz_id"], data["app_name"], service_name, raise_exception=False)
             if ComponentHandler.is_component_by_node(node):
                 ComponentHandler.build_component_filter_params(
                     data["bk_biz_id"],

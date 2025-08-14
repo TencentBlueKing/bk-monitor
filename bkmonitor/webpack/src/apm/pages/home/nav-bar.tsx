@@ -32,13 +32,13 @@ import type { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typi
 
 import './nav-bar.scss';
 
+type handlerPosition = 'center' | 'left' | 'right';
 interface IProps {
-  routeList: INavItem[];
+  backGotoItem?: IRouteBackItem;
   handlerPosition?: handlerPosition;
   needBack?: boolean;
-  backGotoItem?: IRouteBackItem;
+  routeList: INavItem[];
 }
-type handlerPosition = 'center' | 'left' | 'right';
 
 @Component
 export default class NavBar extends tsc<IProps> {

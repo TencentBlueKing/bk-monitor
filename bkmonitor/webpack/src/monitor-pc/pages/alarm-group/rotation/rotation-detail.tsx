@@ -43,11 +43,10 @@ import RotationCalendarPreview from './rotation-calendar-preview';
 import './rotation-detail.scss';
 
 interface IProps {
-  show: boolean;
   id: number | string;
+  show: boolean;
   onShowChange?: (v: boolean) => void;
 }
-
 @Component
 export default class RotationDetail extends tsc<IProps> {
   @Prop({ type: [Number, String], default: '' }) id: number | string;
@@ -178,17 +177,36 @@ export default class RotationDetail extends tsc<IProps> {
           )}
           {formItem(
             this.type === RotationTabTypeEnum.REGULAR ? this.$t('值班规则') : this.$t('轮值规则'),
-            this.rules.map(rule => (
-              <div class='rule-item-wrap'>
+            this.rules.map((rule, index) => (
+              <div
+                key={index}
+                class='rule-item-wrap'
+              >
                 {rule.ruleTime.map((time, ind) => (
-                  <div class='rule-item'>
+                  <div
+                    key={ind}
+                    class='rule-item'
+                  >
                     {rule.ruleTime.length > 1 && [
-                      <span class='rule-item-index'>{this.$t('第 {num} 班', { num: ind + 1 })}</span>,
-                      <div class='col-separate' />,
+                      <span
+                        key={ind}
+                        class='rule-item-index'
+                      >
+                        {this.$t('第 {num} 班', { num: ind + 1 })}
+                      </span>,
+                      <div
+                        key={ind}
+                        class='col-separate'
+                      />,
                     ]}
                     <span class='rule-item-title'>{time.day}</span>
                     {time.timer.map(item => (
-                      <div class='rule-item-time-tag'>{item}</div>
+                      <div
+                        key={item}
+                        class='rule-item-time-tag'
+                      >
+                        {item}
+                      </div>
                     ))}
                     {time.periodSettings && <span class='rule-item-period'>{time.periodSettings}</span>}
                   </div>
@@ -202,7 +220,10 @@ export default class RotationDetail extends tsc<IProps> {
                 )}
                 <div class='notice-user-list'>
                   {rule.ruleUser.map(item => (
-                    <div class={['notice-user-item', rule.isAuto && 'no-pl']}>
+                    <div
+                      key={item.orderIndex}
+                      class={['notice-user-item', rule.isAuto && 'no-pl']}
+                    >
                       {!rule.isAuto && (
                         <div
                           style={{ background: randomColor(item.orderIndex) }}
@@ -210,7 +231,10 @@ export default class RotationDetail extends tsc<IProps> {
                         />
                       )}
                       {item.users.map((user, ind) => (
-                        <div class='personnel-choice'>
+                        <div
+                          key={ind}
+                          class='personnel-choice'
+                        >
                           {rule.isAuto && (
                             <span
                               style={{ 'background-color': randomColor(item.orderIndex + ind) }}
@@ -218,7 +242,7 @@ export default class RotationDetail extends tsc<IProps> {
                             />
                           )}
                           {this.renderUserLogo(user)}
-                          <span>{user.display_name}</span>
+                          <span>{user.display_name ? <bk-user-display-name user-id={user.display_name} /> : '--'}</span>
                         </div>
                       ))}
                     </div>

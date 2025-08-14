@@ -27,7 +27,7 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
+import { type IDetectionTypeRuleData, DetectionRuleTypeEnum } from '../../../typings';
 
 import './partial-nodes.scss';
 
@@ -35,15 +35,15 @@ interface PartialNodesData {
   count: number;
 }
 
-interface PartialNodesProps {
-  data?: IDetectionTypeRuleData<PartialNodesData>;
-  otherSelectRuleData?: IDetectionTypeRuleData[];
-  readonly?: boolean;
-  isRealtime?: boolean;
-}
-
 interface PartialNodesEvents {
   onDataChange: IDetectionTypeRuleData;
+}
+
+interface PartialNodesProps {
+  data?: IDetectionTypeRuleData<PartialNodesData>;
+  isRealtime?: boolean;
+  otherSelectRuleData?: IDetectionTypeRuleData[];
+  readonly?: boolean;
 }
 
 @Component({})

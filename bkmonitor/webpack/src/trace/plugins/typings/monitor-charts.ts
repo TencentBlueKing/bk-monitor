@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 export interface ICommonCharts {
-  // 图表宽度
-  width: number;
   // 图表高度
   height: number;
+  // 图表宽度
+  width: number;
   // 获取图表数据
   /**
    * @description: 获取图表数据
@@ -36,25 +36,25 @@ export interface ICommonCharts {
    */
   getPanelData: (timeFrom?: string, timeTo?: string) => Promise<any>;
 }
+export interface ICommonChartTips {
+  list: ICommonChartTipsItem[];
+  style?: string; // 自定义样式
+  title: string; // tips title
+}
 export interface ICommonChartTipsItem {
-  name: string; // item name
-  value: string; // 值
-  unit?: string; // 单位
   color: string; // 颜色
   isCurrent: boolean; // 是否是当前hover值
+  name: string; // item name
   style?: string; // 自定义样式
-}
-export interface ICommonChartTips {
-  title: string; // tips title
-  style?: string; // 自定义样式
-  list: ICommonChartTipsItem[];
+  unit?: string; // 单位
+  value: string; // 值
 }
 
 export interface ICurPoint {
-  xAxis: number | string;
-  yAxis: number | string;
-  dataIndex: number;
   color: string;
+  dataIndex: number;
   name: string;
   seriesIndex: number;
+  xAxis: number | string;
+  yAxis: number | string;
 }

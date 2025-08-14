@@ -32,9 +32,24 @@
 
     .bk-user-selector {
       /* stylelint-disable-next-line declaration-no-important */
-      height: 76px !important;
+      min-height: 76px;
       width: 100%;
       margin: 12px 0;
+      .multiple-selector {
+        height: 100%;
+        min-height: inherit;
+        .tags-container {
+          height: 100%;
+          align-items: flex-start;
+          padding: 6px 10px 6px 8px;
+          min-height: inherit;
+          &.focused {
+            .tag-list {
+              row-gap: 4px;
+            }
+          }
+        }
+      }
     }
   }
 }

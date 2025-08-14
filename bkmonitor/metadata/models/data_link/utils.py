@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,14 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import hashlib
 import json
 import logging
 import re
-from typing import Dict, Optional
 
 from django.conf import settings
-from jinja2 import Template
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from pypinyin import lazy_pinyin
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -26,42 +25,17 @@ from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN
 logger = logging.getLogger("metadata")
 
 
-def get_bkdata_table_id(table_id: str) -> str:
-    """获取计算平台结果表"""
-    # 按照 '__default__' 截断，取前半部分
-    table_id = table_id.split(".__default__")[0]
-    table_id = table_id.lower()
-
-    # 转换中划线和点为下划线
-    table_id = table_id.replace('-', '_').replace('.', '_')
-
-    # 处理负数开头和其他情况
-    if table_id.startswith('_'):
-        table_id = f'bkm_neg_{table_id.lstrip("_")}'
-    elif table_id[0].isdigit():
-        table_id = f'bkm_{table_id}'
-    else:
-        table_id = f'bkm_{table_id}'
-
-    # 确保不会出现连续的下划线
-    while '__' in table_id:
-        table_id = table_id.replace('__', '_')
-
-    # 确保长度不超过40
-    return table_id[:40]
-
-
 def clean_redundant_underscores(table_id: str) -> str:
     """
     清理连续的下划线，确保只保留单个下划线
     """
-    while '__' in table_id:
-        table_id = table_id.replace('__', '_')
-    table_id = table_id.rstrip('_')
+    while "__" in table_id:
+        table_id = table_id.replace("__", "_")
+    table_id = table_id.rstrip("_")
     return table_id
 
 
-def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
+def compose_bkdata_table_id(table_id: str, strategy: str | None = None) -> str:
     """
     获取计算平台结果表ID, 计算平台元数据长度限制为40，不可超出
     @param table_id: 监控平台结果表ID
@@ -72,24 +46,24 @@ def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
     table_id = table_id.lower()
 
     # 转换中划线和点为下划线
-    table_id = table_id.replace('-', '_').replace('.', '_')
+    table_id = table_id.replace("-", "_").replace(".", "_")
 
     # 检测并处理中文字符，将其转换为拼音
-    chinese_characters = ''.join(char for char in table_id if '\u4e00' <= char <= '\u9fff')
+    chinese_characters = "".join(char for char in table_id if "\u4e00" <= char <= "\u9fff")
     if chinese_characters:
-        table_id = ''.join(''.join(lazy_pinyin(char)) if '\u4e00' <= char <= '\u9fff' else char for char in table_id)
+        table_id = "".join("".join(lazy_pinyin(char)) if "\u4e00" <= char <= "\u9fff" else char for char in table_id)
 
     # 处理负数开头和其他特殊情况
-    if table_id.startswith('_'):
-        table_id = f'bkm_neg_{table_id.lstrip("_")}'
+    if table_id.startswith("_"):
+        table_id = f"bkm_neg_{table_id.lstrip('_')}"
     else:
-        table_id = f'bkm_{table_id}'
+        table_id = f"bkm_{table_id}"
 
     # 计算哈希值, 采用 hash 方式确保 table_id 唯一
     hash_suffix = hashlib.md5(table_id.encode()).hexdigest()[:5]
 
     # 添加 `_fed` 后缀（如果 strategy 为 `bcs_federal_subset_time_series`）
-    suffix = '_fed' if strategy == models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES else ''
+    suffix = "_fed" if strategy == models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES else ""
     base_length = 40 - len(suffix) - 6  # 留出哈希值和下划线的长度
 
     # 如果长度超过限制，截断并添加哈希值和后缀
@@ -109,7 +83,7 @@ def parse_and_get_rt_biz_id(table_id: str) -> int:
     @param table_id: 监控平台结果表ID
     @return: 业务ID
     """
-    match = re.match(r'^(\d+)', table_id)
+    match = re.match(r"^(\d+)", table_id)
     if match:
         # 如果匹配成功，返回数字部分并转换为整数
         return int(match.group(1))
@@ -117,9 +91,9 @@ def parse_and_get_rt_biz_id(table_id: str) -> int:
         return settings.DEFAULT_BKDATA_BIZ_ID
 
 
-def compose_config(tpl: str, render_params: Dict, err_msg_prefix: Optional[str] = "compose config") -> Dict:
+def compose_config(tpl: str, render_params: dict, err_msg_prefix: str | None = "compose config") -> dict:
     """渲染配置模板"""
-    content = Template(tpl).render(**render_params)
+    content = Environment().from_string(tpl).render(**render_params)
     try:
         return json.loads(content)
     except json.JSONDecodeError as e:
@@ -129,24 +103,24 @@ def compose_config(tpl: str, render_params: Dict, err_msg_prefix: Optional[str] 
 
 def get_bkdata_data_id_name(data_name: str) -> str:
     # 剔除不符合的字符
-    refine_data_name = re.sub(MATCH_DATA_NAME_PATTERN, '', data_name)
+    refine_data_name = re.sub(MATCH_DATA_NAME_PATTERN, "", data_name)
     # 截取长度为45的字符串，同时拼装前缀
     return f"bkm_{refine_data_name[-45:].lower()}"
 
 
-def compose_bkdata_data_id_name(data_name: str, strategy: str = None) -> str:
+def compose_bkdata_data_id_name(data_name: str, strategy: str | None = None) -> str:
     """
     组装bkdata数据源名称，支持中文处理
     @param data_name: 监控平台数据源名称
     @param strategy: 链路策略
     """
     # 先按原正则剔除特殊字符（包括中文）
-    refine_data_name = re.sub(MATCH_DATA_NAME_PATTERN, '', data_name)
+    refine_data_name = re.sub(MATCH_DATA_NAME_PATTERN, "", data_name)
 
     # 针对剔除掉的中文字符进行处理
-    chinese_characters = ''.join(char for char in data_name if '\u4e00' <= char <= '\u9fff')
+    chinese_characters = "".join(char for char in data_name if "\u4e00" <= char <= "\u9fff")
     if chinese_characters:
-        chinese_pinyin = ''.join(lazy_pinyin(chinese_characters))  # 转为全拼音
+        chinese_pinyin = "".join(lazy_pinyin(chinese_characters))  # 转为全拼音
         refine_data_name += chinese_pinyin  # 拼接拼音到 refined_name
 
     # 替换连续的下划线为单个下划线
@@ -155,14 +129,14 @@ def compose_bkdata_data_id_name(data_name: str, strategy: str = None) -> str:
     # 控制长度
     if len(refine_data_name) > 45:
         # 截取长度为45的字符串
-        truncated_name = refine_data_name[-39:].lower().strip('_')
+        truncated_name = refine_data_name[-39:].lower().strip("_")
         # 计算哈希值
         hash_suffix = hashlib.md5(refine_data_name.encode()).hexdigest()[:5]
         data_id_name = f"bkm_{truncated_name}_{hash_suffix}"
 
     # 拼装前缀和哈希值
     if strategy == models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES:
-        data_id_name = 'fed_' + data_id_name
+        data_id_name = "fed_" + data_id_name
 
     return data_id_name
 
@@ -175,7 +149,7 @@ def get_bkbase_raw_data_id_name(data_source, table_id):
     """
     try:
         bkbase_data_id = models.AccessVMRecord.objects.filter(result_table_id=table_id).first().bk_base_data_id
-        raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(bkbase_data_id=bkbase_data_id).get('raw_data_name')
+        raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(bkbase_data_id=bkbase_data_id).get("raw_data_name")
     except Exception as e:  # pylint: disable=broad-except
         logger.info(
             "get_bkbase_raw_data_id_name: data_source->[%s] table_id->[%s] error->[%s],use new rule to "
@@ -203,7 +177,7 @@ def get_bkbase_raw_data_name_for_v3_datalink(bkbase_data_id):
     @param bkbase_data_id: 计算平台数据源ID
     """
     try:
-        raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(bkbase_data_id=bkbase_data_id).get('raw_data_name')
+        raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(bkbase_data_id=bkbase_data_id).get("raw_data_name")
         return raw_data_name
     except Exception as e:  # pylint: disable=broad-except
         logger.info("get_bkbase_raw_data_name_for_v3_datalink: bkbase_data_id->[%s] error->[%s]", bkbase_data_id, e)
@@ -242,15 +216,61 @@ def get_data_source_related_info(bk_data_id):
             vm_result_table_id = None
 
         return {
-            'bk_data_id': bk_data_id,
-            'data_name': ds.data_name,
-            'result_table_id': table_id,
-            'vm_result_table_id': vm_result_table_id,
+            "bk_data_id": bk_data_id,
+            "data_name": ds.data_name,
+            "result_table_id": table_id,
+            "vm_result_table_id": vm_result_table_id,
         }
     except Exception as e:  # pylint: disable=broad-except
         logger.error(
-            "get_data_source_related_info: get data_source related info failed," "bk_data_id->[%s] error->[%s]",
+            "get_data_source_related_info: get data_source related info failed,bk_data_id->[%s] error->[%s]",
             bk_data_id,
             e,
         )
         return {}
+
+
+def generate_result_table_field_list(table_id, bk_tenant_id):
+    """
+    生成结果表字段列表,供BkBase V4链路配置使用
+    @param table_id: 监控平台结果表ID
+    @param bk_tenant_id: 租户ID
+    """
+    # 查询指定table_id的所有字段数据
+    fields_data = models.ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values(
+        "field_name", "description", "field_type", "tag"
+    )
+
+    field_list = []
+    idx = 0  # 初始化 idx
+
+    for field in fields_data:
+        field_name = field["field_name"]
+        field_alias = field["description"]
+        if field_alias == "":
+            field_alias = field_name
+        field_type = field["field_type"]
+        tag = field["tag"]
+
+        # 比较字段名，忽略大小写
+        if field_name.lower() == "dteventtimestamp".lower():
+            logger.info("generate_result_table_field_list: skip dteventtimestamp")
+            continue  # 跳过dtEventTimestamp字段
+
+        # 如果tag不是 'dimension'，则 is_dimension 为 False
+        is_dimension = tag == "dimension"
+
+        # 创建字典并追加到列表中
+        field_list.append(
+            {
+                "field_name": field_name,
+                "field_alias": field_alias,
+                "field_type": field_type,
+                "is_dimension": is_dimension,
+                "field_index": idx,
+            }
+        )
+
+        idx += 1  # 每次循环完成后手动增加 idx
+
+    return field_list

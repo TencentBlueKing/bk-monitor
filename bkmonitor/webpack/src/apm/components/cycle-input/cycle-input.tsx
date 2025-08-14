@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { defaultCycleOptionMin, defaultCycleOptionSec } from 'monitor-pc/components/cycle-input/utils';
 
-import type { IEvent, IOption, IProps, IntervalType, unitType } from 'monitor-pc/components/cycle-input/typings';
+import type { IEvent, IntervalType, IOption, IProps, unitType } from 'monitor-pc/components/cycle-input/typings';
 
 import 'monitor-pc/components/cycle-input/cycle-input.scss';
 
@@ -204,8 +204,8 @@ export default class CycleInput extends tsc<IProps, IEvent> {
           onHide={() => (this.unitActive = false)}
         >
           <span
-            v-en-style='min-width: 60px'
             class={['cycle-unit', { 'line-active': this.unitActive, 'unit-active': this.unitActive }]}
+            v-en-style='min-width: 60px'
             onClick={() => (this.unitActive = true)}
           >
             {this.unitName}

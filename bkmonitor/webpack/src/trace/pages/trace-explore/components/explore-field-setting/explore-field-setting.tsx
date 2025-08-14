@@ -24,22 +24,22 @@
  * IN THE SOFTWARE.
  */
 import {
-  defineComponent,
-  ref as deepRef,
-  shallowRef,
-  useTemplateRef,
   type PropType,
-  watch,
-  TransitionGroup,
+  ref as deepRef,
+  defineComponent,
   nextTick,
   onBeforeUnmount,
+  shallowRef,
+  TransitionGroup,
+  useTemplateRef,
+  watch,
 } from 'vue';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { useThrottleFn } from '@vueuse/core';
 import { $bkPopover, Button, Exception, Input } from 'bkui-vue';
-import { Transfer, ArrowsRight, Close } from 'bkui-vue/lib/icon';
+import { ArrowsRight, Close, Transfer } from 'bkui-vue/lib/icon';
+import { useI18n } from 'vue-i18n';
 
 import FieldTypeIcon from '../field-type-icon';
 
@@ -47,7 +47,7 @@ import type { IDimensionField } from '../../typing';
 
 import './explore-field-setting.scss';
 
-export type FieldSettingItem = { [key in string]: any } | Pick<IDimensionField, 'alias' | 'name' | 'type'>;
+export type FieldSettingItem = Pick<IDimensionField, 'alias' | 'name' | 'type'> | { [key in string]: any };
 export default defineComponent({
   name: 'ExploreFieldSetting',
   props: {
@@ -121,7 +121,7 @@ export default defineComponent({
     const toBeChosenListLen = computed(() => toBeChosenList.value.length);
 
     /** 待选区域空数据时展示类型 */
-    const emptyConfig = computed<{ description: string; type: 'empty' | 'search-empty' } | null>(() => {
+    const emptyConfig = computed<null | { description: string; type: 'empty' | 'search-empty' }>(() => {
       if (toBeChosenList.value.length) {
         return null;
       }

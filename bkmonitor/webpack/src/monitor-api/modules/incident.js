@@ -20,6 +20,8 @@ export const feedbackIncidentRoot = request('POST', 'rest/v2/incident/feedback_i
 export const incidentAlertList = request('POST', 'rest/v2/incident/incident_alert_list/');
 export const incidentAlertView = request('POST', 'rest/v2/incident/incident_alert_view/');
 export const alertIncidentDetail = request('GET', 'rest/v2/incident/alert_incident_detail/');
+export const incidentResults = request('GET', 'rest/v2/incident/incident_results/');
+export const incidentDiagnosis = request('POST', 'rest/v2/incident/incident_diagnosis/');
 
 export default {
   incidentList,
@@ -42,4 +44,6 @@ export default {
   incidentAlertList,
   incidentAlertView,
   alertIncidentDetail,
+  incidentResults,
+  incidentDiagnosis,
 };

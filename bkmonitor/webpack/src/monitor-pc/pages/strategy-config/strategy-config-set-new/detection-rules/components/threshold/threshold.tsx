@@ -27,21 +27,21 @@ import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorat
 import { Component as tsc } from 'vue-tsx-support';
 
 import { THRESHOLD_METHOD_LIST } from '../../../../../../constant/constant';
-import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
+import { type IDetectionTypeRuleData, DetectionRuleTypeEnum } from '../../../typings';
 import ThresholdSelect, { type IItem } from './threshold-select';
 
 import './threshold.scss';
 
-interface ThresholdProps {
-  data?: IDetectionTypeRuleData;
-  otherSelectRuleData?: IDetectionTypeRuleData[];
-  readonly?: boolean;
-  methodList?: IItem[];
-  unit?: string;
-}
-
 interface ThresholdEvents {
   onDataChange: IDetectionTypeRuleData;
+}
+
+interface ThresholdProps {
+  data?: IDetectionTypeRuleData;
+  methodList?: IItem[];
+  otherSelectRuleData?: IDetectionTypeRuleData[];
+  readonly?: boolean;
+  unit?: string;
 }
 
 @Component({})

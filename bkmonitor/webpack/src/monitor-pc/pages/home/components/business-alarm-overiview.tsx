@@ -39,16 +39,16 @@ import PanelCard from './panel-card/panel-card.vue';
 import './business-alarm-overview.scss';
 
 export interface IBusinessAlarm {
-  name: string;
-  status: string;
-  step?: number;
-  no_monitor_target?: boolean;
   has_monitor?: boolean;
   has_more: boolean;
   high_risk?: { content: string; event_id: string; type: string }[];
   high_risk_count?: number;
+  name: string;
+  no_monitor_target?: boolean;
   other?: any[];
   other_count?: number;
+  status: string;
+  step?: number;
 }
 
 interface IBusinessAlarmProps {

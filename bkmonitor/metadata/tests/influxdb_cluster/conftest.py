@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 
 import pytest
-from mockredis import mock_redis_client
+from mockredis.redis import mock_redis_client
 
 
 @pytest.fixture
@@ -49,7 +49,7 @@ def patch_redis_tools(mocker):
 def patch_consul_tool(mocker):
     kv_store = {}
 
-    class MockConsul(object):
+    class MockConsul:
         def put(self, key, value):
             kv_store[key] = json.dumps(value)
 
@@ -63,7 +63,7 @@ def patch_consul_tool(mocker):
             d = [123]
             item = []
             for k in list(kv_store.keys()):
-                item.append({"Key": k, "Value": bytes('{}', encoding="utf-8")})
+                item.append({"Key": k, "Value": bytes("{}", encoding="utf-8")})
             d.append(item)
             return d
 

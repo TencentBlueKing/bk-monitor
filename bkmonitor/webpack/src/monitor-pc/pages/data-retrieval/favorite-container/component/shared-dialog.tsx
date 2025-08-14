@@ -38,9 +38,9 @@ import type { IFavList } from '../../typings';
 import './shared-dialog.scss';
 
 interface IProps {
-  value?: boolean;
   favoriteConfig: IFavList.favList;
   favoriteSearchType: string;
+  value?: boolean;
 }
 
 @Component

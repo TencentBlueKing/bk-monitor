@@ -35,11 +35,11 @@ import { initUnit } from './home';
 import './business-item.scss';
 
 export const spaceTypeTexts = (obj: {
-  space_type_id: string;
   space_code: any;
+  space_type_id: string;
 }): {
+  light: { backgroundColor: string; color: string };
   name: string;
-  light: { color: string; backgroundColor: string };
 }[] => {
   if (obj?.space_type_id && SPACE_TYPE_MAP[obj.space_type_id]) {
     if (obj.space_type_id === 'bkci' && !!obj.space_code) {
@@ -50,26 +50,29 @@ export const spaceTypeTexts = (obj: {
   return [];
 };
 
-interface ISeriesData {
-  count: number;
-  level: number;
+export interface BusinessItemEvent {
+  onFavorite?: boolean;
+  onToEvent?: {
+    activeFilterId: any;
+    id: string;
+  };
 }
 
 export interface IData {
-  name: string;
+  countSum: number;
+  dataCounts: { allowHtml: boolean; count: number; id: string; name: string; tip: string; unit: string }[];
+  eventCounts: { count: number; id: string; name: string; unit: string }[];
   id: string;
-  eventCounts: { id: string; name: string; count: number; unit: string }[];
-  seriesData: ISeriesData[];
-  dataCounts: { id: string; name: string; count: number; unit: string; allowHtml: boolean; tip: string }[];
+  isAllowed?: boolean;
+  isDemo: boolean;
   isFavorite: boolean;
   isSticky?: boolean;
-  isDemo: boolean;
-  countSum: number;
-  isAllowed?: boolean;
+  name: string;
+  seriesData: ISeriesData[];
   space_info?: {
-    space_type_id?: string;
     space_code?: any;
     space_id?: string;
+    space_type_id?: string;
   };
 }
 interface BusinessItemProps {
@@ -77,12 +80,9 @@ interface BusinessItemProps {
   isMakeTop?: boolean;
 }
 
-export interface BusinessItemEvent {
-  onFavorite?: boolean;
-  onToEvent?: {
-    activeFilterId: any;
-    id: string;
-  };
+interface ISeriesData {
+  count: number;
+  level: number;
 }
 @Component({
   name: 'BusinessItem',

@@ -1,3 +1,10 @@
+export interface IPieChartData {
+  // 图表数据
+  data: ISeriesData[];
+  // 图例名称
+  name: string;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,19 +31,12 @@
  * IN THE SOFTWARE.
  */
 export interface ISeriesData {
+  // 边框颜色 ratio-ring-chart才有
+  borderColor?: string;
+  // 字体颜色
+  color: string;
   // 字段名称
   name: string;
   // 字段值
   value: number | string;
-  // 字体颜色
-  color: string;
-  // 边框颜色 ratio-ring-chart才有
-  borderColor?: string;
-}
-
-export interface IPieChartData {
-  // 图例名称
-  name: string;
-  // 图表数据
-  data: ISeriesData[];
 }

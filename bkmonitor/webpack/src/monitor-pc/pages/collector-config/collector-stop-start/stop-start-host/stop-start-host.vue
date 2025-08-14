@@ -343,7 +343,7 @@ export default {
     async taskReadyStatusPromise(collect_config_id) {
       clearTimeout(timer);
       let timer = null;
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       return new Promise(async resolve => {
         const show = await isTaskReady({ collect_config_id });
         if (show) {

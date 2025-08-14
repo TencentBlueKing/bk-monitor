@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -18,6 +17,12 @@ from metadata.tests.common_utils import consul_client
 
 @pytest.fixture
 def create_or_delete_records(mocker):
+    models.DataSource.objects.all().delete()
+    models.ResultTable.objects.all().delete()
+    models.SpaceDataSource.objects.all().delete()
+    models.DataSourceResultTable.objects.all().delete()
+    models.AccessVMRecord.objects.all().delete()
+
     models.DataSource.objects.create(
         bk_data_id=50010,
         data_name="data_link_test",
@@ -48,7 +53,7 @@ def create_or_delete_records(mocker):
         table_id="1001_bkmonitor_time_series_50010.__default__",
         bk_biz_id=1001,
         is_custom_table=False,
-        bk_biz_id_alias='appid',
+        bk_biz_id_alias="appid",
     )
     models.ResultTable.objects.create(
         table_id="1001_bkmonitor_time_series_50011.__default__", bk_biz_id=1001, is_custom_table=False
@@ -57,31 +62,31 @@ def create_or_delete_records(mocker):
         table_id="1001_bkmonitor_time_series_50012.__default__", bk_biz_id=1002, is_custom_table=False
     )
     models.AccessVMRecord.objects.create(
-        result_table_id='1001_bkmonitor_time_series_50010.__default__',
+        result_table_id="1001_bkmonitor_time_series_50010.__default__",
         bk_base_data_id=50010,
-        vm_result_table_id='1001_vm_test_50010',
+        vm_result_table_id="1001_vm_test_50010",
     )
     models.AccessVMRecord.objects.create(
-        result_table_id='1001_bkmonitor_time_series_50011.__default__',
+        result_table_id="1001_bkmonitor_time_series_50011.__default__",
         bk_base_data_id=50011,
-        vm_result_table_id='1001_vm_test_50011',
+        vm_result_table_id="1001_vm_test_50011",
     )
     models.AccessVMRecord.objects.create(
-        result_table_id='1001_bkmonitor_time_series_50012.__default__',
+        result_table_id="1001_bkmonitor_time_series_50012.__default__",
         bk_base_data_id=50012,
-        vm_result_table_id='1001_vm_test_50012',
+        vm_result_table_id="1001_vm_test_50012",
     )
-    models.SpaceDataSource.objects.create(space_type_id='bkcc', space_id=1001, bk_data_id=50010)
-    models.SpaceDataSource.objects.create(space_type_id='bkcc', space_id=1001, bk_data_id=50011)
-    models.SpaceDataSource.objects.create(space_type_id='bkcc', space_id=1002, bk_data_id=50012)
+    models.SpaceDataSource.objects.create(space_type_id="bkcc", space_id=1001, bk_data_id=50010)
+    models.SpaceDataSource.objects.create(space_type_id="bkcc", space_id=1001, bk_data_id=50011)
+    models.SpaceDataSource.objects.create(space_type_id="bkcc", space_id=1002, bk_data_id=50012)
     models.DataSourceResultTable.objects.create(
-        table_id='1001_bkmonitor_time_series_50010.__default__', bk_data_id=50010
-    )
-    models.DataSourceResultTable.objects.create(
-        table_id='1001_bkmonitor_time_series_50011.__default__', bk_data_id=50011
+        table_id="1001_bkmonitor_time_series_50010.__default__", bk_data_id=50010
     )
     models.DataSourceResultTable.objects.create(
-        table_id='1001_bkmonitor_time_series_50012.__default__', bk_data_id=50012
+        table_id="1001_bkmonitor_time_series_50011.__default__", bk_data_id=50011
+    )
+    models.DataSourceResultTable.objects.create(
+        table_id="1001_bkmonitor_time_series_50012.__default__", bk_data_id=50012
     )
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
@@ -91,22 +96,22 @@ def create_or_delete_records(mocker):
     models.DataSourceResultTable.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_compose_data_for_space_router(create_or_delete_records):
     self = SpaceTableIDRedis()
-    values_for_creator = self._compose_data('bkcc', '1001')
+    values_for_creator = self._compose_data("bkcc", "1001")
 
     # 测试全局数据源创建者业务下的空间路由
     expected_for_creator_space = {
-        '1001_bkmonitor_time_series_50011.__default__': {'filters': []},
-        '1001_bkmonitor_time_series_50010.__default__': {'filters': []},
+        "1001_bkmonitor_time_series_50011.__default__": {"filters": []},
+        "1001_bkmonitor_time_series_50010.__default__": {"filters": []},
     }
     assert values_for_creator == expected_for_creator_space
 
     # 测试全局数据源在其他业务下的空间路由
-    values_for_others = self._compose_data('bkcc', '1003')
+    values_for_others = self._compose_data("bkcc", "1003")
     expected_for_other_space = {
-        '1001_bkmonitor_time_series_50011.__default__': {'filters': [{'bk_biz_id': '1003'}]},
-        '1001_bkmonitor_time_series_50010.__default__': {'filters': [{'appid': '1003'}]},
+        "1001_bkmonitor_time_series_50011.__default__": {"filters": [{"bk_biz_id": "1003"}]},
+        "1001_bkmonitor_time_series_50010.__default__": {"filters": [{"appid": "1003"}]},
     }
     assert values_for_others == expected_for_other_space

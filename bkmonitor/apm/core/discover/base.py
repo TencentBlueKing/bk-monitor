@@ -92,6 +92,37 @@ def extract_field_value(key: list[tuple[str, str]] | tuple[str, str], item):
     return item.get(first_key, item).get(second_key)
 
 
+def combine_list(target, source):
+    """
+    合并两个列表
+    相同 name 的进行 extra_data 合并
+    不同 name 的追加在数组中
+    """
+    if not target and not source:
+        return []
+    if not target:
+        return source
+    if not source:
+        return target
+
+    merged_dict = {}
+
+    for item in target:
+        name = item["name"]
+        extra_data = item["extra_data"]
+        merged_dict[name] = extra_data
+
+    for item in source:
+        name = item["name"]
+        extra_data = item["extra_data"]
+        if name in merged_dict:
+            merged_dict[name].update(extra_data)
+        else:
+            merged_dict[name] = extra_data
+
+    return [{"name": name, "extra_data": data} for name, data in merged_dict.items()]
+
+
 class ApmTopoDiscoverRuleCls(NamedTuple):
     instance_keys: list[tuple[str, str]]
     topo_kind: str

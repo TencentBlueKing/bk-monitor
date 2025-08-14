@@ -35,9 +35,9 @@ import './alarm-confirm.scss';
 // import { FtaAlertAck } from './mock'
 
 interface AlarmConfirmProps {
-  show: boolean;
-  ids?: Array<string>;
   bizIds?: number[];
+  ids?: Array<string>;
+  show: boolean;
 }
 
 interface IEvent {

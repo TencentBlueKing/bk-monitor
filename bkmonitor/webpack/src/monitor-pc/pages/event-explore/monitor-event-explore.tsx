@@ -396,8 +396,8 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
             },
           },
         ] = targetsList;
-        this.dataTypeLabel = data_type_label;
-        this.dataSourceLabel = data_source_label;
+        this.dataTypeLabel = data_type_label || 'event';
+        this.dataSourceLabel = data_source_label || 'custom';
         this.dataId = result_table_id;
         this.where = whereFormatter(where || []);
         this.queryString = queryString || '';

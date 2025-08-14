@@ -143,6 +143,7 @@
           :global-editable="globalEditable"
           :submit-lading="isHandle"
           :table-str="defaultData.predefined_varibles"
+          :max-log-length="formData.max_log_length"
           @submit-rule="handleSubmitClusterChange"
         />
       </div>
@@ -302,7 +303,7 @@
           const newFilterRules = filterRules.map(item => ({
             ...(this.totalFields.find(tItem => tItem.field_name === item.fields_name) ?? {}),
             ...item,
-            value: [item.value],
+            value: Array.isArray(item.value) ? [...item.value] : [item.value],
           }));
           this.defaultVaribles = predefined_varibles;
           const assignObj = {
@@ -399,39 +400,30 @@
         const { index_set_id, bk_biz_id } = this.indexSetItem;
         const {
           max_dist_list,
-          predefined_varibles,
           delimeter,
           max_log_length,
           is_case_sensitive,
           clustering_fields,
           filter_rules,
-          regex_rule_type,
-          regex_template_id,
         } = this.formData;
         const paramsData = {
           max_dist_list,
-          predefined_varibles,
+          predefined_varibles: this.$refs.ruleTableRef.ruleArrToBase64(), 
           delimeter,
           max_log_length,
           is_case_sensitive,
           clustering_fields,
-          filter_rules,
-          regex_rule_type,
-          regex_template_id,
+          filter_rules: filter_rules
+            .filter(item => item.value.length)
+            .map(item => ({
+              fields_name: item.fields_name,
+              logic_operator: item.logic_operator,
+              op: item.op,
+              value: item.value,
+            })),
+          regex_rule_type: this.$refs.ruleTableRef.getRuleType(), 
+          regex_template_id: this.$refs.ruleTableRef.getTemplateID(), 
         };
-        // 获取子组件传来的聚类规则数组base64字符串
-        paramsData.predefined_varibles = this.$refs.ruleTableRef.ruleArrToBase64();
-        paramsData.regex_rule_type = this.$refs.ruleTableRef.getRuleType();
-        paramsData.regex_template_id = this.$refs.ruleTableRef.getTemplateID();
-        // 过滤规则数组形式转成字符串形式传参
-        paramsData.filter_rules = paramsData.filter_rules
-          .filter(item => item.value.length)
-          .map(item => ({
-            fields_name: item.fields_name,
-            logic_operator: item.logic_operator,
-            op: item.op,
-            value: item.value[0],
-          }));
         this.$http
           .request('retrieve/updateClusteringConfig', {
             params: {

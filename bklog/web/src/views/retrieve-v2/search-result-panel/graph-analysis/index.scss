@@ -262,6 +262,7 @@
             line-height: 22px;
             color: #63656e;
             text-align: left;
+            word-break: break-all;
           }
 
           .bk-exception-description {
@@ -333,6 +334,7 @@
               color: #63656e;
               text-align: center;
               letter-spacing: 0;
+              white-space: nowrap;
             }
           }
         }

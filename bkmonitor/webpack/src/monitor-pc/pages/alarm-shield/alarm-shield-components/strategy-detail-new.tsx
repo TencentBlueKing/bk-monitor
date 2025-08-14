@@ -33,8 +33,8 @@ import './strategy-detail-new.scss';
 const { i18n } = window;
 
 interface IStrategyDetailNewProps {
-  strategyData: any;
   detects: any;
+  strategyData: any;
 }
 
 @Component({

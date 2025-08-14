@@ -31,11 +31,14 @@
     <div
       v-for="(desc, index) in descList"
       :key="index"
-    >{{ index + 1 }}. {{ desc }}</div>
+    >
+      {{ index + 1 }}. {{ desc }}
+    </div>
     <span
       class="custom-desc-btn"
       @click="$emit('change', false)"
-    >{{ $t('收起') }}</span>
+      >{{ $t('收起') }}</span
+    >
   </div>
 </template>
 <script lang="ts">

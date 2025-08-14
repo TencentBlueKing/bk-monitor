@@ -31,12 +31,12 @@ import { getValueFormat } from '../../../monitor-echarts/valueFormats/valueForma
 import { echarts } from '../../typings/index';
 import MiniTimeSeries from './mini-time-series';
 
-export enum EPointType {
+export enum EDropType {
   compare = 'compare',
   end = 'end',
   refer = 'refer',
 }
-export enum EDropType {
+export enum EPointType {
   compare = 'compare',
   end = 'end',
   refer = 'refer',

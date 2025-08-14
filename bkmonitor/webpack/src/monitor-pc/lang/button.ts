@@ -508,4 +508,5 @@ export default {
   加载更多: 'Load More',
   设置筛选: 'Set Filter',
   退出全屏: 'Exit Full Screen',
+  刷新列表: 'Refresh List',
 };

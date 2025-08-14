@@ -24,37 +24,37 @@
  * IN THE SOFTWARE.
  */
 import { getPlatformConfig, setDocumentTitle, setShortcutIcon } from '@blueking/platform-config';
-import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import store from '../store';
 
 interface IPlatformConfig {
-  bkAppCode: string; // app code
-  name: string; // 站点的名称，通常显示在页面左上角，也会出现在网页title中
-  nameEn: string; // 站点的名称-英文
   appLogo: string; // 站点logo
-  favicon: string; // 站点favicon
-  helperText: string;
-  helperTextEn: string;
-  helperLink: string; // 超链接或IM协议地址
+  bkAppCode: string; // app code
   brandImg: string;
   brandImgEn: string;
   brandName: string; // 品牌名，会用于拼接在站点名称后面显示在网页title中
   brandNameEn: string; // 品牌名-英文
+  favicon: string; // 站点favicon
+  footerCopyright: string; // 版本信息，包含 version 变量，展示在页脚内容下方
+  footerCopyrightContent: string; // 替换完变量之后的版本信息，可以直接用于在页面中展示
   footerInfo: string; // 页脚的内容，仅支持 a 的 markdown 内容格式
   footerInfoEn: string; // 页脚的内容-英文
-  footerCopyright: string; // 版本信息，包含 version 变量，展示在页脚内容下方
   footerInfoHTML: string; // 转换为HTML的页脚内容，已处理 xss，可以直接用于在页面中展示
   footerInfoHTMLEn: string; // 转换为HTML的页脚内容-英文
-  footerCopyrightContent: string; // 替换完变量之后的版本信息，可以直接用于在页面中展示
+  helperLink: string; // 超链接或IM协议地址
+  helperText: string;
+  helperTextEn: string;
+  name: string; // 站点的名称，通常显示在页面左上角，也会出现在网页title中
+  nameEn: string; // 站点的名称-英文
 
   // 需要国际化的字段，根据当前语言cookie自动匹配，页面中应该优先使用这里的字段
   i18n: {
-    name: string; // 国际化对应的内容：某某平台 或 AAA
-    helperText: string;
     brandImg: string;
     brandName: string;
     footerInfoHTML: string;
+    helperText: string;
+    name: string; // 国际化对应的内容：某某平台 或 AAA
   };
 }
 @Module({ name: 'platform-config', dynamic: true, namespaced: true, store })

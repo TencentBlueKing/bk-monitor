@@ -40,7 +40,6 @@
 <script lang="tsx">
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
-// eslint-disable-next-line no-unused-vars
 import type MonitorVue from '../../../../types';
 
 @Component({

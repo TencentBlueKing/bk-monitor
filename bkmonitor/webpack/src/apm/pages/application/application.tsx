@@ -26,6 +26,7 @@
 import { Component, InjectReactive, Mixins, Prop, Ref } from 'vue-property-decorator';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
+import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
@@ -351,15 +352,17 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
             onTimeRangeChange={this.handelTimeRangeChange}
             onTitleChange={this.handleTitleChange}
           >
-            <ApmCommonNavBar
-              slot='nav'
-              needBack={false}
-              needShadow={true}
-              positionText={this.positionText}
-              routeList={this.routeList}
-              needCopyLink
-              onNavSelect={this.handleNavSelect}
-            />
+            {globalUrlFeatureMap.APM_SUBMENU && (
+              <ApmCommonNavBar
+                slot='nav'
+                needBack={false}
+                needShadow={true}
+                positionText={this.positionText}
+                routeList={this.routeList}
+                needCopyLink
+                onNavSelect={this.handleNavSelect}
+              />
+            )}
             {this.isReady && this.viewHasNoData && (
               <div slot='noData'>
                 <CommonAlert class='no-data-alert'>
@@ -387,7 +390,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
                 </CommonAlert>
               </div>
             )}
-            {!this.readonly && !!this.appName && (
+            {!this.readonly && !!this.appName && globalUrlFeatureMap.APM_SUBMENU && (
               <div
                 class='application-tools'
                 slot='buttonGroups'

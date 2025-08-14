@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
@@ -34,13 +34,13 @@ import type { IMetrics } from './index';
 
 import './panel-key-select.scss';
 
-interface IProps {
-  value?: string;
-  metricsList: IMetrics[];
-}
-
 interface IEmit {
   onChange: (value: string) => void;
+}
+
+interface IProps {
+  metricsList: IMetrics[];
+  value?: string;
 }
 
 @Component

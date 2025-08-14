@@ -26,138 +26,206 @@
 
 import type { Process, Span } from '../components/trace-view/typings';
 
+export enum EListItemType {
+  events = 'Events',
+  process = 'Process',
+  stageTime = 'StageTime',
+  tags = 'Tags',
+}
+
+export enum ETopoType {
+  service = 'service',
+  time = 'time',
+}
+
+export type DirectionType = 'ltr' | 'rtl';
+
 export interface IDetailInfo {
   [key: string]: any;
-  product_time: number;
-  trace_duration: number;
-  service_count: number;
-  hierarchy_count: number;
-  min_duration: number;
-  max_duration: number;
+  app_name?: string;
+  category?: string; // 调用类型
   error?: boolean; // 入口服务感叹号
-  root_service?: string;
+  hierarchy_count: number;
+  max_duration: number;
+  min_duration: number;
+  product_time: number;
   root_endpoint?: string;
+  root_service?: string;
+  root_span_id: string;
+  service_count: number;
+  time_error: boolean;
+  trace_duration: number;
+  trace_end_time?: number;
+  trace_start_time?: number;
   status_code?: {
     type: string;
     value: number;
   };
-  category?: string; // 调用类型
-  root_span_id: string;
-  time_error: boolean;
-  trace_start_time?: number;
-  trace_end_time?: number;
-  app_name?: string;
-}
-
-export interface ISpanClassifyItem {
-  type: string;
-  name: string;
-  icon: string;
-  count: number;
-  filter_value: number | string;
-  filter_key: string;
-  color: string;
-  app_name?: string;
-}
-
-export interface ITraceTree {
-  [key: string]: any;
-  traceID?: string;
-  processes?: Record<string, Process>;
-  spans: Span[];
-  duration?: number;
-  time?: string;
-  entryService?: string;
-  entryEndpoint?: string;
-  statusCode?: string;
-  status?: string;
-  type?: string;
-  startTime?: number;
-  endTime?: number;
-}
-
-export interface ITopoNode {
-  color: string;
-  duration: number;
-  operationName: string;
-  error: boolean;
-  icon: string;
-  service_name: string;
-  id: string;
-  collapsed: boolean;
-  spans: string[];
-  bgColor: string;
-  diff_info?: Record<string, IDiffInfo>;
 }
 
 export interface IDiffInfo {
   baseline: number;
   comparison: number;
-  mark: 'added' | 'changed' | 'removed' | 'unchanged';
   diff: number;
+  mark: 'added' | 'changed' | 'removed' | 'unchanged';
 }
 
-export interface ITopoRelation {
-  target: string;
-  source: string;
+export interface IEventsItem {
+  titleRight?: any;
+  list: {
+    content: ITagContent[];
+    header: {
+      date: string;
+      duration: string;
+      name: string;
+    };
+    isExpan: boolean;
+  }[];
 }
 
-export interface ITraceListItem {
-  [key: string]: any;
-  trace_id: string;
-  trace_info: IDetailInfo;
-  traceID?: string;
-  duration?: string;
-  time?: number;
-  entryService?: string;
-  entryEndpoint?: string;
-  statusCode?: number;
-  status?: string;
-  type?: string;
-  appName?: string;
-}
-
-export interface ITraceData extends ITraceListItem {
-  [key: string]: any;
-  ebpf_enabled?: boolean;
-  original_data: any[];
-  span_classify: ISpanClassifyItem[];
-  topo_nodes: ITopoNode[];
-  topo_relation: ITopoRelation[];
-  trace_tree?: ITraceTree;
-  streamline_service_topo?: {
-    nodes: any[];
-    edges: any[];
+export interface IInfo {
+  list: IListItem[];
+  title: string;
+  header: {
+    others: {
+      content: any;
+      label: string;
+      title: string;
+    }[];
+    timeTag: string; // 时间
+    // 头部
+    title: string; // 标题
   };
 }
 
-export interface OriginCrossAppSpanMap {
-  [key: string]: Span[];
+export interface IListItem {
+  [EListItemType.events]?: IEventsItem;
+  [EListItemType.process]?: IProcessItem;
+  [EListItemType.stageTime]?: IStageTimeItem;
+  [EListItemType.tags]?: ITagsItem;
+  isExpan: boolean;
+  title?: string;
+  type: EListItemType;
 }
 
-export type DirectionType = 'ltr' | 'rtl';
+export interface IProcessItem {
+  title: string;
+  list: {
+    content?: string;
+    label: string;
+    query_key: string;
+    query_value: any;
+  }[];
+}
+
+export interface IQueryParams {
+  agg_method?: string;
+  app_name?: string;
+  bk_biz_id?: number;
+  data_type?: string;
+  diagram_types?: string[];
+  diff_filter_labels?: any;
+  diff_profile_id?: string;
+  end: number;
+  filter_labels?: Record<string, string>;
+  global_query: boolean;
+  is_compared?: boolean;
+  offset?: number;
+  profile_id?: string;
+  sort?: string;
+  start: number;
+}
+
+export interface IServiceSpanListItem {
+  collapsed: boolean;
+  collapsed_span_num: number;
+  color: string;
+  display_name: string;
+  duration: number;
+  icon: string;
+  kind: number;
+  operation_name: string;
+  service_name: string;
+  span_id: string;
+  span_ids: string[];
+  span_name: string;
+  start_time: number;
+}
+
+export interface ISpanClassifyItem {
+  app_name?: string;
+  color: string;
+  count: number;
+  filter_key: string;
+  filter_value: number | string;
+  icon: string;
+  name: string;
+  type: string;
+}
+
+export interface ISpanDetail {
+  origin_data: IOriginData;
+  trace_tree: {
+    processes: {
+      [key: string]: object;
+    };
+    spans: {
+      app_name: string;
+      attributes: any[];
+      color: string;
+      duration: number;
+      error: boolean;
+      events: any[];
+      flags: number;
+      icon: string;
+      id: string;
+      kind: number;
+      logs: any[];
+      message: string;
+      operationName: string;
+      processID: string;
+      references: {
+        refType: string;
+        spanID: string;
+        traceID: string;
+      }[];
+      resource: any[];
+      service_name: string;
+      spanID: string;
+      startTime: number;
+      tags: {
+        key: string;
+        query_key: string;
+        query_value: string;
+        type: string;
+        value: string;
+      }[];
+      traceID: string;
+    }[];
+  };
+}
 
 export interface ISpanListItem {
   [key: string]: any;
-  span_name: string;
+  elapsed_time: number | string;
+  end_time: number | string;
+  kind: number;
   parent_span_id: string;
+  span_id: string;
+  span_name: string;
   start_time: number | string;
+  time: string;
   trace_id: string;
   trace_state: string;
   resource: {
-    'telemetry.sdk.language': string;
-    'service.name': string;
-    'service.version': string;
     'bk.instance.id': string;
     bk_data_id: number;
-    'telemetry.sdk.version': string;
+    'service.name': string;
+    'service.version': string;
+    'telemetry.sdk.language': string;
     'telemetry.sdk.name': string;
+    'telemetry.sdk.version': string;
   };
-  span_id: string;
-  kind: number;
-  end_time: number | string;
-  elapsed_time: number | string;
-  time: string;
   status: {
     code: number;
     message: string;
@@ -168,203 +236,135 @@ export interface ISpanListItem {
   };
 }
 
-export interface IServiceSpanListItem {
-  span_name: string;
-  span_id: string;
-  kind: number;
-  duration: number;
-  start_time: number;
-  display_name: string;
-  operation_name: string;
-  service_name: string;
-  icon: string;
-  color: string;
-  span_ids: string[];
-  collapsed: boolean;
-  collapsed_span_num: number;
-}
-
-export enum EListItemType {
-  events = 'Events',
-  process = 'Process',
-  stageTime = 'StageTime',
-  tags = 'Tags',
-}
-
-export interface ITagContent {
-  label: string;
-  content?: string;
-  type: string;
-  isFormat?: boolean;
-  query_key: string;
-  query_value: any;
-}
-
-export interface ITagsItem {
-  list: ITagContent[];
-}
-
-export interface IEventsItem {
-  titleRight?: any;
+export interface IStageTimeItem {
+  // 阶段耗时
+  active: string;
+  content: {
+    [propName: string]: IStageTimeItemContent[];
+  };
   list: {
-    isExpan: boolean;
-    header: {
-      date: string;
-      name: string;
-      duration: string;
-    };
-    content: ITagContent[];
+    error: boolean;
+    errorMsg: string;
+    id: string;
+    label: string;
   }[];
 }
 
 export interface IStageTimeItemContent {
+  gapTime?: string;
   type: 'gapTime' | 'useTime';
   useTime?: {
-    tags: string[];
     gap: { type: 'toLeft' | 'toRight'; value: string };
-  };
-  gapTime?: string;
-}
-export interface IStageTimeItem {
-  // 阶段耗时
-  active: string;
-  list: {
-    id: string;
-    label: string;
-    error: boolean;
-    errorMsg: string;
-  }[];
-  content: {
-    [propName: string]: IStageTimeItemContent[];
+    tags: string[];
   };
 }
 
-export interface IProcessItem {
-  title: string;
-  list: {
-    label: string;
-    content?: string;
-    query_key: string;
-    query_value: any;
-  }[];
+export interface ITagContent {
+  content?: string;
+  isFormat?: boolean;
+  label: string;
+  query_key: string;
+  query_value: any;
+  type: string;
 }
-export interface IListItem {
-  type: EListItemType;
-  isExpan: boolean;
-  title?: string;
-  [EListItemType.tags]?: ITagsItem;
-  [EListItemType.events]?: IEventsItem;
-  [EListItemType.stageTime]?: IStageTimeItem;
-  [EListItemType.process]?: IProcessItem;
+export interface ITagsItem {
+  list: ITagContent[];
 }
-export interface IInfo {
-  title: string;
-  header: {
-    // 头部
-    title: string; // 标题
-    timeTag: string; // 时间
-    others: {
-      label: string;
-      content: any;
-      title: string;
-    }[];
+
+export interface ITopoNode {
+  bgColor: string;
+  collapsed: boolean;
+  color: string;
+  diff_info?: Record<string, IDiffInfo>;
+  duration: number;
+  error: boolean;
+  icon: string;
+  id: string;
+  operationName: string;
+  service_name: string;
+  spans: string[];
+}
+export interface ITopoRelation {
+  source: string;
+  target: string;
+}
+export interface ITraceData extends ITraceListItem {
+  [key: string]: any;
+  ebpf_enabled?: boolean;
+  original_data: any[];
+  span_classify: ISpanClassifyItem[];
+  topo_nodes: ITopoNode[];
+  topo_relation: ITopoRelation[];
+  trace_tree?: ITraceTree;
+  streamline_service_topo?: {
+    edges: any[];
+    nodes: any[];
   };
-  list: IListItem[];
+}
+
+export interface ITraceListItem {
+  [key: string]: any;
+  appName?: string;
+  duration?: string;
+  entryEndpoint?: string;
+  entryService?: string;
+  status?: string;
+  statusCode?: number;
+  time?: number;
+  trace_id: string;
+  trace_info: IDetailInfo;
+  traceID?: string;
+  type?: string;
+}
+export interface ITraceTree {
+  [key: string]: any;
+  duration?: number;
+  endTime?: number;
+  entryEndpoint?: string;
+  entryService?: string;
+  processes?: Record<string, Process>;
+  spans: Span[];
+  startTime?: number;
+  status?: string;
+  statusCode?: string;
+  time?: string;
+  traceID?: string;
+  type?: string;
+}
+
+export interface OriginCrossAppSpanMap {
+  [key: string]: Span[];
 }
 
 interface IOriginData {
-  span_name: string;
   elapsed_time: number;
+  end_time: number;
+  events: any[];
+  kind: number;
   links: any[];
-  resource: {
-    type: string;
-    key: string;
-    value: string;
-    query_key: string;
-    query_value: string;
-  };
+  parent_span_id: string;
+  span_id: string;
+  span_name: string;
+  start_time: number;
+  time: string;
+  trace_id: string;
+  trace_state: string;
   attributes: {
-    type: string;
     key: string;
-    value: number;
     query_key: string;
     query_value: number;
+    type: string;
+    value: number;
+  };
+  resource: {
+    key: string;
+    query_key: string;
+    query_value: string;
+    type: string;
+    value: string;
   };
   status: {
     code: number;
     message: string;
   };
-  kind: number;
-  end_time: number;
-  events: any[];
-  time: string;
-  start_time: number;
-  trace_state: string;
-  parent_span_id: string;
-  span_id: string;
-  trace_id: string;
-}
-export interface ISpanDetail {
-  origin_data: IOriginData;
-  trace_tree: {
-    spans: {
-      id: string;
-      app_name: string;
-      traceID: string;
-      spanID: string;
-      duration: number;
-      references: {
-        refType: string;
-        spanID: string;
-        traceID: string;
-      }[];
-      flags: number;
-      color: string;
-      logs: any[];
-      operationName: string;
-      service_name: string;
-      startTime: number;
-      kind: number;
-      tags: {
-        key: string;
-        value: string;
-        type: string;
-        query_key: string;
-        query_value: string;
-      }[];
-      error: boolean;
-      message: string;
-      attributes: any[];
-      resource: any[];
-      events: any[];
-      icon: string;
-      processID: string;
-    }[];
-    processes: {
-      [key: string]: object;
-    };
-  };
-}
-
-export interface IQueryParams {
-  bk_biz_id?: number;
-  app_name?: string;
-  start: number;
-  end: number;
-  data_type?: string;
-  agg_method?: string;
-  global_query: boolean;
-  profile_id?: string;
-  diff_profile_id?: string;
-  offset?: number;
-  diagram_types?: string[];
-  sort?: string;
-  filter_labels?: Record<string, string>;
-  diff_filter_labels?: any;
-  is_compared?: boolean;
-}
-
-export enum ETopoType {
-  service = 'service',
-  time = 'time',
 }

@@ -41,21 +41,21 @@
     @confirm="handleConfirm"
   >
     <div
-      class="condition-panel"
       v-for="item in groupList"
       :key="item.id"
+      class="condition-panel"
     >
       <h2 class="condition-panel-title">
         {{ item.name }}
       </h2>
       <bk-checkbox-group
-        class="condition-panel-content"
         v-model="selectedValues[item.id]"
+        class="condition-panel-content"
       >
         <bk-checkbox
-          class="content-item"
           v-for="data in item.data"
           :key="data.id"
+          class="content-item"
           :value="data.id"
           :disabled="data.filterDisable || (loading && loadingFieldIds.includes(data.id))"
         >

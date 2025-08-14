@@ -27,8 +27,8 @@
   <!-- 主机视图 -->
   <ul class="dashboard-panels">
     <div
-      class="total-tips"
       v-if="searchTipsObj.show"
+      class="total-tips"
     >
       <div class="tips-text">
         <span>{{
@@ -44,8 +44,8 @@
         </span>
       </div>
       <div
-        class="split-btn-wrapper"
         v-if="searchTipsObj.showSplit"
+        class="split-btn-wrapper"
       >
         <span class="btn-text">{{ $t('合并视图') }}</span>
         <bk-switcher
@@ -63,10 +63,10 @@
       <template v-if="group.type === 'row' && group.id !== '__UNGROUP__'">
         <bk-collapse v-model="activeName">
           <bk-collapse-item
+            :key="group.id"
             class="mb10"
             hide-arrow
             :name="group.id"
-            :key="group.id"
           >
             <div class="group-item-title">
               <i :class="['icon-monitor icon-arrow-right', { expand: activeName.includes(group.id) }]" />
@@ -77,6 +77,8 @@
               <div class="chart-wrapper-old">
                 <template v-for="(item, index) in group.panels">
                   <div
+                    v-if="!item.hidden && showPanel(item.show)"
+                    :key="item.key"
                     :class="[
                       `chart-type-${chartType}`,
                       'group-type',
@@ -92,8 +94,6 @@
                         'collect-wrapper': needCollect,
                       },
                     ]"
-                    v-if="!item.hidden && showPanel(item.show)"
-                    :key="item.key"
                   >
                     <monitor-echarts
                       :height="chartType > 0 ? 210 : onlyChartHeight"
@@ -117,8 +117,8 @@
                     />
                     <span
                       v-if="!readonly"
-                      class="collect-wrapper-mark"
                       v-authority="{ active: !authority.GRAFANA_MANAGE_AUTH }"
+                      class="collect-wrapper-mark"
                       @click="
                         authority.GRAFANA_MANAGE_AUTH
                           ? handleCollectChart(item)
@@ -133,15 +133,16 @@
         </bk-collapse>
       </template>
       <div
-        class="chart-wrapper-old"
-        :key="group.key"
         v-else
+        :key="group.key"
+        class="chart-wrapper-old"
       >
         <template v-for="(item, index) in group.panels">
           <div
-            class="common-chart"
-            :id="!!item.group ? `${item.group}${!!item.index ? '-' + item.index : ''}` : `${item.index}`"
             v-if="!item.hidden && showPanel(item.show)"
+            :id="!!item.group ? `${item.group}${!!item.index ? '-' + item.index : ''}` : `${item.index}`"
+            :key="item.key"
+            class="common-chart"
             :class="[
               `chart-type-${chartType}`,
               {
@@ -150,7 +151,6 @@
                 'has-child': item.panels && item.panels.length,
               },
             ]"
-            :key="item.key"
           >
             <div
               v-if="item.panels && item.panels.length"
@@ -210,8 +210,8 @@
             />
             <span
               v-if="!readonly && item.type === 'graph'"
-              class="collect-wrapper-mark"
               v-authority="{ active: !authority.GRAFANA_MANAGE_AUTH }"
+              class="collect-wrapper-mark"
               @click="
                 authority.GRAFANA_MANAGE_AUTH
                   ? handleCollectChart(item)
@@ -252,6 +252,8 @@
   </ul>
 </template>
 <script lang="ts">
+import { Component, Inject, InjectReactive, Prop, Vue, Watch } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 // import { handleTimeRange } from '../../../utils/index';
@@ -261,12 +263,12 @@ import { deepClone, random } from 'monitor-common/utils/utils.js';
 import { handleRelateAlert } from 'monitor-ui/chart-plugins/utils';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
-import { Component, Inject, InjectReactive, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import authorityStore from '../../../store/modules/authority';
 import { getCollectVariable, setCollectVariable } from '../../collector-config/collector-view/variable-set';
 import CollectChart from '../../data-retrieval/components/collect-chart.vue';
+
 import type { ChartType, IHostGroup, IQueryOption, ISearchTipsObj } from '../performance-type';
 
 @Component({
@@ -575,7 +577,6 @@ export default class DashboardPanels extends Vue {
   handleGotoViewDetail() {
     const config = this.collectList.reduce((config, item) => {
       if (!config) {
-        // eslint-disable-next-line no-param-reassign
         config = item;
       } else {
         config.targets.push(...item.targets);
@@ -599,7 +600,7 @@ export default class DashboardPanels extends Vue {
       pre.push(...item.targets);
       return pre;
     }, []);
-    // eslint-disable-next-line vue/max-len
+
     window.open(
       `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(JSON.stringify(targets))}`
     );
@@ -631,7 +632,7 @@ export default class DashboardPanels extends Vue {
     if (this.variableData) {
       targets = this.compileVariableData(targets);
     }
-    // eslint-disable-next-line vue/max-len
+
     window.open(
       `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(JSON.stringify(targets))}`
     );
@@ -737,7 +738,6 @@ export default class DashboardPanels extends Vue {
           const keyword = (this.keyword ?? '').trim().toLocaleLowerCase();
           const isShow =
             (child.title ?? '').toLocaleLowerCase().indexOf(keyword) !== -1 ||
-            // eslint-disable-next-line vue/max-len
             (child.targets || []).some(item =>
               item.data?.query_configs.some(
                 set => (set.metrics?.[0]?.field ?? '').toLocaleLowerCase().indexOf(keyword) !== -1

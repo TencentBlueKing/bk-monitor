@@ -7,12 +7,47 @@
     >
       <transition-group>
         <li
-          v-for="({ key, sorts }, index) in sortList"
+          class="custom-select-item"
+          :key="dtEventTimeStampSort?.key"
+        >
+          <span style="width:18px"></span>
+          <div 
+            v-bk-tooltips="{
+              allowHTML:true,
+              placement:'top',
+              content: $t('综合时间排序,是基于：dtEventTimeStamp、gesIndex、iterationIndex 3个字段的排序结果'),
+            }" 
+            class="table-sort-option-time"
+          >
+            <span>
+              {{$t('综合时间排序')}}
+              <span class="badge" >{{ totalTimeCount }}</span>
+            </span>
+          </div>
+          <bk-select
+            style="width: 77px"
+            v-model="dtEventTimeStampSort.sorts[1]"
+            :placeholder="$t('请选择')"
+          >
+            <bk-option
+              v-for="option in orderList"
+              class="bklog-v3-popover-tag"
+              :id="option.id"
+              :key="option.id"
+              :name="option.name"
+            >
+            </bk-option>
+          </bk-select>
+          <span
+            style="width: 14px"
+          ></span>
+        </li>
+        <li
+          v-for="({ key, sorts }, index) in showFieldList"
           class="custom-select-item"
           :key="key"
         >
           <span class="icon bklog-icon bklog-ketuodong"></span>
-
           <bk-select
             style="width: 174px"
             class="rtl-text"
@@ -43,11 +78,19 @@
                   >
                   </span>
                   <div
+                    v-if="option.query_alias"
                     class="display-container rtl-text"
                     v-bk-overflow-tips="{ placement: 'right' }"
                   >
                     <span class="field-alias">{{ option.query_alias || option.field_name }}</span>
                     <span class="field-name">({{ option.field_name }})</span>
+                  </div>
+                  <div 
+                    v-else 
+                    class="display-container rtl-text" 
+                    v-bk-overflow-tips="{ placement: 'right' }"
+                  >
+                    <span class="field-name">{{ option.field_name }}</span>
                   </div>
                 </div>
               </bk-option>
@@ -71,7 +114,7 @@
           <span
             style="font-size: 14px; color: #c4c6cc"
             class="bklog-icon bklog-circle-minus-filled"
-            @click="deleteTableItem(index)"
+            @click="deleteTableItem(key)"
           ></span>
         </li>
       </transition-group>
@@ -80,7 +123,7 @@
       style="margin-left: 20px; font-size: 14px; color: #3a84ff"
       class="bklog-icon bklog-log-plus-circle-shape"
       @click="addTableItem()"
-      ><span style="margin-left: 4px; font-size: 12px">{{ $t('添加排序字段') }}</span></span
+      ><span style="margin-left: 4px; font-size: 12px" class="add-sort-field">{{ $t('添加排序字段') }}</span></span
     >
   </div>
 </template>
@@ -121,16 +164,32 @@
   const sortList = ref<{ key: string; sorts: string[] }[]>([]);
 
   const shadowSort = computed(() => sortList.value.map(e => e.sorts));
+  const fieldList = computed(() => store.state.indexFieldInfo.fields);
+  const dtEventTimeStampSort = computed(() => {
+    return sortList.value.find(e => e.sorts[0] === 'dtEventTimeStamp') || { key: random(8), sorts: ['dtEventTimeStamp', 'desc'] };
+  });
+  const showFieldList = computed(() => {
+    return sortList.value.filter( e =>{
+      return  isFieldHidden(e.sorts[0])
+    })
+  });
   const selectList = computed(() => {
-    const data = store.state.indexFieldInfo.fields;
-    const filterFn = field => field.field_type !== '__virtual__';
-    return data.filter(filterFn).map(field => {
+    const filterFn = field => field.field_type !== '__virtual__' && field.field_type !== 'flattened' && isFieldHidden(field.field_name);
+    return fieldList.value.filter(filterFn).map(field => {
       return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
     });
   });
-
-  const deleteTableItem = (val: number) => {
-    sortList.value = sortList.value.slice(0, val).concat(sortList.value.slice(val + 1));
+  const totalTimeCount = computed(()=>{
+    const requiredFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
+    return fieldList.value.filter(field =>{
+      if (requiredFields.includes(field.field_name)) {
+        return true;
+      }
+    }).length;
+  })
+  const deleteTableItem = (val: string) => {
+    sortList.value = sortList.value.filter(item => item.key !== val);
+    // sortList.value = sortList.value.slice(0, val).concat(sortList.value.slice(val + 1));
   };
   const addTableItem = () => {
     sortList.value.push({ key: random(8), sorts: ['', ''] });
@@ -143,6 +202,10 @@
   };
   const getFieldIcon = fieldType => {
     return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
+  };
+  const isFieldHidden = (fieldName) => {
+    const hiddenFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
+    return !hiddenFields.includes(fieldName);
   };
   watch(
     () => [props.initData, props.shouldRefresh],
@@ -177,18 +240,46 @@
     }
   }
 
+  .table-sort-option-time{
+    box-sizing: border-box;
+    width: 174px;
+    padding: 0 36px 0 10px;
+    font-size: 12px;
+    line-height: 30px;
+    color: #63656e;
+    cursor: not-allowed;
+    background-color: #fafbfc;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+
+    .badge{
+      padding: 0px 7px;
+      color: #979bb4;
+      background-color: #eaebee;
+      border-radius: 8px;
+    }
+  }
+
   .table-sort-option-container {
     .custom-option-item {
       display: flex;
       align-items: center;
 
       .display-container {
-        padding: 0 4px;
         width: calc(100% - 12px);
+        padding: 0 4px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
     }
+  }
+
+  .bklog-circle-minus-filled{
+    cursor: pointer;
+  }
+
+  .add-sort-field{
+    cursor: pointer;
   }
 </style>

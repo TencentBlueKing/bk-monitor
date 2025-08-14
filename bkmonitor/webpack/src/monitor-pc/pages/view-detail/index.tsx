@@ -27,11 +27,11 @@ import { ofType } from 'vue-tsx-support';
 
 import Component from './view-detail.vue';
 
-interface IProps {
-  viewConfig?: any;
-  showModal?: boolean;
-}
 interface IEvents {
   onCloseModal?: () => void;
+}
+interface IProps {
+  showModal?: boolean;
+  viewConfig?: any;
 }
 export default ofType<IProps, IEvents>().convert(Component);

@@ -34,43 +34,43 @@ import OverflowPrefixEllipsis from './overflow-prefix-ellipsis';
 
 import './relation-select-panel.scss';
 
-interface TreeNodeData {
-  // 链式id
-  id: string;
-  name: string;
-  // 当前id
-  key: string;
-  // 根节点
-  root?: boolean;
-  // 类型 cluster namespace workload  more等
-  type?: string;
-  // 父级数据
-  parentData?: TreeNodeData;
-  // 总数
-  count?: number;
-  loading?: boolean;
-  // 叶子结点
-  leaf?: boolean;
-  // 子集
-  children?: TreeNodeData[];
-}
 enum QueryFromType {
   NameSpace = 'namespace',
   Workload = 'workload',
 }
+interface RelationSelectPanelProps {
+  value: string[];
+}
 interface TreeNode extends TreeNodeData {
   data: TreeNodeData & {
-    type: string;
-    leaf: boolean;
     count: number;
+    leaf: boolean;
     queryFrom: QueryFromType;
+    type: string;
   };
   state: {
     checked: boolean;
   };
 }
-interface RelationSelectPanelProps {
-  value: string[];
+interface TreeNodeData {
+  // 子集
+  children?: TreeNodeData[];
+  // 总数
+  count?: number;
+  // 链式id
+  id: string;
+  // 当前id
+  key: string;
+  // 叶子结点
+  leaf?: boolean;
+  loading?: boolean;
+  name: string;
+  // 父级数据
+  parentData?: TreeNodeData;
+  // 根节点
+  root?: boolean;
+  // 类型 cluster namespace workload  more等
+  type?: string;
 }
 
 @Component

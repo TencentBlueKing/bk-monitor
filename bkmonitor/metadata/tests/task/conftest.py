@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 import pytest
 from elasticmock import FakeElasticsearch
 
 from metadata import models
 from metadata.tests.common_utils import consul_client, generate_random_string
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 DEFAULT_BK_DATA_ID = 100011
 DEFAULT_TRANSFER_CLUSTER_ID = "default"

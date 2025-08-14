@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -15,7 +14,7 @@ from metadata.models.record_rule import RecordRule
 
 from .conftest import SPACE_ID, SPACE_TYPE, TABLE_FIELD_NAME, TABLE_ID
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 def test_transform_bk_sql_and_metrics(mocker):

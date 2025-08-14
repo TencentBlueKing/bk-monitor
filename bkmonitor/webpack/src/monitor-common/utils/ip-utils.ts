@@ -37,6 +37,10 @@ export function compressIPv6(ip: string) {
   }
   return output;
 }
+// 是否是ipv6全格式
+export function isFullIpv6(ip: string) {
+  return /^([\da-fA-F]{4}:){7}[\da-fA-F]{4}$/.test(ip.toString());
+}
 // 补全ipv6
 export function padIPv6(ip: string) {
   if (ip?.length < 4) return ip;
@@ -46,8 +50,4 @@ export function padIPv6(ip: string) {
     .split(':')
     .map(x => x.padStart(4, '0'))
     .join(':');
-}
-// 是否是ipv6全格式
-export function isFullIpv6(ip: string) {
-  return /^([\da-fA-F]{4}:){7}[\da-fA-F]{4}$/.test(ip.toString());
 }

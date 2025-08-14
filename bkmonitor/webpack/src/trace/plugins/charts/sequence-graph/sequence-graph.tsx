@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover } from 'bkui-vue';
@@ -34,6 +33,7 @@ import mermaid from 'fork-mermaid';
 import { traceDiagram } from 'monitor-api/modules/apm_trace.js';
 import { random } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';

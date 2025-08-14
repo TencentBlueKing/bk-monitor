@@ -32,22 +32,22 @@ import { ETagsType } from '../../../../components/biz-select/list';
 
 import './checkbox-list.scss';
 
-interface IProps {
-  list: IListItem[];
-  checked?: number;
+export interface IListItem {
+  bk_biz_id?: number;
+  children?: IListItem[];
+  id: number;
+  name: string;
+  space_code?: string;
+  space_id?: string;
+  space_type_id?: string;
+  tags?: ITagsItem[];
 }
 interface IEvents {
   onSelected: number;
 }
-export interface IListItem {
-  id: number;
-  name: string;
-  space_code?: string;
-  space_type_id?: string;
-  space_id?: string;
-  tags?: ITagsItem[];
-  children?: IListItem[];
-  bk_biz_id?: number;
+interface IProps {
+  checked?: number;
+  list: IListItem[];
 }
 interface ITagsItem {
   id: string;

@@ -30,12 +30,12 @@ import type { ILinkItem } from '../../monitor-k8s/typings/table';
 
 import './more-operate.scss';
 
-interface IProps {
-  options?: ILinkItem[];
-}
-
 interface IEvents {
   onOptionClick?: ILinkItem;
+}
+
+interface IProps {
+  options?: ILinkItem[];
 }
 
 @Component

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -18,6 +17,7 @@ class DataLinkKind(Enum):
     DATAID = "DataId"
     RESULTTABLE = "ResultTable"
     VMSTORAGEBINDING = "VmStorageBinding"
+    ESSTORAGEBINDING = "ElasticSearchBinding"
     DATABUS = "Databus"
     CONDITIONALSINK = "ConditionalSink"
     SINK = "Sink"
@@ -29,6 +29,7 @@ class DataLinkKind(Enum):
         (DATAID, "dataids"),
         (RESULTTABLE, "resulttables"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
+        (ESSTORAGEBINDING, "elasticsearchbindings"),
         (DATABUS, "databuses"),
         (CONDITIONALSINK, "conditionalsinks"),
         (SINK, "sinks"),
@@ -86,10 +87,40 @@ class DataLinkResourceStatus(Enum):
         return -1
 
 
+# 基础采集链路用途
+BASEREPORT_USAGES = [
+    "cpu_summary",
+    "cpu_detail",
+    "disk",
+    "env",
+    "inode",
+    "io",
+    "load",
+    "mem",
+    "net",
+    "netstat",
+    "swap",
+]
+
+BASEREPORT_DATABUS_FORMAT = "bkmonitor_basereport_v1"
+SYSTEM_PROC_PERF_DATABUS_FORMAT = "bkmonitor_proc_perf"
+SYSTEM_PROC_PORT_DATABUS_FORMAT = "bkmonitor_proc_port"
+
+
+# 基础采集数据链路来源 -- 主机系统、DBM、DEVX、Perforce
+BASEREPORT_SOURCE_SYSTEM = "sys"
+BASEREPORT_SOURCE_DBM = "dbm"
+BASEREPORT_SOURCE_DEVX = "devx"
+BASEREPORT_SOURCE_PERFORCE = "perforce"
+
 # 默认转换器及对应的处理格式
 DEFAULT_METRIC_TRANSFORMER_KIND = "PreDefinedLogic"
 DEFAULT_METRIC_TRANSFORMER = "log_to_metric"
 DEFAULT_METRIC_TRANSFORMER_FORMAT = "bkmonitor_standard_v2"
+
+# 采集插件对应的 TRANSFORM FORMAT
+BK_STANDARD_TRANSFORMER_FORMAT = "bkmonitor_standard"
+BK_EXPORTER_TRANSFORMER_FORMAT = "bkmonitor_exporter_v1"
 
 # 针对数据源名称需要替换的正则
 MATCH_DATA_NAME_PATTERN = r"[\u4e00-\u9fa5\.\!\:\*\+\?\^\$\{\}\[\]\(\)\|\\]"

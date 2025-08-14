@@ -62,6 +62,7 @@ from metadata.models.data_link.utils import (
 )
 from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes, EtlConfigs
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.service.data_source import (
     modify_data_id_source,
     stop_or_enable_datasource,
@@ -97,6 +98,8 @@ class CreateDataIDResource(Resource):
     """创建数据源ID"""
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=False, label="租户ID")
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         data_name = serializers.CharField(required=True, label="数据源名称")
         etl_config = serializers.CharField(required=True, label="清洗模板配置")
         operator = serializers.CharField(required=True, label="操作者")
@@ -115,19 +118,22 @@ class CreateDataIDResource(Resource):
         is_platform_data_id = serializers.CharField(required=False, label="是否为平台级 ID", default=False)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=SpaceTypes.ALL.value)
 
+        def validate(self, attrs):
+            # 多租户模式下，必须指定dataid所属业务ID和租户ID
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                if not attrs.get("bk_biz_id"):
+                    raise ValueError(_("多租户下，必须指定dataid所属业务ID"))
+
+                bk_tenant_id = attrs.get("bk_tenant_id") or get_request_tenant_id()
+                if not bk_tenant_id:
+                    raise ValueError(_("多租户下，必须指定dataid所属租户ID"))
+                attrs["bk_tenant_id"] = bk_tenant_id
+            else:
+                attrs["bk_tenant_id"] = DEFAULT_TENANT_ID
+            return attrs
+
     def perform_request(self, validated_request_data):
         space_uid = validated_request_data.pop("space_uid", None)
-
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("CreateDataIDResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
 
         if space_uid:
             try:
@@ -149,7 +155,6 @@ class CreateDataIDResource(Resource):
         # 默认来源系统标识
         default_source_system = "unknown"
         validated_request_data["source_system"] = bk_app_code or default_source_system
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
 
         new_data_source = models.DataSource.create_data_source(**validated_request_data)
 
@@ -304,10 +309,10 @@ class CreateResultTableResource(Resource):
             logger.error(
                 "CreateResultTableResource: create table failed, table_id->[%s], error->[%s]", table_id, e.__cause__
             )
-            raise e.__cause__
+            raise e
         except Exception as e:
             logger.error("CreateResultTableResource: create table failed, table_id->[%s], error->[%s]", table_id, e)
-            raise e.__cause__
+            raise e
         return {"table_id": new_result_table.table_id}
 
 
@@ -477,6 +482,30 @@ class ModifyResultTableResource(Resource):
                     query_alias_settings,
                     e,
                 )
+        is_moving_cluster = False
+        try:
+            es_storage_queryset = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+            if es_storage_queryset.exists() and request_data.get("external_storage", {}).get(
+                models.ClusterInfo.TYPE_ES.value
+            ):
+                param_cluster_id = (
+                    request_data.get("external_storage", {})
+                    .get(models.ClusterInfo.TYPE_ES.value)
+                    .get("storage_cluster_id")
+                )
+                storage_ins = es_storage_queryset.first()
+                if storage_ins.storage_cluster_id != param_cluster_id:
+                    logger.info(
+                        "ModifyResultTableResource: table_id->[%s] moved es cluster from old->[%s] to new->[%s]",
+                        table_id,
+                        storage_ins.storage_cluster_id,
+                        param_cluster_id,
+                    )
+                    is_moving_cluster = True
+
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("failed to get es_storage_ins,table_id->[%s],error->[%s]", table_id, e)
+
         try:
             result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
             result_table.modify(**request_data)
@@ -496,8 +525,13 @@ class ModifyResultTableResource(Resource):
         query_set = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
 
         if query_set.exists() and request_data["field_list"] is not None:
+            logger.info(
+                "ModifyResultTableResource: table_id->[%s] has es storage,update index,is_moving_cluster->[%s]",
+                table_id,
+                is_moving_cluster,
+            )
             storage = query_set[0]
-            storage.update_index_and_aliases(ahead_time=0)
+            storage.update_index_and_aliases(ahead_time=0, is_moving_cluster=is_moving_cluster)
         try:
             bk_data_id = models.DataSourceResultTable.objects.get(
                 table_id=table_id, bk_tenant_id=bk_tenant_id
@@ -517,6 +551,21 @@ class ModifyResultTableResource(Resource):
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
+        if result_table.default_storage == models.ClusterInfo.TYPE_ES:
+            # 推送路由 (关联的虚拟RT）
+            virtual_rt_list = list(
+                models.ESStorage.objects.filter(origin_table_id=result_table.table_id).values_list(
+                    "table_id", flat=True
+                )
+            )
+            table_ids = [result_table.table_id] + virtual_rt_list
+            logger.info(
+                "ModifyResultTableResource: all things done, now try to push es route,table_id->[%s]",
+                json.dumps(table_ids),
+            )
+
+            client = SpaceTableIDRedis()
+            client.push_es_table_id_detail(table_id_list=table_ids, bk_tenant_id=result_table.bk_tenant_id)
         return result_table.to_json()
 
 

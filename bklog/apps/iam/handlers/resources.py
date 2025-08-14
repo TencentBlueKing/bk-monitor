@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -21,7 +20,6 @@ the project delivered to anyone in the future.
 """
 
 import abc
-from typing import List
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -42,7 +40,7 @@ class ResourceMeta(metaclass=abc.ABCMeta):
     id: str = ""
     name: str = ""
     selection_mode: str = ""
-    related_instance_selections: List = ""
+    related_instance_selections: list = ""
 
     @classmethod
     def to_json(cls):
@@ -64,7 +62,7 @@ class ResourceMeta(metaclass=abc.ABCMeta):
         # 补充路径信息
         if "space_uid" in attribute:
             bk_biz_id = space_uid_to_bk_biz_id(attribute["space_uid"])
-            attribute.update({"_bk_iam_path_": "/{},{}/".format(Business.id, bk_biz_id)})
+            attribute.update({"_bk_iam_path_": f"/{Business.id},{bk_biz_id}/"})
         elif "bk_biz_id" in attribute:
             attribute.update({"_bk_iam_path_": "/{},{}/".format(Business.id, attribute["bk_biz_id"])})
         return Resource(cls.system_id, cls.id, str(instance_id), attribute)
@@ -151,7 +149,7 @@ class Collection(ResourceMeta):
             "id": str(instance_id),
             "name": config.collector_config_name,
             "bk_biz_id": str(config.bk_biz_id),
-            "_bk_iam_path_": "/{},{}/".format(Business.id, config.bk_biz_id),
+            "_bk_iam_path_": f"/{Business.id},{config.bk_biz_id}/",
         }
         return resource
 
@@ -183,7 +181,7 @@ class EsSource(ResourceMeta):
             "id": str(instance_id),
             "name": name,
             "bk_biz_id": str(bk_biz_id),
-            "_bk_iam_path_": "/{},{}/".format(Business.id, bk_biz_id),
+            "_bk_iam_path_": f"/{Business.id},{bk_biz_id}/",
         }
         return resource
 
@@ -212,7 +210,7 @@ class Indices(ResourceMeta):
             "id": str(instance_id),
             "name": index_set.index_set_name,
             "bk_biz_id": bk_biz_id,
-            "_bk_iam_path_": "/{},{}/".format(Business.id, bk_biz_id),
+            "_bk_iam_path_": f"/{Business.id},{bk_biz_id}/",
         }
         return resource
 

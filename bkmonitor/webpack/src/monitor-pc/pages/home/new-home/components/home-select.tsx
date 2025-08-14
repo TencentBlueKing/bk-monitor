@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
@@ -34,19 +34,19 @@ import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 
 import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
 import reportLogStore from '../../../../store/modules/report-log';
-import { highLightContent, ESearchType, ESearchPopoverType, flattenRoute } from '../utils';
+import { ESearchPopoverType, ESearchType, flattenRoute, highLightContent } from '../utils';
 
-import type { ISearchListItem, ISearchItem, IRouteItem, IDataItem } from '../type';
+import type { IDataItem, IRouteItem, ISearchItem, ISearchListItem } from '../type';
 
 import './home-select.scss';
+
+interface IHomeSelectEvent {
+  onChange: (v: boolean, searchKey: string) => void;
+}
 
 interface IHomeSelectProps {
   isBarToolShow?: boolean;
   show?: boolean;
-}
-
-interface IHomeSelectEvent {
-  onChange: (v: boolean, searchKey: string) => void;
 }
 const storageKey = 'bk_monitor_new_home_history';
 /** 输入框展示的最小列数 */
@@ -134,12 +134,14 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.updateWidth();
     this.routeList = flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
     document.addEventListener('click', this.handleClickOutside);
+    window.addEventListener('blur', this.handleHiddenPopover);
     window.addEventListener('resize', this.updateWidth);
     bus.$on('handle-keyup-nav', this.handleKeyupNav);
   }
   beforeDestroy() {
     document.removeEventListener('click', this.handleClickOutside);
     window.removeEventListener('resize', this.updateWidth);
+    window.removeEventListener('blur', this.handleHiddenPopover);
     bus.$off('handle-keyup-nav', this.handleKeyupNav);
   }
   /** 按下'/'，搜索框自动聚焦 */

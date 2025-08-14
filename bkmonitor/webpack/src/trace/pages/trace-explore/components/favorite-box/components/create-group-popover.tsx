@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, onMounted, onBeforeUnmount, reactive } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { defineComponent, onBeforeUnmount, onMounted, reactive, shallowRef } from 'vue';
 
-import { Input, Button, Form } from 'bkui-vue';
+import { Button, Form, Input } from 'bkui-vue';
 import _ from 'lodash';
 import { createFavoriteGroup } from 'monitor-api/modules/model';
-import tippy, { type SingleTarget, type Instance } from 'tippy.js';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
+import { useI18n } from 'vue-i18n';
 
 import { useAppStore } from '../../../../../store/modules/app';
 import useFavoriteType from '../hooks/use-favorite-type';

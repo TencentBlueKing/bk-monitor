@@ -460,9 +460,9 @@ export default {
   可以通过企业微信将需求的相关人员邀请到一个群里进行讨论:
     'You can invite relevant personnel to a group for discussion through enterprise wechat.',
   '通过字段清洗，可以格式化日志内容方便检索、告警和分析。':
-    'By field parsing, log content can be formatted for easy search, alarm and analysis.',
+    'By field parsing, log content can be formatted for easy search, alert and analysis.',
   '关键字范围: 从匹配{0}开始到匹配{1}之间的所有行': 'Keyword range: all rows from matching {0} to matching {1}',
-  '（找到 {0} 条结果，用时 {1} 毫秒) {2}': 'Search results (found {0} results, took {1} milliseconds) {2}',
+  '（找到 {0} 条结果，用时 {1} 毫秒) {2}': '(found {0} results, took {1} milliseconds) {2}',
   '只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾':
     'Can only contain a-z, a-z, 0-9 and _, and cannot start or end with _',
   '请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)':
@@ -688,7 +688,7 @@ export default {
   已有同名标签: 'A tag with the same name already exists',
   '你可能想输入：{0} 点击 {1}': 'You may want to enter: {0} Click {1}',
   '修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？':
-    'Modifying dimension fields will affect existing notes and alarm configurations. Please do not change them unless necessary. Are you sure you want to modify it?',
+    'Modifying dimension fields will affect existing notes and alert configurations. Please do not change them unless necessary. Are you sure you want to modify it?',
   '未匹配到对应字段，请手动指定字段后提交':
     'The corresponding field was not matched, please specify the field manually before submitting.',
   用于标识日志文件来源及唯一性: 'Used to identify the source and uniqueness of log files.',
@@ -775,9 +775,9 @@ export default {
   '最大自定义副本数为: {n}': 'The maximum number of custom replies is: {n}',
   '是否保存本次操作？': 'Do you want to save this operation?',
   '容量审核中，请等待': 'Capacity review is in progress, please wait.',
-  总行数: 'Total number',
-  出现行数: 'occurrence count',
-  日志条数: 'Number of log entries',
+  总行数: 'Total',
+  出现行数: 'Occurred Lines',
+  日志条数: 'Log Completeness',
   次: 'Times',
   去重后条数: 'Real after the number',
   最大值: 'Maximum value',
@@ -835,10 +835,10 @@ export default {
   '策略：': 'Strategy: ',
   '是否删除该策略？': 'Has this policy been deleted?',
   '聚类告警已开启，请点击右侧入口编辑策略':
-    'Clustering alarms have been enabled. Please click the entry on the right to edit the policy.',
+    'Clustering alerts have been enabled. Please click the entry on the right to edit the policy.',
   '每隔 n（整数）天数，再次产生的日志模式将视为新类':
     'Every n (integer) days, the log pattern generated again will be treated as a new class.',
-  新类对应日志触发告警的条数: 'The number of alarms triggered by logs corresponding to the new category',
+  新类对应日志触发告警的条数: 'The number of alerts triggered by logs corresponding to the new category',
   请先新建新类告警策略: 'Please create a new category strategy first',
   '大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志':
     'A large number of logs can lead to excessive clustering results. It is recommended to use filtering rules to cluster important logs; for example, cluster only warn logs.',
@@ -893,7 +893,7 @@ export default {
   历史查询: 'History Query',
   请输入关键字: 'Please enter keywords',
   请搜索: 'Please search',
-  '请选择 或 输入': 'Please enter or input',
+  '请选择 或 输入': 'Enter or input',
   输入文本后按: 'Enter text and press',
   键进行检索: 'to search',
   可通过上下键快速切换选择字段值: 'You can quickly switch the fields value through the up and down keys',
@@ -1028,7 +1028,7 @@ export default {
   暂无匹配的收藏项: 'No matching favorites have been found yet',
   '暂未设置常驻筛选，请点击左侧设置按钮':
     'No permanent filtering has been set, please click the settings button on the left',
-  展示空字段: 'Display empty fields',
+  展示空字段: 'Display Empty Field',
   '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据':
     'When collecting logs, if new JSON fields are generated in your logs, we will automatically collect and merge them into the __ext_json field, and you can use __ext_json.xxx to retrieve the data',
   过期时间不能大于存储天数: 'The expiration time cannot be greater than the storage days',
@@ -1039,11 +1039,11 @@ export default {
   '“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。':
     '"Permanent filtering" panel is collapsed, filter conditions are filled in the search box above.',
   '请导入正确的JSON格式文件~': 'Please import the correct JSON format file~',
-  '前往 "索引配置" 批量修改别名': 'Go to "Index Configuration" to modify the alias in batches',
+  '前往 "批量编辑别名" 批量修改别名': 'Go to "Batch Edit Aliases" to modify the alias in batches',
   '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。':
-    'After checking, create a keyword alarm for the responsible person based on the clustering result. Continue to monitor your abnormal problems. The alarm strategy can be started and stopped through the switch.',
+    'After checking, create a keyword alert for the responsible person based on the clustering result. Continue to monitor your abnormal problems. The alert strategy can be started and stopped through the switch.',
   '删除失败，开启告警时，需要至少一个责任人':
-    'Failed to delete. When the alarm is turned on, at least one responsible person is required',
+    'Failed to delete. When the alert is turned on, at least one responsible person is required',
   重命名与字段名重复: 'Rename and field name duplicate',
   别名与字段名重复: 'Alias and field name duplicate',
   别名与重命名重复: 'Alias and rename duplicate',
@@ -1054,10 +1054,9 @@ export default {
   联想到以下: 'Associated with the following:',
   个收藏: 'favorite items',
   '暂无配置责任人，无法自动创建告警策略':
-    'No configured responsible person, unable to automatically create alarm strategy',
+    'No configured responsible person, unable to automatically create alert strategy',
   '重命名只能包含a-z、A-Z、0-9和_': 'Rename can only contain a-z, A-Z, 0-9, and _',
   检索中: 'Searching',
-  '输入组名,30个字符': 'Enter group name, 30 characters',
   组名不规范: 'Group name is not standard',
   名称冲突: 'Name conflict',
   最大30字符: 'Up to 30 characters',
@@ -1088,4 +1087,19 @@ export default {
     'If you still cannot confirm the cause of the problem, please click the feedback button below to contact us. The platform will respond and handle it in a timely manner.',
   '检测到「顶部查询条件」，已自动补充 SQL（与已输入 SQL 语句叠加生效）：':
     'Top query conditions detected, automatically supplemented SQL (takes effect叠加 with existing SQL statements):',
+  '请输入 索引集、采集项 搜索': 'Please enter index set, collection item to search',
+  '如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果':
+    'If the metadata of CMDB cannot meet your needs, you can define it yourself to match the results you want',
+  自定义标签key与元数据key重复: 'Custom tag key and metadata key conflict',
+  '指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段':
+    'This configuration takes effect after specifying the parsing field. Logs will be color-categorized by up to six fields.',
+  '综合时间排序,是基于：dtEventTimeStamp、gesIndex、iterationIndex 3个字段的排序结果':
+    'Comprehensive time sorting is based on the sorting results of the following 3 fields: dtEventTimeStamp, gesIndex, iterationIndex',
+  object字段不支持编辑别名: 'object fields do not support editing aliases',
+  收藏项移动成功: 'Collection item moved successfully',
+  '解散后，该分组下的收藏项将统一挪动至[未分组]，请谨慎操作！':
+    'Dismissed, the collection items under this group will be moved to [ungrouped] uniformly. Please operate carefully.',
+  '确认解散该分组？': 'Confirm to dissolve this group?',
+  '删除后，无法恢复，请谨慎操作。': 'After deletion, it cannot be recovered. Please operate carefully.',
+  '确认删除该收藏项？': 'Confirm to delete this favorite item?',
 };

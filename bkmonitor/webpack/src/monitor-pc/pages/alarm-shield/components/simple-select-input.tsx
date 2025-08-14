@@ -30,20 +30,20 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import './simple-select-input.scss';
 
+interface IEvents {
+  onChange?: string;
+  /* 控制情况下失焦 */
+  onNullBlur?: (v: string) => void;
+}
+
 interface IProps {
+  nodataMsg?: string;
+  placeholder?: string;
   value?: string;
   list?: {
     id: string;
     name: string;
   }[];
-  placeholder?: string;
-  nodataMsg?: string;
-}
-
-interface IEvents {
-  onChange?: string;
-  /* 控制情况下失焦 */
-  onNullBlur?: (v: string) => void;
 }
 
 @Component

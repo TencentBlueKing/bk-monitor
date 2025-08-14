@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import { random } from 'monitor-common/utils';
 
-import { EAlarmType, type IAlarmDataItem, type EDataType, alarmColorMap, getAlarmItemStatusTips } from './utils';
+import { type EDataType, type IAlarmDataItem, alarmColorMap, EAlarmType, getAlarmItemStatusTips } from './utils';
 
 import type { CustomChartConnector } from '../../../utils/utils';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -51,25 +51,25 @@ export const getSliceTimeRange = (datas: IAlarmDataItem[], timePoint: number) =>
   return [sliceStartTime, sliceStartTime + intervalTime];
 };
 
-type TGetData = (set: (v: IAlarmDataItem[], sliceTimeRange?: number[]) => void) => void;
 interface IProps {
-  itemHeight?: number;
   activeItemHeight?: number;
-  showXAxis?: boolean;
-  showHeader?: boolean;
-  isAdaption?: boolean;
   dataType?: EDataType;
-  sliceTimeRange?: number[];
   enableSelect?: boolean;
-  needRestoreEvent?: boolean;
   enableZoom?: boolean;
-  groupId?: string;
-  showXAxisNum?: number;
-  xAxisFormat?: string;
   getData?: TGetData;
+  groupId?: string;
+  isAdaption?: boolean;
+  itemHeight?: number;
+  needRestoreEvent?: boolean;
+  showHeader?: boolean;
+  showXAxis?: boolean;
+  showXAxisNum?: number;
+  sliceTimeRange?: number[];
+  xAxisFormat?: string;
   onDataZoom?: () => void;
   onSliceTimeRangeChange?: (v: number[]) => void;
 }
+type TGetData = (set: (v: IAlarmDataItem[], sliceTimeRange?: number[]) => void) => void;
 
 @Component
 export default class BarAlarmChart extends tsc<IProps> {

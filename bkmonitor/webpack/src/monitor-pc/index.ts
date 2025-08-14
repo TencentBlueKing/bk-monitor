@@ -36,12 +36,13 @@ import 'monitor-ui/directive/index';
 
 import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
-import { setVue } from 'monitor-api/utils/index';
+import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
 
 import './common/global-login';
+import { userDisplayNameConfigure } from './common/user-display-name';
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
@@ -59,7 +60,7 @@ window.source_app = 'monitor';
 window.slimit = 500;
 window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 Vue.config.ignoredElements = ['custom-incident-detail'];
-setVue(Vue);
+setVue(Vue as VueInstance);
 const hasRouteHash = getUrlParam('routeHash');
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
@@ -101,6 +102,7 @@ if (hasRouteHash) {
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();
         if (bizId === false) return;
+        userDisplayNameConfigure();
         // document.title = window.page_title;
         store.commit('app/SET_APP_STATE', {
           userName: window.user_name,

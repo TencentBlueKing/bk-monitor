@@ -516,7 +516,6 @@ export default {
       return rule;
     },
     requestRules(type) {
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       return new Promise(resolve =>
         fileParse({ protocol: type }, { needRes: true })
           .then(res => {

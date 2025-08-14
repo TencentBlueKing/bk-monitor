@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import pytest
 
 from metadata import models
@@ -30,11 +30,22 @@ DEFAULT_K8S_METRIC_DATA_ID_TWO = 101011
 DEFAULT_LOG_ES_TABLE_ID = "space_1_bklog.stag_20"
 DEFAULT_EVENT_ES_TABLE_ID = "bkmonitor_event_1"
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 @pytest.fixture
 def create_and_delete_record(mocker):
+    models.DataSource.objects.filter().delete()
+    models.Space.objects.filter().delete()
+    models.SpaceDataSource.objects.all().delete()
+    models.ResultTable.objects.filter().delete()
+    models.DataSourceResultTable.objects.filter().delete()
+    models.InfluxDBStorage.objects.filter().delete()
+    models.InfluxDBProxyStorage.objects.filter(id=1).delete()
+    models.BCSClusterInfo.objects.filter().delete()
+    models.SpaceResource.objects.filter().delete()
+    models.ESStorage.objects.filter().delete()
+
     # 创建三条记录
     # - 普通的 data id
     # - 空间级的 data id
@@ -133,10 +144,13 @@ def create_and_delete_record(mocker):
         api_key_content="test",
         K8sMetricDataID=DEFAULT_K8S_METRIC_DATA_ID_TWO,
     )
-    models.ESStorage.objects.create(table_id=DEFAULT_LOG_ES_TABLE_ID, storage_cluster_id=1)
-    models.ESStorage.objects.create(table_id=DEFAULT_EVENT_ES_TABLE_ID, storage_cluster_id=1)
+    models.ESStorage.objects.create(table_id=DEFAULT_LOG_ES_TABLE_ID, storage_cluster_id=1, index_set="space_1_bklog")
+    models.ESStorage.objects.create(
+        table_id=DEFAULT_EVENT_ES_TABLE_ID, storage_cluster_id=1, index_set="bkmonitor_event_1"
+    )
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
+    models.Space.objects.filter().delete()
     models.DataSource.objects.filter(data_name__startswith=DEFAULT_NAME).delete()
     models.SpaceDataSource.objects.all().delete()
     models.ResultTable.objects.filter(table_id=DEFAULT_TABLE_ID).delete()

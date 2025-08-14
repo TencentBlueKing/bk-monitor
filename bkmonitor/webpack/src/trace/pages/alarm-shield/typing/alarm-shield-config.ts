@@ -36,8 +36,8 @@ export type INoticeDate = {
   };
 } & {
   dateRange: string[];
-  shieldCycle: EShieldCycle;
   key?: string;
+  shieldCycle: EShieldCycle;
 };
 
 export const Ipv6FieldMap = {

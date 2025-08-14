@@ -28,23 +28,23 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils';
 
-import type { IListItem, IGroupOption } from './utils';
+import type { IGroupOption, IListItem } from './utils';
 
 import './group-by.scss';
 
 interface IProps {
-  groupOptions?: IGroupOption[];
-  limitTypes?: IListItem[];
   groupBy?: string[];
-  method?: string;
+  groupOptions?: IGroupOption[];
   limit?: number;
   limitType?: string;
+  limitTypes?: IListItem[];
+  method?: string;
   methods?: IListItem[];
   onChange?: (v: string[]) => void;
+  onGroupByLimitEnabledChange?: (v: boolean) => void;
+  onLimitChange?: (v: number) => void;
   onLimitType?: (v: string) => void;
   onMethodChange?: (v: string) => void;
-  onLimitChange?: (v: number) => void;
-  onGroupByLimitEnabledChange?: (v: boolean) => void;
 }
 
 @Component

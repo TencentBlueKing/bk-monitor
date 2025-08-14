@@ -37,14 +37,14 @@ import ColumnCheck from '../../performance/column-check/column-check.vue';
 import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
 import { statusMap } from './type';
 import {
+  type IColumnConfig,
+  type IMetricItem,
+  type MetricHeaderKeys,
+  type PopoverChildRef,
   ALL_OPTION,
   CheckboxStatus,
   CHECKED_OPTION,
-  type IColumnConfig,
-  type PopoverChildRef,
   RADIO_OPTIONS,
-  type IMetricItem,
-  type MetricHeaderKeys,
 } from './type';
 import { fuzzyMatch } from './utils';
 
@@ -118,7 +118,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     show: [],
   };
   /** 删除的行name列表 */
-  delArray: Array<{ type: string; name: string }> = [];
+  delArray: Array<{ name: string; type: string }> = [];
 
   fieldsSettings: Record<string, IColumnConfig> = {
     name: {
@@ -578,7 +578,7 @@ export default class IndicatorTableSlide extends tsc<any> {
     );
   }
 
-  renderDescriptionColumn(props: { row: IMetricItem; $index: number }) {
+  renderDescriptionColumn(props: { $index: number; row: IMetricItem }) {
     return (
       <bk-input
         class='slider-input'

@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, inject, type Ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
 
 import { Input, Message, Popover } from 'bkui-vue';
 import { listSearchHistory } from 'monitor-api/modules/alert';
 import { listSearchFavorite } from 'monitor-api/modules/model';
 import { createSearchFavorite, destroySearchFavorite, partialUpdateSearchFavorite } from 'monitor-api/modules/model';
-import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import debounceDecorator from '../../common/debounce-decorator';
 
@@ -69,20 +69,20 @@ export const commonAlertFieldMap = {
     },
   ],
 };
-type PanelType = 'favorite' | 'field' | 'history';
-type PanelShowType = 'condition' | 'field' | 'method' | 'value' | false;
 interface IFocusData {
-  show?: PanelShowType;
-  replaceStart?: number;
-  nextText?: string;
   filedId?: string;
+  nextText?: string;
+  replaceStart?: number;
+  show?: PanelShowType;
 }
 interface IListItem extends ICommonItem {
-  queryString?: string;
   edit?: boolean;
   fakeName?: string;
+  queryString?: string;
   special?: boolean;
 }
+type PanelShowType = 'condition' | 'field' | 'method' | 'value' | false;
+type PanelType = 'favorite' | 'field' | 'history';
 /* 处理字符串数组不能连续两个冒号 */
 const valueListTidy = (list: string[]) => {
   const tempList = [];

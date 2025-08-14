@@ -34,7 +34,45 @@ export const PanelTargetMap = {
   dynamicGroup: 'DYNAMIC_GROUP',
 };
 
-export function transformMonitorToValue(data: any[], nodeType: INodeType): IIpV6Value | any {
+export function getPanelListByObjectType(objectType: TargetObjectType) {
+  if (objectType === 'SERVICE') {
+    return ['dynamicTopo', 'serviceTemplate', 'setTemplate'];
+  }
+  return ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'];
+}
+/**
+ * 转换成标准的IP选择器的选中数据
+ */
+export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
+  if (!nodeType) return nodes;
+
+  switch (nodeType) {
+    case 'INSTANCE':
+      return nodes.map(item => {
+        // 增量数据只需使用host_id
+        if (item.bk_host_id) return { host_id: item.bk_host_id };
+        // 兼容旧数据 没有bk_host_id的情况下 把ip和cloud_id传给组件 提供组件内部定位host_id
+        return { host_id: undefined, ip: item.ip, cloud_id: item.bk_cloud_id };
+      });
+    case 'TOPO':
+      return nodes.map(item => ({
+        object_id: item.bk_obj_id,
+        instance_id: item.bk_inst_id,
+      }));
+    case 'SERVICE_TEMPLATE':
+    case 'SET_TEMPLATE':
+      return nodes.map(item => ({
+        id: item.bk_inst_id,
+      }));
+    case 'DYNAMIC_GROUP':
+      return nodes.map(item => ({
+        id: item.dynamic_group_id,
+      }));
+    default:
+      return [];
+  }
+}
+export function transformMonitorToValue(data: any[], nodeType: INodeType): any | IIpV6Value {
   if (!nodeType) return {};
   switch (nodeType) {
     case 'INSTANCE':
@@ -81,6 +119,7 @@ export function transformMonitorToValue(data: any[], nodeType: INodeType): IIpV6
       return [];
   }
 }
+
 export function transformValueToMonitor(value: IIpV6Value, nodeType: INodeType) {
   if (!nodeType) return [];
   switch (nodeType) {
@@ -110,45 +149,6 @@ export function transformValueToMonitor(value: IIpV6Value, nodeType: INodeType) 
     case 'DYNAMIC_GROUP':
       return value.dynamic_group_list.map((item: INode) => ({
         dynamic_group_id: item.id,
-      }));
-    default:
-      return [];
-  }
-}
-export function getPanelListByObjectType(objectType: TargetObjectType) {
-  if (objectType === 'SERVICE') {
-    return ['dynamicTopo', 'serviceTemplate', 'setTemplate'];
-  }
-  return ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'];
-}
-
-/**
- * 转换成标准的IP选择器的选中数据
- */
-export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
-  if (!nodeType) return nodes;
-
-  switch (nodeType) {
-    case 'INSTANCE':
-      return nodes.map(item => {
-        // 增量数据只需使用host_id
-        if (item.bk_host_id) return { host_id: item.bk_host_id };
-        // 兼容旧数据 没有bk_host_id的情况下 把ip和cloud_id传给组件 提供组件内部定位host_id
-        return { host_id: undefined, ip: item.ip, cloud_id: item.bk_cloud_id };
-      });
-    case 'TOPO':
-      return nodes.map(item => ({
-        object_id: item.bk_obj_id,
-        instance_id: item.bk_inst_id,
-      }));
-    case 'SERVICE_TEMPLATE':
-    case 'SET_TEMPLATE':
-      return nodes.map(item => ({
-        id: item.bk_inst_id,
-      }));
-    case 'DYNAMIC_GROUP':
-      return nodes.map(item => ({
-        id: item.dynamic_group_id,
       }));
     default:
       return [];

@@ -33,6 +33,7 @@
 </template>
 <script lang="ts">
 import type { CreateElement } from 'vue';
+
 import { Component, Emit, Vue } from 'vue-property-decorator';
 
 @Component({ name: 'MonitorExport' })

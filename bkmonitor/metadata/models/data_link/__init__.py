@@ -6,12 +6,12 @@ from .data_link_configs import (  # noqa
     DataLinkResourceConfigBase,
     VMResultTableConfig,
     VMStorageBindingConfig,
+    LogResultTableConfig,
+    ESStorageBindingConfig,
+    LogDataBusConfig,
 )
-from .resource import DataLinkResource, DataLinkResourceConfig  # noqa
 
 __all__ = [
-    "DataLinkResource",
-    "DataLinkResourceConfig",
     "DataLinkResourceConfigBase",
     "DataLink",
     "DataIdConfig",
@@ -19,6 +19,9 @@ __all__ = [
     "VMResultTableConfig",
     "VMStorageBindingConfig",
     "ConditionalSinkConfig",
+    "LogResultTableConfig",
+    "ESStorageBindingConfig",
+    "LogDataBusConfig",
 ]
 
 

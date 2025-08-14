@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { K8sDimension } from '../../k8s-dimension';
-import { EDimensionKey, type ICommonParams, type GroupListItem } from '../../typings/k8s-new';
+import { type GroupListItem, type ICommonParams, EDimensionKey } from '../../typings/k8s-new';
 import GroupItem from './group-item';
 
 import type { EmptyStatusOperationType } from '../../../../components/empty-status/types';
@@ -36,18 +36,18 @@ import type { K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
 
 import './k8s-dimension-list.scss';
 
-interface K8sDimensionListProps {
-  groupBy: string[];
-  filterBy: Record<string, string[]>;
-  commonParams: ICommonParams;
-}
-
 interface K8sDimensionListEvents {
-  onFilterByChange: (id: string, dimensionId: string, isSelect: boolean) => void;
-  onDrillDown: (item: K8sTableGroupByEvent, showCancelDrill?: boolean) => void;
-  onGroupByChange: (groupId: string, isSelect: boolean) => void;
   onClearFilterBy: (dimensionId: string) => void;
   onDimensionTotal: (val: Record<string, number>) => void;
+  onDrillDown: (item: K8sTableGroupByEvent, showCancelDrill?: boolean) => void;
+  onFilterByChange: (id: string, dimensionId: string, isSelect: boolean) => void;
+  onGroupByChange: (groupId: string, isSelect: boolean) => void;
+}
+
+interface K8sDimensionListProps {
+  commonParams: ICommonParams;
+  filterBy: Record<string, string[]>;
+  groupBy: string[];
 }
 
 @Component

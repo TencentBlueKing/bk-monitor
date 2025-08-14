@@ -13,6 +13,7 @@ import logging
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 from django.conf import settings
 from django.db import transaction
@@ -21,14 +22,24 @@ from django.utils.translation import gettext as _
 from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
+from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from constants.common import DEFAULT_TENANT_ID
 from core.prometheus import metrics
 from metadata import models
 from metadata.models import BkBaseResultTable, DataSource
-from metadata.models.constants import DataIdCreatedFromSystem
-from metadata.models.data_link.constants import DataLinkResourceStatus
+from metadata.models.constants import (
+    BASE_EVENT_RESULT_TABLE_FIELD_MAP,
+    BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP,
+    BASE_EVENT_RESULT_TABLE_OPTION_MAP,
+    BASEREPORT_RESULT_TABLE_FIELD_MAP,
+    SYSTEM_PROC_DATA_LINK_CONFIGS,
+    DataIdCreatedFromSystem,
+)
+from metadata.models.data_link.constants import BASEREPORT_SOURCE_SYSTEM, BASEREPORT_USAGES, DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
-from metadata.models.space.constants import SpaceTypes
+from metadata.models.data_link.utils import compose_bkdata_table_id
+from metadata.models.space.constants import EtlConfigs, SpaceTypes
+from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
     create_fed_bkbase_data_link,
     get_vm_cluster_id_name,
@@ -451,15 +462,17 @@ def push_and_publish_space_router(
         space_client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
     else:
         # NOTE: 现阶段仅针对 bkcc 类型做处理
-        space_type = SpaceTypes.BKCC.value
-        space_ids = models.Space.objects.filter(space_type_id=space_type).values_list("space_id", flat=True)
-        # 拼装数据
-        space_list = [{"space_type": space_type, "space_id": space_id} for space_id in space_ids]
+        spaces = list(models.Space.objects.filter(space_type_id=SpaceTypes.BKCC.value))
         # 使用线程处理
-        bulk_handle(multi_push_space_table_ids, space_list)
+        bulk_handle(lambda space_list: space_client.push_multi_space_table_ids(space_list, is_publish=False), spaces)
 
         # 通知到使用方
-        push_redis_keys = [f"{space_type}__{space_id}" for space_id in space_ids]
+        push_redis_keys = []
+        for space in spaces:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                push_redis_keys.append(f"{space.bk_tenant_id}|{space.space_type_id}__{space.space_id}")
+            else:
+                push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
     # 更新数据
@@ -467,21 +480,6 @@ def push_and_publish_space_router(
     space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
-
-
-def multi_push_space_table_ids(space_list: list[dict]):
-    """批量推送数据"""
-    logger.info("start to multi push space table ids")
-    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-
-    space_client = SpaceTableIDRedis()
-    for space in space_list:
-        try:
-            space_client.push_space_table_ids(space_type=space["space_type"], space_id=space["space_id"])
-        except Exception as e:
-            logger.error("push space to redis error, %s", e)
-
-    logger.info("multi push space table ids successfully")
 
 
 def _access_bkdata_vm(
@@ -726,7 +724,10 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         with transaction.atomic():
             data_id_config = models.DataIdConfig.objects.get(name=bkbase_data_id_name)
             data_id_status = get_data_link_component_status(
-                kind=data_id_config.kind, namespace=data_id_config.namespace, component_name=data_id_config.name
+                bk_tenant_id=bkbase_rt_record.bk_tenant_id,
+                kind=data_id_config.kind,
+                namespace=data_id_config.namespace,
+                component_name=data_id_config.name,
             )
             # 当和DB中的数据不一致时，才进行变更
             if data_id_config.status != data_id_status:
@@ -763,7 +764,10 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
             with transaction.atomic():
                 component_ins = component.objects.get(name=bkbase_rt_name)
                 component_status = get_data_link_component_status(
-                    kind=component_ins.kind, namespace=component_ins.namespace, component_name=component_ins.name
+                    bk_tenant_id=bkbase_rt_record.bk_tenant_id,
+                    kind=component_ins.kind,
+                    namespace=component_ins.namespace,
+                    component_name=component_ins.name,
                 )
                 logger.info(
                     "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],status->[%s]",
@@ -881,6 +885,11 @@ def bulk_create_fed_data_link(sub_clusters):
 def sync_bkbase_v4_metadata(key):
     """
     同步计算平台元数据信息至Metadata
+    Redis中的数据格式
+    redis_key
+        kafka: {}
+        vm: {rt1:{},rt2:{},rt3:{}}
+        es: {rt1:[],rt2:[],rt3:[]}
     @param key: 计算平台对应的DataBusKey
     """
     logger.info("sync_bkbase_v4_metadata: try to sync bkbase metadata,key->[%s]", key)
@@ -909,8 +918,7 @@ def sync_bkbase_v4_metadata(key):
     bkbase_metadata_dict = {
         key.decode("utf-8"): json.loads(value.decode("utf-8")) for key, value in bkbase_redis_data.items()
     }
-    bkbase_metadata = list(bkbase_metadata_dict.values())[0]  # 元数据信息 {'kafka':xxx, 'vm'/'es':xxxx}
-    logger.info("sync_bkbase_v4_metadata: got bk_data_id->[%s],bkbase_metadata->[%s]", bk_data_id, bkbase_metadata)
+    logger.info("sync_bkbase_v4_metadata: got bk_data_id->[%s],bkbase_metadata->[%s]", bk_data_id, bkbase_metadata_dict)
 
     try:
         ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
@@ -927,7 +935,7 @@ def sync_bkbase_v4_metadata(key):
         return
 
     # 处理 Kafka 信息
-    kafka_info = bkbase_metadata.get("kafka")
+    kafka_info = bkbase_metadata_dict.get("kafka")
     if kafka_info:
         with transaction.atomic():  # 单独事务
             logger.info(
@@ -939,23 +947,26 @@ def sync_bkbase_v4_metadata(key):
             logger.info("sync_bkbase_v4_metadata: sync kafka info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 ES 信息
-    es_info = bkbase_metadata.get("es")
+    es_info = bkbase_metadata_dict.get("es")
     if es_info:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got es_info->[%s],bk_data_id->[%s],try to sync es info", es_info, bk_data_id
             )
-            sync_es_metadata(es_info, table_id)
+            # TODO: 这里需要特别注意,新版协议中，es_info中的数据结构是 {key:[info1,info2]},这里的key对应计算平台侧的RT,在监控平台这边不可读
+            # TODO：考虑到目前日志链路中，不存在1个DataId关联多个ES结果表的场景，因此这里默认只选取第一条元素的value
+            es_info_value = next(iter(es_info.values()))
+            sync_es_metadata(es_info_value, table_id)
             logger.info("sync_bkbase_v4_metadata: sync es info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 VM 信息
-    vm_info = bkbase_metadata.get("vm")
+    vm_info = bkbase_metadata_dict.get("vm")
     if vm_info:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got vm_info->[%s],bk_data_id->[%s],try to sync vm info", vm_info, bk_data_id
             )
-            sync_vm_metadata(vm_info, table_id)
+            sync_vm_metadata(vm_info)
             logger.info("sync_bkbase_v4_metadata: sync vm info for bk_data_id->[%s] successfully", bk_data_id)
 
     cost_time = time.time() - start_time
@@ -969,4 +980,686 @@ def sync_bkbase_v4_metadata(key):
         "sync_bkbase_v4_metadata: sync bkbase metadata for bk_data_id->[%s] successfully,cost->[%s]",
         bk_data_id,
         cost_time,
+    )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
+    """
+    为单个业务创建基础采集数据链路
+    @param bk_biz_id: 业务ID
+    """
+
+    logger.info(
+        "create_basereport_datalink_for_bkcc: start to create basereport datalink,for bk_biz_id->[%s]", bk_biz_id
+    )
+
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        logger.error("create_basereport_datalink_for_bkcc: multi tenant mode is not enabled,return!")
+        return
+
+    try:
+        if not storage_cluster_name:
+            storage_cluster_name = (
+                models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True)
+                .last()
+                .cluster_name
+            )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("create_basereport_datalink_for_bkcc: get default vm cluster failed,error->[%s]", e)
+        return
+
+    space_ins = models.Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id=bk_biz_id)
+    bk_tenant_id = space_ins.bk_tenant_id
+
+    # source -- 数据渠道 sys / dbm / devx / perforce
+    source = BASEREPORT_SOURCE_SYSTEM
+
+    # 数据源名称 & 数据链路名称 & DataBus名称 & DataId 名称
+    data_name = f"{bk_tenant_id}_{bk_biz_id}_{source}_base"
+
+    try:
+        data_source = models.DataSource.objects.get(data_name=data_name, bk_tenant_id=bk_tenant_id)
+        logger.info(
+            "create_basereport_datalink_for_bkcc: data_source found,bk_biz_id->[%s],data_name->[%s],bk_data_id->[%s]",
+            bk_biz_id,
+            data_name,
+            data_source.bk_data_id,
+        )
+    except models.DataSource.DoesNotExist:
+        logger.info(
+            "create_basereport_datalink_for_bkcc: data_source not found,try to create it,bk_biz_id->[%s],"
+            "data_name->[%s]",
+            bk_biz_id,
+            data_name,
+        )
+        data_source = models.DataSource.create_data_source(
+            data_name=data_name,
+            bk_tenant_id=space_ins.bk_tenant_id,
+            etl_config=EtlConfigs.BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG.value,
+            operator="system",
+            source_label="bk_monitor",
+            type_label="time_series",
+            bk_biz_id=bk_biz_id,
+            created_from=DataIdCreatedFromSystem.BKDATA.value,
+        )
+        logger.info(
+            "create_basereport_datalink_for_bkcc: data_source created,bk_biz_id->[%s],data_name->[%s],bk_data_id->[%s]",
+            bk_biz_id,
+            data_name,
+            data_source.bk_data_id,
+        )
+
+    # TASK1 -- 监控平台侧元信息逻辑: DataSource, ResultTable, DataSourceResultTable, ResultTableField
+    try:
+        with transaction.atomic():
+            # ResultTable 结果表
+            result_tables_to_create = []
+
+            result_table_usage_mapping = [
+                {
+                    "usage": usage,
+                    "table_id": f"{bk_tenant_id}_{bk_biz_id}_{source}.{usage}",
+                    "table_name": f"{bk_tenant_id}_{bk_biz_id}_{source}_{usage}",
+                }
+                for usage in BASEREPORT_USAGES
+            ]
+
+            result_table_ids = [t["table_id"] for t in result_table_usage_mapping]
+            existing_rts = set(
+                models.ResultTable.objects.filter(table_id__in=result_table_ids).values_list("table_id", flat=True)
+            )
+
+            for table in result_table_usage_mapping:
+                if table["table_id"] in existing_rts:  # 已存在
+                    logger.info(
+                        "create_basereport_datalink_for_bkcc: table_id->[%s] already exists,skip!", table["table_id"]
+                    )
+                    continue
+                logger.info(
+                    "create_basereport_datalink_for_bkcc: table_id->[%s] not exists,try to create!", table["table_id"]
+                )
+                result_tables_to_create.append(
+                    models.ResultTable(
+                        table_id=table["table_id"],
+                        bk_tenant_id=bk_tenant_id,
+                        bk_biz_id=bk_biz_id,
+                        table_name_zh=table["table_name"],
+                        is_custom_table=False,
+                        default_storage=models.ClusterInfo.TYPE_VM,
+                        creator="system",
+                        label="os",
+                    )
+                )
+
+            if result_tables_to_create:  # 如果有需要创建的结果表,则批量创建
+                logger.info(
+                    "create_basereport_datalink_for_bkcc: creating result tables,bk_biz_id->[%s],bk_tenant_id->[%s]",
+                    bk_biz_id,
+                    bk_tenant_id,
+                )
+                models.ResultTable.objects.bulk_create(result_tables_to_create)
+
+            # DataSourceResultTable 数据源-结果表映射
+            dsrt_to_create = []
+            existing_dsrt = set(
+                models.DataSourceResultTable.objects.filter(
+                    bk_data_id=data_source.bk_data_id, table_id__in=result_table_ids, bk_tenant_id=bk_tenant_id
+                ).values_list("table_id", flat=True)
+            )
+
+            for table_id in result_table_ids:
+                if table_id in existing_dsrt:
+                    logger.info(
+                        "create_basereport_datalink_for_bkcc: table_id->[%s] dsrt relation already exists,skip",
+                        table_id,
+                    )
+                    continue
+
+                dsrt_to_create.append(
+                    models.DataSourceResultTable(
+                        bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id, table_id=table_id
+                    )
+                )
+
+            if dsrt_to_create:  # 批量创建
+                logger.info(
+                    "create_basereport_datalink_for_bkcc: creating data_source_to_result_table relations,"
+                    "bk_biz_id->[%s],bk_tenant_id->[%s]",
+                    bk_biz_id,
+                    bk_tenant_id,
+                )
+                models.DataSourceResultTable.objects.bulk_create(dsrt_to_create)
+
+            # ResultTableField 结果表字段配置
+            existing_fields_qs = models.ResultTableField.objects.filter(
+                table_id__in=result_table_ids, bk_tenant_id=bk_tenant_id
+            )
+            existing_field_keys = set((f.table_id, f.field_name) for f in existing_fields_qs)
+            rt_field_to_create = []
+
+            for table_info in result_table_usage_mapping:
+                fields = BASEREPORT_RESULT_TABLE_FIELD_MAP.get(table_info["usage"], [])
+
+                for field in fields:
+                    key = (table_info["table_id"], field["field_name"])
+                    if key in existing_field_keys:  # 如果 RT-字段 已经存在,则跳过
+                        logger.info(
+                            "create_basereport_datalink_for_bkcc: field already exists,table_id->[%s],field_name->[%s]",
+                            table_info["table_id"],
+                            field["field_name"],
+                        )
+                        continue
+
+                    rt_field_to_create.append(
+                        models.ResultTableField(
+                            table_id=table_info["table_id"],
+                            bk_tenant_id=bk_tenant_id,
+                            field_name=field["field_name"],
+                            field_type=field["field_type"],
+                            description=field.get("description", ""),
+                            unit=field.get("unit", ""),
+                            tag=field.get("tag", ""),
+                            is_config_by_user=field.get("is_config_by_user", False),
+                            default_value=field.get("default_value"),
+                            creator="system",
+                            alias_name=field.get("alias_name", ""),
+                            is_disabled=field.get("is_disabled", False),
+                        )
+                    )
+
+            if rt_field_to_create:  # 如果有需要创建的字段,则批量创建
+                logger.info("create_basereport_datalink_for_bkcc: creating rt fields,table_ids->[%s]", result_table_ids)
+                models.ResultTableField.objects.bulk_create(rt_field_to_create)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "create_basereport_datalink_for_bkcc: failed to create basereport datalink,for bk_biz_id->[%s],error->[%s]",
+            bk_biz_id,
+            e,
+        )
+        return
+
+    # TASK2 -- 计算平台V4链路部分
+    logger.info(
+        "create_basereport_datalink_for_bkcc: now try to create bkbase part,bk_biz_id->[%s],bk_tenant_id->["
+        "%s],bk_data_id->[%s]",
+        bk_biz_id,
+        bk_tenant_id,
+        data_source.bk_data_id,
+    )
+
+    # 1. 创建DataLink 链路管理实例
+    logger.info(
+        "create_basereport_datalink_for_bkcc: now try to create data link instance,bk_biz_id->[%s],"
+        "data_link_name->[%s]",
+        bk_biz_id,
+        data_name,
+    )
+    data_link_ins, created = models.DataLink.objects.get_or_create(
+        data_link_name=data_name,
+        namespace="bkmonitor",
+        data_link_strategy=models.DataLink.BASEREPORT_TIME_SERIES_V1,
+        bk_tenant_id=bk_tenant_id,
+    )
+
+    # 2. 申请数据链路配置 VmResultTable, VmResultTableBinding, DataBus, ConditionalSink
+    try:
+        data_link_ins.apply_data_link(
+            data_source=data_source, storage_cluster_name=storage_cluster_name, bk_biz_id=bk_biz_id, source=source
+        )
+        data_link_ins.sync_basereport_metadata(
+            bk_biz_id=bk_biz_id, storage_cluster_name=storage_cluster_name, source=source, datasource=data_source
+        )
+        logger.info(
+            "create_basereport_datalink_for_bkcc: data link applied successfully,for bk_biz_id->[%s]", bk_biz_id
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "create_basereport_datalink_for_bkcc: failed to apply data link,for bk_biz_id->[%s],error->[%s]",
+            bk_biz_id,
+            e,
+        )
+        return
+
+    logger.info(
+        "create_basereport_datalink_for_bkcc: finished creating basereport datalink,for bk_biz_id->[%s]", bk_biz_id
+    )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
+    """
+    创建Agent基础事件数据链路
+    @param bk_biz_id: 业务ID
+    @param storage_cluster_name: 存储集群名称(ES)
+    """
+
+    logger.info("create_base_event_datalink_for_bkcc: try to create base event datalink for bk_biz_id->[%s]", bk_biz_id)
+
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        logger.error("create_base_event_datalink_for_bkcc: multi tenant mode is not enabled,return!")
+        return
+
+    if storage_cluster_name:
+        storage_cluster_id = models.ClusterInfo.objects.get(cluster_name=storage_cluster_name).cluster_id
+
+    try:
+        # TODO 这里需要区分ES集群是否在计算平台有注册
+        if not storage_cluster_name:
+            default_es_cluster = models.ClusterInfo.objects.filter(
+                cluster_type=models.ClusterInfo.TYPE_ES, is_default_cluster=True
+            ).last()
+            storage_cluster_name = default_es_cluster.cluster_name
+            storage_cluster_id = default_es_cluster.cluster_id
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("create_base_event_datalink_for_bkcc: get default es cluster failed,error->[%s]", e)
+        return
+
+    space_ins = models.Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id=bk_biz_id)
+    bk_tenant_id = space_ins.bk_tenant_id
+    space_uid = f"{SpaceTypes.BKCC.value}__{bk_biz_id}"
+
+    data_name = f"base_{bk_biz_id}_agent_event"
+
+    # 数据源
+    try:
+        data_source = models.DataSource.objects.get(data_name=data_name, bk_tenant_id=bk_tenant_id)
+    except models.DataSource.DoesNotExist:
+        logger.info(
+            "create_base_event_datalink_for_bkcc: data source not found,for bk_biz_id->[%s],try to create it,"
+            "data_name->[%s]",
+            bk_biz_id,
+            data_name,
+        )
+        data_source = models.DataSource.create_data_source(
+            data_name=data_name,
+            etl_config=EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
+            operator="system",
+            source_label="bk_monitor",
+            type_label="event",
+            space_uid=space_uid,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=bk_tenant_id,
+            created_from=DataIdCreatedFromSystem.BKDATA.value,
+        )
+
+    logger.info(
+        "create_base_event_datalink_for_bkcc: data source created,for bk_biz_id->[%s],bk_data_id->[%s]",
+        bk_biz_id,
+        data_source.bk_data_id,
+    )
+
+    table_id = f"base_{bk_tenant_id}_{bk_biz_id}_event"
+
+    # TASK1 -- 监控平台侧元信息逻辑: DataSource,ResultTable,ResultTableField,ResultTableOption,ESStorage,ResultTalbeFieldOption
+    try:
+        with transaction.atomic():
+            rt_queryset = models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+
+            if not rt_queryset:
+                result_table = models.ResultTable.objects.create(
+                    table_id=table_id,
+                    bk_tenant_id=bk_tenant_id,
+                    default_storage=models.ClusterInfo.TYPE_ES,
+                    table_name_zh=f"{bk_tenant_id}_{bk_biz_id}_基础事件",
+                    is_custom_table=False,
+                    schema_type="free",
+                    creator="system",
+                    label="os",
+                    bk_biz_id=bk_biz_id,
+                    data_label="system_event",
+                )
+            else:
+                result_table = rt_queryset.first()
+
+            logger.info(
+                "create_base_event_datalink_for_bkcc: result_table created,table_id->[%s]", result_table.table_id
+            )
+
+            result_table_field_to_create = []
+            existing_fields = list(
+                models.ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
+                    "field_name", flat=True
+                )
+            )
+
+            fields = BASE_EVENT_RESULT_TABLE_FIELD_MAP.get("base_event", [])
+
+            for field in fields:
+                if field["field_name"] in existing_fields:
+                    continue
+
+                result_table_field_to_create.append(
+                    models.ResultTableField(
+                        table_id=table_id,
+                        bk_tenant_id=bk_tenant_id,
+                        field_name=field["field_name"],
+                        field_type=field["field_type"],
+                        description=field.get("description", ""),
+                        unit=field.get("unit", ""),
+                        tag=field.get("tag", ""),
+                        is_config_by_user=field.get("is_config_by_user", False),
+                        default_value=field.get("default_value"),
+                        creator="system",
+                        alias_name=field.get("alias_name", ""),
+                        is_disabled=field.get("is_disabled", False),
+                    )
+                )
+
+            if result_table_field_to_create:
+                logger.info("create_base_event_datalink_for_bkcc: creating rt fields,table_id->[%s]", table_id)
+                models.ResultTableField.objects.bulk_create(result_table_field_to_create)
+
+            # ResultTableOption
+            result_table_option_to_create = []
+
+            existing_options = list(
+                models.ResultTableOption.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
+                    "name", flat=True
+                )
+            )
+
+            options = BASE_EVENT_RESULT_TABLE_OPTION_MAP.get("base_event", [])
+            for option in options:
+                if option["name"] in existing_options:
+                    continue
+
+                result_table_option_to_create.append(
+                    models.ResultTableOption(
+                        table_id=table_id,
+                        bk_tenant_id=bk_tenant_id,
+                        value=option["value"],
+                        value_type=option["value_type"],
+                        name=option["name"],
+                        creator=option["creator"],
+                    )
+                )
+
+            if result_table_option_to_create:
+                logger.info("create_base_event_datalink_for_bkcc: creating rt options,table_id->[%s]", table_id)
+                models.ResultTableOption.objects.bulk_create(result_table_option_to_create)
+
+            field_options = BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP.get("base_event", [])
+            field_option_to_create = []
+            existing_options = list(
+                models.ResultTableFieldOption.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
+                    "field_name", "name"
+                )
+            )
+
+            for field_option in field_options:
+                if (field_option["field_name"], field_option["name"]) in existing_options:
+                    continue
+
+                field_option_to_create.append(
+                    models.ResultTableFieldOption(
+                        table_id=table_id,
+                        bk_tenant_id=bk_tenant_id,
+                        value_type=field_option["value_type"],
+                        value=field_option["value"],
+                        field_name=field_option["field_name"],
+                        name=field_option["name"],
+                        creator=field_option["creator"],
+                    )
+                )
+
+            if field_option_to_create:
+                logger.info("create_base_event_datalink_for_bkcc: creating rt field options,table_id->[%s]", table_id)
+                models.ResultTableFieldOption.objects.bulk_create(field_option_to_create)
+
+            dsrt_qs = models.DataSourceResultTable.objects.filter(
+                bk_data_id=data_source.bk_data_id, table_id=table_id, bk_tenant_id=bk_tenant_id
+            )
+            if not dsrt_qs:
+                logger.info(
+                    "create_base_event_datalink_for_bkcc: creating data_source_result_table relation for "
+                    "bk_data_id->[%s],table_id->[%s],bk_biz_id->[%s]",
+                    data_source.bk_data_id,
+                    table_id,
+                    bk_biz_id,
+                )
+                models.DataSourceResultTable.objects.create(
+                    bk_data_id=data_source.bk_data_id, table_id=table_id, bk_tenant_id=bk_tenant_id
+                )
+
+            # ESStorage
+            es_storage_qs = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+            if not es_storage_qs:
+                es_storage = models.ESStorage.objects.create(
+                    table_id=table_id,
+                    bk_tenant_id=bk_tenant_id,
+                    date_format="%Y%m%d",
+                    slice_size=500,
+                    slice_gap=1440,
+                    retention=30,
+                    index_settings='{"number_of_shards":4,"number_of_replicas":1}',
+                    mapping_settings='{"dynamic_templates":[{"discover_dimension":{"path_match":"dimensions.*","mapping":{"type":"keyword"}}}]}',
+                    source_type="log",
+                    need_create_index=True,
+                    index_set=table_id,
+                    storage_cluster_id=storage_cluster_id,
+                )
+            else:
+                es_storage = es_storage_qs.first()
+
+            logger.info("create_base_event_datalink_for_bkcc: es storage created,table_id->[%s]", es_storage.table_id)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "create_base_event_datalink_for_bkcc: create base event datalink for bk_biz_id->[%s] failed,error->[%s]",
+            bk_biz_id,
+            e,
+        )
+        return
+
+    # TASK2 -- 计算平台V4链路部分
+    logger.info(
+        "create_base_event_datalink_for_bkcc: now try to create data link instance,bk_biz_id->[%s],data_link_name->[%s]",
+        bk_biz_id,
+        data_name,
+    )
+
+    # 1. 创建DataLink 链路管理实例
+    logger.info(
+        "create_base_event_datalink_for_bkcc: now try to create data link instance,bk_biz_id->[%s],data_link_name->[%s]",
+        bk_biz_id,
+        data_name,
+    )
+    data_link_ins, created = models.DataLink.objects.get_or_create(
+        data_link_name=data_name,
+        namespace="bkmonitor",
+        data_link_strategy=models.DataLink.BASE_EVENT_V1,
+        bk_tenant_id=bk_tenant_id,
+    )
+
+    # 2. 申请数据链路配置 LogResultTableConfig,ESStorageBindingConfig,LogDataBusConfig
+    try:
+        data_link_ins.apply_data_link(
+            data_source=data_source, table_id=table_id, storage_cluster_name=storage_cluster_name, bk_biz_id=bk_biz_id
+        )
+        # 这里应该无需再次sync_metadata
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "create_base_event_datalink_for_bkcc: create base event datalink for bk_biz_id->[%s] failed,error->[%s]",
+            bk_biz_id,
+            e,
+        )
+
+    logger.info(
+        "create_base_event_datalink_for_bkcc: create base event datalink for bk_biz_id->[%s] success", bk_biz_id
+    )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, storage_cluster_name: str | None = None):
+    """
+    创建系统进程数据链路
+
+    Args:
+        bk_biz_id: 业务ID
+        storage_cluster_name: 存储集群名称(ES)
+    """
+
+    logger.info(
+        "create_system_proc_datalink_for_bkcc: try to create system proc datalink for bk_biz_id->[%s]", bk_biz_id
+    )
+
+    # 如果未开启多租户模式，则不创建
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return
+
+    # 如果未指定存储集群，则使用默认的VM集群
+    if not storage_cluster_name:
+        cluster = models.ClusterInfo.objects.filter(
+            cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True
+        ).last()
+        if not cluster:
+            logger.error("create_system_proc_datalink_for_bkcc: get default vm cluster failed,return!")
+            return
+        storage_cluster_name = cluster.cluster_name
+    else:
+        cluster = models.ClusterInfo.objects.get(cluster_name=storage_cluster_name)
+
+    data_name_to_etl_config = {
+        "perf": EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG.value,
+        "port": EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG.value,
+    }
+
+    data_name_to_data_link_strategy = {
+        "perf": models.DataLink.SYSTEM_PROC_PERF,
+        "port": models.DataLink.SYSTEM_PROC_PORT,
+    }
+
+    data_link_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+
+    # 创建数据源和结果表
+    for data_link_type, data_link_config in SYSTEM_PROC_DATA_LINK_CONFIGS.items():
+        data_name: str = data_link_config["data_name_tpl"].format(bk_biz_id=bk_biz_id)
+        etl_config = data_name_to_etl_config[data_link_type]
+        table_id: str = data_link_config["table_id_tpl"].format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+        fields: list[dict[str, Any]] = data_link_config["fields"]
+
+        # 创建数据源
+        data_source = models.DataSource.objects.filter(data_name=data_name, bk_tenant_id=bk_tenant_id).first()
+        if not data_source:
+            logger.info(
+                "create_system_proc_datalink_for_bkcc: data source not found,for bk_biz_id->[%s],data_name->[%s]",
+                bk_biz_id,
+                data_name,
+            )
+            data_source = models.DataSource.create_data_source(
+                data_name=data_name,
+                etl_config=etl_config,
+                operator="system",
+                source_label="bk_monitor",
+                type_label="time_series",
+                space_uid=f"{SpaceTypes.BKCC.value}__{bk_biz_id}",
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=bk_tenant_id,
+                created_from=DataIdCreatedFromSystem.BKDATA.value,
+            )
+
+        # 创建结果表
+        _, created = models.ResultTable.objects.update_or_create(
+            table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
+            defaults={
+                "data_label": data_link_config["data_label"],
+                "table_name_zh": data_name,
+                "is_custom_table": False,
+                "default_storage": models.ClusterInfo.TYPE_VM,
+                "creator": "system",
+                "label": "os",
+                "bk_biz_id": bk_biz_id,
+            },
+        )
+        if created:
+            logger.info("create_system_proc_datalink_for_bkcc: result table created,table_id->[%s]", table_id)
+
+        # 创建数据源结果表关联
+        _, created = models.DataSourceResultTable.objects.update_or_create(
+            bk_data_id=data_source.bk_data_id, table_id=table_id, bk_tenant_id=bk_tenant_id
+        )
+        if created:
+            logger.info(
+                "create_system_proc_datalink_for_bkcc: data source result table relation created,bk_data_id->[%s],table_id->[%s],bk_biz_id->[%s]",
+                data_source.bk_data_id,
+                table_id,
+                bk_biz_id,
+            )
+
+        # 创建AccessVMRecord
+        vm_rt = compose_bkdata_table_id(
+            f"{data_link_biz_ids.data_biz_id}_base_{bk_biz_id}_{data_name_to_data_link_strategy[data_link_type]}"
+        )
+        AccessVMRecord.objects.update_or_create(
+            bk_tenant_id=bk_tenant_id,
+            result_table_id=table_id,
+            bk_base_data_id=data_source.bk_data_id,
+            bk_base_data_name=data_name,
+            defaults={
+                "vm_cluster_id": cluster.cluster_id,
+                "storage_cluster_id": cluster.cluster_id,
+                "vm_result_table_id": vm_rt,
+            },
+        )
+
+        # 创建结果表字段
+        result_table_field_to_create = []
+        existing_fields = list(
+            models.ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
+                "field_name", flat=True
+            )
+        )
+
+        for field in fields:
+            # 如果字段已存在，则跳过
+            if field["field_name"] in existing_fields:
+                continue
+
+            result_table_field_to_create.append(
+                models.ResultTableField(
+                    table_id=table_id,
+                    bk_tenant_id=bk_tenant_id,
+                    field_name=field["field_name"],
+                    field_type=field["field_type"],
+                    description=field.get("description", ""),
+                    unit=field.get("unit", ""),
+                    tag=field.get("tag", ""),
+                    is_config_by_user=field.get("is_config_by_user", False),
+                    default_value=field.get("default_value"),
+                    creator="system",
+                    alias_name=field.get("alias_name", ""),
+                    is_disabled=field.get("is_disabled", False),
+                )
+            )
+
+        if result_table_field_to_create:
+            logger.info("create_system_proc_datalink_for_bkcc: creating result table fields,table_id->[%s]", table_id)
+            models.ResultTableField.objects.bulk_create(result_table_field_to_create)
+
+        # 创建数据链路
+        data_link_ins, _ = models.DataLink.objects.get_or_create(
+            data_link_name=data_name,
+            namespace="bkmonitor",
+            data_link_strategy=data_name_to_data_link_strategy[data_link_type],
+            bk_tenant_id=bk_tenant_id,
+        )
+
+        # 申请数据链路配置
+        try:
+            data_link_ins.apply_data_link(
+                data_source=data_source,
+                table_id=table_id,
+                storage_cluster_name=storage_cluster_name,
+                bk_biz_id=bk_biz_id,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(
+                "create_system_proc_datalink_for_bkcc: create system proc datalink for bk_biz_id->[%s] failed,error->[%s]",
+                bk_biz_id,
+                e,
+            )
+
+    logger.info(
+        "create_system_proc_datalink_for_bkcc: create system proc datalink for bk_biz_id->[%s] success", bk_biz_id
     )

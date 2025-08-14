@@ -20,43 +20,42 @@ from ai_agents.resources.resources import (
     DestroyChatSessionContentResource,
     CreateChatCompletionResource,
     BatchDeleteSessionContentResource,
+    UpdateChatSessionResource,
 )
+from bkmonitor.iam import ActionEnum
+from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
-class AgentViewSet(ResourceViewSet):
-    def get_permissions(self):
-        return []
+class AIAgentsPermissionMixin:
+    """业务权限控制Mixin"""
 
+    def get_permissions(self):
+        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
+
+
+class AgentViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     resource_routes = [ResourceRoute("GET", GetAgentInfoResource, endpoint="info")]
 
 
-class SessionViewSet(ResourceViewSet):
-    def get_permissions(self):
-        return []
-
+class SessionViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     resource_routes = [
         ResourceRoute("POST", CreateChatSessionResource),
         ResourceRoute("GET", RetrieveChatSessionResource),
+        ResourceRoute("PUT", UpdateChatSessionResource, pk_field="session_code"),
         ResourceRoute("DELETE", DestroyChatSessionResource, pk_field="session_code"),
     ]
 
 
-class SessionContentViewSet(ResourceViewSet):
-    def get_permissions(self):
-        return []
-
+class SessionContentViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     resource_routes = [
         ResourceRoute("POST", CreateChatSessionContentResource),
-        ResourceRoute("GET", GetChatSessionContentsResource),
-        ResourceRoute("PUT", UpdateChatSessionContentResource, pk_field="session_code"),
+        ResourceRoute("GET", GetChatSessionContentsResource, endpoint="content"),
+        ResourceRoute("PUT", UpdateChatSessionContentResource, pk_field="id"),
         ResourceRoute("DELETE", DestroyChatSessionContentResource, pk_field="id"),
         ResourceRoute("POST", BatchDeleteSessionContentResource, endpoint="batch_delete"),
     ]
 
 
-class ChatCompletionViewSet(ResourceViewSet):
-    def get_permissions(self):
-        return []
-
+class ChatCompletionViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     resource_routes = [ResourceRoute("POST", CreateChatCompletionResource)]

@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, reactive, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, defineComponent, reactive, shallowRef, watch } from 'vue';
 
 import { DatePicker, Radio, Select, TimePicker } from 'bkui-vue';
+import dayjs from 'dayjs';
+import { useI18n } from 'vue-i18n';
 
-import { EShieldCycle, type INoticeDate } from '../typing';
+import { type INoticeDate, EShieldCycle } from '../typing';
 import DayPicker from './day-picker';
 import FormItem from './form-item';
 
@@ -91,6 +92,9 @@ export default defineComponent({
         range: ['00:00:00', '23:59:59'],
       },
     });
+    /* 是否正在操作时分秒，用于处理组件库datepicker第一个时间默认为23:59:59的bug */
+    const isHandleHMSTime = shallowRef(false);
+
     const errMsg = reactive({
       singleRange: '',
       dayRange: '',
@@ -117,6 +121,7 @@ export default defineComponent({
     );
 
     function handleChangeShieldCycle(v: EShieldCycle) {
+      isHandleHMSTime.value = false;
       noticeDate.shieldCycle = v;
       clearErrMsg();
       handleChange();
@@ -176,7 +181,9 @@ export default defineComponent({
      * @param v
      */
     function handleSingleRangeChange(v) {
-      noticeDate.single.range = v;
+      // noticeDate.single.range = v;
+      noticeDate.single.range = isHandleHMSTime.value ? v : [dayjs.tz(v[0]).format('YYYY-MM-DD 00:00:00'), v[1]];
+      isHandleHMSTime.value = false;
       errMsg.singleRange = '';
       handleChange();
     }
@@ -186,7 +193,9 @@ export default defineComponent({
       handleChange();
     }
     function handleDateRangeChange(v) {
-      noticeDate.dateRange = v;
+      // noticeDate.dateRange = v;
+      noticeDate.dateRange = isHandleHMSTime.value ? v : [dayjs.tz(v[0]).format('YYYY-MM-DD 00:00:00'), v[1]];
+      isHandleHMSTime.value = false;
       errMsg.dateRange = '';
       handleChange();
     }
@@ -213,6 +222,21 @@ export default defineComponent({
     function handleChange() {
       props.onChange(noticeDate);
     }
+
+    // 判断第一次点击/滑动 是否在操作时分秒
+    function handleFirstTime(v) {
+      // 如果点击的是日期，V是一个时间字符串；如果是滑动时分秒，V是一个数组
+      isHandleHMSTime.value = Array.isArray(v);
+    }
+
+    // input输入修改时间 逻辑同操作时分秒
+    function handleInputTime(e: KeyboardEvent) {
+      const isValid = /^[0-9:-]$/.test(e.key);
+      if (isValid) {
+        isHandleHMSTime.value = true;
+      }
+    }
+
     return {
       validate,
       noticeDate,
@@ -229,6 +253,8 @@ export default defineComponent({
       handleMonthListChange,
       handleMonthRangeChange,
       handleDateRangeChange,
+      handleFirstTime,
+      handleInputTime,
     };
   },
   render() {
@@ -270,6 +296,8 @@ export default defineComponent({
                   placement={'bottom-start'}
                   type='datetimerange'
                   onChange={v => this.handleSingleRangeChange(v)}
+                  onKeyup={this.handleInputTime}
+                  onPick-first={v => this.handleFirstTime(v)}
                 />
                 {!this.errMsg.singleRange && <div class='datetimerange-tip'>{this.t('注意：最大值为6个月')}</div>}
               </FormItem>
@@ -386,6 +414,8 @@ export default defineComponent({
                   placement={'bottom-start'}
                   type='daterange'
                   onChange={v => this.handleDateRangeChange(v)}
+                  onKeyup={this.handleInputTime}
+                  onPick-first={v => this.handleFirstTime(v)}
                 />
                 {!this.errMsg.dateRange && <div class='datetimerange-tip'>{this.t('注意：最大值为6个月')}</div>}
               </FormItem>

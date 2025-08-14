@@ -29,9 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 import './filter-list.scss';
 
 interface FilterSkeletonProps {
-  titleCount?: number; // 可配置的标题数量
   bodyCountPerGroup?: number; // 每个组体中条目的数量
   groupCount?: number; // 总共的组体数量
+  titleCount?: number; // 可配置的标题数量
 }
 @Component
 export default class FilterSkeleton extends tsc<FilterSkeletonProps> {

@@ -29,12 +29,12 @@ import { Component as tsc } from 'vue-tsx-support';
 import './resize-container.scss';
 
 interface IResizeContainer {
-  width?: number;
   height?: number;
-  minWidth?: number;
+  maxHeight?: number;
   maxWidth?: number;
   minHeight?: number;
-  maxHeight?: number;
+  minWidth?: number;
+  width?: number;
 }
 
 @Component

@@ -24,369 +24,233 @@
  * IN THE SOFTWARE.
  */
 
-export interface Alert {
-  id: string;
-  name: string;
-  level_name: string;
-  count: number;
-  related_entities: string[];
-  children: Alert[];
-  alert_ids: string[];
-  is_root: boolean;
-  is_feedback_root: boolean;
-  begin_time: null | number;
-  end_time: null | number;
-  status: null | string;
-  alert_example: IAlertExample | null;
-}
-
-export interface IAlertExample {
-  id: string;
-  alert_name: string;
-  status: string;
-  description: string;
-  severity: number;
-  metric: string[];
-  labels: any | null;
-  bk_biz_id: number;
-  ip: string;
-  ipv6: string;
-  bk_host_id: number;
-  bk_cloud_id: number;
-  bk_service_instance_id: any | null;
-  bk_topo_node: string[];
-  assignee: string[];
-  appointee: string[];
-  supervisor: any | null;
-  follower: any | null;
-  is_ack: any | null;
-  is_shielded: boolean;
-  shield_left_time: string;
-  shield_id: any | null;
-  is_handled: boolean;
-  is_blocked: boolean;
-  strategy_id: number;
-  create_time: number;
-  update_time: number;
-  begin_time: number;
-  end_time: number;
-  latest_time: number;
-  first_anomaly_time: number;
-  target_type: string;
-  target: string;
-  category: string;
-  tags: ITag[];
-  category_display: string;
-  duration: string;
-  ack_duration: number;
-  data_type: string;
-  converge_id: string;
-  event_id: string;
-  plugin_id: string;
-  plugin_display_name: string;
-  strategy_name: string;
-  stage_display: string;
-  dimensions: IDimension[];
-  seq_id: number;
-  dedupe_md5: string;
-  dedupe_keys: string[];
-  extra_info: IExtraInfo;
-}
-
-export interface ITag {
-  value: string;
-  key: string;
-}
-
-export interface IDimension {
-  display_value: string;
-  display_key: string;
-  value: number | string;
-  key: string;
-}
-
-export interface IExtraInfo {
-  origin_alarm: OriginAlarm;
-  strategy: IStrategy;
-}
-
-export interface OriginAlarm {
-  trigger_time: number;
-  data: AlarmData;
-  trigger: IAlarmTrigger;
-  anomaly: Record<string, IAnomaly>;
-  dimension_translation: IDimensionTranslation;
-  strategy_snapshot_key: string;
-}
-
 export interface AlarmData {
+  access_time: number;
+  detect_time: number;
+  dimension_fields: string[];
+  dimensions: Record<string, any>;
+  record_id: string;
   time: number;
   value: number;
   values: Record<string, number>;
-  dimensions: Record<string, any>;
-  record_id: string;
-  dimension_fields: string[];
-  access_time: number;
-  detect_time: number;
 }
 
-export interface IAlarmTrigger {
-  level: string;
-  anomaly_ids: string[];
-}
-
-export interface IAnomaly {
-  anomaly_message: string;
-  anomaly_id: string;
-  anomaly_time: string;
-}
-
-export interface IDimensionTranslation {
-  bk_target_ip: ITranslationValue;
-  device_name: ITranslationValue;
-  bk_topo_node: ITranslationValue<ITranslationNode[]>;
-  bk_host_id: ITranslationValue;
-}
-
-export interface ITranslationValue<T = string> {
-  value: T;
-  display_name: string;
-  display_value: T;
-}
-
-export interface ITranslationNode {
-  bk_obj_name: string;
-  bk_inst_name: string;
-}
-
-export interface IStrategy {
-  id: number;
-  version: string;
-  bk_biz_id: number;
-  name: string;
-  source: string;
-  scenario: string;
-  type: string;
-  items: IStrategyItem[];
-  detects: IDetect[];
-  actions: IAction[];
-  notice: INotice;
-  is_enabled: boolean;
-  is_invalid: boolean;
-  invalid_type: string;
-  update_time: number;
-  update_user: string;
-  create_time: number;
-  create_user: string;
-  labels: string[];
-  app: string;
-  path: string;
-  priority: null | number;
-  priority_group_key: string;
-  edit_allowed: boolean;
-  metric_type: string;
-}
-
-export interface IStrategyItem {
-  algorithms: IAlgorithm[];
-  update_time: number;
-  expression: string;
-  origin_sql: string;
-  functions: any[];
-  query_configs: IQueryConfig[];
-  query_md5: string;
-  name: string;
-  metric_type: string;
-  id: number;
-  no_data_config: INoDataConfig;
-  target: any[];
-}
-
-export interface IAlgorithm {
-  level: number;
-  id: number;
-  type: string;
-  config: any;
-  unit_prefix: string;
-}
-
-export interface IQueryConfig {
-  metric_id: string;
-  data_type_label: string;
-  functions: any[];
-  result_table_id: string;
-  agg_interval: number;
-  metric_field: string;
-  agg_condition: any[];
-  unit: string;
-  agg_method: string;
-  agg_dimension: string[];
-  alias: string;
-  id: number;
-  data_source_label: string;
-}
-
-export interface INoDataConfig {
-  is_enabled: boolean;
-  level: number;
-  continuous: number;
-  agg_dimension: string[];
-}
-
-export interface IDetect {
-  expression: string;
-  trigger_config: ITriggerConfig;
-  connector: string;
-  level: number;
-  id: number;
-  recovery_config: IRecoveryConfig;
-}
-
-export interface ITriggerConfig {
-  check_window: number;
+export interface Alert {
+  alert_example: IAlertExample | null;
+  alert_ids: string[];
+  begin_time: null | number;
+  children: Alert[];
   count: number;
-  uptime: IUptime;
-}
-
-export interface IUptime {
-  calendars: any[];
-  time_ranges: ITimeRange[];
-}
-
-export interface ITimeRange {
-  start: string;
-  end: string;
-}
-
-export interface IRecoveryConfig {
-  check_window: number;
-  status_setter: string;
+  end_time: null | number;
+  id: string;
+  is_feedback_root: boolean;
+  is_root: boolean;
+  level_name: string;
+  name: string;
+  related_entities: string[];
+  status: null | string;
 }
 
 export interface IAction {
-  user_type: string;
-  config_id: number;
-  options: IActionOptions;
-  id: number;
-  signal: string[];
   config: IActionConfig;
-  user_groups: number[];
+  config_id: number;
+  id: number;
+  options: IActionOptions;
   relate_type: string;
-}
-
-export interface IActionOptions {
-  start_time: string;
-  converge_config: IConvergeConfig;
-  end_time: string;
-}
-
-export interface IConvergeConfig {
-  is_enabled: boolean;
-  condition: ICondition[];
-  timedelta: number;
-  count: number;
-  need_biz_converge: boolean;
-  converge_func: string;
-  sub_converge_config?: ISubIConvergeConfig;
-}
-
-export interface ICondition {
-  value: string[];
-  dimension: string;
-}
-
-export interface ISubIConvergeConfig {
-  timedelta: number;
-  count: number;
-  condition: ICondition[];
-  converge_func: string;
+  signal: string[];
+  user_groups: number[];
+  user_type: string;
 }
 
 export interface IActionConfig {
-  execute_config: IExecuteConfig;
-  plugin_id: string;
   bk_biz_id: string;
-  name: string;
-  id: number;
   desc: string;
+  execute_config: IExecuteConfig;
+  id: number;
+  name: string;
+  plugin_id: string;
 }
 
-export interface IExecuteConfig {
-  template_detail: ITemplateDetail;
-  timeout: number;
+export interface IActionOptions {
+  converge_config: IConvergeConfig;
+  end_time: string;
+  start_time: string;
 }
 
-export interface ITemplateDetail {
-  failed_retry: IFailedRetry;
-  headers: any[];
-  notify_interval: number;
-  method: string;
-  query_params: any[];
-  body: IRequestBody;
-  authorize: IAuthorize;
-  url: string;
-  need_poll: boolean;
+export interface IAggregatedAlert {
+  ack_operator: string;
+  alert_example: IAlertExample;
+  alert_ids: string[];
+  begin_time: number;
+  bk_biz_name: string;
+  children: IAggregatedAlert[];
+  count: number;
+  dimension_message: string;
+  end_time: number;
+  entity: IEntity;
+  id: string;
+  is_feedback_root: boolean;
+  is_root: boolean;
+  isDraw: boolean;
+  isOpen: boolean;
+  isShow: boolean;
+  level_name: string;
+  metric_display: IMetricDisplay[];
+  name: string;
+  related_entities: string[];
+  shield_operator: any[];
+  status: string;
+  target_key: string;
 }
 
-export interface IFailedRetry {
-  is_enabled: boolean;
-  retry_interval: number;
-  max_retry_times: number;
-  timeout: number;
+export interface IAggregationRoot {
+  alert_example: IAlertExample;
+  alert_ids: string[];
+  begin_time: number;
+  children: IAggregatedAlert[];
+  count: number;
+  end_time: number;
+  id: string;
+  is_feedback_root: boolean;
+  is_root: boolean;
+  isDraw: boolean;
+  isOpen: boolean;
+  isShow: boolean;
+  level_name: string;
+  name: string;
+  related_entities: string[];
+  status: string;
 }
 
-export interface IRequestBody {
-  content_type: string;
+export interface IAlarmTrigger {
+  anomaly_ids: string[];
+  level: string;
+}
+
+export interface IAlertExample {
+  ack_duration: number;
+  alert_name: string;
+  appointee: string[];
+  assignee: string[];
+  begin_time: number;
+  bk_biz_id: number;
+  bk_cloud_id: number;
+  bk_host_id: number;
+  bk_service_instance_id: any | null;
+  bk_topo_node: string[];
+  category: string;
+  category_display: string;
+  converge_id: string;
+  create_time: number;
   data_type: string;
-  params: any[];
-  content: string;
+  dedupe_keys: string[];
+  dedupe_md5: string;
+  description: string;
+  dimensions: IDimension[];
+  duration: string;
+  end_time: number;
+  event_id: string;
+  extra_info: IExtraInfo;
+  first_anomaly_time: number;
+  follower: any | null;
+  id: string;
+  ip: string;
+  ipv6: string;
+  is_ack: any | null;
+  is_blocked: boolean;
+  is_handled: boolean;
+  is_shielded: boolean;
+  labels: any | null;
+  latest_time: number;
+  metric: string[];
+  plugin_display_name: string;
+  plugin_id: string;
+  seq_id: number;
+  severity: number;
+  shield_id: any | null;
+  shield_left_time: string;
+  stage_display: string;
+  status: string;
+  strategy_id: number;
+  strategy_name: string;
+  supervisor: any | null;
+  tags: ITag[];
+  target: string;
+  target_type: string;
+  update_time: number;
+}
+
+export interface IAlgorithm {
+  config: any;
+  id: number;
+  level: number;
+  type: string;
+  unit_prefix: string;
+}
+
+export interface IAnomaly {
+  anomaly_id: string;
+  anomaly_message: string;
+  anomaly_time: string;
 }
 
 export interface IAuthorize {
-  auth_type: string;
   auth_config: any;
+  auth_type: string;
 }
 
-export interface INotice {
+export interface ICondition {
+  dimension: string;
+  value: string[];
+}
+
+export interface IConvergeConfig {
+  condition: ICondition[];
+  converge_func: string;
+  count: number;
+  is_enabled: boolean;
+  need_biz_converge: boolean;
+  sub_converge_config?: ISubIConvergeConfig;
+  timedelta: number;
+}
+
+export interface IDetect {
+  connector: string;
+  expression: string;
   id: number;
-  config_id: number;
-  user_groups: number[];
-  user_type: string;
-  signal: string[];
-  options: INoticeOptions;
-  relate_type: string;
-  config: INoticeConfig;
-  is_enabled: boolean;
-  is_invalid: boolean;
-  invalid_type: string;
-  update_time: number;
-  update_user: string;
-  create_time: number;
-  create_user: string;
-  labels: string[];
-  app: string;
-  path: string;
-  priority: null | number;
-  priority_group_key: string;
-  edit_allowed: boolean;
-  metric_type: string;
+  level: number;
+  recovery_config: IRecoveryConfig;
+  trigger_config: ITriggerConfig;
 }
 
-export interface INoticeOptions {
-  end_time: string;
-  start_time: string;
-  assign_mode: string[];
-  upgrade_config: IUpgradeConfig;
-  converge_config: IConvergeConfig;
-  chart_image_enabled: boolean;
-  exclude_notice_ways: IExcludeINoticeWays;
-  noise_reduce_config: INoiseReduceConfig;
+export interface IDimension {
+  display_key: string;
+  display_value: string;
+  key: string;
+  value: number | string;
 }
 
-export interface IUpgradeConfig {
-  is_enabled: boolean;
-  user_groups: any[];
-  upgrade_interval: number;
+export interface IDimensionTranslation {
+  bk_host_id: ITranslationValue;
+  bk_target_ip: ITranslationValue;
+  bk_topo_node: ITranslationValue<ITranslationNode[]>;
+  device_name: ITranslationValue;
+}
+
+export interface IEntity {
+  aggregated_entities: any[];
+  anomaly_score: number;
+  anomaly_type: null | string;
+  bk_biz_id: null | number;
+  dimensions: Record<string, string>;
+  entity_id: string;
+  entity_name: string;
+  entity_type: string;
+  is_anomaly: boolean;
+  is_on_alert: boolean;
+  is_root: boolean;
+  rank: IRank;
+  tags: Record<string, any>;
 }
 
 export interface IExcludeINoticeWays {
@@ -395,51 +259,21 @@ export interface IExcludeINoticeWays {
   recovered: any[];
 }
 
-export interface INoiseReduceConfig {
-  unit: string;
-  count: number;
-  timedelta: number;
-  dimensions: any[];
+export interface IExecuteConfig {
+  template_detail: ITemplateDetail;
+  timeout: number;
+}
+
+export interface IExtraInfo {
+  origin_alarm: OriginAlarm;
+  strategy: IStrategy;
+}
+
+export interface IFailedRetry {
   is_enabled: boolean;
-}
-
-export interface INoticeConfig {
-  need_poll: boolean;
-  notify_interval: number;
-  interval_notify_mode: string;
-  template: ITemplate[];
-}
-
-export interface ITemplate {
-  title_tmpl: string;
-  message_tmpl: string;
-  signal: string;
-}
-
-export interface IAggregatedAlert {
-  id: string;
-  name: string;
-  level_name: string;
-  count: number;
-  related_entities: string[];
-  children: IAggregatedAlert[];
-  alert_ids: string[];
-  is_root: boolean;
-  is_feedback_root: boolean;
-  begin_time: number;
-  end_time: number;
-  status: string;
-  alert_example: IAlertExample;
-  dimension_message: string;
-  metric_display: IMetricDisplay[];
-  target_key: string;
-  ack_operator: string;
-  shield_operator: any[];
-  bk_biz_name: string;
-  entity: IEntity;
-  isOpen: boolean;
-  isShow: boolean;
-  isDraw: boolean;
+  max_retry_times: number;
+  retry_interval: number;
+  timeout: number;
 }
 
 export interface IMetricDisplay {
@@ -447,50 +281,216 @@ export interface IMetricDisplay {
   name: string;
 }
 
-export interface IEntity {
-  entity_id: string;
-  entity_name: string;
-  entity_type: string;
-  is_anomaly: boolean;
-  is_root: boolean;
-  rank: IRank;
-  dimensions: Record<string, string>;
-  anomaly_score: number;
-  anomaly_type: null | string;
-  is_on_alert: boolean;
-  bk_biz_id: null | number;
-  tags: Record<string, any>;
-  aggregated_entities: any[];
+export interface INoDataConfig {
+  agg_dimension: string[];
+  continuous: number;
+  is_enabled: boolean;
+  level: number;
+}
+
+export interface INoiseReduceConfig {
+  count: number;
+  dimensions: any[];
+  is_enabled: boolean;
+  timedelta: number;
+  unit: string;
+}
+
+export interface INotice {
+  app: string;
+  config: INoticeConfig;
+  config_id: number;
+  create_time: number;
+  create_user: string;
+  edit_allowed: boolean;
+  id: number;
+  invalid_type: string;
+  is_enabled: boolean;
+  is_invalid: boolean;
+  labels: string[];
+  metric_type: string;
+  options: INoticeOptions;
+  path: string;
+  priority: null | number;
+  priority_group_key: string;
+  relate_type: string;
+  signal: string[];
+  update_time: number;
+  update_user: string;
+  user_groups: number[];
+  user_type: string;
+}
+
+export interface INoticeConfig {
+  interval_notify_mode: string;
+  need_poll: boolean;
+  notify_interval: number;
+  template: ITemplate[];
+}
+
+export interface INoticeOptions {
+  assign_mode: string[];
+  chart_image_enabled: boolean;
+  converge_config: IConvergeConfig;
+  end_time: string;
+  exclude_notice_ways: IExcludeINoticeWays;
+  noise_reduce_config: INoiseReduceConfig;
+  start_time: string;
+  upgrade_config: IUpgradeConfig;
+}
+
+export interface IQueryConfig {
+  agg_condition: any[];
+  agg_dimension: string[];
+  agg_interval: number;
+  agg_method: string;
+  alias: string;
+  data_source_label: string;
+  data_type_label: string;
+  functions: any[];
+  id: number;
+  metric_field: string;
+  metric_id: string;
+  result_table_id: string;
+  unit: string;
 }
 
 export interface IRank {
-  rank_id: number;
-  rank_name: string;
   rank_alias: string;
   rank_category: IRankCategory;
+  rank_id: number;
+  rank_name: string;
 }
 
 export interface IRankCategory {
+  category_alias: string;
   category_id: number;
   category_name: string;
-  category_alias: string;
 }
 
-export interface IAggregationRoot {
-  id: string;
+export interface IRecoveryConfig {
+  check_window: number;
+  status_setter: string;
+}
+
+export interface IRequestBody {
+  content: string;
+  content_type: string;
+  data_type: string;
+  params: any[];
+}
+
+export interface IStrategy {
+  actions: IAction[];
+  app: string;
+  bk_biz_id: number;
+  create_time: number;
+  create_user: string;
+  detects: IDetect[];
+  edit_allowed: boolean;
+  id: number;
+  invalid_type: string;
+  is_enabled: boolean;
+  is_invalid: boolean;
+  items: IStrategyItem[];
+  labels: string[];
+  metric_type: string;
   name: string;
-  level_name: string;
+  notice: INotice;
+  path: string;
+  priority: null | number;
+  priority_group_key: string;
+  scenario: string;
+  source: string;
+  type: string;
+  update_time: number;
+  update_user: string;
+  version: string;
+}
+
+export interface IStrategyItem {
+  algorithms: IAlgorithm[];
+  expression: string;
+  functions: any[];
+  id: number;
+  metric_type: string;
+  name: string;
+  no_data_config: INoDataConfig;
+  origin_sql: string;
+  query_configs: IQueryConfig[];
+  query_md5: string;
+  target: any[];
+  update_time: number;
+}
+
+export interface ISubIConvergeConfig {
+  condition: ICondition[];
+  converge_func: string;
   count: number;
-  related_entities: string[];
-  children: IAggregatedAlert[];
-  alert_ids: string[];
-  is_root: boolean;
-  is_feedback_root: boolean;
-  begin_time: number;
-  end_time: number;
-  status: string;
-  alert_example: IAlertExample;
-  isOpen: boolean;
-  isShow: boolean;
-  isDraw: boolean;
+  timedelta: number;
+}
+
+export interface ITag {
+  key: string;
+  value: string;
+}
+
+export interface ITemplate {
+  message_tmpl: string;
+  signal: string;
+  title_tmpl: string;
+}
+
+export interface ITemplateDetail {
+  authorize: IAuthorize;
+  body: IRequestBody;
+  failed_retry: IFailedRetry;
+  headers: any[];
+  method: string;
+  need_poll: boolean;
+  notify_interval: number;
+  query_params: any[];
+  url: string;
+}
+
+export interface ITimeRange {
+  end: string;
+  start: string;
+}
+
+export interface ITranslationNode {
+  bk_inst_name: string;
+  bk_obj_name: string;
+}
+
+export interface ITranslationValue<T = string> {
+  display_name: string;
+  display_value: T;
+  value: T;
+}
+
+export interface ITriggerConfig {
+  check_window: number;
+  count: number;
+  uptime: IUptime;
+}
+
+export interface IUpgradeConfig {
+  is_enabled: boolean;
+  upgrade_interval: number;
+  user_groups: any[];
+}
+
+export interface IUptime {
+  calendars: any[];
+  time_ranges: ITimeRange[];
+}
+
+export interface OriginAlarm {
+  anomaly: Record<string, IAnomaly>;
+  data: AlarmData;
+  dimension_translation: IDimensionTranslation;
+  strategy_snapshot_key: string;
+  trigger: IAlarmTrigger;
+  trigger_time: number;
 }

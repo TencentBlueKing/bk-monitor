@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, inject, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
 import { Button, Loading, Sideslider } from 'bkui-vue';
 import { retrieveDutyRule } from 'monitor-api/modules/model';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
+import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import HistoryDialog from '../../components/history-dialog/history-dialog';
 import {
@@ -276,7 +276,9 @@ export default defineComponent({
                                   />
                                 )}
                                 {this.renderUserLogo(user)}
-                                <span>{user.display_name}</span>
+                                <span>
+                                  {user.display_name ? <bk-user-display-name user-id={user.display_name} /> : '--'}
+                                </span>
                               </div>
                             ))}
                           </div>

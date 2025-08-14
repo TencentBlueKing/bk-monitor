@@ -38,13 +38,13 @@ import './http-target.scss';
 
 export type ProtocolType = 'http' | 'icmp' | 'tcp' | 'udp';
 const methodList: MethodType[] = ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'];
-interface IHttpTargetProps {
-  urls: string[];
-  method: MethodType;
-}
 interface IHttpTargetEvents {
-  onUrlChange: string[];
   onMethodChange: MethodType;
+  onUrlChange: string[];
+}
+interface IHttpTargetProps {
+  method: MethodType;
+  urls: string[];
 }
 @Component
 export default class HttpTarget extends tsc<IHttpTargetProps, IHttpTargetEvents> {

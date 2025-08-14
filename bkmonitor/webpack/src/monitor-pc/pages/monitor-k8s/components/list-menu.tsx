@@ -26,18 +26,18 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { COMMON_SETTINGS_LIST, type IMenuItem } from '../typings';
+import { type IMenuItem, COMMON_SETTINGS_LIST } from '../typings';
 
 import './list-menu.scss';
 
-interface IListMenuProps {
-  list?: IMenuItem[];
-  keyword?: string;
-}
 interface IListMenuEvent {
-  onMenuSelect: IMenuItem;
   onHidden: void;
+  onMenuSelect: IMenuItem;
   onShow: void;
+}
+interface IListMenuProps {
+  keyword?: string;
+  list?: IMenuItem[];
 }
 @Component
 export default class ListMenu extends tsc<IListMenuProps, IListMenuEvent> {

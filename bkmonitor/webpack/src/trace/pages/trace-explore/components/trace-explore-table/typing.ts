@@ -26,52 +26,6 @@
 
 import type { OptionData, PrimaryTableCol, SlotReturnValue } from 'tdesign-vue-next';
 
-/** 表格筛选项类型 */
-export type TableFilterItem = OptionData;
-
-/** trace检索 表格列配置类型 */
-export interface ExploreTableColumn<T extends ExploreTableColumnTypeEnum = ExploreTableColumnTypeEnum>
-  extends PrimaryTableCol {
-  /** 字段类型 */
-  renderType?: T;
-  /** 列描述(popover形式展现) **/
-  headerDescription?: string;
-  /** 单元格后置插槽（tag类型列暂未支持） */
-  suffixSlot?: (row, column: ExploreTableColumn) => SlotReturnValue;
-  /** 需要自定义定义 渲染值 时可用 */
-  getRenderValue?: (row, column: ExploreTableColumn<T>) => GetTableCellRenderValue<T>;
-  /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */
-  clickCallback?: (row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, event: MouseEvent) => void;
-}
-
-/**
- * @description 获取 table表格列 渲染值类型 (默认为字符串)
- *
- */
-export type GetTableCellRenderValue<T> = T extends keyof TableCellRenderValueType
-  ? TableCellRenderValueType[T]
-  : string;
-
-/**  trace检索 table表格不同类型列 渲染值类型映射表 */
-export interface TableCellRenderValueType {
-  [ExploreTableColumnTypeEnum.DURATION]: number;
-  [ExploreTableColumnTypeEnum.TIME]: number;
-  [ExploreTableColumnTypeEnum.TAGS]: {
-    alias: string;
-    value: string;
-    tagColor: string;
-    tagBgColor: string;
-  }[];
-  [ExploreTableColumnTypeEnum.PREFIX_ICON]: {
-    alias: string;
-    prefixIcon: ((row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>) => SlotReturnValue) | string;
-  };
-  [ExploreTableColumnTypeEnum.LINK]: {
-    alias: string;
-    url: string;
-  };
-}
-
 /**
  * @description trace检索 table表格列类型 枚举
  */
@@ -102,6 +56,14 @@ export enum ExploreTableLoadingEnum {
   SCROLL = 'scrollLoading',
 }
 
+/** 激活的条件菜单目标 */
+export interface ActiveConditionMenuTarget {
+  colId: string;
+  conditionValue: string;
+  customMenuList?: ExploreConditionMenuItem[];
+  rowId: string;
+}
+
 /** 自定义显示列字段缓存配置 */
 export interface CustomDisplayColumnFieldsConfig {
   displayFields: string[];
@@ -110,22 +72,60 @@ export interface CustomDisplayColumnFieldsConfig {
 
 /** 表格条件菜单项 */
 export interface ExploreConditionMenuItem {
+  /** 菜单图标 */
+  icon: string;
   /** 菜单 id */
   id: string;
   /** 菜单名称 */
   name: string;
-  /** 菜单图标 */
-  icon: string;
   /** 菜单点击回调 */
   onClick: (event: MouseEvent) => void;
   /** 菜单后缀icon渲染 */
   suffixRender?: () => SlotReturnValue;
 }
 
-/** 激活的条件菜单目标 */
-export interface ActiveConditionMenuTarget {
-  rowId: string;
-  colId: string;
-  conditionValue: string;
-  customMenuList?: ExploreConditionMenuItem[];
+/** trace检索 表格列配置类型 */
+export interface ExploreTableColumn<T extends ExploreTableColumnTypeEnum = ExploreTableColumnTypeEnum>
+  extends PrimaryTableCol {
+  /** 列描述(popover形式展现) **/
+  headerDescription?: string;
+  /** 字段类型 */
+  renderType?: T;
+  /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */
+  clickCallback?: (row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, event: MouseEvent) => void;
+  /** 需要自定义定义 渲染值 时可用 */
+  getRenderValue?: (row, column: ExploreTableColumn<T>) => GetTableCellRenderValue<T>;
+  /** 单元格后置插槽（tag类型列暂未支持） */
+  suffixSlot?: (row, column: ExploreTableColumn) => SlotReturnValue;
 }
+
+/**
+ * @description 获取 table表格列 渲染值类型 (默认为字符串)
+ *
+ */
+export type GetTableCellRenderValue<T> = T extends keyof TableCellRenderValueType
+  ? TableCellRenderValueType[T]
+  : string;
+
+/**  trace检索 table表格不同类型列 渲染值类型映射表 */
+export interface TableCellRenderValueType {
+  [ExploreTableColumnTypeEnum.DURATION]: number;
+  [ExploreTableColumnTypeEnum.TIME]: number;
+  [ExploreTableColumnTypeEnum.LINK]: {
+    alias: string;
+    url: string;
+  };
+  [ExploreTableColumnTypeEnum.PREFIX_ICON]: {
+    alias: string;
+    prefixIcon: ((row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>) => SlotReturnValue) | string;
+  };
+  [ExploreTableColumnTypeEnum.TAGS]: {
+    alias: string;
+    tagBgColor: string;
+    tagColor: string;
+    value: string;
+  }[];
+}
+
+/** 表格筛选项类型 */
+export type TableFilterItem = OptionData;

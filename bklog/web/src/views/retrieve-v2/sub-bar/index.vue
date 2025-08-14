@@ -50,7 +50,6 @@
   const store = useStore();
 
   const fieldSettingRef = ref(null);
-
   const isShowClusterSetting = ref(false);
   const indexSetParams = computed(() => store.state.indexItem);
 
@@ -178,23 +177,25 @@
           indexSetDefaultCondition = {
             keyword: payload.items[0].query_string,
             search_mode: 'sql',
-            addition: []
-          }
+            addition: [],
+          };
         } else if (payload.items[0]?.addition) {
           indexSetDefaultCondition = {
             addition: [...payload.items[0].addition],
             search_mode: 'ui',
-            keyword: ''
-          }
+            keyword: '',
+          };
         }
         if (indexSetDefaultCondition.search_mode) {
-          store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(indexSetDefaultCondition.search_mode) });
+          store.commit('updateStorage', {
+            [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(indexSetDefaultCondition.search_mode),
+          });
         }
       }
 
       RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single', false);
       store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
-      store.commit('updateIndexItem', {...payload, ...indexSetDefaultCondition});
+      store.commit('updateIndexItem', { ...payload, ...indexSetDefaultCondition });
 
       if (!payload.isUnionIndex) {
         store.commit('updateIndexId', payload.ids[0]);
@@ -204,6 +205,8 @@
       store.commit('updateIndexSetQueryResult', {
         origin_log_list: [],
         list: [],
+        exception_msg: '',
+        is_error: false,
       });
 
       store.dispatch('requestIndexSetFieldInfo').then(resp => {
@@ -326,8 +329,8 @@
    * @description: 打开 索引集配置 抽屉页
    */
   function handleIndexConfigSliderOpen() {
-    if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
-      fieldSettingRef.value?.handleShowSlider?.();
+    if (isFieldSettingShow.value) {
+      RetrieveHelper.setAliasConfigOpen(true);
     } else {
       bkMessage({
         theme: 'primary',

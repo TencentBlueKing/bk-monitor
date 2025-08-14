@@ -34,15 +34,15 @@
   <!-- 分类面板 -->
   <div class="performance-overview">
     <div
-      class="performance-overview-panel"
       v-for="item in panel.list"
-      :class="{ 'panel-active': panel.active === item.key, disabled: loading }"
       :key="item.key"
       v-bk-tooltips="{
         content: $t('加载中...'),
         disabled: !loading,
-        delay: 500
+        delay: 500,
       }"
+      class="performance-overview-panel"
+      :class="{ 'panel-active': panel.active === item.key, disabled: loading }"
       @click="!loading && handlePanelClick(item.key)"
     >
       <span

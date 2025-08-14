@@ -26,9 +26,8 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
-
 import RenderMetricsGroup from './components/render-metrics-group';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './index.scss';
 

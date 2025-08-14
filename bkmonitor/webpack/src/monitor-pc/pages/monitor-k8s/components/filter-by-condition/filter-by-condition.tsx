@@ -30,25 +30,25 @@ import { Debounce, random } from 'monitor-common/utils';
 import { debounce, throttle } from 'throttle-debounce';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import { EDimensionKey, type ICommonParams } from '../../typings/k8s-new';
+import { type ICommonParams, EDimensionKey } from '../../typings/k8s-new';
 import KvTag from './big-kv-tag';
 import {
+  type IFilterByItem,
   type IGroupOptionsItem,
   type ITagListItem,
   type IValueItem,
-  type IFilterByItem,
   FilterByOptions,
 } from './utils';
 
 import './filter-by-condition.scss';
 
-type TFilterByDict = Record<EDimensionKey | string, string[]>;
-
 interface IProps {
-  filterBy?: IFilterByItem[] | TFilterByDict;
   commonParams?: ICommonParams;
+  filterBy?: IFilterByItem[] | TFilterByDict;
   onChange?: (v: IFilterByItem[]) => void;
 }
+
+type TFilterByDict = Record<EDimensionKey | string, string[]>;
 
 @Component
 export default class FilterByCondition extends tsc<IProps> {

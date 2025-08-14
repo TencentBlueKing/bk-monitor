@@ -31,10 +31,10 @@ import MonitorIpSelector from '../../../../components/monitor-ip-selector/monito
 import type { IIpV6Value } from '../../../../components/monitor-ip-selector/typing';
 
 interface IAlarmShieldIpv6Props {
-  showDialog: boolean;
-  shieldDimension: string;
   checkedValue?: IIpV6Value;
   originCheckedValue?: IIpV6Value;
+  shieldDimension: string;
+  showDialog: boolean;
   showViewDiff?: boolean;
 }
 export const Ipv6FieldMap = {

@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, watch, shallowRef, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { Exception } from 'bkui-vue';
 import _ from 'lodash';
+import { useI18n } from 'vue-i18n';
 
 import useGroupList from '../../hooks/use-group-list';
 import RenderFavorite from './components/render-favorite/index';

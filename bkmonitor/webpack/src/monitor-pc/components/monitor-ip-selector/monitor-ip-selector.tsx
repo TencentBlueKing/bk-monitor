@@ -1,23 +1,27 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 import { Component, Emit, Prop } from 'vue-property-decorator';
@@ -25,13 +29,16 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import create from '@blueking/ip-selector/dist/index.esm';
 import {
+  agentStatisticsIpChooserDynamicGroup,
   agentStatisticsIpChooserTemplate,
   agentStatisticsIpChooserTopo,
   batchGetIpChooserConfig,
   checkIpChooserHost,
   detailsIpChooserHost,
   detailsIpChooserServiceInstance,
+  executeIpChooserDynamicGroup,
   globalConfigIpChooserConfig,
+  groupsIpChooserDynamicGroup,
   hostsIpChooserTemplate,
   nodesIpChooserTemplate,
   queryHostIdInfosIpChooserTopo,
@@ -42,34 +49,31 @@ import {
   templatesIpChooserTemplate,
   treesIpChooserTopo,
   updateConfigIpChooserConfig,
-  groupsIpChooserDynamicGroup,
-  executeIpChooserDynamicGroup,
-  agentStatisticsIpChooserDynamicGroup,
 } from 'monitor-api/modules/model';
 
 import { PanelTargetMap, transformCacheMapToOriginData, transformOriginDataToCacheMap } from './utils';
 
 import type {
-  CommomParams,
-  CoutIntanceName,
+  CommonParams,
+  CountInstanceName,
   IFetchNode,
   IHost,
   IIpV6Value,
   INode,
   INodeType,
+  IpSelectorConfig,
+  IpSelectorHostMenuExtend,
+  IpSelectorHostTableCustomColumn,
+  IpSelectorMode,
+  IpSelectorNameStyle,
+  IpSelectorService,
   IQuery,
-  IScopeItme,
+  IScopeItem,
   IStatistics,
   ITemplateHost,
   ITemplateItem,
   ITemplateNode,
   ITreeItem,
-  IpSelectorConfig,
-  IpSelectorHostMemuExtend,
-  IpSelectorHostTableCustomColumn,
-  IpSelectorMode,
-  IpSelectorNameStyle,
-  IpSelectorService,
 } from './typing';
 
 import '@blueking/ip-selector/dist/styles/index.css';
@@ -78,42 +82,42 @@ const BkIpSelector = create({
   version: '3',
   serviceConfigError: false,
 });
-export interface IMonitorIpSelectorProps {
-  panelList?: string[];
-  value?: IIpV6Value;
-  hostTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
-  nodeTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
-  serviceTemplateTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
-  setTemplateTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
-  hostMemuExtends?: IpSelectorHostMemuExtend[];
-  hostTableRenderColumnList?: string[];
-  originalValue?: IIpV6Value;
-  mode?: IpSelectorMode;
-  nameStyle?: IpSelectorNameStyle;
-  showDialog?: boolean;
-  unqiuePanelValue?: boolean;
-  showView?: boolean;
-  showViewDiff?: boolean;
-  readonly?: boolean;
-  disableDialogSubmitMethod?: () => void;
-  disableHostMethod?: () => void;
-  viewSearchKey?: string;
-  service?: IpSelectorService;
-  height?: number;
-  extractScene?: boolean;
-  singleHostSelect?: boolean;
-  keepHostFieldOutput?: boolean;
-  defaultOutputFieldList?: string[];
-  outputFieldList?: string[];
-  outputFieldOptionalHostTableColumn?: string[];
-  countInstanceType?: CoutIntanceName;
-  enableOriginData?: boolean;
-}
 export interface IMonitorIpSelectorEvents {
   onChange: (v: Record<string, INode[]>) => void;
-  onTargetTypeChange: (v: INodeType) => void;
   onCloseDialog: (v: boolean) => void;
   onOutputFieldChange: (v: string[]) => void;
+  onTargetTypeChange: (v: INodeType) => void;
+}
+export interface IMonitorIpSelectorProps {
+  countInstanceType?: CountInstanceName;
+  defaultOutputFieldList?: string[];
+  enableOriginData?: boolean;
+  extractScene?: boolean;
+  height?: number;
+  hostMemuExtends?: IpSelectorHostMenuExtend[];
+  hostTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
+  hostTableRenderColumnList?: string[];
+  keepHostFieldOutput?: boolean;
+  mode?: IpSelectorMode;
+  nameStyle?: IpSelectorNameStyle;
+  nodeTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
+  originalValue?: IIpV6Value;
+  outputFieldList?: string[];
+  outputFieldOptionalHostTableColumn?: string[];
+  panelList?: string[];
+  readonly?: boolean;
+  service?: IpSelectorService;
+  serviceTemplateTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
+  setTemplateTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
+  showDialog?: boolean;
+  showView?: boolean;
+  showViewDiff?: boolean;
+  singleHostSelect?: boolean;
+  unqiuePanelValue?: boolean;
+  value?: IIpV6Value;
+  viewSearchKey?: string;
+  disableDialogSubmitMethod?: () => void;
+  disableHostMethod?: () => void;
 }
 
 @Component({
@@ -133,7 +137,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   @Prop({ type: Array }) serviceTemplateTableCustomColumnList: IpSelectorHostTableCustomColumn[];
   @Prop({ type: Array }) setTemplateTableCustomColumnList: IpSelectorHostTableCustomColumn[];
   // 自定义menu
-  @Prop({ type: Array }) hostMemuExtends: IpSelectorHostMemuExtend[];
+  @Prop({ type: Array }) hostMemuExtends: IpSelectorHostMenuExtend[];
   // 主机列表显示列（默认值：['ip', 'ipv6', 'alive', 'osName']），按配置顺序显示列
   // 内置所有列的 key ['ip', 'ipv6', 'cloudArea', 'alive', 'hostName', 'osName', 'coludVerdor', 'osType', 'hostId', 'agentId']
   @Prop({ type: Array }) hostTableRenderColumnList: string[];
@@ -179,7 +183,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   // 配置 change 事件回调参数是否为原始数据
   @Prop({ type: Boolean, default: false }) enableOriginData;
 
-  scopeList: IScopeItme[] = [
+  scopeList: IScopeItem[] = [
     {
       scope_type: 'biz',
       scope_id: this.$store.getters.bizId,
@@ -203,8 +207,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       // fetchHostsDynamicGroup: this.fetchDynamicGroupHost, // 动态分组下的节点
       // fetchHostAgentStatisticsDynamicGroups: this.fetchBatchGroupAgentStatistics,
       fetchTopologyServiceInstance: this.fetchTopologyServiceInstance, // 拉取服务实例topology
-      fetchSeriviceInstanceList: this.fetchSeriviceInstanceList, // 拉取服务实例topology
-      fetchSeriviceInstanceDetails: this.fetchSeriviceInstanceDetails, // 拉取服务实例topology
+      fetchSeriviceInstanceList: this.fetchServiceInstanceList, // 拉取服务实例topology
+      fetchSeriviceInstanceDetails: this.fetchServiceInstanceDetails, // 拉取服务实例topology
       fetchServiceTemplates: this.fetchServiceTemplates,
       fetchNodesServiceTemplate: this.fetchNodesServiceTemplate,
       fetchHostServiceTemplate: this.fetchHostServiceTemplate,
@@ -401,7 +405,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     }).catch(() => []);
   }
   // 获取服务模板Agent统计状态
-  async fetchHostAgentStatisticsServiceTemplate(query: CommomParams) {
+  async fetchHostAgentStatisticsServiceTemplate(query: CommonParams) {
     const params = {
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
@@ -454,7 +458,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     }).catch(() => []);
   }
   // 获取集群模板Agent统计状态
-  async fetchHostAgentStatisticsSetTemplate(query: CommomParams) {
+  async fetchHostAgentStatisticsSetTemplate(query: CommonParams) {
     const params = {
       scope_list: this.scopeList,
       template_type: 'SET_TEMPLATE',
@@ -477,10 +481,10 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     }
     return await agentStatisticsIpChooserTemplate(params).catch(() => []);
   }
-  async fetchCustomSettings(params: CommomParams) {
+  async fetchCustomSettings(params: CommonParams) {
     return await batchGetIpChooserConfig(params).catch(() => ({}));
   }
-  async updateCustomSettings(params: CommomParams) {
+  async updateCustomSettings(params: CommonParams) {
     return await updateConfigIpChooserConfig(params).catch(() => ({}));
   }
   async fetchConfig() {
@@ -505,14 +509,14 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     }).catch(() => []);
   }
   // 获取服务实例列表
-  async fetchSeriviceInstanceList(params: CommomParams): Promise<ITreeItem[]> {
+  async fetchServiceInstanceList(params: CommonParams): Promise<ITreeItem[]> {
     return await queryServiceInstancesIpChooserTopo({
       scope_list: this.scopeList,
       ...params,
     }).catch(() => []);
   }
   // 获取服务实例详情
-  async fetchSeriviceInstanceDetails(params: CommomParams): Promise<ITreeItem[]> {
+  async fetchServiceInstanceDetails(params: CommonParams): Promise<ITreeItem[]> {
     return await detailsIpChooserServiceInstance({
       scope_list: this.scopeList,
       ...params,

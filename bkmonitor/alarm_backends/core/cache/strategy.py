@@ -48,6 +48,8 @@ from constants.strategy import (
     AGG_METHOD_REAL_TIME,
     AdvanceConditionMethod,
     TargetFieldType,
+    OS_RESTART_METRIC_ID,
+    SYSTEM_PROC_PORT_METRIC_ID,
 )
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -287,15 +289,32 @@ class StrategyCacheManager(CacheManager):
 
             # 伪事件型策略的metric_id需要调整为事件型metric_id
             fake_event_metric_id_mapping = {
-                "bk_monitor.system.env.uptime": "bk_monitor.os_restart",
+                "bk_monitor.system.env.uptime": OS_RESTART_METRIC_ID,
                 "bk_monitor.pingserver.base.loss_percent": "bk_monitor.ping-gse",
-                "bk_monitor.system.proc_port.proc_exists": "bk_monitor.proc_port",
+                "bk_monitor.system.proc_port.proc_exists": SYSTEM_PROC_PORT_METRIC_ID,
             }
             if query_config["metric_id"] in fake_event_metric_id_mapping:
                 query_config["metric_id"] = fake_event_metric_id_mapping[query_config["metric_id"]]
             # hack agg_interval with fake_event
             if query_config["metric_id"] in fake_event_metric_id_mapping.values():
                 query_config["agg_interval"] = query_config.get("agg_interval", cls.fake_event_agg_interval)
+
+            if query_config["metric_id"] == OS_RESTART_METRIC_ID:
+                # 主机重启优化
+                # alarm_backends/service/detect/strategy/os_restart.py:32
+                query_config["alias"] = "a"
+                # 1h 内的都查上
+                item["expression"] = "a <= 3600"
+            # 指定业务进行事件优化，副作用: 优化后的策略触发的告警，无法基于数据正常进行恢复，只能变成无数据恢复
+            if bk_biz_id in settings.OPTZ_FAKE_EVENT_BIZ_IDS:
+                if query_config["metric_id"] == "bk_monitor.ping-gse":
+                    # alarm_backends/service/detect/strategy/ping_unreachable.py:37
+                    query_config["alias"] = "a"
+                    item["expression"] = "a >= 1"
+                if query_config["metric_id"] == SYSTEM_PROC_PORT_METRIC_ID:
+                    # alarm_backends/service/detect/strategy/proc_port.py:32
+                    query_config["alias"] = "a"
+                    item["expression"] = "a != 1"
 
             query_config.setdefault("agg_dimension", [])
             is_instance_dimension = cls.instance_dimensions & set(query_config["agg_dimension"])
@@ -382,6 +401,21 @@ class StrategyCacheManager(CacheManager):
                 continue
 
             try:
+                is_aiops_algorithm = False
+                items = strategy_config.get("items", [])
+                if items:
+                    is_aiops_list = [
+                        algorithm["type"] in AlgorithmModel.AIOPS_ALGORITHMS
+                        for item in items
+                        for algorithm in item.get("algorithms") or []
+                    ]
+                    is_aiops_algorithm = all(is_aiops_list) and len(is_aiops_list) > 0
+
+                if is_aiops_algorithm:
+                    for detect in strategy_config.get("detects") or []:
+                        detect["trigger_config"]["count"] = 1
+                        detect["trigger_config"]["check_window"] = 5
+
                 if cls.handle_strategy(strategy_config, invalid_strategy_dict):
                     result_map[strategy_id] = strategy_config
             except Exception as e:
@@ -920,6 +954,14 @@ class StrategyCacheManager(CacheManager):
                                 f"strategy({strategy['id']}) item({item['id']}) interval config is invalid: {config}"
                             )
                             strategy_groups[item["query_md5"]].setdefault("interval_list", []).append(interval)
+                            # 新增设置数据源类型
+                            if (
+                                config.get("data_source_label")
+                                and "strategy_source" not in strategy_groups[item["query_md5"]]
+                            ):
+                                strategy_groups[item["query_md5"]]["strategy_source"] = [
+                                    (config.get("data_source_label"), config.get("data_type_label"))
+                                ]
                         except (TypeError, ValueError, AssertionError):
                             continue
 

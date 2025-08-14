@@ -32,18 +32,18 @@ import './expired-select.scss';
 
 export interface IOptionsItem {
   id: IProps['value'];
-  name: TranslateResult | string;
-}
-interface IProps {
-  value?: number;
-  options?: IOptionsItem[];
-  unit?: string;
-  placeholder?: string;
-  width?: number;
-  max?: number;
+  name: string | TranslateResult;
 }
 interface IEvents {
   onChange: number;
+}
+interface IProps {
+  max?: number;
+  options?: IOptionsItem[];
+  placeholder?: string;
+  unit?: string;
+  value?: number;
+  width?: number;
 }
 
 const DEFAULT_OPTIONS: IOptionsItem[] = [

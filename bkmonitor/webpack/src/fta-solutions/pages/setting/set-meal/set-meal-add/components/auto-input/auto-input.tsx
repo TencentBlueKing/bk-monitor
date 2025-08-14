@@ -28,16 +28,16 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './auto-input.scss';
 
+interface IAuto {
+  placeholder?: string;
+  readonly?: boolean;
+  tipsList?: ITipsList[];
+  value?: string;
+}
+
 interface ITipsList {
   id: string;
   name: string;
-}
-
-interface IAuto {
-  value?: string;
-  tipsList?: ITipsList[];
-  placeholder?: string;
-  readonly?: boolean;
 }
 
 @Component

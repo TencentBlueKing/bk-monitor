@@ -115,23 +115,23 @@ interface IEventItem {
   bk_biz_id?: number;
   bk_data_id?: number;
   bk_event_group_id?: number;
-  time_series_group_id?: number;
   create_time?: string;
   create_user?: string;
   is_deleted?: boolean;
+  is_edit?: boolean; // 是否为编辑态
   is_enable?: boolean;
+  is_platform?: boolean; // 是否为公共
+  is_readonly?: boolean; // 是否只读
   name?: string;
+  oldName?: string; // 修改之前的名字
   related_strategy_count?: number;
   scenario?: string;
   scenario_display?: string[];
   table_id: string;
+  time_series_group_id?: number;
   type: string;
   update_time: string;
   update_user: string;
-  is_readonly?: boolean; // 是否只读
-  is_platform?: boolean; // 是否为公共
-  is_edit?: boolean; // 是否为编辑态
-  oldName?: string; // 修改之前的名字
 }
 
 const commonTableProps: ICommonTableProps = {
@@ -676,14 +676,20 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                   ),
                   create: (row: IEventItem) => (
                     <div class='col-change'>
-                      <span class='col-change-author'>{row.create_user}</span>
+                      <bk-user-display-name
+                        class='col-change-author'
+                        user-id={row.create_user}
+                      />
                       <span>{row.create_time}</span>
                     </div>
                   ),
                   update: (row: IEventItem) =>
                     row.update_time && row.update_user ? (
                       <div class='col-change'>
-                        <span class='col-change-author'>{row.update_user}</span>
+                        <bk-user-display-name
+                          class='col-change-author'
+                          user-id={row.update_user}
+                        />
                         <span>{row.update_time}</span>
                       </div>
                     ) : (

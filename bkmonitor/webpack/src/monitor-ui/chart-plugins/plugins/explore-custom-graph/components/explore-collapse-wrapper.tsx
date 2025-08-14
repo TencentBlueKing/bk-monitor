@@ -31,12 +31,12 @@ import MonitorCrossDrag from '../../../components/monitor-cross-drag/monitor-cro
 import './explore-collapse-wrapper.scss';
 
 interface ExploreCollapseWrapperProps {
-  title?: string;
-  description?: string;
+  collapseShowHeight?: number;
   defaultHeight?: number;
   defaultIsExpand?: number;
+  description?: string;
   hasResize?: boolean;
-  collapseShowHeight?: number;
+  title?: string;
 }
 
 @Component
@@ -69,8 +69,6 @@ export default class ExploreCollapseWrapper extends tsc<ExploreCollapseWrapperPr
     return {
       // 容器头部高度（也是折叠状态下需要显示的高度）
       '--header-height': `${this.collapseShowHeight}px`,
-      // 容器头部区域垂直内边距
-      '--header-intersect-padding': '7px',
       // 容器整体高度
       '--container-height': this.containerHeightForStyle,
     };

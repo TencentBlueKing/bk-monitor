@@ -28,13 +28,13 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './ai-level-select.scss';
 
-interface IProps {
-  value?: number | number[];
-  disabled?: boolean;
-}
-
 interface IEvents {
   onChange: number | number[];
+}
+
+interface IProps {
+  disabled?: boolean;
+  value?: number | number[];
 }
 
 @Component

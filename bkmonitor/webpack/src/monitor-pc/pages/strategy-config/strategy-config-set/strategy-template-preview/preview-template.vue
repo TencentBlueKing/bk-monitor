@@ -34,12 +34,15 @@
       <h5 class="item-title">
         {{ item.name }}
       </h5>
+
       <!-- eslint-disable-next-line vue/no-v-html -->
       <div
+        v-if="item.type === 'mail'"
         class="item-template"
         :class="{ 'no-br': item.type === 'mail' }"
         v-html="item.message"
       />
+      <pre v-else>{{ item.message }}</pre>
     </li>
   </ul>
 </template>
@@ -73,7 +76,14 @@ export default {
     .item-title {
       margin-top: 0;
       margin-bottom: 7px;
+      font-size: 14px;
       font-weight: 500;
+    }
+
+    pre {
+      font-size: 14px;
+      line-height: 20px;
+      color: #63656e;
     }
 
     .item-template {

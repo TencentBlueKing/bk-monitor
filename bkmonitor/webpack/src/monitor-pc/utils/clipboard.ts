@@ -26,15 +26,15 @@
 // Import Clipboard library
 import Clipboard from 'clipboard/dist/clipboard.min.js';
 
+interface ExtentElement {
+  _vClipboard: any;
+  _vClipboard_error: Function;
+  _vClipboard_success: Function;
+}
 // Define VueClipboardConfig interface
 interface VueClipboardConfig {
-  autoSetContainer: boolean;
   appendToBody: boolean;
-}
-interface ExtentElement {
-  _vClipboard_success: Function;
-  _vClipboard_error: Function;
-  _vClipboard: any;
+  autoSetContainer: boolean;
 }
 
 // Set default configuration
@@ -76,7 +76,7 @@ const VueClipboard = {
 
     // Clipboard directive
     Vue.directive('clipboard', {
-      bind(el: HTMLElement & ExtentElement, binding: any) {
+      bind(el: ExtentElement & HTMLElement, binding: any) {
         if (binding.arg === 'success') {
           el._vClipboard_success = binding.value;
         } else if (binding.arg === 'error') {
@@ -102,7 +102,7 @@ const VueClipboard = {
         }
       },
 
-      update(el: HTMLElement & ExtentElement, binding: any) {
+      update(el: ExtentElement & HTMLElement, binding: any) {
         if (binding.arg === 'success') {
           el._vClipboard_success = binding.value;
         } else if (binding.arg === 'error') {
@@ -113,7 +113,7 @@ const VueClipboard = {
         }
       },
 
-      unbind(el: HTMLElement & ExtentElement, binding: any) {
+      unbind(el: ExtentElement & HTMLElement, binding: any) {
         if (binding.arg === 'success') {
           delete el._vClipboard_success;
         } else if (binding.arg === 'error') {

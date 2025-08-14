@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 from unittest.mock import patch
 
@@ -25,7 +25,7 @@ def create_or_update_records():
     result_table.delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_notify_bkdata_log_data_id_changed(create_or_update_records):
     """
     测试是否能够如期传递参数并通知计算平台，数据源发生改变
@@ -33,7 +33,7 @@ def test_notify_bkdata_log_data_id_changed(create_or_update_records):
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
     # 使用 patch 来模拟 API 调用
-    with patch('core.drf_resource.api.bkdata.notify_log_data_id_changed') as mock_notify:
+    with patch("core.drf_resource.api.bkdata.notify_log_data_id_changed") as mock_notify:
         rt.notify_bkdata_log_data_id_changed(data_id=50010)
 
         # 验证 API 请求是否按照预期调用
@@ -43,10 +43,10 @@ def test_notify_bkdata_log_data_id_changed(create_or_update_records):
         args, kwargs = mock_notify.call_args
 
         # 检查参数是否正确
-        assert kwargs['data_id'] == 50010
+        assert kwargs["data_id"] == 50010
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_manage_query_alias_settings():
     """
     测试ESFieldQueryAliasOption的动态管理
@@ -59,11 +59,11 @@ def test_manage_query_alias_settings():
     ]
     table_id = "2_bklog.job_dev"
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator='admin'
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
     )
 
-    alias_1 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path='__ext.io_kubernetes_pod')
-    alias_2 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path='__ext.io_kubernetes_namespace')
+    alias_1 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path="__ext.io_kubernetes_pod")
+    alias_2 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path="__ext.io_kubernetes_namespace")
 
     assert alias_1.query_alias == "k8s_pod"
     assert alias_2.query_alias == "k8s_ns"
@@ -74,14 +74,14 @@ def test_manage_query_alias_settings():
         {"field_name": "__ext.io_kubernetes_context", "query_alias": "k8s_context"},
     ]
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator='admin'
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
     )
 
-    alias_1 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path='__ext.io_kubernetes_pod')
+    alias_1 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path="__ext.io_kubernetes_pod")
     assert alias_1.is_deleted is True
-    alias_2 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path='__ext.io_kubernetes_namespace')
+    alias_2 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path="__ext.io_kubernetes_namespace")
     assert alias_2.query_alias == "k8s_ns"
-    alias_3 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path='__ext.io_kubernetes_context')
+    alias_3 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path="__ext.io_kubernetes_context")
     assert alias_3.query_alias == "k8s_context"
 
     # 测试点3: 别名配置修改&软删除回复
@@ -91,7 +91,7 @@ def test_manage_query_alias_settings():
         {"field_name": "__ext.io_kubernetes_pod", "query_alias": "k8s_pod"},
     ]
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator='admin'
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
     )
 
     alias_ns1 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, query_alias="k8s_ns1")
@@ -101,17 +101,17 @@ def test_manage_query_alias_settings():
     assert alias_ns.is_deleted is False
     assert alias_ns1.query_alias == "k8s_ns1"
 
-    alias_pod = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path='__ext.io_kubernetes_pod')
+    alias_pod = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path="__ext.io_kubernetes_pod")
     assert alias_pod.query_alias == "k8s_pod"
     assert alias_pod.is_deleted is False
 
     alias_context = models.ESFieldQueryAliasOption.objects.get(
-        table_id=table_id, field_path='__ext.io_kubernetes_context'
+        table_id=table_id, field_path="__ext.io_kubernetes_context"
     )
     assert alias_context.query_alias == "k8s_context"
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_generate_query_alias_settings():
     """
     测试能否正确生成采集项的别名配置
@@ -124,7 +124,7 @@ def test_generate_query_alias_settings():
         {"field_name": "__ext.io_kubernetes_context", "query_alias": "k8s_context"},
     ]
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator='admin'
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
     )
     expected = {
         "k8s_ns": {"type": "alias", "path": "__ext.io_kubernetes_namespace"},
@@ -140,7 +140,7 @@ def test_generate_query_alias_settings():
         {"field_name": "__ext.io_kubernetes_pod", "query_alias": "k8s_pod"},
     ]
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator='admin'
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
     )
     expected = {
         "k8s_ns": {"type": "alias", "path": "__ext.io_kubernetes_namespace"},
@@ -152,7 +152,7 @@ def test_generate_query_alias_settings():
 
     query_alias_settings = []
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator='admin'
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
     )
     expected = {}
     actual_config = models.ESFieldQueryAliasOption.generate_query_alias_settings(table_id)

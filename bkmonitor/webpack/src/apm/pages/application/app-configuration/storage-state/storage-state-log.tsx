@@ -40,12 +40,12 @@ import type { ETelemetryDataType, IAppInfo, IClusterItem, ILogStorageInfo, Indic
 import './storage-state-log.scss';
 interface IProps {
   appInfo: IAppInfo;
+  clusterList: IClusterItem[];
   dataLoading?: boolean;
-  indicesLoading: boolean;
   indicesList: IndicesItem[];
+  indicesLoading: boolean;
   storageInfo?: ILogStorageInfo;
   telemetryDataType?: ETelemetryDataType;
-  clusterList: IClusterItem[];
   onChange?: (params: ILogStorageInfo) => void;
 }
 @Component

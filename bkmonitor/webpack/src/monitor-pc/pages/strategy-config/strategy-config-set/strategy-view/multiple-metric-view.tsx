@@ -39,11 +39,11 @@ import type { IMetricDetail, MetricDetail } from '../../strategy-config-set-new/
 import './multiple-metric-view.scss';
 
 interface IProps {
-  metrics?: MetricDetail[];
-  strategyTarget?: any[];
-  nearNum?: number;
   dimensions?: Record<string, any>;
+  metrics?: MetricDetail[];
+  nearNum?: number;
   refreshKey?: string;
+  strategyTarget?: any[];
   onRefreshCharKey: () => void;
 }
 

@@ -53,16 +53,16 @@ import type {
   OriginCrossAppSpanMap,
 } from '../../typings';
 
-export type ListType = 'interfaceStatistics' | 'serviceStatistics' | 'span' | 'trace' | string;
-export type TraceListMode = 'origin' | 'pre_calculation';
-
 export type IInterfaceStatisticsType = {
   selectedInterfaceStatisticsType?: [];
   selectedInterfaceTypeInInterfaceStatistics?: [];
   selectedSourceTypeInInterfaceStatistics?: [];
 };
-
 export type IServiceStatisticsType = { contain: any[]; interfaceType: any[] };
+
+export type ListType = 'interfaceStatistics' | 'serviceStatistics' | 'span' | 'trace' | string;
+
+export type TraceListMode = 'origin' | 'pre_calculation';
 
 export const useTraceStore = defineStore('trace', () => {
   const loading = ref(false);

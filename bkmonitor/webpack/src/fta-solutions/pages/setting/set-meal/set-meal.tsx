@@ -46,19 +46,19 @@ import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/compo
 import './set-meal.scss';
 
 interface IContainerProps {
-  name: string;
   id?: string;
+  name: string;
 }
 interface IRowData {
+  executions_count: number;
   id: number;
-  plugin_id: string;
-  name: string;
-  update_user: string;
-  update_time: string;
   is_enabled: boolean;
+  name: string;
+  plugin_id: string;
   plugin_name: string;
   stragies_count: number;
-  executions_count: number;
+  update_time: string;
+  update_user: string;
 }
 Component.registerHooks(['beforeRouteLeave']);
 @Component({
@@ -466,6 +466,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
               />
               <bk-table-column
                 align='left'
+                formatter={row => (row.update_user ? <bk-user-display-name user-id={row.update_user} /> : '--')}
                 label={this.$t('最近更新人')}
                 prop='update_user'
               />

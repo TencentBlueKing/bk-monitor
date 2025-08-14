@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import functools
+import json
 import operator
 from io import BytesIO
 from typing import Any
@@ -27,7 +28,8 @@ from typing import Any
 from django.http import FileResponse
 import re
 
-from apps.log_search.constants import DEFAULT_TIME_FIELD, HighlightConfig
+from apps.log_search.constants import DEFAULT_TIME_FIELD, HighlightConfig, ES_ERROR_PATTERNS
+from apps.log_search.exceptions import LogSearchException
 from apps.utils.local import get_request_external_username, get_request_username
 
 
@@ -161,20 +163,44 @@ def add_highlight_mark(data_list: list[dict], match_field: str, pattern: str, ig
     :param pattern: 高亮内容的正则表达式
     :param ignore_case: 是否忽略大小写
     """
-    if not data_list or not match_field or not pattern or match_field not in data_list[0]:
+    if not data_list or not match_field or not pattern or ("." not in match_field and match_field not in data_list[0]):
         return data_list
 
     for data in data_list:
         # 对 grep_field 字段 pattern 内容进行高亮处理
-        value = data[match_field]
-        if not isinstance(value, str):
-            value = str(value)
-        data[match_field] = re.sub(
-            pattern,
-            lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
-            value,
-            flags=re.I if ignore_case else 0,
-        )
+        if "." in match_field:
+            json_data = json.loads(data[match_field.split(".")[0]])
+            tmp_dic = json_data
+            keys = match_field.split(".")
+            first_key = keys[0]
+            last_key = keys[-1]
+            for key in keys[1:]:
+                if isinstance(json_data, dict) and key in json_data:
+                    if key == last_key:
+                        value = json_data[last_key]
+                    else:
+                        json_data = json_data[key]
+                else:
+                    continue
+            if not isinstance(value, str):
+                value = str(value)
+            json_data[last_key] = re.sub(
+                pattern,
+                lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
+                value,
+                flags=re.I if ignore_case else 0,
+            )
+            data[first_key] = json.dumps(tmp_dic)
+        else:
+            value = data[match_field]
+            if not isinstance(value, str):
+                value = str(value)
+            data[match_field] = re.sub(
+                pattern,
+                lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
+                value,
+                flags=re.I if ignore_case else 0,
+            )
 
     return data_list
 
@@ -214,3 +240,21 @@ def create_download_response(buffer: BytesIO, file_name: str, content_type: str 
     )
 
     return response
+
+
+def handle_es_query_error(exc: Exception) -> Exception:
+    """
+    处理ES查询错误
+    :param exc: 异常对象
+    """
+    for pattern, exception in ES_ERROR_PATTERNS:
+        match = re.search(pattern, str(exc))
+        if match:
+            try:
+                message = exception.MESSAGE.format_map(match.groupdict())
+            except Exception:
+                # 如果格式化失败，则抛出原始异常
+                return LogSearchException(LogSearchException.MESSAGE.format(e=exc))
+            return exception(message)
+    # 如果没有匹配到任何错误模式，则抛出原始异常
+    return LogSearchException(LogSearchException.MESSAGE.format(e=exc))

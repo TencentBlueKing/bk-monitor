@@ -32,8 +32,9 @@ from .data_link import (  # noqa
     DataBusConfig,
     DataIdConfig,
     DataLink,
-    DataLinkResource,
-    DataLinkResourceConfig,
+    ESStorageBindingConfig,
+    LogDataBusConfig,
+    LogResultTableConfig,
     VMResultTableConfig,
     VMStorageBindingConfig,
 )
@@ -86,6 +87,7 @@ from .storage import (
     ArgusStorage,
     BkDataStorage,
     ClusterInfo,
+    DorisStorage,
     ESStorage,
     InfluxDBStorage,
     KafkaStorage,
@@ -94,7 +96,6 @@ from .storage import (
     SpaceRelatedStorageInfo,
     StorageClusterRecord,
     StorageResultTable,
-    DorisStorage,
 )
 from .vm import AccessVMRecord, SpaceVMInfo
 
@@ -172,9 +173,6 @@ __all__ = [
     "AccessVMRecord",
     "SpaceVMInfo",
     "SpaceRelatedStorageInfo",
-    # vm data link
-    "DataLinkResource",
-    "DataLinkResourceConfig",
     # record rule
     "RecordRule",
     "ResultTableFlow",

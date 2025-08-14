@@ -25,7 +25,7 @@
  */
 import { type PropType, defineComponent, ref } from 'vue';
 
-import { Popover, bkTooltips } from 'bkui-vue';
+import { bkTooltips, Popover } from 'bkui-vue';
 
 import ViewParam from './view-param';
 
@@ -38,7 +38,7 @@ export default defineComponent({
   },
   props: {
     showCallback: {
-      type: Function as PropType<Promise<void> | any>,
+      type: Function as PropType<any | Promise<void>>,
       default: () => null,
     },
     list: {

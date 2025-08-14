@@ -39,22 +39,22 @@ import './setting-modal.scss';
 const authorityMap = {
   ...ruleAuth,
 };
+interface ISettingModalEvent {
+  onChange: boolean;
+  onMenuChange: IMenuItem;
+}
 interface ISettingModalProps {
+  // 选中的左侧栏项
+  activeMenu?: string;
+  // 左侧menu list 不设置则不显示左侧栏
+  menuList?: IMenuItem[];
   // 是否显示
   show: boolean;
   // 标题
   title?: string;
-  // 左侧menu list 不设置则不显示左侧栏
-  menuList?: IMenuItem[];
-  // 选中的左侧栏项
-  activeMenu?: string;
+  zIndex?: number;
   // 关闭前回调函数 函数返回值为true时正常关闭 false则不会关闭
   beforeClose?: () => Promise<boolean>;
-  zIndex?: number;
-}
-interface ISettingModalEvent {
-  onChange: boolean;
-  onMenuChange: IMenuItem;
 }
 @Component
 class SettingModal extends Mixins(authorityMixinCreate(ruleAuth, 'created')) {

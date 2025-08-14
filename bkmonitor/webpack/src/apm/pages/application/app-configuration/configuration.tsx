@@ -103,9 +103,9 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
   recordData: Record<string, string> = {};
   /** 插件使用说明侧栏配置 */
   configurationView: {
-    rightWidth: number | string;
-    range: number[];
     isActive: boolean;
+    range: number[];
+    rightWidth: number | string;
     show: boolean;
   } = {
     rightWidth: '33%',

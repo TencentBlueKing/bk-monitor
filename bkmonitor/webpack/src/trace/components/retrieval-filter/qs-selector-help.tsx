@@ -25,9 +25,9 @@
  */
 
 import { defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { skipToDocsLink } from 'monitor-common/utils/docs';
+import { useI18n } from 'vue-i18n';
 
 import './qs-selector-help.scss';
 

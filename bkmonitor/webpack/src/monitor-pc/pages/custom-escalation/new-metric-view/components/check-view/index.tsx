@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, ProvideReactive } from 'vue-property-decorator';
+import { Component, Prop, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random, deepClone } from 'monitor-common/utils';
+import { deepClone, random } from 'monitor-common/utils';
 import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
@@ -39,22 +39,22 @@ import CheckViewTable from './check-view-table';
 
 import type { IDimensionItem, IRefreshItem } from '../../type';
 import type { IMetricAnalysisConfig } from 'monitor-pc/pages/custom-escalation/new-metric-view/type';
-import type { IPanelModel, ILegendItem } from 'monitor-ui/chart-plugins/typings';
+import type { ILegendItem, IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './index.scss';
-interface IViewConfig {
-  config: IPanelModel;
-  filterOption?: IMetricAnalysisConfig;
+interface IDrillAnalysisViewEvents {
+  onClose?: () => void;
 }
 /** 维度下钻 */
 interface IDrillAnalysisViewProps {
-  dimensionsList?: IDimensionItem[];
   currentMethod?: string;
+  dimensionsList?: IDimensionItem[];
   panel?: IPanelModel;
   timeRangeData?: TimeRangeType;
 }
-interface IDrillAnalysisViewEvents {
-  onClose?: () => void;
+interface IViewConfig {
+  config: IPanelModel;
+  filterOption?: IMetricAnalysisConfig;
 }
 @Component
 export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrillAnalysisViewEvents> {
@@ -66,7 +66,6 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   @Ref('viewRef') viewRef: HTMLElement;
   @Ref('viewMain') viewMainRef: HTMLDivElement;
   @Ref('metricChart') metricChartRef: HTMLDivElement;
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
   dimensionParams: Record<string, any> = {};
   /* 主动刷新图表 */
   chartKey = random(8);
@@ -92,6 +91,24 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   isHasDimensions = false;
   compare: string[] = [];
   hoverPoint: { value?: number } = {};
+  cacheTimeRange = [];
+  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
+  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  @ProvideReactive('showRestore') showRestore = false;
+
+  @Provide('handleChartDataZoom')
+  handleChartDataZoom(value) {
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
+  }
+  @Provide('handleRestoreEvent')
+  handleRestoreEvent() {
+    this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
+    this.showRestore = false;
+  }
   get titleName() {
     return this.panel?.config?.title || '';
   }
@@ -156,6 +173,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   }
   /** 修改时间间隔 */
   handleTimeRangeChange(val: TimeRangeType) {
+    this.showRestore = false;
     this.timeRange = [...val];
     this.loading = true;
   }
@@ -347,6 +365,9 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
                   loading={this.loading}
                   title={this.panelData?.title}
                   onHeadClick={this.handleRowClick}
+                  onToggle={status => {
+                    this.showStatisticalValue = status;
+                  }}
                 />
               </div>
             </bk-resize-layout>

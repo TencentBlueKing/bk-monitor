@@ -28,19 +28,19 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone, isPostiveInt } from 'monitor-common/utils';
 
-import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
+import { type IDetectionTypeRuleData, DetectionRuleTypeEnum } from '../../../typings';
 
 import './ring-ratio.scss';
 
-interface RingRatioProps {
-  data?: IDetectionTypeRuleData;
-  otherSelectRuleData?: IDetectionTypeRuleData[];
-  readonly?: boolean;
-  isRealtime?: boolean;
-}
-
 interface RingRatioEvents {
   onDataChange: IDetectionTypeRuleData;
+}
+
+interface RingRatioProps {
+  data?: IDetectionTypeRuleData;
+  isRealtime?: boolean;
+  otherSelectRuleData?: IDetectionTypeRuleData[];
+  readonly?: boolean;
 }
 
 // 算法类型对应的数据模型

@@ -318,7 +318,7 @@ class GenerateYamlConfigResource(Resource):
                 data["config"], default_flow_style=False, encoding="utf-8", allow_unicode=True
             )
         except Exception as e:
-            logger.error("生成yaml配置文件时出错：%s" % e)
+            logger.error(f"生成yaml配置文件时出错：{e}")
             raise CustomException(_("生成yaml配置文件时出错：%s") % e)
 
         return yaml_content
@@ -373,7 +373,7 @@ class TestTaskResource(Resource):
                     pass
             invalid_nodes.append(f"{plugin['inner_ip'] or plugin['inner_ipv6']}-{plugin['bk_cloud_id']}")
         if invalid_nodes:
-            raise CustomException("部分节点版本校验失败，推荐升级至v3.5.0以上版本:%s" % ",".join(invalid_nodes))
+            raise CustomException("部分节点版本校验失败，推荐升级至v3.5.0以上版本:{}".format(",".join(invalid_nodes)))
 
         success = []
         # 如果是非公共业务节点，则直接对这个主机列表进行下发测试
@@ -1016,7 +1016,7 @@ class TaskDetailResource(Resource):
         except EmptyQueryException as e:
             raise EmptyQueryException(e.message)
         except Exception as e:
-            err_msg = _("生成图表时发生异常: %s" % e)
+            err_msg = _("生成图表时发生异常: {}".format(e))
             logger.exception(err_msg)
             raise CustomException(err_msg)
 
@@ -1180,7 +1180,7 @@ class TaskGraphAndMapResource(Resource):
         return []
 
 
-def get_node_host_dict(nodes):
+def get_node_host_dict(bk_tenant_id: str, nodes: list[UptimeCheckNode]):
     # 配置hostid的节点
     bk_host_ids = []
     # 配置ip的节点
@@ -1193,10 +1193,10 @@ def get_node_host_dict(nodes):
         else:
             ips.append(node.ip)
     if bk_host_ids:
-        hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
+        hosts = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, bk_host_ids=bk_host_ids)["hosts"]
         # 兼容bk_host_id不存在的拨测节点
     if ips:
-        hosts += api.cmdb.get_host_without_biz(ips=ips)["hosts"]
+        hosts += api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, ips=ips)["hosts"]
 
     # 按id 和 host_key 记录节点主机信息
     node_to_host = {host.bk_host_id: host for host in hosts}
@@ -1274,17 +1274,16 @@ class UptimeCheckBeatResource(Resource):
         validated_request_data = self.validate_request_data(request_data)
         bk_biz_id = validated_request_data.get("bk_biz_id")
         hosts = validated_request_data.get("hosts", None)
+        bk_tenant_id = validated_request_data.get("bk_tenant_id") or get_request_tenant_id()
 
         # nodes -> hosts
         if not hosts:
-            nodes = UptimeCheckNode.objects.filter(
-                bk_tenant_id=validated_request_data.get("bk_tenant_id") or get_request_tenant_id()
-            )
+            nodes = UptimeCheckNode.objects.filter(bk_tenant_id=bk_tenant_id)
             if bk_biz_id:
                 # 过滤业务下所有节点时，同时还应该加上通用节点
                 nodes = nodes.filter(Q(bk_biz_id=bk_biz_id) | Q(is_common=True))
 
-            node_to_host_dict = resource.uptime_check.get_node_host_dict(nodes)
+            node_to_host_dict = resource.uptime_check.get_node_host_dict(bk_tenant_id=bk_tenant_id, nodes=nodes)
             bk_host_ids = {host.bk_host_id for host in node_to_host_dict.values()}
             hosts = [node_to_host_dict[host_id] for host_id in bk_host_ids]
 
@@ -1546,8 +1545,8 @@ class UpdateTaskRunningStatusResource(Resource):
             log = []
             nodeman_task_id = ""
             if len(status_result) == 0:
-                logger.info("celery period task: 订阅任务%s正在启用中" % subscription_id)
-                logger.info("error_log: %s" % log)
+                logger.info(f"celery period task: 订阅任务{subscription_id}正在启用中")
+                logger.info(f"error_log: {log}")
                 return UptimeCheckTask.Status.STARTING, log, nodeman_task_id
             for item in status_result:
                 if item["status"] in [CollectStatus.RUNNING, CollectStatus.PENDING]:
@@ -1565,12 +1564,12 @@ class UpdateTaskRunningStatusResource(Resource):
                                         log.append(sub_step["ex_data"])
             else:
                 if error_count == 0:
-                    logger.info("celery period task: 订阅任务%s正在运行中" % subscription_id)
-                    logger.info("error_log: %s" % log)
+                    logger.info(f"celery period task: 订阅任务{subscription_id}正在运行中")
+                    logger.info(f"error_log: {log}")
                     return UptimeCheckTask.Status.RUNNING, log, nodeman_task_id
                 else:
-                    logger.info("celery period task: 订阅任务%s启动失败" % subscription_id)
-                    logger.info("error_log: %s" % log)
+                    logger.info(f"celery period task: 订阅任务{subscription_id}启动失败")
+                    logger.info(f"error_log: {log}")
                     return UptimeCheckTask.Status.START_FAILED, log, nodeman_task_id
 
     def perform_request(self, task_id):
@@ -1636,7 +1635,7 @@ class BatchUpdateTaskRunningStatusResource(Resource):
             status = subscription_status.get(subscription_id)
             # 如果没有获取到状态，则跳过
             if not status:
-                logger.info("celery period task: 订阅任务%s未能获取状态" % subscription_id)
+                logger.info(f"celery period task: 订阅任务{subscription_id}未能获取状态")
                 return None
             if status in [CollectStatus.RUNNING, CollectStatus.PENDING]:
                 return UptimeCheckTask.Status.STARTING
@@ -2202,7 +2201,7 @@ class FileImportUptimeCheckResource(Resource):
             node_lsit = [x for x in self.all_uptime_check_node if x.name in name_set]
             if len(node_lsit) != len(name_set):
                 error_node = name_set - set([node.name for node in node_lsit] if len(node_lsit) > 0 else [])
-                raise CustomException(_("当前业务下不存在拨测节点[%s]" % ";".join(error_node)))
+                raise CustomException(_("当前业务下不存在拨测节点[{}]".format(";".join(error_node))))
 
             return [node.id for node in node_lsit]
         else:
@@ -2789,6 +2788,8 @@ class ImportUptimeCheckTaskResource(Resource):
             tasks.update(**task_create_data)
             task_obj = tasks[0]
         else:
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                task_create_data["indepentent_dataid"] = True
             task_obj = UptimeCheckTask.objects.create(**task_create_data)
         task_obj.nodes.set(nodes)
         task_obj.groups.set(groups)
@@ -2991,6 +2992,7 @@ class TopoTemplateHostResource(Resource):
     """
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = validated_request_data["bk_biz_id"]
         output_fields = validated_request_data.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS)
         new_hosts = []
@@ -3023,7 +3025,9 @@ class TopoTemplateHostResource(Resource):
                 getattr(host, field, "") for host in new_hosts for field in output_fields if getattr(host, field, "")
             ]
         else:
-            hosts = api.cmdb.get_host_without_biz(bk_host_ids=[host["bk_host_id"] for host in hosts])["hosts"]
+            hosts = api.cmdb.get_host_without_biz(
+                bk_tenant_id=bk_tenant_id, bk_host_ids=[host["bk_host_id"] for host in hosts]
+            )["hosts"]
             new_hosts = [
                 getattr(host, field, "") for host in hosts for field in output_fields if getattr(host, field, "")
             ]

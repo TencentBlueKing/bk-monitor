@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, provide, ref, watch, inject, type Ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type Ref, defineComponent, inject, onMounted, provide, ref, watch } from 'vue';
 
 import { Exception, Loading } from 'bkui-vue';
 import { incidentAlertView } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import DashboardPanel from '../../../plugins/components/flex-dashboard-panel';
 import { useIncidentInject } from '../utils';
@@ -83,7 +83,7 @@ export default defineComponent({
       const queryString =
         typeof props.alertIdsObject === 'object' ? props.alertIdsObject?.ids || '' : props.alertIdsObject;
       incidentAlertView({
-        bk_biz_ids: bkzIds.value || [],
+        bk_biz_ids: bkzIds.value,
         id: incidentId.value,
         query_string: queryString,
       })
@@ -96,9 +96,9 @@ export default defineComponent({
           console.log(err);
         });
     };
-    onMounted(() => {
-      getIncidentAlertView();
-    });
+    // onMounted(() => {
+    //   getIncidentAlertView();
+    // });
     const handleSuccessLoad = () => {
       recommendedMetricPanels.value = [];
       getIncidentAlertView();
@@ -137,6 +137,7 @@ export default defineComponent({
         </div>
       );
     };
+
     const renderMetricsCollapse = (item, index) => {
       const panelLen = recommendedMetricPanels.value.length;
       return (
@@ -161,6 +162,13 @@ export default defineComponent({
         />
       );
     };
+    watch(
+      () => bkzIds.value,
+      val => {
+        val.length > 0 && getIncidentAlertView();
+      },
+      { immediate: true }
+    );
     return {
       t,
       renderMetricsCollapse,

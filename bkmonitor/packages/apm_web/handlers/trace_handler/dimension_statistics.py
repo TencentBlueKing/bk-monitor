@@ -37,6 +37,7 @@ class DimensionStatisticsAPIHandler:
                 limit=params.get("limit", 5),
                 filters=params.get("filters", []),
                 query_string=params.get("query_string", ""),
+                exclude_property=params.get("exclude_property", []),
             )
         )
 

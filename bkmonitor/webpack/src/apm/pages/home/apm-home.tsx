@@ -24,17 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Provide, Mixins } from 'vue-property-decorator';
+import { Component, Mixins, Provide } from 'vue-property-decorator';
 
 import { deleteApplication, listApplication } from 'monitor-api/modules/apm_meta';
+import { addAccessRecord } from 'monitor-api/modules/overview';
 import introduceModule, { IntroduceRouteKey } from 'monitor-pc/common/introduce';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 // import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
-import OperateOptions from 'monitor-pc/pages/uptime-check/components/operate-options';
 // import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import OperateOptions from 'monitor-pc/pages/uptime-check/components/operate-options';
 
 import authorityMixinCreate from '../../../apm/mixins/authorityMixin';
 // import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
@@ -53,7 +54,6 @@ import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './apm-home.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
-import { addAccessRecord } from 'monitor-api/modules/overview';
 
 @Component({})
 export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) {

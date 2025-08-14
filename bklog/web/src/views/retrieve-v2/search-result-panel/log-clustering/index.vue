@@ -103,7 +103,7 @@
           @cluster-created="handleClusterCreated"
         />
         <data-fingerprint
-          v-else
+          v-else-if="dataFingerprintShow"
           v-bind="$attrs"
           ref="fingerTableRef"
           v-on="$listeners"
@@ -257,6 +257,7 @@
         statusTimer: null,
         isClickSearch: false,
         isClusterActive: true,
+        dataFingerprintShow: false,
       };
     },
     computed: {
@@ -721,10 +722,12 @@
       await this.onMountedLoad();
     },
     async activated() {
+      this.dataFingerprintShow = true;
       await this.onMountedLoad();
     },
     deactivated() {
       this.onUnMountedLoad();
+      this.dataFingerprintShow = false;
     },
     unmounted() {
       this.onUnMountedLoad();

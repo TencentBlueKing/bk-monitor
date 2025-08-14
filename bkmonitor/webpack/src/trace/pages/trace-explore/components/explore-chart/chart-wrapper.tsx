@@ -25,7 +25,6 @@
  */
 import { defineComponent, shallowRef, watch } from 'vue';
 
-import { useTraceExploreStore } from '@/store/modules/explore';
 import { traceChats } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -33,6 +32,7 @@ import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
 import ChartCollapse from './chart-collapse';
 import ExploreChart from './explore-chart';
+import { useTraceExploreStore } from '@/store/modules/explore';
 
 import './chart-wrapper.scss';
 export default defineComponent({

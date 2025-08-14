@@ -25,9 +25,9 @@
  */
 import { defineComponent, ref } from 'vue';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Select } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import TargetCompareSelect from './target-compare-select';
 import TimeCompareSelect from './time-compare-select';

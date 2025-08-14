@@ -43,21 +43,21 @@ import type { IIpV6Value, INodeType, TargetObjectType } from '../../../../compon
 
 import './aiops-monitor-data.scss';
 
-interface NewMetricDetail extends MetricDetail {
-  sceneConfig: ISceneConfig;
-}
 interface IProps {
-  metricData?: NewMetricDetail[];
   defaultCheckedTarget?: any;
-  readonly?: boolean;
-  isEdit?: boolean;
-  scenarioList?: IScenarioItem[];
   defaultScenario?: string;
+  isEdit?: boolean;
+  metricData?: NewMetricDetail[];
+  readonly?: boolean;
+  scenarioList?: IScenarioItem[];
   onChange?: (sceneConfig: ISceneConfig) => void;
-  onTargetTypeChange?: (type: string) => void;
-  onTargetChange?: (value) => void;
   onMetricChange?: (value) => void;
   onModelChange?: (value) => void;
+  onTargetChange?: (value) => void;
+  onTargetTypeChange?: (type: string) => void;
+}
+interface NewMetricDetail extends MetricDetail {
+  sceneConfig: ISceneConfig;
 }
 @Component({
   components: {
@@ -322,7 +322,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
   }
   // 编辑时设置监控目标描述
   handleSetTargetDesc(
-    targetList: { count: number; bk_obj_id: string; nodes_count?: number; instances_count?: number; all_host: any[] }[],
+    targetList: { all_host: any[]; bk_obj_id: string; count: number; instances_count?: number; nodes_count?: number }[],
     bkTargetType: string,
     nodeCount = 0,
     instance_count = 0
@@ -342,7 +342,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     this.targetList = this.defaultCheckedTarget?.target_detail?.slice?.() || [];
     this.handleSetTargetDesc(this.targetList, this.metricData[0].targetType);
   }
-  handleTopoCheckedChange(data: { value: IIpV6Value; nodeType: INodeType; objectType: TargetObjectType }) {
+  handleTopoCheckedChange(data: { nodeType: INodeType; objectType: TargetObjectType; value: IIpV6Value }) {
     this.targetList = transformValueToMonitor(data.value, data.nodeType);
     this.target.targetType = data.nodeType;
     this.handleSetTargetDesc(this.targetList, this.target.targetType);

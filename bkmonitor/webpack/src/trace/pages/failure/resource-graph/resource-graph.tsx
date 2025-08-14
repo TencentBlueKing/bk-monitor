@@ -24,12 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { type Ref, defineComponent, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import {
+  type ICombo,
   Arrow,
   Graph,
-  type ICombo,
   registerBehavior,
   registerCombo,
   registerEdge,
@@ -37,21 +36,22 @@ import {
   registerNode,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Loading, Exception } from 'bkui-vue';
+import { Exception, Loading } from 'bkui-vue';
 import { incidentTopologyUpstream } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import ErrorImg from '../../../static/img/error.svg';
 import NoDataImg from '../../../static/img/no-data.svg';
 import FailureTopoTooltips from '../failure-topo/failure-topo-tooltips';
 import { NODE_TYPE_SVG } from '../failure-topo/node-type-svg';
 import TopoTooltip from '../failure-topo/topo-tppltip-plugin';
-import { getNodeAttrs, getApmServiceType } from '../failure-topo/utils';
+import { getApmServiceType, getNodeAttrs } from '../failure-topo/utils';
 import { useIncidentInject } from '../utils';
 import { createGraphData } from './resource-data';
 
-import type { ITopoCombo, ITopoData, ITopoNode, IEdge } from '../failure-topo/types';
+import type { IEdge, ITopoCombo, ITopoData, ITopoNode } from '../failure-topo/types';
 
 import './resource-graph.scss';
 
@@ -539,7 +539,7 @@ export default defineComponent({
                 name: 'resource-node-text',
               });
             // 如果展开的是子combo 需要修正下线的连接为，将线的连接位置改为combo的收起按钮的位置
-            const { targetNode, sourceNode } = cfg as { targetNode: any; sourceNode: any };
+            const { targetNode, sourceNode } = cfg as { sourceNode: any; targetNode: any };
             const targetNodeBBox = targetNode.getBBox();
             const sourceNodeBBox = sourceNode.getBBox();
             if (sourceNode.getType() === 'combo' && sourceNodeBBox.y < targetNodeBBox.y) {
@@ -654,11 +654,11 @@ export default defineComponent({
         onMouseMove(e) {
           if (this.dragging) {
             const comboRect = this.comboRect as {
-              topCombo: ITopoCombo;
               bottomCombo: ITopoCombo;
-              xCombo: ITopoCombo;
-              width: number;
               height: number;
+              topCombo: ITopoCombo;
+              width: number;
+              xCombo: ITopoCombo;
             };
             let { movementX, movementY } = e.originalEvent;
             // 大于零向上拖动

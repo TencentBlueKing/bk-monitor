@@ -28,7 +28,7 @@ def assert_equal_list(a: list, b: list):
     assert a == b
 
 
-class CustomBKConsul(object):
+class CustomBKConsul:
     def __init__(self):
         self.kv = CustomKV()
 
@@ -36,7 +36,7 @@ class CustomBKConsul(object):
         return True
 
 
-class CustomKV(object):
+class CustomKV:
     def __init__(self):
         self.data = {}
 
@@ -66,8 +66,8 @@ def clean_record(mocker):
     models.DownsampledRetentionPolicies.objects.all().delete()
 
 
-@pytest.mark.django_db
-class TestDownSampled(object):
+@pytest.mark.django_db(databases="__all__")
+class TestDownSampled:
     influxQL = []
 
     def mock_influxdb(self, mocker, database_list: []):
@@ -76,7 +76,7 @@ class TestDownSampled(object):
             return {}
 
         def influx_get_list_retention_policies(database: str = ""):
-            self.influxQL.append("SHOW RETENTION POLICIES ON {}".format(database))
+            self.influxQL.append(f"SHOW RETENTION POLICIES ON {database}")
             return []
 
         self.influxQL = []
@@ -208,14 +208,10 @@ class TestDownSampled(object):
         assert_equal_list(rp_name_list, assert_rp_name_list)
 
         # 验证influxDB
-        assert_influxQL = ["SHOW RETENTION POLICIES ON {}".format(database)]
+        assert_influxQL = [f"SHOW RETENTION POLICIES ON {database}"]
         for rp_name in add_rp_name_list:
             assert_influxQL.append(
-                'CREATE RETENTION POLICY "{}" ON "{}" DURATION {} REPLICATION 1 SHARD DURATION 0s'.format(
-                    rp_name,
-                    database,
-                    duration,
-                )
+                f'CREATE RETENTION POLICY "{rp_name}" ON "{database}" DURATION {duration} REPLICATION 1 SHARD DURATION 0s'
             )
 
         for rp_name in delete_rp_name_list:
@@ -301,21 +297,17 @@ class TestDownSampled(object):
         cq_list = []
         for m in cq_measurement_list:
             for rp in cq_rp_list:
-                cq_list.append("{}.{}.{}".format(m, rp[0], rp[1]))
+                cq_list.append(f"{m}.{rp[0]}.{rp[1]}")
         assert_cq_list = []
         for cq in DownsampledContinuousQueries.objects.filter(database=database):
-            assert_cq_list.append("{}.{}.{}".format(cq.measurement, cq.source_rp, cq.target_rp))
+            assert_cq_list.append(f"{cq.measurement}.{cq.source_rp}.{cq.target_rp}")
         assert_equal_list(cq_list, assert_cq_list)
 
         # 验证influxdb
-        assert_influxQL = ["SHOW RETENTION POLICIES ON {}".format(database)]
+        assert_influxQL = [f"SHOW RETENTION POLICIES ON {database}"]
         for rp_name in rp_name_list:
             assert_influxQL.append(
-                'CREATE RETENTION POLICY "{}" ON "{}" DURATION {} REPLICATION 1 SHARD DURATION 0s'.format(
-                    rp_name,
-                    database,
-                    duration,
-                )
+                f'CREATE RETENTION POLICY "{rp_name}" ON "{database}" DURATION {duration} REPLICATION 1 SHARD DURATION 0s'
             )
         assert_influxQL += [
             "SHOW CONTINUOUS QUERIES",

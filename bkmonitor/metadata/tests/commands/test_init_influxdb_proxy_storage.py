@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -11,13 +10,13 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 from django.core.management import call_command
-from mockredis import mock_redis_client
+from mockredis.redis import mock_redis_client
 
 from metadata import models
 
 from .conftest import consul_client
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 PROXY_STORAGE_CLUSTER_ID = 100001

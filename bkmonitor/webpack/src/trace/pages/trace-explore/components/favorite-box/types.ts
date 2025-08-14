@@ -27,29 +27,27 @@
 import type { EMode, IWhereItem } from '../../../../components/retrieval-filter/typing';
 import type { TimeRangeType } from '../../../../components/time-range/utils';
 
-interface IMetricFavoriteConfig {
-  promqlData?: {
-    alias: string;
-    code: string;
-    enable: boolean;
-    errMsg: string;
-    key: string;
-    step: string;
+export type IFavorite = keyof FavoriteConfigMap;
+export interface IFavoriteGroup<T extends IFavorite | unknown = unknown> {
+  editable: string;
+  id: number;
+  name: string;
+  favorites: {
+    config: T extends IFavorite ? FavoriteConfigMap[T] : unknown;
+    create_user: string;
+    group_id: number;
+    id: number;
+    name: string;
+    update_time: string;
+    update_user: string;
   }[];
-  compareValue?: {
-    compare: {
-      type: string;
-      value: boolean;
-    };
-    tools: {
-      refleshInterval: number;
-      timeRange: [string, string];
-      timezone: string;
-    };
-    target: Record<string, any>;
-  };
-  localValue?: Record<string, any>[];
 }
+type FavoriteConfigMap = {
+  event: IEventFavoriteConfig;
+  metric: IMetricFavoriteConfig;
+  trace: ITraceFavoriteConfig;
+};
+
 interface IEventFavoriteConfig {
   bk_biz_id: number;
   compareValue: {
@@ -64,6 +62,7 @@ interface IEventFavoriteConfig {
     };
   };
   queryConfig: {
+    commonWhere?: any[];
     data_source_label: string;
     data_type_label: string;
     metric_field: string;
@@ -71,48 +70,49 @@ interface IEventFavoriteConfig {
     query_string: string;
     result_table_id: string;
     where: any[];
-    commonWhere?: any[];
   };
 }
+
+interface IMetricFavoriteConfig {
+  localValue?: Record<string, any>[];
+  compareValue?: {
+    compare: {
+      type: string;
+      value: boolean;
+    };
+    target: Record<string, any>;
+    tools: {
+      refleshInterval: number;
+      timeRange: [string, string];
+      timezone: string;
+    };
+  };
+  promqlData?: {
+    alias: string;
+    code: string;
+    enable: boolean;
+    errMsg: string;
+    key: string;
+    step: string;
+  }[];
+}
+
 interface ITraceFavoriteConfig {
   bk_biz_id: number;
   componentData: {
-    mode: 'span' | 'trace';
-    filterMode: EMode;
     commonWhere: IWhereItem[];
-    timeRange: TimeRangeType;
+    filterMode: EMode;
+    mode: 'span' | 'trace';
     refreshInterval: number;
+    timeRange: TimeRangeType;
   };
   queryParams: {
     app_name: string;
-    filters: any[];
-    query: string;
-    start_time: string;
     end_time: string;
+    filters: any[];
     mode: string;
+    query: string;
     sort?: string[];
+    start_time: string;
   };
-}
-
-type FavoriteConfigMap = {
-  event: IEventFavoriteConfig;
-  metric: IMetricFavoriteConfig;
-  trace: ITraceFavoriteConfig;
-};
-
-export type IFavorite = keyof FavoriteConfigMap;
-
-export interface IFavoriteGroup<T extends IFavorite | unknown = unknown> {
-  editable: string;
-  id: number;
-  name: string;
-  favorites: {
-    id: number;
-    create_user: string;
-    name: string;
-    group_id: number;
-    update_time: string;
-    update_user: string;
-    config: T extends IFavorite ? FavoriteConfigMap[T] : unknown;
-  }[];
 }

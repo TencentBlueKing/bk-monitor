@@ -27,22 +27,22 @@
 import {
   getConvergeFunction,
   getDimensions,
-  getPluginTemplates,
   getPlugins,
+  getPluginTemplates,
   getTemplateDetail,
   getVariables,
 } from 'monitor-api/modules/action';
 import { createActionConfig, retrieveActionConfig, updateActionConfig } from 'monitor-api/modules/model';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { transformDataKey } from 'monitor-common/utils/utils';
-import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import store from '@store/store';
 
 const { i18n } = window;
 export interface ISetMealAddState {
-  noticeWayList: any;
   getNoticeWayList: any;
+  noticeWayList: any;
 }
 
 @Module({ name: 'set-meal-add', dynamic: true, namespaced: true, store })
@@ -122,11 +122,11 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
   public get getVariablePanels() {
     return this.variableData.variablePanels;
   }
-  public get getVariableTable() {
-    return this.variableData.variableTable;
-  }
   public get getVariables() {
     return this.variables;
+  }
+  public get getVariableTable() {
+    return this.variableData.variableTable;
   }
   public get mealTypeListData() {
     return this.mealTypeList;
@@ -234,7 +234,7 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
    * @param context 上下文 默认为this
    */
   @Mutation
-  public setData({ expr, value, context = this }: { expr: string; value: any; context?: any }) {
+  public setData({ expr, value, context = this }: { context?: any; expr: string; value: any }) {
     expr.split('.').reduce((data, curKey, index, arr) => {
       if (index === arr.length - 1) {
         // 给表达式最后一个赋值
@@ -316,11 +316,6 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
   }
 
   @Mutation
-  public setVariableTable(v) {
-    this.variableData.variableTable = v;
-  }
-
-  @Mutation
   public setVariables(data) {
     const res = data.map(item => ({
       name: item.name,
@@ -332,6 +327,11 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
       })),
     }));
     this.variables = res;
+  }
+
+  @Mutation
+  public setVariableTable(v) {
+    this.variableData.variableTable = v;
   }
 
   // 修改套餐

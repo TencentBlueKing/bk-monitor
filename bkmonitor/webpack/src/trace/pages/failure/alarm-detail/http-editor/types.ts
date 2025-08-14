@@ -1,3 +1,61 @@
+export interface IHeaderInfo {
+  basic_auth?: IUserInfo;
+  bearer_token?: IToken;
+  desc: string;
+  enable?: boolean;
+  form_data?: IParamsValueItem[];
+  hide?: boolean;
+  insecure_skip_verify?: boolean;
+  key: THeaderType;
+  name: string;
+  raw?: IRaw;
+  type?: string;
+  value?: IParamsValueItem[] | ISetingValue | string;
+  x_www_form_urlencoded?: IParamsValueItem[];
+}
+export interface IHttpData {
+  method: TMethod;
+  url: string;
+}
+export interface IParamsValueItem {
+  desc: string;
+  index?: number;
+  isBuiltin?: boolean;
+  isEnabled?: boolean;
+  key: string;
+  value: string;
+}
+
+export interface IRaw {
+  content: string;
+  type: string;
+}
+export interface ISelectListItem {
+  data?: any;
+  id: string;
+  name: string;
+  unit?: string;
+}
+export interface ISetingValue {
+  maxRetryTimes: number;
+  needPoll?: boolean;
+  notifyInterval?: number;
+  retryInterval: number;
+  // interval: number,
+  timeout: number;
+}
+
+export interface IToken {
+  token: string;
+}
+
+export interface IUserInfo {
+  password: string;
+  username: string;
+}
+
+export type THeaderType = 'Authorization' | 'Body' | 'Headers' | 'Params' | 'Seting';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,61 +82,3 @@
  * IN THE SOFTWARE.
  */
 export type TMethod = 'GET' | 'POST';
-export interface IHttpData {
-  method: TMethod;
-  url: string;
-}
-export interface ISelectListItem {
-  id: string;
-  name: string;
-  unit?: string;
-  data?: any;
-}
-
-export interface IToken {
-  token: string;
-}
-export interface IUserInfo {
-  username: string;
-  password: string;
-}
-export interface IRaw {
-  type: string;
-  content: string;
-}
-
-export type THeaderType = 'Authorization' | 'Body' | 'Headers' | 'Params' | 'Seting';
-
-export interface IHeaderInfo {
-  insecure_skip_verify?: boolean;
-  key: THeaderType;
-  name: string;
-  enable?: boolean;
-  desc: string;
-  hide?: boolean;
-  value?: IParamsValueItem[] | ISetingValue | string;
-  type?: string;
-  bearer_token?: IToken;
-  basic_auth?: IUserInfo;
-  form_data?: IParamsValueItem[];
-  x_www_form_urlencoded?: IParamsValueItem[];
-  raw?: IRaw;
-}
-
-export interface ISetingValue {
-  // interval: number,
-  timeout: number;
-  retryInterval: number;
-  maxRetryTimes: number;
-  needPoll?: boolean;
-  notifyInterval?: number;
-}
-
-export interface IParamsValueItem {
-  index?: number;
-  key: string;
-  value: string;
-  desc: string;
-  isEnabled?: boolean;
-  isBuiltin?: boolean;
-}

@@ -19,7 +19,7 @@ from metadata.resources import (
 )
 from metadata.tests.common_utils import consul_client
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 DEFAULT_DATA_ID = 3000001
 DEFAULT_DATA_ID_ONE = 3000002
@@ -110,7 +110,7 @@ def test_create_and_modify_result_table_resource(create_and_delete_record):
 
 
 def test_create_and_modify_event_group_resource(create_and_delete_record):
-    table_id = "{}_bkmonitor_event_{}".format(DEFAULT_BIZ_ID, DEFAULT_DATA_ID)
+    table_id = f"{DEFAULT_BIZ_ID}_bkmonitor_event_{DEFAULT_DATA_ID}"
 
     assert not models.ResultTable.objects.filter(table_id=table_id, data_label=DEFAULT_DATA_LABEL).exists()
 
@@ -144,9 +144,7 @@ def test_create_and_modify_event_group_resource(create_and_delete_record):
 
 def test_create_and_modify_ts_group_resource(create_and_delete_record):
     setattr(settings, "USE_TZ", False)
-    table_id = "{}_bkmonitor_time_series_{}.{}".format(
-        DEFAULT_BIZ_ID, DEFAULT_DATA_ID, models.TimeSeriesGroup.DEFAULT_MEASUREMENT
-    )
+    table_id = f"{DEFAULT_BIZ_ID}_bkmonitor_time_series_{DEFAULT_DATA_ID}.{models.TimeSeriesGroup.DEFAULT_MEASUREMENT}"
 
     assert not models.ResultTable.objects.filter(table_id=table_id, data_label=DEFAULT_DATA_LABEL).exists()
 

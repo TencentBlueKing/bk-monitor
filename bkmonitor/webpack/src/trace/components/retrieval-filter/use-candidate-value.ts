@@ -32,32 +32,23 @@ import { NULL_VALUE_ID, NULL_VALUE_NAME } from './utils';
 type ICandidateValueMap = Map<
   string,
   {
-    values: { id: string; name: string }[];
-    isEnd: boolean;
     count: number;
+    isEnd: boolean;
+    values: { id: string; name: string }[];
   }
 >;
 interface IParams {
   app_name: string;
-  mode: string;
-  filters: any[];
-  limit: number;
   fields: string[];
-  query_string: string;
+  filters: any[];
   isInit__?: boolean; // 此字段判断是否需要初始化缓存候选值，不传给接口参数
+  limit: number;
+  mode: string;
+  query_string: string;
 }
 interface IRes {
   count: number;
   list: { id: string; name: string }[];
-}
-
-function getNullValue() {
-  return JSON.parse(
-    JSON.stringify({
-      id: NULL_VALUE_ID,
-      name: NULL_VALUE_NAME,
-    })
-  );
 }
 
 function getBooleanValues() {
@@ -75,6 +66,15 @@ function getBooleanValues() {
   );
 }
 
+function getNullValue() {
+  return JSON.parse(
+    JSON.stringify({
+      id: NULL_VALUE_ID,
+      name: NULL_VALUE_NAME,
+    })
+  );
+}
+
 export const useCandidateValue = () => {
   let candidateValueMap: ICandidateValueMap = new Map();
   let axiosController = new AbortController();
@@ -89,7 +89,7 @@ export const useCandidateValue = () => {
   */
   function getFieldsOptionValuesProxy(
     params: IParams,
-    fields: Array<{ type: string; [key: string]: any }>
+    fields: Array<{ [key: string]: any; type: string }>
   ): Promise<IRes> {
     return new Promise((resolve, _reject) => {
       if (params?.isInit__) {

@@ -1,3 +1,9 @@
+export interface IColumns {
+  label: string;
+  prop: string;
+  formatter?: (...args: any) => any;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -25,20 +31,14 @@
  */
 export interface IPagination {
   current: number;
-  total: number;
   limit: number;
-}
-
-export type ITableDataItem = Record<string, any>;
-
-export interface IColumns {
-  label: string;
-  prop: string;
-  formatter?: (...args: any) => any;
+  total: number;
 }
 
 export interface ITableBaseProps {
-  tableData: ITableDataItem[];
   columns: IColumns[];
   pagination: IPagination;
+  tableData: ITableDataItem[];
 }
+
+export type ITableDataItem = Record<string, any>;

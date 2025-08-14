@@ -32,15 +32,15 @@ import Square from './square';
 
 import './business-alarm-square.scss';
 
+interface IBusinessAlarmSquareEvents {
+  onIsAllNormal?: boolean;
+  onSelectedIndex?: number;
+}
 interface IBusinessAlarmSquareProps {
+  isAllNormal: boolean;
+  selectedIndex: number;
   squares: any[];
   status: string;
-  selectedIndex: number;
-  isAllNormal: boolean;
-}
-interface IBusinessAlarmSquareEvents {
-  onSelectedIndex?: number;
-  onIsAllNormal?: boolean;
 }
 
 @Component({

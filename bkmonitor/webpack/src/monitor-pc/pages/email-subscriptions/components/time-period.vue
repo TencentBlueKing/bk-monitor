@@ -26,47 +26,45 @@
 <template>
   <div class="time-period-wrap">
     <bk-radio-group
-      class="radio-group"
       v-model="typeValue"
+      class="radio-group"
       @change="getValue"
     >
       <bk-radio
-        class="radio-item"
         v-for="(item, index) in radioMap"
         :key="index"
+        class="radio-item"
         :value="item.id"
       >
         {{ item.name }}
       </bk-radio>
     </bk-radio-group>
-    <div
-      class="time-select"
-    >
+    <div class="time-select">
       <!-- 按小时 -->
       <bk-select
         v-if="typeValue === 5"
-        class="hour"
-        v-model="hour"
-        :clearable="false"
         key="hour-selector"
+        v-model="hour"
+        class="hour"
+        :clearable="false"
         style="width: 200px"
         @change="getValue"
       >
         <bk-option
           v-for="item in hourList"
-          :key="'hour' + item.id"
           :id="item.id"
+          :key="'hour' + item.id"
           :name="`${item.name}${$t('小时')}`"
         />
       </bk-select>
       <!-- 每周几 -->
       <bk-select
         v-if="typeValue === 3"
-        class="week"
+        key="week-selector"
         v-model="week"
+        class="week"
         :clearable="false"
         multiple
-        key="week-selector"
         style="width: 200px"
         @change="getValue"
       >
@@ -79,29 +77,29 @@
       <!-- 每月几号 -->
       <bk-select
         v-if="typeValue === 4"
-        class="month"
-        v-model="month"
-        multiple
         key="month-selector"
+        v-model="month"
+        class="month"
+        multiple
         :clearable="false"
         style="width: 200px"
         @change="getValue"
       >
         <bk-option
           v-for="item in 31"
-          :key="item"
           :id="item"
+          :key="item"
           :name="item + '号'"
         />
       </bk-select>
       <!-- 时间选择 -->
       <bk-time-picker
         v-if="[2, 3, 4].includes(typeValue)"
-        style="width: 168px"
         v-model="dayTime"
+        style="width: 168px"
         :clearable="false"
         :placeholder="'选择时间'"
-        @change="(v) => getValue(v, 'time')"
+        @change="v => getValue(v, 'time')"
       />
       <!-- 是否包含周末 -->
       <!-- <bk-checkbox-group
@@ -110,30 +108,32 @@
         v-model="includeWeekend"
         @change="getValue"> -->
       <bk-checkbox
-        v-en-style="'width: 160px'"
-        style="font-size: 12px;"
-        v-model="includeWeekend"
-        @change="getValue"
         v-if="typeValue === 2"
-      >{{ $t('包含周末') }}</bk-checkbox>
+        v-model="includeWeekend"
+        v-en-style="'width: 160px'"
+        style="font-size: 12px"
+        @change="getValue"
+        >{{ $t('包含周末') }}</bk-checkbox
+      >
       <!-- </bk-checkbox-group> -->
       <!-- 仅一次 -->
       <bk-date-picker
         v-if="typeValue === 1"
-        style="width: 168px"
         v-model="onceTime"
+        style="width: 168px"
         :clearable="false"
         :type="'datetime'"
         :options="datePickerOptions"
-        @change="(v) => getValue(v, 'datetime')"
+        @change="v => getValue(v, 'datetime')"
       />
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import dayjs from 'dayjs';
 import { Component, Emit, Model, Vue, Watch } from 'vue-property-decorator';
+
+import dayjs from 'dayjs';
 
 import type { EType, IRadioMap, ITimePeriodValue } from '../types';
 /** 按天频率 包含周末 */
@@ -248,7 +248,7 @@ export default class TimePeriod extends Vue {
    * 双向绑定的值更新
    */
   @Emit('updateValue')
-  getValue(v?, type?: 'time' | 'datetime'): ITimePeriodValue {
+  getValue(v?, type?: 'datetime' | 'time'): ITimePeriodValue {
     const value: ITimePeriodValue = {
       type: this.typeValue,
       runTime: '',

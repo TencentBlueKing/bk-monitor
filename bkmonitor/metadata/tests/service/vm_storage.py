@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -15,8 +14,9 @@ from metadata import models
 from metadata.service.vm_storage import (
     disable_influxdb_router_for_vm_table,
     query_vm_datalink,
+    query_vm_datalink_all,
 )
-from metadata.tests.common_utils import CustomConsul
+from metadata.tests.common_utils import CustomConsul, consul_client
 
 from .conftest import (
     DEFAULT_DATA_ID,
@@ -24,7 +24,40 @@ from .conftest import (
     DEFAULT_TABLE_ID,
 )
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
+
+
+@pytest.fixture
+def create_or_delete_records(mocker):
+    data_source = models.DataSource.objects.create(
+        bk_data_id=50010,
+        data_name="data_link_test",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="test",
+        is_custom_source=False,
+        bk_tenant_id="system",
+    )
+    result_table = models.ResultTable.objects.create(
+        table_id="1001_bkmonitor_time_series_50010.__default__",
+        bk_biz_id=1001,
+        is_custom_table=False,
+        bk_tenant_id="system",
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_tenant_id="system",
+        table_id="1001_bkmonitor_time_series_50010.__default__",
+        bk_data_id=50010,
+    )
+    models.AccessVMRecord.objects.create(
+        result_table_id="1001_bkmonitor_time_series_50010.__default__",
+        vm_result_table_id="1001_vm_test_50010",
+        bk_tenant_id="system",
+    )
+    yield
+    mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
+    data_source.delete()
+    result_table.delete()
 
 
 def test_disable_influxdb_router_for_vm_table(create_and_delete_records, mocker):
@@ -68,3 +101,12 @@ def test_rt_dl(create_and_delete_datalink_records, mocker):
     result_table_list = data["result_table_list"]
     assert len(result_table_list) == 1
     assert result_table_list[0]["result_table"] == DEFAULT_TABLE_ID
+
+
+def test_query_vm_datalink_all(create_or_delete_records):
+    """
+    测试查询VM数据链路
+    """
+    res = query_vm_datalink_all(bk_data_id=50010)
+    expected = None
+    assert res == expected

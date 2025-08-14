@@ -18,7 +18,7 @@ import os
 import six
 from django.conf import settings
 from django.utils.translation import gettext as _
-from jinja2 import Template as JTemplate
+from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from core.drf_resource import resource
 from core.drf_resource.exceptions import CustomException
@@ -78,7 +78,7 @@ class UptimeCheckCollector(six.with_metaclass(abc.ABCMeta, object)):
     def render_script_jinjia(self, directory, name, ctx):
         with open(os.path.join(pwd, directory, name), "r", encoding="utf-8") as fd:
             script_tpl = fd.read()
-        template = JTemplate(script_tpl)
+        template = Environment().from_string(script_tpl)
 
         return template.render(ctx or {})
 

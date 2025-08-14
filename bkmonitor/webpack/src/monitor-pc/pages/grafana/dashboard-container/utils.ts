@@ -25,23 +25,23 @@
  */
 
 export interface ITreeMenuItem {
-  id: number;
-  title: string;
-  icon?: string;
+  children?: ITreeMenuItem[];
+  editable?: boolean;
   expend?: boolean;
-  level?: number;
-  uid: string;
   hasPermission?: boolean;
+  icon?: string;
+  id: number;
   isFolder?: boolean;
   isStarred?: boolean;
-  editable?: boolean;
+  level?: number;
+  title: string;
+  uid: string;
   url?: string;
-  children?: ITreeMenuItem[];
 }
 export interface ITreeOptions {
-  level?: number;
-  expendIcon?: string;
   closeIcon?: string;
+  expendIcon?: string;
+  level?: number;
 }
 /**
  * 树形列表数据项抽象类
@@ -65,12 +65,11 @@ export class TreeMenuItem {
   uid = '';
   constructor(data: ITreeMenuItem, options?: ITreeOptions) {
     const { children = [] } = data;
-    Object.entries(data).forEach(item => {
-      const [key, value] = item;
+    for (const [key, value] of Object.entries(data)) {
       if (key === 'editable') {
         this.editable = value ?? true;
       } else this[key] = value;
-    });
+    }
     this.editValue = this.title;
     this.options = options;
     const { level = 0 } = options || {};

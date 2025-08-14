@@ -24,7 +24,7 @@
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-  import { getCommonFilterAddition } from '../../../store/helper';
+  import { getCommonFilterAddition, clearStorageCommonFilterAddition } from '../../../store/helper';
   import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
 
   const props = defineProps({
@@ -95,6 +95,14 @@
   });
 
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
+
+  const computedIconClass = computed(() => {
+    const iconClass = {
+        0: "bklog-icon bklog-ui1 mode-icon",
+        1: "bklog-icon bklog-yuju1 mode-icon"
+      };
+      return iconClass[activeIndex.value] || "";
+  });
 
   watch(
     () => isIndexFieldLoading.value,
@@ -432,7 +440,7 @@
               isCommonFixed: true,
             })),
           );
-          localStorage.removeItem('commonFilterAddition');
+          clearStorageCommonFilterAddition(store.state);
           store.commit('updateIndexItemParams', {
             addition: uiQueryValue.value.filter(val => !val.is_focus_input),
             keyword: sqlQueryValue.value ?? '',
@@ -500,6 +508,10 @@
         @click="handleQueryTypeChange"
       >
         <span class="mode-text">{{ queryText }}</span>
+        <span 
+          v-bk-tooltips.top="queryText" 
+          :class="computedIconClass"
+        ></span>
         <span class="bklog-icon bklog-qiehuan-2" />
       </div>
       <div

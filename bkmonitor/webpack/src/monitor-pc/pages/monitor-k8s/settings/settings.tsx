@@ -35,7 +35,7 @@ import SettingsTab from './settings-tab/settings-tab';
 import SettingsVar from './settings-var/settings-var';
 
 import type { IBookMark, ISettingTpl, SettingsDashboardType, SettingsWrapType } from '../typings';
-import type { SettingType, SettingsTabType, SettingsVarType } from '../typings/settings';
+import type { SettingsTabType, SettingsVarType, SettingType } from '../typings/settings';
 
 import './settings.scss';
 

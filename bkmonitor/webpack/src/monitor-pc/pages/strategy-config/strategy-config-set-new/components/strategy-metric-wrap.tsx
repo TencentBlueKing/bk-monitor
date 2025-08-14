@@ -45,35 +45,35 @@ import './strategy-metric-wrap.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 const { i18n } = window;
-interface IStrategyMetricWrap {
-  isShow: boolean;
-  readonly?: boolean;
-  scenarioList: any;
-  // multiple?: boolean;
-  mode?: TMode;
-  isEdit?: boolean;
-  monitorType?: string;
-  checkedMetric?: any[]; // 回显指标数据
-  strategyType?: strategyType;
-}
+export type TMode = 'event' | 'log';
 interface IEventFn {
-  onShowChange?: boolean;
   onLeftSelect?: string;
   onSelected?: any;
+  onShowChange?: boolean;
 }
 interface IPagination {
-  page: number;
   limit: number;
+  page: number;
 }
-interface ITabItem {
-  id: string;
-  name: TranslateResult | string;
-  count: number;
-  data: any;
-  show: boolean;
+interface IStrategyMetricWrap {
+  checkedMetric?: any[]; // 回显指标数据
+  isEdit?: boolean;
+  isShow: boolean;
+  // multiple?: boolean;
+  mode?: TMode;
+  monitorType?: string;
+  readonly?: boolean;
+  scenarioList: any;
+  strategyType?: strategyType;
 }
 
-export type TMode = 'event' | 'log';
+interface ITabItem {
+  count: number;
+  data: any;
+  id: string;
+  name: string | TranslateResult;
+  show: boolean;
+}
 
 @Component({
   name: 'StrategyMetricWrap',

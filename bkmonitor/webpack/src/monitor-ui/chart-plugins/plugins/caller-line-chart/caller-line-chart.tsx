@@ -24,20 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Inject, InjectReactive, Watch, Ref } from 'vue-property-decorator';
+import { Component, Emit, Inject, InjectReactive, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
+  type IUnifyQuerySeriesItem,
   downCsvFile,
   transformSrcData,
   transformTableDataToCsvStr,
-  type IUnifyQuerySeriesItem,
 } from 'monitor-pc/pages/view-detail/utils';
 
 import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/valueFormats';
@@ -53,13 +53,13 @@ import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 import CustomEventMenu from './custom-event-menu/custom-event-menu';
 import {
-  createCommonWhere,
   type EventTagColumn,
   type EventTagConfig,
+  type IEventTagsItem,
+  createCommonWhere,
   getCustomEventAnalysisConfig,
   getCustomEventSeries,
   getCustomEventSeriesParams,
-  type IEventTagsItem,
   updateCustomEventAnalysisConfig,
 } from './use-custom';
 
@@ -70,8 +70,8 @@ import type {
   IMenuChildItem,
   IMenuItem,
   IPanelModel,
-  ITitleAlarm,
   ITimeSeriesItem,
+  ITitleAlarm,
   PanelModel,
   ZrClickEvent,
 } from '../../../chart-plugins/typings';
@@ -83,36 +83,6 @@ import './caller-line-chart.scss';
 
 interface IProps {
   panel: PanelModel;
-}
-
-function removeTrailingZeros(num) {
-  if (num && num !== '0') {
-    return num
-      .toString()
-      .replace(/(\.\d*?)0+$/, '$1')
-      .replace(/\.$/, '');
-  }
-  return num;
-}
-
-function getNumberAndUnit(str) {
-  const match = str.match(/^(\d+)([a-zA-Z])$/);
-  return match ? { number: Number.parseInt(match[1], 10), unit: match[2] } : null;
-}
-
-function timeToDayNum(t) {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (regex.test(t)) {
-    return dayjs().diff(dayjs(t), 'day');
-  }
-  const timeInfo = getNumberAndUnit(t);
-  if (timeInfo?.unit === 'd') {
-    return timeInfo.number;
-  }
-  if (timeInfo?.unit === 'w') {
-    return timeInfo.number * 7;
-  }
-  return 0;
 }
 
 @Component
@@ -239,7 +209,7 @@ class CallerLineChart extends CommonSimpleChart {
     this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
-      const series = [];
+      let series = [];
       const metrics = [];
       this.legendSorts = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -374,7 +344,7 @@ class CallerLineChart extends CommonSimpleChart {
         });
         promiseList.push(...list);
       }
-      let customEventScatterSeries = undefined;
+      let customEventScatterSeries: IUnifyQuerySeriesItem[] = null;
       // 初始化事件分析配置
       if (!this.eventColumns.length) {
         const { config, columns } = await getCustomEventAnalysisConfig({
@@ -406,6 +376,7 @@ class CallerLineChart extends CommonSimpleChart {
       this.metrics = metrics || [];
       if (series.length) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
+        series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
         /* 派出图表数据包含的维度*/
         this.series = Object.freeze(series) as any;
         const seriesResult = series
@@ -419,7 +390,6 @@ class CallerLineChart extends CommonSimpleChart {
           seriesResult.map(item => ({
             name: item.name,
             cursor: 'auto',
-            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: this.panel.options?.unit || item.unit,
@@ -892,8 +862,19 @@ class CallerLineChart extends CommonSimpleChart {
         break;
       case 'fullscreen': {
         // 大图检索
-        const copyPanel = this.getCopyPanel();
-        this.handleFullScreen(copyPanel as any);
+        const copyPanel = this.getCopyPanel({ needTimeShiftVariable: true });
+        const timeShift = this.getTimeShiftCompareValue();
+        this.handleFullScreen(
+          copyPanel as any,
+          timeShift.length
+            ? {
+                compare: {
+                  type: 'time',
+                  value: timeShift,
+                },
+              }
+            : {}
+        );
         break;
       }
 
@@ -951,7 +932,6 @@ class CallerLineChart extends CommonSimpleChart {
   queryConfigsSetCallOptions(targetData) {
     if (!this.callOptions.group_by?.length || !this.isSupportGroupBy) {
       targetData.group_by_limit = undefined;
-    } else {
     }
     if (this.callOptions?.call_filter?.length) {
       const callFilter = this.callOptions?.call_filter.filter(f => f.key !== 'time');
@@ -1009,7 +989,22 @@ class CallerLineChart extends CommonSimpleChart {
     this.handleAddStrategy(copyPanel as any, null, {}, true);
   }
 
-  getCopyPanel() {
+  getTimeShiftCompareValue() {
+    let timeShift = [];
+    for (const key in this.callOptions) {
+      if (key === 'time_shift') {
+        timeShift = this.callOptions[key];
+        break;
+      }
+    }
+    return timeShift;
+  }
+
+  getCopyPanel(
+    config = {
+      needTimeShiftVariable: false,
+    }
+  ) {
     try {
       const callOptions = {};
       for (const key in this.callOptions) {
@@ -1039,15 +1034,35 @@ class CallerLineChart extends CommonSimpleChart {
         ...selectPanelParams,
       });
       copyPanel = variablesService.transformVariables(copyPanel);
+      const setFunction = queryConfig => {
+        if (config.needTimeShiftVariable) {
+          queryConfig.functions = (queryConfig.functions || []).map(f => {
+            if (f.id === 'time_shift') {
+              return {
+                id: 'time_shift',
+                params: [{ id: 'n', value: '$time_shift' }],
+              };
+            }
+            return f;
+          });
+        } else {
+          queryConfig.functions = (queryConfig.functions || []).filter(f => f.id !== 'time_shift');
+        }
+      };
       for (const t of copyPanel.targets) {
         for (const q of t?.data?.query_configs || []) {
-          q.functions = (q.functions || []).filter(f => f.id !== 'time_shift');
+          setFunction(q);
+        }
+        for (const q of t?.data?.unify_query_param?.query_configs || []) {
+          setFunction(q);
         }
         this.queryConfigsSetCallOptions(t?.data);
       }
       if (this.enablePanelsSelector) {
         copyPanel.title = this.curTitle;
-        copyPanel.targets.map(item => (item.alias = this.curTitle));
+        copyPanel.targets.map(item => {
+          item.alias = this.curTitle;
+        });
       }
       (copyPanel.targets || []).map(item => {
         (item.data.query_configs || []).map(ele => {
@@ -1143,20 +1158,24 @@ class CallerLineChart extends CommonSimpleChart {
       };
     });
   }
-  handleEventAnalyzeChange() {
+  handleEventAnalyzeChange(v) {
     this.eventConfig.is_enabled_metric_tags = !this.eventConfig.is_enabled_metric_tags;
+
+    if (!v) return;
+    // 每次打开开关，重置为全选状态
+    this.checkedAllChange(true, 'source', this.eventColumns.filter(item => item.name === 'source')[0].list);
+    this.checkedAllChange(true, 'type', this.eventColumns.filter(item => item.name === 'type')[0].list);
   }
   checkedAllChange(v: boolean, type: string, columnList: EventTagColumn['list']) {
     const config = this.eventConfig[type];
     config.is_select_all = v;
-    if (v) {
-      config.list = columnList.map(item => item.value);
-    }
+    config.list = v ? columnList.map(item => item.value) : columnList.length > 0 ? [columnList[0].value] : [];
   }
   checkedGroupChange(v: string[], type: string) {
+    const columnList = this.eventColumns.filter(item => item.name === type)[0].list || [];
     const config = this.eventConfig[type];
     config.list = v;
-    config.is_select_all = false;
+    config.is_select_all = v.length === columnList.length;
   }
   handleEventAnalyzeShow() {
     this.cacheEventConfig = JSON.parse(JSON.stringify(this.eventConfig));
@@ -1235,16 +1254,16 @@ class CallerLineChart extends CommonSimpleChart {
             {typeof this.eventConfig.is_enabled_metric_tags !== 'undefined' && (
               <bk-popover
                 ref='eventAnalyze'
+                tippyOptions={{
+                  hideOnClick:
+                    !this.cacheEventConfig.is_enabled_metric_tags && !this.eventConfig.is_enabled_metric_tags,
+                }}
                 arrow={false}
                 distance={2}
                 placement='bottom-start'
                 theme='light common-monitor'
                 trigger='click'
                 on-show={this.handleEventAnalyzeShow}
-                tippyOptions={{
-                  hideOnClick:
-                    !this.cacheEventConfig.is_enabled_metric_tags && !this.eventConfig.is_enabled_metric_tags,
-                }}
               >
                 <div
                   class='event-analyze tips-icon'
@@ -1290,6 +1309,7 @@ class CallerLineChart extends CommonSimpleChart {
                               {column.list?.map(item => (
                                 <bk-checkbox
                                   key={item.value}
+                                  disabled={config.list.length === 1 && config.list.includes(item.value)}
                                   size='small'
                                   value={item.value}
                                 >
@@ -1312,8 +1332,8 @@ class CallerLineChart extends CommonSimpleChart {
                         {this.$t('确定')}
                       </bk-button>
                       <bk-button
-                        v-bk-tooltips={{ placement: 'top', content: this.$t('服务下其他图表一并生效') }}
                         style={{ width: '108px' }}
+                        v-bk-tooltips={{ placement: 'top', content: this.$t('服务下其他图表一并生效') }}
                         outline={true}
                         size='small'
                         theme='primary'
@@ -1377,6 +1397,36 @@ class CallerLineChart extends CommonSimpleChart {
       </div>
     );
   }
+}
+
+function getNumberAndUnit(str) {
+  const match = str.match(/^(\d+)([a-zA-Z])$/);
+  return match ? { number: Number.parseInt(match[1], 10), unit: match[2] } : null;
+}
+
+function removeTrailingZeros(num) {
+  if (num && num !== '0') {
+    return num
+      .toString()
+      .replace(/(\.\d*?)0+$/, '$1')
+      .replace(/\.$/, '');
+  }
+  return num;
+}
+
+function timeToDayNum(t) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (regex.test(t)) {
+    return dayjs().diff(dayjs(t), 'day');
+  }
+  const timeInfo = getNumberAndUnit(t);
+  if (timeInfo?.unit === 'd') {
+    return timeInfo.number;
+  }
+  if (timeInfo?.unit === 'w') {
+    return timeInfo.number * 7;
+  }
+  return 0;
 }
 
 export default ofType<

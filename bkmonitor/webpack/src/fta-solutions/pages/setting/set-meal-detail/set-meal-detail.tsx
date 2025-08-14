@@ -27,7 +27,7 @@
 import { Component, Emit, Inject, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getPluginTemplates, getPlugins, getTemplateDetail } from 'monitor-api/modules/action';
+import { getPlugins, getPluginTemplates, getTemplateDetail } from 'monitor-api/modules/action';
 import { retrieveActionConfig } from 'monitor-api/modules/model';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { getStrategyListV2 } from 'monitor-api/modules/strategies';
@@ -57,11 +57,11 @@ import type { strategyType } from '../../strategy-config/typings/strategy';
 import './set-meal-detail.scss';
 
 export interface ISetMealDetail {
-  isShow?: boolean;
   id: number;
-  width?: number;
-  strategyType?: strategyType;
+  isShow?: boolean;
   strategyId?: number | string;
+  strategyType?: strategyType;
+  width?: number;
 }
 
 interface IEvent {

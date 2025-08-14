@@ -53,33 +53,33 @@ const configFiled = {
   isEnabled: window.i18n.tc('批量修改状态'),
 };
 
+interface IAlarmBatchEditProps {
+  alarmDisabledList?: number[];
+  alarmGroupList?: any[];
+  alarmGroupListLoading?: boolean;
+  canDebug?: boolean;
+  dataSource: any;
+  filed: FiledType;
+  isListPage?: boolean;
+  priorityList: number[];
+  processLoading?: boolean;
+  processPackage?: any[];
+  addProcess?: () => void;
+  close: () => void;
+  refreshAlarm?: () => void;
+  refreshProcess?: () => void;
+  showAlarmGroupDetail?: (id: number) => void;
+  conditionProps?: {
+    groupKey: string[];
+    groupKeys: TGroupKeys;
+    keyList?: IListItem[];
+    valueMap: TValueMap;
+  };
+}
+
 interface IEvent {
   onSubmit?: any;
   onFindReplace?: (v: { findData: ICondtionItem[]; replaceData: ICondtionItem[] }) => void;
-}
-
-interface IAlarmBatchEditProps {
-  filed: FiledType;
-  alarmGroupList?: any[];
-  processPackage?: any[];
-  dataSource: any;
-  priorityList: number[];
-  alarmDisabledList?: number[];
-  conditionProps?: {
-    keyList?: IListItem[];
-    valueMap: TValueMap;
-    groupKeys: TGroupKeys;
-    groupKey: string[];
-  };
-  isListPage?: boolean;
-  canDebug?: boolean;
-  showAlarmGroupDetail?: (id: number) => void;
-  alarmGroupListLoading?: boolean;
-  processLoading?: boolean;
-  refreshAlarm?: () => void;
-  refreshProcess?: () => void;
-  addProcess?: () => void;
-  close: () => void;
 }
 
 @Component({

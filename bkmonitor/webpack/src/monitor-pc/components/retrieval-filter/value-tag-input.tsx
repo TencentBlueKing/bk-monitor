@@ -31,11 +31,11 @@ import { getCharLength } from './utils';
 import './value-tag-input.scss';
 
 interface IProps {
-  value: string;
   isOneRow?: boolean;
-  onInput?: (v: string) => void;
+  value: string;
   onChange?: (v: string) => void;
   onDelete?: (e?: MouseEvent) => void;
+  onInput?: (v: string) => void;
 }
 
 @Component
@@ -86,6 +86,7 @@ export default class ValueTagInput extends tsc<IProps> {
   handleKeyDown(event) {
     const key = event.key || event.keyCode || event.which;
     if (key === 'Enter' || key === 13) {
+      event.stopPropagation();
       event.preventDefault();
     }
   }

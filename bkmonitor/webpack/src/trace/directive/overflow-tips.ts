@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import tippy, { type Props, type Instance } from 'tippy.js';
+import type { ObjectDirective } from 'vue';
+
+import tippy, { type Instance, type Props } from 'tippy.js';
 
 import type { noop } from '@vueuse/core';
-import type { ObjectDirective } from 'vue';
 
 import 'tippy.js/dist/tippy.css';
 type MouseEnterFunc = (e?: MouseEvent) => void;
@@ -37,7 +38,7 @@ type OverflowElement = HTMLElement & {
   unObserverFunc: typeof noop;
 };
 const DelayMs = 300;
-const OverflowTips: ObjectDirective<OverflowElement, { disabled: boolean; text?: string } & Props> = {
+const OverflowTips: ObjectDirective<OverflowElement, Props & { disabled: boolean; text?: string }> = {
   mounted(el, binding) {
     let instance: Instance<Props> = null;
     let isMouseenter = false;

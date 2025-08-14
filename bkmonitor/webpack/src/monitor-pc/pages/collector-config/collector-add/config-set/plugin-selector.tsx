@@ -121,14 +121,14 @@ export interface IPluginItem {
   };
 }
 
-interface IProps {
-  list?: IPluginItem[];
-  id?: string;
-  disabled?: boolean;
-  loading?: boolean;
-}
 interface IEvents {
   onChange?: IPluginItem;
+}
+interface IProps {
+  disabled?: boolean;
+  id?: string;
+  list?: IPluginItem[];
+  loading?: boolean;
 }
 
 @Component

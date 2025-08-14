@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="view-content"
     v-bkloading="{ isLoading: loading }"
+    class="view-content"
   >
     <keep-alive>
       <dashboard-panels
@@ -44,22 +44,23 @@
         :variable-data="variableData"
         :compare-value="compareValue"
         :chart-type="chartType"
-        @process-change="handleProcessChange"
         :chart-option="chartOption"
         :keyword="keyword"
+        @process-change="handleProcessChange"
       />
     </keep-alive>
   </div>
 </template>
 <script lang="ts">
-import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts.vue';
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
-import type { ICurNode } from '../../../store/modules/performance';
-import type { ChartType, IHostGroup, IQueryOption, ViewType } from '../performance-type';
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts.vue';
 
 import DashboardPanels from './dashboard-panels.vue';
 import ProcessContent from './view-content-process.vue';
+
+import type { ICurNode } from '../../../store/modules/performance';
+import type { ChartType, IHostGroup, IQueryOption, ViewType } from '../performance-type';
 
 @Component({
   name: 'view-content',

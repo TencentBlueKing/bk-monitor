@@ -30,9 +30,9 @@ import './table-skeleton.scss';
 
 interface IConfigModel {
   colWidths: number[];
-  rowHeights: number[];
   config: (number | Record<string, string>)[][];
   rowGap?: number;
+  rowHeights: number[];
 }
 
 function getSkeStyle(config) {

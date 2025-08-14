@@ -54,26 +54,26 @@ import type {
 
 import './relation-graph.scss';
 
-interface IRelationGraphProps {
-  panel: PanelModel;
-  showChartHeader?: boolean;
-}
-
 interface ILayout {
-  type?: string;
   center?: number[];
   linkDistance?: number;
   maxIteration?: number;
   maxPreventOverlapIteration?: number;
-  unitRadius?: number;
-  preventOverlap?: boolean;
-  nodeSize?: number;
-  strictRadial?: boolean;
-  nodeSpacing?: number;
-  rankdir?: string; // 布局的方向 从左至右
   nodesep?: number; // 节点的间距
+  nodeSize?: number;
+  nodeSpacing?: number;
+  preventOverlap?: boolean;
+  rankdir?: string; // 布局的方向 从左至右
   ranksep?: number; // 层间距
+  strictRadial?: boolean;
+  type?: string;
+  unitRadius?: number;
   workerEnabled?: boolean; // 可选，开启 web-worker
+}
+
+interface IRelationGraphProps {
+  panel: PanelModel;
+  showChartHeader?: boolean;
 }
 
 const LIMIT_RADIAL_LAYOUT_COUNT = 700;

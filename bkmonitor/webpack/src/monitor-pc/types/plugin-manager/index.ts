@@ -1,3 +1,10 @@
+export interface ILanguage {
+  abb: string;
+  active: boolean;
+  lang: string;
+  name: string;
+  text: string;
+}
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,16 +31,9 @@
  * IN THE SOFTWARE.
  */
 export interface ISystem {
-  name: string;
   enable: boolean;
   languageList: ILanguage[];
-}
-export interface ILanguage {
   name: string;
-  lang: string;
-  text: string;
-  abb: string;
-  active: boolean;
 }
 export interface IValues {
   name: {

@@ -33,17 +33,17 @@ import EditOffset from './componets/edit-offset';
 
 import './index.scss';
 
-interface IProps {
-  value: {
-    type: string;
-    offset: string[];
-  };
-  exclude?: Array<'metric' | 'time'>;
-  offsetSingle?: boolean; // 是否单选
-}
-
 interface IEmit {
   onChange: (value: IProps['value']) => void;
+}
+
+interface IProps {
+  exclude?: Array<'metric' | 'time'>;
+  offsetSingle?: boolean; // 是否单选
+  value: {
+    offset: string[];
+    type: string;
+  };
 }
 
 @Component

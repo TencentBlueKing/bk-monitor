@@ -31,32 +31,32 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import './function-menu.scss';
 
-export interface IFunctionParam {
-  id?: string;
-  name?: string;
-  default: number | string;
-  value?: number | string;
-  edit?: boolean;
-  shortlist: number[] | string[];
-}
-
 export interface IFunctionItem {
-  id: string;
-  name: string;
   children?: IFunctionItem[];
-  params?: IFunctionParam[];
   description?: string;
+  id: string;
   key?: string;
+  name: string;
+  params?: IFunctionParam[];
   support_expression?: boolean;
 }
 
-interface IFunctionMenuProps {
-  list: IFunctionItem[];
-  isExpSupport?: boolean;
-  isMultiple?: boolean;
+export interface IFunctionParam {
+  default: number | string;
+  edit?: boolean;
+  id?: string;
+  name?: string;
+  shortlist: number[] | string[];
+  value?: number | string;
 }
+
 interface IFunctionMenuEvent {
   onFuncSelect: IFunctionItem;
+}
+interface IFunctionMenuProps {
+  isExpSupport?: boolean;
+  isMultiple?: boolean;
+  list: IFunctionItem[];
 }
 @Component
 export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuEvent> {

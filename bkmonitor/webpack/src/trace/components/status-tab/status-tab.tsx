@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import type { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 

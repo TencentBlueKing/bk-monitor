@@ -32,8 +32,8 @@ import { Debounce } from 'monitor-common/utils/utils';
 import './cards-container.scss';
 
 interface ICardsContainerProps {
-  title?: string;
   showSeeAll?: boolean;
+  title?: string;
 }
 
 @Component({

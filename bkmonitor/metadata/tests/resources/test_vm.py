@@ -10,11 +10,12 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 from rest_framework.exceptions import ValidationError
+
 from metadata import models
-from metadata.resources.vm import NotifyDataLinkVmChange, QueryVmRtBySpace, QueryMetaInfoByVmrt
+from metadata.resources.vm import NotifyDataLinkVmChange, QueryMetaInfoByVmrt, QueryVmRtBySpace
 from metadata.tests.common_utils import consul_client
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 @pytest.fixture
@@ -64,7 +65,7 @@ def create_or_delete_records(mocker):
     models.ResultTable.objects.filter(table_id="1001_bkmonitor_time_series_60010.__default__").delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_notify_data_link_vm_change(create_or_delete_records):
     NotifyDataLinkVmChange().request(cluster_name="test1", vmrt="1001_test_vm")
     record = models.AccessVMRecord.objects.get(vm_result_table_id="1001_test_vm")
@@ -74,7 +75,7 @@ def test_notify_data_link_vm_change(create_or_delete_records):
         NotifyDataLinkVmChange().request(cluster_name="test1", vmrt="1002_test_vm")
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_query_vm_rt_without_plugin():
     params = {"space_type": "bkcc", "space_id": "0"}
     with pytest.raises(ValidationError):
@@ -83,7 +84,7 @@ def test_query_vm_rt_without_plugin():
         assert resp
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_query_meta_info_by_vmrt(create_or_delete_records):
     data = QueryMetaInfoByVmrt().request(vmrt="1001_test_vm")
     assert data["bk_data_id"] == 60010

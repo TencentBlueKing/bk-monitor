@@ -42,10 +42,10 @@ enum SpaceAddType {
   research = 0 /** 研发项目 */,
 }
 export interface IAddItemData {
+  desc: string;
+  icon: string;
   id: SpaceAddType;
   name: string;
-  icon: string;
-  desc: string;
 }
 
 interface IProps {
@@ -177,7 +177,7 @@ export default class SpaceAddList extends tsc<IProps> {
               <a
                 class='common-link-item href'
                 href={data.href}
-                rel='noreferrer'
+                rel='noopener noreferrer'
                 target='_blank'
               >
                 <i class='icon-monitor icon-mc-link' />
@@ -218,6 +218,7 @@ export default class SpaceAddList extends tsc<IProps> {
         <div class='space-add-list'>
           {this.addListData.map(item => (
             <SpaceAddItem
+              key={item.id}
               checked={item.id === this.acitveType}
               data={item}
               disabled={item.id === SpaceAddType.other}

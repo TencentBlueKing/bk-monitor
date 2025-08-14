@@ -24,16 +24,16 @@
 * IN THE SOFTWARE.
 -->
 <template>
-  <i :class="iconClass"></i>
+  <i :class="iconClass" />
 </template>
 <script lang="ts">
-import { Vue, Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Vue } from 'vue-property-decorator';
 
-type TypeValue = 'level' | 'notice' | 'status';
 type AlarmStatus = 'ABNORMAL' | 'CLOSED' | 'RECOVERED';
 type StatusMap = {
   [k in AlarmStatus]: string;
 };
+type TypeValue = 'level' | 'notice' | 'status';
 
 @Component({
   name: 'icon',
@@ -68,9 +68,11 @@ export default class Icon extends Vue {
 }
 </script>
 <style lang="scss" scoped>
-@import '../../static/scss/variate.scss';
+@import '../../static/scss/variate';
+
 $colorList: #ea3636 #ff9c01 #ffd000;
 $statusList: 'danger' 'mind-fill' 'tips';
+
 @for $i from 1 through 3 {
   .icon-#{nth($statusList, $i)} {
     position: relative;
@@ -83,7 +85,7 @@ $statusList: 'danger' 'mind-fill' 'tips';
 
 .icon-danger {
   position: relative;
-  top: 0px;
+  top: 0;
 }
 
 .icon-mc-close {

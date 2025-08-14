@@ -30,7 +30,7 @@ import dayjs from 'dayjs';
 import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 
 import { Scenario } from '../../my-subscription/mapping';
-import { FrequencyType, type Report, type ReportQueryType } from '../../my-subscription/types';
+import { type Report, type ReportQueryType, FrequencyType } from '../../my-subscription/types';
 import { getDefaultReportData, getSendFrequencyText } from '../../my-subscription/utils';
 import DetailRow from './detail-row';
 

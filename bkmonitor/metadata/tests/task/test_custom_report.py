@@ -1,7 +1,7 @@
 import random
 
 import pytest
-from mockredis import mock_redis_client
+from mockredis.redis import mock_redis_client
 from pytest_mock import MockFixture
 
 from metadata.models import (
@@ -15,7 +15,7 @@ from metadata.models import (
 from metadata.task import check_event_update
 from metadata.tests.task.conftest import EventGroupFakeES
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 RECORDS = 800
 
@@ -27,24 +27,20 @@ def create_and_delete_record():
     space_data_sources = []
     for i in range(RECORDS):
         event_groups.append(
-            EventGroup(
-                event_group_name="eg_{}".format(i), bk_data_id=2000000 + i, bk_biz_id=1, table_id="tb_{}".format(i)
-            )
+            EventGroup(event_group_name=f"eg_{i}", bk_data_id=2000000 + i, bk_biz_id=1, table_id=f"tb_{i}")
         )
         time_series_groups.append(
             TimeSeriesGroup(
                 bk_data_id=3000000 + i,
                 bk_biz_id=1,
-                table_id="tb_{}".format(i),
-                time_series_group_name="test_group_name_{}".format(i),
+                table_id=f"tb_{i}",
+                time_series_group_name=f"test_group_name_{i}",
                 label="applications",
                 creator="admin",
             )
         )
         space_data_sources.append(
-            SpaceDataSource(
-                space_type_id="space_type_{}".format(i), space_id="space_id_{}".format(i), bk_data_id=3000000 + i
-            )
+            SpaceDataSource(space_type_id=f"space_type_{i}", space_id=f"space_id_{i}", bk_data_id=3000000 + i)
         )
 
     EventGroup.objects.bulk_create(event_groups)

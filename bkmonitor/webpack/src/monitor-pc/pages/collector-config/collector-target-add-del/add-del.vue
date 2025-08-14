@@ -58,18 +58,18 @@
       >
         <keep-alive>
           <component
+            :is="curStep.component"
             :data="data"
             :page-loading.sync="pageLoading"
             :hosts.sync="hosts"
             :step.sync="left.step"
             :type.sync="componentType"
-            :is="curStep.component"
             :need-rollback.sync="needRollback"
             :config="config"
-            @refresh="handleRefresh"
             :diff-data.sync="diffData"
-            @step-change="handleStepChange"
             :target="target"
+            @refresh="handleRefresh"
+            @step-change="handleStepChange"
             @target="targetUpdata"
           />
         </keep-alive>

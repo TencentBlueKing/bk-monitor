@@ -36,12 +36,12 @@ import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
 import TabBtnGroup from './components/tab-btn-group';
-import { type CallOptions, type IFilterData, type IChartOption, type IFilterCondition, EKind } from './type';
+import { type CallOptions, type IChartOption, type IFilterCondition, type IFilterData, EKind } from './type';
 import {
   CALLER_CALLEE_TYPE,
+  formatPreviousDayAndWeekTimestamps,
   getRecordCallOptionKind,
   setRecordCallOptionKind,
-  formatPreviousDayAndWeekTimestamps,
 } from './utils';
 
 import type { PanelModel, ZrClickEvent } from '../../typings';

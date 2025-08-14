@@ -488,11 +488,6 @@ class CollectorHandler:
         for process in RETRIEVE_CHAIN:
             collector_config = getattr(self, process, lambda x, y: x)(collector_config, context)
             logger.info(f"[databus retrieve] process => [{process}] collector_config => [{collector_config}]")
-        if self.data.table_id:
-            result_table = TransferApi.get_result_table({"table_id": self.data.table_id})
-            alias_dict = result_table.get("query_alias_settings", dict())
-            if alias_dict:
-                collector_config.update({"alias_settings": alias_dict})
 
         # 添加索引集相关信息
         log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
@@ -500,7 +495,6 @@ class CollectorHandler:
             collector_config.update(
                 {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
             )
-
         return collector_config
 
     def custom_update(
@@ -1445,15 +1439,6 @@ class CollectorHandler:
         )
 
         NOTIFY_EVENT(content=content, dimensions={"space_uid": space_uid, "msg_type": "create_collector_config"})
-
-    def update_alias_settings(self, alias_settings):
-        """
-        修改别名配置
-        """
-        from apps.log_databus.tasks.collector import update_alias_settings
-
-        update_alias_settings.delay(self.collector_config_id, alias_settings)
-        return
 
     @staticmethod
     def get_data_link_id(bk_biz_id: int, data_link_id: int = 0) -> int:

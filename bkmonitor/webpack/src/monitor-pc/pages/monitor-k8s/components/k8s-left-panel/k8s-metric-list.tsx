@@ -32,17 +32,17 @@ import type { GroupListItem } from '../../typings/k8s-new';
 
 import './k8s-metric-list.scss';
 
-interface K8sMetricListProps {
-  loading?: boolean;
-  metricList: GroupListItem[];
-  hideMetrics?: string[];
-  activeMetric?: string;
-  disabledMetricList?: { id: string; tooltips: string }[];
+interface K8sMetricListEvent {
+  onHandleItemClick: (id: string) => void;
+  onMetricHiddenChange: (val: string[]) => void;
 }
 
-interface K8sMetricListEvent {
-  onMetricHiddenChange: (val: string[]) => void;
-  onHandleItemClick: (id: string) => void;
+interface K8sMetricListProps {
+  activeMetric?: string;
+  disabledMetricList?: { id: string; tooltips: string }[];
+  hideMetrics?: string[];
+  loading?: boolean;
+  metricList: GroupListItem[];
 }
 
 @Component

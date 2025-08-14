@@ -36,6 +36,8 @@ import {
 } from './hooks-helper';
 import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
+import RetrieveHelper from '@/views/retrieve-helper';
+
 
 export type FormatterConfig = {
   target: Ref<HTMLElement | null>;
@@ -103,6 +105,7 @@ export default class UseJsonFormatter {
 
     const option = {
       fieldName: activeField?.field_name,
+      fieldType: activeField?.field_type,
       operation: val === 'not' ? 'is not' : val,
       value: target ?? value,
       depth,
@@ -118,6 +121,10 @@ export default class UseJsonFormatter {
   }
 
   handleSegmentClick(e: MouseEvent, value) {
+    // 如果是点击划选文本，则不进行处理
+    if (RetrieveHelper.isClickOnSelection(e)) {
+      return;
+    }
     if (!value.toString() || value === '--') return;
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
     const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
@@ -177,6 +184,7 @@ export default class UseJsonFormatter {
         text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
         isNotParticiple: this.isTextField(field),
         isMark: new RegExp(markRegStr).test(value),
+        isCursorText: true,
       },
     ];
   }
@@ -196,7 +204,9 @@ export default class UseJsonFormatter {
 
     if (!item.isNotParticiple && !item.isBlobWord) {
       const validTextNode = document.createElement('span');
-      validTextNode.classList.add('valid-text');
+      if (item.isCursorText) {
+        validTextNode.classList.add('valid-text');
+      }
       validTextNode.textContent = item.text?.length ? item.text : '""';
       return validTextNode;
     }
@@ -253,6 +263,11 @@ export default class UseJsonFormatter {
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
         element?.setAttribute('data-field-name', fieldName);
+
+        if (element.hasAttribute('data-with-intersection')) {
+          element.style.setProperty('min-height', `${element.offsetHeight}px`);
+        }
+
         element.innerHTML = '';
 
         const segmentContent = this.creatSegmentNodes();
@@ -266,7 +281,7 @@ export default class UseJsonFormatter {
         removeScrollEvent();
 
         element.append(segmentContent);
-        setListItem(600);
+        setListItem(1000);
 
         if (appendText) {
           const appendElement = document.createElement('span');
@@ -281,6 +296,10 @@ export default class UseJsonFormatter {
 
           element.firstChild.appendChild(appendElement);
         }
+
+        requestAnimationFrame(() => {
+          element.style.removeProperty('min-height');
+        });
       }
     });
   }

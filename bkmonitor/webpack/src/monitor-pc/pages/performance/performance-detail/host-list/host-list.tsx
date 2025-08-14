@@ -73,25 +73,25 @@ export const DEFAULT_TAB_LIST = [
     color: 'nodata',
   },
 ];
-export interface IProps {
-  panel: PanelModel;
-  onChange: IViewOptions;
-  height: number;
-  width: number;
-  viewOptions: IViewOptions;
-  isTargetCompare?: boolean;
-}
 export interface IEvents {
   onChange: IViewOptions;
+  onCompareChange: string[];
+  onSearchChange: any[];
+  onTitleChange: any;
+  onCheckedChange: (a: boolean) => void;
+  onOverviewChange: () => void;
   onListChange: {
     id: string;
     name: string;
   };
-  onCompareChange: string[];
-  onTitleChange: any;
-  onOverviewChange: () => void;
-  onCheckedChange: (a: boolean) => void;
-  onSearchChange: any[];
+}
+export interface IProps {
+  height: number;
+  isTargetCompare?: boolean;
+  onChange: IViewOptions;
+  panel: PanelModel;
+  viewOptions: IViewOptions;
+  width: number;
 }
 
 @Component

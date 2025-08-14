@@ -64,6 +64,7 @@ class BkBaseResultTable(models.Model):
     bkbase_rt_name = models.CharField(
         verbose_name="计算平台结果表名称", max_length=128, unique=True, null=True, blank=True
     )
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
         verbose_name = "接入计算平台记录表"
@@ -77,7 +78,7 @@ class BkBaseResultTable(models.Model):
         from metadata.models.data_link.data_link_configs import DataBusConfig
 
         try:
-            databus_config_ins = DataBusConfig.objects.get(name=self.bkbase_rt_name)
+            databus_config_ins = DataBusConfig.objects.get(name=self.bkbase_rt_name, bk_tenant_id=self.bk_tenant_id)
             return databus_config_ins.namespace + "-" + databus_config_ins.name
         except DataBusConfig.DoesNotExist:
             logger.error("data_link->[%s],do not have databus->[%s]", self.data_link_name, self.bkbase_rt_name)

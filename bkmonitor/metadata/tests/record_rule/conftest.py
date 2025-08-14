@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -14,7 +13,7 @@ import pytest
 from metadata import models
 from metadata.models.record_rule.service import RecordRuleService
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 SPACE_TYPE = "bkcc"
 SPACE_ID = "1"
@@ -79,10 +78,10 @@ rules:
   record: unify_query_tsdb_request_seconds_bucket_sum_2m
 """
 
-space_type = 'bkcc'
-space_id = '2'
-record_name = 'unify_query_tsdb_test_new_prom_node'
-table_id = 'bkprecal_bkcc_2_unify_query_tsdb_test_new_prom_node.__default__'
+space_type = "bkcc"
+space_id = "2"
+record_name = "unify_query_tsdb_test_new_prom_node"
+table_id = "bkprecal_bkcc_2_unify_query_tsdb_test_new_prom_node.__default__"
 
 
 @pytest.fixture
@@ -106,19 +105,19 @@ def create_or_delete_records(mocker):
 @pytest.fixture
 def create_default_record_rule(create_or_delete_records, mocker):
     mocker.patch(
-        'metadata.models.RecordRule.get_src_table_ids', return_value=['2_bcs_custom_metric_result_table_00000']
+        "metadata.models.RecordRule.get_src_table_ids", return_value=["2_bcs_custom_metric_result_table_00000"]
     )
     mocker.patch(
-        'metadata.models.record_rule.utils.refine_bk_sql_and_metrics',
+        "metadata.models.record_rule.utils.refine_bk_sql_and_metrics",
         return_value={
-            'promql': 'sum by (workload, tsdb_type, space_uid, le, pod) (label_replace(rate('
+            "promql": "sum by (workload, tsdb_type, space_uid, le, pod) (label_replace(rate("
             'unify_query_tsdb_request_seconds_bucket[2m]), "workload", "$1", "pod", "bk-datalink-(.*)-(['
             '0-9a-z]+)-([0-9a-z]+)"))',
-            'metrics': {'unify_query_tsdb_request_seconds_bucket'},
+            "metrics": {"unify_query_tsdb_request_seconds_bucket"},
         },
     )
-    mocker.patch('django.conf.settings.DEFAULT_BKDATA_BIZ_ID', 2)
-    mocker.patch('django.conf.settings.BK_DATA_BK_BIZ_ID', 2)
+    mocker.patch("django.conf.settings.DEFAULT_BKDATA_BIZ_ID", 2)
+    mocker.patch("django.conf.settings.BK_DATA_BK_BIZ_ID", 2)
     service = RecordRuleService(
         space_type=space_type, space_id=space_id, record_name=record_name, rule_config=rule_config
     )

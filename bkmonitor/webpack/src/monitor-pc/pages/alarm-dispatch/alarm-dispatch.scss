@@ -83,6 +83,21 @@
             }
           }
 
+          .expand-update-record {
+            margin-left: 176px;
+            font-size: 12px;
+            color: #63656E;
+
+            .separator {
+              display: inline-block;
+              width: 1px;
+              height: 9px;
+              margin: 0 7.5px;
+              background-color: #C4C6CC;
+            }
+
+          }
+
           .title-wrap {
             display: flex;
             align-items: center;
@@ -91,10 +106,10 @@
             .title {
               max-width: 220px;
               overflow: hidden;
+              text-overflow: ellipsis;
               font-size: 14px;
               font-weight: 700;
               color: #63656e;
-              text-overflow: ellipsis;
               white-space: nowrap;
             }
 

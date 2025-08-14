@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,11 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from django.db import models
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
-from six.moves import map
 
 from bkmonitor.models import QueryConfigModel, StrategyModel
 from bkmonitor.utils.db.fields import JsonField
@@ -67,7 +64,7 @@ class ImportHistory(OperateRecordModelBase):
         strategy_config_ids = [config.config_id for config in detail_instances.filter(type=ConfigType.STRATEGY)]
         collect_target_type = [
             config.target_object_type
-            for config in CollectConfigMeta.objects.filter(self.bk_biz_id, id__in=collect_config_ids)
+            for config in CollectConfigMeta.objects.filter(bk_biz_id=self.bk_biz_id, id__in=collect_config_ids)
         ]
         strategy_target_type = list(
             map(get_strategy_target_type, StrategyModel.objects.filter(id__in=strategy_config_ids))

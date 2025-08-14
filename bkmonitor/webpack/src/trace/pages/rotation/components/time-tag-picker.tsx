@@ -24,20 +24,20 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, nextTick, onUnmounted, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Tag, TimePicker } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { getEventPaths } from 'monitor-pc/utils';
+import { useI18n } from 'vue-i18n';
 
 import './time-tag-picker.scss';
 
 interface CurrentTimeModel {
-  value: string[];
   index: number;
-  show: boolean;
   inputValue: string;
+  show: boolean;
   showInput: boolean;
+  value: string[];
 }
 
 export default defineComponent({

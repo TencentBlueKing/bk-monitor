@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, Prop, ProvideReactive, InjectReactive } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { connect, disconnect } from 'echarts/core';
@@ -45,15 +45,15 @@ import './panel-chart-view.scss';
 
 /** 图表 + 表格列表，支持拉伸 */
 const DEFAULT_HEIGHT = 600;
+interface IGroups {
+  name: string;
+  panels: IPanelModel[];
+}
+
 interface IPanelChartViewProps {
   config?: IMetricAnalysisConfig;
   showStatisticalValue?: boolean;
   viewColumn?: number;
-}
-
-interface IGroups {
-  name: string;
-  panels: IPanelModel[];
 }
 
 @Component

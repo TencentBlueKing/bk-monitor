@@ -138,7 +138,7 @@ class AssignGroupSlz(serializers.ModelSerializer):
 
     class Meta:
         model = AlertAssignGroup
-        fields = ("id", "name", "bk_biz_id", "priority", "settings", "source")
+        fields = ("id", "name", "bk_biz_id", "priority", "settings", "source", "update_user", "update_time")
 
     def validate_priority(self, value):
         query_result = AlertAssignGroup.objects.filter(

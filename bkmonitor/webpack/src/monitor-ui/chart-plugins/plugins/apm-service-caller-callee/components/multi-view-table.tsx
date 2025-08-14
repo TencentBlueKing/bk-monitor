@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch, Emit, ProvideReactive, InjectReactive } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -35,34 +35,34 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
-import { TAB_TABLE_TYPE, CHART_TYPE } from '../utils';
+import { CHART_TYPE, TAB_TABLE_TYPE } from '../utils';
 import { formatDateRange } from '../utils';
 import TabBtnGroup from './tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
-import type { IColumn, IDataItem, IListItem, DimensionItem, CallOptions, IDimensionChartOpt } from '../type';
+import type { CallOptions, DimensionItem, IColumn, IDataItem, IDimensionChartOpt, IListItem } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './multi-view-table.scss';
-interface IMultiViewTableProps {
-  dimensionList: DimensionItem[];
-  tableColData: IListItem[];
-  tableListData: IDataItem[];
-  tableFilterData: IDataItem;
-  panel: PanelModel;
-  sidePanelCommonOptions: Partial<CallOptions>;
-  isLoading?: boolean;
-  supportedCalculationTypes?: IListItem[];
-  totalList?: IDataItem[];
-  activeTabKey?: string;
-  resizeStatus?: boolean;
-  timeStrShow?: IDataItem;
-}
 interface IMultiViewTableEvent {
-  onShowDetail?: () => void;
-  onDrill?: () => void;
-  onTabChange?: () => void;
   onDimensionKeyChange?: (key: string) => void;
+  onDrill?: () => void;
+  onShowDetail?: () => void;
+  onTabChange?: () => void;
+}
+interface IMultiViewTableProps {
+  activeTabKey?: string;
+  dimensionList: DimensionItem[];
+  isLoading?: boolean;
+  panel: PanelModel;
+  resizeStatus?: boolean;
+  sidePanelCommonOptions: Partial<CallOptions>;
+  supportedCalculationTypes?: IListItem[];
+  tableColData: IListItem[];
+  tableFilterData: IDataItem;
+  tableListData: IDataItem[];
+  timeStrShow?: IDataItem;
+  totalList?: IDataItem[];
 }
 @Component({
   name: 'MultiViewTable',
@@ -976,7 +976,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     const info = dimensionList.find(item => item.value === id);
     return info?.text;
   }
-  handleCloseTag(tag: { key: string; method: string; condition: string; value: string[] }) {
+  handleCloseTag(tag: { condition: string; key: string; method: string; value: string[] }) {
     const data = this.drillFilterData.filter(item => item.key !== tag.key);
     this.drillGroupBy.splice(this.drillGroupBy.indexOf(tag.key), 1);
     if (tag.key === 'time') {

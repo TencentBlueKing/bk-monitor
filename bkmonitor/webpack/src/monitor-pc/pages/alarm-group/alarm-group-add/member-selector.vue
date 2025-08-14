@@ -48,9 +48,10 @@
 </template>
 
 <script lang="ts">
+import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
+
 import BkUserSelector from '@blueking/user-selector';
 import { deepClone } from 'monitor-common/utils/utils';
-import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 @Component({
   name: 'member-selector',
   components: {

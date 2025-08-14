@@ -490,7 +490,7 @@ class AlertAssignee:
                                 group_users.append(username)
                     elif user["type"] == "user" and user["id"] not in group_users:
                         group_users.append(user["id"])
-            if is_rule_matched:
+            if is_rule_matched and group.duty_notice.get("hit_first_duty", True):
                 # 适配到了对应的轮值规则，中止
                 logger.info("user group (%s) matched duty rule(%s) for alert(%s)", group.id, rule_id, self.alert.id)
                 return

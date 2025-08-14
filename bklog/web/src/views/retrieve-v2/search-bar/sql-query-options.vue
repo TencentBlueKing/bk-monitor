@@ -14,7 +14,6 @@
   import { excludesFields } from './const.common'; // @ts-ignore
   import FavoriteList from './favorite-list';
   import useFieldEgges from './use-field-egges';
-  import { getOsCommandLabel } from '@/common/util';
 
   const props = defineProps({
     value: {
@@ -32,7 +31,7 @@
 
   const store = useStore();
   const { $t } = useLocale();
-  const { getFieldNames } = useFieldNameHook({ store });
+  const { getQualifiedFieldName } = useFieldNameHook({ store });
 
   enum OptionItemType {
     Colon = 'Colon',
@@ -72,7 +71,7 @@
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
-    return getFieldNames(totalFields.value.filter(filterFn));
+    return totalFields.value.filter(filterFn).map(fieldInfo => fieldInfo.field_name);
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
@@ -84,9 +83,7 @@
   const valueList: Ref<string[]> = ref([]);
 
   const refDropdownEl: Ref<HTMLElement | null> = ref(null);
-  const activeIndex = ref(0);
-
-  const handleRetrieve = debounce(() => emits('retrieve'));
+  const activeIndex = ref(null);
 
   const operatorSelectList = ref([
     {
@@ -108,12 +105,12 @@
   ]);
 
   const setOptionActive = () => {
+    const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
+    refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
     if (activeIndex.value === null) {
       return;
     }
 
-    const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
-    refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
     dropdownList?.[activeIndex.value]?.classList.add('active');
   };
 
@@ -131,7 +128,7 @@
     if (Array.isArray(param)) {
       activeType.value.push(...param);
     }
-    activeIndex.value = 0;
+    activeIndex.value = null;
   };
 
   /**
@@ -164,7 +161,7 @@
       return;
     }
 
-    valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {});
+    valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {})?.filter(item => item?.indexOf(value) !== -1);
   };
 
   /**
@@ -265,7 +262,7 @@
       return;
     }
 
-    const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|\w+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
     const matchValue = lastValues?.[3] ?? lastValues?.[2];
     const matchValueWithQuotes = lastValues?.[2];
 
@@ -294,7 +291,17 @@
     // 开始输入字段【nam】
     const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
     if (inputField) {
-      fieldList.value = originFieldList().filter(item => item.includes(inputField));
+      fieldList.value = originFieldList()
+        .reduce((acc, item) => {
+          const name = getQualifiedFieldName(item);
+          const index = name.toLowerCase().indexOf(inputField.toLowerCase());
+          if (index !== -1) {
+            acc.push({ index, fieldName: item });
+          }
+          return acc;
+        }, [])
+      .sort((a, b) => a.index - b.index)
+      .map(item => item.fieldName);
       if (fieldList.value.length) {
         showWhichDropdown(OptionItemType.Fields);
         return;
@@ -302,6 +309,13 @@
     }
 
     showWhichDropdown();
+  };
+
+  const setNextActive = () => {
+    nextTick(() => {
+      activeIndex.value = null;
+      setOptionActive();
+    });
   };
 
   /**
@@ -328,12 +342,8 @@
     const result = `${leftValue}${field}${rightFieldStr}`;
 
     emitValueChange(result, false, true, leftValue.length + field.length);
-
     showColonOperator(field as string);
-    nextTick(() => {
-      activeIndex.value = 0;
-      setOptionActive();
-    });
+    setNextActive();
   };
 
   /**
@@ -352,11 +362,7 @@
 
     emitValueChange(result, false, true, sqlValue.length + target.length);
     calculateDropdown();
-
-    nextTick(() => {
-      activeIndex.value = 0;
-      setOptionActive();
-    });
+    setNextActive();
   };
 
   /**
@@ -368,7 +374,7 @@
     const rightValue = getFocusRightValue();
     const lastFragment = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
 
-    const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|\w+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
     const matchValueWithQuotes = lastValues?.[2] ?? '';
     const matchLeft = sqlValue.slice(0, sqlValue.length - matchValueWithQuotes.length);
     const targetValue = value.replace(/^"|"$/g, '').replace(/"/g, '\\"');
@@ -383,10 +389,7 @@
 
     // 当前输入值可能的情况 【name:"a】【age:】
     emitValueChange(result, false, true, focusPosition);
-    nextTick(() => {
-      activeIndex.value = 0;
-      setOptionActive();
-    });
+    setNextActive();
   };
 
   /**
@@ -400,10 +403,7 @@
     emitValueChange(result, false, true, sqlValue.length + type.length + 1);
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
-    nextTick(() => {
-      activeIndex.value = 0;
-      setOptionActive();
-    });
+    setNextActive();
   };
 
   const scrollActiveItemIntoView = () => {
@@ -433,14 +433,6 @@
       return;
     }
 
-    // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
-    if ((e.ctrlKey || e.metaKey) && e.keyCode === 13) {
-      stopEventPreventDefault(e);
-      handleRetrieve();
-      emits('cancel');
-      return;
-    }
-
     const dropdownEl = refDropdownEl.value;
     if (!dropdownEl) {
       return;
@@ -449,16 +441,18 @@
     const dropdownList = dropdownEl.querySelectorAll('.list-item');
     const hasHover = dropdownEl.querySelector('.list-item.is-hover');
     if (code === 'NumpadEnter' || code === 'Enter') {
-      stopEventPreventDefault(e);
-      if (hasHover && !activeIndex.value) {
-        activeIndex.value = 0;
-      }
+      if (activeIndex.value !== null) {
+        stopEventPreventDefault(e);
+        if (hasHover && !activeIndex.value) {
+          activeIndex.value = 0;
+        }
 
-      if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
-        // enter 选中下拉选项
-        (dropdownList[activeIndex.value] as HTMLElement).click();
-      } else {
-        emitValueChange(props.value, false, true);
+        if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
+          // enter 选中下拉选项
+          (dropdownList[activeIndex.value] as HTMLElement).click();
+        } else {
+          emitValueChange(props.value, false, true);
+        }
       }
     }
 
@@ -496,6 +490,7 @@
 
   const beforeShowndFn = () => {
     calculateDropdown();
+    activeIndex.value = null;
     nextTick(() => {
       setOptionActive();
     });
@@ -516,6 +511,7 @@
   };
 
   const beforeHideFn = () => {
+    activeIndex.value = null;
     document.removeEventListener('keydown', handleKeydown, { capture: true });
   };
 
@@ -567,7 +563,9 @@
       setOptionActive();
     });
   });
-
+  const fieldNameShow = (item)=> {
+    return getQualifiedFieldName(item)
+  }
   defineExpose({
     beforeShowndFn,
     beforeHideFn,
@@ -611,7 +609,7 @@
                 class="item-text text-overflow-hidden"
                 v-bk-overflow-tips="{ placement: 'right' }"
               >
-                {{ item }}
+                {{ fieldNameShow(item) }}
               </div>
             </li>
           </div>
@@ -777,7 +775,7 @@
           <span class="value">{{ $t('移动光标') }}</span>
         </div>
         <div class="ui-shortcut-item">
-          <span class="label">{{ getOsCommandLabel() }} +Enter</span>
+          <span class="label">Enter</span>
           <span class="value">{{ $t('确认结果') }}</span>
         </div>
       </div>

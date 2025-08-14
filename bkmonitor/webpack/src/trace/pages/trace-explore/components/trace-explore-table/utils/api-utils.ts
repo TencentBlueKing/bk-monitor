@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { listFlattenTrace, listFlattenSpan } from 'monitor-api/modules/apm_trace';
+import { listFlattenSpan, listFlattenTrace } from 'monitor-api/modules/apm_trace';
 import { bkMessage, makeMessage } from 'monitor-api/utils';
 
 import { useQueryStringParseErrorState } from '../../../../../components/retrieval-filter/query-string-utils';
@@ -32,7 +32,7 @@ export function getTableList(
   params,
   isSpanVisual: boolean,
   requestConfig
-): Promise<{ data: any[]; total: number; isAborted?: boolean }> {
+): Promise<{ data: any[]; isAborted?: boolean; total: number }> {
   const apiFunc = isSpanVisual ? listFlattenSpan : listFlattenTrace;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {

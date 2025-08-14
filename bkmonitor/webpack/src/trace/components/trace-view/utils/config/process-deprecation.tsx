@@ -30,8 +30,8 @@ import _set from 'lodash/set';
 import _unset from 'lodash/unset';
 
 interface IDeprecation {
-  formerKey: string;
   currentKey: string;
+  formerKey: string;
 }
 
 /**

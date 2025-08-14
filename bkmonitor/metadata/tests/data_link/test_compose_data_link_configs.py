@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -45,19 +44,22 @@ def create_or_delete_records(mocker):
     result_table.delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_compose_data_id_config(create_or_delete_records):
     """
     测试DataIdConfig能否正确生成
     """
+
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     assert bkbase_data_name == "bkm_data_link_test"
 
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor","labels":{'
-        '"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":0,'
-        '"description":"bkm_data_link_test","maintainers":["admin"]}}'
+        '"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":2,'
+        '"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
     )
 
     data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
@@ -66,14 +68,28 @@ def test_compose_data_id_config(create_or_delete_records):
     content = data_id_config_ins.compose_config()
     assert json.dumps(content) == expected_config
 
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    expected_config = (
+        '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor",'
+        '"tenant":"system","labels":{"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test",'
+        '"bizId":2,"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
+    )
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+    content = data_id_config_ins.compose_config()
+    assert json.dumps(content) == expected_config
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_compose_vm_result_table_config(create_or_delete_records):
     """
     测试VMResultTableConfig能否正确生成
     """
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+
     ds = models.DataSource.objects.get(bk_data_id=50010)
-    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     assert bkbase_data_name == "bkm_data_link_test"
@@ -84,7 +100,7 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     expect_config = (
         '{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},"spec":{'
-        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":2,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}}'
     )
@@ -95,14 +111,28 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     content = vm_table_id_ins.compose_config()
     assert json.dumps(content) == expect_config
 
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    expect_config = (
+        '{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
+        '"namespace":"bkmonitor","tenant":"system","labels":{"bk_biz_id":"111"}},'
+        '"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":2,"dataType":"metric",'
+        '"description":"bkm_1001_bkmonitor_time_series_50010","maintainers":["admin"]}}'
+    )
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+    content = vm_table_id_ins.compose_config()
+    assert json.dumps(content) == expect_config
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_compose_vm_storage_binding_config(create_or_delete_records):
     """
     测试VMStorageBindingConfig能否正确生成
     """
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
-    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     assert bkbase_data_name == "bkm_data_link_test"
@@ -128,14 +158,229 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
     content = vm_storage_ins.compose_config()
     assert json.dumps(content) == expect_config
 
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+    expect_config = (
+        '{"kind":"VmStorageBinding","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
+        '"tenant":"system","namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},"spec":{"data":{'
+        '"kind":"ResultTable","name":"bkm_1001_bkmonitor_time_series_50010","tenant":"system",'
+        '"namespace":"bkmonitor"},"maintainers":["admin"],"storage":{"kind":"VmStorage",'
+        '"name":"vm-plat","tenant":"system","namespace":"bkmonitor"}}}'
+    )
+
+    content = vm_storage_ins.compose_config()
+    assert json.dumps(content) == expect_config
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_result_table_config(create_or_delete_records):
+    """
+    测试LogResultTableConfig能否正确生成
+    """
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    log_result_table_ins, _ = models.LogResultTableConfig.objects.get_or_create(
+        name="base_1_agent_event",
+        namespace="bkmonitor",
+        bk_biz_id=1,
+        bk_tenant_id="system",
+        data_link_name="base_1_agent_event",
+    )
+
+    fields = [
+        {"field_name": "dimensions", "field_alias": "", "field_type": "object", "is_dimension": True, "field_index": 0},
+        {"field_name": "event", "field_alias": "", "field_type": "object", "is_dimension": True, "field_index": 1},
+        {"field_name": "event_name", "field_alias": "", "field_type": "string", "is_dimension": True, "field_index": 2},
+        {"field_name": "target", "field_alias": "", "field_type": "string", "is_dimension": True, "field_index": 3},
+        {
+            "field_name": "time",
+            "field_alias": "数据上报时间",
+            "field_type": "timestamp",
+            "is_dimension": False,
+            "field_index": 4,
+        },
+    ]
+    expected_config = {
+        "kind": "ResultTable",
+        "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
+        "spec": {
+            "alias": "base_1_agent_event",
+            "bizId": 2,
+            "dataType": "log",
+            "description": "base_1_agent_event",
+            "fields": [
+                {
+                    "field_alias": "",
+                    "field_index": 0,
+                    "field_name": "dimensions",
+                    "field_type": "object",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 1,
+                    "field_name": "event",
+                    "field_type": "object",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 2,
+                    "field_name": "event_name",
+                    "field_type": "string",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 3,
+                    "field_name": "target",
+                    "field_type": "string",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "数据上报时间",
+                    "field_index": 4,
+                    "field_name": "time",
+                    "field_type": "timestamp",
+                    "is_dimension": False,
+                },
+            ],
+            "maintainers": ["admin"],
+        },
+    }
+    actual_result = log_result_table_ins.compose_config(fields=fields)
+    assert actual_result == expected_config
+
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    expected_config = {
+        "kind": "ResultTable",
+        "metadata": {
+            "labels": {"bk_biz_id": "1"},
+            "name": "base_1_agent_event",
+            "tenant": "system",
+            "namespace": "bkmonitor",
+        },
+        "spec": {
+            "alias": "base_1_agent_event",
+            "bizId": 2,
+            "dataType": "log",
+            "description": "base_1_agent_event",
+            "fields": [
+                {
+                    "field_alias": "",
+                    "field_index": 0,
+                    "field_name": "dimensions",
+                    "field_type": "object",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 1,
+                    "field_name": "event",
+                    "field_type": "object",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 2,
+                    "field_name": "event_name",
+                    "field_type": "string",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 3,
+                    "field_name": "target",
+                    "field_type": "string",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "数据上报时间",
+                    "field_index": 4,
+                    "field_name": "time",
+                    "field_type": "timestamp",
+                    "is_dimension": False,
+                },
+            ],
+            "maintainers": ["admin"],
+        },
+    }
+
+    actual_result = log_result_table_ins.compose_config(fields=fields)
+    assert actual_result == expected_config
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_es_storage_binding_config(create_or_delete_records):
+    """
+    测试ESStorageBindingConfig能否正确生成
+    """
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+
+    es_storage_ins, _ = models.ESStorageBindingConfig.objects.get_or_create(
+        name="base_1_agent_event",
+        namespace="bkmonitor",
+        es_cluster_name="es_default",
+        bk_biz_id=1,
+        data_link_name="base_1_agent_event",
+    )
+
+    expected_config = {
+        "kind": "ElasticSearchBinding",
+        "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
+        "spec": {
+            "data": {"kind": "ResultTable", "name": "base_1_agent_event", "namespace": "bkmonitor"},
+            "maintainers": ["admin"],
+            "storage": {"kind": "ElasticSearch", "name": "es_default", "namespace": "bkmonitor"},
+            "unique_field_list": ["event", "target", "dimensions", "event_name", "time"],
+            "write_alias": {"TimeBased": {"format": "write_%Y%m%d_base_system_1_event", "timezone": 0}},
+        },
+    }
+    actual_result = es_storage_ins.compose_config(
+        storage_cluster_name="es_default",
+        write_alias_format="write_%Y%m%d_base_system_1_event",
+        unique_field_list=["event", "target", "dimensions", "event_name", "time"],
+    )
+    assert actual_result == expected_config
+
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    expected_config = {
+        "kind": "ElasticSearchBinding",
+        "metadata": {
+            "labels": {"bk_biz_id": "1"},
+            "name": "base_1_agent_event",
+            "tenant": "system",
+            "namespace": "bkmonitor",
+        },
+        "spec": {
+            "data": {"kind": "ResultTable", "name": "base_1_agent_event", "tenant": "system", "namespace": "bkmonitor"},
+            "maintainers": ["admin"],
+            "storage": {"kind": "ElasticSearch", "tenant": "system", "name": "es_default", "namespace": "bkmonitor"},
+            "unique_field_list": ["event", "target", "dimensions", "event_name", "time"],
+            "write_alias": {"TimeBased": {"format": "write_%Y%m%d_base_system_1_event", "timezone": 0}},
+        },
+    }
+    actual_result = es_storage_ins.compose_config(
+        storage_cluster_name="es_default",
+        write_alias_format="write_%Y%m%d_base_system_1_event",
+        unique_field_list=["event", "target", "dimensions", "event_name", "time"],
+    )
+    assert actual_result == expected_config
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_compose_data_bus_config(create_or_delete_records):
     """
     测试DataBusConfig能否正确生成
     """
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
-    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     assert bkbase_data_name == "bkm_data_link_test"
@@ -171,14 +416,97 @@ def test_compose_data_bus_config(create_or_delete_records):
     content = data_bus_ins.compose_config(sinks)
     assert json.dumps(content) == expect_config
 
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+    # 生成sink的时候,需要加上tenant
+    sinks = [
+        {
+            "kind": DataLinkKind.VMSTORAGEBINDING.value,
+            "name": bkbase_vmrt_name,
+            "tenant": "system",
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+        }
+    ]
+
+    expect_config = (
+        '{"kind":"Databus","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010","tenant":"system",'
+        '"namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},"spec":{"maintainers":["admin"],'
+        '"sinks":[{"kind":"VmStorageBinding","name":"bkm_1001_bkmonitor_time_series_50010",'
+        '"tenant":"system","namespace":"bkmonitor"}],"sources":[{"kind":"DataId",'
+        '"name":"bkm_data_link_test","tenant":"system","namespace":"bkmonitor"}],"transforms":[{'
+        '"kind":"PreDefinedLogic","name":"log_to_metric","format":"bkmonitor_standard_v2"}]}}'
+    )
+
+    content = data_bus_ins.compose_config(sinks)
+    assert json.dumps(content) == expect_config
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_databus_config(create_or_delete_records):
+    """
+    测试LogDatabusConfig能否正确生成
+    """
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    log_databus_ins, _ = models.LogDataBusConfig.objects.get_or_create(
+        bk_tenant_id="system",
+        bk_biz_id=1,
+        name="base_1_agent_event",
+        namespace="bkmonitor",
+        data_link_name="base_1_agent_event",
+        data_id_name="base_1_agent_event",
+    )
+    expected_config = {
+        "kind": "Databus",
+        "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
+        "spec": {
+            "maintainers": ["admin"],
+            "sinks": [{"kind": "ElasticSearchBinding", "name": "base_1_agent_event", "namespace": "bkmonitor"}],
+            "sources": [{"kind": "DataId", "name": "base_1_agent_event", "namespace": "bkmonitor"}],
+            "transforms": [{"kind": "PreDefinedLogic", "name": "gse_system_event"}],
+        },
+    }
+    actual_result = log_databus_ins.compose_base_event_config()
+    assert actual_result == expected_config
+
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    expected_config = {
+        "kind": "Databus",
+        "metadata": {
+            "labels": {"bk_biz_id": "1"},
+            "name": "base_1_agent_event",
+            "tenant": "system",
+            "namespace": "bkmonitor",
+        },
+        "spec": {
+            "maintainers": ["admin"],
+            "sinks": [
+                {
+                    "kind": "ElasticSearchBinding",
+                    "tenant": "system",
+                    "name": "base_1_agent_event",
+                    "namespace": "bkmonitor",
+                }
+            ],
+            "sources": [{"kind": "DataId", "tenant": "system", "name": "base_1_agent_event", "namespace": "bkmonitor"}],
+            "transforms": [{"kind": "PreDefinedLogic", "name": "gse_system_event"}],
+        },
+    }
+    actual_result = log_databus_ins.compose_base_event_config()
+    assert actual_result == expected_config
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_compose_single_conditional_sink_config(create_or_delete_records):
     """
     测试单集群ConditionalSinkConfig能否正确生成
     """
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
-    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
     assert bkbase_data_name == "fed_bkm_data_link_test"
@@ -187,10 +515,10 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
     assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_50010_fed"
     conditions = [
         {
-            'match_labels': [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
+            "match_labels": [{"name": "namespace", "any": ["testns1", "testns2", "testns3"]}],
+            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
+            "sinks": [
+                {"kind": "VmStorageBinding", "name": "bkm_1001_bkmonitor_time_series_50001", "namespace": "bkmonitor"}
             ],
         },
     ]
@@ -206,7 +534,7 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
             "spec": {
                 "conditions": [
                     {
-                        "match_labels": [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
+                        "match_labels": [{"name": "namespace", "any": ["testns1", "testns2", "testns3"]}],
                         "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
                         "sinks": [
                             {
@@ -227,14 +555,45 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
     content = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
     assert json.dumps(content) == expected
 
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+    expected = (
+        '{"kind":"ConditionalSink","metadata":{"namespace":"bkmonitor",'
+        '"name":"bkm_1001_bkmonitor_time_series_50010_fed","tenant":"system","labels":{"bk_biz_id":"111"}},'
+        '"spec":{"conditions":[{"match_labels":[{"name":"namespace","any":["testns1","testns2","testns3"]}],'
+        '"relabels":[{"name":"bcs_cluster_id","value":"BCS-K8S-10001"}],"sinks":[{"kind":"VmStorageBinding",'
+        '"name":"bkm_1001_bkmonitor_time_series_50001","tenant":"system","namespace":"bkmonitor"}]}]}}'
+    )
+
+    conditions = [
+        {
+            "match_labels": [{"name": "namespace", "any": ["testns1", "testns2", "testns3"]}],
+            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
+            "sinks": [
+                {
+                    "kind": "VmStorageBinding",
+                    "name": "bkm_1001_bkmonitor_time_series_50001",
+                    "tenant": "system",
+                    "namespace": "bkmonitor",
+                }
+            ],
+        },
+    ]
+
+    content = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
+    assert json.dumps(content) == expected
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_compose_multi_conditional_sink_config(create_or_delete_records):
     """
     测试多集群ConditionalSinkConfig能否正确生成
     """
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
-    rt = models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_50010.__default__')
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
     assert bkbase_data_name == "fed_bkm_data_link_test"
@@ -244,17 +603,17 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
 
     conditions = [
         {
-            'match_labels': [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10001'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50001', 'namespace': 'bkmonitor'}
+            "match_labels": [{"name": "namespace", "any": ["testns1", "testns2", "testns3"]}],
+            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
+            "sinks": [
+                {"kind": "VmStorageBinding", "name": "bkm_1001_bkmonitor_time_series_50001", "namespace": "bkmonitor"}
             ],
         },
         {
-            'match_labels': [{'name': 'namespace', 'any': ['testns4', 'testns5', 'testns6']}],
-            'relabels': [{'name': 'bcs_cluster_id', 'value': 'BCS-K8S-10002'}],
-            'sinks': [
-                {'kind': 'VmStorageBinding', 'name': 'bkm_1001_bkmonitor_time_series_50002', 'namespace': 'bkmonitor'}
+            "match_labels": [{"name": "namespace", "any": ["testns4", "testns5", "testns6"]}],
+            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10002"}],
+            "sinks": [
+                {"kind": "VmStorageBinding", "name": "bkm_1001_bkmonitor_time_series_50002", "namespace": "bkmonitor"}
             ],
         },
     ]
@@ -270,7 +629,7 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
             "spec": {
                 "conditions": [
                     {
-                        "match_labels": [{'name': 'namespace', 'any': ['testns1', 'testns2', 'testns3']}],
+                        "match_labels": [{"name": "namespace", "any": ["testns1", "testns2", "testns3"]}],
                         "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
                         "sinks": [
                             {
@@ -281,7 +640,7 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
                         ],
                     },
                     {
-                        "match_labels": [{'name': 'namespace', 'any': ['testns4', 'testns5', 'testns6']}],
+                        "match_labels": [{"name": "namespace", "any": ["testns4", "testns5", "testns6"]}],
                         "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10002"}],
                         "sinks": [
                             {
@@ -299,5 +658,49 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
     vm_conditional_ins, _ = models.ConditionalSinkConfig.objects.get_or_create(
         name=bkbase_vmrt_name, data_link_name=bkbase_data_name, namespace="bkmonitor", bk_biz_id=111
     )
+    content = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
+    assert json.dumps(content) == expected
+
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+
+    expected = (
+        '{"kind":"ConditionalSink","metadata":{"namespace":"bkmonitor",'
+        '"name":"bkm_1001_bkmonitor_time_series_50010_fed","tenant":"system","labels":{"bk_biz_id":"111"}},'
+        '"spec":{"conditions":[{"match_labels":[{"name":"namespace","any":["testns1","testns2","testns3"]}],'
+        '"relabels":[{"name":"bcs_cluster_id","value":"BCS-K8S-10001"}],"sinks":[{"kind":"VmStorageBinding",'
+        '"name":"bkm_1001_bkmonitor_time_series_50001","tenant":"system","namespace":"bkmonitor"}]},'
+        '{"match_labels":[{"name":"namespace","any":["testns4","testns5","testns6"]}],"relabels":[{'
+        '"name":"bcs_cluster_id","value":"BCS-K8S-10002"}],"sinks":[{"kind":"VmStorageBinding",'
+        '"name":"bkm_1001_bkmonitor_time_series_50002","tenant":"system","namespace":"bkmonitor"}]}]}}'
+    )
+
+    conditions = [
+        {
+            "match_labels": [{"name": "namespace", "any": ["testns1", "testns2", "testns3"]}],
+            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
+            "sinks": [
+                {
+                    "kind": "VmStorageBinding",
+                    "name": "bkm_1001_bkmonitor_time_series_50001",
+                    "tenant": "system",
+                    "namespace": "bkmonitor",
+                }
+            ],
+        },
+        {
+            "match_labels": [{"name": "namespace", "any": ["testns4", "testns5", "testns6"]}],
+            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10002"}],
+            "sinks": [
+                {
+                    "kind": "VmStorageBinding",
+                    "name": "bkm_1001_bkmonitor_time_series_50002",
+                    "tenant": "system",
+                    "namespace": "bkmonitor",
+                }
+            ],
+        },
+    ]
+
     content = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
     assert json.dumps(content) == expected

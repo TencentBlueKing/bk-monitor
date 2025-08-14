@@ -32,9 +32,9 @@ import Editor from 'monitor-ui/markdown-editor/editor';
 import './handle-experience.scss';
 
 interface IHandleExperienceProps {
-  show?: boolean;
   alertId?: number | string;
   bkBizId?: number;
+  show?: boolean;
 }
 
 @Component({

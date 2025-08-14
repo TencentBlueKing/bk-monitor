@@ -25,10 +25,10 @@
 -->
 <template>
   <div
+    v-bkloading="{ isLoading: reload }"
     class="host-list"
     data-tag="resizeTarget"
     :style="{ width: drag.width + 'px', 'flex-basis': drag.width + 'px' }"
-    v-bkloading="{ isLoading: reload }"
   >
     <div
       class="resize-line"
@@ -71,8 +71,9 @@
       </bk-alert>
       <div class="content-bottom">
         <bk-big-tree
-          :class="['big-tree', { 'selectable-tree': !enableCmdbLevel }]"
+          v-if="hostTopoTreeList && hostTopoTreeList.length"
           ref="bkBigTree"
+          :class="['big-tree', { 'selectable-tree': !enableCmdbLevel }]"
           :default-expanded-nodes="defaultExpandedID"
           :default-selected-node="defaultExpandedID[0]"
           :filter-method="filterMethod"
@@ -80,7 +81,6 @@
           :height="treeHeight"
           :selectable="enableCmdbLevel"
           :expand-on-click="false"
-          v-if="hostTopoTreeList && hostTopoTreeList.length"
         >
           <template #empty>
             <div>empty</div>
@@ -113,16 +113,16 @@
                   >({{ data.bkHostName }})</span
                 >
                 <span
-                  class="add-compared"
                   v-if="data.ip && isTargetCompare"
+                  class="add-compared"
                 >
                   <i
-                    class="icon-monitor icon-mc-check-small"
                     v-if="checkedTarget.includes(`${data.bk_cloud_id}-${data.ip}`)"
+                    class="icon-monitor icon-mc-check-small"
                   />
                   <span
-                    class="add-compared-btn"
                     v-else
+                    class="add-compared-btn"
                     @click.stop="handleAddCompareTarget(data)"
                     >{{ $t('对比') }}</span
                   >
@@ -136,11 +136,13 @@
   </div>
 </template>
 <script lang="ts">
-import { deepClone } from 'monitor-common/utils/utils';
-import { debounce } from 'throttle-debounce';
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
+import { deepClone } from 'monitor-common/utils/utils';
+import { debounce } from 'throttle-debounce';
+
 import PerformanceModule, { type ICurNode } from '../../../store/modules/performance';
+
 import type { IQueryOption } from '../performance-type';
 
 @Component({ name: 'host-list' })
@@ -242,13 +244,12 @@ export default class HostList extends Vue {
     if (!this.hostList.length) return [];
     const resList = deepClone(PerformanceModule.filterHostTopoTreeList);
     const hostMap = new Map();
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const item of this.hostList) {
       hostMap.set(`${item.bk_host_innerip}-${item.bk_cloud_id}`, item);
     }
     const fn = (list): any => {
       if (list?.length) {
-        // eslint-disable-next-line no-restricted-syntax
         for (const item of list) {
           if (item.ip) {
             // const target = this.hostList.find((tar) => {
@@ -271,7 +272,6 @@ export default class HostList extends Vue {
   get defaultExpandedID() {
     const fn = (list, targetName): any => {
       if (list?.length) {
-        // eslint-disable-next-line no-restricted-syntax
         for (const item of list) {
           const sourceId =
             this.curNode.type === 'host' ? `${item.ip}-${item.bk_cloud_id}` : `${item.bk_inst_id}-${item.bk_obj_id}`;

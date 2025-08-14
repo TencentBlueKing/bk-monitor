@@ -33,13 +33,13 @@ import './feedback.scss';
 
 const TAGS = [window.i18n.tc('无法给予帮助'), window.i18n.tc('结果不准确'), window.i18n.tc('问题定位不清晰')];
 interface AlarmConfirmProps {
-  show: boolean;
   ids?: Array<string>;
+  show: boolean;
 }
 
 interface IEvent {
-  onConfirm?: boolean;
   onChange?: boolean;
+  onConfirm?: boolean;
 }
 
 @Component({
@@ -82,7 +82,7 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
       this.errMsg = window.i18n.tc('选择有用或无用');
       return;
     }
-    if (this.state === 2 && !Boolean(this.description)) {
+    if (this.state === 2 && !this.description) {
       this.errMsg = window.i18n.tc('填写反馈说明');
       return;
     }

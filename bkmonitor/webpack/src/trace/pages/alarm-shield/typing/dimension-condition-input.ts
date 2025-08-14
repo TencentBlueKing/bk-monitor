@@ -1,3 +1,12 @@
+export interface IConditionItem {
+  condition?: string; // 条件
+  dimension_name?: string;
+  dimensionName: string; // 维度输入框的值
+  key: string; // 维度id
+  method?: string; // 运算符
+  value: string | string[]; // 维度值
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,23 +34,14 @@
  */
 export interface IDimensionItem {
   id: number | string;
+  is_dimension?: boolean;
   name: string;
   type?: string;
-  is_dimension?: boolean;
-}
-
-export interface IConditionItem {
-  key: string; // 维度id
-  dimensionName: string; // 维度输入框的值
-  value: string | string[]; // 维度值
-  method?: string; // 运算符
-  condition?: string; // 条件
-  dimension_name?: string;
 }
 export interface IMetricMeta {
   dataSourceLabel: string;
   dataTypeLabel: string;
+  indexSetId?: number | string;
   metricField: string;
   resultTableId: number | string;
-  indexSetId?: number | string;
 }

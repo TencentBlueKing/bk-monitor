@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="function-item-wrapper"
     v-bkloading="{ isLoading: loading }"
+    class="function-item-wrapper"
   >
     <!-- 头部信息 -->
     <div
@@ -38,28 +38,28 @@
         <span class="title">{{ data.displayName }}</span>
         <span class="des">{{ `${$t('依赖:')} ${data.pluginId}` }}</span>
         <span
-          class="status"
           v-if="data.hostCount.total !== '-'"
+          class="status"
         >
-          {{ `${$t('成功')}/${$t('总共')}:`}}
+          {{ `${$t('成功')}/${$t('总共')}:` }}
           <router-link
             to="uptime-check-node"
             class="count"
           >
-            {{data.hostCount && `${data.hostCount.success}/${data.hostCount.total}`}}
+            {{ data.hostCount && `${data.hostCount.success}/${data.hostCount.total}` }}
           </router-link>
         </span>
       </div>
       <div class="switch-wrap">
         <bk-switcher
+          v-model="isEnable"
           class="switch-btn"
           theme="primary"
-          v-model="isEnable"
           @change="handleFunctionSwitch"
         />
         <div
-          v-authority="{ active: !authority.MANAGE_AUTH }"
           v-if="!authority.MANAGE_AUTH"
+          v-authority="{ active: !authority.MANAGE_AUTH }"
           class="switch-wrap-modal"
           @click.stop.prevent="!authority.MANAGE_AUTH && handleShowAuthorityDetail()"
         />
@@ -67,17 +67,17 @@
     </div>
     <!-- 展开内容:  产品后期需加入的功能, 暂不渲染此部分-->
     <div
-      :class="['content-wrapper', { 'show-content': isShowContent }]"
       v-if="false"
+      :class="['content-wrapper', { 'show-content': isShowContent }]"
     >
       <div
-        class="content-main"
         ref="content"
+        class="content-main"
       >
         <!-- 简介 -->
         <div
-          class="des"
           v-if="data.content"
+          class="des"
         >
           {{ data.content }}<a class="more">{{ $t('查看更多') }}</a>
         </div>
@@ -132,13 +132,14 @@
 </template>
 
 <script lang="ts">
-import { switchFunction } from 'monitor-api/modules/function_switch.js';
 import { Component, Inject, Prop, PropSync, Ref, Vue } from 'vue-property-decorator';
 
-import type MonitorVue from '../../types/index';
+import { switchFunction } from 'monitor-api/modules/function_switch.js';
 
 import HostEditable from './host-editable.vue';
 import Switcher from './switcher.vue';
+
+import type MonitorVue from '../../types/index';
 
 @Component({
   name: 'function-item',
@@ -210,7 +211,7 @@ export default class FunctionItem extends Vue<MonitorVue> {
   min-height: 64px;
   background-color: #fff;
   border-radius: 2px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 
   .title-wrapper {
     display: flex;
@@ -238,7 +239,7 @@ export default class FunctionItem extends Vue<MonitorVue> {
           justify-content: center;
           width: 100%;
           height: 100%;
-          transition: all .3s ease;
+          transition: all 0.3s ease;
           transform: rotate(-90deg);
         }
       }
@@ -298,7 +299,7 @@ export default class FunctionItem extends Vue<MonitorVue> {
     .content-main {
       height: 0;
       overflow: hidden;
-      transition: all .3s cubic-bezier(.4, 0, .2, 1);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       will-change: height;
     }
 

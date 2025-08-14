@@ -28,11 +28,11 @@ import { ofType } from 'vue-tsx-support';
 import Component from './monitor-date-range.vue';
 
 interface IMonitorDateRangeProps {
+  dropdownWidth?: number;
+  icon?: string;
   offset?: string;
   options?: any[];
-  icon?: string;
   showName?: boolean;
-  dropdownWidth?: number;
   value?: number | string | string[];
   zIndex?: number;
 }

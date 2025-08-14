@@ -42,14 +42,14 @@ import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 
 import './event-log-chart.scss';
 
-interface ITextUnitSeriesItem {
-  // 值
-  value: number | string;
-  // 单位
-  unit: number | string;
-}
 interface IEventLogChartEvents {
   onChangeHeight?: (v: number) => number;
+}
+interface ITextUnitSeriesItem {
+  // 单位
+  unit: number | string;
+  // 值
+  value: number | string;
 }
 @Component
 class EventLogChart extends CommonSimpleChart {

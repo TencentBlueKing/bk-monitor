@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,12 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import pytest
 
 from metadata import models
 from metadata.resources import QueryBCSMetricsResource
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 DEFAULT_ID = 1000
 DEFAULT_BCS_CLUSTER_ID = "BCS-K8S-00000"
@@ -41,12 +41,12 @@ def test_query_bcs_metric_without_dimensions(mocker, create_and_delete_records):
         "metadata.resources.resources.get_built_in_k8s_metrics",
         return_value=[
             {
-                'description': '',
-                'field_name': 'go_threads',
-                'tag_list': [
-                    {'description': '', 'field_name': 'monitor_type'},
-                    {'description': '', 'field_name': 'instance'},
-                    {'description': '', 'field_name': 'service'},
+                "description": "",
+                "field_name": "go_threads",
+                "tag_list": [
+                    {"description": "", "field_name": "monitor_type"},
+                    {"description": "", "field_name": "instance"},
+                    {"description": "", "field_name": "service"},
                 ],
             }
         ],
@@ -66,15 +66,15 @@ def test_query_bcs_metric_without_dimensions(mocker, create_and_delete_records):
         "metadata.models.custom_report.time_series.TimeSeriesGroup.get_metric_info_list_with_label",
         return_value=[
             {
-                'field_name': 'promhttp_metric_handler_requests_total',
-                'metric_display_name': '',
-                'unit': '',
-                'type': 'float',
-                'label': 'kubernetes',
-                'tag_list': [{'field_name': 'target', 'description': '', 'unit': '', 'type': 'string'}],
-                'tag_value_list': [],
-                'table_id': 'test.demo',
-                'description': '',
+                "field_name": "promhttp_metric_handler_requests_total",
+                "metric_display_name": "",
+                "unit": "",
+                "type": "float",
+                "label": "kubernetes",
+                "tag_list": [{"field_name": "target", "description": "", "unit": "", "type": "string"}],
+                "tag_value_list": [],
+                "table_id": "test.demo",
+                "description": "",
             }
         ],
     )
@@ -98,12 +98,12 @@ def test_query_bcs_metric_with_dimensions(mocker, create_and_delete_records):
         "metadata.resources.resources.get_built_in_k8s_metrics",
         return_value=[
             {
-                'description': '',
-                'field_name': 'go_threads',
-                'tag_list': [
-                    {'description': '', 'field_name': 'monitor_type'},
-                    {'description': '', 'field_name': 'instance'},
-                    {'description': '', 'field_name': 'service'},
+                "description": "",
+                "field_name": "go_threads",
+                "tag_list": [
+                    {"description": "", "field_name": "monitor_type"},
+                    {"description": "", "field_name": "instance"},
+                    {"description": "", "field_name": "service"},
                 ],
             }
         ],
@@ -123,26 +123,26 @@ def test_query_bcs_metric_with_dimensions(mocker, create_and_delete_records):
         "metadata.models.custom_report.time_series.TimeSeriesGroup.get_metric_info_list_with_label",
         return_value=[
             {
-                'field_name': 'go_threads',
-                'metric_display_name': '',
-                'unit': '',
-                'type': 'float',
-                'label': 'kubernetes',
-                'tag_list': [{'field_name': 'target', 'description': '', 'unit': '', 'type': 'string'}],
-                'tag_value_list': [],
-                'table_id': 'test.demo',
-                'description': '',
+                "field_name": "go_threads",
+                "metric_display_name": "",
+                "unit": "",
+                "type": "float",
+                "label": "kubernetes",
+                "tag_list": [{"field_name": "target", "description": "", "unit": "", "type": "string"}],
+                "tag_value_list": [],
+                "table_id": "test.demo",
+                "description": "",
             },
             {
-                'field_name': 'promhttp_metric_handler_requests_total',
-                'metric_display_name': '',
-                'unit': '',
-                'type': 'float',
-                'label': 'kubernetes',
-                'tag_list': [{'field_name': 'target', 'description': '', 'unit': '', 'type': 'string'}],
-                'tag_value_list': [],
-                'table_id': 'test.demo',
-                'description': '',
+                "field_name": "promhttp_metric_handler_requests_total",
+                "metric_display_name": "",
+                "unit": "",
+                "type": "float",
+                "label": "kubernetes",
+                "tag_list": [{"field_name": "target", "description": "", "unit": "", "type": "string"}],
+                "tag_value_list": [],
+                "table_id": "test.demo",
+                "description": "",
             },
         ],
     )
@@ -162,15 +162,15 @@ def test_query_bcs_metric_with_dimensions(mocker, create_and_delete_records):
         "metadata.models.custom_report.time_series.TimeSeriesGroup.get_metric_info_list_with_label",
         return_value=[
             {
-                'field_name': 'go_threads_not_match',
-                'metric_display_name': '',
-                'unit': '',
-                'type': 'float',
-                'label': 'kubernetes',
-                'tag_list': [{'field_name': 'target', 'description': '', 'unit': '', 'type': 'string'}],
-                'tag_value_list': [],
-                'table_id': 'test.demo',
-                'description': '',
+                "field_name": "go_threads_not_match",
+                "metric_display_name": "",
+                "unit": "",
+                "type": "float",
+                "label": "kubernetes",
+                "tag_list": [{"field_name": "target", "description": "", "unit": "", "type": "string"}],
+                "tag_value_list": [],
+                "table_id": "test.demo",
+                "description": "",
             }
         ],
     )

@@ -38,23 +38,23 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './header-tools.scss';
 
+interface IHeadToolEvent {
+  onRefreshChange: number;
+  onTimeRangeChange: number;
+  onImmediateRefresh: () => void;
+}
+interface IHeadToolProps {
+  refreshInterval: number;
+  timeRange: number | string | string[];
+}
+interface IRefreshItem {
+  id: number | string;
+  name: string | TranslateResult;
+}
+
 interface ITimeRangeItem {
   name: string | TranslateResult;
   value: number | string;
-}
-interface IRefreshItem {
-  name: string | TranslateResult;
-  id: number | string;
-}
-interface IHeadToolProps {
-  timeRange: number | string | string[];
-  refreshInterval: number;
-}
-
-interface IHeadToolEvent {
-  onTimeRangeChange: number;
-  onRefreshChange: number;
-  onImmediateRefresh: () => void;
 }
 @Component
 export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {

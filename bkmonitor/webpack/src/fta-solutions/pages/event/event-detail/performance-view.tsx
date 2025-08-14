@@ -30,7 +30,7 @@ import { getSceneView } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils/utils';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
-import { BookMarkModel, type IBookMark, type IPanelModel, type IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { type IBookMark, type IPanelModel, type IViewOptions, BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimeRange } from './aiops-chart';
 import { type IDetail, setBizIdToPanel } from './type';
@@ -40,9 +40,9 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 import './performance-view.scss';
 
 interface IProps {
-  show?: boolean;
   detail?: IDetail;
   isProcess?: boolean; // 是否为进程
+  show?: boolean;
 }
 
 @Component

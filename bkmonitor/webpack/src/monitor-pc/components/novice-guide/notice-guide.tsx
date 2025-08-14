@@ -30,17 +30,17 @@ import { debounce } from 'throttle-debounce';
 
 import './notice-guide.scss';
 
+export interface INoticeGuideProps {
+  defaultStep?: number;
+  stepList: IStepItem[];
+}
 export interface IStepItem {
+  content: string;
   target: string;
   title: string;
-  content: string;
-}
-export interface INoticeGuideProps {
-  stepList: IStepItem[];
-  defaultStep?: number;
 }
 interface INoticeGuideEvent {
-  onDone: undefined;
+  onDone: void;
 }
 @Component
 export default class NoticeGuide extends tsc<INoticeGuideProps, INoticeGuideEvent> {

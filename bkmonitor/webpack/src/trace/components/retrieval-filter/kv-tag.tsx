@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, computed, watch } from 'vue';
+import { computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { promiseTimeout } from '@vueuse/core';
 

@@ -25,9 +25,9 @@
 -->
 <template>
   <div
+    v-bkloading="{ isLoading: loading, zIndex: 2000 }"
     :style="{ 'background-image': backgroundUrl }"
     class="monitor-echart-wrap"
-    v-bkloading="{ isLoading: loading, zIndex: 2000 }"
     @mouseenter="isHover = true"
     @mouseleave="isHover = false"
   >
@@ -119,8 +119,8 @@
     </div>
     <div
       v-if="setNoData"
-      class="echart-content"
       v-show="noData"
+      class="echart-content"
     >
       <slot name="noData">
         {{ emptyText }}
@@ -129,20 +129,20 @@
     <div
       v-if="scatterTips.show && hasTraceInfo"
       ref="scatterTipsRef"
+      v-bk-clickoutside="handleScatterTipOutside"
       :style="{
         left: `${scatterTips.left}px`,
         top: `${scatterTips.top}px`,
       }"
       class="scatter-tips"
-      v-bk-clickoutside="handleScatterTipOutside"
     >
       <div class="time">
         {{ scatterTips.data.time }}
       </div>
       <div
         v-for="(item, index) in scatterTips.data.list"
-        class="info-item"
         :key="index"
+        class="info-item"
       >
         <span class="label">{{ item.label }}: </span>
         <span
@@ -174,13 +174,13 @@
     </div>
     <span
       v-if="errorMsg"
-      class="is-error"
       v-bk-tooltips="{
         content: errorMsg,
         placement: 'top-start',
         extCls: 'monitor-wrapper-error-tooltip',
         allowHTML: false,
       }"
+      class="is-error"
     />
     <div
       v-if="hasResize"
@@ -236,6 +236,8 @@
   </div>
 </template>
 <script lang="ts">
+import type { CreateElement } from 'vue';
+
 import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { type ResizeCallback, addListener, removeListener } from '@blueking/fork-resize-detector';
@@ -272,22 +274,21 @@ import type {
   ITextChartOption,
   ITextSeries,
 } from './options/type-interface';
-import type { CreateElement } from 'vue';
+
+interface IAlarmStatus {
+  alert_number: number;
+  status: number;
+  strategy_number: number;
+}
 
 interface ICurValue {
-  xAxis: number | string;
-  yAxis: number | string;
-  dataIndex: number;
   color: string;
+  dataIndex: number;
   name: string;
   seriesIndex: number;
   seriesType?: string;
-}
-
-interface IAlarmStatus {
-  status: number;
-  alert_number: number;
-  strategy_number: number;
+  xAxis: number | string;
+  yAxis: number | string;
 }
 @Component({
   name: 'monitor-echarts',
@@ -368,7 +369,7 @@ export default class MonitorEcharts extends Vue {
   /** 分组id */
   @Prop({ type: String }) groupId: string;
   /* 调用trace接口需要传入时间范围 */
-  @Prop({ type: Object, default: () => ({}) }) traceInfoTimeRange: { start_time: number; end_time: number };
+  @Prop({ type: Object, default: () => ({}) }) traceInfoTimeRange: { end_time: number; start_time: number };
   /** 是否需要高度拉伸功能 */
   @Prop({ type: Boolean, default: false }) hasResize: boolean;
   /** 是否需要图表表格功能 */
@@ -400,7 +401,7 @@ export default class MonitorEcharts extends Vue {
   chartOptionInstance = null;
   hasInitChart = false;
   refreshIntervalInstance = 0;
-  legend: { show: boolean; list: ILegendItem[] } = {
+  legend: { list: ILegendItem[]; show: boolean } = {
     show: false,
     list: [],
   };
@@ -475,7 +476,7 @@ export default class MonitorEcharts extends Vue {
           },
           formatter: this.handleSetTooltip,
           appendToBody: true,
-          position: (pos, params, dom, rect, size) => {
+          position: (pos, _params, _dom, _rect, size) => {
             const { contentSize } = size;
             const chartRect = this.$el.getBoundingClientRect();
             const posRect = {
@@ -529,7 +530,7 @@ export default class MonitorEcharts extends Vue {
       },
       (this.options || {}) as MonitorEchartOptions,
       {
-        arrayMerge: (destinationArray, sourceArray) => sourceArray,
+        arrayMerge: (_destinationArray, sourceArray) => sourceArray,
       }
     );
   }
@@ -788,13 +789,13 @@ export default class MonitorEcharts extends Vue {
         const series: any = deepMerge([], data || []);
         const hasSeries =
           (series && series.length > 0 && series.some(item => item?.datapoints?.length)) ||
-          (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+          (series && Object.hasOwn(series, 'series') && series.series.length);
         if (!hasSeries) {
           this.noData = !hasSeries;
           resolve(undefined);
           return;
         }
-        const realSeries = Object.prototype.hasOwnProperty.call(series, 'series') ? series.series : series;
+        const realSeries = Object.hasOwn(series, 'series') ? series.series : series;
         if (this.chartType === 'line' && realSeries[0]?.metric) {
           const [
             {
@@ -826,7 +827,7 @@ export default class MonitorEcharts extends Vue {
           this.legend.show = hasSeries && optionData.legendData.length > 0;
         } else {
           this.legend.show = optionData.options.lengend
-            ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
+            ? Object.hasOwn(optionData.options.lengend, 'show')
               ? optionData.options.lengend.show
               : true
             : false;
@@ -1167,7 +1168,7 @@ export default class MonitorEcharts extends Vue {
    * 根据图表接口响应数据下载csv文件
    */
   handleExportCsv() {
-    if (!!this.seriesData?.length) {
+    if (this.seriesData?.length) {
       const csvList = [];
       const keys = Object.keys(this.tableData[0]).filter(key => !['$index'].includes(key));
       csvList.push(keys.map(key => key.replace(/,/gim, '_')).join(','));

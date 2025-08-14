@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="strategy-detail-table detail-content"
     v-bkloading="{ isLoading: strategyTarget.loading }"
+    class="strategy-detail-table detail-content"
   >
     <div v-if="tableData.length">
       <!-- 表格 -->
@@ -126,8 +126,8 @@
             <div class="monitoring-target">
               <div
                 v-for="(item, index) in scope.row.labels"
-                class="target-labels"
                 :key="index"
+                class="target-labels"
               >
                 <div class="label-first">
                   {{ item.first }}

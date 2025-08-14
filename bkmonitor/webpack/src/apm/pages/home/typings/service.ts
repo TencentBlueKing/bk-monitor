@@ -1,3 +1,44 @@
+export interface IAPMService {
+  app_name: string;
+  avg_duration: IMetric;
+  category: string;
+  collect: ICollect;
+  error_rate: IMetric;
+  kind: string;
+  language: string;
+  log_data_status: IDataStatus;
+  metric_data_status: IDataStatus;
+  operation: IOperation[];
+  profiling_data_status: IDataStatus;
+  request_count: IMetric;
+  service_name: IServiceName;
+  trace_data_status: IDataStatus;
+  type: string;
+}
+
+export interface ICollect {
+  api: string;
+  is_collect: boolean;
+  params: IParams;
+}
+
+export interface IDataStatus {
+  icon: string;
+}
+
+export interface IMetric {
+  datapoints: any; // You can replace 'any' with a more specific type if you have it
+  unit: null | string;
+}
+
+export interface IOperation {
+  icon: string;
+  key: string;
+  target: string;
+  url: string;
+  value: string;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,56 +65,15 @@
  * IN THE SOFTWARE.
  */
 export interface IParams {
-  service_name: string;
   app_name: string;
-}
-
-export interface ICollect {
-  is_collect: boolean;
-  api: string;
-  params: IParams;
+  service_name: string;
 }
 
 export interface IServiceName {
-  target: string;
-  value: string;
-  url: string;
-  key: string;
   icon: string;
+  key: string;
   syncTime: boolean;
-}
-
-export interface IDataStatus {
-  icon: string;
-}
-
-export interface IOperation {
   target: string;
-  value: string;
   url: string;
-  key: string;
-  icon: string;
-}
-
-export interface IMetric {
-  datapoints: any; // You can replace 'any' with a more specific type if you have it
-  unit: null | string;
-}
-
-export interface IAPMService {
-  app_name: string;
-  collect: ICollect;
-  service_name: IServiceName;
-  type: string;
-  language: string;
-  metric_data_status: IDataStatus;
-  log_data_status: IDataStatus;
-  trace_data_status: IDataStatus;
-  profiling_data_status: IDataStatus;
-  operation: IOperation[];
-  category: string;
-  kind: string;
-  request_count: IMetric;
-  error_rate: IMetric;
-  avg_duration: IMetric;
+  value: string;
 }

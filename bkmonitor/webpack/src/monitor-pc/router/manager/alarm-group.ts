@@ -1,4 +1,11 @@
 /*
+ * @Date: 2020-11-10 21:35:35
+ * @LastEditTime: 2021-06-26 10:03:15
+ * @Description:
+ */
+import type Vue from 'vue';
+
+/*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
@@ -25,12 +32,6 @@
  */
 import * as AlarmGroupAuth from '../../pages/alarm-group/authority-map';
 
-/*
- * @Date: 2020-11-10 21:35:35
- * @LastEditTime: 2021-06-26 10:03:15
- * @Description:
- */
-import type Vue from 'vue';
 import type { Route, RouteConfig } from 'vue-router';
 
 const AlarmGroup = () => import(/* webpackChunkName: 'AlarmGroup' */ '../../pages/alarm-group/alarm-group');
@@ -89,7 +90,7 @@ export default [
     beforeEnter(
       to: Route,
       from: Route,
-      next: (to?: ((vm: Vue) => any) | Location | false | string | undefined | void) => void
+      next: (to?: ((vm: Vue) => any) | false | Location | string | undefined | void) => void
     ) {
       to.meta.title = to.params.title || '加载中...';
       next();

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit, InjectReactive, Watch, ProvideReactive } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -42,31 +42,31 @@ import TabBtnGroup from './tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
 import type {
-  IServiceConfig,
   CallOptions,
+  DimensionItem,
+  IChartOption,
+  IDataItem,
   IFilterCondition,
   IFilterData,
-  IChartOption,
-  IPointTime,
-  IDataItem,
-  DimensionItem,
   IListItem,
+  IPointTime,
+  IServiceConfig,
 } from '../type';
 
 import './caller-callee-table-chart.scss';
+interface ICallerCalleeTableChartEvent {
+  onCloseChartPoint?: () => void;
+  onCloseTag?: (val: IFilterCondition) => void;
+  onDrill?: (val: IFilterCondition[]) => void;
+  onHandleDetail?: (val: IDataItem) => void;
+}
 interface ICallerCalleeTableChartProps {
   activeKey: string;
   chartPointOption: IChartOption;
   filterData?: IFilterCondition[];
-  searchList?: IServiceConfig[];
   panel: PanelModel;
+  searchList?: IServiceConfig[];
   timeStrShow?: IDataItem;
-}
-interface ICallerCalleeTableChartEvent {
-  onCloseTag?: (val: IFilterCondition) => void;
-  onHandleDetail?: (val: IDataItem) => void;
-  onCloseChartPoint?: () => void;
-  onDrill?: (val: IFilterCondition[]) => void;
 }
 const TimeDimension: DimensionItem = {
   value: 'time',

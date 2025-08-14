@@ -33,38 +33,38 @@ import { getValueFormat } from '../../../monitor-echarts/valueFormats/valueForma
 import { type MonitorEchartOptions, echarts } from '../../typings/index';
 
 import './mini-time-series.scss';
-enum EPointType {
+enum EDropType {
   compare = 'compare',
   end = 'end',
   refer = 'refer',
 }
-enum EDropType {
+enum EPointType {
   compare = 'compare',
   end = 'end',
   refer = 'refer',
 }
 
 interface IProps {
-  chartStyle?: {
-    lineMaxHeight: number;
-    chartWarpHeight: number;
-  };
-  groupId?: string;
-  data?: [number, number][];
-  valueTitle?: string;
-  unit?: string;
-  unitDecimal?: number;
-  showLastMarkPoint?: boolean;
-  lastValueWidth?: number;
   /* 以下参数为对比图专用 */
   compareX?: number;
-  referX?: number;
-  pointType?: EPointType;
-  dropType?: EDropType;
+  data?: [number, number][];
   disableHover?: boolean;
-  onPointTypeChange?: (type: EPointType) => void;
+  dropType?: EDropType;
+  groupId?: string;
+  lastValueWidth?: number;
+  pointType?: EPointType;
+  referX?: number;
+  showLastMarkPoint?: boolean;
+  unit?: string;
+  unitDecimal?: number;
+  valueTitle?: string;
   onCompareXChange?: (x: number) => void;
+  onPointTypeChange?: (type: EPointType) => void;
   onReferXChange?: (x: number) => void;
+  chartStyle?: {
+    chartWarpHeight: number;
+    lineMaxHeight: number;
+  };
 }
 
 @Component

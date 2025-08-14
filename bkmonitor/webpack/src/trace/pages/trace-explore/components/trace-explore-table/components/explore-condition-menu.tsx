@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType, useTemplateRef, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
-import { Tippy } from 'vue-tippy';
+import { type PropType, computed, defineComponent, useTemplateRef } from 'vue';
 
 import { bkMessage } from 'monitor-api/utils';
 import { copyText } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
+import { Tippy } from 'vue-tippy';
 
 import { EMethod, EMode } from '../../../../../components/retrieval-filter/typing';
 import { safeParseJsonValueForWhere } from '../../../utils';
@@ -112,7 +112,7 @@ export default defineComponent({
      * @param {boolean} config.hasClick 是否有点击事件及 hover新开标签页 tooltip 提示
      *
      */
-    function menuItemSuffixRender(config: { method?: EMethod; hasClick?: boolean }): () => SlotReturnValue {
+    function menuItemSuffixRender(config: { hasClick?: boolean; method?: EMethod }): () => SlotReturnValue {
       const { method, hasClick = true } = config;
       return () =>
         (

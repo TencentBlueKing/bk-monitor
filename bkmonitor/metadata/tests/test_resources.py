@@ -1,22 +1,21 @@
-# -*- coding: utf-8 -*-
 import pytest
 
 from metadata import models
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 REDIS_DATA = [
     {
-        'field_name': 'test_metric',
-        'tag_value_list': {
-            'bk_biz_id': {'last_update_time': 1662009139, 'values': ["1"]},
-            'parent_scenario': {'last_update_time': 1662009139, 'values': []},
-            'scenario': {'last_update_time': 1662009139, 'values': []},
-            'target': {'last_update_time': 1662009139, 'values': []},
-            'target_biz_id': {'last_update_time': 1662009139, 'values': []},
-            'target_biz_name': {'last_update_time': 1662009139, 'values': []},
+        "field_name": "test_metric",
+        "tag_value_list": {
+            "bk_biz_id": {"last_update_time": 1662009139, "values": ["1"]},
+            "parent_scenario": {"last_update_time": 1662009139, "values": []},
+            "scenario": {"last_update_time": 1662009139, "values": []},
+            "target": {"last_update_time": 1662009139, "values": []},
+            "target_biz_id": {"last_update_time": 1662009139, "values": []},
+            "target_biz_name": {"last_update_time": 1662009139, "values": []},
         },
-        'last_modify_time': 1662009139.0,
+        "last_modify_time": 1662009139.0,
     }
 ]
 DEFAULT_DATA_ID = 10000

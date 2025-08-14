@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
 import { Button, Dropdown, Message } from 'bkui-vue';
 import { createOrUpdateReport, sendReport } from 'monitor-api/modules/new_report';
 import { deepClone } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import TestSendSuccessDialog from './components/test-send-success-dialog';

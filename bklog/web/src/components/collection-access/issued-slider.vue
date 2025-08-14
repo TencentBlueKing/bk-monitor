@@ -166,7 +166,7 @@
                           <!-- eslint-disable-next-line vue/no-v-html -->
                           <p
                             class="fl"
-                            v-html="collaspseHeadInfo(cluster)"
+                            v-html="$xss(collaspseHeadInfo(cluster))"
                           ></p>
                         </div>
                       </template>
@@ -253,7 +253,7 @@
                   </div>
                   <div
                     class="detail-content"
-                    v-html="detail.content"
+                    v-html="$xss(detail.content)"
                   ></div>
                 </div>
               </div>

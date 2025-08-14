@@ -54,11 +54,13 @@ export default defineComponent({
     return () => (
       <div class='v3-bklog-toolbar'>
         {!window.__IS_MONITOR_COMPONENT__ && (
-          <div class={`collection-box ${isFavoriteShown.value ? 'active' : ''}`}>
+          <div
+            class={`collection-box ${isFavoriteShown.value ? 'active' : ''}`}
+            onClick={handleCollectionShowChange}
+          >
             <span
               style={{ color: isFavoriteShown.value ? '#3A84FF' : '' }}
               class='bklog-icon bklog-shoucangjia'
-              onClick={handleCollectionShowChange}
             ></span>
           </div>
         )}

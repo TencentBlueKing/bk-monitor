@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref, Mixins, Watch } from 'vue-property-decorator';
+import { Component, Emit, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { alertDateHistogram } from 'monitor-api/modules/alert';
 import { Debounce } from 'monitor-common/utils/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
@@ -43,7 +43,7 @@ import {
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
 import { generateFormatterFunc, handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { handleYAxisLabelFormatter, EStatusType, EAlertLevel, DEFAULT_SEVERITY_LIST } from '../utils';
+import { DEFAULT_SEVERITY_LIST, EAlertLevel, EStatusType, handleYAxisLabelFormatter } from '../utils';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import type { IAlarmGraphConfig } from '../type';
@@ -51,15 +51,15 @@ import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './home-alarm-chart.scss';
 
-interface IHomeAlarmChartProps {
-  config: IAlarmGraphConfig;
-  timeRange: TimeRangeType;
-  currentActiveId: number;
-  severityProp?: Array<string>;
-}
 interface IHomeAlarmChartEvents {
   onMenuClick: any;
   onSeverityChange: any;
+}
+interface IHomeAlarmChartProps {
+  config: IAlarmGraphConfig;
+  currentActiveId: number;
+  severityProp?: Array<string>;
+  timeRange: TimeRangeType;
 }
 
 const handleSetTooltip = params => {
@@ -88,7 +88,7 @@ const handleSetTooltip = params => {
 
 @Component
 class HomeAlarmChart extends Mixins<
-  ChartLoadingMixin & IntersectionMixin & ToolsMixin & ResizeMixin & LegendMixin & ErrorMsgMixins
+  ChartLoadingMixin & ErrorMsgMixins & IntersectionMixin & LegendMixin & ResizeMixin & ToolsMixin
 >(IntersectionMixin, ChartLoadingMixin, ToolsMixin, ResizeMixin, LegendMixin, ErrorMsgMixins) {
   @Prop({ default: () => ({}) }) config: IAlarmGraphConfig;
   @Prop() currentActiveId: number;

@@ -24,6 +24,6 @@
  * IN THE SOFTWARE.
  */
 export enum EShortcutsType {
-  NEAR = 'NEAR',
   assign = 'assign',
+  NEAR = 'NEAR',
 }

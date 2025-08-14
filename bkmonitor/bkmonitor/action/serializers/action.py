@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -11,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import Dict
 
 from django.conf import settings
 from django.utils.functional import cached_property
@@ -26,6 +24,7 @@ from bkmonitor.utils.template import Jinja2Renderer
 from constants.action import (
     ALL_CONVERGE_DIMENSION,
     CONVERGE_FUNCTION,
+    GLOBAL_BIZ_ID,
     ActionSignal,
     IntervalNotifyMode,
     NoticeChannel,
@@ -106,7 +105,7 @@ class NoiseReduceConfigSlz(serializers.Serializer):
             return data
         if data.get("is_enabled") and not (data.get("dimensions") and data.get("count")):
             raise ValidationError(detail=_("已开启降噪，请填写正确的维度信息和降噪阈值"))
-        return super(NoiseReduceConfigSlz, self).run_validation(data)
+        return super().run_validation(data)
 
 
 class UpgradeConfigSlz(serializers.Serializer):
@@ -123,7 +122,7 @@ class UpgradeConfigSlz(serializers.Serializer):
             return data
         if data.get("is_enabled") and not (data.get("upgrade_interval") and data.get("user_groups")):
             raise ValidationError(detail=_("已开启通知升级配置，请填写正确的升级时间间隔和升级通知组成员"))
-        return super(UpgradeConfigSlz, self).run_validation(data)
+        return super().run_validation(data)
 
 
 class NoticeWaySerializer(serializers.Serializer):
@@ -139,21 +138,23 @@ class BaseNotifyConfigSerializer(serializers.Serializer):
 
     def to_internal_value(self, data):
         # 转换原来的数据结构之新的数据结构
-        internal_data = super(BaseNotifyConfigSerializer, self).to_internal_value(data)
+        internal_data = super().to_internal_value(data)
 
         for notice_way_config in internal_data.get("notice_ways"):
             # 已经存在的数据，表示为新版本接口存储
             notice_way = notice_way_config["name"]
             if notice_way in NoticeChannel.RECEIVER_CHANNELS and not notice_way_config["receivers"]:
                 raise ValidationError(
-                    detail=_("通知方式为{}的接收人不能为空").format(NoticeChannel.NOTICE_CHANNEL_MAPPING.get(notice_way, notice_way))
+                    detail=_("通知方式为{}的接收人不能为空").format(
+                        NoticeChannel.NOTICE_CHANNEL_MAPPING.get(notice_way, notice_way)
+                    )
                 )
         # 兼容一下老的数据结构
         UserGroup.translate_notice_ways(internal_data)
         return internal_data
 
     def to_representation(self, instance):
-        data = super(BaseNotifyConfigSerializer, self).to_representation(instance)
+        data = super().to_representation(instance)
         # 兼容一下老得数据结构
         UserGroup.translate_notice_ways(data)
         return data
@@ -306,7 +307,7 @@ class HttpCallBackConfigSlz(PollModeConfig):
     failed_retry = FailedRetryConfigSlz(required=False)
 
     def is_valid(self, raise_exception=False):
-        return super(HttpCallBackConfigSlz, self).is_valid(raise_exception=raise_exception)
+        return super().is_valid(raise_exception=raise_exception)
 
 
 class ExecuteConfigSlz(serializers.Serializer):
@@ -325,7 +326,7 @@ class ActionConfigBaseInfoSlz(serializers.ModelSerializer):
         fields = "__all__"
 
     @cached_property
-    def all_plugins(self) -> Dict[str, Dict[str, str]]:
+    def all_plugins(self) -> dict[str, dict[str, str]]:
         """
         所有插件信息
         """
@@ -334,7 +335,7 @@ class ActionConfigBaseInfoSlz(serializers.ModelSerializer):
         return all_plugin_info
 
     def to_representation(self, instance):
-        data = super(ActionConfigBaseInfoSlz, self).to_representation(instance)
+        data = super().to_representation(instance)
         plugin = self.all_plugins.get(str(data["plugin_id"]), {})
         data["plugin_name"] = plugin.get("name", "--")
         data["plugin_type"] = plugin.get("plugin_type", "--")
@@ -355,7 +356,7 @@ class ActionConfigBaseInfoSlz(serializers.ModelSerializer):
         return value
 
     def run_validation(self, data=empty):
-        value = super(ActionConfigBaseInfoSlz, self).run_validation(data)
+        value = super().run_validation(data)
         try:
             value = self.run_execute_detail_validation(value)
         except ValidationError as exc:
@@ -441,7 +442,7 @@ class ActionConfigListSlz(ActionConfigDetailSlz):
         )
 
     def to_representation(self, instance):
-        data = super(ActionConfigListSlz, self).to_representation(instance)
+        data = super().to_representation(instance)
         data["plugin_type"] = self.all_plugins.get(str(data["plugin_id"]), {}).get("plugin_key")
         return data
 
@@ -455,6 +456,13 @@ class ActionConfigPatchSlz(ActionConfigDetailSlz):
     plugin_id = serializers.IntegerField(required=False)
     bk_biz_id = serializers.IntegerField(required=False)
     execute_config = serializers.JSONField(required=False)
+
+    def validate(self, attrs):
+        # 如果是默认套餐且尝试修改bk_biz_id，则忽略bk_biz_id字段
+        if self.instance and int(self.instance.bk_biz_id) == GLOBAL_BIZ_ID and "bk_biz_id" in attrs:
+            attrs.pop("bk_biz_id")
+
+        return super().validate(attrs)
 
 
 class ActionPluginSlz(serializers.ModelSerializer):

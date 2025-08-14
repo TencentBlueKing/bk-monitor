@@ -27,9 +27,9 @@
 import { ref, watch } from 'vue';
 
 interface TagsOverflowOptions {
-  targetRef: any;
   collapseTagRef: any;
   isOverflow: any;
+  targetRef: any;
 }
 
 function useTagsOverflow(options: TagsOverflowOptions) {

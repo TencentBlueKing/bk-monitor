@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, type Ref, defineComponent, inject, reactive, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, type Ref, computed, defineComponent, inject, reactive, watch } from 'vue';
 
 import { Button, DatePicker, Select } from 'bkui-vue';
 import { random } from 'lodash';
+import { useI18n } from 'vue-i18n';
+import { getDefaultUserGroupListSync, type IUserInfo } from 'monitor-pc/components/user-selector/user-group';
 
-import MemberSelect from '../../../components/member-select/member-select';
+import UserSelector from '../../../components/user-selector/user-selector';
 import { RotationSelectTypeEnum, WeekDataList } from '../typings/common';
 import { validTimeOverlap } from '../utils';
 import CalendarSelect from './calendar-select';
@@ -41,16 +42,16 @@ import './fixed-rotation-tab.scss';
 export interface FixedDataModel {
   id?: number;
   key: number;
+  orderIndex: number;
+  users: { id: string; type: 'group' | 'user' }[];
+  workDateRange: [];
+  workDays: (number | string)[];
+  workTime: string[][];
   type:
     | RotationSelectTypeEnum.Daily
     | RotationSelectTypeEnum.DateRange
     | RotationSelectTypeEnum.Monthly
     | RotationSelectTypeEnum.Weekly;
-  workDays: (number | string)[];
-  workDateRange: [];
-  workTime: string[][];
-  orderIndex: number;
-  users: { type: 'group' | 'user'; id: string }[];
 }
 
 export default defineComponent({
@@ -66,7 +67,9 @@ export default defineComponent({
     // --------公共------------
     const { t } = useI18n();
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
-    const colorList = inject<{ value: string[]; setValue: (val: string[]) => void }>('colorList');
+    const colorList = inject<{ setValue: (val: string[]) => void; value: string[] }>('colorList');
+
+    const defaultUserGroupList = computed(() => getDefaultUserGroupListSync(defaultGroup.value?.[0]?.children || []));
 
     const typeList = [
       { label: t('每天'), value: RotationSelectTypeEnum.Daily },
@@ -118,8 +121,8 @@ export default defineComponent({
       localValue.splice(ind, 1);
       handleEmitData();
     }
-    function handleUserChange(val: FixedDataModel['users'], item: FixedDataModel) {
-      item.users = val;
+    function handleUserChange(userInfos: IUserInfo[], item: FixedDataModel) {
+      item.users = userInfos.map(user => ({ id: user.id, type: user?.type === 'userGroup' ? 'group' : 'user' }));
       handleEmitData();
     }
     function handleEmitData() {
@@ -129,7 +132,7 @@ export default defineComponent({
     return {
       t,
       colorList,
-      defaultGroup,
+      defaultUserGroupList,
       localValue,
       typeList,
       handleUserChange,
@@ -229,22 +232,18 @@ export default defineComponent({
               </FormItem>
             </td>
             <td class='user-setting-content'>
-              <MemberSelect
-                v-model={item.users}
-                defaultGroup={this.defaultGroup}
-                hasDefaultGroup={true}
-                showType='avatar'
-                onSelectEnd={val => this.handleUserChange(val, item)}
-              >
-                {{
-                  prefix: () => (
-                    <div
-                      style={{ 'border-left-color': this.colorList.value[item.orderIndex] }}
-                      class='member-select-prefix'
-                    />
-                  ),
-                }}
-              </MemberSelect>
+              <div class='user-select-wrapper'>
+                <div
+                  style={{ 'background-color': this.colorList.value[item.orderIndex] }}
+                  class='user-select-prefix'
+                />
+                <UserSelector
+                  class='user-selector'
+                  modelValue={item.users.map(user => user.id)}
+                  userGroupList={this.defaultUserGroupList}
+                  onChange={userInfos => this.handleUserChange(userInfos, item)}
+                />
+              </div>
             </td>
             {this.localValue.length > 1 && (
               <div

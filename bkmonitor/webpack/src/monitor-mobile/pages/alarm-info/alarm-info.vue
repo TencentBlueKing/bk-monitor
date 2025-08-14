@@ -32,10 +32,10 @@
     >
       <van-collapse-item
         v-for="item in header.list"
+        :key="item.id"
         class="header-item"
         :border="item.id !== 'message'"
         :is-link="item.id === 'message'"
-        :key="item.id"
         :name="item.id"
         :title="item.title"
       >
@@ -51,13 +51,13 @@
       </van-collapse-item>
     </van-collapse>
     <div class="list-title">
-      {{ `${$t('事件列表')}(${eventList?.length})` }}
+      {{ `${$t('事件列表')}(${(eventList && eventList.length) || 0})` }}
     </div>
     <van-list class="card-list">
       <div
         v-for="(item, index) in eventList"
-        class="card-list-item"
         :key="index"
+        class="card-list-item"
         @click="handleGotoDetail(item)"
       >
         <div class="card-title">
@@ -155,6 +155,7 @@ import { ackEvent } from '../../../monitor-api/modules/mobile_event';
 import MonitorMobileEcharts from '../../../monitor-ui/monitor-echarts/monitor-mobile-echarts.vue';
 import FooterButton from '../../components/footer-button/footer-button.vue';
 import AlarmModule from '../../store/modules/alarm-info';
+
 import type { IEventItem, IHeader, IStatusMap } from '../../types/alarm-info';
 
 @Component({
@@ -354,7 +355,7 @@ export default class AlarmDetail extends Vue {
 }
 </script>
 <style lang="scss">
-@import '../../static/scss/variate.scss';
+@import '../../static/scss/variate';
 
 $colorList: $deadlyColor $shieldColor $shieldColor $recoverColor;
 $statusList: 'abnormal' 'shield_abnormal' 'closed' 'recovered';
@@ -364,7 +365,7 @@ $statusList: 'abnormal' 'shield_abnormal' 'closed' 'recovered';
   font-size: 14px;
 
   &-header {
-    box-shadow: 0 1px 0 0 rgba(99, 101, 110, 0.05);
+    box-shadow: 0 1px 0 0 rgb(99 101 110 / 5%);
 
     &.van-hairline {
       &--top-bottom::after {
@@ -436,10 +437,10 @@ $statusList: 'abnormal' 'shield_abnormal' 'closed' 'recovered';
     &-item {
       position: relative;
       padding: 15px 20px;
-      margin: 0 16px 8px 16px;
+      margin: 0 16px 8px;
       background-color: #fff;
       border-radius: 4px;
-      box-shadow: 0 1px 0 0 rgba(99, 101, 110, 0.05);
+      box-shadow: 0 1px 0 0 rgb(99 101 110 / 5%);
 
       .card-title {
         display: flex;
@@ -506,7 +507,7 @@ $statusList: 'abnormal' 'shield_abnormal' 'closed' 'recovered';
     bottom: 0;
     width: 100%;
     height: 15px;
-    background: linear-gradient(rgba(255, 255, 255, 0) 0, #fff 100%);
+    background: linear-gradient(rgb(255 255 255 / 0%) 0, #fff 100%);
   }
 }
 </style>

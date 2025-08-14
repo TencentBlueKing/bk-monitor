@@ -1,6 +1,5 @@
 import { commonPageSizeGet } from 'monitor-common/utils';
 /* eslint-disable @typescript-eslint/prefer-for-of */
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -31,7 +30,6 @@ import { commonPageSizeGet } from 'monitor-common/utils';
  * @LastEditTime: 2021-07-01 17:23:59
  * @Description:
  */
-
 // @ts-nocheck
 import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
 import { typeTools } from 'monitor-common/utils/utils.js';
@@ -686,7 +684,7 @@ export default class TableStore {
     item.totalAlarmCount = item.alarm_count?.reduce((pre, cur) => pre + cur.count, 0);
     // 当前悬浮状态
     // item.hover = false
-    item.mark = Object.prototype.hasOwnProperty.call(this.stickyValue, item.rowId);
+    item.mark = Object.hasOwn(this.stickyValue, item.rowId);
     // item.order = this.sticky[item.rowId] ? 99999 : i
     // todo 排序进程
     for (const com of item?.component || []) {
@@ -848,15 +846,15 @@ export default class TableStore {
 
   setState(rowId: string, key: string, value: any) {
     const row = this.allData.find(item => item.rowId === rowId);
-    if (Object.prototype.hasOwnProperty.call(row, key)) {
+    if (Object.hasOwn(row, key)) {
       row[key] = value;
     }
   }
 
   sortDataByKey(data: ITableRow[]) {
     data.sort((pre, next) => {
-      const isPreTop = Object.prototype.hasOwnProperty.call(this.stickyValue, pre.rowId) ? 1 : 0;
-      const isNextTop = Object.prototype.hasOwnProperty.call(this.stickyValue, next.rowId) ? 1 : 0;
+      const isPreTop = Object.hasOwn(this.stickyValue, pre.rowId) ? 1 : 0;
+      const isNextTop = Object.hasOwn(this.stickyValue, next.rowId) ? 1 : 0;
       if (isPreTop === isNextTop) {
         return this.order === 'ascending'
           ? +pre[this.sortKey] - +next[this.sortKey]

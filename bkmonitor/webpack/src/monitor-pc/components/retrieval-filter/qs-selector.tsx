@@ -32,26 +32,26 @@ import { copyText, Debounce } from 'monitor-common/utils';
 import QsSelectorSelector from './qs-selector-options';
 import { QueryStringEditor } from './query-string-utils';
 import {
-  EQueryStringTokenType,
+  type IFavoriteListItem,
   type IFilterField,
-  onClickOutside,
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
-  type IFavoriteListItem,
+  EQueryStringTokenType,
+  onClickOutside,
 } from './utils';
 
 import './qs-selector.scss';
 
 interface IProps {
-  value?: string;
-  fields: IFilterField[];
   clearKey?: string;
-  qsSelectorOptionsWidth?: number;
   favoriteList?: IFavoriteListItem[];
+  fields: IFilterField[];
+  qsSelectorOptionsWidth?: number;
+  value?: string;
   // isQsOperateWrapBottom?: boolean;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
-  onQuery?: (v: string) => void;
   onChange?: (v: string) => void;
+  onQuery?: (v: string) => void;
 }
 
 @Component

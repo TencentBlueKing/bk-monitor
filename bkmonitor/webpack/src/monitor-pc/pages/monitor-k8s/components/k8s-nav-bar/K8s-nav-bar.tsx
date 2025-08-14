@@ -35,19 +35,19 @@ import type { TimeRangeType } from '../../../../components/time-range/time-range
 
 import './K8s-nav-bar.scss';
 
-interface K8sNavBarProps {
-  value?: string;
-  timeRange?: TimeRangeType;
-  timezone?: string;
-  refreshInterval?: number;
-}
-
 interface K8sNavBarEvent {
-  onSelected(val: string): void;
-  onTimezoneChange(val: string): void;
-  onTimeRangeChange(val: TimeRangeType): void;
   onImmediateRefresh(): void;
   onRefreshChange(val: number): void;
+  onSelected(val: string): void;
+  onTimeRangeChange(val: TimeRangeType): void;
+  onTimezoneChange(val: string): void;
+}
+
+interface K8sNavBarProps {
+  refreshInterval?: number;
+  timeRange?: TimeRangeType;
+  timezone?: string;
+  value?: string;
 }
 
 @Component
@@ -76,8 +76,8 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
     { label: window.i18n.tc('性能'), value: 'performance', icon: 'icon-xingneng1', disabled: false },
     { label: window.i18n.tc('网络'), value: 'network', icon: 'icon-wangluo', disabled: false },
     { label: window.i18n.tc('容量'), value: 'capacity', icon: 'icon-rongliang', disabled: false },
+    { label: window.i18n.tc('事件'), value: 'event', icon: 'icon-shijian2', disabled: false },
     { label: window.i18n.tc('存储'), value: 'storage', icon: 'icon-cunchu', disabled: true },
-    { label: window.i18n.tc('事件'), value: 'event', icon: 'icon-shijian2', disabled: true },
     { label: window.i18n.tc('成本'), value: 'cost', icon: 'icon-chengben', disabled: true },
   ];
 

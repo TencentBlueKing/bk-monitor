@@ -25,7 +25,7 @@
  */
 import { frontendReportEvent } from 'monitor-api/modules/commons';
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
-import { Action, Module, VuexModule, getModule } from 'vuex-module-decorators';
+import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 import { getRouteConfigById } from '../../router/router-config';
 import store from '../store';

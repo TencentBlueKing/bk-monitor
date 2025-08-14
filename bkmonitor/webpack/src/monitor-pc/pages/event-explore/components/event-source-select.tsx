@@ -30,13 +30,13 @@ import { ExploreSourceTypeEnum } from '../typing';
 
 import './event-source-select.scss';
 
-interface EventSourceSelectProps {
-  value: ExploreSourceTypeEnum[];
-  list: { id: ExploreSourceTypeEnum; name: string }[];
-}
-
 interface EventSourceSelectEvents {
   onSelect(source: ExploreSourceTypeEnum[]): void;
+}
+
+interface EventSourceSelectProps {
+  list: { id: ExploreSourceTypeEnum; name: string }[];
+  value: ExploreSourceTypeEnum[];
 }
 
 @Component

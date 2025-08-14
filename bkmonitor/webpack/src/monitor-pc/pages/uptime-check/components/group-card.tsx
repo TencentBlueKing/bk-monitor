@@ -43,12 +43,6 @@ const options: { id: IOptionType; name: string }[] = [
   { id: 'delete', name: window.i18n.tc('解散任务组') },
 ];
 
-export interface ITaskItem {
-  available?: number;
-  name?: string;
-  status?: string;
-  task_id?: number;
-}
 export interface IData {
   alarm_num?: number;
   all_tasks?: ITaskItem[];
@@ -59,17 +53,23 @@ export interface IData {
   protocol_num?: { name: string; val: number }[];
   top_three_tasks?: ITaskItem[];
 }
-interface IGroupCardProps {
-  data?: IData;
-  dragStatus?: IDragStatus;
+export interface ITaskItem {
+  available?: number;
+  name?: string;
+  status?: string;
+  task_id?: number;
 }
 interface IGroupCardEvents {
+  onCardClick?: number;
+  onOperate?: IOptionType;
   onDropItem?: {
     groupId: number;
     taskId: number;
   };
-  onOperate?: IOptionType;
-  onCardClick?: number;
+}
+interface IGroupCardProps {
+  data?: IData;
+  dragStatus?: IDragStatus;
 }
 @Component({
   name: 'GroupCard',

@@ -33,37 +33,38 @@ import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strateg
 import documentLinkMixin from '../../../mixins/documentLinkMixin';
 
 import type { IDescData, ThemeType } from './select-card-item';
+import type { ICreateAppFormData } from '@/pages/home/typings/app';
 import type { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-selector/typing';
 
 import './select-system.scss';
 
-export interface IListDataItem {
+export interface ICardItem {
+  checked: boolean;
+  descData?: IDescData;
+  hidden: boolean;
+  id: string;
+  img: string;
+  theme: ThemeType;
   title: string;
-  list?: ICardItem[];
+}
+export interface IListDataItem {
   children?: IListDataItem[];
+  list?: ICardItem[];
   multiple?: boolean;
+  title: string;
   other?: {
-    title: string;
     checked: boolean;
+    title: string;
     value: string;
   };
 }
-export interface ICardItem {
-  id: string;
-  title: string;
-  theme: ThemeType;
-  img: string;
-  descData?: IDescData;
-  hidden: boolean;
-  checked: boolean;
+interface IEvents {
+  onChange: ICreateAppFormData;
+  onNextStep: void;
 }
 interface IProps {
-  loading: boolean;
   listData: IListDataItem[];
-}
-interface IEvents {
-  onNextStep: void;
-  onChange: ICreateAppFormData;
+  loading: boolean;
 }
 @Component
 export default class SelectSystem extends Mixins(documentLinkMixin) {
@@ -199,10 +200,12 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
 
   /** 批量修改整行卡片的选中状态 */
   handleRowChecked(row: IListDataItem, bool = false) {
-    row.list.forEach(item => (item.checked = bool));
-    if (!!row.other) {
-      row.other.checked = bool;
+    for (const item of row.list) {
+      item.checked = bool;
+    }
 
+    if (row.other) {
+      row.other.checked = bool;
       row.other.value = '';
     }
   }
@@ -226,18 +229,18 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
   handleSearch(keyword: string) {
     let isEmpy = true;
     const fn = (list: IListDataItem[]) => {
-      list.forEach(row => {
-        if (!!row.children?.length) {
+      for (const row of list) {
+        if (row.children?.length) {
           fn(row.children);
         } else {
-          row.list?.forEach?.(cardItem => {
+          for (const cardItem of row?.list || []) {
             const isMatch = cardItem.title.toLocaleLowerCase().includes(keyword.toLocaleLowerCase());
 
             cardItem.hidden = !isMatch;
             if (isMatch) isEmpy = false;
-          });
+          }
         }
-      });
+      }
     };
     fn(this.localListData);
     this.isEmpy = isEmpy;
@@ -334,7 +337,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
     });
   }
 
-  handleSelectorChange(data: { value: IIpV6Value; nodeType: INodeType }) {
+  handleSelectorChange(data: { nodeType: INodeType; value: IIpV6Value }) {
     // TODO: 将数据拍平，不知道最后是否用得着
     const value = transformValueToMonitor(data.value, data.nodeType);
     this.formData.plugin_config.target_nodes = value.map(item => ({
@@ -353,7 +356,9 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
       this.isFetchingEncodingList = true;
       const encodingList = await getDataEncoding()
         .catch(console.log)
-        .finally(() => (this.isFetchingEncodingList = false));
+        .finally(() => {
+          this.isFetchingEncodingList = false;
+        });
       if (Array.isArray(encodingList)) this.logAsciiList = encodingList;
     });
   }
@@ -551,7 +556,10 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                 }}
               >
                 <div class='plugin-info'>
-                  <img src={item.img} />
+                  <img
+                    alt={item.name}
+                    src={item.img}
+                  />
                   <div class='plugin-name'>
                     <span>{item.name}</span>
                     <span class='desc'>
@@ -584,7 +592,9 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                     class='btn-target-collect'
                     icon='plus'
                     theme='default'
-                    onClick={() => (this.selectorDialog.isShow = true)}
+                    onClick={() => {
+                      this.selectorDialog.isShow = true;
+                    }}
                   >
                     {this.$t('选择目标')}
                   </bk-button>
@@ -604,7 +614,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                 property='plugin_config.paths'
                 required
               >
-                {this.formData.plugin_config.paths.map((path, index) => (
+                {this.formData.plugin_config.paths.map((_path, index) => (
                   <div>
                     <div
                       style={{
@@ -684,7 +694,9 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
           objectType={this.formData.plugin_config.target_object_type}
           showDialog={this.selectorDialog.isShow}
           onChange={this.handleSelectorChange}
-          onCloseDialog={v => (this.selectorDialog.isShow = v)}
+          onCloseDialog={v => {
+            this.selectorDialog.isShow = v;
+          }}
         />
       </div>
     );

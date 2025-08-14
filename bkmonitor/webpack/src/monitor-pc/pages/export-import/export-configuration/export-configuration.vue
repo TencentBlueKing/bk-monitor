@@ -178,7 +178,7 @@ export default {
       const {
         params: { dashboardChecked = [] },
       } = this.$route;
-      if (!!dashboardChecked) {
+      if (dashboardChecked) {
         const target = this.listMap.find(item => item.id === 'viewConfigList');
         !!dashboardChecked.length && this.$set(target, 'checked', dashboardChecked);
       }

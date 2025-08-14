@@ -28,8 +28,8 @@ import { type PropType, type Ref, defineComponent, inject, ref, watch } from 'vu
 import './failure-menu.scss';
 
 interface ITabItem {
-  name: string;
   label: string;
+  name: string;
 }
 
 export default defineComponent({

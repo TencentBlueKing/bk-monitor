@@ -33,18 +33,18 @@ import './favorites-list.scss';
 // 收藏列表
 export declare namespace IFavList {
   interface favList {
-    name?: string;
     config: any;
     id?: number;
-  }
-  interface IProps {
-    value: favList[];
-    checkedValue: favList;
+    name?: string;
   }
   interface IEvent {
     onDeleteFav?: number;
     onSelectFav?: any;
     onShowChange?: boolean;
+  }
+  interface IProps {
+    checkedValue: favList;
+    value: favList[];
   }
 }
 @Component

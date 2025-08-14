@@ -77,13 +77,6 @@ SPACE_TO_RESULT_TABLE_KEY = os.environ.get(
 SPACE_TO_RESULT_TABLE_CHANNEL = os.environ.get(
     "SPACE_TO_RESULT_TABLE_CHANNEL", f"{SPACE_REDIS_PREFIX_KEY}:space_to_result_table:channel"
 )
-# 指标关联的结果表
-FIELD_TO_RESULT_TABLE_KEY = os.environ.get(
-    "FIELD_TO_RESULT_TABLE_KEY", f"{SPACE_REDIS_PREFIX_KEY}:field_to_result_table"
-)
-FIELD_TO_RESULT_TABLE_CHANNEL = os.environ.get(
-    "FIELD_TO_RESULT_TABLE_CHANNEL", f"{SPACE_REDIS_PREFIX_KEY}:field_to_result_table:channel"
-)
 # 数据标签关联的结果表
 DATA_LABEL_TO_RESULT_TABLE_KEY = os.environ.get(
     "DATA_LABEL_TO_RESULT_TABLE_KEY", f"{SPACE_REDIS_PREFIX_KEY}:data_label_to_result_table"
@@ -110,8 +103,16 @@ class EtlConfigs(Enum):
     # 自定义多指标单表
     BK_STANDARD_V2_TIME_SERIES = "bk_standard_v2_time_series"
 
+    # 多租户下的主机基础数据采集
+    BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG = "bk_multi_tenancy_basereport"
+
     # 多租户基础Agent事件
     BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG = "bk_multi_tenancy_agent_event"
+
+    # 多租户下的系统进程数据采集
+    BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG = "bk_multi_tenancy_system_proc_perf"
+    BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG = "bk_multi_tenancy_system_proc_port"
+
     # 固定指标单表(metric_name)
     BK_EXPORTER = "bk_exporter"
     BK_STANDARD = "bk_standard"
@@ -128,6 +129,9 @@ class EtlConfigs(Enum):
         (BK_EXPORTER, "bk_exporter"),
         (BK_STANDARD, "bk_standard"),
         (BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG, "bk_multi_tenancy_agent_event"),
+        (BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG, "bk_multi_tenancy_basereport"),
+        (BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG, "bk_multi_tenancy_system_proc_perf"),
+        (BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG, "bk_multi_tenancy_system_proc_port"),
     )
 
 
@@ -138,13 +142,29 @@ SPACE_DATASOURCE_ETL_LIST = [item[0] for item in EtlConfigs._choices_labels.valu
 ENABLE_V4_DATALINK_ETL_CONFIGS = [
     EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
     EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
+    EtlConfigs.BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG.value,
+    EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG.value,
+    EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG.value,
 ]
+
+if (
+    settings.ENABLE_PLUGIN_ACCESS_V4_DATA_LINK
+):  # 若启用插件接入V4数据链路，则将BK_EXPORTER和BK_STANDARD也加入到V4数据链路
+    ENABLE_V4_DATALINK_ETL_CONFIGS.append(EtlConfigs.BK_EXPORTER.value)
+    ENABLE_V4_DATALINK_ETL_CONFIGS.append(EtlConfigs.BK_STANDARD.value)
+
 
 # 系统内置数据-清洗类型列表
 SYSTEM_BASE_DATA_ETL_CONFIGS = [
     EtlConfigs.BK_SYSTEM_BASEREPORT.value,
+    EtlConfigs.BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG.value,
     EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
+    EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG.value,
+    EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG.value,
 ]
+
+# 日志/事件 类清洗类型
+LOG_EVENT_ETL_CONFIGS = [EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value]
 
 # bkcc 存在全业务的空间，空间 ID 为 "0"
 EXCLUDED_SPACE_TYPE_ID = SpaceTypes.BKCC.value

@@ -78,11 +78,12 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
       this.favoriteMessageInstance?.destroy();
       this.favoriteMessageInstance = null;
     }
+    const userDom = val => `<bk-user-display-name user-id=${val} />`;
     this.favoriteMessageInstance = this.$bkPopover(e.currentTarget, {
       content: `<div style="font-size: 12px;">
                   <div>${this.$t('收藏名')}: ${item.name || '--'}</div>
-                  <div>${this.$t('创建人')}: ${item.create_user || '--'}</div>
-                  <div>${this.$t('最近更新人')}: ${item.update_user || '--'}</div>
+                  <div>${this.$t('创建人')}: ${item.create_user ? userDom(item.create_user) : '--'}</div>
+                  <div>${this.$t('最近更新人')}: ${item.update_user ? userDom(item.update_user) : '--'}</div>
                   <div>${this.$t('最近更新时间')}: ${this.getShowTime(item.update_time)}</div>
                 </div>`,
       arrow: true,

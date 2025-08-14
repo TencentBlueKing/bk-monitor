@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -24,9 +23,9 @@ def create_or_delete_records(mocker):
     cluster = models.BCSClusterInfo.objects.create(
         cluster_id="BCS-K8S-10001",
         bk_biz_id=1,
-        bcs_api_cluster_id='test',
-        project_id='1',
-        domain_name='test.bcs',
+        bcs_api_cluster_id="test",
+        project_id="1",
+        domain_name="test.bcs",
         port=8080,
         server_address_path="clusters",
         K8sMetricDataID=50010,
@@ -48,7 +47,7 @@ def create_or_delete_records(mocker):
         default_storage="influxdb",
     )
     models.DataSourceResultTable.objects.create(
-        table_id='1001_bkmonitor_time_series_50010.__default__', bk_data_id=50010
+        table_id="1001_bkmonitor_time_series_50010.__default__", bk_data_id=50010
     )
 
     models.AccessVMRecord.objects.create(
@@ -104,12 +103,12 @@ def create_or_delete_records(mocker):
     models.AccessVMRecord.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_get_bcs_cluster_related_data_link_resource(create_or_delete_records):
     """
     测试查询BCS集群关联信息接口
     """
-    actual_data = GetBCSClusterRelatedDataLinkResource().request(bcs_cluster_id='BCS-K8S-10001')
+    actual_data = GetBCSClusterRelatedDataLinkResource().request(bcs_cluster_id="BCS-K8S-10001")
     expected_data = {
         "K8SMetric": {
             "bk_data_id": 50010,
@@ -133,7 +132,7 @@ def test_get_bcs_cluster_related_data_link_resource(create_or_delete_records):
     assert json.dumps(actual_data) == json.dumps(expected_data)
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_query_data_ids_by_biz_id(create_or_delete_records):
     """
     测试查询业务关联的数据源信息

@@ -24,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { copyMessage } from '@/common/util';
+import { copyMessage, xssFilter } from '@/common/util';
 import JSONBig from 'json-bigint';
 
 export type JsonViewConfig = {
@@ -166,7 +166,7 @@ export default class JsonView {
           this.options.segmentRender(formatTarget, node);
         });
       } else {
-        node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${formatTarget}</span></span>`;
+        node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${xssFilter(formatTarget)}</span></span>`;
       }
     }
 

@@ -54,7 +54,7 @@ interface ILineEchartProps {
 }
 @Component
 class AlarmEventChart
-  extends Mixins<ResizeMixin & IntersectionMixin & ToolsMixin & LegendMixin & ChartLoadingMixin>(
+  extends Mixins<ChartLoadingMixin & IntersectionMixin & LegendMixin & ResizeMixin & ToolsMixin>(
     ResizeMixin,
     IntersectionMixin,
     LegendMixin,

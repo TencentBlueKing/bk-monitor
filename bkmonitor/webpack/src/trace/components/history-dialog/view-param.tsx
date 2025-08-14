@@ -26,6 +26,7 @@
 import { defineComponent } from 'vue';
 
 import { Dialog, Tag } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import './view-param.scss';
 
@@ -50,11 +51,15 @@ export default defineComponent({
     },
   },
   setup(props) {
+    const { t } = useI18n();
+    /** 多租户人名改造 */
+    const multiTenantWhitelist = [t('创建人'), t('最近更新人')];
     function valueChange(v) {
       props.onChange(v);
     }
     return {
       valueChange,
+      multiTenantWhitelist,
     };
   },
   render() {
@@ -66,7 +71,7 @@ export default defineComponent({
         title={this.title}
         onUpdate:isShow={this.valueChange}
       >
-        {!!(this.$slots?.default?.() as any)?.props ? (
+        {(this.$slots?.default?.() as any)?.props ? (
           this.$slots?.default?.()
         ) : (
           <div class='param-body'>
@@ -81,6 +86,10 @@ export default defineComponent({
                     {item.value.map(tag => (
                       <Tag key={tag}>{tag}</Tag>
                     ))}
+                  </div>
+                ) : this.multiTenantWhitelist.includes(item.label) && item.value ? (
+                  <div class='value'>
+                    <bk-user-display-name user-id={item.value} />
                   </div>
                 ) : (
                   <div class='value'>{item.value || '--'}</div>

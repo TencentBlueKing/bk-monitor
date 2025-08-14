@@ -32,66 +32,128 @@ export default class LuceneSegment {
    */
   static split(input: string, MAX_TOKENS: number): { text: string; isMark: boolean; isCursorText: boolean }[] {
     const result: { text: string; isMark: boolean; isCursorText: boolean }[] = [];
-    const markRegStr = '<mark>(.*?)</mark>';
-    const markRegex = new RegExp(markRegStr, 'g');
+    const markRegex = /<mark>(.*?)<\/mark>/g;
     let lastIndex = 0;
-
-    // 处理 <mark></mark> 的拆分逻辑
-    input.replace(markRegex, (match, markedText, offset) => {
-      // 如果当前 result.length 超过 MAX_TOKENS，则只进行 mark 标签的拆分
-      if (result.length >= MAX_TOKENS) {
-        result.push({
-          text: markedText,
-          isMark: true,
-          isCursorText: true,
-        });
-        lastIndex = offset + match.length;
-        return match;
+    let match: RegExpExecArray | null;
+    let tokenCount = 0;
+    while ((match = markRegex.exec(input)) !== null) {
+      // 处理 mark 前的普通文本
+      if (match.index > lastIndex) {
+        const plainText = input.slice(lastIndex, match.index);
+        if (tokenCount < MAX_TOKENS) {
+          const tokens = LuceneSegment.processBuffer(plainText, MAX_TOKENS, tokenCount);
+          for (const token of tokens) {
+            if (tokenCount >= MAX_TOKENS) break;
+            result.push(token);
+            tokenCount++;
+          }
+          // 如果分词后还有剩余未处理的 plainText，整体添加
+          const processedLength = tokens.map(t => t.text).join('').length;
+          if (tokenCount >= MAX_TOKENS && processedLength < plainText.length) {
+            const remainText = plainText.slice(processedLength);
+            if (remainText) {
+              result.push({ text: remainText, isMark: false, isCursorText: false });
+            }
+          }
+        } else {
+          // 超出 MAX_TOKENS 后，普通文本整体添加
+          result.push({ text: plainText, isMark: false, isCursorText: false });
+        }
       }
-
-      // 添加 <mark> 之前的普通文本
-      if (offset > lastIndex) {
-        const plainText = input.slice(lastIndex, offset);
-        result.push(...LuceneSegment.processBuffer(plainText, MAX_TOKENS, result.length));
-      }
-
-      // 添加 <mark> 内的文本
-      result.push({
-        text: markedText,
-        isMark: true,
-        isCursorText: true,
-      });
-
-      lastIndex = offset + match.length;
-    });
-
-    // 添加剩余的普通文本或仅拆分 mark 标签
+      // 处理 mark 内容，始终单独分割
+      result.push({ text: match[1], isMark: true, isCursorText: true });
+      tokenCount++;
+      lastIndex = match.index + match[0].length;
+    }
+    // 处理最后剩余的普通文本
     if (lastIndex < input.length) {
-      const remainingText = input.slice(lastIndex);
-      if (result.length >= MAX_TOKENS) {
-        // 如果超过 MAX_TOKENS，只拆分 mark 标签
-        remainingText.replace(markRegex, (match, markedText) => {
-          result.push({
-            text: markedText,
-            isMark: true,
-            isCursorText: true,
-          });
-          return match;
-        });
+      const plainText = input.slice(lastIndex);
+      if (tokenCount < MAX_TOKENS) {
+        const tokens = LuceneSegment.processBuffer(plainText, MAX_TOKENS, tokenCount);
+        for (const token of tokens) {
+          if (tokenCount >= MAX_TOKENS) break;
+          result.push(token);
+          tokenCount++;
+        }
+        const processedLength = tokens.map(t => t.text).join('').length;
+        if (tokenCount >= MAX_TOKENS && processedLength < plainText.length) {
+          const remainText = plainText.slice(processedLength);
+          if (remainText) {
+            result.push({ text: remainText, isMark: false, isCursorText: false });
+          }
+        }
       } else {
-        result.push(...LuceneSegment.processBuffer(remainingText, MAX_TOKENS, result.length));
+        result.push({ text: plainText, isMark: false, isCursorText: false });
       }
     }
-
     return result;
   }
 
   /**
-   * 处理普通文本的拆分逻辑
-   * @param buffer 当前缓冲区内容
-   * @param MAX_TOKENS 最大拆分的 token 数量
-   * @param currentTokenCount 当前已拆分的 token 数量
-   * @returns 拆分后的结果数组
+   * 判断字符是否为 MidLetter（如:）
+   */
+  private static isMidLetter(c: string): boolean {
+    return c === ':';
+  }
+
+  /**
+   * 判断字符是否为 MidNumLet（如.）
+   */
+  private static isMidNumLet(c: string): boolean {
+    return c === '.';
+  }
+
+  /**
+   * 判断字符是否为 MidNum（如,）
+   */
+  private static isMidNum(c: string): boolean {
+    return c === ',';
+  }
+
+  /**
+   * 判断字符是否为 ExtendNumLet（如_）
+   */
+  private static isExtendNumLet(c: string): boolean {
+    return c === '_';
+  }
+
+  /**
+   * 判断字符是否为字母
+   */
+  private static isLetter(c: string): boolean {
+    return /^[a-zA-Z]$/.test(c);
+  }
+
+  /**
+   * 判断字符是否为数字
+   */
+  private static isNumber(c: string): boolean {
+    return /^[0-9]$/.test(c);
+  }
+
+  /**
+   * 判断 Mid 字符是否能作为当前词元的一部分
+   * @param c 当前字符
+   * @param prev 前一个字符
+   * @param next 后一个字符
+   */
+  private static canBePartOfToken(c: string, prev: null | string, next: null | string): boolean {
+    if (this.isMidLetter(c)) {
+      return Boolean(prev && next && this.isLetter(prev) && this.isLetter(next));
+    }
+    if (this.isMidNumLet(c)) {
+      return Boolean(
+        prev && next && ((this.isLetter(prev) && this.isLetter(next)) || (this.isNumber(prev) && this.isNumber(next))),
+      );
+    }
+    if (this.isMidNum(c)) {
+      return Boolean(prev && next && this.isNumber(prev) && this.isNumber(next));
+    }
+    return false;
+  }
+
+  /**
+   * 处理普通文本的分词逻辑，遵循 StandardTokenizer 的 Mid 规则
    */
   private static processBuffer(
     buffer: string,
@@ -99,100 +161,80 @@ export default class LuceneSegment {
     currentTokenCount: number,
   ): { text: string; isMark: boolean; isCursorText: boolean }[] {
     const result: { text: string; isMark: boolean; isCursorText: boolean }[] = [];
-    let segment = '';
-
+    let currentToken = '';
+    let currentMidSequence = false;
     for (let i = 0; i < buffer.length; i++) {
-      const char = buffer[i];
-      const nextChar = buffer[i + 1] || '';
+      const c = buffer[i];
+      const prev = i > 0 ? buffer[i - 1] : null;
+      const next = i < buffer.length - 1 ? buffer[i + 1] : null;
 
-      // 判断是否需要触发拆分
-      if (LuceneSegment.shouldSplit(segment, char, nextChar)) {
-        // 如果当前 token 数量超出 MAX_TOKENS，停止拆分并保留完整分词
-        if (result.length + currentTokenCount >= MAX_TOKENS) {
-          segment += buffer.slice(i); // 将剩余字符加入到最后一个分词中
-          break;
+      // ExtendNumLet（_）不切分，直接加入 token
+      if (this.isExtendNumLet(c)) {
+        currentToken += c;
+        currentMidSequence = false;
+        continue;
+      }
+
+      // 处理 Mid 字符
+      if (this.isMidLetter(c) || this.isMidNumLet(c) || this.isMidNum(c)) {
+        // 连续 Mid 字符触发切分
+        if (currentMidSequence) {
+          if (currentToken) {
+            result.push({ text: currentToken, isMark: false, isCursorText: true });
+            if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+          }
+          // 分词符号本身也要保留，isCursorText: false
+          result.push({ text: c, isMark: false, isCursorText: false });
+          if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+          currentToken = '';
+          currentMidSequence = true;
+          continue;
         }
-
-        result.push({ text: segment, isMark: false, isCursorText: true });
-        segment = char; // 当前字符作为新段的起始
+        currentMidSequence = true;
+        // 检查是否满足连接条件
+        const keepAsPartOfToken = this.canBePartOfToken(c, prev, next);
+        if (keepAsPartOfToken) {
+          currentToken += c;
+        } else {
+          if (currentToken) {
+            result.push({ text: currentToken, isMark: false, isCursorText: true });
+            if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+          }
+          // 分词符号本身也要保留，isCursorText: false
+          result.push({ text: c, isMark: false, isCursorText: false });
+          if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+          currentToken = '';
+        }
+      } else if (c === '-' || c === ' ' || c === '\t') {
+        // 其它常见分隔符
+        if (currentToken) {
+          result.push({ text: currentToken, isMark: false, isCursorText: true });
+          if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+        }
+        result.push({ text: c, isMark: false, isCursorText: false });
+        if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+        currentToken = '';
+        currentMidSequence = false;
       } else {
-        segment += char; // 当前字符加入缓冲区
+        // 非 Mid 字符结束连续 Mid 序列
+        currentMidSequence = false;
+        if (this.isLetter(c) || this.isNumber(c)) {
+          currentToken += c;
+        } else {
+          // 其它所有符号都要保留，isCursorText: false
+          if (currentToken) {
+            result.push({ text: currentToken, isMark: false, isCursorText: true });
+            if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+            currentToken = '';
+          }
+          result.push({ text: c, isMark: false, isCursorText: false });
+          if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+        }
       }
     }
-
-    // 将最后的缓冲区内容加入结果
-    if (segment) {
-      result.push({ text: segment, isMark: false, isCursorText: true });
+    if (currentToken) {
+      result.push({ text: currentToken, isMark: false, isCursorText: true });
     }
-
     return result;
-  }
-
-  /**
-   * 判断是否需要拆分
-   * @param buffer 当前缓冲区内容
-   * @param char 当前字符
-   * @param nextChar 下一个字符
-   * @returns 是否需要拆分
-   */
-  private static shouldSplit(buffer: string, char: string, nextChar: string): boolean {
-    // ':' 在 \p{WB:MidLetter} 中，需两侧为字母才不拆分
-    if (char === ':' && !(LuceneSegment.isLetter(buffer.slice(-1)) && LuceneSegment.isLetter(nextChar))) {
-      return true;
-    }
-
-    // '.' 在 \p{WB:MidNumLet} 中，需两侧为字母或数字才不拆分
-    if (char === '.' && !(LuceneSegment.isLetterOrDigit(buffer.slice(-1)) && LuceneSegment.isLetterOrDigit(nextChar))) {
-      return true;
-    }
-
-    // ',' 在 \p{WB:MidNum} 中，需两侧为数字才不拆分
-    if (char === ',' && !(LuceneSegment.isDigit(buffer.slice(-1)) && LuceneSegment.isDigit(nextChar))) {
-      return true;
-    }
-
-    // 混合连续的 \p{WB:MidLetter} 和 \p{WB:MidNumLet} 触发拆分
-    if ((char === ':' || char === '.') && (nextChar === ':' || nextChar === '.')) {
-      return true;
-    }
-
-    // 混合连续的 \p{WB:MidNum} 和 \p{WB:MidNumLet} 触发拆分
-    if ((char === ',' || char === '.') && (nextChar === ',' || nextChar === '.')) {
-      return true;
-    }
-
-    // '_' 在 \p{WB:ExtendNumLet} 中，不触发拆分
-    if (char === '_') {
-      return false;
-    }
-
-    return false;
-  }
-
-  /**
-   * 判断字符是否为字母
-   * @param char 字符
-   * @returns 是否为字母
-   */
-  private static isLetter(char: string): boolean {
-    return /^[a-zA-Z]$/.test(char);
-  }
-
-  /**
-   * 判断字符是否为数字
-   * @param char 字符
-   * @returns 是否为数字
-   */
-  private static isDigit(char: string): boolean {
-    return /^[0-9]$/.test(char);
-  }
-
-  /**
-   * 判断字符是否为字母或数字
-   * @param char 字符
-   * @returns 是否为字母或数字
-   */
-  private static isLetterOrDigit(char: string): boolean {
-    return /^[a-zA-Z0-9]$/.test(char);
   }
 }

@@ -26,14 +26,14 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // 转义特殊字符
-}
-
 interface IProps {
+  caseSensitive?: boolean;
   content: string;
   keyword: string;
-  caseSensitive?: boolean;
+}
+
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // 转义特殊字符
 }
 @Component
 export default class TextHighlighter extends tsc<IProps> {

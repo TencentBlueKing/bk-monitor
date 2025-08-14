@@ -26,17 +26,17 @@
 export default class TableStore {
   public count: number;
   public data: {
-    id: string;
+    beginTime: string;
     bizId: string;
+    cycleDuration: string;
+    description: string;
+    dimensionConfig: string;
+    failureTime: string;
+    id: string;
+    shieldContent: string;
     shieldType: string;
     shieldTypeName: string;
-    shieldContent: string;
-    beginTime: string;
-    cycleDuration: string;
-    failureTime: string;
-    description: string;
     status: string;
-    dimensionConfig: string;
   }[];
   public keyword: string;
   public page: number;

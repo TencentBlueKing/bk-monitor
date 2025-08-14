@@ -26,7 +26,7 @@ from metadata.service.data_source import query_biz_plugin_data_id_list
 from metadata.service.vm_storage import (
     get_table_id_from_vm,
     query_bcs_cluster_vm_rts,
-    query_vm_datalink,
+    query_vm_datalink_all,
 )
 
 logger = logging.getLogger("metadata")
@@ -67,7 +67,7 @@ class QueryVmDatalink(Resource):
         bk_data_id = serializers.IntegerField(required=True, label="数据源 ID")
 
     def perform_request(self, data: OrderedDict) -> dict:
-        return query_vm_datalink(data["bk_data_id"])
+        return query_vm_datalink_all(data["bk_data_id"])
 
 
 class QueryVmRtBySpace(Resource):

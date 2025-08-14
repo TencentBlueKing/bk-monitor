@@ -1,6 +1,6 @@
 .bklog-json-view-node {
   .bklog-json-view-child {
-    margin-top: 2px;
+    // margin-top: 2px;
     margin-left: 12px;
 
     &.is-collapse {
@@ -46,16 +46,11 @@
 
               &.valid-text {
                 cursor: pointer;
-                padding: 1px 0px;
 
                 &.focus-text,
                 &:hover {
                   color: #3a84ff;
                 }
-
-                // &:hover {
-                //   padding: 4px 0px;
-                // }
               }
             }
           }
@@ -76,7 +71,7 @@
 
     .bklog-json-view-copy {
       font-size: 14px;
-      padding: 4px;
+      padding: 2px;
       margin-bottom: -4px;
     }
 

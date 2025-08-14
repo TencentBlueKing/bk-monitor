@@ -35,11 +35,11 @@ import type { ITraceTree } from '../../../typings';
 import type { IViewRange, Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from '../typings';
 
 interface ComplexMessage {
-  valueWidth: number;
-  valueOffset: number;
-  serviceName: string;
   color: string;
   isVirtual: boolean;
+  serviceName: string;
+  valueOffset: number;
+  valueWidth: number;
 }
 
 const DEFAULT_HEIGHT = 56;

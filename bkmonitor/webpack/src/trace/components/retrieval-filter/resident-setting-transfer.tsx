@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, useTemplateRef, computed, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { Button, Input, Message } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../empty-status/empty-status';
 import { type IFilterField, RESIDENT_SETTING_TRANSFER_EMITS, RESIDENT_SETTING_TRANSFER_PROPS } from './typing';

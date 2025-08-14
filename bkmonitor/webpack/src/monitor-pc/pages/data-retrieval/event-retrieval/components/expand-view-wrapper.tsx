@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import VueJsonPretty from 'vue-json-pretty';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import VueJsonPretty from 'vue-json-pretty';
 
 import KVList from './kv-list';
 

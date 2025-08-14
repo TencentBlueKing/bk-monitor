@@ -1,5 +1,47 @@
 import type { IExtendMetricData } from './metric';
 
+export type ChartTitleMenuType =
+  | 'area'
+  | 'drill-down'
+  | 'explore'
+  | 'export-csv'
+  | 'fullscreen'
+  | 'more'
+  | 'relate-alert'
+  | 'save'
+  | 'screenshot'
+  | 'set'
+  | 'strategy';
+
+export type ChildIdMap = Record<ChartTitleMenuType, string>;
+/**
+ * 子菜单id类型
+ */
+export type ChildMenuId<T extends ChartTitleMenuType> = Pick<ChildIdMap, T>[T];
+
+export interface IChartTitleMenuEvents {
+  onChildMenuToggle: boolean;
+  onMetricSelect?: IExtendMetricData;
+  onSelect?: IMenuItem;
+  onSelectChild: { child: IMenuChildItem; menu: IMenuItem };
+}
+
+export interface IChartTitleProps {
+  drillDownOption?: IMenuChildItem[];
+  list: ChartTitleMenuType[];
+  // 指标数据
+  metrics?: IExtendMetricData[];
+  // 是否显示添加指标到策略选项
+  showAddMetric?: boolean;
+}
+
+export interface IMenuChildItem {
+  icon?: string;
+  id: string;
+  name: string;
+  needTips?: boolean;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -26,60 +68,18 @@ import type { IExtendMetricData } from './metric';
  * IN THE SOFTWARE.
  */
 export interface IMenuItem {
-  id: ChartTitleMenuType;
-  name: string;
-  nextName?: string;
   checked: boolean;
-  icon: string;
-  hasLink?: boolean;
-  nextIcon?: string;
   children?: IMenuChildItem[];
   childValue?: string;
-}
-
-/**
- * 子菜单id类型
- */
-export type ChildMenuId<T extends ChartTitleMenuType> = Pick<ChildIdMap, T>[T];
-export type ChildIdMap = Record<ChartTitleMenuType, string>;
-
-export interface IMenuChildItem {
-  id: string;
+  hasLink?: boolean;
+  icon: string;
+  id: ChartTitleMenuType;
   name: string;
-  icon?: string;
-  needTips?: boolean;
+  nextIcon?: string;
+  nextName?: string;
 }
-
 export interface ITitleAlarm {
-  status: number;
   alert_number: number;
+  status: number;
   strategy_number: number;
-}
-
-export type ChartTitleMenuType =
-  | 'area'
-  | 'drill-down'
-  | 'explore'
-  | 'export-csv'
-  | 'fullscreen'
-  | 'more'
-  | 'relate-alert'
-  | 'save'
-  | 'screenshot'
-  | 'set'
-  | 'strategy';
-
-export interface IChartTitleProps {
-  // 指标数据
-  metrics?: IExtendMetricData[];
-  list: ChartTitleMenuType[];
-  // 是否显示添加指标到策略选项
-  showAddMetric?: boolean;
-  drillDownOption?: IMenuChildItem[];
-}
-export interface IChartTitleMenuEvents {
-  onSelect?: IMenuItem;
-  onMetricSelect?: IExtendMetricData;
-  onChildMenuToggle: boolean;
-  onSelectChild: { menu: IMenuItem; child: IMenuChildItem };
 }

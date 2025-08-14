@@ -35,31 +35,31 @@ import EventDetail from './event-detail';
 
 import './event-detail-slider.scss';
 
-interface IEventDetailSlider {
-  isShow?: boolean;
-  eventId: string;
-  type: TType;
-  activeTab?: string;
-}
-interface IEvent {
-  onShowChange?: boolean;
-}
-
-interface IDetailList {
-  label: string;
-  key: string;
-  value: IContent | string;
-  display?: string;
-  valueDisplayMap?: object;
-}
-
+// 事件详情 | 处理记录详情
+export type TType = 'eventDetail' | 'handleDetail';
 interface IContent {
   text: string;
   url: string;
 }
 
-// 事件详情 | 处理记录详情
-export type TType = 'eventDetail' | 'handleDetail';
+interface IDetailList {
+  display?: string;
+  key: string;
+  label: string;
+  value: IContent | string;
+  valueDisplayMap?: object;
+}
+
+interface IEvent {
+  onShowChange?: boolean;
+}
+
+interface IEventDetailSlider {
+  activeTab?: string;
+  eventId: string;
+  isShow?: boolean;
+  type: TType;
+}
 
 const { i18n } = window;
 

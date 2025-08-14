@@ -74,4 +74,4 @@ const toBcsDetail: PerformanceDetailFunction = (projectName, bcsClusterId) => {
   window.open(`${window.bk_bcs_url}bcs/projects/${projectName}/clusters?clusterId=${bcsClusterId}&active=info`);
 };
 
-export { tologSearch, toPerformanceDetail, toStrategyConfigDetail, toBcsDetail };
+export { toBcsDetail, tologSearch, toPerformanceDetail, toStrategyConfigDetail };

@@ -27,7 +27,7 @@
 import { Component, Prop, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { utcFormatDate } from '../../../common/util';
+import { utcFormatDate, xssFilter } from '../../../common/util';
 import { IGroupItem, IFavoriteItem } from './collect-index';
 import GroupDropdown from './component/group-dropdown';
 
@@ -118,7 +118,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
         }
       }
       let content = `<div style="font-size: 12px;">
-                  ${failureContent}
+                  ${xssFilter(failureContent)}
                   <p>${this.$t('创建人')}: ${item.created_by || '--'}</p>
                   <p>${this.$t('修改人')}: ${item.updated_by || '--'}</p>
                   <p>${this.$t('更新时间')}: ${utcFormatDate(item.updated_at)}</p>

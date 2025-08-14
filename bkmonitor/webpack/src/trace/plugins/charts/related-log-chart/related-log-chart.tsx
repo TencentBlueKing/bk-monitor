@@ -34,10 +34,8 @@ import {
   ref,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
-import JsonPretty from 'vue-json-pretty';
 
-import { PrimaryTable, type TableProps } from '@blueking/tdesign-ui';
+import { type TableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Alert, Button, Exception, Input, Popover, Select } from 'bkui-vue';
 // TODO：需要重新实现
 // import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
@@ -53,15 +51,14 @@ import { debounce } from 'monitor-common/utils/utils';
 import { MONITOR_BAR_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 // src/monitor-ui/chart-plugins/utils/index.ts
 import { downFile } from 'monitor-ui/chart-plugins/utils';
+import { useI18n } from 'vue-i18n';
+import JsonPretty from 'vue-json-pretty';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-
 // import { VariablesService } from '../../utils/variable';
 import { VariablesService } from '../../../utils';
-
 // import BaseEchart from '../monitor-base-echart';
 import BaseEchart from '../../base-echart';
-
 // mixins 转 hooks 相关
 import {
   useChartIntersection,
@@ -71,10 +68,8 @@ import {
 } from '../../hooks';
 
 import type { ITableDataItem } from '../../typings/table-chart';
-
 // 原有类型
 import type { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
-
 // import { PanelModel } from '../../typings';
 import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';

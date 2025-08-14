@@ -138,6 +138,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BACKEND_VERSION", slz.CharField(label="Backend版本号", default="unknown")),
         ("WXWORK_BOT_WEBHOOK_URL", slz.CharField(label="企业微信机器人回调地址", default="", allow_blank=True)),
         ("ACCESS_TIME_PER_WINDOW", slz.IntegerField(label="access模块策略拉取耗时限制（每10分钟）", default=30)),
+        ("QOS_DATASOURCE_LABELS", slz.ListField(label="access模块流控数据源列表", default=[])),
+        ("QOS_INTERVAL_EXPAND", slz.IntegerField(label="access模块触发流控后周期放大倍数", default=3)),
         ("RSA_PRIVATE_KEY", slz.CharField(label="RSA PRIVATE KEY", default=settings.RSA_PRIVATE_KEY)),
         ("SKIP_PLUGIN_DEBUG", slz.BooleanField(label="跳过插件调试", default=False)),
         ("BKUNIFYLOGBEAT_METRIC_BIZ", slz.IntegerField(label="日志采集器指标所属业务", default=0)),
@@ -151,6 +153,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("GLOBAL_SHIELD_ENABLED", slz.BooleanField(label="是否开启全局告警屏蔽", default=False)),
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label="第三方事件接入业务白名单", default=[])),
         ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label="自定义指标过期时间", default=30 * 24 * 3600)),
+        ("AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE", slz.IntegerField(label="LLM默认温度参数", default=0.3)),
+        ("AIDEV_COMMAND_AGENT_MAPPING", slz.DictField(label="快捷指令<->Agent映射", default={})),
         ("FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", slz.IntegerField(label="获取自定义指标的间隔时间", default=7200)),
         ("ENABLE_BKDATA_METRIC_CACHE", slz.BooleanField(label="是否开启数据平台指标缓存", default=True)),
         (
@@ -211,10 +215,12 @@ ADVANCED_OPTIONS = OrderedDict(
                     "WALL-TIME": "SUM",
                     "ALLOC-SPACE": "AVG",
                     "ALLOC_SPACE": "AVG",
+                    "ALLOC_OBJECTS": "AVG",
                     "CPU-TIME": "SUM",
                     "EXCEPTION-SAMPLES": "SUM",
                     "CPU": "SUM",
                     "INUSE_SPACE": "AVG",
+                    "INUSE_OBJECTS": "AVG",
                     "DELAY": "AVG",
                     "GOROUTINE": "AVG",
                 },
@@ -279,6 +285,7 @@ ADVANCED_OPTIONS = OrderedDict(
                 default=[],
             ),
         ),
+        ("OPTZ_FAKE_EVENT_BIZ_IDS", slz.ListField(label="启用进程端口，ping不可达优化的业务ID列表", default=[])),
         ("ACCESS_DATA_TIME_DELAY", slz.IntegerField(label="access数据拉取延迟时间(s)", default=10)),
         ("ACCESS_LATENCY_INTERVAL_FACTOR", slz.IntegerField(label="access数据源延迟上报周期因子", default=1)),
         ("ACCESS_LATENCY_THRESHOLD_CONSTANT", slz.IntegerField(label="access数据源延迟上报常量阈值", default=180)),
@@ -329,7 +336,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("MAX_FIELD_PAGE_SIZE", slz.IntegerField(label="最大的指标分片页查询的大小", default=1000)),
         ("BKPAAS_AUTHORIZED_DATA_ID_LIST", slz.ListField(label="需要授权的 PaaS 创建的数据源 ID", default=[])),
         ("ACCESS_DBM_RT_SPACE_UID", slz.ListField(label="访问 dbm 结果表的空间 UID", default=[])),
-        ("IS_ENABLE_METADATA_FUNCTION_CONTROLLER", slz.BooleanField(label="METADATA 是否启用功能开关", default=True)),
         ("BLOCK_SPACE_RULE", slz.CharField(label="用户名规则【屏蔽空间信息】", default="")),
         ("INNER_COLLOCTOR_HOST", slz.CharField(label="collector内网域名", default="")),
         ("OUTER_COLLOCTOR_HOST", slz.CharField(label="collector外网域名", default="")),
@@ -365,7 +371,12 @@ ADVANCED_OPTIONS = OrderedDict(
             "ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST",
             slz.ListField(label="特殊的不会被置为删除状态的BCS集群列表", default=[]),
         ),
+        (
+            "SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST",
+            slz.ListField(label="使用RT中的路由过滤别名的结果表列表", default=[]),
+        ),
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
+        ("ENABLE_BKBASE_V4_MULTI_TENANT", slz.BooleanField(label="是否启用多租户版本的BKBASE V4链路", default=False)),
         ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
         ("ENABLE_V2_VM_DATA_LINK", slz.BooleanField(label="是否启用新版的VM链路", default=False)),
         ("ENABLE_BKDATA_KAFKA_TAIL_API", slz.BooleanField(label="是否启用计算平台Kafka采样接口", default=False)),
@@ -402,6 +413,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
         ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
         ("AIDEV_AGENT_AI_GENERATING_KEYWORD", slz.CharField(label="AIAgent内容生成关键字", default="生成中")),
+        ("AIDEV_AGENT_ENABLE_LANGFUSE", slz.BooleanField(label="是否开启langfuse上报", default=[])),
         (
             "BK_DATA_RECORD_RULE_PROJECT_ID",
             slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1),
@@ -419,14 +431,15 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ES_INDEX_ROTATION_STEP", slz.IntegerField(label="ES索引轮转并发个数", default=50)),
         ("ES_STORAGE_OFFSET_HOURS", slz.IntegerField(label="ES采集项整体时间偏移量", default=8)),
         ("METADATA_REQUEST_ES_TIMEOUT_SECONDS", slz.IntegerField(label="Metadata轮转任务请求ES超时时间", default=10)),
-        ("ENABLE_V2_ACCESS_BKBASE_METHOD", slz.BooleanField(label="是否启用新版方式接入计算平台", default=True)),
         ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),
-        ("INITIALIZED_TENANT_LIST", slz.ListField(label=_("已经初始化的租户列表"), default=["system"])),
+        ("INITIALIZED_TENANT_LIST", slz.ListField(label="已经初始化的租户列表", default=["system"])),
         # RUM 配置
-        ("RUM_ENABLED", slz.BooleanField(label=_("RUM总开关"), default=False)),
-        ("RUM_ACCESS_URL", slz.CharField(label=_("RUM接收端URL"), default="", allow_blank=True)),
+        ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
+        ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
+        ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[])),
+        ("PROCESS_INDEPENDENT_DATAID_BIZ_IDS", slz.ListField(label="进程采集独立数据源模式业务ID列表", default=[])),
     ]
 )
 
@@ -624,13 +637,11 @@ STANDARD_CONFIGS = OrderedDict(
             "UPTIMECHECK_OUTPUT_FIELDS",
             slz.ListField(label=_("拨测默认输出字段"), default=["bk_host_innerip", "bk_host_innerip_v6"]),
         ),
-        # 接入计算平台配置
-        ("DEFAULT_BKDATA_BIZ_ID", slz.IntegerField(label="接入计算平台使用的业务 ID", default=0)),
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
         # K8S新版灰度配置
         ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
-        # APM UnifyQuery 灰度配置，开启后检索能力切换到 UnifyQuery。
-        ("TRACE_V2_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询灰度配置"), default=[])),
+        # APM UnifyQuery 查询业务黑名单，在此列表内的业务，检索能力不切换到 UnifyQuery。
+        ("APM_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询业务黑名单"), default=[])),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关

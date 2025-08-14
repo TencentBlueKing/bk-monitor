@@ -34,7 +34,7 @@ import GroupSelectMultiple from '../../../custom-escalation/group-select-multipl
 import { csvToArr } from '../../../custom-escalation/utils';
 import SortPanel from '../../../performance/performance-detail/sort-panel.vue';
 import { downCsvFile } from '../../../view-detail/utils';
-import { SETTINGS_POP_Z_INDEX, matchRuleFn } from '../../utils';
+import { matchRuleFn, SETTINGS_POP_Z_INDEX } from '../../utils';
 
 import type { IBookMark, SettingsDashboardType } from '../../typings';
 
@@ -401,7 +401,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
       allPanelIdsSet.set(p.id, p);
     });
     const orderList = [];
-    const panelsUpdate = (panels: { id: string; hidden: boolean }[], autoRules: string[]) => {
+    const panelsUpdate = (panels: { hidden: boolean; id: string }[], autoRules: string[]) => {
       const targetPanels = [];
       const oldIds = new Set();
       panels.forEach(p => {
@@ -454,7 +454,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
         } catch (err) {
           panels = [];
         }
-        const autoRules = !!row[3] ? row[3].split(';') : [];
+        const autoRules = row[3] ? row[3].split(';') : [];
         if (!tempIds.has(id)) {
           if (id !== '__UNGROUP__') {
             orderList.push({
@@ -514,7 +514,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
     const transformTableDataToCsvStr = (tableThArr: string[], tableTdArr: Array<string[]>): string => {
       const csvList: string[] = [tableThArr.join(',')];
       tableTdArr.forEach(row => {
-        const rowString = row.reduce((str, item, index) => str + (!!index ? ',' : '') + item, '');
+        const rowString = row.reduce((str, item, index) => str + (index ? ',' : '') + item, '');
         csvList.push(rowString);
       });
       const csvString = csvList.join('\n');

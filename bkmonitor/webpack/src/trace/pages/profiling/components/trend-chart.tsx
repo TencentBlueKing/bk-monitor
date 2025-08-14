@@ -24,25 +24,25 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, type Ref, computed, defineComponent, inject, provide, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Collapse, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils/utils';
 import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { setTraceTooltip } from 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/util';
+import { useI18n } from 'vue-i18n';
 
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import {
   REFRESH_IMMEDIATE_KEY,
   REFRESH_INTERVAL_KEY,
-  TIMEZONE_KEY,
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
+  TIMEZONE_KEY,
   VIEW_OPTIONS_KEY,
 } from '../../../plugins/hooks';
 import { PanelModel } from '../../../plugins/typings';
-import { SearchType, type ToolsFormData } from '../typings';
+import { type ToolsFormData, SearchType } from '../typings';
 
 import type { IQueryParams } from '../../../typings/trace';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';

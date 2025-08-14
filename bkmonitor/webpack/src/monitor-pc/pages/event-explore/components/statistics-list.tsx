@@ -27,7 +27,7 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { Debounce, downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
@@ -40,20 +40,20 @@ import DimensionEcharts from './dimension-echarts';
 import type { ConditionChangeEvent, DimensionType, IStatisticsInfo, ITopKField } from '../typing';
 
 import './statistics-list.scss';
-interface StatisticsListProps {
-  selectField: string;
-  fieldType: string;
-  popoverInstance?: any;
-  isDimensions?: boolean;
-  source: APIType;
-  isShow?: boolean;
-  isShowChart?: boolean;
-}
-
 interface StatisticsListEvents {
   onConditionChange(e: ConditionChangeEvent): void;
   onShowMore(): void;
   onSliderShowChange(sliderShow: boolean): void;
+}
+
+interface StatisticsListProps {
+  fieldType: string;
+  isDimensions?: boolean;
+  isShow?: boolean;
+  isShowChart?: boolean;
+  popoverInstance?: any;
+  selectField: string;
+  source: APIType;
 }
 
 @Component
@@ -213,7 +213,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
       },
       this.source,
       {
-        cancelToken: new CancelToken(c => (this.topKInfoCancelFn = c)),
+        cancelToken: new CancelToken(c => {
+          this.topKInfoCancelFn = c;
+        }),
       }
     ).catch(() => {
       return null;
@@ -254,7 +256,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
       },
       this.source,
       {
-        cancelToken: new CancelToken(c => (this.topKChartCancelFn = c)),
+        cancelToken: new CancelToken(c => {
+          this.topKChartCancelFn = c;
+        }),
       }
     ).catch(() => ({ series: [] }));
     const series = data.series || [];
@@ -315,7 +319,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     });
     try {
       downloadFile(data.data, 'txt', data.filename);
-    } catch {}
+    } catch (err) {
+      console.log('err', err);
+    }
   }
 
   async getFieldTopK(params) {
@@ -327,7 +333,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
       },
       this.source,
       {
-        cancelToken: new CancelToken(c => (this.topKCancel = c)),
+        cancelToken: new CancelToken(c => {
+          this.topKCancel = c;
+        }),
       }
     )
       .then(data => data[0] || { distinct_count: 0, field: '', list: [] })
@@ -382,11 +390,11 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             <span class='value'> {this.statisticsInfo.total_count}</span>
           </div>
           <div class='label-item'>
-            <span class='label'>{this.$t('出现行数')}:</span>
+            <span class='label'>{this.$t('非空数据')}:</span>
             <span class='value'> {this.statisticsInfo.field_count}</span>
           </div>
           <div class='label-item'>
-            <span class='label'>{this.$t('日志条数')}:</span>
+            <span class='label'>{this.$t('非空数据占比')}:</span>
             <span class='value'> {this.statisticsInfo.field_percent}%</span>
           </div>
         </div>

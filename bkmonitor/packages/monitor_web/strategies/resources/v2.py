@@ -60,6 +60,7 @@ from bkmonitor.strategy.new_strategy import (
 )
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username, get_source_app
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
 from constants.aiops import SDKDetectStatus
@@ -447,6 +448,32 @@ class GetStrategyListV2Resource(Resource):
             filter_strategy_ids_set.intersection_update(set(level_strategy_ids))
 
     @classmethod
+    def filter_strategy_ids_by_source(cls, filter_dict: dict[str, list], filter_strategy_ids_set: set) -> None:
+        """过滤来源"""
+        source_field: str | None = None
+        for key in filter_dict.keys():
+            fields = key.split("__")
+            if "source" == fields[0]:
+                source_field = key
+                break
+
+        if not source_field:
+            return
+
+        source_strategy_ids = StrategyModel.objects.filter(id__in=filter_strategy_ids_set)
+        if len(fields) == 1 or fields[1] == "in":
+            source_strategy_ids = source_strategy_ids.filter(source__in=filter_dict[source_field])
+
+        elif fields[1] == "neq":
+            source_strategy_ids = source_strategy_ids.exclude(source__in=filter_dict[source_field])
+        else:
+            # 暂不支持其他的操作
+            filter_strategy_ids_set.intersection_update(set())
+            return
+
+        filter_strategy_ids_set.intersection_update(set(source_strategy_ids.values_list("id", flat=True).distinct()))
+
+    @classmethod
     def filter_by_conditions(cls, conditions: list[dict], strategies: QuerySet, bk_biz_id: int = None) -> QuerySet:
         """
         按条件进行过滤
@@ -515,6 +542,7 @@ class GetStrategyListV2Resource(Resource):
             (cls.filter_strategy_ids_by_metric_id, (filter_dict, filter_strategy_ids_set)),
             (cls.filter_strategy_ids_by_uct_id, (filter_dict, filter_strategy_ids_set)),
             (cls.filter_strategy_ids_by_level, (filter_dict, filter_strategy_ids_set)),
+            (cls.filter_strategy_ids_by_source, (filter_dict, filter_strategy_ids_set)),
         ]
         for filter_method, args in filter_methods:
             filter_method(*args)
@@ -1095,9 +1123,10 @@ class GetStrategyListV2Resource(Resource):
         if not queries:
             return {}
 
-        metrics = MetricListCache.objects.filter(
-            bk_tenant_id=get_request_tenant_id(), bk_biz_id__in=[bk_biz_id, 0]
-        ).filter(reduce(lambda x, y: x | y, queries))
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        metrics = MetricListCache.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id__in=[bk_biz_id, 0]).filter(
+            reduce(lambda x, y: x | y, queries)
+        )
 
         metric_dicts = {get_metric_id(**metric.__dict__): metric for metric in metrics}
 

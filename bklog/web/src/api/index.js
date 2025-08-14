@@ -34,7 +34,7 @@ import Vue from 'vue';
 
 import { messageError } from '@/common/bkmagic';
 import { bus } from '@/common/bus';
-import { makeMessage } from '@/common/util';
+import { makeMessage, readBlobRespToJson } from '@/common/util';
 import i18n from '@/language/i18n';
 import serviceList from '@/services/index.js';
 import { showLoginModal } from '@blueking/login-modal';
@@ -86,19 +86,57 @@ axiosInstance.interceptors.request.use(
  */
 axiosInstance.interceptors.response.use(
   async response => {
+    const responsePromise = (respData = undefined, cfg = undefined) => {
+      const config = response.config;
+      return new Promise(async (resolve, reject) => {
+        try {
+          handleResponse({
+            config: { ...config, ...(cfg ?? {}) },
+            response: respData ?? response.data,
+            resolve,
+            reject,
+            status: response.status,
+          });
+        } catch (error) {
+          handleReject(error, { ...config, ...(cfg ?? {}) }, reject);
+        }
+      });
+    };
     if (response.data instanceof Blob) {
+      if (response.status !== 200) {
+        return readBlobRespToJson(response.data).then(resp => {
+          return responsePromise(resp, { globalError: true });
+        });
+      }
+
       return response;
     }
-    const config = response.config;
-    return new Promise(async (resolve, reject) => {
-      try {
-        handleResponse({ config, response: response.data, resolve, reject, status: response.status });
-      } catch (error) {
-        handleReject(error, config, reject);
-      }
-    });
+
+    return responsePromise();
   },
-  error => Promise.reject(error),
+  error => {
+    const reject = e => {
+      if (typeof e === 'object' && e !== null) {
+        return Promise.reject(e);
+      }
+
+      return Promise.reject(new Error(`${e}`));
+    }
+    if (error?.response?.data instanceof Blob) {
+      return readBlobRespToJson(error.response.data).then(resp => {
+        return handleReject(
+          {
+            ...(error ?? {}),
+            response: resp,
+          },
+          { globalError: true, catchIsShowMessage: true, ...error.config },
+          reject
+        );
+      });
+    }
+
+    return handleReject(error, { globalError: true, catchIsShowMessage: true, ...error.config }, reject);
+  },
 );
 
 const http = {
@@ -227,7 +265,7 @@ function handleReject(error, config, reject) {
   if (config.globalError && error.response) {
     // status 是 httpStatus
     const { status, data } = error.response;
-    const nextError = { message: error.message, response: error.response };
+    const nextError = { message: error.message ?? '401 Authorization Required', response: error.response, status };
     // 弹出登录框不需要出 bkMessage 提示
     if (status === 401) {
       // 窗口登录，页面跳转交给平台返回302

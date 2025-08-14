@@ -10,8 +10,11 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+from collections import defaultdict
 
 import requests
+from django.conf import settings
+from django.db.models import Q
 
 from metadata import models
 from metadata.models.space.constants import (
@@ -20,9 +23,6 @@ from metadata.models.space.constants import (
     RESULT_TABLE_DETAIL_CHANNEL,
     RESULT_TABLE_DETAIL_KEY,
     SPACE_REDIS_KEY,
-    SPACE_TO_RESULT_TABLE_CHANNEL,
-    SPACE_TO_RESULT_TABLE_KEY,
-    SpaceTypes,
 )
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.space.utils import reformat_table_id
@@ -54,45 +54,52 @@ def get_kihan_prom_field_list(domain: str) -> list:
 def push_and_publish_log_space_router(space_type: str, space_id: str):
     """推送并发布es空间路由"""
     client = SpaceTableIDRedis()
-    if space_type == SpaceTypes.BKCC.value:
-        values = client._push_bkcc_space_table_ids(space_type, space_id, can_push_data=False)
-    elif space_type == SpaceTypes.BKCI.value:
-        values = client._push_bkci_space_table_ids(space_type, space_id, can_push_data=False)
-    elif space_type == SpaceTypes.BKSAAS.value:
-        values = client._push_bksaas_space_table_ids(space_type, space_id, can_push_data=False)
-    else:
-        logger.error("not found space_type: %s, space_id: %s", space_type, space_id)
-        raise ValueError("not found space type")
-
-    # 二段式校验&补充
-    values_to_redis = {}
-    for key, value in values.items():
-        key = reformat_table_id(key)
-        values_to_redis[key] = value
-
-    # 推送并发布
-    space_uid = f"{space_type}__{space_id}"
-    RedisTools.hmset_to_redis(SPACE_TO_RESULT_TABLE_KEY, {space_uid: json.dumps(values_to_redis)})
-    RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, [space_uid])
-
+    client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
     logger.info("push and publish es space router success, space_type: %s, space_id: %s", space_type, space_id)
 
 
-def push_and_publish_es_aliases(data_label: str):
+def push_and_publish_es_aliases(bk_tenant_id: str, data_label: str):
     """推送并发布es别名"""
-    if not data_label:
+
+    # 拆分data_label，去重
+    data_label_list: list[str] = list(set([dl for dl in data_label.split(",") if dl]))
+    if not data_label_list:
         return
-    # 为避免覆盖，重新获取一遍数据
-    table_id_list = list(models.ResultTable.objects.filter(data_label=data_label).values_list("table_id", flat=True))
-    table_id_list = [reformat_table_id(i) for i in table_id_list]
-    RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, {data_label: json.dumps(table_id_list)})
-    RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, [data_label])
+
+    # 组装查询条件
+    data_label_qs: Q = Q(data_label__contains=data_label_list[0])
+    for data_label in data_label_list[1:]:
+        data_label_qs |= Q(data_label__contains=data_label)
+
+    # 查询结果表
+    result_tables = models.ResultTable.objects.filter(
+        data_label_qs, bk_tenant_id=bk_tenant_id, is_deleted=False, is_enable=True
+    )
+
+    data_label_to_table_ids: dict[str, list[str]] = defaultdict(list)
+    for result_table in result_tables:
+        # 拆分data_label
+        for dl in result_table.data_label.split(","):
+            if not dl or dl not in data_label_list:
+                continue
+            data_label_to_table_ids[dl].append(reformat_table_id(result_table.table_id))
+
+    # 多租户模式下，在data_label前拼接bk_tenant_id
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        redis_values = {
+            f"{dl}|{bk_tenant_id}": json.dumps(table_ids) for dl, table_ids in data_label_to_table_ids.items()
+        }
+    else:
+        redis_values = {dl: json.dumps(table_ids) for dl, table_ids in data_label_to_table_ids.items()}
+
+    RedisTools.hmset_to_redis(DATA_LABEL_TO_RESULT_TABLE_KEY, redis_values)
+    RedisTools.publish(DATA_LABEL_TO_RESULT_TABLE_CHANNEL, list(redis_values.keys()))
 
     logger.info("push and publish es alias, alias: %s", data_label)
 
 
 def push_and_publish_es_table_id(
-    table_id: str, index_set: str, source_type: str, cluster_id: int, options: list | None = None
+    bk_tenant_id: str, table_id: str, index_set: str, source_type: str, cluster_id: int, options: list | None = None
 ):
     """推送并发布es结果表
 
@@ -138,18 +145,28 @@ def push_and_publish_es_table_id(
 
     values["storage_cluster_records"] = storage_record
 
+    space_client = SpaceTableIDRedis()
+    field_alias_map = space_client._get_field_alias_map(table_id_list=[table_id], bk_tenant_id=bk_tenant_id)
+    values["field_alias"] = (field_alias_map.get(table_id, {}),)  # 字段查询别名
+
     logger.info("push_and_publish_es_table_id: table_id->[%s] try to hmset to redis with value->[%s]", table_id, values)
+
+    # 若开启多租户模式,则在table_id前拼接bk_tenant_id
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        redis_value = {f"{table_id}|{bk_tenant_id}": json.dumps(values)}
+    else:
+        redis_value = {table_id: json.dumps(values)}
 
     RedisTools.hmset_to_redis(
         RESULT_TABLE_DETAIL_KEY,
-        {table_id: json.dumps(values)},
+        redis_value,
     )
     logger.info(
         "push_and_publish_es_table_id: table_id->[%s] try to publish to channel->[%s]",
         table_id,
         RESULT_TABLE_DETAIL_CHANNEL,
     )
-    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, [table_id])
+    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(redis_value.keys()))
 
     logger.info(
         "push and publish es table_id detail, table_id: %s, index_set: %s, source_type: %s, cluster_id: %s",
@@ -161,6 +178,7 @@ def push_and_publish_es_table_id(
 
 
 def push_and_publish_doris_table_id_detail(
+    bk_tenant_id: str,
     table_id: str,
 ):
     """
@@ -169,8 +187,8 @@ def push_and_publish_doris_table_id_detail(
     logger.info("push_and_publish_doris_table_id_detail: table_id->[%s]", table_id)
 
     try:
-        result_table = models.ResultTable.objects.get(table_id=table_id)
-        doris_storage = models.DorisStorage.objects.get(table_id=table_id)
+        result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+        doris_storage = models.DorisStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
     except Exception as e:
         logger.error(
             "push_and_publish_doris_table_id_detail: table_id->[%s] get result table or doris storage "
@@ -187,9 +205,15 @@ def push_and_publish_doris_table_id_detail(
         "data_label": result_table.data_label,
     }
 
+    # 若开启多租户模式,则在table_id前拼接bk_tenant_id
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        redis_value = {f"{bk_tenant_id}|{table_id}": json.dumps(values)}
+    else:
+        redis_value = {table_id: json.dumps(values)}
+
     RedisTools.hmset_to_redis(
         RESULT_TABLE_DETAIL_KEY,
-        {table_id: json.dumps(values)},
+        redis_value,
     )
-    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, [table_id])
+    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(redis_value.keys()))
     logger.info("push and publish doris table_id detail successfully, table_id->[%s]", table_id)

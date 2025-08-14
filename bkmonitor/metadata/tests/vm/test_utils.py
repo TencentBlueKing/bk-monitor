@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -15,7 +14,7 @@ from metadata import models
 from metadata.models.vm.utils import get_timestamp_len
 from metadata.tests.common_utils import consul_client
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 DEFAULT_SPACE_TYPE = "bkcc"
 DEFAULT_SPACE_ID = "12345"
@@ -58,24 +57,24 @@ def create_and_delete_record(mocker):
     )
     models.DataSource.objects.create(
         bk_data_id=500001,
-        data_name='test',
+        data_name="test",
         mq_cluster_id=1,
         mq_config_id=1,
-        etl_config='bk_exporter',
+        etl_config="bk_exporter",
         is_custom_source=False,
         is_enable=False,
     )
     models.DataSource.objects.create(
         bk_data_id=500002,
-        data_name='test2',
+        data_name="test2",
         mq_cluster_id=1,
         mq_config_id=1,
-        etl_config='bk_exporter',
+        etl_config="bk_exporter",
         is_custom_source=False,
         is_enable=False,
     )
     models.DataSourceOption.objects.create(
-        bk_data_id=500002, name=models.DataSourceOption.OPTION_ALIGN_TIME_UNIT, value='ms'
+        bk_data_id=500002, name=models.DataSourceOption.OPTION_ALIGN_TIME_UNIT, value="ms"
     )
     models.BCSClusterInfo.objects.create(
         **{
@@ -145,10 +144,10 @@ def create_and_delete_record(mocker):
 def create_or_delete_records(mocker):
     models.DataSource.objects.create(
         bk_data_id=500001,
-        data_name='test',
+        data_name="test",
         mq_cluster_id=1,
         mq_config_id=1,
-        etl_config='bk_exporter',
+        etl_config="bk_exporter",
         is_custom_source=False,
         is_enable=False,
     )
@@ -173,6 +172,6 @@ def create_or_delete_records(mocker):
         (500002, "bk_exporter", 13),  # 存在Option，则以Option为主
     ],
 )
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_get_timestamp_len(data_id, etl_config, expected_value, create_and_delete_record):
     assert get_timestamp_len(data_id, etl_config) == expected_value

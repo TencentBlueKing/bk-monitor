@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 
 import pytest
@@ -21,7 +21,7 @@ FAKE_CLUSTER_NAME_ONE = "cluster_one"
 FAKE_CLUSTER_SERVICE_NAME_TWO = "svc_test_two"
 FAKE_CLUSTER_NAME_TWO = "cluster_two"
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 @pytest.fixture
@@ -57,7 +57,7 @@ class TestInfluxDBProxyStorage:
         assert len(RedisTools.hgetall(key)) == 2
 
         redis_data = RedisTools.hget(key, FAKE_CLUSTER_SERVICE_NAME_ONE)
-        assert type(redis_data) == bytes
+        assert isinstance(redis_data, bytes)
         assert json.loads(redis_data.decode("utf-8")) == [FAKE_CLUSTER_NAME_ONE]
 
         # 校验 consul 数据
@@ -74,7 +74,7 @@ class TestInfluxDBProxyStorage:
         assert len(RedisTools.hgetall(key)) == 1
 
         redis_data = RedisTools.hget(key, FAKE_CLUSTER_SERVICE_NAME_ONE)
-        assert type(redis_data) == bytes
+        assert isinstance(redis_data, bytes)
         assert json.loads(redis_data.decode("utf-8")) == [FAKE_CLUSTER_NAME_ONE]
 
     def test_clean(self, create_and_delete_records, patch_redis_tools, patch_consul_tool, mocker):

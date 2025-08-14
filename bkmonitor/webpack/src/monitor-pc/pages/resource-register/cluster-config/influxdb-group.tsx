@@ -263,9 +263,9 @@ export default class InfluxdbTest extends tsc<object> {
         <bk-sideslider
           width={640}
           isShow={this.isShow}
+          on={{ 'update:isShow': this.emitShowChange }}
           quick-close={true}
           transfer={true}
-          on={{ 'update:isShow': this.emitShowChange }}
           on-hidden={this.handleSliderHidden}
         >
           <div

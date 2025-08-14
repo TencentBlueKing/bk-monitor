@@ -34,20 +34,20 @@ import type { TreeMenuItem } from './utils';
 
 import './tree-list.scss';
 
-interface IProps {
-  list: TreeMenuItem[];
-  indent?: number;
-  checked?: string;
-  needAdd?: boolean;
+export interface IMoreData {
+  item: TreeMenuItem;
+  option: IIconBtnOptions;
 }
 interface IEvents {
-  onSelected: TreeMenuItem;
   onMore: IMoreData;
   onRename: TreeMenuItem;
+  onSelected: TreeMenuItem;
 }
-export interface IMoreData {
-  option: IIconBtnOptions;
-  item: TreeMenuItem;
+interface IProps {
+  checked?: string;
+  indent?: number;
+  list: TreeMenuItem[];
+  needAdd?: boolean;
 }
 @Component({
   name: 'TreeList',
@@ -181,7 +181,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
   }
 
   /** 点击项 */
-  handleClickRow(e: MouseEvent, item: TreeMenuItem) {
+  handleClickRow(_e: MouseEvent, item: TreeMenuItem) {
     if (item.isGroup) {
       item.expend = !item.expend;
     } else {
@@ -230,7 +230,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
       case MoreType.rename:
         item.edit = true;
         setTimeout(() => {
-          const input = this.$refs[`input-${item.id}`] as any;
+          const input = this.$refs[`input-${item.id}`] as HTMLInputElement;
           input.focus();
         }, 100);
         break;

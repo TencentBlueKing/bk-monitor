@@ -12,7 +12,8 @@ import json
 
 from django.conf import settings
 from django.utils.translation import gettext as _
-from jinja2 import DebugUndefined, Template
+from jinja2 import DebugUndefined
+from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from bkmonitor.models import ActionPlugin
 from bkmonitor.utils.template import AlarmNoticeTemplate
@@ -66,7 +67,8 @@ def parse_bk_plugin_deployed_info(data):
         "plugin_address": plugin_address.rstrip("/"),
         "plugin_apigw_host": plugin_apigw_host,
     }
-    plugin_template = Template(source=BK_PLUGIN_INITIAL_TEMPLATE, undefined=DebugUndefined).render(**init_params)
+
+    plugin_template = Environment(undefined=DebugUndefined).from_string(source=BK_PLUGIN_INITIAL_TEMPLATE, ).render(**init_params)
     plugin_info = json.loads(plugin_template)
 
     # 8.description 中的信息 在json.loads时容易出错，因此先 loads 后再为 description 赋值

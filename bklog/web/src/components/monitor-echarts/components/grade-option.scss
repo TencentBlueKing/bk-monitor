@@ -34,7 +34,7 @@
       line-height: 20px;
       color: #4d4f56;
       text-align: left;
-
+      white-space: nowrap;
       &.required {
         position: relative;
 
@@ -134,6 +134,10 @@
       padding: 8px 24px;
       background: #fafbfd;
       box-shadow: 0 -1px 0 0 #dcdee5;
+      button{
+        width: 64px; 
+        height: 32px;
+      }
     }
   }
 

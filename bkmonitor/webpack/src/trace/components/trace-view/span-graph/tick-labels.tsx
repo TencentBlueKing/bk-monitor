@@ -29,8 +29,8 @@ import { formatDuration } from '../utils/date';
 import './tick-labels.scss';
 
 interface ITickLabelsProps {
-  numTicks: number;
   duration: number;
+  numTicks: number;
 }
 
 const TickLabels = (props: ITickLabelsProps) => {

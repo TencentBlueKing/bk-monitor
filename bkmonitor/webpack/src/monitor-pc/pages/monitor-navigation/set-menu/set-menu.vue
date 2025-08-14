@@ -26,22 +26,22 @@
 <template>
   <div>
     <span
-      class="mneu-wrap"
-      v-authority="{ active: !hasAuth }"
-      @click="handleClick"
       ref="menuIcon"
+      v-authority="{ active: !hasAuth }"
+      class="mneu-wrap"
+      @click="handleClick"
     >
       <slot> New <i class="icon-monitor icon-mc-add mneu-wrap-icon" /> </slot>
     </span>
     <div v-show="false">
       <ul
-        class="menu-list"
         ref="menuList"
+        class="menu-list"
       >
         <li
-          class="menu-list-item"
           v-for="item in menuList"
           :key="item.id"
+          class="menu-list-item"
           @click="$emit('item-click', item)"
         >
           {{ item.name }}
@@ -58,7 +58,7 @@ import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 export default class SetMenu extends Vue {
   @Ref('menuList') menuListRef: HTMLUListElement;
   @Ref('menuIcon') menuIconRef: HTMLUListElement;
-  @Prop({ required: true }) menuList: { name: string; id: string }[];
+  @Prop({ required: true }) menuList: { id: string; name: string }[];
   @Prop({ default: true }) hasAuth: boolean;
   instance: any = null;
   @Watch('hasAuth')

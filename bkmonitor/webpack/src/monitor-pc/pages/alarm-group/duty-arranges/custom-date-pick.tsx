@@ -28,13 +28,13 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './custom-date-pick.scss';
 
-interface IProps {
-  value?: string; // 2022-03-11 00:00:00 此类格式
-  readonlyTime?: boolean; // 是否可以选择时间
-  readonly?: boolean; // 只读模式
-}
 interface IEvents {
   onChange?: string; // 格式和value一样
+}
+interface IProps {
+  readonly?: boolean; // 只读模式
+  readonlyTime?: boolean; // 是否可以选择时间
+  value?: string; // 2022-03-11 00:00:00 此类格式
 }
 
 @Component

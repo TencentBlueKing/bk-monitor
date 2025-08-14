@@ -24,24 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, computed, watch, useTemplateRef, nextTick, onUnmounted } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { computed, defineComponent, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
 
-import { useEventListener, useDebounceFn, promiseTimeout } from '@vueuse/core';
-import { Select, Checkbox, Input, Button, Radio } from 'bkui-vue';
+import { promiseTimeout, useDebounceFn, useEventListener } from '@vueuse/core';
+import { Button, Checkbox, Input, Radio, Select } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { detectOperatingSystem } from 'monitor-common/utils/navigator';
+import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../empty-status/empty-status';
 import TimeConsuming from './time-consuming';
 import {
-  ECondition,
-  EFieldType,
-  EMethod,
   type IFilterField,
   type IFilterItem,
   type IValue,
   type TGetValueFn,
+  ECondition,
+  EFieldType,
+  EMethod,
   UI_SELECTOR_OPTIONS_EMITS,
   UI_SELECTOR_OPTIONS_PROPS,
 } from './typing';
@@ -458,7 +458,7 @@ export default defineComponent({
      * @returns {Promise<any>} 返回一个Promise，解析为查询结果数据
      *                         如果查询失败，返回空结果 {count: 0, list: []}
      */
-    function getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
+    function getValueFnProxy(params: { field: string; limit: number; search: string }): any | TGetValueFn {
       return new Promise((resolve, _reject) => {
         props
           .getValueFn({

@@ -31,16 +31,16 @@ import type { IGroupListItem } from './custom-escalation-detail';
 import './custom-grouping-list.scss';
 
 interface IGroup {
-  name: string;
-  metric_count?: number;
-  manualList?: string[];
   autoRules?: string[];
+  manualList?: string[];
+  metric_count?: number;
+  name: string;
 }
 
 interface IMenuItem {
-  name: string;
-  id: 'delete' | 'edit';
   checked: boolean;
+  id: 'delete' | 'edit';
+  name: string;
 }
 
 @Component

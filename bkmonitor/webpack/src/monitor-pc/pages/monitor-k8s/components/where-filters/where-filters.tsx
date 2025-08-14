@@ -27,7 +27,7 @@
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { getSceneViewDimensionValue } from 'monitor-api/modules/scene_view';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
@@ -41,12 +41,12 @@ import type { VariableModel } from 'monitor-ui/chart-plugins/typings/dashboard-p
 
 import './where-filters.scss';
 
+export interface IWhereFiltersEvent {
+  onChange: (value: IConditionItem[]) => void;
+}
 export interface IWhereFiltersProps {
   panel: VariableModel;
   variableName: string;
-}
-export interface IWhereFiltersEvent {
-  onChange: (value: IConditionItem[]) => void;
 }
 @Component
 export default class WhereFilters extends tsc<IWhereFiltersProps, IWhereFiltersEvent> {

@@ -83,6 +83,7 @@ class Application(AbstractRecordModel):
     DIMENSION_CONFIG_KEY = "application_dimension_config"
     DB_CONFIG_KEY = "application_db_config"
     QPS_CONFIG_KEY = "application_qps_config"
+    TRACE_VIEW_CONFIG_KEY = "application_trace_view_config"
 
     class ApdexConfig:
         """Apdex配置项"""

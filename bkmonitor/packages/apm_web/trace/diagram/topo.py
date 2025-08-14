@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.trace import StatusCode
@@ -30,10 +29,10 @@ class TopoNode:
     id: str
 
     duration: int
-    spans: List[str] = field(default_factory=list)
+    spans: list[str] = field(default_factory=list)
     details: dict = field(default_factory=dict)
 
-    group: Optional[Group] = None
+    group: Group | None = None
 
     @classmethod
     def from_span_node(cls, span_node: SpanNode) -> "TopoNode":
@@ -83,8 +82,8 @@ class TopoNode:
 @dataclass
 class GlobalNodes:
     color_classifier: ServiceColorClassifier
-    _nodes: Dict[str, TopoNode] = field(default_factory=dict)
-    _nodes_dict: Dict[str, dict] = field(default_factory=dict)
+    _nodes: dict[str, TopoNode] = field(default_factory=dict)
+    _nodes_dict: dict[str, dict] = field(default_factory=dict)
 
     def add(self, node: TopoNode):
         if node.id in self._nodes:
@@ -115,7 +114,7 @@ class Relation:
 class GlobalRelations:
     """Global Relations between nodes."""
 
-    _relations: Dict[tuple, Relation] = field(default_factory=dict)
+    _relations: dict[tuple, Relation] = field(default_factory=dict)
 
     def add(self, source: TopoNode, target: TopoNode):
         if (source.id, target.id) in self._relations:
@@ -127,7 +126,7 @@ class GlobalRelations:
         return [r.to_dict() for r in self._relations.values()]
 
 
-def make_virtual_group_from_node(members: List[SpanNode]) -> Group:
+def make_virtual_group_from_node(members: list[SpanNode]) -> Group:
     """Make a virtual group from node."""
     group = Group.from_parent(members[0], members[0].config)
     group.members = members
@@ -138,7 +137,7 @@ def make_topo_node_from_span_node(
     span_node: SpanNode,
     global_relations: GlobalRelations,
     global_nodes: GlobalNodes,
-    parent_group: Optional[Group] = None,
+    parent_group: Group | None = None,
 ) -> TopoNode:
     """Turn a span node to a topo node"""
 
@@ -153,7 +152,10 @@ def make_topo_node_from_span_node(
             # --->
             # A x2 -> B x2
             #      -> C x2
-            twins = [m.children[span_node.index] for m in parent_group.members]
+            twins = []
+            for m in parent_group.members:
+                if len(m.children) > span_node.index:
+                    twins.append(m.children[span_node.index])
         else:
             # already grouped, so grouping all the same index children group
             # A1 -> B1   A2 -> B2
@@ -187,7 +189,7 @@ def make_topo_node_from_span_node(
     return topo_node
 
 
-def trace_data_to_topo_data(trace_data: list, forced_config: Optional[TreeBuildingConfig] = None) -> dict:
+def trace_data_to_topo_data(trace_data: list, forced_config: TreeBuildingConfig | None = None) -> dict:
     """Convert trace data to topo data."""
     if not forced_config:
         config_controller = DiagramConfigController.read()
@@ -255,7 +257,7 @@ def make_diff_info_from_span_node(span_node: SpanNode, diff_mark: DiffMark):
 
 def make_topo_diff_node_from_span_node(
     span_node: SpanNode, relations: dict, diff_mark: DiffMark, color_classifier: ServiceColorClassifier
-) -> Tuple[dict, dict]:
+) -> tuple[dict, dict]:
     """Make topo diff node from span node
 
     Diff Tree is not full of nodes if parent node is removed or added,
@@ -294,7 +296,7 @@ def make_topo_diff_node_from_span_node(
 
 def diff_topo_nodes_from_diff_node(
     diff_node: DiffNode, relations: dict, color_classifier: ServiceColorClassifier, diff_tree: DiffTree
-) -> Tuple[dict, dict]:
+) -> tuple[dict, dict]:
     if diff_node.mark in [DiffMark.ADDED, DiffMark.REMOVED]:
         diff_topo_node_info, nodes = make_topo_diff_node_from_span_node(
             diff_node.default, relations, diff_node.mark, color_classifier
