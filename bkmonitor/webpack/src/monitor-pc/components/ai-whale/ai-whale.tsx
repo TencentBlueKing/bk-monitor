@@ -58,10 +58,6 @@ const levelOfColor = {
 //   ['event-center', 'event-action', 'event-center-detail', 'event-center-action-detail'];
 export const AI_WHALE_EXCLUDE_ROUTES = ['no-business', 'error-exception', 'share']; // 告警页也可显示ai小鲸
 
-export type AIQuickActionData = {
-  content: string;
-  type: 'explanation' | 'translate';
-};
 interface IData {
   fetch_range?: string;
   link: IWhaleHelperListItem[];

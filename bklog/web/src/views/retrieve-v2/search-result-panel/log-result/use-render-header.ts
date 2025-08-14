@@ -77,7 +77,7 @@ export default () => {
         }
       }
       const isLackIndexFields = !!unionContent && isUnionSearch.value;
-      const sortable = field.es_doc_values && field.tag !== 'union-source';
+      const sortable = field.es_doc_values && field.tag !== 'union-source' && field.field_type !== 'flattened';
 
       return h(
         'div',

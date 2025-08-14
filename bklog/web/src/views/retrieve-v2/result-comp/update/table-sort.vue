@@ -174,7 +174,7 @@
     })
   });
   const selectList = computed(() => {
-    const filterFn = field => field.field_type !== '__virtual__'  && isFieldHidden(field.field_name);
+    const filterFn = field => field.field_type !== '__virtual__' && field.field_type !== 'flattened' && isFieldHidden(field.field_name);
     return fieldList.value.filter(filterFn).map(field => {
       return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
     });

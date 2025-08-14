@@ -59,7 +59,7 @@ class Space(BaseModel):
     objects = SpaceManager()
 
     class Meta:
-        unique_together = (("space_type_id", "space_id"), ("space_type_id", "space_name"))
+        unique_together = (("space_type_id", "space_id"), ("space_type_id", "space_name", "bk_tenant_id"))
         verbose_name = "空间信息"
         verbose_name_plural = "空间信息"
 

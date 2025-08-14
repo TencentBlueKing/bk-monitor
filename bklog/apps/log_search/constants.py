@@ -898,6 +898,7 @@ class FieldDataTypeEnum(ChoicesEnum):
     DOUBLE = "double"
     OBJECT = "object"
     NESTED = "nested"
+    FLATTENED = "flattened"
 
     choices_list = [(STRING, STRING), (INT, INT), (LONG, LONG), (DOUBLE, DOUBLE)]
 
@@ -906,6 +907,8 @@ class FieldDataTypeEnum(ChoicesEnum):
 
     if settings.FEATURE_TOGGLE.get("es_type_nested") == "on":
         choices_list.append((NESTED, NESTED))
+
+    choices_list.append((FLATTENED, FLATTENED))
 
     _choices_labels = tuple(choices_list)
 
@@ -920,6 +923,7 @@ class FieldDataTypeEnum(ChoicesEnum):
             "double": "float",
             "object": "object",
             "nested": "nested",
+            "flattened": "flattened",
         }.get(es_field_type, "string")
 
     @classmethod
@@ -931,6 +935,7 @@ class FieldDataTypeEnum(ChoicesEnum):
             "double": "double",
             "object": "object",
             "nested": "nested",
+            "flattened": "flattened",
         }.get(field_type, "keyword")
         if is_analyzed:
             field_type = "text"
@@ -950,6 +955,7 @@ class FieldDataTypeEnum(ChoicesEnum):
             "object": "object",
             "nested": "nested",
             "boolean": "boolean",
+            "flattened": "flattened",
         }.get(es_field_type, "string")
 
 
@@ -1671,6 +1677,14 @@ OPERATORS = {
         OperatorEnum.GTE,
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
+    ],
+    "flattened": [
+        OperatorEnum.EQ_WILDCARD,
+        OperatorEnum.NE_WILDCARD,
+        OperatorEnum.EXISTS,
+        OperatorEnum.NOT_EXISTS,
+        OperatorEnum.CONTAINS,
+        OperatorEnum.NOT_CONTAINS,
     ],
 }
 

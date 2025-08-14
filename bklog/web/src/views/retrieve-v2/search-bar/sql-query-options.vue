@@ -291,7 +291,17 @@
     // 开始输入字段【nam】
     const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
     if (inputField) {
-      fieldList.value = originFieldList().filter(item => getQualifiedFieldName(item).includes(inputField));
+      fieldList.value = originFieldList()
+        .reduce((acc, item) => {
+          const name = getQualifiedFieldName(item);
+          const index = name.toLowerCase().indexOf(inputField.toLowerCase());
+          if (index !== -1) {
+            acc.push({ index, fieldName: item });
+          }
+          return acc;
+        }, [])
+      .sort((a, b) => a.index - b.index)
+      .map(item => item.fieldName);
       if (fieldList.value.length) {
         showWhichDropdown(OptionItemType.Fields);
         return;
@@ -553,8 +563,8 @@
       setOptionActive();
     });
   });
- const filedNameShow = (item)=> {
-  return getQualifiedFieldName(item)
+  const fieldNameShow = (item)=> {
+    return getQualifiedFieldName(item)
   }
   defineExpose({
     beforeShowndFn,
@@ -599,7 +609,7 @@
                 class="item-text text-overflow-hidden"
                 v-bk-overflow-tips="{ placement: 'right' }"
               >
-                {{ filedNameShow(item) }}
+                {{ fieldNameShow(item) }}
               </div>
             </li>
           </div>
