@@ -67,12 +67,6 @@ export interface IMethodOptionsItem extends IVariablesItem {
   isVariable?: boolean;
 }
 
-export interface IScenarioItem {
-  id: string;
-  index: number;
-  name: string;
-}
-
 export interface IVariablesItem {
   name?: string;
   type?: (typeof VariableTypeEnum)[keyof typeof VariableTypeEnum];
@@ -81,10 +75,3 @@ export interface IVariablesItem {
 export type TMetricDetail = Partial<TypeMetricDetail>;
 
 export class MetricDetail extends BaseMetricDetail {}
-
-export const TConfigType = {
-  QUERY_CONFIG: 'query-config',
-  EXPRESSION_CONFIG: 'expression-config',
-};
-
-export type EConfigType = (typeof TConfigType)[keyof typeof TConfigType];
