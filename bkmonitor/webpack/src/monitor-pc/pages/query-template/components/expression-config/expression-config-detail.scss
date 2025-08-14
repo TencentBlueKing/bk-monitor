@@ -1,4 +1,4 @@
-.template-query-config-detail-component {
+.template-expression-config-detail-component {
   display: flex;
   width: 100%;
   padding: 6px 12px;
@@ -11,9 +11,13 @@
     width: 20px;
     font-size: 12px;
     color: #3a84ff;
+
+    .icon-arrow-turn {
+      font-size: 12px;
+    }
   }
 
-  .query-config-wrap {
+  .expression-config-wrap {
     display: flex;
     flex-basis: auto;
     flex-direction: column;
