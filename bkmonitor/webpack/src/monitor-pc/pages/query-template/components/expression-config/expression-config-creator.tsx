@@ -30,15 +30,19 @@ import { Component as tsc } from 'vue-tsx-support';
 import ExpressionCreator from '../expression/expression-creator';
 import FunctionCreator from '../function/function-creator';
 
+import type { IFunctionOptionsItem } from '../type/query-config';
+
 import './expression-config-creator.scss';
 
 interface IProps {
   expressionConfig?: any;
+  metricFunctions?: IFunctionOptionsItem[];
 }
 
 @Component
 export default class ExpressionConfigCreator extends tsc<IProps> {
   @Prop({ default: () => null }) expressionConfig: any;
+  @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
 
   render() {
     return (
@@ -48,7 +52,7 @@ export default class ExpressionConfigCreator extends tsc<IProps> {
         </div>
         <div class='expression-config-wrap'>
           <ExpressionCreator />
-          <FunctionCreator />
+          <FunctionCreator options={this.metricFunctions} />
         </div>
       </div>
     );

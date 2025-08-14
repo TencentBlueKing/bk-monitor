@@ -17,15 +17,28 @@
     border-right: 1px solid #dcdee5;
   }
 
-  .expression-input {
+  .expression-input-wrap {
+    position: relative;
     display: flex;
     flex: 1;
-    flex-wrap: wrap;
     align-items: center;
-    min-width: 418px;
     height: 100%;
     min-height: 32px;
-    padding: 0 8px;
+    padding: 5px 8px;
     border: 1px solid transparent;
+
+    &.focus {
+      border: 1px solid #3a84ff;
+      box-shadow: 0 0 4px rgb(58 132 255 / 40%);
+    }
+
+    .expression-input {
+      flex: 1;
+      min-width: 402px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4d4f56;
+      white-space: pre-wrap;
+    }
   }
 }
