@@ -90,18 +90,21 @@ export default class QueryConfigCreator extends tsc<IProps> {
     this.$emit('createVariable', {
       name: val,
       type: VariableTypeEnum.METHOD,
+      metric: this.curMetric,
     });
   }
   handleCreateDimensionVariable(val) {
     this.$emit('createVariable', {
       name: val,
       type: VariableTypeEnum.DIMENSION,
+      metric: this.curMetric,
     });
   }
   handleCreateFunctionVariable(val) {
     this.$emit('createVariable', {
       name: val,
       type: VariableTypeEnum.FUNCTION,
+      metric: this.curMetric,
     });
   }
 

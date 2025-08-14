@@ -117,6 +117,7 @@ export default class TemplateCreate extends tsc<object> {
       getVariableModel({
         type: val.type as VariableTypeEnumType,
         name: val.name,
+        metric: val?.metric || null,
       })
     );
   }

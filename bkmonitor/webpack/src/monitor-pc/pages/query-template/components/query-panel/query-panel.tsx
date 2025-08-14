@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import QueryConfigCreator from '../query-config/query-config-creator';
 
 import type { VariableModelType } from '../../variables';
-import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config';
+import type { IFunctionOptionsItem } from '../type/query-config';
 
 import './query-panel.scss';
 
@@ -40,7 +40,7 @@ interface IProps {
   metricFunctions?: IFunctionOptionsItem[];
   variables?: VariableModelType[];
   onAdd?: () => void;
-  onCreateVariable?: (val: IVariablesItem) => void;
+  onCreateVariable?: (val: VariableModelType) => void;
   onDelete?: () => void;
 }
 
