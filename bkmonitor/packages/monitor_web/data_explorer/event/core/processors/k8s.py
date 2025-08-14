@@ -90,6 +90,7 @@ class K8sEventProcessor(BaseEventProcessor):
             "alias": f"{bcs_cluster_id}/{namespace}/{kind}/{name}",
             "url": cls.generate_url("workload", k8s_info, start_time, end_time),
             "scenario": EventScenario.CONTAINER_MONITOR.value,
+            "scene_urls": cls.generate_scene_urls("workload", k8s_info, start_time, end_time),
         }
 
     @classmethod
@@ -110,11 +111,11 @@ class K8sEventProcessor(BaseEventProcessor):
         start_time: int,
         end_time: int,
     ) -> None:
-        def create_detail_field(field: str, alias: str, url: str) -> dict[str, str]:
+        def create_detail_field(field: str, alias: str, url: str, level: str = None) -> dict[str, str]:
             field_value = k8s_info[field]["value"]
             if not field_value:
                 return {}
-            return {
+            detail_field = {
                 "label": k8s_info[field]["label"],
                 "value": field_value,
                 "alias": alias,
@@ -122,6 +123,10 @@ class K8sEventProcessor(BaseEventProcessor):
                 "scenario": EventScenario.CONTAINER_MONITOR.value,
                 "url": url,
             }
+            # 为支持多场景的字段添加 scene_urls
+            if level:
+                detail_field["scene_urls"] = self.generate_scene_urls(level, k8s_info, start_time, end_time)
+            return detail_field
 
         # 处理集群信息
         detail = processed_event["event.content"]["detail"]
@@ -142,7 +147,7 @@ class K8sEventProcessor(BaseEventProcessor):
         # 处理命名空间信息
         if namespace:
             detail["namespace"] = create_detail_field(
-                "namespace", namespace, self.generate_url("namespace", k8s_info, start_time, end_time)
+                "namespace", namespace, self.generate_url("namespace", k8s_info, start_time, end_time), "namespace"
             )
         # 处理名称信息
         if name:
@@ -151,13 +156,12 @@ class K8sEventProcessor(BaseEventProcessor):
                 f"{kind}/{name}" if kind else name,
                 # 统一使用 kind 表示不同监控指标的名称所在层级
                 self.generate_url("kind", k8s_info, start_time, end_time),
+                "kind",
             )
         # 如果有 host 字段，补充容器监控容量界面的 url 到 detail 内
         if host:
             detail["host"] = create_detail_field(
-                "host",
-                host,
-                self._generate_capacity_url(k8s_info, start_time, end_time, host),
+                "host", host, self._generate_capacity_url(k8s_info, start_time, end_time, host), "host"
             )
 
     @classmethod
@@ -282,6 +286,10 @@ class K8sEventProcessor(BaseEventProcessor):
         if not (name and kind):
             return ""
 
+        if kind == "Pod":
+            filter_by["pod"].append(name)
+            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by, tab_info)
+
         if kind == "Ingress":
             filter_by["ingress"].append(name)
             return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by, tab_info)
@@ -300,3 +308,64 @@ class K8sEventProcessor(BaseEventProcessor):
             "activeTab": ContainerMonitorTabType.LIST.value,
         }
         return cls._generate_url(k8s_info, start_time, end_time, {"node": [name]}, ["node"], tab_info)
+
+    @classmethod
+    def generate_scene_urls(
+        cls, level: str, k8s_info: dict[str, Any], start_time: int, end_time: int
+    ) -> list[dict[str, str]]:
+        """
+        根据对象类型生成多场景跳转URLs
+        """
+        kind: str = k8s_info["kind"]["value"]
+        name: str = k8s_info["name"]["value"]
+        namespace = k8s_info["namespace"]["value"]
+        scene_urls = []
+
+        # 根据 level 和 kind 确定支持的场景
+        if level == "namespace":
+            # namespace 支持性能和网络
+            perf_url = cls._generate_performance_url(level, k8s_info, start_time, end_time, namespace, name, kind)
+            if perf_url:
+                scene_urls.append({"scene": "performance", "url": perf_url})
+
+            net_url = cls._generate_network_url(level, k8s_info, start_time, end_time, namespace, name, kind)
+            if net_url:
+                scene_urls.append({"scene": "network", "url": net_url})
+
+        elif level == "kind" or level == "workload":
+            # 根据具体的 kind 判断
+            if kind == "Pod":
+                # Pod 支持性能和网络
+                perf_url = cls._generate_performance_url(level, k8s_info, start_time, end_time, namespace, name, kind)
+                if perf_url:
+                    scene_urls.append({"scene": "performance", "url": perf_url})
+
+                net_url = cls._generate_network_url(level, k8s_info, start_time, end_time, namespace, name, kind)
+                if net_url:
+                    scene_urls.append({"scene": "network", "url": net_url})
+
+            elif kind in ["Service", "Endpoints", "Ingress"]:
+                # 网络类资源只支持网络
+                net_url = cls._generate_network_url(level, k8s_info, start_time, end_time, namespace, name, kind)
+                if net_url:
+                    scene_urls.append({"scene": "network", "url": net_url})
+
+            elif kind == "Node":
+                # Node 只支持容量
+                cap_url = cls._generate_capacity_url(k8s_info, start_time, end_time, name)
+                if cap_url:
+                    scene_urls.append({"scene": "capacity", "url": cap_url})
+
+            else:
+                # workload 类型只支持性能
+                perf_url = cls._generate_performance_url(level, k8s_info, start_time, end_time, namespace, name, kind)
+                if perf_url:
+                    scene_urls.append({"scene": "performance", "url": perf_url})
+
+        elif level == "host":
+            # host 只支持容量
+            cap_url = cls._generate_capacity_url(k8s_info, start_time, end_time, name)
+            if cap_url:
+                scene_urls.append({"scene": "capacity", "url": cap_url})
+
+        return scene_urls
