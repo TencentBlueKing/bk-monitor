@@ -13,6 +13,7 @@ import json
 import logging
 import tempfile
 import time
+from typing import cast
 import uuid
 from itertools import chain
 
@@ -2532,20 +2533,14 @@ class KafkaTailResource(Resource):
         namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("KafkaTailResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_data_id = validated_request_data.get("bk_data_id")
         result_table = None
 
         # 参数处理,result_table / datasource
         if bk_data_id:
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
-            datasource = models.DataSource.objects.get(bk_data_id=bk_data_id)
+            datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
             try:
                 table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
                 result_table = models.ResultTable.objects.get(table_id=table_id)
@@ -2570,18 +2565,24 @@ class KafkaTailResource(Resource):
             if settings.ENABLE_BKDATA_KAFKA_TAIL_API and result_table and datasource.etl_config != "bk_flat_batch":
                 logger.info("KafkaTailResource: using bkdata kafka tail api,bk_data_id->[%s]", datasource.bk_data_id)
                 # TODO: 获取计算平台数据名称,待数据一致性实现后,统一通过BkBaseResultTable获取,不再进行复杂转换
-                vm_record = models.AccessVMRecord.objects.get(result_table_id=result_table.table_id)
+                vm_record = models.AccessVMRecord.objects.get(
+                    bk_tenant_id=bk_tenant_id, result_table_id=result_table.table_id
+                )
                 data_id_name = vm_record.bk_base_data_name
                 namespace = validated_request_data["namespace"]
                 if not data_id_name:
-                    data_id_name = get_bkbase_raw_data_name_for_v3_datalink(vm_record.bk_base_data_id)
+                    data_id_name = get_bkbase_raw_data_name_for_v3_datalink(
+                        bk_tenant_id=bk_tenant_id, bkbase_data_id=vm_record.bk_base_data_id
+                    )
                 logger.info(
                     "KafkaTailResource: using bkdata kafka tail api,table_id->[%s],namespace->[%s],name->[%s]",
                     result_table.table_id,
                     namespace,
                     data_id_name,
                 )
-                res = api.bkdata.tail_kafka_data(namespace=namespace, name=data_id_name, limit=size)
+                res = api.bkdata.tail_kafka_data(
+                    bk_tenant_id=bk_tenant_id, namespace=namespace, name=data_id_name, limit=size
+                )
                 result = [json.loads(data) for data in res]
             else:
                 result = self._consume_with_gse_config(datasource, size)

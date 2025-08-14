@@ -886,7 +886,6 @@ def test_create_basereport_datalink_for_bkcc_metadata_part(create_or_delete_reco
     Metadata部分,不包含具体V4链路配置
     """
     settings.ENABLE_MULTI_TENANT_MODE = True
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
     with (
         patch.object(
@@ -942,7 +941,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
     V4链路配置
     """
     settings.ENABLE_MULTI_TENANT_MODE = True
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
     with (
         patch.object(
@@ -2007,7 +2005,6 @@ def test_create_base_event_datalink_for_bkcc_metadata_part(create_or_delete_reco
     Metadata部分 -- 元信息关联关系
     """
     settings.ENABLE_MULTI_TENANT_MODE = True
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
     with (
         patch.object(
@@ -2060,7 +2057,6 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
     BkBase部分 -- V4链路配置
     """
     settings.ENABLE_MULTI_TENANT_MODE = True
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
     with (
         patch.object(
@@ -2195,7 +2191,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
     测试bk_exporter V4链路接入 -- Metadata部分 & Datalink V4配置部分
     """
     settings.ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = True
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    settings.ENABLE_MULTI_TENANT_MODE = True
 
     ds = models.DataSource.objects.get(bk_data_id=50011)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50011.__default__")
@@ -2314,7 +2310,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
     测试bk_standard V4链路接入 -- Metadata部分 & Datalink V4配置部分
     """
     settings.ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = True
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    settings.ENABLE_MULTI_TENANT_MODE = True
 
     ds = models.DataSource.objects.get(bk_data_id=50012)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50012.__default__")
@@ -2435,7 +2431,6 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     """
 
     settings.ENABLE_MULTI_TENANT_MODE = True
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
     bk_tenant_id = "test_tenant"
 
