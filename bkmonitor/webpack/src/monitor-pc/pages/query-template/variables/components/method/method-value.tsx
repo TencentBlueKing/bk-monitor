@@ -23,3 +23,56 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { MethodVariableModel } from '../../index';
+import EditVariableValue from '../common-form/edit-variable-value';
+interface MethodValueEvents {
+  onBlur: () => void;
+  onChange: (variable: MethodVariableModel) => void;
+  onFocus: () => void;
+}
+
+interface MethodValueProps {
+  variable: MethodVariableModel;
+}
+
+@Component
+export default class MethodValue extends tsc<MethodValueProps, MethodValueEvents> {
+  @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
+
+  @Emit('change')
+  handleValueChange(value: string) {
+    return new MethodVariableModel({ ...this.variable.data, value });
+  }
+
+  handleSelectToggle(value: boolean) {
+    if (value) {
+      this.$emit('focus');
+    } else {
+      this.$emit('blur');
+    }
+  }
+
+  render() {
+    return (
+      <EditVariableValue data={this.variable.data}>
+        <bk-select
+          value={this.variable.value}
+          onChange={this.handleValueChange}
+          onToggle={this.handleSelectToggle}
+        >
+          {this.variable.metric.aggMethodList.map(item => (
+            <bk-option
+              id={item.id}
+              key={item.id}
+              name={item.name}
+            />
+          ))}
+        </bk-select>
+      </EditVariableValue>
+    );
+  }
+}

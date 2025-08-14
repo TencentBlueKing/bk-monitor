@@ -23,46 +23,47 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from 'monitor-common/utils';
-
+import { MethodVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { MethodVariableModel } from '../../index';
+import type { IMethodVariableModel } from '../../../typings';
+
 interface MethodVariableEvents {
-  onDataChange: (data: MethodVariableModel) => void;
+  onDataChange: (variable: MethodVariableModel) => void;
 }
 interface MethodVariableProps {
-  data: MethodVariableModel;
+  variable: MethodVariableModel;
 }
 
 @Component
 export default class MethodVariable extends tsc<MethodVariableProps, MethodVariableEvents> {
-  @Prop({ type: Object, required: true }) data!: MethodVariableModel;
-
-  get aggMethodList() {
-    return this.data.metric?.aggMethodList || [];
-  }
+  @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
+  @Ref() variableCommonForm!: VariableCommonForm;
 
   handleValueChange(value: string) {
     this.handleDataChange({
-      ...this.data,
+      ...this.variable.data,
       value,
     });
   }
 
-  @Debounce(200)
-  handleDataChange(data: MethodVariableModel) {
-    this.$emit('dataChange', data);
+  handleDataChange(data: IMethodVariableModel) {
+    this.$emit('dataChange', new MethodVariableModel({ ...data }));
+  }
+
+  validateForm() {
+    return this.variableCommonForm.validateForm();
   }
 
   render() {
     return (
       <div class='method-variable'>
         <VariableCommonForm
-          data={this.data}
+          ref='variableCommonForm'
+          data={this.variable.data}
           onDataChange={this.handleDataChange}
         >
           <bk-form-item
@@ -71,10 +72,10 @@ export default class MethodVariable extends tsc<MethodVariableProps, MethodVaria
           >
             <bk-select
               clearable={false}
-              value={this.data.value}
+              value={this.variable.value}
               onChange={this.handleValueChange}
             >
-              {this.aggMethodList.map(item => (
+              {this.variable.metric.aggMethodList.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}
