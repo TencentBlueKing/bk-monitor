@@ -424,7 +424,7 @@ class PluginDataAccessor(DataAccessor):
         self.dms_field = []
 
         # 维度注入参数名称，更新至group的添加参数信息中
-        for param in config_json:
+        for param in config_json or []:
             if param["mode"] == ParamMode.DMS_INSERT:
                 for dms_key in param["default"].keys():
                     add_fields_names.append((dms_key, dms_key))
@@ -454,7 +454,7 @@ class PluginDataAccessor(DataAccessor):
         else:
             etl_config = "bk_exporter"
         super().__init__(
-            bk_biz_id=0,
+            bk_biz_id=plugin_version.plugin.bk_biz_id,
             db_name=db_name,
             tables=tables,
             etl_config=etl_config,
