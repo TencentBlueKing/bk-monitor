@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './variable-name-input.scss';
 
 interface IProps {
+  show?: boolean;
   value: string;
   onChange?: (val: string) => void;
 }
@@ -37,9 +38,21 @@ interface IProps {
 @Component
 export default class VariableNameInput extends tsc<IProps> {
   @Prop({ type: String, default: '' }) value: string;
+  @Prop({ type: Boolean, default: false }) show: boolean;
+
+  @Ref('input') inputRef;
 
   handleChange(val: string) {
     this.$emit('change', val);
+  }
+
+  @Watch('show', { immediate: true })
+  handleWatchShow(val) {
+    if (val) {
+      this.$nextTick(() => {
+        this.inputRef?.focus();
+      });
+    }
   }
 
   render() {
@@ -47,6 +60,7 @@ export default class VariableNameInput extends tsc<IProps> {
       <div class='template-config-variable-name-input'>
         <div class='label-left'>{'${'}</div>
         <bk-input
+          ref='input'
           class='variable-name-input'
           value={this.value}
           onChange={this.handleChange}
