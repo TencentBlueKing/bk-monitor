@@ -37,7 +37,6 @@ import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config'
 import './function-creator.scss';
 
 interface IProps {
-  hasCreateVariable?: boolean;
   isExpSupport?: boolean;
   options?: IFunctionOptionsItem[];
   showLabel?: boolean;
@@ -64,8 +63,6 @@ export default class FunctionCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) options: IFunctionOptionsItem[];
   /* 是否展示变量 */
   @Prop({ default: false }) showVariables: boolean;
-  /** 是否有创建变量功能 */
-  @Prop({ default: true }) hasCreateVariable: boolean;
   /** 只展示支持表达式的函数 */
   @Prop({ default: false, type: Boolean }) readonly isExpSupport: boolean;
   @Prop({ default: () => [] }) value: IValue[];
@@ -120,6 +117,10 @@ export default class FunctionCreator extends tsc<IProps> {
     });
   }
 
+  handleClear() {
+    this.curTags = [];
+  }
+
   render() {
     return (
       <div class='template-function-creator-component'>
@@ -127,8 +128,10 @@ export default class FunctionCreator extends tsc<IProps> {
         <SelectWrap
           expanded={this.showSelect}
           minWidth={357}
+          needClear={!!this.curTags.length}
           needPop={true}
           popClickHide={this.popClickHide}
+          onClear={this.handleClear}
           onOpenChange={this.handleOpenChange}
         >
           {this.curTags.length ? (
@@ -163,9 +166,10 @@ export default class FunctionCreator extends tsc<IProps> {
           )}
           <FunctionCreatorPop
             slot='popover'
-            hasCreateVariable={this.hasCreateVariable}
+            hasCreateVariable={this.showVariables}
             isExpSupport={this.isExpSupport}
             options={this.options}
+            selected={this.curTags}
             variables={this.variables}
             onAddVar={this.handleAddVar}
             onSelect={this.handleSelect}
