@@ -23,38 +23,58 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IVariableModel } from '../../../typings';
+import ConditionCreator from '../../../components/condition/condition-creator';
+import { ConditionVariableModel } from '../../index';
+import EditVariableValue from '../common-form/edit-variable-value';
 
-import './variable-common-form-detail.scss';
+import type { IConditionVariableModel } from '../../../typings';
 
-interface VariableCommonFormDetailProps {
-  data: IVariableModel;
+import './condition-value.scss';
+interface ConditionValueEvents {
+  onBlur: () => void;
+  onChange: (variable: ConditionVariableModel) => void;
+  onFocus: () => void;
+}
+
+interface ConditionValueProps {
+  variable: ConditionVariableModel;
 }
 
 @Component
-export default class VariableCommonFormDetail extends tsc<VariableCommonFormDetailProps> {
-  @Prop({ type: Object, required: true }) data!: IVariableModel;
+export default class ConditionValue extends tsc<ConditionValueProps, ConditionValueEvents> {
+  @Prop({ type: Object, required: true }) variable!: ConditionVariableModel;
+
+  @Emit('change')
+  handleValueChange(value: IConditionVariableModel['value']) {
+    return new ConditionVariableModel({
+      ...this.variable.data,
+      value,
+    });
+  }
+
+  handleSelectToggle(value: boolean) {
+    if (value) {
+      this.$emit('focus');
+    } else {
+      this.$emit('blur');
+    }
+  }
 
   render() {
     return (
-      <div class='variable-common-form-detail'>
-        <div class='form-item name'>
-          <div class='form-item-label'>{this.$t('变量名')}：</div>
-          <div class='form-item-value'>{`$\{${this.data.name}}`}</div>
-        </div>
-        <div class='form-item'>
-          <div class='form-item-label'>{this.$t('变量别名')}：</div>
-          <div class='form-item-value'>{this.data.alias}</div>
-        </div>
-        <div class='form-item'>
-          <div class='form-item-label'>{this.$t('变量描述')}：</div>
-          <div class='form-item-value'>{this.data.desc}</div>
-        </div>
-        {this.$slots.default}
-      </div>
+      <EditVariableValue
+        class='condition-value'
+        data={this.variable.data}
+      >
+        <ConditionCreator
+          hasVariableOperate={false}
+          showLabel={false}
+        />
+      </EditVariableValue>
     );
   }
 }

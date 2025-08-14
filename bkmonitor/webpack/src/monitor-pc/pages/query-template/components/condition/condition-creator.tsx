@@ -36,6 +36,7 @@ import type { IConditionOptionsItem, IVariablesItem } from '../type/query-config
 import './condition-creator.scss';
 
 interface IProps {
+  hasVariableOperate?: boolean;
   options?: IConditionOptionsItem[];
   showLabel?: boolean;
   showVariables?: boolean;
@@ -53,6 +54,7 @@ export default class ConditionCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) options: IConditionOptionsItem[];
   /* 是否展示变量 */
   @Prop({ default: false }) showVariables: boolean;
+  @Prop({ default: true }) hasVariableOperate: boolean;
 
   get fields() {
     return this.options.map(item => ({
@@ -78,7 +80,10 @@ export default class ConditionCreator extends tsc<IProps> {
     return (
       <div class='template-condition-creator-component'>
         {this.showLabel && <div class='condition-label'>{this.$slots?.label || this.$t('过滤条件')}</div>}
-        <ConditionCreatorSelector fields={this.fields as IFilterField[]} />
+        <ConditionCreatorSelector
+          fields={this.fields as IFilterField[]}
+          hasVariableOperate={this.hasVariableOperate}
+        />
       </div>
     );
   }

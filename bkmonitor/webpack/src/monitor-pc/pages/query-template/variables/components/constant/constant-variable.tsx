@@ -23,51 +23,48 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from 'monitor-common/utils';
-
+import { ConstantVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { ConstantVariableModel } from '../../index';
-
+import type { IConstantVariableModel } from '../../../typings';
 interface ConstantVariableEvents {
-  onDataChange: (data: ConstantVariableModel) => void;
+  onDataChange: (variable: ConstantVariableModel) => void;
 }
 interface ConstantVariableProps {
-  data: ConstantVariableModel;
+  variable: ConstantVariableModel;
 }
 
 @Component
 export default class ConstantVariable extends tsc<ConstantVariableProps, ConstantVariableEvents> {
-  @Prop({ type: Object, required: true }) data!: ConstantVariableModel;
+  @Prop({ type: Object, required: true }) variable!: ConstantVariableModel;
+  @Ref() variableCommonForm!: VariableCommonForm;
 
   handleValueChange(value) {
     this.handleDataChange({
-      ...this.data,
+      ...this.variable.data,
       value,
     });
   }
 
-  @Debounce(200)
-  handleDataChange(data: ConstantVariableModel) {
-    this.$emit('dataChange', data);
+  handleDataChange(data: IConstantVariableModel) {
+    this.$emit('dataChange', new ConstantVariableModel({ ...data }));
+  }
+
+  validateForm() {
+    return this.variableCommonForm.validateForm();
   }
 
   render() {
     return (
       <div class='constant-variable'>
         <VariableCommonForm
-          data={this.data}
+          ref='variableCommonForm'
+          data={this.variable.data}
           onDataChange={this.handleDataChange}
         >
-          <bk-form-item
-            label={this.$t('数据类型')}
-            property='value'
-          >
-            <bk-select />
-          </bk-form-item>
           <bk-form-item
             label={this.$t('默认值')}
             property='value'

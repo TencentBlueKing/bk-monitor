@@ -23,43 +23,49 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from 'monitor-common/utils';
-
 import FunctionCreator from '../../../components/function/function-creator';
+import { FunctionVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { FunctionVariableModel } from '../../index';
+import type { IFunctionVariableModel } from '../../../typings';
 interface FunctionVariableEvents {
-  onDataChange: (data: FunctionVariableModel) => void;
+  onDataChange: (variable: FunctionVariableModel) => void;
 }
 interface FunctionVariableProps {
-  data: FunctionVariableModel;
+  metricFunctions: any[];
+  variable: FunctionVariableModel;
 }
 
 @Component
 export default class FunctionVariable extends tsc<FunctionVariableProps, FunctionVariableEvents> {
-  @Prop({ type: Object, required: true }) data!: FunctionVariableModel;
+  @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
+  @Prop({ default: () => [] }) metricFunctions!: any[];
+  @Ref() variableCommonForm!: VariableCommonForm;
 
   handleValueChange(value) {
     this.handleDataChange({
-      ...this.data,
+      ...this.variable.data,
       value,
     });
   }
 
-  @Debounce(200)
-  handleDataChange(data: FunctionVariableModel) {
-    this.$emit('dataChange', data);
+  handleDataChange(data: IFunctionVariableModel) {
+    this.$emit('dataChange', new FunctionVariableModel({ ...data }));
+  }
+
+  validateForm() {
+    return this.variableCommonForm.validateForm();
   }
 
   render() {
     return (
       <div class='function-variable'>
         <VariableCommonForm
-          data={this.data}
+          ref='variableCommonForm'
+          data={this.variable.data}
           onDataChange={this.handleDataChange}
         >
           <bk-form-item
@@ -68,7 +74,9 @@ export default class FunctionVariable extends tsc<FunctionVariableProps, Functio
           >
             <FunctionCreator
               hasCreateVariable={false}
+              options={this.metricFunctions}
               showLabel={false}
+              value={this.variable.value}
             />
           </bk-form-item>
         </VariableCommonForm>
