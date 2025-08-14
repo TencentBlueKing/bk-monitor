@@ -69,6 +69,7 @@ export class QueryVariablesTool {
     if (typeof input !== 'string') {
       return false;
     }
+    this.regex.lastIndex = 0;
     return variableRegex.test(input);
   }
 
