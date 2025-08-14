@@ -1170,10 +1170,16 @@ class ApplyDataLink(DataAccessAPIResource):
 class GetDataLink(DataAccessAPIResource):
     """获取数据链路"""
 
-    action = "/v4/namespaces/{namespace}/{kind}/{name}/"
+    @property
+    def action(self):
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return f"/v4/tenants/{self.bk_tenant_id}/namespaces/{self.namespace}/{self.kind}/{self.name}/"
+        return f"/v4/namespaces/{self.namespace}/{self.kind}/{self.name}/"
+
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         kind = serializers.CharField(label="资源类型")
         namespace = serializers.CharField(label="命名空间")
         name = serializers.CharField(label="资源名称")
