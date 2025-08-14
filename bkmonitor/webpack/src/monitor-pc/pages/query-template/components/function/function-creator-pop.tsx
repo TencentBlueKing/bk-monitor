@@ -38,6 +38,7 @@ interface IProps {
   hasCreateVariable?: boolean;
   isExpSupport?: boolean;
   options?: IFunctionOptionsItem[];
+  selected?: IFunctionOptionsItem[];
   variables?: IVariablesItem[];
   onAddVar?: (val: string) => void;
   onSelect?: (val: IFunctionOptionsItem) => void;
@@ -53,6 +54,7 @@ export default class FunctionCreatorPop extends tsc<IProps> {
   @Prop({ default: () => [] }) options: IFunctionOptionsItem[];
   /** 只展示支持表达式的函数 */
   @Prop({ default: false, type: Boolean }) readonly isExpSupport: boolean;
+  @Prop({ default: () => [] }) selected: IFunctionOptionsItem[];
 
   /* 搜索关键词 */
   keyword = '';
@@ -81,11 +83,17 @@ export default class FunctionCreatorPop extends tsc<IProps> {
   }
 
   get getVariables() {
-    return this.variables.map(item => ({
-      ...item,
-      id: item.name,
-      isVariable: true,
-    }));
+    return this.variables
+      .filter(item => !this.selectedVars.includes(item.name))
+      .map(item => ({
+        ...item,
+        id: item.name,
+        isVariable: true,
+      }));
+  }
+
+  get selectedVars() {
+    return this.selected.filter(item => item.isVariable).map(item => item.id);
   }
 
   handleKeywordChange(v: string) {
@@ -147,7 +155,7 @@ export default class FunctionCreatorPop extends tsc<IProps> {
               <li
                 key={'create'}
                 class={['list-item', { 'item-active': this.isCreateVar }]}
-                on-mouseenter={() => this.handleClickCreateVar()}
+                onClick={() => this.handleClickCreateVar()}
               >
                 {this.$t('创建变量')}
                 {'${}'}
@@ -213,6 +221,7 @@ export default class FunctionCreatorPop extends tsc<IProps> {
               {this.isCreateVar ? (
                 <AddVariableWrap
                   notPop={true}
+                  show={this.isCreateVar}
                   value={this.varName}
                   onAdd={this.handleAddVar}
                   onChange={this.handleVarNameChange}

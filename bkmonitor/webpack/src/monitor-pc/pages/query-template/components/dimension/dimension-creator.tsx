@@ -136,6 +136,10 @@ export default class DimensionCreator extends tsc<IProps> {
     }
   }
 
+  handleClear() {
+    this.curTags = [];
+  }
+
   render() {
     return (
       <div class='template-dimension-creator-component'>
@@ -143,9 +147,11 @@ export default class DimensionCreator extends tsc<IProps> {
         <SelectWrap
           expanded={this.showSelect}
           minWidth={408}
+          needClear={!!this.curTags.length}
           needPop={true}
           popClickHide={this.popClickHide}
           popOffset={this.popOffsetLeft}
+          onClear={this.handleClear}
           onOpenChange={this.handleOpenChange}
         >
           <div class='tags-wrap'>
