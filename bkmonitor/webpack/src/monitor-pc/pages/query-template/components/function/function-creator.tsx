@@ -46,6 +46,14 @@ interface IProps {
   onCreateVariable?: (val: string) => void;
 }
 
+interface IValue {
+  id: string;
+  params: {
+    id: string;
+    value: string;
+  }[];
+}
+
 @Component
 export default class FunctionCreator extends tsc<IProps> {
   /* 是否展示左侧标签 */
@@ -60,6 +68,7 @@ export default class FunctionCreator extends tsc<IProps> {
   @Prop({ default: true }) hasCreateVariable: boolean;
   /** 只展示支持表达式的函数 */
   @Prop({ default: false, type: Boolean }) readonly isExpSupport: boolean;
+  @Prop({ default: () => [] }) value: IValue[];
 
   showSelect = false;
   popClickHide = true;
@@ -93,6 +102,24 @@ export default class FunctionCreator extends tsc<IProps> {
     this.curTags.splice(index, 1);
   }
 
+  /**
+   * @description 处理函数参数改变
+   * @param val
+   * @param index
+   */
+  handleFunctionParamsChange(val, index: number) {
+    this.curTags[index].params = this.curTags[index].params.map(item => {
+      const param = val.find(param => param.id === item.id);
+      if (param) {
+        return {
+          ...item,
+          value: param.value,
+        };
+      }
+      return item;
+    });
+  }
+
   render() {
     return (
       <div class='template-function-creator-component'>
@@ -112,7 +139,14 @@ export default class FunctionCreator extends tsc<IProps> {
                   class='tags-item'
                 >
                   <span class='tags-item-name'>
-                    {item.isVariable ? <VariableName name={item.name} /> : <FunctionCreatorTag value={item} />}
+                    {item.isVariable ? (
+                      <VariableName name={item.name} />
+                    ) : (
+                      <FunctionCreatorTag
+                        value={item}
+                        onChange={val => this.handleFunctionParamsChange(val, index)}
+                      />
+                    )}
                   </span>
                   <span
                     class='icon-monitor icon-mc-close'
