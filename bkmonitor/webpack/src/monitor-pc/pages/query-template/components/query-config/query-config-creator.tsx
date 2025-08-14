@@ -34,6 +34,7 @@ import IntervalCreator from '../interval/interval-creator';
 import MethodCreator from '../method/method-creator';
 import MetricCreator from '../metric/metric-creator';
 import {
+  type IConditionOptionsItem,
   type IDimensionOptionsItem,
   type IFunctionOptionsItem,
   type IVariablesItem,
@@ -155,7 +156,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                 key={'row3'}
                 class='query-config-row'
               >
-                <ConditionCreator />
+                <ConditionCreator options={this.getDimensionList as IConditionOptionsItem[]} />
               </div>
             ),
           ]}
