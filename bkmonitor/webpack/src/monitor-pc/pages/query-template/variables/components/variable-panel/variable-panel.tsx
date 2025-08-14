@@ -23,21 +23,29 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { Debounce } from 'monitor-common/utils';
 
 import { VariableTypeEnum, VariableTypeMap } from '../../../constants';
 import ConditionDetail from '../condition/condition-detail';
+import ConditionValue from '../condition/condition-value';
 import ConditionVariable from '../condition/condition-variable';
 import ConstantDetail from '../constant/constant-detail';
+import ConstantValue from '../constant/constant-value';
 import ConstantVariable from '../constant/constant-variable';
 import DimensionValueDetail from '../dimension-value/dimension-value-detail';
+import DimensionValueValue from '../dimension-value/dimension-value-value';
 import DimensionValueVariable from '../dimension-value/dimension-value-variable';
 import DimensionDetail from '../dimension/dimension-detail';
+import DimensionValue from '../dimension/dimension-value';
 import DimensionVariable from '../dimension/dimension-variable';
 import FunctionDetail from '../function/function-detail';
+import FunctionValue from '../function/function-value';
 import FunctionVariable from '../function/function-variable';
 import MethodDetail from '../method/method-detail';
+import MethodValue from '../method/method-value';
 import MethodVariable from '../method/method-variable';
 
 import type {
@@ -53,121 +61,174 @@ import type {
 import './variable-panel.scss';
 
 interface VariablePanelEvents {
-  onDataChange: (data: VariableModelType) => void;
+  onDataChange: (variable: VariableModelType) => void;
 }
 
 interface VariablePanelProps {
-  data: VariableModelType;
+  metricFunctions?: any[];
   scene?: 'create' | 'detail' | 'edit';
+  variable: VariableModelType;
 }
 
 @Component
 export default class VariablePanel extends tsc<VariablePanelProps, VariablePanelEvents> {
-  @Prop() data: VariableModelType;
+  @Prop() variable: VariableModelType;
   @Prop({ default: 'create', type: String }) scene: VariablePanelProps['scene'];
+  @Prop({ default: () => [] }) metricFunctions: any[];
+  @Ref() variableForm: any;
 
   get title() {
-    return VariableTypeMap[this.data.type];
+    return VariableTypeMap[this.variable.type];
   }
 
-  get editVariableLabelTooltips() {
-    return [
-      { label: this.$tc('变量名'), value: this.data.name },
-      { label: this.$tc('变量别名'), value: this.data.alias },
-      { label: this.$tc('变量描述'), value: this.data.desc },
-    ];
-  }
-
+  @Debounce(200)
   handleDataChange(value: VariableModelType) {
     this.$emit('dataChange', value);
   }
 
   /** 变量详情 */
   renderVariableDetail() {
-    switch (this.data.type) {
+    switch (this.variable.type) {
       case VariableTypeEnum.METHOD:
-        return <MethodDetail data={this.data as MethodVariableModel} />;
+        return <MethodDetail variable={this.variable as MethodVariableModel} />;
       case VariableTypeEnum.DIMENSION:
-        return <DimensionDetail data={this.data as DimensionVariableModel} />;
+        return <DimensionDetail variable={this.variable as DimensionVariableModel} />;
       case VariableTypeEnum.DIMENSION_VALUE:
-        return <DimensionValueDetail data={this.data as DimensionValueVariableModel} />;
+        return <DimensionValueDetail variable={this.variable as DimensionValueVariableModel} />;
       case VariableTypeEnum.FUNCTION:
-        return <FunctionDetail data={this.data as FunctionVariableModel} />;
+        return <FunctionDetail variable={this.variable as FunctionVariableModel} />;
       case VariableTypeEnum.CONDITION:
-        return <ConditionDetail data={this.data as ConditionVariableModel} />;
+        return <ConditionDetail variable={this.variable as ConditionVariableModel} />;
       default:
-        return <ConstantDetail data={this.data as ConstantVariableModel} />;
+        return <ConstantDetail variable={this.variable as ConstantVariableModel} />;
     }
   }
 
   /** 新增变量表单 */
   renderVariableForm() {
-    switch (this.data.type) {
+    switch (this.variable.type) {
       case VariableTypeEnum.METHOD:
         return (
           <MethodVariable
-            data={this.data as MethodVariableModel}
+            ref='variableForm'
+            variable={this.variable as MethodVariableModel}
             onDataChange={this.handleDataChange}
           />
         );
       case VariableTypeEnum.DIMENSION:
         return (
           <DimensionVariable
-            data={this.data as DimensionVariableModel}
+            ref='variableForm'
+            variable={this.variable as DimensionVariableModel}
             onDataChange={this.handleDataChange}
           />
         );
       case VariableTypeEnum.DIMENSION_VALUE:
-        return <DimensionValueVariable data={this.data as DimensionValueVariableModel} />;
+        return (
+          <DimensionValueVariable
+            ref='variableForm'
+            variable={this.variable as DimensionValueVariableModel}
+            onDataChange={this.handleDataChange}
+          />
+        );
       case VariableTypeEnum.FUNCTION:
-        return <FunctionVariable data={this.data as FunctionVariableModel} />;
+        return (
+          <FunctionVariable
+            ref='variableForm'
+            metricFunctions={this.metricFunctions}
+            variable={this.variable as FunctionVariableModel}
+            onDataChange={this.handleDataChange}
+          />
+        );
       case VariableTypeEnum.CONDITION:
-        return <ConditionVariable data={this.data as ConditionVariableModel} />;
+        return (
+          <ConditionVariable
+            ref='variableForm'
+            variable={this.variable as ConditionVariableModel}
+            onDataChange={this.handleDataChange}
+          />
+        );
       default:
-        return <ConstantVariable data={this.data as ConstantVariableModel} />;
+        return (
+          <ConstantVariable
+            ref='variableForm'
+            variable={this.variable as ConstantVariableModel}
+            onDataChange={this.handleDataChange}
+          />
+        );
     }
   }
 
   renderEditVariableValue() {
-    switch (this.data.type) {
+    switch (this.variable.type) {
       case VariableTypeEnum.METHOD:
-        return <bk-select />;
+        return (
+          <MethodValue
+            variable={this.variable as MethodVariableModel}
+            onBlur={this.handleEditValueBlur}
+            onChange={this.handleDataChange}
+            onFocus={this.handleEditValueFocus}
+          />
+        );
       case VariableTypeEnum.DIMENSION:
-        return <bk-select />;
+        return (
+          <DimensionValue
+            variable={this.variable as DimensionVariableModel}
+            onBlur={this.handleEditValueBlur}
+            onChange={this.handleDataChange}
+            onFocus={this.handleEditValueFocus}
+          />
+        );
       case VariableTypeEnum.DIMENSION_VALUE:
-        return <bk-select />;
+        return (
+          <DimensionValueValue
+            variable={this.variable as DimensionValueVariableModel}
+            onBlur={this.handleEditValueBlur}
+            onChange={this.handleDataChange}
+            onFocus={this.handleEditValueFocus}
+          />
+        );
       case VariableTypeEnum.FUNCTION:
-        return <bk-select />;
+        return (
+          <FunctionValue
+            metricFunctions={this.metricFunctions}
+            variable={this.variable as FunctionVariableModel}
+            onBlur={this.handleEditValueBlur}
+            onChange={this.handleDataChange}
+            onFocus={this.handleEditValueFocus}
+          />
+        );
       case VariableTypeEnum.CONDITION:
-        return;
+        return (
+          <ConditionValue
+            variable={this.variable as ConditionVariableModel}
+            onBlur={this.handleEditValueBlur}
+            onChange={this.handleDataChange}
+            onFocus={this.handleEditValueFocus}
+          />
+        );
       default:
-        return <bk-input />;
+        return (
+          <ConstantValue
+            variable={this.variable as ConstantVariableModel}
+            onBlur={this.handleEditValueBlur}
+            onChange={this.handleDataChange}
+            onFocus={this.handleEditValueFocus}
+          />
+        );
     }
   }
 
+  handleEditValueBlur() {}
+
+  handleEditValueFocus() {}
+
+  validateForm() {
+    return this.variableForm?.validateForm?.();
+  }
+
   render() {
-    if (this.scene === 'edit')
-      return (
-        <bk-popover
-          width={188}
-          placement='top'
-        >
-          <div class='variable-value'>
-            <div class='variable-value-label'>
-              <span>{this.data.alias || this.data.name}</span>
-            </div>
-            <div class='variable-value-input'>{this.renderEditVariableValue()}</div>
-          </div>
-          <ul slot='content'>
-            {this.editVariableLabelTooltips.map(item => (
-              <li key={item.label}>
-                <span class='label'>{item.label}：</span>
-                <span class='value'>{item.value}</span>
-              </li>
-            ))}
-          </ul>
-        </bk-popover>
-      );
+    if (this.scene === 'edit') return this.renderEditVariableValue();
 
     return (
       <div class={['variable-panel', this.scene]}>
