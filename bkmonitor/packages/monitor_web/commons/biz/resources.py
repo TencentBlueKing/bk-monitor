@@ -128,6 +128,7 @@ class ListSpacesResource(Resource):
     @classmethod
     def get_space_by_user(cls, bk_tenant_id: str, username: str, use_cache: bool = True) -> list[dict]:
         perm_client = Permission(username=username, bk_tenant_id=bk_tenant_id)
+        perm_client.skip_check = False
         return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
 
     def perform_request(self, validated_request_data) -> list[dict]:

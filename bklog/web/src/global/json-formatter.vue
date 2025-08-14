@@ -38,7 +38,8 @@
     <template v-if="showMoreTextAction && hasScrollY">
       <span
         class="btn-more-action"
-        @click="handleClickMore"
+        @mouseup="handleMouseUp"
+        @mousedown="handleMouseDown"
       >
         {{ btnText }}
       </span>
@@ -153,11 +154,22 @@
     return ` ...${$t('更多')}`;
   });
 
-  const handleClickMore = e => {
+  let mousedownItem = null;
+  const handleMouseDown = e => {
+    mousedownItem = e.target;
+  }
+
+
+  const handleMouseUp = e => {
     e.stopPropagation();
     e.preventDefault();
-    showAllText.value = !showAllText.value;
-  };
+    e.stopImmediatePropagation();
+    if (mousedownItem === e.target) {
+      showAllText.value = !showAllText.value;
+    }
+
+    mousedownItem = null;
+  }
 
   const onSegmentClick = args => {
     emit('menu-click', args);

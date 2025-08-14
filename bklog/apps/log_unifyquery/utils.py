@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from dateutil import parser
 
+from dateutil import parser
+from rest_framework.exceptions import PermissionDenied
+
+from apps.constants import ApiTokenAuthType
+from apps.log_commons.models import ApiAuthToken
 from apps.log_search.constants import OperatorEnum
 from apps.log_unifyquery.constants import ADVANCED_OP_MAP
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 
 def transform_advanced_addition(addition: dict):
@@ -52,3 +56,27 @@ def deal_time_format(start_time, end_time):
     start_time = int(dt1.timestamp() * 1000)
     end_time = int(dt2.timestamp() * 1000)
     return start_time, end_time
+
+
+def verify_unify_query_token(request, auth_info):
+    """
+    验证统一查询接口的 token 是否存在以及是否过期
+    """
+    # 获取并验证参数
+    bk_biz_id = request.data.get("bk_biz_id")
+    if not bk_biz_id:
+        raise PermissionDenied("bk_biz_id is required")
+
+    space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+    if not space_uid:
+        raise PermissionDenied(f"Unable to get valid space_uid from bk_biz_id {bk_biz_id}")
+
+    # 查询 token 表，根据 space_uid 和 app_code 查找对应的 token
+    token_obj = ApiAuthToken.objects.filter(
+        type=ApiTokenAuthType.UNIFY_QUERY.value,
+        space_uid=space_uid,
+        params__contains={"app_code": auth_info["bk_app_code"]},
+    ).first()
+
+    if not token_obj or token_obj.is_expired():
+        raise PermissionDenied("Token not found or expired")

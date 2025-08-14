@@ -167,7 +167,7 @@ export default class {
     });
   }
 
-  getRegExp(reg: RegExp | boolean | number | string, flgs?: string): RegExp {
-    return StaticUtil.getRegExp(reg, flgs);
+  getRegExp(reg: RegExp | boolean | number | string, flgs?: string, fullMatch = false): RegExp {
+    return StaticUtil.getRegExp(reg, flgs, fullMatch);
   }
 }

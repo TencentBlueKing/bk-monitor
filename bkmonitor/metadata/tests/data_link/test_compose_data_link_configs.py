@@ -58,7 +58,7 @@ def test_compose_data_id_config(create_or_delete_records):
 
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor","labels":{'
-        '"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":0,'
+        '"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":2,'
         '"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
     )
 
@@ -73,7 +73,7 @@ def test_compose_data_id_config(create_or_delete_records):
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor",'
         '"tenant":"system","labels":{"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test",'
-        '"bizId":0,"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
+        '"bizId":2,"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
     )
 
     content = data_id_config_ins.compose_config()
@@ -100,7 +100,7 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     expect_config = (
         '{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},"spec":{'
-        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":2,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}}'
     )
@@ -116,7 +116,7 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     expect_config = (
         '{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","tenant":"system","labels":{"bk_biz_id":"111"}},'
-        '"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,"dataType":"metric",'
+        '"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":2,"dataType":"metric",'
         '"description":"bkm_1001_bkmonitor_time_series_50010","maintainers":["admin"]}}'
     )
 
@@ -206,7 +206,7 @@ def test_compose_log_result_table_config(create_or_delete_records):
         "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
         "spec": {
             "alias": "base_1_agent_event",
-            "bizId": 0,
+            "bizId": 2,
             "dataType": "log",
             "description": "base_1_agent_event",
             "fields": [
@@ -264,7 +264,7 @@ def test_compose_log_result_table_config(create_or_delete_records):
         },
         "spec": {
             "alias": "base_1_agent_event",
-            "bizId": 0,
+            "bizId": 2,
             "dataType": "log",
             "description": "base_1_agent_event",
             "fields": [
@@ -450,6 +450,8 @@ def test_compose_log_databus_config(create_or_delete_records):
     # 单租户模式
     settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     log_databus_ins, _ = models.LogDataBusConfig.objects.get_or_create(
+        bk_tenant_id="system",
+        bk_biz_id=1,
         name="base_1_agent_event",
         namespace="bkmonitor",
         data_link_name="base_1_agent_event",
@@ -457,7 +459,7 @@ def test_compose_log_databus_config(create_or_delete_records):
     )
     expected_config = {
         "kind": "Databus",
-        "metadata": {"labels": {"bk_biz_id": "0"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
+        "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
         "spec": {
             "maintainers": ["admin"],
             "sinks": [{"kind": "ElasticSearchBinding", "name": "base_1_agent_event", "namespace": "bkmonitor"}],
@@ -473,7 +475,7 @@ def test_compose_log_databus_config(create_or_delete_records):
     expected_config = {
         "kind": "Databus",
         "metadata": {
-            "labels": {"bk_biz_id": "0"},
+            "labels": {"bk_biz_id": "1"},
             "name": "base_1_agent_event",
             "tenant": "system",
             "namespace": "bkmonitor",

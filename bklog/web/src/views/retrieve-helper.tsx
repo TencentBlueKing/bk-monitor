@@ -204,7 +204,7 @@ class RetrieveHelper extends RetrieveBase {
           text: keyword,
           className: `highlight-${index}`,
           backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
-          textReg: this.getRegExp(`^${keyword}$`, caseSensitive ? '' : 'i'),
+          textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', true),
         };
       }),
       reset,
