@@ -28,6 +28,8 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import ConditionCreatorSelector from './condition-creator-selector';
+import { type IFilterField, EFieldType } from '@/components/retrieval-filter/utils';
+import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '@/constant/constant';
 
 import type { IConditionOptionsItem, IVariablesItem } from '../type/query-config';
 
@@ -52,11 +54,31 @@ export default class ConditionCreator extends tsc<IProps> {
   /* 是否展示变量 */
   @Prop({ default: false }) showVariables: boolean;
 
+  get fields() {
+    return this.options.map(item => ({
+      alias: item.name,
+      name: item.id,
+      type: EFieldType.text,
+      is_option_enabled: true,
+      supported_operations: this.handleGetMethodList(item?.dimensionType || 'string').map(item => ({
+        alias: item.name,
+        value: item.id,
+      })),
+    }));
+  }
+
+  handleGetMethodList(type: 'number' | 'string') {
+    if (type === 'number') {
+      return NUMBER_CONDITION_METHOD_LIST;
+    }
+    return STRING_CONDITION_METHOD_LIST;
+  }
+
   render() {
     return (
       <div class='template-condition-creator-component'>
         {this.showLabel && <div class='condition-label'>{this.$slots?.label || this.$t('过滤条件')}</div>}
-        <ConditionCreatorSelector />
+        <ConditionCreatorSelector fields={this.fields as IFilterField[]} />
       </div>
     );
   }

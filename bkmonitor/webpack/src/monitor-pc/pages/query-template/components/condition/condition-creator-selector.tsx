@@ -26,18 +26,14 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { copyText } from 'monitor-common/utils';
-
 import KvTag from '../../../../components/retrieval-filter/kv-tag';
 import UiSelectorOptions from '../../../../components/retrieval-filter/ui-selector-options';
-import {
-  type IFilterField,
-  type IFilterItem,
-  type IGetValueFnParams,
-  type IWhereValueOptionsItem,
-  ECondition,
-  EFieldType,
-  EMethod,
+
+import type {
+  IFilterField,
+  IFilterItem,
+  IGetValueFnParams,
+  IWhereValueOptionsItem,
 } from '../../../../components/retrieval-filter/utils';
 
 import './condition-creator-selector.scss';
@@ -90,18 +86,6 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
     }
   }
 
-  @Watch('clearKey')
-  handleWatchClearKey() {
-    this.handleClear();
-  }
-
-  mounted() {
-    document.addEventListener('keydown', this.handleKeyDownSlash);
-  }
-  beforeDestroy() {
-    document.removeEventListener('keydown', this.handleKeyDownSlash);
-  }
-
   async handleShowSelect(event: MouseEvent) {
     if (this.popoverInstance) {
       this.destroyPopoverInstance();
@@ -121,7 +105,6 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
       followCursor: false,
       onHidden: () => {
         this.destroyPopoverInstance();
-        document.addEventListener('keydown', this.handleKeyDownSlash);
       },
     });
     await this.$nextTick();
@@ -201,63 +184,6 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
   }
 
   /**
-   * @description 隐藏tag
-   * @param index
-   */
-  handleHideTag(index: number) {
-    let hide = false;
-    if (typeof this.localValue[index]?.hide === 'boolean') {
-      hide = !this.localValue[index].hide;
-    } else {
-      hide = true;
-    }
-    this.localValue.splice(index, 1, {
-      ...this.localValue[index],
-      hide,
-    });
-    this.handleChange();
-  }
-
-  /**
-   * @description 清空
-   */
-  handleClear(event?: MouseEvent) {
-    event?.stopPropagation?.();
-    this.localValue = [];
-    this.updateActive = -1;
-    this.hideInput();
-    this.handleChange();
-  }
-
-  /**
-   * @description 复制
-   * @param event
-   */
-  handleCopy(event: MouseEvent) {
-    event.stopPropagation();
-    const str = this.localValue
-      .map(item => {
-        const value =
-          item.value.length > 1
-            ? `(${item.value.map(v => `"${v.id || '*'}"`).join(' AND ')})`
-            : `"${item.value?.[0]?.id || '*'}"`;
-        return `${item.key.id} : ${value}`;
-      })
-      .join(' AND ');
-    copyText(str, msg => {
-      this.$bkMessage({
-        message: msg,
-        theme: 'error',
-      });
-      return;
-    });
-    this.$bkMessage({
-      message: this.$t('复制成功'),
-      theme: 'success',
-    });
-  }
-
-  /**
    * @description 点击组件
    */
   handleClickComponent(event?: MouseEvent) {
@@ -273,52 +199,14 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
     this.handleShowSelect(customEvent);
   }
 
-  handleBlur() {
-    this.inputFocus = false;
-    if (!this.inputValue) {
-      this.hideInput();
-    }
-  }
-
   hideInput() {
     this.inputFocus = false;
     // this.showInput = false;
     this.inputValue = '';
   }
-  handleInput(v: string) {
-    this.inputValue = v;
-  }
-
-  handleEnter() {
-    if (this.inputValue) {
-      this.localValue.push({
-        key: {
-          id: '*',
-          name: this.$tc('全文'),
-        },
-        value: [{ id: this.inputValue, name: this.inputValue }],
-        method: { id: EMethod.include, name: this.$tc('包含') },
-        condition: { id: ECondition.and, name: 'AND' },
-      });
-      this.inputValue = '';
-      this.destroyPopoverInstance();
-      setTimeout(() => {
-        this.handleClickComponent();
-      }, 50);
-      this.handleChange();
-    }
-  }
 
   handleChange() {
     this.$emit('change', this.localValue);
-  }
-
-  handleKeyDownSlash(event) {
-    if (event.key === '/' && !this.inputValue && !this.showSelector && event.target?.tagName !== 'INPUT') {
-      event.preventDefault();
-      this.handleClickComponent();
-      document.removeEventListener('keydown', this.handleKeyDownSlash);
-    }
   }
 
   render() {
@@ -337,26 +225,18 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
         {this.localValue.map((item, index) => (
           <KvTag
             key={`${index}_kv`}
+            hasHideBtn={false}
             value={item}
             onDelete={() => this.handleDeleteTag(index)}
-            onHide={() => this.handleHideTag(index)}
             onUpdate={event => this.handleUpdateTag(event, index)}
           />
         ))}
         <div style='display: none;'>
           <div ref='selector'>
             <UiSelectorOptions
-              fields={[
-                {
-                  type: EFieldType.all,
-                  name: '*',
-                  alias: this.$tc('全文检索'),
-                  is_option_enabled: false,
-                  supported_operations: [],
-                },
-                ...this.fields,
-              ]}
+              fields={[...this.fields]}
               getValueFn={this.getValueFn}
+              hasVariableOperate={true}
               keyword={this.inputValue}
               show={this.showSelector}
               value={this.localValue?.[this.updateActive]}
