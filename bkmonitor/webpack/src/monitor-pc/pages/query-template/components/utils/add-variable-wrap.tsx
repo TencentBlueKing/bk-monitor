@@ -33,6 +33,7 @@ import './add-variable-wrap.scss';
 
 interface IProps {
   notPop?: boolean;
+  show?: boolean;
   value: string;
   onAdd?: () => void;
   onCancel?: () => void;
@@ -43,6 +44,7 @@ interface IProps {
 export default class AddVariableWrap extends tsc<IProps> {
   @Prop({ type: String, default: '' }) value: string;
   @Prop({ type: Boolean, default: false }) notPop: boolean;
+  @Prop({ type: Boolean, default: false }) show: boolean;
 
   handleChange(val) {
     this.$emit('change', val);
@@ -66,6 +68,7 @@ export default class AddVariableWrap extends tsc<IProps> {
         </div>
         <VariableNameInput
           class='var-input'
+          show={this.show}
           value={this.value}
           onChange={this.handleChange}
         />

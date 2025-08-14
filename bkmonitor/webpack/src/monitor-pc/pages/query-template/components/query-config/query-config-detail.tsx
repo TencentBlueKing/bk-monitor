@@ -29,12 +29,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 
-import { type VariableModelType } from '../../variables';
+import { VariableTypeEnum } from '../../constants';
 import DimensionDetail from '../dimension/dimension-detail';
 import IntervalDetail from '../interval/interval-detail';
 import MethodDetail from '../method/method-detail';
 import MetricDetail from '../metric/metric-detail';
-import { type TMetricDetail, MetricDetail as MetricDetailPanel, TVariableType } from '../type/query-config';
+import { type TMetricDetail, MetricDetail as MetricDetailPanel } from '../type/query-config';
+
+import type { VariableModelType } from '../../variables';
 
 import './query-config-detail.scss';
 
@@ -61,10 +63,10 @@ export default class QueryConfigDetail extends tsc<IProps> {
   loading = false;
 
   get getMethodVariables() {
-    return this.variables.filter(item => item.type === TVariableType.METHOD);
+    return this.variables.filter(item => item.type === VariableTypeEnum.METHOD);
   }
   get getDimensionVariables() {
-    return this.variables.filter(item => item.type === TVariableType.DIMENSION);
+    return this.variables.filter(item => item.type === VariableTypeEnum.DIMENSION);
   }
 
   @Watch('queryConfig.metric_id', { immediate: true })
