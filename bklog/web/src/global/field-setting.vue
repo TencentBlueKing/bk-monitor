@@ -4,7 +4,8 @@
       class="bklog-v3 field-setting-wrap"
       @click="handleOpenSidebar"
     >
-      <span class="bklog-icon bklog-setting"></span>{{ t('索引配置') }}
+      <span class="bklog-icon bklog-setting" v-bk-tooltips.top="t('索引配置')"></span> 
+      <span class='field-settin-text'>{{ t('索引配置') }}</span>
     </div>
     <bk-sideslider
       :is-show.sync="showSlider"
@@ -644,7 +645,7 @@
       font-size: 12px;
       cursor: pointer;
 
-      span {
+      .bklog-setting {
         margin: 0px 6px 0 0;
         font-size: 16px;
         // line-height: 20px;
