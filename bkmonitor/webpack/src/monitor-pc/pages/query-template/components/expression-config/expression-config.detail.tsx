@@ -23,3 +23,52 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { VariableTypeEnum } from '../../constants';
+import { type VariableModelType } from '../../variables';
+import ExpressionDetail from '../expression/expression-detail';
+import FunctionDetail from '../function/function-detail';
+
+import './expression-config-detail.scss';
+
+interface IProps {
+  expressionConfig?: any;
+  variables?: VariableModelType[];
+}
+
+@Component
+export default class ExpressionConfigDetail extends tsc<IProps> {
+  @Prop({ default: () => null }) expressionConfig: any;
+  @Prop({ default: () => [] }) variables: VariableModelType[];
+
+  get getExpressionVariables() {
+    return this.variables.filter(item => item.type === VariableTypeEnum.CONSTANT);
+  }
+
+  get getFunctionVariables() {
+    return this.variables.filter(item => item.type === VariableTypeEnum.FUNCTION);
+  }
+
+  render() {
+    return (
+      <div class='template-expression-config-detail-component'>
+        <div class='alias-wrap'>
+          <span class='icon-monitor icon-arrow-turn' />
+        </div>
+        <div class='expression-config-wrap'>
+          <ExpressionDetail
+            expression={this.expressionConfig?.expression}
+            variables={this.getExpressionVariables}
+          />
+          <FunctionDetail
+            functions={this.expressionConfig?.functions}
+            variables={this.getFunctionVariables}
+          />
+        </div>
+      </div>
+    );
+  }
+}
