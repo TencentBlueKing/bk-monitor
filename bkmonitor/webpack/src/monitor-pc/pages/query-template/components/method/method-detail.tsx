@@ -58,12 +58,12 @@ export default class MethodDetail extends tsc<MethodProps> {
     }, {});
   }
 
-  get methodConfig() {
+  get methodToVariableModel() {
     return this.variablesToolInstance.transformVariables(this.method, this.variableMap);
   }
 
   get methodViewDom() {
-    return this.methodConfig.isVariable ? VariableSpan : 'span';
+    return this.methodToVariableModel.isVariable ? VariableSpan : 'span';
   }
 
   render() {
@@ -72,10 +72,10 @@ export default class MethodDetail extends tsc<MethodProps> {
         <span class='method-label'>{`${this.$t('汇聚方法')}`}</span>
         <span class='method-colon'>:</span>
         <this.methodViewDom
-          id={this.methodConfig.variableName}
+          id={this.methodToVariableModel.variableName}
           class='method-name'
         >
-          {this.methodConfig.value || '--'}
+          {this.methodToVariableModel.value || '--'}
         </this.methodViewDom>
       </div>
     );
