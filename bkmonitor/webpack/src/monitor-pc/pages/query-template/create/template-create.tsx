@@ -35,6 +35,7 @@ import { type VariableModelType, getVariableModel } from '../variables';
 import VariablesManage from '../variables/variables-manage/variables-manage';
 
 import type { MetricDetail } from '../components/type/query-config';
+import type { VariableTypeEnumType } from '../typings';
 
 import './template-create.scss';
 
@@ -64,12 +65,12 @@ export default class TemplateCreate extends tsc<object> {
   metricFunctions = [];
 
   variablesList: VariableModelType[] = [
-    getVariableModel({ type: 'method', name: 'cup_agg', metric: null }),
+    getVariableModel({ type: 'method', name: 'cup_agg0', metric: null }),
     getVariableModel({ type: 'dimension', name: 'dimension', metric: null }),
     getVariableModel({ type: 'dimension_value', name: 'mount_point', metric: null, relationDimension: 'mount_point' }),
-    getVariableModel({ type: 'function', name: 'cup_agg' }),
-    getVariableModel({ type: 'condition', name: 'cup_agg', metric: null }),
-    getVariableModel({ type: 'constant', name: 'cup_agg' }),
+    getVariableModel({ type: 'function', name: 'cup_agg1' }),
+    getVariableModel({ type: 'condition', name: 'cup_agg2', metric: null }),
+    getVariableModel({ type: 'constant', name: 'cup_agg3' }),
   ];
 
   handleVariablesChange(variablesList: VariableModelType[]) {
@@ -108,11 +109,16 @@ export default class TemplateCreate extends tsc<object> {
     this.handleGetMetricFunctions();
   }
 
-  handleCreateVariable(_val: VariableModelType) {
-    // if (this.variablesList.find(item => item.name === val.name)) {
-    //   return;
-    // }
-    // this.variablesList.push(val);
+  handleCreateVariable(val: VariableModelType) {
+    if (this.variablesList.find(item => item.name === val.name)) {
+      return;
+    }
+    this.variablesList.push(
+      getVariableModel({
+        type: val.type as VariableTypeEnumType,
+        name: val.name,
+      })
+    );
   }
 
   async handleGetMetricFunctions() {
@@ -164,7 +170,7 @@ export default class TemplateCreate extends tsc<object> {
                       onDelete={() => this.handleDelete(index)}
                     />
                   ))}
-                  <ExpressionPanel />
+                  <ExpressionPanel metricFunctions={this.metricFunctions} />
                 </div>
               </div>
             </div>

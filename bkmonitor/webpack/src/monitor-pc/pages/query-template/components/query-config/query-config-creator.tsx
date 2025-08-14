@@ -27,19 +27,20 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { VariableTypeEnum } from '../../constants';
 import ConditionCreator from '../condition/condition-creator';
 import DimensionCreator from '../dimension/dimension-creator';
 import FunctionCreator from '../function/function-creator';
 import IntervalCreator from '../interval/interval-creator';
 import MethodCreator from '../method/method-creator';
 import MetricCreator from '../metric/metric-creator';
-import {
-  type IConditionOptionsItem,
-  type IDimensionOptionsItem,
-  type IFunctionOptionsItem,
-  type IVariablesItem,
-  type TMetricDetail,
-  TVariableType,
+
+import type {
+  IConditionOptionsItem,
+  IDimensionOptionsItem,
+  IFunctionOptionsItem,
+  IVariablesItem,
+  TMetricDetail,
 } from '../type/query-config';
 
 import './query-config-creator.scss';
@@ -67,13 +68,13 @@ export default class QueryConfigCreator extends tsc<IProps> {
   method = 'avg';
 
   get getMethodVariables() {
-    return this.variables.filter(item => item.type === TVariableType.METHOD);
+    return this.variables.filter(item => item.type === VariableTypeEnum.METHOD);
   }
   get getDimensionVariables() {
-    return this.variables.filter(item => item.type === TVariableType.DIMENSION);
+    return this.variables.filter(item => item.type === VariableTypeEnum.DIMENSION);
   }
   get getFunctionVariables() {
-    return this.variables.filter(item => item.type === TVariableType.FUNCTION);
+    return this.variables.filter(item => item.type === VariableTypeEnum.FUNCTION);
   }
   get getAggMethodList() {
     return this.curMetric?.aggMethodList || [];
@@ -88,19 +89,19 @@ export default class QueryConfigCreator extends tsc<IProps> {
   handleCreateMethodVariable(val) {
     this.$emit('createVariable', {
       name: val,
-      type: TVariableType.METHOD,
+      type: VariableTypeEnum.METHOD,
     });
   }
   handleCreateDimensionVariable(val) {
     this.$emit('createVariable', {
       name: val,
-      type: TVariableType.DIMENSION,
+      type: VariableTypeEnum.DIMENSION,
     });
   }
   handleCreateFunctionVariable(val) {
     this.$emit('createVariable', {
       name: val,
-      type: TVariableType.FUNCTION,
+      type: VariableTypeEnum.FUNCTION,
     });
   }
 

@@ -24,34 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { VariableTypeEnum } from '../../constants';
 import { MetricDetail as BaseMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
+import type { VariableTypeEnum } from '../../constants';
 import type { MetricDetail as TypeMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
-export interface IScenarioItem {
-  id: string;
-  index: number;
-  name: string;
-}
-
-export type TMetricDetail = Partial<TypeMetricDetail>;
-
-export class MetricDetail extends BaseMetricDetail {}
-
-// todo
-export const TVariableType = {
-  METHOD: VariableTypeEnum.METHOD,
-  DIMENSION: VariableTypeEnum.DIMENSION,
-  CONDITION: VariableTypeEnum.CONDITION,
-  FUNCTION: VariableTypeEnum.FUNCTION,
-  CONSTANT: 'constant', // （非变量类型）
-} as const;
 export interface IConditionOptionsItem extends IVariablesItem {
   dimensionType: 'number' | 'string';
   id: string;
   isVariable?: boolean;
 }
+
 /* 维度选项 */
 export interface IDimensionOptionsItem extends IVariablesItem {
   id: string;
@@ -78,17 +61,26 @@ export interface IFunctionParam {
   shortlist: number[] | string[];
   value?: number | string;
 }
-
 /** 汇聚方法选项 */
 export interface IMethodOptionsItem extends IVariablesItem {
   id: string;
   isVariable?: boolean;
 }
 
+export interface IScenarioItem {
+  id: string;
+  index: number;
+  name: string;
+}
+
 export interface IVariablesItem {
   name?: string;
-  type?: (typeof TVariableType)[keyof typeof TVariableType];
+  type?: (typeof VariableTypeEnum)[keyof typeof VariableTypeEnum];
 }
+
+export type TMetricDetail = Partial<TypeMetricDetail>;
+
+export class MetricDetail extends BaseMetricDetail {}
 
 export const TConfigType = {
   QUERY_CONFIG: 'query-config',

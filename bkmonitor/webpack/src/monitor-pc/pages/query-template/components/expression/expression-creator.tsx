@@ -24,21 +24,88 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { Debounce, xssFilter } from 'monitor-common/utils';
+
+import { replaceContent } from '@/components/retrieval-filter/query-string-utils';
 
 import './expression-creator.scss';
 
+interface IProps {
+  value?: string;
+  onCreateVariable?: (val: string[]) => void;
+}
+
 @Component
-export default class ExpressionCreator extends tsc<object> {
+export default class ExpressionCreator extends tsc<IProps> {
+  @Prop({ default: '' }) value: string;
+
+  elEdit = null;
+  inputValue = '';
+  active = false;
+
+  @Watch('value', { immediate: true })
+  handleWatchValue(val: string) {
+    if (this.inputValue !== val) {
+      this.inputValue = val;
+      this.handleSetInputParse(val);
+      this.active = false;
+    }
+  }
+
+  mounted() {
+    this.elEdit = this.$el.querySelector('.expression-input');
+    this.handleSetInputParse(this.value);
+    this.active = false;
+  }
+
+  @Debounce(300)
+  handleInput(e: InputEvent) {
+    const target = e.target as HTMLElement;
+    this.handleSetInputParse(target.textContent, vars => {
+      this.$emit('createVariable', vars);
+    });
+    this.inputValue = target.textContent;
+  }
+
+  handleSetInputParse(val: string, getVariables?: (val: string[]) => void) {
+    const matches = val.match(/(\$\{[^}]+\})|(\$|[^$]+)/g)?.filter(item => item) || [];
+    const variables = [];
+    const str = matches
+      .map(item => {
+        if (/^\$\{[\s\S]+\}$/.test(item)) {
+          variables.push(item);
+          return `<span style="color: #E54488;">${xssFilter(item)}</span>`;
+        }
+        return xssFilter(item);
+      })
+      .join('');
+    getVariables?.(variables);
+    replaceContent(this.elEdit, str);
+  }
+
+  handleFocus() {
+    this.active = true;
+  }
+  handleBlur() {
+    this.active = false;
+  }
+
   render() {
     return (
       <div class='template-expression-creator-component'>
         <div class='expression-label'>{this.$t('表达式')}</div>
-        <div
-          class='expression-input'
-          contenteditable={true}
-        />
+        <div class={['expression-input-wrap', { focus: this.active }]}>
+          <div
+            class='expression-input'
+            contenteditable={true}
+            onBlur={this.handleBlur}
+            onFocus={this.handleFocus}
+            onInput={this.handleInput}
+          />
+        </div>
       </div>
     );
   }
