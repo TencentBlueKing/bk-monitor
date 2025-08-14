@@ -55,20 +55,20 @@ import VariableCommonFormDetail from '../common-form/variable-common-form-detail
 
 import type { MethodVariableModel } from '../../index';
 interface MethodDetailProps {
-  data: MethodVariableModel;
+  variable: MethodVariableModel;
 }
 
 @Component
 export default class MethodDetail extends tsc<MethodDetailProps> {
-  @Prop({ type: Object, required: true }) data!: MethodVariableModel;
+  @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
 
   render() {
     return (
       <div class='method-detail'>
-        <VariableCommonFormDetail data={this.data}>
+        <VariableCommonFormDetail data={this.variable.data}>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
-            <div class='form-item-value'>{this.data.value || '--'}</div>
+            <div class='form-item-value'>{this.variable.value || '--'}</div>
           </div>
         </VariableCommonFormDetail>
       </div>
