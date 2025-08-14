@@ -48,6 +48,7 @@ export const TVariableType = {
   CONSTANT: 'constant', // （非变量类型）
 } as const;
 export interface IConditionOptionsItem extends IVariablesItem {
+  dimensionType: 'number' | 'string';
   id: string;
   isVariable?: boolean;
 }
