@@ -64,14 +64,7 @@ export default class TemplateCreate extends tsc<object> {
 
   metricFunctions = [];
 
-  variablesList: VariableModelType[] = [
-    getVariableModel({ type: 'method', name: 'cup_agg0', metric: null }),
-    getVariableModel({ type: 'dimension', name: 'dimension', metric: null }),
-    getVariableModel({ type: 'dimension_value', name: 'mount_point', metric: null, relationDimension: 'mount_point' }),
-    getVariableModel({ type: 'function', name: 'cup_agg1' }),
-    getVariableModel({ type: 'condition', name: 'cup_agg2', metric: null }),
-    getVariableModel({ type: 'constant', name: 'cup_agg3' }),
-  ];
+  variablesList: VariableModelType[] = [];
 
   handleVariablesChange(variablesList: VariableModelType[]) {
     console.log(variablesList);
@@ -199,6 +192,7 @@ export default class TemplateCreate extends tsc<object> {
             </div>
           </div>
           <VariablesManage
+            metricFunctions={this.metricFunctions}
             variablesList={this.variablesList}
             onChange={this.handleVariablesChange}
           />
