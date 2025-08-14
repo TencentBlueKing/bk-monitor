@@ -381,7 +381,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             params_list=[
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.APP,
+                    "field": TRPCMetricTag.SERVER,
                     "filter_dict": q_to_dict(
                         Q(**{f"{TRPCMetricTag.CALLER_SERVER}__eq": server})
                         | Q(**{f"{TRPCMetricTag.SERVICE_NAME}__eq": server})
@@ -389,7 +389,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.APP,
+                    "field": TRPCMetricTag.SERVER,
                     "filter_dict": q_to_dict(
                         Q(**{f"{TRPCMetricTag.CALLEE_SERVER}__eq": server})
                         | Q(**{f"{TRPCMetricTag.SERVICE_NAME}__eq": server})
