@@ -27,22 +27,50 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { VariableTypeEnum } from '../../constants';
 import ExpressionCreator from '../expression/expression-creator';
 import FunctionCreator from '../function/function-creator';
 
-import type { IFunctionOptionsItem } from '../type/query-config';
+import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config';
 
 import './expression-config-creator.scss';
 
 interface IProps {
   expressionConfig?: any;
   metricFunctions?: IFunctionOptionsItem[];
+  variables?: IVariablesItem[];
+  onCreateVariable?: (val: IVariablesItem) => void;
 }
 
 @Component
 export default class ExpressionConfigCreator extends tsc<IProps> {
   @Prop({ default: () => null }) expressionConfig: any;
   @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
+  @Prop({ default: () => [] }) variables: IVariablesItem[];
+
+  get getFunctionVariables() {
+    return this.variables.filter(item => item.type === VariableTypeEnum.FUNCTION);
+  }
+
+  get getExpressionVariables() {
+    return this.variables.filter(item => item.type === VariableTypeEnum.CONSTANT);
+  }
+
+  handleCreateFunctionVariable(val) {
+    this.$emit('createVariable', {
+      name: val,
+      type: VariableTypeEnum.FUNCTION,
+      metric: null,
+    });
+  }
+
+  handleCreateExpressionVariable(val) {
+    this.$emit('createVariable', {
+      name: val,
+      type: VariableTypeEnum.CONSTANT,
+      metric: null,
+    });
+  }
 
   render() {
     return (
@@ -51,8 +79,15 @@ export default class ExpressionConfigCreator extends tsc<IProps> {
           <span class='icon-monitor icon-arrow-turn' />
         </div>
         <div class='expression-config-wrap'>
-          <ExpressionCreator />
-          <FunctionCreator options={this.metricFunctions} />
+          <ExpressionCreator
+            variables={this.getExpressionVariables}
+            onCreateVariable={this.handleCreateExpressionVariable}
+          />
+          <FunctionCreator
+            options={this.metricFunctions}
+            variables={this.getFunctionVariables}
+            onCreateVariable={this.handleCreateFunctionVariable}
+          />
         </div>
       </div>
     );
