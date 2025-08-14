@@ -23,9 +23,6 @@ class CloudProductMappingResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        category = serializers.CharField(
-            required=False, help_text=_("产品分类过滤，如：compute、network、storage、database")
-        )
         search = serializers.CharField(required=False, help_text=_("搜索关键词"))
 
     class ResponseSerializer(serializers.Serializer):
@@ -33,33 +30,10 @@ class CloudProductMappingResource(Resource):
         products = serializers.ListField(child=serializers.DictField(), help_text=_("产品列表"))
 
     def perform_request(self, validated_request_data):
-        category = validated_request_data.get("category")
         search = validated_request_data.get("search")
 
         # 基础查询
         queryset = CloudProduct.objects.filter(is_deleted=False)
-
-        # 分类过滤 - 这里可以根据实际需求扩展分类逻辑
-        # 目前根据namespace前缀或者description内容进行粗略分类
-        if category:
-            category_mapping = {
-                "compute": ["CVM", "CDB", "REDIS"],
-                "network": ["CLB", "VPC", "CDN"],
-                "storage": ["COS", "CBS"],
-                "database": ["CDB", "REDIS", "MONGODB"],
-            }
-            if category in category_mapping:
-                category_keywords = category_mapping[category]
-                # 使用namespace中包含的关键词进行过滤
-                category_filter = None
-                for keyword in category_keywords:
-                    if category_filter is None:
-                        category_filter = models.Q(namespace__icontains=keyword)
-                    else:
-                        category_filter |= models.Q(namespace__icontains=keyword)
-
-                if category_filter:
-                    queryset = queryset.filter(category_filter)
 
         # 搜索过滤
         if search:
