@@ -37,12 +37,14 @@ interface IProps {
   id?: string;
   loading?: boolean;
   minWidth?: number;
+  needClear?: boolean;
   needPop?: boolean;
   popClickHide?: boolean;
   popOffset?: number;
   showPop?: boolean;
   tips?: string;
   tipsPlacements?: string[];
+  onClear?: () => void;
   onClick?: (e: Event) => void;
   onOpenChange?: (v: boolean) => void;
 }
@@ -71,6 +73,8 @@ export default class SelectWrap extends tsc<IProps> {
   @Prop({ default: false }) showPop: boolean;
   /* 弹出层偏移量 */
   @Prop({ default: 0 }) popOffset: number;
+  /* 是否需要清空 */
+  @Prop({ default: false }) needClear: boolean;
 
   @Ref('pop') popRef: HTMLElement;
 
@@ -78,6 +82,8 @@ export default class SelectWrap extends tsc<IProps> {
   isShowPop = false;
 
   outSideClean = null;
+
+  isHover = false;
 
   @Watch('expanded')
   handleWatchShowPop(val) {
@@ -131,6 +137,18 @@ export default class SelectWrap extends tsc<IProps> {
     this.$emit('openChange', false);
   }
 
+  handleMouseenter() {
+    this.isHover = true;
+  }
+  handleMouseleave() {
+    this.isHover = false;
+  }
+
+  handleClear(e: Event) {
+    e.stopPropagation();
+    this.$emit('clear');
+  }
+
   render() {
     return (
       <div
@@ -138,6 +156,8 @@ export default class SelectWrap extends tsc<IProps> {
         style={{ minWidth: `${this.minWidth}px`, backgroundColor: this.backgroundColor }}
         class={['template-config-utils-select-wrap-component', { 'input-active': this.expanded }]}
         onClick={e => this.handleClick(e)}
+        onMouseenter={this.handleMouseenter}
+        onMouseleave={this.handleMouseleave}
       >
         <div
           class='slot-wrap'
@@ -151,9 +171,18 @@ export default class SelectWrap extends tsc<IProps> {
           {this.$slots.default || ''}
         </div>
 
-        <div class={['expand-wrap', { active: this.expanded }]}>
-          <span class='icon-monitor icon-mc-arrow-down' />
-        </div>
+        {this.needClear && this.isHover && !this.expanded ? (
+          <div class='clear-wrap'>
+            <span
+              class='icon-monitor icon-mc-close-fill'
+              onClick={this.handleClear}
+            />
+          </div>
+        ) : (
+          <div class={['expand-wrap', { active: this.expanded }]}>
+            <span class='icon-monitor icon-mc-arrow-down' />
+          </div>
+        )}
         {this.loading && <div class='select-loading skeleton-element' />}
         <div style={{ display: 'none' }}>
           <div ref='pop'>{this.$slots.popover}</div>

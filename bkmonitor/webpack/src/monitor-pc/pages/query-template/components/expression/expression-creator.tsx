@@ -31,15 +31,20 @@ import { Debounce, xssFilter } from 'monitor-common/utils';
 
 import { replaceContent } from '@/components/retrieval-filter/query-string-utils';
 
+import type { IVariablesItem } from '../type/query-config';
+
 import './expression-creator.scss';
 
 interface IProps {
   value?: string;
+  variables?: IVariablesItem[];
   onCreateVariable?: (val: string[]) => void;
 }
 
 @Component
 export default class ExpressionCreator extends tsc<IProps> {
+  @Prop({ default: () => [] }) variables: IVariablesItem[];
+
   @Prop({ default: '' }) value: string;
 
   elEdit = null;
@@ -65,7 +70,17 @@ export default class ExpressionCreator extends tsc<IProps> {
   handleInput(e: InputEvent) {
     const target = e.target as HTMLElement;
     this.handleSetInputParse(target.textContent, vars => {
-      this.$emit('createVariable', vars);
+      for (const v of vars) {
+        const matches = v.matchAll(/\$\{([^}]+)\}/g);
+        let str = '';
+        for (const match of matches) {
+          str = match[1];
+          break;
+        }
+        if (str) {
+          this.$emit('createVariable', str);
+        }
+      }
     });
     this.inputValue = target.textContent;
   }
