@@ -41,6 +41,7 @@ interface IProps {
   options?: IFunctionOptionsItem[];
   showLabel?: boolean;
   showVariables?: boolean;
+  value?: IValue[];
   variables?: IVariablesItem[];
   onCreateVariable?: (val: string) => void;
 }

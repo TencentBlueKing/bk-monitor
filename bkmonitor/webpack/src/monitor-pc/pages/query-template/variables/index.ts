@@ -29,15 +29,16 @@ import { random } from 'monitor-common/utils';
 import { VariableTypeEnum } from '../constants';
 
 import type { MetricDetail } from '../components/type/query-config';
-import type { VariableTypeEnumType } from '../typings';
-import type { IDimensionVariableModel, IMethodVariableModel } from '../typings';
 import type {
   ICommonVariableModel,
   IConditionVariableModel,
   IConstantVariableModel,
   IDimensionValueVariableModel,
+  IDimensionVariableModel,
   IFunctionVariableModel,
+  IMethodVariableModel,
   IVariableModel,
+  VariableTypeEnumType,
 } from '../typings/variables';
 
 export type VariableModelType =
@@ -55,13 +56,16 @@ abstract class VariableBase {
   name = '';
   type: VariableTypeEnumType;
   abstract value: any;
+
   constructor(config: ICommonVariableModel<VariableTypeEnumType>) {
     this.name = config.name;
     this.alias = config.alias;
     this.desc = config.desc;
     this.type = config.type;
-    this.id = random(5);
+    this.id = config.id || random(5);
   }
+
+  abstract get data(): Required<IVariableModel>;
 }
 
 export class ConditionVariableModel extends VariableBase {
@@ -75,6 +79,39 @@ export class ConditionVariableModel extends VariableBase {
     this.value = config.value || [];
     this.dimensionOption = config.dimensionOption || ['all'];
   }
+
+  get data() {
+    return {
+      id: this.id,
+      type: VariableTypeEnum.CONDITION,
+      name: this.name,
+      alias: this.alias,
+      desc: this.desc,
+      metric: this.metric,
+      dimensionOption: this.dimensionOption,
+      value: this.value,
+    };
+  }
+  /** 维度列表 */
+  get dimensionList() {
+    return this.nullMetricGroupByList || this.metric.dimensions;
+  }
+  /** 可选维度列表映射 */
+  get dimensionOptionsMap() {
+    return this.isAllDimensionOptions
+      ? this.dimensionList
+      : this.dimensionList.filter(item => this.dimensionOption.includes(item.id));
+  }
+  get isAllDimensionOptions() {
+    return this.dimensionOption.includes('all');
+  }
+
+  get nullMetricGroupByList() {
+    if (!this.metric) return null;
+    return this.metric.isNullMetric
+      ? this.metric.agg_dimension.map(item => ({ id: item, name: item, disabled: false }))
+      : null;
+  }
 }
 
 export class ConstantVariableModel extends VariableBase {
@@ -82,6 +119,17 @@ export class ConstantVariableModel extends VariableBase {
   constructor(config: IConstantVariableModel) {
     super(config);
     this.value = config.value || '';
+  }
+
+  get data() {
+    return {
+      id: this.id,
+      type: VariableTypeEnum.CONSTANT,
+      name: this.name,
+      alias: this.alias,
+      desc: this.desc,
+      value: this.value,
+    };
   }
 }
 
@@ -97,17 +145,71 @@ export class DimensionValueVariableModel extends VariableBase {
     this.relationDimension = config.relationDimension || '';
     this.value = config.value || '';
   }
+
+  get data() {
+    return {
+      id: this.id,
+      type: VariableTypeEnum.DIMENSION_VALUE,
+      name: this.name,
+      alias: this.alias,
+      desc: this.desc,
+      metric: this.metric,
+      value: this.value,
+      relationDimension: this.relationDimension,
+    };
+  }
 }
 
 export class DimensionVariableModel extends VariableBase {
+  /** 可选维度 */
   dimensionOption = [];
   metric: MetricDetail = null;
   value = '';
+
   constructor(config: IDimensionVariableModel) {
     super(config);
     this.metric = config.metric;
     this.dimensionOption = config.dimensionOption || ['all'];
-    this.value = config.value || '';
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.isAllDimensionOptions ? this.dimensionList[0].id : this.dimensionOption[0];
+    }
+  }
+
+  get data() {
+    return {
+      id: this.id,
+      type: VariableTypeEnum.DIMENSION,
+      name: this.name,
+      alias: this.alias,
+      desc: this.desc,
+      metric: this.metric,
+      dimensionOption: this.dimensionOption,
+      value: this.value,
+    };
+  }
+  /** 维度列表 */
+  get dimensionList() {
+    return this.nullMetricGroupByList || this.metric.dimensions;
+  }
+  /** 可选维度列表映射 */
+  get dimensionOptionsMap() {
+    return this.isAllDimensionOptions
+      ? this.dimensionList
+      : this.dimensionList.filter(item => this.dimensionOption.includes(item.id));
+  }
+  get isAllDimensionOptions() {
+    return this.dimensionOption.includes('all');
+  }
+  get nullMetricGroupByList() {
+    if (!this.metric) return null;
+    return this.metric.isNullMetric
+      ? this.metric.agg_dimension.map(item => ({ id: item, name: item, disabled: false }))
+      : null;
+  }
+  get valueMap() {
+    return this.dimensionList.find(item => item.id === this.value);
   }
 }
 
@@ -117,6 +219,17 @@ export class FunctionVariableModel extends VariableBase {
     super(config);
     this.value = config.value || null;
   }
+
+  get data() {
+    return {
+      id: this.id,
+      type: VariableTypeEnum.FUNCTION,
+      name: this.name,
+      alias: this.alias,
+      desc: this.desc,
+      value: this.value,
+    };
+  }
 }
 
 export class MethodVariableModel extends VariableBase {
@@ -124,8 +237,20 @@ export class MethodVariableModel extends VariableBase {
   value = '';
   constructor(config: IMethodVariableModel) {
     super(config);
-    this.value = config.value || '';
+    this.value = config.value || 'SUM';
     this.metric = config.metric;
+  }
+
+  get data() {
+    return {
+      id: this.id,
+      type: VariableTypeEnum.METHOD,
+      name: this.name,
+      alias: this.alias,
+      metric: this.metric,
+      desc: this.desc,
+      value: this.value,
+    };
   }
 }
 

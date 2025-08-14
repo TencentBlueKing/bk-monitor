@@ -23,25 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from 'monitor-common/utils';
-
+import { DimensionVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { DimensionVariableModel } from '../../index';
-
+import type { IDimensionVariableModel } from '../../../typings';
 interface DimensionVariableEvents {
-  onDataChange: (data: DimensionVariableModel) => void;
+  onDataChange: (variable: DimensionVariableModel) => void;
 }
 interface DimensionVariableProps {
-  data: DimensionVariableModel;
+  variable: DimensionVariableModel;
 }
 
 @Component
 export default class DimensionVariable extends tsc<DimensionVariableProps, DimensionVariableEvents> {
-  @Prop({ type: Object, required: true }) data!: DimensionVariableModel;
+  @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
+  @Ref() variableCommonForm!: VariableCommonForm;
 
   rules = {
     dimensionOption: [
@@ -53,55 +52,53 @@ export default class DimensionVariable extends tsc<DimensionVariableProps, Dimen
     ],
   };
 
-  get nullMetricGroupByList() {
-    if (!this.data.metric) return null;
-    return this.data.metric.isNullMetric
-      ? this.data.metric.agg_dimension.map(item => ({ id: item, name: item, disabled: false }))
-      : null;
-  }
-
-  get dimensionList() {
-    const list = this.nullMetricGroupByList || [];
-    return [{ id: 'all', name: '- ALL -', disabled: false }, { id: 1, name: 1 }, ...list];
-  }
-
-  checkboxDisabled(dimension) {
+  checkboxDisabled(dimensionId: string) {
     const isAllDisabled =
-      dimension.id === 'all' && this.data.dimensionOption.length && !this.data.dimensionOption.includes('all');
-    const isOtherDisabled = dimension.id !== 'all' && this.data.dimensionOption.includes('all');
+      dimensionId === 'all' && this.variable.dimensionOption.length && !this.variable.isAllDimensionOptions;
+    const isOtherDisabled = dimensionId !== 'all' && this.variable.isAllDimensionOptions;
     return isAllDisabled || isOtherDisabled;
+  }
+
+  handleDimensionChange(value: string[]) {
+    this.handleDataChange({
+      ...this.variable.data,
+      dimensionOption: value,
+      value: String(value.includes('all') ? this.variable.dimensionList[0].id : value[0]),
+    });
   }
 
   handleValueChange(value: string) {
     this.handleDataChange({
-      ...this.data,
+      ...this.variable.data,
       value,
     });
   }
 
-  handleDimensionChange(value) {
-    this.handleDataChange({
-      ...this.data,
-      dimensionOption: value,
-    });
+  handleDataChange(data: IDimensionVariableModel) {
+    this.$emit(
+      'dataChange',
+      new DimensionVariableModel({
+        ...data,
+      })
+    );
   }
 
-  @Debounce(200)
-  handleDataChange(data: DimensionVariableModel) {
-    this.$emit('dataChange', data);
+  validateForm() {
+    return this.variableCommonForm.validateForm();
   }
 
   render() {
     return (
       <div class='dimension-variable'>
         <VariableCommonForm
-          data={this.data}
+          ref='variableCommonForm'
+          data={this.variable.data}
           rules={this.rules}
           onDataChange={this.handleDataChange}
         >
           <bk-form-item label={this.$t('关联指标')}>
             <bk-input
-              value={this.data.metric?.readable_name}
+              value={this.variable.metric.metric_id}
               readonly
             />
           </bk-form-item>
@@ -113,15 +110,20 @@ export default class DimensionVariable extends tsc<DimensionVariableProps, Dimen
             <bk-select
               clearable={false}
               selected-style='checkbox'
-              value={this.data.dimensionOption}
+              value={this.variable.dimensionOption}
               multiple
               onChange={this.handleDimensionChange}
             >
-              {this.dimensionList.map(item => (
+              <bk-option
+                id='all'
+                disabled={this.checkboxDisabled('all')}
+                name='- ALL -'
+              />
+              {this.variable.dimensionList.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}
-                  disabled={this.checkboxDisabled(item)}
+                  disabled={this.checkboxDisabled(item.id)}
                   name={item.name}
                 />
               ))}
@@ -133,9 +135,17 @@ export default class DimensionVariable extends tsc<DimensionVariableProps, Dimen
           >
             <bk-select
               clearable={false}
-              value={this.data.value}
+              value={this.variable.value}
               onChange={this.handleValueChange}
-            />
+            >
+              {this.variable.dimensionOptionsMap.map(item => (
+                <bk-option
+                  id={item.id}
+                  key={item.id}
+                  name={item.name}
+                />
+              ))}
+            </bk-select>
           </bk-form-item>
         </VariableCommonForm>
       </div>

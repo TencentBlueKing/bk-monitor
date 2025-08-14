@@ -38,12 +38,15 @@ interface VariablesManageEvents {
 }
 
 interface VariablesManageProps {
+  metricFunctions?: any[];
   variablesList: VariableModelType[];
 }
 
+const refKey = 'variablePanel';
 @Component
 export default class VariablesManage extends tsc<VariablesManageProps, VariablesManageEvents> {
   @Prop({ default: () => [] }) variablesList!: VariableModelType[];
+  @Prop({ default: () => [] }) metricFunctions!: any[];
 
   searchValue = '';
 
@@ -51,6 +54,12 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
     const list = JSON.parse(JSON.stringify(this.variablesList));
     list[index] = value;
     this.$emit('change', [...list]);
+  }
+
+  validateVariable() {
+    return Promise.all(
+      this.variablesList.map(variable => (this.$refs[`${refKey}_${variable.id}`] as VariablePanel)?.validateForm())
+    );
   }
 
   render() {
@@ -72,24 +81,20 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
         <div class='variable-manage-content'>
           {this.variablesList.map((item, index) => [
             <VariablePanel
-              key={`${item.id}_1`}
-              data={item}
+              key={item.id}
+              ref={`${refKey}_${item.id}`}
+              metricFunctions={this.metricFunctions}
+              variable={item}
               onDataChange={value => {
                 this.handleDataChange(value, index);
               }}
             />,
             <VariablePanel
-              key={`${item.name}_2`}
-              data={item}
+              key={`${item.id}_2`}
+              ref={`${refKey}_${item.id}`}
+              metricFunctions={this.metricFunctions}
               scene='detail'
-              onDataChange={value => {
-                this.handleDataChange(value, index);
-              }}
-            />,
-            <VariablePanel
-              key={`${item.name}_3`}
-              data={item}
-              scene='edit'
+              variable={item}
               onDataChange={value => {
                 this.handleDataChange(value, index);
               }}

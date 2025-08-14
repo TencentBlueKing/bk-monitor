@@ -41,6 +41,7 @@ import './condition-creator-selector.scss';
 interface IProps {
   clearKey?: string;
   fields?: IFilterField[];
+  hasVariableOperate?: boolean;
   value?: IFilterItem[];
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChange?: (v: IFilterItem[]) => void;
@@ -60,6 +61,7 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   @Prop({ type: Array, default: () => [] }) value: IFilterItem[];
   @Prop({ type: String, default: '' }) clearKey: string;
+  @Prop({ type: Boolean, default: true }) hasVariableOperate: boolean;
   @Ref('selector') selectorRef: HTMLDivElement;
 
   /* 是否显示弹出层 */
@@ -236,7 +238,7 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
             <UiSelectorOptions
               fields={[...this.fields]}
               getValueFn={this.getValueFn}
-              hasVariableOperate={true}
+              hasVariableOperate={this.hasVariableOperate}
               keyword={this.inputValue}
               show={this.showSelector}
               value={this.localValue?.[this.updateActive]}

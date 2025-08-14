@@ -23,3 +23,60 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { DimensionVariableModel } from '../../index';
+import EditVariableValue from '../common-form/edit-variable-value';
+
+interface DimensionValueEvents {
+  onBlur: () => void;
+  onChange: (data: DimensionVariableModel) => void;
+  onFocus: () => void;
+}
+
+interface DimensionValueProps {
+  variable: DimensionVariableModel;
+}
+
+@Component
+export default class DimensionValue extends tsc<DimensionValueProps, DimensionValueEvents> {
+  @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
+
+  @Emit('change')
+  handleValueChange(value: string) {
+    return new DimensionVariableModel({
+      ...this.variable.data,
+      value,
+    });
+  }
+
+  handleSelectToggle(value: boolean) {
+    if (value) {
+      this.$emit('focus');
+    } else {
+      this.$emit('blur');
+    }
+  }
+
+  render() {
+    return (
+      <EditVariableValue data={this.variable.data}>
+        <bk-select
+          value={this.variable.value}
+          onChange={this.handleValueChange}
+          onToggle={this.handleSelectToggle}
+        >
+          {this.variable.dimensionOptionsMap.map(item => (
+            <bk-option
+              id={item.id}
+              key={item.id}
+              name={item.name}
+            />
+          ))}
+        </bk-select>
+      </EditVariableValue>
+    );
+  }
+}
