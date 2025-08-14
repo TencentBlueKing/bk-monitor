@@ -39,7 +39,14 @@ from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
-from constants.apm import TRACE_RESULT_TABLE_OPTION, FlowType, OtlpKey, SpanKind, TraceDataSourceConfig
+from constants.apm import (
+    FlowType,
+    OtlpKey,
+    SpanKind,
+    TRACE_RESULT_TABLE_OPTION,
+    TraceDataSourceConfig,
+    DEFAULT_DATA_LABEL,
+)
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
@@ -183,8 +190,6 @@ class MetricDataSource(ApmDataSourceConfigBase):
 
     DEFAULT_MEASUREMENT = "__default__"
 
-    DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前缀(注意：不能随意更改)
-
     DATA_ID_PARAM = {
         "etl_config": "bk_standard_v2_time_series",
         "type_label": DataTypeLabel.TIME_SERIES,
@@ -237,7 +242,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
             "time_series_group_name": self.event_group_name,
             "label": "application_check",
             "table_id": self.table_id,
-            "data_label": self.DEFAULT_DATA_LABEL,
+            "data_label": DEFAULT_DATA_LABEL,
             "is_split_measurement": True,
         }
         datalink = DataLink.get_data_link(self.bk_biz_id)
