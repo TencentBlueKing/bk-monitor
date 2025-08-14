@@ -108,6 +108,7 @@ export default class AddVariableOption extends tsc<IProps> {
         <div style={{ display: 'none' }}>
           <AddVariableWrap
             ref='addVarPopRef'
+            show={this.isShowPop}
             value={this.inputValue}
             onAdd={this.handleAdd}
             onCancel={this.handleCancel}
