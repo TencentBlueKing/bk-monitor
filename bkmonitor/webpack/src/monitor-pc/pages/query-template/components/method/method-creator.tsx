@@ -97,6 +97,7 @@ export default class MethodCreator extends tsc<IProps> {
       return;
     }
     this.curValue = item;
+    this.$emit('change', item);
     this.showSelect = false;
   }
 

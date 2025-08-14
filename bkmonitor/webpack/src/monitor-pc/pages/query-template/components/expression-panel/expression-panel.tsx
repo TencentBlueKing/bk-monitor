@@ -29,21 +29,34 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import ExpressionConfigCreator from '../expression-config/expression-config-creator';
 
+import type { VariableModelType } from '../../variables';
 import type { IFunctionOptionsItem } from '../type/query-config';
 
 import './expression-panel.scss';
 
 interface IProps {
   metricFunctions?: IFunctionOptionsItem[];
+  variables?: VariableModelType[];
+  onCreateVariable?: (val: VariableModelType) => void;
 }
 @Component
 export default class ExpressionPanel extends tsc<IProps> {
   @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
+  @Prop({ default: () => [] }) variables: VariableModelType[];
+
+  handleCreateVariable(val: VariableModelType) {
+    this.$emit('createVariable', val);
+  }
+
   render() {
     return (
       <div class='template-expression-panel-component'>
         <div class='template-expression-panel'>
-          <ExpressionConfigCreator metricFunctions={this.metricFunctions} />
+          <ExpressionConfigCreator
+            metricFunctions={this.metricFunctions}
+            variables={this.variables}
+            onCreateVariable={this.handleCreateVariable}
+          />
         </div>
         <div class='template-expression-panel-desc'>{this.$t('支持四则运算 + - * / % ^ ( ) ,如(A+B)/100')}</div>
       </div>
