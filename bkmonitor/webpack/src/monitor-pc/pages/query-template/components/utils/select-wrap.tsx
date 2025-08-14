@@ -39,6 +39,7 @@ interface IProps {
   minWidth?: number;
   needPop?: boolean;
   popClickHide?: boolean;
+  popOffset?: number;
   showPop?: boolean;
   tips?: string;
   tipsPlacements?: string[];
@@ -68,6 +69,8 @@ export default class SelectWrap extends tsc<IProps> {
   @Prop({ default: true }) popClickHide: boolean;
   /* 是否展示popover */
   @Prop({ default: false }) showPop: boolean;
+  /* 弹出层偏移量 */
+  @Prop({ default: 0 }) popOffset: number;
 
   @Ref('pop') popRef: HTMLElement;
 
@@ -106,6 +109,7 @@ export default class SelectWrap extends tsc<IProps> {
         interactive: true,
         distance: 4,
         zIndex: 5000,
+        offset: this.popOffset,
         onHide: () => {
           return this.popClickHide;
         },
