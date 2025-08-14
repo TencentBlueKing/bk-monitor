@@ -1,0 +1,269 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import _ from 'lodash';
+import { defineComponent, ref, watch } from 'vue';
+import useLocale from '@/hooks/use-locale';
+import EmptyStatus from '@/components/empty-status/index.vue';
+import VueDraggable from 'vuedraggable';
+import ClusterEventPopover from '@/views/retrieve/result-table-panel/log-clustering/components/cluster-event-popover.vue';
+import { copyMessage, base64Encode } from '@/common/util';
+import AddRule from './add-rule';
+import './index.scss';
+
+export default defineComponent({
+  name: 'RuleTable',
+  components: {
+    EmptyStatus,
+    VueDraggable,
+    ClusterEventPopover,
+    AddRule,
+  },
+  props: {
+    ruleList: {
+      type: Array,
+      default: () => [],
+    },
+    readonly: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup(props, { emit, expose }) {
+    const { t } = useLocale();
+
+    const tableLoading = ref(false);
+    const isShowAddRule = ref(false);
+    const isEditRow = ref(false);
+    const ruleList = ref([]);
+    const currentRowData = ref({});
+
+    let currentRowIndex = 0;
+    let localRuleList = [];
+
+    const initTableList = () => {
+      ruleList.value = _.cloneDeep(props.ruleList);
+      localRuleList = _.cloneDeep(props.ruleList);
+      console.log('initTableList = ', ruleList.value);
+    };
+
+    watch(
+      () => props.ruleList,
+      () => {
+        initTableList();
+      },
+      { immediate: true },
+    );
+
+    const handleDragChange = (data: {
+      moved: {
+        oldIndex: number;
+        newIndex: number;
+        element: any;
+      };
+    }) => {
+      const tmpList = _.cloneDeep(ruleList.value);
+      const { oldIndex, newIndex } = data.moved;
+      [tmpList[oldIndex], tmpList[newIndex]] = [tmpList[newIndex], tmpList[oldIndex]];
+      ruleList.value = tmpList;
+      localRuleList = _.cloneDeep(ruleList.value);
+      emit('rule-list-change', ruleList.value);
+    };
+
+    const handleMenuClick = item => {
+      copyMessage(Object.values(item)[0]);
+    };
+
+    const handleClickEditRule = (item: any, index: number, isAdd = false) => {
+      isShowAddRule.value = true;
+      isEditRow.value = !isAdd;
+      currentRowData.value = isAdd ? {} : item;
+      currentRowIndex = index;
+    };
+
+    const handleAddRule = (item: any) => {
+      ruleList.value.splice(currentRowIndex + 1, 0, item);
+      localRuleList = _.cloneDeep(ruleList.value);
+      emit('rule-list-change', ruleList.value);
+    };
+
+    const handleEditRule = (item: any) => {
+      ruleList.value[currentRowIndex] = item;
+      localRuleList = _.cloneDeep(ruleList.value);
+      emit('rule-list-change', ruleList.value);
+    };
+
+    const handleClickRemoveRule = (index: number) => {
+      ruleList.value.splice(index, 1);
+      localRuleList = _.cloneDeep(ruleList.value);
+      emit('rule-list-change', ruleList.value);
+    };
+
+    const ruleArrToBase64 = () => {
+      try {
+        const ruleNewList = ruleList.value.reduce((pre, cur) => {
+          const key = Object.keys(cur)[0];
+          const val = Object.values(cur)[0];
+          const rulesStr = JSON.stringify(`${key}:${val}`);
+          pre.push(rulesStr);
+          return pre;
+        }, []);
+        const ruleArrStr = `[${ruleNewList.join(' ,')}]`;
+        return base64Encode(ruleArrStr);
+      } catch (error) {
+        return '';
+      }
+    };
+
+    const handleSearch = (keyword: string) => {
+      if (!keyword) {
+        ruleList.value = _.cloneDeep(localRuleList);
+        return;
+      }
+      const searchRegExp = new RegExp(keyword, 'i');
+      ruleList.value = localRuleList.filter(item => searchRegExp.test(Object.values(item)[0] as string));
+    };
+
+    expose({
+      getRuleList: () => ruleList.value,
+      getRuleListBase64: ruleArrToBase64,
+      init: initTableList,
+      search: handleSearch,
+    });
+
+    return () => (
+      <div class='rule-table-main'>
+        <div class={['table-row-header', { 'is-readonly': props.readonly }]}>
+          <div class='index-column'>{t('生效顺序')}</div>
+          <div class='regular-column'>{t('正则表达式')}</div>
+          <div class='placement-column'>{t('占位符')}</div>
+          {!props.readonly && <div class='operate-column'>{t('操作')}</div>}
+        </div>
+
+        {ruleList.value.length > 0 ? (
+          <div v-bkloading={{ isLoading: tableLoading.value }}>
+            <vue-draggable
+              disabled={props.readonly}
+              {...{
+                animation: 150,
+                tag: 'ul',
+                handle: '.bklog-drag-dots',
+                'ghost-class': 'sortable-ghost-class',
+              }}
+              value={ruleList.value}
+              on-change={handleDragChange}
+            >
+              <transition-group>
+                {ruleList.value.map((item, index) => (
+                  <li
+                    class={['table-row-content', { 'is-readonly': props.readonly }]}
+                    key={item.__Index__}
+                  >
+                    <div class='index-column'>
+                      {!props.readonly && (
+                        <log-icon
+                          type='drag-dots'
+                          class='icon'
+                        />
+                      )}
+                      <span>{index + 1}</span>
+                    </div>
+                    <div class='regular-column'>
+                      <cluster-event-popover
+                        is-cluster={false}
+                        placement='top'
+                        on-event-click={() => handleMenuClick(item)}
+                      >
+                        <span class='row-left-regular'> {Object.values(item)[0]}</span>
+                      </cluster-event-popover>
+                    </div>
+                    <div class='placement-column'>{Object.keys(item)[0]}</div>
+                    {!props.readonly && (
+                      <div class='operate-column'>
+                        <bk-button
+                          text
+                          on-click={() => handleClickEditRule(item, index)}
+                        >
+                          <log-icon
+                            type='edit'
+                            class='opt-icon'
+                          />
+                        </bk-button>
+                        <bk-button
+                          text
+                          on-click={() => handleClickEditRule(item, index, true)}
+                        >
+                          <log-icon
+                            common
+                            type='plus-circle'
+                            class='opt-icon'
+                          />
+                        </bk-button>
+                        <bk-popconfirm
+                          title={t('确认删除该规则？')}
+                          trigger='click'
+                          placement='bottom'
+                          content={t('删除操作无法撤回，请谨慎操作！')}
+                          width={280}
+                          on-confirm={() => handleClickRemoveRule(index)}
+                        >
+                          <bk-button text>
+                            <log-icon
+                              common
+                              type='minus-circle'
+                              class='opt-icon'
+                            />
+                          </bk-button>
+                        </bk-popconfirm>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </transition-group>
+            </vue-draggable>
+          </div>
+        ) : (
+          <div class='no-cluster-rule'>
+            <empty-status
+              show-text={false}
+              empty-type='empty'
+            >
+              <div>{t('暂无聚类规则')}</div>
+            </empty-status>
+          </div>
+        )}
+        <add-rule
+          isShow={isShowAddRule.value}
+          isEdit={isEditRow.value}
+          ruleList={props.ruleList}
+          data={currentRowData.value}
+          on-show-change={val => (isShowAddRule.value = val)}
+          on-add={handleAddRule}
+          on-edit={handleEditRule}
+        />
+      </div>
+    );
+  },
+});

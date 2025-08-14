@@ -25,8 +25,6 @@
  */
 
 import { computed, type ComputedRef, defineComponent, onUnmounted } from 'vue';
-
-import useStore from '@/hooks/use-store';
 import { debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -45,6 +43,8 @@ import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import Grep from '../grep';
 import { MSearchResultTab } from '../type';
+import useStore from '@/hooks/use-store';
+import LogClustering from './log-clustering';
 
 import './index.scss';
 
@@ -66,7 +66,7 @@ export default defineComponent({
         },
       });
     }, 60);
-
+    const retrieveParams = computed(() => store.getters.retrieveParams);
     const activeTab = computed(() => route.query.tab ?? 'origin') as ComputedRef<string>;
 
     const handleTabChange = (tab: string, triggerTrend = false) => {
@@ -97,6 +97,10 @@ export default defineComponent({
 
       if (activeTab.value === MSearchResultTab.GREP) {
         return <Grep></Grep>;
+      }
+
+      if (activeTab.value === MSearchResultTab.CLUSTERING) {
+        return <LogClustering retrieveParams={retrieveParams.value} />;
       }
 
       return (
