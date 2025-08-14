@@ -23,38 +23,54 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IVariableModel } from '../../../typings';
+import { DimensionValueVariableModel } from '../../index';
+import EditVariableValue from '../common-form/edit-variable-value';
 
-import './variable-common-form-detail.scss';
+interface DimensionValueValueEvents {
+  onBlur: () => void;
+  onChange: (variable: DimensionValueVariableModel) => void;
+  onFocus: () => void;
+}
 
-interface VariableCommonFormDetailProps {
-  data: IVariableModel;
+interface DimensionValueValueProps {
+  variable: DimensionValueVariableModel;
 }
 
 @Component
-export default class VariableCommonFormDetail extends tsc<VariableCommonFormDetailProps> {
-  @Prop({ type: Object, required: true }) data!: IVariableModel;
+export default class DimensionValueValue extends tsc<DimensionValueValueProps, DimensionValueValueEvents> {
+  @Prop({ type: Object, required: true }) variable!: DimensionValueVariableModel;
+
+  @Emit('change')
+  handleValueChange(value: string) {
+    return new DimensionValueVariableModel({
+      ...this.variable.data,
+      value,
+    });
+  }
+
+  handleSelectToggle(value: boolean) {
+    if (value) {
+      this.$emit('focus');
+    } else {
+      this.$emit('blur');
+    }
+  }
 
   render() {
     return (
-      <div class='variable-common-form-detail'>
-        <div class='form-item name'>
-          <div class='form-item-label'>{this.$t('变量名')}：</div>
-          <div class='form-item-value'>{`$\{${this.data.name}}`}</div>
-        </div>
-        <div class='form-item'>
-          <div class='form-item-label'>{this.$t('变量别名')}：</div>
-          <div class='form-item-value'>{this.data.alias}</div>
-        </div>
-        <div class='form-item'>
-          <div class='form-item-label'>{this.$t('变量描述')}：</div>
-          <div class='form-item-value'>{this.data.desc}</div>
-        </div>
-        {this.$slots.default}
-      </div>
+      <EditVariableValue data={this.variable.data}>
+        <bk-select
+          value={this.variable.value}
+          onChange={this.handleValueChange}
+          onToggle={this.handleSelectToggle}
+        >
+          <bk-option />
+        </bk-select>
+      </EditVariableValue>
     );
   }
 }

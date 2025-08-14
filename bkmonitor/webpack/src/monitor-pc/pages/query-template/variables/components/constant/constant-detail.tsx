@@ -55,24 +55,20 @@ import VariableCommonFormDetail from '../common-form/variable-common-form-detail
 
 import type { ConstantVariableModel } from '../../index';
 interface ConstantDetailProps {
-  data: ConstantVariableModel;
+  variable: ConstantVariableModel;
 }
 
 @Component
 export default class ConstantDetail extends tsc<ConstantDetailProps> {
-  @Prop({ type: Object, required: true }) data!: ConstantVariableModel;
+  @Prop({ type: Object, required: true }) variable!: ConstantVariableModel;
 
   render() {
     return (
       <div class='constant-detail'>
-        <VariableCommonFormDetail data={this.data}>
-          <div class='form-item'>
-            <div class='form-item-label'>{this.$t('数据类型')}：</div>
-            <div class='form-item-value'>{this.data.value || '--'}</div>
-          </div>
+        <VariableCommonFormDetail data={this.variable.data}>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
-            <div class='form-item-value'>{this.data.value || '--'}</div>
+            <div class='form-item-value'>{this.variable.value || '--'}</div>
           </div>
         </VariableCommonFormDetail>
       </div>

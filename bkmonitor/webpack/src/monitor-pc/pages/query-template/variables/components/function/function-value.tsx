@@ -23,38 +23,56 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IVariableModel } from '../../../typings';
+import FunctionCreator from '../../../components/function/function-creator';
+import { FunctionVariableModel } from '../../index';
+import EditVariableValue from '../common-form/edit-variable-value';
 
-import './variable-common-form-detail.scss';
+interface FunctionValueEvents {
+  onBlur: () => void;
+  onChange: (data: FunctionVariableModel) => void;
+  onFocus: () => void;
+}
 
-interface VariableCommonFormDetailProps {
-  data: IVariableModel;
+interface FunctionValueProps {
+  metricFunctions: any[];
+  variable: FunctionVariableModel;
 }
 
 @Component
-export default class VariableCommonFormDetail extends tsc<VariableCommonFormDetailProps> {
-  @Prop({ type: Object, required: true }) data!: IVariableModel;
+export default class FunctionValue extends tsc<FunctionValueProps, FunctionValueEvents> {
+  @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
+  @Prop({ default: () => [] }) metricFunctions!: any[];
+
+  @Emit('change')
+  handleValueChange(value: string) {
+    return new FunctionVariableModel({
+      ...this.variable.data,
+      value,
+    });
+  }
+
+  handleSelectToggle(value: boolean) {
+    if (value) {
+      this.$emit('focus');
+    } else {
+      this.$emit('blur');
+    }
+  }
 
   render() {
     return (
-      <div class='variable-common-form-detail'>
-        <div class='form-item name'>
-          <div class='form-item-label'>{this.$t('变量名')}：</div>
-          <div class='form-item-value'>{`$\{${this.data.name}}`}</div>
-        </div>
-        <div class='form-item'>
-          <div class='form-item-label'>{this.$t('变量别名')}：</div>
-          <div class='form-item-value'>{this.data.alias}</div>
-        </div>
-        <div class='form-item'>
-          <div class='form-item-label'>{this.$t('变量描述')}：</div>
-          <div class='form-item-value'>{this.data.desc}</div>
-        </div>
-        {this.$slots.default}
-      </div>
+      <EditVariableValue data={this.variable.data}>
+        <FunctionCreator
+          hasCreateVariable={false}
+          options={this.metricFunctions}
+          showLabel={false}
+          value={this.variable.value}
+        />
+      </EditVariableValue>
     );
   }
 }
