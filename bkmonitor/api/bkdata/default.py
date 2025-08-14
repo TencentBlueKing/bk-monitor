@@ -1173,8 +1173,8 @@ class GetDataLink(DataAccessAPIResource):
     @property
     def action(self):
         if settings.ENABLE_MULTI_TENANT_MODE:
-            return f"/v4/tenants/{self.bk_tenant_id}/namespaces/{self.namespace}/{self.kind}/{self.name}/"
-        return f"/v4/namespaces/{self.namespace}/{self.kind}/{self.name}/"
+            return "/v4/tenants/{bk_tenant_id}/namespaces/{namespace}/{kind}/{name}/"
+        return "/v4/namespaces/{namespace}/{kind}/{name}/"
 
     method = "GET"
 
