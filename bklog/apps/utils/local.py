@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -57,7 +56,7 @@ def get_request(peaceful=False):
     except AttributeError:
         if peaceful:
             return None
-        raise BaseException(u"request thread error!")
+        raise BaseException("request thread error!")
 
 
 def get_request_id():

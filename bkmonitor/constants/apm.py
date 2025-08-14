@@ -1532,11 +1532,16 @@ class OperatorGroupRelation(str, Enum):
         return [(relation.name, relation.value) for relation in cls]
 
 
-# APM 自定义指标过滤规则，排除 RPC 主被调、Span 聚合指标，避免因数据量过大导致查询超时。
+# APM 自定义指标过滤规则，避免因数据量过大导致查询超时。
 CUSTOM_METRICS_PROMQL_FILTER = ",".join(
     [
+        # 排除 RPC 主被调相关指标
+        # SDK 会将主被调指标分组为 client_metrics & server_metrics
+        'scope_name!~"^(client|server)_metrics$"',
+        # 按指标名精确排除
         '__name__!~"^rpc_(client|server)_(handled|started)_total"',
         '__name__!~"^rpc_(client|server)_handled_seconds_(sum|min|max|count|bucket)"',
+        # 排除 Span 聚合指标
         '__name__!~"^(bk_apm_|apm_).*"',
     ]
 )

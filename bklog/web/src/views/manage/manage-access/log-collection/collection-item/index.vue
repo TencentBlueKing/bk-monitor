@@ -733,7 +733,7 @@
         needGuide: false,
         timer: null,
         loadingStatus: false,
-        isTableLoading: false,
+        isTableLoading: true,
         pagination: {
           current: 1,
           count: 0,

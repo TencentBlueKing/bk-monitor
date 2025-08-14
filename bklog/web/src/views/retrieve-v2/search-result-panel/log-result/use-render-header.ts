@@ -77,7 +77,7 @@ export default () => {
         }
       }
       const isLackIndexFields = !!unionContent && isUnionSearch.value;
-      const sortable = field.es_doc_values && field.tag !== 'union-source';
+      const sortable = field.es_doc_values && field.tag !== 'union-source' && field.field_type !== 'flattened';
 
       return h(
         'div',
@@ -139,12 +139,12 @@ export default () => {
             },
             [fieldName],
           ),
-          h(TimeFormatterSwitcher, {
-            class: 'timer-formatter',
-            style: {
-              display: isShowSwitcher ? 'inline-block' : 'none',
-            },
-          }),
+          // h(TimeFormatterSwitcher, {
+          //   class: 'timer-formatter',
+          //   style: {
+          //     display: isShowSwitcher ? 'inline-block' : 'none',
+          //   },
+          // }),
           sortable
             ? h('span', { class: 'bk-table-caret-wrapper' }, [
                 h('i', {

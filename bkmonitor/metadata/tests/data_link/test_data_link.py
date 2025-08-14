@@ -20,17 +20,18 @@ from core.errors.api import BKAPIError
 from metadata import models
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import (
-    BASEREPORT_RESULT_TABLE_FIELD_MAP,
     BASE_EVENT_RESULT_TABLE_FIELD_MAP,
-    BASE_EVENT_RESULT_TABLE_OPTION_MAP,
     BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP,
+    BASE_EVENT_RESULT_TABLE_OPTION_MAP,
+    BASEREPORT_RESULT_TABLE_FIELD_MAP,
+    SYSTEM_PROC_DATA_LINK_CONFIGS,
 )
 from metadata.models.data_link import DataLink, utils
 from metadata.models.data_link.constants import (
+    BASEREPORT_SOURCE_SYSTEM,
+    BASEREPORT_USAGES,
     DataLinkKind,
     DataLinkResourceStatus,
-    BASEREPORT_USAGES,
-    BASEREPORT_SOURCE_SYSTEM,
 )
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
@@ -42,7 +43,11 @@ from metadata.models.vm.utils import (
     create_bkbase_data_link,
     create_fed_bkbase_data_link,
 )
-from metadata.task.tasks import create_basereport_datalink_for_bkcc, create_base_event_datalink_for_bkcc
+from metadata.task.tasks import (
+    create_base_event_datalink_for_bkcc,
+    create_basereport_datalink_for_bkcc,
+    create_system_proc_datalink_for_bkcc,
+)
 from metadata.tests.common_utils import consul_client
 
 
@@ -106,6 +111,29 @@ def create_or_delete_records(mocker):
         mq_config_id=1,
         etl_config="bk_multi_tenancy_agent_event",
         is_custom_source=False,
+    )
+    # 系统进程数据链路相关的数据源
+    multi_tenant_system_proc_perf_data_source = models.DataSource.objects.create(
+        bk_data_id=90010,
+        data_name="base_1_system_proc_perf",
+        bk_tenant_id="test_tenant",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_multi_tenancy_system_proc_perf",
+        is_custom_source=False,
+        source_label="bk_monitor",
+        type_label="time_series",
+    )
+    multi_tenant_system_proc_port_data_source = models.DataSource.objects.create(
+        bk_data_id=90011,
+        data_name="base_1_system_proc_port",
+        bk_tenant_id="test_tenant",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_multi_tenancy_system_proc_port",
+        is_custom_source=False,
+        source_label="bk_monitor",
+        type_label="time_series",
     )
     models.BCSClusterInfo.objects.create(
         cluster_id="BCS-K8S-10002",
@@ -201,6 +229,8 @@ def create_or_delete_records(mocker):
     federal_sub_data_source.delete()
     multi_tenant_base_data_source.delete()
     multi_tenant_base_event_data_source.delete()
+    multi_tenant_system_proc_perf_data_source.delete()
+    multi_tenant_system_proc_port_data_source.delete()
     result_table.delete()
     proxy_rt.delete()
     fed_rt.delete()
@@ -211,6 +241,13 @@ def create_or_delete_records(mocker):
     models.ResultTable.objects.all().delete()
     models.ResultTableField.objects.all().delete()
     models.Space.objects.all().delete()
+    # 清理系统进程数据链路测试创建的数据
+    models.DataSource.objects.filter(data_name__in=["base_1_system_proc_perf", "base_1_system_proc_port"]).delete()
+    models.ResultTable.objects.filter(table_id__in=["system_1_system_proc.perf", "system_1_system_proc.port"]).delete()
+    models.AccessVMRecord.objects.filter(
+        result_table_id__in=["system_1_system_proc.perf", "system_1_system_proc.port"]
+    ).delete()
+    models.DataLink.objects.filter(data_link_name__in=["base_1_system_proc_perf", "base_1_system_proc_port"]).delete()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -233,7 +270,7 @@ def test_Standard_V2_Time_Series_compose_configs(create_or_delete_records):
     expected_configs = (
         '[{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},"spec":{'
-        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":2,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}},{"kind":"VmStorageBinding","metadata":{'
         '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
@@ -255,7 +292,8 @@ def test_Standard_V2_Time_Series_compose_configs(create_or_delete_records):
         data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
     )
 
-    configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
     assert json.dumps(configs) == expected_configs
 
     # 测试实例是否正确创建
@@ -308,7 +346,7 @@ def test_compose_bcs_federal_time_series_configs(create_or_delete_records):
                 },
                 "spec": {
                     "alias": "bkm_1001_bkmonitor_time_series_60010",
-                    "bizId": 0,
+                    "bizId": 2,
                     "dataType": "metric",
                     "description": "bkm_1001_bkmonitor_time_series_60010",
                     "maintainers": ["admin"],
@@ -338,7 +376,8 @@ def test_compose_bcs_federal_time_series_configs(create_or_delete_records):
         namespace="bkmonitor",
         data_link_strategy=models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
     )
-    configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
     assert json.dumps(configs) == expected
 
 
@@ -471,7 +510,7 @@ def test_Standard_V2_Time_Series_apply_data_link(create_or_delete_records):
     expected_configs = (
         '[{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},"spec":{'
-        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":2,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}},{"kind":"VmStorageBinding","metadata":{'
         '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor","labels":{"bk_biz_id":"1001"}},'
@@ -593,7 +632,6 @@ def test_create_bkbase_data_link(create_or_delete_records, mocker):
     """
     测试接入计算平台数据量路是否如期工作
     """
-    mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
@@ -714,9 +752,9 @@ def test_create_bkbase_federal_proxy_data_link(create_or_delete_records, mocker)
 
     bcs_cluster_id = None
 
-    bcs_record = models.BCSClusterInfo.objects.filter(K8sMetricDataID=ds.bk_data_id)
+    bcs_record = models.BCSClusterInfo.objects.filter(K8sMetricDataID=ds.bk_data_id).first()
     if bcs_record:
-        bcs_cluster_id = bcs_record.first().cluster_id
+        bcs_cluster_id = bcs_record.cluster_id
 
     with patch.object(
         DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
@@ -810,7 +848,6 @@ def test_component_id(create_or_delete_records, mocker):
     """
     测试component_id是否正确组装
     """
-    mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
@@ -827,7 +864,13 @@ def test_component_id(create_or_delete_records, mocker):
         bkbase_rt_name=bkbase_vmrt_name,
     )
 
-    DataBusConfig.objects.create(data_link_name=bkbase_data_name, namespace="bkmonitor", name=bkbase_vmrt_name)
+    DataBusConfig.objects.create(
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        name=bkbase_vmrt_name,
+    )
 
     # 测试component_id
     assert (
@@ -842,7 +885,6 @@ def test_create_basereport_datalink_for_bkcc_metadata_part(create_or_delete_reco
     测试多租户基础采集数据链路创建
     Metadata部分,不包含具体V4链路配置
     """
-    mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
     settings.ENABLE_MULTI_TENANT_MODE = True
     settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
@@ -850,6 +892,7 @@ def test_create_basereport_datalink_for_bkcc_metadata_part(create_or_delete_reco
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
         create_basereport_datalink_for_bkcc(bk_biz_id=1)
@@ -884,7 +927,7 @@ def test_create_basereport_datalink_for_bkcc_metadata_part(create_or_delete_reco
         assert dsrt.bk_data_id == 70010
         assert dsrt.bk_tenant_id == "system"
         # ResultTableField
-        expected_fields = BASEREPORT_RESULT_TABLE_FIELD_MAP.get(usage)
+        expected_fields = BASEREPORT_RESULT_TABLE_FIELD_MAP[usage]
         for expected_field in expected_fields:
             field = models.ResultTableField.objects.get(table_id=table_id, field_name=expected_field["field_name"])
             assert field
@@ -898,7 +941,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
     测试多租户基础采集数据链路创建
     V4链路配置
     """
-    mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
     settings.ENABLE_MULTI_TENANT_MODE = True
     settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
@@ -906,6 +948,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
         create_basereport_datalink_for_bkcc(bk_biz_id=1)
@@ -914,9 +957,13 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
     data_link_ins = models.DataLink.objects.get(data_link_name="system_1_sys_base")
     data_source = models.DataSource.objects.get(data_name="system_1_sys_base")
     storage_cluster_name = "vm-default"
-    actual_configs = data_link_ins.compose_configs(
-        data_source=data_source, storage_cluster_name=storage_cluster_name, bk_biz_id=1, source=BASEREPORT_SOURCE_SYSTEM
-    )
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        actual_configs = data_link_ins.compose_configs(
+            data_source=data_source,
+            storage_cluster_name=storage_cluster_name,
+            bk_biz_id=1,
+            source=BASEREPORT_SOURCE_SYSTEM,
+        )
     expected_config = [
         {
             "kind": "ResultTable",
@@ -928,7 +975,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_cpu_summary",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_cpu_summary",
                 "maintainers": ["admin"],
@@ -944,7 +991,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_cpu_summary_cmdb",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_cpu_summary_cmdb",
                 "maintainers": ["admin"],
@@ -998,7 +1045,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_cpu_detail",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_cpu_detail",
                 "maintainers": ["admin"],
@@ -1014,7 +1061,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_cpu_detail_cmdb",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_cpu_detail_cmdb",
                 "maintainers": ["admin"],
@@ -1068,7 +1115,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_disk",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_disk",
                 "maintainers": ["admin"],
@@ -1084,7 +1131,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_disk_cmdb",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_disk_cmdb",
                 "maintainers": ["admin"],
@@ -1138,7 +1185,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_env",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_env",
                 "maintainers": ["admin"],
@@ -1154,7 +1201,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_env_cmdb",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_env_cmdb",
                 "maintainers": ["admin"],
@@ -1203,7 +1250,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_inode",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_inode",
                 "maintainers": ["admin"],
@@ -1219,7 +1266,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_inode_cmdb",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_inode_cmdb",
                 "maintainers": ["admin"],
@@ -1273,7 +1320,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_io",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_io",
                 "maintainers": ["admin"],
@@ -1289,7 +1336,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_io_cmdb",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_io_cmdb",
                 "maintainers": ["admin"],
@@ -1338,7 +1385,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_load",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_load",
                 "maintainers": ["admin"],
@@ -1354,7 +1401,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_load_cmdb",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_load_cmdb",
                 "maintainers": ["admin"],
@@ -1408,7 +1455,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_mem",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_mem",
                 "maintainers": ["admin"],
@@ -1424,7 +1471,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_mem_cmdb",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_mem_cmdb",
                 "maintainers": ["admin"],
@@ -1473,7 +1520,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_net",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_net",
                 "maintainers": ["admin"],
@@ -1489,7 +1536,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_net_cmdb",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_net_cmdb",
                 "maintainers": ["admin"],
@@ -1538,7 +1585,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_netstat",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_netstat",
                 "maintainers": ["admin"],
@@ -1554,7 +1601,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_netstat_cmdb",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_netstat_cmdb",
                 "maintainers": ["admin"],
@@ -1608,7 +1655,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_swap",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_swap",
                 "maintainers": ["admin"],
@@ -1624,7 +1671,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_swap_cmdb",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "base_1_sys_swap_cmdb",
                 "maintainers": ["admin"],
@@ -1959,7 +2006,6 @@ def test_create_base_event_datalink_for_bkcc_metadata_part(create_or_delete_reco
     测试多租户基础事件数据链路
     Metadata部分 -- 元信息关联关系
     """
-    mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
     settings.ENABLE_MULTI_TENANT_MODE = True
     settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
@@ -1967,6 +2013,7 @@ def test_create_base_event_datalink_for_bkcc_metadata_part(create_or_delete_reco
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
         create_base_event_datalink_for_bkcc(bk_biz_id=1)
@@ -2012,7 +2059,6 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
     测试多租户基础事件数据链路
     BkBase部分 -- V4链路配置
     """
-    mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
     settings.ENABLE_MULTI_TENANT_MODE = True
     settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
@@ -2020,6 +2066,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
         create_base_event_datalink_for_bkcc(bk_biz_id=1)
@@ -2028,9 +2075,10 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
     data_link_ins = models.DataLink.objects.get(data_link_name="base_1_agent_event")
     data_source = models.DataSource.objects.get(data_name="base_1_agent_event", bk_tenant_id="system")
 
-    actual_configs = data_link_ins.compose_configs(
-        data_source=data_source, table_id="base_system_1_event", storage_cluster_name="es_default", bk_biz_id=1
-    )
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        actual_configs = data_link_ins.compose_configs(
+            data_source=data_source, table_id="base_system_1_event", storage_cluster_name="es_default", bk_biz_id=1
+        )
 
     expected_configs = [
         {
@@ -2043,7 +2091,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
             },
             "spec": {
                 "alias": "base_1_agent_event",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "log",
                 "description": "base_1_agent_event",
                 "fields": [
@@ -2146,7 +2194,6 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
     """
     测试bk_exporter V4链路接入 -- Metadata部分 & Datalink V4配置部分
     """
-    mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
     settings.ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = True
     settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
@@ -2165,6 +2212,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         create_bkbase_data_link(data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat")
         # 验证 compose_configs 被调用并返回预期的配置
@@ -2181,7 +2229,10 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
     assert vm_record.vm_cluster_id == 100111
     assert vm_record.vm_result_table_id == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
 
-    actual_configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        actual_configs = data_link_ins.compose_configs(
+            data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
+        )
     expected_configs = [
         {
             "kind": "ResultTable",
@@ -2193,7 +2244,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
             },
             "spec": {
                 "alias": "bkm_1001_bkmonitor_time_series_50011",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "bkm_1001_bkmonitor_time_series_50011",
                 "maintainers": ["admin"],
@@ -2262,7 +2313,6 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
     """
     测试bk_standard V4链路接入 -- Metadata部分 & Datalink V4配置部分
     """
-    mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
     settings.ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = True
     settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
@@ -2281,6 +2331,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         create_bkbase_data_link(data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat")
         # 验证 compose_configs 被调用并返回预期的配置
@@ -2297,7 +2348,10 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
     assert vm_record.vm_cluster_id == 100111
     assert vm_record.vm_result_table_id == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
 
-    actual_configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        actual_configs = data_link_ins.compose_configs(
+            data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
+        )
     expected_configs = [
         {
             "kind": "ResultTable",
@@ -2309,7 +2363,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
             },
             "spec": {
                 "alias": "bkm_1001_bkmonitor_time_series_50012",
-                "bizId": 0,
+                "bizId": 2,
                 "dataType": "metric",
                 "description": "bkm_1001_bkmonitor_time_series_50012",
                 "maintainers": ["admin"],
@@ -2371,3 +2425,117 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
     ]
 
     assert actual_configs == expected_configs
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
+    """
+    测试多租户系统进程数据链路创建
+    Metadata部分 -- 元信息关联关系
+    """
+
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+
+    bk_tenant_id = "test_tenant"
+
+    with (
+        patch.object(
+            DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
+        ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
+    ):  # noqa
+        # 调用多租户系统进程数据链路创建方法
+        create_system_proc_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=1)
+        # 验证 apply_data_link_with_retry 被调用两次（perf 和 port 两个链路）
+        assert mock_apply_with_retry.call_count == 2
+
+    # 测试 perf 链路
+    perf_table_id = f"{bk_tenant_id}_1_system_proc.perf"
+    perf_data_name = "base_1_system_proc_perf"
+
+    # 验证结果表
+    result_table = models.ResultTable.objects.get(table_id=perf_table_id)
+    assert result_table.bk_biz_id == 1
+    assert result_table.bk_tenant_id == bk_tenant_id
+    assert result_table.data_label == "system.proc"
+    assert result_table.table_name_zh == perf_data_name
+    assert result_table.is_custom_table is False
+    assert result_table.default_storage == models.ClusterInfo.TYPE_VM
+
+    # 验证数据源
+    data_source = models.DataSource.objects.get(data_name=perf_data_name, bk_tenant_id=bk_tenant_id)
+    assert data_source.source_label == "bk_monitor"
+    assert data_source.type_label == "time_series"
+
+    # 验证数据源结果表关联
+    dsrt = models.DataSourceResultTable.objects.get(bk_data_id=data_source.bk_data_id, table_id=perf_table_id)
+    assert dsrt.bk_tenant_id == bk_tenant_id
+
+    # 验证 AccessVMRecord
+    vm_record = models.AccessVMRecord.objects.get(result_table_id=perf_table_id)
+    assert vm_record.bk_tenant_id == bk_tenant_id
+    assert vm_record.bk_base_data_id == data_source.bk_data_id
+    assert vm_record.bk_base_data_name == perf_data_name
+    assert vm_record.vm_result_table_id == "1_base_1_system_proc_perf"
+
+    # 验证结果表字段
+    perf_fields = SYSTEM_PROC_DATA_LINK_CONFIGS["perf"]["fields"]
+    for field in perf_fields:
+        result_table_field = models.ResultTableField.objects.get(table_id=perf_table_id, field_name=field["field_name"])
+        assert result_table_field.bk_tenant_id == bk_tenant_id
+        assert result_table_field.field_type == field["field_type"]
+        assert result_table_field.description == field.get("description", "")
+        assert result_table_field.unit == field.get("unit", "")
+        assert result_table_field.tag == field.get("tag", "")
+
+    # 验证数据链路
+    data_link_ins = models.DataLink.objects.get(data_link_name=perf_data_name)
+    assert data_link_ins.bk_tenant_id == bk_tenant_id
+    assert data_link_ins.data_link_strategy == DataLink.SYSTEM_PROC_PERF
+    assert data_link_ins.namespace == "bkmonitor"
+
+    # 测试 port 链路
+    port_table_id = f"{bk_tenant_id}_1_system_proc.port"
+    port_data_name = "base_1_system_proc_port"
+
+    # 验证结果表
+    result_table = models.ResultTable.objects.get(table_id=port_table_id)
+    assert result_table.bk_biz_id == 1
+    assert result_table.bk_tenant_id == bk_tenant_id
+    assert result_table.data_label == "system.proc_port"
+    assert result_table.table_name_zh == port_data_name
+    assert result_table.is_custom_table is False
+    assert result_table.default_storage == models.ClusterInfo.TYPE_VM
+
+    # 验证数据源
+    data_source = models.DataSource.objects.get(data_name=port_data_name, bk_tenant_id=bk_tenant_id)
+    assert data_source.source_label == "bk_monitor"
+    assert data_source.type_label == "time_series"
+
+    # 验证数据源结果表关联
+    dsrt = models.DataSourceResultTable.objects.get(bk_data_id=data_source.bk_data_id, table_id=port_table_id)
+    assert dsrt.bk_tenant_id == bk_tenant_id
+
+    # 验证 AccessVMRecord
+    vm_record = models.AccessVMRecord.objects.get(result_table_id=port_table_id)
+    assert vm_record.bk_tenant_id == bk_tenant_id
+    assert vm_record.bk_base_data_id == data_source.bk_data_id
+    assert vm_record.bk_base_data_name == port_data_name
+    assert vm_record.vm_result_table_id == "1_base_1_system_proc_port"
+
+    # 验证结果表字段
+    port_fields = SYSTEM_PROC_DATA_LINK_CONFIGS["port"]["fields"]
+    for field in port_fields:
+        result_table_field = models.ResultTableField.objects.get(table_id=port_table_id, field_name=field["field_name"])
+        assert result_table_field.bk_tenant_id == bk_tenant_id
+        assert result_table_field.field_type == field["field_type"]
+        assert result_table_field.description == field.get("description", "")
+        assert result_table_field.unit == field.get("unit", "")
+        assert result_table_field.tag == field.get("tag", "")
+
+    # 验证数据链路
+    data_link_ins = models.DataLink.objects.get(data_link_name=port_data_name)
+    assert data_link_ins.bk_tenant_id == bk_tenant_id
+    assert data_link_ins.data_link_strategy == DataLink.SYSTEM_PROC_PORT
+    assert data_link_ins.namespace == "bkmonitor"
