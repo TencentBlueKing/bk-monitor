@@ -23,3 +23,69 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { type VariableModelType } from '../../variables';
+import { QueryVariablesTool } from '../utils/query-variable-tool';
+import VariableSpan from '../utils/variable-span';
+
+import './expression-detail.scss';
+
+interface ExpressionProps {
+  /* 表达式 */
+  expression: string;
+  /* 变量列表 */
+  variables?: VariableModelType[];
+}
+
+@Component
+export default class ExpressionDetail extends tsc<ExpressionProps> {
+  /* 表达式 */
+  @Prop({ type: String, default: '' }) expression: string;
+  /* 变量列表 */
+  @Prop({ default: () => [] }) variables?: VariableModelType[];
+  variablesToolInstance = new QueryVariablesTool();
+
+  get variableMap() {
+    if (!this.variables?.length) {
+      return {};
+    }
+    return this.variables?.reduce?.((prev, curr) => {
+      prev[curr.name] = curr.value;
+      return prev;
+    }, {});
+  }
+
+  get expressionToVariableModel() {
+    const regex = /(\${(?:\w+)})|([^{$]+|\${(?!\w+\}))/g;
+    const strArr = [];
+    let match;
+    while ((match = regex.exec(this.expression)) !== null) {
+      const [_full, variable, str] = match;
+      if (variable) {
+        strArr.push(variable);
+      } else if (match[2]) {
+        strArr.push(str);
+      }
+    }
+    const models = strArr.map(str => this.variablesToolInstance.transformVariables(str, this.variableMap));
+    return models;
+  }
+
+  render() {
+    return (
+      <div class='template-expression-detail-component'>
+        <span class='expression-label'>{`${this.$t('表达式')}`}</span>
+        <span class='expression-colon'>:</span>
+        <span class='expression-name-wrap'>
+          {this.expressionToVariableModel.map(variableModel => {
+            const domTag = variableModel.isVariable ? VariableSpan : 'span';
+            return <domTag class='expression-name'>{variableModel.value}</domTag>;
+          })}
+        </span>
+      </div>
+    );
+  }
+}

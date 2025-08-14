@@ -31,10 +31,11 @@ import { getMetricListV2 } from 'monitor-api/modules/strategies';
 
 import { VariableTypeEnum } from '../../constants';
 import DimensionDetail from '../dimension/dimension-detail';
+import FunctionDetail from '../function/function-detail';
 import IntervalDetail from '../interval/interval-detail';
 import MethodDetail from '../method/method-detail';
 import MetricDetail from '../metric/metric-detail';
-import { type TMetricDetail, MetricDetail as MetricDetailPanel } from '../type/query-config';
+import { type IFunctionOptionsItem, type TMetricDetail, MetricDetail as MetricDetailPanel } from '../type/query-config';
 
 import type { VariableModelType } from '../../variables';
 
@@ -50,6 +51,7 @@ interface IQueryConfig {
   agg_interval: number;
   agg_method: string;
   alias?: string;
+  functions: IFunctionOptionsItem[];
   metric_id: string;
 }
 
@@ -67,6 +69,9 @@ export default class QueryConfigDetail extends tsc<IProps> {
   }
   get getDimensionVariables() {
     return this.variables.filter(item => item.type === VariableTypeEnum.DIMENSION);
+  }
+  get getFunctionVariables() {
+    return this.variables.filter(item => item.type === VariableTypeEnum.FUNCTION);
   }
 
   @Watch('queryConfig.metric_id', { immediate: true })
@@ -104,6 +109,10 @@ export default class QueryConfigDetail extends tsc<IProps> {
             dimensions={this.queryConfig?.agg_dimension}
             options={this.metricInstance?.dimensions}
             variables={this.getDimensionVariables}
+          />
+          <FunctionDetail
+            functions={this.queryConfig?.functions}
+            variables={this.getFunctionVariables}
           />
           {/* <MethodCreator
             key={'method'}
