@@ -1,0 +1,166 @@
+@import '@/scss/mixins/flex.scss';
+
+.regex-match-dialog-main {
+  .sample-box {
+    .title {
+      margin-bottom: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      color: #313238;
+    }
+
+    .wrapper {
+      background: #e1ecff;
+    }
+
+    .hit {
+      color: #18ae8a;
+      background: #e9fff5;
+    }
+
+    .conflict {
+      border-bottom: 2px solid #ea3636;
+    }
+
+    .sample-content {
+      width: 912px;
+      height: 154px;
+      max-height: 200px;
+      padding: 10px 16px;
+      overflow-y: auto;
+      word-break: break-all;
+      white-space: pre-line;
+      background: #ffffff;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+      margin-top: 8px;
+    }
+
+    .regex-table-wraper {
+      width: 100%;
+      max-height: 250px;
+      // overflow-y: auto;
+    }
+  }
+
+  .rule-box {
+    font-size: 12px;
+
+    .title {
+      /* stylelint-disable-next-line declaration-no-important */
+      margin: 24px 0 6px 0 !important;
+
+      :last-child {
+        flex: 1;
+      }
+    }
+
+    .rule-item {
+      margin-bottom: 18px;
+      text-align: start;
+      @include flex-justify(space-between);
+
+      .left {
+        position: relative;
+        width: 60%;
+        margin-right: 16px;
+
+        .input-content {
+          align-items: center;
+          @include flex-justify(space-between);
+
+          .bk-form-checkbox {
+            padding-right: 8px;
+          }
+
+          .bk-form-input {
+            display: inline-block;
+
+            /* stylelint-disable-next-line declaration-no-important */
+            padding-right: 54px !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+
+        .btn-content {
+          position: absolute;
+          top: 6px;
+          right: 14px;
+          z-index: 999;
+          width: 36px;
+          @include flex-justify(space-between);
+
+          .xiaojing-AI {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+          }
+
+          .icon-right-turn-line {
+            margin: 1px 4px 0 0;
+            font-size: 18px;
+            cursor: pointer;
+
+            &:hover {
+              color: #3a84ff;
+            }
+          }
+        }
+      }
+
+      .right {
+        flex: 1;
+        align-items: center;
+        @include flex-justify(space-between);
+
+        .icon {
+          margin-left: 16px;
+          font-size: 18px;
+          color: #c4c6cc;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+
+  .bk-dialog-footer {
+    padding: 0;
+  }
+
+  .bottom-operations {
+    width: 100%;
+    height: 48px;
+    background: #fafbfd;
+    box-shadow: 0 -1px 0 0 #dcdee5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+    padding-right: 24px;
+
+    .tips-main {
+      font-size: 12px;
+      .tip-icon {
+        font-size: 14px;
+        margin-right: 5px;
+      }
+      color: #f59500;
+    }
+  }
+}
+
+.occupy-popover {
+  width: 280px;
+  padding: 0 4px 12px;
+
+  .btn-box {
+    margin-top: 16px;
+    @include flex-justify(flex-end);
+  }
+
+  .bk-default {
+    margin-left: 8px;
+  }
+}
