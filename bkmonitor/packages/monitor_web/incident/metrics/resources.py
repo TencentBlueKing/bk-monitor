@@ -29,7 +29,7 @@ class BaseIncidentMetricsResource(Resource):
         MetricName.HOST_MEM_PHYSICAL_FREE.value: "bytes",
 
         # 使用率（percent）
-        MetricName.BCS_PERFORMANCE_CPU_USAGE.value: "percentunit",
+        MetricName.APM_ERROR_RATE.value: "percentunit",
         MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE.value: "percentunit",
         MetricName.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE.value: "percentunit",
         MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE.value: "percentunit",
@@ -42,6 +42,9 @@ class BaseIncidentMetricsResource(Resource):
         MetricName.BCS_TRAFFIC_OUT.value: "Bps",
         MetricName.HOST_NIC_IN_RATE.value: "Bps",
         MetricName.HOST_NIC_OUT_RATE.value: "Bps",
+        
+        # 耗时
+        MetricName.APM_DURATION.value: "ns",
     }
     
     def __init__(self):
@@ -137,8 +140,8 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
             unify_query_resp = resource.grafana.graph_unify_query(req_data)
             with self._lock:
                 self._format_metrics_response(unify_query_resp, metric_query_response, metric_name,
-                                              dimension_type=dimension_type,
-                                              metric_type=metric_type)
+                                            dimension_type=dimension_type,
+                                            metric_type=metric_type)
 
         for metric_name, req_dict in query_requests.items():
             for dimension_type, req_data in req_dict.items():
@@ -205,8 +208,7 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
             # 当 unit 为空时，按规则填充：内存量=bytes；使用率=percentunit；流量带宽=Bps
             unit = series.get("unit", "")
             if unit == "":
-                override_unit = self.UNIT_BY_METRIC.get(metric_name)
-                series["unit"] = override_unit if override_unit else ""
+                series["unit"] = self.UNIT_BY_METRIC.get(metric_name,"")
             # 将 datapoints 中的时间戳和值交换位置， 适配格式
             series["datapoints"] = [[datapoint[1], datapoint[0]] for datapoint in series.get("datapoints", [])]
             metric_info["time_series"][current_dimension_type] = series
