@@ -42,12 +42,22 @@
     }
 
     .item-name {
+      position: relative;
       display: inline-block;
       height: 18px;
       line-height: 18px;
       max-width: 95px;
 
       @include ellipsis;
+
+      &.border-dashed::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        border-bottom: 1px dashed #979ba5;
+      }
     }
 
     &:not(:last-child) {

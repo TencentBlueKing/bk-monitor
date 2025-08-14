@@ -1868,7 +1868,7 @@ class CreateApplicationSimpleResource(Resource):
 
     def fill_default(self, validate_data):
         if not validate_data.get("bk_biz_id"):
-            validate_data["bk_biz_id"] = api.cmdb.get_blueking_biz()
+            validate_data["bk_biz_id"] = settings.DEFAULT_BK_BIZ_ID
 
         if not validate_data.get("app_alias"):
             validate_data["app_alias"] = validate_data["app_name"]

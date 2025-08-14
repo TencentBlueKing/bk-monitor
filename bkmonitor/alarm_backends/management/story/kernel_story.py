@@ -252,7 +252,7 @@ class DurationSpace(CheckStep):
 
     def check(self):
         start = time.time()
-        bk_biz_id = api.cmdb.get_blueking_biz()
+        bk_biz_id = settings.DEFAULT_BK_BIZ_ID
         data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
         promql = "sum(count_over_time(bkmonitor:system:cpu_summary:usage[10m]))"
         data_source = data_source_class(

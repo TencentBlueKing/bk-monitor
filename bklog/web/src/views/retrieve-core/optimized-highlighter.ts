@@ -23,13 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Mark from 'mark.js';
-import { getTargetElement } from '../../hooks/hooks-helper';
 import { Ref } from 'vue';
+
+import Mark from 'mark.js';
+
+import { getTargetElement } from '../../hooks/hooks-helper';
 import StaticUtil from './static.util';
 // types.ts
-export type ChunkStrategy = 'auto' | 'fixed' | 'custom';
-export type ObserverPriority = 'visible-first' | 'order';
+export type ChunkStrategy = 'auto' | 'custom' | 'fixed';
+export type ObserverPriority = 'order' | 'visible-first';
 
 export interface ChunkSizeConfig {
   auto?: { maxTextLength: number };
@@ -38,7 +40,7 @@ export interface ChunkSizeConfig {
 }
 
 export interface ObserverConfig {
-  root?: Element | Document | null;
+  root?: Document | Element | null;
   rootMargin?: string;
   thresholds?: number | number[];
   priority?: ObserverPriority;
@@ -94,18 +96,18 @@ export default class OptimizedHighlighter {
   private isProcessing = false;
   private currentKeywords: KeywordItem[] = [];
   private markKeywords: string[] = [];
-  private rootElement: HTMLElement;
+  private rootElement: () => HTMLElement;
 
   // 是否区分大小写
-  private caseSensitive: boolean = false;
+  private caseSensitive = false;
   private afterMarkFn: (() => void) | undefined;
   // 正则表达式标记
-  private regExpMark: boolean = false;
+  private regExpMark = false;
   private accuracy: 'exactly' | 'partially' = 'partially';
 
   constructor(userConfig: HighlightConfig = { target: document.body }) {
     this.config = this.mergeConfigs(userConfig);
-    this.rootElement = getTargetElement(this.config.target);
+    this.rootElement = () => getTargetElement(this.config.target);
     this.observer = this.createObserver();
   }
 
@@ -261,7 +263,7 @@ export default class OptimizedHighlighter {
   }
 
   private prepareSections(): void {
-    const children = Array.from(this.rootElement?.children || []) as HTMLElement[];
+    const children = Array.from(this.rootElement()?.children || []) as HTMLElement[];
     children.forEach(el => {
       if (!this.sections.includes(el)) {
         this.sections.push(el);
@@ -323,7 +325,7 @@ export default class OptimizedHighlighter {
     this.isProcessing = false;
   }
 
-  private instanceExecMark(instance: Mark, resolve?: Function): void {
+  private instanceExecMark(instance: Mark, resolve?: () => void): void {
     if (this.regExpMark) {
       const regList = this.markKeywords.map(keyword => StaticUtil.getRegExp(keyword, this.caseSensitive ? 'g' : 'gi'));
       instance.markRegExp(regList[0], {
@@ -349,6 +351,7 @@ export default class OptimizedHighlighter {
       exclude: ['mark'],
       caseSensitive: this.caseSensitive ?? false,
       accuracy: this.accuracy ?? 'partially',
+      acrossElements: true,
       done: resolve ?? (() => {}),
       each: (element: HTMLElement) => {
         if (element.parentElement?.classList.contains('valid-text')) {

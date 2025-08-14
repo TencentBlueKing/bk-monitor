@@ -22,6 +22,7 @@ from django.utils.translation import gettext as _
 from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
+from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -37,6 +38,7 @@ from metadata.models.constants import (
 )
 from metadata.models.data_link.constants import BASEREPORT_SOURCE_SYSTEM, BASEREPORT_USAGES, DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
+from metadata.models.data_link.utils import compose_bkdata_table_id
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
 from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
@@ -1267,7 +1269,7 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         )
         data_source = models.DataSource.create_data_source(
             data_name=data_name,
-            etl_config=EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG,
+            etl_config=EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
             operator="system",
             source_label="bk_monitor",
             type_label="event",
@@ -1650,6 +1652,8 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
         "port": models.DataLink.SYSTEM_PROC_PORT,
     }
 
+    data_link_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+
     # 创建数据源和结果表
     for data_link_type, data_link_config in SYSTEM_PROC_DATA_LINK_CONFIGS.items():
         data_name: str = data_link_config["data_name_tpl"].format(bk_biz_id=bk_biz_id)
@@ -1707,6 +1711,9 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
             )
 
         # 创建AccessVMRecord
+        vm_rt = compose_bkdata_table_id(
+            f"{data_link_biz_ids.data_biz_id}_base_{bk_biz_id}_{data_name_to_data_link_strategy[data_link_type]}"
+        )
         AccessVMRecord.objects.update_or_create(
             bk_tenant_id=bk_tenant_id,
             result_table_id=table_id,
@@ -1715,7 +1722,7 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
             defaults={
                 "vm_cluster_id": cluster.cluster_id,
                 "storage_cluster_id": cluster.cluster_id,
-                "vm_result_table_id": f"{bk_biz_id}_base_{bk_biz_id}_{data_name_to_data_link_strategy[data_link_type]}",
+                "vm_result_table_id": vm_rt,
             },
         )
 

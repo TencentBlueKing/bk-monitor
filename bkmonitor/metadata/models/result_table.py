@@ -1563,6 +1563,7 @@ class ResultTable(models.Model):
         except CMDBLevelRecord.DoesNotExist:
             # 如果未能找到已有的记录，需要创建一个新的数据源
             data_source = DataSource.create_data_source(
+                bk_biz_id=self.bk_biz_id,
                 data_name=config.RT_CMDB_LEVEL_DATA_SOURCE_NAME.format(self.table_id),
                 bk_tenant_id=self.bk_tenant_id,
                 # 由于重复流转之后的数据，都是标准格式数据，因此此处写死是bk_standard即可

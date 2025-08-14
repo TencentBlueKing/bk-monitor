@@ -25,31 +25,6 @@ from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN
 logger = logging.getLogger("metadata")
 
 
-def get_bkdata_table_id(table_id: str) -> str:
-    """获取计算平台结果表"""
-    # 按照 '__default__' 截断，取前半部分
-    table_id = table_id.split(".__default__")[0]
-    table_id = table_id.lower()
-
-    # 转换中划线和点为下划线
-    table_id = table_id.replace("-", "_").replace(".", "_")
-
-    # 处理负数开头和其他情况
-    if table_id.startswith("_"):
-        table_id = f"bkm_neg_{table_id.lstrip('_')}"
-    elif table_id[0].isdigit():
-        table_id = f"bkm_{table_id}"
-    else:
-        table_id = f"bkm_{table_id}"
-
-    # 确保不会出现连续的下划线
-    while "__" in table_id:
-        table_id = table_id.replace("__", "_")
-
-    # 确保长度不超过40
-    return table_id[:40]
-
-
 def clean_redundant_underscores(table_id: str) -> str:
     """
     清理连续的下划线，确保只保留单个下划线
@@ -60,7 +35,7 @@ def clean_redundant_underscores(table_id: str) -> str:
     return table_id
 
 
-def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
+def compose_bkdata_table_id(table_id: str, strategy: str | None = None) -> str:
     """
     获取计算平台结果表ID, 计算平台元数据长度限制为40，不可超出
     @param table_id: 监控平台结果表ID
@@ -133,7 +108,7 @@ def get_bkdata_data_id_name(data_name: str) -> str:
     return f"bkm_{refine_data_name[-45:].lower()}"
 
 
-def compose_bkdata_data_id_name(data_name: str, strategy: str = None) -> str:
+def compose_bkdata_data_id_name(data_name: str, strategy: str | None = None) -> str:
     """
     组装bkdata数据源名称，支持中文处理
     @param data_name: 监控平台数据源名称
