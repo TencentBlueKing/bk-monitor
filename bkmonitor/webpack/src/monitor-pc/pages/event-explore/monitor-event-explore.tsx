@@ -507,6 +507,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
         commonWhere={this.commonWhere}
         currentFavorite={this.currentFavorite}
         dataId={this.dataId}
+        dataIdList={this.dataIdList}
         dataSourceLabel={this.dataSourceLabel}
         dataTypeLabel={this.dataTypeLabel}
         defaultShowResidentBtn={this.showResidentBtn}
