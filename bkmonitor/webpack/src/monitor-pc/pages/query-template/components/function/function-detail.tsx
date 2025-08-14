@@ -23,3 +23,74 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { type VariableModelType } from '../../variables';
+import { type IFunctionOptionsItem } from '../type/query-config';
+import { QueryVariablesTool } from '../utils/query-variable-tool';
+import VariableSpan from '../utils/variable-span';
+
+import './function-detail.scss';
+
+interface FunctionProps {
+  /* 函数 */
+  functions: IFunctionOptionsItem[];
+  /* 变量列表 */
+  variables?: VariableModelType[];
+}
+
+@Component
+export default class FunctionDetail extends tsc<FunctionProps> {
+  /* 函数 */
+  @Prop({ type: Array }) functions: IFunctionOptionsItem[];
+  /* 变量列表 */
+  @Prop({ default: () => [] }) variables?: VariableModelType[];
+  variablesToolInstance = new QueryVariablesTool();
+
+  get variableMap() {
+    if (!this.variables?.length) {
+      return {};
+    }
+    return this.variables?.reduce?.((prev, curr) => {
+      prev[curr.name] = curr.value;
+      return prev;
+    }, {});
+  }
+
+  get functionsToVariableModel() {
+    if (!this.functions?.length) {
+      return [];
+    }
+    const models = this.functions.reduce((prev, curr) => {
+      const result = this.variablesToolInstance.transformVariables(curr, this.variableMap);
+      if (!Array.isArray(result.value)) {
+        prev.push(result);
+        return prev;
+      }
+      prev.push(...result.value.map(dimensionId => ({ ...result, value: dimensionId })));
+      return prev;
+    }, []);
+
+    return models.filter(item => item.value?.id);
+  }
+
+  render() {
+    return (
+      <div class='template-function-detail-component'>
+        <span class='function-label'>{`${this.$t('函数')}`}</span>
+        <span class='function-colon'>:</span>
+        <span class='function-name-wrap'>
+          {this.functionsToVariableModel.map(variableModel => {
+            const domTag = variableModel.isVariable ? VariableSpan : 'span';
+            const paramsStr = variableModel.value?.params?.map?.(param => param.value)?.toString?.();
+            return (
+              <domTag class='function-name'>{`${variableModel.value?.id}${paramsStr ? `(${paramsStr})` : ''}; `}</domTag>
+            );
+          })}
+        </span>
+      </div>
+    );
+  }
+}
