@@ -74,7 +74,7 @@ export default class DimensionDetail extends tsc<DimensionProps> {
     }, {});
   }
 
-  get dimensionConfigs() {
+  get dimensionToVariableModel() {
     if (!this.dimensions?.length) {
       return [];
     }
@@ -90,10 +90,10 @@ export default class DimensionDetail extends tsc<DimensionProps> {
   }
 
   tagRenderer() {
-    if (!this.dimensionConfigs?.length) {
+    if (!this.dimensionToVariableModel?.length) {
       return '--';
     }
-    return this.dimensionConfigs?.map?.((item, index) => {
+    return this.dimensionToVariableModel?.map?.((item, index) => {
       const domTag = item.isVariable ? VariableSpan : 'span';
       return (
         <div
