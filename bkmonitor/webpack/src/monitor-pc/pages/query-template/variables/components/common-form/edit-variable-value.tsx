@@ -26,34 +26,48 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IVariableModel } from '../../../typings';
+import type { IVariableModel } from '../../../typings/variables';
 
-import './variable-common-form-detail.scss';
+import './edit-variable-value.scss';
 
-interface VariableCommonFormDetailProps {
+interface EditVariableValueProps {
   data: IVariableModel;
 }
 
 @Component
-export default class VariableCommonFormDetail extends tsc<VariableCommonFormDetailProps> {
+export default class EditVariableValue extends tsc<EditVariableValueProps> {
   @Prop({ type: Object, required: true }) data!: IVariableModel;
+
+  get editVariableLabelTooltips() {
+    return [
+      { label: this.$tc('变量名'), value: this.data.name },
+      { label: this.$tc('变量别名'), value: this.data.alias },
+      { label: this.$tc('变量描述'), value: this.data.desc },
+    ];
+  }
 
   render() {
     return (
-      <div class='variable-common-form-detail'>
-        <div class='form-item name'>
-          <div class='form-item-label'>{this.$t('变量名')}：</div>
-          <div class='form-item-value'>{`$\{${this.data.name}}`}</div>
-        </div>
-        <div class='form-item'>
-          <div class='form-item-label'>{this.$t('变量别名')}：</div>
-          <div class='form-item-value'>{this.data.alias}</div>
-        </div>
-        <div class='form-item'>
-          <div class='form-item-label'>{this.$t('变量描述')}：</div>
-          <div class='form-item-value'>{this.data.desc}</div>
-        </div>
-        {this.$slots.default}
+      <div class='edit-variable-value'>
+        <bk-popover
+          width={188}
+          placement='top'
+        >
+          <div class='variable-value'>
+            <div class='variable-value-label'>
+              <span>{this.data.alias || this.data.name}</span>
+            </div>
+            <div class='variable-value-input'>{this.$slots.default}</div>
+          </div>
+          <ul slot='content'>
+            {this.editVariableLabelTooltips.map(item => (
+              <li key={item.label}>
+                <span class='label'>{item.label}：</span>
+                <span class='value'>{item.value}</span>
+              </li>
+            ))}
+          </ul>
+        </bk-popover>
       </div>
     );
   }

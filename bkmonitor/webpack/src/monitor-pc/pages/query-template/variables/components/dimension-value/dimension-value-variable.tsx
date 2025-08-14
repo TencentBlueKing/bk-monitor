@@ -23,43 +23,53 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from 'monitor-common/utils';
-
+import { DimensionValueVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { DimensionValueVariableModel } from '../../index';
+import type { IDimensionValueVariableModel } from '../../../typings/variables';
 
 interface DimensionValueVariableEvents {
   onDataChange: (data: DimensionValueVariableModel) => void;
 }
 interface DimensionValueVariableProps {
-  data: DimensionValueVariableModel;
+  variable: DimensionValueVariableModel;
 }
 
 @Component
 export default class DimensionValueVariable extends tsc<DimensionValueVariableProps, DimensionValueVariableEvents> {
-  @Prop({ type: Object, required: true }) data!: DimensionValueVariableModel;
+  @Prop({ type: Object, required: true }) variable!: DimensionValueVariableModel;
+
+  @Ref() variableCommonForm!: VariableCommonForm;
 
   handleValueChange(value) {
     this.handleDataChange({
-      ...this.data,
+      ...this.variable.data,
       value,
     });
   }
 
-  @Debounce(200)
-  handleDataChange(data: DimensionValueVariableModel) {
-    this.$emit('dataChange', data);
+  handleDataChange(data: IDimensionValueVariableModel) {
+    this.$emit(
+      'dataChange',
+      new DimensionValueVariableModel({
+        ...data,
+      })
+    );
+  }
+
+  validateForm() {
+    return this.variableCommonForm.validateForm();
   }
 
   render() {
     return (
       <div class='dimension-value-variable'>
         <VariableCommonForm
-          data={this.data}
+          ref='variableCommonForm'
+          data={this.variable.data}
           onDataChange={this.handleDataChange}
         >
           <bk-form-item
@@ -67,7 +77,7 @@ export default class DimensionValueVariable extends tsc<DimensionValueVariablePr
             property='relatedDimension'
           >
             <bk-input
-              value={'mount_point'}
+              value={this.variable.relationDimension}
               readonly
             />
           </bk-form-item>
@@ -77,7 +87,7 @@ export default class DimensionValueVariable extends tsc<DimensionValueVariablePr
           >
             <bk-select
               clearable={false}
-              value={this.data.value}
+              value={this.variable.value}
               onChange={this.handleValueChange}
             />
           </bk-form-item>

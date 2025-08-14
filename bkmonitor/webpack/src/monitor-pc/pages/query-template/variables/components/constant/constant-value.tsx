@@ -23,38 +23,53 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IVariableModel } from '../../../typings';
+import { ConstantVariableModel } from '../../index';
+import EditVariableValue from '../common-form/edit-variable-value';
 
-import './variable-common-form-detail.scss';
+interface ConstantValueEvents {
+  onBlur: () => void;
+  onChange: (variable: ConstantVariableModel) => void;
+  onFocus: () => void;
+}
 
-interface VariableCommonFormDetailProps {
-  data: IVariableModel;
+interface ConstantValueProps {
+  variable: ConstantVariableModel;
 }
 
 @Component
-export default class VariableCommonFormDetail extends tsc<VariableCommonFormDetailProps> {
-  @Prop({ type: Object, required: true }) data!: IVariableModel;
+export default class ConstantValue extends tsc<ConstantValueProps, ConstantValueEvents> {
+  @Prop({ type: Object, required: true }) variable!: ConstantVariableModel;
+
+  @Emit('change')
+  handleValueChange(value: string) {
+    return new ConstantVariableModel({
+      ...this.variable.data,
+      value,
+    });
+  }
+
+  handleInputFocus() {
+    this.$emit('focus');
+  }
+
+  handleInputBlur() {
+    this.$emit('blur');
+  }
 
   render() {
     return (
-      <div class='variable-common-form-detail'>
-        <div class='form-item name'>
-          <div class='form-item-label'>{this.$t('变量名')}：</div>
-          <div class='form-item-value'>{`$\{${this.data.name}}`}</div>
-        </div>
-        <div class='form-item'>
-          <div class='form-item-label'>{this.$t('变量别名')}：</div>
-          <div class='form-item-value'>{this.data.alias}</div>
-        </div>
-        <div class='form-item'>
-          <div class='form-item-label'>{this.$t('变量描述')}：</div>
-          <div class='form-item-value'>{this.data.desc}</div>
-        </div>
-        {this.$slots.default}
-      </div>
+      <EditVariableValue data={this.variable.data}>
+        <bk-input
+          value={this.variable.value}
+          onBlur={this.handleInputBlur}
+          onChange={this.handleValueChange}
+          onFocus={this.handleInputFocus}
+        />
+      </EditVariableValue>
     );
   }
 }

@@ -32,6 +32,7 @@ import type { IFilterItem } from '@/components/retrieval-filter/utils';
 export interface ICommonVariableModel<T extends VariableTypeEnumType> {
   alias?: string;
   desc?: string;
+  id?: string;
   name: string;
   type: T;
 }

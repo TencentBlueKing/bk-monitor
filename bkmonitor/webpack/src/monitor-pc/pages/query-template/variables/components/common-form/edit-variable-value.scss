@@ -1,0 +1,34 @@
+.edit-variable-value {
+  width: 240px;
+
+  .bk-tooltip,.bk-tooltip-ref {
+    width: 100%;
+  }
+
+  .variable-value {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin: 8px 0;
+
+    .variable-value-label {
+      height: 32px;
+      padding: 0 9px 0 8px;
+      line-height: 32px;
+      background: #ebeef5;
+      border: 1px solid #dcdee5;
+      border-right: none;
+      border-radius: 2px 0 0 2px;
+
+      span {
+        cursor: pointer;
+        border-bottom: 1px dashed #c4c6cc;
+      }
+    }
+
+    .variable-value-input {
+      flex: 1;
+      background-color: #fff;
+    }
+  }
+}
