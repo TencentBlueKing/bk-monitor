@@ -178,6 +178,8 @@ def get_request_tenant_id():
     """
     if settings.ENABLE_MULTI_TENANT_MODE:
         request = get_request(peaceful=True)
+        if request and request.META.get("X-Bk-Tenant-Id", ""):
+            return request.META.get("X-Bk-Tenant-Id", "")
         if request and hasattr(request.user, "tenant_id"):
             return request.user.tenant_id
     return settings.BK_APP_TENANT_ID
