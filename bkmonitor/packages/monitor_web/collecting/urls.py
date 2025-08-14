@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -17,6 +16,11 @@ from monitor_web.collecting import views as collecting_views
 router = ResourceRouter()
 router.register_module(collecting_views)
 
+# 腾讯云产品相关的特定URL路径
+qcloud_router = ResourceRouter()
+qcloud_router.register(r"cloud-products", collecting_views.QcloudCollectingViewSet, basename="cloud_products")
+
 urlpatterns = [
+    re_path(r"^", include(qcloud_router.urls)),
     re_path(r"^", include(router.urls)),
 ]

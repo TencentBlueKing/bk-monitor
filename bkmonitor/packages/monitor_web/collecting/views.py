@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
@@ -95,4 +95,15 @@ class CollectingConfigViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.collecting.fetch_collect_config_stat, endpoint="fetch_collect_config_stat"),
         # 依赖插件版本前置校验
         ResourceRoute("POST", resource.collecting.check_plugin_version, endpoint="check_plugin_version"),
+    ]
+
+
+class QcloudCollectingViewSet(ResourceViewSet):
+    """
+    Qcloud 采集视图
+    """
+
+    resource_routes = [
+        # 腾讯云产品映射接口
+        ResourceRoute("GET", resource.collecting.cloud_product_mapping, endpoint="mapping"),
     ]
