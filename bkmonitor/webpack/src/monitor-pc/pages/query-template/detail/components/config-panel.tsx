@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import ExploreCollapseWrapper from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/components/explore-collapse-wrapper';
 
+import ExpressionConfigDetail from '../../components/expression-config/expression-config.detail';
 import QueryConfigDetail from '../../components/query-config/query-config-detail';
 import { VariableTypeEnum } from '../../constants';
 
@@ -98,7 +99,7 @@ export default class ConfigPanel extends tsc<object> {
               ],
               agg_method: 'AVG',
               agg_interval: 60,
-              agg_dimension: ['hostname', '${dimension}'],
+              agg_dimension: ['hostname', '${dimension}', 'ip'],
               agg_condition: [
                 {
                   key: 'hostname',
@@ -140,15 +141,7 @@ export default class ConfigPanel extends tsc<object> {
                     },
                   ],
                 },
-                {
-                  id: 'increase',
-                  params: [
-                    {
-                      id: 'window',
-                      value: '2m',
-                    },
-                  ],
-                },
+                '${functions_variable}',
                 {
                   id: 'deriv',
                   params: [
@@ -185,23 +178,49 @@ export default class ConfigPanel extends tsc<object> {
                 value: 'SUM',
                 type: VariableTypeEnum.METHOD,
               },
+              {
+                name: 'functions_variable',
+                value: [
+                  {
+                    id: 'ceil',
+                    params: [],
+                  },
+                  {
+                    id: 'topk',
+                    params: [
+                      {
+                        id: 'k',
+                        value: 10,
+                      },
+                    ],
+                  },
+                ],
+                type: VariableTypeEnum.FUNCTION,
+              },
             ]}
           />
-          {new Array(Math.floor(Math.random() * 10)).fill(1).map((_, index) => (
-            <div
-              key={index}
-              style={{
-                height: '209px',
-                background: '#F5F7FA',
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              模板配置卡片{index}
-            </div>
-          ))}
+          <ExpressionConfigDetail
+            expressionConfig={{
+              expression: 'a + b / ${expression_variable} *  ${expression_variable22}',
+              functions: [
+                {
+                  id: 'ceil',
+                  params: [],
+                },
+                {
+                  id: 'log2',
+                  params: [],
+                },
+              ],
+            }}
+            variables={[
+              {
+                name: 'expression_variable',
+                value: '100%',
+                type: VariableTypeEnum.CONSTANT,
+              },
+            ]}
+          />
         </ExploreCollapseWrapper>
         <ExploreCollapseWrapper
           class='collapse-panel'
