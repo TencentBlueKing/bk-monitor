@@ -440,6 +440,14 @@ class RetrieveHelper extends RetrieveBase {
     this.runEvent(RetrieveEvent.INDEX_CONFIG_OPEN, show);
   }
 
+  /**
+   * 打开别名配置
+   * @param show
+   */
+  setAliasConfigOpen(show: boolean) {
+    this.runEvent(RetrieveEvent.ALIAS_CONFIG_OPEN, show);
+  }
+
   getScrollSelector() {
     return this.globalScrollSelector;
   }

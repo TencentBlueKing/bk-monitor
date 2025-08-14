@@ -193,7 +193,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         )
         serializer: UptimeCheckNodeSerializer = self.get_serializer(queryset, many=True)
         # 将节点解析成cmdb主机，存放在以host_id 和 ip+cloud_id 为key 的 字典里
-        node_to_host = resource.uptime_check.get_node_host_dict(queryset)
+        node_to_host = resource.uptime_check.get_node_host_dict(bk_tenant_id=get_request_tenant_id(), nodes=queryset)
 
         result = []
         bk_host_ids = {host.bk_host_id for host in node_to_host.values()}
@@ -315,7 +315,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                 config["ip_list"] = []
             if hosts[0].get("ip"):
                 ips = [host["ip"] for host in hosts if host.get("ip")]
-                host_instances = api.cmdb.get_host_without_biz(ips=ips)["hosts"]
+                host_instances = api.cmdb.get_host_without_biz(bk_tenant_id=get_request_tenant_id(), ips=ips)["hosts"]
                 config["node_list"] = [{"bk_host_id": h.bk_host_id} for h in host_instances]
                 host_instance_ips = [h.ip for h in host_instances]
                 config["ip_list"] = [host["ip"] for host in hosts if host["ip"] not in host_instance_ips]
