@@ -26,17 +26,11 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import TemplateConfig from '../components/template-config/template-config';
-
 import './template-edit.scss';
 
 @Component
 export default class TemplateEdit extends tsc<object> {
   render() {
-    return (
-      <div class='template-edit'>
-        <TemplateConfig />
-      </div>
-    );
+    return <div class='template-edit' />;
   }
 }
