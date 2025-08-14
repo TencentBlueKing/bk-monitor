@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 
 from django.conf import settings
@@ -41,7 +41,7 @@ from utils.business import get_business_id_list
 logger = logging.getLogger(__name__)
 
 
-class CountModelMixin(object):
+class CountModelMixin:
     """
     Count a queryset.
     """
@@ -123,7 +123,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         return UptimeCheckNode.objects.filter(bk_tenant_id=get_request_tenant_id())
 
     def retrieve(self, request, *args, **kwargs):
-        data = super(UptimeCheckNodeViewSet, self).retrieve(request, *args, **kwargs).data
+        data = super().retrieve(request, *args, **kwargs).data
         node_instance = self.get_object()
         bk_host_id = node_instance.set_host_id()
         data["bk_host_id"] = bk_host_id
@@ -142,9 +142,9 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                 bkmonitorbeat = beat_plugin[0]
                 # 兼容ipv4无bk_host_id的旧节点配置
                 if plugin["inner_ip"]:
-                    all_beat_version[
-                        host_key(ip=plugin["inner_ip"], bk_cloud_id=plugin["bk_cloud_id"])
-                    ] = bkmonitorbeat.get("version", "")
+                    all_beat_version[host_key(ip=plugin["inner_ip"], bk_cloud_id=plugin["bk_cloud_id"])] = (
+                        bkmonitorbeat.get("version", "")
+                    )
                 all_beat_version[plugin["bk_host_id"]] = bkmonitorbeat.get("version", "")
             else:
                 logger.warning(
@@ -212,7 +212,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                 else resource.uptime_check.uptime_check_beat.return_with_dict(hosts=hosts)
             )
         except Exception as e:
-            logger.exception("Failed to get uptime check node status: {}".format(e))
+            logger.exception(f"Failed to get uptime check node status: {e}")
 
         node_task_counts = {node.id: node.tasks.count() for node in queryset}
         for node in serializer.data:
@@ -298,7 +298,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         """
         旧版动态下发配置转换
         """
-        data = super(UptimeCheckTaskViewSet, self).retrieve(request, *args, **kwargs).data
+        data = super().retrieve(request, *args, **kwargs).data
         config = data["config"]
         protocol = data["protocol"]
         if config.get("urls") and protocol == UptimeCheckTask.Protocol.HTTP:
@@ -321,7 +321,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
     def get_permissions(self):
         if self.action == "list":
             return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS, ActionEnum.VIEW_SYNTHETIC])]
-        return super(UptimeCheckTaskViewSet, self).get_permissions()
+        return super().get_permissions()
 
     def get_queryset(self):
         """
@@ -475,7 +475,7 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
         """
         简化返回数据
         """
-        data = super(UptimeCheckGroupViewSet, self).retrieve(request, *args, **kwargs).data
+        data = super().retrieve(request, *args, **kwargs).data
         result = {
             "id": data["id"],
             "name": data["name"],
@@ -498,7 +498,7 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
         group.tasks.add(task_id)
         return Response({"msg": _("拨测分组({})添加任务({})成功".format(group.name, task.name))})
 
-    @action(methods=['post'], detail=True)
+    @action(methods=["post"], detail=True)
     def remove_task(self, request, *args, **kwargs):
         """拨测任务组移除拨测任务"""
         task_id = request.data.get("task_id")
@@ -555,3 +555,11 @@ class UptimeCheckTargetDetailViewSet(PermissionMixin, ResourceViewSet):
     """
 
     resource_routes = [ResourceRoute("POST", resource.uptime_check.uptime_check_target_detail)]
+
+
+class ApplyUptimeCheckNodePermissionViewSet(PermissionMixin, ResourceViewSet):
+    """
+    申请获取公共拨测节点的权限， 返回apply_url
+    """
+
+    resource_routes = [ResourceRoute("POST", resource.uptime_check.apply_uptime_check_node_permission)]

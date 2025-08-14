@@ -26,18 +26,20 @@ from django.db.models import Q
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext as _
 from requests.auth import to_native_string
+from rest_framework.exceptions import PermissionDenied
 from yaml import SafeDumper
 
 from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
+from bkmonitor.iam import Permission, ActionEnum
 from bkmonitor.utils.common_utils import host_key, logger, parse_host_id, safe_int
 from bkmonitor.utils.country import ISP_LIST
 from bkmonitor.utils.encode import EncodeWebhook
 from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
 from bkmonitor.utils.local import with_client_operator
-from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.request import get_request_tenant_id, get_request
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool
 from bkmonitor.utils.time_tools import (
     get_timestamp_range_by_biz_date,
@@ -341,6 +343,11 @@ class TestTaskResource(Resource):
         config = data["config"]
         protocol = data["protocol"]
 
+        request = get_request(peaceful=True)
+        if not request:
+            return []
+        username = request.user.username
+
         # 根据node_id列表获取拨测节点信息，这些信息用于选择用于测试的目标主机
         all_nodes = UptimeCheckNode.objects.filter(id__in=data["node_id_list"], bk_tenant_id=bk_tenant_id)
         biz_nodes = []
@@ -353,8 +360,16 @@ class TestTaskResource(Resource):
             else:
                 biz_nodes.append(node)
 
-        # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303 # noqa
+        # 检查权限：如果有公共节点，验证用户是否有公共节点的使用权限
+        permission_instance = Permission(username=username)
+        if common_nodes:
+            can_use_public_nodes = permission_instance.is_allowed(
+                ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=False
+            )
+            if not can_use_public_nodes:
+                raise PermissionDenied(_("您没有使用公共拨测节点的权限"))
 
+        # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303 # noqa
         bk_host_ids = all_nodes.values_list("bk_host_id", flat=1).distinct()
         all_plugin = api.node_man.plugin_search(
             {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
@@ -2862,18 +2877,69 @@ class SelectUptimeCheckNodeResource(Resource):
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
+        # 获取用户名和租户id
+        request = get_request(peaceful=True)
+        bk_tenant_id = get_request_tenant_id(peaceful=True)
+        if not request:
+            return []
+        username = request.user.username
 
+        # 获取主机列表
         host_list = resource.commons.host_region_isp_info(bk_biz_id=bk_biz_id)
-        node_list = UptimeCheckNode.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id())
-        node_ip_list = [node.ip for node in node_list if not node.bk_host_id]
-        node_id_list = [node.bk_host_id for node in node_list if node.bk_host_id]
+        # 获取节点列表
+        node_list = UptimeCheckNode.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=bk_tenant_id)
 
-        # 已建节点标识is_built
+        # 获取公共节点列表
+        public_nodes = [node for node in node_list if node.is_common]
+
+        # 创建映射字典，用于快速查找节点
+        # 使用 bk_host_id 和 ip 作为键
+        host_id_to_node = {node.bk_host_id: node for node in node_list if node.bk_host_id}
+        ip_to_node = {node.ip: node for node in node_list if not node.bk_host_id}
+
+        # 创建公共节点的快速查找集合
+        public_host_ids = {node.bk_host_id for node in public_nodes if node.bk_host_id}
+        public_ips = {node.ip for node in public_nodes if not node.bk_host_id}
+
+        # 提取节点ip和id列表（用于快速判断是否为已建节点）
+        node_ip_list = list(ip_to_node.keys())
+        node_id_list = list(host_id_to_node.keys())
+
+        # 检查用户是否有公共节点的权限
+        can_use_public_nodes = False
+        if public_nodes:
+            can_use_public_nodes = Permission(username=username).is_allowed(
+                ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=False
+            )
+
+        # 处理主机列表，标记已建节点和权限
         for host in host_list:
-            if host["bk_host_id"] in node_id_list or host["ip"] in node_ip_list:
-                host["is_built"] = True
-            else:
-                host["is_built"] = False
+            is_built = False
+            is_public = False
+            bk_host_id = host.get("bk_host_id")
+            ip = host.get("ip")
+
+            # 检查是否是已建节点
+            if bk_host_id in node_id_list:
+                is_built = True
+                # 使用集合判断是否为公共节点
+                is_public = bk_host_id in public_host_ids
+            elif ip in node_ip_list:
+                is_built = True
+                # 使用集合判断是否为公共节点
+                is_public = ip in public_ips
+
+            host["is_built"] = is_built
+
+            # 如果是已建节点，判断使用权限
+            if is_built:
+                # 如果是公共节点，检查公共节点权限
+                if is_public:
+                    host["permission"]["can_use"] = can_use_public_nodes
+                else:
+                    # 业务自己的节点，默认就有使用权限
+                    host["permission"]["can_use"] = True
+
         return host_list
 
 
@@ -3072,3 +3138,36 @@ class UptimeCheckTargetDetailResource(Resource):
             "bk_target_type": bk_obj_id,
             "bk_target_detail": info_func_map[bk_obj_id](params),
         }
+
+
+class ApplyUptimeCheckNodePermissionResource(Resource):
+    """
+    为当前用户申请使用公共拨测节点的权限
+    """
+
+    def perform_request(self, validated_request_data=None):
+        """
+        申请使用公共拨测节点的权限
+        Returns:
+            dict: 包含权限申请URL的字典
+            {
+                "apply_url": "权限申请跳转URL",
+                "permission": {权限申请数据}
+            }
+        """
+        # 获取当前用户和租户信息
+        request = get_request(peaceful=True)
+        if not request:
+            raise CustomException(_("无法获取当前用户信息"))
+
+        username = request.user.username
+        bk_tenant_id = get_request_tenant_id(peaceful=True)
+
+        # 创建权限对象
+        permission_instance = Permission(username=username, bk_tenant_id=bk_tenant_id)
+
+        # 生成公共拨测节点使用权限的申请数据
+        actions = [ActionEnum.USE_UPTIME_CHECK_NODE]
+        apply_data, apply_url = permission_instance.get_apply_data(actions)
+
+        return {"apply_url": apply_url, "permission": apply_data}
