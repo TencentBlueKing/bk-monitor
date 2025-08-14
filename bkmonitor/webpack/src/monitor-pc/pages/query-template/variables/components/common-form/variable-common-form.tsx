@@ -26,21 +26,21 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { VariableModelType } from '../../index';
+import type { IVariableModel } from '../../../typings/variables';
 
 import './variable-common-form.scss';
 interface VariableCommonFormEvents {
-  onDataChange: (data: VariableModelType) => void;
+  onDataChange: (data: IVariableModel) => void;
 }
 
 interface VariableCommonFormProps {
-  data: VariableModelType;
+  data: IVariableModel;
   rules?: Record<string, Record<string, any>[]>;
 }
 
 @Component
 export default class VariableCommonForm extends tsc<VariableCommonFormProps, VariableCommonFormEvents> {
-  @Prop({ type: Object, required: true }) data!: VariableModelType;
+  @Prop({ type: Object, required: true }) data!: IVariableModel;
   @Prop({ type: Object, default: () => ({}) }) rules: VariableCommonFormProps['rules'];
   @Ref('form') formRef: any;
 
