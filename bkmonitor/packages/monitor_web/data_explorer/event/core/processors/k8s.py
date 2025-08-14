@@ -314,58 +314,53 @@ class K8sEventProcessor(BaseEventProcessor):
         cls, level: str, k8s_info: dict[str, Any], start_time: int, end_time: int
     ) -> list[dict[str, str]]:
         """
-        根据对象类型生成多场景跳转URLs
+        根据对象类型生成多场景跳转 URLs（有序），保持与默认单场景跳转一致的优先级。
         """
         kind: str = k8s_info["kind"]["value"]
         name: str = k8s_info["name"]["value"]
         namespace = k8s_info["namespace"]["value"]
-        scene_urls = []
 
-        # 根据 level 和 kind 确定支持的场景
+        # 1. 计算支持的场景集合
+        # - namespace: 性能、网络
+        # - kind/workload:
+        #   Pod: 性能、网络
+        #   Service/Endpoints/Ingress: 网络
+        #   Node: 容量
+        #   其他(workload/CRD): 性能
+        # - host: 容量
+        scenes: list[str] = []
         if level == "namespace":
-            # namespace 支持性能和网络
-            perf_url = cls._generate_performance_url(level, k8s_info, start_time, end_time, namespace, name, kind)
-            if perf_url:
-                scene_urls.append({"scene": "performance", "url": perf_url})
-
-            net_url = cls._generate_network_url(level, k8s_info, start_time, end_time, namespace, name, kind)
-            if net_url:
-                scene_urls.append({"scene": "network", "url": net_url})
-
-        elif level == "kind" or level == "workload":
-            # 根据具体的 kind 判断
-            if kind == "Pod":
-                # Pod 支持性能和网络
-                perf_url = cls._generate_performance_url(level, k8s_info, start_time, end_time, namespace, name, kind)
-                if perf_url:
-                    scene_urls.append({"scene": "performance", "url": perf_url})
-
-                net_url = cls._generate_network_url(level, k8s_info, start_time, end_time, namespace, name, kind)
-                if net_url:
-                    scene_urls.append({"scene": "network", "url": net_url})
-
-            elif kind in ["Service", "Endpoints", "Ingress"]:
-                # 网络类资源只支持网络
-                net_url = cls._generate_network_url(level, k8s_info, start_time, end_time, namespace, name, kind)
-                if net_url:
-                    scene_urls.append({"scene": "network", "url": net_url})
-
-            elif kind == "Node":
-                # Node 只支持容量
-                cap_url = cls._generate_capacity_url(k8s_info, start_time, end_time, name)
-                if cap_url:
-                    scene_urls.append({"scene": "capacity", "url": cap_url})
-
-            else:
-                # workload 类型只支持性能
-                perf_url = cls._generate_performance_url(level, k8s_info, start_time, end_time, namespace, name, kind)
-                if perf_url:
-                    scene_urls.append({"scene": "performance", "url": perf_url})
-
+            scenes = ["performance", "network"]
         elif level == "host":
-            # host 只支持容量
-            cap_url = cls._generate_capacity_url(k8s_info, start_time, end_time, name)
-            if cap_url:
-                scene_urls.append({"scene": "capacity", "url": cap_url})
+            scenes = ["capacity"]
+        elif level in {"kind", "workload"}:
+            if kind == "Pod":
+                scenes = ["performance", "network"]
+            elif kind in {"Service", "Endpoints", "Ingress"}:
+                scenes = ["network"]
+            elif kind == "Node":
+                scenes = ["capacity"]
+            else:
+                scenes = ["performance"]
 
-        return scene_urls
+        # 2. 构造各场景 URL
+        scene_to_url: dict[str, str] = {}
+        for scene in scenes:
+            if scene == "performance":
+                url = cls._generate_performance_url(level, k8s_info, start_time, end_time, namespace, name, kind)
+            elif scene == "network":
+                url = cls._generate_network_url(level, k8s_info, start_time, end_time, namespace, name, kind)
+            elif scene == "capacity":
+                url = cls._generate_capacity_url(k8s_info, start_time, end_time, name)
+            else:
+                url = ""
+            if url:
+                scene_to_url[scene] = url
+
+        scene_label_map = {
+            "performance": "性能",
+            "network": "网络",
+            "capacity": "容量",
+        }
+
+        return [{"scene": scene_label_map.get(s, s), "url": scene_to_url[s]} for s in scenes if s in scene_to_url]
