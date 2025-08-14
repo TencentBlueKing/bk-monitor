@@ -20,7 +20,7 @@
   .placeholder {
     padding: 0;
     margin: 0;
-    line-height: 30px;
+    line-height: 28px;
     color: #C4C6CC;
   }
 
@@ -28,11 +28,10 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    min-height: 30px;
-    padding: 4px 4px 0 0;
+    padding: 2px 4px 0 0;
 
     .auto-width-input-component {
-      margin: 0 4px 4px 0;
+      margin: 0 4px 2px 0;
     }
 
     .tags-item {
@@ -40,7 +39,7 @@
       align-items: center;
       height: 22px;
       padding: 4px;
-      margin: 0 4px 4px 0;
+      margin: 0 4px 2px 0;
       background: #F0F1F5;
       border-radius: 2px;
 

@@ -150,6 +150,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                 <FunctionCreator
                   key={'function'}
                   options={this.metricFunctions}
+                  showVariables={true}
                   variables={this.getFunctionVariables}
                   onCreateVariable={this.handleCreateFunctionVariable}
                 />

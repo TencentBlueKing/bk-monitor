@@ -171,7 +171,11 @@ export default class TemplateCreate extends tsc<object> {
                       onDelete={() => this.handleDelete(index)}
                     />
                   ))}
-                  <ExpressionPanel metricFunctions={this.metricFunctions} />
+                  <ExpressionPanel
+                    metricFunctions={this.metricFunctions}
+                    variables={this.variablesList}
+                    onCreateVariable={this.handleCreateVariable}
+                  />
                 </div>
               </div>
             </div>
