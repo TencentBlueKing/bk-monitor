@@ -1,11 +1,14 @@
 .v3-bklog-root {
   @media (max-width: 1366px) {
-    .search-bar-container .search-options {
-      width: 44px;
+    .search-bar-wrapper .search-bar-container .search-options {
+      width: 48px;
       color: #313238;
-    }
-    .search-bar-wrapper .search-bar-container .search-options .mode-text {
-      display: none;
+      .mode-text {
+        display: none;
+      }
+      .mode-icon {
+        display: inline-block;
+      }
     }
     .field-setting-wrap {
       width: 40px;
@@ -43,21 +46,6 @@
       }
       .bklog-icon {
         margin: 0;
-      }
-    }
-    .search-bar-wrapper .search-bar-container .search-options .mode-icon {
-      display: inline-block;
-    }
-
-    .box-right-option {
-      .low-resolution-icon {
-        width: 40px;
-        padding: 0;
-        margin: 0;
-
-        .bklog-icon {
-          margin: 0;
-        }
       }
     }
   }
