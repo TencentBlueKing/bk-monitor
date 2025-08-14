@@ -6,10 +6,6 @@
     <span
       :style="{ color: badgeCount !== 0 ? 'red' : '' }"
       :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'}`"
-    ></span>
-    <span
-      :style="{ color: badgeCount !== 0 ? 'red' : '' }"
-      :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'} low-resolution-show`"
       v-bk-tooltips.top="$t('告警')" 
     ></span>
     <span class='warn-table-text'>{{ $t('告警') }}</span>

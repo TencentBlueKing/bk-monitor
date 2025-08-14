@@ -372,11 +372,11 @@
       class="box-right-option"
     >
       <TimeSetting class="custom-border-right"></TimeSetting>
-      <ShareLink class="low-resolution-icon" v-if="!isExternal"></ShareLink>
+      <ShareLink v-if="!isExternal"></ShareLink>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
         ref="fieldSettingRef"
-        class="custom-border-right low-resolution-icon"
+        class="custom-border-right"
       />
       <!-- <FildAlias
         v-if="false"
@@ -385,7 +385,7 @@
       ></FildAlias> -->
       <WarningSetting
         v-if="!isExternal"
-        class="custom-border-right low-resolution-icon"
+        class="custom-border-right"
       ></WarningSetting>
       <ClusterSetting
         class="custom-border-right"
@@ -397,7 +397,7 @@
         <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
       </div> -->
       <BarGlobalSetting
-        class="custom-border-right low-resolution-icon"
+        class="custom-border-right"
         @show-index-config-slider="handleIndexConfigSliderOpen"
       ></BarGlobalSetting>
       <div

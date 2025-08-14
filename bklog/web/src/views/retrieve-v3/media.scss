@@ -1,7 +1,4 @@
 .v3-bklog-root {
-  .low-resolution-show {
-    display: none;
-  }
   @media (max-width: 1366px) {
     .search-bar-container .search-options {
       width: 44px;
@@ -11,50 +8,44 @@
       display: none;
     }
     .field-setting-wrap {
+      width: 40px;
+      padding: 0;
+      margin: 0;
       .field-settin-text{
         display: none;
       }
-      .bklog-setting{
-        display: none;
-      }
-      .low-resolution-show {
-        display: block;
-      }
     }
     .popover-trigger{
-      .bklog-setting-line{
-        display: none;
-      }
+      width: 40px;
+      padding: 0;
+      margin: 0;
       .trigger-label{
         display: none;
       }
-      .low-resolution-show {
-        display: block;
+      .bklog-icon {
+        margin: 0;
       }
     }
     .bklog-v3-select-popover-share{
-      .bklog-share{
-        display: none;
-      }
+      width: 40px;
+      padding: 0;
+      margin: 0;
       .popover-share-text{
         display: none;
       }
-      .low-resolution-show {
-        display: block;
-      }
     }
     .warn-table-wrap{
-      .bklog-icon{
-        display: none;
-      }
+      width: 40px;
+      padding: 0;
+      margin: 0;
       .warn-table-text{
         display: none;
       }
-      .low-resolution-show {
-        display: block;
+      .bklog-icon {
+        margin: 0;
       }
     }
-    .search-bar-wrapper .search-bar-container .search-options .low-resolution-show {
+    .search-bar-wrapper .search-bar-container .search-options .mode-icon {
       display: inline-block;
     }
 

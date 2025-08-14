@@ -500,8 +500,8 @@
         @click="handleQueryTypeChange"
       >
         <span class="mode-text">{{ queryText }}</span>
-        <span v-if="activeIndex === 0" v-bk-tooltips.top="queryText" class="bklog-icon bklog-ui1 low-resolution-show"></span>
-        <span v-if="activeIndex === 1" v-bk-tooltips.top="queryText" class="bklog-icon bklog-yuju1 low-resolution-show"></span>
+        <span v-if="activeIndex === 0" v-bk-tooltips.top="queryText" class="bklog-icon bklog-ui1 mode-icon"></span>
+        <span v-if="activeIndex === 1" v-bk-tooltips.top="queryText" class="bklog-icon bklog-yuju1 mode-icon"></span>
         <span class="bklog-icon bklog-qiehuan-2" />
       </div>
       <div

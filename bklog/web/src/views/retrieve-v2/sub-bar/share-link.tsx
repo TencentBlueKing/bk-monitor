@@ -329,9 +329,8 @@ export default defineComponent({
             scopedSlots: { content: getContentView },
           }}
         >
-          <span class='bklog-icon bklog-share'></span>
           <span
-            class='bklog-icon bklog-share low-resolution-show'
+            class='bklog-icon bklog-share'
             v-bk-tooltips={t('分享')}
           ></span>
           <span
