@@ -28,7 +28,7 @@ import { random } from 'monitor-common/utils';
 
 import { VariableTypeEnum } from '../constants';
 
-import type { MetricDetail } from '../components/type/query-config';
+import type { MetricDetailV2 } from '../typings';
 import type {
   ICommonVariableModel,
   IConditionVariableModel,
@@ -71,7 +71,7 @@ abstract class VariableBase {
 export class ConditionVariableModel extends VariableBase {
   dimensionOption = [];
   /** 关联指标 */
-  metric: MetricDetail = null;
+  metric: MetricDetailV2 = null;
   value: IConditionVariableModel['value'] = [];
   constructor(config: IConditionVariableModel) {
     super(config);
@@ -94,7 +94,7 @@ export class ConditionVariableModel extends VariableBase {
   }
   /** 维度列表 */
   get dimensionList() {
-    return this.nullMetricGroupByList || this.metric.dimensions;
+    return this.metric.dimensions;
   }
   /** 可选维度列表映射 */
   get dimensionOptionsMap() {
@@ -104,13 +104,6 @@ export class ConditionVariableModel extends VariableBase {
   }
   get isAllDimensionOptions() {
     return this.dimensionOption.includes('all');
-  }
-
-  get nullMetricGroupByList() {
-    if (!this.metric) return null;
-    return this.metric.isNullMetric
-      ? this.metric.agg_dimension.map(item => ({ id: item, name: item, disabled: false }))
-      : null;
   }
 }
 
@@ -135,7 +128,7 @@ export class ConstantVariableModel extends VariableBase {
 
 export class DimensionValueVariableModel extends VariableBase {
   /** 关联指标 */
-  metric: MetricDetail = null;
+  metric: MetricDetailV2 = null;
   /** 关联维度 */
   relationDimension = '';
   value = '';
@@ -163,7 +156,7 @@ export class DimensionValueVariableModel extends VariableBase {
 export class DimensionVariableModel extends VariableBase {
   /** 可选维度 */
   dimensionOption = [];
-  metric: MetricDetail = null;
+  metric: MetricDetailV2 = null;
   value = '';
 
   constructor(config: IDimensionVariableModel) {
@@ -191,7 +184,7 @@ export class DimensionVariableModel extends VariableBase {
   }
   /** 维度列表 */
   get dimensionList() {
-    return this.nullMetricGroupByList || this.metric.dimensions;
+    return this.metric.dimensions;
   }
   /** 可选维度列表映射 */
   get dimensionOptionsMap() {
@@ -202,12 +195,7 @@ export class DimensionVariableModel extends VariableBase {
   get isAllDimensionOptions() {
     return this.dimensionOption.includes('all');
   }
-  get nullMetricGroupByList() {
-    if (!this.metric) return null;
-    return this.metric.isNullMetric
-      ? this.metric.agg_dimension.map(item => ({ id: item, name: item, disabled: false }))
-      : null;
-  }
+
   get valueMap() {
     return this.dimensionList.find(item => item.id === this.value);
   }
@@ -233,7 +221,7 @@ export class FunctionVariableModel extends VariableBase {
 }
 
 export class MethodVariableModel extends VariableBase {
-  metric: MetricDetail = null;
+  metric: MetricDetailV2 = null;
   value = '';
   constructor(config: IMethodVariableModel) {
     super(config);
