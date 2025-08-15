@@ -41,6 +41,14 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
 
   @Ref('form') formRef!: any;
 
+  get bizId() {
+    return this.$store.getters.bizId;
+  }
+
+  get bizList() {
+    return this.$store.getters.bizList;
+  }
+
   rules = {
     name: [
       {
@@ -59,21 +67,31 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
   };
 
   handleNameChange(value: string) {
-    this.$emit('onChange', {
+    this.$emit('change', {
       ...this.formData,
       name: value,
     });
   }
 
+  tagTpl(data) {
+    return (
+      <div class='tag'>
+        <span class='tag-name'>{data.name}</span>
+        {this.bizId !== data.id && <i class='icon-monitor icon-mc-close' />}
+      </div>
+    );
+  }
+
   handleEffectChange(value: string) {
-    this.$emit('onChange', {
-      ...this.formData,
-      effect: value,
-    });
+    console.log(value);
+    // this.$emit('change', {
+    //   ...this.formData,
+    //   effect: value,
+    // });
   }
 
   handleDescChange(value: string) {
-    this.$emit('onChange', {
+    this.$emit('change', {
       ...this.formData,
       desc: value,
     });
@@ -118,7 +136,14 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
             property='effect'
             required
           >
-            <bk-select />
+            <bk-tag-input
+              clearable={false}
+              list={this.bizList}
+              tag-tpl={this.tagTpl}
+              trigger='focus'
+              value={this.formData.effect}
+              onChange={this.handleEffectChange}
+            />
           </bk-form-item>
           <bk-form-item
             class='w100'
