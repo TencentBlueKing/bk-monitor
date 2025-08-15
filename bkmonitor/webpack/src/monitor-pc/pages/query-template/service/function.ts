@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-export * from './create';
-export * from './detail';
-export * from './edit';
-export * from './expression';
-export * from './function';
-export * from './metric';
-export * from './query-config';
-export * from './table';
-export * from './variables';
+import { getFunctions } from 'monitor-api/modules/grafana';
+
+import type { FunctionList } from '../typings/function';
+
+/**
+ * 获取全局指标函数列表
+ * @returns 全局指标函数列表
+ */
+export const fetchMetricFunctionList = async (): Promise<FunctionList> => {
+  return await getFunctions<FunctionList>().catch(() => [] as FunctionList);
+};

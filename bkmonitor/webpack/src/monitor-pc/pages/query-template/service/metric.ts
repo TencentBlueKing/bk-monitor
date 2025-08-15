@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,12 +25,49 @@
  * IN THE SOFTWARE.
  */
 
-export * from './create';
-export * from './detail';
-export * from './edit';
-export * from './expression';
-export * from './function';
-export * from './metric';
-export * from './query-config';
-export * from './table';
-export * from './variables';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
+
+import { type QueryConfig, MetricDetailV2 } from '../typings';
+
+export const transformMetricId = (
+  metricId: string,
+  {
+    data_source_label,
+    data_type_label,
+  }: {
+    data_source_label?: string;
+    data_type_label?: string;
+  } = {}
+) => {
+  if (!metricId) return '';
+  if (!(data_type_label === 'log' && data_source_label === 'bk_log_search')) return metricId;
+  const sourceList = metricId.split('.');
+  if (sourceList.length < 4) return metricId;
+  return sourceList.slice(0, 3).join('.');
+};
+
+/**
+ * 获取指标详情
+ * @param queryConfigs 查询QueryConfig配置
+ * @returns 指标详情 MetricDetailV2 实例列表
+ */
+export const fetchMetricDetailList = async (
+  queryConfigs: Partial<Pick<QueryConfig, 'data_source_label' | 'data_type_label' | 'metric_id'>>[]
+) => {
+  const { metric_list } = await getMetricListV2<{
+    metric_list: MetricDetailV2[];
+  }>({
+    conditions: [
+      {
+        key: 'metric_id',
+        value: queryConfigs.map(item =>
+          transformMetricId(item.metric_id, {
+            data_source_label: item.data_source_label,
+            data_type_label: item.data_type_label,
+          })
+        ),
+      },
+    ],
+  }).catch(() => ({ metric_list: [] as MetricDetailV2[] }));
+  return metric_list.map(item => new MetricDetailV2(item));
+};
