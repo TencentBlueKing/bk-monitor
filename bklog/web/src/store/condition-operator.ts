@@ -147,10 +147,11 @@ class ConditionOperator {
 
   /**
    * 格式化接口拿到的查询关系解析成组件可以适配的数据结构
-   * @param isInitializing 是否为初始化,初始化不改变operator
+   * @param isInitializing 是否为初始化,初始化不改变operator，且会获取不显示字段
    * @returns
    */
   formatApiOperatorToFront( isInitializing = false) {
+    const normalizeArray = val => Array.isArray(val) ? val : val !== undefined ? [val] : [];
     // allContainsStrList 列表中包含的操作关系说明是 string | text 字段类型
     // 这些类型需要反向解析 FormatOpetatorFrontToApi 方法生成的语法
     if (!this.isFulltextField && this.allContainsStrList.includes(this.item.operator)) {
@@ -163,12 +164,15 @@ class ConditionOperator {
 
       // 如果是通配符这里不做转换
       if (this.wildcardList.includes(value) || isInitializing) {
+        const values = normalizeArray(this.item.value);
+        const hides = normalizeArray(this.item.hide);
         return {
           operator: value,
           relation,
           field: this.item.field,
           isInclude: this.isWildcardMatch,
-          value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
+          value: [...values, ...hides],
+          showList: [...values.map(() => false), ...hides.map(() => true)]
         };
       }
 
@@ -185,6 +189,19 @@ class ConditionOperator {
     }
 
     const { operator, field, value, isInclude = null, relation = 'OR' } = this.item;
+    if(isInitializing){
+      const values = normalizeArray(this.item.value);
+      const hides = normalizeArray(this.item.hide);
+      
+      return {
+        operator,
+        relation,
+        field,
+        isInclude: this.isWildcardMatch,
+        value: [...values, ...hides],
+        showList: [...values.map(() => false), ...hides.map(() => true)]
+      };
+    }
     return {
       relation,
       operator,

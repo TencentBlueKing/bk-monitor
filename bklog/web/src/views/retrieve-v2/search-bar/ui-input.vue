@@ -392,10 +392,10 @@
       set(item, 'showList', new Array(item.value.length).fill(false))
     }
     set(item.showList, childIndex, show)
-    if (item.showList.every(f => f === false)) {
-      set(item, 'disabled', false);
-    }else if (item.showList.every(f => f === true)) {
+    if (item.showList.every(f => f === true)) {
       set(item, 'disabled', true);
+    }else{
+      set(item, 'disabled', false);
     }
 
     emitChange(cloneDeep(modelValue.value));

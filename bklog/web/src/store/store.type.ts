@@ -114,6 +114,7 @@ export type ConsitionItem = {
   relation?: 'AND' | 'OR';
   isInclude?: boolean;
   field_type?: string;
+  hide?: string[];
 };
 
 export type RouteParams = {

@@ -141,14 +141,13 @@
 
   const setRouteParams = () => {
     const query = { ...route.query };
-
     const nextMode = queryParams[activeIndex.value];
+    const addition = updateRouteParams()
     const resolver = new RetrieveUrlResolver({
       keyword: keyword.value,
-      addition: store.getters.retrieveParams.addition,
+      addition,
       search_mode: nextMode,
     });
-
     Object.assign(query, resolver.resolveParamsToUrl());
     router.replace({
       query,
@@ -482,6 +481,43 @@
     inspectResponse.value.is_legal = true;
     inspectResponse.is_resolved = false;
     inspectPopInstance.hide(300);
+  };
+
+  /**
+   * @description 添加不显示条件到url中
+   * 从getters拿到的addition是已经过滤掉不显示条件的，所以需要手动添加
+   */
+  const updateRouteParams = () => {
+    const originalAddition = deepClone(store.state.indexItem.addition);
+    const filterAddition = originalAddition
+        .filter(item => item.field !== '_ip-select_')
+        .map(({ field, operator, value, showList }) => {
+          const addition = {
+            field,
+            operator,
+            value,
+            hide:value.filter((_, index) => showList[index]),
+          };
+
+          if (['is true', 'is false'].includes(addition.operator)) {
+            addition.value = [''];
+          } else {
+            if (showList) {
+              addition.value = value.filter((_, index) => !showList[index]);
+            }
+          }
+
+          return addition;
+        });
+    filterAddition.forEach(item => {
+      if (['=~', '&=~', '!=~', '&!=~'].includes(item.operator)) {
+        const field = (state.indexFieldInfo?.fields ?? []).find(f => f.field_name === item.field);
+        if (field?.field_type === 'text' && !(field?.is_case_sensitive ?? true)) {
+          item.value = item.value?.map(v => v?.toLowerCase() ?? '');
+        }
+      }
+    });    
+    return filterAddition;
   };
 </script>
 <template>
