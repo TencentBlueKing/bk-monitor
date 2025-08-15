@@ -863,6 +863,7 @@ class CollectorHandler:
                 data_name=cls.build_bk_data_name(instance.get_bk_biz_id(), instance.get_en_name()),
                 description=instance.description,
                 encoding=META_DATA_ENCODING,
+                bk_biz_id=instance.get_bk_biz_id()
             )
             return bk_data_id
 
@@ -1272,6 +1273,7 @@ class CollectorHandler:
                 data_name=self.build_bk_data_name(bkdata_biz_id, collector_config_name_en),
                 description=collector_config_params["description"],
                 encoding=META_DATA_ENCODING,
+                bk_biz_id=bkdata_biz_id
             )
             self.data.save()
 
