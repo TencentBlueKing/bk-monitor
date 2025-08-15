@@ -51,11 +51,11 @@ def test_get_src_table_ids(create_and_delete_record, mocker):
 @pytest.mark.parametrize(
     "table_id, dst_table_id",
     [
-        ("test", "0_test"),
-        ("test.demo", "0_test_demo"),
+        ("test", "2_vm_test"),
+        ("test.demo", "2_vm_test_demo"),
         (
             "test111111111111111111111111111111111111111111111111111111111111.demo",
-            "0_11111111111111111111111111111111111_demo",
+            "2_vm_11111111111111111111111111111111111_demo",
         ),
     ],
 )

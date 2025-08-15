@@ -45,12 +45,6 @@ from .data_pipeline import (
     DataPipelineSpace,
 )
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
-from .downsampled import (
-    DownsampleByDateFlow,
-    DownsampledContinuousQueries,
-    DownsampledDatabase,
-    DownsampledRetentionPolicies,
-)
 from .es_snapshot import (
     EsSnapshot,
     EsSnapshotIndice,
@@ -127,10 +121,6 @@ __all__ = [
     "ESStorage",
     "DorisStorage",
     "BkDataStorage",
-    "DownsampledRetentionPolicies",
-    "DownsampledDatabase",
-    "DownsampledContinuousQueries",
-    "DownsampleByDateFlow",
     "ArgusStorage",
     "StorageClusterRecord",
     # custom_report

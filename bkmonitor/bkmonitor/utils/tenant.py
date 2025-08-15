@@ -93,16 +93,19 @@ def get_tenant_datalink_biz_id(bk_tenant_id: str, bk_biz_id: int | None = None) 
     """
     获取租户下的数据链路业务ID
     """
+    # 获取默认数据存储业务ID
+    default_data_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+
     # 如果业务ID小于等于0，则标记业务ID为默认业务ID
     if bk_biz_id is None or bk_biz_id <= 0:
-        label_biz_id: int = settings.DEFAULT_BK_BIZ_ID
+        label_biz_id: int = default_data_biz_id
+        data_biz_id = default_data_biz_id
     else:
         label_biz_id = bk_biz_id
 
-    # 如果未开启多租户模式，将数据全部归属到默认业务ID
-    if not settings.ENABLE_MULTI_TENANT_MODE:
-        return DatalinkBizIds(label_biz_id=label_biz_id, data_biz_id=settings.DEFAULT_BKDATA_BIZ_ID)
-
-    # 多租户模式下，获取租户下的默认业务ID
-    default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
-    return DatalinkBizIds(label_biz_id=label_biz_id, data_biz_id=default_biz_id)
+        # 如果开启的多租户模式，则数据归属业务ID为实际的业务ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            data_biz_id = bk_biz_id
+        else:
+            data_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
+    return DatalinkBizIds(label_biz_id=label_biz_id, data_biz_id=data_biz_id)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,10 +9,10 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from typing import Dict, List, Optional
 
 from django.db.transaction import atomic
 
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from constants.dataflow import ConsumingMode
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
@@ -33,12 +32,14 @@ class RecordRuleService:
         space_type: str,
         space_id: str,
         record_name: str,
-        rule_type: Optional[str] = DEFAULT_RULE_TYPE,
-        rule_config: Optional[dict] = "",
-        count_freq: Optional[int] = 60,
+        rule_type: str | None = DEFAULT_RULE_TYPE,
+        rule_config: str = "",
+        count_freq: int | None = 60,
+        bk_tenant_id: str | None = None,
     ) -> None:
         self.space_type = space_type
         self.space_id = space_id
+        self.bk_tenant_id = bk_tenant_id or space_uid_to_bk_tenant_id(space_uid=f"{space_type}__{space_id}")
         self.record_name = record_name
         self.rule_type = rule_type
         self.rule_config = rule_config
@@ -65,7 +66,7 @@ class RecordRuleService:
         self._create_vm_storage(table_id, dst_rt)
 
     def _create_record_rule_record(
-        self, table_id: str, bksql: List, rule_metrics: Dict, src_table_ids: List, dst_rt: str, count_freq: int
+        self, table_id: str, bksql: list, rule_metrics: dict, src_table_ids: list, dst_rt: str, count_freq: int
     ):
         """创建预计算记录"""
         vm_info = vm_utils.get_vm_cluster_id_name(space_type=self.space_type, space_id=self.space_id)
@@ -83,6 +84,7 @@ class RecordRuleService:
             "dst_vm_table_id": dst_rt,
             "status": RecordRuleStatus.CREATED.value,
             "count_freq": count_freq,
+            "bk_tenant_id": self.bk_tenant_id,
         }
         # 创建记录
         try:
@@ -101,15 +103,17 @@ class RecordRuleService:
             default_storage=models.ClusterInfo.TYPE_VM,
             creator="system",
             bk_biz_id=biz_id,
+            bk_tenant_id=self.bk_tenant_id,
         )
 
-    def _create_table_id_fields(self, table_id: str, metrics: List):
+    def _create_table_id_fields(self, table_id: str, metrics: list):
         """创建rt的字段"""
         objs = []
         for metric in metrics:
             objs.append(
                 models.ResultTableField(
                     **{
+                        "bk_tenant_id": self.bk_tenant_id,
                         "table_id": table_id,
                         "field_name": metric,
                         "field_type": models.ResultTableField.FIELD_TYPE_STRING,
@@ -124,6 +128,7 @@ class RecordRuleService:
     def _create_vm_storage(self, table_id: str, vm_table_id: str):
         """创建 vm 存储"""
         models.AccessVMRecord.objects.create(
+            bk_tenant_id=self.bk_tenant_id,
             result_table_id=table_id,
             bk_base_data_id=0,  # 没有具体的计算平台ID，设置为 0
             vm_result_table_id=vm_table_id,
@@ -136,7 +141,7 @@ class BkDataFlow:
         self.space_id = space_id
         self.table_id = table_id
 
-    def start_flow(self, check_status: bool = True, consuming_mode: Optional[str] = ConsumingMode.Tail) -> bool:
+    def start_flow(self, check_status: bool = True, consuming_mode: str | None = ConsumingMode.Tail) -> bool:
         """启动数据流"""
         # 如果flow已经启动，则不需要再次启动
         if (

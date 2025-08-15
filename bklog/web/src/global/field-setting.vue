@@ -4,7 +4,8 @@
       class="bklog-v3 field-setting-wrap"
       @click="handleOpenSidebar"
     >
-      <span class="bklog-icon bklog-setting"></span>{{ t('索引配置') }}
+      <span class="bklog-icon bklog-setting" v-bk-tooltips.top="t('索引配置')"></span> 
+      <span class='field-settin-text'>{{ t('索引配置') }}</span>
     </div>
     <bk-sideslider
       :is-show.sync="showSlider"
@@ -316,7 +317,6 @@
     participleState: 'default',
     is_edit: true,
   });
-  const alias_settings = ref([]);
   const batchAddField = () => {
     if (!collectorConfigId.value) return;
     // router.replace({
@@ -468,15 +468,6 @@
         },
       })
       .then(res => {
-        const keys = Object.keys(res.data.alias_settings || {});
-        const arr = keys.map(key => {
-          return {
-            query_alias: key,
-            field_name: res.data.alias_settings[key].path,
-          };
-        });
-        alias_settings.value = arr;
-        concatenationQueryAlias(res.data.fields);
         const collectData = res?.data || {};
         formData.value = collectData;
         cleanType.value = collectData?.etl_config;
@@ -511,14 +502,6 @@
         existingFieldsMap.forEach(existingField => {
           mergedFields.push(existingField);
         });
-        mergedFields.forEach(field => {
-          const matchingAlias = alias_settings.value.find(
-            alias => field.field_name === alias.field_name || field.alias_name === alias.field_name,
-          );
-          if (matchingAlias) {
-            field.query_alias = matchingAlias.query_alias;
-          }
-        });
 
         tableField.value = mergedFields.filter(
           item =>
@@ -531,16 +514,6 @@
         formData.value.etl_params.metadata_fields = res?.data?.etl_params.metadata_fields || [];
       });
     sliderLoading.value = false;
-  };
-  // 拼接query_alias
-  const concatenationQueryAlias = fields => {
-    fields.forEach(item => {
-      alias_settings.value.forEach(item2 => {
-        if (item.field_name === item2.field_name || item.alias_name === item2.field_name) {
-          item.query_alias = item2.query_alias;
-        }
-      });
-    });
   };
   const storageList = ref([]);
   const getStorage = async () => {
@@ -591,7 +564,6 @@
             confirmLoading.value = true;
             sliderLoading.value = true;
             const originfieldTableData = originfieldTable.value?.getData();
-            const indexfieldTableData = indexfieldTable.value.getAllData().filter(item => item.query_alias);
             const data = {
               collector_config_name: formData.value.collector_config_name,
               storage_cluster_id: formData.value.storage_cluster_id,
@@ -607,15 +579,6 @@
               },
               etl_config: formData.value.etl_config,
               fields: indexfieldTable.value.getData().filter(item => !item.is_objectKey && !item.is_built_in),
-              alias_settings: [
-                ...indexfieldTableData.map(item => {
-                  return {
-                    field_name: item.alias_name || item.field_name,
-                    query_alias: item.query_alias,
-                    path_type: item.field_type,
-                  };
-                }),
-              ],
             };
             await http
               .request('collect/fastUpdateCollection', {
@@ -682,7 +645,7 @@
       font-size: 12px;
       cursor: pointer;
 
-      span {
+      .bklog-setting {
         margin: 0px 6px 0 0;
         font-size: 16px;
         // line-height: 20px;
