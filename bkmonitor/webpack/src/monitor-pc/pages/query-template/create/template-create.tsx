@@ -31,11 +31,12 @@ import { getFunctions } from 'monitor-api/modules/grafana';
 import BasicInfoCreate from '../components/basic-info/basic-info-create';
 import ExpressionPanel from '../components/expression-panel/expression-panel';
 import QueryPanel from '../components/query-panel/query-panel';
+import { type VariableTypeEnumType, MetricDetailV2, QueryConfig } from '../typings';
 import { type VariableModelType, getVariableModel } from '../variables';
 import VariablesManage from '../variables/variables-manage/variables-manage';
+import { LETTERS } from '@/common/constant';
 
 import type { MetricDetail } from '../components/type/query-config';
-import type { VariableTypeEnumType } from '../typings';
 
 import './template-create.scss';
 
@@ -60,7 +61,7 @@ export default class TemplateCreate extends tsc<object> {
   };
 
   metricsList: MetricDetail[] = [];
-  queryConfigs = [{}];
+  queryConfigs: QueryConfig[] = [new QueryConfig(null, { alias: 'a' })];
 
   metricFunctions = [];
 
@@ -120,10 +121,25 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleAdd(index: number) {
-    this.queryConfigs.splice(index, 0, {});
+    this.queryConfigs.splice(
+      index,
+      0,
+      new QueryConfig(null, {
+        alias: LETTERS[index + 1],
+      })
+    );
   }
   handleDelete(index: number) {
     this.queryConfigs.splice(index, 1);
+    let i = -1;
+    for (const q of this.queryConfigs) {
+      i += 1;
+      q.alias = LETTERS[i];
+    }
+  }
+
+  handleSelectMetric(index: number, metric: MetricDetailV2) {
+    this.queryConfigs.splice(index, 1, new QueryConfig(new MetricDetailV2(metric)));
   }
 
   render() {
@@ -152,16 +168,18 @@ export default class TemplateCreate extends tsc<object> {
               <div class='template-config-wrap-component'>
                 <div class='template-config-title'>{this.$t('模板配置')}</div>
                 <div class='template-config-content'>
-                  {this.queryConfigs.map((_item, index) => (
+                  {this.queryConfigs.map((item, index) => (
                     <QueryPanel
-                      key={index}
+                      key={item.key}
                       hasAdd={index === this.queryConfigs.length - 1}
                       hasDelete={this.queryConfigs.length >= 2}
                       metricFunctions={this.metricFunctions}
+                      queryConfig={item}
                       variables={this.variablesList}
                       onAdd={() => this.handleAdd(index)}
                       onCreateVariable={this.handleCreateVariable}
                       onDelete={() => this.handleDelete(index)}
+                      onSelectMetric={metric => this.handleSelectMetric(index, metric)}
                     />
                   ))}
                   <ExpressionPanel
