@@ -28,7 +28,6 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SelectWrap from '../utils/select-wrap';
-import { isVariableName } from '../utils/utils';
 import VariableName from '../utils/variable-name';
 import FunctionCreatorPop from './function-creator-pop';
 import FunctionCreatorTag from './function-creator-tag';
@@ -73,30 +72,30 @@ export default class FunctionCreator extends tsc<IProps> {
     if (!val?.length) {
       return;
     }
-    const optionMap = new Map();
-    for (const option of this.options) {
-      optionMap.set(option.id, option);
-    }
-    this.curTags = val.map(item => {
-      const option = optionMap.get(item.id);
-      return {
-        ...option,
-        isVariable: isVariableName(item.id),
-        params:
-          item?.params?.map(p => {
-            const optionP = option.params.find(param => param.id === p.id);
-            if (optionP) {
-              return {
-                ...optionP,
-                value: p.value,
-              };
-            }
-            return {
-              ...p,
-            };
-          }) || [],
-      };
-    });
+    // const optionMap = new Map();
+    // for (const option of this.options) {
+    //   optionMap.set(option.id, option);
+    // }
+    // this.curTags = val.map(item => {
+    //   const option = optionMap.get(item.id);
+    //   return {
+    //     ...option,
+    //     isVariable: isVariableName(item.id),
+    //     params:
+    //       item?.params?.map(p => {
+    //         const optionP = option?.params?.find(param => param.id === p.id);
+    //         if (optionP) {
+    //           return {
+    //             ...optionP,
+    //             value: p.value,
+    //           };
+    //         }
+    //         return {
+    //           ...p,
+    //         };
+    //       }) || [],
+    //   };
+    // });
   }
 
   handleOpenChange(v) {
