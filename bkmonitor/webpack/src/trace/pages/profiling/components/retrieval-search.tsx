@@ -182,8 +182,8 @@ export default defineComponent({
     function handleConditionChange(val: IConditionItem, index: number, type: ConditionType) {
       const conditionKey: 'comparisonWhere' | 'where' = type === ConditionType.Where ? 'where' : 'comparisonWhere';
       const conditionItem: IConditionItem[] = [...(props.formData?.[conditionKey] || [])];
-      conditionItem[index] = val;
       const oldVal: IConditionItem = conditionItem[index];
+      conditionItem[index] = val;
       // 如果旧数据有值或者新数据有值，需要根据新条件查询
       handleEmitChange(
         {
@@ -246,7 +246,9 @@ export default defineComponent({
       ).catch(() => ({ label_keys: [] }));
       // 获取label列表后，移除不在列表中的选项
       updateItem.where = props.formData.where.filter(item => labels.label_keys.includes(item.key) || !item.key);
-      updateItem.comparisonWhere = props.formData.comparisonWhere.filter(item => labels.label_keys.includes(item.key) || !item.key);
+      updateItem.comparisonWhere = props.formData.comparisonWhere.filter(
+        item => labels.label_keys.includes(item.key) || !item.key
+      );
       handleEmitChange(updateItem, true);
       labelList.value = labels.label_keys;
     }
