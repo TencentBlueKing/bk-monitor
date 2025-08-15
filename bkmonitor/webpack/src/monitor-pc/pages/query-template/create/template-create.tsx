@@ -42,6 +42,8 @@ import './template-create.scss';
 @Component
 export default class TemplateCreate extends tsc<object> {
   @Ref() createContentWrap: HTMLDivElement;
+  @Ref() basicInfo: BasicInfoCreate;
+  @Ref() variablesManage: VariablesManage;
 
   steps = [
     { title: this.$t('模板配置'), icon: 1 },
@@ -54,9 +56,9 @@ export default class TemplateCreate extends tsc<object> {
   isSticky = false;
 
   basicInfoData = {
-    name: '',
+    name: 'test',
     desc: '',
-    effect: [],
+    effect: [this.$store.getters.bizId],
   };
 
   metricsList: MetricDetail[] = [];
@@ -66,13 +68,18 @@ export default class TemplateCreate extends tsc<object> {
 
   variablesList: VariableModelType[] = [];
 
+  handleBasicInfoChange(basicInfo) {
+    this.basicInfoData = basicInfo;
+  }
+
   handleVariablesChange(variablesList: VariableModelType[]) {
-    console.log(variablesList);
     this.variablesList = variablesList;
   }
 
   handleNextStep() {
-    this.curStep += 1;
+    Promise.all([this.variablesManage.validateVariable(), this.basicInfo.validate()]).then(() => {
+      this.curStep += 1;
+    });
   }
 
   handlePrevStep() {
@@ -147,9 +154,16 @@ export default class TemplateCreate extends tsc<object> {
             ref='createContentWrap'
             class='create-content-wrap'
           >
-            <div class='create-config'>
-              <BasicInfoCreate formData={this.basicInfoData} />
-              <div class='template-config-wrap-component'>
+            <div
+              class='create-config'
+              v-show={this.curStep === 1}
+            >
+              <BasicInfoCreate
+                ref='basicInfo'
+                formData={this.basicInfoData}
+                onChange={this.handleBasicInfoChange}
+              />
+              <div class='template-config-wrap-component panel'>
                 <div class='template-config-title'>{this.$t('模板配置')}</div>
                 <div class='template-config-content'>
                   {this.queryConfigs.map((_item, index) => (
@@ -168,6 +182,20 @@ export default class TemplateCreate extends tsc<object> {
                     metricFunctions={this.metricFunctions}
                     variables={this.variablesList}
                     onCreateVariable={this.handleCreateVariable}
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              class='create-view'
+              v-show={this.curStep === 2}
+            >
+              <div class='panel'>
+                <div class='variable-form'>
+                  <VariablesManage
+                    metricFunctions={this.metricFunctions}
+                    scene='edit'
+                    variablesList={this.variablesList}
                   />
                 </div>
               </div>
@@ -196,9 +224,17 @@ export default class TemplateCreate extends tsc<object> {
             </div>
           </div>
           <VariablesManage
+            ref='variablesManage'
+            v-show={this.curStep === 1}
             metricFunctions={this.metricFunctions}
+            scene='create'
             variablesList={this.variablesList}
             onChange={this.handleVariablesChange}
+          />
+
+          <div
+            class='template-view'
+            v-show={this.curStep === 2}
           />
         </div>
       </div>
