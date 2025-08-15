@@ -1,8 +1,10 @@
 /* stylelint-disable selector-class-pattern */
 .template-config-ui-selector-component {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
   align-items: center;
+  min-height: 46px;
   padding: 4px 4px 0;
 
   .add-btn {
@@ -10,9 +12,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 40px;
-    padding: 0 8px;
-    margin: 0 4px 4px 0;
+    width: 22px;
+    height: 22px;
     font-size: 12px;
     color: #3a84ff;
     cursor: pointer;
@@ -25,86 +26,33 @@
       line-height: 16px;
     }
 
-    &:hover,
-    &.active {
+    &:hover {
       opacity: 1;
     }
   }
 
-  .kv-placeholder {
+  .variable-tag {
     position: relative;
     display: flex;
     align-items: center;
     height: 40px;
-    margin: 0 4px 4px;
-    white-space: nowrap;
+    padding: 4px;
+    margin: 0 4px 4px 0;
+    cursor: pointer;
+    background: #f0f1f5;
+    border-radius: 2px;
 
-    .placeholder-text {
-      font-size: 12px;
-      color: #c4c6cc;
+    &:hover {
+      background: #eaebf0;
     }
 
-    .hover-btn-wrap {
-      position: absolute;
-      bottom: -28px;
-      left: -8px;
-      z-index: 180;
-      display: none;
-      align-items: center;
+    .icon-mc-close {
+      margin-left: 4px;
+      font-size: 18px;
+      color: #979BA5;
 
-      .operate-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        margin-right: 3px;
-        color: #4d4f56;
-        cursor: pointer;
-        background: #fafbfd;
-        border: 1px solid #dcdee5;
-        border-radius: 2px;
-        box-shadow: 0 1px 3px 1px #0000001f;
-
-        .icon-a-Clearqingkong {
-          font-size: 16px;
-        }
-
-        .icon-mc-copy {
-          font-size: 16px;
-        }
-
-        &:hover {
-          color: #3a84ff;
-        }
-      }
-    }
-
-    .auto-width-input-component {
-      min-width: 100px;
-
-      input {
-        position: relative;
-        top: 3px;
-      }
-
-      input::placeholder {
-        font-size: 12px;
-        color: #c4c6cc;
-      }
-    }
-
-    &.is-en {
-      .auto-width-input-component {
-        min-width: 145px;
-      }
-    }
-  }
-
-  &:hover {
-    .kv-placeholder {
-      .hover-btn-wrap {
-        display: flex;
+      &:hover {
+        color: #979ba5;
       }
     }
   }

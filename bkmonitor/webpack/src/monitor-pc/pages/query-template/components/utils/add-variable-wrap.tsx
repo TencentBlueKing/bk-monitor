@@ -32,6 +32,7 @@ import VariableNameInput from './variable-name-input';
 import './add-variable-wrap.scss';
 
 interface IProps {
+  hasOperate?: boolean;
   notPop?: boolean;
   show?: boolean;
   value: string;
@@ -45,6 +46,7 @@ export default class AddVariableWrap extends tsc<IProps> {
   @Prop({ type: String, default: '' }) value: string;
   @Prop({ type: Boolean, default: false }) notPop: boolean;
   @Prop({ type: Boolean, default: false }) show: boolean;
+  @Prop({ type: Boolean, default: true }) hasOperate: boolean;
 
   handleChange(val) {
     this.$emit('change', val);
@@ -72,22 +74,24 @@ export default class AddVariableWrap extends tsc<IProps> {
           value={this.value}
           onChange={this.handleChange}
         />
-        <div class='btn-wrap'>
-          <bk-button
-            class='confirm-btn'
-            size='small'
-            theme='primary'
-            onClick={this.handleAdd}
-          >
-            {this.$t('确定')}
-          </bk-button>
-          <bk-button
-            size='small'
-            onClick={this.handleCancel}
-          >
-            {this.$t('取消')}
-          </bk-button>
-        </div>
+        {this.hasOperate && (
+          <div class='btn-wrap'>
+            <bk-button
+              class='confirm-btn'
+              size='small'
+              theme='primary'
+              onClick={this.handleAdd}
+            >
+              {this.$t('确定')}
+            </bk-button>
+            <bk-button
+              size='small'
+              onClick={this.handleCancel}
+            >
+              {this.$t('取消')}
+            </bk-button>
+          </div>
+        )}
       </div>
     );
   }
