@@ -61,8 +61,7 @@ const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views
 const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/extract/create');
 const ExtractLinkList = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage/manage-extract/extract-link-manage/extract-link-list');
 const ExtractLinkCreate = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage/manage-extract/extract-link-manage/extract-link-create');
-// const ClusterMess = () => import(/* webpackChunkName: 'es-cluster-mess' */ '@/views/manage/es-cluster-status/es-cluster-mess');
-const ClusterMess = () => import(/* webpackChunkName: 'es-cluster-mess' */ '@/views/manage-v2/es-cluster/index.vue');
+const ClusterMess = () => import(/* webpackChunkName: 'es-cluster-mess' */ '@/views/manage-v2/es-cluster/index.tsx');
 const DataLinkConf = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/manage-data-link/manage-data-link-conf');
 const MaskingEdit = () => import(/* webpackChunkName: 'field-masking-separate' */ '@/views/manage/field-masking-separate');
 const MaskingList = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/log-clean/clean-masking/list');

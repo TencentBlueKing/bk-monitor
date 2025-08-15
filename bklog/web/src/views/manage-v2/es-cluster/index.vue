@@ -25,7 +25,7 @@
 * IN THE SOFTWARE.
 -->
 
-<template>
+<template> 
   <div
     ref="accessContainerRef"
     class="es-access-container"
@@ -295,7 +295,7 @@
       @updated="handleUpdated"
     />
   </div>
-</template>
+</template> 
 
 <script>
   import EmptyStatus from '@/components/empty-status';
