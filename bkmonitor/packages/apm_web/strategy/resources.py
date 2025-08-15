@@ -14,7 +14,7 @@ from .mock_data import (
     query_template_detail_by_id_1,
     query_template_detail_by_id_2,
     query_template_list,
-    query_template_preview_by_id_1,
+    query_template_preview_by_id_2,
     query_template_relation_by_id_1,
     query_template_relation_by_id_2,
     query_template_relations,
@@ -77,7 +77,7 @@ class QueryTemplatePreviewResource(Resource):
 
     def perform_request(self, validated_data):
         if validated_data.get("is_mock"):
-            return query_template_preview_by_id_1
+            return query_template_preview_by_id_2
         return {}
 
 
