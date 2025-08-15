@@ -13,12 +13,14 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.data_source import load_data_source
+from bkmonitor.iam import Permission, ActionEnum
 from bkmonitor.models import QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.time_tools import date_convert, parse_time_range
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
+from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.errors.custom_report import (
     CustomEventValidationError,
@@ -382,6 +384,12 @@ class CreateCustomEventGroup(Resource):
         return bk_data_id
 
     def perform_request(self, params: dict):
+        # 进行权限校验
+        if params.get("is_platform", False):
+            username = get_request_username()
+            permission = Permission(username=username)
+            permission.is_allowed(ActionEnum.USE_CUSTOM_EVENT_IS_PLATFORM, raise_exception=True)
+
         operator = get_request_username() or settings.COMMON_USERNAME
         input_bk_biz_id = params["bk_biz_id"]
         if params["is_platform"]:
@@ -515,3 +523,60 @@ class DeleteCustomEventGroup(Resource):
         CustomEventItem.objects.filter(bk_event_group_id=group.bk_event_group_id).delete()
 
         return {"bk_event_group_id": group.bk_event_group_id}
+
+
+class CheckCustomEventIsPlatformPermissionResource(Resource):
+    """
+    检查当前用户是否有平台级自定义事件的权限
+    """
+
+    def perform_request(self, validated_request_data=None):
+        """
+        查询当前用户是否有平台级自定义事件权限
+
+        Returns:
+            dict: 包含权限信息的字典
+            {
+                "has_permission": true/false,  # 是否拥有权限
+                "action_id": "use_custom_event_is_platform"  # 权限ID
+            }
+        """
+        # 获取当前用户
+        username = get_request_username()
+
+        # 检查权限
+        permission = Permission(username=username)
+        has_permission = permission.is_allowed(ActionEnum.USE_CUSTOM_EVENT_IS_PLATFORM, raise_exception=False)
+
+        return {"has_permission": has_permission, "action_id": ActionEnum.USE_CUSTOM_EVENT_IS_PLATFORM.id}
+
+
+class ApplyCustomEventIsPlatformPermissionResource(Resource):
+    """
+    为当前用户申请使用平台级自定义事件的权限
+    """
+
+    def perform_request(self, validated_request_data=None):
+        """
+        申请平台级自定义事件权限
+
+        Returns:
+            dict: 包含权限申请URL和结果的字典
+        """
+        # 获取当前用户
+        username = get_request_username()
+
+        # 创建权限对象
+        permission = Permission(username=username)
+
+        # 检查是否已有平台级自定义事件权限
+        already_has_permission = permission.is_allowed(ActionEnum.USE_CUSTOM_EVENT_IS_PLATFORM, raise_exception=False)
+
+        if already_has_permission:
+            return CustomException("您已拥有使用平台级自定义事件的权限")
+
+        # 生成平台级自定义事件权限的申请数据
+        actions = [ActionEnum.USE_CUSTOM_EVENT_IS_PLATFORM]
+        apply_data, apply_url = permission.get_apply_data(actions)
+
+        return {"apply_url": apply_url, "permission": apply_data}
