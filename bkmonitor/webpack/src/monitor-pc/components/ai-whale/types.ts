@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import type { TranslateResult } from 'vue-i18n';
+
 // AI 快捷方式类型
 export interface AIBluekingShortcut {
   components: ComponentConfig[];
   icon?: string;
   id: string;
-  name: any; // 兼容 i18n 翻译结果
+  name: string | TranslateResult; // 兼容 i18n 翻译结果
 }
 
 // AI 快捷方式数组类型
@@ -40,9 +42,10 @@ export interface ComponentConfig {
   default?: string;
   fillBack: boolean;
   key: string;
-  name: any; // 兼容 i18n 翻译结果
+  name: string | TranslateResult; // 兼容 i18n 翻译结果
   options?: ComponentOption[];
-  placeholder: any; // 兼容 i18n 翻译结果
+  placeholder: string | TranslateResult; // 兼容 i18n 翻译结果
+  required?: boolean;
   selectedText?: string;
   type: 'select' | 'textarea';
 }
@@ -110,6 +113,7 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         type: 'textarea',
         key: 'promql',
         fillBack: true,
+        required: true,
         name: window.i18n.t('指标/PromQL语句'),
         placeholder: window.i18n.t('请输入指标/PromQL语句'),
       },
@@ -117,6 +121,7 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         type: 'textarea',
         key: 'user_demand',
         fillBack: false,
+        required: true,
         name: window.i18n.t('用户指令'),
         placeholder: window.i18n.t('请输入用户指令'),
       },
