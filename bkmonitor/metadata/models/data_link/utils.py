@@ -171,13 +171,15 @@ def get_bkbase_raw_data_id_name(data_source, table_id):
 
 
 @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
-def get_bkbase_raw_data_name_for_v3_datalink(bkbase_data_id):
+def get_bkbase_raw_data_name_for_v3_datalink(bk_tenant_id: str, bkbase_data_id: int):
     """
     获取计算平台对应的data_id_name，适配V3迁移V4场景，具备重试能力
     @param bkbase_data_id: 计算平台数据源ID
     """
     try:
-        raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(bkbase_data_id=bkbase_data_id).get("raw_data_name")
+        raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(
+            bk_tenant_id=bk_tenant_id, bkbase_data_id=bkbase_data_id
+        ).get("raw_data_name")
         return raw_data_name
     except Exception as e:  # pylint: disable=broad-except
         logger.info("get_bkbase_raw_data_name_for_v3_datalink: bkbase_data_id->[%s] error->[%s]", bkbase_data_id, e)

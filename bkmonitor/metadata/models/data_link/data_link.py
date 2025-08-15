@@ -196,7 +196,7 @@ class DataLink(models.Model):
             "name": bkbase_vmrt_name,
             "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
         }
-        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             sink_item["tenant"] = self.bk_tenant_id
 
         data_bus_ins, _ = DataBusConfig.objects.get_or_create(
@@ -299,7 +299,7 @@ class DataLink(models.Model):
                         "name": usage_vmrt_name,
                         "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                     }
-                    if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+                    if settings.ENABLE_MULTI_TENANT_MODE:
                         sink_item["tenant"] = self.bk_tenant_id
 
                     sinks = [sink_item]
@@ -309,7 +309,7 @@ class DataLink(models.Model):
                         "name": usage_cmdb_level_vmrt_name,
                         "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                     }
-                    if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+                    if settings.ENABLE_MULTI_TENANT_MODE:
                         sink_item_cmdb["tenant"] = self.bk_tenant_id
 
                     sinks_cmdb = [sink_item_cmdb]
@@ -365,7 +365,7 @@ class DataLink(models.Model):
             "name": self.data_link_name,
             "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
         }
-        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             conditional_sink_item["tenant"] = self.bk_tenant_id
 
         conditional_sink = [conditional_sink_item]
@@ -746,7 +746,7 @@ class DataLink(models.Model):
                     "name": bkbase_vmrt_name,
                     "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                 }
-                if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+                if settings.ENABLE_MULTI_TENANT_MODE:
                     sink_item["tenant"] = self.bk_tenant_id
 
                 sinks = [sink_item]
