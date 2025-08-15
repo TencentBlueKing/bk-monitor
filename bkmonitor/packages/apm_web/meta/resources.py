@@ -728,6 +728,9 @@ class SetupResource(Resource):
         def setup(self):
             pass
 
+        def get_transfer_config(self):
+            return {}
+
     class NoDataPeriodProcessor(SetupProcessor):
         update_key = ["no_data_period"]
 
@@ -773,6 +776,10 @@ class SetupResource(Resource):
             self._application.setup_config(
                 self._application.apdex_config, self._params, self._application.APDEX_CONFIG_KEY, override=True
             )
+            self._application.apdex_config = self._params
+
+        def get_transfer_config(self):
+            return self._application.get_apdex_config()
 
     class InstanceNameSetupProcessor(SetupProcessor):
         group_key = "application_instance_name_config"
@@ -782,6 +789,10 @@ class SetupResource(Resource):
             self._application.setup_config(
                 self._application.instance_config, self._params, self._application.INSTANCE_NAME_CONFIG_KEY
             )
+            self._application.instance_name_config = self._params
+
+        def get_transfer_config(self):
+            return self._application.get_instance_name_config()
 
     class DimensionSetupProcessor(SetupProcessor):
         group_key = "application_dimension_config"
@@ -791,6 +802,10 @@ class SetupResource(Resource):
             self._application.setup_config(
                 self._application.dimension_config, self._params, self._application.DIMENSION_CONFIG_KEY
             )
+            self._application.dimension_config = self._params
+
+        def get_transfer_config(self):
+            return self._application.get_dimension_config()
 
     class DbSetupProcessor(SetupProcessor):
         update_key = ["application_db_config"]
@@ -802,6 +817,10 @@ class SetupResource(Resource):
                 self._application.DB_CONFIG_KEY,
                 override=True,
             )
+            self._application.db_config = self._params["application_db_config"]
+
+        def get_transfer_config(self):
+            return self._application.get_db_configs()
 
     class QPSSetupProcessor(SetupProcessor):
         update_key = ["application_qps_config"]
@@ -813,6 +832,10 @@ class SetupResource(Resource):
                 self._application.QPS_CONFIG_KEY,
                 override=True,
             )
+            self._application.qps_config = self._params["application_qps_config"]
+
+        def get_transfer_config(self):
+            return self._application.get_qps_config()
 
     class EventSetupProcessor(SetupProcessor):
         update_key = [Application.EVENT_CONFIG_KEY]
@@ -824,6 +847,7 @@ class SetupResource(Resource):
                 self._application.EVENT_CONFIG_KEY,
                 override=True,
             )
+            self._application.event_config = self._params[Application.EVENT_CONFIG_KEY]
 
     def perform_request(self, validated_data):
         try:
@@ -848,6 +872,7 @@ class SetupResource(Resource):
         ]
 
         need_handle_processors = []
+        need_transfer_configs = {}
         for key, value in validated_data.items():
             for processor in processors:
                 if processor.group_key and key == processor.group_key:
@@ -860,10 +885,13 @@ class SetupResource(Resource):
 
         for processor in need_handle_processors:
             processor.setup()
+            need_transfer_configs.update(processor.get_transfer_config())
 
         # Step2: 因为采样配置较复杂所以不走Processor 交给单独Helper处理
         if validated_data.get("application_sampler_config"):
-            SamplingHelpers(validated_data["application_id"]).setup(validated_data["application_sampler_config"])
+            sampling_helpers = SamplingHelpers(validated_data["application_id"])
+            sampling_helpers.setup(validated_data["application_sampler_config"])
+            need_transfer_configs.update(sampling_helpers.get_transfer_config())
 
         Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
@@ -873,7 +901,7 @@ class SetupResource(Resource):
 
         from apm_web.tasks import update_application_config
 
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(application.bk_biz_id, application.app_name, need_transfer_configs)
 
 
 class ListApplicationResource(PageListResource):
@@ -2863,7 +2891,9 @@ class CustomServiceConfigResource(Resource):
         application = Application.objects.filter(
             bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
         ).first()
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(
+            application.bk_biz_id, application.app_name, application.get_custom_service_config()
+        )
 
     def validate_name(self, validated_data, config_id=None):
         if validated_data["match_type"] == CustomServiceMatchType.AUTO:
@@ -2914,7 +2944,9 @@ class DeleteCustomSeriviceResource(Resource):
         from apm_web.tasks import update_application_config
 
         application = Application.objects.filter(bk_biz_id=instance.bk_biz_id, app_name=instance.app_name).first()
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(
+            application.bk_biz_id, application.app_name, application.get_custom_service_config()
+        )
 
 
 class CustomServiceMatchListResource(Resource):
