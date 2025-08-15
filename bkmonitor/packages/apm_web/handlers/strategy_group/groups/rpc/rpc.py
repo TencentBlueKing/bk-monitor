@@ -39,7 +39,7 @@ from bkmonitor.data_source import q_to_dict
 from bkmonitor.models import UserGroup
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, PUBLIC_NOTICE_CONFIG
-from constants.apm import MetricTemporality, TRPCMetricTag
+from constants.apm import MetricTemporality, RPCMetricTag
 from core.drf_resource import resource
 
 from ... import base, define
@@ -87,7 +87,7 @@ class RPCStrategyOptions(serializers.Serializer):
 
 
 class RPCStrategyGroup(base.BaseStrategyGroup):
-    _NOT_SUPPORT_FILTER_RPC_DIMENSIONS: list[str] = ["time", TRPCMetricTag.TARGET, TRPCMetricTag.SERVICE_NAME]
+    _NOT_SUPPORT_FILTER_RPC_DIMENSIONS: list[str] = ["time", RPCMetricTag.TARGET, RPCMetricTag.SERVICE_NAME]
 
     DEPLOYMENT_POD_NAME_PATTERN = re.compile("^([a-z0-9-]+?)(-[a-z0-9]{5,10}-[a-z0-9]{5})$")
     STATEFUL_SET_POD_NAME_PATTERN = re.compile(r"^([a-z0-9-]+?)-\d+$")
@@ -294,10 +294,10 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         service_config: dict[str, Any] = (
             settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{self.bk_biz_id}-{self.app_name}") or {}
         )
-        config_server_field: str = service_config.get("server_field") or TRPCMetricTag.SERVICE_NAME
+        config_server_field: str = service_config.get("server_field") or RPCMetricTag.SERVICE_NAME
         if config_server_field == MetricTemporality.DYNAMIC_SERVER_FIELD:
-            caller_server_field: str = TRPCMetricTag.CALLER_SERVER
-            callee_server_field: str = TRPCMetricTag.CALLEE_SERVER
+            caller_server_field: str = RPCMetricTag.CALLER_SERVER
+            callee_server_field: str = RPCMetricTag.CALLEE_SERVER
         else:
             caller_server_field: str = config_server_field
             callee_server_field: str = config_server_field
@@ -314,9 +314,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         )
 
         group: metric_group.TrpcMetricGroup = self.rpc_metric_group_constructor()
-        with_app_attr_services: set[str] = set(
-            group.fetch_server_list(filter_dict={f"{TRPCMetricTag.SERVER}__neq": ""})
-        )
+        with_app_attr_services: set[str] = set(group.fetch_server_list(filter_dict={f"{RPCMetricTag.SERVER}__neq": ""}))
 
         code_redefined_configs = CodeRedefinedConfigRelation.objects.filter(
             bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=callee_servers | caller_servers
@@ -431,9 +429,9 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                 _group_by: list[str] = list(
                     set(self.options[kind]["group_by"]) - set(self._NOT_SUPPORT_FILTER_RPC_DIMENSIONS)
                 )
-                _perspective_group_by: set[str] = {TRPCMetricTag.CALLEE_METHOD} | set(_group_by)
+                _perspective_group_by: set[str] = {RPCMetricTag.CALLEE_METHOD} | set(_group_by)
                 if _cal_type == CalculationType.SUCCESS_RATE:
-                    _perspective_group_by.add(TRPCMetricTag.CODE)
+                    _perspective_group_by.add(RPCMetricTag.CODE)
 
                 _url_templ: str = self._get_caller_callee_url_template(
                     kind, _service_name, _group_by, list(_perspective_group_by)
@@ -473,7 +471,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             if service_info["language"] != TelemetrySdkLanguageValues.GO.value:
                 continue
 
-            if service_info["server_fields"][SeriesAliasType.CALLEE.value] == TRPCMetricTag.TARGET:
+            if service_info["server_fields"][SeriesAliasType.CALLEE.value] == RPCMetricTag.TARGET:
                 with_target_attr_services.append(service_info["name"])
             else:
                 with_service_name_attr_services.append(service_info["name"])
@@ -501,8 +499,8 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             strategies.append(_strategy)
 
         # Panic 告警规则相对单一，此处聚合上报行为相同的服务为同一条告警策略，减少内置策略数
-        _handle(list(with_target_attr_services), TRPCMetricTag.TARGET, MetricTemporality.DELTA)
-        _handle(list(with_service_name_attr_services), TRPCMetricTag.SERVICE_NAME, MetricTemporality.CUMULATIVE)
+        _handle(list(with_target_attr_services), RPCMetricTag.TARGET, MetricTemporality.DELTA)
+        _handle(list(with_service_name_attr_services), RPCMetricTag.SERVICE_NAME, MetricTemporality.CUMULATIVE)
         return strategies
 
     def _list_resource(self, cal_type_config_mapping: dict[str, dict[str, Any]]) -> list[StrategyT]:

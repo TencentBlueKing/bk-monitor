@@ -515,7 +515,7 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
                 field_name: str = metric_info["field_name"]
                 if field_name in field_name_to_metric_info:
                     # 指标已存在，合并标签
-                    field_name_to_tags.update(_to_tags(metric_info))
+                    field_name_to_tags[field_name].update(_to_tags(metric_info))
                     continue
 
                 copy_metric_info: dict[str, Any] = copy.deepcopy(metric_info)
