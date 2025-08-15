@@ -85,6 +85,7 @@ export default class ExpressionConfigCreator extends tsc<IProps> {
           />
           <FunctionCreator
             options={this.metricFunctions}
+            showVariables={true}
             variables={this.getFunctionVariables}
             onCreateVariable={this.handleCreateFunctionVariable}
           />

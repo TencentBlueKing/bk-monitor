@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import AddVariableOption from '../utils/add-variable-option';
 import SelectWrap from '../utils/select-wrap';
+import { isVariableName } from '../utils/utils';
 import VariableName from '../utils/variable-name';
 import AutoWidthInput from '@/components/retrieval-filter/auto-width-input';
 
@@ -40,7 +41,9 @@ interface IProps {
   options?: IDimensionOptionsItem[];
   showLabel?: boolean;
   showVariables?: boolean;
+  value?: string[];
   variables?: IVariablesItem[];
+  onChange?: (val: string[]) => void;
   onCreateVariable?: (val: string) => void;
 }
 
@@ -54,6 +57,7 @@ export default class DimensionCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) options: IDimensionOptionsItem[];
   /* 是否展示变量 */
   @Prop({ default: false }) showVariables: boolean;
+  @Prop({ default: () => [] }) value: string[];
 
   @Ref('inputRef') inputRef: AutoWidthInput;
 
@@ -80,6 +84,19 @@ export default class DimensionCreator extends tsc<IProps> {
     this.$nextTick(() => {
       this.popOffsetLeft = this.inputRef.$el.offsetLeft;
     });
+  }
+
+  @Watch('value', { immediate: true })
+  handleWatchValue() {
+    const optionMap = new Map();
+    for (const o of this.options) {
+      optionMap.set(o.id, o);
+    }
+    this.curTags = this.value.map(item => ({
+      id: item,
+      name: optionMap.get(item)?.name || item,
+      isVariable: isVariableName(item),
+    }));
   }
 
   handleOpenChange(v) {
@@ -115,14 +132,22 @@ export default class DimensionCreator extends tsc<IProps> {
     this.curTags.push(item);
     this.getAllOptions();
     this.showSelect = false;
+    this.$emit(
+      'change',
+      this.curTags.map(item => item.id)
+    );
   }
 
   handleInputChange(val: string) {
     this.inputValue = val;
   }
 
-  handleDelTag(index: number, _item: IDimensionOptionsItem) {
+  handleDelTag(index: number) {
     this.curTags.splice(index, 1);
+    this.$emit(
+      'change',
+      this.curTags.map(item => item.id)
+    );
   }
 
   handleInputEnter() {
@@ -138,6 +163,7 @@ export default class DimensionCreator extends tsc<IProps> {
 
   handleClear() {
     this.curTags = [];
+    this.$emit('change', []);
   }
 
   render() {

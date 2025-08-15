@@ -57,16 +57,25 @@ export default class ConditionCreator extends tsc<IProps> {
   @Prop({ default: true }) hasVariableOperate: boolean;
 
   get fields() {
-    return this.options.map(item => ({
-      alias: item.name,
-      name: item.id,
-      type: EFieldType.text,
-      is_option_enabled: true,
-      supported_operations: this.handleGetMethodList(item?.dimensionType || 'string').map(item => ({
+    return [
+      ...this.variables.map(item => ({
         alias: item.name,
-        value: item.id,
+        name: item.name,
+        type: EFieldType.variable,
+        is_option_enabled: false,
+        supported_operations: [],
       })),
-    }));
+      ...this.options.map(item => ({
+        alias: item.name,
+        name: item.id,
+        type: EFieldType.text,
+        is_option_enabled: true,
+        supported_operations: this.handleGetMethodList(item?.dimensionType || 'string').map(item => ({
+          alias: item.name,
+          value: item.id,
+        })),
+      })),
+    ];
   }
 
   handleGetMethodList(type: 'number' | 'string') {
@@ -76,6 +85,10 @@ export default class ConditionCreator extends tsc<IProps> {
     return STRING_CONDITION_METHOD_LIST;
   }
 
+  handleCreateVariable(val) {
+    this.$emit('createVariable', val);
+  }
+
   render() {
     return (
       <div class='template-condition-creator-component'>
@@ -83,6 +96,7 @@ export default class ConditionCreator extends tsc<IProps> {
         <ConditionCreatorSelector
           fields={this.fields as IFilterField[]}
           hasVariableOperate={this.hasVariableOperate}
+          onCreateVariable={this.handleCreateVariable}
         />
       </div>
     );
