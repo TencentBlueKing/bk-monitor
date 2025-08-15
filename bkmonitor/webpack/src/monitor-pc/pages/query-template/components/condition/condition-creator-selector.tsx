@@ -28,13 +28,15 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import KvTag from '../../../../components/retrieval-filter/kv-tag';
 import UiSelectorOptions from '../../../../components/retrieval-filter/ui-selector-options';
-
-import type {
-  IFilterField,
-  IFilterItem,
-  IGetValueFnParams,
-  IWhereValueOptionsItem,
+import {
+  type IFilterField,
+  type IFilterItem,
+  type IGetValueFnParams,
+  type IWhereValueOptionsItem,
+  ECondition,
+  EMethod,
 } from '../../../../components/retrieval-filter/utils';
+import VariableName from '../utils/variable-name';
 
 import './condition-creator-selector.scss';
 
@@ -45,6 +47,7 @@ interface IProps {
   value?: IFilterItem[];
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChange?: (v: IFilterItem[]) => void;
+  onCreateVariable?: (variableName: string) => void;
 }
 
 @Component
@@ -72,12 +75,7 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
   popoverInstance = null;
   /* 当亲编辑项 */
   updateActive = -1;
-  // /* 是否显示输入框 */
-  // showInput = false;
-  /* 输入框的值 */
-  inputValue = '';
-  /* 是否聚焦 */
-  inputFocus = false;
+  isHover = false;
 
   @Watch('value', { immediate: true })
   handleWatchValue() {
@@ -98,10 +96,10 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
       trigger: 'click',
       placement: 'bottom-start',
       theme: 'light common-monitor',
-      arrow: true,
+      arrow: false,
       interactive: true,
       boundary: 'window',
-      distance: 20,
+      distance: 17,
       zIndex: 998,
       animation: 'slide-toggle',
       followCursor: false,
@@ -128,7 +126,6 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
       target: event.currentTarget,
     };
     this.handleShowSelect(customEvent);
-    this.hideInput();
   }
 
   /**
@@ -136,7 +133,6 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
    */
   handleCancel() {
     this.destroyPopoverInstance();
-    this.hideInput();
   }
   /**
    * @description 点击弹层确认
@@ -152,10 +148,6 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
     }
     this.localValue = localValue;
     this.destroyPopoverInstance();
-    this.hideInput();
-    // setTimeout(() => {
-    //   this.handleClickComponent();
-    // }, 300);
     this.handleChange();
   }
 
@@ -182,68 +174,80 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
       target: event.currentTarget,
     };
     this.handleShowSelect(customEvent);
-    this.hideInput();
-  }
-
-  /**
-   * @description 点击组件
-   */
-  handleClickComponent(event?: MouseEvent) {
-    event?.stopPropagation();
-    this.updateActive = -1;
-    // this.showInput = true;
-    this.inputFocus = true;
-    const el = this.$el.querySelector('.kv-placeholder');
-    const customEvent = {
-      ...event,
-      target: el,
-    };
-    this.handleShowSelect(customEvent);
-  }
-
-  hideInput() {
-    this.inputFocus = false;
-    // this.showInput = false;
-    this.inputValue = '';
   }
 
   handleChange() {
     this.$emit('change', this.localValue);
   }
 
+  handleMouseEnter() {
+    this.isHover = true;
+  }
+  handleMouseLeave() {
+    this.isHover = false;
+  }
+
+  handleCreateVariable(val) {
+    this.$emit('createVariable', val);
+    this.localValue.push({
+      key: { id: val, name: val },
+      method: { id: EMethod.eq, name: '' },
+      value: [],
+      condition: { id: ECondition.and, name: 'AND' },
+      options: {
+        isVariable: true,
+      },
+    });
+    this.destroyPopoverInstance();
+  }
+
   render() {
     return (
       <div
         class='template-config-ui-selector-component'
-        onClick={this.handleClickComponent}
+        onMouseenter={this.handleMouseEnter}
+        onMouseleave={this.handleMouseLeave}
       >
+        {this.localValue.map((item, index) =>
+          item?.options?.isVariable ? (
+            <div
+              key={`${index}_kv`}
+              class='variable-tag'
+              onClick={event => this.handleUpdateTag(event, index)}
+            >
+              <VariableName name={item.key.name} />
+              <span class='icon-monitor icon-mc-close' />
+            </div>
+          ) : (
+            <KvTag
+              key={`${index}_kv`}
+              hasHideBtn={false}
+              value={item}
+              onDelete={() => this.handleDeleteTag(index)}
+              onUpdate={event => this.handleUpdateTag(event, index)}
+            />
+          )
+        )}
+
         <div
           class='add-btn'
           onClick={this.handleAdd}
         >
           <span class='icon-monitor icon-mc-add' />
-          <span class='add-text'>{this.$t('添加条件')}</span>
         </div>
-        {this.localValue.map((item, index) => (
-          <KvTag
-            key={`${index}_kv`}
-            hasHideBtn={false}
-            value={item}
-            onDelete={() => this.handleDeleteTag(index)}
-            onUpdate={event => this.handleUpdateTag(event, index)}
-          />
-        ))}
+
         <div style='display: none;'>
           <div ref='selector'>
             <UiSelectorOptions
               fields={[...this.fields]}
               getValueFn={this.getValueFn}
               hasVariableOperate={this.hasVariableOperate}
-              keyword={this.inputValue}
+              isEnterSelect={true}
               show={this.showSelector}
               value={this.localValue?.[this.updateActive]}
               onCancel={this.handleCancel}
               onConfirm={this.handleConfirm}
+              onCreateVariable={this.handleCreateVariable}
             />
           </div>
         </div>

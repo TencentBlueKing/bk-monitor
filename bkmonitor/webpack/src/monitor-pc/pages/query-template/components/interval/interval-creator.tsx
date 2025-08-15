@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import CycleInput from '@/components/cycle-input/cycle-input';
@@ -33,16 +33,25 @@ import './interval-creator.scss';
 
 interface IProps {
   showLabel?: boolean;
+  value?: number | string;
+  onChange?: (val: number | string) => void;
 }
 
 @Component
 export default class IntervalCreator extends tsc<IProps> {
   /* 是否展示左侧标签 */
   @Prop({ default: true }) showLabel: boolean;
-  interval = 60;
+  @Prop({ default: 60 }) value: number | string;
+  interval: number | string = 60;
+
+  @Watch('value')
+  handleValueChange(val: number | string) {
+    this.interval = val;
+  }
 
   handleIntervalChange(val) {
     this.interval = val;
+    this.$emit('change', val);
   }
 
   render() {

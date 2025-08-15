@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import QueryConfigCreator from '../query-config/query-config-creator';
 
+import type { MetricDetailV2, QueryConfig } from '../../typings';
 import type { VariableModelType } from '../../variables';
 import type { IFunctionOptionsItem } from '../type/query-config';
 
@@ -38,10 +39,12 @@ interface IProps {
   hasAdd?: boolean;
   hasDelete?: boolean;
   metricFunctions?: IFunctionOptionsItem[];
+  queryConfig?: QueryConfig;
   variables?: VariableModelType[];
   onAdd?: () => void;
   onCreateVariable?: (val: VariableModelType) => void;
   onDelete?: () => void;
+  onSelectMetric?: (metric: MetricDetailV2) => void;
 }
 
 @Component
@@ -50,6 +53,7 @@ export default class QueryPanel extends tsc<IProps> {
   @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
   @Prop({ default: false }) hasDelete: boolean;
   @Prop({ default: false }) hasAdd: boolean;
+  @Prop({ default: () => null }) queryConfig: QueryConfig;
 
   handleCreateVariable(val: VariableModelType) {
     this.$emit('createVariable', val);
@@ -63,13 +67,19 @@ export default class QueryPanel extends tsc<IProps> {
     this.$emit('delete');
   }
 
+  handleSelectMetric(metric) {
+    this.$emit('selectMetric', metric);
+  }
+
   render() {
     return (
       <div class='template-query-panel-component'>
         <QueryConfigCreator
           metricFunctions={this.metricFunctions}
+          queryConfig={this.queryConfig}
           variables={this.variables}
           onCreateVariable={this.handleCreateVariable}
+          onSelectMetric={this.handleSelectMetric}
         />
 
         <div class='query-panel-operator'>

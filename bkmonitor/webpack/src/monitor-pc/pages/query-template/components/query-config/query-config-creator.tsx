@@ -35,35 +35,30 @@ import IntervalCreator from '../interval/interval-creator';
 import MethodCreator from '../method/method-creator';
 import MetricCreator from '../metric/metric-creator';
 
+import type { AggFunction, MetricDetailV2, QueryConfig } from '../../typings';
 import type {
   IConditionOptionsItem,
   IDimensionOptionsItem,
   IFunctionOptionsItem,
   IVariablesItem,
-  TMetricDetail,
 } from '../type/query-config';
 
 import './query-config-creator.scss';
 
 interface IProps {
   metricFunctions?: IFunctionOptionsItem[];
-  queryConfig?: IQueryConfig;
+  queryConfig?: QueryConfig;
   variables?: IVariablesItem[];
   onCreateVariable?: (val: IVariablesItem) => void;
-}
-interface IQueryConfig {
-  alias?: string;
-  metric_id: string;
+  onSelectMetric?: (metric: MetricDetailV2) => void;
 }
 
 @Component
 export default class QueryConfigCreator extends tsc<IProps> {
-  @Prop({ default: () => null }) queryConfig: IQueryConfig;
   @Prop({ default: () => [] }) variables: IVariablesItem[];
   @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
+  @Prop({ default: () => null }) queryConfig: QueryConfig;
 
-  /* 当前指标 */
-  curMetric: TMetricDetail = null;
   /* 汇聚周期 */
   method = 'avg';
 
@@ -76,36 +71,59 @@ export default class QueryConfigCreator extends tsc<IProps> {
   get getFunctionVariables() {
     return this.variables.filter(item => item.type === VariableTypeEnum.FUNCTION);
   }
+  get getConditionVariables() {
+    return this.variables.filter(item => item.type === VariableTypeEnum.CONDITION);
+  }
   get getAggMethodList() {
-    return this.curMetric?.aggMethodList || [];
+    return this.queryConfig.metricDetail?.methodList || [];
   }
   get getDimensionList() {
-    return this.curMetric?.dimensions || [];
+    return this.queryConfig.metricDetail?.dimensionList || [];
   }
 
-  handleSelectMetric(metric: TMetricDetail) {
-    this.curMetric = metric;
+  handleSelectMetric(metric) {
+    this.$emit('selectMetric', metric);
   }
   handleCreateMethodVariable(val) {
     this.$emit('createVariable', {
       name: val,
       type: VariableTypeEnum.METHOD,
-      metric: this.curMetric,
+      metric: this.queryConfig.metricDetail,
     });
   }
   handleCreateDimensionVariable(val) {
     this.$emit('createVariable', {
       name: val,
       type: VariableTypeEnum.DIMENSION,
-      metric: this.curMetric,
+      metric: this.queryConfig.metricDetail,
     });
   }
   handleCreateFunctionVariable(val) {
     this.$emit('createVariable', {
       name: val,
       type: VariableTypeEnum.FUNCTION,
-      metric: this.curMetric,
+      metric: this.queryConfig.metricDetail,
     });
+  }
+  handleCreateConditionVariable(val) {
+    this.$emit('createVariable', {
+      name: val,
+      type: VariableTypeEnum.CONDITION,
+      metric: this.queryConfig.metricDetail,
+    });
+  }
+
+  handleChangeMethod(val: string) {
+    this.queryConfig.agg_method = val;
+  }
+  handleDimensionChange(val: string[]) {
+    this.queryConfig.agg_dimension = val;
+  }
+  handleChangeFunction(val: AggFunction[]) {
+    this.queryConfig.functions = val;
+  }
+  handleChangeInterval(val: number | string) {
+    this.queryConfig.agg_interval = val;
   }
 
   render() {
@@ -121,21 +139,26 @@ export default class QueryConfigCreator extends tsc<IProps> {
               class='query-config-row'
             >
               <MetricCreator
-                metricId={this.queryConfig?.metric_id}
+                metricDetail={this.queryConfig.metricDetail}
                 onSelectMetric={this.handleSelectMetric}
               />
-              {!!this.curMetric && [
+              {!!this.queryConfig.metricDetail && [
                 <MethodCreator
                   key={'method'}
                   options={this.getAggMethodList}
                   showVariables={true}
                   variables={this.getMethodVariables}
+                  onChange={this.handleChangeMethod}
                   onCreateVariable={this.handleCreateMethodVariable}
                 />,
-                <IntervalCreator key={'interval'} />,
+                <IntervalCreator
+                  key={'interval'}
+                  value={this.queryConfig.agg_interval}
+                  onChange={this.handleChangeInterval}
+                />,
               ]}
             </div>,
-            !!this.curMetric && (
+            !!this.queryConfig.metricDetail && (
               <div
                 key={'row2'}
                 class='query-config-row'
@@ -144,24 +167,32 @@ export default class QueryConfigCreator extends tsc<IProps> {
                   key={'dimension'}
                   options={this.getDimensionList as IDimensionOptionsItem[]}
                   showVariables={true}
+                  value={this.queryConfig.agg_dimension}
                   variables={this.getDimensionVariables}
+                  onChange={this.handleDimensionChange}
                   onCreateVariable={this.handleCreateDimensionVariable}
                 />
                 <FunctionCreator
                   key={'function'}
                   options={this.metricFunctions}
                   showVariables={true}
+                  value={this.queryConfig.functions}
                   variables={this.getFunctionVariables}
+                  onChange={this.handleChangeFunction}
                   onCreateVariable={this.handleCreateFunctionVariable}
                 />
               </div>
             ),
-            !!this.curMetric && (
+            !!this.queryConfig.metricDetail && (
               <div
                 key={'row3'}
                 class='query-config-row'
               >
-                <ConditionCreator options={this.getDimensionList as IConditionOptionsItem[]} />
+                <ConditionCreator
+                  options={this.getDimensionList as IConditionOptionsItem[]}
+                  variables={this.getConditionVariables}
+                  onCreateVariable={this.handleCreateConditionVariable}
+                />
               </div>
             ),
           ]}
