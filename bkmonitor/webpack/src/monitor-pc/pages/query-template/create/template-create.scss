@@ -4,6 +4,12 @@
   width: 100%;
   height: 100%;
 
+  .panel {
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+  }
+
   .template-create-nav {
     display: flex;
     align-items: center;
@@ -72,9 +78,6 @@
         .template-config-wrap-component {
           padding: 24px;
           margin-top: 12px;
-          background: #FFF;
-          border-radius: 2px;
-          box-shadow: 0 2px 4px 0 #1919290d;
 
           .template-config-title {
             margin-bottom: 14px;
@@ -90,6 +93,15 @@
         }
       }
 
+      .create-view {
+        height: 100%;
+        padding: 16px 16px 0;
+
+        .variable-form {
+          padding: 16px;
+        }
+      }
+
       .submit-btns {
         padding: 0 16px;
         margin-top: 32px;
@@ -98,6 +110,7 @@
           position: sticky;
           bottom: 0;
           padding: 8px 16px;
+          margin-top: 0;
           background: #fff;
           box-shadow: 0 -2px 4px 0 #0000001f;
         }
@@ -110,6 +123,11 @@
           }
         }
       }
+    }
+
+    .template-view {
+      width: 482px;
+      background: #FFF;
     }
   }
 }
