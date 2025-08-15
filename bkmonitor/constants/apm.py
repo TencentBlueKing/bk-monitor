@@ -853,32 +853,68 @@ class TrpcAttributes:
 class CommonMetricTag:
     APP_NAME = "app_name"
     SERVICE_NAME = "service_name"
+    SCOPE_NAME = "scope_name"
+    BK_INSTANCE_ID = "bk_instance_id"
+
+    KIND = "kind"
+    SPAN_NAME = "span_name"
+
+    TELEMETRY_SDK_NAME = "telemetry_sdk_name"
+    TELEMETRY_SDK_VERSION = "telemetry_sdk_version"
+    TELEMETRY_SDK_LANGUAGE = "telemetry_sdk_language"
+
+    HTTP_METHOD = "http_method"
+    HTTP_FLAVOR = "http_flavor"
+    HTTP_SCHEME = "http_scheme"
+    HTTP_STATUS_CODE = "http_status_code"
+
+    DB_NAME = "db_name"
+    DB_SYSTEM = "db_system"
+
+    RPC_SYSTEM = "rpc_system"
+    RPC_SERVICE = "rpc_service"
+    RPC_METHOD = "rpc_method"
 
     @classmethod
     def tags(cls) -> list[dict[str, str]]:
         return [
-            {"value": cls.SERVICE_NAME, "text": _("APM 服务")},
+            {"value": cls.SCOPE_NAME, "text": _("指标分组名")},
             {"value": cls.APP_NAME, "text": _("APM 应用")},
+            {"value": cls.SERVICE_NAME, "text": _("APM 服务")},
+            {"value": cls.BK_INSTANCE_ID, "text": _("实例")},
+            {"value": cls.KIND, "text": _("Span 类型")},
+            {"value": cls.SPAN_NAME, "text": _("Span 名称")},
+            {"value": cls.TELEMETRY_SDK_NAME, "text": _("SDK 名称")},
+            {"value": cls.TELEMETRY_SDK_VERSION, "text": _("SDK 版本")},
+            {"value": cls.TELEMETRY_SDK_LANGUAGE, "text": _("SDK 语言")},
+            {"value": cls.HTTP_METHOD, "text": _("HTTP 方法")},
+            {"value": cls.HTTP_FLAVOR, "text": _("HTTP 服务名称")},
+            {"value": cls.HTTP_SCHEME, "text": _("HTTP 协议")},
+            {"value": cls.HTTP_STATUS_CODE, "text": _("HTTP 状态码")},
+            {"value": cls.DB_NAME, "text": _("DB 名称")},
+            {"value": cls.DB_SYSTEM, "text": _("DB 类型")},
+            {"value": cls.RPC_SYSTEM, "text": _("RPC 类型")},
+            {"value": cls.RPC_SERVICE, "text": _("RPC 服务")},
+            {"value": cls.RPC_METHOD, "text": _("RPC 方法")},
         ]
 
 
-class TRPCMetricTag:
+class RPCMetricTag:
     # 通用
-    VERSION = "version"
-    ENV_NAME = "env_name"
-    NAMESPACE = "namespace"
-    SCOPE_NAME = "scope_name"
-    INSTANCE = "instance"
-    CONTAINER_NAME = "container_name"
-    CANARY = "canary"
     CITY = "city"
     REGION = "region"
+    CANARY = "canary"
+    VERSION = "version"
+    SDK_NAME = "sdk_name"
+    ENV_NAME = "env_name"
+    NAMESPACE = "namespace"
     USER_EXT1 = "user_ext1"
     USER_EXT2 = "user_ext2"
     USER_EXT3 = "user_ext3"
     CODE = "code"
     CODE_TYPE = "code_type"
-    SDK_NAME = "sdk_name"
+    INSTANCE = "instance"
+    CONTAINER_NAME = "container_name"
 
     # 主调
     CALLER_SERVER: str = "caller_server"
@@ -937,7 +973,6 @@ class TRPCMetricTag:
             {"value": cls.SERVICE_NAME, "text": _("APM 服务")},
             {"value": cls.APP, "text": _("RPC 应用")},
             {"value": cls.SERVER, "text": _("RPC 服务")},
-            {"value": cls.SCOPE_NAME, "text": _("指标分组名")},
             {"value": cls.INSTANCE, "text": _("实例")},
             {"value": cls.CONTAINER_NAME, "text": _("容器名")},
             {"value": cls.CITY, "text": _("城市")},
@@ -957,7 +992,6 @@ class TRPCMetricTag:
                 cls.ENV_NAME,
                 cls.NAMESPACE,
                 cls.SERVICE_NAME,
-                cls.SCOPE_NAME,
                 cls.INSTANCE,
                 cls.CONTAINER_NAME,
             ]
@@ -1009,16 +1043,16 @@ class TrpcTagDrillOperation:
 
     @classmethod
     def caller_support_operations(cls) -> list[dict[str, Any]]:
-        tag_trace_mapping: dict[str, dict[str, Any]] = TRPCMetricTag.caller_tag_trace_mapping()
+        tag_trace_mapping: dict[str, dict[str, Any]] = RPCMetricTag.caller_tag_trace_mapping()
         return [
             {
                 "text": _("主调"),
                 "value": cls.CALLEE,
                 "tags": [
-                    TRPCMetricTag.CALLER_SERVICE,
-                    TRPCMetricTag.CALLER_METHOD,
-                    TRPCMetricTag.CALLEE_SERVICE,
-                    TRPCMetricTag.CALLEE_METHOD,
+                    RPCMetricTag.CALLER_SERVICE,
+                    RPCMetricTag.CALLER_METHOD,
+                    RPCMetricTag.CALLEE_SERVICE,
+                    RPCMetricTag.CALLEE_METHOD,
                 ],
             },
             {
@@ -1028,23 +1062,23 @@ class TrpcTagDrillOperation:
                 "tag_trace_mapping": tag_trace_mapping,
             },
             # 主调视图下，第一个 group by 字段为「被调服务」时，可以跳转到拓扑页
-            {"text": _("拓扑"), "value": cls.TOPO, "tags": [TRPCMetricTag.CALLEE_SERVER]},
+            {"text": _("拓扑"), "value": cls.TOPO, "tags": [RPCMetricTag.CALLEE_SERVER]},
             # 主调视图下，跳转到该服务的主被调界面，默认展示「被调」
-            {"text": _("查看"), "value": cls.SERVICE, "tags": [TRPCMetricTag.CALLEE_SERVER]},
+            {"text": _("查看"), "value": cls.SERVICE, "tags": [RPCMetricTag.CALLEE_SERVER]},
         ]
 
     @classmethod
     def callee_support_operations(cls) -> list[dict[str, Any]]:
-        tag_trace_mapping: dict[str, dict[str, Any]] = TRPCMetricTag.callee_tag_trace_mapping()
+        tag_trace_mapping: dict[str, dict[str, Any]] = RPCMetricTag.callee_tag_trace_mapping()
         return [
             {
                 "text": _("被调"),
                 "value": cls.CALLEE,
                 "tags": [
-                    TRPCMetricTag.CALLER_SERVICE,
-                    TRPCMetricTag.CALLER_METHOD,
-                    TRPCMetricTag.CALLEE_SERVICE,
-                    TRPCMetricTag.CALLEE_METHOD,
+                    RPCMetricTag.CALLER_SERVICE,
+                    RPCMetricTag.CALLER_METHOD,
+                    RPCMetricTag.CALLEE_SERVICE,
+                    RPCMetricTag.CALLEE_METHOD,
                 ],
             },
             {
@@ -1055,9 +1089,9 @@ class TrpcTagDrillOperation:
             },
             # TODO：需要检查下服务在不在，不在的话最好是有另外的交互提示
             # 被调视图下，第一个 group by 字段为「主调服务」时，可以跳转到拓扑页
-            {"text": _("拓扑"), "value": cls.TOPO, "tags": [TRPCMetricTag.CALLER_SERVER]},
+            {"text": _("拓扑"), "value": cls.TOPO, "tags": [RPCMetricTag.CALLER_SERVER]},
             # 被调视图下，跳转到该服务的主被调界面，默认展示「被调」
-            {"text": _("查看"), "value": cls.SERVICE, "tags": [TRPCMetricTag.CALLER_SERVER]},
+            {"text": _("查看"), "value": cls.SERVICE, "tags": [RPCMetricTag.CALLER_SERVER]},
         ]
 
 
@@ -1161,7 +1195,7 @@ class BaseInnerMetricProcessor:
         return None
 
     @classmethod
-    def process(cls, table: dict[str, Any]) -> bool:
+    def process(cls, table: dict[str, Any]):
         is_processed: bool = False
         is_common: bool = table.get("data_label") == DEFAULT_DATA_LABEL
         for metric in table.get("metric_info_list") or []:
@@ -1177,8 +1211,6 @@ class BaseInnerMetricProcessor:
 
         if is_processed:
             table["label"] = "apm"
-
-        return is_processed
 
 
 class TraceMetric:
@@ -1223,7 +1255,7 @@ class TraceMetricProcessor(BaseInnerMetricProcessor):
 class RPCMetricProcessor(BaseInnerMetricProcessor):
     _GROUP: str = _("调用分析")
 
-    _IGNORED_TAGS: set[str] = {"monitor_name", "con_setid", "node", "target", "tps_tenant_id"}
+    _IGNORED_TAGS: set[str] = {"monitor_name", "con_setid", "node", "target", "tps_tenant_id", "result_table_id"}
 
     _METRICS: dict[str, dict[str, Any]] = {
         "rpc_client_handled_qps": {"description": _("主调请求 QPS"), "unit": ""},
@@ -1242,18 +1274,20 @@ class RPCMetricProcessor(BaseInnerMetricProcessor):
         "rpc_server_handled_seconds_bucket": {"description": _("被调请求耗时分桶"), "unit": ""},
     }
 
-    _TAGS: dict[str, dict[str, Any]] = {tag["value"]: {"description": tag["text"]} for tag in TRPCMetricTag.all_tags()}
+    _TAGS: dict[str, dict[str, Any]] = {tag["value"]: {"description": tag["text"]} for tag in RPCMetricTag.all_tags()}
 
 
 class CommonMetricProcessor(BaseInnerMetricProcessor):
     _GROUP: str = _("APM 自定义指标")
+
+    _IGNORED_TAGS: set[str] = {"tps_tenant_id", "result_table_id"}
 
     _COMMON_TAGS: dict[str, dict[str, Any]] = {
         tag["value"]: {"description": tag["text"]} for tag in CommonMetricTag.tags()
     }
 
     _RPC_COMMON_TAGS: dict[str, dict[str, Any]] = {
-        tag["value"]: {"description": tag["text"]} for tag in TRPCMetricTag.common_tags()
+        tag["value"]: {"description": tag["text"]} for tag in RPCMetricTag.common_tags()
     }
 
     _TAGS: dict[str, dict[str, Any]] = {**_COMMON_TAGS, **_RPC_COMMON_TAGS}
@@ -1264,8 +1298,7 @@ class CommonMetricProcessor(BaseInnerMetricProcessor):
 
 
 class ApmMetricProcessor:
-    # Processor 之间互斥
-    _PROCESSORS: list[BaseInnerMetricProcessor] = [RPCMetricProcessor, TraceMetricProcessor, CommonMetricProcessor]
+    _PROCESSORS: list[BaseInnerMetricProcessor] = [CommonMetricProcessor, RPCMetricProcessor, TraceMetricProcessor]
 
     _TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
 
@@ -1280,9 +1313,7 @@ class ApmMetricProcessor:
             return None
 
         for processor in cls._PROCESSORS:
-            is_processed: bool = processor.process(table)
-            if is_processed:
-                break
+            processor.process(table)
 
         return None
 
@@ -1381,7 +1412,7 @@ class MetricTemporality:
         return {
             "temporality": temporality,
             "server_filter_method": "eq",
-            "server_field": TRPCMetricTag.SERVICE_NAME,
+            "server_field": RPCMetricTag.SERVICE_NAME,
             "service_field": "${service_name}",
         }
 

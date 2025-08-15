@@ -1330,7 +1330,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             "conditions": [
                 {
                     "key": "metric_id",
-                    "value": [f"custom.{application.metric_result_table_id}.{m}" for m, _, _ in TraceMetric.all()],
+                    "value": [f"custom.{application.metric_result_table_id}.{m}" for m in TraceMetric.all()],
                 }
             ],
             "page": 0,
