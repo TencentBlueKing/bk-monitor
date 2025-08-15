@@ -38,6 +38,7 @@ import { BK_LOG_STORAGE } from '../../store/store.type';
 
 import './index.scss';
 import './global-en.scss'
+import './media.scss'
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {

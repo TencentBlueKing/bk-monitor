@@ -43,7 +43,7 @@ class UnifyQueryViewSet(APIViewSet):
         # 非白名单应用需要进行token验证
         verify_unify_query_token(request, auth_info)
 
-    @list_route(methods=["post"], url_path="/ts")
+    @list_route(methods=["post"], url_path="ts")
     def query_ts(self, request):
         """
         @api {post} /query/ts/ 时序型检索
@@ -89,7 +89,7 @@ class UnifyQueryViewSet(APIViewSet):
         """
         return Response(UnifyQueryApi.query_ts(request.data))
 
-    @list_route(methods=["post"], url_path="/ts/reference")
+    @list_route(methods=["post"], url_path="ts/reference")
     def query_ts_reference(self, request):
         """
         @api {post} /query/ts/reference/ 非时序型检索
@@ -135,7 +135,7 @@ class UnifyQueryViewSet(APIViewSet):
         """
         return Response(UnifyQueryHandler.query_ts_reference(request.data))
 
-    @list_route(methods=["post"], url_path="/ts/raw")
+    @list_route(methods=["post"], url_path="ts/raw")
     def query_ts_raw(self, request):
         """
         @api {post} /query/ts/raw/ 时序型检索日志

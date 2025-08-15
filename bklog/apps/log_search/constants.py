@@ -38,6 +38,7 @@ from apps.log_search.exceptions import (
     QueryServerUnavailableException,
     IndexMappingEmptyException,
     TooManyBucketsException,
+    ParseDateFieldException,
 )
 from apps.utils import ChoicesEnum
 from apps.utils.custom_report import render_otlp_report_config
@@ -1793,13 +1794,17 @@ class HighlightConfig:
 
 
 ES_ERROR_PATTERNS = [
-    (r"ERROR DSL is|Lexical error at line|Failed to parse query", ESQuerySyntaxException),
+    (r"ERROR DSL is|Lexical error at line|Failed to parse query|parse_exception", ESQuerySyntaxException),
     (r"No mapping found for \[(?P<field_name>.*?)] in order to sort on", FieldNoMappingException),
     (r"The length of \[(?P<field_name>.*?)] field.*?analyzed for highlighting", HighlightException),
     (r"The length \[\d+] of field \[(?P<field_name>.*?)].*?highlight", HighlightException),
     (r"Can't load fielddata on \[(?P<field_name>.*?)]", UnsupportedOperationException),
     (r"Set fielddata=true on \[(?P<field_name>.*?)] in order to load fielddata", UnsupportedOperationException),
-    (r"connect_timeout\[.*?]|timed out after|HTTPConnectionPool.*?Read timed out", QueryServerUnavailableException),
+    (
+        r"connect_timeout|timed out after|Read timed out|context deadline exceeded|Gateway Time-out|Connection to .*? timed out",
+        QueryServerUnavailableException,
+    ),
     (r"index is empty with \[(?P<result_table_id>.*?)]", IndexMappingEmptyException),
     (r"too_many_buckets_exception.*?Trying to create too many buckets", TooManyBucketsException),
+    (r"failed to parse date field", ParseDateFieldException),
 ]

@@ -175,7 +175,6 @@ export default class AggChart extends tsc<object> {
     const route = this.$route;
     const mappedOperator = OPERATOR_MAPPING[operator] || operator;
 
-    console.log('addCondition', fieldName, operator, value);
     store
       .dispatch('setQueryCondition', {
         field: fieldName,
@@ -214,7 +213,7 @@ export default class AggChart extends tsc<object> {
 
     const mappedOperator = OPERATOR_MAPPING[operator] || operator;
     return (
-      this.retrieveParams?.addition?.some(addition => {
+      store.getters.retrieveParams?.addition?.some(addition => {
         return (
           addition.field === fieldName &&
           addition.operator === mappedOperator &&
