@@ -1,0 +1,102 @@
+.second-confirm-main {
+  width: 360px;
+  padding: 16px;
+  color: #4d4f56;
+
+  .title-main {
+    font-size: 16px;
+    margin-bottom: 16px;
+    color: #313238;
+  }
+
+  .tip-main {
+    font-size: 12px;
+    height: 16px;
+    line-height: 16px;
+  }
+
+  .type-item {
+    width: 100%;
+    height: 56px;
+    background: #ffffff;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+    display: flex;
+    margin-top: 8px;
+    position: relative;
+    cursor: pointer;
+
+    &.is-active {
+      border-color: #3a84ff;
+
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 0;
+        height: 0;
+        border-style: solid;
+        border-width: 0 28px 28px 0;
+        border-color: transparent #3a84ff transparent transparent;
+      }
+
+      .icon-main {
+        border-color: #3a84ff;
+        background: #f0f5ff;
+        color: #3a84ff;
+      }
+    }
+
+    .check-icon {
+      position: absolute;
+      right: 0;
+      top: -5px;
+      color: #fff;
+      z-index: 999;
+      font-size: 16px;
+    }
+
+    .icon-main {
+      width: 52px;
+      height: 100%;
+      background: #f5f7fa;
+      border-right: 1px solid #c4c6cc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+    }
+
+    .content-main {
+      flex: 1;
+      padding: 6px 8px;
+
+      .content-title {
+        font-size: 14px;
+        height: 20px;
+        margin-bottom: 2px;
+      }
+
+      .describe {
+        font-size: 12px;
+        color: #979ba5;
+        height: 20px;
+      }
+    }
+  }
+
+  .operate-btns {
+    margin-top: 16px;
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+}
+
+.tippy-box[data-theme~='second-confirm-popover'] {
+  .tippy-content {
+    padding: 0 !important;
+  }
+}

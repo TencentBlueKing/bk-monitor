@@ -1,0 +1,57 @@
+.log-table-header-main-wraper {
+  width: 100%;
+  overflow-x: hidden;
+
+  .log-table-header-main {
+    width: 100%;
+    background-color: #f5f7fa;
+    table-layout: fixed;
+    border-collapse: collapse;
+    scrollbar-gutter: stable;
+    position: relative;
+
+    thead {
+      margin: 0 12px;
+    }
+
+    tr {
+      height: 36px;
+      text-align: left;
+      font-size: 12px;
+      color: #313238;
+
+      th {
+        cursor: pointer;
+        padding-left: 8px;
+        &:hover {
+          background: #f0f1f5;
+        }
+      }
+
+      .sort-column {
+        display: flex;
+        align-items: center;
+
+        .tip-main {
+          margin-left: 4px;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+}
+
+.resize-guide-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 10;
+  display: none;
+  width: 2px;
+  height: 100%;
+  background-color: #3a84ff;
+}
+
+.no-user-select {
+  user-select: none;
+}
