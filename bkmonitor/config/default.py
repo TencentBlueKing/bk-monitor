@@ -1156,7 +1156,10 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
 
 # 腾讯云监控API地址
-QCLOUD_MONITOR_API_BASE_URL = os.getenv("BKAPP_QCLOUD_MONITOR_API_BASE_URL", "")
+QCLOUD_MONITOR_API_BASE_URL = os.getenv(
+    "BKAPP_QCLOUD_MONITOR_API_BASE_URL",
+    "http://bkmonitor-operator-stack-operator.bkmonitor-operator.svc.cluster.local:8080",
+)
 
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)

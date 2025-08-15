@@ -21,7 +21,7 @@ class QcloudMonitorAPIResource(APIResource, metaclass=abc.ABCMeta):
     TIMEOUT = 30
 
     base_url_statement = None
-    base_url = getattr(settings, "QCLOUD_MONITOR_API_BASE_URL", "http://qcloudmonitor")
+    base_url = settings.QCLOUD_MONITOR_API_BASE_URL
 
     # 模块名
     module_name = "qcloud_monitor"
