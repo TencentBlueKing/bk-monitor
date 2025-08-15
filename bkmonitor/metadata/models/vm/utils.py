@@ -16,6 +16,7 @@ from django.conf import settings
 from django.db.models import Q
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
@@ -80,6 +81,8 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access vm", bk_biz_id, table_id, data_id)
 
     from metadata.models import AccessVMRecord, KafkaStorage, Space, SpaceVMInfo
+
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
 
     # NOTE: 0 业务没有空间信息，不需要查询或者创建空间及空间关联的 vm
     space_data = {}
@@ -156,6 +159,7 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
 
     try:
         AccessVMRecord.objects.create(
+            bk_tenant_id=bk_tenant_id,
             data_type=data_type,
             result_table_id=table_id,
             bcs_cluster_id=bcs_cluster_id,
@@ -701,6 +705,7 @@ def create_bkbase_data_link(
 
     # 2. 创建链路资源对象
     data_link_ins, _ = DataLink.objects.get_or_create(
+        bk_tenant_id=data_source.bk_tenant_id,
         data_link_name=bkbase_data_name,
         namespace=namespace,
         data_link_strategy=data_link_strategy,
@@ -761,6 +766,7 @@ def create_bkbase_data_link(
         data_link_strategy,
     )
     AccessVMRecord.objects.update_or_create(
+        bk_tenant_id=data_source.bk_tenant_id,
         result_table_id=monitor_table_id,
         bk_base_data_id=data_source.bk_data_id,
         bk_base_data_name=bkbase_data_name,
@@ -822,6 +828,7 @@ def create_fed_bkbase_data_link(
         bkbase_data_name,
     )
     data_link_ins, _ = DataLink.objects.get_or_create(
+        bk_tenant_id=data_source.bk_tenant_id,
         data_link_name=bkbase_data_name,
         namespace=namespace,
         data_link_strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
