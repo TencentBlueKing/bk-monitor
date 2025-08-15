@@ -1162,18 +1162,18 @@ class BaseInnerMetricProcessor:
         return cls._METRICS.get(metric_name, {"description": "", "unit": ""})
 
     @classmethod
-    def process_metric(cls, metric_info: dict[str, Any]) -> None:
+    def process_metric(cls, metric_info: dict[str, Any]):
         """处理指标信息，添加单位和描述等"""
         field_name: str | None = metric_info.get("field_name")
         if not field_name:
-            return None
+            return
 
         info: dict[str, Any] = cls.info(field_name)
         metric_info["unit"] = info.get("unit", "")
         metric_info["description"] = info.get("description", "")
 
         if not cls._TAGS:
-            return None
+            return
 
         for tag in metric_info.get("tag_list") or []:
             extra_tag: dict[str, Any] | None = cls._TAGS.get(tag["field_name"])
@@ -1182,17 +1182,14 @@ class BaseInnerMetricProcessor:
 
             tag["description"] = f"{extra_tag['description']}（{tag['field_name']}）"
 
-        return None
-
     @classmethod
-    def _drop_tags(cls, metric_info: dict[str, Any]) -> None:
+    def _drop_tags(cls, metric_info: dict[str, Any]):
         """删除不需要的标签"""
         if not cls._IGNORED_TAGS:
-            return None
+            return
 
         tag_list: list[dict[str, Any]] = metric_info.get("tag_list") or []
         metric_info["tag_list"] = [tag for tag in tag_list if tag["field_name"] not in cls._IGNORED_TAGS]
-        return None
 
     @classmethod
     def process(cls, table: dict[str, Any]):
@@ -1308,14 +1305,12 @@ class ApmMetricProcessor:
         return table.get("data_label") == DEFAULT_DATA_LABEL or cls._TABLE_REGEX.match(table["table_id"]) is not None
 
     @classmethod
-    def process(cls, table: dict[str, Any]) -> None:
+    def process(cls, table: dict[str, Any]):
         if not cls.is_match(table):
-            return None
+            return
 
         for processor in cls._PROCESSORS:
             processor.process(table)
-
-        return None
 
 
 class OtlpProtocol:
