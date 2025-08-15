@@ -40,6 +40,7 @@ from alarm_backends.service.access.event.records.custom_event import (
 )
 from alarm_backends.service.access.priority import PriorityChecker
 from constants.common import DEFAULT_TENANT_ID
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import MAX_RETRIEVE_NUMBER
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -216,6 +217,18 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
         else:
             self.topic = topic
 
+        # 按事件类型分类的策略
+        self.strategies_by_event_type = {
+            self.TYPE_PING: {},
+            self.TYPE_AGENT: {},
+            self.TYPE_COREFILE: {},
+            self.TYPE_DISK_FULL: {},
+            self.TYPE_DISK_READONLY: {},
+            self.TYPE_OOM: {},
+            self.TYPE_GSE_CUSTOM_STR_EVENT: {},
+            self.TYPE_GSE_PROCESS_EVENT: {},
+        }
+
         self.strategies = {}
 
         # gse基础事件、自定义字符型、进程托管事件策略ID列表缓存
@@ -230,9 +243,48 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
             # 过滤出集群需要处理的业务ID
             if not get_cluster().match(TargetType.biz, biz_id):
                 continue
-
+            # 构建策略对象缓存 {biz_id: {strategy_id: Strategy()}}
             for strategy_id in strategy_id_list:
-                self.strategies.setdefault(int(biz_id), {})[strategy_id] = Strategy(strategy_id)
+                strategy = Strategy(strategy_id)
+                # 根据策略配置判断属于哪种事件类型[可能对应多个事件]
+                event_types = self.get_strategy_event_types(strategy)
+                # 为strategies_by_event_type添加策略
+                for event_type in event_types:
+                    if event_type in self.strategies_by_event_type:
+                        self.strategies_by_event_type[event_type].setdefault(int(biz_id), {})[strategy_id] = strategy
+
+    def get_strategy_event_types(self, strategy):
+        """
+        根据策略配置判断属于哪种事件类型
+        """
+        event_types = []
+        for item in strategy.items:
+            for query_config in item.query_configs:
+                if (
+                    query_config.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
+                    and query_config.data_type_label == DataTypeLabel.EVENT
+                ):
+                    metric_id = query_config.metric_id
+
+                    # 根据 metric_id 判断事件类型
+                    if metric_id == "bk_monitor.ping-gse":
+                        event_types.append(self.TYPE_PING)
+                    elif metric_id == "bk_monitor.agent-gse":
+                        event_types.append(self.TYPE_AGENT)
+                    elif metric_id == "bk_monitor.corefile-gse":
+                        event_types.append(self.TYPE_COREFILE)
+                    elif metric_id == "bk_monitor.disk-full-gse":
+                        event_types.append(self.TYPE_DISK_FULL)
+                    elif metric_id == "bk_monitor.disk-readonly-gse":
+                        event_types.append(self.TYPE_DISK_READONLY)
+                    elif metric_id == "bk_monitor.oom-gse":
+                        event_types.append(self.TYPE_OOM)
+                    elif metric_id == "bk_monitor.gse_custom_event":
+                        event_types.append(self.TYPE_GSE_CUSTOM_STR_EVENT)
+                    elif metric_id == "bk_monitor.gse_process_event":
+                        event_types.append(self.TYPE_GSE_PROCESS_EVENT)
+
+        return event_types
 
     def fetch_custom_event_alarm_type(self, raw_data):
         """
@@ -260,25 +312,30 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
             alarm_type = self.fetch_custom_event_alarm_type(raw_data)
 
         # 根据告警类型分配实例化方法
+        # 将策略信息传递给具体的事件记录类， 每个记录可以访问相关的策略配置
+        # 根据告警类型分配实例化方法，传递对应的策略
         if alarm_type in self.OPENED_WHITE_LIST:
+            # 获取该事件类型对应的策略
+            event_strategies = self.strategies_by_event_type.get(alarm_type, {})
+
             if alarm_type == self.TYPE_PING:
                 if settings.ENABLE_PING_ALARM:
-                    return PingEvent(raw_data, self.strategies)
+                    return PingEvent(raw_data, event_strategies)
             elif alarm_type == self.TYPE_AGENT:
                 if settings.ENABLE_AGENT_ALARM:
-                    return AgentEvent(raw_data, self.strategies)
+                    return AgentEvent(raw_data, event_strategies)
             elif alarm_type == self.TYPE_COREFILE:
-                return CorefileEvent(raw_data, self.strategies)
+                return CorefileEvent(raw_data, event_strategies)
             elif alarm_type == self.TYPE_DISK_FULL:
-                return DiskFullEvent(raw_data, self.strategies)
+                return DiskFullEvent(raw_data, event_strategies)
             elif alarm_type == self.TYPE_DISK_READONLY:
-                return DiskReadonlyEvent(raw_data, self.strategies)
+                return DiskReadonlyEvent(raw_data, event_strategies)
             elif alarm_type == self.TYPE_OOM:
-                return OOMEvent(raw_data, self.strategies)
+                return OOMEvent(raw_data, event_strategies)
             elif alarm_type == self.TYPE_GSE_CUSTOM_STR_EVENT:
-                return GseCustomStrEventRecord(raw_data, self.strategies)
+                return GseCustomStrEventRecord(raw_data, event_strategies)
             elif alarm_type == self.TYPE_GSE_PROCESS_EVENT:
-                return GseProcessEventRecord(raw_data, self.strategies)
+                return GseProcessEventRecord(raw_data, event_strategies)
 
     def _pull_from_redis(self, max_records=MAX_RETRIEVE_NUMBER):
         data_channel = key.EVENT_LIST_KEY.get_key(data_id=self.data_id)
@@ -362,7 +419,7 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
 
     def process(self):
         with metrics.ACCESS_EVENT_PROCESS_TIME.labels(data_id=self.data_id).time():
-            if not self.strategies:
+            if not self.strategies_by_event_type:
                 logger.info("no strategy to process")
                 exc = None
             else:
