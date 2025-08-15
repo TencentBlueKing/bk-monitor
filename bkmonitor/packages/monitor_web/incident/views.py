@@ -13,6 +13,8 @@ from django.conf import settings
 from bkmonitor.iam.drf import ViewBusinessPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from .metrics.views import IncidentMetricsViewSet  # noqa
+from .events.views import IncidentEventsViewSet  # noqa
 
 
 class IncidentViewSet(ResourceViewSet):

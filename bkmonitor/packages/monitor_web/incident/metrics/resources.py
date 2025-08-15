@@ -1,0 +1,212 @@
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
+
+from typing import Any
+from core.drf_resource.base import Resource
+from monitor_web.incident.metrics.constants import MetricType, EntityType, MetricName
+from monitor_web.incident.metrics.serializers import MetricsSearchSerializer
+from monitor_web.incident.metrics.config import get_config_by_dimensions
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
+from core.drf_resource import resource
+import threading
+
+
+class BaseIncidentMetricsResource(Resource):
+    """
+    故障告警指标查询接口
+    """
+
+    # 明确定义的度量单位映射，便于扩展
+    UNIT_BY_METRIC = {
+        # 内存量（bytes）
+        MetricName.BCS_PERFORMANCE_MEMORY_USAGE.value: "bytes",
+        MetricName.HOST_MEM_PHYSICAL_FREE.value: "bytes",
+        # 使用率（percent）
+        MetricName.BCS_PERFORMANCE_CPU_USAGE.value: "percentunit",
+        MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE.value: "percentunit",
+        MetricName.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE.value: "percentunit",
+        MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE.value: "percentunit",
+        MetricName.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE.value: "percentunit",
+        MetricName.HOST_CPU_USAGE_RATE.value: "percentunit",
+        MetricName.HOST_DISK_USAGE_RATE.value: "percentunit",
+        # 流量带宽（Bps）
+        MetricName.BCS_TRAFFIC_IN.value: "Bps",
+        MetricName.BCS_TRAFFIC_OUT.value: "Bps",
+        MetricName.HOST_NIC_IN_RATE.value: "Bps",
+        MetricName.HOST_NIC_OUT_RATE.value: "Bps",
+    }
+
+    def __init__(self):
+        super().__init__()
+        self._lock = threading.Lock()
+
+    def _get_tables_by_entity_type(self, entity_type: str, **kwargs) -> str:
+        """
+        根据实体类型获取对应的table名集合
+        """
+
+        table_getters = {
+            EntityType.BcsPod.value: self._get_bcs_pod_tables,
+            EntityType.APMService.value: self._get_apm_service_table,
+            EntityType.BkNodeHost.value: self._get_bk_node_host_tables,
+        }
+
+        getter = table_getters.get(entity_type)
+        return getter(**kwargs) if getter else ""
+
+    def _get_apm_service_table(self, **kwargs) -> str:
+        """
+        获取APMService类型的表名
+        """
+        app_name = kwargs.get("apm_app_name", "")
+        bk_biz_id = kwargs.get("bk_biz_id", 0)
+        if not app_name or not bk_biz_id:
+            return ""
+
+        return f"{bk_biz_id}_bkapm_metric_{app_name}.__default__"
+
+    def _get_bcs_pod_tables(self, **kwargs) -> str:
+        """
+        获取BcsPod类型的表名
+        """
+        return ""
+
+    def _get_bk_node_host_tables(self, **kwargs) -> str:
+        """
+        获取BKNodeHost类型的表名
+        """
+        return ""
+
+
+class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
+    """
+    故障告警指标查询接口
+    """
+
+    # ==================== 配置常量 ====================
+
+    def __init__(self):
+        super().__init__()
+
+    RequestSerializer = MetricsSearchSerializer
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        metric_type = validated_request_data.get("metric_type")
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        base_response = {"bk_biz_id": bk_biz_id, "metrics": {}}
+        if metric_type == MetricType.NODE.value:
+            return self._query_node_metrics(validated_request_data, base_response)
+        elif metric_type == MetricType.EBPF_CALL.value or metric_type == MetricType.DEPENDENCY.value:
+            return self._query_edge_metrics(validated_request_data, base_response)
+
+    def _query_node_metrics(self, validated_request_data: dict, base_response: dict) -> dict:
+        """
+        查询节点指标
+        """
+        query_requests = self._build_metrics_query_requests(validated_request_data)
+        resp = self._execute_query(validated_request_data, query_requests, base_response)
+        return resp
+
+    def _query_edge_metrics(self, validated_request_data: dict, base_response: dict) -> dict:
+        """
+        查询边指标
+        """
+        return base_response
+
+    def _execute_query(self, validated_request_data: dict, query_requests: dict, base_response: dict) -> dict:
+        """
+        执行指标查询
+        """
+        if not query_requests:
+            return base_response
+        metric_type = validated_request_data.get("metric_type")
+        metric_query_response = base_response
+
+        def _aggregation(req_data: dict[str, Any], metric_name: str, dimension_type: str):
+            unify_query_resp = resource.grafana.graph_unify_query(req_data)
+            with self._lock:
+                self._format_metrics_response(
+                    unify_query_resp,
+                    metric_query_response,
+                    metric_name,
+                    dimension_type=dimension_type,
+                    metric_type=metric_type,
+                )
+
+        for metric_name, req_dict in query_requests.items():
+            for dimension_type, req_data in req_dict.items():
+                run_threads([InheritParentThread(target=_aggregation, args=(req_data, metric_name, dimension_type))])
+
+        return metric_query_response
+
+    def _build_metrics_query_requests(self, validated_request_data: dict) -> dict:
+        """
+        构建指标查询请求(key为指标名称,value为查询请求)
+        """
+        index_info: dict[str, Any] = validated_request_data.get("index_info")
+        entity_type: str = index_info.get("entity_type")
+        start_time: int = validated_request_data.get("start_time")
+        end_time: int = validated_request_data.get("end_time")
+        bk_biz_id: int = validated_request_data.get("bk_biz_id")
+
+        dimensions: dict[str, Any] = index_info.get("dimensions", {})
+        app_name: str = dimensions.get("apm_app_name", "")
+
+        table_extra_params = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+        }
+        table: str = self._get_tables_by_entity_type(entity_type, **table_extra_params)
+
+        config_extra_params = {
+            "start_time": start_time,
+            "end_time": end_time,
+            "bk_biz_id": bk_biz_id,
+            "table": table,
+            "entity_type": entity_type,
+        }
+        query_requests = get_config_by_dimensions(dimensions, **config_extra_params)
+        return query_requests
+
+    def _format_metrics_response(
+        self, unify_query_resp: dict[str, Any], metric_query_response: dict[str, Any], metric_name: str, **kwargs
+    ):
+        """
+        格式化指标查询响应
+        """
+        # 初始化或获取metric_info
+        metric_info = metric_query_response["metrics"].get(metric_name)
+        if not metric_info:
+            metric_info = {
+                "metric_name": metric_name,
+                "metric_alias": MetricName(metric_name).label,
+                "metric_type": kwargs.get("metric_type"),
+                "time_series": {},
+                "display_by_dimensions": False,
+            }
+            metric_query_response["metrics"][metric_name] = metric_info
+
+        for series in unify_query_resp.get("series", []):
+            current_dimension_type = kwargs.get("dimension_type")
+            if "dimensions" in series and series["dimensions"]:
+                current_dimension_type = next(iter(series["dimensions"].values()))
+                metric_info["display_by_dimensions"] = True
+
+            # 当 unit 为空时，按规则填充：内存量=bytes；使用率=percentunit；流量带宽=Bps
+            unit = series.get("unit", "")
+            if unit == "":
+                override_unit = self.UNIT_BY_METRIC.get(metric_name)
+                series["unit"] = override_unit if override_unit else ""
+            # 将 datapoints 中的时间戳和值交换位置， 适配格式
+            series["datapoints"] = [[datapoint[1], datapoint[0]] for datapoint in series.get("datapoints", [])]
+            metric_info["time_series"][current_dimension_type] = series
+
+        if len(metric_info["time_series"]) > 1:
+            metric_info["display_by_dimensions"] = True
