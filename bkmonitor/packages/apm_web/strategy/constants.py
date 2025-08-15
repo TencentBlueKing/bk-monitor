@@ -3,7 +3,7 @@ import enum
 
 class QueryTemplateVariableType(enum.Enum):
     GROUP_BY = "GROUP_BY"
-    AGG = "AGG"
+    METHOD = "METHOD"
     DIMENSION_VALUE = "DIMENSION_VALUE"
     CONDITIONS = "CONDITIONS"
     FUNCTIONS = "FUNCTIONS"

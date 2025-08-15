@@ -20,7 +20,7 @@ query_template_detail_by_id_1 = {
             "data_source_label": "custom",
             "data_type_label": "time_series",
             "table": "",
-            "metrics": [{"field": "rpc_server_handled_total", "method": "${AGG}", "alias": "b"}],
+            "metrics": [{"field": "rpc_server_handled_total", "method": "${METHOD}", "alias": "b"}],
             "where": ["${CONDITIONS}"],
             "group_by": ["${GROUP_BY}"],
             "interval": 60,
@@ -32,15 +32,15 @@ query_template_detail_by_id_1 = {
     "functions": [{"id": "topk", "params": [{"id": "k", "value": 5}]}],
     "variables": [
         # GROUP_BY - 维度
-        # AGG - 汇聚方法
+        # METHOD - 汇聚方法
         # DIMENSION_VALUE - 维度值
         # CONDITIONS - 条件
         # INTERVAL - 汇聚周期
         # FUNCTIONS - 函数
         # CONSTANTS - 常规变量
         {
-            "name": "AGG",
-            "type": "AGG",
+            "name": "METHOD",
+            "type": "METHOD",
             "alias": "汇聚变量",
             "default": "SUM",
             "description": "汇聚方法用于对监控数据进行汇聚。",
@@ -78,7 +78,7 @@ query_template_detail_by_id_1 = {
             "name": "CONDITIONS",
             "type": "CONDITIONS",
             "alias": "条件变量",
-            "default": [{"key": "service_name", "operator": "eq", "value": "example.greeter"}],
+            "default": [{"key": "service_name", "method": "eq", "value": ["example.greeter"]}],
             "description": "过滤条件用于筛选出所需的监控数据。",
             "relation_value": {
                 "metric_id": "bk_monitor.system.cpu_summary.usag",
@@ -100,38 +100,50 @@ query_template_detail_by_id_1 = {
 
 query_template_detail_by_id_2 = {
     "id": 2,
-    "name": "设计稿模拟数据",
+    "name": "[RPC] 被调成功率（%）真实数据",
     "query_configs": [
         {
             "data_source_label": "custom",
             "data_type_label": "time_series",
-            "table": "",
             "metrics": [{"field": "rpc_server_handled_total", "method": "SUM", "alias": "a"}],
-            "group_by": ["${GROUP_BY}"],
-            "where": ["${CONDITIONS}", {"key": "code_type", "value": ["success"], "method": "eq", "condition": "and"}],
+            "table": "2_bkapm_metric_tilapia.__default__",
+            "data_label": "bkapm_tilapia",
+            "index_set_id": None,
+            "group_by": [],
+            "where": [
+                "${CONDITIONS}",
+                {"condition": "and", "key": "code_type", "method": "eq", "value": ["${status}"]},
+            ],
             "interval": 60,
-            "time_field": "time",
-            "functions": ["${FUNCTIONS}"],
+            "interval_unit": "s",
+            "time_field": None,
+            "filter_dict": {},
+            "functions": [],
         },
         {
             "data_source_label": "custom",
             "data_type_label": "time_series",
-            "table": "",
-            "metrics": [{"field": "rpc_server_handled_total", "method": "${AGG}", "alias": "b"}],
-            "where": ["${CONDITIONS}"],
+            "metrics": [{"field": "rpc_server_handled_total", "method": "${METHOD}", "alias": "b"}],
+            "table": "2_bkapm_metric_tilapia.__default__",
+            "data_label": "bkapm_tilapia",
+            "index_set_id": None,
             "group_by": ["${GROUP_BY}"],
+            "where": ["${CONDITIONS}"],
             "interval": 60,
-            "time_field": "time",
+            "interval_unit": "s",
+            "time_field": None,
+            "filter_dict": {},
             "functions": ["${FUNCTIONS}"],
         },
     ],
-    "expressions": "(a or b < bool 0) / (b > ${ALARM_THRESHOLD_VALUE}) * 100",
-    "functions": [{"id": "topk", "params": [{"id": "k", "value": 5}]}],
+    "expression": "((a or b < bool  0) /  b * 100) * ${weight_factor}",
+    "functions": [],
+    "alias": "c",
     "variables": [
         {
-            "name": "AGG",
-            "type": "AGG",
-            "alias": "汇聚变量",
+            "name": "METHOD",
+            "type": "METHOD",
+            "alias": "汇聚方法变量",
             "default": "SUM",
             "description": "汇聚方法用于对监控数据进行汇聚。",
         },
@@ -139,53 +151,54 @@ query_template_detail_by_id_2 = {
             "name": "GROUP_BY",
             "type": "GROUP_BY",
             "alias": "维度变量",
-            "default": ["service", "endpoint"],
+            "default": [],
             "description": "聚合维度是在监控数据中对数据进行分组的依据。",
             "relation_value": {
-                "metric_id": "bk_monitor.system.cpu_summary.usag",
-                "name": "CPU使用率",
+                "metric_id": "custom.2_bkapm_metric_tilapia.__default__.rpc_server_handled_total",
+                "name": "rpc_server_handled_total",
             },
-            "allowed_values": ["service", "endpoint", "grpc_service", "grpc_method"],
+            "allowed_values": ["__all__"],
         },
         {
             "name": "FUNCTIONS",
             "type": "FUNCTIONS",
             "alias": "函数变量",
-            "default": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}],
+            "default": [],
             "description": "过滤条件用于筛选出所需的监控数据。",
         },
         {
-            "name": "DIMENSION_VALUE",
+            "name": "status",
             "type": "DIMENSION_VALUE",
-            "alias": "维度值变量",
-            "default": ["example.greeter", "SayHello"],
+            "alias": "状态——维度值变量",
+            "default": ["success"],
             "description": "维度值是在监控数据中对数据进行分组的依据。",
             "relation_value": {
-                "name": "mount_point",
+                "name": "code_type",
             },
         },
         {
             "name": "CONDITIONS",
             "type": "CONDITIONS",
             "alias": "条件变量",
-            "default": [{"key": "service_name", "operator": "eq", "value": "example.greeter"}],
-            "description": "过滤条件用于筛选出所需的监控数据。",
+            "default": [{"key": "service_name", "method": "eq", "value": ["example.greeter"]}],
+            "description": "选择一个期望的服务名称",
             "relation_value": {
-                "metric_id": "bk_monitor.system.cpu_summary.usag",
-                "name": "CPU使用率",
+                "metric_id": "custom.2_bkapm_metric_tilapia.__default__.rpc_server_handled_total",
+                "name": "rpc_server_handled_total",
             },
             "allowed_values": ["__all__"],
         },
         {
-            "name": "ALARM_THRESHOLD_VALUE",
+            "name": "weight_factor",
             "type": "CONSTANTS",
-            "alias": "常规变量",
-            "default": 0,
+            "alias": "加权系数——常规变量",
+            "default": 1,
             "description": "请根据实际业务情况进行调整。",
             "data_type": "Integer",
         },
     ],
 }
+
 
 query_template_list = [
     {
@@ -199,8 +212,8 @@ query_template_list = [
     },
     {
         "id": 2,
-        "name": "设计稿模拟数据",
-        "description": "模板设计稿演示数据",
+        "name": "[RPC] 被调成功率（%）真实数据",
+        "description": "模板演示数据",
         "create_user": "admin",
         "create_time": "2025-08-04 17:43:26+0800",
         "update_user": "admin",
@@ -220,49 +233,65 @@ query_template_relations = [
 ]
 # 查询模板关联资源
 query_template_relation_by_id_1 = [
-    {"url": "", "name": "资源名称1", "type": "ALERT_POLICY"},
-    {"url": "", "name": "资源名称2", "type": "DASHBOARD"},
+    {
+        "url": "https://bkmonitor.paas3-dev.bktencent.com/?bizId=2#/strategy-config/detail/64923",
+        "name": "资源名称1",
+        "type": "ALERT_POLICY",
+    },
+    {
+        "url": "https://bkmonitor.paas3-dev.bktencent.com/?bizId=2#/grafana/d/fxHySlGNz/00-jc-test",
+        "name": "资源名称2",
+        "type": "DASHBOARD",
+    },
 ]
 
 query_template_relation_by_id_2 = [
-    {"url": "", "name": "资源名称", "type": "ALERT_POLICY"},
+    {
+        "url": "https://bkmonitor.paas3-dev.bktencent.com/?bizId=2#/strategy-config/detail/64924",
+        "name": "资源名称",
+        "type": "ALERT_POLICY",
+    },
 ]
 
-strategy_template_preview = {}
-
-query_template_preview_by_id_1 = {
+query_template_preview_by_id_2 = {
+    "id": 2,
+    "name": "[RPC] 被调成功率（%）真实数据",
     "query_configs": [
         {
             "data_source_label": "custom",
             "data_type_label": "time_series",
-            "table": "",
             "metrics": [{"field": "rpc_server_handled_total", "method": "SUM", "alias": "a"}],
-            "group_by": ["service", "endpoint"],
+            "table": "2_bkapm_metric_tilapia.__default__",
+            "data_label": "bkapm_tilapia",
+            "index_set_id": None,
+            "group_by": [],
             "where": [
-                {"key": "service_name", "operator": "eq", "value": "example.greeter"},
-                {
-                    "key": "code_type",
-                    "value": ["success", "example.greeter", "SayHello"],
-                    "method": "eq",
-                    "condition": "and",
-                },
+                {"key": "service_name", "method": "eq", "value": ["example.greeter"]},
+                {"condition": "and", "key": "code_type", "method": "eq", "value": ["success"]},
             ],
             "interval": 60,
-            "time_field": "time",
-            "functions": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}],
+            "interval_unit": "s",
+            "time_field": None,
+            "filter_dict": {},
+            "functions": [],
         },
         {
             "data_source_label": "custom",
             "data_type_label": "time_series",
-            "table": "",
             "metrics": [{"field": "rpc_server_handled_total", "method": "SUM", "alias": "b"}],
-            "where": [{"key": "service_name", "operator": "eq", "value": "example.greeter"}],
-            "group_by": ["service", "endpoint"],
+            "table": "2_bkapm_metric_tilapia.__default__",
+            "data_label": "bkapm_tilapia",
+            "index_set_id": None,
+            "group_by": [],
+            "where": [{"key": "service_name", "method": "eq", "value": ["example.greeter"]}],
             "interval": 60,
-            "time_field": "time",
-            "functions": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}],
+            "interval_unit": "s",
+            "time_field": None,
+            "filter_dict": {},
+            "functions": [],
         },
     ],
-    "expressions": "(a or b < bool 0) / (b > 0.6) * 100",
-    "functions": [{"id": "topk", "params": [{"id": "k", "value": 5}]}],
+    "expression": "((a or b < bool  0) /  b * 100) * 1",
+    "functions": [],
+    "alias": "c",
 }
