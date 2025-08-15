@@ -24,76 +24,49 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { random } from 'monitor-common/utils/utils';
 
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
-import { type TMetricDetail, MetricDetail } from '../type/query-config';
 import { getMetricTip } from '../utils/metric-tip';
 import SelectWrap from '../utils/select-wrap';
+
+import type { MetricDetailV2 } from '../../typings/metric';
+import type { MetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
 import './metric-creator.scss';
 
 interface IProps {
-  metricId?: string;
-  onSelectMetric?: (metric: TMetricDetail) => void;
+  metricDetail?: MetricDetailV2;
+  onSelectMetric?: (metric: MetricDetailV2) => void;
 }
 
 @Component
 export default class MetricCreator extends tsc<IProps> {
-  /* 指标id */
-  @Prop({ type: String, default: '' }) metricId: string;
+  @Prop({ type: Object, default: () => null }) metricDetail: MetricDetailV2;
   /* 指标选择器目标id */
   selectId = '';
   /* 指标选择器是否显示 */
   showSelect = false;
-  /* 已选指标 */
-  curMetric: TMetricDetail = null;
   loading = false;
 
-  get metricAlias() {
-    return !this.curMetric?.metric_field_name || this.curMetric?.metric_field_name === this.curMetric?.metric_field
-      ? ''
-      : this.curMetric?.metric_field_name;
-  }
-
   get metricTips() {
-    return getMetricTip(this.curMetric);
-  }
-
-  @Watch('metricId', { immediate: true })
-  async handleWatchMetricId() {
-    this.getMetricDetail();
+    return getMetricTip(this.metricDetail);
   }
 
   created() {
     this.selectId = `metric-selector-${random(8)}`;
   }
 
-  async getMetricDetail() {
-    if (this.metricId && this.curMetric?.metric_id !== this.metricId) {
-      this.loading = true;
-      const { metric_list: metricList = [] } = await getMetricListV2({
-        conditions: [{ key: 'metric_id', value: [this.metricId] }],
-      }).catch(() => ({}));
-      const curMetric = metricList[0];
-      if (curMetric) {
-        this.curMetric = new MetricDetail(curMetric);
-      }
-      this.loading = false;
-    }
-  }
-
   handleClick() {
     this.showSelect = true;
   }
 
-  handleSelectMetric(metric) {
-    this.curMetric = new MetricDetail(metric);
-    this.$emit('selectMetric', this.curMetric);
+  handleSelectMetric(metric: MetricDetail) {
+    this.showSelect = false;
+    this.$emit('selectMetric', metric.rawMetric);
   }
 
   render() {
@@ -110,10 +83,11 @@ export default class MetricCreator extends tsc<IProps> {
           tipsPlacements={['right']}
           onClick={() => this.handleClick()}
         >
-          <span class='metric-name'>{this.metricAlias}</span>
+          <span class='metric-name'>{this.metricDetail?.metricAlias}</span>
         </SelectWrap>
         <MetricSelector
-          metricId={this.curMetric?.metric_id as string}
+          key={this.selectId}
+          metricId={this.metricDetail?.metric_id as string}
           show={this.showSelect}
           targetId={`#${this.selectId}`}
           onSelected={this.handleSelectMetric}

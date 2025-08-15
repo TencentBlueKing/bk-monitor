@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import AddVariableOption from '../utils/add-variable-option';
 import SelectWrap from '../utils/select-wrap';
+import { isVariableName } from '../utils/utils';
 import VariableName from '../utils/variable-name';
 
 import type { IMethodOptionsItem, IVariablesItem } from '../type/query-config';
@@ -39,6 +40,7 @@ interface IProps {
   options?: IMethodOptionsItem[];
   showLabel?: boolean;
   showVariables?: boolean;
+  value?: string;
   variables?: IVariablesItem[];
   onChange?: (val: string) => void;
   onCreateVariable?: (val: string) => void;
@@ -54,6 +56,7 @@ export default class MethodCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) options: IMethodOptionsItem[];
   /* 是否展示变量 */
   @Prop({ default: false }) showVariables: boolean;
+  @Prop({ default: '' }) value: string;
 
   showSelect = false;
   /* 所有可选项（包含变量） */
@@ -71,6 +74,17 @@ export default class MethodCreator extends tsc<IProps> {
   @Watch('variables', { immediate: true })
   handleWatchVariables() {
     this.getAllOptions();
+  }
+
+  @Watch('value', { immediate: true })
+  handleWatchValue(val) {
+    if (val) {
+      this.curValue = this.allOptions.find(item => item.id === this.value) || {
+        id: this.value,
+        name: this.value,
+        isVariable: isVariableName(this.value),
+      };
+    }
   }
 
   getAllOptions() {
@@ -97,7 +111,7 @@ export default class MethodCreator extends tsc<IProps> {
       return;
     }
     this.curValue = item;
-    this.$emit('change', item);
+    this.$emit('change', item.id);
     this.showSelect = false;
   }
 
