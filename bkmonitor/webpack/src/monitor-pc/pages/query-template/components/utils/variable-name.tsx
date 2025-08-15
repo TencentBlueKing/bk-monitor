@@ -27,6 +27,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { isVariableName } from './utils';
+
 interface IProps {
   name: string;
 }
@@ -36,7 +38,7 @@ export default class VariableName extends tsc<IProps> {
   @Prop({ default: '' }) name: string;
 
   get displayName() {
-    if (/^\$\{\[^]+\}$/.test(this.name)) {
+    if (isVariableName(this.name)) {
       return this.name;
     }
     return `${'${'}${this.name}${'}'}`;

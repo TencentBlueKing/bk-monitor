@@ -27,6 +27,8 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getVariableNameInput, isVariableName } from './utils';
+
 import './variable-name-input.scss';
 
 interface IProps {
@@ -42,8 +44,22 @@ export default class VariableNameInput extends tsc<IProps> {
 
   @Ref('input') inputRef;
 
+  localValue = '';
+
+  @Watch('value', { immediate: true })
+  handleValueChange(val: string) {
+    if (!val) {
+      return;
+    }
+    if (isVariableName(val)) {
+      this.localValue = getVariableNameInput(val);
+    } else {
+      this.localValue = val;
+    }
+  }
+
   handleChange(val: string) {
-    this.$emit('change', val);
+    this.$emit('change', '${' + val + '}');
   }
 
   @Watch('show', { immediate: true })
@@ -62,7 +78,7 @@ export default class VariableNameInput extends tsc<IProps> {
         <bk-input
           ref='input'
           class='variable-name-input'
-          value={this.value}
+          value={this.localValue}
           onChange={this.handleChange}
         />
         <div class='label-right'>{'}'}</div>

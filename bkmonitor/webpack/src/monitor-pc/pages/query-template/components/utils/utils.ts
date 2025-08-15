@@ -24,19 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-export function onClickOutside(element: HTMLElement | HTMLElement[], callback, { once = false } = {}) {
-  const handler = (event: MouseEvent) => {
-    let isInside = false;
-    if (Array.isArray(element)) {
-      isInside = element.some(el => !!el?.contains?.(event.target as HTMLElement));
-    } else {
-      isInside = element.contains(event.target as HTMLElement);
-    }
-    if (!isInside) {
-      callback(event);
-      if (once) window.removeEventListener('click', handler);
-    }
-  };
-  window.addEventListener('click', handler);
-  return () => window.removeEventListener('click', handler);
+export function getVariableNameInput(val: string) {
+  const matches = val.matchAll(/\$\{([^}]+)\}/g);
+  let str = '';
+  for (const match of matches) {
+    str = match[1];
+    break;
+  }
+  return str;
+}
+
+export function isVariableName(val: string) {
+  return !!val && /^\$\{[\s\S]+\}$/.test(val);
 }
