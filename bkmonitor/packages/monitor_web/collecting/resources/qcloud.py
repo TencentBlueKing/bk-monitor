@@ -105,6 +105,8 @@ class CloudProductInstanceQueryResource(Resource):
         secret_key = validated_request_data.get("secret_key")
         task_id = validated_request_data.get("task_id")
 
+        if not region:
+            raise Exception("必须提供region")
         # 如果没有提供凭证信息，从数据库中获取
         if not secret_id or not secret_key:
             if not task_id:
