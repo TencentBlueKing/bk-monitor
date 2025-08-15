@@ -118,7 +118,7 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/trace_query_web/list_web_traces/
+          path: /api/v4/trace_query_web/list_flatten_traces/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
