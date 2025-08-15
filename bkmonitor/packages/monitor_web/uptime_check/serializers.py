@@ -14,6 +14,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
 from django.utils.translation import gettext as _
+from rest_framework.exceptions import PermissionDenied
 
 from bkmonitor.action.serializers import AuthorizeConfigSlz, BodyConfigSlz, KVPairSlz
 from bkmonitor.commons.tools import is_ipv6_biz
@@ -330,6 +331,26 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         # 处理节点信息
         nodes = validated_data.pop("node_id_list", [])
         groups = validated_data.pop("group_id_list", [])
+
+        # 获取当前用户
+        request = self.context.get("request")
+        username = request.user.username if request and hasattr(request, "user") else None
+
+        # 检查权限
+        if username:
+            # 获取节点详情，区分公共节点和业务节点
+            node_objects = UptimeCheckNode.objects.filter(id__in=nodes)
+            common_nodes = [node for node in node_objects if node.is_common]
+
+            # 如果存在公共节点，检查用户是否有权限使用
+            if common_nodes:
+                permission_instance = Permission(username=username)
+                can_use_public_nodes = permission_instance.is_allowed(
+                    ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=False
+                )
+
+                if not can_use_public_nodes:
+                    raise PermissionDenied(_("您没有使用公共拨测节点的权限"))
 
         with transaction.atomic():
             if UptimeCheckTask.objects.filter(
