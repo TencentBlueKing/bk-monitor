@@ -293,7 +293,9 @@ def test_Standard_V2_Time_Series_compose_configs(create_or_delete_records):
     )
 
     with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
-        configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+        configs = data_link_ins.compose_configs(
+            bk_biz_id=1001, data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
+        )
     assert json.dumps(configs) == expected_configs
 
     # 测试实例是否正确创建
@@ -377,7 +379,9 @@ def test_compose_bcs_federal_time_series_configs(create_or_delete_records):
         data_link_strategy=models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
     )
     with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
-        configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+        configs = data_link_ins.compose_configs(
+            bk_biz_id=1001, data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
+        )
     assert json.dumps(configs) == expected
 
 
@@ -472,7 +476,11 @@ def test_compose_bcs_federal_subset_time_series_configs(create_or_delete_records
         data_link_strategy=models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
     )
     content = data_link_ins.compose_configs(
-        data_source=sub_ds, table_id=sub_rt.table_id, bcs_cluster_id="BCS-K8S-10002", storage_cluster_name="vm-plat"
+        bk_biz_id=1001,
+        data_source=sub_ds,
+        table_id=sub_rt.table_id,
+        bcs_cluster_id="BCS-K8S-10002",
+        storage_cluster_name="vm-plat",
     )
     assert json.dumps(content) == expected
 
@@ -575,7 +583,9 @@ def test_compose_configs_transaction_failure(create_or_delete_records):
             )
 
             # 调用 compose_configs 方法，该方法内部会调用 get_or_create
-            data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+            data_link_ins.compose_configs(
+                bk_biz_id=1001, data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
+            )
 
     # 确保由于事务回滚，没有任何配置实例对象被创建
     assert DataLink.objects.filter(data_link_name=bkbase_data_name).exists()
@@ -666,7 +676,9 @@ def test_create_bkbase_data_link(create_or_delete_records, mocker):
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
     ):  # noqa
-        create_bkbase_data_link(data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat")
+        create_bkbase_data_link(
+            bk_biz_id=1001, data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat"
+        )
         # 验证 compose_configs 被调用并返回预期的配置
         mock_compose_configs.assert_called_once()
         actual_configs = mock_compose_configs.return_value
@@ -760,7 +772,11 @@ def test_create_bkbase_federal_proxy_data_link(create_or_delete_records, mocker)
         DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
     ) as mock_apply_with_retry:  # noqa
         create_bkbase_data_link(
-            data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat", bcs_cluster_id=bcs_cluster_id
+            bk_biz_id=1001,
+            data_source=ds,
+            monitor_table_id=rt.table_id,
+            storage_cluster_name="vm-plat",
+            bcs_cluster_id=bcs_cluster_id,
         )
         # 验证 apply_data_link_with_retry 被调用并返回模拟的值
         mock_apply_with_retry.assert_called_once()
@@ -813,6 +829,7 @@ def test_create_sub_federal_data_link(create_or_delete_records, mocker):
         DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
     ) as mock_apply_with_retry:  # noqa
         create_fed_bkbase_data_link(
+            bk_biz_id=1001,
             data_source=sub_ds,
             monitor_table_id=sub_rt.table_id,
             storage_cluster_name="vm-plat",
@@ -2210,7 +2227,9 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
         ) as mock_apply_with_retry,
         patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
-        create_bkbase_data_link(data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat")
+        create_bkbase_data_link(
+            bk_biz_id=1001, data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat"
+        )
         # 验证 compose_configs 被调用并返回预期的配置
         mock_compose_configs.assert_called_once()
         mock_apply_with_retry.assert_called_once()
@@ -2227,7 +2246,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
 
     with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
         actual_configs = data_link_ins.compose_configs(
-            data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
+            bk_biz_id=1001, data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
         )
     expected_configs = [
         {
@@ -2329,7 +2348,9 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
         ) as mock_apply_with_retry,
         patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
-        create_bkbase_data_link(data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat")
+        create_bkbase_data_link(
+            bk_biz_id=1001, data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat"
+        )
         # 验证 compose_configs 被调用并返回预期的配置
         mock_compose_configs.assert_called_once()
         mock_apply_with_retry.assert_called_once()
@@ -2346,7 +2367,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
 
     with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
         actual_configs = data_link_ins.compose_configs(
-            data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
+            bk_biz_id=1001, data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
         )
     expected_configs = [
         {

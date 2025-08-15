@@ -16,7 +16,7 @@ from django.conf import settings
 from django.db.models import Q
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, get_tenant_datalink_biz_id
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
@@ -580,6 +580,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
         logger.info("table_id: %s has already been created,now try to create fed vm data link", table_id)
 
         create_fed_bkbase_data_link(
+            bk_biz_id=bk_biz_id,
             monitor_table_id=table_id,
             data_source=ds,
             storage_cluster_name=vm_cluster_name,
@@ -596,6 +597,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
             bcs_cluster_id = bcs_record.first().cluster_id
 
         create_bkbase_data_link(
+            bk_biz_id=bk_biz_id,
             data_source=ds,
             monitor_table_id=table_id,
             storage_cluster_name=vm_cluster_name,
@@ -633,6 +635,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     try:
         # 创建联邦
         create_fed_bkbase_data_link(
+            bk_biz_id=bk_biz_id,
             monitor_table_id=table_id,
             data_source=ds,
             storage_cluster_name=vm_cluster_name,
@@ -658,6 +661,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
 
 
 def create_bkbase_data_link(
+    bk_biz_id: int,
     data_source: DataSource,
     monitor_table_id: str,
     storage_cluster_name: str,
@@ -667,6 +671,7 @@ def create_bkbase_data_link(
 ):
     """
     申请计算平台链路
+    @param bk_biz_id: 业务ID
     @param data_source: 数据源
     @param monitor_table_id: 监控平台自身结果表ID
     @param storage_cluster_name: 存储集群名称
@@ -723,7 +728,10 @@ def create_bkbase_data_link(
             monitor_table_id,
         )
         data_link_ins.apply_data_link(
-            data_source=data_source, table_id=monitor_table_id, storage_cluster_name=storage_cluster_name
+            bk_biz_id=bk_biz_id,
+            data_source=data_source,
+            table_id=monitor_table_id,
+            storage_cluster_name=storage_cluster_name,
         )
         # 2.1 上报链路接入指标
     except Exception as e:  # pylint: disable=broad-except
@@ -765,6 +773,7 @@ def create_bkbase_data_link(
         storage_cluster_id,
         data_link_strategy,
     )
+    datalink_biz_id = get_tenant_datalink_biz_id(data_source.bk_tenant_id)
     AccessVMRecord.objects.update_or_create(
         bk_tenant_id=data_source.bk_tenant_id,
         result_table_id=monitor_table_id,
@@ -772,7 +781,7 @@ def create_bkbase_data_link(
         bk_base_data_name=bkbase_data_name,
         defaults={
             "vm_cluster_id": storage_cluster_id,
-            "vm_result_table_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_rt_name}",
+            "vm_result_table_id": f"{datalink_biz_id.data_biz_id}_{bkbase_rt_name}",
             "bcs_cluster_id": bcs_cluster_id,
         },
     )
@@ -786,6 +795,7 @@ def create_bkbase_data_link(
 
 
 def create_fed_bkbase_data_link(
+    bk_biz_id: int,
     monitor_table_id: str,
     data_source: DataSource,
     storage_cluster_name: str,
@@ -844,6 +854,7 @@ def create_fed_bkbase_data_link(
             bkbase_data_name,
         )
         data_link_ins.apply_data_link(
+            bk_biz_id=bk_biz_id,
             data_source=data_source,
             table_id=monitor_table_id,
             storage_cluster_name=storage_cluster_name,

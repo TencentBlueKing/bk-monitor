@@ -869,6 +869,7 @@ def bulk_create_fed_data_link(sub_clusters):
             )
 
             create_fed_bkbase_data_link(
+                bk_biz_id=sub_cluster.bk_biz_id,
                 monitor_table_id=table_id,
                 data_source=ds,
                 storage_cluster_name=vm_cluster.get("cluster_name"),
