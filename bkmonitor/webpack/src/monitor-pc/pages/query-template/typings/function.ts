@@ -24,12 +24,59 @@
  * IN THE SOFTWARE.
  */
 
-export * from './create';
-export * from './detail';
-export * from './edit';
-export * from './expression';
-export * from './function';
-export * from './metric';
-export * from './query-config';
-export * from './table';
-export * from './variables';
+// 函数接口
+export interface FunctionItem {
+  /** 函数分类 */
+  category: string;
+  /** 函数描述 */
+  description: string;
+  /** 函数ID */
+  id: string;
+  /** 是否忽略单位 */
+  ignore_unit: boolean;
+  /** 函数名称 */
+  name: string;
+  /** 函数参数 */
+  params: FunctionParam[];
+  /** 位置 */
+  position: number;
+  /** 是否支持表达式 */
+  support_expression: boolean;
+  /** 是否时间聚合 */
+  time_aggregation: boolean;
+  /** 是否支持维度 */
+  with_dimensions: boolean;
+}
+
+// 函数列表类型
+export type FunctionList = MetricFunction[];
+
+// 函数参数接口
+export interface FunctionParam {
+  /** 默认值 */
+  default?: number | string;
+  /** 参数描述 */
+  description: string;
+  /** 参数ID */
+  id: string;
+  /** 参数名称 */
+  name: string;
+  /** 是否必需 */
+  required: boolean;
+  /** 可选值列表 */
+  shortlist?: (number | string)[];
+  /** 参数类型 */
+  type: string;
+}
+
+// 函数分类接口
+export interface MetricFunction {
+  /** 子函数列表 */
+  children: FunctionItem[];
+  /** 分类描述 */
+  description: string;
+  /** 分类ID */
+  id: string;
+  /** 分类名称 */
+  name: string;
+}
