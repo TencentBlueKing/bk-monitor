@@ -596,6 +596,8 @@ class DataLink(models.Model):
                     "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                 }
             ]
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                sinks[0]["tenant"] = self.bk_tenant_id
 
             condition = {
                 "match_labels": [{"name": "namespace", "any": record.fed_namespaces}],
@@ -642,6 +644,9 @@ class DataLink(models.Model):
                 "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
             },
         ]
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            conditional_sink[0]["tenant"] = self.bk_tenant_id
+
         data_bus_config = data_bus_ins.compose_config(sinks=conditional_sink)
         config_list.extend([vm_conditional_sink_config, data_bus_config])
         return config_list
@@ -696,6 +701,9 @@ class DataLink(models.Model):
                         "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                     }
                 ]
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    sinks[0]["tenant"] = self.bk_tenant_id
+
                 data_bus_ins, _ = DataBusConfig.objects.get_or_create(
                     name=bkbase_vmrt_name,
                     data_id_name=bkbase_data_name,
