@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import type { MetricDetail } from '../components/type/query-config';
 import type { VariableTypeEnum } from '../constants';
 import type { GetEnumTypeTool } from './constants';
+import type { MetricDetailV2 } from './metric';
 import type { IFilterItem } from '@/components/retrieval-filter/utils';
 
 export interface ICommonVariableModel<T extends VariableTypeEnumType> {
@@ -40,7 +40,7 @@ export interface ICommonVariableModel<T extends VariableTypeEnumType> {
 export type IConditionVariableModel = {
   /** 可选维度 */
   dimensionOption?: string[];
-  metric: MetricDetail;
+  metric: MetricDetailV2;
   value?: IFilterItem[];
 } & ICommonVariableModel<typeof VariableTypeEnum.CONDITION>;
 
@@ -48,17 +48,17 @@ export type IConstantVariableModel = ICommonVariableModel<typeof VariableTypeEnu
   value?: string;
 };
 
-export type IDimensionValueVariableModel = {
-  metric: MetricDetail;
+export type IDimensionValueVariableModel = ICommonVariableModel<typeof VariableTypeEnum.DIMENSION_VALUE> & {
+  metric: MetricDetailV2;
   /** 关联维度 */
   relationDimension: string;
   value?: string;
-} & ICommonVariableModel<typeof VariableTypeEnum.DIMENSION_VALUE>;
+};
 
 export type IDimensionVariableModel = {
   /** 可选维度 */
   dimensionOption?: string[];
-  metric: MetricDetail;
+  metric: MetricDetailV2;
   value?: string;
 } & ICommonVariableModel<typeof VariableTypeEnum.DIMENSION>;
 
@@ -67,7 +67,7 @@ export type IFunctionVariableModel = ICommonVariableModel<typeof VariableTypeEnu
 };
 
 export type IMethodVariableModel = ICommonVariableModel<typeof VariableTypeEnum.METHOD> & {
-  metric: MetricDetail;
+  metric: MetricDetailV2;
   value?: string;
 };
 

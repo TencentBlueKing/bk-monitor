@@ -39,6 +39,7 @@ interface VariablesManageEvents {
 
 interface VariablesManageProps {
   metricFunctions?: any[];
+  scene?: 'create' | 'detail' | 'edit';
   variablesList: VariableModelType[];
 }
 
@@ -47,6 +48,7 @@ const refKey = 'variablePanel';
 export default class VariablesManage extends tsc<VariablesManageProps, VariablesManageEvents> {
   @Prop({ default: () => [] }) variablesList!: VariableModelType[];
   @Prop({ default: () => [] }) metricFunctions!: any[];
+  @Prop({ default: 'create' }) scene!: VariablesManageProps['scene'];
 
   searchValue = '';
 
@@ -64,36 +66,29 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
 
   render() {
     return (
-      <div class='variables-manage-wrap'>
-        <div class='variable-manage-header'>
-          <div class='manage-title'>{this.$t('变量管理')}</div>
-          {this.variablesList.length > 0 && (
-            <bk-input
-              class='variable-search'
-              v-model={this.searchValue}
-              placeholder={this.$t('搜索 变量')}
-            />
-          )}
-          <div class='bg-mask-wrap'>
-            <div class='bg-mask' />
+      <div class={['variables-manage-wrap', this.scene]}>
+        {this.scene === 'create' && (
+          <div class='variable-manage-header'>
+            <div class='manage-title'>{this.$t('变量管理')}</div>
+            {this.variablesList.length > 0 && (
+              <bk-input
+                class='variable-search'
+                v-model={this.searchValue}
+                placeholder={this.$t('搜索 变量')}
+              />
+            )}
+            <div class='bg-mask-wrap'>
+              <div class='bg-mask' />
+            </div>
           </div>
-        </div>
+        )}
         <div class='variable-manage-content'>
           {this.variablesList.map((item, index) => [
             <VariablePanel
               key={item.id}
               ref={`${refKey}_${item.id}`}
               metricFunctions={this.metricFunctions}
-              variable={item}
-              onDataChange={value => {
-                this.handleDataChange(value, index);
-              }}
-            />,
-            <VariablePanel
-              key={`${item.id}_2`}
-              ref={`${refKey}_${item.id}`}
-              metricFunctions={this.metricFunctions}
-              scene='detail'
+              scene={this.scene}
               variable={item}
               onDataChange={value => {
                 this.handleDataChange(value, index);

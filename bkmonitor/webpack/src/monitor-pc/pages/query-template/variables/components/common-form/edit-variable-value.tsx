@@ -49,25 +49,27 @@ export default class EditVariableValue extends tsc<EditVariableValueProps> {
   render() {
     return (
       <div class='edit-variable-value'>
-        <bk-popover
-          width={188}
-          placement='top'
-        >
-          <div class='variable-value'>
+        <div class='variable-value'>
+          <bk-popover
+            width={188}
+            placement='top'
+          >
             <div class='variable-value-label'>
               <span>{this.data.alias || this.data.name}</span>
             </div>
-            <div class='variable-value-input'>{this.$slots.default}</div>
-          </div>
-          <ul slot='content'>
-            {this.editVariableLabelTooltips.map(item => (
-              <li key={item.label}>
-                <span class='label'>{item.label}：</span>
-                <span class='value'>{item.value}</span>
-              </li>
-            ))}
-          </ul>
-        </bk-popover>
+
+            <ul slot='content'>
+              {this.editVariableLabelTooltips.map(item => (
+                <li key={item.label}>
+                  <span class='label'>{item.label}：</span>
+                  <span class='value'>{item.value}</span>
+                </li>
+              ))}
+            </ul>
+          </bk-popover>
+
+          <div class='variable-value-input'>{this.$slots.default}</div>
+        </div>
       </div>
     );
   }
