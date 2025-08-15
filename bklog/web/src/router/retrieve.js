@@ -35,6 +35,7 @@ const ExternalAuth = () => import(/* webpackChunkName: 'externalAuth' */ '@/view
 const Playground = () => import('@/views/playground');
 const ShareLink = () => import(/* webpackChunkName: 'share-link' */ '@/views/share/index.tsx');
 const DataIdUrl = () => import(/* webpackChunkName: 'data-id-url' */ '@/views/data-id-url/index.tsx');
+const TemplateManage = () => import('@/views/retrieve-v3/search-result/template-manage/index.tsx');
 
 // 检索模块路由配置生成函数
 const getRetrieveRoutes = () => [
@@ -59,7 +60,7 @@ const getRetrieveRoutes = () => [
       {
         path: 'template-manage',
         name: 'templateManage',
-        component: templateManage,
+        component: TemplateManage,
       },
     ],
   },
