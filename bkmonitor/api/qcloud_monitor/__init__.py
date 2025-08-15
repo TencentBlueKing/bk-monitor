@@ -8,19 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.urls import include, re_path
+from .default import QueryInstancesResource, QueryInstanceFiltersResource
 
-from core.drf_resource.routers import ResourceRouter
-from monitor_web.collecting import views as collecting_views
-
-router = ResourceRouter()
-router.register_module(collecting_views)
-
-# 腾讯云产品相关的特定URL路径
-qcloud_router = ResourceRouter()
-qcloud_router.register(r"cloud-products", collecting_views.QcloudCollectingViewSet, basename="cloud_products")
-
-urlpatterns = [
-    re_path(r"^", include(qcloud_router.urls)),
-    re_path(r"^", include(router.urls)),
-]
+# 创建API资源实例
+query_instances = QueryInstancesResource()
+query_instance_filters = QueryInstanceFiltersResource()
