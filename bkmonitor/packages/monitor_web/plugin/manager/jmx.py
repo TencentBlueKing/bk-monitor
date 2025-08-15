@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import os
+from pathlib import Path
 
 from django.utils.translation import gettext as _
 
@@ -54,7 +53,7 @@ class JMXPluginManager(PluginManager):
             plugin_params["port"] = collector_params["port"]
         else:
             plugin_params["port"] = "{{ control_info.listen_port }}"
-            collector_params["port"] = "{{ step_data.%s.control_info.listen_port }}" % self.plugin.plugin_id
+            collector_params["port"] = f"{{{{ step_data.{self.plugin.plugin_id}.control_info.listen_port }}}}"
         plugin_params["host"] = collector_params["host"]
         collector_params["metric_url"] = "{}:{}".format(collector_params["host"], collector_params["port"])
         diff_metrics = plugin_version.config.diff_fields
@@ -85,12 +84,12 @@ class JMXPluginManager(PluginManager):
         config_yaml_path = ""
         for filename in self.filename_list:
             if os.path.basename(filename) == file_name:
-                config_yaml_path = os.path.join(self.tmp_path, filename)
+                config_yaml_path = filename
                 break
         if not config_yaml_path:
             raise PluginParseError({"msg": _("无法获取JMX对应的配置文件")})
 
-        content = self._read_file(config_yaml_path)
+        content = self._decode_file(self.plugin_configs[Path(config_yaml_path)])
         jmx_collector_json = {
             "config_yaml": content,
         }

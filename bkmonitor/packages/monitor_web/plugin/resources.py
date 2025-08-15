@@ -12,15 +12,15 @@ specific language governing permissions and limitations under the License.
 import base64
 import copy
 import hashlib
+import json
 import logging
 import os
+import pathlib
 import re
 import shutil
+import subprocess
 import tarfile
 import time
-import pathlib
-import subprocess
-import json
 from collections import namedtuple
 from distutils.version import StrictVersion
 from uuid import uuid4
@@ -48,19 +48,19 @@ from core.errors.api import BKAPIError
 from core.errors.export_import import ExportImportError
 from core.errors.plugin import (
     BizChangedError,
+    JsonParseError,
     MetricNumberError,
     PluginIDExist,
     PluginIDFormatError,
     PluginIDNotExist,
     PluginParseError,
     PluginVersionNotExist,
+    RegexParseError,
     RegisterPackageError,
     RelatedItemsExist,
     SNMPMetricNumberError,
-    UnsupportedPluginTypeError,
-    RegexParseError,
     SubprocessCallError,
-    JsonParseError,
+    UnsupportedPluginTypeError,
 )
 from monitor.models import GlobalConfig
 from monitor_web.commons.data_access import PluginDataAccessor
@@ -141,7 +141,7 @@ class DataDogPluginUploadResource(Resource):
             result = dict(parser_content, **file_info)
             return result
         except Exception as err:
-            logger.error("[plugin] Upload plugin failed, msg is %s" % str(err))
+            logger.error(f"[plugin] Upload plugin failed, msg is {str(err)}")
             raise err
         finally:
             PluginFileManager.clean_dir(base_path)
@@ -426,7 +426,7 @@ class PluginImportResource(Resource):
         super().__init__()
         self.tmp_path = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4()))
         self.plugin_id = None
-        self.filename_list = []
+        self.filename_list = {}
         self.current_version = None
         self.tmp_version = None
         self.plugin_type = None
@@ -444,14 +444,18 @@ class PluginImportResource(Resource):
 
     def un_tar_gz_file(self, tar_obj):
         # 解压文件到临时目录
-        with tarfile.open(fileobj=tar_obj, mode="r:gz") as tar:
-            tar.extractall(self.tmp_path, filter='data')
-            self.filename_list = tar.getnames()
+        with tarfile.open(fileobj=tar_obj) as package_file:
+            for member in package_file.getmembers():
+                # 取代 tarfile.extractall 的 filter="data"
+                if not member.isreg():
+                    continue
+                with package_file.extractfile(member) as f:
+                    self.filename_list[member.name] = f.read()
 
     def get_plugin(self):
         meta_yaml_path = ""
         # 获取plugin_id,meta.yaml必要信息
-        for filename in self.filename_list:
+        for filename in self.filename_list.keys():
             path = filename.split("/")
             if (
                 len(path) >= 4
@@ -460,15 +464,14 @@ class PluginImportResource(Resource):
                 and path[-4] in list(OS_TYPE_TO_DIRNAME.values())
             ):
                 self.plugin_id = path[-3]
-                meta_yaml_path = os.path.join(self.tmp_path, filename)
+                meta_yaml_path = filename
                 break
 
         if not self.plugin_id:
             raise PluginParseError({"msg": _("无法解析plugin_id")})
 
         try:
-            with open(meta_yaml_path) as f:
-                meta_content = f.read()
+            meta_content = self.filename_list[meta_yaml_path]
         except OSError:
             raise PluginParseError({"msg": _("meta.yaml不存在，无法解析")})
 
@@ -491,8 +494,8 @@ class PluginImportResource(Resource):
             return
         if self.current_version.is_official:
             if self.tmp_version.is_official:
-                self.create_params["conflict_detail"] = """导入插件包版本为：{}；已有插件版本为：{}""".format(
-                    self.tmp_version.version, self.current_version.version
+                self.create_params["conflict_detail"] = (
+                    f"""导入插件包版本为：{self.tmp_version.version}；已有插件版本为：{self.current_version.version}"""
                 )
                 self.check_conflict_title()
                 if not self.create_params["conflict_title"]:
@@ -500,21 +503,17 @@ class PluginImportResource(Resource):
                     self.create_params["duplicate_type"] = None
             else:
                 self.create_params["conflict_detail"] = (
-                    """导入插件包为非官方插件, 版本为: {}；当前插件为官方插件，版本为：{}""".format(
-                        self.tmp_version.version, self.current_version.version
-                    )
+                    f"""导入插件包为非官方插件, 版本为: {self.tmp_version.version}；当前插件为官方插件，版本为：{self.current_version.version}"""
                 )
                 self.check_conflict_title()
         else:
             if self.tmp_version.is_official:
                 self.create_params["conflict_detail"] = (
-                    """导入插件包为官方插件，版本为：{}；当前插件为非官方插件，版本为：{}""".format(
-                        self.tmp_version.version, self.current_version.version
-                    )
+                    f"""导入插件包为官方插件，版本为：{self.tmp_version.version}；当前插件为非官方插件，版本为：{self.current_version.version}"""
                 )
             else:
-                self.create_params["conflict_detail"] = """导入插件包版本为: {}；当前插件版本为: {}""".format(
-                    self.tmp_version.version, self.current_version.version
+                self.create_params["conflict_detail"] = (
+                    f"""导入插件包版本为: {self.tmp_version.version}；当前插件版本为: {self.current_version.version}"""
                 )
                 self.check_conflict_title()
 

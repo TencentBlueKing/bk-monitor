@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,9 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import base64
 import os
+from pathlib import Path
 
 import yaml
 from django.utils.translation import gettext as _
@@ -44,7 +43,7 @@ class ScriptPluginManager(PluginManager):
 
     def make_package(self, **kwargs):
         kwargs.update(dict(add_files=self.fetch_collector_file()))
-        return super(ScriptPluginManager, self).make_package(**kwargs)
+        return super().make_package(**kwargs)
 
     def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         specific_version = self.plugin.get_version(config_version, info_version)
@@ -91,13 +90,13 @@ class ScriptPluginManager(PluginManager):
             elif param_mode == ParamMode.OPT_CMD:
                 if param["type"] == "switch":
                     if param_value == "true":
-                        cmd_args += "{opt_name} ".format(opt_name=param_name)
+                        cmd_args += f"{param_name} "
                 elif param_value:
-                    cmd_args += "{opt_name} {opt_value} ".format(opt_name=param_name, opt_value=param_value)
+                    cmd_args += f"{param_name} {param_value} "
 
             elif param_mode == ParamMode.POS_CMD:
                 # 位置参数，直接将参数值拼接进去
-                cmd_args += "{pos_value} ".format(pos_value=param_value)
+                cmd_args += f"{param_value} "
 
             elif param_mode == ParamMode.DMS_INSERT:
                 # 维度注入参数，更新至labels的模板中
@@ -125,10 +124,8 @@ class ScriptPluginManager(PluginManager):
         cmd_args = ""
         plugin_params = param["plugin"]
         collector_params = param["collector"]
-        collector_params[
-            "command"
-        ] = "{{{{ step_data.{}.control_info.setup_path }}}}/{{{{ step_data.{}.control_info.start_cmd }}}}".format(
-            self.plugin.plugin_id, self.plugin.plugin_id
+        collector_params["command"] = (
+            f"{{{{ step_data.{self.plugin.plugin_id}.control_info.setup_path }}}}/{{{{ step_data.{self.plugin.plugin_id}.control_info.start_cmd }}}}"
         )
         env_context = {}
         user_files = []
@@ -160,13 +157,13 @@ class ScriptPluginManager(PluginManager):
             elif param_mode == ParamMode.OPT_CMD:
                 if param["type"] == "switch":
                     if param_value == "true":
-                        cmd_args += "{opt_name} ".format(opt_name=param_name)
+                        cmd_args += f"{param_name} "
                 elif param_value:
-                    cmd_args += "{opt_name} {opt_value} ".format(opt_name=param_name, opt_value=param_value)
+                    cmd_args += f"{param_name} {param_value} "
 
             elif param_mode == ParamMode.POS_CMD:
                 # 位置参数，直接将参数值拼接进去
-                cmd_args += "{pos_value} ".format(pos_value=param_value)
+                cmd_args += f"{param_value} "
 
         env_context["cmd_args"] = cmd_args
         deploy_steps = [
@@ -197,7 +194,7 @@ class ScriptPluginManager(PluginManager):
             )
         return deploy_steps
 
-    def _get_collector_json(self, plugin_params):
+    def _get_collector_json(self, plugin_params: dict[str, bytes]):
         meta_dict = yaml.load(plugin_params["meta.yaml"], Loader=yaml.FullLoader)
 
         if "scripts" not in meta_dict:
@@ -205,8 +202,11 @@ class ScriptPluginManager(PluginManager):
 
         collector_json = {}
         for os_name, file_info in list(meta_dict["scripts"].items()):
-            script_path = os.path.join(OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"])
-            script_content = self._read_file(os.path.join(self.tmp_path, script_path))
+            script_path = os.path.join(
+                self.plugin.plugin_id, OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"]
+            )
+
+            script_content = self._decode_file(self.plugin_configs[Path(script_path)])
             collector_json[os_name] = {
                 "filename": file_info["filename"],
                 "type": file_info["type"],
