@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,12 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import os
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
-from django.db.models.query import Q
+from django.db.models import Q
 from django.db.transaction import atomic
 
 from metadata import config, models
@@ -29,7 +27,7 @@ def refresh_influxdb_info():
     if models.InfluxDBClusterInfo.is_default_cluster_exists():
         # 如果已经由默认集群，则退出不做处理
         message = (
-            "cluster->[%s] is already exists, nothing will be inited." % models.InfluxDBClusterInfo.DEFAULT_CLUSTER_NAME
+            f"cluster->[{models.InfluxDBClusterInfo.DEFAULT_CLUSTER_NAME}] is already exists, nothing will be inited."
         )
         print(message)
         return True
@@ -41,14 +39,14 @@ def refresh_influxdb_info():
         influxdb_username = os.getenv("BK_MONITOR_INFLUXDB_USER") or os.getenv("INFLUXDB_BKMONITORV3_USER", "")
         influxdb_password = os.getenv("BK_MONITOR_INFLUXDB_PASSWORD") or os.getenv("INFLUXDB_BKMONITORV3_PASS", "")
     except KeyError as error:
-        message = "failed to get environ->[%s] maybe something go wrong on init?" % error
+        message = f"failed to get environ->[{error}] maybe something go wrong on init?"
 
         print(message)
         return False
 
     # 3. 写入到数据库，完成配置
     for index, host_ip in enumerate(influxdb_ip_list):
-        host_name = "INFLUXDB_IP%s" % index
+        host_name = f"INFLUXDB_IP{index}"
 
         # 单个机器的配置写入
         models.InfluxDBHostInfo.objects.create(
@@ -64,7 +62,7 @@ def refresh_influxdb_info():
         # 集群信息写入
         models.InfluxDBClusterInfo.objects.create(host_name=host_name, cluster_name="default")
 
-        message = "host->[%s] for cluster->[default] is add." % host_name
+        message = f"host->[{host_name}] for cluster->[default] is add."
         print(message)
 
     # 4. influxdb proxy的信息写入
@@ -112,7 +110,7 @@ def refresh_es7_config():
         es_password = os.environ.get("BK_MONITOR_ES7_PASSWORD", "")
 
     except KeyError as error:
-        message = "failed to get environ->[%s] for ES7 cluster maybe something go wrong on init?" % error
+        message = f"failed to get environ->[{error}] for ES7 cluster maybe something go wrong on init?"
         print(message)
         return False
 
@@ -128,7 +126,7 @@ def refresh_es7_config():
             return True
 
         default_es.domain_name = es_host
-        default_es.es_port = es_port
+        default_es.port = es_port
         default_es.username = es_username
         default_es.password = es_password
         default_es.save()
