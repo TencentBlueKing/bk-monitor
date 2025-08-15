@@ -70,7 +70,7 @@ export default class FunctionCreator extends tsc<IProps> {
 
   @Watch('value', { immediate: true })
   handleValueChange(val: AggFunction[]) {
-    if (!val.length) {
+    if (!val?.length) {
       return;
     }
     const optionMap = new Map();
@@ -83,7 +83,7 @@ export default class FunctionCreator extends tsc<IProps> {
         ...option,
         isVariable: isVariableName(item.id),
         params:
-          item?.params.map(p => {
+          item?.params?.map(p => {
             const optionP = option.params.find(param => param.id === p.id);
             if (optionP) {
               return {
