@@ -318,13 +318,13 @@ export class MetricDetail {
   use_frequency = 0;
   constructor(public metricDetail?: Partial<IMetricDetail>) {
     if (!metricDetail) return;
-    Object.keys(metricDetail).forEach(key => {
+    for (const [key, value] of Object.entries(metricDetail)) {
       if (key === 'unit_suffix_list') {
-        this[key] = (metricDetail[key] || []).map(set => ({ ...set, id: set.id || 'NONE' }));
+        this[key] = ((value as any[]) || []).map(set => ({ ...set, id: set.id || 'NONE' }));
       } else {
-        this[key] = metricDetail[key];
+        this[key] = value;
       }
-    });
+    }
     this.keywords_query_string = metricDetail.keywords_query_string || metricDetail.query_string || '*';
     this.localQueryString = this.keywords_query_string;
     // 自定义事件
