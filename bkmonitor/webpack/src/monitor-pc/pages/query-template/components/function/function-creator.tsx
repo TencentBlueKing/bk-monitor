@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SelectWrap from '../utils/select-wrap';
@@ -32,6 +32,7 @@ import VariableName from '../utils/variable-name';
 import FunctionCreatorPop from './function-creator-pop';
 import FunctionCreatorTag from './function-creator-tag';
 
+import type { AggFunction } from '../../typings';
 import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config';
 
 import './function-creator.scss';
@@ -41,17 +42,10 @@ interface IProps {
   options?: IFunctionOptionsItem[];
   showLabel?: boolean;
   showVariables?: boolean;
-  value?: IValue[];
+  value?: AggFunction[];
   variables?: IVariablesItem[];
+  onChange?: (val: AggFunction[]) => void;
   onCreateVariable?: (val: string) => void;
-}
-
-interface IValue {
-  id: string;
-  params: {
-    id: string;
-    value: string;
-  }[];
 }
 
 @Component
@@ -66,12 +60,43 @@ export default class FunctionCreator extends tsc<IProps> {
   @Prop({ default: false }) showVariables: boolean;
   /** 只展示支持表达式的函数 */
   @Prop({ default: false, type: Boolean }) readonly isExpSupport: boolean;
-  @Prop({ default: () => [] }) value: IValue[];
+  @Prop({ default: () => [] }) value: AggFunction[];
 
   showSelect = false;
   popClickHide = true;
 
   curTags: IFunctionOptionsItem[] = [];
+
+  @Watch('value', { immediate: true })
+  handleValueChange(val: AggFunction[]) {
+    if (!val?.length) {
+      return;
+    }
+    // const optionMap = new Map();
+    // for (const option of this.options) {
+    //   optionMap.set(option.id, option);
+    // }
+    // this.curTags = val.map(item => {
+    //   const option = optionMap.get(item.id);
+    //   return {
+    //     ...option,
+    //     isVariable: isVariableName(item.id),
+    //     params:
+    //       item?.params?.map(p => {
+    //         const optionP = option?.params?.find(param => param.id === p.id);
+    //         if (optionP) {
+    //           return {
+    //             ...optionP,
+    //             value: p.value,
+    //           };
+    //         }
+    //         return {
+    //           ...p,
+    //         };
+    //       }) || [],
+    //   };
+    // });
+  }
 
   handleOpenChange(v) {
     this.showSelect = v;
@@ -84,6 +109,7 @@ export default class FunctionCreator extends tsc<IProps> {
   handleSelect(item: IFunctionOptionsItem) {
     if (!this.curTags.map(item => item.id).includes(item.id)) {
       this.curTags.push(item);
+      this.handleChange();
     }
   }
 
@@ -93,11 +119,13 @@ export default class FunctionCreator extends tsc<IProps> {
         ...item,
         isVariable: true,
       });
+      this.handleChange();
     }
   }
 
   handleDelTag(index: number) {
     this.curTags.splice(index, 1);
+    this.handleChange();
   }
 
   /**
@@ -116,10 +144,25 @@ export default class FunctionCreator extends tsc<IProps> {
       }
       return item;
     });
+    this.handleChange();
   }
 
   handleClear() {
     this.curTags = [];
+    this.handleChange();
+  }
+
+  handleChange() {
+    this.$emit(
+      'change',
+      this.curTags.map(item => ({
+        id: item.id,
+        params: item.params?.map(p => ({
+          id: p.id,
+          value: p.value,
+        })),
+      }))
+    );
   }
 
   render() {

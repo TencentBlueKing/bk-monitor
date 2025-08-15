@@ -231,6 +231,10 @@ export class MetricDetailV2 {
     }
     return this.canSetMultipleMetric ? [...METHOD_LIST, ...CP_METHOD_LIST] : METHOD_LIST;
   }
+  get metricAlias() {
+    return !this.metric_field_name || this.metric_field_name === this.metric_field ? '' : this.metric_field_name;
+  }
+
   get metricMetaId() {
     return `${this.data_source_label}|${this.data_type_label}`;
   }
