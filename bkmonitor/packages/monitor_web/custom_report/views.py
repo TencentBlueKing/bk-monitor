@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
@@ -116,5 +116,17 @@ class CustomMetricReportViewSet(ResourceViewSet):
         ),
         ResourceRoute(
             "POST", resource.custom_report.modify_custom_time_series_desc, endpoint="modify_custom_time_series_desc"
+        ),
+        # 检查自定义指标是否具有全业务权限
+        ResourceRoute(
+            "GET",
+            resource.custom_report.check_custom_metric_all_biz_permission,
+            endpoint="check_custom_metric_all_biz_permission",
+        ),
+        # 申请自定义指标全业务权限
+        ResourceRoute(
+            "POST",
+            resource.custom_report.apply_custom_metric_all_biz_permission,
+            endpoint="apply_custom_metric_all_biz_permission",
         ),
     ]
