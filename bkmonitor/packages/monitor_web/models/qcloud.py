@@ -208,6 +208,14 @@ class CloudMonitoringTask(AbstractRecordModel):
 
     collect_name = models.CharField(max_length=255, verbose_name="采集名称", help_text="监控采集任务的名称")
 
+    collect_interval = models.CharField(
+        max_length=32, verbose_name="采集间隔", help_text="监控数据采集间隔，如: 1m, 5m", default="1m"
+    )
+
+    collect_timeout = models.CharField(
+        max_length=32, verbose_name="采集超时时间", help_text="单次采集的超时时间，如: 30s, 60s", default="30s"
+    )
+
     # 分字段加密存储凭证
     secret_id = SymmetricTextField(
         verbose_name="SecretId",

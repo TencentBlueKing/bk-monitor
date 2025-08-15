@@ -110,4 +110,6 @@ class QcloudCollectingViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.collecting.cloud_product_instance_query, endpoint="instances_query"),
         # 腾讯云产品标签和过滤器配置接口 - 对应 GET /cloud-products/config
         ResourceRoute("GET", resource.collecting.cloud_product_config, endpoint="config"),
+        # 保存配置并下发采集接口 - 对应 POST /cloud-products/monitoring/save_config
+        ResourceRoute("POST", resource.collecting.cloud_monitoring_save_config, endpoint="monitoring/save_config"),
     ]
