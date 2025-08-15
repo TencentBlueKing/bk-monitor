@@ -1,0 +1,19 @@
+{
+  "system_id": "bk_monitorv3",
+  "operations": [
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "custom_metric_all_biz",
+        "name": "自定义指标全业务",
+        "name_en": "Custom Metric All Biz",
+        "type": "view",
+        "related_resource_types": [],
+        "related_actions": [],
+        "version": 1,
+        "description": "在自定义指标中设置作用范围为全业务",
+        "description_en": "Set the scope to all biz for the custom metric"
+      }
+    }
+  ]
+}

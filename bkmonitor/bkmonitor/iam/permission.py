@@ -75,6 +75,7 @@ ActionIdMap = {
     "apm": [ActionEnum.VIEW_APM_APPLICATION],
     # 故障根因定位
     "incident": [ActionEnum.VIEW_INCIDENT],
+    # 自定义指标全局业务
 }
 
 api_paths = ["/time_series/unify_query/", "log/query/", "time_series/unify_trace_query/"]
