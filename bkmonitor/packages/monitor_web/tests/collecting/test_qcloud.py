@@ -13,6 +13,7 @@ from unittest.mock import Mock, patch, MagicMock
 from packages.monitor_web.collecting.resources.qcloud import (
     CloudProductMappingResource,
     CloudProductInstanceQueryResource,
+    CloudProductConfigResource,
 )
 
 
@@ -52,6 +53,25 @@ class TestCloudProductMappingResource:
         # 2. Action: Call the resource to get all cloud products
         resource = CloudProductMappingResource()
         result = resource.perform_request({})
+
+        # 打印云产品映射接口返回的数据
+        print("\n" + "=" * 50)
+        print("云产品映射接口返回数据:")
+        print("请求参数: {}")
+        print(f"Mock products count: {len(mock_products)}")
+        print("Mock products details:")
+        for i, product in enumerate(mock_products):
+            print(f"  {i + 1}. Namespace: {product.namespace}")
+            print(f"     Product Name: {product.product_name}")
+            print(f"     Description: {product.description}")
+        print("\n接口返回结果:")
+        print(f"Total: {result.get('total', 0)}")
+        print(f"Products count: {len(result.get('products', []))}")
+        if result.get("products"):
+            print("Products details:")
+            for i, product in enumerate(result["products"]):
+                print(f"  {i + 1}. {product}")
+        print("=" * 50 + "\n")
 
         # 3. Assertions: Verify the result
         mock_cloud_product.objects.filter.assert_called_once_with(is_deleted=False)
@@ -324,6 +344,14 @@ class TestCloudProductInstanceQueryResource:
         }
         result = resource.perform_request(request_data)
 
+        # 打印API返回的原始数据
+        print("\n" + "=" * 50)
+        print("API原始返回数据:")
+        print(f"API Response: {mock_api_response}")
+        print("\n处理后的结果数据:")
+        print(f"Result: {result}")
+        print("=" * 50 + "\n")
+
         # 3. Assertions
         # Verify field configuration query
         mock_field_model.objects.filter.assert_called_once_with(namespace="QCE/CVM", is_active=True, is_deleted=False)
@@ -591,3 +619,349 @@ class TestCloudProductInstanceQueryResource:
 
         serializer = resource.ResponseSerializer(data=sample_response)
         assert serializer.is_valid(), f"Response serializer should be valid: {serializer.errors}"
+
+
+class TestCloudProductConfigResource:
+    """
+    Test suite for CloudProductConfigResource.
+    Focuses on verifying the product configuration query functionality including tags, filters, and metrics.
+    """
+
+    def create_mock_tag_field(self, tag_name, display_name):
+        """Helper method to create mock tag field data"""
+        return {
+            "tag_name": tag_name,
+            "display_name": display_name,
+        }
+
+    def create_mock_metric_field(self, metric_name, display_name, description, unit, dimensions):
+        """Helper method to create mock metric field data"""
+        return {
+            "metric_name": metric_name,
+            "display_name": display_name,
+            "description": description,
+            "unit": unit,
+            "dimensions": dimensions,
+        }
+
+    @patch("packages.monitor_web.collecting.resources.qcloud.api.qcloud_monitor.query_instance_filters")
+    @patch("monitor_web.models.qcloud.CloudProductMetric")
+    @patch("monitor_web.models.qcloud.CloudProductTagField")
+    def test_get_product_config_success(self, mock_tag_model, mock_metric_model, mock_api_call):
+        """
+        Test successful retrieval of product configuration including tags, filters, and metrics.
+        """
+        # 1. Setup: Mock tag fields
+        mock_tag_fields = [
+            self.create_mock_tag_field("env", "环境"),
+            self.create_mock_tag_field("app", "应用"),
+            self.create_mock_tag_field("project", ""),  # Empty display_name to test fallback
+        ]
+        mock_tag_queryset = MagicMock()
+        mock_tag_queryset.values.return_value = mock_tag_fields
+        mock_tag_model.objects.filter.return_value = mock_tag_queryset
+
+        # Mock metric fields
+        mock_metric_fields = [
+            self.create_mock_metric_field("CPUUtilization", "CPU使用率", "CPU使用百分比", "%", ["InstanceId"]),
+            self.create_mock_metric_field(
+                "MemoryUtilization", "", "内存使用率", "%", ["InstanceId"]
+            ),  # Empty display_name
+            self.create_mock_metric_field("NetworkIn", "网络入流量", "", "MB/s", ["InstanceId"]),  # Empty description
+        ]
+        mock_metric_queryset = MagicMock()
+        mock_metric_queryset.values.return_value = mock_metric_fields
+        mock_metric_model.objects.filter.return_value = mock_metric_queryset
+
+        # Mock API response for filters
+        mock_api_response = {
+            "namespace": "QCE/CVM",
+            "filters": ["Domain", "ProjectId", "VpcId", "InstanceId", "InstanceName"],
+        }
+        mock_api_call.return_value = mock_api_response
+
+        # 2. Action: Query product configuration
+        resource = CloudProductConfigResource()
+        request_data = {"region": "ap-beijing", "namespace": "QCE/CVM"}
+        result = resource.perform_request(request_data)
+
+        # 打印接口返回的数据
+        print("\n" + "=" * 60)
+        print("产品配置接口返回数据:")
+        print(f"请求参数: {request_data}")
+        print(f"API Response (filters): {mock_api_response}")
+        print(f"Tag Fields: {mock_tag_fields}")
+        print(f"Metric Fields: {mock_metric_fields}")
+        print("\n最终结果数据:")
+        print(f"Tags: {result.get('tags', {})}")
+        print(f"Filters: {result.get('filters', {})}")
+        print(f"Metrics count: {len(result.get('metrics', []))}")
+        if result.get("metrics"):
+            print("Metrics details:")
+            for i, metric in enumerate(result["metrics"]):
+                print(f"  {i + 1}. {metric}")
+        print("=" * 60 + "\n")
+
+        # 3. Assertions: Verify ORM queries
+        mock_tag_model.objects.filter.assert_called_once_with(namespace="QCE/CVM", is_active=True, is_deleted=False)
+        mock_metric_model.objects.filter.assert_called_once_with(namespace="QCE/CVM", is_active=True, is_deleted=False)
+
+        # Verify API call
+        expected_api_data = {"namespace": "QCE/CVM"}
+        mock_api_call.assert_called_once_with(expected_api_data)
+
+        # Verify response structure
+        assert "tags" in result, "Response should contain tags"
+        assert "filters" in result, "Response should contain filters"
+        assert "metrics" in result, "Response should contain metrics"
+
+        # Verify tags content
+        expected_tags = {
+            "env": "环境",
+            "app": "应用",
+            "project": "project",  # Should fallback to tag_name when display_name is empty
+        }
+        assert result["tags"] == expected_tags, f"Tags should match expected: {result['tags']}"
+
+        # Verify filters content
+        expected_filters = {
+            "Domain": "Domain",
+            "ProjectId": "ProjectId",
+            "VpcId": "VpcId",
+            "InstanceId": "InstanceId",
+            "InstanceName": "InstanceName",
+        }
+        assert result["filters"] == expected_filters, f"Filters should match expected: {result['filters']}"
+
+        # Verify metrics content
+        assert len(result["metrics"]) == 3, "Should return 3 metrics"
+
+        # Check first metric
+        cpu_metric = next((m for m in result["metrics"] if m["metric_name"] == "CPUUtilization"), None)
+        assert cpu_metric is not None, "Should contain CPUUtilization metric"
+        assert cpu_metric["display_name"] == "CPU使用率"
+        assert cpu_metric["description"] == "CPU使用百分比"
+        assert cpu_metric["unit"] == "%"
+        assert cpu_metric["dimensions"] == ["InstanceId"]
+
+        # Check metric with empty display_name (should fallback to metric_name)
+        mem_metric = next((m for m in result["metrics"] if m["metric_name"] == "MemoryUtilization"), None)
+        assert mem_metric is not None, "Should contain MemoryUtilization metric"
+        assert mem_metric["display_name"] == "MemoryUtilization", "Should fallback to metric_name"
+
+        # Check metric with empty description
+        net_metric = next((m for m in result["metrics"] if m["metric_name"] == "NetworkIn"), None)
+        assert net_metric is not None, "Should contain NetworkIn metric"
+        assert net_metric["description"] == "", "Should handle empty description"
+
+    @patch("packages.monitor_web.collecting.resources.qcloud.api.qcloud_monitor.query_instance_filters")
+    @patch("monitor_web.models.qcloud.CloudProductMetric")
+    @patch("monitor_web.models.qcloud.CloudProductTagField")
+    def test_get_product_config_empty_data(self, mock_tag_model, mock_metric_model, mock_api_call):
+        """
+        Test product configuration when no tags or metrics are configured.
+        """
+        # 1. Setup: Mock empty results
+        mock_tag_queryset = MagicMock()
+        mock_tag_queryset.values.return_value = []
+        mock_tag_model.objects.filter.return_value = mock_tag_queryset
+
+        mock_metric_queryset = MagicMock()
+        mock_metric_queryset.values.return_value = []
+        mock_metric_model.objects.filter.return_value = mock_metric_queryset
+
+        # Mock API response with no filters
+        mock_api_response = {"namespace": "QCE/UNKNOWN", "filters": []}
+        mock_api_call.return_value = mock_api_response
+
+        # 2. Action: Query product configuration
+        resource = CloudProductConfigResource()
+        request_data = {"region": "ap-beijing", "namespace": "QCE/UNKNOWN"}
+        result = resource.perform_request(request_data)
+
+        # 3. Assertions: Should return empty collections
+        assert result["tags"] == {}, "Should return empty tags dictionary"
+        assert result["filters"] == {}, "Should return empty filters dictionary"
+        assert result["metrics"] == [], "Should return empty metrics list"
+
+    @patch("packages.monitor_web.collecting.resources.qcloud.api.qcloud_monitor.query_instance_filters")
+    @patch("monitor_web.models.qcloud.CloudProductMetric")
+    @patch("monitor_web.models.qcloud.CloudProductTagField")
+    def test_api_call_failure_handling(self, mock_tag_model, mock_metric_model, mock_api_call):
+        """
+        Test handling of API call failure for filters.
+        """
+        # 1. Setup: Mock successful ORM queries
+        mock_tag_fields = [self.create_mock_tag_field("env", "环境")]
+        mock_tag_queryset = MagicMock()
+        mock_tag_queryset.values.return_value = mock_tag_fields
+        mock_tag_model.objects.filter.return_value = mock_tag_queryset
+
+        mock_metric_fields = [
+            self.create_mock_metric_field("CPUUtilization", "CPU使用率", "CPU使用率", "%", ["InstanceId"])
+        ]
+        mock_metric_queryset = MagicMock()
+        mock_metric_queryset.values.return_value = mock_metric_fields
+        mock_metric_model.objects.filter.return_value = mock_metric_queryset
+
+        # Mock API call failure
+        mock_api_call.side_effect = Exception("External API error")
+
+        # 2. Action: Query product configuration
+        resource = CloudProductConfigResource()
+        request_data = {"region": "ap-beijing", "namespace": "QCE/CVM"}
+        result = resource.perform_request(request_data)
+
+        # 3. Assertions: Should handle API failure gracefully
+        assert result["tags"] == {"env": "环境"}, "Should still return tags from ORM"
+        assert result["filters"] == {}, "Should return empty filters on API failure"
+        assert len(result["metrics"]) == 1, "Should still return metrics from ORM"
+
+    @patch("packages.monitor_web.collecting.resources.qcloud.api.qcloud_monitor.query_instance_filters")
+    @patch("monitor_web.models.qcloud.CloudProductMetric")
+    @patch("monitor_web.models.qcloud.CloudProductTagField")
+    def test_filters_with_null_dimensions(self, mock_tag_model, mock_metric_model, mock_api_call):
+        """
+        Test handling of metrics with null dimensions.
+        """
+        # 1. Setup: Mock metric with null dimensions
+        mock_tag_queryset = MagicMock()
+        mock_tag_queryset.values.return_value = []
+        mock_tag_model.objects.filter.return_value = mock_tag_queryset
+
+        mock_metric_fields = [
+            self.create_mock_metric_field("TestMetric", "测试指标", "测试", "count", None)  # None dimensions
+        ]
+        mock_metric_queryset = MagicMock()
+        mock_metric_queryset.values.return_value = mock_metric_fields
+        mock_metric_model.objects.filter.return_value = mock_metric_queryset
+
+        mock_api_response = {"namespace": "QCE/TEST", "filters": []}
+        mock_api_call.return_value = mock_api_response
+
+        # 2. Action: Query product configuration
+        resource = CloudProductConfigResource()
+        request_data = {"region": "ap-beijing", "namespace": "QCE/TEST"}
+        result = resource.perform_request(request_data)
+
+        # 3. Assertions: Should handle null dimensions
+        assert len(result["metrics"]) == 1
+        metric = result["metrics"][0]
+        assert metric["dimensions"] == [], "Should convert None dimensions to empty list"
+
+    def test_request_serializer_validation(self):
+        """
+        Test the request serializer validation.
+        """
+        resource = CloudProductConfigResource()
+
+        # Test with valid data
+        valid_data = {"region": "ap-beijing", "namespace": "QCE/CVM"}
+        serializer = resource.RequestSerializer(data=valid_data)
+        assert serializer.is_valid(), f"Serializer should be valid: {serializer.errors}"
+
+        # Test with missing required fields
+        invalid_data = {"region": "ap-beijing"}  # Missing namespace
+        serializer = resource.RequestSerializer(data=invalid_data)
+        assert not serializer.is_valid(), "Serializer should be invalid without namespace"
+
+        invalid_data = {"namespace": "QCE/CVM"}  # Missing region
+        serializer = resource.RequestSerializer(data=invalid_data)
+        assert not serializer.is_valid(), "Serializer should be invalid without region"
+
+    def test_response_serializer_structure(self):
+        """
+        Test the response serializer structure.
+        """
+        resource = CloudProductConfigResource()
+
+        sample_response = {
+            "tags": {"env": "环境", "app": "应用"},
+            "filters": {"Domain": "Domain", "ProjectId": "ProjectId"},
+            "metrics": [
+                {
+                    "metric_name": "CPUUtilization",
+                    "display_name": "CPU使用率",
+                    "description": "CPU使用百分比",
+                    "unit": "%",
+                    "dimensions": ["InstanceId"],
+                }
+            ],
+        }
+
+        serializer = resource.ResponseSerializer(data=sample_response)
+        assert serializer.is_valid(), f"Response serializer should be valid: {serializer.errors}"
+
+    @patch("monitor_web.models.qcloud.CloudProductTagField")
+    def test_get_tags_from_orm_method(self, mock_tag_model):
+        """
+        Test the _get_tags_from_orm method specifically.
+        """
+        # 1. Setup: Mock tag fields
+        mock_tag_fields = [
+            self.create_mock_tag_field("env", "环境"),
+            self.create_mock_tag_field("app", ""),  # Empty display_name
+        ]
+        mock_queryset = MagicMock()
+        mock_queryset.values.return_value = mock_tag_fields
+        mock_tag_model.objects.filter.return_value = mock_queryset
+
+        # 2. Action: Call the method
+        resource = CloudProductConfigResource()
+        tags = resource._get_tags_from_orm("QCE/CVM")
+
+        # 3. Assertions
+        expected_tags = {
+            "env": "环境",
+            "app": "app",  # Should fallback to tag_name
+        }
+        assert tags == expected_tags
+
+    @patch("packages.monitor_web.collecting.resources.qcloud.api.qcloud_monitor.query_instance_filters")
+    def test_get_filters_from_api_method(self, mock_api_call):
+        """
+        Test the _get_filters_from_api method specifically.
+        """
+        # 1. Setup: Mock API response
+        mock_api_response = {"namespace": "QCE/CVM", "filters": ["Domain", "ProjectId", "VpcId"]}
+        mock_api_call.return_value = mock_api_response
+
+        # 2. Action: Call the method
+        resource = CloudProductConfigResource()
+        filters = resource._get_filters_from_api("QCE/CVM")
+
+        # 3. Assertions
+        expected_filters = {"Domain": "Domain", "ProjectId": "ProjectId", "VpcId": "VpcId"}
+        assert filters == expected_filters
+
+    @patch("monitor_web.models.qcloud.CloudProductMetric")
+    def test_get_metrics_from_orm_method(self, mock_metric_model):
+        """
+        Test the _get_metrics_from_orm method specifically.
+        """
+        # 1. Setup: Mock metric fields
+        mock_metric_fields = [
+            self.create_mock_metric_field("CPUUtilization", "CPU使用率", "CPU使用率", "%", ["InstanceId"]),
+            self.create_mock_metric_field("MemoryUtilization", "", "内存使用率", "", None),  # Test defaults
+        ]
+        mock_queryset = MagicMock()
+        mock_queryset.values.return_value = mock_metric_fields
+        mock_metric_model.objects.filter.return_value = mock_queryset
+
+        # 2. Action: Call the method
+        resource = CloudProductConfigResource()
+        metrics = resource._get_metrics_from_orm("QCE/CVM")
+
+        # 3. Assertions
+        assert len(metrics) == 2
+
+        cpu_metric = metrics[0]
+        assert cpu_metric["metric_name"] == "CPUUtilization"
+        assert cpu_metric["display_name"] == "CPU使用率"
+        assert cpu_metric["unit"] == "%"
+
+        mem_metric = metrics[1]
+        assert mem_metric["metric_name"] == "MemoryUtilization"
+        assert mem_metric["display_name"] == "MemoryUtilization"  # Fallback to metric_name
+        assert mem_metric["unit"] == ""  # Empty string for empty unit
+        assert mem_metric["dimensions"] == []  # None converted to empty list

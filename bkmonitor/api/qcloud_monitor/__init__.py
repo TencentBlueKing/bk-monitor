@@ -8,7 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from .default import QueryInstancesResource
+from .default import QueryInstancesResource, QueryInstanceFiltersResource
 
 # 创建API资源实例
 query_instances = QueryInstancesResource()
+query_instance_filters = QueryInstanceFiltersResource()

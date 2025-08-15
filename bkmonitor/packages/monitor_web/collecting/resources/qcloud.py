@@ -106,11 +106,11 @@ class CloudProductInstanceQueryResource(Resource):
         task_id = validated_request_data.get("task_id")
 
         if not region:
-            raise Exception("必须提供region")
+            raise ValueError("必须提供region")
         # 如果没有提供凭证信息，从数据库中获取
         if not secret_id or not secret_key:
             if not task_id:
-                raise Exception("必须提供secret_id和secret_key，或者提供task_id")
+                raise ValueError("必须提供secret_id和secret_key，或者提供task_id")
 
             from monitor_web.models.qcloud import CloudMonitoringTask
 
@@ -120,7 +120,7 @@ class CloudProductInstanceQueryResource(Resource):
                 secret_key = task.secret_key
                 logger.info(f"从任务{task_id}获取到凭证信息")
             except CloudMonitoringTask.DoesNotExist:
-                raise Exception(f"未找到任务ID为{task_id}的配置")
+                raise ValueError(f"未找到任务ID为{task_id}的配置")
 
         # 构建请求数据
         request_data = {
@@ -146,7 +146,7 @@ class CloudProductInstanceQueryResource(Resource):
 
         except Exception as e:
             logger.error(f"腾讯云实例查询失败: {str(e)}")
-            raise Exception(f"实例查询失败: {str(e)}")
+            raise RuntimeError(f"实例查询失败: {str(e)}")
 
     def _filter_instance_data(self, namespace, raw_data):
         """
@@ -198,3 +198,118 @@ class CloudProductInstanceQueryResource(Resource):
 
         logger.info(f"原始实例数量: {len(raw_data)}, 过滤后数量: {len(filtered_instances)}")
         return filtered_instances
+
+
+class CloudProductConfigResource(Resource):
+    """
+    查询产品标签和过滤器配置接口
+    获取指定云产品的标签和过滤器配置信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        namespace = serializers.CharField(required=True, help_text=_("监控命名空间"))
+
+    class ResponseSerializer(serializers.Serializer):
+        tags = serializers.DictField(help_text=_("标签配置"))
+        filters = serializers.DictField(help_text=_("过滤器配置"))
+        metrics = serializers.ListField(child=serializers.DictField(), help_text=_("指标配置列表"))
+
+    def perform_request(self, validated_request_data):
+        """
+        查询产品标签和过滤器配置
+        """
+        namespace = validated_request_data["namespace"]
+
+        # 1. 从ORM获取标签配置
+        tags = self._get_tags_from_orm(namespace)
+
+        # 2. 调用API获取过滤器配置
+        filters = self._get_filters_from_api(namespace)
+
+        # 3. 从ORM获取指标配置
+        metrics = self._get_metrics_from_orm(namespace)
+
+        return {"tags": tags, "filters": filters, "metrics": metrics}
+
+    def _get_tags_from_orm(self, namespace):
+        """
+        从CloudProductTagField模型获取标签配置
+
+        Args:
+            namespace: 产品命名空间
+
+        Returns:
+            dict: 标签配置字典，格式为 {tag_name: display_name}
+        """
+        from monitor_web.models.qcloud import CloudProductTagField
+
+        # 查询该产品的标签字段配置
+        tag_fields = CloudProductTagField.objects.filter(namespace=namespace, is_active=True, is_deleted=False).values(
+            "tag_name", "display_name"
+        )
+
+        # 使用字典推导式构建标签配置字典
+        tags = {tag_field["tag_name"]: tag_field["display_name"] or tag_field["tag_name"] for tag_field in tag_fields}
+
+        return tags
+
+    def _get_filters_from_api(self, namespace):
+        """
+        通过API获取过滤器配置
+
+        Args:
+            namespace: 产品命名空间
+
+        Returns:
+            dict: 过滤器配置字典，格式为 {filter_name: filter_name}
+        """
+        try:
+            # 构建请求数据
+            request_data = {"namespace": namespace}
+
+            # 调用腾讯云监控API获取过滤器
+            result = api.qcloud_monitor.query_instance_filters(request_data)
+
+            # 提取过滤器列表
+            filter_list = result.get("filters", [])
+
+            # 使用字典推导式构建过滤器配置字典 (key和value相同，因为API只返回过滤器名称)
+            filters = {filter_name: filter_name for filter_name in filter_list}
+
+            return filters
+
+        except Exception as e:
+            logger.error(f"获取过滤器配置失败: {str(e)}")
+            # 如果API调用失败，返回空字典
+            return {}
+
+    def _get_metrics_from_orm(self, namespace):
+        """
+        从CloudProductMetric模型获取指标配置
+
+        Args:
+            namespace: 产品命名空间
+
+        Returns:
+            list: 指标配置列表，格式为 [{"metric_name": "", "display_name": "", "description": "", "unit": "", "dimensions": []}]
+        """
+        from monitor_web.models.qcloud import CloudProductMetric
+
+        # 查询该产品的指标配置并使用列表推导式构建结果
+        metric_fields = CloudProductMetric.objects.filter(namespace=namespace, is_active=True, is_deleted=False).values(
+            "metric_name", "display_name", "description", "unit", "dimensions"
+        )
+
+        # 使用列表推导式批量构建指标配置列表
+        metrics = [
+            {
+                "metric_name": metric["metric_name"],
+                "display_name": metric["display_name"] or metric["metric_name"],
+                "description": metric["description"] or "",
+                "unit": metric["unit"] or "",
+                "dimensions": metric["dimensions"] or [],
+            }
+            for metric in metric_fields
+        ]
+
+        return metrics

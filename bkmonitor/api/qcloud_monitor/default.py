@@ -76,3 +76,23 @@ class QueryInstancesResource(QcloudMonitorAPIResource):
             label="实例列表",
             help_text="实例数据，每个实例的信息都不一样，不做过滤全部返回",
         )
+
+
+class QueryInstanceFiltersResource(QcloudMonitorAPIResource):
+    """
+    查询腾讯云产品实例过滤器接口
+    """
+
+    action = "/qcloudmonitor/instances/filters"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        namespace = serializers.CharField(required=True, label="产品命名空间", help_text="产品名称，如 QCE/LB_PUBLIC")
+
+    class ResponseSerializer(serializers.Serializer):
+        namespace = serializers.CharField(label="产品命名空间", help_text="产品命名空间")
+        filters = serializers.ListField(
+            child=serializers.CharField(),
+            label="过滤器列表",
+            help_text="该产品支持的过滤器字段列表",
+        )
