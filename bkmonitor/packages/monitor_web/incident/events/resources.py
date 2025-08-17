@@ -99,9 +99,9 @@ class BaseIncidentEventsResource(Resource):
         根据实体类型获取对应的table名集合
         """
         table_getters = {
-            EntityType.BcsPod.value: cls._get_bcs_pod_tables,
-            EntityType.APMService.value: cls._get_apm_service_tables,
-            EntityType.BkNodeHost.value: cls._get_bk_node_host_tables,
+            EntityType.BcsPod.value: cls.get_bcs_pod_tables,
+            EntityType.APMService.value: cls.get_apm_service_tables,
+            EntityType.BkNodeHost.value: cls.get_bk_node_host_tables,
         }
 
         getter = table_getters.get(entity_type)
@@ -113,7 +113,7 @@ class BaseIncidentEventsResource(Resource):
         获取BcsPod类型的表名
         """
         bk_biz_id = kwargs.get("bk_biz_id", "")
-        bk_data_id = cls._get_bk_data_id_by_cluster_id(kwargs.get("cluster_id", ""))
+        bk_data_id = cls.get_bk_data_id_by_cluster_id(kwargs.get("cluster_id", ""))
         if bk_data_id and bk_biz_id:
             return {f"{bk_biz_id}_bkmonitor_event_{bk_data_id}"}
         return set()
@@ -131,7 +131,7 @@ class BaseIncidentEventsResource(Resource):
         获取BkNodeHost类型的表名
         """
         bk_biz_id = kwargs.get("bk_biz_id", "")
-        bk_data_id = cls._get_bk_data_id_by_cluster_id(kwargs.get("cluster_id", ""))
+        bk_data_id = cls.get_bk_data_id_by_cluster_id(kwargs.get("cluster_id", ""))
 
         tables = {"gse_system_event"}
         if bk_data_id and bk_biz_id:
@@ -312,8 +312,8 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
         # 不同数据源的数据统一聚合到响应内
         def _aggregation(req_data: dict[str, Any]):
             resp = event_resources.EventTimeSeriesResource().perform_request(req_data)
-            query_configs: list[dict] = req_data.get("query_configs", {})
-            query_config_list = query_configs.get("query_configs", [])
+            query_config: dict = resp.get("query_config", {})
+            query_config_list = query_config.get("query_configs", [])
             table = next(iter(query_config_list), {}).get("table", "")
             with self._lock:
                 self.format_events_response(resp, events_search_response, table)
