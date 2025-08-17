@@ -37,13 +37,22 @@ class EntityType(CachedEnum):
                 EntityType.UnKnown: _("未知"),
             }.get(self, self.value)
         )
-
+    
+    @classmethod
+    def label_mapping(cls):
+        return {
+            EntityType.BcsPod: _("BCS Pod"),
+            EntityType.APMService: _("APM服务"),
+            EntityType.BkNodeHost: _("主机节点"),
+            EntityType.UnKnown: _("未知"),
+        }
+    
     @classmethod
     def get_default(cls, value):
         default = super().get_default(value)
         default.label = value
         return default
-
+    
 
 class IndexType(CachedEnum):
     """

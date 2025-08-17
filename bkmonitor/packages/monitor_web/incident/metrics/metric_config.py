@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from typing import Any
+from django.utils.translation import gettext_lazy as _
 from monitor_web.incident.metrics.utils import transform_to_ip4, is_ipv4
 from monitor_web.incident.metrics.constants import EntityType
 from monitor_web.incident.metrics.constants import MetricName
@@ -112,7 +113,7 @@ BCS_PROMQL_TEMPLATE = {
 EntityTypeMetricConfigMapping = {
     EntityType.APMService.value: {
         MetricName.APM_REQUEST_COUNT.value: {
-            "总数": {
+            _("总数"): {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -127,7 +128,7 @@ EntityTypeMetricConfigMapping = {
                     }
                 ]
             },
-            "主调":{
+            _("主调"):{
                 "expression": "A",
                 "query_configs": [
                     {
@@ -139,14 +140,14 @@ EntityTypeMetricConfigMapping = {
                             {"key": "kind", "method": "eq", "value": ["3"]},
                             {"condition": "or", "key": "kind",
                              "method": "eq", "value": ["4"]}
-                        ],
+                        ],# kind=3 or kind=4 代表主调
                         "table": "{table}",
                         "filter_dict": "{filter_dict}",
                         "interval": "{interval}"
                     }
                 ]
             },
-            "被调": {
+            _("被调"): {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -158,7 +159,7 @@ EntityTypeMetricConfigMapping = {
                             {"key": "kind", "method": "eq", "value": ["2"]},
                             {"condition": "or", "key": "kind",
                              "method": "eq", "value": ["5"]}
-                        ],
+                        ],# kind=2 or kind=5 代表被调
                         "table": "{table}",
                         "filter_dict": "{filter_dict}",
                         "interval": "{interval}"
@@ -531,7 +532,7 @@ EntityTypeMetricConfigMapping = {
 }
 
 
-def _fill_query_config(query_config: dict, key: str, value: Any):
+def fill_query_config(query_config: dict, key: str, value: Any):
     """
     填充/覆盖查询配置占位符
 
@@ -543,7 +544,7 @@ def _fill_query_config(query_config: dict, key: str, value: Any):
     query_config[key] = value if query_config[key] == f"{{{key}}}" else query_config[key]
 
 
-def _replace_query_config(query_config: dict, key: str, pattern: str, value: Any):
+def replace_query_config(query_config: dict, key: str, pattern: str, value: Any):
     """
     替换查询配置占位符(替换所有)
 
@@ -581,9 +582,9 @@ def get_apm_config(dimensions: dict[str, Any], **kwargs):
         # 填充每个指标的查询配置
         for dimension_type, query in filled_config[metric_name].items():
             for query_config in query["query_configs"]:
-                _fill_query_config(query_config, "table", kwargs.get("table"))
-                _fill_query_config(query_config, "filter_dict", {"service_name": dimensions.get("apm_service_name")})
-                _fill_query_config(query_config, "interval", kwargs.get("interval", 120))
+                fill_query_config(query_config, "table", kwargs.get("table", ""))
+                fill_query_config(query_config, "filter_dict", {"service_name": dimensions.get("apm_service_name", "")})
+                fill_query_config(query_config, "interval", kwargs.get("interval", 120))
 
             filled_config[metric_name][dimension_type].update({
                 "start_time": kwargs.get("start_time"),
@@ -619,10 +620,10 @@ def get_bcs_config(dimensions: dict[str, Any], **kwargs):
             # 替换PromQL中的bcs_filter占位符
             for query_config in query["query_configs"]:
                 if "promql" in query_config:
-                    _replace_query_config(query_config, "promql", "{namespace}", dimensions.get("namespace"))
-                    _replace_query_config(query_config, "promql", "{pod_name}", dimensions.get("pod_name"))
-                    _replace_query_config(query_config, "promql", "{container_name}", dimensions.get("container_name", "POD"))
-                    _replace_query_config(query_config, "promql", "{bcs_cluster_id}", dimensions.get("cluster_id"))
+                    replace_query_config(query_config, "promql", "{namespace}", dimensions.get("namespace", ""))
+                    replace_query_config(query_config, "promql", "{pod_name}", dimensions.get("pod_name", ""))
+                    replace_query_config(query_config, "promql", "{container_name}", dimensions.get("container_name", "POD"))
+                    replace_query_config(query_config, "promql", "{bcs_cluster_id}", dimensions.get("cluster_id", ""))
             filled_config[metric_name][dimension_type].update({
                 "start_time": kwargs.get("start_time"),
                 "end_time": kwargs.get("end_time"),
@@ -672,14 +673,3 @@ def get_host_config(dimensions: dict[str, Any], **kwargs):
     return filled_config
 
 
-def get_config_by_dimensions(dimensions: dict[str, Any], **kwargs):
-    """根据实体类型获取配置"""
-    entity_type = kwargs.get("entity_type")
-    config_getters = {
-        EntityType.BcsPod.value: get_bcs_config,
-        EntityType.APMService.value: get_apm_config,
-        EntityType.BkNodeHost.value: get_host_config,
-    }
-
-    getter = config_getters.get(entity_type)
-    return getter(dimensions, **kwargs) if getter else {}
