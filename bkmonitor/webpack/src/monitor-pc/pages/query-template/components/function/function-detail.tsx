@@ -27,8 +27,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { type AggFunction } from '../../typings';
 import { type VariableModelType } from '../../variables';
-import { type IFunctionOptionsItem } from '../type/query-config';
 import { QueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
 
@@ -36,7 +36,7 @@ import './function-detail.scss';
 
 interface FunctionProps {
   /* 函数 */
-  functions: IFunctionOptionsItem[];
+  value: AggFunction[];
   /* 变量列表 */
   variables?: VariableModelType[];
 }
@@ -44,7 +44,7 @@ interface FunctionProps {
 @Component
 export default class FunctionDetail extends tsc<FunctionProps> {
   /* 函数 */
-  @Prop({ type: Array }) functions: IFunctionOptionsItem[];
+  @Prop({ type: Array }) value: AggFunction[];
   /* 变量列表 */
   @Prop({ default: () => [] }) variables?: VariableModelType[];
   variablesToolInstance = new QueryVariablesTool();
@@ -60,10 +60,10 @@ export default class FunctionDetail extends tsc<FunctionProps> {
   }
 
   get functionsToVariableModel() {
-    if (!this.functions?.length) {
+    if (!this.value?.length) {
       return [];
     }
-    const models = this.functions.reduce((prev, curr) => {
+    const models = this.value.reduce((prev, curr) => {
       const result = this.variablesToolInstance.transformVariables(curr, this.variableMap);
       if (!Array.isArray(result.value)) {
         prev.push(result);
@@ -79,7 +79,7 @@ export default class FunctionDetail extends tsc<FunctionProps> {
   render() {
     return (
       <div class='template-function-detail-component'>
-        <span class='function-label'>{`${this.$t('函数')}`}</span>
+        <span class='function-label'>{this.$slots?.label || this.$t('函数')}</span>
         <span class='function-colon'>:</span>
         <span class='function-name-wrap'>
           {this.functionsToVariableModel.map(variableModel => {

@@ -35,7 +35,7 @@ import './method-detail.scss';
 
 interface MethodProps {
   /* 汇聚方法 */
-  method: string;
+  value: string;
   /* 变量列表 */
   variables?: VariableModelType[];
 }
@@ -43,7 +43,7 @@ interface MethodProps {
 @Component
 export default class MethodDetail extends tsc<MethodProps> {
   /* 汇聚方法 */
-  @Prop({ type: String, default: '' }) method: string;
+  @Prop({ type: String, default: '' }) value: string;
   /* 变量列表 */
   @Prop({ default: () => [] }) variables?: VariableModelType[];
   variablesToolInstance = new QueryVariablesTool();
@@ -59,7 +59,7 @@ export default class MethodDetail extends tsc<MethodProps> {
   }
 
   get methodToVariableModel() {
-    return this.variablesToolInstance.transformVariables(this.method, this.variableMap);
+    return this.variablesToolInstance.transformVariables(this.value, this.variableMap);
   }
 
   get methodViewDom() {
@@ -69,7 +69,7 @@ export default class MethodDetail extends tsc<MethodProps> {
   render() {
     return (
       <div class='template-method-detail-component'>
-        <span class='method-label'>{`${this.$t('汇聚方法')}`}</span>
+        <span class='method-label'>{this.$slots?.label || this.$t('汇聚方法')}</span>
         <span class='method-colon'>:</span>
         <this.methodViewDom
           id={this.methodToVariableModel.variableName}

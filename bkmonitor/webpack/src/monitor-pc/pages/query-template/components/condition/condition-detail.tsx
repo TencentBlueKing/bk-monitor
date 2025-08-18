@@ -27,30 +27,31 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type DimensionField } from '../../typings';
+import { type AggCondition, type DimensionField } from '../../typings';
 import { type VariableModelType } from '../../variables';
 import { QueryVariablesTool } from '../utils/query-variable-tool';
-import VariableSpan from '../utils/variable-span';
+import { type IFilterField, EFieldType } from '@/components/retrieval-filter/utils';
+import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '@/constant/constant';
 
-import './dimension-detail.scss';
+import './condition-detail.scss';
 
-interface DimensionProps {
+interface IProps {
   /* 所有聚合维度信息列表数组 */
-  options: DimensionField[];
-  /* 已选聚合维度id数组 */
-  value: string[];
+  options?: DimensionField[];
+  /* 已选过滤条件 */
+  value: AggCondition[];
   /* 变量列表 */
   variables?: VariableModelType[];
 }
 
 @Component
-export default class DimensionDetail extends tsc<DimensionProps> {
-  /* 已选聚合维度id数组 */
-  @Prop({ type: Array }) value: string[];
+export default class ConditionCreator extends tsc<IProps> {
+  /* 变量列表 */
+  @Prop({ default: () => [] }) variables: VariableModelType[];
+  /* 已选过滤条件 */
+  @Prop({ default: () => [] }) value: AggCondition[];
   /* 所有聚合维度信息列表数组 */
   @Prop({ default: () => [] }) options: DimensionField[];
-  /* 变量列表 */
-  @Prop({ default: () => [] }) variables?: VariableModelType[];
   variablesToolInstance = new QueryVariablesTool();
 
   get allDimensionMap() {
@@ -73,54 +74,55 @@ export default class DimensionDetail extends tsc<DimensionProps> {
     }, {});
   }
 
-  get dimensionToVariableModel() {
+  get conditionToVariableModel() {
     if (!this.value?.length) {
       return [];
     }
     return this.value.reduce((prev, curr) => {
-      const result = this.variablesToolInstance.transformVariables(curr, this.variableMap);
-      if (!Array.isArray(result.value)) {
-        prev.push(result);
+      const conditionResult = this.variablesToolInstance.transformVariables(curr.key);
+      if (!Array.isArray(conditionResult.value)) {
+        prev.push(conditionResult);
         return prev;
       }
-      prev.push(...result.value.map(dimensionId => ({ ...result, value: dimensionId })));
+      prev.push(...conditionResult.value.map(dimensionId => ({ ...conditionResult, value: dimensionId })));
       return prev;
     }, []);
   }
 
   tagRenderer() {
-    if (!this.dimensionToVariableModel?.length) {
+    if (!this.conditionToVariableModel?.length) {
       return '--';
     }
-    return this.dimensionToVariableModel?.map?.((item, index) => {
-      const domTag = item.isVariable ? VariableSpan : 'span';
-      return (
-        <div
-          class='tags-item'
-          v-bk-tooltips={{
-            content: item.value,
-            placement: 'top',
-            disabled: !item.value,
-            delay: [300, 0],
-          }}
-        >
-          <domTag
-            id={item.variableName}
-            key={index}
-            class='tags-item-name'
-          >
-            {this.allDimensionMap?.[item.value]?.name || item.value}
-          </domTag>
-        </div>
-      );
-    });
+    return '--';
+    // return this.conditionToVariableModel?.map?.((item, index) => {
+    //   const domTag = item.isVariable ? VariableSpan : 'span';
+    //   return (
+    //     <div
+    //       class='tags-item'
+    //       v-bk-tooltips={{
+    //         content: item.value,
+    //         placement: 'top',
+    //         disabled: !item.value,
+    //         delay: [300, 0],
+    //       }}
+    //     >
+    //       <domTag
+    //         id={item.variableName}
+    //         key={index}
+    //         class='tags-item-name'
+    //       >
+    //         {this.allDimensionMap?.[item.value]?.name || item.value}
+    //       </domTag>
+    //     </div>
+    //   );
+    // });
   }
 
   render() {
     return (
-      <div class='template-dimension-detail-component'>
-        <span class='dimension-label'>{this.$slots?.label || this.$t('聚合维度')}</span>
-        <span class='dimension-colon'>:</span>
+      <div class='template-condition-detail-component'>
+        <span class='condition-label'>{this.$slots?.label || this.$t('过滤条件')}</span>
+        <span class='condition-colon'>:</span>
         <div class='tags-wrap'>{this.tagRenderer()}</div>
       </div>
     );
