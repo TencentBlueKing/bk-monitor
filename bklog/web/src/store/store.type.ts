@@ -99,9 +99,7 @@ enum BK_LOG_STORAGE {
    * 表格是否展示日志来源
    */
   TABLE_SHOW_SOURCE_FIELD = '_19',
-  
 }
-
 
 export { BK_LOG_STORAGE };
 

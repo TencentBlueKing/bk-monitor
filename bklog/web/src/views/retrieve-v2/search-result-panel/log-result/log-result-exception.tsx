@@ -84,7 +84,7 @@ export default defineComponent({
                 <div>
                   {$t('当您的鼠标移动至对应日志内容上时，该日志单词将展示为蓝色。')}
                   <br />
-                  <br /> 
+                  <br />
                   {$t('若目标内容为整段蓝色，或中间存在字符粘连的情况。')}
                   <br />
                   {$t('可能是因为分词导致的问题')}；
@@ -103,8 +103,8 @@ export default defineComponent({
               <div class='validate-step3'>
                 <h3>3.{$t('一键反馈')}</h3>
                 <div>
-                {$t('若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。')}
-                   <br></br>
+                  {$t('若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。')}
+                  <br></br>
                   {/* <span class='segment-span-tag'>问题反馈</span> */}
                   <a
                     class='segment-span-tag'

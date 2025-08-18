@@ -56,4 +56,9 @@ module.exports = [
       'src/**/.config',
     ],
   },
+  {
+    rules: {
+      'prettier/prettier': 'off', // 关闭此规则
+    },
+  },
 ];
