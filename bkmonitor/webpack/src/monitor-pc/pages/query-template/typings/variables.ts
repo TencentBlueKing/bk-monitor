@@ -71,6 +71,8 @@ export type IMethodVariableModel = ICommonVariableModel<typeof VariableTypeEnum.
   value?: string;
 };
 
+export type IVariableData = Required<IVariableModel & { variableName: string }>;
+
 export type IVariableModel =
   | IConditionVariableModel
   | IConstantVariableModel

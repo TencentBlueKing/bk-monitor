@@ -23,56 +23,65 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import FunctionCreator from '../../../components/function/function-creator';
 import { FunctionVariableModel } from '../../index';
-import EditVariableValue from '../common-form/edit-variable-value';
+import VariableCommonForm from '../common-form/variable-common-form';
 
-interface FunctionValueEvents {
-  onBlur: () => void;
-  onChange: (data: FunctionVariableModel) => void;
-  onFocus: () => void;
+import type { IFunctionVariableModel } from '../../../typings';
+interface FunctionVariableEvents {
+  onDataChange: (variable: FunctionVariableModel) => void;
 }
-
-interface FunctionValueProps {
+interface FunctionVariableProps {
   metricFunctions: any[];
   variable: FunctionVariableModel;
 }
 
 @Component
-export default class FunctionValue extends tsc<FunctionValueProps, FunctionValueEvents> {
+export default class CreateFunctionVariable extends tsc<FunctionVariableProps, FunctionVariableEvents> {
   @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
   @Prop({ default: () => [] }) metricFunctions!: any[];
+  @Ref() variableCommonForm!: VariableCommonForm;
 
-  @Emit('change')
-  handleValueChange(value: string) {
-    return new FunctionVariableModel({
+  handleValueChange(value) {
+    this.handleDataChange({
       ...this.variable.data,
       value,
     });
   }
 
-  handleSelectToggle(value: boolean) {
-    if (value) {
-      this.$emit('focus');
-    } else {
-      this.$emit('blur');
-    }
+  handleDataChange(data: IFunctionVariableModel) {
+    this.$emit('dataChange', new FunctionVariableModel({ ...data }));
+  }
+
+  validateForm() {
+    return this.variableCommonForm.validateForm();
   }
 
   render() {
     return (
-      <EditVariableValue data={this.variable.data}>
-        <FunctionCreator
-          hasCreateVariable={false}
-          options={this.metricFunctions}
-          showLabel={false}
-          value={this.variable.value}
-        />
-      </EditVariableValue>
+      <div class='function-variable'>
+        <VariableCommonForm
+          ref='variableCommonForm'
+          data={this.variable.data}
+          onDataChange={this.handleDataChange}
+        >
+          <bk-form-item
+            label={this.$t('默认值')}
+            property='value'
+          >
+            <FunctionCreator
+              options={this.metricFunctions}
+              showLabel={false}
+              showVariables={false}
+              value={this.variable.value}
+              onChange={this.handleValueChange}
+            />
+          </bk-form-item>
+        </VariableCommonForm>
+      </div>
     );
   }
 }
