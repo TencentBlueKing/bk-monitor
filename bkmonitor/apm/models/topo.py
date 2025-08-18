@@ -62,6 +62,7 @@ class TopoNode(TopoBase):
     sdk = models.JSONField("上报sdk", null=True)
     # source: 说明这个服务是由哪个数据源发现的，值为 TelemetryData，存储格式: ["trace", "metric"]
     source = models.JSONField("服务发现来源", default=list)
+    is_permanent = models.BooleanField("是否永久保存", default=False)
 
     @classmethod
     @using_cache(CacheType.APM(60 * 10))
