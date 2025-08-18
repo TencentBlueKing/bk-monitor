@@ -23,30 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils';
 
 import { VariableTypeEnum, VariableTypeMap } from '../../../constants';
-import ConditionDetail from '../condition/condition-detail';
-import ConditionValue from '../condition/condition-value';
-import ConditionVariable from '../condition/condition-variable';
-import ConstantDetail from '../constant/constant-detail';
-import ConstantValue from '../constant/constant-value';
-import ConstantVariable from '../constant/constant-variable';
-import DimensionValueDetail from '../dimension-value/dimension-value-detail';
-import DimensionValueValue from '../dimension-value/dimension-value-value';
-import DimensionValueVariable from '../dimension-value/dimension-value-variable';
-import DimensionDetail from '../dimension/dimension-detail';
-import DimensionValue from '../dimension/dimension-value';
-import DimensionVariable from '../dimension/dimension-variable';
-import FunctionDetail from '../function/function-detail';
-import FunctionValue from '../function/function-value';
-import FunctionVariable from '../function/function-variable';
-import MethodDetail from '../method/method-detail';
-import MethodValue from '../method/method-value';
-import MethodVariable from '../method/method-variable';
+import ConditionVariableDetail from '../condition/condition-variable-detail';
+import CreateConditionVariable from '../condition/create-condition-variable';
+import EditConditionVariableValue from '../condition/edit-condition-variable-value';
+import ConstantVariableDetail from '../constant/constant-variable-detail';
+import CreateConstantVariable from '../constant/create-constant-variable';
+import EditConstantVariableValue from '../constant/edit-constant-variable-value';
+import CreateDimensionValueVariable from '../dimension-value/create-dimension-value-variable';
+import DimensionValueVariableDetail from '../dimension-value/dimension-value-variable-detail';
+import EditDimensionValueVariableValue from '../dimension-value/edit-dimension-value-variable-value';
+import CreateDimensionVariable from '../dimension/create-dimension-variable';
+import DimensionVariableDetail from '../dimension/dimension-variable-detail';
+import EditDimensionVariableValue from '../dimension/edit-dimension-variable-value';
+import CreateFunctionVariable from '../function/create-function-variable';
+import EditFunctionVariableValue from '../function/edit-function-variable-value';
+import FunctionVariableDetail from '../function/function-variable-detail';
+import CreateMethodVariable from '../method/create-method-variable';
+import EditMethodVariableValue from '../method/edit-method-variable-value';
+import MethodVariableDetail from '../method/method-variable-detail';
 
 import type {
   ConditionVariableModel,
@@ -68,6 +68,7 @@ interface VariablePanelProps {
   metricFunctions?: any[];
   scene?: 'create' | 'detail' | 'edit';
   variable: VariableModelType;
+  variableList?: VariableModelType[];
 }
 
 @Component
@@ -75,6 +76,9 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
   @Prop() variable: VariableModelType;
   @Prop({ default: 'create', type: String }) scene: VariablePanelProps['scene'];
   @Prop({ default: () => [] }) metricFunctions: any[];
+  @ProvideReactive('variableList')
+  @Prop({ type: Array, default: () => [] })
+  variableList: VariableModelType[];
   @Ref() variableForm: any;
 
   get title() {
@@ -90,17 +94,17 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
   renderVariableDetail() {
     switch (this.variable.type) {
       case VariableTypeEnum.METHOD:
-        return <MethodDetail variable={this.variable as MethodVariableModel} />;
+        return <MethodVariableDetail variable={this.variable as MethodVariableModel} />;
       case VariableTypeEnum.DIMENSION:
-        return <DimensionDetail variable={this.variable as DimensionVariableModel} />;
+        return <DimensionVariableDetail variable={this.variable as DimensionVariableModel} />;
       case VariableTypeEnum.DIMENSION_VALUE:
-        return <DimensionValueDetail variable={this.variable as DimensionValueVariableModel} />;
+        return <DimensionValueVariableDetail variable={this.variable as DimensionValueVariableModel} />;
       case VariableTypeEnum.FUNCTION:
-        return <FunctionDetail variable={this.variable as FunctionVariableModel} />;
+        return <FunctionVariableDetail variable={this.variable as FunctionVariableModel} />;
       case VariableTypeEnum.CONDITION:
-        return <ConditionDetail variable={this.variable as ConditionVariableModel} />;
+        return <ConditionVariableDetail variable={this.variable as ConditionVariableModel} />;
       default:
-        return <ConstantDetail variable={this.variable as ConstantVariableModel} />;
+        return <ConstantVariableDetail variable={this.variable as ConstantVariableModel} />;
     }
   }
 
@@ -109,7 +113,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
     switch (this.variable.type) {
       case VariableTypeEnum.METHOD:
         return (
-          <MethodVariable
+          <CreateMethodVariable
             ref='variableForm'
             variable={this.variable as MethodVariableModel}
             onDataChange={this.handleDataChange}
@@ -117,7 +121,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
         );
       case VariableTypeEnum.DIMENSION:
         return (
-          <DimensionVariable
+          <CreateDimensionVariable
             ref='variableForm'
             variable={this.variable as DimensionVariableModel}
             onDataChange={this.handleDataChange}
@@ -125,7 +129,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
         );
       case VariableTypeEnum.DIMENSION_VALUE:
         return (
-          <DimensionValueVariable
+          <CreateDimensionValueVariable
             ref='variableForm'
             variable={this.variable as DimensionValueVariableModel}
             onDataChange={this.handleDataChange}
@@ -133,7 +137,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
         );
       case VariableTypeEnum.FUNCTION:
         return (
-          <FunctionVariable
+          <CreateFunctionVariable
             ref='variableForm'
             metricFunctions={this.metricFunctions}
             variable={this.variable as FunctionVariableModel}
@@ -142,7 +146,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
         );
       case VariableTypeEnum.CONDITION:
         return (
-          <ConditionVariable
+          <CreateConditionVariable
             ref='variableForm'
             variable={this.variable as ConditionVariableModel}
             onDataChange={this.handleDataChange}
@@ -150,7 +154,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
         );
       default:
         return (
-          <ConstantVariable
+          <CreateConstantVariable
             ref='variableForm'
             variable={this.variable as ConstantVariableModel}
             onDataChange={this.handleDataChange}
@@ -163,7 +167,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
     switch (this.variable.type) {
       case VariableTypeEnum.METHOD:
         return (
-          <MethodValue
+          <EditMethodVariableValue
             variable={this.variable as MethodVariableModel}
             onBlur={this.handleEditValueBlur}
             onChange={this.handleDataChange}
@@ -172,7 +176,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
         );
       case VariableTypeEnum.DIMENSION:
         return (
-          <DimensionValue
+          <EditDimensionVariableValue
             variable={this.variable as DimensionVariableModel}
             onBlur={this.handleEditValueBlur}
             onChange={this.handleDataChange}
@@ -181,7 +185,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
         );
       case VariableTypeEnum.DIMENSION_VALUE:
         return (
-          <DimensionValueValue
+          <EditDimensionValueVariableValue
             variable={this.variable as DimensionValueVariableModel}
             onBlur={this.handleEditValueBlur}
             onChange={this.handleDataChange}
@@ -190,7 +194,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
         );
       case VariableTypeEnum.FUNCTION:
         return (
-          <FunctionValue
+          <EditFunctionVariableValue
             metricFunctions={this.metricFunctions}
             variable={this.variable as FunctionVariableModel}
             onBlur={this.handleEditValueBlur}
@@ -200,7 +204,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
         );
       case VariableTypeEnum.CONDITION:
         return (
-          <ConditionValue
+          <EditConditionVariableValue
             variable={this.variable as ConditionVariableModel}
             onBlur={this.handleEditValueBlur}
             onChange={this.handleDataChange}
@@ -209,7 +213,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
         );
       default:
         return (
-          <ConstantValue
+          <EditConstantVariableValue
             variable={this.variable as ConstantVariableModel}
             onBlur={this.handleEditValueBlur}
             onChange={this.handleDataChange}
@@ -224,7 +228,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
   handleEditValueFocus() {}
 
   validateForm() {
-    return this.variableForm?.validateForm?.();
+    return this.variableForm?.validateForm?.().catch(() => {});
   }
 
   render() {

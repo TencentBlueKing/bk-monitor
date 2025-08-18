@@ -27,25 +27,29 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { MethodVariableModel } from '../../index';
+import { DimensionVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
-interface MethodValueEvents {
+
+interface DimensionValueEvents {
   onBlur: () => void;
-  onChange: (variable: MethodVariableModel) => void;
+  onChange: (data: DimensionVariableModel) => void;
   onFocus: () => void;
 }
 
-interface MethodValueProps {
-  variable: MethodVariableModel;
+interface DimensionValueProps {
+  variable: DimensionVariableModel;
 }
 
 @Component
-export default class MethodValue extends tsc<MethodValueProps, MethodValueEvents> {
-  @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
+export default class EditDimensionVariableValue extends tsc<DimensionValueProps, DimensionValueEvents> {
+  @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
 
   @Emit('change')
   handleValueChange(value: string) {
-    return new MethodVariableModel({ ...this.variable.data, value });
+    return new DimensionVariableModel({
+      ...this.variable.data,
+      value,
+    });
   }
 
   handleSelectToggle(value: boolean) {
@@ -64,7 +68,7 @@ export default class MethodValue extends tsc<MethodValueProps, MethodValueEvents
           onChange={this.handleValueChange}
           onToggle={this.handleSelectToggle}
         >
-          {this.variable.metric.aggMethodList.map(item => (
+          {this.variable.dimensionOptionsMap.map(item => (
             <bk-option
               id={item.id}
               key={item.id}
