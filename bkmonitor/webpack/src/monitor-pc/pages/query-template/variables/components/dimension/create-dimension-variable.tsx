@@ -26,22 +26,46 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { MethodVariableModel } from '../../index';
+import { DimensionVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { IMethodVariableModel } from '../../../typings';
-
-interface MethodVariableEvents {
-  onDataChange: (variable: MethodVariableModel) => void;
+import type { IDimensionVariableModel } from '../../../typings';
+interface DimensionVariableEvents {
+  onDataChange: (variable: DimensionVariableModel) => void;
 }
-interface MethodVariableProps {
-  variable: MethodVariableModel;
+interface DimensionVariableProps {
+  variable: DimensionVariableModel;
 }
 
 @Component
-export default class MethodVariable extends tsc<MethodVariableProps, MethodVariableEvents> {
-  @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
+export default class CreateDimensionVariable extends tsc<DimensionVariableProps, DimensionVariableEvents> {
+  @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
+
+  rules = {
+    dimensionOption: [
+      {
+        required: true,
+        message: this.$t('可选维度值必选'),
+        trigger: 'blur',
+      },
+    ],
+  };
+
+  checkboxDisabled(dimensionId: string) {
+    const isAllDisabled =
+      dimensionId === 'all' && this.variable.dimensionOption.length && !this.variable.isAllDimensionOptions;
+    const isOtherDisabled = dimensionId !== 'all' && this.variable.isAllDimensionOptions;
+    return isAllDisabled || isOtherDisabled;
+  }
+
+  handleDimensionChange(value: string[]) {
+    this.handleDataChange({
+      ...this.variable.data,
+      dimensionOption: value,
+      value: String(value.includes('all') ? this.variable.dimensionList[0].id : value[0]),
+    });
+  }
 
   handleValueChange(value: string) {
     this.handleDataChange({
@@ -50,8 +74,13 @@ export default class MethodVariable extends tsc<MethodVariableProps, MethodVaria
     });
   }
 
-  handleDataChange(data: IMethodVariableModel) {
-    this.$emit('dataChange', new MethodVariableModel({ ...data }));
+  handleDataChange(data: IDimensionVariableModel) {
+    this.$emit(
+      'dataChange',
+      new DimensionVariableModel({
+        ...data,
+      })
+    );
   }
 
   validateForm() {
@@ -60,12 +89,47 @@ export default class MethodVariable extends tsc<MethodVariableProps, MethodVaria
 
   render() {
     return (
-      <div class='method-variable'>
+      <div class='dimension-variable'>
         <VariableCommonForm
           ref='variableCommonForm'
           data={this.variable.data}
+          rules={this.rules}
           onDataChange={this.handleDataChange}
         >
+          <bk-form-item label={this.$t('关联指标')}>
+            <bk-input
+              value={this.variable.metric.metric_id}
+              readonly
+            />
+          </bk-form-item>
+          <bk-form-item
+            error-display-type='normal'
+            label={this.$t('可选维度')}
+            property='dimensionOption'
+            required
+          >
+            <bk-select
+              clearable={false}
+              selected-style='checkbox'
+              value={this.variable.dimensionOption}
+              multiple
+              onChange={this.handleDimensionChange}
+            >
+              <bk-option
+                id='all'
+                disabled={this.checkboxDisabled('all')}
+                name='- ALL -'
+              />
+              {this.variable.dimensionList.map(item => (
+                <bk-option
+                  id={item.id}
+                  key={item.id}
+                  disabled={this.checkboxDisabled(item.id)}
+                  name={item.name}
+                />
+              ))}
+            </bk-select>
+          </bk-form-item>
           <bk-form-item
             label={this.$t('默认值')}
             property='value'
@@ -75,7 +139,7 @@ export default class MethodVariable extends tsc<MethodVariableProps, MethodVaria
               value={this.variable.value}
               onChange={this.handleValueChange}
             >
-              {this.variable.metric.aggMethodList.map(item => (
+              {this.variable.dimensionOptionsMap.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}

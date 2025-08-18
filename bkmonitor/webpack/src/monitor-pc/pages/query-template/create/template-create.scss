@@ -94,7 +94,7 @@
       }
 
       .create-view {
-        height: 100%;
+        height: calc(100% - 52px);
         padding: 16px 16px 0;
 
         .variable-form {
