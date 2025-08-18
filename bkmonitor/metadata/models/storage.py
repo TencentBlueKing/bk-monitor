@@ -120,6 +120,7 @@ class ClusterInfo(models.Model):
     LOG_PLATFORM_REGISTERED_SYSTEM = "log-search-4"
     BKDATA_REGISTERED_SYSTEM = "bkdata"
 
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
     cluster_id = models.AutoField("集群ID", primary_key=True)
     # 集群中文名，便于管理员维护
     cluster_name = models.CharField("集群名称", max_length=128, unique=True)
