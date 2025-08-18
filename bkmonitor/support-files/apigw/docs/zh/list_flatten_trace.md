@@ -2,7 +2,7 @@
 
 获取 Trace 列表数据
 
-#### 接口参数
+### 接口参数
 
 | 字段名        | 类型      | 必选 | 描述      |
 |------------| --------- | ---- |---------|
@@ -15,6 +15,40 @@
 | filters    | list      | 否   | 过滤条件列表  |
 | query      | str       | 否   | 查询字符串   |
 | sort       | list      | 否   | 排序      |
+
+#### filters 列表元素
+
+| 字段名 | 类型     | 描述          |
+|-------|--------|-------------|
+| key | str    | 查询键        |
+| operator | str    | 操作符  |
+| value | list   | 查询值 |
+| options | object | 操作符选项 |
+
+#### filters 列表元素中 options 字段
+| 字段名 | 类型     | 描述         |
+|-------|--------|------------|
+| is_wildcard | bool   | 是否使用通配符    |
+| group_relation | str    | 分组关系，`OR` 或者 `AND`|
+
+#### query 查询语法
+- 操作符：
+`:`等于某一值、`:*`存在任意形式 、`>`大于某一值、 `<`小于某一值、`>=`大于或等于某一值、`<=`小于或等于某一值
+- 精确匹配（支持AND、OR)：
+`author:"John Smith" AND age:20`
+- 精确匹配（支持AND、OR)：
+`status:active
+title:(quick brown)`
+- 字段名模糊匹配：
+`vers\*on:(quick brown)`
+- 通配符匹配：
+`qu?ck bro*`
+- 正则匹配：
+`name:/joh?n(ah[oa]n)/`
+- 范围匹配：
+`count:[1 TO 5]`、
+`count:[1 TO 5}`、
+`count:[10 TO *]`
 
 #### filters 和 query 可查询 key 列表
 
@@ -68,25 +102,6 @@
 | collections.kind                        | 类型           |
 | collections.span_name                   | 接口名称         |
 | status.code                             | 状态           |
-
-#### query 查询语法
-- 操作符：
-`:`等于某一值、`:*`存在任意形式 、`>`大于某一值、 `<`小于某一值、`>=`大于或等于某一值、`<=`小于或等于某一值
-- 精确匹配（支持AND、OR)：
-`author:"John Smith" AND age:20`
-- 精确匹配（支持AND、OR)：
-`status:active
-title:(quick brown)`
-- 字段名模糊匹配：
-`vers\*on:(quick brown)`
-- 通配符匹配：
-`qu?ck bro*`
-- 正则匹配：
-`name:/joh?n(ah[oa]n)/`
-- 范围匹配：
-`count:[1 TO 5]`、
-`count:[1 TO 5}`、
-`count:[10 TO *]`
 
 #### 示例数据
 
