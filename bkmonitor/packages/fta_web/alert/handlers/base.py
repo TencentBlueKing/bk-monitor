@@ -135,7 +135,6 @@ class BaseQueryTransformer(BaseTreeTransformer):
     def transform_query_string(cls, query_string: str, context=None):
         def parse_query_string_node(_transform_obj, _query_string, _context):
             try:
-                _query_string = _query_string.replace('\\"', '\\\\"')
                 query_node = parser.parse(_query_string, lexer=lexer.clone())
                 return _transform_obj.visit(query_node, _context)
             except ParseError as e:

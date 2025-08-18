@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import re
+
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.service_handler import ServiceHandler
 
@@ -26,19 +28,19 @@ class CompatibleQuery:
             node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
             if ComponentHandler.is_component_by_node(node):
                 query = (
-                    f'tags.{ComponentHandler.get_dimension_key(node)}: '
-                    f'"{node["extra_data"]["predicate_value"]}" AND '
-                    f'tags.service_name: "{ComponentHandler.get_component_belong_service(service_name)}"'
+                    f"tags.{ComponentHandler.get_dimension_key(node)}: "
+                    f'"{re.escape(node["extra_data"]["predicate_value"])}" AND '
+                    f'tags.service_name: "{re.escape(ComponentHandler.get_component_belong_service(service_name))}"'
                 )
             elif ServiceHandler.is_remote_service_by_node(node):
-                query = f'tags.peer_service: "{ServiceHandler.get_remote_service_origin_name(service_name)}"'
+                query = f'tags.peer_service: "{re.escape(ServiceHandler.get_remote_service_origin_name(service_name))}"'
             else:
-                query = f'tags.service_name: "{service_name}"'
+                query = f'tags.service_name: "{re.escape(service_name)}"'
         except ValueError:
-            query = f'tags.service_name: "{service_name}"'
+            query = f'tags.service_name: "{re.escape(service_name)}"'
 
         if endpoint_name:
-            query += f' AND tags.span_name: "{endpoint_name}"'
+            query += f' AND tags.span_name: "{re.escape(endpoint_name)}"'
 
         return f"{res} AND {query}"
 
