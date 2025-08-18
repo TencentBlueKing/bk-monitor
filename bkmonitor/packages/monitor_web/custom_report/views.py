@@ -44,16 +44,6 @@ class CustomEventReportViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.custom_report.modify_custom_event_group, endpoint="modify_custom_event_group"),
         ResourceRoute("POST", resource.custom_report.delete_custom_event_group, endpoint="delete_custom_event_group"),
         ResourceRoute("GET", resource.custom_report.query_custom_event_target, endpoint="query_custom_event_target"),
-        ResourceRoute(
-            "GET",
-            resource.custom_report.check_custom_event_is_platform_permission,
-            endpoint="check_custom_event_is_platform_permission",
-        ),
-        ResourceRoute(
-            "POST",
-            resource.custom_report.apply_custom_event_is_platform_permission,
-            endpoint="apply_custom_event_is_platform_permission",
-        ),
     ]
 
 
