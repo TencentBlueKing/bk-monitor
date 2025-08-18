@@ -25,6 +25,7 @@ __all__ = [
     "CloudProductConfigResource",
     "CloudMonitoringSaveConfigResource",
     "CloudMonitoringTaskListResource",
+    "CloudMonitoringTaskStatusResource",
 ]
 
 
@@ -747,3 +748,43 @@ class CloudMonitoringTaskListResource(Resource):
         except Exception as e:
             logger.warning(f"获取任务{task_id}地域信息失败: {str(e)}")
             return []
+
+
+class CloudMonitoringTaskStatusResource(Resource):
+    """
+    异步获取任务状态接口
+    查询指定任务的当前状态
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, help_text=_("业务ID"))
+        task_id = serializers.CharField(required=True, help_text=_("任务ID"))
+
+    class ResponseSerializer(serializers.Serializer):
+        task_id = serializers.CharField(help_text=_("任务ID"))
+        status = serializers.CharField(help_text=_("任务状态"))
+
+    def perform_request(self, validated_request_data):
+        """
+        查询任务状态
+        """
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        task_id = validated_request_data["task_id"]
+
+        try:
+            from monitor_web.models.qcloud import CloudMonitoringTask
+
+            # 查询任务
+            task = CloudMonitoringTask.objects.get(task_id=task_id, bk_biz_id=bk_biz_id, is_deleted=False)
+
+            return {
+                "task_id": task.task_id,
+                "status": task.status,
+            }
+
+        except CloudMonitoringTask.DoesNotExist:
+            logger.error(f"任务不存在: task_id={task_id}, bk_biz_id={bk_biz_id}")
+            raise ValueError(f"任务不存在: {task_id}")
+        except Exception as e:
+            logger.error(f"查询任务状态失败: {str(e)}")
+            raise RuntimeError(f"查询任务状态失败: {str(e)}")
