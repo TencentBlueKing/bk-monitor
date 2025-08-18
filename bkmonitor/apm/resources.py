@@ -382,7 +382,7 @@ class ReleaseAppConfigResource(Resource):
 
         apdex_config = serializers.ListField(label="应用Apdex配置规则", child=ApdexSerializer(), required=False)
         sampler_config = SampleSerializer(label="应用采样配置", required=False)
-        instance_name_config = serializers.ListField(child=serializers.CharField(), label="实例名称")
+        instance_name_config = serializers.ListField(child=serializers.CharField(), label="实例名称", required=False)
         dimension_config = serializers.ListField(
             child=DimensionConfigSerializer(label="应用维度配置"), required=False, allow_empty=True, allow_null=True
         )
@@ -404,7 +404,7 @@ class ReleaseAppConfigResource(Resource):
 
         db_slow_command_config = DbSlowCommandConfigSerializer(label="慢命令配置", default={})
 
-        qps = serializers.IntegerField(label="qps", min_value=1, required=False, default=settings.APM_APP_QPS)
+        qps = serializers.IntegerField(label="qps", min_value=1, required=False)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -417,7 +417,7 @@ class ReleaseAppConfigResource(Resource):
         service_configs = validated_request_data.get("service_configs", [])
         instance_configs = validated_request_data.get("instance_configs", [])
         self.set_config(bk_biz_id, app_name, app_name, ApdexConfig.APP_LEVEL, validated_request_data)
-        self.set_custom_service_config(bk_biz_id, app_name, validated_request_data["custom_service_config"])
+        self.set_custom_service_config(bk_biz_id, app_name, validated_request_data.get("custom_service_config"))
         self.set_qps_config(bk_biz_id, app_name, app_name, ApdexConfig.APP_LEVEL, validated_request_data.get("qps"))
 
         for service_config in service_configs:
@@ -437,6 +437,11 @@ class ReleaseAppConfigResource(Resource):
         QpsConfig.refresh_config(bk_biz_id, app_name, config_level, config_key, [{"qps": qps}])
 
     def set_custom_service_config(self, bk_biz_id, app_name, custom_services):
+        """
+        custom_services为空列表时，意味着删除所有自定义服务
+        """
+        if custom_services is None:
+            return
         CustomServiceConfig.objects.filter(
             bk_biz_id=bk_biz_id, app_name=app_name, config_level=ApdexConfig.APP_LEVEL, config_key=app_name
         ).delete()
@@ -448,7 +453,8 @@ class ReleaseAppConfigResource(Resource):
             instance_name_config = config.get("instance_name_config", [])
             dimension_config = config.get("dimension_config", [])
             sampler_config = config.get("sampler_config", {})
-            apdex_configs = config.get("apdex_config", [])
+            # apdex_configs 为空列表意味删除，因此使用 None
+            apdex_configs = config.get("apdex_config", None)
             license_config = config.get("license_config", {})
             db_config = config.get("db_config", {})
             probe_config = config.get("probe_config", {})
@@ -468,12 +474,18 @@ class ReleaseAppConfigResource(Resource):
             )
 
     def set_instance_name_config(self, bk_biz_id, app_name, instance_name_config):
+        if not instance_name_config:
+            return
         ApmInstanceDiscover.refresh_config(bk_biz_id, app_name, instance_name_config)
 
     def set_dimension_config(self, bk_biz_id, app_name, dimension_configs):
+        if not dimension_configs:
+            return
         ApmMetricDimension.refresh_config(bk_biz_id, app_name, dimension_configs)
 
     def set_apdex_configs(self, bk_biz_id, app_name, config_key, config_level, apdex_configs):
+        if apdex_configs is None:
+            return
         ApdexConfig.refresh_config(bk_biz_id, app_name, config_level, config_key, apdex_configs)
 
     def set_sampler_configs(self, bk_biz_id, app_name, config_key, config_level, sampler_config):

@@ -543,7 +543,7 @@ class Application(AbstractRecordModel):
         # 下发配置
         from apm_web.tasks import update_application_config
 
-        update_application_config.delay(self.application_id)
+        update_application_config.delay(self.bk_biz_id, self.app_name, self.get_transfer_config())
 
     def refresh_log_trace_plugin(self, plugin_config=None):
         if not plugin_config:
@@ -792,14 +792,8 @@ class Application(AbstractRecordModel):
     def get_relation(self, relation_key):
         return ApplicationRelationInfo.get_relation(self.application_id, relation_key)
 
-    def refresh_config(self):
-        config = self.get_transfer_config()
-
-        api.apm_api.release_app_config({"bk_biz_id": self.bk_biz_id, "app_name": self.app_name, **config})
-
     def get_transfer_config(self):
         """获取传递给API侧的数据"""
-
         application_config = self.get_application_transfer_config()
         service_config = self.get_service_transfer_config()
 
@@ -807,44 +801,62 @@ class Application(AbstractRecordModel):
 
     def get_application_transfer_config(self):
         res = {}
-        apdex_config = self.apdex_config
+        # 依次获取各个配置
+        config_parts = [
+            self.get_apdex_config(),
+            self.get_sampler_config(),
+            self.get_instance_name_config(),
+            self.get_dimension_config(),
+            self.get_db_configs(),
+            self.get_custom_service_config(),
+            self.get_qps_config(),
+        ]
 
-        # 组装apdex配置
-        res["apdex_config"] = []
+        for part in config_parts:
+            res.update(part)
+
+        return res
+
+    def get_apdex_config(self):
+        apdex_config = self.apdex_config
+        apdex_list = []
         for key, value in self.APDEX_RULE_MAPPING.items():
             for item in value:
-                res["apdex_config"].append({"apdex_t": apdex_config[key], **item})
+                apdex_list.append({"apdex_t": apdex_config[key], **item})
+        return {"apdex_config": apdex_list}
 
-        # 组装采样配置
-        res["sampler_config"] = {
-            "sampling_percentage": self.sampler_config["sampler_percentage"],
-            "sampler_type": self.sampler_config["sampler_type"],
+    def get_sampler_config(self):
+        return {
+            "sampler_config": {
+                "sampling_percentage": self.sampler_config["sampler_percentage"],
+                "sampler_type": self.sampler_config["sampler_type"],
+            }
         }
 
-        # 组装实例配置
-        res["instance_name_config"] = self.instance_config.get("instance_name_composition", [])
+    def get_instance_name_config(self):
+        return {"instance_name_config": self.instance_config.get("instance_name_composition", [])}
 
-        # 组装维度配置
-        res["dimension_config"] = self.dimension_config.get("dimensions")
+    def get_dimension_config(self):
+        return {"dimension_config": self.dimension_config.get("dimensions")}
 
-        # 组装db配置
+    def get_db_configs(self):
         db_configs = self.db_config
         # 首字母大写
         for item in db_configs:
             item["db_system"] = str(item.get("db_system", "")).capitalize()
-        res["db_config"] = self.get_db_cut_drop_config(db_configs)
-        res["db_slow_command_config"] = self.get_db_slow_command_config(db_configs)
+        return {
+            "db_config": self.get_db_cut_drop_config(db_configs),
+            "db_slow_command_config": self.get_db_slow_command_config(db_configs),
+        }
 
-        # 组装自定义服务配置
+    def get_custom_service_config(self):
         query = ApplicationCustomService.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         from apm_web.serializers import CustomServiceSerializer
 
-        res["custom_service_config"] = CustomServiceSerializer(instance=query, many=True).data
+        return {"custom_service_config": CustomServiceSerializer(instance=query, many=True).data}
 
-        # 补充 QPS 配置
-        res["qps"] = self.qps_config
-
-        return res
+    def get_qps_config(self):
+        return {"qps": self.qps_config}
 
     @staticmethod
     def get_db_slow_command_config(configs: list):
