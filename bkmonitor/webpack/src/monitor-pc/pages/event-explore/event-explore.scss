@@ -32,6 +32,34 @@
         height: 48px;
       }
 
+      .btn-alert-policy__wrap {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+
+      .btn-alert-policy {
+        height: 42px;
+        line-height: 42px;
+        color: #4d4f56;
+        cursor: pointer;
+
+        &-text {
+          font-size: 12px;
+          vertical-align: middle;
+        }
+
+        .icon-monitor {
+          margin-right: 4px;
+          font-size: 16px;
+          vertical-align: middle;
+        }
+      }
+
+      .btn-alert-policy__wrap + .content-container {
+        margin-top: 0;
+      }
+
       .content-container {
         flex: 1;
         min-height: 0;
