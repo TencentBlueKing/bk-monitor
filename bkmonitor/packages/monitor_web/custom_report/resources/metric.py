@@ -205,7 +205,7 @@ class CreateCustomTimeSeries(Resource):
         if validated_request_data.get("is_platform"):
             # 获取当前用户名
             username = get_request_username()
-
+            # 校验权限
             permission = Permission(username=username)
             permission.is_allowed(ActionEnum.USE_ALL_BIZ_IN_CUSTOM_METRIC, raise_exception=True)
 
