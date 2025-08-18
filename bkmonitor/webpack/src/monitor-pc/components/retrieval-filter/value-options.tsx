@@ -31,6 +31,7 @@ import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 
 import EmptyStatus from '../empty-status/empty-status';
 import TextHighlighter from './text-highlighter';
+import AddVariableOption from '@/pages/query-template/components/utils/add-variable-option';
 
 import type { IFieldItem, TGetValueFn } from './value-selector-typing';
 
@@ -39,12 +40,14 @@ import './value-options.scss';
 interface IProps {
   fieldInfo?: IFieldItem;
   getValueFn?: TGetValueFn;
+  hasVariableOperate?: boolean;
   isPopover?: boolean;
   needUpDownCheck?: boolean;
   noDataSimple?: boolean;
   search?: string;
   selected?: string[];
   show?: boolean;
+  variables?: { name: string }[];
   width?: number;
   onIsChecked?: (v: boolean) => void;
   onSelect?: (item: IValue) => void;
@@ -77,6 +80,9 @@ export default class ValueOptions extends tsc<IProps> {
   /* 是否可上下键切换 */
   @Prop({ type: Boolean, default: true }) needUpDownCheck: boolean;
   @Prop({ type: Boolean, default: false }) noDataSimple: boolean;
+  /* 是否支持变量操作 */
+  @Prop({ type: Boolean, default: false }) hasVariableOperate: boolean;
+  @Prop({ type: Array, default: () => [] }) variables: { name: string }[];
 
   localOptions: IValue[] = [];
   loading = false;
@@ -108,7 +114,6 @@ export default class ValueOptions extends tsc<IProps> {
       } else {
         document.removeEventListener('keydown', this.handleKeydownEvent);
       }
-    } else {
     }
   }
 
@@ -261,6 +266,9 @@ export default class ValueOptions extends tsc<IProps> {
     return list;
   }
 
+  handleAddVar() {}
+  handleAddVariableOpenChange() {}
+
   render() {
     return (
       <div
@@ -291,7 +299,24 @@ export default class ValueOptions extends tsc<IProps> {
         ) : !this.renderOptions.length && !this.search ? (
           <div class={['options-drop-down-wrap', { 'is-popover': this.isPopover }]}>
             {this.noDataSimple ? (
-              <span class='no-data-text'>{this.$t('暂无数据，请输入生成')}</span>
+              this.hasVariableOperate ? (
+                <div
+                  key={'variable-operator'}
+                  class={['options-item']}
+                >
+                  <AddVariableOption
+                    onAdd={this.handleAddVar}
+                    onOpenChange={this.handleAddVariableOpenChange}
+                  />
+                </div>
+              ) : (
+                <span
+                  key={'no-data-text'}
+                  class='no-data-text'
+                >
+                  {this.$t('暂无数据，请输入生成')}
+                </span>
+              )
             ) : (
               <EmptyStatus type={'empty'} />
             )}
@@ -304,6 +329,17 @@ export default class ValueOptions extends tsc<IProps> {
             ]}
             onScroll={this.handleScroll}
           >
+            {this.hasVariableOperate && (
+              <div
+                key={'variable-operator'}
+                class={['options-item']}
+              >
+                <AddVariableOption
+                  onAdd={this.handleAddVar}
+                  onOpenChange={this.handleAddVariableOpenChange}
+                />
+              </div>
+            )}
             {this.showCustomOption && (
               <div
                 key={'00'}
@@ -318,6 +354,7 @@ export default class ValueOptions extends tsc<IProps> {
                 </i18n>
               </div>
             )}
+
             {this.renderOptions.map((item, index) => (
               <div
                 key={index}
