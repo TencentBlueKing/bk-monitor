@@ -53,41 +53,26 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
 
-import type { DimensionVariableModel } from '../../index';
-interface DimensionDetailProps {
-  variable: DimensionVariableModel;
+import type { DimensionValueVariableModel } from '../../index';
+interface DimensionValueDetailProps {
+  variable: DimensionValueVariableModel;
 }
 
 @Component
-export default class DimensionDetail extends tsc<DimensionDetailProps> {
-  @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
+export default class DimensionValueVariableDetail extends tsc<DimensionValueDetailProps> {
+  @Prop({ type: Object, required: true }) variable!: DimensionValueVariableModel;
 
   render() {
     return (
-      <div class='dimension-detail'>
+      <div class='dimensionValue-detail'>
         <VariableCommonFormDetail data={this.variable.data}>
           <div class='form-item'>
-            <div class='form-item-label'>{this.$t('关联指标')}：</div>
-            <div class='form-item-value'>{this.variable.metric?.metric_id || '--'}</div>
-          </div>
-          <div class='form-item'>
-            <div class='form-item-label'>{this.$t('可选维度')}：</div>
-            <div class='form-item-value'>
-              <div class='tag-list'>
-                {this.variable.dimensionOptionsMap.map(item => (
-                  <div
-                    key={item.id}
-                    class='tag-item'
-                  >
-                    {item.name}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <div class='form-item-label'>{this.$t('关联维度')}：</div>
+            <div class='form-item-value'>{this.variable.relationDimension || '--'}</div>
           </div>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
-            <div class='form-item-value'>{this.variable.valueMap?.name || '--'}</div>
+            <div class='form-item-value'>{this.variable.value || '--'}</div>
           </div>
         </VariableCommonFormDetail>
       </div>
