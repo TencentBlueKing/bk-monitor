@@ -129,8 +129,11 @@ class ConditionOperator {
       const value = this.allContainsStrList.find(value => value === this.item.operator);
       // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作
       // OR 操作才支持这些查询,已有组间关系则不通过操作符判断
-      const relation = (['AND', 'OR'].includes(this.item.relation?.toLocaleUpperCase()))
-      ? this.item.relation : (this.containOperatorList.includes(value) ? 'OR' : 'AND');
+      const relation = ['AND', 'OR'].includes(this.item.relation?.toLocaleUpperCase())
+        ? this.item.relation
+        : this.containOperatorList.includes(value)
+          ? 'OR'
+          : 'AND';
 
       // 包含和不包含操作符只有这两种，其他逻辑不走这个分支
       const operator = this.containsStrList.includes(value) ? 'contains match phrase' : 'not contains match phrase';
@@ -150,7 +153,7 @@ class ConditionOperator {
    * @param isInitializing 是否为初始化,初始化不改变operator
    * @returns
    */
-  formatApiOperatorToFront( isInitializing = false) {
+  formatApiOperatorToFront(isInitializing = false) {
     // allContainsStrList 列表中包含的操作关系说明是 string | text 字段类型
     // 这些类型需要反向解析 FormatOpetatorFrontToApi 方法生成的语法
     if (!this.isFulltextField && this.allContainsStrList.includes(this.item.operator)) {
@@ -158,8 +161,11 @@ class ConditionOperator {
 
       // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作
       // OR 操作才支持这些查询
-      const relation = (['AND', 'OR'].includes(this.item.relation?.toLocaleUpperCase()))
-      ? this.item.relation : (this.containOperatorList.includes(value) ? 'OR' : 'AND');
+      const relation = ['AND', 'OR'].includes(this.item.relation?.toLocaleUpperCase())
+        ? this.item.relation
+        : this.containOperatorList.includes(value)
+          ? 'OR'
+          : 'AND';
 
       // 如果是通配符这里不做转换
       if (this.wildcardList.includes(value) || isInitializing) {

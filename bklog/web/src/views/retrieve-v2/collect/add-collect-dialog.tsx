@@ -166,7 +166,6 @@ export default class CollectDialog extends tsc<IProps> {
   get favStrList() {
     const favoriteItem = this.favoriteList.find(item => item.group_id === this.favoriteData.group_id);
     return favoriteItem?.favorites.map(group => group.name) || [];
-     
   }
 
   get unionIndexList() {
@@ -272,7 +271,11 @@ export default class CollectDialog extends tsc<IProps> {
 
   /** 判断是否收藏名是否重复 */
   checkRepeatName() {
-    if (this.currentFavoriteName === this.favoriteData.name && this.currentFavoriteGroupID === this.favoriteData.group_id) return true;
+    if (
+      this.currentFavoriteName === this.favoriteData.name &&
+      this.currentFavoriteGroupID === this.favoriteData.group_id
+    )
+      return true;
     return !this.favStrList.includes(this.favoriteData.name);
   }
   /** 检查收藏语法是否正确 */
