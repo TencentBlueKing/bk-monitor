@@ -28,7 +28,7 @@ from django.utils import translation
 
 from apps.log_esquery.permission import EsquerySearchPermissions
 from apps.utils import build_auth_args
-from apps.utils.local import get_request, get_request_tenant_id, get_backend_username
+from apps.utils.local import get_request, get_backend_username
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
@@ -151,10 +151,7 @@ if (
 
     def add_esb_info_before_request(params):
         if "bk_username" not in params:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                params["bk_username"] = get_backend_username(bk_tenant_id=get_request_tenant_id())
-            else:
-                params["bk_username"] = "admin"
+            params["bk_username"] = get_backend_username(bk_tenant_id=params.get("bk_tenant_id"))
 
         if "operator" not in params:
             params["operator"] = params["bk_username"]
@@ -194,10 +191,7 @@ else:
 
         if "no_request" in params and params["no_request"]:
             if "bk_username" not in params:
-                if settings.ENABLE_MULTI_TENANT_MODE:
-                    params["bk_username"] = get_backend_username(bk_tenant_id=get_request_tenant_id())
-                else:
-                    params["bk_username"] = "admin"
+                params["bk_username"] = get_backend_username(bk_tenant_id=params.get("bk_tenant_id"))
 
             if "operator" not in params:
                 params["operator"] = params["bk_username"]
