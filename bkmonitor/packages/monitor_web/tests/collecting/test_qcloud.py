@@ -16,6 +16,7 @@ from packages.monitor_web.collecting.resources.qcloud import (
     CloudProductInstanceQueryResource,
     CloudProductConfigResource,
     CloudMonitoringTaskListResource,
+    CloudMonitoringTaskDetailResource,
 )
 
 
@@ -1414,6 +1415,275 @@ class TestCloudMonitoringTaskListResource:
                     "regions": ["ap-guangzhou"],
                     "latest_updater": "user1",
                     "latest_update_time": mock_time_str,
+                },
+            ],
+        }
+
+        serializer = resource.ResponseSerializer(data=sample_response)
+        assert serializer.is_valid(), f"Response serializer should be valid: {serializer.errors}"
+
+
+class TestCloudMonitoringTaskDetailResource:
+    """
+    Test suite for CloudMonitoringTaskDetailResource.
+    Focuses on verifying the task detail retrieval functionality including credential masking.
+    """
+
+    def create_mock_task(
+        self, task_id, bk_biz_id, namespace, collect_name, collect_interval, collect_timeout, secret_id, secret_key
+    ):
+        """Helper method to create mock CloudMonitoringTask"""
+        mock_task = Mock()
+        mock_task.task_id = task_id
+        mock_task.bk_biz_id = bk_biz_id
+        mock_task.namespace = namespace
+        mock_task.collect_name = collect_name
+        mock_task.collect_interval = collect_interval
+        mock_task.collect_timeout = collect_timeout
+        mock_task.secret_id = secret_id
+        mock_task.secret_key = secret_key
+        return mock_task
+
+    def create_mock_region_config(
+        self,
+        task_id,
+        region_id,
+        region_code,
+        tags_config=None,
+        filters_config=None,
+        selected_metrics=None,
+        dimensions_config=None,
+    ):
+        """Helper method to create mock CloudMonitoringTaskRegion"""
+        mock_region = Mock()
+        mock_region.task_id = task_id
+        mock_region.region_id = region_id
+        mock_region.region_code = region_code
+        mock_region.tags_config = tags_config or []
+        mock_region.filters_config = filters_config or []
+        mock_region.selected_metrics = selected_metrics or []
+        mock_region.dimensions_config = dimensions_config or []
+        return mock_region
+
+    @patch("monitor_web.models.qcloud.CloudMonitoringTaskRegion")
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_get_task_detail_success(self, mock_task_model, mock_region_model):
+        """
+        Test successful retrieval of task detail with credential masking.
+        """
+        # 1. Setup: Mock task
+        mock_task = self.create_mock_task(
+            task_id="test_task_123",
+            bk_biz_id=1,
+            namespace="QCE/CVM",
+            collect_name="生产环境CVM监控",
+            collect_interval="1m",
+            collect_timeout="30s",
+            secret_id="TESTtesttesttesttestID",
+            secret_key="TESTtesttesttesttesttesttesttesttestKEY",
+        )
+        mock_task_model.objects.get.return_value = mock_task
+
+        # Mock region configurations
+        mock_regions = [
+            self.create_mock_region_config(
+                task_id="test_task_123",
+                region_id=1,
+                region_code="ap-beijing",
+                tags_config=[{"name": "env", "values": ["production"], "fuzzy": False}],
+                filters_config=[{"name": "instance-state-name", "values": ["running"]}],
+                selected_metrics=["CPUUtilization", "MemoryUtilization"],
+                dimensions_config=[
+                    {"action": "add_dimension", "dimension_key": "env", "dimension_value": "production"}
+                ],
+            ),
+            self.create_mock_region_config(
+                task_id="test_task_123",
+                region_id=2,
+                region_code="ap-shanghai",
+                tags_config=[{"name": "app", "values": ["web"], "fuzzy": True}],
+                filters_config=[{"name": "vpc-id", "values": ["vpc-12345"]}],
+                selected_metrics=["DiskUsage", "NetworkIn"],
+                dimensions_config=[],
+            ),
+        ]
+
+        mock_region_queryset = MagicMock()
+        mock_region_queryset.__iter__ = Mock(return_value=iter(mock_regions))
+        mock_region_queryset.order_by.return_value = mock_region_queryset
+        mock_region_model.objects.filter.return_value = mock_region_queryset
+
+        # 2. Action: Get task detail
+        resource = CloudMonitoringTaskDetailResource()
+        request_data = {"bk_biz_id": 1, "task_id": "test_task_123"}
+        result = resource.perform_request(request_data)
+
+        # 打印接口返回的数据
+        print("\n" + "=" * 60)
+        print("任务详情接口返回数据:")
+        print(f"请求参数: {request_data}")
+        print(f"任务ID: {result.get('task_id')}")
+        print(f"业务ID: {result.get('bk_biz_id')}")
+        print(f"资源名称: {result.get('resource_name')}")
+        print(f"采集间隔: {result.get('collect_interval')}")
+        print(f"采集超时: {result.get('collect_timeout')}")
+        print(f"地域数量: {len(result.get('regions', []))}")
+        print("地域配置详情:")
+        for i, region in enumerate(result.get("regions", [])):
+            print(f"  地域 {i + 1}: {region}")
+        print("=" * 60 + "\n")
+
+        # 3. Assertions: Verify model queries
+        mock_task_model.objects.get.assert_called_once_with(task_id="test_task_123", bk_biz_id=1, is_deleted=False)
+        mock_region_model.objects.filter.assert_called_once_with(task_id="test_task_123", is_deleted=False)
+
+        # Verify basic response structure
+        assert result["task_id"] == "test_task_123"
+        assert result["bk_biz_id"] == 1
+        assert result["collect_interval"] == "1m"
+        assert result["collect_timeout"] == "30s"
+        assert result["resource_name"] == "生产环境CVM监控"
+
+        assert result["secret_id"] == "TES****************tID"  # Should be masked: 前3个 + *** + 后3个
+
+        # Verify regions structure
+        assert len(result["regions"]) == 2
+
+        # Verify first region
+        region1 = result["regions"][0]
+        assert region1["region"] == "ap-beijing"
+        assert region1["id"] == 1
+        assert region1["instance_selection"]["tags"] == [{"name": "env", "values": ["production"], "fuzzy": False}]
+        assert region1["instance_selection"]["filters"] == [{"name": "instance-state-name", "values": ["running"]}]
+        assert region1["selected_metrics"] == ["CPUUtilization", "MemoryUtilization"]
+        assert region1["dimensions"] == [
+            {"action": "add_dimension", "dimension_key": "env", "dimension_value": "production"}
+        ]
+
+        # Verify second region
+        region2 = result["regions"][1]
+        assert region2["region"] == "ap-shanghai"
+        assert region2["id"] == 2
+        assert region2["instance_selection"]["tags"] == [{"name": "app", "values": ["web"], "fuzzy": True}]
+        assert region2["instance_selection"]["filters"] == [{"name": "vpc-id", "values": ["vpc-12345"]}]
+        assert region2["selected_metrics"] == ["DiskUsage", "NetworkIn"]
+        assert region2["dimensions"] == []
+
+    def test_mask_secret_id_method(self):
+        """
+        Test the _mask_secret_id method with various input scenarios.
+        """
+        resource = CloudMonitoringTaskDetailResource()
+
+        # Test normal secret_id
+        normal_secret_id = "TEST1234567890abcdefghijklmn"
+        masked = resource._mask_secret_id(normal_secret_id)
+        assert masked == "TES**********************lmn", f"Expected 'TES**********************lmn', got '{masked}'"
+
+        # Test short secret_id (length <= 6)
+        short_secret_id = "TEST12"
+        masked_short = resource._mask_secret_id(short_secret_id)
+        assert masked_short == "******", f"Expected '******', got '{masked_short}'"
+
+        # Test very short secret_id
+        very_short = "TE"
+        masked_very_short = resource._mask_secret_id(very_short)
+        assert masked_very_short == "**", f"Expected '**', got '{masked_very_short}'"
+
+        # Test empty string
+        empty_secret = ""
+        masked_empty = resource._mask_secret_id(empty_secret)
+        assert masked_empty == "", f"Expected '', got '{masked_empty}'"
+
+        # Test None
+        none_secret = None
+        masked_none = resource._mask_secret_id(none_secret)
+        assert masked_none == "", f"Expected '', got '{masked_none}'"
+
+        # Test exactly 6 characters
+        six_chars = "TEST12"
+        masked_six = resource._mask_secret_id(six_chars)
+        assert masked_six == "******", f"Expected '******', got '{masked_six}'"
+
+        # Test 7 characters (just over the threshold)
+        seven_chars = "TEST123"
+        masked_seven = resource._mask_secret_id(seven_chars)
+        assert masked_seven == "TES*123", f"Expected 'TES*123', got '{masked_seven}'"
+
+        # Test longer secret_id
+        long_secret_id = "TEST1234567890abcdefghijklmnopqrstuvwxyz"
+        masked_long = resource._mask_secret_id(long_secret_id)
+        expected_long = "TES" + "*" * (len(long_secret_id) - 6) + "xyz"
+        assert masked_long == expected_long, f"Expected '{expected_long}', got '{masked_long}'"
+
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_get_task_detail_not_found(self, mock_task_model):
+        """
+        Test exception handling when task is not found.
+        """
+        # 1. Setup: Mock task not found
+        from django.core.exceptions import ObjectDoesNotExist
+
+        mock_task_model.DoesNotExist = ObjectDoesNotExist
+        mock_task_model.objects.get.side_effect = ObjectDoesNotExist()
+
+        # 2. Action & Assertions: Expect exception
+        resource = CloudMonitoringTaskDetailResource()
+        request_data = {"bk_biz_id": 1, "task_id": "nonexistent_task"}
+
+        try:
+            resource.perform_request(request_data)
+            assert False, "Should raise exception for non-existent task"
+        except Exception as e:
+            assert "任务不存在" in str(e)
+            assert "nonexistent_task" in str(e)
+
+    def test_request_serializer_validation(self):
+        """
+        Test the request serializer validation.
+        """
+        resource = CloudMonitoringTaskDetailResource()
+
+        # Test with valid data
+        valid_data = {"bk_biz_id": 1, "task_id": "test_task_123"}
+        serializer = resource.RequestSerializer(data=valid_data)
+        assert serializer.is_valid(), f"Serializer should be valid: {serializer.errors}"
+
+        # Test with missing bk_biz_id
+        missing_biz_id = {"task_id": "test_task_123"}
+        serializer = resource.RequestSerializer(data=missing_biz_id)
+        assert not serializer.is_valid(), "Serializer should be invalid without bk_biz_id"
+
+        # Test with missing task_id
+        missing_task_id = {"bk_biz_id": 1}
+        serializer = resource.RequestSerializer(data=missing_task_id)
+        assert not serializer.is_valid(), "Serializer should be invalid without task_id"
+
+    def test_response_serializer_structure(self):
+        """
+        Test the response serializer structure.
+        """
+        resource = CloudMonitoringTaskDetailResource()
+
+        sample_response = {
+            "task_id": "test_task_123",
+            "bk_biz_id": 1,
+            "collect_interval": "1m",
+            "collect_timeout": "30s",
+            "resource_name": "生产环境CVM监控",
+            "secret_id": "TES****************tID",
+            "regions": [
+                {
+                    "region": "ap-beijing",
+                    "id": 1,
+                    "instance_selection": {
+                        "tags": [{"name": "env", "values": ["production"], "fuzzy": False}],
+                        "filters": [{"name": "instance-state-name", "values": ["running"]}],
+                    },
+                    "selected_metrics": ["CPUUtilization", "MemoryUtilization"],
+                    "dimensions": [
+                        {"action": "add_dimension", "dimension_key": "env", "dimension_value": "production"}
+                    ],
                 },
             ],
         }

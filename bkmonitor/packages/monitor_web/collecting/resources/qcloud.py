@@ -26,6 +26,7 @@ __all__ = [
     "CloudMonitoringSaveConfigResource",
     "CloudMonitoringTaskListResource",
     "CloudMonitoringTaskStatusResource",
+    "CloudMonitoringTaskDetailResource",
 ]
 
 
@@ -788,3 +789,98 @@ class CloudMonitoringTaskStatusResource(Resource):
         except Exception as e:
             logger.error(f"查询任务状态失败: {str(e)}")
             raise RuntimeError(f"查询任务状态失败: {str(e)}")
+
+
+class CloudMonitoringTaskDetailResource(Resource):
+    """
+    获取采集配置详情接口
+    查询指定任务的详细配置信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, help_text=_("业务ID"))
+        task_id = serializers.CharField(required=True, help_text=_("任务ID"))
+
+    class ResponseSerializer(serializers.Serializer):
+        task_id = serializers.CharField(help_text=_("任务ID"))
+        bk_biz_id = serializers.IntegerField(help_text=_("业务ID"))
+        collect_interval = serializers.CharField(help_text=_("采集间隔"))
+        collect_timeout = serializers.CharField(help_text=_("采集超时时间"))
+        resource_name = serializers.CharField(help_text=_("资源名称"))
+        secret_id = serializers.CharField(help_text=_("腾讯云SecretId"))
+        regions = serializers.ListField(child=serializers.DictField(), help_text=_("地域配置列表"))
+
+    def perform_request(self, validated_request_data):
+        """
+        查询任务详细配置
+        """
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        task_id = validated_request_data["task_id"]
+
+        try:
+            from monitor_web.models.qcloud import CloudMonitoringTask, CloudMonitoringTaskRegion
+
+            # 查询主任务
+            task = CloudMonitoringTask.objects.get(task_id=task_id, bk_biz_id=bk_biz_id, is_deleted=False)
+
+            # 查询地域配置
+            region_configs = CloudMonitoringTaskRegion.objects.filter(task_id=task_id, is_deleted=False).order_by(
+                "region_id"
+            )
+
+            # 构建地域配置列表
+            regions = []
+            for region_config in region_configs:
+                region_data = {
+                    "region": region_config.region_code,
+                    "id": region_config.region_id,
+                    "instance_selection": {
+                        "tags": region_config.tags_config or [],
+                        "filters": region_config.filters_config or [],
+                    },
+                    "selected_metrics": region_config.selected_metrics or [],
+                    "dimensions": region_config.dimensions_config or [],
+                }
+                regions.append(region_data)
+
+            # 构建响应数据
+            return {
+                "task_id": task.task_id,
+                "bk_biz_id": task.bk_biz_id,
+                "collect_interval": task.collect_interval,
+                "collect_timeout": task.collect_timeout,
+                "resource_name": task.collect_name,
+                "secret_id": self._mask_secret_id(task.secret_id),
+                "regions": regions,
+            }
+
+        except CloudMonitoringTask.DoesNotExist:
+            logger.error(f"任务不存在: task_id={task_id}, bk_biz_id={bk_biz_id}")
+            raise ValueError(f"任务不存在: {task_id}")
+        except Exception as e:
+            logger.error(f"查询任务详情失败: {str(e)}")
+            raise RuntimeError(f"查询任务详情失败: {str(e)}")
+
+    def _mask_secret_id(self, secret_id):
+        """
+        对 secret_id 进行脱敏处理，只显示前后各3个字符，中间用*号填充
+
+        Args:
+            secret_id: 原始的 secret_id
+
+        Returns:
+            str: 脱敏后的 secret_id
+        """
+        if not secret_id:
+            return ""
+
+        secret_id_str = str(secret_id)
+        if len(secret_id_str) <= 6:
+            # 如果长度小于等于6，则全部用*号替换
+            return "*" * len(secret_id_str)
+        else:
+            # 显示前3个和后3个字符，中间用*号填充
+            prefix = secret_id_str[:3]
+            suffix = secret_id_str[-3:]
+            middle_length = len(secret_id_str) - 6
+            return f"{prefix}{'*' * middle_length}{suffix}"
