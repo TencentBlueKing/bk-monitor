@@ -31,12 +31,13 @@ import { VariableTypeEnum } from '../../constants';
 import ExpressionCreator from '../expression/expression-creator';
 import FunctionCreator from '../function/function-creator';
 
+import type { Expression } from '../../typings/expression';
 import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config';
 
 import './expression-config-creator.scss';
 
 interface IProps {
-  expressionConfig?: any;
+  expressionConfig?: Expression;
   metricFunctions?: IFunctionOptionsItem[];
   variables?: IVariablesItem[];
   onCreateVariable?: (val: IVariablesItem) => void;
@@ -44,7 +45,7 @@ interface IProps {
 
 @Component
 export default class ExpressionConfigCreator extends tsc<IProps> {
-  @Prop({ default: () => null }) expressionConfig: any;
+  @Prop({ default: () => null }) expressionConfig: Expression;
   @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
   @Prop({ default: () => [] }) variables: IVariablesItem[];
 
@@ -72,6 +73,13 @@ export default class ExpressionConfigCreator extends tsc<IProps> {
     });
   }
 
+  handleExpressionChange(val) {
+    this.expressionConfig.expression = val;
+  }
+  handleFunctionChange(val) {
+    this.expressionConfig.functions = val;
+  }
+
   render() {
     return (
       <div class='template-expression-config-creator-component'>
@@ -80,13 +88,17 @@ export default class ExpressionConfigCreator extends tsc<IProps> {
         </div>
         <div class='expression-config-wrap'>
           <ExpressionCreator
+            value={this.expressionConfig?.expression || ''}
             variables={this.getExpressionVariables}
+            onChange={this.handleExpressionChange}
             onCreateVariable={this.handleCreateExpressionVariable}
           />
           <FunctionCreator
             options={this.metricFunctions}
             showVariables={true}
+            value={this.expressionConfig?.functions || []}
             variables={this.getFunctionVariables}
+            onChange={this.handleFunctionChange}
             onCreateVariable={this.handleCreateFunctionVariable}
           />
         </div>
