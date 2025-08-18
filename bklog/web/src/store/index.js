@@ -244,12 +244,12 @@ const store = new Vuex.Store({
       const { addition } = state.indexItem;
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(({ field, operator, value, hidden_fields, disabled }) => {
+        .map(({ field, operator, value, hidden_values, disabled }) => {
           const addition = {
             field,
             operator,
             value,
-            hidden_fields,
+            hidden_values,
             disabled,
           };
 
@@ -317,10 +317,10 @@ const store = new Vuex.Store({
     requestAddition: (state, getters) => {
       return getters.originAddition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(({ field, operator, value, hidden_fields = [], disabled }) => ({
+        .map(({ field, operator, value, hidden_values = [], disabled }) => ({
           field,
           operator,
-          value: value.filter(v => !hidden_fields.includes(v)),
+          value: value.filter(v => !hidden_values.includes(v)),
           disabled,
         }));
     },

@@ -242,9 +242,9 @@
 
   const handleDisabledTagItem = item => {
     set(item, 'disabled', !item.disabled);
-    set(item, 'hidden_fields', []);
+    set(item, 'hidden_values', []);
     if (item.disabled) {
-      set(item, 'hidden_fields', [...item.value]);
+      set(item, 'hidden_values', [...item.value]);
     }
 
     emitChange(modelValue.value);
@@ -387,15 +387,15 @@
     popover?.showHandler()
   }
   const changeOptionShow = (item, child, parentIndex, childIndex)=>{
-    if (!item.hidden_fields) {
-      item.hidden_fields = [];
+    if (!item.hidden_values) {
+      item.hidden_values = [];
     }
 
-    if (item.hidden_fields.includes(child)) {
-      const index = item.hidden_fields.indexOf(child);
-      item.hidden_fields.splice(index, 1);
+    if (item.hidden_values.includes(child)) {
+      const index = item.hidden_values.indexOf(child);
+      item.hidden_values.splice(index, 1);
     } else {
-      item.hidden_fields.push(child);
+      item.hidden_values.push(child);
     }
 
     emitChange(cloneDeep(modelValue.value));
@@ -403,12 +403,12 @@
     popover?.hideHandler()
   }
   const onlyOptionShow =  (item, child, parentIndex, childIndex)=>{
-   item.hidden_fields.length = 0;
-   item.hidden_fields = [];
+   item.hidden_values.length = 0;
+   item.hidden_values = [];
 
    item.value.forEach(v => {
     if (v !== child) {
-      item.hidden_fields.push(v);
+      item.hidden_values.push(v);
     }
    });
 
@@ -421,12 +421,12 @@
   }
 
   /**
-   * 根据 hidden_fields 动态获取当前展示文本
+   * 根据 hidden_values 动态获取当前展示文本
    * @param item 
    * @param child 
    */
   const getItemActionShowText = (item, child) => {
-    if (item.hidden_fields?.includes(child)) {
+    if (item.hidden_values?.includes(child)) {
       return '恢复这个选项';
     }
 
@@ -485,7 +485,7 @@
               >
                 <span
                   v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
-                  :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 },{'delete-line': item.hidden_fields?.includes(child)}]"
+                  :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 },{'delete-line': item.hidden_values?.includes(child)}]"
                   @click.stop="() => handlePopoverShow(index,childIndex)"
                 >
                   {{ formatDateTimeField(child, item.field_type) }}
@@ -528,7 +528,7 @@
                 trigger="click"
                 extCls="match-value-popover"
               >
-                <div class="match-value-child"  :class="[{'delete-line':item.hidden_fields?.includes(child) }]">{{ child }}</div>
+                <div class="match-value-child"  :class="[{'delete-line':item.hidden_values?.includes(child) }]">{{ child }}</div>
                 <div slot="content">
                   <div class="match-value-select" @click="changeOptionShow(item, child, index, childIndex)">{{ getItemActionShowText(item, child) }}</div>
                   <div class="match-value-select" @click="onlyOptionShow(item, child, index, childIndex)">只看这个选项</div>

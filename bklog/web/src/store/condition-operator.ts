@@ -144,7 +144,7 @@ class ConditionOperator {
         field: this.item.field,
         isInclude: this.isWildcardMatch,
         value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
-        hidden_fields: this.item.hidden_fields ?? [],
+        hidden_values: this.item.hidden_values ?? [],
         disabled: this.item.disabled ?? false,
       };
     }
@@ -177,7 +177,7 @@ class ConditionOperator {
           field: this.item.field,
           isInclude: this.isWildcardMatch,
           value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
-          hidden_fields: this.item.hidden_fields ?? [],
+          hidden_values: this.item.hidden_values ?? [],
           disabled: this.item.disabled ?? false,
         };
       }
@@ -191,7 +191,7 @@ class ConditionOperator {
         field: this.item.field,
         isInclude: this.isWildcardMatch,
         value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
-        hidden_fields: this.item.hidden_fields ?? [],
+        hidden_values: this.item.hidden_values ?? [],
         disabled: this.item.disabled ?? false,
       };
     }
@@ -202,7 +202,7 @@ class ConditionOperator {
       value,
       isInclude = null,
       relation = 'OR',
-      hidden_fields = [],
+      hidden_values = [],
       disabled = false,
     } = this.item;
     return {
@@ -211,7 +211,7 @@ class ConditionOperator {
       field,
       value: Array.isArray(value) ? value : [value],
       isInclude,
-      hidden_fields,
+      hidden_values,
       disabled,
     };
   }
@@ -224,7 +224,7 @@ class ConditionOperator {
       field: this.item.field,
       operator: this.FormatOpetatorFrontToApi(),
       value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
-      hidden_fields: this.item.hidden_fields ?? [],
+      hidden_values: this.item.hidden_values ?? [],
       disabled: this.item.disabled ?? false,
     };
   }
