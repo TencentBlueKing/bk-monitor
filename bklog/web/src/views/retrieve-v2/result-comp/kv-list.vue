@@ -203,12 +203,7 @@
           .filter(item => this.kvShowFieldsList.includes(item.field_name))
           .map(el => el.field_name);
       },
-      /** 获取字段里最大的字段宽度 */
-      // getMaxWidth() {
-      //   // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
-      //   const fieldWidthList = this.fieldKeyMap.map(item => getTextPxWidth(item, '13px', TABLE_FOUNT_FAMILY));
-      //   return Math.max(...fieldWidthList) + 22; // 22是icon的宽度
-      // },
+
       hiddenFields() {
         return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
       },
