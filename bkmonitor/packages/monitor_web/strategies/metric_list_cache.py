@@ -501,7 +501,8 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         field_name_to_tags: dict[str, dict[str, Any]] = {}
         field_name_to_metric_info: dict[str, dict[str, Any]] = {}
         for table in tables:
-            if not ApmMetricProcessor.is_match(table):
+            # data_label 不匹配的直接跳过。
+            if not ApmMetricProcessor.is_match_data_label(table):
                 continue
 
             # 虚拟指标由 data_label 和 field_name 组成，如果没有 data_label 则跳过。

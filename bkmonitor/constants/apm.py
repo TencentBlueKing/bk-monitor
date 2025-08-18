@@ -1148,7 +1148,7 @@ class BaseInnerMetricProcessor:
     # 需要忽略的维度，仅对公共指标生效。
     _IGNORED_TAGS: set[str] = {}
 
-    # 额外的指标信息，用于丰富指标信息
+    # 额外的指标信息，用于丰富指标信息。
     _METRICS: dict[str, dict[str, Any]] = {}
 
     @classmethod
@@ -1300,9 +1300,13 @@ class ApmMetricProcessor:
     _TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
 
     @classmethod
+    def is_match_data_label(cls, table: dict[str, Any]) -> bool:
+        return table.get("data_label") == DEFAULT_DATA_LABEL
+
+    @classmethod
     def is_match(cls, table: dict[str, Any]) -> bool:
         """判断表是否为 APM 的 RT"""
-        return table.get("data_label") == DEFAULT_DATA_LABEL or cls._TABLE_REGEX.match(table["table_id"]) is not None
+        return cls.is_match(table) or cls._TABLE_REGEX.match(table["table_id"]) is not None
 
     @classmethod
     def process(cls, table: dict[str, Any]):
