@@ -234,8 +234,15 @@ export default defineComponent({
 
     // 搜索处理
     const handleSearch = () => {
+      // 开始加载
+      tableLoading.value = true;
+      // 清除之前的搜索定时器
       searchTimer.value && clearTimeout(searchTimer.value);
-      searchTimer.value = setTimeout(searchCallback, 300);
+      // 设置新的搜索定时器
+      searchTimer.value = setTimeout(() => {
+        searchCallback(); // 执行搜索逻辑
+        tableLoading.value = false; // 搜索完成后关闭加载状态
+      }, 300);
     };
 
     // 来源过滤方法
@@ -532,10 +539,10 @@ export default defineComponent({
               placeholder={t('搜索ES源名称，地址，创建人')}
               data-test-id='esAccessBox_input_search'
               right-icon='bk-icon icon-search'
-              onChange={val => {
-                params.keyword = val;
-                handleSearch;
-              }}
+              onChange={val => params.keyword = val}
+              onClear={handleSearch}
+              onEnter={handleSearch}
+              on-right-icon-click={handleSearch}
             />
           </div>
           <bk-table
