@@ -35,5 +35,5 @@ export function getVariableNameInput(val: string) {
 }
 
 export function isVariableName(val: string) {
-  return !!val && /^\$\{[\s\S]+\}$/.test(val);
+  return !!val && /^\$\{(\w+)(?:\.([^:^}]+))?(?::([^}]+))?}$/.test(val);
 }
