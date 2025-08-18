@@ -117,16 +117,4 @@ class CustomMetricReportViewSet(ResourceViewSet):
         ResourceRoute(
             "POST", resource.custom_report.modify_custom_time_series_desc, endpoint="modify_custom_time_series_desc"
         ),
-        # 检查自定义指标是否具有全业务权限
-        ResourceRoute(
-            "GET",
-            resource.custom_report.check_custom_metric_all_biz_permission,
-            endpoint="check_custom_metric_all_biz_permission",
-        ),
-        # 申请自定义指标全业务权限
-        ResourceRoute(
-            "POST",
-            resource.custom_report.apply_custom_metric_all_biz_permission,
-            endpoint="apply_custom_metric_all_biz_permission",
-        ),
     ]

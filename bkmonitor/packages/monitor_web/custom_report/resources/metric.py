@@ -21,7 +21,6 @@ from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
-from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.errors.custom_report import (
     CustomValidationLabelError,
@@ -1203,64 +1202,3 @@ class ExportCustomTimeSeriesFields(Resource):
 
         result["group_rules"] = CustomTSGroupingRuleSerializer(group_rules, many=True).data
         return result
-
-
-class CheckCustomMetricAllBizPermissionResource(Resource):
-    """
-    检查当前用户是否有在自定义指标中使用全业务的权限
-    """
-
-    def perform_request(self, validated_request_data=None):
-        """
-        查询当前用户是否有全业务权限
-
-        Returns:
-            dict: 包含权限信息的字典
-            {
-                "has_permission": true/false,  # 是否拥有权限
-                "action_id": "use_all_biz_in_custom_metric"  # 权限ID
-            }
-        """
-        # 获取当前用户
-        username = get_request_username()
-
-        # 检查权限
-        permission = Permission(username=username)
-        has_permission = permission.is_allowed(ActionEnum.USE_ALL_BIZ_IN_CUSTOM_METRIC, raise_exception=False)
-
-        return {"has_permission": has_permission, "action_id": ActionEnum.USE_ALL_BIZ_IN_CUSTOM_METRIC.id}
-
-
-class ApplyCustomMetricAllBizPermissionResource(Resource):
-    """
-    为当前用户申请在自定义指标中使用全业务的权限
-    """
-
-    def perform_request(self, validated_request_data=None):
-        """
-        申请全业务权限
-
-        Returns:
-            dict: 包含权限申请URL的字典
-                {
-                    "apply_url": "权限申请跳转URL",
-                    "permission": {权限申请数据}
-                }
-        """
-        # 获取当前用户
-        username = get_request_username()
-
-        # 创建权限对象
-        permission = Permission(username=username)
-
-        # 检查是否已有全业务权限
-        already_has_permission = permission.is_allowed(ActionEnum.USE_ALL_BIZ_IN_CUSTOM_METRIC, raise_exception=False)
-
-        if already_has_permission:
-            raise CustomException(_("您已经拥有在自定义指标中使用全业务的权限"))
-
-        # 生成全业务权限的申请数据
-        actions = [ActionEnum.USE_ALL_BIZ_IN_CUSTOM_METRIC]
-        apply_data, apply_url = permission.get_apply_data(actions)
-
-        return {"apply_url": apply_url, "permission": apply_data}
