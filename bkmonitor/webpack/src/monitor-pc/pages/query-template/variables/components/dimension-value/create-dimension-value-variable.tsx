@@ -26,23 +26,25 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import FunctionCreator from '../../../components/function/function-creator';
-import { FunctionVariableModel } from '../../index';
+import { DimensionValueVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { IFunctionVariableModel } from '../../../typings';
-interface FunctionVariableEvents {
-  onDataChange: (variable: FunctionVariableModel) => void;
+import type { IDimensionValueVariableModel } from '../../../typings/variables';
+
+interface DimensionValueVariableEvents {
+  onDataChange: (data: DimensionValueVariableModel) => void;
 }
-interface FunctionVariableProps {
-  metricFunctions: any[];
-  variable: FunctionVariableModel;
+interface DimensionValueVariableProps {
+  variable: DimensionValueVariableModel;
 }
 
 @Component
-export default class FunctionVariable extends tsc<FunctionVariableProps, FunctionVariableEvents> {
-  @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
-  @Prop({ default: () => [] }) metricFunctions!: any[];
+export default class CreateDimensionValueVariable extends tsc<
+  DimensionValueVariableProps,
+  DimensionValueVariableEvents
+> {
+  @Prop({ type: Object, required: true }) variable!: DimensionValueVariableModel;
+
   @Ref() variableCommonForm!: VariableCommonForm;
 
   handleValueChange(value) {
@@ -52,8 +54,13 @@ export default class FunctionVariable extends tsc<FunctionVariableProps, Functio
     });
   }
 
-  handleDataChange(data: IFunctionVariableModel) {
-    this.$emit('dataChange', new FunctionVariableModel({ ...data }));
+  handleDataChange(data: IDimensionValueVariableModel) {
+    this.$emit(
+      'dataChange',
+      new DimensionValueVariableModel({
+        ...data,
+      })
+    );
   }
 
   validateForm() {
@@ -62,21 +69,29 @@ export default class FunctionVariable extends tsc<FunctionVariableProps, Functio
 
   render() {
     return (
-      <div class='function-variable'>
+      <div class='dimension-value-variable'>
         <VariableCommonForm
           ref='variableCommonForm'
           data={this.variable.data}
           onDataChange={this.handleDataChange}
         >
           <bk-form-item
+            label={this.$t('关联维度')}
+            property='relatedDimension'
+          >
+            <bk-input
+              value={this.variable.relationDimension}
+              readonly
+            />
+          </bk-form-item>
+          <bk-form-item
             label={this.$t('默认值')}
             property='value'
           >
-            <FunctionCreator
-              hasCreateVariable={false}
-              options={this.metricFunctions}
-              showLabel={false}
+            <bk-select
+              clearable={false}
               value={this.variable.value}
+              onChange={this.handleValueChange}
             />
           </bk-form-item>
         </VariableCommonForm>

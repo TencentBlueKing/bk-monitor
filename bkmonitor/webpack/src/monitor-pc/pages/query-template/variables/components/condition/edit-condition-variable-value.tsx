@@ -31,9 +31,10 @@ import ConditionCreator from '../../../components/condition/condition-creator';
 import { ConditionVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
 
+import type { IConditionOptionsItem } from '../../../components/type/query-config';
 import type { IConditionVariableModel } from '../../../typings';
 
-import './condition-value.scss';
+import './edit-condition-variable-value.scss';
 interface ConditionValueEvents {
   onBlur: () => void;
   onChange: (variable: ConditionVariableModel) => void;
@@ -45,7 +46,7 @@ interface ConditionValueProps {
 }
 
 @Component
-export default class ConditionValue extends tsc<ConditionValueProps, ConditionValueEvents> {
+export default class EditConditionVariableValue extends tsc<ConditionValueProps, ConditionValueEvents> {
   @Prop({ type: Object, required: true }) variable!: ConditionVariableModel;
 
   @Emit('change')
@@ -72,6 +73,7 @@ export default class ConditionValue extends tsc<ConditionValueProps, ConditionVa
       >
         <ConditionCreator
           hasVariableOperate={false}
+          options={this.variable.dimensionOptionsMap as IConditionOptionsItem[]}
           showLabel={false}
         />
       </EditVariableValue>

@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IVariableModel } from '../../../typings/variables';
+import type { IVariableData, IVariableModel } from '../../../typings/variables';
+import type { VariableModelType } from '../../index';
 
 import './variable-common-form.scss';
 interface VariableCommonFormEvents {
@@ -34,33 +35,53 @@ interface VariableCommonFormEvents {
 }
 
 interface VariableCommonFormProps {
-  data: IVariableModel;
+  data: IVariableData;
   rules?: Record<string, Record<string, any>[]>;
 }
 
 @Component
 export default class VariableCommonForm extends tsc<VariableCommonFormProps, VariableCommonFormEvents> {
-  @Prop({ type: Object, required: true }) data!: IVariableModel;
+  @Prop({ type: Object, required: true }) data!: IVariableData;
   @Prop({ type: Object, default: () => ({}) }) rules: VariableCommonFormProps['rules'];
   @Ref('form') formRef: any;
 
+  @InjectReactive({
+    from: 'variableList',
+    default: () => [],
+  })
+  variableList: VariableModelType[];
+
   get formRules() {
     return {
-      name: [{ required: true, message: this.$t('变量名必填'), trigger: 'blur' }],
+      name: [
+        { required: true, message: this.$t('变量名必填'), trigger: 'blur' },
+        { validator: this.handleCheckName, message: this.$t('变量名不能重复'), trigger: 'blur' },
+      ],
       ...this.rules,
     };
   }
 
+  handleCheckName(val: string) {
+    const valid = this.variableList.find(item => item.name === val && item.id !== this.data.id);
+    console.log(valid, val);
+    return !valid;
+  }
+
   handleNameChange(value: string) {
-    this.$emit('dataChange', { ...this.data, name: value });
+    this.handleDataChange({ ...this.data, name: value ? `\${${value}}` : '' });
   }
 
   handleAliasChange(value: string) {
-    this.$emit('dataChange', { ...this.data, alias: value });
+    this.handleDataChange({ ...this.data, alias: value });
   }
 
   handleDescChange(value: string) {
-    this.$emit('dataChange', { ...this.data, desc: value });
+    this.handleDataChange({ ...this.data, desc: value });
+  }
+
+  handleDataChange(value: IVariableData) {
+    delete value.variableName;
+    this.$emit('dataChange', value);
   }
 
   validateForm() {
@@ -77,13 +98,14 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
       >
         <bk-form-item
           class='variable-name-form-item'
+          error-display-type='normal'
           label={this.$t('变量名')}
           property='name'
           required
         >
           <bk-input
             class='variable-name-input'
-            value={this.data.name}
+            value={this.data.variableName}
             onChange={this.handleNameChange}
           >
             <template slot='prepend'>

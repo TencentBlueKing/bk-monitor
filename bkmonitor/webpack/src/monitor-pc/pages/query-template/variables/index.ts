@@ -26,6 +26,7 @@
 
 import { random } from 'monitor-common/utils';
 
+import { getVariableNameInput, isVariableName } from '../components/utils/utils';
 import { VariableTypeEnum } from '../constants';
 
 import type { MetricDetailV2 } from '../typings';
@@ -37,6 +38,7 @@ import type {
   IDimensionVariableModel,
   IFunctionVariableModel,
   IMethodVariableModel,
+  IVariableData,
   IVariableModel,
   VariableTypeEnumType,
 } from '../typings/variables';
@@ -65,7 +67,15 @@ abstract class VariableBase {
     this.id = config.id || random(5);
   }
 
-  abstract get data(): Required<IVariableModel>;
+  abstract get data(): Required<IVariableData>;
+
+  get variableName(): string {
+    if (isVariableName(this.name)) {
+      return getVariableNameInput(this.name);
+    } else {
+      return this.name;
+    }
+  }
 }
 
 export class ConditionVariableModel extends VariableBase {
@@ -90,6 +100,7 @@ export class ConditionVariableModel extends VariableBase {
       metric: this.metric,
       dimensionOption: this.dimensionOption,
       value: this.value,
+      variableName: this.variableName,
     };
   }
   /** 维度列表 */
@@ -122,6 +133,7 @@ export class ConstantVariableModel extends VariableBase {
       alias: this.alias,
       desc: this.desc,
       value: this.value,
+      variableName: this.variableName,
     };
   }
 }
@@ -148,6 +160,7 @@ export class DimensionValueVariableModel extends VariableBase {
       desc: this.desc,
       metric: this.metric,
       value: this.value,
+      variableName: this.variableName,
       relationDimension: this.relationDimension,
     };
   }
@@ -180,6 +193,7 @@ export class DimensionVariableModel extends VariableBase {
       metric: this.metric,
       dimensionOption: this.dimensionOption,
       value: this.value,
+      variableName: this.variableName,
     };
   }
   /** 维度列表 */
@@ -216,6 +230,7 @@ export class FunctionVariableModel extends VariableBase {
       alias: this.alias,
       desc: this.desc,
       value: this.value,
+      variableName: this.variableName,
     };
   }
 }
@@ -238,6 +253,7 @@ export class MethodVariableModel extends VariableBase {
       metric: this.metric,
       desc: this.desc,
       value: this.value,
+      variableName: this.variableName,
     };
   }
 }
