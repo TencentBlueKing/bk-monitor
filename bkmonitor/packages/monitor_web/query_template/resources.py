@@ -10,97 +10,89 @@ specific language governing permissions and limitations under the License.
 
 from core.drf_resource import Resource
 
+from . import serializers
 from .mock_data import (
-    query_template_detail_by_id_1,
-    query_template_detail_by_id_2,
-    query_template_list,
-    query_template_preview_by_id_2,
-    query_template_relation_by_id_1,
-    query_template_relation_by_id_2,
-    query_template_relations,
-)
-from .serializers import (
-    QueryTemplateCreateRequestSerializer,
-    QueryTemplateDetailRequestSerializer,
-    QueryTemplateListRequestSerializer,
-    QueryTemplatePreviewRequestSerializer,
-    QueryTemplateRelationRequestSerializer,
-    QueryTemplateRelationsRequestSerializer,
-    QueryTemplateUpdateRequestSerializer,
+    AvgDurationQueryTemplateDetail,
+    AvgDurationQueryTemplateRelation,
+    QueryTemplateList,
+    QueryTemplateRelations,
+    RPCCalleeQueryTemplateDetail,
+    RPCCalleeQueryTemplatePreview,
+    RPCCalleeQueryTemplateRelation,
 )
 
 
 class QueryTemplateDetailResource(Resource):
-    RequestSerializer = QueryTemplateDetailRequestSerializer
+    RequestSerializer = serializers.QueryTemplateDetailRequestSerializer
 
     def perform_request(self, validated_data):
         if validated_data.get("is_mock"):
             if validated_data["query_template_id"] == 1:
-                return query_template_detail_by_id_1
+                return AvgDurationQueryTemplateDetail
             elif validated_data["query_template_id"] == 2:
-                return query_template_detail_by_id_2
+                return RPCCalleeQueryTemplateDetail
 
         raise ValueError("query_template_id is invalid")
 
 
 class QueryTemplateListResource(Resource):
-    RequestSerializer = QueryTemplateListRequestSerializer
+    RequestSerializer = serializers.QueryTemplateListRequestSerializer
 
     def perform_request(self, validated_data):
         if validated_data.get("is_mock"):
-            return query_template_list
+            return QueryTemplateList
         return []
 
 
 class QueryTemplateCreateResource(Resource):
-    RequestSerializer = QueryTemplateCreateRequestSerializer
+    RequestSerializer = serializers.QueryTemplateCreateRequestSerializer
 
     def perform_request(self, validated_data):
         if validated_data.get("is_mock"):
-            return query_template_detail_by_id_1
+            return AvgDurationQueryTemplateDetail
         return {}
 
 
 class QueryTemplateUpdateResource(Resource):
-    RequestSerializer = QueryTemplateUpdateRequestSerializer
+    RequestSerializer = serializers.QueryTemplateUpdateRequestSerializer
 
     def perform_request(self, validated_data):
         if validated_data.get("is_mock"):
-            return query_template_detail_by_id_1
+            return AvgDurationQueryTemplateDetail
         return {}
 
 
 class QueryTemplatePreviewResource(Resource):
     """根据查询模板和变量值预览查询配置和结果"""
 
-    RequestSerializer = QueryTemplatePreviewRequestSerializer
+    RequestSerializer = serializers.QueryTemplatePreviewRequestSerializer
 
     def perform_request(self, validated_data):
         if validated_data.get("is_mock"):
-            return query_template_preview_by_id_2
+            return RPCCalleeQueryTemplatePreview
         return {}
 
 
 class QueryTemplateRelationsResource(Resource):
     """根据查询模板 id 列表查对应的关联资源数量"""
 
-    RequestSerializer = QueryTemplateRelationsRequestSerializer
+    RequestSerializer = serializers.QueryTemplateRelationsRequestSerializer
 
     def perform_request(self, validated_data):
         if validated_data.get("is_mock"):
-            return query_template_relations
+            return QueryTemplateRelations
         return []
 
 
 class QueryTemplateRelationResource(Resource):
     """单个查询模板的关联资源列表"""
 
-    RequestSerializer = QueryTemplateRelationRequestSerializer
+    RequestSerializer = serializers.QueryTemplateRelationRequestSerializer
 
     def perform_request(self, validated_data):
         if validated_data.get("is_mock"):
             if validated_data["query_template_id"] == 1:
-                return query_template_relation_by_id_1
+                return AvgDurationQueryTemplateRelation
             elif validated_data["query_template_id"] == 2:
-                return query_template_relation_by_id_2
+                return RPCCalleeQueryTemplateRelation
         return []

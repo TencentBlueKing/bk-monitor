@@ -12,7 +12,7 @@ from rest_framework import serializers
 
 from constants.data_source import DATA_SOURCE_LABEL_ALIAS, DATA_TYPE_LABEL_ALIAS
 
-from .constants import QueryTemplateVariableType
+from .constants import QueryTemplateVariableDataType, QueryTemplateVariableType
 
 
 class BizBaseSerializer(serializers.Serializer):
@@ -64,21 +64,30 @@ class QueryTemplateCreateRequestSerializer(BizBaseSerializer):
         functions = serializers.ListField(label="函数", child=FunctionSerializer(), allow_empty=True)
 
     class VariableSerializer(serializers.Serializer):
+        class VariableConfig(serializers.Serializer):
+            class RelatedMetricsSerializer(serializers.Serializer):
+                metric_id = serializers.CharField(label="指标ID")
+                metric_field = serializers.CharField(label="指标字段")
+
+            default = serializers.JSONField(label="默认值")
+            related_metrics = serializers.ListField(label="关联指标", child=RelatedMetricsSerializer(), default=[])
+            related_tag = serializers.CharField(label="关联标签", required=False)
+            options = serializers.ListField(label="选项", child=serializers.CharField(), default=[])
+
         name = serializers.CharField(label="变量名称")
         type = serializers.ChoiceField(label="变量类型", choices=QueryTemplateVariableType.choices())
         alias = serializers.CharField(label="变量别名", default="", allow_blank=True)
-        default = serializers.JSONField(label="默认值")
+        config = VariableConfig(label="变量配置", default={})
         description = serializers.CharField(label="变量描述", default="", allow_blank=True)
-        relation_value = serializers.JSONField(label="关联值")
-        allowed_values = serializers.ListField(label="可选值列表", child=serializers.JSONField())
+        data_type = serializers.ChoiceField(
+            label="变量数据类型", required=False, choices=QueryTemplateVariableDataType.choices()
+        )
 
-    # max_length
     name = serializers.CharField(label="查询模板名称")
     description = serializers.CharField(label="查询模板描述", allow_blank=True, default="")
     biz_scope = serializers.ListField(label="业务范围", child=serializers.IntegerField())
-    biz_name_scope = serializers.CharField(label="业务名称范围")
     query_configs = serializers.ListField(label="查询配置", child=QueryConfigSerializer())
-    expressions = serializers.CharField(label="表达式")
+    expression = serializers.CharField(label="表达式")
     variables = serializers.ListField(label="变量", child=VariableSerializer(), allow_empty=True)
     functions = serializers.ListField(label="函数", child=FunctionSerializer(), allow_empty=True)
 
@@ -92,21 +101,24 @@ class QueryTemplatePreviewRequestSerializer(BizBaseSerializer):
         query_configs = serializers.ListField(
             label="查询配置", child=QueryTemplateCreateRequestSerializer.QueryConfigSerializer()
         )
-        expressions = serializers.CharField(label="表达式")
-        variables = serializers.ListField(label="变量", child=QueryTemplateCreateRequestSerializer.VariableSerializer())
-        functions = serializers.ListField(label="函数", child=serializers.JSONField())
+        expression = serializers.CharField(label="表达式")
+        variables = serializers.ListField(
+            label="变量", child=QueryTemplateCreateRequestSerializer.VariableSerializer(), allow_empty=True
+        )
+        functions = serializers.ListField(label="函数", child=FunctionSerializer(), allow_empty=True)
 
-    class VariableSerializer(serializers.Serializer):
+    class ParamSerializer(serializers.Serializer):
         name = serializers.CharField(label="变量名称")
-        type = serializers.ChoiceField(label="变量类型", choices=QueryTemplateVariableType.choices())
-        value = serializers.JSONField(label="变量值")
+        value = serializers.JSONField(label="变量值", allow_empty=True)
 
     query_template = QueryTemplateSerializer(label="查询模板")
-    variables = serializers.ListField(label="变量", child=VariableSerializer())
+    params = serializers.ListField(label="变量参数", child=ParamSerializer())
 
 
 class QueryTemplateRelationsRequestSerializer(BizBaseSerializer):
-    query_template_ids = serializers.ListField(label="查询模板ID列表", child=serializers.IntegerField(min_value=1))
+    query_template_ids = serializers.ListField(
+        label="查询模板ID列表", child=serializers.IntegerField(min_value=1), default=[], allow_empty=True
+    )
 
 
 class QueryTemplateRelationRequestSerializer(BizBaseSerializer):

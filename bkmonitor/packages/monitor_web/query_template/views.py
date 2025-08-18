@@ -8,7 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from apm_web.strategy.resources import (
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.query_template.resources import (
     QueryTemplateCreateResource,
     QueryTemplateDetailResource,
     QueryTemplateListResource,
@@ -17,7 +18,6 @@ from apm_web.strategy.resources import (
     QueryTemplateRelationsResource,
     QueryTemplateUpdateResource,
 )
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
 class QueryTemplateViewSet(ResourceViewSet):
