@@ -24,6 +24,7 @@ __all__ = [
     "CloudProductInstanceQueryResource",
     "CloudProductConfigResource",
     "CloudMonitoringSaveConfigResource",
+    "CloudMonitoringTaskListResource",
 ]
 
 
@@ -570,3 +571,179 @@ class CloudMonitoringSaveConfigResource(Resource):
             )
 
             logger.info(f"保存地域配置成功: task_id={task_id}, region={region_config['region']}")
+
+
+class CloudMonitoringTaskListResource(Resource):
+    """
+    获取采集配置列表接口
+    查询指定业务下的云监控采集任务列表，支持分页和搜索
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, help_text=_("业务ID"))
+        page = serializers.IntegerField(required=False, default=1, help_text=_("页码，默认1"))
+        page_size = serializers.IntegerField(required=False, default=20, help_text=_("每页数量，默认20"))
+        search = serializers.CharField(required=False, help_text=_("搜索关键词，搜索采集名称、产品名、最近更新人"))
+
+    class ResponseSerializer(serializers.Serializer):
+        total = serializers.IntegerField(help_text=_("任务总数"))
+        page = serializers.IntegerField(help_text=_("当前页码"))
+        page_size = serializers.IntegerField(help_text=_("每页数量"))
+        tasks = serializers.ListField(child=serializers.DictField(), help_text=_("任务列表"))
+
+    def perform_request(self, validated_request_data):
+        """
+        查询云监控采集任务列表
+        """
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        page = validated_request_data.get("page", 1)
+        page_size = validated_request_data.get("page_size", 20)
+        search = validated_request_data.get("search")
+
+        try:
+            # 1. 基础查询
+            queryset = self._build_base_queryset(bk_biz_id)
+
+            # 2. 搜索过滤
+            if search:
+                queryset = self._apply_search_filter(queryset, search)
+
+            # 3. 获取总数
+            total = queryset.count()
+
+            # 4. 分页处理
+            start_index = (page - 1) * page_size
+            end_index = start_index + page_size
+            paginated_queryset = queryset[start_index:end_index]
+
+            # 5. 构建任务列表
+            tasks = self._build_task_list(paginated_queryset)
+
+            return {
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "tasks": tasks,
+            }
+
+        except Exception as e:
+            logger.error(f"查询云监控任务列表失败: {str(e)}")
+            raise RuntimeError(f"查询任务列表失败: {str(e)}")
+
+    def _build_base_queryset(self, bk_biz_id):
+        """
+        构建基础查询集
+
+        Args:
+            bk_biz_id: 业务ID
+
+        Returns:
+            QuerySet: 基础查询集
+        """
+        from monitor_web.models.qcloud import CloudMonitoringTask
+
+        return (
+            CloudMonitoringTask.objects.filter(bk_biz_id=bk_biz_id, is_deleted=False)
+            .select_related()
+            .order_by("-update_time")
+        )
+
+    def _apply_search_filter(self, queryset, search):
+        """
+        应用搜索过滤
+
+        Args:
+            queryset: 查询集
+            search: 搜索关键词
+
+        Returns:
+            QuerySet: 过滤后的查询集
+        """
+        from monitor_web.models.qcloud import CloudProduct
+
+        # 获取符合条件的产品命名空间列表
+        product_namespaces = list(
+            CloudProduct.objects.filter(product_name__icontains=search, is_deleted=False).values_list(
+                "namespace", flat=True
+            )
+        )
+
+        return queryset.filter(
+            models.Q(collect_name__icontains=search)
+            | models.Q(update_by__icontains=search)
+            | models.Q(namespace__in=product_namespaces)
+        )
+
+    def _build_task_list(self, queryset):
+        """
+        构建任务列表
+
+        Args:
+            queryset: 查询集
+
+        Returns:
+            list: 任务列表
+        """
+        from monitor_web.models.qcloud import CloudProduct
+
+        tasks = []
+
+        # 批量获取产品信息以提高性能
+        namespaces = [task.namespace for task in queryset]
+        product_mapping = {
+            product.namespace: product.product_name
+            for product in CloudProduct.objects.filter(namespace__in=namespaces, is_deleted=False)
+        }
+
+        for task in queryset:
+            # 获取产品名称
+            product_name = product_mapping.get(task.namespace, task.namespace)
+
+            # 获取地域信息列表
+            regions = self._get_main_region(task.task_id)
+
+            # 格式化时间
+            latest_datapoint = task.latest_datapoint.strftime("%Y-%m-%d %H:%M:%S %z") if task.latest_datapoint else None
+            latest_update_time = task.update_time.strftime("%Y-%m-%d %H:%M:%S %z") if task.update_time else None
+
+            task_info = {
+                "task_id": task.task_id,
+                "collect_name": task.collect_name,
+                "product_name": product_name,
+                "latest_datapoint": latest_datapoint,
+                "regions": regions,  # 返回地域列表
+                "latest_updater": task.update_by,
+                "latest_update_time": latest_update_time,
+            }
+
+            tasks.append(task_info)
+
+        return tasks
+
+    def _get_main_region(self, task_id):
+        """
+        获取任务的地域信息列表
+
+        Args:
+            task_id: 任务ID
+
+        Returns:
+            list: 地域代码列表，如果没有地域配置则返回空列表
+        """
+        from monitor_web.models.qcloud import CloudMonitoringTaskRegion
+
+        try:
+            # 获取所有地域配置
+            region_configs = CloudMonitoringTaskRegion.objects.filter(task_id=task_id, is_deleted=False).order_by(
+                "region_id"
+            )
+
+            # 返回地域代码列表
+            if region_configs:
+                return [region.region_code for region in region_configs]
+
+            return []
+
+        except Exception as e:
+            logger.warning(f"获取任务{task_id}地域信息失败: {str(e)}")
+            return []

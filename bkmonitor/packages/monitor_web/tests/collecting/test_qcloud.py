@@ -10,10 +10,12 @@ specific language governing permissions and limitations under the License.
 
 from unittest.mock import Mock, patch, MagicMock
 
+
 from packages.monitor_web.collecting.resources.qcloud import (
     CloudProductMappingResource,
     CloudProductInstanceQueryResource,
     CloudProductConfigResource,
+    CloudMonitoringTaskListResource,
 )
 
 
@@ -961,3 +963,460 @@ class TestCloudProductConfigResource:
         assert mem_metric["display_name"] == "MemoryUtilization"  # Fallback to metric_name
         assert mem_metric["unit"] == ""  # Empty string for empty unit
         assert mem_metric["dimensions"] == []  # None converted to empty list
+
+
+class TestCloudMonitoringTaskListResource:
+    """
+    Test suite for CloudMonitoringTaskListResource.
+    Focuses on verifying the task list functionality including pagination and search.
+    """
+
+    def create_mock_task(
+        self, task_id, bk_biz_id, namespace, collect_name, update_time, latest_datapoint=None, update_by="admin"
+    ):
+        """Helper method to create mock CloudMonitoringTask"""
+        mock_task = Mock()
+        mock_task.task_id = task_id
+        mock_task.bk_biz_id = bk_biz_id
+        mock_task.namespace = namespace
+        mock_task.collect_name = collect_name
+        mock_task.update_time = update_time
+        mock_task.latest_datapoint = latest_datapoint
+        mock_task.update_by = update_by
+        return mock_task
+
+    def create_mock_region(self, task_id, region_id, region_code):
+        """Helper method to create mock CloudMonitoringTaskRegion"""
+        mock_region = Mock()
+        mock_region.task_id = task_id
+        mock_region.region_id = region_id
+        mock_region.region_code = region_code
+        return mock_region
+
+    @patch("monitor_web.models.qcloud.CloudMonitoringTaskRegion")
+    @patch("monitor_web.models.qcloud.CloudProduct")
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_get_task_list_basic(self, mock_task_model, mock_product_model, mock_region_model):
+        """
+        Test basic task list retrieval without search or pagination.
+        """
+        # 1. Setup: Mock tasks
+        from datetime import datetime
+
+        mock_time = datetime(2025, 8, 1, 12, 0, 0)
+        mock_datapoint = datetime(2025, 8, 1, 11, 50, 0)
+
+        mock_tasks = [
+            self.create_mock_task("task1", 1, "QCE/CVM", "CVM监控", mock_time, mock_datapoint),
+            self.create_mock_task("task2", 1, "QCE/CDB", "CDB监控", mock_time),
+        ]
+
+        # Mock tasks queryset with chained method calls
+        mock_queryset = MagicMock()
+        mock_queryset.__iter__ = Mock(return_value=iter(mock_tasks))
+        mock_queryset.count.return_value = len(mock_tasks)
+        mock_queryset.__getitem__ = (
+            lambda self, idx: mock_tasks[idx] if isinstance(idx, int) else mock_tasks[idx.start : idx.stop]
+        )
+
+        # Mock chained method calls
+        mock_select_related = MagicMock()
+        mock_select_related.__iter__ = Mock(return_value=iter(mock_tasks))
+        mock_select_related.count.return_value = len(mock_tasks)
+        mock_select_related.__getitem__ = (
+            lambda self, idx: mock_tasks[idx] if isinstance(idx, int) else mock_tasks[idx.start : idx.stop]
+        )
+        mock_select_related.order_by.return_value = mock_select_related
+
+        mock_queryset.select_related.return_value = mock_select_related
+        mock_task_model.objects.filter.return_value = mock_queryset
+
+        # Mock product information
+        mock_products = [
+            Mock(namespace="QCE/CVM", product_name="云服务器 CVM"),
+            Mock(namespace="QCE/CDB", product_name="云数据库 MySQL"),
+        ]
+        mock_product_queryset = MagicMock()
+        mock_product_queryset.__iter__ = Mock(return_value=iter(mock_products))
+        mock_product_model.objects.filter.return_value = mock_product_queryset
+
+        # Mock region configurations
+        def mock_filter_regions(**kwargs):
+            task_id = kwargs.get("task_id")
+            is_deleted = kwargs.get("is_deleted")
+
+            mock_region_queryset = MagicMock()
+
+            # 只有当 is_deleted=False 时才返回地域数据
+            if is_deleted is False:
+                if task_id == "task1":
+                    regions = [
+                        self.create_mock_region("task1", 0, "ap-beijing"),
+                        self.create_mock_region("task1", 1, "ap-shanghai"),
+                    ]
+                    mock_region_queryset.__iter__ = Mock(return_value=iter(regions))
+                    mock_region_queryset.__bool__ = lambda self: True  # 确保 if region_configs 为真
+                    mock_region_queryset.order_by.return_value = mock_region_queryset  # 添加 order_by 支持
+                elif task_id == "task2":
+                    regions = [
+                        self.create_mock_region("task2", 0, "ap-guangzhou"),
+                    ]
+                    mock_region_queryset.__iter__ = Mock(return_value=iter(regions))
+                    mock_region_queryset.__bool__ = lambda self: True  # 确保 if region_configs 为真
+                    mock_region_queryset.order_by.return_value = mock_region_queryset  # 添加 order_by 支持
+                else:
+                    regions = []
+                    mock_region_queryset.__iter__ = Mock(return_value=iter(regions))
+                    mock_region_queryset.__bool__ = lambda self: False  # 确保 if region_configs 为假
+                    mock_region_queryset.order_by.return_value = mock_region_queryset  # 添加 order_by 支持
+            else:
+                # 当 is_deleted != False 时，返回空查询集
+                regions = []
+                mock_region_queryset.__iter__ = Mock(return_value=iter(regions))
+                mock_region_queryset.__bool__ = lambda self: False  # 确保 if region_configs 为假
+                mock_region_queryset.order_by.return_value = mock_region_queryset  # 添加 order_by 支持
+
+            return mock_region_queryset
+
+        mock_region_model.objects.filter.side_effect = mock_filter_regions
+
+        # 2. Action: Get task list
+        resource = CloudMonitoringTaskListResource()
+        request_data = {"bk_biz_id": 1}
+        result = resource.perform_request(request_data)
+
+        # 打印接口返回的数据
+        print("\n" + "=" * 60)
+        print("任务列表接口返回数据:")
+        print(f"请求参数: {request_data}")
+        print(f"任务总数: {result.get('total', 0)}")
+        print(f"当前页码: {result.get('page', 0)}")
+        print(f"每页数量: {result.get('page_size', 0)}")
+        print("任务列表:")
+        for i, task in enumerate(result.get("tasks", [])):
+            print(f"  {i + 1}. {task}")
+        print("=" * 60 + "\n")
+
+        # 3. Assertions
+        # Verify basic query
+        mock_task_model.objects.filter.assert_called_once_with(bk_biz_id=1, is_deleted=False)
+
+        # Verify product information query
+        mock_product_model.objects.filter.assert_called_once()
+
+        # Verify result structure
+        assert result["total"] == 2, "Should return 2 tasks"
+        assert result["page"] == 1, "Default page should be 1"
+        assert result["page_size"] == 20, "Default page_size should be 20"
+        assert len(result["tasks"]) == 2, "Should return 2 tasks in the list"
+
+        # Verify task details
+        task1 = result["tasks"][0]
+        assert task1["task_id"] == "task1"
+        assert task1["collect_name"] == "CVM监控"
+        assert task1["product_name"] == "云服务器 CVM"
+        assert task1["regions"] == ["ap-beijing", "ap-shanghai"]
+        assert task1["latest_datapoint"] is not None
+
+        task2 = result["tasks"][1]
+        assert task2["task_id"] == "task2"
+        assert task2["collect_name"] == "CDB监控"
+        assert task2["product_name"] == "云数据库 MySQL"
+        assert task2["regions"] == ["ap-guangzhou"]
+        assert task2["latest_datapoint"] is None
+
+    @patch("monitor_web.models.qcloud.CloudMonitoringTaskRegion")
+    @patch("monitor_web.models.qcloud.CloudProduct")
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_task_list_with_pagination(self, mock_task_model, mock_product_model, mock_region_model):
+        """
+        Test task list with pagination.
+        """
+        # 1. Setup: Mock tasks
+        from datetime import datetime
+
+        mock_time = datetime(2025, 8, 1, 12, 0, 0)
+
+        # Create 25 mock tasks for pagination testing
+        mock_tasks = []
+        for i in range(25):
+            task_id = f"task{i + 1}"
+            namespace = "QCE/CVM" if i % 2 == 0 else "QCE/CDB"
+            collect_name = f"监控任务 {i + 1}"
+            mock_tasks.append(self.create_mock_task(task_id, 1, namespace, collect_name, mock_time))
+
+        # Mock tasks queryset with chained method calls
+        mock_queryset = MagicMock()
+        mock_queryset.count.return_value = len(mock_tasks)
+        mock_queryset.__getitem__ = (
+            lambda self, idx: mock_tasks[idx] if isinstance(idx, int) else mock_tasks[idx.start : idx.stop]
+        )
+
+        # Mock chained method calls
+        mock_select_related = MagicMock()
+        mock_select_related.count.return_value = len(mock_tasks)
+        mock_select_related.__getitem__ = (
+            lambda self, idx: mock_tasks[idx] if isinstance(idx, int) else mock_tasks[idx.start : idx.stop]
+        )
+        mock_select_related.order_by.return_value = mock_select_related
+
+        mock_queryset.select_related.return_value = mock_select_related
+        mock_task_model.objects.filter.return_value = mock_queryset
+
+        # Mock product information
+        mock_products = [
+            Mock(namespace="QCE/CVM", product_name="云服务器 CVM"),
+            Mock(namespace="QCE/CDB", product_name="云数据库 MySQL"),
+        ]
+        mock_product_queryset = MagicMock()
+        mock_product_queryset.__iter__ = Mock(return_value=iter(mock_products))
+        mock_product_model.objects.filter.return_value = mock_product_queryset
+
+        # Mock basic region configurations
+        mock_region_queryset = MagicMock()
+        mock_region_queryset.__iter__ = Mock(return_value=iter([]))
+        mock_region_model.objects.filter.return_value = mock_region_queryset
+
+        # 2. Action: Get task list with pagination
+        resource = CloudMonitoringTaskListResource()
+
+        # Test page 1
+        page1_data = {"bk_biz_id": 1, "page": 1, "page_size": 10}
+        page1_result = resource.perform_request(page1_data)
+
+        # Test page 2
+        page2_data = {"bk_biz_id": 1, "page": 2, "page_size": 10}
+        page2_result = resource.perform_request(page2_data)
+
+        # Test page 3
+        page3_data = {"bk_biz_id": 1, "page": 3, "page_size": 10}
+        page3_result = resource.perform_request(page3_data)
+
+        # 3. Assertions
+        # Page 1
+        assert page1_result["total"] == 25, "Total should be 25 tasks"
+        assert page1_result["page"] == 1
+        assert page1_result["page_size"] == 10
+        assert len(page1_result["tasks"]) == 10, "Page 1 should have 10 tasks"
+        assert page1_result["tasks"][0]["task_id"] == "task1"
+        assert page1_result["tasks"][9]["task_id"] == "task10"
+
+        # Page 2
+        assert page2_result["total"] == 25
+        assert page2_result["page"] == 2
+        assert page2_result["page_size"] == 10
+        assert len(page2_result["tasks"]) == 10, "Page 2 should have 10 tasks"
+        assert page2_result["tasks"][0]["task_id"] == "task11"
+        assert page2_result["tasks"][9]["task_id"] == "task20"
+
+        # Page 3
+        assert page3_result["total"] == 25
+        assert page3_result["page"] == 3
+        assert page3_result["page_size"] == 10
+        assert len(page3_result["tasks"]) == 5, "Page 3 should have 5 tasks"
+        assert page3_result["tasks"][0]["task_id"] == "task21"
+        assert page3_result["tasks"][4]["task_id"] == "task25"
+
+    @patch("monitor_web.models.qcloud.CloudMonitoringTaskRegion")
+    @patch("monitor_web.models.qcloud.CloudProduct")
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_task_list_with_search(self, mock_task_model, mock_product_model, mock_region_model):
+        """
+        Test task list with search functionality.
+        """
+        # 1. Setup: Mock tasks
+        from datetime import datetime
+
+        mock_time = datetime(2025, 8, 1, 12, 0, 0)
+
+        # Create mock tasks
+        mock_tasks = [
+            self.create_mock_task("task1", 1, "QCE/CVM", "Web服务器监控", mock_time, update_by="user1"),
+            self.create_mock_task("task2", 1, "QCE/CDB", "MySQL数据库监控", mock_time, update_by="user2"),
+            self.create_mock_task("task3", 1, "QCE/CLB", "负载均衡监控", mock_time, update_by="admin"),
+        ]
+
+        # 为了更明确地追踪和控制每个链式调用的行为，我们创建单独的mock对象
+        filtered_result = MagicMock()
+        filtered_result.__iter__ = Mock(return_value=iter([mock_tasks[0]]))
+        filtered_result.__getitem__ = (
+            lambda self, idx: [mock_tasks[0]][idx] if isinstance(idx, int) else [mock_tasks[0]][idx.start : idx.stop]
+        )
+        filtered_result.count.return_value = 1
+
+        # 创建表示 order_by 结果的mock
+        order_by_result = MagicMock()
+        order_by_result.filter.return_value = filtered_result
+
+        # 创建表示 select_related 结果的mock
+        select_related_result = MagicMock()
+        select_related_result.order_by.return_value = order_by_result
+
+        # 创建初始查询结果的mock
+        base_query_result = MagicMock()
+        base_query_result.select_related.return_value = select_related_result
+
+        mock_task_model.objects.filter.return_value = base_query_result
+
+        # Mock region configurations
+        mock_region_queryset = MagicMock()
+        mock_region_queryset.__iter__ = Mock(return_value=iter([self.create_mock_region("task1", 0, "ap-beijing")]))
+        mock_region_queryset.__bool__ = lambda self: True
+        mock_region_model.objects.filter.return_value = mock_region_queryset
+
+        # Mock product namespaces for product_name search
+        def mock_product_filter(**kwargs):
+            product_queryset = MagicMock()
+            # When searching for product_name containing "服务器"
+            if kwargs.get("product_name__icontains") == "服务器":
+                product_queryset.values_list.return_value = ["QCE/CVM"]  # Return CVM namespace
+            else:
+                product_queryset.values_list.return_value = []
+            return product_queryset
+
+        mock_product_model.objects.filter.side_effect = mock_product_filter
+
+        # 2. Action: Search for tasks
+        resource = CloudMonitoringTaskListResource()
+        search_data = {"bk_biz_id": 1, "search": "服务器"}
+        search_result = resource.perform_request(search_data)
+
+        # 3. Assertions
+        assert search_result["total"] == 1, "Search should return 1 task"
+        assert len(search_result["tasks"]) == 1
+        assert search_result["tasks"][0]["task_id"] == "task1"
+        assert search_result["tasks"][0]["collect_name"] == "Web服务器监控"
+
+        # Verify product name search query
+        mock_product_model.objects.filter.assert_any_call(product_name__icontains="服务器", is_deleted=False)
+
+    @patch("monitor_web.models.qcloud.CloudMonitoringTaskRegion")
+    @patch("monitor_web.models.qcloud.CloudProduct")
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_empty_task_list(self, mock_task_model, mock_product_model, mock_region_model):
+        """
+        Test behavior when no tasks are found.
+        """
+
+        # 1. Setup: Mock empty tasks queryset with chained methods
+        def create_empty_chain_mock():
+            """创建一个带有所有链式方法的空结果mock对象"""
+            m = MagicMock()
+            m.__iter__ = Mock(return_value=iter([]))
+            m.count.return_value = 0
+            m.__getitem__ = lambda self, idx: [][idx] if isinstance(idx, int) else [][idx.start : idx.stop]
+
+            # 支持链式调用
+            m.select_related.return_value = m
+            m.order_by.return_value = m
+            m.filter.return_value = m
+
+            return m
+
+        # 为任务查询创建一个空结果的mock
+        mock_empty_queryset = create_empty_chain_mock()
+        mock_task_model.objects.filter.return_value = mock_empty_queryset
+
+        # Mock empty product queryset
+        mock_product_queryset = MagicMock()
+        mock_product_queryset.__iter__ = Mock(return_value=iter([]))
+        mock_product_model.objects.filter.return_value = mock_product_queryset
+
+        # Mock empty region queryset
+        mock_region_queryset = MagicMock()
+        mock_region_queryset.__iter__ = Mock(return_value=iter([]))
+        mock_region_model.objects.filter.return_value = mock_region_queryset
+
+        # 2. Action: Get task list for non-existent business
+        resource = CloudMonitoringTaskListResource()
+        request_data = {"bk_biz_id": 999}  # Non-existent business ID
+        result = resource.perform_request(request_data)
+
+        # 3. Assertions
+        assert result["total"] == 0, "Should return 0 tasks"
+        assert len(result["tasks"]) == 0, "Tasks list should be empty"
+        assert result["page"] == 1
+        assert result["page_size"] == 20
+
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_exception_handling(self, mock_task_model):
+        """
+        Test exception handling in task list retrieval.
+        """
+        # 1. Setup: Mock exception
+        mock_task_model.objects.filter.side_effect = Exception("Database error")
+
+        # 2. Action & Assertions: Expect exception
+        resource = CloudMonitoringTaskListResource()
+        request_data = {"bk_biz_id": 1}
+
+        try:
+            resource.perform_request(request_data)
+            assert False, "Should raise exception on database error"
+        except Exception as e:
+            assert "查询任务列表失败" in str(e)
+
+    def test_request_serializer_validation(self):
+        """
+        Test the request serializer validation.
+        """
+        resource = CloudMonitoringTaskListResource()
+
+        # Test with valid required data
+        valid_data = {"bk_biz_id": 1}
+        serializer = resource.RequestSerializer(data=valid_data)
+        assert serializer.is_valid(), f"Serializer should be valid with required data: {serializer.errors}"
+
+        # Test with complete data
+        complete_data = {"bk_biz_id": 1, "page": 2, "page_size": 15, "search": "服务器"}
+        serializer = resource.RequestSerializer(data=complete_data)
+        assert serializer.is_valid(), f"Serializer should be valid with complete data: {serializer.errors}"
+
+        # Test with invalid data (missing bk_biz_id)
+        invalid_data = {"page": 1, "page_size": 10}
+        serializer = resource.RequestSerializer(data=invalid_data)
+        assert not serializer.is_valid(), "Serializer should be invalid without bk_biz_id"
+
+        # Test with invalid data types
+        invalid_types = {"bk_biz_id": "not_an_integer", "page": "not_an_integer"}
+        serializer = resource.RequestSerializer(data=invalid_types)
+        assert not serializer.is_valid(), "Serializer should be invalid with wrong data types"
+
+    def test_response_serializer_structure(self):
+        """
+        Test the response serializer structure.
+        """
+        resource = CloudMonitoringTaskListResource()
+
+        from datetime import datetime
+
+        mock_time_str = datetime(2025, 8, 1, 12, 0, 0).strftime("%Y-%m-%d %H:%M:%S %z")
+
+        sample_response = {
+            "total": 2,
+            "page": 1,
+            "page_size": 20,
+            "tasks": [
+                {
+                    "task_id": "task1",
+                    "collect_name": "CVM监控",
+                    "product_name": "云服务器 CVM",
+                    "latest_datapoint": mock_time_str,
+                    "regions": ["ap-beijing", "ap-shanghai"],
+                    "latest_updater": "admin",
+                    "latest_update_time": mock_time_str,
+                },
+                {
+                    "task_id": "task2",
+                    "collect_name": "CDB监控",
+                    "product_name": "云数据库 MySQL",
+                    "latest_datapoint": None,
+                    "regions": ["ap-guangzhou"],
+                    "latest_updater": "user1",
+                    "latest_update_time": mock_time_str,
+                },
+            ],
+        }
+
+        serializer = resource.ResponseSerializer(data=sample_response)
+        assert serializer.is_valid(), f"Response serializer should be valid: {serializer.errors}"

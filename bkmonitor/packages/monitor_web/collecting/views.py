@@ -112,4 +112,6 @@ class QcloudCollectingViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.collecting.cloud_product_config, endpoint="config"),
         # 保存配置并下发采集接口 - 对应 POST /cloud-products/monitoring/save_config
         ResourceRoute("POST", resource.collecting.cloud_monitoring_save_config, endpoint="monitoring/save_config"),
+        # 获取采集配置列表接口 - 对应 GET /cloud-products/monitoring/tasks
+        ResourceRoute("GET", resource.collecting.cloud_monitoring_task_list, endpoint="monitoring/tasks"),
     ]
