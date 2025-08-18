@@ -682,7 +682,7 @@ class TestCloudProductConfigResource:
 
         # 2. Action: Query product configuration
         resource = CloudProductConfigResource()
-        request_data = {"region": "ap-beijing", "namespace": "QCE/CVM"}
+        request_data = {"namespace": "QCE/CVM"}
         result = resource.perform_request(request_data)
 
         # 打印接口返回的数据
@@ -776,7 +776,7 @@ class TestCloudProductConfigResource:
 
         # 2. Action: Query product configuration
         resource = CloudProductConfigResource()
-        request_data = {"region": "ap-beijing", "namespace": "QCE/UNKNOWN"}
+        request_data = {"namespace": "QCE/UNKNOWN"}
         result = resource.perform_request(request_data)
 
         # 3. Assertions: Should return empty collections
@@ -809,7 +809,7 @@ class TestCloudProductConfigResource:
 
         # 2. Action: Query product configuration
         resource = CloudProductConfigResource()
-        request_data = {"region": "ap-beijing", "namespace": "QCE/CVM"}
+        request_data = {"namespace": "QCE/CVM"}
         result = resource.perform_request(request_data)
 
         # 3. Assertions: Should handle API failure gracefully
@@ -841,7 +841,7 @@ class TestCloudProductConfigResource:
 
         # 2. Action: Query product configuration
         resource = CloudProductConfigResource()
-        request_data = {"region": "ap-beijing", "namespace": "QCE/TEST"}
+        request_data = {"namespace": "QCE/TEST"}
         result = resource.perform_request(request_data)
 
         # 3. Assertions: Should handle null dimensions
@@ -856,18 +856,14 @@ class TestCloudProductConfigResource:
         resource = CloudProductConfigResource()
 
         # Test with valid data
-        valid_data = {"region": "ap-beijing", "namespace": "QCE/CVM"}
+        valid_data = {"namespace": "QCE/CVM"}
         serializer = resource.RequestSerializer(data=valid_data)
         assert serializer.is_valid(), f"Serializer should be valid: {serializer.errors}"
 
         # Test with missing required fields
-        invalid_data = {"region": "ap-beijing"}  # Missing namespace
+        invalid_data = {}  # Missing namespace
         serializer = resource.RequestSerializer(data=invalid_data)
         assert not serializer.is_valid(), "Serializer should be invalid without namespace"
-
-        invalid_data = {"namespace": "QCE/CVM"}  # Missing region
-        serializer = resource.RequestSerializer(data=invalid_data)
-        assert not serializer.is_valid(), "Serializer should be invalid without region"
 
     def test_response_serializer_structure(self):
         """
