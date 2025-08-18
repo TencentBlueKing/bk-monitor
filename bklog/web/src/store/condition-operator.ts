@@ -196,7 +196,15 @@ class ConditionOperator {
       };
     }
 
-    const { operator, field, value, isInclude = null, relation = 'OR', hidden_fields=[], disabled = false } = this.item;
+    const {
+      operator,
+      field,
+      value,
+      isInclude = null,
+      relation = 'OR',
+      hidden_fields = [],
+      disabled = false,
+    } = this.item;
     return {
       relation,
       operator,
@@ -204,7 +212,7 @@ class ConditionOperator {
       value: Array.isArray(value) ? value : [value],
       isInclude,
       hidden_fields,
-      disabled
+      disabled,
     };
   }
 
@@ -217,7 +225,7 @@ class ConditionOperator {
       operator: this.FormatOpetatorFrontToApi(),
       value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
       hidden_fields: this.item.hidden_fields ?? [],
-      disabled: this.item.disabled ?? false
+      disabled: this.item.disabled ?? false,
     };
   }
 }

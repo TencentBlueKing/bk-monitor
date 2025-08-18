@@ -25,18 +25,21 @@
  */
 
 import { defineComponent, ref, computed, nextTick, onMounted, watch, onBeforeUnmount, inject } from 'vue';
-import useStore from '@/hooks/use-store';
-import { useRoute, useRouter } from 'vue-router/composables';
-import useLocale from '@/hooks/use-locale';
+
 import { formatNumberWithRegex } from '@/common/util';
 import BklogPopover from '@/components/bklog-popover';
 import GradeOption from '@/components/monitor-echarts/components/grade-option';
-import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
-import http from '@/api';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import useTrendChart from '@/hooks/use-trend-chart';
 import { getCommonFilterAddition } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { throttle } from 'lodash';
+import { useRoute, useRouter } from 'vue-router/composables';
+
+import http from '@/api';
+
 import './index.scss';
 
 export default defineComponent({
@@ -332,10 +335,10 @@ export default defineComponent({
         finishPolling.value = false;
         // isInit = true;
         // 若未选择索引集（无索引集或索引集为空数组），则直接关闭loading 并终止后续流程
-        if (!store.state.indexItem.ids || !store.state.indexItem.ids.length) {
+        if (!store.state.indexItem.ids?.length) {
           isStart.value = false;
           store.commit('retrieve/updateTrendDataLoading', false);
-          return ;
+          return;
         }
         // 1. 先请求总数
         const res = await store.dispatch('requestSearchTotal');
@@ -343,7 +346,7 @@ export default defineComponent({
         if (store.state.searchTotal === 0 || res.result === false) {
           isStart.value = false;
           store.commit('retrieve/updateTrendDataLoading', false);
-          return ;
+          return;
         }
         // 3. 有数据才请求趋势图
         getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time).catch(e => console.log(e));
@@ -416,8 +419,8 @@ export default defineComponent({
                     onClick={throttledBackToPreChart}
                   >
                     <span
-                      class='bk-icon icon-angle-left-line'
                       style={{ marginRight: '2px' }}
+                      class='bk-icon icon-angle-left-line'
                     ></span>
                     {t('回退')}
                   </span>
@@ -425,12 +428,12 @@ export default defineComponent({
                 <span>{t('汇聚周期')} : </span>
                 <bk-select
                   ext-cls='select-custom'
-                  value={chartInterval.value}
-                  clearable={false}
-                  popover-width={70}
                   behavior='simplicity'
+                  clearable={false}
                   data-test-id='generalTrendEcharts_div_selectCycle'
+                  popover-width={70}
                   size='small'
+                  value={chartInterval.value}
                   onChange={handleChangeInterval}
                 >
                   {intervalArr.map(option => (
@@ -442,16 +445,16 @@ export default defineComponent({
                   ))}
                 </bk-select>
                 <BklogPopover
-                  content-class='bklog-v3-grade-setting'
                   ref={refGradePopover}
-                  options={tippyOptions as any}
-                  beforeHide={beforePopoverHide}
                   content={() => (
                     <GradeOption
                       ref={refGradeOption}
                       on-Change={handleGradeOptionChange}
                     />
                   )}
+                  beforeHide={beforePopoverHide}
+                  content-class='bklog-v3-grade-setting'
+                  options={tippyOptions as any}
                 >
                   <span class='bklog-icon bklog-shezhi'></span>
                 </BklogPopover>
@@ -480,9 +483,9 @@ export default defineComponent({
         </div>
         {/* 图表部分 */}
         <div
-          v-show={!isFold.value}
           class='echart-wrapper'
           v-bkloading={{ isLoading: !isStart.value && loading.value, size: 'mini' }}
+          v-show={!isFold.value}
         >
           <div
             ref={trendChartCanvas}

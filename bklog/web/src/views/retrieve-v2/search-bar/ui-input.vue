@@ -242,7 +242,6 @@
 
   const handleDisabledTagItem = item => {
     set(item, 'disabled', !item.disabled);
-    set(item, 'hidd', new Array(item.value.length).fill(item.disabled))
     set(item, 'hidden_fields', []);
     if (item.disabled) {
       set(item, 'hidden_fields', [...item.value]);

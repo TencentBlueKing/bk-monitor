@@ -250,7 +250,7 @@ const store = new Vuex.Store({
             operator,
             value,
             hidden_fields,
-            disabled
+            disabled,
           };
 
           if (['is true', 'is false'].includes(addition.operator)) {
@@ -318,7 +318,10 @@ const store = new Vuex.Store({
       return getters.originAddition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
         .map(({ field, operator, value, hidden_fields = [], disabled }) => ({
-          field, operator, value: value.filter(v => !hidden_fields.includes(v)), disabled
+          field,
+          operator,
+          value: value.filter(v => !hidden_fields.includes(v)),
+          disabled,
         }));
     },
     isNewRetrieveRoute: () => {
@@ -962,7 +965,7 @@ const store = new Vuex.Store({
      *
      * @return {Promise} promise 对象
      */
-    getMenuList({ }, spaceUid) {
+    getMenuList({}, spaceUid) {
       return http.request('meta/menu', {
         query: {
           space_uid: spaceUid,
@@ -1316,11 +1319,11 @@ const store = new Vuex.Store({
         baseData,
         !state.indexItem.isUnionIndex
           ? {
-            begin: queryBegin, // 单选检索的begin
-          }
+              begin: queryBegin, // 单选检索的begin
+            }
           : {
-            union_configs: unionConfigs,
-          },
+              union_configs: unionConfigs,
+            },
       );
       const params = {
         method: 'post',
