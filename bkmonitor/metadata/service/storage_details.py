@@ -14,7 +14,6 @@ from typing import Any
 import kafka
 from django.conf import settings
 from django.db.models import Q
-from elasticsearch import Elasticsearch as Elasticsearch
 
 from core.drf_resource import api
 from core.errors.api import BKAPIError
