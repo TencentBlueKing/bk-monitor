@@ -28,6 +28,7 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SelectWrap from '../utils/select-wrap';
+import { isVariableName } from '../utils/utils';
 import VariableName from '../utils/variable-name';
 import FunctionCreatorPop from './function-creator-pop';
 import FunctionCreatorTag from './function-creator-tag';
@@ -72,30 +73,39 @@ export default class FunctionCreator extends tsc<IProps> {
     if (!val?.length) {
       return;
     }
-    // const optionMap = new Map();
-    // for (const option of this.options) {
-    //   optionMap.set(option.id, option);
-    // }
-    // this.curTags = val.map(item => {
-    //   const option = optionMap.get(item.id);
-    //   return {
-    //     ...option,
-    //     isVariable: isVariableName(item.id),
-    //     params:
-    //       item?.params?.map(p => {
-    //         const optionP = option?.params?.find(param => param.id === p.id);
-    //         if (optionP) {
-    //           return {
-    //             ...optionP,
-    //             value: p.value,
-    //           };
-    //         }
-    //         return {
-    //           ...p,
-    //         };
-    //       }) || [],
-    //   };
-    // });
+    const optionMap = new Map();
+    for (const option of this.options) {
+      for (const child of option?.children || []) {
+        optionMap.set(child.id, child);
+      }
+    }
+    this.curTags = val.map(item => {
+      const option = optionMap.get(item.id);
+      const isVariable = isVariableName(item.id);
+      return {
+        ...(isVariable
+          ? {
+              id: item.id,
+              name: item.id,
+            }
+          : option),
+        isVariable,
+        params: isVariable
+          ? []
+          : item?.params?.map(p => {
+              const optionP = option?.params?.find(param => param.id === p.id);
+              if (optionP) {
+                return {
+                  ...optionP,
+                  value: p.value,
+                };
+              }
+              return {
+                ...p,
+              };
+            }) || [],
+      };
+    });
   }
 
   handleOpenChange(v) {
@@ -157,10 +167,15 @@ export default class FunctionCreator extends tsc<IProps> {
       'change',
       this.curTags.map(item => ({
         id: item.id,
-        params: item.params?.map(p => ({
-          id: p.id,
-          value: p.value,
-        })),
+        params: item?.isVariable
+          ? {
+              id: '',
+              value: '',
+            }
+          : item.params?.map(p => ({
+              id: p.id,
+              value: p?.value || p?.default,
+            })),
       }))
     );
   }

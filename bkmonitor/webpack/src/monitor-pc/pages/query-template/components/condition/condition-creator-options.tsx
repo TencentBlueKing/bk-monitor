@@ -37,25 +37,30 @@ import {
   type IWhereValueOptionsItem,
   ECondition,
   EFieldType,
-  EMethod,
   fieldTypeMap,
   getTitleAndSubtitle,
   isNumeric,
-} from './utils';
+} from '../../../../components/retrieval-filter/utils';
 import ValueTagSelector, { type IValue } from './value-tag-selector';
+import AddVariableWrap from '@/pages/query-template/components/utils/add-variable-wrap';
+import VariableName from '@/pages/query-template/components/utils/variable-name';
 
-import type { IFieldItem, TGetValueFn } from './value-selector-typing';
+import type { IFieldItem, TGetValueFn } from '../../../../components/retrieval-filter/value-selector-typing';
 
-import './ui-selector-options.scss';
+import './condition-creator-options.scss';
 
 interface IProps {
+  dimensionValueVariables?: { name: string }[];
   fields: IFilterField[];
+  hasVariableOperate?: boolean;
+  isEnterSelect?: boolean;
   keyword?: string; // 上层传的关键字，用于搜索
   show?: boolean;
   value?: IFilterItem;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onCancel?: () => void;
   onConfirm?: (v: IFilterItem) => void;
+  onCreateVariable?: (variableName: string) => void;
 }
 @Component
 export default class UiSelectorOptions extends tsc<IProps> {
@@ -72,6 +77,11 @@ export default class UiSelectorOptions extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) value: IFilterItem;
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: String, default: '' }) keyword: string;
+  /* 是否含有变量操作模式 */
+  @Prop({ type: Boolean, default: false }) hasVariableOperate: boolean;
+  /* 快捷键操作中是否需要按下enter键才能选择项目 */
+  @Prop({ type: Boolean, default: false }) isEnterSelect: boolean;
+  @Prop({ type: Array, default: () => [] }) dimensionValueVariables: { name: string }[];
 
   @Ref('allInput') allInputRef;
   @Ref('valueSelector') valueSelectorRef: ValueTagSelector;
@@ -95,6 +105,10 @@ export default class UiSelectorOptions extends tsc<IProps> {
   rightFocus = false;
   cacheCheckedName = '';
   isMacSystem = false;
+
+  /* 当前是否选中的创建变量选项 */
+  isCreateVariable = false;
+  variableName = '';
 
   get wildcardItem() {
     return this.checkedItem?.supported_operations?.find(item => item.value === this.method)?.options;
@@ -159,7 +173,10 @@ export default class UiSelectorOptions extends tsc<IProps> {
           }
         }
       } else {
-        this.handleCheck(this.fields[0]);
+        const item = this.fields.filter(f => f.type !== EFieldType.variable)?.[0];
+        if (item) {
+          this.handleCheck(item);
+        }
         setTimeout(() => {
           this.searchInputRef?.focus();
         }, 200);
@@ -205,22 +222,13 @@ export default class UiSelectorOptions extends tsc<IProps> {
       }
     }
     this.cursorIndex = index;
+    this.isCreateVariable = false;
   }
 
   /**
    * @description 点击确定
    */
   handleConfirm() {
-    if (this.checkedItem.name === '*' && this.queryString) {
-      const value: IFilterItem = {
-        key: { id: this.checkedItem.name, name: this.$tc('全文') },
-        method: { id: EMethod.include, name: this.$tc('包含') },
-        value: [{ id: this.queryString, name: this.queryString }],
-        condition: { id: ECondition.and, name: 'AND' },
-      };
-      this.$emit('confirm', value);
-      return;
-    }
     if (this.values.length) {
       const methodName = this.checkedItem.supported_operations.find(item => item.value === this.method)?.alias;
       const value: IFilterItem = {
@@ -235,6 +243,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
           : undefined,
       };
       this.$emit('confirm', value);
+    } else if (this.isCreateVariable && this.variableName) {
+      this.$emit('createVariable', this.variableName);
     } else {
       this.$emit('confirm', null);
     }
@@ -304,7 +314,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
           this.cursorIndex = this.searchLocalFields.length - 1;
         }
         this.updateSelection();
-        this.enterSelectionDebounce();
+        if (!this.isEnterSelect) {
+          this.enterSelectionDebounce();
+        }
         break;
       }
 
@@ -315,7 +327,10 @@ export default class UiSelectorOptions extends tsc<IProps> {
           this.cursorIndex = 0;
         }
         this.updateSelection();
-        this.enterSelectionDebounce();
+        if (!this.isEnterSelect) {
+          this.enterSelectionDebounce();
+        }
+
         break;
       }
       case 'Enter': {
@@ -420,28 +435,42 @@ export default class UiSelectorOptions extends tsc<IProps> {
     });
   }
 
+  handleClickCreateVariable() {
+    this.isCreateVariable = true;
+  }
+
+  handleVariableNameChange(val) {
+    this.variableName = val;
+  }
+
+  handleSelectVariable(item: IFilterField) {
+    const value: IFilterItem = {
+      key: { id: item.name, name: item.alias },
+      method: { id: '', name: '' },
+      value: [],
+      condition: { id: ECondition.and, name: 'AND' },
+      options: {
+        isVariable: true,
+      },
+    };
+    this.$emit('confirm', value);
+  }
+
   render() {
     const rightRender = () => {
-      if (this.checkedItem?.name === '*') {
-        return [
-          <div
-            key={'all'}
-            class='form-item'
-          >
-            <div class='form-item-label mt-16'>{this.$t('检索内容')}</div>
-            <div class='form-item-content mt-8'>
-              <bk-input
-                ref={'allInput'}
-                v-model={this.queryString}
-                placeholder={this.$t('请输入')}
-                rows={15}
-                type={'textarea'}
-              />
-            </div>
-          </div>,
-        ];
+      if (this.isCreateVariable) {
+        return (
+          <AddVariableWrap
+            class='mt-16'
+            hasOperate={false}
+            notPop={true}
+            show={this.isCreateVariable}
+            value={this.variableName}
+            onChange={this.handleVariableNameChange}
+          />
+        );
       }
-      return this.checkedItem
+      return this.checkedItem && this.checkedItem.type !== EFieldType.variable
         ? [
             <div
               key={'method'}
@@ -491,6 +520,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                   ref='valueSelector'
                   fieldInfo={this.valueSelectorFieldInfo}
                   getValueFn={this.getValueFnProxy}
+                  hasVariableOperate={this.hasVariableOperate}
                   value={this.values}
                   autoFocus
                   onChange={this.handleValueChange}
@@ -504,7 +534,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
         : undefined;
     };
     return (
-      <div class='retrieval-filter__ui-selector-options-component'>
+      <div class='retrieval-filter__condition-creator-options-component'>
         <div class='component-top'>
           <div class='component-top-left'>
             <div class='search-wrap'>
@@ -518,8 +548,35 @@ export default class UiSelectorOptions extends tsc<IProps> {
               />
             </div>
             <div class='options-wrap'>
+              {this.hasVariableOperate && (
+                <div
+                  key={'variable-operate'}
+                  class={['option']}
+                  onClick={this.handleClickCreateVariable}
+                >
+                  <span class='option-name-title'>
+                    {this.$t('创建变量')}
+                    {'${}'}
+                  </span>
+                </div>
+              )}
               {this.searchLocalFields.map((item, index) => {
-                const { title, subtitle } = getTitleAndSubtitle(item.alias);
+                if (item.type === EFieldType.variable) {
+                  return (
+                    <div
+                      key={`${index}_variable_${item.name}`}
+                      class={[
+                        'option',
+                        { checked: this.checkedItem?.name === item.name },
+                        { cursor: index === this.cursorIndex },
+                      ]}
+                      onClick={() => this.handleSelectVariable(item)}
+                    >
+                      <VariableName name={item.name}> </VariableName>
+                    </div>
+                  );
+                }
+                const { title, subtitle } = getTitleAndSubtitle(item?.alias || '');
                 return (
                   <div
                     key={item.name}

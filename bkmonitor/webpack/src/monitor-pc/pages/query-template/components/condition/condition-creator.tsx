@@ -27,19 +27,25 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { fetchMetricDimensionValueList } from '../../service/dimension';
 import ConditionCreatorSelector from './condition-creator-selector';
-import { type IFilterField, EFieldType } from '@/components/retrieval-filter/utils';
+import { type IFilterField, type IGetValueFnParams, EFieldType } from '@/components/retrieval-filter/utils';
 import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '@/constant/constant';
 
+import type { MetricDetailV2 } from '../../typings/metric';
+import type { AggCondition } from '../../typings/query-config';
 import type { IConditionOptionsItem, IVariablesItem } from '../type/query-config';
 
 import './condition-creator.scss';
 
 interface IProps {
+  dimensionValueVariables?: { name: string }[];
   hasVariableOperate?: boolean;
+  metricDetail?: MetricDetailV2;
   options?: IConditionOptionsItem[];
   showLabel?: boolean;
   showVariables?: boolean;
+  value?: AggCondition[];
   variables?: IVariablesItem[];
   onCreateVariable?: (val: string) => void;
 }
@@ -55,6 +61,9 @@ export default class ConditionCreator extends tsc<IProps> {
   /* 是否展示变量 */
   @Prop({ default: false }) showVariables: boolean;
   @Prop({ default: true }) hasVariableOperate: boolean;
+  @Prop({ default: () => [] }) value: AggCondition[];
+  @Prop({ default: () => null }) metricDetail: MetricDetailV2;
+  @Prop({ default: () => [], type: Array }) dimensionValueVariables: { name: string }[];
 
   get fields() {
     return [
@@ -89,12 +98,31 @@ export default class ConditionCreator extends tsc<IProps> {
     this.$emit('createVariable', val);
   }
 
+  getValueFn(params: IGetValueFnParams): any {
+    return new Promise(resolve => {
+      fetchMetricDimensionValueList(params.fields[0], {
+        data_source_label: this.metricDetail?.data_source_label,
+        data_type_label: this.metricDetail?.data_type_label,
+        result_table_id: this.metricDetail?.result_table_id,
+        metric_field: this.metricDetail?.metric_field,
+        where: [],
+      }).then(data => {
+        resolve({
+          count: data.length,
+          list: data,
+        });
+      });
+    });
+  }
+
   render() {
     return (
       <div class='template-condition-creator-component'>
         {this.showLabel && <div class='condition-label'>{this.$slots?.label || this.$t('过滤条件')}</div>}
         <ConditionCreatorSelector
+          dimensionValueVariables={this.dimensionValueVariables}
           fields={this.fields as IFilterField[]}
+          getValueFn={this.getValueFn}
           hasVariableOperate={this.hasVariableOperate}
           onCreateVariable={this.handleCreateVariable}
         />
