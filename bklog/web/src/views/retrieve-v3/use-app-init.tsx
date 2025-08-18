@@ -25,6 +25,7 @@
  */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
+import { VIEW_BUSINESS } from '@/common/authority-map';
 import useStore from '@/hooks/use-store';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -46,7 +47,10 @@ export default () => {
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
   const trendGraphHeight = ref(0);
 
-  const leftFieldSettingWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
+  const leftFieldSettingWidth = computed(() => {
+    const { width, show } = store.state.storage[BK_LOG_STORAGE.FIELD_SETTING];
+    return show ? width : 0;
+  });
 
   /**
    * 解析地址栏参数
@@ -209,7 +213,7 @@ export default () => {
           }
         }
 
-        // 如果当前地址参数没有indexSetId，则默认取第一个索引集
+        // 如果当前地址参数没有indexSetId，则默认取缓存中的索引信息
         // 同时，更新索引信息到store中
         if (!indexSetIdList.value.length) {
           const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
@@ -264,12 +268,18 @@ export default () => {
           }
         }
 
+        // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
         if (!indexSetIdList.value.length) {
-          const defaultId = [resp[1][0]?.index_set_id];
+          const respIndexSetList = resp[1];
+          const defIndexItem =
+            respIndexSetList.find(
+              item => item.permission?.[VIEW_BUSINESS] && !item.tags.some(tag => tag.tag_id === 4),
+            ) ?? respIndexSetList[0];
+          const defaultId = [defIndexItem?.index_set_id].filter(Boolean);
 
           if (defaultId) {
             const strId = `${defaultId}`;
-            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateIndexItem', { ids: [strId], items: [defIndexItem].filter(Boolean) });
             store.commit('updateIndexId', strId);
           }
         }

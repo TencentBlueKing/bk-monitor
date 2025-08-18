@@ -32,13 +32,11 @@ from .data_link import (  # noqa
     DataBusConfig,
     DataIdConfig,
     DataLink,
-    DataLinkResource,
-    DataLinkResourceConfig,
-    VMResultTableConfig,
-    VMStorageBindingConfig,
-    LogResultTableConfig,
     ESStorageBindingConfig,
     LogDataBusConfig,
+    LogResultTableConfig,
+    VMResultTableConfig,
+    VMStorageBindingConfig,
 )
 from .data_pipeline import (
     DataPipeline,
@@ -47,12 +45,6 @@ from .data_pipeline import (
     DataPipelineSpace,
 )
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
-from .downsampled import (
-    DownsampleByDateFlow,
-    DownsampledContinuousQueries,
-    DownsampledDatabase,
-    DownsampledRetentionPolicies,
-)
 from .es_snapshot import (
     EsSnapshot,
     EsSnapshotIndice,
@@ -89,6 +81,7 @@ from .storage import (
     ArgusStorage,
     BkDataStorage,
     ClusterInfo,
+    DorisStorage,
     ESStorage,
     InfluxDBStorage,
     KafkaStorage,
@@ -97,7 +90,6 @@ from .storage import (
     SpaceRelatedStorageInfo,
     StorageClusterRecord,
     StorageResultTable,
-    DorisStorage,
 )
 from .vm import AccessVMRecord, SpaceVMInfo
 
@@ -129,10 +121,6 @@ __all__ = [
     "ESStorage",
     "DorisStorage",
     "BkDataStorage",
-    "DownsampledRetentionPolicies",
-    "DownsampledDatabase",
-    "DownsampledContinuousQueries",
-    "DownsampleByDateFlow",
     "ArgusStorage",
     "StorageClusterRecord",
     # custom_report
@@ -175,9 +163,6 @@ __all__ = [
     "AccessVMRecord",
     "SpaceVMInfo",
     "SpaceRelatedStorageInfo",
-    # vm data link
-    "DataLinkResource",
-    "DataLinkResourceConfig",
     # record rule
     "RecordRule",
     "ResultTableFlow",

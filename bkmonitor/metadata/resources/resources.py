@@ -13,6 +13,7 @@ import json
 import logging
 import tempfile
 import time
+from typing import cast
 import uuid
 from itertools import chain
 
@@ -98,6 +99,8 @@ class CreateDataIDResource(Resource):
     """创建数据源ID"""
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=False, label="租户ID")
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         data_name = serializers.CharField(required=True, label="数据源名称")
         etl_config = serializers.CharField(required=True, label="清洗模板配置")
         operator = serializers.CharField(required=True, label="操作者")
@@ -116,19 +119,22 @@ class CreateDataIDResource(Resource):
         is_platform_data_id = serializers.CharField(required=False, label="是否为平台级 ID", default=False)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=SpaceTypes.ALL.value)
 
+        def validate(self, attrs):
+            # 多租户模式下，必须指定dataid所属业务ID和租户ID
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                if not attrs.get("bk_biz_id"):
+                    raise ValueError(_("多租户下，必须指定dataid所属业务ID"))
+
+                bk_tenant_id = attrs.get("bk_tenant_id") or get_request_tenant_id()
+                if not bk_tenant_id:
+                    raise ValueError(_("多租户下，必须指定dataid所属租户ID"))
+                attrs["bk_tenant_id"] = bk_tenant_id
+            else:
+                attrs["bk_tenant_id"] = DEFAULT_TENANT_ID
+            return attrs
+
     def perform_request(self, validated_request_data):
         space_uid = validated_request_data.pop("space_uid", None)
-
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("CreateDataIDResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
 
         if space_uid:
             try:
@@ -150,7 +156,6 @@ class CreateDataIDResource(Resource):
         # 默认来源系统标识
         default_source_system = "unknown"
         validated_request_data["source_system"] = bk_app_code or default_source_system
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
 
         new_data_source = models.DataSource.create_data_source(**validated_request_data)
 
@@ -2528,20 +2533,14 @@ class KafkaTailResource(Resource):
         namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("KafkaTailResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_data_id = validated_request_data.get("bk_data_id")
         result_table = None
 
         # 参数处理,result_table / datasource
         if bk_data_id:
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
-            datasource = models.DataSource.objects.get(bk_data_id=bk_data_id)
+            datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
             try:
                 table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
                 result_table = models.ResultTable.objects.get(table_id=table_id)
@@ -2566,18 +2565,24 @@ class KafkaTailResource(Resource):
             if settings.ENABLE_BKDATA_KAFKA_TAIL_API and result_table and datasource.etl_config != "bk_flat_batch":
                 logger.info("KafkaTailResource: using bkdata kafka tail api,bk_data_id->[%s]", datasource.bk_data_id)
                 # TODO: 获取计算平台数据名称,待数据一致性实现后,统一通过BkBaseResultTable获取,不再进行复杂转换
-                vm_record = models.AccessVMRecord.objects.get(result_table_id=result_table.table_id)
+                vm_record = models.AccessVMRecord.objects.get(
+                    bk_tenant_id=bk_tenant_id, result_table_id=result_table.table_id
+                )
                 data_id_name = vm_record.bk_base_data_name
                 namespace = validated_request_data["namespace"]
                 if not data_id_name:
-                    data_id_name = get_bkbase_raw_data_name_for_v3_datalink(vm_record.bk_base_data_id)
+                    data_id_name = get_bkbase_raw_data_name_for_v3_datalink(
+                        bk_tenant_id=bk_tenant_id, bkbase_data_id=vm_record.bk_base_data_id
+                    )
                 logger.info(
                     "KafkaTailResource: using bkdata kafka tail api,table_id->[%s],namespace->[%s],name->[%s]",
                     result_table.table_id,
                     namespace,
                     data_id_name,
                 )
-                res = api.bkdata.tail_kafka_data(namespace=namespace, name=data_id_name, limit=size)
+                res = api.bkdata.tail_kafka_data(
+                    bk_tenant_id=bk_tenant_id, namespace=namespace, name=data_id_name, limit=size
+                )
                 result = [json.loads(data) for data in res]
             else:
                 result = self._consume_with_gse_config(datasource, size)

@@ -31,6 +31,7 @@ import useStore from "@/hooks/use-store";
 import { useRoute } from "vue-router/composables";
 import $http from "@/api";
 import { deepClone } from "@/common/util";
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 const store = useStore();
 const route = useRoute();
 const { t } = useLocale();
@@ -46,6 +47,12 @@ const handleOpenSidebar = async () => {
   emit("handle-popover-hide");
   addObject();
 };
+//监听全局设置的跳转
+RetrieveHelper.on(RetrieveEvent.ALIAS_CONFIG_OPEN, val => {
+   if (val) {
+      handleOpenSidebar();
+    }
+});
 // 提交
 const submit = async () => {
   try {

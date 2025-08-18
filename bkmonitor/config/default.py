@@ -1250,8 +1250,13 @@ UPTIMECHECK_OUTPUT_FIELDS = ["bk_host_innerip", "bk_host_innerip_v6"]
 
 CUSTOM_REPORT_PLUGIN_NAME = "bkmonitorproxy"
 
+# 默认业务（仅单租户或运营租户下生效）
+DEFAULT_BK_BIZ_ID = int(os.getenv("BKAPP_DEFAULT_BK_BIZ_ID", 2))
+if DEFAULT_BK_BIZ_ID <= 0:
+    raise ValueError("DEFAULT_BK_BIZ_ID must be greater than 0")
+
 # 接入计算平台使用的业务，默认 HDFS 集群及 VM 集群
-DEFAULT_BKDATA_BIZ_ID = 0
+DEFAULT_BKDATA_BIZ_ID = int(os.getenv("BKAPP_DEFAULT_BKDATA_BIZ_ID", DEFAULT_BK_BIZ_ID))
 DEFAULT_BKDATA_HDFS_CLUSTER = ""
 DEFAULT_BKDATA_VM_CLUSTER = ""
 # 开放接入 vm 的空间列表信息，格式: 空间类型__空间ID
@@ -1263,9 +1268,6 @@ LAST_MIGRATE_VERSION = ""
 
 # ITSM审批回调
 BK_ITSM_CALLBACK_HOST = os.getenv("BKAPP_ITSM_CALLBACK_HOST", BK_MONITOR_HOST)
-
-# 蓝鲸业务名
-BLUEKING_NAME = os.getenv("BKAPP_BLUEKING_NAME", "蓝鲸")
 
 # 后台任务多进程并行数量，默认设置为1个
 MAX_TASK_PROCESS_NUM = os.getenv("BK_MONITOR_MAX_TASK_PROCESS_NUM", 1)
@@ -1488,9 +1490,6 @@ ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
 # 使用RT中的路由过滤别名的结果表列表
 SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST = []
 
-# 是否启用新版方式接入计算平台
-ENABLE_V2_ACCESS_BKBASE_METHOD = True
-
 # BCS集群自动发现任务周期
 BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
 
@@ -1518,9 +1517,6 @@ SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES = ["mysql", "tspider", "hdfs"]
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 # grafana和策略导出是否支持data_label转换
 ENABLE_DATA_LABEL_EXPORT = True
-
-# 是否启用多租户版本的BKBASE V4链路
-ENABLE_BKBASE_V4_MULTI_TENANT = False
 
 # 是否启用access数据批量处理
 ENABLED_ACCESS_DATA_BATCH_PROCESS = False
