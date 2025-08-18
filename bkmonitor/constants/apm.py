@@ -19,6 +19,8 @@ FIVE_MIN_SECONDS = 5 * 60
 
 DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前缀(注意：不能随意更改)
 
+APM_METRIC_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
+
 
 class TraceDataSourceConfig:
     """Trace数据源配置常量"""
@@ -1297,8 +1299,6 @@ class CommonMetricProcessor(BaseInnerMetricProcessor):
 class ApmMetricProcessor:
     _PROCESSORS: list[BaseInnerMetricProcessor] = [CommonMetricProcessor, RPCMetricProcessor, TraceMetricProcessor]
 
-    _TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
-
     @classmethod
     def is_match_data_label(cls, table: dict[str, Any]) -> bool:
         return table.get("data_label") == DEFAULT_DATA_LABEL
@@ -1306,7 +1306,7 @@ class ApmMetricProcessor:
     @classmethod
     def is_match(cls, table: dict[str, Any]) -> bool:
         """判断表是否为 APM 的 RT"""
-        return cls.is_match(table) or cls._TABLE_REGEX.match(table["table_id"]) is not None
+        return cls.is_match_data_label(table) or APM_METRIC_TABLE_REGEX.match(table["table_id"]) is not None
 
     @classmethod
     def process(cls, table: dict[str, Any]):

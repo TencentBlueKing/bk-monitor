@@ -13,7 +13,7 @@ import logging
 from django.db.models import Q, Model
 from django.db import migrations
 
-from constants.apm import DEFAULT_DATA_LABEL
+from constants.apm import DEFAULT_DATA_LABEL, APM_METRIC_TABLE_REGEX
 
 logger = logging.getLogger("metadata")
 
@@ -24,13 +24,22 @@ def add_data_label_to_apm_metric_rt(apps, schema_editor):
     for model_name in list(models.keys()):
         models[model_name] = apps.get_model("metadata", model_name)
 
-    rows: int = (
-        models["ResultTable"]
-        .objects.filter(Q(table_id__contains="bkapm_") & Q(table_id__contains="metric_") & Q(data_label=""))
-        .update(data_label=DEFAULT_DATA_LABEL)
+    rts = models["ResultTable"].objects.filter(
+        Q(table_id__contains="bkapm_") & Q(table_id__contains="metric_") & Q(data_label="")
     )
 
-    logger.info("[add_data_label_to_apm_metric_rt] add data_label -> %s, rows -> %s.", DEFAULT_DATA_LABEL, rows)
+    to_be_updated_rts = []
+    for rt in rts:
+        if APM_METRIC_TABLE_REGEX.match(rt.table_id) is not None:
+            rt.data_label = DEFAULT_DATA_LABEL
+            to_be_updated_rts.append(rt)
+
+    models["ResultTable"].objects.bulk_update(to_be_updated_rts, fields=["data_label"], batch_size=1000)
+    logger.info(
+        "[add_data_label_to_apm_metric_rt] add data_label -> %s, rows -> %s.",
+        DEFAULT_DATA_LABEL,
+        len(to_be_updated_rts),
+    )
 
 
 class Migration(migrations.Migration):
