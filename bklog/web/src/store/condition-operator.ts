@@ -172,7 +172,7 @@ class ConditionOperator {
           field: this.item.field,
           isInclude: this.isWildcardMatch,
           value: values,
-          showList: [...values.map(() => false), ...hidden_fields.map(() => true)]
+          showList: values.map(item => hidden_fields.includes(item))
         };
       }
 
