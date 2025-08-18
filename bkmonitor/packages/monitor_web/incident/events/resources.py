@@ -103,7 +103,6 @@ class BaseIncidentEventsResource(Resource):
             EntityType.APMService.value: cls.get_apm_service_tables,
             EntityType.BkNodeHost.value: cls.get_bk_node_host_tables,
         }
-
         getter = table_getters.get(entity_type)
         return getter(**kwargs) if getter else set()
 
@@ -331,7 +330,7 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
         """
         for series_data in time_series_response.get("series", []):
             dimensions = series_data.get("dimensions", {})
-
+            datapoints = series_data.get("datapoints", [])
             # 跳过无效数据
             if not dimensions.get("event_name"):
                 continue
@@ -346,7 +345,7 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
             if event_level in base_response["statistics"]["event_level"]:
                 base_response["statistics"]["event_level"][event_level] += 1
             if source in base_response["statistics"]["event_source"]:
-                base_response["statistics"]["event_source"][source] += 1
+                base_response["statistics"]["event_source"][source] += sum(datapoint[1] for datapoint in datapoints)
 
             # 构建序列数据
             series_info = {
