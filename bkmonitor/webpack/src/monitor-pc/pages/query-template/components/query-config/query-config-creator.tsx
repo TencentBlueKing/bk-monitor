@@ -74,6 +74,9 @@ export default class QueryConfigCreator extends tsc<IProps> {
   get getConditionVariables() {
     return this.variables.filter(item => item.type === VariableTypeEnum.CONDITION);
   }
+  get getDimensionValueVariables() {
+    return this.variables.filter(item => item.type === VariableTypeEnum.DIMENSION_VALUE);
+  }
   get getAggMethodList() {
     return this.queryConfig.metricDetail?.methodList || [];
   }
@@ -189,7 +192,10 @@ export default class QueryConfigCreator extends tsc<IProps> {
                 class='query-config-row'
               >
                 <ConditionCreator
+                  dimensionValueVariables={this.getDimensionValueVariables as { name: string }[]}
+                  metricDetail={this.queryConfig.metricDetail}
                   options={this.getDimensionList as IConditionOptionsItem[]}
+                  value={this.queryConfig.agg_condition}
                   variables={this.getConditionVariables}
                   onCreateVariable={this.handleCreateConditionVariable}
                 />
