@@ -27,26 +27,26 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { DimensionVariableModel } from '../../index';
+import { DimensionValueVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
 
-interface DimensionValueEvents {
+interface DimensionValueValueEvents {
   onBlur: () => void;
-  onChange: (data: DimensionVariableModel) => void;
+  onChange: (variable: DimensionValueVariableModel) => void;
   onFocus: () => void;
 }
 
-interface DimensionValueProps {
-  variable: DimensionVariableModel;
+interface DimensionValueValueProps {
+  variable: DimensionValueVariableModel;
 }
 
 @Component
-export default class DimensionValue extends tsc<DimensionValueProps, DimensionValueEvents> {
-  @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
+export default class EditDimensionValueVariableValue extends tsc<DimensionValueValueProps, DimensionValueValueEvents> {
+  @Prop({ type: Object, required: true }) variable!: DimensionValueVariableModel;
 
   @Emit('change')
   handleValueChange(value: string) {
-    return new DimensionVariableModel({
+    return new DimensionValueVariableModel({
       ...this.variable.data,
       value,
     });
@@ -68,13 +68,7 @@ export default class DimensionValue extends tsc<DimensionValueProps, DimensionVa
           onChange={this.handleValueChange}
           onToggle={this.handleSelectToggle}
         >
-          {this.variable.dimensionOptionsMap.map(item => (
-            <bk-option
-              id={item.id}
-              key={item.id}
-              name={item.name}
-            />
-          ))}
+          <bk-option />
         </bk-select>
       </EditVariableValue>
     );

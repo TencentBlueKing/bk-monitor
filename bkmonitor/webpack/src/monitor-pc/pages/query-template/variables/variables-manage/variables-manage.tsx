@@ -53,9 +53,10 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
   searchValue = '';
 
   handleDataChange(value: VariableModelType, index: number) {
-    const list = JSON.parse(JSON.stringify(this.variablesList));
+    const list = [...this.variablesList];
     list[index] = value;
     this.$emit('change', [...list]);
+    this.validateVariable();
   }
 
   validateVariable() {
@@ -90,13 +91,14 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
               metricFunctions={this.metricFunctions}
               scene={this.scene}
               variable={item}
+              variableList={this.variablesList}
               onDataChange={value => {
                 this.handleDataChange(value, index);
               }}
             />,
           ])}
 
-          {!this.variablesList.length && <VariablesGuide />}
+          {!this.variablesList.length && this.scene === 'create' && <VariablesGuide />}
         </div>
       </div>
     );
