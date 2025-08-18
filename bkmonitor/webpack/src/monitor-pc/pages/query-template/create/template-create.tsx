@@ -31,7 +31,7 @@ import { getFunctions } from 'monitor-api/modules/grafana';
 import BasicInfoCreate from '../components/basic-info/basic-info-create';
 import ExpressionPanel from '../components/expression-panel/expression-panel';
 import QueryPanel from '../components/query-panel/query-panel';
-import { type VariableTypeEnumType, MetricDetailV2, QueryConfig } from '../typings';
+import { type VariableTypeEnumType, Expression, MetricDetailV2, QueryConfig } from '../typings';
 import { type VariableModelType, getVariableModel } from '../variables';
 import VariablesManage from '../variables/variables-manage/variables-manage';
 import { LETTERS } from '@/common/constant';
@@ -64,6 +64,7 @@ export default class TemplateCreate extends tsc<object> {
 
   metricsList: MetricDetail[] = [];
   queryConfigs: QueryConfig[] = [new QueryConfig(null, { alias: 'a' })];
+  expressionConfig = new Expression();
 
   metricFunctions = [];
 
@@ -203,6 +204,7 @@ export default class TemplateCreate extends tsc<object> {
                     />
                   ))}
                   <ExpressionPanel
+                    expressionConfig={this.expressionConfig}
                     metricFunctions={this.metricFunctions}
                     variables={this.variablesList}
                     onCreateVariable={this.handleCreateVariable}
