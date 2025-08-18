@@ -142,12 +142,12 @@
   const setRouteParams = () => {
     const query = { ...route.query };
     const nextMode = queryParams[activeIndex.value];
-    const addition = updateRouteParams()
     const resolver = new RetrieveUrlResolver({
       keyword: keyword.value,
-      addition,
+      addition: store.getters.retrieveParams.addition,
       search_mode: nextMode,
     });
+
     Object.assign(query, resolver.resolveParamsToUrl());
     router.replace({
       query,

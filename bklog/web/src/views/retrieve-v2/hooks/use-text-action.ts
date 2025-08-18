@@ -3,7 +3,7 @@ import { useRouter, useRoute } from 'vue-router/composables';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import useFieldNameHook from '@/hooks/use-field-name';
-import { copyMessage, formatDate } from '@/common/util';
+import { copyMessage, formatDate, getAvailableAddition } from '@/common/util';
 import { getConditionRouterParams } from '../search-result-panel/panel-util';
 import { bkMessage } from 'bk-magic-vue';
 
@@ -46,7 +46,7 @@ export default (emit?: Function, from?: string) => {
 
     const resolver = new RetrieveUrlResolver({
       keyword: store.getters.retrieveParams.keyword,
-      addition: store.getters.retrieveParams.addition,
+      addition: getAvailableAddition(store.getters.retrieveParams.addition),
     });
 
     Object.assign(query, resolver.resolveParamsToUrl());

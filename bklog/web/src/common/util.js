@@ -1295,3 +1295,18 @@ export const getOs = () => {
 export const getOsCommandLabel = () => {
   return getOs() === 'macos' ? 'Cmd' : 'Ctrl';
 };
+
+/**
+ * 查询API调用时进行过滤Addition
+ */
+export const getAvailableAddition = (addition) => {
+ return addition.filter(item => !item.disabled)
+ .map(({ field, operator, value }) =>{
+    return {
+      field,
+      operator,
+      value,
+    };
+  }
+ );
+};

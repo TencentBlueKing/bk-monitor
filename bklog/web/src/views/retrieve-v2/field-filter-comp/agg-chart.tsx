@@ -31,6 +31,7 @@ import ItemSkeleton from '@/skeleton/item-skeleton';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { escape as _escape } from 'lodash';
+import { getAvailableAddition } from '@/common/util';
 
 import $http from '@/api';
 import store from '@/store';
@@ -184,7 +185,7 @@ export default class AggChart extends tsc<object> {
       .then(() => {
         const resolver = new RetrieveUrlResolver({
           keyword: store.getters.retrieveParams.keyword,
-          addition: store.getters.retrieveParams.addition,
+          addition: getAvailableAddition(store.getters.retrieveParams.addition),
         });
 
         router

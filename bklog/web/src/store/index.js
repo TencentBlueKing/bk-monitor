@@ -39,6 +39,7 @@ import {
   parseBigNumberList,
   setDefaultTableWidth,
   formatDate,
+  getAvailableAddition
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
@@ -259,7 +260,7 @@ const store = new Vuex.Store({
       const search_mode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
 
       const filterAddition = addition
-        .filter(item => !item.disabled && item.field !== '_ip-select_')
+        .filter(item => item.field !== '_ip-select_')
         .map(({ field, operator, value, showList }) => {
           const addition = {
             field,
@@ -271,7 +272,7 @@ const store = new Vuex.Store({
             addition.value = [''];
           } else {
             if (showList) {
-              addition.value = value.filter((_, index) => !showList[index]);
+              addition.hidden_fields = value.filter((_, index) => showList[index]);
             }
           }
 
@@ -1285,7 +1286,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
+        addition: [...getAvailableAddition(otherPrams.addition), ...getCommonFilterAdditionWithValues(state)],
         sort_list: dateFieldSortList ?? (state.localSort ? otherPrams.sort_list : getters.custom_sort_list),
       };
 
@@ -1752,7 +1753,7 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time,
               end_time,
-              addition: [...getters.retrieveParams.addition, ...getCommonFilterAdditionWithValues(state)],
+              addition: [...getAvailableAddition(getters.retrieveParams.addition), ...getCommonFilterAdditionWithValues(state)],
             },
           },
           {

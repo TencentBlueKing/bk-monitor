@@ -26,7 +26,7 @@
 
 import TextHighlight from 'vue-text-highlight';
 
-import { formatDate, random, copyMessage, TABLE_LOG_FIELDS_SORT_REGULAR, formatDateNanos } from '@/common/util';
+import { formatDate, random, copyMessage, TABLE_LOG_FIELDS_SORT_REGULAR, formatDateNanos, getAvailableAddition } from '@/common/util';
 import LazyRender from '@/global/lazy-render.vue';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
@@ -413,7 +413,7 @@ export default {
 
           const resolver = new RetrieveUrlResolver({
             keyword: store.getters.retrieveParams.keyword,
-            addition: store.getters.retrieveParams.addition,
+            addition: getAvailableAddition(store.getters.retrieveParams.addition)
           });
 
           Object.assign(query, resolver.resolveParamsToUrl());

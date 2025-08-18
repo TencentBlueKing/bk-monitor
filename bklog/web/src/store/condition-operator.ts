@@ -165,14 +165,14 @@ class ConditionOperator {
       // 如果是通配符这里不做转换
       if (this.wildcardList.includes(value) || isInitializing) {
         const values = normalizeArray(this.item.value);
-        const hides = normalizeArray(this.item.hide);
+        const hidden_fields = normalizeArray(this.item.hidden_fields);
         return {
           operator: value,
           relation,
           field: this.item.field,
           isInclude: this.isWildcardMatch,
-          value: [...values, ...hides],
-          showList: [...values.map(() => false), ...hides.map(() => true)]
+          value: values,
+          showList: [...values.map(() => false), ...hidden_fields.map(() => true)]
         };
       }
 
@@ -191,15 +191,15 @@ class ConditionOperator {
     const { operator, field, value, isInclude = null, relation = 'OR' } = this.item;
     if(isInitializing){
       const values = normalizeArray(this.item.value);
-      const hides = normalizeArray(this.item.hide);
+      const hidden_fields = normalizeArray(this.item.hidden_fields);
       
       return {
         operator,
         relation,
         field,
         isInclude: this.isWildcardMatch,
-        value: [...values, ...hides],
-        showList: [...values.map(() => false), ...hides.map(() => true)]
+        value: values,
+        showList: values.map(item => hidden_fields.includes(item))
       };
     }
     return {
