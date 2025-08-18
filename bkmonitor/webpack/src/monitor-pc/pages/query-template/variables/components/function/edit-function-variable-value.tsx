@@ -27,26 +27,29 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { DimensionValueVariableModel } from '../../index';
+import FunctionCreator from '../../../components/function/function-creator';
+import { FunctionVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
 
-interface DimensionValueValueEvents {
+interface FunctionValueEvents {
   onBlur: () => void;
-  onChange: (variable: DimensionValueVariableModel) => void;
+  onChange: (data: FunctionVariableModel) => void;
   onFocus: () => void;
 }
 
-interface DimensionValueValueProps {
-  variable: DimensionValueVariableModel;
+interface FunctionValueProps {
+  metricFunctions: any[];
+  variable: FunctionVariableModel;
 }
 
 @Component
-export default class DimensionValueValue extends tsc<DimensionValueValueProps, DimensionValueValueEvents> {
-  @Prop({ type: Object, required: true }) variable!: DimensionValueVariableModel;
+export default class EditFunctionVariableValue extends tsc<FunctionValueProps, FunctionValueEvents> {
+  @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
+  @Prop({ default: () => [] }) metricFunctions!: any[];
 
   @Emit('change')
   handleValueChange(value: string) {
-    return new DimensionValueVariableModel({
+    return new FunctionVariableModel({
       ...this.variable.data,
       value,
     });
@@ -63,13 +66,12 @@ export default class DimensionValueValue extends tsc<DimensionValueValueProps, D
   render() {
     return (
       <EditVariableValue data={this.variable.data}>
-        <bk-select
+        <FunctionCreator
+          options={this.metricFunctions}
+          showLabel={false}
+          showVariables={false}
           value={this.variable.value}
-          onChange={this.handleValueChange}
-          onToggle={this.handleSelectToggle}
-        >
-          <bk-option />
-        </bk-select>
+        />
       </EditVariableValue>
     );
   }

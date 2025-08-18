@@ -53,23 +53,19 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
 
-import type { DimensionValueVariableModel } from '../../index';
-interface DimensionValueDetailProps {
-  variable: DimensionValueVariableModel;
+import type { ConstantVariableModel } from '../../index';
+interface ConstantDetailProps {
+  variable: ConstantVariableModel;
 }
 
 @Component
-export default class DimensionValueDetail extends tsc<DimensionValueDetailProps> {
-  @Prop({ type: Object, required: true }) variable!: DimensionValueVariableModel;
+export default class ConstantVariableDetail extends tsc<ConstantDetailProps> {
+  @Prop({ type: Object, required: true }) variable!: ConstantVariableModel;
 
   render() {
     return (
-      <div class='dimensionValue-detail'>
+      <div class='constant-detail'>
         <VariableCommonFormDetail data={this.variable.data}>
-          <div class='form-item'>
-            <div class='form-item-label'>{this.$t('关联维度')}：</div>
-            <div class='form-item-value'>{this.variable.relationDimension || '--'}</div>
-          </div>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
             <div class='form-item-value'>{this.variable.value || '--'}</div>
