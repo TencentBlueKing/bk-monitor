@@ -26,53 +26,32 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import ConditionCreator from '../../../components/condition/condition-creator';
-import { ConditionVariableModel } from '../../index';
+import { MethodVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { IConditionVariableModel } from '../../../typings';
+import type { IMethodVariableModel } from '../../../typings';
 
-import './condition-variable.scss';
-interface ConditionVariableEvents {
-  onDataChange: (variable: ConditionVariableModel) => void;
+interface MethodVariableEvents {
+  onDataChange: (variable: MethodVariableModel) => void;
 }
-interface ConditionVariableProps {
-  variable: ConditionVariableModel;
+interface MethodVariableProps {
+  variable: MethodVariableModel;
 }
 
 @Component
-export default class ConditionVariable extends tsc<ConditionVariableProps, ConditionVariableEvents> {
-  @Prop({ type: Object, required: true }) variable!: ConditionVariableModel;
+export default class CreateMethodVariable extends tsc<MethodVariableProps, MethodVariableEvents> {
+  @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
 
-  checkboxDisabled(dimension) {
-    const isAllDisabled =
-      dimension.id === 'all' && this.variable.dimensionOption.length && !this.variable.dimensionOption.includes('all');
-    const isOtherDisabled = dimension.id !== 'all' && this.variable.dimensionOption.includes('all');
-    return isAllDisabled || isOtherDisabled;
-  }
-
-  handleDimensionChange(value) {
-    this.handleDataChange({
-      ...this.variable.data,
-      dimensionOption: value,
-    });
-  }
-
-  handleValueChange(value) {
+  handleValueChange(value: string) {
     this.handleDataChange({
       ...this.variable.data,
       value,
     });
   }
 
-  handleDataChange(data: IConditionVariableModel) {
-    this.$emit(
-      'dataChange',
-      new ConditionVariableModel({
-        ...data,
-      })
-    );
+  handleDataChange(data: IMethodVariableModel) {
+    this.$emit('dataChange', new MethodVariableModel({ ...data }));
   }
 
   validateForm() {
@@ -81,51 +60,29 @@ export default class ConditionVariable extends tsc<ConditionVariableProps, Condi
 
   render() {
     return (
-      <div class='condition-variable'>
+      <div class='method-variable'>
         <VariableCommonForm
           ref='variableCommonForm'
           data={this.variable.data}
           onDataChange={this.handleDataChange}
         >
           <bk-form-item
-            label={this.$t('关联指标')}
-            property='value'
-          >
-            <bk-input
-              value={this.variable?.metric?.related_name}
-              readonly
-            />
-          </bk-form-item>
-          <bk-form-item
-            label={this.$t('可选维度')}
+            label={this.$t('默认值')}
             property='value'
           >
             <bk-select
               clearable={false}
-              selected-style='checkbox'
-              value={this.variable.dimensionOption}
-              multiple
-              onChange={this.handleDimensionChange}
+              value={this.variable.value}
+              onChange={this.handleValueChange}
             >
-              {this.variable.dimensionList.map(item => (
+              {this.variable.metric.methodList.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}
-                  disabled={this.checkboxDisabled(item)}
                   name={item.name}
                 />
               ))}
             </bk-select>
-          </bk-form-item>
-          <bk-form-item
-            label={this.$t('默认值')}
-            property='value'
-          >
-            <ConditionCreator
-              hasVariableOperate={false}
-              options={this.variable.dimensionOption}
-              showLabel={false}
-            />
           </bk-form-item>
         </VariableCommonForm>
       </div>

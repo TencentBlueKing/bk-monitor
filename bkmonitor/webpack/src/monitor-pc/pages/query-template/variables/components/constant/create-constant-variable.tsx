@@ -23,53 +23,56 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { ConstantVariableModel } from '../../index';
-import EditVariableValue from '../common-form/edit-variable-value';
+import VariableCommonForm from '../common-form/variable-common-form';
 
-interface ConstantValueEvents {
-  onBlur: () => void;
-  onChange: (variable: ConstantVariableModel) => void;
-  onFocus: () => void;
+import type { IConstantVariableModel } from '../../../typings';
+interface ConstantVariableEvents {
+  onDataChange: (variable: ConstantVariableModel) => void;
 }
-
-interface ConstantValueProps {
+interface ConstantVariableProps {
   variable: ConstantVariableModel;
 }
 
 @Component
-export default class ConstantValue extends tsc<ConstantValueProps, ConstantValueEvents> {
+export default class CreateConstantVariable extends tsc<ConstantVariableProps, ConstantVariableEvents> {
   @Prop({ type: Object, required: true }) variable!: ConstantVariableModel;
+  @Ref() variableCommonForm!: VariableCommonForm;
 
-  @Emit('change')
-  handleValueChange(value: string) {
-    return new ConstantVariableModel({
+  handleValueChange(value) {
+    this.handleDataChange({
       ...this.variable.data,
       value,
     });
   }
 
-  handleInputFocus() {
-    this.$emit('focus');
+  handleDataChange(data: IConstantVariableModel) {
+    this.$emit('dataChange', new ConstantVariableModel({ ...data }));
   }
 
-  handleInputBlur() {
-    this.$emit('blur');
+  validateForm() {
+    return this.variableCommonForm.validateForm();
   }
 
   render() {
     return (
-      <EditVariableValue data={this.variable.data}>
-        <bk-input
-          value={this.variable.value}
-          onBlur={this.handleInputBlur}
-          onChange={this.handleValueChange}
-          onFocus={this.handleInputFocus}
-        />
-      </EditVariableValue>
+      <div class='constant-variable'>
+        <VariableCommonForm
+          ref='variableCommonForm'
+          data={this.variable.data}
+          onDataChange={this.handleDataChange}
+        >
+          <bk-form-item
+            label={this.$t('默认值')}
+            property='value'
+          >
+            <bk-input />
+          </bk-form-item>
+        </VariableCommonForm>
+      </div>
     );
   }
 }

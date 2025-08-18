@@ -26,21 +26,21 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IVariableModel } from '../../../typings/variables';
+import type { IVariableData } from '../../../typings/variables';
 
 import './edit-variable-value.scss';
 
 interface EditVariableValueProps {
-  data: IVariableModel;
+  data: IVariableData;
 }
 
 @Component
 export default class EditVariableValue extends tsc<EditVariableValueProps> {
-  @Prop({ type: Object, required: true }) data!: IVariableModel;
+  @Prop({ type: Object, required: true }) data!: IVariableData;
 
   get editVariableLabelTooltips() {
     return [
-      { label: this.$tc('变量名'), value: this.data.name },
+      { label: this.$tc('变量名'), value: this.data.variableName },
       { label: this.$tc('变量别名'), value: this.data.alias },
       { label: this.$tc('变量描述'), value: this.data.desc },
     ];
@@ -55,7 +55,7 @@ export default class EditVariableValue extends tsc<EditVariableValueProps> {
             placement='top'
           >
             <div class='variable-value-label'>
-              <span>{this.data.alias || this.data.name}</span>
+              <span>{this.data.alias || this.data.variableName}</span>
             </div>
 
             <ul slot='content'>

@@ -53,38 +53,19 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
 
-import type { ConditionVariableModel } from '../../index';
-interface ConditionDetailProps {
-  variable: ConditionVariableModel;
+import type { FunctionVariableModel } from '../../index';
+interface FunctionDetailProps {
+  variable: FunctionVariableModel;
 }
 
 @Component
-export default class ConditionDetail extends tsc<ConditionDetailProps> {
-  @Prop({ type: Object, required: true }) variable!: ConditionVariableModel;
+export default class FunctionVariableDetail extends tsc<FunctionDetailProps> {
+  @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
 
   render() {
     return (
-      <div class='condition-detail'>
+      <div class='function-detail'>
         <VariableCommonFormDetail data={this.variable.data}>
-          <div class='form-item'>
-            <div class='form-item-label'>{this.$t('关联指标')}：</div>
-            <div class='form-item-value'>{this.variable.metric.metric_id || '--'}</div>
-          </div>
-          <div class='form-item'>
-            <div class='form-item-label'>{this.$t('可选维度')}：</div>
-            <div class='form-item-value'>
-              <div class='tag-list'>
-                {this.variable.dimensionOptionsMap.map(item => (
-                  <div
-                    key={item.id}
-                    class='tag-item'
-                  >
-                    {item.name}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
             <div class='form-item-value'>{this.variable.value || '--'}</div>

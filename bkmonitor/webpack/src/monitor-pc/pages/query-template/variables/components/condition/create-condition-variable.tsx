@@ -26,23 +26,39 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { DimensionValueVariableModel } from '../../index';
+import ConditionCreator from '../../../components/condition/condition-creator';
+import { ConditionVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { IDimensionValueVariableModel } from '../../../typings/variables';
+import type { IConditionOptionsItem } from '../../../components/type/query-config';
+import type { IConditionVariableModel } from '../../../typings';
 
-interface DimensionValueVariableEvents {
-  onDataChange: (data: DimensionValueVariableModel) => void;
+import './create-condition-variable.scss';
+interface ConditionVariableEvents {
+  onDataChange: (variable: ConditionVariableModel) => void;
 }
-interface DimensionValueVariableProps {
-  variable: DimensionValueVariableModel;
+interface ConditionVariableProps {
+  variable: ConditionVariableModel;
 }
 
 @Component
-export default class DimensionValueVariable extends tsc<DimensionValueVariableProps, DimensionValueVariableEvents> {
-  @Prop({ type: Object, required: true }) variable!: DimensionValueVariableModel;
-
+export default class CreateConditionVariable extends tsc<ConditionVariableProps, ConditionVariableEvents> {
+  @Prop({ type: Object, required: true }) variable!: ConditionVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
+
+  checkboxDisabled(dimensionId: string) {
+    const isAllDisabled =
+      dimensionId === 'all' && this.variable.dimensionOption.length && !this.variable.dimensionOption.includes('all');
+    const isOtherDisabled = dimensionId !== 'all' && this.variable.dimensionOption.includes('all');
+    return isAllDisabled || isOtherDisabled;
+  }
+
+  handleDimensionChange(value) {
+    this.handleDataChange({
+      ...this.variable.data,
+      dimensionOption: value,
+    });
+  }
 
   handleValueChange(value) {
     this.handleDataChange({
@@ -51,10 +67,10 @@ export default class DimensionValueVariable extends tsc<DimensionValueVariablePr
     });
   }
 
-  handleDataChange(data: IDimensionValueVariableModel) {
+  handleDataChange(data: IConditionVariableModel) {
     this.$emit(
       'dataChange',
-      new DimensionValueVariableModel({
+      new ConditionVariableModel({
         ...data,
       })
     );
@@ -66,29 +82,55 @@ export default class DimensionValueVariable extends tsc<DimensionValueVariablePr
 
   render() {
     return (
-      <div class='dimension-value-variable'>
+      <div class='condition-variable'>
         <VariableCommonForm
           ref='variableCommonForm'
           data={this.variable.data}
           onDataChange={this.handleDataChange}
         >
           <bk-form-item
-            label={this.$t('关联维度')}
-            property='relatedDimension'
+            label={this.$t('关联指标')}
+            property='value'
           >
             <bk-input
-              value={this.variable.relationDimension}
+              value={this.variable?.metric?.related_name}
               readonly
             />
+          </bk-form-item>
+          <bk-form-item
+            label={this.$t('可选维度')}
+            property='value'
+          >
+            <bk-select
+              clearable={false}
+              selected-style='checkbox'
+              value={this.variable.dimensionOption}
+              multiple
+              onChange={this.handleDimensionChange}
+            >
+              <bk-option
+                id='all'
+                disabled={this.checkboxDisabled('all')}
+                name='- ALL -'
+              />
+              {this.variable.dimensionList.map(item => (
+                <bk-option
+                  id={item.id}
+                  key={item.id}
+                  disabled={this.checkboxDisabled(item.id)}
+                  name={item.name}
+                />
+              ))}
+            </bk-select>
           </bk-form-item>
           <bk-form-item
             label={this.$t('默认值')}
             property='value'
           >
-            <bk-select
-              clearable={false}
-              value={this.variable.value}
-              onChange={this.handleValueChange}
+            <ConditionCreator
+              hasVariableOperate={false}
+              options={this.variable.dimensionOptionsMap as IConditionOptionsItem[]}
+              showLabel={false}
             />
           </bk-form-item>
         </VariableCommonForm>
