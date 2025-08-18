@@ -2931,14 +2931,11 @@ class SelectUptimeCheckNodeResource(Resource):
 
             host["is_built"] = is_built
 
-            # 如果是已建节点，判断使用权限
-            if is_built:
-                # 如果是公共节点，检查公共节点权限
-                if is_public:
-                    host["permission"]["can_use"] = can_use_public_nodes
-                else:
-                    # 业务自己的节点，默认就有使用权限
-                    host["permission"]["can_use"] = True
+            # 如果是公共节点，检查公共节点权限
+            if is_public:
+                host["permission"]["can_use"] = can_use_public_nodes
+            else:
+                host["permission"]["can_use"] = True
 
         return host_list
 
@@ -3138,36 +3135,3 @@ class UptimeCheckTargetDetailResource(Resource):
             "bk_target_type": bk_obj_id,
             "bk_target_detail": info_func_map[bk_obj_id](params),
         }
-
-
-class ApplyUptimeCheckNodePermissionResource(Resource):
-    """
-    为当前用户申请使用公共拨测节点的权限
-    """
-
-    def perform_request(self, validated_request_data=None):
-        """
-        申请使用公共拨测节点的权限
-        Returns:
-            dict: 包含权限申请URL的字典
-            {
-                "apply_url": "权限申请跳转URL",
-                "permission": {权限申请数据}
-            }
-        """
-        # 获取当前用户和租户信息
-        request = get_request(peaceful=True)
-        if not request:
-            raise CustomException(_("无法获取当前用户信息"))
-
-        username = request.user.username
-        bk_tenant_id = get_request_tenant_id(peaceful=True)
-
-        # 创建权限对象
-        permission_instance = Permission(username=username, bk_tenant_id=bk_tenant_id)
-
-        # 生成公共拨测节点使用权限的申请数据
-        actions = [ActionEnum.USE_UPTIME_CHECK_NODE]
-        apply_data, apply_url = permission_instance.get_apply_data(actions)
-
-        return {"apply_url": apply_url, "permission": apply_data}

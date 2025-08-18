@@ -555,11 +555,3 @@ class UptimeCheckTargetDetailViewSet(PermissionMixin, ResourceViewSet):
     """
 
     resource_routes = [ResourceRoute("POST", resource.uptime_check.uptime_check_target_detail)]
-
-
-class ApplyUptimeCheckNodePermissionViewSet(PermissionMixin, ResourceViewSet):
-    """
-    申请获取公共拨测节点的权限， 返回apply_url
-    """
-
-    resource_routes = [ResourceRoute("POST", resource.uptime_check.apply_uptime_check_node_permission)]
