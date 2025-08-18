@@ -52,7 +52,7 @@ export default class AddVariableWrap extends tsc<IProps> {
     this.$emit('change', val);
   }
 
-  handleAdd() {
+  handleAdd(e) {
     this.$emit('add');
   }
   handleCancel() {

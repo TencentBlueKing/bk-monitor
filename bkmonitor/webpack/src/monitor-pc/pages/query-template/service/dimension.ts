@@ -45,6 +45,7 @@ export const fetchMetricDimensionValueList = async (
       field: dimension,
       metric_field: data.metric_field,
       result_table_id: data.result_table_id,
+      where: data?.where || [],
     },
     type: 'dimension',
   }).catch(() => [] as DimensionField[]);
