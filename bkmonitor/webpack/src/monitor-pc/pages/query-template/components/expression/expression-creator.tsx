@@ -38,6 +38,7 @@ import './expression-creator.scss';
 interface IProps {
   value?: string;
   variables?: IVariablesItem[];
+  onChange?: (val: string) => void;
   onCreateVariable?: (val: string[]) => void;
 }
 
@@ -50,6 +51,8 @@ export default class ExpressionCreator extends tsc<IProps> {
   elEdit = null;
   inputValue = '';
   active = false;
+
+  vars = [];
 
   @Watch('value', { immediate: true })
   handleWatchValue(val: string) {
@@ -70,9 +73,7 @@ export default class ExpressionCreator extends tsc<IProps> {
   handleInput(e: InputEvent) {
     const target = e.target as HTMLElement;
     this.handleSetInputParse(target.textContent, vars => {
-      for (const v of vars) {
-        this.$emit('createVariable', v);
-      }
+      this.vars = vars;
     });
     this.inputValue = target.textContent;
   }
@@ -98,6 +99,10 @@ export default class ExpressionCreator extends tsc<IProps> {
   }
   handleBlur() {
     this.active = false;
+    for (const v of this.vars) {
+      this.$emit('createVariable', v);
+    }
+    this.$emit('change', this.inputValue);
   }
 
   render() {
