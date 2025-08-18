@@ -107,9 +107,9 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "apply strategies to apm services"
-  /app/apm/list_web_traces/:
+  /app/apm/list_flatten_traces/:
     post:
-      operationId: list_web_traces
+      operationId: list_flatten_traces
       description: 查询 trace
       x-bk-apigateway-resource:
         isPublic: true
@@ -124,4 +124,4 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: "query web trace list"
+        descriptionEn: "query flatten trace list"
