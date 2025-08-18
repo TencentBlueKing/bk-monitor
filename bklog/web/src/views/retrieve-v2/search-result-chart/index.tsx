@@ -66,6 +66,7 @@ export default defineComponent({
     const dynamicHeight = ref(130);
 
     const retrieveParams = computed(() => store.getters.retrieveParams);
+    const requestAddition = computed(() => store.getters.requestAddition ?? []);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const unionIndexList = computed(() => store.getters.unionIndexList);
     const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
@@ -240,7 +241,7 @@ export default defineComponent({
         const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
         const queryData = {
           ...retrieveParams.value,
-          addition: [...retrieveParams.value.addition, ...getCommonFilterAddition(store.state)],
+          addition: [...requestAddition.value, ...getCommonFilterAddition(store.state)],
           time_range: 'customized',
           interval: runningInterval,
           start_time: start_time,
@@ -334,7 +335,7 @@ export default defineComponent({
         if (!store.state.indexItem.ids || !store.state.indexItem.ids.length) {
           isStart.value = false;
           store.commit('retrieve/updateTrendDataLoading', false);
-          return;
+          return ;
         }
         // 1. 先请求总数
         const res = await store.dispatch('requestSearchTotal');
@@ -342,10 +343,10 @@ export default defineComponent({
         if (store.state.searchTotal === 0 || res.result === false) {
           isStart.value = false;
           store.commit('retrieve/updateTrendDataLoading', false);
-          return;
+          return ;
         }
         // 3. 有数据才请求趋势图
-        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time).catch(e => console.log(e));
       });
     };
 
