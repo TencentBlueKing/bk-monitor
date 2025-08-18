@@ -484,9 +484,11 @@ export default [
           math: 'always',
         },
       ],
+      '@typescript-eslint/member-ordering': OFF,
       '@typescript-eslint/no-unused-expressions': OFF, // biome lint/style/noUnusedExpressions
       '@typescript-eslint/no-misused-promises': OFF, // biome lint/suspicious/noMisusedPromises
       'no-async-promise-executor': OFF, // biome lint/suspicious/noAsyncPromiseExecutor
+      '@typescript-eslint/no-unsafe-function-type': OFF, // biome lint/suspicious/noUnsafeFunctionType
     },
   },
 ];
