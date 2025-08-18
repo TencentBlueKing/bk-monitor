@@ -457,10 +457,13 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         used_labels: list[str] = []
         is_pre_cal_hit: bool = False
         is_time_shift_exists: bool = False
+        service_names: list[str] | None = None
         for query_config in query_params["query_configs"]:
             used_labels.extend(query_config.get("group_by") or [])
             for cond in query_config.get("where") or []:
                 used_labels.append(cond["key"])
+                if cond["key"] == "service_name":
+                    service_names = cond.get("value")
 
             table_id: str = query_config["table"]
             metric: str = query_config["metrics"][0]["field"]
@@ -490,7 +493,13 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
                 time_shift_function["params"] = [{"id": "n", "value": None}]
 
             result: dict[str, Any] = helper.router(
-                table_id, metric, used_labels, query_params["start_time"], query_params["end_time"], origin_time_shift
+                table_id,
+                metric,
+                used_labels,
+                query_params["start_time"],
+                query_params["end_time"],
+                origin_time_shift,
+                service_names,
             )
             if not result["is_hit"]:
                 if increase_function:
