@@ -43,6 +43,8 @@ import {
   isNumeric,
 } from './utils';
 import ValueTagSelector, { type IValue } from './value-tag-selector';
+import AddVariableWrap from '@/pages/query-template/components/utils/add-variable-wrap';
+import VariableName from '@/pages/query-template/components/utils/variable-name';
 
 import type { IFieldItem, TGetValueFn } from './value-selector-typing';
 
@@ -51,12 +53,14 @@ import './ui-selector-options.scss';
 interface IProps {
   fields: IFilterField[];
   hasVariableOperate?: boolean;
+  isEnterSelect?: boolean;
   keyword?: string; // 上层传的关键字，用于搜索
   show?: boolean;
   value?: IFilterItem;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onCancel?: () => void;
   onConfirm?: (v: IFilterItem) => void;
+  onCreateVariable?: (variableName: string) => void;
 }
 @Component
 export default class UiSelectorOptions extends tsc<IProps> {
@@ -75,6 +79,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
   @Prop({ type: String, default: '' }) keyword: string;
   /* 是否含有变量操作模式 */
   @Prop({ type: Boolean, default: false }) hasVariableOperate: boolean;
+  /* 快捷键操作中是否需要按下enter键才能选择项目 */
+  @Prop({ type: Boolean, default: false }) isEnterSelect: boolean;
 
   @Ref('allInput') allInputRef;
   @Ref('valueSelector') valueSelectorRef: ValueTagSelector;
@@ -98,6 +104,10 @@ export default class UiSelectorOptions extends tsc<IProps> {
   rightFocus = false;
   cacheCheckedName = '';
   isMacSystem = false;
+
+  /* 当前是否选中的创建变量选项 */
+  isCreateVariable = false;
+  variableName = '';
 
   get wildcardItem() {
     return this.checkedItem?.supported_operations?.find(item => item.value === this.method)?.options;
@@ -238,6 +248,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
           : undefined,
       };
       this.$emit('confirm', value);
+    } else if (this.isCreateVariable && this.variableName) {
+      this.$emit('createVariable', this.variableName);
     } else {
       this.$emit('confirm', null);
     }
@@ -307,7 +319,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
           this.cursorIndex = this.searchLocalFields.length - 1;
         }
         this.updateSelection();
-        this.enterSelectionDebounce();
+        if (!this.isEnterSelect) {
+          this.enterSelectionDebounce();
+        }
         break;
       }
 
@@ -318,7 +332,10 @@ export default class UiSelectorOptions extends tsc<IProps> {
           this.cursorIndex = 0;
         }
         this.updateSelection();
-        this.enterSelectionDebounce();
+        if (!this.isEnterSelect) {
+          this.enterSelectionDebounce();
+        }
+
         break;
       }
       case 'Enter': {
@@ -423,8 +440,28 @@ export default class UiSelectorOptions extends tsc<IProps> {
     });
   }
 
+  handleClickCreateVariable() {
+    this.isCreateVariable = true;
+  }
+
+  handleVariableNameChange(val) {
+    this.variableName = val;
+  }
+
   render() {
     const rightRender = () => {
+      if (this.isCreateVariable) {
+        return (
+          <AddVariableWrap
+            class='mt-16'
+            hasOperate={false}
+            notPop={true}
+            show={this.isCreateVariable}
+            value={this.variableName}
+            onChange={this.handleVariableNameChange}
+          />
+        );
+      }
       if (this.checkedItem?.name === '*') {
         return [
           <div
@@ -525,6 +562,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                 <div
                   key={'variable-operate'}
                   class={['option']}
+                  onClick={this.handleClickCreateVariable}
                 >
                   <span class='option-name-title'>
                     {this.$t('创建变量')}
@@ -533,6 +571,20 @@ export default class UiSelectorOptions extends tsc<IProps> {
                 </div>
               )}
               {this.searchLocalFields.map((item, index) => {
+                if (item.type === EFieldType.variable) {
+                  return (
+                    <div
+                      key={`${index}_variable_${item.name}`}
+                      class={[
+                        'option',
+                        { checked: this.checkedItem?.name === item.name },
+                        { cursor: index === this.cursorIndex },
+                      ]}
+                    >
+                      <VariableName name={item.name}> </VariableName>
+                    </div>
+                  );
+                }
                 const { title, subtitle } = getTitleAndSubtitle(item.alias);
                 return (
                   <div

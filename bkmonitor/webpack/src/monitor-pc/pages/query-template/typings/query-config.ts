@@ -25,6 +25,8 @@
  * IN THE SOFTWARE.
  */
 
+import { random } from 'monitor-common/utils';
+
 import type { MetricDetailV2 } from './metric';
 
 // 聚合条件接口
@@ -62,6 +64,8 @@ export class QueryConfig {
   id: number;
   /** 索引集ID */
   index_set_id: number;
+  /* key */
+  key: string = random(8);
   /** 指标ID */
   metric_id: string;
   /** 指标详情 */
@@ -93,12 +97,12 @@ export class QueryConfig {
         ? +this.agg_interval.replace(/m/gi, '')
         : +this.agg_interval.replace(/s/gi, '');
     }
-    if (this.agg_method.match(/_TIME$/)) {
+    if (this.agg_method?.match(/_TIME$/)) {
       // 兼容老版本数据
       this.agg_method = this.agg_method.toLocaleLowerCase();
     }
     // 处理日志关键字指标ID脏数据
-    if (this.metricDetail.metricMetaId === 'bk_log_search|log' && this.agg_method === 'COUNT') {
+    if (this.metricDetail?.metricMetaId === 'bk_log_search|log' && this.agg_method === 'COUNT') {
       const list = this.metric_id.toString().split('.');
       if (list.length > 3) {
         this.metric_id = list.slice(0, 3).join('.');

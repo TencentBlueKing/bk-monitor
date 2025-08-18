@@ -31,17 +31,20 @@ import { getFunctions } from 'monitor-api/modules/grafana';
 import BasicInfoCreate from '../components/basic-info/basic-info-create';
 import ExpressionPanel from '../components/expression-panel/expression-panel';
 import QueryPanel from '../components/query-panel/query-panel';
+import { type VariableTypeEnumType, MetricDetailV2, QueryConfig } from '../typings';
 import { type VariableModelType, getVariableModel } from '../variables';
 import VariablesManage from '../variables/variables-manage/variables-manage';
+import { LETTERS } from '@/common/constant';
 
 import type { MetricDetail } from '../components/type/query-config';
-import type { VariableTypeEnumType } from '../typings';
 
 import './template-create.scss';
 
 @Component
 export default class TemplateCreate extends tsc<object> {
   @Ref() createContentWrap: HTMLDivElement;
+  @Ref() basicInfo: BasicInfoCreate;
+  @Ref() variablesManage: VariablesManage;
 
   steps = [
     { title: this.$t('模板配置'), icon: 1 },
@@ -54,25 +57,30 @@ export default class TemplateCreate extends tsc<object> {
   isSticky = false;
 
   basicInfoData = {
-    name: '',
+    name: 'test',
     desc: '',
-    effect: [],
+    effect: [this.$store.getters.bizId],
   };
 
   metricsList: MetricDetail[] = [];
-  queryConfigs = [{}];
+  queryConfigs: QueryConfig[] = [new QueryConfig(null, { alias: 'a' })];
 
   metricFunctions = [];
 
   variablesList: VariableModelType[] = [];
 
+  handleBasicInfoChange(basicInfo) {
+    this.basicInfoData = basicInfo;
+  }
+
   handleVariablesChange(variablesList: VariableModelType[]) {
-    console.log(variablesList);
     this.variablesList = variablesList;
   }
 
   handleNextStep() {
-    this.curStep += 1;
+    Promise.all([this.variablesManage.validateVariable(), this.basicInfo.validate()]).then(() => {
+      this.curStep += 1;
+    });
   }
 
   handlePrevStep() {
@@ -120,10 +128,25 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleAdd(index: number) {
-    this.queryConfigs.splice(index, 0, {});
+    this.queryConfigs.splice(
+      index,
+      0,
+      new QueryConfig(null, {
+        alias: LETTERS[index + 1],
+      })
+    );
   }
   handleDelete(index: number) {
     this.queryConfigs.splice(index, 1);
+    let i = -1;
+    for (const q of this.queryConfigs) {
+      i += 1;
+      q.alias = LETTERS[i];
+    }
+  }
+
+  handleSelectMetric(index: number, metric: MetricDetailV2) {
+    this.queryConfigs.splice(index, 1, new QueryConfig(new MetricDetailV2(metric)));
   }
 
   render() {
@@ -147,27 +170,50 @@ export default class TemplateCreate extends tsc<object> {
             ref='createContentWrap'
             class='create-content-wrap'
           >
-            <div class='create-config'>
-              <BasicInfoCreate formData={this.basicInfoData} />
-              <div class='template-config-wrap-component'>
+            <div
+              class='create-config'
+              v-show={this.curStep === 1}
+            >
+              <BasicInfoCreate
+                ref='basicInfo'
+                formData={this.basicInfoData}
+                onChange={this.handleBasicInfoChange}
+              />
+              <div class='template-config-wrap-component panel'>
                 <div class='template-config-title'>{this.$t('模板配置')}</div>
                 <div class='template-config-content'>
-                  {this.queryConfigs.map((_item, index) => (
+                  {this.queryConfigs.map((item, index) => (
                     <QueryPanel
-                      key={index}
+                      key={item.key}
                       hasAdd={index === this.queryConfigs.length - 1}
                       hasDelete={this.queryConfigs.length >= 2}
                       metricFunctions={this.metricFunctions}
+                      queryConfig={item}
                       variables={this.variablesList}
                       onAdd={() => this.handleAdd(index)}
                       onCreateVariable={this.handleCreateVariable}
                       onDelete={() => this.handleDelete(index)}
+                      onSelectMetric={metric => this.handleSelectMetric(index, metric)}
                     />
                   ))}
                   <ExpressionPanel
                     metricFunctions={this.metricFunctions}
                     variables={this.variablesList}
                     onCreateVariable={this.handleCreateVariable}
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              class='create-view'
+              v-show={this.curStep === 2}
+            >
+              <div class='panel'>
+                <div class='variable-form'>
+                  <VariablesManage
+                    metricFunctions={this.metricFunctions}
+                    scene='edit'
+                    variablesList={this.variablesList}
                   />
                 </div>
               </div>
@@ -196,9 +242,17 @@ export default class TemplateCreate extends tsc<object> {
             </div>
           </div>
           <VariablesManage
+            ref='variablesManage'
+            v-show={this.curStep === 1}
             metricFunctions={this.metricFunctions}
+            scene='create'
             variablesList={this.variablesList}
             onChange={this.handleVariablesChange}
+          />
+
+          <div
+            class='template-view'
+            v-show={this.curStep === 2}
           />
         </div>
       </div>
