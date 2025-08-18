@@ -27,7 +27,6 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import KvTag from '../../../../components/retrieval-filter/kv-tag';
-import UiSelectorOptions from '../../../../components/retrieval-filter/ui-selector-options';
 import {
   type IFilterField,
   type IFilterItem,
@@ -37,11 +36,13 @@ import {
   EMethod,
 } from '../../../../components/retrieval-filter/utils';
 import VariableName from '../utils/variable-name';
+import ConditionCreatorOptions from './condition-creator-options';
 
 import './condition-creator-selector.scss';
 
 interface IProps {
   clearKey?: string;
+  dimensionValueVariables?: { name: string }[];
   fields?: IFilterField[];
   hasVariableOperate?: boolean;
   value?: IFilterItem[];
@@ -65,6 +66,7 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: IFilterItem[];
   @Prop({ type: String, default: '' }) clearKey: string;
   @Prop({ type: Boolean, default: true }) hasVariableOperate: boolean;
+  @Prop({ type: Array, default: () => [] }) dimensionValueVariables: { name: string }[];
   @Ref('selector') selectorRef: HTMLDivElement;
 
   /* 是否显示弹出层 */
@@ -216,7 +218,13 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
               onClick={event => this.handleUpdateTag(event, index)}
             >
               <VariableName name={item.key.name} />
-              <span class='icon-monitor icon-mc-close' />
+              <span
+                class='icon-monitor icon-mc-close'
+                onClick={(e: MouseEvent) => {
+                  e.stopPropagation();
+                  this.handleDeleteTag(index);
+                }}
+              />
             </div>
           ) : (
             <KvTag
@@ -238,7 +246,8 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
 
         <div style='display: none;'>
           <div ref='selector'>
-            <UiSelectorOptions
+            <ConditionCreatorOptions
+              dimensionValueVariables={this.dimensionValueVariables}
               fields={[...this.fields]}
               getValueFn={this.getValueFn}
               hasVariableOperate={this.hasVariableOperate}
