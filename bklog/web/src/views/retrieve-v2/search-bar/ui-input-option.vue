@@ -16,6 +16,7 @@
   import { translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
   import { BK_LOG_STORAGE } from '../../../store/store.type';
+  import BatchInput from '../components/batch-input';
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -80,7 +81,6 @@
     },
   };
 
-  const filedValueMapping = {};
 
   const getOperatorLable = operator => {
     if (translateKeys.includes(operator)) {
@@ -1045,9 +1045,6 @@
       needDeleteItem = true;
     }
   };
-  const getValueLabelShow = fieldName => {
-    return filedValueMapping[fieldName] ?? t('检索内容');
-  };
 
   const handleOptionListMouseEnter = (e, item) => {
     const { offsetWidth, scrollWidth } = e.target.lastElementChild;
@@ -1244,7 +1241,10 @@
             class="ui-value-row"
           >
             <div class="ui-value-label">
-              <span>{{ getValueLabelShow(activeFieldItem.field_name) }}</span>
+              <span>
+                {{ $t('检索内容') }}
+                <BatchInput />
+              </span>
               <span v-show="['text', 'string'].includes(activeFieldItem.field_type)">
                 <bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox>
               </span>
