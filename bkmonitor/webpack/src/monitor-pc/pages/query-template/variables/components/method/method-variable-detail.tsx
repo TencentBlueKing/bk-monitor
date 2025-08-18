@@ -53,18 +53,18 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
 
-import type { ConstantVariableModel } from '../../index';
-interface ConstantDetailProps {
-  variable: ConstantVariableModel;
+import type { MethodVariableModel } from '../../index';
+interface MethodDetailProps {
+  variable: MethodVariableModel;
 }
 
 @Component
-export default class ConstantDetail extends tsc<ConstantDetailProps> {
-  @Prop({ type: Object, required: true }) variable!: ConstantVariableModel;
+export default class MethodVariableDetail extends tsc<MethodDetailProps> {
+  @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
 
   render() {
     return (
-      <div class='constant-detail'>
+      <div class='method-detail'>
         <VariableCommonFormDetail data={this.variable.data}>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>

@@ -93,21 +93,26 @@ export default class TemplateCreate extends tsc<object> {
 
   observerCreateConfigResize() {
     this.resizeObserver = new ResizeObserver(() => {
-      this.isSticky = this.createContentWrap.scrollHeight > this.createContentWrap.clientHeight;
+      this.isSticky = this.createContentWrap.scrollHeight > this.createContentWrap.clientHeight || this.curStep === 2;
     });
     this.resizeObserver.observe(this.createContentWrap);
   }
 
-  mounted() {
+  init() {
+    this.curStep = 1;
+    this.metricsList = [];
+    this.queryConfigs = [new QueryConfig(null, { alias: 'a' })];
+  }
+
+  async activated() {
+    this.init();
+    this.handleGetMetricFunctions();
     this.observerCreateConfigResize();
   }
 
-  beforeDestroy() {
+  deactivated() {
+    console.log('deactivated');
     this.resizeObserver.unobserve(this.createContentWrap);
-  }
-
-  created() {
-    this.handleGetMetricFunctions();
   }
 
   handleCreateVariable(val: VariableModelType) {
@@ -166,6 +171,7 @@ export default class TemplateCreate extends tsc<object> {
           />
         </div>
         <div class='template-create-content'>
+          {/* 左侧区域 */}
           <div
             ref='createContentWrap'
             class='create-content-wrap'
@@ -209,13 +215,15 @@ export default class TemplateCreate extends tsc<object> {
               v-show={this.curStep === 2}
             >
               <div class='panel'>
-                <div class='variable-form'>
-                  <VariablesManage
-                    metricFunctions={this.metricFunctions}
-                    scene='edit'
-                    variablesList={this.variablesList}
-                  />
-                </div>
+                {this.variablesList.length > 0 && (
+                  <div class='variable-form'>
+                    <VariablesManage
+                      metricFunctions={this.metricFunctions}
+                      scene='edit'
+                      variablesList={this.variablesList}
+                    />
+                  </div>
+                )}
               </div>
             </div>
             <div class={['submit-btns', { sticky: this.isSticky }]}>
@@ -241,6 +249,8 @@ export default class TemplateCreate extends tsc<object> {
               </bk-button>
             </div>
           </div>
+
+          {/* 右侧内容 */}
           <VariablesManage
             ref='variablesManage'
             v-show={this.curStep === 1}
@@ -253,7 +263,9 @@ export default class TemplateCreate extends tsc<object> {
           <div
             class='template-view'
             v-show={this.curStep === 2}
-          />
+          >
+            模板配置预览
+          </div>
         </div>
       </div>
     );
