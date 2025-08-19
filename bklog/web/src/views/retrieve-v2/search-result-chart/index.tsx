@@ -240,6 +240,7 @@ export default defineComponent({
 
       // 组装请求参数方法
       const buildQueryParams = (start_time, end_time) => {
+        debugger
         const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
         const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
         const queryData = {

@@ -243,7 +243,7 @@ const store = new Vuex.Store({
     originAddition: state => {
       const { addition } = state.indexItem;
       const filterAddition = addition
-        .filter(item => !item.disabled && item.field !== '_ip-select_')
+        .filter(item => item.field !== '_ip-select_')
         .map(({ field, operator, value, hidden_values, disabled }) => {
           const addition = {
             field,
@@ -314,15 +314,27 @@ const store = new Vuex.Store({
         ...searchParams,
       };
     },
+    /**
+     * API 请求参数 addition 格式化
+     * @param {*} state
+     * @param {*} getters
+     * @returns
+     */
     requestAddition: (state, getters) => {
-      return getters.originAddition
-        .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(({ field, operator, value, hidden_values = [], disabled }) => ({
-          field,
-          operator,
-          value: value.filter(v => !hidden_values.includes(v)),
-          disabled,
-        }));
+      return getters.originAddition.reduce((output, current) => {
+        const { field, operator, value, hidden_values = [], disabled } = current;
+        if (!disabled && field !== '_ip-select_') {
+          const filterValue = value.filter(v => !hidden_values.includes(v));
+          if (filterValue.length > 0) {
+            output.push({
+              field,
+              operator,
+              value: filterValue,
+            });
+          }
+        }
+        return output;
+      }, []);
     },
     isNewRetrieveRoute: () => {
       const v = localStorage.getItem('retrieve_version') ?? 'v2';
