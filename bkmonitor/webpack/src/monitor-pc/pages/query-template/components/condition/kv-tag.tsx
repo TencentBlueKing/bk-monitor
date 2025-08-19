@@ -153,7 +153,7 @@ export default class KvTag extends tsc<IProps> {
               isVariableName(item.id) ? (
                 <VariableName
                   key={`${index}_key`}
-                  name={item.name}
+                  name={item.id}
                 />
               ) : (
                 <span
