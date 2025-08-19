@@ -47,7 +47,10 @@ export default () => {
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
   const trendGraphHeight = ref(0);
 
-  const leftFieldSettingWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
+  const leftFieldSettingWidth = computed(() => {
+    const { width, show } = store.state.storage[BK_LOG_STORAGE.FIELD_SETTING];
+    return show ? width : 0;
+  });
 
   /**
    * 解析地址栏参数
@@ -291,7 +294,7 @@ export default () => {
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
-          const type = indexId ?? route.params.indexId ? 'single' : 'union';
+          const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
           if (indexId && type === 'single') {
             store.commit('updateIndexId', indexId);
             store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });

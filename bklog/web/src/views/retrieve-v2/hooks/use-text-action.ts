@@ -169,4 +169,4 @@ export default (emit?: Function, from?: string) => {
     setRouteParams,
     handleTraceIdClick,
   };
-}
+};

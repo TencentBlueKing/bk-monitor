@@ -667,32 +667,6 @@ class GetObjectAttribute(Resource):
         return client.search_object_attribute(params)
 
 
-class GetBluekingBiz(Resource):
-    """
-    查询对象属性
-    """
-
-    def perform_request(self, validated_request_data):
-        try:
-            bk_biz_name = getattr(settings, "BLUEKING_NAME", "蓝鲸") or "蓝鲸"
-            result = client.search_business(
-                dict(
-                    fields=["bk_biz_id", "bk_biz_name"],
-                    condition={"bk_biz_name": bk_biz_name},
-                )  # noqa
-            )
-        except BKAPIError as e:
-            logger.info("GetBluekingBiz failed: {}", e.message)
-            return 2
-
-        if result["info"]:
-            for biz_info in result["info"]:
-                if biz_info["bk_biz_name"] == bk_biz_name:
-                    return biz_info["bk_biz_id"]
-
-        return 2
-
-
 class SearchServiceCategory(Resource):
     """
     查询服务分类列表
@@ -891,6 +865,7 @@ def full_host_topo_inst(bk_biz_id, host_list):
 
 class GetHostWithoutBiz(Resource):
     class RequestSerializer(HostRequestSerializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         ips = serializers.ListField(label="IP组", required=False)
         bk_host_ids = serializers.ListField(label="主机ID组", required=False)
         ip = serializers.CharField(label="IP关键字", required=False)
@@ -908,6 +883,7 @@ class GetHostWithoutBiz(Resource):
             return {"count": 0, "hosts": []}
 
         request_params = {
+            "bk_tenant_id": params["bk_tenant_id"],
             "page": {"start": 0, "limit": params["limit"]},
             "fields": params["fields"],
         }
@@ -953,7 +929,8 @@ class GetHostWithoutBiz(Resource):
             search_result = client.list_hosts_without_biz(request_params)
             if search_result["info"]:
                 relations = client.find_host_biz_relation(
-                    bk_host_id=[host["bk_host_id"] for host in search_result["info"]]
+                    bk_tenant_id=params["bk_tenant_id"],
+                    bk_host_id=[host["bk_host_id"] for host in search_result["info"]],
                 )
             else:
                 relations = []

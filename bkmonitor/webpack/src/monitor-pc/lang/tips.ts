@@ -384,4 +384,5 @@ export default {
     'The positioning at the panel level of the dashboard requires a certain amount of time to synchronize. If necessary, please click',
   调试数据范围取当前时间窗口前1000条数据:
     'The debugging data range takes the previous 1000 entries from the current time window',
+  只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
 };

@@ -61,7 +61,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
       localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(v));
     }
 
-    this.$store.commit('updateStorage', {[BK_LOG_STORAGE.CACHED_BATCH_LIST]: []});
+    this.$store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: [] });
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
     return v;
   }

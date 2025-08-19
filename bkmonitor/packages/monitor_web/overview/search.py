@@ -398,7 +398,7 @@ class HostSearchItem(SearchItem):
         if not ips:
             return
 
-        result = api.cmdb.get_host_without_biz_v2(ips=ips)
+        result = api.cmdb.get_host_without_biz_v2(bk_tenant_id=get_request_tenant_id(), ips=ips)
         hosts: list[dict] = result["hosts"]
 
         items = []

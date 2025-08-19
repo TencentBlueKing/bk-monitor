@@ -450,10 +450,12 @@ class ServiceConfigResource(Resource):
             self.update_labels(bk_biz_id, app_name, service_name, validated_request_data["labels"])
 
         # 下发修改后的配置
-        application_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().application_id
+        application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
         from apm_web.tasks import update_application_config
 
-        update_application_config.delay(application_id)
+        update_application_config.delay(
+            application.bk_biz_id, application.app_name, {"service_configs": application.get_service_transfer_config()}
+        )
 
     def update_uri(self, bk_biz_id, app_name, service_name, uri_relations):
         if len(set(uri_relations)) != len(uri_relations):

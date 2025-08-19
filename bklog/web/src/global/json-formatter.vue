@@ -38,7 +38,8 @@
     <template v-if="showMoreTextAction && hasScrollY">
       <span
         class="btn-more-action"
-        @click="handleClickMore"
+        @mouseup="handleMouseUp"
+        @mousedown="handleMouseDown"
       >
         {{ btnText }}
       </span>
@@ -54,7 +55,7 @@
 
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
-  import RetrieveHelper from '../views/retrieve-helper';
+  import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
   import { BK_LOG_STORAGE } from '../store/store.type';
   import { debounce } from 'lodash';
   import JSONBig from 'json-bigint';
@@ -153,11 +154,22 @@
     return ` ...${$t('更多')}`;
   });
 
-  const handleClickMore = e => {
+  let mousedownItem = null;
+  const handleMouseDown = e => {
+    mousedownItem = e.target;
+  }
+
+
+  const handleMouseUp = e => {
     e.stopPropagation();
     e.preventDefault();
-    showAllText.value = !showAllText.value;
-  };
+    e.stopImmediatePropagation();
+    if (mousedownItem === e.target) {
+      showAllText.value = !showAllText.value;
+    }
+
+    mousedownItem = null;
+  }
 
   const onSegmentClick = args => {
     emit('menu-click', args);
@@ -306,12 +318,15 @@
     },
   );
 
+  RetrieveHelper.on(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
+
   onMounted(() => {
     setIsOverflowY();
   });
 
   onBeforeUnmount(() => {
     destroy();
+    RetrieveHelper.off(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
   });
 </script>
 <style lang="scss">

@@ -78,7 +78,7 @@ class BkBaseResultTable(models.Model):
         from metadata.models.data_link.data_link_configs import DataBusConfig
 
         try:
-            databus_config_ins = DataBusConfig.objects.get(name=self.bkbase_rt_name)
+            databus_config_ins = DataBusConfig.objects.get(name=self.bkbase_rt_name, bk_tenant_id=self.bk_tenant_id)
             return databus_config_ins.namespace + "-" + databus_config_ins.name
         except DataBusConfig.DoesNotExist:
             logger.error("data_link->[%s],do not have databus->[%s]", self.data_link_name, self.bkbase_rt_name)

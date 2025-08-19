@@ -156,11 +156,12 @@ class CreateCustomTimeSeries(Resource):
         return "{}.{}".format(database_name, "base")
 
     @staticmethod
-    def get_data_id(data_name, operator, space_uid=None):
+    def get_data_id(bk_biz_id: int, data_name: str, operator: str, space_uid: str | None = None):
         try:
             data_id_info = api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})
         except BKAPIError:
             param = {
+                "bk_biz_id": bk_biz_id,
                 "data_name": data_name,
                 "etl_config": ETL_CONFIG.CUSTOM_TS,
                 "operator": operator,
@@ -211,7 +212,12 @@ class CreateCustomTimeSeries(Resource):
         )
         try:
             # 保证 data id 已存在
-            bk_data_id = self.get_data_id(data_name, operator, space_uid)
+            bk_data_id = self.get_data_id(
+                bk_biz_id=validated_request_data["bk_biz_id"],
+                data_name=data_name,
+                operator=operator,
+                space_uid=space_uid,
+            )
         except CustomValidationNameError as e:
             # dataid 已存在，判定 ts 是否存在：
             bk_data_id = e.data
@@ -416,7 +422,13 @@ class CustomTimeSeriesList(Resource):
         if not table_ids:
             return {}
 
-        query_configs = (
+        # 先查询策略ID（当有业务过滤条件时）
+        strategy_ids = None
+        if request_bk_biz_id:
+            strategy_ids = set(StrategyModel.objects.filter(bk_biz_id=request_bk_biz_id).values_list("pk", flat=True))
+
+        # 查询自定义时间序列类型的查询配置
+        query_configs_queryset = (
             QueryConfigModel.objects.annotate(result_table_id=models.F("config__result_table_id"))
             .filter(
                 reduce(lambda x, y: x | y, (Q(result_table_id=table_id) for table_id in table_ids)),
@@ -426,16 +438,15 @@ class CustomTimeSeriesList(Resource):
             .values("result_table_id", "strategy_id")
         )
 
-        strategy_ids = []
-        if request_bk_biz_id:
-            strategy_ids = StrategyModel.objects.filter(bk_biz_id=request_bk_biz_id).values_list("pk", flat=True)
+        # 如果有业务过滤条件，进一步筛选query_configs
+        if strategy_ids:
+            query_configs_queryset = query_configs_queryset.filter(strategy_id__in=strategy_ids)
 
+        query_configs = list(query_configs_queryset)
+
+        # 构建结果表ID到策略ID的映射关系
         table_id_strategy_mapping = defaultdict(set)
         for query_config in query_configs:
-            # 当存在 biz 请求条件且策略 id 未命中时不纳入统计
-            if request_bk_biz_id and query_config["strategy_id"] not in strategy_ids:
-                continue
-
             table_id_strategy_mapping[query_config["result_table_id"]].add(query_config["strategy_id"])
 
         return {key: len(value) for key, value in table_id_strategy_mapping.items()}
