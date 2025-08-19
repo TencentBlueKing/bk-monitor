@@ -31,7 +31,7 @@ import { getFunctions } from 'monitor-api/modules/grafana';
 import BasicInfoCreate from '../components/basic-info/basic-info-create';
 import ExpressionPanel from '../components/expression-panel/expression-panel';
 import QueryPanel from '../components/query-panel/query-panel';
-import { type VariableTypeEnumType, Expression, MetricDetailV2, QueryConfig } from '../typings';
+import { type AggFunction, Expression, MetricDetailV2, QueryConfig } from '../typings';
 import { type VariableModelType, getVariableModel } from '../variables';
 import VariablesManage from '../variables/variables-manage/variables-manage';
 import { LETTERS } from '@/common/constant';
@@ -120,13 +120,7 @@ export default class TemplateCreate extends tsc<object> {
     if (this.variablesList.find(item => item.name === val.name)) {
       return;
     }
-    this.variablesList.push(
-      getVariableModel({
-        type: val.type as VariableTypeEnumType,
-        name: val.name,
-        metric: val?.metric || null,
-      })
-    );
+    this.variablesList.push(getVariableModel(val));
   }
 
   async handleGetMetricFunctions() {
@@ -153,6 +147,31 @@ export default class TemplateCreate extends tsc<object> {
 
   handleSelectMetric(index: number, metric: MetricDetailV2) {
     this.queryConfigs.splice(index, 1, new QueryConfig(new MetricDetailV2(metric)));
+  }
+
+  handleChangeMethod(val: string, index: number) {
+    console.log(val);
+    this.queryConfigs[index].agg_method = val;
+  }
+  handleDimensionChange(val: string[], index: number) {
+    console.log(val);
+    this.queryConfigs[index].agg_dimension = val;
+  }
+  handleChangeFunction(val: AggFunction[], index: number) {
+    console.log(val);
+    this.queryConfigs[index].functions = val;
+  }
+  handleChangeInterval(val: number | string, index: number) {
+    console.log(val);
+    this.queryConfigs[index].agg_interval = val;
+  }
+  handleChangeExpression(val: string) {
+    console.log(val);
+    this.expressionConfig.expression = val;
+  }
+  handleChangeExpressionFunction(val: AggFunction[]) {
+    console.log(val);
+    this.expressionConfig.functions = val;
   }
 
   render() {
@@ -198,6 +217,10 @@ export default class TemplateCreate extends tsc<object> {
                       queryConfig={item}
                       variables={this.variablesList}
                       onAdd={() => this.handleAdd(index)}
+                      onChangeDimension={val => this.handleDimensionChange(val, index)}
+                      onChangeFunction={val => this.handleChangeFunction(val, index)}
+                      onChangeInterval={val => this.handleChangeInterval(val, index)}
+                      onChangeMethod={val => this.handleChangeMethod(val, index)}
                       onCreateVariable={this.handleCreateVariable}
                       onDelete={() => this.handleDelete(index)}
                       onSelectMetric={metric => this.handleSelectMetric(index, metric)}
@@ -207,6 +230,8 @@ export default class TemplateCreate extends tsc<object> {
                     expressionConfig={this.expressionConfig}
                     metricFunctions={this.metricFunctions}
                     variables={this.variablesList}
+                    onChangeExpression={val => this.handleChangeExpression(val)}
+                    onChangeFunction={val => this.handleChangeExpressionFunction(val)}
                     onCreateVariable={this.handleCreateVariable}
                   />
                 </div>

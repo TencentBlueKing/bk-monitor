@@ -30,6 +30,8 @@ import AutoWidthInput from '../../../../components/retrieval-filter/auto-width-i
 import { EFieldType, isNumeric, onClickOutside } from '../../../../components/retrieval-filter/utils';
 import ValueOptions from '../../../../components/retrieval-filter/value-options';
 import ValueTagInput from '../../../../components/retrieval-filter/value-tag-input';
+import { isVariableName } from '../utils/utils';
+import VariableName from '../utils/variable-name';
 
 import type { IFieldItem, TGetValueFn } from '../../../../components/retrieval-filter/value-selector-typing';
 
@@ -37,6 +39,7 @@ import './value-tag-selector.scss';
 
 export interface IValue {
   id: string;
+  isVariable?: boolean;
   name: string; // 暂不显示 预留
 }
 
@@ -48,7 +51,9 @@ interface IProps {
   hasVariableOperate?: boolean;
   value?: IValue[];
   variables?: { name: string }[];
+  onAddVariableOpenChange?: (val: boolean) => void;
   onChange?: (v: IValue[]) => void;
+  onCreateVariable?: (val: string) => void;
   /* 下拉选项显隐 */
   onDropDownChange?: (v: boolean) => void;
   onSelectorBlur?: () => void;
@@ -86,6 +91,7 @@ export default class ValueTagSelector extends tsc<IProps> {
   isFocus = false;
   /* 是否通过上下键悬停下拉选项 */
   isChecked = false;
+  showCreateVariablePop = false;
 
   onClickOutsideFn = () => {};
 
@@ -119,6 +125,7 @@ export default class ValueTagSelector extends tsc<IProps> {
 
   beforeDestroy() {
     this.handleSelectorBlur();
+    this.onClickOutsideFn?.();
   }
 
   @Watch('value', { immediate: true })
@@ -184,7 +191,12 @@ export default class ValueTagSelector extends tsc<IProps> {
       this.inputValue = '';
       return;
     }
-    this.localValue.push({ id: this.inputValue, name: this.inputValue });
+    const isVariable = isVariableName(this.inputValue);
+    if (isVariable) {
+      this.handleCreateVariable(this.inputValue);
+    }
+
+    this.localValue.push({ id: this.inputValue, name: this.inputValue, isVariable });
     this.activeIndex += 1;
     this.inputValue = '';
     this.handleChange();
@@ -218,14 +230,17 @@ export default class ValueTagSelector extends tsc<IProps> {
     this.isShowDropDown = v;
     if (this.isShowDropDown) {
       setTimeout(() => {
-        onClickOutside(
+        this.onClickOutsideFn = onClickOutside(
           this.$el,
           () => {
+            if (this.showCreateVariablePop) {
+              return;
+            }
             this.isShowDropDown = false;
             this.isFocus = false;
             this.handleSelectorBlur();
           },
-          { once: true }
+          { once: false }
         );
       }, 100);
     }
@@ -290,6 +305,15 @@ export default class ValueTagSelector extends tsc<IProps> {
     this.$emit('selectorFocus');
   }
 
+  handleAddVariableOpenChange(val: boolean) {
+    this.showCreateVariablePop = val;
+    this.$emit('addVariableOpenChange', val);
+  }
+
+  handleCreateVariable(val: string) {
+    this.$emit('createVariable', val);
+  }
+
   render() {
     const inputRender = (key: string) => (
       <AutoWidthInput
@@ -314,13 +338,28 @@ export default class ValueTagSelector extends tsc<IProps> {
         >
           {this.localValue.length
             ? this.localValue.map((item, index) => [
-                <ValueTagInput
-                  key={item.id}
-                  class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
-                  value={item.id}
-                  onChange={v => this.handleTagUpdate(v, index)}
-                  onDelete={() => this.handleDelete(index)}
-                />,
+                item?.isVariable ? (
+                  <div
+                    key={item.id}
+                    class={['variable-tag', 'one-row']}
+                  >
+                    <span class={'value-span'}>
+                      <VariableName name={item.name} />
+                    </span>
+                    <span
+                      class='icon-monitor icon-mc-close'
+                      onClick={() => this.handleDelete(index)}
+                    />
+                  </div>
+                ) : (
+                  <ValueTagInput
+                    key={item.id}
+                    class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
+                    value={item.id}
+                    onChange={v => this.handleTagUpdate(v, index)}
+                    onDelete={() => this.handleDelete(index)}
+                  />
+                ),
                 this.activeIndex === index && inputRender(`${item.id}_input`),
               ])
             : inputRender('input')}
@@ -335,6 +374,8 @@ export default class ValueTagSelector extends tsc<IProps> {
             search={this.inputValue}
             selected={this.localValue.map(item => item.id)}
             variables={this.variables}
+            onAddVariableOpenChange={this.handleAddVariableOpenChange}
+            onCreateVariable={this.handleCreateVariable}
             onIsChecked={this.handleIsChecked}
             onSelect={this.handleCheck}
           />

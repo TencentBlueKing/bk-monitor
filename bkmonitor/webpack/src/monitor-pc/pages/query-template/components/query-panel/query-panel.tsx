@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import QueryConfigCreator from '../query-config/query-config-creator';
 
-import type { MetricDetailV2, QueryConfig } from '../../typings';
+import type { AggFunction, MetricDetailV2, QueryConfig } from '../../typings';
 import type { VariableModelType } from '../../variables';
 import type { IFunctionOptionsItem } from '../type/query-config';
 
@@ -42,6 +42,10 @@ interface IProps {
   queryConfig?: QueryConfig;
   variables?: VariableModelType[];
   onAdd?: () => void;
+  onChangeDimension?: (val: string[]) => void;
+  onChangeFunction?: (val: AggFunction[]) => void;
+  onChangeInterval?: (val: number | string) => void;
+  onChangeMethod?: (val: string) => void;
   onCreateVariable?: (val: VariableModelType) => void;
   onDelete?: () => void;
   onSelectMetric?: (metric: MetricDetailV2) => void;
@@ -71,6 +75,19 @@ export default class QueryPanel extends tsc<IProps> {
     this.$emit('selectMetric', metric);
   }
 
+  handleChangeMethod(val: string) {
+    this.$emit('changeMethod', val);
+  }
+  handleDimensionChange(val: string[]) {
+    this.$emit('changeDimension', val);
+  }
+  handleChangeFunction(val: AggFunction[]) {
+    this.$emit('changeFunction', val);
+  }
+  handleChangeInterval(val: number | string) {
+    this.$emit('changeInterval', val);
+  }
+
   render() {
     return (
       <div class='template-query-panel-component'>
@@ -78,6 +95,10 @@ export default class QueryPanel extends tsc<IProps> {
           metricFunctions={this.metricFunctions}
           queryConfig={this.queryConfig}
           variables={this.variables}
+          onChangeDimension={this.handleDimensionChange}
+          onChangeFunction={this.handleChangeFunction}
+          onChangeInterval={this.handleChangeInterval}
+          onChangeMethod={this.handleChangeMethod}
           onCreateVariable={this.handleCreateVariable}
           onSelectMetric={this.handleSelectMetric}
         />

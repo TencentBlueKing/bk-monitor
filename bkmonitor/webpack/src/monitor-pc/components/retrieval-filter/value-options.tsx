@@ -32,6 +32,7 @@ import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 import EmptyStatus from '../empty-status/empty-status';
 import TextHighlighter from './text-highlighter';
 import AddVariableOption from '@/pages/query-template/components/utils/add-variable-option';
+import VariableName from '@/pages/query-template/components/utils/variable-name';
 
 import type { IFieldItem, TGetValueFn } from './value-selector-typing';
 
@@ -49,6 +50,8 @@ interface IProps {
   show?: boolean;
   variables?: { name: string }[];
   width?: number;
+  onAddVariableOpenChange?: (val: boolean) => void;
+  onCreateVariable?: (val: string) => void;
   onIsChecked?: (v: boolean) => void;
   onSelect?: (item: IValue) => void;
 }
@@ -92,6 +95,9 @@ export default class ValueOptions extends tsc<IProps> {
   pageSize = 200;
   page = 1;
   isEnd = false;
+
+  /* 是否展示创建变量弹出层 */
+  showCreateVariablePop = false;
 
   get hasCustomOption() {
     return !!this.search;
@@ -266,8 +272,15 @@ export default class ValueOptions extends tsc<IProps> {
     return list;
   }
 
-  handleAddVar() {}
-  handleAddVariableOpenChange() {}
+  async handleAddVar(val: string) {
+    console.log(val, '******************');
+    this.$emit('createVariable', val);
+    this.handleWatch();
+  }
+  handleAddVariableOpenChange(val: boolean) {
+    this.showCreateVariablePop = val;
+    this.$emit('addVariableOpenChange', val);
+  }
 
   render() {
     return (
@@ -368,10 +381,14 @@ export default class ValueOptions extends tsc<IProps> {
                   this.handleCheck(item);
                 }}
               >
-                <TextHighlighter
-                  content={item.name}
-                  keyword={this.search}
-                />
+                {this.hasVariableOperate && item?.isVariable ? (
+                  <VariableName name={item.name} />
+                ) : (
+                  <TextHighlighter
+                    content={item.name}
+                    keyword={this.search}
+                  />
+                )}
               </div>
             ))}
             {this.scrollLoading && (

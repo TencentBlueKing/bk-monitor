@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import ExpressionConfigCreator from '../expression-config/expression-config-creator';
 
-import type { Expression } from '../../typings';
+import type { AggFunction, Expression } from '../../typings';
 import type { VariableModelType } from '../../variables';
 import type { IFunctionOptionsItem } from '../type/query-config';
 
@@ -39,6 +39,8 @@ interface IProps {
   expressionConfig?: Expression;
   metricFunctions?: IFunctionOptionsItem[];
   variables?: VariableModelType[];
+  onChangeExpression?: (val: string) => void;
+  onChangeFunction?: (val: AggFunction[]) => void;
   onCreateVariable?: (val: VariableModelType) => void;
 }
 @Component
@@ -51,6 +53,13 @@ export default class ExpressionPanel extends tsc<IProps> {
     this.$emit('createVariable', val);
   }
 
+  handleChangeFunction(val: AggFunction[]) {
+    this.$emit('changeFunction', val);
+  }
+  handleChangeExpression(val: string) {
+    this.$emit('changeExpression', val);
+  }
+
   render() {
     return (
       <div class='template-expression-panel-component'>
@@ -59,6 +68,8 @@ export default class ExpressionPanel extends tsc<IProps> {
             expressionConfig={this.expressionConfig}
             metricFunctions={this.metricFunctions}
             variables={this.variables}
+            onChangeExpression={this.handleChangeExpression}
+            onChangeFunction={this.handleChangeFunction}
             onCreateVariable={this.handleCreateVariable}
           />
         </div>
