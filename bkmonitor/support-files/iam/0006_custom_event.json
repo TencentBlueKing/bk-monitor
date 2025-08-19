@@ -1,0 +1,17 @@
+{
+  "system_id": "bk_monitorv3",
+  "operations": [
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "use_custom_event_is_platform",
+        "name": "使用自定义事件中的是否平台事件",
+        "name_en": "Use custom events in Whether or not platform events",
+        "type": "view",
+        "related_resource_types": [],
+        "related_actions": [],
+        "version": 1
+      }
+    }
+  ]
+}

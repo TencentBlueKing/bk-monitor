@@ -13,6 +13,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.data_source import load_data_source
+from bkmonitor.iam import Permission, ActionEnum
 from bkmonitor.models import QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.time_tools import date_convert, parse_time_range
@@ -382,6 +383,11 @@ class CreateCustomEventGroup(Resource):
         return bk_data_id
 
     def perform_request(self, params: dict):
+        # 进行权限校验
+        if params.get("is_platform", False):
+            # 校验权限
+            Permission().is_allowed(ActionEnum.USE_CUSTOM_EVENT_IS_PLATFORM, raise_exception=True)
+
         operator = get_request_username() or settings.COMMON_USERNAME
         input_bk_biz_id = params["bk_biz_id"]
         if params["is_platform"]:
