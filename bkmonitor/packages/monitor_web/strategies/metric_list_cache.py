@@ -45,7 +45,7 @@ from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from common.context_processors import Platform
 from constants.alert import IGNORED_TAGS, EventTargetType
-from constants.apm import ApmMetrics
+from constants.apm import ApmMetricProcessor
 from constants.data_source import (
     DataSourceLabel,
     DataTypeLabel,
@@ -192,17 +192,6 @@ UPTIMECHECK_MAP = {
 }
 
 METRIC_POOL_KEYS = ["id", "metric_md5", "bk_biz_id", "result_table_id", "metric_field", "related_id", "readable_name"]
-
-APM_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
-
-APM_METRICS_INFO = {
-    name: {
-        "field_name": name,
-        "description": alias,
-        "unit": unit,
-    }
-    for name, alias, unit in ApmMetrics.all()
-}
 
 
 class BaseMetricCacheManager:
@@ -490,6 +479,9 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
             # 通过 time_series_group_name 的生成规则过滤掉插件类型的数据
             custom_ts_result = [i for i in custom_ts_result if i["time_series_group_name"] not in db_name_list]
 
+        # 补充 APM 虚拟指标
+        custom_ts_result = self.get_apm_extra_tables(custom_ts_result) + custom_ts_result
+
         # 不在监控创建的策略配置均展示，除了全局data id， 该过滤在get_metrics_by_table中生效
         for result in custom_ts_result:
             self.process_logbeat_table(result)
@@ -498,14 +490,61 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
 
     @classmethod
     def process_apm_table(cls, table: dict):
-        if APM_TABLE_REGEX.match(table["table_id"]):
-            table["label"] = "apm"
-            for metric in table.get("metric_info_list", []):
-                metric_name = metric["field_name"]
-                if metric_name in APM_METRICS_INFO:
-                    metric_info = APM_METRICS_INFO[metric_name]
-                    metric["unit"] = metric_info["unit"]
-                    metric["description"] = metric_info["description"]
+        ApmMetricProcessor.process(table)
+
+    def get_apm_extra_tables(self, tables: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """获取 APM 相关的虚拟指标表
+        - 找出 table_id & data_label 同时满足 APM 规则的表。
+        - 对同个业务，多个应用的指标表进行合并，生成 custom:${data_label}:${field} 的同名指标。
+        - 基于上述步骤生成的统一虚拟指标，可以同时在多个业务下使用，便于策略、仪表盘的迁移。
+        """
+
+        def _to_tags(_metric_info: dict[str, Any]) -> dict[str, Any]:
+            return {tag["field_name"]: tag for tag in _metric_info.get("tag_list", [])}
+
+        field_name_to_tags: dict[str, dict[str, Any]] = {}
+        field_name_to_metric_info: dict[str, dict[str, Any]] = {}
+        for table in tables:
+            # data_label 和 table_id 必须同时满足。
+            if not (ApmMetricProcessor.is_match_data_label(table) and ApmMetricProcessor.is_match_table_id(table)):
+                continue
+
+            # 虚拟指标由 data_label 和 field_name 组成，如果没有 data_label 则跳过。
+            # Q：为什么删除（pop）原始表的 data_label？
+            # A：存在 data_label 时，每个 table 都会额外展示一条 data_label.xxx 的记录，非常冗余。
+            data_label: str = table.pop("data_label")
+
+            for metric_info in table.get("metric_info_list") or []:
+                field_name: str = metric_info["field_name"]
+                if field_name in field_name_to_metric_info:
+                    # 指标已存在，合并标签
+                    field_name_to_tags[field_name].update(_to_tags(metric_info))
+                    continue
+
+                copy_metric_info: dict[str, Any] = copy.deepcopy(metric_info)
+                copy_metric_info["data_label"] = data_label
+                copy_metric_info["table_id"] = data_label
+                field_name_to_metric_info[field_name] = copy_metric_info
+                field_name_to_tags[field_name] = _to_tags(copy_metric_info)
+
+        apm_extra_tables: list[dict[str, Any]] = []
+        for field_name, metric_info in field_name_to_metric_info.items():
+            metric_info["tag_list"] = list(field_name_to_tags.get(field_name, []).values())
+            apm_extra_tables.append(
+                {
+                    "is_enable": True,
+                    "bk_data_id": 0,
+                    "time_series_group_id": 0,
+                    "time_series_group_name": "",
+                    "bk_biz_id": self.bk_biz_id,
+                    "table_id": metric_info["table_id"],
+                    "label": "apm",
+                    "data_label": metric_info.pop("data_label", ""),
+                    "metric_info_list": [metric_info],
+                }
+            )
+
+        return apm_extra_tables
 
     @staticmethod
     def process_logbeat_table(table: dict):
