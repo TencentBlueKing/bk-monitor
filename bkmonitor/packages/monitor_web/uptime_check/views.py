@@ -216,15 +216,10 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
 
         node_task_counts = {node.id: node.tasks.count() for node in queryset}
 
-        username = request.user.username
         # 检查用户是否有公共节点的使用权限
         can_use_public_nodes = False
         if common_nodes.exists():
-            can_use_public_nodes = Permission(username=username).is_allowed(
-                ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=False
-            )
-        # 创建公共节点的快速查找集合
-        public_node_ids = {node.id for node in common_nodes}
+            can_use_public_nodes = Permission().is_allowed(ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=False)
 
         for node in serializer.data:
             task_num = node_task_counts.get(node["id"], 0)
@@ -243,7 +238,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                 beat_version = get_by_node(node, all_beat_version, beat_version)
 
             # 添加权限信息
-            is_public_node = node["is_common"] or node["id"] in public_node_ids
+            is_public_node = node["is_common"]
             result.append(
                 {
                     "id": node["id"],

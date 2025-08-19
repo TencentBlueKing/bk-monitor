@@ -26,7 +26,6 @@ from django.db.models import Q
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext as _
 from requests.auth import to_native_string
-from rest_framework.exceptions import PermissionDenied
 from yaml import SafeDumper
 
 from api.cmdb.define import Host
@@ -39,7 +38,7 @@ from bkmonitor.utils.country import ISP_LIST
 from bkmonitor.utils.encode import EncodeWebhook
 from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
 from bkmonitor.utils.local import with_client_operator
-from bkmonitor.utils.request import get_request_tenant_id, get_request
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool
 from bkmonitor.utils.time_tools import (
     get_timestamp_range_by_biz_date,
@@ -343,11 +342,6 @@ class TestTaskResource(Resource):
         config = data["config"]
         protocol = data["protocol"]
 
-        request = get_request(peaceful=True)
-        if not request:
-            return []
-        username = request.user.username
-
         # 根据node_id列表获取拨测节点信息，这些信息用于选择用于测试的目标主机
         all_nodes = UptimeCheckNode.objects.filter(id__in=data["node_id_list"], bk_tenant_id=bk_tenant_id)
         biz_nodes = []
@@ -361,13 +355,8 @@ class TestTaskResource(Resource):
                 biz_nodes.append(node)
 
         # 检查权限：如果有公共节点，验证用户是否有公共节点的使用权限
-        permission_instance = Permission(username=username)
         if common_nodes:
-            can_use_public_nodes = permission_instance.is_allowed(
-                ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=False
-            )
-            if not can_use_public_nodes:
-                raise PermissionDenied(_("您没有使用公共拨测节点的权限"))
+            Permission().is_allowed(ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=True)
 
         # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303 # noqa
         bk_host_ids = all_nodes.values_list("bk_host_id", flat=1).distinct()
