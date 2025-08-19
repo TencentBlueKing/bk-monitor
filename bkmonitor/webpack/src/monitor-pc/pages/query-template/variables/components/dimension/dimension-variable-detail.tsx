@@ -87,7 +87,7 @@ export default class DimensionVariableDetail extends tsc<DimensionDetailProps> {
           </div>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
-            <div class='form-item-value'>{this.variable.valueMap?.name || '--'}</div>
+            <div class='form-item-value'>{this.variable.defaultValueMap?.name || '--'}</div>
           </div>
         </VariableCommonFormDetail>
       </div>

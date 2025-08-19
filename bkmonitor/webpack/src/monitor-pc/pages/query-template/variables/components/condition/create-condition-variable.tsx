@@ -31,7 +31,7 @@ import { ConditionVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
 import type { IConditionOptionsItem } from '../../../components/type/query-config';
-import type { IConditionVariableModel } from '../../../typings';
+import type { AggCondition, IConditionVariableModel } from '../../../typings';
 
 import './create-condition-variable.scss';
 interface ConditionVariableEvents {
@@ -53,17 +53,17 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
     return isAllDisabled || isOtherDisabled;
   }
 
-  handleDimensionChange(value) {
+  handleDimensionChange(value: string[]) {
     this.handleDataChange({
       ...this.variable.data,
       dimensionOption: value,
     });
   }
 
-  handleValueChange(value) {
+  handleValueChange(value: AggCondition[]) {
     this.handleDataChange({
       ...this.variable.data,
-      value,
+      defaultValue: value,
     });
   }
 
@@ -129,8 +129,10 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
           >
             <ConditionCreator
               hasVariableOperate={false}
+              metricDetail={this.variable.metric}
               options={this.variable.dimensionOptionsMap as IConditionOptionsItem[]}
               showLabel={false}
+              value={this.variable.data.defaultValue}
             />
           </bk-form-item>
         </VariableCommonForm>

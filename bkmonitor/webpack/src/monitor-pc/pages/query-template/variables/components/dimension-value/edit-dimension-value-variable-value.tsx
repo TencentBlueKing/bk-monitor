@@ -64,7 +64,7 @@ export default class EditDimensionValueVariableValue extends tsc<DimensionValueV
     return (
       <EditVariableValue data={this.variable.data}>
         <bk-select
-          value={this.variable.value}
+          value={this.variable.data.value || this.variable.data.defaultValue}
           onChange={this.handleValueChange}
           onToggle={this.handleSelectToggle}
         >
