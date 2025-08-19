@@ -1,5 +1,5 @@
 /* stylelint-disable selector-class-pattern */
-.retrieval__value-tag-selector-component {
+.template-config__value-tag-selector-component {
   position: relative;
   width: 311px;
 
@@ -43,6 +43,7 @@
       color: #c4c6cc;
     }
   }
+
   .variable-tag {
     position: relative;
     display: inline-flex;
@@ -71,11 +72,13 @@
       color: #979ba5;
       cursor: pointer;
     }
+
     &:hover {
       cursor: pointer;
       background-color: #dcdee5;
       border-color: #dcdee5;
     }
+
     &.one-row {
       .value-span {
         text-overflow: ellipsis;
