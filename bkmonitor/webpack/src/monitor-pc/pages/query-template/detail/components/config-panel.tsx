@@ -174,7 +174,7 @@ export default class ConfigPanel extends tsc<object> {
               agg_condition: [
                 {
                   key: 'hostname',
-                  value: ['xxxxxx1', 'test22'],
+                  value: ['xxxxxx1', '${zjVariable}'],
                   method: 'eq',
                   condition: 'and',
                   dimension_name: '主机名',
@@ -212,6 +212,11 @@ export default class ConfigPanel extends tsc<object> {
                   },
                 ],
                 type: VariableTypeEnum.FUNCTION,
+              },
+              {
+                name: 'condition_value_variable',
+                value: ['vvvvv', 'ssss'],
+                type: VariableTypeEnum.DIMENSION_VALUE,
               },
             ]}
           />

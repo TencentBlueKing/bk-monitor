@@ -39,6 +39,7 @@ interface IProps {
   isConditionVariable?: boolean;
   /** 条件对象 */
   value: AggCondition | ConditionDetailTagItem;
+  variableMap?: Record<string, any>;
   /** 条件变量名称 */
   variableName?: string;
   /** 维度值允许显示个数，多出显示省略号(不传默认全显示) */
@@ -54,9 +55,11 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) isConditionVariable: boolean;
   /** 条件变量名称 */
   @Prop({ type: String, default: '' }) variableName: string;
-  variablesToolInstance = new QueryVariablesTool();
+  @Prop({ type: Object, default: () => {} }) variableMap: Record<string, any>;
   templateSrv = getTemplateSrv();
-  localValue: Omit<AggCondition, 'value'> & { value: { id: string; isVariable?: boolean; name: string }[] } = null;
+  localValue: Omit<AggCondition, 'value'> & {
+    value: { id: string; isVariable?: boolean; name: string; variableName?: string }[];
+  } = null;
   hideCount = 0;
 
   get tipContent() {
@@ -69,7 +72,6 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
 
   @Watch('value', { immediate: true })
   handleWatchValue() {
-    console.log('================ this.value ================', this.value);
     if (this.value && JSON.stringify(this.localValue || {}) !== JSON.stringify(this.value)) {
       const localValue = JSON.parse(JSON.stringify(this.value));
       const value = [];
@@ -77,32 +79,59 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
         for (const v of this.value.value as AggCondition['value']) {
           value.push({
             id: v,
-            name: v.length > 20 ? `${v.slice(0, 20)}...` : v,
+            name: this.showNameSlice(v),
             isVariable: false,
           });
         }
-        this.localValue = {
-          ...localValue,
-          value,
-        };
       } else {
-        // for (const variableMode of this.value.value as ConditionDetailTagItem['value']) {
-        //   value.push({
-        //     id: variableMode.id,
-        //     name: variableMode.name.length > 20 ? `${v.name.slice(0, 20)}...` : v.name,
-        //   });
-        // }
-        // this.localValue = {
-        //   ...localValue,
-        //   value,
-        // };
+        for (const variableMode of this.value.value as ConditionDetailTagItem['value']) {
+          if (!variableMode.isVariable) {
+            const id = variableMode.value;
+            value.push({
+              id: id,
+              name: this.showNameSlice(id),
+              isVariable: variableMode.isVariable,
+            });
+            continue;
+          }
+          let varValue = '';
+          const result = this.templateSrv.replace(`\${${variableMode.variableName}:json}` as string, this.variableMap);
+          try {
+            varValue = JSON.parse(result);
+          } catch {
+            varValue = '';
+          }
+          if (Array.isArray(varValue)) {
+            value.push(
+              ...varValue.map(v => ({
+                id: v,
+                name: this.showNameSlice(v),
+                isVariable: variableMode.isVariable,
+              }))
+            );
+            continue;
+          }
+          const id = varValue || variableMode.value;
+          value.push({
+            id: id,
+            name: this.showNameSlice(id),
+            isVariable: variableMode.isVariable,
+          });
+        }
       }
+      this.localValue = {
+        ...localValue,
+        value,
+      };
       this.hideCount = this.visibleItemLimit ? this.value.value.length - this.visibleItemLimit : 0;
     }
   }
 
+  showNameSlice(showName: string) {
+    return showName.length > 20 ? `${showName.slice(0, 20)}...` : showName;
+  }
+
   valueWrapRenderer() {
-    console.log('================ this.localValue ================', this.localValue);
     return (
       <div class='value-wrap'>
         {this.localValue.value.map((item, index) => {
