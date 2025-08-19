@@ -24,9 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+export interface IBasicInfoData {
+  desc: string;
+  effect: string[];
+  name: string;
+}
 export interface ICreateEvents {
   onClose: () => void;
 }
+
 export interface ICreateProps {
   visible: boolean;
 }

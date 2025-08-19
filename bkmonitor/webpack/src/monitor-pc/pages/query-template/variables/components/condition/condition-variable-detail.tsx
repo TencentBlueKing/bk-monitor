@@ -87,7 +87,7 @@ export default class ConditionVariableDetail extends tsc<ConditionDetailProps> {
           </div>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
-            <div class='form-item-value'>{this.variable.value || '--'}</div>
+            <div class='form-item-value'>{this.variable.defaultValue || '--'}</div>
           </div>
         </VariableCommonFormDetail>
       </div>
