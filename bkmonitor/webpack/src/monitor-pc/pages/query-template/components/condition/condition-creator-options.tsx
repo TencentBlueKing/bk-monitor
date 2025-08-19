@@ -58,8 +58,10 @@ interface IProps {
   show?: boolean;
   value?: IFilterItem;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onAddVariableOpenChange?: (val: boolean) => void;
   onCancel?: () => void;
   onConfirm?: (v: IFilterItem) => void;
+  onCreateValueVariable?: (val: { name: string; relationDimension: string }) => void;
   onCreateVariable?: (variableName: string) => void;
 }
 @Component
@@ -109,6 +111,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
   /* 当前是否选中的创建变量选项 */
   isCreateVariable = false;
   variableName = '';
+
+  showCreateVariablePop = false;
 
   get wildcardItem() {
     return this.checkedItem?.supported_operations?.find(item => item.value === this.method)?.options;
@@ -456,6 +460,18 @@ export default class UiSelectorOptions extends tsc<IProps> {
     this.$emit('confirm', value);
   }
 
+  handleAddVariableOpenChange(val: boolean) {
+    this.showCreateVariablePop = val;
+    this.$emit('addVariableOpenChange', val);
+  }
+
+  handleCreateValueVariable(val: string) {
+    this.$emit('createValueVariable', {
+      relationDimension: this.checkedItem?.name,
+      name: val,
+    });
+  }
+
   render() {
     const rightRender = () => {
       if (this.isCreateVariable) {
@@ -523,7 +539,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
                   hasVariableOperate={this.hasVariableOperate}
                   value={this.values}
                   autoFocus
+                  onAddVariableOpenChange={this.handleAddVariableOpenChange}
                   onChange={this.handleValueChange}
+                  onCreateVariable={this.handleCreateValueVariable}
                   onSelectorBlur={this.handleValueSelectorBlur}
                   onSelectorFocus={this.handleSelectorFocus}
                 />

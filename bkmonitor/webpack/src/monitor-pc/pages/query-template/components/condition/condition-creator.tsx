@@ -47,6 +47,7 @@ interface IProps {
   showVariables?: boolean;
   value?: AggCondition[];
   variables?: IVariablesItem[];
+  onCreateValueVariable?: (val: { name: string; relationDimension: string }) => void;
   onCreateVariable?: (val: string) => void;
 }
 
@@ -64,6 +65,8 @@ export default class ConditionCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) value: AggCondition[];
   @Prop({ default: () => null }) metricDetail: MetricDetailV2;
   @Prop({ default: () => [], type: Array }) dimensionValueVariables: { name: string }[];
+
+  cacheDimensionValues = new Map();
 
   get fields() {
     return [
@@ -97,21 +100,56 @@ export default class ConditionCreator extends tsc<IProps> {
   handleCreateVariable(val) {
     this.$emit('createVariable', val);
   }
+  handleCreateValueVariable(val) {
+    this.$emit('createValueVariable', val);
+  }
 
   getValueFn(params: IGetValueFnParams): any {
     return new Promise(resolve => {
-      fetchMetricDimensionValueList(params.fields[0], {
-        data_source_label: this.metricDetail?.data_source_label,
-        data_type_label: this.metricDetail?.data_type_label,
-        result_table_id: this.metricDetail?.result_table_id,
-        metric_field: this.metricDetail?.metric_field,
-        where: [],
-      }).then(data => {
+      const searchList = (search: string, list) => {
+        if (!search) {
+          return list;
+        }
+        const searchLower = search.toLocaleLowerCase();
+        return list.filter(
+          item =>
+            item.name.toLocaleLowerCase().includes(searchLower) || item.id.toLocaleLowerCase().includes(searchLower)
+        );
+      };
+      const searchValue = params?.where?.[0]?.value?.[0];
+      const dimensionKey = params.fields[0];
+      const list = this.cacheDimensionValues.get(dimensionKey);
+      if (list?.length) {
+        const allOptions = [
+          ...this.dimensionValueVariables.map(item => ({ name: item.name, id: item.name, isVariable: true })),
+          ...list,
+        ];
+        const filterList = searchList(searchValue, allOptions);
         resolve({
-          count: data.length,
-          list: data,
+          count: filterList.length,
+          list: filterList,
         });
-      });
+      } else {
+        fetchMetricDimensionValueList(dimensionKey, {
+          data_source_label: this.metricDetail?.data_source_label,
+          data_type_label: this.metricDetail?.data_type_label,
+          result_table_id: this.metricDetail?.result_table_id,
+          metric_field: this.metricDetail?.metric_field,
+          where: [],
+        }).then(res => {
+          const result = Array.isArray(res.data) ? res.data.map(item => ({ name: item.label, id: item.value })) : [];
+          const allOptions = [
+            ...this.dimensionValueVariables.map(item => ({ name: item.name, id: item.name, isVariable: true })),
+            ...result,
+          ];
+          this.cacheDimensionValues.set(dimensionKey, result);
+          const filterList = searchList(searchValue, allOptions);
+          resolve({
+            count: filterList.length,
+            list: filterList,
+          });
+        });
+      }
     });
   }
 
@@ -124,6 +162,7 @@ export default class ConditionCreator extends tsc<IProps> {
           fields={this.fields as IFilterField[]}
           getValueFn={this.getValueFn}
           hasVariableOperate={this.hasVariableOperate}
+          onCreateValueVariable={this.handleCreateValueVariable}
           onCreateVariable={this.handleCreateVariable}
         />
       </div>
