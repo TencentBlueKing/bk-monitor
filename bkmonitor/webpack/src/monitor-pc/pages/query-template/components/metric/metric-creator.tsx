@@ -83,7 +83,7 @@ export default class MetricCreator extends tsc<IProps> {
           tipsPlacements={['right']}
           onClick={() => this.handleClick()}
         >
-          <span class='metric-name'>{this.metricDetail?.metricAlias}</span>
+          <span class='metric-name'>{this.metricDetail?.metricAlias || this.metricDetail?.name}</span>
         </SelectWrap>
         <MetricSelector
           key={this.selectId}
