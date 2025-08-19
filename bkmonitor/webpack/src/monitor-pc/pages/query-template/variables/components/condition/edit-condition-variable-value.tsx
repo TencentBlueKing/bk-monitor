@@ -73,6 +73,7 @@ export default class EditConditionVariableValue extends tsc<ConditionValueProps,
       >
         <ConditionCreator
           hasVariableOperate={false}
+          metricDetail={this.variable.metric}
           options={this.variable.dimensionOptionsMap as IConditionOptionsItem[]}
           showLabel={false}
         />

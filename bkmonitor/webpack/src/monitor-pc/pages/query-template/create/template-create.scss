@@ -57,77 +57,12 @@
   }
 
   .template-create-content {
-    display: flex;
     height: calc(100% - 52px);
 
     .title {
       font-size: 14px;
       font-weight: 600;
       color: #313238;
-    }
-
-    .create-content-wrap {
-      position: relative;
-      flex: 1;
-      height: 100%;
-      overflow-y: auto;
-
-      .create-config {
-        padding: 16px 16px 0;
-
-        .template-config-wrap-component {
-          padding: 24px;
-          margin-top: 12px;
-
-          .template-config-title {
-            margin-bottom: 14px;
-            font-size: 14px;
-            font-weight: 600;
-            line-height: 20px;
-            color: #313238;
-          }
-
-          .template-query-panel-component {
-            margin-bottom: 10px;
-          }
-        }
-      }
-
-      .create-view {
-        height: calc(100% - 52px);
-        padding: 16px 16px 0;
-
-        .variable-form {
-          padding: 16px;
-        }
-      }
-
-      .submit-btns {
-        padding: 0 16px;
-        margin-top: 32px;
-
-        &.sticky {
-          position: sticky;
-          bottom: 0;
-          padding: 8px 16px;
-          margin-top: 0;
-          background: #fff;
-          box-shadow: 0 -2px 4px 0 #0000001f;
-        }
-
-        .bk-button {
-          width: 88px;
-
-          & + .bk-button {
-            margin-left: 8px;
-          }
-        }
-      }
-    }
-
-    .template-view {
-      width: 482px;
-      background: #FFF;
     }
   }
 }
