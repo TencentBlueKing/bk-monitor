@@ -94,7 +94,7 @@ from bkmonitor.utils.time_tools import (
     parse_time_compare_abbreviation,
 )
 from constants.apm import (
-    ApmMetrics,
+    TraceMetric,
     MetricTemporality,
     OtlpKey,
     SpanKindCachedEnum,
@@ -1330,7 +1330,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             "conditions": [
                 {
                     "key": "metric_id",
-                    "value": [f"custom.{application.metric_result_table_id}.{m}" for m, _, _ in ApmMetrics.all()],
+                    "value": [f"custom.{application.metric_result_table_id}.{m}" for m in TraceMetric.all()],
                 }
             ],
             "page": 0,
