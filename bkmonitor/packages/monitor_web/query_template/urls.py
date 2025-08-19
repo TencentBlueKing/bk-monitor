@@ -10,20 +10,12 @@ specific language governing permissions and limitations under the License.
 
 from django.urls import include, re_path
 
-from apm_web.views import apm_home
+from core.drf_resource.routers import ResourceRouter
+from monitor_web.query_template import views
 
-app_name = "apm_web"
+router = ResourceRouter()
+router.register_module(views)
 
 urlpatterns = [
-    re_path(r"^$", apm_home),
-    re_path(r"meta/", include("apm_web.meta.urls")),
-    re_path(r"^trace_api/", include("apm_web.trace.urls")),
-    re_path(r"^profile_api/", include("apm_web.profile.urls")),
-    re_path(r"^metric/", include("apm_web.metric.urls")),
-    re_path(r"^topo/", include("apm_web.topo.urls")),
-    re_path(r"^service/", include("apm_web.service.urls")),
-    re_path(r"^service_log/", include("apm_web.log.urls")),
-    re_path(r"^service_db/", include("apm_web.db.urls")),
-    re_path(r"^container/", include("apm_web.container.urls")),
-    re_path(r"^event/", include("apm_web.event.urls")),
+    re_path(r"^", include(router.urls)),
 ]
