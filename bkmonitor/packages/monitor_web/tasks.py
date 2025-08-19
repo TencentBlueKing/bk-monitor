@@ -442,7 +442,7 @@ def import_config(
     collect_config_list,
     strategy_config_list,
     view_config_list,
-    folder_id: int,
+    folder_id: int = 0,
     is_overwrite_mode=False,
 ):
     """
