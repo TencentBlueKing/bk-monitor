@@ -168,10 +168,7 @@ export default class FunctionCreator extends tsc<IProps> {
       this.curTags.map(item => ({
         id: item.id,
         params: item?.isVariable
-          ? {
-              id: '',
-              value: '',
-            }
+          ? []
           : item.params?.map(p => ({
               id: p.id,
               value: p?.value || p?.default,
