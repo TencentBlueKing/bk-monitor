@@ -120,4 +120,8 @@ class QcloudCollectingViewSet(ResourceViewSet):
         ResourceRoute(
             "GET", resource.collecting.cloud_monitoring_task_detail, endpoint="monitoring/tasks/<str:task_id>"
         ),
+        # 更新采集配置接口 - 对应 PUT /cloud-products/monitoring/tasks/{task_id}
+        ResourceRoute(
+            "PUT", resource.collecting.cloud_monitoring_update_config, endpoint="monitoring/tasks/<str:task_id>"
+        ),
     ]
