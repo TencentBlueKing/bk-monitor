@@ -141,7 +141,10 @@ export default class ConfigPanel extends tsc<object> {
                     },
                   ],
                 },
-                '${functions_variable}',
+                {
+                  id: '${functions_variable}',
+                  params: [],
+                },
                 {
                   id: 'deriv',
                   params: [

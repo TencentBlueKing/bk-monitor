@@ -27,11 +27,12 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type DimensionField } from '../../typings';
-import { type VariableModelType } from '../../variables';
 import { getTemplateSrv } from '../../variables/template/template-srv';
 import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
+
+import type { DimensionField } from '../../typings';
+import type { VariableModelType } from '../../variables';
 
 import './dimension-detail.scss';
 
@@ -91,9 +92,11 @@ export default class DimensionDetail extends tsc<DimensionProps> {
   }
 
   tagItemRenderer(item) {
-    const domTag = item.isVariable ? VariableSpan : 'span';
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const DomTag = item.isVariable ? VariableSpan : 'span';
     return (
       <div
+        id={item.variableName}
         class='tags-item'
         v-bk-tooltips={{
           content: item.value,
@@ -102,12 +105,7 @@ export default class DimensionDetail extends tsc<DimensionProps> {
           delay: [300, 0],
         }}
       >
-        <domTag
-          id={item.variableName}
-          class='tags-item-name'
-        >
-          {this.allDimensionMap?.[item.value]?.name || item.value}
-        </domTag>
+        <DomTag class='tags-item-name'>{this.allDimensionMap?.[item.value]?.name || item.value}</DomTag>
       </div>
     );
   }
@@ -120,10 +118,12 @@ export default class DimensionDetail extends tsc<DimensionProps> {
           prev.push(this.tagItemRenderer(curr));
           return prev;
         }
-        const varValue = this.templateSrv.replace(curr.value as string, this.variableMap);
-        if (!varValue) {
-          prev.push(this.tagItemRenderer(curr));
-          return prev;
+        let varValue = '';
+        const result = this.templateSrv.replace(`\${${curr.variableName}:json}` as string, this.variableMap);
+        try {
+          varValue = JSON.parse(result);
+        } catch {
+          varValue = '';
         }
         if (Array.isArray(varValue)) {
           prev.push(
@@ -134,7 +134,11 @@ export default class DimensionDetail extends tsc<DimensionProps> {
           return prev;
         }
         prev.push(
-          this.tagItemRenderer({ value: varValue, variableName: curr.variableName, isVariable: curr.isVariable })
+          this.tagItemRenderer({
+            value: varValue || curr.value,
+            variableName: curr.variableName,
+            isVariable: curr.isVariable,
+          })
         );
         return prev;
       }, []);
