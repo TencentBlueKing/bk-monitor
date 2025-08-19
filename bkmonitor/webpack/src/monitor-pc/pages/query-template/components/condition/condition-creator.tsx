@@ -24,12 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchMetricDimensionValueList } from '../../service/dimension';
+import { isVariableName } from '../utils/utils';
 import ConditionCreatorSelector from './condition-creator-selector';
-import { type IFilterField, type IGetValueFnParams, EFieldType } from '@/components/retrieval-filter/utils';
+import {
+  type IFilterField,
+  type IFilterItem,
+  type IGetValueFnParams,
+  EFieldType,
+} from '@/components/retrieval-filter/utils';
 import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '@/constant/constant';
 
 import type { MetricDetailV2 } from '../../typings/metric';
@@ -47,6 +53,7 @@ interface IProps {
   showVariables?: boolean;
   value?: AggCondition[];
   variables?: IVariablesItem[];
+  onChange?: (val: AggCondition[]) => void;
   onCreateValueVariable?: (val: { name: string; relationDimension: string }) => void;
   onCreateVariable?: (val: string) => void;
 }
@@ -67,6 +74,26 @@ export default class ConditionCreator extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) dimensionValueVariables: { name: string }[];
 
   cacheDimensionValues = new Map();
+
+  localValue: IFilterItem[] = [];
+
+  @Watch('value', { immediate: true })
+  handleWatchValue() {
+    this.localValue = this.value.map(item => {
+      const curField = this.fields.find(f => f.name === item.key);
+      const keyName = curField?.alias || item.key;
+      const methodName = curField?.supported_operations?.find(s => s.value === item.method)?.alias || item.method;
+      return {
+        condition: { id: item.condition, name: item.condition },
+        key: { id: item.key, name: keyName },
+        method: { id: item.method, name: methodName },
+        value: item.value.map(v => ({ id: v, name: v, isVariable: isVariableName(v) })),
+        options: {
+          isVariable: isVariableName(item.key),
+        },
+      };
+    }) as IFilterItem[];
+  }
 
   get fields() {
     return [
@@ -102,6 +129,20 @@ export default class ConditionCreator extends tsc<IProps> {
   }
   handleCreateValueVariable(val) {
     this.$emit('createValueVariable', val);
+  }
+
+  handleChange(val: IFilterItem[]) {
+    this.$emit(
+      'change',
+      val.map(item => {
+        return {
+          condition: item.condition.id,
+          key: item.key.id,
+          method: item.method.id,
+          value: item.value.map(v => v.id),
+        };
+      })
+    );
   }
 
   getValueFn(params: IGetValueFnParams): any {
@@ -162,6 +203,8 @@ export default class ConditionCreator extends tsc<IProps> {
           fields={this.fields as IFilterField[]}
           getValueFn={this.getValueFn}
           hasVariableOperate={this.hasVariableOperate}
+          value={this.localValue}
+          onChange={this.handleChange}
           onCreateValueVariable={this.handleCreateValueVariable}
           onCreateVariable={this.handleCreateVariable}
         />
