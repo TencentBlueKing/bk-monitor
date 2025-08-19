@@ -135,22 +135,22 @@ export default class TemplateCreate extends tsc<object> {
     this.queryConfigs.splice(index, 1, new QueryConfig(new MetricDetailV2(metric)));
   }
 
-  handleChangeMethod(val) {
+  handleChangeMethod(val: { index: number; value: string }) {
     console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_method = value;
   }
-  handleDimensionChange(val) {
+  handleDimensionChange(val: { index: number; value: string[] }) {
     console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_dimension = value;
   }
-  handleChangeFunction(val) {
+  handleChangeFunction(val: { index: number; value: AggFunction[] }) {
     console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].functions = value;
   }
-  handleChangeInterval(val) {
+  handleChangeInterval(val: { index: number; value: number | string }) {
     console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_interval = value;
