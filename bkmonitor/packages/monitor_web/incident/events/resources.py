@@ -22,13 +22,14 @@ from apm_web.event.serializers import (
     EventTagDetailRequestSerializer as ApmEventTagDetailRequestSerializer
 )
 from monitor_web.data_explorer.event.constants import EventSource, EventType
+from monitor_web.incident.metrics.utils import transform_to_ip4
 from monitor_web.incident.utils import pascal_to_snake
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import api
 from typing import Any
 import copy
 import threading
-
+        
 class BaseIncidentEventsResource(Resource):
     """
     故障告警事件查询接口基类
@@ -52,27 +53,37 @@ class BaseIncidentEventsResource(Resource):
         EntityType.BkNodeHost.value: DataTypeLabel.EVENT,
     }
     
-    # dimension内一些特殊字段需要做映射处理
-    WhereSpecialKeyMapping = {
-        EntityType.BcsPod.value: {
+    # 表名与维度过滤条件映射关系
+    TableWhereSpecialKeyMapping = {
+        "gse_system_event": {
+            "inner_ip": "bk_target_ip",
+            "bk_cloud_id": "bk_target_cloud_id",
+        },
+        "bkmonitor_event": {
             "inner_ip": "host",
             "pod_name": "pod",
             "namespace": "namespace",
             "cluster_id": "bcs_cluster_id",
         },
-        EntityType.BkNodeHost.value: {
-            "inner_ip": "bk_target_ip",
-            "bk_cloud_id": "bk_target_cloud_id",
-        },
-        EntityType.APMService.value: {
-        },
+        "cicd_event": {
+        }
     }
+    
+    def get_special_keys_by_table(self, table: str) -> list:
+        """
+        根据表名获取特殊字段
+        """
+        for table_key, mapping_keys in self.TableWhereSpecialKeyMapping.items():
+            if table in table_key:
+                return mapping_keys
+        return [] 
     
     # 表名与事件来源的映射关系
     TableSourceMapping = {
-        EventSource.HOST.label: ["gse_system_event", "system_event"],
+        EventSource.HOST.label: ["gse_system_event"],
         EventSource.BCS.label: ["bkmonitor_event"],
-        EventSource.DEFAULT.label: [],
+        EventSource.BKCI.label: ["cicd_event"],
+        EventSource.DEFAULT.label: ["system_event"],
     }
     
     def __init__(self):
@@ -111,11 +122,12 @@ class BaseIncidentEventsResource(Resource):
         """
         获取BcsPod类型的表名
         """
+        tables = {"cicd_event"}
         bk_biz_id = kwargs.get("bk_biz_id", "")
         bk_data_id = cls.get_bk_data_id_by_cluster_id(kwargs.get("cluster_id", ""))
         if bk_data_id and bk_biz_id:
-            return {f"{bk_biz_id}_bkmonitor_event_{bk_data_id}"}
-        return set()
+            tables.add(f"{bk_biz_id}_bkmonitor_event_{bk_data_id}")
+        return tables
 
     @classmethod
     def get_apm_service_tables(cls, **kwargs) -> set[str]:
@@ -132,14 +144,14 @@ class BaseIncidentEventsResource(Resource):
         bk_biz_id = kwargs.get("bk_biz_id", "")
         bk_data_id = cls.get_bk_data_id_by_cluster_id(kwargs.get("cluster_id", ""))
 
-        tables = {"gse_system_event"}
+        tables = {"gse_system_event", "cicd_event"}
         if bk_data_id and bk_biz_id:
             tables.add(f"{bk_biz_id}_bkmonitor_event_{bk_data_id}")
         return tables
-        
+    
     # ==================== 过滤条件处理器 ====================
     def apply_dimension_filters(
-        self, time_series_request: dict, dimensions_filter: dict, entity_type: str = "BcsPod"
+        self, time_series_request: dict, dimensions_filter: dict, table:str
     ) -> None:
         """
         应用维度过滤条件到查询配置
@@ -147,14 +159,23 @@ class BaseIncidentEventsResource(Resource):
         if not dimensions_filter:
             return
 
+        special_keys = self.get_special_keys_by_table(table)
+        
+        # 处理特殊字段
+        for key in special_keys:
+            if key not in dimensions_filter:
+                continue
+            if table == "gse_system_event" and key == "inner_ip":
+                dimensions_filter[key] = transform_to_ip4(dimensions_filter[key])
+        
         # 添加Where过滤条件
         where_filters = []
         for key, value in dimensions_filter.items():
-            if not value or key not in self.WhereSpecialKeyMapping.get(entity_type, {}):
+            if not value or key not in special_keys:
                 continue
             where_filters.append(
                 {
-                    "key": self.WhereSpecialKeyMapping[entity_type][key],
+                    "key": special_keys[key],
                     "method": "eq",
                     "value": [value],
                     "condition": "and",
@@ -178,8 +199,9 @@ class BaseIncidentEventsResource(Resource):
         根据表名获取事件来源
         """
         for source, tables in self.TableSourceMapping.items():
-            if table in tables:
-                return source
+            for mapping_table in tables:
+                if mapping_table in table:
+                    return source
         return EventSource.DEFAULT.label
 
 class IncidentEventsSearchResource(BaseIncidentEventsResource):
@@ -192,7 +214,7 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
 
     def __init__(self):
         super().__init__()
-        
+
     RequestSerializer = EventsSearchSerializer
 
     # ==================== 主要入口方法 ====================
@@ -248,15 +270,13 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
         # 构建基础查询配置
         base_config = self.build_base_query_config(data_source_label, data_type_label, bk_biz_id, start_time, end_time)
 
-        # 应用过滤条件
-        self.apply_dimension_filters(base_config, dimensions_filter, entity_type)
-
         # 生成多表查询请求
         tables = self.get_tables_by_entity_type(entity_type, bk_biz_id=bk_biz_id, **dimensions_filter)
         requests = []
         for table in tables:
             request_copy = copy.deepcopy(base_config)
             request_copy["query_configs"][0]["table"] = table
+            self.apply_dimension_filters(request_copy, dimensions_filter, table)
             requests.append(request_copy)
 
         validated_requests = []
@@ -307,7 +327,6 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
         执行查询请求
         """
         events_search_response = base_response
-
         # 不同数据源的数据统一聚合到响应内
         def _aggregation(req_data: dict[str, Any]):
             resp = event_resources.EventTimeSeriesResource().perform_request(req_data)
@@ -345,7 +364,7 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
             if event_level in base_response["statistics"]["event_level"]:
                 base_response["statistics"]["event_level"][event_level] += 1
             if source in base_response["statistics"]["event_source"]:
-                base_response["statistics"]["event_source"][source] += sum(datapoint[1] for datapoint in datapoints)
+                base_response["statistics"]["event_source"][source] += sum(datapoint[0] for datapoint in datapoints)
 
             # 构建序列数据
             series_info = {
@@ -430,16 +449,14 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
                     "interval": interval,
                 })
         
-        self.apply_dimension_filters(query_request, dimensions_filter, entity_type)
+        self.apply_dimension_filters(query_request, dimensions_filter,table)
 
         if entity_type == EntityType.APMService.value:
             serializer = ApmEventTagDetailRequestSerializer(data=query_request)
-            serializer.is_valid()
-            query_request = serializer.validated_data
         else:
             serializer = EventTagDetailRequestSerializer(data=query_request)
-            serializer.is_valid()
-            query_request = serializer.validated_data
+        serializer.is_valid()
+        query_request = serializer.validated_data
         return query_request
     
     def build_target_info(self, response: dict, query_request: dict, validated_request_data: dict) -> dict:
@@ -469,10 +486,10 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
             target_dimensions = target_info["dimensions"]
 
             # 处理维度映射（优先从 origin_data 中透传）
-            mapping_keys = self.WhereSpecialKeyMapping[entity_type]
+            special_keys = self.get_special_keys_by_table(table)
             for key, value in dimensions.items():
-                if key in mapping_keys:
-                    target_dimensions[mapping_keys[key]] = value
+                if key in special_keys:
+                    target_dimensions[special_keys[key]] = value
 
             origin_data: dict = event_detail.get("origin_data", {})
             for key, value in origin_data.items():
