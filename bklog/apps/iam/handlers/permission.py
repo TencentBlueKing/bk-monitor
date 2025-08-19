@@ -80,6 +80,7 @@ class Permission:
                     if self.username is None:
                         raise ValueError("must provide `username` or `request` param to init")
             except Exception:  # pylint: disable=broad-except
+                self.bk_tenant_id = settings.BK_APP_TENANT_ID
                 self.username = get_request_username()
 
         self.iam_client = self.get_iam_client(self.bk_tenant_id)
