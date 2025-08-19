@@ -300,16 +300,18 @@ export default defineComponent({
               onChange={handleSearchClick}
             ></bk-input>
             <div>
-              <span
-                style='font-size: 12px; color: #3A84FF; cursor: pointer;'
-                onClick={handleDownloadData}
-              >
-                <i
-                  style='font-size: 14px;'
-                  class='bklog-icon bklog-download'
-                ></i>
-                {$t('下载')}
-              </span>
+              {tableData.value.length > 0 ? (
+                <span
+                  style='font-size: 12px; color: #3A84FF; cursor: pointer;'
+                  onClick={handleDownloadData}
+                >
+                  <i
+                    style='font-size: 14px;'
+                    class='bklog-icon bklog-download'
+                  ></i>
+                  {$t('下载')}
+                </span>
+              ) : null}
               <bk-pagination
                 style='display: inline-flex'
                 class='top-pagination'
