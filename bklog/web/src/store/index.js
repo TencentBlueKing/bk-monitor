@@ -240,39 +240,21 @@ const store = new Vuex.Store({
     isLimitExpandView: state => state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
     custom_sort_list: state => state.retrieve.catchFieldCustomConfig.sortList ?? [],
 
-    // @ts-ignore
-    retrieveParams: state => {
-      const {
-        start_time,
-        end_time,
-        addition,
-        begin,
-        size,
-        keyword = '*',
-        ip_chooser,
-        host_scopes,
-        interval,
-        sort_list,
-        format,
-      } = state.indexItem;
-
-      const search_mode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
-
+    originAddition: state => {
+      const { addition } = state.indexItem;
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(({ field, operator, value, showList }) => {
+        .map(({ field, operator, value, hidden_values, disabled }) => {
           const addition = {
             field,
             operator,
             value,
+            hidden_values,
+            disabled,
           };
 
           if (['is true', 'is false'].includes(addition.operator)) {
             addition.value = [''];
-          } else {
-            if (showList) {
-              addition.value = value.filter((_, index) => !showList[index]);
-            }
           }
 
           return addition;
@@ -290,8 +272,27 @@ const store = new Vuex.Store({
         }
       });
 
+      return filterAddition;
+    },
+
+    // @ts-ignore
+    retrieveParams: (state, getters) => {
+      const {
+        start_time,
+        end_time,
+        begin,
+        size,
+        keyword = '*',
+        ip_chooser,
+        host_scopes,
+        interval,
+        sort_list,
+        format,
+      } = state.indexItem;
+
+      const search_mode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
       const searchParams =
-        search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
+        search_mode === 'sql' ? { keyword, addition: [] } : { addition: getters.originAddition, keyword: '*' };
 
       if (searchParams.keyword.replace(/\s*/, '') === '') {
         searchParams.keyword = '*';
@@ -301,7 +302,7 @@ const store = new Vuex.Store({
         start_time,
         end_time,
         format,
-        addition: filterAddition,
+        addition: getters.originAddition,
         begin,
         size,
         ip_chooser,
@@ -312,6 +313,16 @@ const store = new Vuex.Store({
         bk_biz_id: state.bkBizId,
         ...searchParams,
       };
+    },
+    requestAddition: (state, getters) => {
+      return getters.originAddition
+        .filter(item => !item.disabled && item.field !== '_ip-select_')
+        .map(({ field, operator, value, hidden_values = [], disabled }) => ({
+          field,
+          operator,
+          value: value.filter(v => !hidden_values.includes(v)),
+          disabled,
+        }));
     },
     isNewRetrieveRoute: () => {
       const v = localStorage.getItem('retrieve_version') ?? 'v2';
@@ -1244,6 +1255,7 @@ const store = new Vuex.Store({
       }
       let begin = state.indexItem.begin;
       const { size, format, ...otherPrams } = getters.retrieveParams;
+      const requestAddition = getters.requestAddition;
 
       // 如果是第一次请求
       // 分页请求后面请求{ start_time, end_time }要保证和初始值一致
@@ -1289,7 +1301,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition: [...otherPrams.addition, ...getCommonFilterAdditionWithValues(state)],
+        addition: [...requestAddition, ...getCommonFilterAdditionWithValues(state)],
         sort_list: dateFieldSortList ?? (state.localSort ? otherPrams.sort_list : getters.custom_sort_list),
       };
 
@@ -1756,7 +1768,7 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time,
               end_time,
-              addition: [...getters.retrieveParams.addition, ...getCommonFilterAdditionWithValues(state)],
+              addition: [...getters.requestAddition, ...getCommonFilterAdditionWithValues(state)],
             },
           },
           {
