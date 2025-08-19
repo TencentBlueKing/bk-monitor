@@ -1304,13 +1304,17 @@ class ApmMetricProcessor:
         return table.get("data_label") == DEFAULT_DATA_LABEL
 
     @classmethod
+    def is_match_table_id(cls, table: dict[str, Any]) -> bool:
+        return APM_METRIC_TABLE_REGEX.match(table["table_id"]) is not None
+
+    @classmethod
     def is_match(cls, table: dict[str, Any]) -> bool:
         """判断表是否为 APM 的 RT"""
         return cls.is_match_data_label(table) or APM_METRIC_TABLE_REGEX.match(table["table_id"]) is not None
 
     @classmethod
     def process(cls, table: dict[str, Any]):
-        if not cls.is_match(table):
+        if not (cls.is_match_data_label(table) or cls.is_match_table_id(table)):
             return
 
         for processor in cls._PROCESSORS:

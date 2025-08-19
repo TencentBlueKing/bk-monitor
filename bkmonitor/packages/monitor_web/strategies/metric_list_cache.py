@@ -493,7 +493,11 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         ApmMetricProcessor.process(table)
 
     def get_apm_extra_tables(self, tables: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """获取 APM 相关的虚拟指标表"""
+        """获取 APM 相关的虚拟指标表
+        - 找出 table_id & data_label 同时满足 APM 规则的表。
+        - 对同个业务，多个应用的指标表进行合并，生成 custom:${data_label}:${field} 的同名指标。
+        - 基于上述步骤生成的统一虚拟指标，可以同时在多个业务下使用，便于策略、仪表盘的迁移。
+        """
 
         def _to_tags(_metric_info: dict[str, Any]) -> dict[str, Any]:
             return {tag["field_name"]: tag for tag in _metric_info.get("tag_list", [])}
@@ -501,16 +505,14 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         field_name_to_tags: dict[str, dict[str, Any]] = {}
         field_name_to_metric_info: dict[str, dict[str, Any]] = {}
         for table in tables:
-            # data_label 不匹配的直接跳过。
-            if not ApmMetricProcessor.is_match_data_label(table):
+            # data_label 和 table_id 必须同时满足。
+            if not (ApmMetricProcessor.is_match_data_label(table) and ApmMetricProcessor.is_match_table_id(table)):
                 continue
 
             # 虚拟指标由 data_label 和 field_name 组成，如果没有 data_label 则跳过。
             # Q：为什么删除（pop）原始表的 data_label？
             # A：存在 data_label 时，每个 table 都会额外展示一条 data_label.xxx 的记录，非常冗余。
-            data_label: str | None = table.pop("data_label", None)
-            if not data_label:
-                continue
+            data_label: str = table.pop("data_label")
 
             for metric_info in table.get("metric_info_list") or []:
                 field_name: str = metric_info["field_name"]
