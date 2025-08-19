@@ -117,5 +117,7 @@ class QcloudCollectingViewSet(ResourceViewSet):
         # 异步获取任务状态接口 - 对应 GET /cloud-products/monitoring/tasks/status
         ResourceRoute("GET", resource.collecting.cloud_monitoring_task_status, endpoint="monitoring/tasks/status"),
         # 获取采集配置详情接口 - 对应 GET /cloud-products/monitoring/tasks/{task_id}
-        ResourceRoute("GET", resource.collecting.cloud_monitoring_task_detail, endpoint="monitoring/tasks/detail"),
+        ResourceRoute(
+            "GET", resource.collecting.cloud_monitoring_task_detail, endpoint="monitoring/tasks/<str:task_id>"
+        ),
     ]

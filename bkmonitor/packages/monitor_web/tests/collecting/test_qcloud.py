@@ -1644,20 +1644,22 @@ class TestCloudMonitoringTaskDetailResource:
         """
         resource = CloudMonitoringTaskDetailResource()
 
-        # Test with valid data
+        # Test with valid data including task_id
         valid_data = {"bk_biz_id": 1, "task_id": "test_task_123"}
         serializer = resource.RequestSerializer(data=valid_data)
-        assert serializer.is_valid(), f"Serializer should be valid: {serializer.errors}"
+        assert serializer.is_valid(), f"Serializer should be valid with task_id: {serializer.errors}"
+
+        # Test with valid data without task_id (task_id can now be provided as URL parameter)
+        valid_without_task_id = {"bk_biz_id": 1}
+        serializer = resource.RequestSerializer(data=valid_without_task_id)
+        assert serializer.is_valid(), (
+            f"Serializer should be valid without task_id (can be URL param): {serializer.errors}"
+        )
 
         # Test with missing bk_biz_id
         missing_biz_id = {"task_id": "test_task_123"}
         serializer = resource.RequestSerializer(data=missing_biz_id)
         assert not serializer.is_valid(), "Serializer should be invalid without bk_biz_id"
-
-        # Test with missing task_id
-        missing_task_id = {"bk_biz_id": 1}
-        serializer = resource.RequestSerializer(data=missing_task_id)
-        assert not serializer.is_valid(), "Serializer should be invalid without task_id"
 
     def test_response_serializer_structure(self):
         """
@@ -1690,3 +1692,74 @@ class TestCloudMonitoringTaskDetailResource:
 
         serializer = resource.ResponseSerializer(data=sample_response)
         assert serializer.is_valid(), f"Response serializer should be valid: {serializer.errors}"
+
+    @patch("monitor_web.models.qcloud.CloudMonitoringTaskRegion")
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_get_task_detail_from_url_param(self, mock_task_model, mock_region_model):
+        """
+        测试通过URL参数获取任务详情
+        """
+        # 1. Setup: Mock task
+        mock_task = self.create_mock_task(
+            task_id="test_task_123",
+            bk_biz_id=1,
+            namespace="QCE/CVM",
+            collect_name="生产环境CVM监控",
+            collect_interval="1m",
+            collect_timeout="30s",
+            secret_id="TESTtesttesttesttestID",
+            secret_key="TESTtesttesttesttesttesttesttesttestKEY",
+        )
+        mock_task_model.objects.get.return_value = mock_task
+
+        # Mock region configurations
+        mock_regions = [
+            self.create_mock_region_config(
+                task_id="test_task_123",
+                region_id=1,
+                region_code="ap-beijing",
+                tags_config=[],
+                filters_config=[],
+                selected_metrics=[],
+                dimensions_config=[],
+            )
+        ]
+
+        mock_region_queryset = MagicMock()
+        mock_region_queryset.__iter__ = Mock(return_value=iter(mock_regions))
+        mock_region_queryset.order_by.return_value = mock_region_queryset
+        mock_region_model.objects.filter.return_value = mock_region_queryset
+
+        # 2. Action: 通过URL参数task_id获取任务详情
+        resource = CloudMonitoringTaskDetailResource()
+        request_data = {"bk_biz_id": 1}
+        task_id_from_url = "test_task_123"
+        result = resource.perform_request(request_data, task_id=task_id_from_url)
+
+        # 打印接口调用信息
+        print("\n" + "=" * 60)
+        print("测试URL参数task_id调用详情:")
+        print(f"请求参数: {request_data}")
+        print(f"URL参数task_id: {task_id_from_url}")
+        print(f"返回任务ID: {result.get('task_id')}")
+        print("=" * 60 + "\n")
+
+        # 3. Assertions: 验证结果
+        # 验证使用了URL中的task_id参数
+        mock_task_model.objects.get.assert_called_once_with(task_id=task_id_from_url, bk_biz_id=1, is_deleted=False)
+        assert result["task_id"] == task_id_from_url
+
+    def test_missing_task_id(self):
+        """
+        测试当既没有URL参数也没有请求参数中的task_id时的错误处理
+        """
+        # 创建资源实例
+        resource = CloudMonitoringTaskDetailResource()
+        request_data = {"bk_biz_id": 1}
+
+        # 期望抛出异常
+        try:
+            resource.perform_request(request_data)
+            assert False, "应该抛出异常，因为没有提供task_id参数"
+        except ValueError as e:
+            assert "必须提供task_id参数" in str(e), f"期望错误消息包含'必须提供task_id参数'，实际为: {str(e)}"

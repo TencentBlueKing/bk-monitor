@@ -799,7 +799,6 @@ class CloudMonitoringTaskDetailResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, help_text=_("业务ID"))
-        task_id = serializers.CharField(required=True, help_text=_("任务ID"))
 
     class ResponseSerializer(serializers.Serializer):
         task_id = serializers.CharField(help_text=_("任务ID"))
@@ -810,12 +809,16 @@ class CloudMonitoringTaskDetailResource(Resource):
         secret_id = serializers.CharField(help_text=_("腾讯云SecretId"))
         regions = serializers.ListField(child=serializers.DictField(), help_text=_("地域配置列表"))
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data, task_id=None):
         """
         查询任务详细配置
         """
         bk_biz_id = validated_request_data["bk_biz_id"]
-        task_id = validated_request_data["task_id"]
+        # 从URL参数获取task_id
+        task_id = task_id or validated_request_data.get("task_id")
+
+        if not task_id:
+            raise ValueError("必须提供task_id参数")
 
         try:
             from monitor_web.models.qcloud import CloudMonitoringTask, CloudMonitoringTaskRegion
