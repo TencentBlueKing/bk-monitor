@@ -64,7 +64,7 @@ export default class ExpressionConfigDetail extends tsc<IProps> {
             variables={this.getExpressionVariables}
           />
           <FunctionDetail
-            functions={this.expressionConfig?.functions}
+            value={this.expressionConfig?.functions}
             variables={this.getFunctionVariables}
           />
         </div>
