@@ -243,7 +243,7 @@ const store = new Vuex.Store({
     originAddition: state => {
       const { addition } = state.indexItem;
       const filterAddition = addition
-        .filter(item => !item.disabled && item.field !== '_ip-select_')
+        .filter(item => item.field !== '_ip-select_')
         .map(({ field, operator, value, hidden_values, disabled }) => {
           const addition = {
             field,
