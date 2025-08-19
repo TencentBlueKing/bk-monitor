@@ -29,6 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getTemplateSrv } from '../../variables/template/template-srv';
 import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
+import VariableSpan from '../utils/variable-span';
+import ConditionDetailKvTag from './condition-detail-kv-tag';
 
 import type { AggCondition, DimensionField } from '../../typings';
 import type { VariableModelType } from '../../variables';
@@ -45,7 +47,7 @@ interface IProps {
 }
 
 @Component
-export default class ConditionCreator extends tsc<IProps> {
+export default class ConditionDetail extends tsc<IProps> {
   /* 变量列表 */
   @Prop({ default: () => [] }) variables: VariableModelType[];
   /* 已选过滤条件 */
@@ -70,7 +72,7 @@ export default class ConditionCreator extends tsc<IProps> {
       return {};
     }
     return this.variables?.reduce?.((prev, curr) => {
-      prev[curr.name] = curr.value;
+      prev[curr.name] = curr;
       return prev;
     }, {});
   }
@@ -104,33 +106,14 @@ export default class ConditionCreator extends tsc<IProps> {
     }, []);
   }
 
-  tagItemRenderer(item) {
-    if (!this.conditionToVariableModel?.length) {
-      return '--';
-    }
-    return '--';
-    // return this.conditionToVariableModel?.map?.((item, index) => {
-    //   const domTag = item.isVariable ? VariableSpan : 'span';
-    //   return (
-    //     <div
-    //       class='tags-item'
-    //       v-bk-tooltips={{
-    //         content: item.value,
-    //         placement: 'top',
-    //         disabled: !item.value,
-    //         delay: [300, 0],
-    //       }}
-    //     >
-    //       <domTag
-    //         id={item.variableName}
-    //         key={index}
-    //         class='tags-item-name'
-    //       >
-    //         {this.allDimensionMap?.[item.value]?.name || item.value}
-    //       </domTag>
-    //     </div>
-    //   );
-    // });
+  conditionVariableTagItemRenderer(item) {
+    return (
+      <ConditionDetailKvTag
+        isConditionVariable={item.isVariable ?? false}
+        value={item.value}
+        variableName={item.variableName}
+      ></ConditionDetailKvTag>
+    );
   }
 
   /**
@@ -144,25 +127,29 @@ export default class ConditionCreator extends tsc<IProps> {
     } catch {
       varValue = '';
     }
+    if (!varValue) {
+      return [
+        <div class='variable-tag'>
+          <VariableSpan>{item.value?.key}</VariableSpan>
+        </div>,
+      ];
+    }
     if (Array.isArray(varValue)) {
       return varValue.map(v =>
-        this.tagItemRenderer({ value: v, variableName: item.variableName, isVariable: item.isVariable })
+        this.conditionVariableTagItemRenderer({
+          value: v,
+          variableName: item.variableName,
+          isVariable: item.isVariable,
+        })
       );
     }
     return [
-      this.tagItemRenderer({
-        value: varValue || item.value,
+      this.conditionVariableTagItemRenderer({
+        value: varValue,
         variableName: item.variableName,
         isVariable: item.isVariable,
       }),
     ];
-  }
-
-  /**
-   * @description 非条件变量渲染逻辑
-   */
-  conditionRenderer(condition: Omit<AggCondition, 'value'> & { value: QueryVariablesTransformResult<AggCondition>[] }) {
-    return '--';
   }
 
   tagWrapRenderer() {
@@ -172,9 +159,8 @@ export default class ConditionCreator extends tsc<IProps> {
         prev.push(...this.conditionVariableRenderer(curr));
         return prev;
       }
-      console.log('================ curr.value ================', curr.value);
       // 非条件变量则判断知否存在维度值变量
-      prev.push(this.conditionRenderer(curr.value));
+      prev.push(this.conditionVariableTagItemRenderer(curr));
 
       return prev;
     }, []);

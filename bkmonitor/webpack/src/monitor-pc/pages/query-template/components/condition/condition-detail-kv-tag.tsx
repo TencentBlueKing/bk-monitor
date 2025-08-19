@@ -26,60 +26,116 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type IFilterItem } from '../../../../components/retrieval-filter/utils';
-import { type AggCondition } from '../../typings';
+import { ConditionMethodAliasMap } from '../../constants';
+import { type AggCondition, type ConditionDetailTagItem } from '../../typings';
+import { getTemplateSrv } from '../../variables/template/template-srv';
+import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
+import VariableSpan from '../utils/variable-span';
 
-import './kv-tag.scss';
+import './condition-detail-kv-tag.scss';
 
 interface IProps {
-  value: IFilterItem;
+  /** 是否是条件变量渲染 */
+  isConditionVariable?: boolean;
+  /** 条件对象 */
+  value: AggCondition | ConditionDetailTagItem;
+  /** 条件变量名称 */
+  variableName?: string;
+  /** 维度值允许显示个数，多出显示省略号(不传默认全显示) */
+  visibleItemLimit?: number;
 }
 @Component
-export default class KvTag extends tsc<IProps> {
-  @Prop({ type: Object, default: () => null }) condition: AggCondition;
+export default class ConditionDetailKvTag extends tsc<IProps> {
+  /** 条件对象 */
+  @Prop({ type: Object, default: () => null }) value: AggCondition | ConditionDetailTagItem;
+  /** 维度值允许显示个数，多出显示省略号(不传或假值时默认全显示) */
   @Prop({ type: Number, default: 0 }) visibleItemLimit: number;
-
-  localValue: IFilterItem = null;
+  /** 是否是条件变量渲染 */
+  @Prop({ type: Boolean, default: false }) isConditionVariable: boolean;
+  /** 条件变量名称 */
+  @Prop({ type: String, default: '' }) variableName: string;
+  variablesToolInstance = new QueryVariablesTool();
+  templateSrv = getTemplateSrv();
+  localValue: Omit<AggCondition, 'value'> & { value: { id: string; isVariable?: boolean; name: string }[] } = null;
   hideCount = 0;
 
   get tipContent() {
-    return `<div style="max-width: 600px;">${this.condition.key} ${this.condition.method} ${this.condition.value.join(' OR ')}<div>`;
+    return `<div style="max-width: 600px;">${this.localValue.key} ${ConditionMethodAliasMap[this.localValue.method]} ${this.localValue.value.map(v => v.id).join(' OR ')}<div>`;
+  }
+
+  get DomTag() {
+    return this.isConditionVariable ? VariableSpan : 'span';
   }
 
   @Watch('value', { immediate: true })
   handleWatchValue() {
+    console.log('================ this.value ================', this.value);
     if (this.value && JSON.stringify(this.localValue || {}) !== JSON.stringify(this.value)) {
       const localValue = JSON.parse(JSON.stringify(this.value));
-      let count = 0;
       const value = [];
-      for (const item of this.value.value) {
-        if (count === 3) {
-          break;
+      if (this.isConditionVariable) {
+        for (const v of this.value.value as AggCondition['value']) {
+          value.push({
+            id: v,
+            name: v.length > 20 ? `${v.slice(0, 20)}...` : v,
+            isVariable: false,
+          });
         }
-        count += 1;
-        value.push({
-          ...item,
-          name: item.name.length > 20 ? `${item.name.slice(0, 20)}...` : item.name,
-        });
+        this.localValue = {
+          ...localValue,
+          value,
+        };
+      } else {
+        // for (const variableMode of this.value.value as ConditionDetailTagItem['value']) {
+        //   value.push({
+        //     id: variableMode.id,
+        //     name: variableMode.name.length > 20 ? `${v.name.slice(0, 20)}...` : v.name,
+        //   });
+        // }
+        // this.localValue = {
+        //   ...localValue,
+        //   value,
+        // };
       }
-      this.localValue = {
-        ...localValue,
-        value,
-      };
-      this.hideCount = this.condition.value.length - this.visibleItemLimit;
+      this.hideCount = this.visibleItemLimit ? this.value.value.length - this.visibleItemLimit : 0;
     }
   }
 
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  valueWrapRenderer() {
+    console.log('================ this.localValue ================', this.localValue);
+    return (
+      <div class='value-wrap'>
+        {this.localValue.value.map((item, index) => {
+          const valueNameDomTag = item?.isVariable ? VariableSpan : this.DomTag;
+          return [
+            index > 0 && (
+              <this.DomTag
+                key={`${index}_condition`}
+                class='value-condition'
+              >
+                OR
+              </this.DomTag>
+            ),
+            <valueNameDomTag
+              key={`${index}_key`}
+              class='value-name'
+            >
+              {item.name || '""'}
+            </valueNameDomTag>,
+          ];
+        })}
+        {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}
+      </div>
+    );
   }
 
   render() {
     return this.localValue ? (
-      <div class='retrieval-filter__kv-tag-component'>
+      <div class='condition-detail-kv-tag-component'>
         <div
+          id={this.variableName}
           key={this.tipContent}
-          class='retrieval-filter__kv-tag-component-wrap'
+          class='condition-detail-kv-tag-component-wrap'
           v-bk-tooltips={{
             content: this.tipContent,
             delay: [300, 0],
@@ -87,28 +143,12 @@ export default class KvTag extends tsc<IProps> {
           }}
         >
           <div class='key-wrap'>
-            <span class='key-name'>{this.localValue.key.name}</span>
-            <span class={['key-method', this.localValue.method.id]}>{this.localValue.method.name}</span>
+            <this.DomTag class='key-name'>{this.localValue.dimension_name}</this.DomTag>
+            <this.DomTag class={['key-method', this.localValue.method]}>
+              {ConditionMethodAliasMap[this.localValue.method]}
+            </this.DomTag>
           </div>
-          <div class='value-wrap'>
-            {this.localValue.value.map((item, index) => [
-              index > 0 && (
-                <span
-                  key={`${index}_condition`}
-                  class='value-condition'
-                >
-                  OR
-                </span>
-              ),
-              <span
-                key={`${index}_key`}
-                class='value-name'
-              >
-                {item.name || '""'}
-              </span>,
-            ])}
-            {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}
-          </div>
+          {this.valueWrapRenderer()}
         </div>
       </div>
     ) : undefined;

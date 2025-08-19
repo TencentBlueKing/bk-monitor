@@ -125,6 +125,19 @@ export default class ConfigPanel extends tsc<object> {
                 value: ['bk_agent_id', 'device_name'],
                 type: VariableTypeEnum.DIMENSION,
               },
+              {
+                name: 'condition_variable',
+                value: [
+                  {
+                    key: 'ip',
+                    value: ['ipipipipipip', 'xxxxxx'],
+                    method: 'neq',
+                    condition: 'and',
+                    dimension_name: '目标ID',
+                  },
+                ],
+                type: VariableTypeEnum.CONDITION,
+              },
             ]}
           />
           <QueryConfigDetail

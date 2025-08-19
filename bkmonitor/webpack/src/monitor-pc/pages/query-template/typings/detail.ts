@@ -24,9 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import { type AggCondition } from '.';
+import { type QueryVariablesTransformResult } from '../components/utils/query-variable-tool';
+
+export type ConditionDetailTagItem = Omit<AggCondition, 'value'> & { value: QueryVariablesTransformResult<string>[] };
 export interface IDetailEvents {
   onClose: () => void;
 }
+
 export interface IDetailProps {
   visible: boolean;
 }
