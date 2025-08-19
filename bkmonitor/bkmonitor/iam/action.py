@@ -126,6 +126,16 @@ class ActionEnum:
         version=1,
     )
 
+    USE_PUBLIC_SYNTHETIC_LOCATION = ActionMeta(
+        id="use_public_synthetic_location",
+        name=_("拨测公共节点使用"),
+        name_en="Use Public Synthetic Location",
+        type="view",
+        related_resource_types=[],
+        related_actions=[VIEW_SYNTHETIC.id],
+        version=1,
+    )
+
     MANAGE_PUBLIC_SYNTHETIC_LOCATION = ActionMeta(
         id="manage_public_synthetic_location",
         name=_("拨测公共节点管理"),
@@ -501,17 +511,6 @@ class ActionEnum:
         version=1,
     )
 
-    # 使用公共拨测节点
-    USE_UPTIME_CHECK_NODE = ActionMeta(
-        id="use_uptime_check_node",
-        name=_("拨测公共节点使用"),
-        name_en="Use Common Uptime Check Node",
-        type="view",
-        related_resource_types=[],
-        related_actions=[],
-        version=1,
-    )
-
 
 _all_actions = {action.id: action for action in ActionEnum.__dict__.values() if isinstance(action, ActionMeta)}
 
@@ -595,7 +594,7 @@ MINI_ACTION_IDS = [
     ActionEnum.MANAGE_APM_APPLICATION.id,
     ActionEnum.VIEW_INCIDENT.id,
     ActionEnum.MANAGE_INCIDENT.id,
-    ActionEnum.USE_UPTIME_CHECK_NODE.id,
+    ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION.id,
 ]
 # CMDB（主机依赖）权限
 CMDB_REQUIRE_ACTION_IDS = [

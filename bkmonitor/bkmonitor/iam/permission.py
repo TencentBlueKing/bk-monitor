@@ -75,8 +75,6 @@ ActionIdMap = {
     "apm": [ActionEnum.VIEW_APM_APPLICATION],
     # 故障根因定位
     "incident": [ActionEnum.VIEW_INCIDENT],
-    # 拨测节点
-    "uptime_check_node": [ActionEnum.USE_UPTIME_CHECK_NODE],
 }
 
 api_paths = ["/time_series/unify_query/", "log/query/", "time_series/unify_trace_query/"]

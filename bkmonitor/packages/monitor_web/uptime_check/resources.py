@@ -356,7 +356,7 @@ class TestTaskResource(Resource):
 
         # 检查权限：如果有公共节点，验证用户是否有公共节点的使用权限
         if common_nodes:
-            Permission().is_allowed(ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=True)
+            Permission().is_allowed(ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
 
         # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303 # noqa
         bk_host_ids = all_nodes.values_list("bk_host_id", flat=1).distinct()
