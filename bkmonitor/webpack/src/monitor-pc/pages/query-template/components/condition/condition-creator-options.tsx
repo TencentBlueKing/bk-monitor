@@ -37,7 +37,6 @@ import {
   type IWhereValueOptionsItem,
   ECondition,
   EFieldType,
-  fieldTypeMap,
   getTitleAndSubtitle,
   isNumeric,
 } from '../../../../components/retrieval-filter/utils';
@@ -493,7 +492,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               class='form-item mt-34'
               // onClick={e => e.stopPropagation()}
             >
-              <div class='form-item-label'>{this.$t('条件')}</div>
+              <div class='form-item-label'>{this.$t('运算符')}</div>
               <div class='form-item-content mt-6'>
                 <bk-select
                   ext-cls={'method-select'}
@@ -518,7 +517,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               class='form-item mt-16'
             >
               <div class='form-item-label'>
-                <span class='left'>{this.$t('检索值')}</span>
+                <span class='left'>{this.$t('筛选值')}</span>
                 {!!this.wildcardItem && (
                   <span class='right'>
                     <bk-checkbox
@@ -607,7 +606,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                       this.handleCheck(item, '', [], false, true);
                     }}
                   >
-                    <span
+                    {/* <span
                       style={{
                         background: fieldTypeMap[item.type].bgColor,
                         color: fieldTypeMap[item.type].color,
@@ -615,7 +614,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                       class='option-icon'
                     >
                       <span class={[fieldTypeMap[item.type].icon, 'option-icon-icon']} />
-                    </span>
+                    </span> */}
                     <span class='option-name-title'>{title}</span>
                     {!!subtitle && <span class='option-name-subtitle'>（{subtitle}）</span>}
                   </div>

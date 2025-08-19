@@ -88,6 +88,9 @@ export default class QueryConfigCreator extends tsc<IProps> {
   get getDimensionList() {
     return this.queryConfig.metricDetail?.dimensionList || [];
   }
+  get getWhereDimensionList() {
+    return this.queryConfig.metricDetail.whereDimensionList || [];
+  }
 
   handleSelectMetric(metric) {
     this.$emit('selectMetric', metric);
@@ -211,7 +214,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                 <ConditionCreator
                   dimensionValueVariables={this.getDimensionValueVariables as { name: string }[]}
                   metricDetail={this.queryConfig.metricDetail}
-                  options={this.getDimensionList as IConditionOptionsItem[]}
+                  options={this.getWhereDimensionList as IConditionOptionsItem[]}
                   value={this.queryConfig.agg_condition}
                   variables={this.getConditionVariables}
                   onChange={this.handleConditionChange}
