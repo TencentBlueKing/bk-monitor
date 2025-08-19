@@ -37,6 +37,7 @@ import SecondConfirm from './second-confirm';
 import { type ConfigInfo } from '@/services/log-clustering';
 import { type IResponseData } from '@/services/type';
 import { base64Encode } from '@/common/util';
+import { base64ToRuleList } from '@/utils';
 
 import './index.scss';
 
@@ -111,8 +112,21 @@ export default defineComponent({
         const requestBehindUrl = isDefault ? '/getDefaultConfig' : '/getConfig';
         const requestUrl = `${baseUrl}${requestBehindUrl}`;
         const res = (await $http.request(requestUrl, !isDefault && { params, data })) as IResponseData<ConfigInfo>;
-        const { regex_rule_type, regex_template_id } = res.data;
-
+        const { regex_rule_type, regex_template_id, predefined_varibles } = res.data;
+        const ruleList = base64ToRuleList(predefined_varibles);
+        const tableList = ruleList.map(item => {
+          const key = Object.keys(item)[0];
+          const value = item[key];
+          return {
+            pattern: value,
+            occupy: key,
+            occupyOriginStr: '',
+            highlight: '#e6e9f0',
+            disabled: true,
+          };
+        });
+        regexList.value = tableList;
+        tableRef.value.setDataList(tableList);
         logConfigInfo = {
           id: regex_template_id,
           type: regex_rule_type,
@@ -133,7 +147,6 @@ export default defineComponent({
         .getData()
         .then(data => {
           isConfirmLoading.value = true;
-          console.log(data);
           if (logConfigInfo.type === 'template') {
             secondConfirmPopoverInstance = tippy(confirmBtnRef.value, {
               appendTo: () => document.body,
@@ -174,7 +187,7 @@ export default defineComponent({
         const range = selection.getRangeAt(0);
         const wrapper = document.createElement('span');
         wrapper.classList.add('choosed-wrapper');
-        currentChoosedTextBackgroundColor = getRandomWarmColor();
+        currentChoosedTextBackgroundColor = getRandomColor();
         wrapper.style.background = currentChoosedTextBackgroundColor;
         wrapper.appendChild(range.extractContents());
         range.insertNode(wrapper);
@@ -203,42 +216,15 @@ export default defineComponent({
       occupyPopoverInstance.show();
     };
 
-    const hslToRgb = (h: number, s: number, l: number) => {
-      let r, g, b;
-      if (s === 0) {
-        r = g = b = l; // 灰色
-      } else {
-        const hue2rgb = (p, q, t) => {
-          if (t < 0) t += 1;
-          if (t > 1) t -= 1;
-          if (t < 1 / 6) return p + (q - p) * 6 * t;
-          if (t < 1 / 2) return q;
-          if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-          return p;
-        };
-        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        const p = 2 * l - q;
-        r = hue2rgb(p, q, h + 1 / 3);
-        g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 1 / 3);
-      }
-      return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
-    };
-
-    const getRandomWarmColor = (alpha = 0.3) => {
-      // 1. 色相控制：暖色系范围（0-60°红橙黄）
-      const hue = Math.floor(Math.random() * 60); // 0-60°
-      // 2. 饱和度控制：70%-100%（避免灰暗）
-      const saturation = 70 + Math.random() * 30; // 70-100%
-      // 3. 亮度控制：50%-80%（避免过暗或过亮）
-      const lightness = 50 + Math.random() * 30; // 50-80%
-      // 4. 将 HSL 转换为 RGB
-      const rgb = hslToRgb(hue / 360, saturation / 100, lightness / 100);
-      return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+    const getRandomColor = (alpha = 0.3) => {
+      const r = Math.floor(Math.random() * 256);
+      const g = Math.floor(Math.random() * 256);
+      const b = Math.floor(Math.random() * 256);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     };
 
     const handleSubmitOccupy = (inputValue: string) => {
-      tableRef.value.appendItem({
+      tableRef.value.addItem({
         pattern: '',
         occupy: inputValue,
         occupyOriginStr: occupyOriginStr,
@@ -315,6 +301,8 @@ export default defineComponent({
     const handleDialogChangeShow = (isShow: boolean) => {
       if (isShow) {
         requestCluster();
+      } else {
+        regexPreviewPopoverInstance?.hide();
       }
     };
 
@@ -422,6 +410,7 @@ export default defineComponent({
         <bk-dialog
           width={960}
           mask-close={false}
+          render-directive='if'
           ext-cls='regex-match-dialog-main'
           value={isShowRuleDialog.value}
           header-position='left'

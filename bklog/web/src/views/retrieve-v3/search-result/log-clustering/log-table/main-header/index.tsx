@@ -96,7 +96,6 @@ export default defineComponent({
     watch(
       () => props.requestData,
       () => {
-        console.log('reset!!');
         Object.values(sortColumnRefs).forEach(item => {
           item.value?.reset();
         });

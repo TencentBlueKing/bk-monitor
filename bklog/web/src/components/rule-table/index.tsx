@@ -86,7 +86,9 @@ export default defineComponent({
     }) => {
       const tmpList = _.cloneDeep(ruleList.value);
       const { oldIndex, newIndex } = data.moved;
-      [tmpList[oldIndex], tmpList[newIndex]] = [tmpList[newIndex], tmpList[oldIndex]];
+      const oldItem = tmpList[oldIndex];
+      tmpList.splice(oldIndex, 1);
+      tmpList.splice(newIndex, 0, oldItem);
       ruleList.value = tmpList;
       localRuleList = _.cloneDeep(ruleList.value);
       emit('rule-list-change', ruleList.value);
@@ -142,8 +144,9 @@ export default defineComponent({
         ruleList.value = _.cloneDeep(localRuleList);
         return;
       }
+
       const searchRegExp = new RegExp(keyword, 'i');
-      ruleList.value = localRuleList.filter(item => searchRegExp.test(Object.values(item)[0] as string));
+      ruleList.value = localRuleList.filter(item => searchRegExp.test(Object.keys(item)[0] as string));
     };
 
     expose({

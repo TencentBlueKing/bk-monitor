@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import _ from 'lodash';
 import { defineComponent, ref, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import $http from '@/api';
@@ -123,6 +124,17 @@ export default defineComponent({
       },
     );
 
+    watch(
+      formData,
+      () => {
+        isClickSubmit.value = false;
+        isRuleCorrect.value = false;
+      },
+      {
+        deep: true,
+      },
+    );
+
     const handleOpenToggle = (isOpen: boolean) => {
       isShow.value = isOpen;
       emit('show-change', isOpen);
@@ -196,7 +208,6 @@ export default defineComponent({
         mask-close={false}
         title={props.isEdit ? t('编辑规则') : t('添加规则')}
         header-position='left'
-        on-after-leave='cancelAddRuleContent'
         on-value-change={handleOpenToggle}
       >
         <bk-form
@@ -233,7 +244,7 @@ export default defineComponent({
             <bk-input
               style='width: 560px'
               value={formData.value.placeholder}
-              on-change={val => (formData.value.placeholder = val)}
+              on-change={val => (formData.value.placeholder = val.trim().toUpperCase())}
             />
             <div>{t('样例')}：IP</div>
           </bk-form-item>
@@ -257,7 +268,7 @@ export default defineComponent({
                       ]}
                     ></span>
                   )}
-                  <span style='margin-left: 24px'>{detectionStr.value}</span>
+                  <span style='margin-left: 6px'>{detectionStr.value}</span>
                 </div>
               )}
             </div>

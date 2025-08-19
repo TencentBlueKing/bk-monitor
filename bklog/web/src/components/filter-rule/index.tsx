@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, watch } from 'vue';
+import { defineComponent, onMounted, ref, watch, onBeforeUnmount } from 'vue';
 import ConfigRule from './config-rule';
 
 import './index.scss';
@@ -47,6 +47,8 @@ export default defineComponent({
     },
   },
   setup(props, { expose }) {
+    const configRulesRef = ref([]);
+    const addConfigRuleRef = ref(null);
     const filterRules = ref<FieldInfo[]>([]);
 
     const comparedList = [
@@ -83,6 +85,48 @@ export default defineComponent({
 
     const getValue = () => filterRules.value;
 
+    const setConfigRulesRef = (index: number) => (el: HTMLElement | null) => {
+      configRulesRef.value[index] = el;
+    };
+
+    const handleClickTrigger = (index: number) => {
+      if (index !== -1) {
+        addConfigRuleRef.value?.hide();
+      }
+
+      configRulesRef.value.forEach((item, i) => {
+        if (index === -1) {
+          item?.hide();
+          return;
+        }
+
+        if (i !== index) {
+          item?.hide();
+        }
+      });
+    };
+
+    const handleClickOutside = (e: any) => {
+      const popoverTriger = e.target.closest('.config-rule-trigger');
+      const popover = e.target.closest('.config-rule-content');
+      const otherPopover = e.target.closest('.tippy-popper');
+      const isActiveOtherPopover = otherPopover?.className && !otherPopover.className.includes('config-rule-trigger');
+      if (!popoverTriger && !popover && !isActiveOtherPopover) {
+        configRulesRef.value.forEach(item => {
+          item?.hide();
+        });
+        addConfigRuleRef.value?.hide();
+      }
+    };
+
+    onMounted(() => {
+      window.addEventListener('click', handleClickOutside);
+    });
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('click', handleClickOutside);
+    });
+
     expose({
       getValue,
     });
@@ -92,7 +136,7 @@ export default defineComponent({
         {filterRules.value.map((item, index) => (
           <div
             class='filter-rule-item'
-            key={index}
+            key={`${item.field_name}_${index}`}
           >
             {filterRules.value.length && index > 0 && (
               <bk-select
@@ -111,14 +155,20 @@ export default defineComponent({
               </bk-select>
             )}
             <config-rule
+              ref={setConfigRulesRef(index)}
               data={item}
               is-create={false}
               on-confirm={rule => handleConfirmConfig(rule, index)}
               on-delete={() => handleDeleteItem(index)}
+              on-click-trigger={() => handleClickTrigger(index)}
             />
           </div>
         ))}
-        <config-rule on-confirm={handleConfirmConfig} />
+        <config-rule
+          ref={addConfigRuleRef}
+          on-confirm={handleConfirmConfig}
+          on-click-trigger={() => handleClickTrigger(-1)}
+        />
       </div>
     );
   },

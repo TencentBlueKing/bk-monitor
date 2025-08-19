@@ -80,7 +80,7 @@ export default defineComponent({
     const currentRuleType = ref('template'); // 规则类型
     const globalLoading = ref(false);
     const isShowSubmitDialog = ref(false); // 是否展开保存弹窗
-    const defaultVaribles = ref('');
+    // const defaultVaribles = ref('');
     const defaultData = ref({} as any);
     const clusterField = ref<
       {
@@ -158,7 +158,7 @@ export default defineComponent({
             value: Array.isArray(item.value) ? [...item.value] : [item.value],
           };
         });
-        defaultVaribles.value = predefined_varibles;
+        // defaultVaribles.value = predefined_varibles;
         const assignObj = {
           max_dist_list,
           predefined_varibles,
@@ -168,7 +168,6 @@ export default defineComponent({
           regex_rule_type,
           regex_template_id,
         };
-        console.log('assignObj>>>', assignObj);
         Object.assign(formData.value, assignObj);
         defaultData.value = _.cloneDeep(assignObj);
         // 当前回填的字段如果在聚类字段列表里找不到则赋值为空需要用户重新赋值
@@ -341,7 +340,7 @@ export default defineComponent({
                 on-rule-type-change={rule => (currentRuleType.value = rule)}
                 on-search={handleSearchRuleList}
               />
-              <rule-table
+              <RuleTable
                 ref={ruleTableRef}
                 readonly={isRuleTableReadonly.value}
                 ruleList={ruleList.value}

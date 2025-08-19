@@ -122,7 +122,6 @@ export default defineComponent({
       () => props.widthList,
       () => {
         if (props.widthList.length) {
-          console.log('props.widthList == ', props.widthList);
           columnWidthList.value = props.widthList;
         }
       },
@@ -145,7 +144,6 @@ export default defineComponent({
     watch(
       () => props.filterSortMap,
       () => {
-        console.log('props.filterSortMap == ', props.filterSortMap);
         const sortObj = Object.entries(props.filterSortMap.sort).find(item => !!item[1]);
         let dataList = _.cloneDeep(localTableData);
         if (sortObj) {
@@ -380,7 +378,6 @@ export default defineComponent({
     };
 
     const handleUpdateRemark = (remark: LogPattern['remark']) => {
-      console.log('remark = ', remark);
       updateTableRowData(currentRowValue.value.id, 'remark', remark);
     };
 
@@ -390,6 +387,7 @@ export default defineComponent({
 
     return () => (
       <div
+        v-show={tableData.value.length > 0}
         class='log-content-table-main'
         style={{
           borderLeft: showGounpBy.value ? '1px solid #dcdee5' : 'none',
