@@ -47,7 +47,9 @@ interface IProps {
   hasVariableOperate?: boolean;
   value?: IFilterItem[];
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onAddVariableOpenChange?: (val: boolean) => void;
   onChange?: (v: IFilterItem[]) => void;
+  onCreateValueVariable?: (val: { name: string; relationDimension: string }) => void;
   onCreateVariable?: (variableName: string) => void;
 }
 
@@ -79,6 +81,8 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
   updateActive = -1;
   isHover = false;
 
+  showCreateVariablePop = false;
+
   @Watch('value', { immediate: true })
   handleWatchValue() {
     const valueStr = JSON.stringify(this.value);
@@ -105,6 +109,9 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
       zIndex: 998,
       animation: 'slide-toggle',
       followCursor: false,
+      onHide: () => {
+        return !this.showCreateVariablePop;
+      },
       onHidden: () => {
         this.destroyPopoverInstance();
       },
@@ -203,6 +210,15 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
     this.destroyPopoverInstance();
   }
 
+  handleAddVariableOpenChange(val: boolean) {
+    this.showCreateVariablePop = val;
+    this.$emit('addVariableOpenChange', val);
+  }
+
+  handleCreateValueVariable(val) {
+    this.$emit('createValueVariable', val);
+  }
+
   render() {
     return (
       <div
@@ -254,8 +270,10 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
               isEnterSelect={true}
               show={this.showSelector}
               value={this.localValue?.[this.updateActive]}
+              onAddVariableOpenChange={this.handleAddVariableOpenChange}
               onCancel={this.handleCancel}
               onConfirm={this.handleConfirm}
+              onCreateValueVariable={this.handleCreateValueVariable}
               onCreateVariable={this.handleCreateVariable}
             />
           </div>
