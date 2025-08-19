@@ -77,6 +77,7 @@ export default defineComponent({
 
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
+    const requestAddition = computed(() => store.getters.requestAddition);
     const filter_addition = computed(() => getCommonFilterAdditionWithValues(store.state));
 
     const requestId = 'graphAnalysis_searchSQL';
@@ -92,7 +93,7 @@ export default defineComponent({
       RequestPool.execCanceToken(requestId);
       const requestCancelToken = RequestPool.getCancelToken(requestId);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
-      const { start_time, end_time, keyword, addition } = retrieveParams.value;
+      const { start_time, end_time, keyword } = retrieveParams.value;
       const params = {
         method: 'post',
         url: `/search/index_set/${indexSetId.value}/chart/`,
@@ -105,7 +106,7 @@ export default defineComponent({
           end_time,
           query_mode: 'sql',
           keyword,
-          addition,
+          addition: requestAddition.value,
           sql, // 使用获取到的内容
           alias_settings: alias_settings.value,
         },
@@ -171,7 +172,7 @@ export default defineComponent({
     };
 
     const handleSyncAdditionToSQL = (callback?) => {
-      const { addition, start_time, end_time, keyword } = retrieveParams.value;
+      const { start_time, end_time, keyword } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
       return $http
         .request('graphAnalysis/generateSql', {
@@ -179,7 +180,7 @@ export default defineComponent({
             index_set_id: indexSetId.value,
           },
           data: {
-            addition: [...addition, ...(filter_addition.value ?? []).filter(a => a.value?.length)],
+            addition: [...requestAddition.value, ...(filter_addition.value ?? []).filter(a => a.value?.length)],
             start_time,
             end_time,
             keyword,
@@ -247,7 +248,7 @@ export default defineComponent({
           <BookmarkPop
             class='bklog-sqleditor-bookmark'
             v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
-            addition={retrieveParams.value.addition ?? []}
+            addition={requestAddition.value ?? []}
             extendParams={props.extendParams}
             search-mode='sqlChart'
             sql={retrieveParams.value.keyword}

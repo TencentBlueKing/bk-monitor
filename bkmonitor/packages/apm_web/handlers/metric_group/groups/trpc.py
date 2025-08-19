@@ -18,7 +18,7 @@ from django.utils.functional import cached_property
 from apm_web.metric.constants import SeriesAliasType
 from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from constants.apm import MetricTemporality, TRPCMetricTag
+from constants.apm import MetricTemporality, RPCMetricTag
 
 from .. import base, define
 
@@ -350,22 +350,22 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             params_list=[
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.CALLER_SERVER,
+                    "field": RPCMetricTag.CALLER_SERVER,
                     "filter_dict": filter_dict,
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.CALLEE_SERVER,
+                    "field": RPCMetricTag.CALLEE_SERVER,
                     "filter_dict": filter_dict,
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.SERVICE_NAME,
+                    "field": RPCMetricTag.SERVICE_NAME,
                     "filter_dict": filter_dict,
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.SERVICE_NAME,
+                    "field": RPCMetricTag.SERVICE_NAME,
                     "filter_dict": filter_dict,
                 },
             ],
@@ -381,18 +381,18 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             params_list=[
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.APP,
+                    "field": RPCMetricTag.SERVER,
                     "filter_dict": q_to_dict(
-                        Q(**{f"{TRPCMetricTag.CALLER_SERVER}__eq": server})
-                        | Q(**{f"{TRPCMetricTag.SERVICE_NAME}__eq": server})
+                        Q(**{f"{RPCMetricTag.CALLER_SERVER}__eq": server})
+                        | Q(**{f"{RPCMetricTag.SERVICE_NAME}__eq": server})
                     ),
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.APP,
+                    "field": RPCMetricTag.SERVER,
                     "filter_dict": q_to_dict(
-                        Q(**{f"{TRPCMetricTag.CALLEE_SERVER}__eq": server})
-                        | Q(**{f"{TRPCMetricTag.SERVICE_NAME}__eq": server})
+                        Q(**{f"{RPCMetricTag.CALLEE_SERVER}__eq": server})
+                        | Q(**{f"{RPCMetricTag.SERVICE_NAME}__eq": server})
                     ),
                 },
             ],
