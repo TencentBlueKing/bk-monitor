@@ -49,6 +49,10 @@ interface IProps {
   metricFunctions?: IFunctionOptionsItem[];
   queryConfig?: QueryConfig;
   variables?: IVariablesItem[];
+  onChangeDimension?: (val: string[]) => void;
+  onChangeFunction?: (val: AggFunction[]) => void;
+  onChangeInterval?: (val: number | string) => void;
+  onChangeMethod?: (val: string) => void;
   onCreateVariable?: (val: IVariablesItem) => void;
   onSelectMetric?: (metric: MetricDetailV2) => void;
 }
@@ -115,18 +119,27 @@ export default class QueryConfigCreator extends tsc<IProps> {
       metric: this.queryConfig.metricDetail,
     });
   }
+  handleCreateDimensionValueVariable(val) {
+    console.log(val);
+    this.$emit('createVariable', {
+      name: val.name,
+      type: VariableTypeEnum.DIMENSION_VALUE,
+      metric: this.queryConfig.metricDetail,
+      relationDimension: val.relationDimension,
+    });
+  }
 
   handleChangeMethod(val: string) {
-    this.queryConfig.agg_method = val;
+    this.$emit('changeMethod', val);
   }
   handleDimensionChange(val: string[]) {
-    this.queryConfig.agg_dimension = val;
+    this.$emit('changeDimension', val);
   }
   handleChangeFunction(val: AggFunction[]) {
-    this.queryConfig.functions = val;
+    this.$emit('changeFunction', val);
   }
   handleChangeInterval(val: number | string) {
-    this.queryConfig.agg_interval = val;
+    this.$emit('changeInterval', val);
   }
 
   render() {
@@ -197,6 +210,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                   options={this.getDimensionList as IConditionOptionsItem[]}
                   value={this.queryConfig.agg_condition}
                   variables={this.getConditionVariables}
+                  onCreateValueVariable={this.handleCreateDimensionValueVariable}
                   onCreateVariable={this.handleCreateConditionVariable}
                 />
               </div>

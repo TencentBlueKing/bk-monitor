@@ -32,6 +32,7 @@ import ExpressionCreator from '../expression/expression-creator';
 import FunctionCreator from '../function/function-creator';
 
 import type { Expression } from '../../typings/expression';
+import type { AggFunction } from '../../typings/query-config';
 import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config';
 
 import './expression-config-creator.scss';
@@ -40,6 +41,8 @@ interface IProps {
   expressionConfig?: Expression;
   metricFunctions?: IFunctionOptionsItem[];
   variables?: IVariablesItem[];
+  onChangeExpression?: (val: string) => void;
+  onChangeFunction?: (val: AggFunction[]) => void;
   onCreateVariable?: (val: IVariablesItem) => void;
 }
 
@@ -74,10 +77,10 @@ export default class ExpressionConfigCreator extends tsc<IProps> {
   }
 
   handleExpressionChange(val) {
-    this.expressionConfig.expression = val;
+    this.$emit('changeExpression', val);
   }
   handleFunctionChange(val) {
-    this.expressionConfig.functions = val;
+    this.$emit('changeFunction', val);
   }
 
   render() {
