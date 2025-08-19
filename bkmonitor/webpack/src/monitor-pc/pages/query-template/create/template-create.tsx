@@ -30,7 +30,14 @@ import { getFunctions } from 'monitor-api/modules/grafana';
 
 import QueryTemplateSet from '../components/query-template-set/query-template-set';
 import QueryTemplateView from '../components/query-template-view/query-template-view';
-import { type AggFunction, type IVariableModel, Expression, MetricDetailV2, QueryConfig } from '../typings';
+import {
+  type AggCondition,
+  type AggFunction,
+  type IVariableModel,
+  Expression,
+  MetricDetailV2,
+  QueryConfig,
+} from '../typings';
 import { type VariableModelType, getVariableModel } from '../variables';
 import { LETTERS } from '@/common/constant';
 
@@ -115,7 +122,7 @@ export default class TemplateCreate extends tsc<object> {
 
   handleAdd(index: number) {
     this.queryConfigs.splice(
-      index,
+      index + 1,
       0,
       new QueryConfig(null, {
         alias: LETTERS[index + 1],
@@ -132,7 +139,7 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleSelectMetric(index: number, metric: MetricDetailV2) {
-    this.queryConfigs.splice(index, 1, new QueryConfig(new MetricDetailV2(metric)));
+    this.queryConfigs.splice(index, 1, new QueryConfig(new MetricDetailV2(metric), { alias: LETTERS[index] }));
   }
 
   handleChangeMethod(val: { index: number; value: string }) {
@@ -154,6 +161,11 @@ export default class TemplateCreate extends tsc<object> {
     console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_interval = value;
+  }
+  handleChangeCondition(val: { index: number; value: AggCondition[] }) {
+    console.log(val);
+    const { value, index } = val;
+    this.queryConfigs[index].agg_condition = value;
   }
   handleChangeExpression(val: string) {
     console.log(val);
@@ -192,6 +204,7 @@ export default class TemplateCreate extends tsc<object> {
               onAddQueryConfig={this.handleAdd}
               onBackGotoPage={this.handleBackGotoPage}
               onBasicInfoChange={this.handleBasicInfoChange}
+              onChangeCondition={this.handleChangeCondition}
               onChangeDimension={this.handleDimensionChange}
               onChangeExpression={this.handleChangeExpression}
               onChangeExpressionFunction={this.handleChangeExpressionFunction}
