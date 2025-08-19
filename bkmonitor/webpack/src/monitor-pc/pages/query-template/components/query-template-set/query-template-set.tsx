@@ -32,6 +32,7 @@ import ExpressionPanel from '../expression-panel/expression-panel';
 import QueryPanel from '../query-panel/query-panel';
 
 import type {
+  AggCondition,
   AggFunction,
   Expression,
   IBasicInfoData,
@@ -47,6 +48,7 @@ interface QueryConfigSetEvents {
   onAddQueryConfig: (index: number) => void;
   onBackGotoPage: () => void;
   onBasicInfoChange: (basicInfo: IBasicInfoData) => void;
+  onChangeCondition?: (val: { index: number; value: AggCondition[] }) => void;
   onChangeDimension?: (val: { index: number; value: string[] }) => void;
   onChangeExpression?: (val: string) => void;
   onChangeExpressionFunction?: (val: AggFunction[]) => void;
@@ -130,6 +132,9 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
   handleChangeExpressionFunction(val: AggFunction[]) {
     this.$emit('changeExpressionFunction', val);
   }
+  handleChangeCondition(val: AggCondition[], index: number) {
+    this.$emit('changeCondition', { value: val, index });
+  }
 
   handleNextStep() {
     Promise.all([this.variablesManageRef.validateVariable(), this.basicInfoRef.validate()]).then(() => {
@@ -180,6 +185,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
                     queryConfig={item}
                     variables={this.variablesList}
                     onAdd={() => this.handleAddQueryConfig(index)}
+                    onChangeCondition={val => this.handleChangeCondition(val, index)}
                     onChangeDimension={val => this.handleDimensionChange(val, index)}
                     onChangeFunction={val => this.handleChangeFunction(val, index)}
                     onChangeInterval={val => this.handleChangeInterval(val, index)}
