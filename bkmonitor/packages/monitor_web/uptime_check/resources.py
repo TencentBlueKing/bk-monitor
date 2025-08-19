@@ -32,6 +32,7 @@ from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
+from bkmonitor.iam import Permission, ActionEnum
 from bkmonitor.utils.common_utils import host_key, logger, parse_host_id, safe_int
 from bkmonitor.utils.country import ISP_LIST
 from bkmonitor.utils.encode import EncodeWebhook
@@ -353,8 +354,11 @@ class TestTaskResource(Resource):
             else:
                 biz_nodes.append(node)
 
-        # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303 # noqa
+        # 检查权限：如果有公共节点，验证用户是否有公共节点的使用权限
+        if common_nodes:
+            Permission().is_allowed(ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=True)
 
+        # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303 # noqa
         bk_host_ids = all_nodes.values_list("bk_host_id", flat=1).distinct()
         all_plugin = api.node_man.plugin_search(
             {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}

@@ -1,0 +1,19 @@
+{
+  "system_id": "bk_monitorv3",
+  "operations": [
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "use_uptime_check_node",
+        "name": "公共拨测节点使用",
+        "name_en": "Use Public Uptime Check Node",
+        "type": "view",
+        "related_resource_types": [],
+        "related_actions": [],
+        "version": 1,
+        "description": "在拨测任务中使用公共节点",
+        "description_en": "Use public node in uptime check tasks"
+      }
+    }
+  ]
+}

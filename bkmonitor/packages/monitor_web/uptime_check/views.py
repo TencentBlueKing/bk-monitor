@@ -17,7 +17,7 @@ from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from bkmonitor.iam import ActionEnum
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.utils.common_utils import host_key, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
@@ -215,6 +215,12 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
             logger.exception(f"Failed to get uptime check node status: {e}")
 
         node_task_counts = {node.id: node.tasks.count() for node in queryset}
+
+        # 检查用户是否有公共节点的使用权限
+        can_use_public_nodes = False
+        if common_nodes.exists():
+            can_use_public_nodes = Permission().is_allowed(ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=False)
+
         for node in serializer.data:
             task_num = node_task_counts.get(node["id"], 0)
             host_instance = get_by_node(node, node_to_host)
@@ -230,6 +236,9 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                     node, all_node_status, {"gse_status": BEAT_STATUS["DOWN"], "status": BEAT_STATUS["DOWN"]}
                 )
                 beat_version = get_by_node(node, all_beat_version, beat_version)
+
+            # 添加权限信息
+            is_public_node = node["is_common"]
             result.append(
                 {
                     "id": node["id"],
@@ -247,6 +256,12 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                     "gse_status": node_status.get("gse_status", BEAT_STATUS["RUNNING"]),
                     "status": node_status.get("status", "0"),
                     "version": node_status.get("version", "") if node_status.get("version", "") else beat_version,
+                    # 添加权限信息
+                    "permission": {
+                        "can_use": can_use_public_nodes
+                        if is_public_node
+                        else True  # 公共节点需要权限，业务节点默认可用
+                    },
                 }
             )
         return Response(result)

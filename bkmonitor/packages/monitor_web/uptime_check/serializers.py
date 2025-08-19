@@ -331,6 +331,15 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         nodes = validated_data.pop("node_id_list", [])
         groups = validated_data.pop("group_id_list", [])
 
+        # 检查权限
+        # 获取节点详情，区分公共节点和业务节点
+        node_objects = UptimeCheckNode.objects.filter(id__in=nodes)
+        common_nodes = [node for node in node_objects if node.is_common]
+
+        # 如果存在公共节点，检查用户是否有权限使用
+        if common_nodes:
+            Permission().is_allowed(ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=True)
+
         with transaction.atomic():
             if UptimeCheckTask.objects.filter(
                 name=validated_data["name"], bk_biz_id=validated_data["bk_biz_id"]
