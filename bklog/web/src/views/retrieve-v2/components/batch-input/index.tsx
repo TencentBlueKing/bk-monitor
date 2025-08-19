@@ -26,11 +26,15 @@
 import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import { messageError } from '@/common/bkmagic';
 
 export default defineComponent({
   name: 'BatchInput',
-  setup() {
+  emits: ['value-change'],
+  setup(_, { emit }) {
     const showBtachDialog = ref(false);
+    const textValue = ref('');
+    const splitResult = ref([]);
     const { $t } = useLocale();
     const style = {
       color: '#3A84FF',
@@ -38,11 +42,60 @@ export default defineComponent({
       cursor: 'pointer',
     };
 
-    const handleMouseup = (e: MouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      e.stopImmediatePropagation();
-    };
+
+    const handleDialogValueChange = isShow => {
+      showBtachDialog.value = isShow;
+      emit('value-change', isShow);
+    }
+
+    const handleInputTextChange = val => {
+      textValue.value = val;
+    }
+
+    const splitComplexTextEnhanced = (text) => {
+      if (!text || typeof text !== 'string') {
+        return [];
+      }
+      
+      const result = [];
+      
+      // 使用更精确的正则表达式和exec循环
+      const pattern = /"([^"]*)"|'([^']*)'|"([^"]*)"|'([^']*)'|([^,，;；|｜\r\n]+)/g;
+      
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        // match[1-4] 是各种引号内的内容（不包括引号）
+        // match[5] 是非分隔符内容
+        let content = match[1] ?? match[2] ?? match[3] ?? match[4] ?? match[5];
+        
+        // 如果是普通内容（match[5]），需要trim
+        if (match[5]) {
+          content = content.trim();
+        }
+        
+        // 只添加非空内容
+        if (content !== undefined && content !== '') {
+          result.push(content);
+        }
+      }
+      
+      return result;
+    }
+
+    const handleResolveBtnClick = () => {
+      if (textValue.value.length) {
+        splitResult.value = splitComplexTextEnhanced(textValue.value);
+        return;
+      }
+
+      messageError('请输入需要解析的文本');
+    }
+
+    const handleClearBtnClick = () => {
+      splitResult.value = [];
+      textValue.value = '';
+    }
+
     return () => (
       <span
         style={style}
@@ -53,10 +106,11 @@ export default defineComponent({
           width='860px'
           title={$t('批量输入')}
           value={showBtachDialog.value}
+          header-position="left"
+          on-value-change={handleDialogValueChange}
         >
           <div
             style='display: flex; padding: 16px 24px;'
-            onMouseup={handleMouseup}
           >
             <div style='width: 400px; height: 358px;'>
               <div>解析文本</div>
@@ -66,6 +120,8 @@ export default defineComponent({
                   placeholder='请使用，；｜换行等进行分隔'
                   rows={16}
                   type='textarea'
+                  value={textValue.value}
+                  on-change={handleInputTextChange}
                 ></bk-input>
               </div>
               <div style='margin-top: 16px;display: flex;justify-content: space-between;'>
@@ -73,15 +129,25 @@ export default defineComponent({
                   style='width: 280px'
                   outline={true}
                   theme='primary'
+                  on-click={handleResolveBtnClick}
                 >
                   点击解析
                 </bk-button>
-                <bk-button>清空</bk-button>
+                <bk-button on-click={handleClearBtnClick}>清空</bk-button>
               </div>
             </div>
             <div style='width: 460px; margin-left: 16px;'>
               <div>选择解析结果</div>
-              <bk-table></bk-table>
+              <bk-table  data={splitResult.value}>
+                <bk-table-column type="selection"></bk-table-column>
+                <bk-table-column label="解析结果" scopedSlots={{
+                  default: ({ row }) => {
+                    console.log(row)
+                    return row;
+                  }
+                }}>
+                </bk-table-column>
+              </bk-table>
             </div>
           </div>
         </bk-dialog>

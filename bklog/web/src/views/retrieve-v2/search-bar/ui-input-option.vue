@@ -31,7 +31,7 @@
     },
   });
 
-  const emit = defineEmits(['save', 'cancel']);
+  const emit = defineEmits(['save', 'cancel', 'batch-input-change']);
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
@@ -264,6 +264,10 @@
     
     return fieldList.value.filter(filterFn).map(mapFn).sort(sortByMatch);
   });
+
+  const handleBatchInputChange = val => {
+    emit('batch-input-change', val);
+  }
 
   const tagValidateFun = item => {
     // 如果是数值类型， 返回一个检验的函数
@@ -1243,7 +1247,7 @@
             <div class="ui-value-label">
               <span>
                 {{ $t('检索内容') }}
-                <BatchInput />
+                <BatchInput @value-change="handleBatchInputChange"/>
               </span>
               <span v-show="['text', 'string'].includes(activeFieldItem.field_type)">
                 <bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox>
