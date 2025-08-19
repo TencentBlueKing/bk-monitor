@@ -385,10 +385,8 @@ class CreateCustomEventGroup(Resource):
     def perform_request(self, params: dict):
         # 进行权限校验
         if params.get("is_platform", False):
-            username = get_request_username()
             # 校验权限
-            permission = Permission(username=username)
-            permission.is_allowed(ActionEnum.USE_CUSTOM_EVENT_IS_PLATFORM, raise_exception=True)
+            Permission().is_allowed(ActionEnum.USE_CUSTOM_EVENT_IS_PLATFORM, raise_exception=True)
 
         operator = get_request_username() or settings.COMMON_USERNAME
         input_bk_biz_id = params["bk_biz_id"]
