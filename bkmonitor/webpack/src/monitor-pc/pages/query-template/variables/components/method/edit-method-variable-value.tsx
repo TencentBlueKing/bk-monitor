@@ -60,7 +60,7 @@ export default class EditMethodVariableValue extends tsc<MethodValueProps, Metho
     return (
       <EditVariableValue data={this.variable.data}>
         <bk-select
-          value={this.variable.value}
+          value={this.variable.value || this.variable.defaultValue}
           onChange={this.handleValueChange}
           onToggle={this.handleSelectToggle}
         >

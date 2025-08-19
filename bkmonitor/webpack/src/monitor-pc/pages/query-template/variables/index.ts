@@ -29,7 +29,7 @@ import { random } from 'monitor-common/utils';
 import { getVariableNameInput, isVariableName } from '../components/utils/utils';
 import { VariableTypeEnum } from '../constants';
 
-import type { MetricDetailV2 } from '../typings';
+import type { AggFunction, MetricDetailV2 } from '../typings';
 import type {
   ICommonVariableModel,
   IConditionVariableModel,
@@ -53,10 +53,13 @@ export type VariableModelType =
 
 abstract class VariableBase {
   alias = '';
+  /** 默认值 */
+  abstract defaultValue: any;
   desc = '';
   id = '';
   name = '';
   type: VariableTypeEnumType;
+  /** 已选值 */
   abstract value: any;
 
   constructor(config: ICommonVariableModel<VariableTypeEnumType>) {
@@ -79,14 +82,17 @@ abstract class VariableBase {
 }
 
 export class ConditionVariableModel extends VariableBase {
+  defaultValue: IConditionVariableModel['value'] = [];
   dimensionOption = [];
   /** 关联指标 */
   metric: MetricDetailV2 = null;
   value: IConditionVariableModel['value'] = [];
+
   constructor(config: IConditionVariableModel) {
     super(config);
     this.metric = config.metric;
     this.value = config.value || [];
+    this.defaultValue = config.value || [];
     this.dimensionOption = config.dimensionOption || ['all'];
   }
 
@@ -100,6 +106,7 @@ export class ConditionVariableModel extends VariableBase {
       metric: this.metric,
       dimensionOption: this.dimensionOption,
       value: this.value,
+      defaultValue: this.defaultValue,
       variableName: this.variableName,
     };
   }
@@ -119,10 +126,12 @@ export class ConditionVariableModel extends VariableBase {
 }
 
 export class ConstantVariableModel extends VariableBase {
+  defaultValue = '';
   value = '';
   constructor(config: IConstantVariableModel) {
     super(config);
     this.value = config.value || '';
+    this.defaultValue = config.defaultValue || '';
   }
 
   get data() {
@@ -133,12 +142,14 @@ export class ConstantVariableModel extends VariableBase {
       alias: this.alias,
       desc: this.desc,
       value: this.value,
+      defaultValue: this.defaultValue,
       variableName: this.variableName,
     };
   }
 }
 
 export class DimensionValueVariableModel extends VariableBase {
+  defaultValue = '';
   /** 关联指标 */
   metric: MetricDetailV2 = null;
   /** 关联维度 */
@@ -149,6 +160,7 @@ export class DimensionValueVariableModel extends VariableBase {
     this.metric = config.metric;
     this.relationDimension = config.relationDimension || '';
     this.value = config.value || '';
+    this.defaultValue = config.defaultValue || '';
   }
 
   get data() {
@@ -160,6 +172,7 @@ export class DimensionValueVariableModel extends VariableBase {
       desc: this.desc,
       metric: this.metric,
       value: this.value,
+      defaultValue: this.defaultValue,
       variableName: this.variableName,
       relationDimension: this.relationDimension,
     };
@@ -167,6 +180,7 @@ export class DimensionValueVariableModel extends VariableBase {
 }
 
 export class DimensionVariableModel extends VariableBase {
+  defaultValue = '';
   /** 可选维度 */
   dimensionOption = [];
   metric: MetricDetailV2 = null;
@@ -176,10 +190,11 @@ export class DimensionVariableModel extends VariableBase {
     super(config);
     this.metric = config.metric;
     this.dimensionOption = config.dimensionOption || ['all'];
-    if (config.value) {
-      this.value = config.value;
+    this.value = config.value || '';
+    if (config.defaultValue) {
+      this.defaultValue = config.defaultValue;
     } else {
-      this.value = this.isAllDimensionOptions ? this.dimensionList[0].id : this.dimensionOption[0];
+      this.defaultValue = this.isAllDimensionOptions ? this.dimensionList[0].id : this.dimensionOption[0] || '';
     }
   }
 
@@ -193,19 +208,27 @@ export class DimensionVariableModel extends VariableBase {
       metric: this.metric,
       dimensionOption: this.dimensionOption,
       value: this.value,
+      defaultValue: this.defaultValue,
       variableName: this.variableName,
     };
   }
+
+  get defaultValueMap() {
+    return this.dimensionList.find(item => item.id === this.defaultValue);
+  }
+
   /** 维度列表 */
   get dimensionList() {
     return this.metric.dimensions;
   }
+
   /** 可选维度列表映射 */
   get dimensionOptionsMap() {
     return this.isAllDimensionOptions
       ? this.dimensionList
       : this.dimensionList.filter(item => this.dimensionOption.includes(item.id));
   }
+
   get isAllDimensionOptions() {
     return this.dimensionOption.includes('all');
   }
@@ -216,10 +239,12 @@ export class DimensionVariableModel extends VariableBase {
 }
 
 export class FunctionVariableModel extends VariableBase {
-  value = null;
+  defaultValue: AggFunction[] = [];
+  value: AggFunction[] = [];
   constructor(config: IFunctionVariableModel) {
     super(config);
-    this.value = config.value || null;
+    this.value = config.value || [];
+    this.defaultValue = config.defaultValue || [];
   }
 
   get data() {
@@ -230,17 +255,20 @@ export class FunctionVariableModel extends VariableBase {
       alias: this.alias,
       desc: this.desc,
       value: this.value,
+      defaultValue: this.defaultValue,
       variableName: this.variableName,
     };
   }
 }
 
 export class MethodVariableModel extends VariableBase {
+  defaultValue = '';
   metric: MetricDetailV2 = null;
   value = '';
   constructor(config: IMethodVariableModel) {
     super(config);
-    this.value = config.value || 'SUM';
+    this.value = config.value || '';
+    this.defaultValue = config.defaultValue || 'SUM';
     this.metric = config.metric;
   }
 
@@ -253,6 +281,7 @@ export class MethodVariableModel extends VariableBase {
       metric: this.metric,
       desc: this.desc,
       value: this.value,
+      defaultValue: this.defaultValue,
       variableName: this.variableName,
     };
   }

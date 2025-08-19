@@ -64,7 +64,7 @@ export default class EditConstantVariableValue extends tsc<ConstantValueProps, C
     return (
       <EditVariableValue data={this.variable.data}>
         <bk-input
-          value={this.variable.value}
+          value={this.variable.data.value || this.variable.data.defaultValue}
           onBlur={this.handleInputBlur}
           onChange={this.handleValueChange}
           onFocus={this.handleInputFocus}
