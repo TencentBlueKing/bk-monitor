@@ -1253,7 +1253,7 @@ BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式
-APIGW_ENABLED = not ENABLE_MULTI_TENANT_MODE
+APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or 'test' in sys.argv)
 
 # 预查询时间, 默认6h小时, 0代表禁用
 try:
