@@ -63,7 +63,6 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
 
   handleCheckName(val: string) {
     const valid = this.variableList.find(item => item.name === val && item.id !== this.data.id);
-    console.log(valid, val);
     return !valid;
   }
 

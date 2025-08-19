@@ -30,7 +30,7 @@ import FunctionCreator from '../../../components/function/function-creator';
 import { FunctionVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { IFunctionVariableModel } from '../../../typings';
+import type { AggFunction, IFunctionVariableModel } from '../../../typings';
 interface FunctionVariableEvents {
   onDataChange: (variable: FunctionVariableModel) => void;
 }
@@ -45,10 +45,10 @@ export default class CreateFunctionVariable extends tsc<FunctionVariableProps, F
   @Prop({ default: () => [] }) metricFunctions!: any[];
   @Ref() variableCommonForm!: VariableCommonForm;
 
-  handleValueChange(value) {
+  handleValueChange(value: AggFunction[]) {
     this.handleDataChange({
       ...this.variable.data,
-      value,
+      defaultValue: value,
     });
   }
 
@@ -76,7 +76,7 @@ export default class CreateFunctionVariable extends tsc<FunctionVariableProps, F
               options={this.metricFunctions}
               showLabel={false}
               showVariables={false}
-              value={this.variable.value}
+              value={this.variable.defaultValue}
               onChange={this.handleValueChange}
             />
           </bk-form-item>
