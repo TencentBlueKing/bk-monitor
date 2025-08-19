@@ -89,6 +89,9 @@ export class QueryConfig {
     if (data?.metric_id) {
       Object.assign(this, data);
     }
+    if (data?.alias) {
+      this.alias = data.alias;
+    }
     // 聚合周期初始化兼容处理
     if (this.agg_interval === 'auto' || !this.agg_interval) {
       this.agg_interval = 60;
