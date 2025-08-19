@@ -10,8 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from django.urls import include, re_path
 
-from apm_web.strategy import views
 from core.drf_resource.routers import ResourceRouter
+from monitor_web.query_template import views
 
 router = ResourceRouter()
 router.register_module(views)

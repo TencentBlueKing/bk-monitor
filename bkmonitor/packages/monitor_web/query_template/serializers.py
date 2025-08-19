@@ -20,12 +20,8 @@ class BizBaseSerializer(serializers.Serializer):
     is_mock = serializers.BooleanField(label="是否为Mock数据", default=True)
 
 
-class AppBaseSerializer(BizBaseSerializer):
-    app_name = serializers.CharField(label="应用名称")
-
-
 class QueryTemplateDetailRequestSerializer(BizBaseSerializer):
-    query_template_id = serializers.IntegerField(label="查询模板ID", min_value=1)
+    pass
 
 
 class QueryTemplateListRequestSerializer(BizBaseSerializer):
@@ -51,14 +47,17 @@ class QueryTemplateCreateRequestSerializer(BizBaseSerializer):
         class MetricsSerializer(serializers.Serializer):
             field = serializers.CharField(label="字段")
             method = serializers.CharField(label="方法")
-            alias = serializers.CharField(label="别名")
+            alias = serializers.CharField(label="别名", required=False)
+            display = serializers.BooleanField(default=False)
 
-        data_source_label = serializers.ChoiceField(label="数据源标签", choices=list(DATA_SOURCE_LABEL_ALIAS.keys()))
         data_type_label = serializers.ChoiceField(label="数据类型标签", choices=list(DATA_TYPE_LABEL_ALIAS.keys()))
+        data_source_label = serializers.ChoiceField(label="数据源标签", choices=list(DATA_SOURCE_LABEL_ALIAS.keys()))
         table = serializers.CharField(label="表名", default="", allow_blank=True)
+        data_label = serializers.CharField(label="数据标签", allow_blank=True, default="")
         metrics = serializers.ListField(label="指标", child=MetricsSerializer(), allow_empty=True)
+        where = serializers.ListField(label="过滤条件", child=serializers.JSONField())
         group_by = serializers.ListField(label="分组", child=serializers.CharField(), allow_empty=True)
-        where = serializers.ListField(label="过滤条件", child=serializers.JSONField(), allow_empty=True)
+        interval_unit = serializers.ChoiceField(label="聚合周期单位", choices=("s", "m"), default="s")
         interval = serializers.CharField(label="时间间隔", default="auto")
         time_field = serializers.CharField(label="时间字段", allow_blank=True, allow_null=True, required=False)
         functions = serializers.ListField(label="函数", child=FunctionSerializer(), allow_empty=True)
@@ -93,7 +92,7 @@ class QueryTemplateCreateRequestSerializer(BizBaseSerializer):
 
 
 class QueryTemplateUpdateRequestSerializer(QueryTemplateCreateRequestSerializer):
-    id = serializers.IntegerField(label="查询模板ID", min_value=1)
+    pass
 
 
 class QueryTemplatePreviewRequestSerializer(BizBaseSerializer):
@@ -109,7 +108,7 @@ class QueryTemplatePreviewRequestSerializer(BizBaseSerializer):
 
     class ParamSerializer(serializers.Serializer):
         name = serializers.CharField(label="变量名称")
-        value = serializers.JSONField(label="变量值", allow_empty=True)
+        value = serializers.JSONField(label="变量值")
 
     query_template = QueryTemplateSerializer(label="查询模板")
     params = serializers.ListField(label="变量参数", child=ParamSerializer())
@@ -122,4 +121,4 @@ class QueryTemplateRelationsRequestSerializer(BizBaseSerializer):
 
 
 class QueryTemplateRelationRequestSerializer(BizBaseSerializer):
-    query_template_id = serializers.IntegerField(label="查询模板ID", min_value=1)
+    pass

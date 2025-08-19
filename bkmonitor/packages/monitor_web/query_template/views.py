@@ -8,25 +8,92 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from monitor_web.query_template.resources import (
-    QueryTemplateCreateResource,
-    QueryTemplateDetailResource,
-    QueryTemplateListResource,
-    QueryTemplatePreviewResource,
-    QueryTemplateRelationResource,
-    QueryTemplateRelationsResource,
-    QueryTemplateUpdateResource,
-)
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.viewsets import GenericViewSet
+
+from . import mock_data, serializers
 
 
-class QueryTemplateViewSet(ResourceViewSet):
-    resource_routes = [
-        ResourceRoute("POST", QueryTemplateCreateResource, "create_query_template"),
-        ResourceRoute("POST", QueryTemplateDetailResource, "query_template_detail"),
-        ResourceRoute("POST", QueryTemplateListResource, "query_template_list"),
-        ResourceRoute("POST", QueryTemplatePreviewResource, "query_template_preview"),
-        ResourceRoute("POST", QueryTemplateRelationResource, "query_template_relation"),
-        ResourceRoute("POST", QueryTemplateRelationsResource, "query_template_relations"),
-        ResourceRoute("POST", QueryTemplateUpdateResource, "update_query_template"),
-    ]
+class QueryTemplateViewSet(GenericViewSet):
+    def get_serializer_class(self):
+        action_serializer_map = {
+            "retrieve": serializers.QueryTemplateDetailRequestSerializer,
+            "list": serializers.QueryTemplateListRequestSerializer,
+            "create": serializers.QueryTemplateCreateRequestSerializer,
+            "update": serializers.QueryTemplateUpdateRequestSerializer,
+            "preview": serializers.QueryTemplatePreviewRequestSerializer,
+            "relation": serializers.QueryTemplateRelationRequestSerializer,
+            "relations": serializers.QueryTemplateRelationsRequestSerializer,
+        }
+        return action_serializer_map.get(self.action) or self.serializer_class
+
+    def retrieve(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        response_data = {}
+        query_template_id = int(kwargs[self.lookup_field])
+        if validated_data.get("is_mock"):
+            if query_template_id == 1:
+                response_data = mock_data.AvgDurationQueryTemplateDetail
+            elif query_template_id == 2:
+                response_data = mock_data.RPCCalleeQueryTemplateDetail
+        return Response(response_data)
+
+    def list(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        response_data = []
+        if validated_data.get("is_mock"):
+            response_data = mock_data.QueryTemplateList
+        return Response(response_data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        response_data = {}
+        if validated_data.get("is_mock"):
+            response_data = mock_data.RPCCalleeQueryTemplateDetail
+        return Response(response_data)
+
+    def update(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        response_data = {}
+        if validated_data.get("is_mock"):
+            response_data = mock_data.RPCCalleeQueryTemplateDetail
+        return Response(response_data)
+
+    @action(methods=["POST"], detail=False)
+    def preview(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        response_data = {}
+        if validated_data.get("is_mock"):
+            response_data = mock_data.RPCCalleeQueryTemplatePreview
+        return Response(response_data)
+
+    @action(methods=["POST"], detail=True)
+    def relation(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        response_data = []
+        if validated_data.get("is_mock"):
+            response_data = mock_data.RPCCalleeQueryTemplateRelation
+        return Response(response_data)
+
+    @action(methods=["POST"], detail=False)
+    def relations(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        response_data = []
+        if validated_data.get("is_mock"):
+            response_data = mock_data.QueryTemplateRelations
+        return Response(response_data)

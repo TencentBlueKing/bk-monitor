@@ -186,7 +186,7 @@ RPCCalleeQueryTemplateDetail = {
             "data_type": "INTEGER",
             "alias": "告警起算值",
             "config": {
-                "default": 0,
+                "default": 500,
             },
             "description": "请根据实际业务情况进行调整。",
         },
