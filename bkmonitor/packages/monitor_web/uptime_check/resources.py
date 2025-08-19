@@ -2877,66 +2877,18 @@ class SelectUptimeCheckNodeResource(Resource):
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
-        # 获取用户名和租户id
-        request = get_request(peaceful=True)
-        bk_tenant_id = get_request_tenant_id(peaceful=True)
-        if not request:
-            return []
-        username = request.user.username
 
-        # 获取主机列表
         host_list = resource.commons.host_region_isp_info(bk_biz_id=bk_biz_id)
-        # 获取节点列表
-        node_list = UptimeCheckNode.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=bk_tenant_id)
+        node_list = UptimeCheckNode.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id())
+        node_ip_list = [node.ip for node in node_list if not node.bk_host_id]
+        node_id_list = [node.bk_host_id for node in node_list if node.bk_host_id]
 
-        # 获取公共节点列表
-        public_nodes = [node for node in node_list if node.is_common]
-
-        # 创建映射字典，用于快速查找节点
-        # 使用 bk_host_id 和 ip 作为键
-        host_id_to_node = {node.bk_host_id: node for node in node_list if node.bk_host_id}
-        ip_to_node = {node.ip: node for node in node_list if not node.bk_host_id}
-
-        # 创建公共节点的快速查找集合
-        public_host_ids = {node.bk_host_id for node in public_nodes if node.bk_host_id}
-        public_ips = {node.ip for node in public_nodes if not node.bk_host_id}
-
-        # 提取节点ip和id列表（用于快速判断是否为已建节点）
-        node_ip_list = list(ip_to_node.keys())
-        node_id_list = list(host_id_to_node.keys())
-
-        # 检查用户是否有公共节点的权限
-        can_use_public_nodes = False
-        if public_nodes:
-            can_use_public_nodes = Permission(username=username).is_allowed(
-                ActionEnum.USE_UPTIME_CHECK_NODE, raise_exception=False
-            )
-
-        # 处理主机列表，标记已建节点和权限
+        # 已建节点标识is_built
         for host in host_list:
-            is_built = False
-            is_public = False
-            bk_host_id = host.get("bk_host_id")
-            ip = host.get("ip")
-
-            # 检查是否是已建节点
-            if bk_host_id in node_id_list:
-                is_built = True
-                # 使用集合判断是否为公共节点
-                is_public = bk_host_id in public_host_ids
-            elif ip in node_ip_list:
-                is_built = True
-                # 使用集合判断是否为公共节点
-                is_public = ip in public_ips
-
-            host["is_built"] = is_built
-
-            # 如果是公共节点，检查公共节点权限
-            if is_public:
-                host["permission"]["can_use"] = can_use_public_nodes
+            if host["bk_host_id"] in node_id_list or host["ip"] in node_ip_list:
+                host["is_built"] = True
             else:
-                host["permission"]["can_use"] = True
-
+                host["is_built"] = False
         return host_list
 
 
