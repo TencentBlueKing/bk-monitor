@@ -33,27 +33,27 @@ import './interval-detail.scss';
 
 interface IntervalProps {
   /* 汇聚周期(秒级时间戳) */
-  interval: number;
+  value: number | string;
 }
 
 @Component
 export default class IntervalDetail extends tsc<IntervalProps> {
   /* 汇聚周期(秒级时间戳) */
-  @Prop({ type: Number, default: '' }) interval: number;
+  @Prop({ type: Number, default: '' }) value: number | string;
 
   get intervalView() {
     const unitMap = {
       m: 'min',
       s: 's',
     };
-    const convertInterval = secToString({ value: this.interval, unit: '' });
+    const convertInterval = secToString({ value: this.value, unit: '' });
     return `${convertInterval?.value} ${unitMap[convertInterval?.unit]}`;
   }
 
   render() {
     return (
       <div class='template-interval-detail-component'>
-        <span class='interval-label'>{`${this.$t('汇聚周期')}`}</span>
+        <span class='interval-label'>{this.$slots?.label || this.$t('汇聚周期')}</span>
         <span class='interval-colon'>:</span>
         <span class='interval-name'>{this.intervalView || '--'}</span>
       </div>
