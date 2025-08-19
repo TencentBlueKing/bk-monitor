@@ -26,8 +26,11 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import QueryChart from '../../query-chart/query-chart';
 import VariablesManage from '../../variables/variables-manage/variables-manage';
 
+import type { Expression } from '../../typings/expression';
+import type { QueryConfig } from '../../typings/query-config';
 import type { VariableModelType } from '../../variables';
 
 import './query-template-view.scss';
@@ -40,7 +43,10 @@ interface QueryTemplateViewEvents {
 }
 
 interface QueryTemplateViewProps {
+  chartTitle: string;
+  expressionConfig: Expression;
   metricFunctions: any[];
+  queryConfigs: QueryConfig[];
   variablesList: VariableModelType[];
 }
 
@@ -48,6 +54,9 @@ interface QueryTemplateViewProps {
 export default class QueryTemplateView extends tsc<QueryTemplateViewProps, QueryTemplateViewEvents> {
   @Prop({ default: () => [] }) metricFunctions: any[];
   @Prop({ default: () => [] }) variablesList: VariableModelType[];
+  @Prop({ default: () => [] }) queryConfigs: QueryConfig[];
+  @Prop({ default: () => {} }) expressionConfig: Expression;
+  @Prop({ default: () => '' }) chartTitle: string;
 
   @Emit('variablesChange')
   handleVariablesListChange(variablesList: VariableModelType[]) {
@@ -81,6 +90,11 @@ export default class QueryTemplateView extends tsc<QueryTemplateViewProps, Query
                   />
                 </div>
               )}
+              <QueryChart
+                expressionConfig={this.expressionConfig}
+                queryConfigs={this.queryConfigs}
+                title={this.chartTitle}
+              />
             </div>
           </div>
           <div class='template-view'>模板配置预览</div>
