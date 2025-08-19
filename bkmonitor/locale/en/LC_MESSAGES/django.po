@@ -12230,3 +12230,18 @@ msgstr "Service interface error rate Top5"
 
 msgid "服务接口平均耗时Top5"
 msgstr "Service interface average time Top5"
+
+msgid "异常事件"
+msgstr "Exception Event"
+
+msgid "总数量"
+msgstr "Total number"
+
+msgid "请求统计"
+msgstr "Request Statistics"
+
+msgid "错误详情"
+msgstr "Error Details"
+
+msgid "错误趋势"
+msgstr "Error Trend"
