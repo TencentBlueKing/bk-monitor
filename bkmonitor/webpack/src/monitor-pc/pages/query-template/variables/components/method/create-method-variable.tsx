@@ -46,7 +46,7 @@ export default class CreateMethodVariable extends tsc<MethodVariableProps, Metho
   handleValueChange(value: string) {
     this.handleDataChange({
       ...this.variable.data,
-      value,
+      defaultValue: value,
     });
   }
 
@@ -72,7 +72,7 @@ export default class CreateMethodVariable extends tsc<MethodVariableProps, Metho
           >
             <bk-select
               clearable={false}
-              value={this.variable.value}
+              value={this.variable.defaultValue}
               onChange={this.handleValueChange}
             >
               {this.variable.metric.methodList.map(item => (

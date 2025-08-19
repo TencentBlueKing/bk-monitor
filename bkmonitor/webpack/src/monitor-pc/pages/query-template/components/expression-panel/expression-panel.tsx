@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import ExpressionConfigCreator from '../expression-config/expression-config-creator';
 
-import type { Expression } from '../../typings';
+import type { Expression, IVariableModel } from '../../typings';
 import type { VariableModelType } from '../../variables';
 import type { IFunctionOptionsItem } from '../type/query-config';
 
@@ -39,7 +39,7 @@ interface IProps {
   expressionConfig?: Expression;
   metricFunctions?: IFunctionOptionsItem[];
   variables?: VariableModelType[];
-  onCreateVariable?: (val: VariableModelType) => void;
+  onCreateVariable?: (val: IVariableModel) => void;
 }
 @Component
 export default class ExpressionPanel extends tsc<IProps> {
@@ -47,7 +47,7 @@ export default class ExpressionPanel extends tsc<IProps> {
   @Prop({ default: () => [] }) variables: VariableModelType[];
   @Prop({ default: () => null }) expressionConfig: Expression;
 
-  handleCreateVariable(val: VariableModelType) {
+  handleCreateVariable(val: IVariableModel) {
     this.$emit('createVariable', val);
   }
 

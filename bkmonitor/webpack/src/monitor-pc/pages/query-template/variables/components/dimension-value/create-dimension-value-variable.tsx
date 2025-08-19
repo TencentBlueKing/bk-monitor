@@ -47,10 +47,10 @@ export default class CreateDimensionValueVariable extends tsc<
 
   @Ref() variableCommonForm!: VariableCommonForm;
 
-  handleValueChange(value) {
+  handleValueChange(value: string) {
     this.handleDataChange({
       ...this.variable.data,
-      value,
+      defaultValue: value,
     });
   }
 
@@ -90,7 +90,7 @@ export default class CreateDimensionValueVariable extends tsc<
           >
             <bk-select
               clearable={false}
-              value={this.variable.value}
+              value={this.variable.defaultValue}
               onChange={this.handleValueChange}
             />
           </bk-form-item>

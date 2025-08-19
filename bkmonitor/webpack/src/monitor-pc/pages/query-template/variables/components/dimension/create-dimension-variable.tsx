@@ -70,7 +70,7 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
   handleValueChange(value: string) {
     this.handleDataChange({
       ...this.variable.data,
-      value,
+      defaultValue: value,
     });
   }
 
@@ -136,7 +136,7 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
           >
             <bk-select
               clearable={false}
-              value={this.variable.value}
+              value={this.variable.defaultValue}
               onChange={this.handleValueChange}
             >
               {this.variable.dimensionOptionsMap.map(item => (
