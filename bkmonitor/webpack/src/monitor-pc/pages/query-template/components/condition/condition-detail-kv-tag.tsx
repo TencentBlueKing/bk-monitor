@@ -38,7 +38,7 @@ interface IProps {
   /** 是否是条件变量渲染 */
   isConditionVariable?: boolean;
   /** 条件对象 */
-  value: AggCondition | ConditionDetailTagItem;
+  value: AggCondition;
   variableMap?: Record<string, any>;
   /** 条件变量名称 */
   variableName?: string;
@@ -48,7 +48,7 @@ interface IProps {
 @Component
 export default class ConditionDetailKvTag extends tsc<IProps> {
   /** 条件对象 */
-  @Prop({ type: Object, default: () => null }) value: AggCondition | ConditionDetailTagItem;
+  @Prop({ type: Object, default: () => null }) value: AggCondition;
   /** 维度值允许显示个数，多出显示省略号(不传或假值时默认全显示) */
   @Prop({ type: Number, default: 0 }) visibleItemLimit: number;
   /** 是否是条件变量渲染 */
@@ -56,75 +56,77 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
   /** 条件变量名称 */
   @Prop({ type: String, default: '' }) variableName: string;
   @Prop({ type: Object, default: () => {} }) variableMap: Record<string, any>;
-  templateSrv = getTemplateSrv();
-  localValue: Omit<AggCondition, 'value'> & {
-    value: { id: string; isVariable?: boolean; name: string; variableName?: string }[];
-  } = null;
+
   hideCount = 0;
+  variablesToolInstance = new QueryVariablesTool();
+  templateSrv = getTemplateSrv();
 
   get tipContent() {
-    return `<div style="max-width: 600px;">${this.localValue.key} ${ConditionMethodAliasMap[this.localValue.method]} ${this.localValue.value.map(v => v.id).join(' OR ')}<div>`;
+    return `<div style="max-width: 600px;">${this.value.key} ${ConditionMethodAliasMap[this.value.method]} ${this.localValue11.map(v => v.id).join(' OR ')}<div>`;
   }
 
   get DomTag() {
     return this.isConditionVariable ? VariableSpan : 'span';
   }
 
-  @Watch('value', { immediate: true })
-  handleWatchValue() {
-    if (this.value && JSON.stringify(this.localValue || {}) !== JSON.stringify(this.value)) {
-      const localValue = JSON.parse(JSON.stringify(this.value));
-      const value = [];
-      if (this.isConditionVariable) {
-        for (const v of this.value.value as AggCondition['value']) {
-          value.push({
+  get dimensionValueToVariableModel(): AggCondition['value'] | ConditionDetailTagItem['value'] {
+    if (!this.value.value?.length) {
+      return [];
+    }
+    if (this.isConditionVariable) {
+      return this.value.value;
+    }
+    return this.value.value.reduce((prev, curr) => {
+      const result = this.variablesToolInstance.transformVariables(curr);
+      if (!result.value) {
+        return prev;
+      }
+      prev.push(result);
+      return prev;
+    }, []);
+  }
+
+  get localValue11() {
+    if (this.isConditionVariable) {
+      return this.dimensionValueToVariableModel.map(v => ({
+        id: v,
+        name: this.showNameSlice(v),
+        isVariable: false,
+      }));
+    }
+    return (this.dimensionValueToVariableModel as ConditionDetailTagItem['value'])?.reduce?.((prev, curr) => {
+      if (!curr.isVariable) {
+        prev.push({
+          id: curr.value,
+          name: this.showNameSlice(curr.value),
+          isVariable: curr.isVariable,
+        });
+        return prev;
+      }
+      let varValue = '';
+      const result = this.templateSrv.replace(`\${${curr.variableName}:json}` as string, this.variableMap);
+      try {
+        varValue = JSON.parse(result);
+      } catch {
+        varValue = '';
+      }
+      if (Array.isArray(varValue)) {
+        prev.push(
+          ...varValue.map(v => ({
             id: v,
             name: this.showNameSlice(v),
-            isVariable: false,
-          });
-        }
-      } else {
-        for (const variableMode of this.value.value as ConditionDetailTagItem['value']) {
-          if (!variableMode.isVariable) {
-            const id = variableMode.value;
-            value.push({
-              id: id,
-              name: this.showNameSlice(id),
-              isVariable: variableMode.isVariable,
-            });
-            continue;
-          }
-          let varValue = '';
-          const result = this.templateSrv.replace(`\${${variableMode.variableName}:json}` as string, this.variableMap);
-          try {
-            varValue = JSON.parse(result);
-          } catch {
-            varValue = '';
-          }
-          if (Array.isArray(varValue)) {
-            value.push(
-              ...varValue.map(v => ({
-                id: v,
-                name: this.showNameSlice(v),
-                isVariable: variableMode.isVariable,
-              }))
-            );
-            continue;
-          }
-          const id = varValue || variableMode.value;
-          value.push({
-            id: id,
-            name: this.showNameSlice(id),
-            isVariable: variableMode.isVariable,
-          });
-        }
+            isVariable: curr.isVariable,
+          }))
+        );
+        return prev;
       }
-      this.localValue = {
-        ...localValue,
-        value,
-      };
-      this.hideCount = this.visibleItemLimit ? this.value.value.length - this.visibleItemLimit : 0;
-    }
+      prev.push({
+        id: varValue || curr.value,
+        name: this.showNameSlice(varValue || curr.value),
+        isVariable: curr.isVariable,
+      });
+      return prev;
+    }, []);
   }
 
   showNameSlice(showName: string) {
@@ -134,7 +136,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
   valueWrapRenderer() {
     return (
       <div class='value-wrap'>
-        {this.localValue.value.map((item, index) => {
+        {this.localValue11.map((item, index) => {
           const valueNameDomTag = item?.isVariable ? VariableSpan : this.DomTag;
           return [
             index > 0 && (
@@ -159,7 +161,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
   }
 
   render() {
-    return this.localValue ? (
+    return this.value ? (
       <div class='condition-detail-kv-tag-component'>
         <div
           id={this.variableName}
@@ -172,9 +174,9 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
           }}
         >
           <div class='key-wrap'>
-            <this.DomTag class='key-name'>{this.localValue.dimension_name}</this.DomTag>
-            <this.DomTag class={['key-method', this.localValue.method]}>
-              {ConditionMethodAliasMap[this.localValue.method]}
+            <this.DomTag class='key-name'>{this.value.dimension_name}</this.DomTag>
+            <this.DomTag class={['key-method', this.value.method]}>
+              {ConditionMethodAliasMap[this.value.method]}
             </this.DomTag>
           </div>
           {this.valueWrapRenderer()}

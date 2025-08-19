@@ -106,16 +106,16 @@ export default class ConditionDetail extends tsc<IProps> {
       conditionResult.value = { ...curr, value: [...(curr.value || [])] };
       prev.push(conditionResult);
       // 非条件变量的数据则还需要判断是否存在维度值变量
-      if (!conditionResult.isVariable) {
-        conditionResult.value.value = conditionResult.value.value.reduce((prev, curr) => {
-          const conditionValueResult = this.variablesToolInstance.transformVariables(curr);
-          if (!conditionValueResult.value) {
-            return prev;
-          }
-          prev.push(conditionValueResult);
-          return prev;
-        }, []);
-      }
+      // if (!conditionResult.isVariable) {
+      //   conditionResult.value.value = conditionResult.value.value.reduce((prev, curr) => {
+      //     const conditionValueResult = this.variablesToolInstance.transformVariables(curr);
+      //     if (!conditionValueResult.value) {
+      //       return prev;
+      //     }
+      //     prev.push(conditionValueResult);
+      //     return prev;
+      //   }, []);
+      // }
       return prev;
     }, []);
   }
