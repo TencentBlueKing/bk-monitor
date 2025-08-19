@@ -48,7 +48,7 @@ export default class ExpressionCreator extends tsc<IProps> {
 
   @Prop({ default: '' }) value: string;
 
-  elEdit = null;
+  elEdit: HTMLInputElement = null;
   inputValue = '';
   active = false;
 
@@ -58,27 +58,27 @@ export default class ExpressionCreator extends tsc<IProps> {
   handleWatchValue(val: string) {
     if (this.inputValue !== val) {
       this.inputValue = val;
-      this.handleSetInputParse(val);
+      this.handleSetInputParse(val, false);
       this.active = false;
     }
   }
 
   mounted() {
     this.elEdit = this.$el.querySelector('.expression-input');
-    this.handleSetInputParse(this.value);
+    this.handleSetInputParse(this.value, false);
     this.active = false;
   }
 
   @Debounce(300)
   handleInput(e: InputEvent) {
     const target = e.target as HTMLElement;
-    this.handleSetInputParse(target.textContent, vars => {
+    this.handleSetInputParse(target.textContent, true, vars => {
       this.vars = vars;
     });
     this.inputValue = target.textContent;
   }
 
-  handleSetInputParse(val: string, getVariables?: (val: string[]) => void) {
+  handleSetInputParse(val: string, isFocus = true, getVariables?: (val: string[]) => void) {
     const matches = val.match(/(\$\{[^}]+\})|(\$|[^$]+)/g)?.filter(item => item) || [];
     const variables = [];
     const str = matches
@@ -91,7 +91,11 @@ export default class ExpressionCreator extends tsc<IProps> {
       })
       .join('');
     getVariables?.(variables);
-    replaceContent(this.elEdit, str);
+    if (isFocus) {
+      replaceContent(this.elEdit, str);
+    } else {
+      this.elEdit.innerHTML = str;
+    }
   }
 
   handleFocus() {
