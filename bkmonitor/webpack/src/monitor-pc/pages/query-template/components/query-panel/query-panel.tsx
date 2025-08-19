@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import QueryConfigCreator from '../query-config/query-config-creator';
 
-import type { AggFunction } from '../../typings';
+import type { AggCondition, AggFunction } from '../../typings';
 import type { IVariableModel, MetricDetailV2, QueryConfig } from '../../typings';
 import type { VariableModelType } from '../../variables';
 import type { IFunctionOptionsItem } from '../type/query-config';
@@ -43,6 +43,7 @@ interface IProps {
   queryConfig?: QueryConfig;
   variables?: VariableModelType[];
   onAdd?: () => void;
+  onChangeCondition?: (val: AggCondition[]) => void;
   onChangeDimension?: (val: string[]) => void;
   onChangeFunction?: (val: AggFunction[]) => void;
   onChangeInterval?: (val: number | string) => void;
@@ -88,6 +89,9 @@ export default class QueryPanel extends tsc<IProps> {
   handleChangeInterval(val: number | string) {
     this.$emit('changeInterval', val);
   }
+  handleChangeCondition(val: AggCondition[]) {
+    this.$emit('changeCondition', val);
+  }
 
   render() {
     return (
@@ -96,6 +100,7 @@ export default class QueryPanel extends tsc<IProps> {
           metricFunctions={this.metricFunctions}
           queryConfig={this.queryConfig}
           variables={this.variables}
+          onChangeCondition={this.handleChangeCondition}
           onChangeDimension={this.handleDimensionChange}
           onChangeFunction={this.handleChangeFunction}
           onChangeInterval={this.handleChangeInterval}
