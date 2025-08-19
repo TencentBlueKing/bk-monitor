@@ -321,6 +321,11 @@ const store = new Vuex.Store({
      * @returns
      */
     requestAddition: (state, getters) => {
+      const search_mode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+      if (search_mode !== 'ui') {
+        return [];
+      }
+
       return getters.originAddition.reduce((output, current) => {
         const { field, operator, value, hidden_values = [], disabled } = current;
         if (!disabled && field !== '_ip-select_') {
