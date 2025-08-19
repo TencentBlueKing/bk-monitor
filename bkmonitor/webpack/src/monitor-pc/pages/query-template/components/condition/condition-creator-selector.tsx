@@ -26,7 +26,6 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import KvTag from '../../../../components/retrieval-filter/kv-tag';
 import {
   type IFilterField,
   type IFilterItem,
@@ -37,6 +36,7 @@ import {
 } from '../../../../components/retrieval-filter/utils';
 import VariableName from '../utils/variable-name';
 import ConditionCreatorOptions from './condition-creator-options';
+import KvTag from './kv-tag';
 
 import './condition-creator-selector.scss';
 
@@ -208,6 +208,7 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
       },
     });
     this.destroyPopoverInstance();
+    this.handleChange();
   }
 
   handleAddVariableOpenChange(val: boolean) {
