@@ -31,7 +31,14 @@ import BasicInfoCreate from '../basic-info/basic-info-create';
 import ExpressionPanel from '../expression-panel/expression-panel';
 import QueryPanel from '../query-panel/query-panel';
 
-import type { Expression, IBasicInfoData, IVariableModel, MetricDetailV2, QueryConfig } from '../../typings';
+import type {
+  AggFunction,
+  Expression,
+  IBasicInfoData,
+  IVariableModel,
+  MetricDetailV2,
+  QueryConfig,
+} from '../../typings';
 import type { VariableModelType } from '../../variables';
 
 import './query-template-set.scss';
@@ -40,10 +47,17 @@ interface QueryConfigSetEvents {
   onAddQueryConfig: (index: number) => void;
   onBackGotoPage: () => void;
   onBasicInfoChange: (basicInfo: IBasicInfoData) => void;
+  onChangeDimension?: (val: { index: number; value: string[] }) => void;
+  onChangeExpression?: (val: string) => void;
+  onChangeExpressionFunction?: (val: AggFunction[]) => void;
+  onChangeFunction?: (val: { index: number; value: AggFunction[] }) => void;
+  onChangeInterval?: (val: { index: number; value: number | string }) => void;
+  onChangeMethod?: (val: { index: number; value: string }) => void;
   onCreateVariable: (variable: IVariableModel) => void;
   onDeleteQueryConfig: (index: number) => void;
   onSelectMetric: (index: number, metric: MetricDetailV2) => void;
   onStepChange: (step: number) => void;
+
   onVariablesChange: (variablesList: VariableModelType[]) => void;
 }
 
@@ -98,6 +112,25 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
     this.$emit('selectMetric', index, metric);
   }
 
+  handleChangeMethod(val: string, index: number) {
+    this.$emit('changeMethod', { value: val, index });
+  }
+  handleDimensionChange(val: string[], index: number) {
+    this.$emit('changeDimension', { value: val, index });
+  }
+  handleChangeFunction(val: AggFunction[], index: number) {
+    this.$emit('changeFunction', { value: val, index });
+  }
+  handleChangeInterval(val: number | string, index: number) {
+    this.$emit('changeInterval', { value: val, index });
+  }
+  handleChangeExpression(val: string) {
+    this.$emit('changeExpression', val);
+  }
+  handleChangeExpressionFunction(val: AggFunction[]) {
+    this.$emit('changeExpressionFunction', val);
+  }
+
   handleNextStep() {
     Promise.all([this.variablesManageRef.validateVariable(), this.basicInfoRef.validate()]).then(() => {
       this.$emit('stepChange', 2);
@@ -147,6 +180,10 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
                     queryConfig={item}
                     variables={this.variablesList}
                     onAdd={() => this.handleAddQueryConfig(index)}
+                    onChangeDimension={val => this.handleDimensionChange(val, index)}
+                    onChangeFunction={val => this.handleChangeFunction(val, index)}
+                    onChangeInterval={val => this.handleChangeInterval(val, index)}
+                    onChangeMethod={val => this.handleChangeMethod(val, index)}
                     onCreateVariable={this.handleCreateVariable}
                     onDelete={() => this.handleDeleteQueryConfig(index)}
                     onSelectMetric={metric => this.handleSelectMetric(index, metric)}
@@ -156,6 +193,8 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
                   expressionConfig={this.expressionConfig}
                   metricFunctions={this.metricFunctions}
                   variables={this.variablesList}
+                  onChangeExpression={val => this.handleChangeExpression(val)}
+                  onChangeFunction={val => this.handleChangeExpressionFunction(val)}
                   onCreateVariable={this.handleCreateVariable}
                 />
               </div>
