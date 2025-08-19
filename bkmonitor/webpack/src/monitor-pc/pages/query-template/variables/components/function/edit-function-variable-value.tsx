@@ -70,7 +70,7 @@ export default class EditFunctionVariableValue extends tsc<FunctionValueProps, F
           options={this.metricFunctions}
           showLabel={false}
           showVariables={false}
-          value={this.variable.value}
+          value={this.variable.data.value || this.variable.data.defaultValue}
         />
       </EditVariableValue>
     );

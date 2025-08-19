@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import QueryConfigCreator from '../query-config/query-config-creator';
 
-import type { MetricDetailV2, QueryConfig } from '../../typings';
+import type { IVariableModel, MetricDetailV2, QueryConfig } from '../../typings';
 import type { VariableModelType } from '../../variables';
 import type { IFunctionOptionsItem } from '../type/query-config';
 
@@ -42,7 +42,7 @@ interface IProps {
   queryConfig?: QueryConfig;
   variables?: VariableModelType[];
   onAdd?: () => void;
-  onCreateVariable?: (val: VariableModelType) => void;
+  onCreateVariable?: (val: IVariableModel) => void;
   onDelete?: () => void;
   onSelectMetric?: (metric: MetricDetailV2) => void;
 }
@@ -55,7 +55,7 @@ export default class QueryPanel extends tsc<IProps> {
   @Prop({ default: false }) hasAdd: boolean;
   @Prop({ default: () => null }) queryConfig: QueryConfig;
 
-  handleCreateVariable(val: VariableModelType) {
+  handleCreateVariable(val: IVariableModel) {
     this.$emit('createVariable', val);
   }
 

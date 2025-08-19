@@ -1,0 +1,42 @@
+.query-template-view {
+  position: relative;
+  height: calc(100% - 52px);
+
+  .query-template-view-content {
+    display: flex;
+    height: 100%;
+
+    .left-view-container {
+      flex: 1;
+      height: 100%;
+      padding: 16px 16px 0;
+      overflow-y: auto;
+
+      .content-wrap {
+        padding: 16px;
+      }
+    }
+
+    .template-view {
+      width: 482px;
+      background: #fff;
+    }
+  }
+
+  .submit-btns {
+    position: sticky;
+    bottom: 0;
+    padding: 8px 16px;
+    margin-top: 0;
+    background: #fff;
+    box-shadow: 0 -2px 4px 0 #0000001f;
+
+    .bk-button {
+      width: 88px;
+
+      & + .bk-button {
+        margin-left: 8px;
+      }
+    }
+  }
+}
