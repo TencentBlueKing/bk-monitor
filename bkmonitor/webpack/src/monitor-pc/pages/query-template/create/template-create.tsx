@@ -219,7 +219,10 @@ export default class TemplateCreate extends tsc<object> {
             />
           ) : (
             <QueryTemplateView
+              chartTitle={this.basicInfoData.name}
+              expressionConfig={this.expressionConfig}
               metricFunctions={this.metricFunctions}
+              queryConfigs={this.queryConfigs}
               variablesList={this.variablesList}
               onBackGotoPage={this.handleBackGotoPage}
               onStepChange={this.handleStepChange}

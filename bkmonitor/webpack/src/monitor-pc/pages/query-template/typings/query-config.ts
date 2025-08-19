@@ -68,14 +68,15 @@ export class QueryConfig {
   key: string = random(8);
   /** 指标ID */
   metric_id: string;
-  /** 指标详情 */
-  readonly metricDetail: MetricDetailV2;
   /** 查询字符串 */
   query_string: string;
   /** 时间字段 */
   time_field: string;
 
-  constructor(metricDetail: MetricDetailV2, data?: Partial<QueryConfig>) {
+  constructor(
+    public readonly metricDetail: MetricDetailV2,
+    data?: Partial<QueryConfig>
+  ) {
     if (metricDetail?.metric_id) {
       this.metricDetail = metricDetail;
       this.agg_dimension = metricDetail.default_dimensions || [];
