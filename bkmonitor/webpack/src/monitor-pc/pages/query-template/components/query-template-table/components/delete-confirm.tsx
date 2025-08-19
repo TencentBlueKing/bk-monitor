@@ -25,7 +25,7 @@
  */
 
 import { Component, Emit, Prop } from 'vue-property-decorator';
-import { emit, Component as tsc } from 'vue-tsx-support';
+import { Component as tsc } from 'vue-tsx-support';
 
 import './delete-confirm.scss';
 

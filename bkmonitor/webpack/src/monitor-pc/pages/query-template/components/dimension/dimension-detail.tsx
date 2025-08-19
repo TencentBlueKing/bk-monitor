@@ -111,40 +111,37 @@ export default class DimensionDetail extends tsc<DimensionProps> {
   }
 
   tagWrapRenderer() {
-    let content: HTMLElement[] | string = '--';
-    if (this.dimensionToVariableModel?.length) {
-      content = this.dimensionToVariableModel.reduce((prev, curr) => {
-        if (!curr.isVariable) {
-          prev.push(this.tagItemRenderer(curr));
-          return prev;
-        }
-        let varValue = '';
-        const result = this.templateSrv.replace(`\${${curr.variableName}:json}` as string, this.variableMap);
-        try {
-          varValue = JSON.parse(result);
-        } catch {
-          varValue = '';
-        }
-        if (Array.isArray(varValue)) {
-          prev.push(
-            ...varValue.map(v =>
-              this.tagItemRenderer({ value: v, variableName: curr.variableName, isVariable: curr.isVariable })
-            )
-          );
-          return prev;
-        }
+    const content = this.dimensionToVariableModel?.reduce?.((prev, curr) => {
+      if (!curr.isVariable) {
+        prev.push(this.tagItemRenderer(curr));
+        return prev;
+      }
+      let varValue = '';
+      const result = this.templateSrv.replace(`\${${curr.variableName}:json}` as string, this.variableMap);
+      try {
+        varValue = JSON.parse(result);
+      } catch {
+        varValue = '';
+      }
+      if (Array.isArray(varValue)) {
         prev.push(
-          this.tagItemRenderer({
-            value: varValue || curr.value,
-            variableName: curr.variableName,
-            isVariable: curr.isVariable,
-          })
+          ...varValue.map(v =>
+            this.tagItemRenderer({ value: v, variableName: curr.variableName, isVariable: curr.isVariable })
+          )
         );
         return prev;
-      }, []);
-    }
+      }
+      prev.push(
+        this.tagItemRenderer({
+          value: varValue || curr.value,
+          variableName: curr.variableName,
+          isVariable: curr.isVariable,
+        })
+      );
+      return prev;
+    }, []);
 
-    return <div class='tags-wrap'>{content}</div>;
+    return <div class='tags-wrap'>{content?.length ? content : '--'}</div>;
   }
 
   render() {

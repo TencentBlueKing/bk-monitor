@@ -109,7 +109,7 @@ export default class ConfigPanel extends tsc<object> {
                   dimension_name: '主机名',
                 },
                 {
-                  key: 'ip',
+                  key: '${condition_variable}',
                   value: ['ipipipipipip'],
                   method: 'neq',
                   condition: 'and',
@@ -168,7 +168,7 @@ export default class ConfigPanel extends tsc<object> {
                 },
                 {
                   key: 'ip',
-                  value: ['ipipipipipip'],
+                  value: ['ipipipipipip', '${condition_value_variable}'],
                   method: 'neq',
                   condition: 'and',
                   dimension_name: '目标ID',

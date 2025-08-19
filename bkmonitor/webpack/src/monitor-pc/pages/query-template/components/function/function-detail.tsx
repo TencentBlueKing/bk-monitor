@@ -99,47 +99,44 @@ export default class FunctionDetail extends tsc<FunctionProps> {
   }
 
   functionNameWrapRenderer() {
-    let content: HTMLElement[] | string = '--';
-    if (this.functionsToVariableModel?.length) {
-      content = this.functionsToVariableModel.reduce((prev, curr) => {
-        if (!curr.isVariable) {
-          prev.push(this.functionNameRenderer(curr));
-          return prev;
-        }
-        let varValue = '';
-        const result = this.templateSrv.replace(`\${${curr.variableName}:json}` as string, this.variableMap);
-        try {
-          varValue = JSON.parse(result);
-        } catch {
-          varValue = '';
-        }
+    const content = this.functionsToVariableModel?.reduce?.((prev, curr) => {
+      if (!curr.isVariable) {
+        prev.push(this.functionNameRenderer(curr));
+        return prev;
+      }
+      let varValue = '';
+      const result = this.templateSrv.replace(`\${${curr.variableName}:json}` as string, this.variableMap);
+      try {
+        varValue = JSON.parse(result);
+      } catch {
+        varValue = '';
+      }
 
-        if (Array.isArray(varValue)) {
-          prev.push(
-            this.createFunctionNameVariableChunk(
-              curr.variableName,
-              varValue.map(v =>
-                this.functionNameRenderer({ value: v, variableName: curr.variableName, isVariable: curr.isVariable })
-              )
-            )
-          );
-          return prev;
-        }
+      if (Array.isArray(varValue)) {
         prev.push(
           this.createFunctionNameVariableChunk(
             curr.variableName,
-            this.functionNameRenderer({
-              value: varValue || curr.value,
-              variableName: curr.variableName,
-              isVariable: curr.isVariable,
-            })
+            varValue.map(v =>
+              this.functionNameRenderer({ value: v, variableName: curr.variableName, isVariable: curr.isVariable })
+            )
           )
         );
         return prev;
-      }, []);
-    }
+      }
+      prev.push(
+        this.createFunctionNameVariableChunk(
+          curr.variableName,
+          this.functionNameRenderer({
+            value: varValue || curr.value,
+            variableName: curr.variableName,
+            isVariable: curr.isVariable,
+          })
+        )
+      );
+      return prev;
+    }, []);
 
-    return <div class='function-name-wrap'>{content}</div>;
+    return <div class='function-name-wrap'>{content?.length ? content : '--'}</div>;
   }
 
   render() {
