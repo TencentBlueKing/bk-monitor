@@ -62,6 +62,32 @@ class IndexType(CachedEnum):
     ENTITY = "entity"
     EDGE = "edge"
 
+class MetricDimension(CachedEnum):
+    TOTAL = "total"
+    ACTIVE = "active"
+    PASSIVE = "passive"
+    
+    AVG = "avg"
+    P99 = "p99"
+    P95 = "p95"
+    P50 = "p50"
+    
+    DEFAULT = "default"
+    
+    @cached_property
+    def label(self):
+        return str(
+            {
+                MetricDimension.TOTAL: str(_("总数")),
+                MetricDimension.ACTIVE: str(_("主调")),
+                MetricDimension.PASSIVE: str(_("被调")),
+                MetricDimension.AVG: str(_("平均")),
+                MetricDimension.P99: str(_("p99")),
+                MetricDimension.P95: str(_("p95")),
+                MetricDimension.P50: str(_("p50")),
+                MetricDimension.DEFAULT: MetricDimension.DEFAULT.value,
+            }.get(self, self.value)
+        )
 
 # 度量单位常量
 class MetricUnit:

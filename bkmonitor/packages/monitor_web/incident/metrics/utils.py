@@ -29,4 +29,3 @@ def transform_to_ip4(inner_ip: str) -> str:
         return ""
     return ".".join(parts[1:])
     
-    

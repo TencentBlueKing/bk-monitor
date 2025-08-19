@@ -11,9 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 from django.utils.translation import gettext_lazy as _
 from monitor_web.incident.metrics.utils import transform_to_ip4, is_ipv4
-from monitor_web.incident.metrics.constants import EntityType
-from monitor_web.incident.metrics.constants import MetricName
-
+from monitor_web.incident.metrics.constants import EntityType, MetricName, MetricDimension
 
 # APM 公共配置模板
 APM_BASE_QUERY_CONFIG = {
@@ -113,7 +111,7 @@ BCS_PROMQL_TEMPLATE = {
 EntityTypeMetricConfigMapping = {
     EntityType.APMService.value: {
         MetricName.APM_REQUEST_COUNT.value: {
-            _("总数"): {
+            MetricDimension.TOTAL.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -128,7 +126,7 @@ EntityTypeMetricConfigMapping = {
                     }
                 ]
             },
-            _("主调"):{
+            MetricDimension.ACTIVE.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -147,7 +145,7 @@ EntityTypeMetricConfigMapping = {
                     }
                 ]
             },
-            _("被调"): {
+            MetricDimension.PASSIVE.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -168,7 +166,7 @@ EntityTypeMetricConfigMapping = {
             }
         },
         MetricName.APM_ERROR_COUNT.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -188,7 +186,7 @@ EntityTypeMetricConfigMapping = {
             }
         },
         MetricName.APM_ERROR_RATE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "b / c",
                 "query_configs": [
                     {
@@ -215,7 +213,7 @@ EntityTypeMetricConfigMapping = {
                 ]
             }},
         MetricName.APM_DURATION.value: {
-            "avg": {
+            MetricDimension.AVG.label: {
                 "expression": "a / b",
                 "query_configs": [
                     {
@@ -240,7 +238,7 @@ EntityTypeMetricConfigMapping = {
                     }
                 ]
             },
-            "p99": {
+            MetricDimension.P99.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -261,7 +259,7 @@ EntityTypeMetricConfigMapping = {
                     }
                 ]
             },
-            "p95":  {
+            MetricDimension.P95.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -282,7 +280,7 @@ EntityTypeMetricConfigMapping = {
                     }
                 ]
             },
-            "p50": {
+            MetricDimension.P50.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -307,7 +305,7 @@ EntityTypeMetricConfigMapping = {
     },
     EntityType.BcsPod.value: {
         MetricName.BCS_PERFORMANCE_CPU_USAGE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -318,7 +316,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "6s",
             }},
         MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -329,7 +327,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "10s",
             }},
         MetricName.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -340,7 +338,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "10s",
             }},
         MetricName.BCS_PERFORMANCE_MEMORY_USAGE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -351,7 +349,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "10s",
             }},
         MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -362,7 +360,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "10s",
             }},
         MetricName.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -373,7 +371,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "10s",
             }},
         MetricName.BCS_TRAFFIC_IN.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -384,7 +382,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "10s",
             }},
         MetricName.BCS_TRAFFIC_OUT.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -397,7 +395,7 @@ EntityTypeMetricConfigMapping = {
     },
     EntityType.BkNodeHost.value: {
         MetricName.HOST_CPU_FIVE_MINUTE_AVERAGE_LOAD.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -419,7 +417,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "18s",
             }},
         MetricName.HOST_CPU_USAGE_RATE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -441,7 +439,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "18s",
             }},
         MetricName.HOST_MEM_PHYSICAL_FREE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -463,7 +461,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "18s",
             }},
         MetricName.HOST_NIC_IN_RATE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -485,7 +483,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "19s",
             }},
         MetricName.HOST_NIC_OUT_RATE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -507,7 +505,7 @@ EntityTypeMetricConfigMapping = {
                 "down_sample_range": "19s",
             }},
         MetricName.HOST_DISK_USAGE_RATE.value: {
-            "default": {
+            MetricDimension.DEFAULT.label: {
                 "expression": "A",
                 "query_configs": [
                     {
