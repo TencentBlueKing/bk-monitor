@@ -505,7 +505,7 @@ class ActionEnum:
     USE_UPTIME_CHECK_NODE = ActionMeta(
         id="use_uptime_check_node",
         name=_("拨测公共节点使用"),
-        name_en="Use Common Uptime Check Common Node",
+        name_en="Use Common Uptime Check Node",
         type="view",
         related_resource_types=[],
         related_actions=[],
