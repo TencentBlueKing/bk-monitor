@@ -28,22 +28,21 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getFunctions } from 'monitor-api/modules/grafana';
 
-import BasicInfoCreate from '../components/basic-info/basic-info-create';
-import ExpressionPanel from '../components/expression-panel/expression-panel';
-import QueryPanel from '../components/query-panel/query-panel';
-import { type AggFunction, Expression, MetricDetailV2, QueryConfig } from '../typings';
+import QueryTemplateSet from '../components/query-template-set/query-template-set';
+import QueryTemplateView from '../components/query-template-view/query-template-view';
+import { type AggFunction, type IVariableModel, Expression, MetricDetailV2, QueryConfig } from '../typings';
 import { type VariableModelType, getVariableModel } from '../variables';
-import VariablesManage from '../variables/variables-manage/variables-manage';
 import { LETTERS } from '@/common/constant';
 
 import type { MetricDetail } from '../components/type/query-config';
+import type VariablesManage from '../variables/variables-manage/variables-manage';
 
 import './template-create.scss';
 
 @Component
 export default class TemplateCreate extends tsc<object> {
   @Ref() createContentWrap: HTMLDivElement;
-  @Ref() basicInfo: BasicInfoCreate;
+  @Ref('queryTemplateSet') queryTemplateSetRef: QueryTemplateSet;
   @Ref() variablesManage: VariablesManage;
 
   steps = [
@@ -53,11 +52,8 @@ export default class TemplateCreate extends tsc<object> {
 
   curStep = 1;
 
-  resizeObserver = null;
-  isSticky = false;
-
   basicInfoData = {
-    name: 'test',
+    name: '',
     desc: '',
     effect: [this.$store.getters.bizId],
   };
@@ -75,48 +71,38 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleVariablesChange(variablesList: VariableModelType[]) {
+    console.log(variablesList);
     this.variablesList = variablesList;
   }
 
-  handleNextStep() {
-    Promise.all([this.variablesManage.validateVariable(), this.basicInfo.validate()]).then(() => {
-      this.curStep += 1;
-    });
+  handleStepChange(step: number) {
+    this.curStep = step;
   }
 
-  handlePrevStep() {
-    this.curStep -= 1;
-  }
+  handleSubmit() {}
 
   handleBackGotoPage() {
     this.$router.push({ name: 'query-template' });
   }
 
-  observerCreateConfigResize() {
-    this.resizeObserver = new ResizeObserver(() => {
-      this.isSticky = this.createContentWrap.scrollHeight > this.createContentWrap.clientHeight || this.curStep === 2;
-    });
-    this.resizeObserver.observe(this.createContentWrap);
-  }
-
   init() {
     this.curStep = 1;
+    this.basicInfoData = {
+      name: 'test',
+      desc: '',
+      effect: [this.$store.getters.bizId],
+    };
     this.metricsList = [];
     this.queryConfigs = [new QueryConfig(null, { alias: 'a' })];
+    this.variablesList = [];
   }
 
   async activated() {
     this.init();
     this.handleGetMetricFunctions();
-    this.observerCreateConfigResize();
   }
 
-  deactivated() {
-    console.log('deactivated');
-    this.resizeObserver.unobserve(this.createContentWrap);
-  }
-
-  handleCreateVariable(val: VariableModelType) {
+  handleCreateVariable(val: IVariableModel) {
     if (this.variablesList.find(item => item.name === val.name)) {
       return;
     }
@@ -149,21 +135,25 @@ export default class TemplateCreate extends tsc<object> {
     this.queryConfigs.splice(index, 1, new QueryConfig(new MetricDetailV2(metric)));
   }
 
-  handleChangeMethod(val: string, index: number) {
+  handleChangeMethod(val) {
     console.log(val);
-    this.queryConfigs[index].agg_method = val;
+    const { value, index } = val;
+    this.queryConfigs[index].agg_method = value;
   }
-  handleDimensionChange(val: string[], index: number) {
+  handleDimensionChange(val) {
     console.log(val);
-    this.queryConfigs[index].agg_dimension = val;
+    const { value, index } = val;
+    this.queryConfigs[index].agg_dimension = value;
   }
-  handleChangeFunction(val: AggFunction[], index: number) {
+  handleChangeFunction(val) {
     console.log(val);
-    this.queryConfigs[index].functions = val;
+    const { value, index } = val;
+    this.queryConfigs[index].functions = value;
   }
-  handleChangeInterval(val: number | string, index: number) {
+  handleChangeInterval(val) {
     console.log(val);
-    this.queryConfigs[index].agg_interval = val;
+    const { value, index } = val;
+    this.queryConfigs[index].agg_interval = value;
   }
   handleChangeExpression(val: string) {
     console.log(val);
@@ -191,108 +181,39 @@ export default class TemplateCreate extends tsc<object> {
           />
         </div>
         <div class='template-create-content'>
-          {/* 左侧区域 */}
-          <div
-            ref='createContentWrap'
-            class='create-content-wrap'
-          >
-            <div
-              class='create-config'
-              v-show={this.curStep === 1}
-            >
-              <BasicInfoCreate
-                ref='basicInfo'
-                formData={this.basicInfoData}
-                onChange={this.handleBasicInfoChange}
-              />
-              <div class='template-config-wrap-component panel'>
-                <div class='template-config-title'>{this.$t('模板配置')}</div>
-                <div class='template-config-content'>
-                  {this.queryConfigs.map((item, index) => (
-                    <QueryPanel
-                      key={item.key}
-                      hasAdd={index === this.queryConfigs.length - 1}
-                      hasDelete={this.queryConfigs.length >= 2}
-                      metricFunctions={this.metricFunctions}
-                      queryConfig={item}
-                      variables={this.variablesList}
-                      onAdd={() => this.handleAdd(index)}
-                      onChangeDimension={val => this.handleDimensionChange(val, index)}
-                      onChangeFunction={val => this.handleChangeFunction(val, index)}
-                      onChangeInterval={val => this.handleChangeInterval(val, index)}
-                      onChangeMethod={val => this.handleChangeMethod(val, index)}
-                      onCreateVariable={this.handleCreateVariable}
-                      onDelete={() => this.handleDelete(index)}
-                      onSelectMetric={metric => this.handleSelectMetric(index, metric)}
-                    />
-                  ))}
-                  <ExpressionPanel
-                    expressionConfig={this.expressionConfig}
-                    metricFunctions={this.metricFunctions}
-                    variables={this.variablesList}
-                    onChangeExpression={val => this.handleChangeExpression(val)}
-                    onChangeFunction={val => this.handleChangeExpressionFunction(val)}
-                    onCreateVariable={this.handleCreateVariable}
-                  />
-                </div>
-              </div>
-            </div>
-            <div
-              class='create-view'
-              v-show={this.curStep === 2}
-            >
-              <div class='panel'>
-                {this.variablesList.length > 0 && (
-                  <div class='variable-form'>
-                    <VariablesManage
-                      metricFunctions={this.metricFunctions}
-                      scene='edit'
-                      variablesList={this.variablesList}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-            <div class={['submit-btns', { sticky: this.isSticky }]}>
-              <bk-button
-                theme='primary'
-                onClick={this.handleNextStep}
-              >
-                {this.$t(this.curStep === 2 ? '提交' : '下一步')}
-              </bk-button>
-              {this.curStep === 2 && (
-                <bk-button
-                  theme='default'
-                  onClick={this.handlePrevStep}
-                >
-                  {this.$t('上一步')}
-                </bk-button>
-              )}
-              <bk-button
-                theme='default'
-                onClick={this.handleBackGotoPage}
-              >
-                {this.$t('取消')}
-              </bk-button>
-            </div>
-          </div>
-
-          {/* 右侧内容 */}
-          <VariablesManage
-            ref='variablesManage'
-            v-show={this.curStep === 1}
-            metricFunctions={this.metricFunctions}
-            scene='create'
-            variablesList={this.variablesList}
-            onChange={this.handleVariablesChange}
-          />
-
-          <div
-            class='template-view'
-            v-show={this.curStep === 2}
-          >
-            模板配置预览
-          </div>
+          {this.curStep === 1 ? (
+            <QueryTemplateSet
+              ref='queryTemplateSet'
+              basicInfo={this.basicInfoData}
+              expressionConfig={this.expressionConfig}
+              metricFunctions={this.metricFunctions}
+              queryConfigs={this.queryConfigs}
+              variablesList={this.variablesList}
+              onAddQueryConfig={this.handleAdd}
+              onBackGotoPage={this.handleBackGotoPage}
+              onBasicInfoChange={this.handleBasicInfoChange}
+              onChangeDimension={this.handleDimensionChange}
+              onChangeExpression={this.handleChangeExpression}
+              onChangeExpressionFunction={this.handleChangeExpressionFunction}
+              onChangeFunction={this.handleChangeFunction}
+              onChangeInterval={this.handleChangeInterval}
+              onChangeMethod={this.handleChangeMethod}
+              onCreateVariable={this.handleCreateVariable}
+              onDeleteQueryConfig={this.handleDelete}
+              onSelectMetric={this.handleSelectMetric}
+              onStepChange={this.handleStepChange}
+              onVariablesChange={this.handleVariablesChange}
+            />
+          ) : (
+            <QueryTemplateView
+              metricFunctions={this.metricFunctions}
+              variablesList={this.variablesList}
+              onBackGotoPage={this.handleBackGotoPage}
+              onStepChange={this.handleStepChange}
+              onSubmit={this.handleSubmit}
+              onVariablesChange={this.handleVariablesChange}
+            />
+          )}
         </div>
       </div>
     );

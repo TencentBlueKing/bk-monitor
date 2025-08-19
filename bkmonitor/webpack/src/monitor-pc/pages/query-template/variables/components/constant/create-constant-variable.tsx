@@ -26,6 +26,8 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { Debounce } from 'monitor-common/utils';
+
 import { ConstantVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
@@ -42,10 +44,11 @@ export default class CreateConstantVariable extends tsc<ConstantVariableProps, C
   @Prop({ type: Object, required: true }) variable!: ConstantVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
 
-  handleValueChange(value) {
+  @Debounce(200)
+  handleValueChange(value: string) {
     this.handleDataChange({
       ...this.variable.data,
-      value,
+      defaultValue: value,
     });
   }
 
@@ -69,7 +72,11 @@ export default class CreateConstantVariable extends tsc<ConstantVariableProps, C
             label={this.$t('默认值')}
             property='value'
           >
-            <bk-input />
+            <bk-input
+              value={this.variable.data.defaultValue}
+              onBlur={this.handleValueChange}
+              onChange={this.handleValueChange}
+            />
           </bk-form-item>
         </VariableCommonForm>
       </div>
