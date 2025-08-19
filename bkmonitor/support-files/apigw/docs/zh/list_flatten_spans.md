@@ -57,17 +57,6 @@ title:(quick brown)`
     "app_name": "app_name",
     "filters": [
         {
-            "key": "trace_time",
-            "operator": "equal",
-            "value": [
-                "200"
-            ],
-            "options": {
-                "is_wildcard": false,
-                "group_relation": "OR"
-            }
-        },
-        {
             "key": "elapsed_time",
             "operator": "between",
             "value": [
@@ -103,45 +92,25 @@ title:(quick brown)`
 | data | list | Trace 数据列表  |
 
 #### data 列表中的 Trace 对象字段
-| 字段名 | 类型 | 描述 |
-|-------|------|--------------|
-| elapsed_time | int | 耗时 |
-| end_time | int | 结束时间 |
-| kind | int | 类型 |
-| links | list | 关联信息 |
-| parent_span_id | str | 父 Span ID |
-| span_id | str | Span ID |
-| span_name | str | 接口名称 |
-| start_time | int | 开始时间 |
-| time | str | 时间 |
-| trace_id | str | Trace ID |
-| trace_state | str | Trace 状态 |
-| attributes.net.host.ip | str | 主机 IP |
-| attributes.net.host.name | str | 主机名称 |
-| attributes.net.host.port | str | 主机端口 |
-| attributes.net.peer.ip | str | 对端 IP |
-| attributes.net.peer.port | str | 对端端口 |
-| attributes.trpc.callee_method | str | 被调接口 |
-| attributes.trpc.callee_service | str | 被调 Service |
-| attributes.trpc.caller_method | str | 主调接口 |
-| attributes.trpc.caller_service | str | 主调 Service |
-| attributes.trpc.envname | str | 用户环境 |
-| attributes.trpc.namespace | str | 物理环境 |
-| attributes.trpc.status_code | int | tRPC 状态码 |
-| attributes.trpc.status_msg | str | tRPC 状态详情 |
-| attributes.trpc.status_type | int | tRPC 状态类型 |
-| events.name | list | 事件名 |
-| events.timestamp | list | 事件时间 |
-| resource.bk.instance.id | str | 实例 |
-| resource.service.name | str | 服务名 |
-| resource.service_name | str | 服务名 |
-| resource.telemetry.sdk.language | str | SDK 语言 |
-| resource.telemetry.sdk.name | str | SDK 名称 |
-| status.code | int | 状态 |
-| status.message | str | 状态详情 |
-| events.attributes.ctx.deadline | list | - |
-| events.attributes.message.detail | list | - |
-| events.attributes.message.uncompressed_size | list | - |
+| 字段名                                         | 类型 | 描述        |
+|---------------------------------------------|------|-----------|
+| elapsed_time                                | int | 耗时        |
+| end_time                                    | int | 结束时间      |
+| kind                                        | int | 类型        |
+| links                                       | list | 关联信息      |
+| parent_span_id                              | str | 父 Span ID |
+| span_id                                     | str | Span ID   |
+| span_name                                   | str | 接口名称      |
+| start_time                                  | int | 开始时间      |
+| time                                        | str | 时间        |
+| trace_id                                    | str | Trace ID  |
+| trace_state                                 | str | Trace 状态  |
+| attributes                                  | str | 属性        |
+| events                                      | list | 事件        |
+| resource                                    | str | 资源        |
+| status.code                                 | int | 状态        |
+| status.message                              | str | 状态详情      |
+| events          | list | 事件        |
 
 #### 示例响应
 
