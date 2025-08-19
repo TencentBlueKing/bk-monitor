@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-interface QueryVariablesTransformResult {
+export interface QueryVariablesTransformResult {
   /** 是否包含变量 */
   isVariable: boolean;
   /** 转换后的变量值 */

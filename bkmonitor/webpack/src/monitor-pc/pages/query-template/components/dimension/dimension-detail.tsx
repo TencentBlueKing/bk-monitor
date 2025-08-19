@@ -27,19 +27,19 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { type DimensionField } from '../../typings';
 import { type VariableModelType } from '../../variables';
-import { QueryVariablesTool } from '../utils/query-variable-tool';
+import { getTemplateSrv } from '../../variables/template/template-srv';
+import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
-
-import type { IDimensionOptionsItem } from '../type/query-config';
 
 import './dimension-detail.scss';
 
 interface DimensionProps {
-  /* 已选聚合维度id数组 */
-  dimensions: string[];
   /* 所有聚合维度信息列表数组 */
-  options: IDimensionOptionsItem[];
+  options: DimensionField[];
+  /* 已选聚合维度id数组 */
+  value: string[];
   /* 变量列表 */
   variables?: VariableModelType[];
 }
@@ -47,12 +47,13 @@ interface DimensionProps {
 @Component
 export default class DimensionDetail extends tsc<DimensionProps> {
   /* 已选聚合维度id数组 */
-  @Prop({ type: Array }) dimensions: string[];
+  @Prop({ type: Array }) value: string[];
   /* 所有聚合维度信息列表数组 */
-  @Prop({ default: () => [] }) options: IDimensionOptionsItem[];
+  @Prop({ default: () => [] }) options: DimensionField[];
   /* 变量列表 */
   @Prop({ default: () => [] }) variables?: VariableModelType[];
   variablesToolInstance = new QueryVariablesTool();
+  templateSrv = getTemplateSrv();
 
   get allDimensionMap() {
     if (!this.options?.length) {
@@ -69,60 +70,85 @@ export default class DimensionDetail extends tsc<DimensionProps> {
       return {};
     }
     return this.variables?.reduce?.((prev, curr) => {
-      prev[curr.name] = curr.value;
+      prev[curr.name] = curr;
       return prev;
     }, {});
   }
 
-  get dimensionToVariableModel() {
-    if (!this.dimensions?.length) {
+  /** 将已选聚合维度id 源数据数组 转换为渲染所需的 QueryVariablesTransformResult 结构数组 */
+  get dimensionToVariableModel(): QueryVariablesTransformResult[] {
+    if (!this.value?.length) {
       return [];
     }
-    return this.dimensions.reduce((prev, curr) => {
-      const result = this.variablesToolInstance.transformVariables(curr, this.variableMap);
-      if (!Array.isArray(result.value)) {
-        prev.push(result);
+    return this.value.reduce((prev, curr) => {
+      const result = this.variablesToolInstance.transformVariables(curr);
+      if (!result.value) {
         return prev;
       }
-      prev.push(...result.value.map(dimensionId => ({ ...result, value: dimensionId })));
+      prev.push(result);
       return prev;
     }, []);
   }
 
-  tagRenderer() {
-    if (!this.dimensionToVariableModel?.length) {
-      return '--';
-    }
-    return this.dimensionToVariableModel?.map?.((item, index) => {
-      const domTag = item.isVariable ? VariableSpan : 'span';
-      return (
-        <div
-          class='tags-item'
-          v-bk-tooltips={{
-            content: item.value,
-            placement: 'top',
-            disabled: !item.value,
-            delay: [300, 0],
-          }}
+  tagItemRenderer(item) {
+    const domTag = item.isVariable ? VariableSpan : 'span';
+    return (
+      <div
+        class='tags-item'
+        v-bk-tooltips={{
+          content: item.value,
+          placement: 'top',
+          disabled: !item.value,
+          delay: [300, 0],
+        }}
+      >
+        <domTag
+          id={item.variableName}
+          class='tags-item-name'
         >
-          <domTag
-            id={item.variableName}
-            key={index}
-            class='tags-item-name'
-          >
-            {this.allDimensionMap?.[item.value]?.name || item.value}
-          </domTag>
-        </div>
-      );
-    });
+          {this.allDimensionMap?.[item.value]?.name || item.value}
+        </domTag>
+      </div>
+    );
+  }
+
+  tagWrapRenderer() {
+    let content: HTMLElement[] | string = '--';
+    if (this.dimensionToVariableModel?.length) {
+      content = this.dimensionToVariableModel.reduce((prev, curr) => {
+        if (!curr.isVariable) {
+          prev.push(this.tagItemRenderer(curr));
+          return prev;
+        }
+        const varValue = this.templateSrv.replace(curr.value as string, this.variableMap);
+        if (!varValue) {
+          prev.push(this.tagItemRenderer(curr));
+          return prev;
+        }
+        if (Array.isArray(varValue)) {
+          prev.push(
+            ...varValue.map(v =>
+              this.tagItemRenderer({ value: v, variableName: curr.variableName, isVariable: curr.isVariable })
+            )
+          );
+          return prev;
+        }
+        prev.push(
+          this.tagItemRenderer({ value: varValue, variableName: curr.variableName, isVariable: curr.isVariable })
+        );
+        return prev;
+      }, []);
+    }
+
+    return <div class='tags-wrap'>{content}</div>;
   }
 
   render() {
     return (
       <div class='template-dimension-detail-component'>
-        <span class='dimension-label'>{`${this.$t('聚合维度')}`}</span>
+        <span class='dimension-label'>{this.$slots?.label || this.$t('聚合维度')}</span>
         <span class='dimension-colon'>:</span>
-        <div class='tags-wrap'>{this.tagRenderer()}</div>
+        {this.tagWrapRenderer()}
       </div>
     );
   }
