@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-// 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位） 
+// 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位）
 const LogCollectionView = { name: 'LogCollection', template: '<router-view></router-view>' };
 const CollectionItemView = { name: 'CollectionItemView', template: '<router-view></router-view>' };
 const IndexSetView = { name: 'IndexSet', template: '<router-view :key="Date.now()"></router-view>' };
@@ -35,8 +35,9 @@ const LogCleanTempView = { name: 'LogCleanTempView', template: '<router-view></r
 const LogDesensitizeView = { name: 'LogDesensitizeView', template: '<router-view></router-view>' };
 
 // 管理模块各组件异步声明（用于路由懒加载）
-const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage'); 
-const CollectionItem = () => import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
+const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
+const CollectionItem = () => import(/* webpackChunkName: 'collection' */ '@/views/manage-v2/log-collection/index.tsx');
+// const CollectionItem = () => import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
 const ManageCollection = () => import(/* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection');
 const AccessSteps = () => import(/* webpackChunkName: 'access-steps' */ '@/components/collection-access');
 const IndexList = () => import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');

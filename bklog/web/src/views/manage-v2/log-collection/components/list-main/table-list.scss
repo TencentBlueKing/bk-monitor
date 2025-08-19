@@ -1,0 +1,40 @@
+.v2-log-collection-table {
+    width: 100%;
+    height: 100%;
+    .v2-log-collection-table-header {
+        width: 100%;
+        height: 48px;
+        padding: 0 16px;
+        color: #313238;
+        font-size: 16px;
+        line-height: 48px;
+        .table-header-count {
+            display: inline-block;
+            background: #F0F2F7;
+            border-radius: 2px;
+            margin-left: 8px;
+            font-size: 12px;
+            padding: 2px 5px;
+            line-height: 14px;
+            color: #8F9CB3;
+            font-weight: 600;
+        }
+    }
+    .v2-log-collection-table-tool {
+        width: 100%;
+        padding: 0 16px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        .tool-btns {
+            flex: 1;
+        }
+        .tool-search-select {
+            width: 560px;
+        }
+    }
+    .v2-log-collection-table-main {
+        width: 100%;
+        padding: 0 16px;
+    }
+}
