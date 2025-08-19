@@ -29,36 +29,35 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { xssFilter } from 'monitor-common/utils';
 
+import { type MetricDetailV2 } from '../../typings';
 import { getMetricTip } from '../utils/metric-tip';
-
-import type { TMetricDetail } from '../type/query-config';
 
 import './metric-detail.scss';
 
 interface IProps {
   /* 指标详情类实例 */
-  metric?: TMetricDetail;
+  metricDetail?: MetricDetailV2;
 }
 
 @Component
 export default class MetricDetail extends tsc<IProps> {
   /* 指标详情类实例 */
-  @Prop({ type: Object }) metric: TMetricDetail;
+  @Prop({ type: Object }) metricDetail: MetricDetailV2;
 
   /* 指标别名 */
   get metricAlias() {
-    return this.metric?.metric_field_name || this.metric?.metric_id || '--';
+    return this.metricDetail?.metric_field_name || this.metricDetail?.metric_id || '--';
   }
 
   /* hover展示的指标详细信息内容dom */
   get metricTips() {
-    return getMetricTip(this.metric);
+    return getMetricTip(this.metricDetail);
   }
 
   render() {
     return (
       <div class='template-metric-detail-component'>
-        <span class='metric-label'>{`${this.$t('监控数据')}`}</span>
+        <span class='metric-label'>{this.$slots?.label || this.$t('监控数据')}</span>
         <span class='metric-colon'>:</span>
         <span
           class='metric-name'
