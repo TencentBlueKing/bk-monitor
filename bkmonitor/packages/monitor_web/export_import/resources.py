@@ -903,6 +903,7 @@ class ImportConfigResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         uuid_list = serializers.ListField(required=True, label="配置的uuid")
         import_history_id = serializers.IntegerField(required=False, label="导入历史ID")
+        folder_id = serializers.IntegerField(required=False, label="目标目录ID", default=0)
         # 覆盖模式下，如果存在同名的策略、告警组、处理套餐将会被覆盖。
         # 非覆盖模式下，如果存在同名的策略、告警组、处理套餐，将会给名称加上"_clone"后缀，然后新建。
         is_overwrite_mode = serializers.BooleanField(
@@ -971,6 +972,7 @@ class ImportConfigResource(Resource):
                 collect_config_list,
                 strategy_config_list,
                 view_config_list,
+                validated_request_data["folder_id"],
                 validated_request_data["is_overwrite_mode"],
             )
 
