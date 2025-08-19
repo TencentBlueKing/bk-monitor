@@ -262,7 +262,7 @@ class ResultTableAndDataSource:
             return cluster_info
         cluster_info["kafka_config"].update({"topic": kt.topic, "partition": kt.partition})
         try:
-            c = models.ClusterInfo.objects.get(cluster_id=ds.mq_cluster_id)
+            c = models.ClusterInfo.objects.get(bk_tenant_id=self.bk_tenant_id, cluster_id=ds.mq_cluster_id)
         except Exception:
             logger.error("kafka ClusterInfo: %s not found", ds.mq_cluster_id)
             return cluster_info
@@ -304,7 +304,9 @@ class ResultTableAndDataSource:
         ).first()
         if table_id_vm_obj:
             try:
-                vm_cluster_domain = models.ClusterInfo.objects.get(cluster_id=table_id_vm_obj.vm_cluster_id).domain_name
+                vm_cluster_domain = models.ClusterInfo.objects.get(
+                    bk_tenant_id=self.bk_tenant_id, cluster_id=table_id_vm_obj.vm_cluster_id
+                ).domain_name
             except models.ClusterInfo.DoesNotExist:
                 vm_cluster_domain = ""
             storage_dict[models.ClusterInfo.TYPE_VM] = {
@@ -351,27 +353,24 @@ class ResultTableAndDataSource:
 
 class StorageClusterDetail:
     @classmethod
-    def get_detail(cls, cluster_id: str | int) -> list[dict[str, Any]]:
+    def get_detail(cls, bk_tenant_id: str, cluster_id: str | int) -> list[dict[str, Any]]:
         type_func_map = {
             models.ClusterInfo.TYPE_KAFKA: cls.get_kafka_detail,
             models.ClusterInfo.TYPE_INFLUXDB: cls.get_influxdb_proxy_detail,
             models.ClusterInfo.TYPE_ES: cls.get_es_detail,
             models.ClusterInfo.TYPE_VM: cls.get_vm_details,
         }
-        obj = cls.get_cluster(cluster_id=int(cluster_id))
+        obj = cls.get_cluster(bk_tenant_id=bk_tenant_id, cluster_id=int(cluster_id))
         func = type_func_map.get(obj.cluster_type)
         if not func:
             raise ValueError("not support cluster type")
         return func(cluster_obj=obj)
 
     @classmethod
-    def get_cluster(cls, cluster_id: int | None = None) -> models.ClusterInfo:
+    def get_cluster(cls, bk_tenant_id: str, cluster_id: int) -> models.ClusterInfo:
         """获取集群信息"""
-        if not cluster_id:
-            raise ValueError("cluster_id is required")
-
         try:
-            return models.ClusterInfo.objects.get(cluster_id=cluster_id)
+            return models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
         except models.ClusterInfo.DoesNotExist:
             logger.error("kafka cluster: %s not found", cluster_id)
             raise ValueError("cluster_id: %s not found", cluster_id)

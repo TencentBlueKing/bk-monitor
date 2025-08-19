@@ -81,10 +81,7 @@ def get_platform_data_ids(space_type: str | None = None, bk_tenant_id=DEFAULT_TE
 
 
 # TODO: BkBase多租户
-def get_table_info_for_influxdb_and_vm(
-    table_id_list: list | None = None,
-    bk_tenant_id: str | None = DEFAULT_TENANT_ID,
-) -> dict:
+def get_table_info_for_influxdb_and_vm(bk_tenant_id: str, table_id_list: list | None = None) -> dict:
     """获取influxdb 和 vm的结果表"""
     vm_tables = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id).values(
         "result_table_id", "vm_cluster_id", "vm_result_table_id", "bk_tenant_id"
@@ -98,7 +95,7 @@ def get_table_info_for_influxdb_and_vm(
         for data in vm_tables
     }
 
-    influxdb_tables = models.InfluxDBStorage.objects.values(
+    influxdb_tables = models.InfluxDBStorage.objects.filter(bk_tenant_id=bk_tenant_id).values(
         "table_id", "database", "real_table_name", "influxdb_proxy_storage_id", "partition_tag"
     )
     # 如果结果表存在，则过滤指定的结果表
@@ -142,9 +139,9 @@ def get_table_info_for_influxdb_and_vm(
     # 仅有几条记录，查询一次 vm 集群列表，获取到集群ID和名称关系
     vm_cluster_id_name = {
         cluster["cluster_id"]: cluster["cluster_name"]
-        for cluster in models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM).values(
-            "cluster_id", "cluster_name"
-        )
+        for cluster in models.ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM
+        ).values("cluster_id", "cluster_name")
     }
     # 处理 vm 的数据信息
     for table_id, detail in vm_table_map.items():
@@ -165,63 +162,6 @@ def get_table_info_for_influxdb_and_vm(
                     "storage_type": models.ClusterInfo.TYPE_VM,
                     "cmdb_level_vm_rt": detail["cmdb_level_vm_rt"],
                 }
-            )
-        else:
-            detail.update(
-                {
-                    "cluster_name": "",
-                    "storage_name": storage_name,
-                    "db": "",
-                    "measurement": MeasurementType.BK_SPLIT.value,
-                    "tags_key": [],
-                    "storage_type": models.ClusterInfo.TYPE_VM,
-                }
-            )
-            table_id_info[table_id] = detail
-    return table_id_info
-
-
-def compose_monitor_table_detail_for_bkbase_type(table_id_list: list | None = None) -> dict:
-    """
-    针对接入过计算平台类型的结果表，组装其详情信息，为RESULT_TABLE_DETAIL使用,现阶段只有VM类型
-    TODO 该方法暂时未启用
-    @param table_id_list: 监控平台自身结果表列表
-    """
-    # 0. 先从BkBaseResultTable中提取必要信息：监控平台RT、计算平台RT、存储集群
-    bkbase_tables = models.BkBaseResultTable.objects.values("monitor_table_id", "storage_cluster_id", "bkbase_table_id")
-    # 1. 如果结果表存在，则过滤指定的结果表
-    if table_id_list:
-        bkbase_tables = bkbase_tables.filter(monitor_table_id__in=table_id_list)
-
-    # 2. 拼接基本信息 监控RT:{vm_rt:vm_rt,storage_id:storage_id}
-    bkbase_table_map = {
-        data["monitor_table_id"]: {"vm_rt": data["bkbase_table_id"], "storage_id": data["storage_cluster_id"]}
-        for data in bkbase_tables
-    }
-
-    # 3. 查询集群名称和ID的映射关系，现阶段只适配VM
-    bkbase_cluster_id_name = {
-        cluster["cluster_id"]: cluster["cluster_name"]
-        for cluster in models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM).values(
-            "cluster_id", "cluster_name"
-        )
-    }
-
-    # 4. 循环遍历，拼接详情信息
-    table_id_info = {}
-    for table_id, detail in bkbase_table_map.items():
-        storage_name = bkbase_cluster_id_name.get(detail["storage_id"], "")
-        cmdb_level_vm_rt_opts = models.ResultTableOption.objects.filter(
-            table_id=table_id, name="cmdb_level_vm_rt"
-        ).first()
-        if cmdb_level_vm_rt_opts:
-            detail["cmdb_level_vm_rt"] = cmdb_level_vm_rt_opts.value
-        else:
-            detail["cmdb_level_vm_rt"] = ""
-
-        if table_id in table_id_info:
-            table_id_info[table_id].update(
-                {"vm_rt": detail["vm_rt"], "storage_name": storage_name, "cmdb_level_vm_rt": detail["cmdb_level_vm_rt"]}
             )
         else:
             detail.update(
