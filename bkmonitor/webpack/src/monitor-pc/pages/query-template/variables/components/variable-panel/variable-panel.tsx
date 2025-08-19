@@ -100,7 +100,12 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
       case VariableTypeEnum.DIMENSION_VALUE:
         return <DimensionValueVariableDetail variable={this.variable as DimensionValueVariableModel} />;
       case VariableTypeEnum.FUNCTION:
-        return <FunctionVariableDetail variable={this.variable as FunctionVariableModel} />;
+        return (
+          <FunctionVariableDetail
+            metricFunctions={this.metricFunctions}
+            variable={this.variable as FunctionVariableModel}
+          />
+        );
       case VariableTypeEnum.CONDITION:
         return <ConditionVariableDetail variable={this.variable as ConditionVariableModel} />;
       default:

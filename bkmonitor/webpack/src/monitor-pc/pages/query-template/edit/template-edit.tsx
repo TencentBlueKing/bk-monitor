@@ -24,13 +24,18 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+
+import TemplateCreate from '../create/template-create';
 
 import './template-edit.scss';
 
 @Component
-export default class TemplateEdit extends tsc<object> {
-  render() {
-    return <div class='template-edit' />;
+export default class TemplateEdit extends TemplateCreate {
+  title = this.$t('编辑查询模板');
+
+  init() {
+    this.curStep = 1;
   }
+
+  handleSubmit() {}
 }
