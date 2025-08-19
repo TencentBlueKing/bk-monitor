@@ -1687,6 +1687,15 @@ msgstr "事件对应的指标项"
 msgid "分类"
 msgstr "分类"
 
+msgid "数据上报"
+msgstr "数据上报"
+
+msgid "数据状态"
+msgstr "数据状态"
+
+msgid "自定义标签"
+msgstr "自定义标签"
+
 msgid "事件所属的数据分层，如 \"application\", \"os\", \"others\""
 msgstr "事件所属的数据分层，如 \"application\", \"os\", \"others\""
 
@@ -2080,6 +2089,9 @@ msgstr "异常"
 
 msgid "无数据"
 msgstr "无数据"
+
+msgid "有数据"
+msgstr "有数据"
 
 msgid "集群名称"
 msgstr "集群名称"
@@ -5921,6 +5933,9 @@ msgstr "网页"
 msgid "远程调用"
 msgstr "远程调用"
 
+msgid "其他语言"
+msgstr "其他语言"
+
 msgid "高级(Advances)"
 msgstr "高级(Advances)"
 
@@ -7976,6 +7991,9 @@ msgstr "操作"
 msgid "调用链"
 msgstr "调用链"
 
+msgid "性能分析"
+msgstr "性能分析"
+
 msgid "统计"
 msgstr "统计"
 
@@ -8388,6 +8406,15 @@ msgstr "接口"
 msgid "调用类型"
 msgstr "调用类型"
 
+msgid "调用服务"
+msgstr "调用服务"
+
+msgid "查看告警"
+msgstr "查看告警"
+
+msgid "查看指标"
+msgstr "查看指标"
+
 msgid "平均响应时间"
 msgstr "平均响应时间"
 
@@ -8512,6 +8539,18 @@ msgstr "查看告警事件"
 msgid "查看相关指标"
 msgstr "查看相关指标"
 
+msgid "接口下钻"
+msgstr "接口下钻"
+
+msgid "查看三方应用"
+msgstr "查看三方应用"
+
+msgid "服务概览"
+msgstr "服务概览"
+
+msgid "资源拓扑"
+msgstr "资源拓扑"
+
 msgid "展开服务"
 msgstr "展开服务"
 
@@ -8526,6 +8565,24 @@ msgstr "查看关联应用"
 
 msgid "关系调用"
 msgstr "关系调用"
+
+msgid "主调总量"
+msgstr "主调总量"
+
+msgid "主调平均耗时"
+msgstr "主调平均耗时"
+
+msgid "主调错误量"
+msgstr "主调错误量"
+
+msgid "被调总量"
+msgstr "被调总量"
+
+msgid "被调平均耗时"
+msgstr "被调平均耗时"
+
+msgid "被调错误量"
+msgstr "被调错误量"
 
 msgid "Span列表请求失败: {e.data.get('message')}"
 msgstr "Span列表请求失败: {e.data.get('message')}"
