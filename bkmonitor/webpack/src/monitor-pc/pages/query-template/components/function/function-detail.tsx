@@ -27,69 +27,118 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { type AggFunction } from '../../typings';
 import { type VariableModelType } from '../../variables';
-import { type IFunctionOptionsItem } from '../type/query-config';
-import { QueryVariablesTool } from '../utils/query-variable-tool';
+import { getTemplateSrv } from '../../variables/template/template-srv';
+import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
 
 import './function-detail.scss';
 
 interface FunctionProps {
-  /* 函数 */
-  functions: IFunctionOptionsItem[];
+  /* 已选函数数组 */
+  value: AggFunction[];
   /* 变量列表 */
   variables?: VariableModelType[];
 }
 
 @Component
 export default class FunctionDetail extends tsc<FunctionProps> {
-  /* 函数 */
-  @Prop({ type: Array }) functions: IFunctionOptionsItem[];
+  /* 已选函数数组 */
+  @Prop({ type: Array }) value: AggFunction[];
   /* 变量列表 */
   @Prop({ default: () => [] }) variables?: VariableModelType[];
   variablesToolInstance = new QueryVariablesTool();
+  templateSrv = getTemplateSrv();
 
   get variableMap() {
     if (!this.variables?.length) {
       return {};
     }
     return this.variables?.reduce?.((prev, curr) => {
-      prev[curr.name] = curr.value;
+      prev[curr.name] = curr;
       return prev;
     }, {});
   }
 
-  get functionsToVariableModel() {
-    if (!this.functions?.length) {
+  /** 将已选函数数组 源数据数组 转换为渲染所需的 QueryVariablesTransformResult 结构数组 */
+  get functionsToVariableModel(): QueryVariablesTransformResult[] {
+    if (!this.value?.length) {
       return [];
     }
-    const models = this.functions.reduce((prev, curr) => {
-      const result = this.variablesToolInstance.transformVariables(curr, this.variableMap);
-      if (!Array.isArray(result.value)) {
-        prev.push(result);
+    const models = this.value.reduce((prev, curr) => {
+      const result = this.variablesToolInstance.transformVariables(curr);
+      if (!result.value) {
         return prev;
       }
-      prev.push(...result.value.map(dimensionId => ({ ...result, value: dimensionId })));
+      prev.push(result);
       return prev;
     }, []);
 
-    return models.filter(item => item.value?.id);
+    return models;
+  }
+
+  functionNameRender(item) {
+    const domTag = item.isVariable ? VariableSpan : 'span';
+    const paramsStr = item.value?.params?.map?.(param => param.value)?.toString?.();
+    return <domTag class='function-name'>{`${item.value?.id}${paramsStr ? `(${paramsStr})` : ''}; `}</domTag>;
+  }
+
+  createFunctionNameVariableChunk(variableName, content) {
+    return (
+      <span
+        id={variableName}
+        class='function-name-variable-chunk'
+      >
+        {content}
+      </span>
+    );
+  }
+
+  functionNameWrapRender() {
+    let content: HTMLElement[] | string = '--';
+    if (this.functionsToVariableModel?.length) {
+      content = this.functionsToVariableModel.reduce((prev, curr) => {
+        // debugger;
+        if (!curr.isVariable) {
+          prev.push(this.functionNameRender(curr));
+          return prev;
+        }
+        const varValue = this.templateSrv.replace(curr.value as string, this.variableMap);
+        if (!varValue) {
+          prev.push(this.createFunctionNameVariableChunk(curr.variableName, this.functionNameRender(curr)));
+          return prev;
+        }
+        if (Array.isArray(varValue)) {
+          prev.push(
+            this.createFunctionNameVariableChunk(
+              curr.variableName,
+              varValue.map(v =>
+                this.functionNameRender({ value: v, variableName: curr.variableName, isVariable: curr.isVariable })
+              )
+            )
+          );
+          return prev;
+        }
+        prev.push(
+          this.createFunctionNameVariableChunk(
+            curr.variableName,
+            this.functionNameRender({ value: varValue, variableName: curr.variableName, isVariable: curr.isVariable })
+          )
+        );
+        return prev;
+      }, []);
+    }
+
+    return <div class='function-name-wrap'>{content}</div>;
   }
 
   render() {
     return (
       <div class='template-function-detail-component'>
-        <span class='function-label'>{`${this.$t('函数')}`}</span>
+        <span class='function-label'>{this.$slots?.label || this.$t('函数')}</span>
         <span class='function-colon'>:</span>
-        <span class='function-name-wrap'>
-          {this.functionsToVariableModel.map(variableModel => {
-            const domTag = variableModel.isVariable ? VariableSpan : 'span';
-            const paramsStr = variableModel.value?.params?.map?.(param => param.value)?.toString?.();
-            return (
-              <domTag class='function-name'>{`${variableModel.value?.id}${paramsStr ? `(${paramsStr})` : ''}; `}</domTag>
-            );
-          })}
-        </span>
+        {this.functionNameWrapRender()}
       </div>
     );
   }

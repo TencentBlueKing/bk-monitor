@@ -77,7 +77,7 @@ export default class ExpressionDetail extends tsc<ExpressionProps> {
   render() {
     return (
       <div class='template-expression-detail-component'>
-        <span class='expression-label'>{`${this.$t('表达式')}`}</span>
+        <span class='expression-label'>{this.$slots?.label || this.$t('表达式')}</span>
         <span class='expression-colon'>:</span>
         <span class='expression-name-wrap'>
           {this.expressionToVariableModel.map(variableModel => {
