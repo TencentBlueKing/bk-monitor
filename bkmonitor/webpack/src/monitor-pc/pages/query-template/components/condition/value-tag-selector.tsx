@@ -331,7 +331,7 @@ export default class ValueTagSelector extends tsc<IProps> {
       />
     );
     return (
-      <div class='retrieval__value-tag-selector-component'>
+      <div class='template-config__value-tag-selector-component'>
         <div
           class={['value-tag-selector-component-wrap', { active: this.isFocus }]}
           onClick={this.handleClick}
