@@ -35,7 +35,7 @@ import IntervalCreator from '../interval/interval-creator';
 import MethodCreator from '../method/method-creator';
 import MetricCreator from '../metric/metric-creator';
 
-import type { AggFunction, MetricDetailV2, QueryConfig } from '../../typings';
+import type { AggCondition, AggFunction, MetricDetailV2, QueryConfig } from '../../typings';
 import type {
   IConditionOptionsItem,
   IDimensionOptionsItem,
@@ -49,6 +49,7 @@ interface IProps {
   metricFunctions?: IFunctionOptionsItem[];
   queryConfig?: QueryConfig;
   variables?: IVariablesItem[];
+  onChangeCondition?: (val: AggCondition[]) => void;
   onChangeDimension?: (val: string[]) => void;
   onChangeFunction?: (val: AggFunction[]) => void;
   onChangeInterval?: (val: number | string) => void;
@@ -141,12 +142,15 @@ export default class QueryConfigCreator extends tsc<IProps> {
   handleChangeInterval(val: number | string) {
     this.$emit('changeInterval', val);
   }
+  handleConditionChange(val: AggCondition[]) {
+    this.$emit('changeCondition', val);
+  }
 
   render() {
     return (
       <div class='template-query-config-creator-component'>
         <div class='alias-wrap'>
-          <span>{this.queryConfig?.alias || 'a'}</span>
+          <span>{this.queryConfig.alias || 'a'}</span>
         </div>
         <div class='query-config-wrap'>
           {[
@@ -210,6 +214,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                   options={this.getDimensionList as IConditionOptionsItem[]}
                   value={this.queryConfig.agg_condition}
                   variables={this.getConditionVariables}
+                  onChange={this.handleConditionChange}
                   onCreateValueVariable={this.handleCreateDimensionValueVariable}
                   onCreateVariable={this.handleCreateConditionVariable}
                 />
