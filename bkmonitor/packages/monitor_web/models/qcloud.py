@@ -245,10 +245,6 @@ class CloudMonitoringTask(AbstractRecordModel):
         null=True, blank=True, verbose_name="最新数据点时间", help_text="最新收到数据的时间"
     )
 
-    created_by = models.CharField(max_length=64, verbose_name="创建人", help_text="任务创建人")
-
-    updated_by = models.CharField(max_length=64, verbose_name="更新人", help_text="任务更新人")
-
     class Meta:
         verbose_name = "云监控采集任务"
         verbose_name_plural = "云监控采集任务"

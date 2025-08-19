@@ -522,8 +522,6 @@ class CloudMonitoringSaveConfigResource(Resource):
             secret_id=secret_id,
             secret_key=secret_key,
             status=CloudMonitoringTask.STATUS_CONNECTING,
-            created_by="system",  # TODO: 从用户上下文获取
-            updated_by="system",  # TODO: 从用户上下文获取
         )
 
         logger.info(f"创建云监控任务成功: task_id={task_id}, namespace={namespace}")
@@ -672,7 +670,7 @@ class CloudMonitoringTaskListResource(Resource):
 
         return queryset.filter(
             models.Q(collect_name__icontains=search)
-            | models.Q(update_by__icontains=search)
+            | models.Q(update_user__icontains=search)
             | models.Q(namespace__in=product_namespaces)
         )
 
@@ -714,7 +712,7 @@ class CloudMonitoringTaskListResource(Resource):
                 "product_name": product_name,
                 "latest_datapoint": latest_datapoint,
                 "regions": regions,  # 返回地域列表
-                "latest_updater": task.update_by,
+                "latest_updater": task.update_user,
                 "latest_update_time": latest_update_time,
             }
 
