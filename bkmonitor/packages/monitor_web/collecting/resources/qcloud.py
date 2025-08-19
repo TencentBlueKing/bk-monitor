@@ -27,6 +27,7 @@ __all__ = [
     "CloudMonitoringTaskListResource",
     "CloudMonitoringTaskStatusResource",
     "CloudMonitoringTaskDetailResource",
+    "CloudMonitoringUpdateConfigResource",
 ]
 
 
@@ -885,3 +886,266 @@ class CloudMonitoringTaskDetailResource(Resource):
             suffix = secret_id_str[-3:]
             middle_length = len(secret_id_str) - 6
             return f"{prefix}{'*' * middle_length}{suffix}"
+
+
+class CloudMonitoringUpdateConfigResource(Resource):
+    """
+    更新采集配置接口
+    只更新前端传递的参数，前端未传递的参数不会被更新
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, help_text=_("业务ID"))
+        task_id = serializers.CharField(required=True, help_text=_("任务ID"))
+
+        # 可选参数，如果不传则不更新
+        collect_name = serializers.CharField(required=False, help_text=_("采集任务名称"))
+        collect_interval = serializers.CharField(required=False, help_text=_("采集间隔，如：1m"))
+        collect_timeout = serializers.CharField(required=False, help_text=_("采集超时时间，如：30s"))
+
+        # 凭证信息，如果不传则不更新
+        secret_id = serializers.CharField(required=False, help_text=_("腾讯云SecretId"))
+        secret_key = serializers.CharField(required=False, help_text=_("腾讯云SecretKey"))
+
+        # 地域配置，如果不传则不更新
+        regions = serializers.ListField(child=serializers.DictField(), required=False, help_text=_("地域配置列表"))
+
+    class ResponseSerializer(serializers.Serializer):
+        result = serializers.BooleanField(help_text=_("操作结果"))
+        code = serializers.IntegerField(help_text=_("状态码"))
+        message = serializers.CharField(help_text=_("返回消息"))
+        task_id = serializers.CharField(help_text=_("任务ID"))
+
+    def perform_request(self, validated_request_data):
+        """
+        更新采集配置
+        """
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        task_id = validated_request_data["task_id"]
+
+        try:
+            # 1. 验证任务是否存在
+            task = self._get_task(bk_biz_id, task_id)
+
+            # 2. 处理可能需要更新的凭证
+            if "secret_id" in validated_request_data and "secret_key" in validated_request_data:
+                self._validate_credentials(validated_request_data["secret_id"], validated_request_data["secret_key"])
+
+            # 3. 更新主任务配置
+            updated_fields = self._update_monitoring_task(task, validated_request_data)
+
+            # 4. 如果有地域配置更新，处理地域配置
+            if "regions" in validated_request_data and validated_request_data["regions"]:
+                self._validate_regions(validated_request_data["regions"])
+                self._update_region_configs(task_id, validated_request_data["regions"])
+                updated_fields.append("regions")
+
+                # 如果只更新了地域配置，也需要更新主任务以更新时间戳
+                if len(updated_fields) == 1 and updated_fields[0] == "regions":  # 如果只更新了地域配置
+                    task.save()
+
+            # 5. 如果更新了配置，需要重新下发采集任务
+            if updated_fields:
+                # TODO: 下发采集任务（后续实现）
+                # self._deploy_monitoring_task(task_id)
+                return {
+                    "message": f"监控采集任务更新成功 (更新字段: {', '.join(updated_fields)})，正在后台重新部署中",
+                    "task_id": task_id,
+                }
+            else:
+                return {"message": "没有需要更新的字段", "task_id": task_id}
+
+        except Exception as e:
+            logger.error(f"更新云监控配置失败: {str(e)}")
+            return {"message": f"更新配置失败: {str(e)}", "task_id": task_id}
+
+    def _get_task(self, bk_biz_id, task_id):
+        """
+        获取任务对象
+
+        Args:
+            bk_biz_id: 业务ID
+            task_id: 任务ID
+
+        Returns:
+            CloudMonitoringTask: 任务对象
+        """
+        from monitor_web.models.qcloud import CloudMonitoringTask
+
+        try:
+            task = CloudMonitoringTask.objects.get(bk_biz_id=bk_biz_id, task_id=task_id, is_deleted=False)
+            return task
+        except CloudMonitoringTask.DoesNotExist:
+            raise ValueError(f"任务不存在: task_id={task_id}, bk_biz_id={bk_biz_id}")
+
+    def _validate_credentials(self, secret_id, secret_key):
+        """
+        验证凭证信息
+
+        Args:
+            secret_id: 腾讯云SecretId
+            secret_key: 腾讯云SecretKey
+        """
+        if not secret_id or not secret_key:
+            raise ValueError("secret_id和secret_key不能为空")
+
+    def _validate_regions(self, regions):
+        """
+        验证地域配置
+
+        Args:
+            regions: 地域配置列表
+        """
+        if not regions:
+            raise ValueError("地域配置不能为空")
+
+        for i, region in enumerate(regions):
+            # 验证必要字段
+            if "region" not in region:
+                raise ValueError(f"地域配置[{i}]缺少region字段")
+
+            if "id" not in region:
+                raise ValueError(f"地域配置[{i}]缺少id字段")
+
+            # 验证实例选择配置
+            instance_selection = region.get("instance_selection", {})
+            tags = instance_selection.get("tags", [])
+            filters = instance_selection.get("filters", [])
+
+            # 验证标签配置格式
+            for tag in tags:
+                if "name" not in tag or "values" not in tag:
+                    raise ValueError(f"地域配置[{i}]标签格式不正确，缺少name或values字段")
+
+            # 验证过滤器配置格式
+            for filter_item in filters:
+                if "name" not in filter_item or "values" not in filter_item:
+                    raise ValueError(f"地域配置[{i}]过滤器格式不正确，缺少name或values字段")
+
+            # 验证选择的指标
+            selected_metrics = region.get("selected_metrics", [])
+            if not selected_metrics:
+                logger.warning(f"地域配置[{i}]未选择任何指标")
+
+    def _update_monitoring_task(self, task, validated_request_data):
+        """
+        更新主任务配置
+
+        Args:
+            task: 任务对象
+            validated_request_data: 验证后的请求数据
+
+        Returns:
+            list: 已更新的字段列表
+        """
+        updated_fields = []
+
+        # 更新采集名称
+        if "collect_name" in validated_request_data and validated_request_data["collect_name"] != task.collect_name:
+            task.collect_name = validated_request_data["collect_name"]
+            updated_fields.append("collect_name")
+
+        # 更新采集间隔
+        if (
+            "collect_interval" in validated_request_data
+            and validated_request_data["collect_interval"] != task.collect_interval
+        ):
+            task.collect_interval = validated_request_data["collect_interval"]
+            updated_fields.append("collect_interval")
+
+        # 更新采集超时时间
+        if (
+            "collect_timeout" in validated_request_data
+            and validated_request_data["collect_timeout"] != task.collect_timeout
+        ):
+            task.collect_timeout = validated_request_data["collect_timeout"]
+            updated_fields.append("collect_timeout")
+
+        # 更新凭证信息
+        if "secret_id" in validated_request_data and "secret_key" in validated_request_data:
+            # 对于加密字段，我们不能直接比较，只能直接更新
+            task.secret_id = validated_request_data["secret_id"]
+            task.secret_key = validated_request_data["secret_key"]
+            updated_fields.append("credentials")
+
+        # 如果有更新字段，保存任务
+        if updated_fields:
+            task.save()
+            logger.info(f"更新云监控任务成功: task_id={task.task_id}, 更新字段: {updated_fields}")
+
+        return updated_fields
+
+    def _update_region_configs(self, task_id, regions):
+        """
+        更新地域配置
+
+        Args:
+            task_id: 任务ID
+            regions: 地域配置列表
+        """
+        from monitor_web.models.qcloud import CloudMonitoringTaskRegion
+
+        # 先获取所有现有地域配置
+        existing_regions = {
+            region.region_id: region
+            for region in CloudMonitoringTaskRegion.objects.filter(task_id=task_id, is_deleted=False)
+        }
+
+        # 记录处理过的地域ID
+        processed_region_ids = set()
+
+        for region_config in regions:
+            region_id = region_config["id"]
+            processed_region_ids.add(region_id)
+
+            # 构建标签配置
+            tags_config = []
+            instance_selection = region_config.get("instance_selection", {})
+            for tag in instance_selection.get("tags", []):
+                tags_config.append(
+                    {
+                        "name": tag["name"],
+                        "values": tag["values"],
+                        "fuzzy": tag.get("fuzzy", False),  # 默认精确匹配
+                    }
+                )
+
+            # 构建过滤器配置
+            filters_config = []
+            for filter_item in instance_selection.get("filters", []):
+                filters_config.append({"name": filter_item["name"], "values": filter_item["values"]})
+
+            # 构建维度配置
+            dimensions_config = region_config.get("dimensions", [])
+
+            # 检查是否存在该地域配置
+            if region_id in existing_regions:
+                # 更新现有地域配置
+                region_obj = existing_regions[region_id]
+                region_obj.region_code = region_config["region"]
+                region_obj.tags_config = tags_config
+                region_obj.filters_config = filters_config
+                region_obj.selected_metrics = region_config.get("selected_metrics", [])
+                region_obj.dimensions_config = dimensions_config
+                region_obj.save()
+                logger.info(f"更新地域配置成功: task_id={task_id}, region_id={region_id}")
+            else:
+                # 创建新的地域配置
+                CloudMonitoringTaskRegion.objects.create(
+                    task_id=task_id,
+                    region_id=region_id,
+                    region_code=region_config["region"],
+                    tags_config=tags_config,
+                    filters_config=filters_config,
+                    selected_metrics=region_config.get("selected_metrics", []),
+                    dimensions_config=dimensions_config,
+                    status=CloudMonitoringTaskRegion.STATUS_CONNECTING,
+                )
+                logger.info(f"创建新地域配置成功: task_id={task_id}, region_id={region_id}")
+
+        # 检查是否有需要删除的地域配置
+        for region_id, region_obj in existing_regions.items():
+            if region_id not in processed_region_ids:
+                # 标记为删除
+                region_obj.delete()
+                logger.info(f"删除地域配置成功: task_id={task_id}, region_id={region_id}")

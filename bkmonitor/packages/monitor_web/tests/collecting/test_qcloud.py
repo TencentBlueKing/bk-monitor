@@ -17,6 +17,7 @@ from packages.monitor_web.collecting.resources.qcloud import (
     CloudProductConfigResource,
     CloudMonitoringTaskListResource,
     CloudMonitoringTaskDetailResource,
+    CloudMonitoringUpdateConfigResource,
 )
 
 
@@ -1763,3 +1764,307 @@ class TestCloudMonitoringTaskDetailResource:
             assert False, "应该抛出异常，因为没有提供task_id参数"
         except ValueError as e:
             assert "必须提供task_id参数" in str(e), f"期望错误消息包含'必须提供task_id参数'，实际为: {str(e)}"
+
+
+class TestCloudMonitoringUpdateConfigResource:
+    """
+    Test suite for CloudMonitoringUpdateConfigResource.
+    Focuses on verifying the task update functionality.
+    """
+
+    def create_mock_task(
+        self, task_id, bk_biz_id, namespace, collect_name, collect_interval, collect_timeout, secret_id, secret_key
+    ):
+        """Helper method to create mock CloudMonitoringTask"""
+        mock_task = Mock()
+        mock_task.task_id = task_id
+        mock_task.bk_biz_id = bk_biz_id
+        mock_task.namespace = namespace
+        mock_task.collect_name = collect_name
+        mock_task.collect_interval = collect_interval
+        mock_task.collect_timeout = collect_timeout
+        mock_task.secret_id = secret_id
+        mock_task.secret_key = secret_key
+        mock_task.save = Mock()
+        return mock_task
+
+    def create_mock_region_config(
+        self,
+        task_id,
+        region_id,
+        region_code,
+        tags_config=None,
+        filters_config=None,
+        selected_metrics=None,
+        dimensions_config=None,
+    ):
+        """Helper method to create mock CloudMonitoringTaskRegion"""
+        mock_region = Mock()
+        mock_region.task_id = task_id
+        mock_region.region_id = region_id
+        mock_region.region_code = region_code
+        mock_region.tags_config = tags_config or []
+        mock_region.filters_config = filters_config or []
+        mock_region.selected_metrics = selected_metrics or []
+        mock_region.dimensions_config = dimensions_config or []
+        mock_region.save = Mock()
+        mock_region.delete = Mock()
+        return mock_region
+
+    @patch(
+        "packages.monitor_web.collecting.resources.qcloud.CloudMonitoringUpdateConfigResource._update_region_configs"
+    )
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_update_collect_name_success(self, mock_task_model, mock_update_regions):
+        """
+        Test successful update of collect_name.
+        """
+        # 1. Setup: Mock task
+        mock_task = self.create_mock_task(
+            task_id="test_task_123",
+            bk_biz_id=1,
+            namespace="QCE/CVM",
+            collect_name="Old Name",
+            collect_interval="1m",
+            collect_timeout="30s",
+            secret_id="old_secret_id",
+            secret_key="old_secret_key",
+        )
+        mock_task_model.objects.get.return_value = mock_task
+        mock_task_model.DoesNotExist = Exception
+
+        # 2. Action: Update only collect_name
+        resource = CloudMonitoringUpdateConfigResource()
+        request_data = {"bk_biz_id": 1, "task_id": "test_task_123", "collect_name": "New Name"}
+        result = resource.perform_request(request_data)
+
+        # 3. Assertions
+        assert "监控采集任务更新成功" in result["message"]
+        assert "collect_name" in result["message"]
+        assert mock_task.collect_name == "New Name"
+        assert mock_task.save.called
+        assert not mock_update_regions.called  # No region updates
+
+    @patch(
+        "packages.monitor_web.collecting.resources.qcloud.CloudMonitoringUpdateConfigResource._update_region_configs"
+    )
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_update_collect_interval_and_timeout_success(self, mock_task_model, mock_update_regions):
+        """
+        Test successful update of collect_interval and collect_timeout.
+        """
+        # 1. Setup: Mock task
+        mock_task = self.create_mock_task(
+            task_id="test_task_123",
+            bk_biz_id=1,
+            namespace="QCE/CVM",
+            collect_name="Test Name",
+            collect_interval="1m",
+            collect_timeout="30s",
+            secret_id="old_secret_id",
+            secret_key="old_secret_key",
+        )
+        mock_task_model.objects.get.return_value = mock_task
+        mock_task_model.DoesNotExist = Exception
+
+        # 2. Action: Update interval and timeout
+        resource = CloudMonitoringUpdateConfigResource()
+        request_data = {"bk_biz_id": 1, "task_id": "test_task_123", "collect_interval": "5m", "collect_timeout": "60s"}
+        result = resource.perform_request(request_data)
+
+        # 3. Assertions
+        assert "监控采集任务更新成功" in result["message"]
+        assert "collect_interval" in result["message"]
+        assert "collect_timeout" in result["message"]
+        assert mock_task.collect_interval == "5m"
+        assert mock_task.collect_timeout == "60s"
+        assert mock_task.save.called
+        assert not mock_update_regions.called  # No region updates
+
+    @patch(
+        "packages.monitor_web.collecting.resources.qcloud.CloudMonitoringUpdateConfigResource._update_region_configs"
+    )
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringUpdateConfigResource._validate_credentials")
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_update_credentials_success(self, mock_task_model, mock_validate_credentials, mock_update_regions):
+        """
+        Test successful update of credentials.
+        """
+        # 1. Setup: Mock task
+        mock_task = self.create_mock_task(
+            task_id="test_task_123",
+            bk_biz_id=1,
+            namespace="QCE/CVM",
+            collect_name="Test Name",
+            collect_interval="1m",
+            collect_timeout="30s",
+            secret_id="old_secret_id",
+            secret_key="old_secret_key",
+        )
+        mock_task_model.objects.get.return_value = mock_task
+        mock_task_model.DoesNotExist = Exception
+
+        # 2. Action: Update credentials
+        resource = CloudMonitoringUpdateConfigResource()
+        request_data = {
+            "bk_biz_id": 1,
+            "task_id": "test_task_123",
+            "secret_id": "new_secret_id",
+            "secret_key": "new_secret_key",
+        }
+        result = resource.perform_request(request_data)
+
+        # 3. Assertions
+        assert "监控采集任务更新成功" in result["message"]
+        assert "credentials" in result["message"]
+        assert mock_task.secret_id == "new_secret_id"
+        assert mock_task.secret_key == "new_secret_key"
+        assert mock_validate_credentials.called
+        assert mock_task.save.called
+        assert not mock_update_regions.called  # No region updates
+
+    @patch("monitor_web.models.qcloud.CloudMonitoringTaskRegion")
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringUpdateConfigResource._validate_regions")
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_update_regions_success(self, mock_task_model, mock_validate_regions, mock_region_model):
+        """
+        Test successful update of regions configuration.
+        """
+        # 1. Setup: Mock task and regions
+        mock_task = self.create_mock_task(
+            task_id="test_task_123",
+            bk_biz_id=1,
+            namespace="QCE/CVM",
+            collect_name="Test Name",
+            collect_interval="1m",
+            collect_timeout="30s",
+            secret_id="test_secret_id",
+            secret_key="test_secret_key",
+        )
+        mock_task_model.objects.get.return_value = mock_task
+        mock_task_model.DoesNotExist = Exception
+
+        # Existing region (will be updated)
+        existing_region = self.create_mock_region_config(
+            task_id="test_task_123",
+            region_id=1,
+            region_code="ap-beijing",
+            tags_config=[],
+            filters_config=[],
+            selected_metrics=["CPUUtilization"],
+        )
+
+        # Existing region (will be deleted)
+        region_to_delete = self.create_mock_region_config(
+            task_id="test_task_123",
+            region_id=2,
+            region_code="ap-shanghai",
+            tags_config=[],
+            filters_config=[],
+            selected_metrics=["CPUUtilization"],
+        )
+
+        # Mock region queryset
+        mock_regions = {1: existing_region, 2: region_to_delete}
+        mock_region_queryset = MagicMock()
+        mock_region_queryset.filter.return_value = mock_regions.values()
+        mock_region_model.objects.filter.return_value = mock_region_queryset
+        mock_region_model.objects.create = Mock(return_value=Mock())
+
+        # 2. Action: Update regions
+        resource = CloudMonitoringUpdateConfigResource()
+
+        # Apply mock to _update_region_configs method to use real implementation
+        real_update_regions = resource._update_region_configs
+        resource._update_region_configs = lambda task_id, regions: real_update_regions(task_id, regions)
+
+        request_data = {
+            "bk_biz_id": 1,
+            "task_id": "test_task_123",
+            "regions": [
+                {
+                    "id": 1,  # Existing region to update
+                    "region": "ap-beijing",
+                    "instance_selection": {
+                        "tags": [{"name": "env", "values": ["prod"]}],
+                        "filters": [{"name": "status", "values": ["running"]}],
+                    },
+                    "selected_metrics": ["CPUUtilization", "MemoryUsage"],
+                },
+                {
+                    "id": 3,  # New region to add
+                    "region": "ap-guangzhou",
+                    "instance_selection": {"tags": [], "filters": []},
+                    "selected_metrics": ["DiskUsage"],
+                },
+            ],
+        }
+
+        with patch.object(resource, "_get_task", return_value=mock_task):
+            with patch.dict(mock_regions, {1: existing_region, 2: region_to_delete}, clear=True):
+                with patch("monitor_web.models.qcloud.CloudMonitoringTaskRegion.objects.filter") as mock_filter:
+                    mock_filter.return_value = mock_regions.values()
+                    with patch("monitor_web.models.qcloud.CloudMonitoringTaskRegion.objects.create") as mock_create:
+                        result = resource.perform_request(request_data)
+                        # 验证创建新地域配置
+                        assert mock_create.called, "Should create a new region config"
+
+        # 3. Assertions
+        assert "监控采集任务更新成功" in result["message"]
+        assert "regions" in result["message"]
+        assert mock_validate_regions.called
+
+        # Check that existing region is updated and new region is created
+        assert mock_task.save.called
+        assert region_to_delete.delete.called  # Region 2 should be deleted
+
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_update_nonexistent_task(self, mock_task_model):
+        """
+        Test error handling when updating a non-existent task.
+        """
+        # 1. Setup: Mock task model to raise DoesNotExist
+        mock_task_model.objects.get.side_effect = Exception("DoesNotExist")
+        mock_task_model.DoesNotExist = Exception
+
+        # 2. Action: Attempt to update a non-existent task
+        resource = CloudMonitoringUpdateConfigResource()
+        request_data = {"bk_biz_id": 1, "task_id": "nonexistent_task", "collect_name": "New Name"}
+        result = resource.perform_request(request_data)
+
+        # 3. Assertions
+        assert "更新配置失败" in result["message"]
+        assert "nonexistent_task" in result["task_id"]
+
+    @patch("monitor_web.models.qcloud.CloudMonitoringTask")
+    def test_no_fields_to_update(self, mock_task_model):
+        """
+        Test when no fields need to be updated.
+        """
+        # 1. Setup: Mock task with existing values
+        mock_task = self.create_mock_task(
+            task_id="test_task_123",
+            bk_biz_id=1,
+            namespace="QCE/CVM",
+            collect_name="Test Name",
+            collect_interval="1m",
+            collect_timeout="30s",
+            secret_id="test_secret_id",
+            secret_key="test_secret_key",
+        )
+        mock_task_model.objects.get.return_value = mock_task
+        mock_task_model.DoesNotExist = Exception
+
+        # 2. Action: Update with same values
+        resource = CloudMonitoringUpdateConfigResource()
+        request_data = {
+            "bk_biz_id": 1,
+            "task_id": "test_task_123",
+            "collect_name": "Test Name",  # Same as existing
+            "collect_interval": "1m",  # Same as existing
+        }
+        result = resource.perform_request(request_data)
+
+        # 3. Assertions
+        assert "没有需要更新的字段" in result["message"]
+        assert not mock_task.save.called  # Should not save if no changes
