@@ -92,25 +92,25 @@ title:(quick brown)`
 | data | list | Trace 数据列表  |
 
 #### data 列表中的 Trace 对象字段
-| 字段名                                         | 类型 | 描述        |
+| 字段名                                         | 类型   | 描述        |
 |---------------------------------------------|------|-----------|
-| elapsed_time                                | int | 耗时        |
-| end_time                                    | int | 结束时间      |
-| kind                                        | int | 类型        |
+| elapsed_time                                | int  | 耗时        |
+| end_time                                    | int  | 结束时间      |
+| kind                                        | int  | 类型        |
 | links                                       | list | 关联信息      |
-| parent_span_id                              | str | 父 Span ID |
-| span_id                                     | str | Span ID   |
-| span_name                                   | str | 接口名称      |
-| start_time                                  | int | 开始时间      |
-| time                                        | str | 时间        |
-| trace_id                                    | str | Trace ID  |
-| trace_state                                 | str | Trace 状态  |
-| attributes                                  | str | 属性        |
-| events                                      | list | 事件        |
-| resource                                    | str | 资源        |
-| status.code                                 | int | 状态        |
-| status.message                              | str | 状态详情      |
-| events          | list | 事件        |
+| parent_span_id                              | str  | 父 Span ID |
+| span_id                                     | str  | Span ID   |
+| span_name                                   | str  | 接口名称      |
+| start_time                                  | int  | 开始时间      |
+| time                                        | str  | 时间        |
+| trace_id                                    | str  | Trace ID  |
+| trace_state                                 | str  | Trace 状态  |
+| attributes                                  | dict | 属性信息的顶层字段 |
+| resource                                    | dict | 资源信息的顶层字段 |
+| events          | dict | 事件信息的顶层字段 |
+| status.code                                 | int  | 状态        |
+| status.message                              | str  | 状态详情      |
+
 
 #### 示例响应
 
