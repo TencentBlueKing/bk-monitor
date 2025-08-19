@@ -12209,3 +12209,24 @@ msgstr "JSON Parsing Error: {msg}"
 
 #~ msgid "存在非法的策略ID, {}"
 #~ msgstr "There is an illegal strategy ID, {}"
+
+msgid "告警事件"
+msgstr "Alarm Event"
+
+msgid "服务调用总数Top5"
+msgstr "Total number of service calls Top5"
+
+msgid "服务错误次数Top5"
+msgstr "Service error times Top5"
+
+msgid "服务平均响应耗时Top5"
+msgstr "Average response time Top5"
+
+msgid "服务接口调用总数Top5"
+msgstr "Service interface call total Top5"
+
+msgid "服务接口错误率Top5"
+msgstr "Service interface error rate Top5"
+
+msgid "服务接口平均耗时Top5"
+msgstr "Service interface average time Top5"
