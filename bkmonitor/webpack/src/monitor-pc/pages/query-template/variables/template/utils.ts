@@ -37,3 +37,27 @@ export function escapeRegex(value: string): string {
  */
 export const variableRegex =
   /\$([\w\u4e00-\u9fa5]+)|\[\[([\w\u4e00-\u9fa5]+?)(?::([\w\u4e00-\u9fa5]+))?\]\]|\${([\w\u4e00-\u9fa5]+)(?:\.([^:^}]+))?(?::([^}]+))?}/g;
+
+export function getVariableNameInput(val: string) {
+  const matches = val.matchAll(/\$\{([^}]+)\}/g);
+  let str = '';
+  for (const match of matches) {
+    str = match[1];
+    break;
+  }
+  return str;
+}
+
+export function isVariableName(val: string) {
+  return !!val && /^\$\{([\w\u4e00-\u9fa5]+)(?:\.([^:^}]+))?(?::([^}]+))?}$/.test(val);
+}
+
+export function validateVariableNameInput(str: string): string {
+  if (!str) {
+    return window.i18n.t('变量名不能为空') as string;
+  }
+  if (!/^[\u4e00-\u9fa5a-zA-Z0-9_.:]+$/.test(str)) {
+    return window.i18n.t('变量名不能包含非法字符') as string;
+  }
+  return '';
+}

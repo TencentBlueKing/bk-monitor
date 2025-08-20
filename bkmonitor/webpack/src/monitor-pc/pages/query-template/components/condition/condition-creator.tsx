@@ -28,7 +28,7 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchMetricDimensionValueList } from '../../service/dimension';
-import { isVariableName } from '../utils/utils';
+import { isVariableName } from '../../variables/template/utils';
 import ConditionCreatorSelector from './condition-creator-selector';
 import {
   type IFilterField,
@@ -45,6 +45,7 @@ import type { IConditionOptionsItem, IVariablesItem } from '../type/query-config
 import './condition-creator.scss';
 
 interface IProps {
+  allVariables?: { name: string }[];
   dimensionValueVariables?: { name: string }[];
   hasVariableOperate?: boolean;
   metricDetail?: MetricDetailV2;
@@ -72,6 +73,8 @@ export default class ConditionCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) value: AggCondition[];
   @Prop({ default: () => null }) metricDetail: MetricDetailV2;
   @Prop({ default: () => [], type: Array }) dimensionValueVariables: { name: string }[];
+  /* 所有变量，用于校验变量名是否重复 */
+  @Prop({ default: () => [] }) allVariables: { name: string }[];
 
   cacheDimensionValues = new Map();
 
@@ -199,6 +202,7 @@ export default class ConditionCreator extends tsc<IProps> {
       <div class='template-condition-creator-component'>
         {this.showLabel && <div class='condition-label'>{this.$slots?.label || this.$t('过滤条件')}</div>}
         <ConditionCreatorSelector
+          allVariables={this.allVariables}
           dimensionValueVariables={this.dimensionValueVariables}
           fields={this.fields as IFilterField[]}
           getValueFn={this.getValueFn}
