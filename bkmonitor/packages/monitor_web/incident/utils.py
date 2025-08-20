@@ -11,25 +11,6 @@ specific language governing permissions and limitations under the License.
 import re
 
 
-def get_chinese_labels_dict(cls, default_value=0):
-    """
-    动态获取中文标签映射字典
-
-    Args:
-        default_value: 字典值的默认值，默认为0
-
-    Returns:
-        dict: 中文标签为key，default_value为value的字典
-    """
-    result = {}
-    # 遍历所有枚举成员
-    for member in cls.__members__.values():
-        # 获取中文标签
-        chinese_label = member.label
-        result[chinese_label] = default_value
-    return result
-
-
 def pascal_to_snake(name):
     """
     将大驼峰（PascalCase）转换为下划线命名法（snake_case）
