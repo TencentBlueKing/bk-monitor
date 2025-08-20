@@ -827,4 +827,5 @@ export default {
   请输入仓库名称: 'Please enter a store name',
   请输入名称: 'Please enter a name',
   时间格式化: 'Time formatting',
+  批量输入: 'Batch input',
 };
