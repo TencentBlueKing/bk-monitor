@@ -32,6 +32,7 @@ import type { MetricDetailV2 } from './metric';
 // 聚合条件接口
 export interface AggCondition {
   condition?: string;
+  dimension_name?: string;
   key: string;
   method?: string;
   value?: string[];
