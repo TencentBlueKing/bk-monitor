@@ -32,7 +32,7 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
 import { CancelToken } from 'monitor-api/cancel';
-import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
+import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
   type IUnifyQuerySeriesItem,
@@ -295,10 +295,8 @@ class QueryTemplateGraph extends CommonSimpleChart {
               name: item.name,
               cursor: 'auto',
               data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
-              stack: item.stack || random(10),
               unit: this.viewOptions.unit || this.panel.options?.unit || item.unit,
               z: 1,
-              traceData: item.trace_data ?? '',
               customData: item.customData,
               dimensions: item.dimensions ?? {},
             })) as any
@@ -326,10 +324,6 @@ class QueryTemplateGraph extends CommonSimpleChart {
                 dashOffset: '4',
                 color,
                 width: 1.5,
-              },
-              areaStyle: {
-                opacity: 0.2,
-                color,
               },
               markPoint,
             };
@@ -438,15 +432,8 @@ class QueryTemplateGraph extends CommonSimpleChart {
             })
           );
           this.handleDrillDownOption(this.metrics);
-          this.initialized = true;
           this.empty = false;
-          if (!this.hasSetEvent) {
-            setTimeout(this.handleSetLegendEvent, 300);
-            this.hasSetEvent = true;
-          }
-          setTimeout(() => {
-            this.handleResize();
-          }, 100);
+          this.initialized = true;
         } else {
           this.initialized = this.metrics.length > 0;
           this.emptyText = window.i18n.t('暂无数据');
@@ -919,7 +906,6 @@ class QueryTemplateGraph extends CommonSimpleChart {
     }
   }
   render() {
-    const showLegend = this.panel.options?.legend?.displayMode !== 'hidden';
     return (
       <div class='query-template-graph'>
         {!this.empty ? (
@@ -933,9 +919,7 @@ class QueryTemplateGraph extends CommonSimpleChart {
                   ref='baseChart'
                   width={this.width}
                   height={this.height}
-                  groupId={this.panel.dashboardId}
                   hoverAllTooltips={this.hoverAllTooltips}
-                  needZrClick={this.panel.options?.need_zr_click_event}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
@@ -943,14 +927,12 @@ class QueryTemplateGraph extends CommonSimpleChart {
                 />
               )}
             </div>
-            {showLegend && (
-              <div class='chart-legend'>
-                <ListLegend
-                  legendData={this.legendData}
-                  onSelectLegend={this.handleSelectLegend}
-                />
-              </div>
-            )}
+            <div class='chart-legend'>
+              <ListLegend
+                legendData={this.legendData}
+                onSelectLegend={this.handleSelectLegend}
+              />
+            </div>
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
