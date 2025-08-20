@@ -173,13 +173,8 @@
       </bk-select>
       <div v-show="directoryErrorShow" class="directory-error">{{ $t('请选择目标目录') }}</div>
     </section>
-    <!--底部按钮-->
-    <section
-      v-if="collapseList.length"
-      class="import-config-footer"
-    >
-      <!--背景占位-->
-      <div :class="{ 'footer-banner': isScroll }" />
+    <!-- 是否覆盖 -->
+    <section v-if="collapseList.length" :class="['import-config-overwrite', {'is-scroll': isScroll}]">
       <span class="is-overwrite">
         <span>{{ $t('是否覆盖') }}</span>
         <bk-switcher
@@ -188,6 +183,14 @@
           size="small"
         />
       </span>
+    </section>
+    <!--底部按钮-->
+    <section
+      v-if="collapseList.length"
+      class="import-config-footer"
+    >
+      <!--背景占位-->
+      <div :class="{ 'footer-banner': isScroll }" />
       <bk-button
         theme="primary"
         class="mr10"
@@ -733,4 +736,20 @@ $itemHoverColor: #e1ecff;
     color: #ea3636;
   }
 }
+
+.import-config-overwrite {
+  padding: 0 10px;
+  margin-bottom: 24px;
+  &.is-scroll {
+    margin-bottom: 60px;
+  }
+}
+
+.import-config-footer {
+  padding: 0 10px;
+
+  .footer-button2 {
+    margin-left: 78px;
+  }
+} 
 </style>
