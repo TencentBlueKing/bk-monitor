@@ -56,6 +56,10 @@ export default class AddVariableOption extends tsc<IProps> {
     this.inputValue = val;
   }
 
+  beforeDestroy() {
+    this.popoverDestroy();
+  }
+
   handleShowPopover(e: Event) {
     if (!this.popoverInstance) {
       this.popoverInstance = this.$bkPopover(e.currentTarget, {
