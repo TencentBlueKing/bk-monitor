@@ -51,7 +51,6 @@ export default defineComponent({
       http
         .request('retrieve/getShareParams', { query: { token: linkId } }, { catchIsShowMessage: false })
         .then(resp => {
-          debugger;
           if (resp.result) {
             const data = resp.data.data;
             const { storage, indexItem, catchFieldCustomConfig } = data.store;

@@ -38,12 +38,6 @@ from .data_link import (  # noqa
     VMResultTableConfig,
     VMStorageBindingConfig,
 )
-from .data_pipeline import (
-    DataPipeline,
-    DataPipelineDataSource,
-    DataPipelineEtlConfig,
-    DataPipelineSpace,
-)
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .es_snapshot import (
     EsSnapshot,
@@ -155,11 +149,6 @@ __all__ = [
     "SpaceStickyInfo",
     "BkAppSpaceRecord",
     "SpaceTypeToResultTableFilterAlias",
-    # data pipeline
-    "DataPipeline",
-    "DataPipelineSpace",
-    "DataPipelineEtlConfig",
-    "DataPipelineDataSource",
     "AccessVMRecord",
     "SpaceVMInfo",
     "SpaceRelatedStorageInfo",

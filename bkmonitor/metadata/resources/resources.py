@@ -2899,18 +2899,9 @@ class QueryResultTableStorageDetailResource(Resource):
         bcs_cluster_id = serializers.CharField(required=False, label="集群ID")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info(
-                "QueryResultTableStorageDetailResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
-            )
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
-
+        bk_tenant_id = get_request_tenant_id() or DEFAULT_TENANT_ID
         source = ResultTableAndDataSource(
+            bk_tenant_id=bk_tenant_id,
             table_id=validated_request_data.get("table_id", None),
             bk_data_id=validated_request_data.get("bk_data_id", None),
             bcs_cluster_id=validated_request_data.get("bcs_cluster_id", None),

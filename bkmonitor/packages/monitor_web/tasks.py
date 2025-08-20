@@ -442,6 +442,7 @@ def import_config(
     collect_config_list,
     strategy_config_list,
     view_config_list,
+    folder_id: int = 0,
     is_overwrite_mode=False,
 ):
     """
@@ -467,7 +468,7 @@ def import_config(
 
     import_collect(bk_biz_id, history_instance, collect_config_list)
     import_strategy(bk_biz_id, history_instance, strategy_config_list, is_overwrite_mode)
-    import_view(bk_biz_id, view_config_list, is_overwrite_mode)
+    import_view(bk_biz_id, view_config_list, folder_id, is_overwrite_mode)
     if (
         ImportDetail.objects.filter(history_id=history_instance.id, import_status=ImportDetailStatus.IMPORTING).count()
         == 0

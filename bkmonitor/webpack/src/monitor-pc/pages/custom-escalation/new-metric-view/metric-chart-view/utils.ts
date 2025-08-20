@@ -287,3 +287,19 @@ export const optimizedDeepEqual = (obj1: NestedObject, obj2: NestedObject) => {
 
   return str1 === str2;
 };
+
+/** 时间戳转化成统一的秒 */
+export const convertTimestamp = (timestamp: number | string) => {
+  const num = Number(timestamp);
+  if (isNaN(num)) {
+    return timestamp;
+  }
+  const str = num.toString();
+
+  // 如果是13位时间戳，除以1000取整得到10位
+  if (str.length === 13) {
+    return Math.floor(num / 1000);
+  }
+
+  return num;
+};

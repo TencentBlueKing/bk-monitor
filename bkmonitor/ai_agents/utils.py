@@ -58,3 +58,14 @@ def collect_streaming_response(generator):
         return {"full_content": full_content, "json_chunks": json_chunks}
     # 否则返回原始拼接的内容
     return full_content
+
+
+def get_nested_value(data: dict, key: str, sep: str = "."):
+    """获取嵌套字典中的值"""
+    keys = key.split(sep)
+    for k in keys:
+        if isinstance(data, dict) and k in data:
+            data = data[k]
+        else:
+            return None
+    return data

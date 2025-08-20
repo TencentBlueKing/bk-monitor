@@ -539,6 +539,8 @@ class ConfigTypes:
     QUEUE_METRIC_BATCH_SIZE = "metrics_batch_size"
     QUEUE_TRACES_BATCH_SIZE = "traces_batch_size"
     QUEUE_LOGS_BATCH_SIZE = "logs_batch_size"
+    QUEUE_PROFILES_BATCH_SIZE = "profiles_batch_size"
+
     DB_SLOW_COMMAND_CONFIG = "db_slow_command_config"
     DB_CONFIG = "db_config"
     ATTRIBUTES_CONFIG_LOGS = "attributes_config_logs"
@@ -549,6 +551,7 @@ class ConfigTypes:
             (cls.QUEUE_METRIC_BATCH_SIZE, _("每批Metric发送大小")),
             (cls.QUEUE_TRACES_BATCH_SIZE, _("每批Trace发送大小")),
             (cls.QUEUE_LOGS_BATCH_SIZE, _("每批Log发送大小")),
+            (cls.QUEUE_PROFILES_BATCH_SIZE, _("每批Profile发送大小")),
             (cls.DB_SLOW_COMMAND_CONFIG, _("db慢命令配置")),
             (cls.DB_CONFIG, _("db配置")),
             (cls.ATTRIBUTES_CONFIG_LOGS, _("attributes 配置(logs)")),

@@ -364,8 +364,6 @@
     }
 
     mounted() {
-      debugger;
-
       if (this.isFold) {
         this.chartTitle = this.title;
       }

@@ -51,7 +51,13 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-p
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { handleGetMinPrecision, handleSetFormatterFunc, handleYAxisLabelFormatter, timeToDayNum } from './utils';
+import {
+  convertTimestamp,
+  handleGetMinPrecision,
+  handleSetFormatterFunc,
+  handleYAxisLabelFormatter,
+  timeToDayNum,
+} from './utils';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import type { IMetricAnalysisConfig } from '../type';
@@ -416,7 +422,9 @@ class NewMetricChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       return [startTime, endTime];
     }
-    return [startTime, endTime];
+    const startTimeStr = convertTimestamp(startTime);
+    const endTimeStr = convertTimestamp(endTime);
+    return [startTimeStr, endTimeStr];
   }
   /* 粒度计算 */
   downSampleRangeComputed(downSampleRange: string, timeRange: number[]) {
@@ -485,6 +493,7 @@ class NewMetricChart extends CommonSimpleChart {
         if (primaryKey) {
           paramsArr.push(primaryKey);
         }
+
         paramsArr.push({
           ...newParams,
           unify_query_param: {

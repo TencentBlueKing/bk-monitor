@@ -9,8 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.views.renderers import MonitorJSONRenderer
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from core.drf_resource import resource as r
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from metadata import resources as resource
 
 RENDER_CLASSES = [MonitorJSONRenderer]
@@ -352,38 +352,6 @@ class StickSpaceViewSet(MetaViewSet):
 
 class RefreshMetricForKihanViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.RefreshMetricForKihan)]
-
-
-class ListDataPipelineViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.ListDataPipeline)]
-
-
-class ListDataSourceByDataPipelineViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.ListDataSourceByDataPipeline)]
-
-
-class CreateDataPipelineViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.CreateDataPipeline)]
-
-
-class UpdateDataPipelineViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.UpdateDataPipeline)]
-
-
-class GetStorageClusterInfoViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.GetClusterInfo)]
-
-
-class GetTransferListViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.GetTransferList)]
-
-
-class GetEtlConfigViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.GetEtlConfig)]
-
-
-class CheckClusterHealthViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.CheckClusterHealth)]
 
 
 class ListClustersViewSet(MetaViewSet):

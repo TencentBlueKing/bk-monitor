@@ -1426,7 +1426,7 @@ class IndexSetHandler(APIModel):
                     "source_type": "bkdata",
                     "bkbase_table_id": doris_result_table,
                     "data_label": f"bklog_index_set_{self.index_set_id}_analysis",
-                    "table_id": f"bklog_index_set_{self.index_set_id}_{doris_result_table}.__default__",
+                    "table_id": f"bklog_index_set_{self.index_set_id}_{doris_result_table}.__analysis__",
                     "need_create_index": False,
                 },
             )
@@ -1704,7 +1704,7 @@ class BaseIndexSetHandler:
                         "storage_type": "doris",
                         "bkbase_table_id": doris_result_table,
                         "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
-                        "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__default__",
+                        "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
                         "need_create_index": False,
                         "source_type": "bkdata",
                     },

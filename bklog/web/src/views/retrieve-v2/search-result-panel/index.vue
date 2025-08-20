@@ -41,6 +41,7 @@
   const isSearchRersultLoading = computed(() => store.state.indexSetQueryResult.is_loading);
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
+  const requestAddition = computed(() => store.getters.requestAddition);
   const isNoIndexSet = computed(() => !store.state.retrieve.indexSetList.length);
   const isOriginShow = computed(() => props.activeTab === 'origin');
   const pageLoading = computed(
@@ -63,7 +64,7 @@
   const retrieveParamsWithCommonAddition = computed(() => {
     return {
       ...retrieveParams.value,
-      addition: [...retrieveParams.value.addition, ...getCommonFilterAdditionWithValues(store.state)]
+      addition: [...requestAddition.value, ...getCommonFilterAdditionWithValues(store.state)]
     }
   })
 

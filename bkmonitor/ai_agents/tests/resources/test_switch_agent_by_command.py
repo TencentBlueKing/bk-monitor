@@ -8,16 +8,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from ai_agents.models import AgentConfigManager
 from ai_agents.resources.resources import (
     CreateChatCompletionResource,
     CreateChatSessionContentResource,
     CreateChatSessionResource,
     DestroyChatSessionResource,
 )
-from ai_agents.services.api_client import AidevApiClientBuilder
+from aidev_agent.api.bk_aidev import BKAidevApi
 from ai_agents.utils import generate_uuid, collect_streaming_response
 from django.conf import settings
+from aidev_agent.services.config_manager import AgentConfigManager
+
+api_client = BKAidevApi.get_client(app_code=settings.AIDEV_AGENT_APP_CODE, app_secret=settings.AIDEV_AGENT_APP_SECRET)
 
 
 def test_switch_agent_by_command_metadata():
@@ -31,12 +33,10 @@ def test_switch_agent_by_command_metadata():
         "metadata_diagnosis": "test-metadata",
     }
 
-    # 默认API Client
-    api_client = AidevApiClientBuilder.get_client(
-        bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+    basic_config = AgentConfigManager.get_config(
+        agent_code=settings.AIDEV_AGENT_APP_CODE,
+        resource_manager=api_client,
     )
-
-    basic_config = AgentConfigManager.get_config(agent_code=settings.AIDEV_AGENT_APP_CODE, api_client=api_client)
 
     create_res = CreateChatSessionResource().request(
         session_code=session_code, session_name="test_switch_agent_by_command"
@@ -127,12 +127,7 @@ def test_switch_agent_by_command_promql_helper():
         "metadata_diagnosis": "promql_helper_xxx",
     }
 
-    # 默认API Client
-    api_client = AidevApiClientBuilder.get_client(
-        bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
-    )
-
-    basic_config = AgentConfigManager.get_config(agent_code=settings.AIDEV_AGENT_APP_CODE, api_client=api_client)
+    basic_config = AgentConfigManager.get_config(agent_code=settings.AIDEV_AGENT_APP_CODE, resource_manager=api_client)
 
     create_res = CreateChatSessionResource().request(
         session_code=session_code, session_name="test_switch_agent_by_command"

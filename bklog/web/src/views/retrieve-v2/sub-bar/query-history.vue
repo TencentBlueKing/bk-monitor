@@ -38,7 +38,7 @@
               >
                 <span
                   class="bklog-icon"
-                  :class="getClass(item.search_mode)"
+                  :class="getClass(item.params.search_mode || item.search_mode)"
                 >
                   <!-- {{ getText(item.search_mode) }} -->
                 </span>
@@ -165,8 +165,8 @@
         this.popoverInstance.show();
       },
       handleClickHistory(item) {
-        const { search_mode, params } = item;
-        const { keyword, addition, ip_chooser } = params;
+        const { params } = item;
+        const { keyword, addition, ip_chooser, search_mode = item.search_mode  } = params;
         this.$emit('change', { keyword, addition, ip_chooser, search_mode });
         this.popoverInstance.hide();
       },

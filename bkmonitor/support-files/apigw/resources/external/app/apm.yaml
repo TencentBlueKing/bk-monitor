@@ -125,3 +125,21 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "query flatten trace list"
+  /app/apm/list_flatten_spans/:
+    post:
+      operationId: list_flatten_spans
+      description: 查询 span
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/trace_query_web/list_flatten_spans/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query flatten span list"

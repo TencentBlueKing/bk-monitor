@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 
 from django.core.management.base import BaseCommand, CommandError
@@ -34,6 +34,7 @@ class Command(BaseCommand):
         self.stdout.write(
             json.dumps(
                 ResultTableAndDataSource(
+                    bk_tenant_id=options["bk_tenant_id"],
                     table_id=table_id,
                     bk_data_id=bk_data_id,
                     bcs_cluster_id=bcs_cluster_id,
@@ -46,6 +47,7 @@ class Command(BaseCommand):
         )
 
     def add_arguments(self, parser):
+        parser.add_argument("--bk_tenant_id", type=str, help="租户ID")
         parser.add_argument("--bk_data_id", type=int, default=None, help="数据源ID")
         parser.add_argument("--table_id", type=str, default=None, help="结果表ID")
         parser.add_argument("--data_label", type=str, default=None, help="结果表别名")
