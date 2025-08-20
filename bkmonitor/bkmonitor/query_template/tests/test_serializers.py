@@ -19,5 +19,5 @@ from . import data
 class TestSerializers:
     @pytest.mark.parametrize("template", [data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE, data.CALLEE_P99_QUERY_TEMPLATE])
     def test_query_template_serializers(self, template: dict[str, Any]):
-        serializer = serializers.QueryTemplateSerializer(data=data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE)
+        serializer = serializers.QueryTemplateSerializer(data=template)
         serializer.is_valid(raise_exception=True)

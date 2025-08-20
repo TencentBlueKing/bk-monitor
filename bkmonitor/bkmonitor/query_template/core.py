@@ -76,7 +76,7 @@ class BaseVariableRender(abc.ABC):
 
 
 class ConstantVariableRender(BaseVariableRender):
-    TYPE = constants.VariableType.CONSTANTS.value
+    TYPE: str = constants.VariableType.CONSTANTS.value
 
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
         tmpl: str = json.dumps(
@@ -151,6 +151,7 @@ class TagValuesVariableRender(BaseVariableRender):
 
 
 class ConditionsVariableRender(BaseVariableRender):
+    _VARIABLE_FIELD: str = "where"
     TYPE = constants.VariableType.CONDITIONS.value
 
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
@@ -161,43 +162,23 @@ class ConditionsVariableRender(BaseVariableRender):
 
             val_tmpl: str = self.to_template(variable["name"])
             for query_config in self._query_instance.query_configs:
-                where: list[dict[str, Any] | str] = query_config.get("where") or []
+                where: list[dict[str, Any] | str] = query_config.get(self._VARIABLE_FIELD) or []
                 if val_tmpl not in where:
                     continue
 
-                query_config["where"] = []
+                query_config[self._VARIABLE_FIELD] = []
                 for cond in where:
                     if cond == val_tmpl:
-                        query_config["where"].extend(value)
+                        query_config[self._VARIABLE_FIELD].extend(value)
                         continue
-                    query_config["where"].append(cond)
+                    query_config[self._VARIABLE_FIELD].append(cond)
 
         return self._query_instance
 
 
-class FunctionsVariableRender(BaseVariableRender):
+class FunctionsVariableRender(ConditionsVariableRender):
+    _VARIABLE_FIELD: str = "functions"
     TYPE = constants.VariableType.FUNCTIONS.value
-
-    def render(self, context: dict[str, Any] = None) -> QueryInstance:
-        for variable in self._variables:
-            value: list[dict[str, Any]] | None = self.get_value(context, variable)
-            if value is None:
-                continue
-
-            val_tmpl: str = self.to_template(variable["name"])
-            for query_config in self._query_instance.query_configs:
-                functions: list[dict[str, Any] | str] = query_config.get("functions") or []
-                if val_tmpl not in functions:
-                    continue
-
-                query_config["functions"] = []
-                for cond in functions:
-                    if cond == val_tmpl:
-                        query_config["functions"].extend(value)
-                        continue
-                    query_config["functions"].append(cond)
-
-        return self._query_instance
 
 
 class MethodVariableRender(BaseVariableRender):
@@ -211,13 +192,14 @@ class MethodVariableRender(BaseVariableRender):
 
             val_tmpl: str = self.to_template(variable["name"])
             for query_config in self._query_instance.query_configs:
-                try:
-                    method: str = query_config["metric"]["method"]
-                except KeyError:
+                metrics: list[dict[str, Any]] = query_config.get("metrics") or []
+                if not metrics:
                     continue
 
-                if method == val_tmpl:
-                    query_config["metric"]["method"] = value
+                for metric in metrics:
+                    if val_tmpl != metric.get("method"):
+                        continue
+                    metric["method"] = value
 
         return self._query_instance
 

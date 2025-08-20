@@ -62,12 +62,12 @@ def callee_p99_query_params() -> dict[str, Any]:
             COMMON_BUILDER.alias("a")
             .group_by("le", "${GROUP_BY}")
             .func(_id="histogram_quantile", params=[{"id": "scalar", "value": 0.99}])
-            .metric(field="rpc_server_handled_seconds_bucket", method="SUM", alias="a")
+            .metric(field="rpc_server_handled_seconds_bucket", method="${METHOD}", alias="a")
         )
         .add_query(
             COMMON_BUILDER.alias("b")
             .group_by("${GROUP_BY}")
-            .metric(field="rpc_server_handled_total", method="SUM", alias="b")
+            .metric(field="rpc_server_handled_total", method="${METHOD}", alias="b")
             .conditions(filter_dict_to_conditions(q_to_dict(Q(code_type="${CODE_TYPE}")), []))
         )
         .expression("(b > bool ${ALARM_THRESHOLD_VALUE}) * a * 1000")
@@ -88,8 +88,8 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
     "variables": [
         {
             "name": "GROUP_BY",
-            "type": constants.VariableType.GROUP_BY.value,
             "alias": "监控维度",
+            "type": constants.VariableType.GROUP_BY.value,
             "config": {
                 "default": ["service_name", "callee_method"],
                 "related_metrics": [
@@ -100,8 +100,8 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
         },
         {
             "name": "CONDITIONS",
-            "type": constants.VariableType.CONDITIONS.value,
             "alias": "维度过滤",
+            "type": constants.VariableType.CONDITIONS.value,
             "config": {
                 "options": ["callee_service", "callee_method"],
                 "default": [{"key": "rpc_system", "method": "eq", "value": ""}],
@@ -113,14 +113,14 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
         },
         {
             "name": "FUNCTIONS",
-            "type": constants.VariableType.FUNCTIONS.value,
             "alias": "函数",
+            "type": constants.VariableType.FUNCTIONS.value,
             "config": {"default": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}]},
         },
         {
             "name": "ALARM_THRESHOLD_VALUE",
-            "type": constants.VariableType.CONSTANTS.value,
             "alias": "告警起算值",
+            "type": constants.VariableType.CONSTANTS.value,
             "config": {"data_type": constants.DataType.INTEGER.value, "default": 0},
             "description": "告警起算值是为了避免在请求数较少的情况下，因少量请求的异常导致告警触发，起算值可以根据实际业务情况进行调整。",
         },
@@ -134,8 +134,8 @@ CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
     "variables": [
         {
             "name": "GROUP_BY",
-            "type": constants.VariableType.GROUP_BY.value,
             "alias": "监控维度",
+            "type": constants.VariableType.GROUP_BY.value,
             "config": {
                 "default": ["service_name", "callee_method"],
                 "related_metrics": [
@@ -150,8 +150,8 @@ CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
         },
         {
             "name": "CONDITIONS",
-            "type": constants.VariableType.CONDITIONS.value,
             "alias": "维度过滤",
+            "type": constants.VariableType.CONDITIONS.value,
             "config": {
                 "default": [{"key": "rpc_system", "method": "eq", "value": ""}],
                 "related_metrics": [
@@ -166,14 +166,20 @@ CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
         },
         {
             "name": "FUNCTIONS",
-            "type": constants.VariableType.FUNCTIONS.value,
             "alias": "函数",
+            "type": constants.VariableType.FUNCTIONS.value,
             "config": {"default": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}]},
         },
         {
+            "name": "METHOD",
+            "alias": "汇聚",
+            "type": constants.VariableType.METHOD.value,
+            "config": {"default": "SUM"},
+        },
+        {
             "name": "CODE_TYPE",
-            "type": constants.VariableType.TAG_VALUES.value,
             "alias": "返回码类型",
+            "type": constants.VariableType.TAG_VALUES.value,
             "config": {
                 "default": ["success"],
                 "related_tag": "code_type",
