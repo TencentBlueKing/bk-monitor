@@ -109,7 +109,7 @@ export default class ConfigPanel extends tsc<object> {
                   dimension_name: '主机名',
                 },
                 {
-                  key: 'ip',
+                  key: '${condition_variable}',
                   value: ['ipipipipipip'],
                   method: 'neq',
                   condition: 'and',
@@ -124,6 +124,19 @@ export default class ConfigPanel extends tsc<object> {
                 name: 'dimension',
                 value: ['bk_agent_id', 'device_name'],
                 type: VariableTypeEnum.DIMENSION,
+              },
+              {
+                name: 'condition_variable',
+                value: [
+                  {
+                    key: 'ip',
+                    value: ['ipipipipipip', 'xxxxxx'],
+                    method: 'neq',
+                    condition: 'and',
+                    dimension_name: '目标ID',
+                  },
+                ],
+                type: VariableTypeEnum.CONDITION,
               },
             ]}
           />
@@ -141,7 +154,10 @@ export default class ConfigPanel extends tsc<object> {
                     },
                   ],
                 },
-                '${functions_variable}',
+                {
+                  id: '${functions_variable}',
+                  params: [],
+                },
                 {
                   id: 'deriv',
                   params: [
@@ -158,14 +174,14 @@ export default class ConfigPanel extends tsc<object> {
               agg_condition: [
                 {
                   key: 'hostname',
-                  value: ['xxxxxx1', 'test22'],
+                  value: ['xxxxxx1', '${zjVariable}'],
                   method: 'eq',
                   condition: 'and',
                   dimension_name: '主机名',
                 },
                 {
                   key: 'ip',
-                  value: ['ipipipipipip'],
+                  value: ['ipipipipipip', '${condition_value_variable}'],
                   method: 'neq',
                   condition: 'and',
                   dimension_name: '目标ID',
@@ -196,6 +212,11 @@ export default class ConfigPanel extends tsc<object> {
                   },
                 ],
                 type: VariableTypeEnum.FUNCTION,
+              },
+              {
+                name: 'condition_value_variable',
+                value: ['vvvvv', 'ssss'],
+                type: VariableTypeEnum.DIMENSION_VALUE,
               },
             ]}
           />

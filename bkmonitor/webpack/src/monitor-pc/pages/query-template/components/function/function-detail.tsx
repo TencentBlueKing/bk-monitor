@@ -27,11 +27,12 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type AggFunction } from '../../typings';
-import { type VariableModelType } from '../../variables';
 import { getTemplateSrv } from '../../variables/template/template-srv';
 import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
+
+import type { AggFunction } from '../../typings';
+import type { VariableModelType } from '../../variables';
 
 import './function-detail.scss';
 
@@ -67,10 +68,11 @@ export default class FunctionDetail extends tsc<FunctionProps> {
       return [];
     }
     const models = this.value.reduce((prev, curr) => {
-      const result = this.variablesToolInstance.transformVariables(curr);
+      const result = this.variablesToolInstance.transformVariables(curr.id);
       if (!result.value) {
         return prev;
       }
+      result.value = curr;
       prev.push(result);
       return prev;
     }, []);
@@ -78,10 +80,11 @@ export default class FunctionDetail extends tsc<FunctionProps> {
     return models;
   }
 
-  functionNameRender(item) {
-    const domTag = item.isVariable ? VariableSpan : 'span';
+  functionNameRenderer(item) {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const DomTag = item.isVariable ? VariableSpan : 'span';
     const paramsStr = item.value?.params?.map?.(param => param.value)?.toString?.();
-    return <domTag class='function-name'>{`${item.value?.id}${paramsStr ? `(${paramsStr})` : ''}; `}</domTag>;
+    return <DomTag class='function-name'>{`${item.value?.id}${paramsStr ? `(${paramsStr})` : ''}; `}</DomTag>;
   }
 
   createFunctionNameVariableChunk(variableName, content) {
@@ -95,42 +98,45 @@ export default class FunctionDetail extends tsc<FunctionProps> {
     );
   }
 
-  functionNameWrapRender() {
-    let content: HTMLElement[] | string = '--';
-    if (this.functionsToVariableModel?.length) {
-      content = this.functionsToVariableModel.reduce((prev, curr) => {
-        // debugger;
-        if (!curr.isVariable) {
-          prev.push(this.functionNameRender(curr));
-          return prev;
-        }
-        const varValue = this.templateSrv.replace(curr.value as string, this.variableMap);
-        if (!varValue) {
-          prev.push(this.createFunctionNameVariableChunk(curr.variableName, this.functionNameRender(curr)));
-          return prev;
-        }
-        if (Array.isArray(varValue)) {
-          prev.push(
-            this.createFunctionNameVariableChunk(
-              curr.variableName,
-              varValue.map(v =>
-                this.functionNameRender({ value: v, variableName: curr.variableName, isVariable: curr.isVariable })
-              )
-            )
-          );
-          return prev;
-        }
+  functionNameWrapRenderer() {
+    const content = this.functionsToVariableModel?.reduce?.((prev, curr) => {
+      if (!curr.isVariable) {
+        prev.push(this.functionNameRenderer(curr));
+        return prev;
+      }
+      let varValue = '';
+      const result = this.templateSrv.replace(`\${${curr.variableName}:json}` as string, this.variableMap);
+      try {
+        varValue = JSON.parse(result);
+      } catch {
+        varValue = '';
+      }
+
+      if (Array.isArray(varValue)) {
         prev.push(
           this.createFunctionNameVariableChunk(
             curr.variableName,
-            this.functionNameRender({ value: varValue, variableName: curr.variableName, isVariable: curr.isVariable })
+            varValue.map(v =>
+              this.functionNameRenderer({ value: v, variableName: curr.variableName, isVariable: curr.isVariable })
+            )
           )
         );
         return prev;
-      }, []);
-    }
+      }
+      prev.push(
+        this.createFunctionNameVariableChunk(
+          curr.variableName,
+          this.functionNameRenderer({
+            value: varValue || curr.value,
+            variableName: curr.variableName,
+            isVariable: curr.isVariable,
+          })
+        )
+      );
+      return prev;
+    }, []);
 
-    return <div class='function-name-wrap'>{content}</div>;
+    return <div class='function-name-wrap'>{content?.length ? content : '--'}</div>;
   }
 
   render() {
@@ -138,7 +144,7 @@ export default class FunctionDetail extends tsc<FunctionProps> {
       <div class='template-function-detail-component'>
         <span class='function-label'>{this.$slots?.label || this.$t('函数')}</span>
         <span class='function-colon'>:</span>
-        {this.functionNameWrapRender()}
+        {this.functionNameWrapRenderer()}
       </div>
     );
   }
