@@ -41,6 +41,7 @@ import KvTag from './kv-tag';
 import './condition-creator-selector.scss';
 
 interface IProps {
+  allVariables?: { name: string }[];
   clearKey?: string;
   dimensionValueVariables?: { name: string }[];
   fields?: IFilterField[];
@@ -69,6 +70,8 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
   @Prop({ type: String, default: '' }) clearKey: string;
   @Prop({ type: Boolean, default: true }) hasVariableOperate: boolean;
   @Prop({ type: Array, default: () => [] }) dimensionValueVariables: { name: string }[];
+  /* 所有变量，用于校验变量名是否重复 */
+  @Prop({ default: () => [] }) allVariables: { name: string }[];
   @Ref('selector') selectorRef: HTMLDivElement;
 
   /* 是否显示弹出层 */
@@ -264,6 +267,7 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
         <div style='display: none;'>
           <div ref='selector'>
             <ConditionCreatorOptions
+              allVariables={this.allVariables}
               dimensionValueVariables={this.dimensionValueVariables}
               fields={[...this.fields]}
               getValueFn={this.getValueFn}
