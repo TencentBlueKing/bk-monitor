@@ -27,10 +27,11 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { ConditionMethodAliasMap } from '../../constants';
-import { type AggCondition, type ConditionDetailTagItem } from '../../typings';
 import { getTemplateSrv } from '../../variables/template/template-srv';
-import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
+import { QueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
+
+import type { AggCondition, ConditionDetailTagItem } from '../../typings';
 
 import './condition-detail-kv-tag.scss';
 
@@ -62,7 +63,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
   templateSrv = getTemplateSrv();
 
   get tipContent() {
-    return `<div style="max-width: 600px;">${this.value.key} ${ConditionMethodAliasMap[this.value.method]} ${this.localValue11.map(v => v.id).join(' OR ')}<div>`;
+    return `<div style="max-width: 600px;">${this.value.key} ${ConditionMethodAliasMap[this.value.method]} ${this.viewValue.map(v => v.id).join(' OR ')}<div>`;
   }
 
   get DomTag() {
@@ -86,12 +87,13 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
     }, []);
   }
 
-  get localValue11() {
+  get viewValue() {
     if (this.isConditionVariable) {
       return this.dimensionValueToVariableModel.map(v => ({
         id: v,
         name: this.showNameSlice(v),
         isVariable: false,
+        variableName: '',
       }));
     }
     return (this.dimensionValueToVariableModel as ConditionDetailTagItem['value'])?.reduce?.((prev, curr) => {
@@ -100,6 +102,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
           id: curr.value,
           name: this.showNameSlice(curr.value),
           isVariable: curr.isVariable,
+          variableName: '',
         });
         return prev;
       }
@@ -116,6 +119,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
             id: v,
             name: this.showNameSlice(v),
             isVariable: curr.isVariable,
+            variableName: '',
           }))
         );
         return prev;
@@ -124,9 +128,15 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
         id: varValue || curr.value,
         name: this.showNameSlice(varValue || curr.value),
         isVariable: curr.isVariable,
+        variableName: '',
       });
       return prev;
     }, []);
+  }
+
+  @Watch('viewValue')
+  calcHideCount(newVal) {
+    this.hideCount = this.visibleItemLimit ? newVal?.length - this.visibleItemLimit : 0;
   }
 
   showNameSlice(showName: string) {
@@ -136,8 +146,9 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
   valueWrapRenderer() {
     return (
       <div class='value-wrap'>
-        {this.localValue11.map((item, index) => {
-          const valueNameDomTag = item?.isVariable ? VariableSpan : this.DomTag;
+        {this.viewValue.map((item, index) => {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          const ValueNameDomTag = item?.isVariable ? VariableSpan : this.DomTag;
           return [
             index > 0 && (
               <this.DomTag
@@ -147,12 +158,12 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
                 OR
               </this.DomTag>
             ),
-            <valueNameDomTag
+            <ValueNameDomTag
               key={`${index}_key`}
               class='value-name'
             >
               {item.name || '""'}
-            </valueNameDomTag>,
+            </ValueNameDomTag>,
           ];
         })}
         {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}
@@ -174,7 +185,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
           }}
         >
           <div class='key-wrap'>
-            <this.DomTag class='key-name'>{this.value.dimension_name}</this.DomTag>
+            <this.DomTag class='key-name'>{this.value.dimension_name || this.value.key}</this.DomTag>
             <this.DomTag class={['key-method', this.value.method]}>
               {ConditionMethodAliasMap[this.value.method]}
             </this.DomTag>
