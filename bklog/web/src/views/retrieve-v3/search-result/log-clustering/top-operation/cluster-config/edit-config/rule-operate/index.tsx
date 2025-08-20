@@ -100,8 +100,11 @@ export default defineComponent({
         }
         return;
       }
-
-      emit('rule-list-change', []);
+      if (!templateRuleId.value) {
+        templateRuleId.value = templateList.value[0].id;
+        handleSelectTemplate(templateRuleId.value);
+      }
+      // emit('rule-list-change', []);
     };
 
     const initDefaultConfig = (updateType = true) => {
@@ -196,7 +199,6 @@ export default defineComponent({
               __Index__: index,
             };
           });
-          console.log('list>>>', list);
           emit('rule-list-change', list);
         } catch (err) {
           bkMessage({

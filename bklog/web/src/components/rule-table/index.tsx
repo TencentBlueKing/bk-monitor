@@ -86,7 +86,9 @@ export default defineComponent({
     }) => {
       const tmpList = _.cloneDeep(ruleList.value);
       const { oldIndex, newIndex } = data.moved;
-      [tmpList[oldIndex], tmpList[newIndex]] = [tmpList[newIndex], tmpList[oldIndex]];
+      const oldItem = tmpList[oldIndex];
+      tmpList.splice(oldIndex, 1);
+      tmpList.splice(newIndex, 0, oldItem);
       ruleList.value = tmpList;
       localRuleList = _.cloneDeep(ruleList.value);
       emit('rule-list-change', ruleList.value);
@@ -142,8 +144,9 @@ export default defineComponent({
         ruleList.value = _.cloneDeep(localRuleList);
         return;
       }
+
       const searchRegExp = new RegExp(keyword, 'i');
-      ruleList.value = localRuleList.filter(item => searchRegExp.test(Object.values(item)[0] as string));
+      ruleList.value = localRuleList.filter(item => searchRegExp.test(Object.keys(item)[0] as string));
     };
 
     expose({
@@ -250,7 +253,14 @@ export default defineComponent({
               show-text={false}
               empty-type='empty'
             >
-              <div>{t('暂无聚类规则')}</div>
+              <span>{t('暂无聚类规则')}，</span>
+              <bk-button
+                text
+                theme='primary'
+                on-click={() => handleClickEditRule(null, -1, true)}
+              >
+                {t('立即新建')}
+              </bk-button>
             </empty-status>
           </div>
         )}

@@ -731,3 +731,27 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-xinleigaojing:before {
 	content: "\e21e";
 }
+.bklog-enter-2:before {
+	content: "\e220";
+}
+.bklog-fengefu:before {
+	content: "\e223";
+}
+.bklog-json-fanxuliehua:before {
+	content: "\e221";
+}
+.bklog-zhengzetiqu:before {
+	content: "\e222";
+}
+.bklog-weiguishu:before {
+	content: "\e224";
+}
+.bklog-all2:before {
+	content: "\e225";
+}
+.bklog-sousuo-:before {
+	content: "\e226";
+}
+.bklog-sousuo-:before {
+	content: "\e227";
+}

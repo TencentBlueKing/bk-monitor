@@ -80,6 +80,7 @@ export default defineComponent({
             <edit-config
               indexId={props.indexId}
               totalFields={props.totalFields}
+              on-close={() => (showEditConfig.value = false)}
             />
           </div>
         </bk-sideslider>

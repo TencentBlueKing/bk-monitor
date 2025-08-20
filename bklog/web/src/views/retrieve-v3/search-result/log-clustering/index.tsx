@@ -260,7 +260,6 @@ export default defineComponent({
         default:
           break;
       }
-      console.log('isQuery = ', isQuery);
       if (isQuery) {
         logTableRef.value.refreshTable();
       }
@@ -274,7 +273,6 @@ export default defineComponent({
         .map(item => {
           return getConcatenatedFieldName(item);
         });
-      console.log('filterList = ', filterList);
       fingerOperateData.value.groupList = filterList;
     };
 

@@ -183,7 +183,6 @@ export default defineComponent({
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
         .then(res => {
-          console.log('res===', res.data.length);
           const keyValueSetList: Array<Set<string>> = [];
           props.requestData.group_by.forEach((_, index) => {
             keyValueSetList[index] = new Set();
@@ -195,7 +194,6 @@ export default defineComponent({
             });
           });
           const keyValueList = keyValueSetList.map(item => Array.from(item).sort());
-          // console.log('keyValueMap===', keyValueList);
           let valueList = [];
           keyValueList.forEach(values => {
             let tmpValueList = [];
@@ -212,7 +210,6 @@ export default defineComponent({
             valueList = tmpValueList;
           });
           valueList.sort((a, b) => a[0] - b[0]);
-          // console.log('valueList===', valueList);
           tablesInfoList.value = [];
           valueList.forEach(values => {
             const tableInfo: TableInfo = {

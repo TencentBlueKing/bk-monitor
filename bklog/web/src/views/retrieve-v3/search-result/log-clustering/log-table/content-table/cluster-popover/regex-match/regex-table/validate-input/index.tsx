@@ -185,7 +185,7 @@ export default defineComponent({
           on-input={handleInput}
           on-keydown={handleKeydown}
         />
-        {props.clearable && localValue.value && (
+        {!props.disabled && props.clearable && localValue.value && (
           <log-icon
             class='clear-icon'
             type='shanchu'
