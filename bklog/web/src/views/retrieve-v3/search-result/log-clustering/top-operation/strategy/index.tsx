@@ -125,7 +125,6 @@ export default defineComponent({
           requestStrategyInfo(StrategyType.NEW_CLASS),
           requestStrategyInfo(StrategyType.SUDDEN_INCREASE),
         ]);
-        console.log('strategy info >>> ', values);
         values.forEach(vItem => {
           const isSubmit = Object.keys(vItem.data).length > 0;
           if (vItem.type === StrategyType.NEW_CLASS) {

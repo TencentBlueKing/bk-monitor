@@ -142,7 +142,6 @@ export default defineComponent({
 
     // 设置备注
     const updateRemark = (markType = 'add') => {
-      console.log('remark = ', markType);
       let additionData;
       let queryStr;
       const inputRemark = verifyData.value.textInputStr.trim();

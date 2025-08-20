@@ -138,9 +138,9 @@ export default defineComponent({
                   class='error-main-title'
                   path='任务超时失败，请联系 {0}'
                 >
-                  <span class='bk-assist'>{t('BK 助手')}</span>
+                  <span>{t('BK 助手')}</span>
                 </i18n>
-                <div class='dash-line'></div>
+                {/* <div class='dash-line'></div> */}
               </div>
             ) : (
               <div class='time-str'>

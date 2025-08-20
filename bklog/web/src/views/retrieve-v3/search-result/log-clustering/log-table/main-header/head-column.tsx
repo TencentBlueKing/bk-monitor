@@ -111,7 +111,6 @@ export default defineComponent({
                 }
               },
               end(event) {
-                console.log('end>>>', event);
                 let { x, y } = event.target.dataset;
                 x = (parseFloat(x) || 0) + event.deltaRect.left;
                 y = (parseFloat(y) || 0) + event.deltaRect.top;

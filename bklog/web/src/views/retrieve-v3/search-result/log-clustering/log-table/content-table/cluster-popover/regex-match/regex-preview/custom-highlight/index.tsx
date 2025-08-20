@@ -38,7 +38,6 @@ export default defineComponent({
     },
   },
   setup(props) {
-    console.log('props = ', props);
     return () => <span style={{ backgroundColor: props.colorMap[props.text] || 'transparent' }}>{props.text}</span>;
   },
 });

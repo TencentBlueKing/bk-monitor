@@ -78,7 +78,7 @@ export default defineComponent({
         .then(response => {
           isCurrentIndexSetIdCreateSubscription.value = !!response.data.length;
         })
-        .catch(console.log);
+        .catch(e => console.error(e));
     };
 
     const checkReportIsExistedDebounce = debounce(1000, checkReportIsExisted);

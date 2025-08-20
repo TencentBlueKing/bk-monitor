@@ -24,7 +24,10 @@
   .preview-main {
     width: 100%;
     min-height: 96px;
+    max-height: 200px;
+    overflow-y: auto;
     background: #f5f7fa;
     border-radius: 2px;
+    padding: 8px;
   }
 }
