@@ -446,38 +446,69 @@ class ModifyResultTableResource(Resource):
         need_delete_storages = serializers.DictField(required=False, label="需要删除的额外存储", default=None)
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        """执行结果表修改请求"""
         table_id = validated_request_data.pop("table_id")
         query_alias_settings = validated_request_data.pop("query_alias_settings", None)
         operator = validated_request_data.get("operator", None)
-
         bk_tenant_id = cast(str, get_request_tenant_id())
 
         # 处理查询别名设置
-        if query_alias_settings is not None:
-            try:
-                logger.info(
-                    "ModifyResultTableResource: try to manage alias_settings,table_id->[%s],query_alias_settings->[%s]",
-                    table_id,
-                    query_alias_settings,
-                )
-                models.ESFieldQueryAliasOption.manage_query_alias_settings(
-                    table_id=table_id,
-                    query_alias_settings=query_alias_settings,
-                    operator=operator,
-                    bk_tenant_id=bk_tenant_id,
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.warning(
-                    "ModifyResultTableResource: manage alias_settings failed,table_id->[%s],query_alias_settings->["
-                    "%s],error->[%s]",
-                    table_id,
-                    query_alias_settings,
-                    e,
-                )
+        self._handle_query_alias_settings(table_id, query_alias_settings, operator, bk_tenant_id)
 
-        # 判断是否修改了ES存储，如果是，需要重新创建一下当前的index
+        # 检查ES集群迁移状态
+        is_moving_cluster = self._check_es_cluster_migration(table_id, validated_request_data, bk_tenant_id)
+
+        # 修改结果表信息
+        result_table = self._modify_result_table(table_id, validated_request_data, bk_tenant_id)
+
+        # 处理ES存储相关的逻辑
+        if result_table.default_storage == models.ClusterInfo.TYPE_ES:
+            # 处理ES存储索引更新
+            self._handle_es_storage_index_update(table_id, validated_request_data, bk_tenant_id, is_moving_cluster)
+
+            # 通知数据平台信息变更，目前只有es类型需要通知
+            self._notify_bkdata_if_needed(table_id, result_table, bk_tenant_id)
+
+            # 推送路由 (关联的虚拟RT）
+            self._push_es_route(result_table, bk_tenant_id)
+
+        return result_table.to_json()
+
+    def _handle_query_alias_settings(
+        self, table_id: str, query_alias_settings: Any, operator: str | None, bk_tenant_id: str
+    ) -> None:
+        """处理查询别名设置"""
+        if query_alias_settings is None:
+            return
+
+        try:
+            logger.info(
+                "ModifyResultTableResource: try to manage alias_settings,table_id->[%s],query_alias_settings->[%s]",
+                table_id,
+                query_alias_settings,
+            )
+            models.ESFieldQueryAliasOption.manage_query_alias_settings(
+                table_id=table_id,
+                query_alias_settings=query_alias_settings,
+                operator=operator,
+                bk_tenant_id=bk_tenant_id,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                "ModifyResultTableResource: manage alias_settings failed,table_id->[%s],query_alias_settings->["
+                "%s],error->[%s]",
+                table_id,
+                query_alias_settings,
+                e,
+            )
+
+    def _check_es_cluster_migration(
+        self, table_id: str, validated_request_data: dict[str, Any], bk_tenant_id: str
+    ) -> bool:
+        """检查ES集群是否发生迁移"""
         is_moving_cluster = False
         external_storage = validated_request_data.get("external_storage") or {}
+
         if external_storage.get(models.ClusterInfo.TYPE_ES):
             es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
             if es_storage:
@@ -491,7 +522,12 @@ class ModifyResultTableResource(Resource):
                     )
                     is_moving_cluster = True
 
-        # 修改结果表信息
+        return is_moving_cluster
+
+    def _modify_result_table(
+        self, table_id: str, validated_request_data: dict[str, Any], bk_tenant_id: str
+    ) -> models.ResultTable:
+        """修改结果表信息"""
         try:
             result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
             result_table.modify(**validated_request_data)
@@ -506,55 +542,58 @@ class ModifyResultTableResource(Resource):
 
         # 刷新一波对象，防止存在缓存等情况
         result_table.refresh_from_db()
+        return result_table
 
-        # 判断是否修改了字段，而且是存在ES存储，如果是，需要重新创建一下当前的index
-        if validated_request_data["field_list"] is not None:
-            es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
-            if es_storage:
-                logger.info(
-                    "ModifyResultTableResource: table_id->[%s] has es storage,update index,is_moving_cluster->[%s]",
-                    table_id,
-                    is_moving_cluster,
-                )
-                es_storage.update_index_and_aliases(ahead_time=0, is_moving_cluster=is_moving_cluster)
+    def _handle_es_storage_index_update(
+        self, table_id: str, validated_request_data: dict[str, Any], bk_tenant_id: str, is_moving_cluster: bool
+    ) -> None:
+        """处理ES存储索引更新"""
+        if validated_request_data.get("field_list") is None:
+            return
 
-        if result_table.default_storage == models.ClusterInfo.TYPE_ES:
-            # 通知数据平台信息变更，目前只有es类型需要通知
-            bk_data_id = models.DataSourceResultTable.objects.get(
-                table_id=table_id, bk_tenant_id=bk_tenant_id
-            ).bk_data_id
-            ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
-            if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
-                try:
-                    result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
-                    logger.info(
-                        "ModifyResultTableResource: notify bkdata successfully,table_id->[%s],data_id->[%s]",
-                        table_id,
-                        bk_data_id,
-                    )
-                except RetryError as e:
-                    logger.warning(
-                        "notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__
-                    )
-                    raise e.__cause__ if e.__cause__ else e
-                except Exception as e:  # pylint: disable=broad-except
-                    logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
-
-            # 推送路由 (关联的虚拟RT）
-            virtual_rt_list = list(
-                models.ESStorage.objects.filter(origin_table_id=result_table.table_id).values_list(
-                    "table_id", flat=True
-                )
-            )
-            table_ids = [result_table.table_id] + virtual_rt_list
+        es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+        if es_storage:
             logger.info(
-                "ModifyResultTableResource: all things done, now try to push es route,table_id->[%s]",
-                json.dumps(table_ids),
+                "ModifyResultTableResource: table_id->[%s] has es storage,update index,is_moving_cluster->[%s]",
+                table_id,
+                is_moving_cluster,
             )
+            es_storage.update_index_and_aliases(ahead_time=0, is_moving_cluster=is_moving_cluster)
 
-            client = SpaceTableIDRedis()
-            client.push_es_table_id_detail(table_id_list=table_ids, bk_tenant_id=result_table.bk_tenant_id)
-        return result_table.to_json()
+    def _notify_bkdata_if_needed(self, table_id: str, result_table: models.ResultTable, bk_tenant_id: str) -> None:
+        """如果需要，通知bkdata数据变更"""
+        bk_data_id = models.DataSourceResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).bk_data_id
+        ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
+
+        if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
+            try:
+                result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
+                logger.info(
+                    "ModifyResultTableResource: notify bkdata successfully,table_id->[%s],data_id->[%s]",
+                    table_id,
+                    bk_data_id,
+                )
+            except RetryError as e:
+                logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__)
+                raise e.__cause__ if e.__cause__ else e
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
+
+    def _push_es_route(self, result_table: models.ResultTable, bk_tenant_id: str) -> None:
+        """推送ES路由信息"""
+        # 获取关联的虚拟RT列表
+        virtual_rt_list = list(
+            models.ESStorage.objects.filter(origin_table_id=result_table.table_id).values_list("table_id", flat=True)
+        )
+        table_ids = [result_table.table_id] + virtual_rt_list
+
+        logger.info(
+            "ModifyResultTableResource: all things done, now try to push es route,table_id->[%s]",
+            json.dumps(table_ids),
+        )
+
+        client = SpaceTableIDRedis()
+        client.push_es_table_id_detail(table_id_list=table_ids, bk_tenant_id=bk_tenant_id)
 
 
 class AccessBkDataByResultTableResource(Resource):
