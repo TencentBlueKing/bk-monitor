@@ -68,6 +68,7 @@ const actions = {
     const importParams = {
       uuid_list: params.uuids,
       is_overwrite_mode: params.isOverwriteMode,
+      folder_id: params.folderId ?? undefined, // 导入导出→导入配置→目标目录
     };
     // 历史ID存在就丢给后端
     if (params.historyId) {
