@@ -29,10 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce } from 'monitor-common/utils';
 import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 
+import AddVariableOption from '../../pages/query-template/components/utils/add-variable-option';
+import VariableName from '../../pages/query-template/components/utils/variable-name';
 import EmptyStatus from '../empty-status/empty-status';
 import TextHighlighter from './text-highlighter';
-import AddVariableOption from '@/pages/query-template/components/utils/add-variable-option';
-import VariableName from '@/pages/query-template/components/utils/variable-name';
 
 import type { IFieldItem, TGetValueFn } from './value-selector-typing';
 
