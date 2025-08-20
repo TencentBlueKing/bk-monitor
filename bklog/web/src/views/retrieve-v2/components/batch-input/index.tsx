@@ -138,7 +138,7 @@ export default defineComponent({
               </div>
               <div style='margin-top: 16px;display: flex;justify-content: space-between;'>
                 <bk-button
-                  style='width: 280px,margin-right: 8px'
+                  style='width: 280px;margin-right: 8px'
                   outline={true}
                   theme='primary'
                   on-click={handleResolveBtnClick}
