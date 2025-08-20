@@ -27,6 +27,8 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { Debounce } from 'monitor-common/utils/utils';
+
 import { isVariableName } from '../../variables/template/utils';
 import AddVariableOption from '../utils/add-variable-option';
 import SelectWrap from '../utils/select-wrap';
@@ -98,7 +100,7 @@ export default class DimensionCreator extends tsc<IProps> {
     this.curTags = this.value.map(item => ({
       id: item,
       name: optionMap.get(item)?.name || item,
-      isVariable: isVariableName(item),
+      isVariable: this.showVariables && isVariableName(item),
     }));
   }
 
@@ -128,7 +130,13 @@ export default class DimensionCreator extends tsc<IProps> {
         isVariable: true,
       })),
       ...this.options,
-    ].filter(item => !curTagsIds.includes(item.id));
+    ].filter(item => {
+      const search = this.inputValue.toLocaleLowerCase();
+      return (
+        !curTagsIds.includes(item.id) &&
+        (item.name.toLocaleLowerCase().includes(search) || item.id.toLocaleLowerCase().includes(search))
+      );
+    });
   }
 
   handleSelect(item: IDimensionOptionsItem) {
@@ -149,6 +157,12 @@ export default class DimensionCreator extends tsc<IProps> {
 
   handleInputChange(val: string) {
     this.inputValue = val;
+    this.getDebounceAllOptions();
+  }
+
+  @Debounce(300)
+  getDebounceAllOptions() {
+    this.getAllOptions();
   }
 
   handleDelTag(index: number) {
@@ -164,7 +178,7 @@ export default class DimensionCreator extends tsc<IProps> {
       this.handleSelect({
         id: this.inputValue,
         name: this.inputValue,
-        isVariable: isVariableName(this.inputValue),
+        isVariable: this.showVariables && isVariableName(this.inputValue),
       });
       this.inputValue = '';
     }
@@ -173,6 +187,10 @@ export default class DimensionCreator extends tsc<IProps> {
   handleClear() {
     this.curTags = [];
     this.$emit('change', []);
+  }
+
+  handleBlur() {
+    this.inputValue = '';
   }
 
   render() {
@@ -194,6 +212,11 @@ export default class DimensionCreator extends tsc<IProps> {
               <div
                 key={index}
                 class='tags-item'
+                v-bk-tooltips={{
+                  placements: ['top'],
+                  content: item.id,
+                  delay: [300, 0],
+                }}
               >
                 <span class='tags-item-name'>{item.isVariable ? <VariableName name={item.name} /> : item.name}</span>
                 <span
@@ -209,6 +232,7 @@ export default class DimensionCreator extends tsc<IProps> {
               ref='inputRef'
               placeholder={this.$t('请选择') as string}
               value={this.inputValue}
+              onBlur={this.handleBlur}
               onEnter={this.handleInputEnter}
               onInput={this.handleInputChange}
             />
@@ -229,6 +253,11 @@ export default class DimensionCreator extends tsc<IProps> {
               <div
                 key={index}
                 class='options-item'
+                v-bk-tooltips={{
+                  placements: ['right'],
+                  content: item.id,
+                  delay: [300, 0],
+                }}
                 onClick={() => this.handleSelect(item)}
               >
                 {item.isVariable ? (
