@@ -31,7 +31,7 @@ import './template-edit.scss';
 
 @Component
 export default class TemplateEdit extends TemplateCreate {
-  title = this.$t('编辑查询模板');
+  title = this.$t('route-编辑查询模板');
 
   init() {
     this.curStep = 1;

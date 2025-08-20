@@ -76,6 +76,9 @@ export default class EditConditionVariableValue extends tsc<ConditionValueProps,
           metricDetail={this.variable.metric}
           options={this.variable.dimensionOptionsMap as IConditionOptionsItem[]}
           showLabel={false}
+          value={this.variable.data.value.length ? this.variable.data.value : this.variable.data.defaultValue}
+          onChange={this.handleValueChange}
+          onPopoverShowChange={this.handleSelectToggle}
         />
       </EditVariableValue>
     );
