@@ -11,8 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 
-from django.conf import settings
-
+from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from core.drf_resource import api
 from metadata.models.vm.config import BkDataClean, BkDataStorage
 from metadata.models.vm.constants import VM_RETENTION_TIME
@@ -25,13 +24,14 @@ class BkDataAccessor:
 
     def __init__(
         self,
+        bk_tenant_id: str,
         bk_table_id: str,
         data_hub_name: str,
-        bk_biz_id: int | None = settings.DEFAULT_BKDATA_BIZ_ID,
+        timestamp_len: int,
+        bk_biz_id: int | None = None,
         vm_cluster: str | None = "",
         vm_retention_time: str | None = VM_RETENTION_TIME,
         desc: str | None = "",
-        timestamp_len: int = None,
     ):
         """
         :param bk_table_id: 计算平台的结果表 ID
@@ -42,6 +42,10 @@ class BkDataAccessor:
         :param desc: 接入数据源描述
         :param timestamp_len: 时间长度， 10 秒 13 毫秒 19纳秒
         """
+        # 如果没有指定 bk_biz_id，则使用租户下的默认业务
+        if not bk_biz_id:
+            bk_biz_id = get_tenant_datalink_biz_id(bk_tenant_id).data_biz_id
+
         self.bk_table_id = bk_table_id
         self.bk_biz_id = bk_biz_id
         self.data_hub_name = data_hub_name
@@ -121,15 +125,17 @@ class BkDataAccessor:
 
 
 def _access(
+    bk_tenant_id: str,
     bk_table_id: str,
     data_hub_name: str,
     desc: str,
+    timestamp_len: int,
     vm_cluster: str | None = "",
     vm_retention_time: str | None = VM_RETENTION_TIME,
-    timestamp_len: int = None,
 ) -> dict:
     """接入计算平台"""
     accessor = BkDataAccessor(
+        bk_tenant_id=bk_tenant_id,
         bk_table_id=bk_table_id,
         data_hub_name=data_hub_name,
         desc=desc,
@@ -150,13 +156,15 @@ def _access(
 
 
 def access_vm(
+    bk_tenant_id: str,
     raw_data_name: str,
+    timestamp_len: int,
     vm_cluster: str | None = "",
     vm_retention_time: str | None = VM_RETENTION_TIME,
-    timestamp_len: int = None,
 ) -> dict:
     """接入 vm 流程"""
     return _access(
+        bk_tenant_id=bk_tenant_id,
         bk_table_id=raw_data_name,
         data_hub_name=raw_data_name,
         desc="接入计算平台 vm",

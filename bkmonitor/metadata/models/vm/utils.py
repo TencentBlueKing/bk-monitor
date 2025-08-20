@@ -190,6 +190,7 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
         try:
             data_name_and_dp_id = get_bcs_convergence_data_name_and_dp_id(table_id)
             clean_data = BkDataAccessor(
+                bk_tenant_id=bk_tenant_id,
                 bk_table_id=data_name_and_dp_id["data_name"],
                 data_hub_name=data_name_and_dp_id["data_name"],
                 timestamp_len=timestamp_len,
@@ -260,13 +261,20 @@ def access_vm_by_kafka(
         bk_base_data.create_databus_clean(result_table)
     # 重新读取一遍数据
     bk_base_data.refresh_from_db()
+
+    data_biz_id = get_tenant_datalink_biz_id(bk_tenant_id).data_biz_id
     raw_data_name = get_bkbase_data_name_and_topic(table_id)["data_name"]
     clean_data = BkDataAccessor(
-        bk_table_id=raw_data_name, data_hub_name=raw_data_name, vm_cluster=vm_cluster_name, timestamp_len=timestamp_len
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_id=data_biz_id,
+        bk_table_id=raw_data_name,
+        data_hub_name=raw_data_name,
+        vm_cluster=vm_cluster_name,
+        timestamp_len=timestamp_len,
     ).clean
     clean_data.update(
         {
-            "bk_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,
+            "bk_biz_id": data_biz_id,
             "raw_data_id": bk_base_data.raw_data_id,
             "clean_config_name": raw_data_name,
             "kafka_storage_exist": kafka_storage_exist,
@@ -287,7 +295,7 @@ def access_vm_by_kafka(
         storage_params = BkDataStorageWithDataID(bk_base_data.raw_data_id, raw_data_name, vm_cluster_name).value
         api.bkdata.create_data_storages(**storage_params)
         return {
-            "clean_rt_id": f"{settings.DEFAULT_BKDATA_BIZ_ID}_{raw_data_name}",
+            "clean_rt_id": f"{data_biz_id}_{raw_data_name}",
             "bk_data_id": bk_base_data.raw_data_id,
             "cluster_id": storage_cluster_id,
             "kafka_storage_exist": kafka_storage_exist,
