@@ -11,7 +11,35 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from constants.apm import CachedEnum
 
-class EntityType(CachedEnum):
+
+class LabelMixin:
+    """
+    标签映射混入类，提供统一的标签获取逻辑
+    
+    子类需要定义 _LABEL_MAPPING 类变量，包含 {枚举值: 标签} 的映射
+    """
+    
+    @cached_property
+    def label(self):
+        """
+        获取枚举成员的标签值
+        
+        从子类的 _LABEL_MAPPING 或 _get_label_mapping 方法中获取标签
+        """
+        # 首先尝试获取 _LABEL_MAPPING 类变量
+        label_mapping = getattr(self.__class__, '_LABEL_MAPPING', None)
+        
+        # 如果没有 _LABEL_MAPPING，尝试调用 _get_label_mapping 方法
+        if label_mapping is None:
+            get_mapping_method = getattr(self.__class__, '_get_label_mapping', None)
+            if get_mapping_method is not None:
+                label_mapping = get_mapping_method()
+        
+        if label_mapping is not None:
+            return str(label_mapping.get(self, self.value))
+        return str(self.value)
+
+class EntityType(LabelMixin, CachedEnum):
     """
     事件类型
     """
@@ -22,19 +50,17 @@ class EntityType(CachedEnum):
     UnKnown = "Unknown"
     
     @classmethod
+    def _get_label_mapping(cls):
+        return {
+            cls.BcsPod: _("BCS Pod"),
+            cls.APMService: _("APM服务"),
+            cls.BkNodeHost: _("主机节点"),
+            cls.UnKnown: _("未知"),
+        }
+    
+    @classmethod
     def choices(cls):
         return [choice.value for choice in cls.__members__.values()]
-
-    @cached_property
-    def label(self):
-        return str(
-            {
-                EntityType.BcsPod: _("BCS Pod"),
-                EntityType.APMService: _("APM服务"),
-                EntityType.BkNodeHost: _("主机节点"),
-                EntityType.UnKnown: _("未知"),
-            }.get(self, self.value)
-        )
 
     @classmethod
     def get_default(cls, value):
@@ -62,7 +88,7 @@ class IndexType(CachedEnum):
     ENTITY = "entity"
     EDGE = "edge"
 
-class MetricDimension(CachedEnum):
+class MetricDimension(LabelMixin, CachedEnum):
     TOTAL = "total"
     ACTIVE = "active"
     PASSIVE = "passive"
@@ -74,20 +100,18 @@ class MetricDimension(CachedEnum):
     
     DEFAULT = "default"
     
-    @cached_property
-    def label(self):
-        return str(
-            {
-                MetricDimension.TOTAL: str(_("总数")),
-                MetricDimension.ACTIVE: str(_("主调")),
-                MetricDimension.PASSIVE: str(_("被调")),
-                MetricDimension.AVG: str(_("平均")),
-                MetricDimension.P99: str(_("p99")),
-                MetricDimension.P95: str(_("p95")),
-                MetricDimension.P50: str(_("p50")),
-                MetricDimension.DEFAULT: MetricDimension.DEFAULT.value,
-            }.get(self, self.value)
-        )
+    @classmethod
+    def _get_label_mapping(cls):
+        return {
+            cls.TOTAL: str(_("总数")),
+            cls.ACTIVE: str(_("主调")),
+            cls.PASSIVE: str(_("被调")),
+            cls.AVG: str(_("平均")),
+            cls.P99: str(_("p99")),
+            cls.P95: str(_("p95")),
+            cls.P50: str(_("p50")),
+            cls.DEFAULT: "default",
+        }
 
 # 度量单位常量
 class MetricUnit:
@@ -143,7 +167,7 @@ class HostMetricName:
     
     DISK_USAGE_RATE = "disk_usage_rate"
 
-class MetricName(CachedEnum):
+class MetricName(LabelMixin, CachedEnum):
     # APM指标
     APM_REQUEST_COUNT = f"{MetricTypePrefix.APM}.{APMMetricName.REQUEST_COUNT}"
     APM_TOTAL_REQUEST_COUNT = f"{MetricTypePrefix.APM}.{APMMetricName.TOTAL_REQUEST_COUNT}"
@@ -182,41 +206,39 @@ class MetricName(CachedEnum):
     
     HOST_DISK_USAGE_RATE = f"{MetricTypePrefix.HOST}.{HostMetricName.DISK_USAGE_RATE}"
     
-    @cached_property
-    def label(self):
-        return str(
-            {
-                MetricName.APM_REQUEST_COUNT: _("请求数"),
-                MetricName.APM_TOTAL_REQUEST_COUNT: _("请求总数"),
-                MetricName.APM_ACTIVE_REQUEST_COUNT: _("主调请求数"),
-                MetricName.APM_PASSIVE_REQUEST_COUNT: _("被调请求数"),
-                MetricName.APM_ERROR_COUNT: _("错误请求数"),
-                MetricName.APM_ERROR_RATE: _("错误率"),
-                MetricName.APM_DURATION: _("耗时"),
-                MetricName.APM_DURATION_AVG: _("平均耗时"),
-                MetricName.APM_DURATION_P99: _("99% 耗时"),
-                MetricName.APM_DURATION_P95: _("95% 耗时"),
-                MetricName.APM_DURATION_P50: _("50% 耗时"),
-                
-                MetricName.BCS_PERFORMANCE_CPU_USAGE: _("CPU使用量"),
-                MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE: _("CPU request使用率"),
-                MetricName.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE: _("CPU limit使用率"),
-                
-                MetricName.BCS_PERFORMANCE_MEMORY_USAGE: _("内存使用量"),
-                MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE: _("内存 request使用率"),
-                MetricName.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE: _("内存 limit使用率"),
-                
-                MetricName.BCS_TRAFFIC_IN: _("网络入带宽"),
-                MetricName.BCS_TRAFFIC_OUT: _("网络出带宽"),
-                
-                MetricName.HOST_CPU_USAGE_RATE: _("CPU使用率"),
-                MetricName.HOST_CPU_FIVE_MINUTE_AVERAGE_LOAD: _("CPU五分钟平均负载"),
-                
-                MetricName.HOST_MEM_PHYSICAL_FREE: _("物理内存空闲量"),
-                
-                MetricName.HOST_NIC_IN_RATE: _("网卡入流量比特速率"),
-                MetricName.HOST_NIC_OUT_RATE: _("网卡出流量比特速率"),
-                
-                MetricName.HOST_DISK_USAGE_RATE: _("磁盘空间使用率"),
-            }.get(self, self.value)
-        )
+    @classmethod
+    def _get_label_mapping(cls):
+        return {
+            cls.APM_REQUEST_COUNT: _("请求数"),
+            cls.APM_TOTAL_REQUEST_COUNT: _("请求总数"),
+            cls.APM_ACTIVE_REQUEST_COUNT: _("主调请求数"),
+            cls.APM_PASSIVE_REQUEST_COUNT: _("被调请求数"),
+            cls.APM_ERROR_COUNT: _("错误请求数"),
+            cls.APM_ERROR_RATE: _("错误率"),
+            cls.APM_DURATION: _("耗时"),
+            cls.APM_DURATION_AVG: _("平均耗时"),
+            cls.APM_DURATION_P99: _("99% 耗时"),
+            cls.APM_DURATION_P95: _("95% 耗时"),
+            cls.APM_DURATION_P50: _("50% 耗时"),
+            
+            cls.BCS_PERFORMANCE_CPU_USAGE: _("CPU使用量"),
+            cls.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE: _("CPU request使用率"),
+            cls.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE: _("CPU limit使用率"),
+            
+            cls.BCS_PERFORMANCE_MEMORY_USAGE: _("内存使用量"),
+            cls.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE: _("内存 request使用率"),
+            cls.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE: _("内存 limit使用率"),
+            
+            cls.BCS_TRAFFIC_IN: _("网络入带宽"),
+            cls.BCS_TRAFFIC_OUT: _("网络出带宽"),
+            
+            cls.HOST_CPU_USAGE_RATE: _("CPU使用率"),
+            cls.HOST_CPU_FIVE_MINUTE_AVERAGE_LOAD: _("CPU五分钟平均负载"),
+                    
+            cls.HOST_MEM_PHYSICAL_FREE: _("物理内存空闲量"),
+                    
+            cls.HOST_NIC_IN_RATE: _("网卡入流量比特速率"),
+            cls.HOST_NIC_OUT_RATE: _("网卡出流量比特速率"),
+            
+            cls.HOST_DISK_USAGE_RATE: _("磁盘空间使用率"),
+        }

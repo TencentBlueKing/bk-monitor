@@ -81,10 +81,10 @@ class EventSource(CachedEnum):
     @classmethod
     def label_mapping(self):
         return {
-            self.BKCI.value: "蓝盾",
-            self.BCS.value: "BCS",
-            self.HOST.value: "主机",
-            self.DEFAULT.value: "业务上报",
+            self.BKCI.value: str(_("蓝盾")),
+            self.BCS.value: str(_("BCS")),
+            self.HOST.value: str(_("主机")),
+            self.DEFAULT.value: str(_("业务上报")),
         }
     
     @classmethod
