@@ -31,8 +31,9 @@ export function escapeRegex(value: string): string {
 /*
  * This regex matches 3 types of variable reference with an optional format specifier
  * There are 6 capture groups that replace will return
- * \$(\w+)                                    $var1
- * \[\[(\w+?)(?::(\w+))?\]\]                  [[var2]] or [[var2:fmt2]]
- * \${(\w+)(?:\.([^:^\}]+))?(?::([^\}]+))?}   ${var3} or ${var3.fieldPath} or ${var3:fmt3} (or ${var3.fieldPath:fmt3} but that is not a separate capture group)
+ * \$([\w\u4e00-\u9fa5]+)                                    $var1 or $变量1
+ * \[\[([\w\u4e00-\u9fa5]+?)(?::([\w\u4e00-\u9fa5]+))?\]\]                  [[var2]] or [[变量2]] or [[var2:fmt2]] or [[变量2:格式2]]
+ * \${([\w\u4e00-\u9fa5]+)(?:\.([^:^}]+))?(?::([^}]+))?}   ${var3} or ${变量3} or ${var3.fieldPath} or ${var3:fmt3} (or ${var3.fieldPath:fmt3} but that is not a separate capture group)
  */
-export const variableRegex = /\$(\w+)|\[\[(\w+?)(?::(\w+))?\]\]|\${(\w+)(?:\.([^:^}]+))?(?::([^}]+))?}/g;
+export const variableRegex =
+  /\$([\w\u4e00-\u9fa5]+)|\[\[([\w\u4e00-\u9fa5]+?)(?::([\w\u4e00-\u9fa5]+))?\]\]|\${([\w\u4e00-\u9fa5]+)(?:\.([^:^}]+))?(?::([^}]+))?}/g;
