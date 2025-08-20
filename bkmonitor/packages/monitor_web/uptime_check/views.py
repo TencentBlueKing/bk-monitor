@@ -215,6 +215,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
             logger.exception(f"Failed to get uptime check node status: {e}")
 
         node_task_counts = {node.id: node.tasks.count() for node in queryset}
+
         for node in serializer.data:
             task_num = node_task_counts.get(node["id"], 0)
             host_instance = get_by_node(node, node_to_host)
@@ -230,6 +231,8 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                     node, all_node_status, {"gse_status": BEAT_STATUS["DOWN"], "status": BEAT_STATUS["DOWN"]}
                 )
                 beat_version = get_by_node(node, all_beat_version, beat_version)
+
+            # 添加权限信息
             result.append(
                 {
                     "id": node["id"],
