@@ -468,7 +468,7 @@ def push_and_publish_space_router(
         push_redis_keys = []
         for space in spaces:
             if settings.ENABLE_MULTI_TENANT_MODE:
-                push_redis_keys.append(f"{space.bk_tenant_id}|{space.space_type_id}__{space.space_id}")
+                push_redis_keys.append(f"{space.space_type_id}__{space.space_id}|{space.bk_tenant_id}")
             else:
                 push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
