@@ -12245,3 +12245,33 @@ msgstr "Error Details"
 
 msgid "错误趋势"
 msgstr "Error Trend"
+
+msgid "DB类型"
+msgstr "DB Type"
+
+msgid "命名语句统计"
+msgstr "Named Statement Statistics"
+
+msgid "命名语句明细"
+msgstr "Named Statement Details"
+
+msgid "异常列表"
+msgstr "Exception List"
+
+msgid "调用总数"
+msgstr "Total number"
+
+msgid "组件实例"
+msgstr "Component instance"
+
+msgid "接口调用总数Top5"
+msgstr "Top5 Total number of interface calls"
+
+msgid "接口错误次数Top5"
+msgstr "Top5 number of interface errors"
+
+msgid "接口平均耗时Top5"
+msgstr "Top5 average time of interface"
+
+msgid "URI请求统计"
+msgstr "URI request statistics"

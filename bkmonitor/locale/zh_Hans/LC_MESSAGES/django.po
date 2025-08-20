@@ -12524,8 +12524,8 @@ msgstr "服务接口错误率 Top5"
 msgid "服务接口平均耗时Top5"
 msgstr "服务接口平均耗时 Top5"
 
-msgid "告警事件"
-msgstr "告警事件"
+msgid "异常事件"
+msgstr "异常事件"
 
 msgid "总数量"
 msgstr "总数量"
@@ -12538,3 +12538,33 @@ msgstr "错误详情"
 
 msgid "错误趋势"
 msgstr "错误趋势"
+
+msgid "DB类型"
+msgstr "DB 类型"
+
+msgid "命名语句统计"
+msgstr "命名语句统计"
+
+msgid "命名语句明细"
+msgstr "命名语句明细"
+
+msgid "异常列表"
+msgstr "异常列表"
+
+msgid "调用总数"
+msgstr "调用总数"
+
+msgid "组件实例"
+msgstr "组件实例"
+
+msgid "接口调用总数Top5"
+msgstr "接口调用总数 Top5"
+
+msgid "接口错误次数Top5"
+msgstr "接口错误次数 Top5"
+
+msgid "接口平均耗时Top5"
+msgstr "接口平均耗时 Top5"
+
+msgid "URI请求统计"
+msgstr "URI 请求统计"
