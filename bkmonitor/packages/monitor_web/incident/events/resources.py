@@ -66,7 +66,9 @@ class BaseIncidentEventsResource(Resource):
             "namespace": "namespace",
             "cluster_id": "bcs_cluster_id",
         },
-        "cicd_event": {},
+        "cicd_event": {
+            "bk_biz_id": "bk_biz_id",
+        }
     }
 
     def get_special_keys_by_table(self, table: str) -> list:
@@ -158,14 +160,16 @@ class BaseIncidentEventsResource(Resource):
             return
 
         special_keys = self.get_special_keys_by_table(table)
-
+        bk_biz_id = time_series_request.get("bk_biz_id", "")
+        
         # 处理特殊字段
         for key in special_keys:
-            if key not in dimensions_filter:
-                continue
             if table == "gse_system_event" and key == "inner_ip":
                 dimensions_filter[key] = transform_to_ip4(dimensions_filter[key])
-
+            
+            if table == "cicd_event" and key == "bk_biz_id":
+                dimensions_filter[key] = bk_biz_id
+        
         # 添加Where过滤条件
         where_filters = []
         for key, value in dimensions_filter.items():
@@ -201,7 +205,16 @@ class BaseIncidentEventsResource(Resource):
                 if mapping_table in table:
                     return source
         return EventSource.DEFAULT.label
-
+    
+    def _get_tables_by_source(self, source: str) -> set[str]:
+        """
+        根据事件来源获取表名
+        """
+        tables = set()
+        for source, mapping_tables in self.TableSourceMapping.items():
+            if source == source:
+                tables.update(mapping_tables)
+        return tables
 
 class IncidentEventsSearchResource(BaseIncidentEventsResource):
     """
@@ -268,7 +281,7 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
 
         # 构建基础查询配置
         base_config = self.build_base_query_config(data_source_label, data_type_label, bk_biz_id, start_time, end_time)
-
+        
         # 生成多表查询请求
         tables = self.get_tables_by_entity_type(entity_type, bk_biz_id=bk_biz_id, **dimensions_filter)
         requests = []
@@ -361,10 +374,11 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
             # 更新统计信息
             source = self._get_source_by_table(table)
             event_level = dimensions.get("type", "")
+            total = sum(datapoint[0] for datapoint in datapoints)
             if event_level in base_response["statistics"]["event_level"]:
-                base_response["statistics"]["event_level"][event_level] += 1
+                base_response["statistics"]["event_level"][event_level] += total
             if source in base_response["statistics"]["event_source"]:
-                base_response["statistics"]["event_source"][source] += sum(datapoint[0] for datapoint in datapoints)
+                base_response["statistics"]["event_source"][source] += total
 
             # 构建序列数据
             series_info = {
@@ -414,6 +428,24 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
             self.build_target_info(value, query_request, validated_request_data)
         return event_tag_detail_response
 
+    def get_filters(self, query_configs: list[dict]) -> dict:
+        filters = {}
+        for query_config in query_configs:
+            for where_filter in query_config.get("where", []):
+                key = where_filter.get("key")
+                value = where_filter.get("value")
+                filters[key] = value
+        
+        # 处理特殊字段
+        for key, value_list in filters.items():
+            if key == "type" and isinstance(value_list, list):
+                # 将 "Default" 替换为空字符串
+                for i, value in enumerate(value_list):
+                    if value == "Default":
+                        value_list[i] = ""
+        
+        return filters
+
     def build_tag_detail_request(self, validated_request_data: dict) -> dict:
         """
         构建事件详情查询请求
@@ -434,6 +466,9 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
             "start_time": start_time,
             "end_time": end_time,
         }
+        
+        query_configs = validated_request_data.get("query_configs", [])
+        filters = self.get_filters(query_configs)
         tables = self.get_tables_by_entity_type(entity_type, bk_biz_id=bk_biz_id, **dimensions_filter)
         for table in tables:
             query_request["query_configs"].append(
@@ -441,15 +476,16 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
                     "data_source_label": data_source_label,
                     "data_type_label": data_type_label,
                     "query_string": self.DEFAULT_QUERY_STRING,
-                    "where": [{"condition": "and", "key": "type", "method": "eq", "value": ["Normal", "Warning", ""]}],
+                    "where": [
+                        {"condition":"and","key":"type","method":"eq","value": filters.get("type", ["Normal","Warning",""])}
+                    ],
                     "group_by": [],
                     "filter_dict": {},
                     "table": table,
                     "interval": interval,
-                }
-            )
-
-        self.apply_dimension_filters(query_request, dimensions_filter, table)
+                })
+            
+            self.apply_dimension_filters(query_request, dimensions_filter, table)
 
         if entity_type == EntityType.APMService.value:
             serializer = ApmEventTagDetailRequestSerializer(data=query_request)
