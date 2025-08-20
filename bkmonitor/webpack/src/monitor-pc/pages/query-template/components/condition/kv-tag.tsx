@@ -26,7 +26,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { isVariableName } from '../utils/utils';
+import { isVariableName } from '../../variables/template/utils';
 import VariableName from '../utils/variable-name';
 
 import type { IFilterItem } from '@/components/retrieval-filter/utils';

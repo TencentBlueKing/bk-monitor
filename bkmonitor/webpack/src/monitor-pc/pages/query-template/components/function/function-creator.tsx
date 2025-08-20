@@ -27,8 +27,8 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { isVariableName } from '../../variables/template/utils';
 import SelectWrap from '../utils/select-wrap';
-import { isVariableName } from '../utils/utils';
 import VariableName from '../utils/variable-name';
 import FunctionCreatorPop from './function-creator-pop';
 import FunctionCreatorTag from './function-creator-tag';
@@ -39,6 +39,7 @@ import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config'
 import './function-creator.scss';
 
 interface IProps {
+  allVariables?: { name: string }[];
   isExpSupport?: boolean;
   options?: IFunctionOptionsItem[];
   showLabel?: boolean;
@@ -62,6 +63,8 @@ export default class FunctionCreator extends tsc<IProps> {
   /** 只展示支持表达式的函数 */
   @Prop({ default: false, type: Boolean }) readonly isExpSupport: boolean;
   @Prop({ default: () => [] }) value: AggFunction[];
+  /* 所有变量，用于校验变量名是否重复 */
+  @Prop({ default: () => [] }) allVariables: { name: string }[];
 
   showSelect = false;
   popClickHide = true;
@@ -113,6 +116,13 @@ export default class FunctionCreator extends tsc<IProps> {
   }
 
   handleAddVar(val: string) {
+    this.handleSelectVar({
+      id: val,
+      name: val,
+      isVariable: true,
+      params: [],
+    });
+    this.showSelect = false;
     this.$emit('createVariable', val);
   }
 
@@ -177,6 +187,10 @@ export default class FunctionCreator extends tsc<IProps> {
     );
   }
 
+  handleCancel() {
+    this.showSelect = false;
+  }
+
   render() {
     return (
       <div class='template-function-creator-component'>
@@ -222,12 +236,14 @@ export default class FunctionCreator extends tsc<IProps> {
           )}
           <FunctionCreatorPop
             slot='popover'
+            allVariables={this.allVariables}
             hasCreateVariable={this.showVariables}
             isExpSupport={this.isExpSupport}
             options={this.options}
             selected={this.curTags}
             variables={this.variables}
             onAddVar={this.handleAddVar}
+            onCancel={this.handleCancel}
             onSelect={this.handleSelect}
             onSelectVar={this.handleSelectVar}
           />

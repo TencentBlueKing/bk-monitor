@@ -27,9 +27,9 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { isVariableName } from '../../variables/template/utils';
 import AddVariableOption from '../utils/add-variable-option';
 import SelectWrap from '../utils/select-wrap';
-import { isVariableName } from '../utils/utils';
 import VariableName from '../utils/variable-name';
 import AutoWidthInput from '@/components/retrieval-filter/auto-width-input';
 
@@ -38,6 +38,7 @@ import type { IDimensionOptionsItem, IVariablesItem } from '../type/query-config
 import './dimension-creator.scss';
 
 interface IProps {
+  allVariables?: { name: string }[];
   options?: IDimensionOptionsItem[];
   showLabel?: boolean;
   showVariables?: boolean;
@@ -58,6 +59,8 @@ export default class DimensionCreator extends tsc<IProps> {
   /* 是否展示变量 */
   @Prop({ default: false }) showVariables: boolean;
   @Prop({ default: () => [] }) value: string[];
+  /* 所有变量，用于校验变量名是否重复 */
+  @Prop({ default: () => [] }) allVariables: { name: string }[];
 
   @Ref('inputRef') inputRef: AutoWidthInput;
 
@@ -104,6 +107,12 @@ export default class DimensionCreator extends tsc<IProps> {
   }
 
   handleAddVar(val) {
+    this.popClickHide = true;
+    this.handleSelect({
+      id: val,
+      name: val,
+      isVariable: true,
+    });
     this.$emit('createVariable', val);
   }
   handleAddVariableOpenChange(val: boolean) {
@@ -155,7 +164,7 @@ export default class DimensionCreator extends tsc<IProps> {
       this.handleSelect({
         id: this.inputValue,
         name: this.inputValue,
-        isVariable: false,
+        isVariable: isVariableName(this.inputValue),
       });
       this.inputValue = '';
     }
@@ -210,6 +219,7 @@ export default class DimensionCreator extends tsc<IProps> {
           >
             {this.showVariables && (
               <AddVariableOption
+                allVariables={this.allVariables}
                 onAdd={this.handleAddVar}
                 onOpenChange={this.handleAddVariableOpenChange}
               />

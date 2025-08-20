@@ -23,19 +23,3 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { variableRegex } from '../../variables/template/utils';
-
-export function getVariableNameInput(val: string) {
-  const matches = val.matchAll(/\$\{([^}]+)\}/g);
-  let str = '';
-  for (const match of matches) {
-    str = match[1];
-    break;
-  }
-  return str;
-}
-
-export function isVariableName(val: string) {
-  return !!val && variableRegex.test(val);
-}

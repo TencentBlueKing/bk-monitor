@@ -49,6 +49,7 @@ import type { IFieldItem, TGetValueFn } from '../../../../components/retrieval-f
 import './condition-creator-options.scss';
 
 interface IProps {
+  allVariables?: { name: string }[];
   dimensionValueVariables?: { name: string }[];
   fields: IFilterField[];
   hasVariableOperate?: boolean;
@@ -83,10 +84,13 @@ export default class UiSelectorOptions extends tsc<IProps> {
   /* 快捷键操作中是否需要按下enter键才能选择项目 */
   @Prop({ type: Boolean, default: false }) isEnterSelect: boolean;
   @Prop({ type: Array, default: () => [] }) dimensionValueVariables: { name: string }[];
+  /* 所有变量，用于校验变量名是否重复 */
+  @Prop({ default: () => [] }) allVariables: { name: string }[];
 
   @Ref('allInput') allInputRef;
   @Ref('valueSelector') valueSelectorRef: ValueTagSelector;
   @Ref('searchInput') searchInputRef;
+  @Ref('addVariableWrap') addVariableWrapRef: AddVariableWrap;
   /* 搜索值 */
   searchValue = '';
   searchLocalFields: IFilterField[] = [];
@@ -247,6 +251,10 @@ export default class UiSelectorOptions extends tsc<IProps> {
       };
       this.$emit('confirm', value);
     } else if (this.isCreateVariable && this.variableName) {
+      const err = this.addVariableWrapRef?.handleAdd?.() || '';
+      if (err) {
+        return;
+      }
       this.$emit('createVariable', this.variableName);
     } else {
       this.$emit('confirm', null);
@@ -476,7 +484,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
       if (this.isCreateVariable) {
         return (
           <AddVariableWrap
+            ref='addVariableWrap'
             class='mt-16'
+            allVariables={this.allVariables}
             hasOperate={false}
             notPop={true}
             show={this.isCreateVariable}
@@ -533,6 +543,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                 <ValueTagSelector
                   key={this.rightRefreshKey}
                   ref='valueSelector'
+                  allVariables={this.allVariables}
                   fieldInfo={this.valueSelectorFieldInfo}
                   getValueFn={this.getValueFnProxy}
                   hasVariableOperate={this.hasVariableOperate}
