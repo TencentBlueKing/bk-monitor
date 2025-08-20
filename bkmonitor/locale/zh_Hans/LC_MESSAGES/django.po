@@ -12610,3 +12610,9 @@ msgstr "主机列表"
 
 msgid "总趋势"
 msgstr "总趋势"
+
+msgid "查询项"
+msgstr "查询项"
+
+msgid "对比项"
+msgstr "对比项"

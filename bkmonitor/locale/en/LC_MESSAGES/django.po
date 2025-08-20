@@ -12317,3 +12317,9 @@ msgstr "Host list"
 
 msgid "总趋势"
 msgstr "Total trend"
+
+msgid "查询项"
+msgstr "Query item"
+
+msgid "对比项"
+msgstr "Compare item"
