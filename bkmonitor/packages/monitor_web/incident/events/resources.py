@@ -66,6 +66,7 @@ class BaseIncidentEventsResource(Resource):
             "namespace": "namespace",
             "cluster_id": "bcs_cluster_id",
         },
+        "builtin": {"apm_service_name": "service_name", "apm_app_name": "app_name"},
         "cicd_event": {},
     }
 
