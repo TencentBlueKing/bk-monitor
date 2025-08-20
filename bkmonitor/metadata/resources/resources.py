@@ -13,9 +13,9 @@ import json
 import logging
 import tempfile
 import time
-from typing import cast
 import uuid
 from itertools import chain
+from typing import cast
 
 import yaml
 from confluent_kafka import Consumer as ConfluentConsumer
@@ -34,7 +34,7 @@ from tenacity import RetryError
 
 from bkmonitor.utils import consul
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_events, get_built_in_k8s_metrics
-from bkmonitor.utils.request import get_app_code_by_request, get_request
+from bkmonitor.utils.request import get_app_code_by_request, get_request, get_request_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import Resource, api
@@ -62,7 +62,7 @@ from metadata.models.data_link.utils import (
     get_data_source_related_info,
 )
 from metadata.models.data_source import DataSourceResultTable
-from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes, EtlConfigs
+from metadata.models.space.constants import SPACE_UID_HYPHEN, EtlConfigs, SpaceTypes
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.service.data_source import (
     modify_data_id_source,
@@ -74,7 +74,6 @@ from metadata.utils.bcs import get_bcs_dataids
 from metadata.utils.bkbase import sync_bkbase_result_table_meta
 from metadata.utils.data_link import get_record_rule_metrics_by_biz_id
 from metadata.utils.es_tools import get_client
-from bkmonitor.utils.request import get_request_tenant_id
 
 logger = logging.getLogger("metadata")
 
@@ -533,24 +532,22 @@ class ModifyResultTableResource(Resource):
             )
             storage = query_set[0]
             storage.update_index_and_aliases(ahead_time=0, is_moving_cluster=is_moving_cluster)
-        try:
+
+            # 通知数据平台变更
             bk_data_id = models.DataSourceResultTable.objects.get(
                 table_id=table_id, bk_tenant_id=bk_tenant_id
             ).bk_data_id
-
-            # 上面获取data_id时已经添加了租户ID过滤条件，无需再次过滤
             ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
             if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
-                result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
-                logger.info(
-                    "ModifyResultTableResource: notify bkdata successfully,table_id->[%s],data_id->[%s]",
-                    table_id,
-                    bk_data_id,
-                )
-        except RetryError as e:
-            logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
+                try:
+                    result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
+                    logger.info(
+                        "ModifyResultTableResource: notify bkdata successfully,table_id->[%s],data_id->[%s]",
+                        table_id,
+                        bk_data_id,
+                    )
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
         if result_table.default_storage == models.ClusterInfo.TYPE_ES:
             # 推送路由 (关联的虚拟RT）
