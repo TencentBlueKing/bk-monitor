@@ -357,8 +357,6 @@ export default {
   retrieveDutyRule,
   switchDutyRule,
   updateDutyRule,
-  chatChat,
-  chatChatV2,
   createQueryTemplate,
   listQueryTemplate,
   previewQueryTemplate,
