@@ -3,10 +3,17 @@
     width: 100%;
 
     .variable-value {
+      height: 50px;
+
       .variable-value-label {
         height: 50px;
         line-height: 50px;
       }
+
+      .variable-value-input {
+        display: flex;
+      }
+
     }
   }
 }

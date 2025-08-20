@@ -56,6 +56,7 @@ interface IProps {
   onChange?: (val: AggCondition[]) => void;
   onCreateValueVariable?: (val: { name: string; relationDimension: string }) => void;
   onCreateVariable?: (val: string) => void;
+  onPopoverShowChange?: (val: boolean) => void;
 }
 
 @Component
@@ -130,6 +131,10 @@ export default class ConditionCreator extends tsc<IProps> {
   }
   handleCreateValueVariable(val) {
     this.$emit('createValueVariable', val);
+  }
+
+  handlePopoverShowChange(show: boolean) {
+    this.$emit('popoverShowChange', show);
   }
 
   handleChange(val: IFilterItem[]) {
@@ -209,6 +214,7 @@ export default class ConditionCreator extends tsc<IProps> {
           onChange={this.handleChange}
           onCreateValueVariable={this.handleCreateValueVariable}
           onCreateVariable={this.handleCreateVariable}
+          onPopoverShowChange={this.handlePopoverShowChange}
         />
       </div>
     );

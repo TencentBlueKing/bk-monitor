@@ -3,13 +3,16 @@
 
   .variable-value {
     display: flex;
-    align-items: center;
     width: 100%;
 
     .variable-value-label {
+      max-width: 80px;
       height: 32px;
       padding: 0 9px 0 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
       line-height: 32px;
+      white-space: nowrap;
       background: #ebeef5;
       border: 1px solid #dcdee5;
       border-right: none;
