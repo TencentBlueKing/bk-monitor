@@ -51,23 +51,44 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
   })
   variableList: VariableModelType[];
 
+  localName = '';
+
   get formRules() {
     return {
-      name: [
-        { required: true, message: this.$t('变量名必填'), trigger: 'blur' },
+      variableName: [
+        {
+          validator: () => {
+            return !!this.localName;
+          },
+          message: this.$t('变量名必填'),
+          trigger: 'blur',
+        },
         { validator: this.handleCheckName, message: this.$t('变量名不能重复'), trigger: 'blur' },
+        {
+          validator: () => {
+            return /^[\u4e00-\u9fa5a-zA-Z0-9_.:]+$/.test(this.localName);
+          },
+          message: window.i18n.tc('变量名不能包含非法字符'),
+          trigger: 'blur',
+        },
       ],
       ...this.rules,
     };
   }
 
-  handleCheckName(val: string) {
-    const valid = this.variableList.find(item => item.name === val && item.id !== this.data.id);
+  mounted() {
+    this.localName = this.data.variableName;
+  }
+
+  handleCheckName() {
+    const valid = this.variableList.find(item => item.variableName === this.localName && item.id !== this.data.id);
     return !valid;
   }
 
   handleNameChange(value: string) {
-    this.handleDataChange({ ...this.data, name: value ? `\${${value}}` : '' });
+    this.localName = value;
+    if (!/^[\u4e00-\u9fa5a-zA-Z0-9_.:]+$/.test(value)) return;
+    this.handleDataChange({ ...this.data, name: value ? `\${${value}}` : value });
   }
 
   handleAliasChange(value: string) {
@@ -99,7 +120,7 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
           class='variable-name-form-item'
           error-display-type='normal'
           label={this.$t('变量名')}
-          property='name'
+          property='variableName'
           required
         >
           <bk-input
