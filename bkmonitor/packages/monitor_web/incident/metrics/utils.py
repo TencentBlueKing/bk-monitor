@@ -10,22 +10,24 @@ specific language governing permissions and limitations under the License.
 
 import re
 
+RE_IPV4 = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
+
 def is_ipv4(ip: str) -> bool:
     """
     判断是否为IPv4地址
     """
-    return re.match(r"^(\d{1,3}\.){3}\d{1,3}$", ip) is not None
+    return RE_IPV4.match(ip) is not None
 
 def transform_to_ip4(inner_ip: str) -> str:
     """
-    将node-9-136-170-171转换为9.136.170.171
+    将node-1-2-3-4转换为1.2.3.4
     """
     if not inner_ip:
         return ""
     if is_ipv4(inner_ip):
         return inner_ip
     parts = inner_ip.split("-")
-    if len(parts) != 5:
+    if not all(part.isdigit() and 0 <= int(part) <= 255 for part in parts[1:]):
         return ""
     return ".".join(parts[1:])
     

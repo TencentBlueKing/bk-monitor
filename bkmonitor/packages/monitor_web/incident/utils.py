@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 import re
 
+PASCAL_TO_SNAKE_PATTERN_1 = re.compile(r"([A-Z]+)([A-Z][a-z])")
+PASCAL_TO_SNAKE_PATTERN_2 = re.compile(r"([a-z\d])([A-Z])")
 
 def pascal_to_snake(name):
     """
@@ -35,10 +37,10 @@ def pascal_to_snake(name):
     """
     # 处理连续大写字母的情况，如 HTTPSConnection -> HTTPS_Connection
     # 在连续大写字母中，除了最后一个字母外，其他字母后面都加下划线
-    name = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
+    name = PASCAL_TO_SNAKE_PATTERN_1.sub(r"\1_\2", name)
 
     # 处理大写字母前面添加下划线的情况，如 EventSource -> Event_Source
-    name = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", name)
+    name = PASCAL_TO_SNAKE_PATTERN_2.sub(r"\1_\2", name)
 
     # 转换为小写
     return name.lower()
