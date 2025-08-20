@@ -53,6 +53,7 @@ export default class QueryChart extends tsc<{
   @ProvideReactive('viewOptions') viewOptions: IViewOptions & { unit?: string } = {};
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
+  @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = () => {};
 
   panel: PanelModel = null;
   limit = 10;
@@ -73,6 +74,7 @@ export default class QueryChart extends tsc<{
     };
   }
   createPanel() {
+    console.log('this.queryConfigs', this.queryConfigs);
     this.panel = new PanelModel({
       id: random(10),
       type: 'query-template-graph',
@@ -111,7 +113,8 @@ export default class QueryChart extends tsc<{
     });
   }
   handleLimitChange(v: number) {
-    this.limit = v;
+    this.limit = Number.isNaN(v) ? 10 : Math.min(Math.max(v, 1), 100);
+    this.createPanel();
   }
   handleTimeRangeChange(val: TimeRangeType) {
     this.timeRange = [...val];
@@ -135,7 +138,14 @@ export default class QueryChart extends tsc<{
               size='small'
               type='number'
               value={this.limit}
-              onChange={this.handleLimitChange}
+              onBlur={(v: number) => {
+                this.handleLimitChange(Number(v));
+              }}
+              onEnter={(v: number, e: KeyboardEvent) => {
+                if (e.key === 'Enter') {
+                  this.handleLimitChange(Number(v));
+                }
+              }}
             />
           </div>
           <TimeRange
@@ -146,7 +156,7 @@ export default class QueryChart extends tsc<{
             onTimezoneChange={this.handleTimezoneChange}
           />
         </div>
-        {this.hasMetricSet ? (
+        {this.hasMetricSet && this.panel ? (
           <QueryTemplateGraph
             class='query-chart-content'
             panel={this.panel}
