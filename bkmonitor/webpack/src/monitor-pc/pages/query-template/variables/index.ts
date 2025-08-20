@@ -26,8 +26,8 @@
 
 import { random } from 'monitor-common/utils';
 
-import { getVariableNameInput, isVariableName } from '../components/utils/utils';
 import { VariableTypeEnum } from '../constants';
+import { getVariableNameInput, isVariableName } from './template/utils';
 
 import type { AggFunction, MetricDetailV2 } from '../typings';
 import type {
