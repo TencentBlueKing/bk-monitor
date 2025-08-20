@@ -26,7 +26,7 @@ class CacheManager(metaclass=abc.ABCMeta):
 
     CACHE_TIMEOUT = CONST_ONE_DAY
 
-    cache = Cache("cache")
+    cache = Cache("cache-strategy")
     logger = logging.getLogger("cache")
 
     @classmethod

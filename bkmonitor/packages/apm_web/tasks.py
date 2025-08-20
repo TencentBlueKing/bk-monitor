@@ -30,6 +30,7 @@ from bkmonitor.utils.tenant import set_local_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
 from constants.apm import TelemetryDataType
+from core.drf_resource import api
 
 
 class APMEvent(Enum):
@@ -126,8 +127,8 @@ def build_event_body(
 
 
 @shared_task(ignore_result=True)
-def update_application_config(application_id):
-    Application.objects.get(application_id=application_id).refresh_config()
+def update_application_config(bk_biz_id, app_name, config):
+    api.apm_api.release_app_config({"bk_biz_id": bk_biz_id, "app_name": app_name, **config})
 
 
 @shared_task(ignore_result=True)

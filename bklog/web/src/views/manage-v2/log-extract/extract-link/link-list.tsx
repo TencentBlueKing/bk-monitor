@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, reactive, computed, onMounted } from 'vue';
+import { defineComponent, ref, computed, onMounted } from 'vue';
 import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
 import useLocale from '@/hooks/use-locale';
@@ -53,7 +53,7 @@ export default defineComponent({
       qcloud_cos: t('腾讯云链路'),
       bk_repo: t('蓝鲸制品库'),
     }));
-    const pagination = reactive({
+    const pagination = ref({
       // 分页配置
       count: 0,
       current: 1,
@@ -95,9 +95,9 @@ export default defineComponent({
         const res = await http.request('extractManage/getLogExtractLinks');
         // 分页处理
         const allList = res.data;
-        pagination.count = allList.length;
-        const start = (pagination.current - 1) * pagination.limit;
-        const end = start + pagination.limit;
+        pagination.value.count = allList.length;
+        const start = (pagination.value.current - 1) * pagination.value.limit;
+        const end = start + pagination.value.limit;
         extractLinkList.value = allList.slice(start, end);
       } catch (e) {
         console.warn(e);
@@ -109,16 +109,16 @@ export default defineComponent({
 
         // 处理分页变化
     const handlePageChange = (page: number) => {
-      if (pagination.current !== page) {
-        pagination.current = page;
+      if (pagination.value.current !== page) {
+        pagination.value.current = page;
         initList();
       }
     };
 
     // 处理每页数量变化
     const handleLimitChange = (limit: number) => {
-      pagination.limit = limit;
-      pagination.current = 1;
+      pagination.value.limit = limit;
+      pagination.value.current = 1;
       initList();
     };
 
@@ -199,7 +199,7 @@ export default defineComponent({
     const handleOperation = (type: string) => {
       if (type === 'refresh') {
         emptyType.value = 'empty';
-        pagination.current = 1;
+        pagination.value.current = 1;
         initList();
       }
     };
@@ -239,7 +239,7 @@ export default defineComponent({
           data={extractLinkList.value}
           data-test-id='extractLinkListBox_table_LinkListTableBox'
           row-key='strategy_id'
-          pagination={pagination}
+          pagination={pagination.value}
           onPage-change={handlePageChange}
           onPage-limit-change={handleLimitChange}
           scopedSlots={{

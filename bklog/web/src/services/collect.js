@@ -268,5 +268,5 @@ export {
   runCheck,
   getCheckInfos,
   reviewToken,
-  getStorageUsage
+  getStorageUsage,
 };
