@@ -2009,9 +2009,13 @@ class ESStorage(models.Model, StorageResultTable):
         """
         # 0. 判断是否需要使用默认集群信息
         if cluster_id is None:
-            cluster_id = ClusterInfo.objects.get(
-                bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_ES, is_default_cluster=True
-            ).cluster_id
+            try:
+                cluster_id = ClusterInfo.objects.get(
+                    bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_ES, is_default_cluster=True
+                ).cluster_id
+            except ClusterInfo.DoesNotExist:
+                logger.error(f"cluster_id->[{cluster_id}] is not exists or is not redis cluster, something go wrong?")
+                raise ValueError(_("存储集群配置有误，默认es集群不存在，请确认或联系管理员处理"))
 
         # 如果有提供集群信息，需要判断
         else:

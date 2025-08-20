@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import random
+from typing import Any
 
 from django.conf import settings
 from django.db.models import Q
@@ -56,8 +57,12 @@ def refine_bkdata_kafka_info(bk_tenant_id: str):
     )
     kafka_domain_cluster_id = {obj["domain_name"]: obj["cluster_id"] for obj in kafka_clusters}
     # 通过集群平台获取可用的 kafka host
-    bkdata_kafka_data = api.bkdata.get_kafka_info(bk_tenant_id=bk_tenant_id)[0]
-    bkdata_kafka_host_list = bkdata_kafka_data.get("ip_list", "").split(",")
+    bkdata_kafka_data: list[dict[str, Any]] = api.bkdata.get_kafka_info(bk_tenant_id=bk_tenant_id)
+    if not bkdata_kafka_data:
+        logger.error("bkdata kafka info not found, bk_tenant_id: %s", bk_tenant_id)
+        raise ValueError("bkdata kafka info not found")
+
+    bkdata_kafka_host_list = bkdata_kafka_data[0].get("ip_list", "").split(",")
 
     # NOTE: 获取 metadata 和接口返回的交集，然后任取其中一个; 如果不存在，则直接报错
     existed_host_list = list(set(bkdata_kafka_host_list) & set(kafka_domain_cluster_id.keys()))
