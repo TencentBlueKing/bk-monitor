@@ -206,13 +206,13 @@ class BaseIncidentEventsResource(Resource):
                     return source
         return EventSource.DEFAULT.label
     
-    def _get_tables_by_source(self, source: str) -> set[str]:
+    def _get_tables_by_sources(self, sources: list[str]) -> set[str]:
         """
         根据事件来源获取表名
         """
         tables = set()
         for source, mapping_tables in self.TableSourceMapping.items():
-            if source == source:
+            if source in sources:
                 tables.update(mapping_tables)
         return tables
 
@@ -426,6 +426,7 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
         event_tag_detail_response = event_resources.EventTagDetailResource().perform_request(query_request)
         for value in event_tag_detail_response.values():
             self.build_target_info(value, query_request, validated_request_data)
+        event_tag_detail_response["query_configs"] = query_request
         return event_tag_detail_response
 
     def get_filters(self, query_configs: list[dict]) -> dict:
@@ -469,6 +470,7 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
         
         query_configs = validated_request_data.get("query_configs", [])
         filters = self.get_filters(query_configs)
+        filter_tables = self._get_tables_by_sources(filters["source"])
         tables = self.get_tables_by_entity_type(entity_type, bk_biz_id=bk_biz_id, **dimensions_filter)
         for table in tables:
             query_request["query_configs"].append(

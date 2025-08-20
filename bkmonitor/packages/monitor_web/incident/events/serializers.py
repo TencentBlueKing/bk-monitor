@@ -46,7 +46,8 @@ class EventsSearchSerializer(BaseIncidentEventsSerializer):
 
 class EventDetailSerializer(BaseIncidentEventsSerializer):
     index_info = serializers.JSONField(label="索引信息", default=None)
-
+    query_configs = serializers.JSONField(label="查询配置", default=None)
+    
     def validate(self, attrs):
         # 调用基类的索引信息验证方法
         if attrs.get("index_info"):
