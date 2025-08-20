@@ -102,10 +102,15 @@ export class QueryConfig {
         ? +this.agg_interval.replace(/m/gi, '')
         : +this.agg_interval.replace(/s/gi, '');
     }
-    if (this.agg_method?.match(/_TIME$/)) {
-      // 兼容老版本数据
-      this.agg_method = this.agg_method.toLocaleLowerCase();
+    if (this.agg_method) {
+      if (this.agg_method?.match(/_TIME$/)) {
+        // 兼容老版本数据
+        this.agg_method = this.agg_method.toLocaleLowerCase();
+      }
+    } else {
+      this.agg_method = 'AVG';
     }
+
     // 处理日志关键字指标ID脏数据
     if (this.metricDetail?.metricMetaId === 'bk_log_search|log' && this.agg_method === 'COUNT') {
       const list = this.metric_id.toString().split('.');

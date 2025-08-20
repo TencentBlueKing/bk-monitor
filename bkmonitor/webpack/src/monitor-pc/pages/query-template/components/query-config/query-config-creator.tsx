@@ -221,6 +221,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                 <ConditionCreator
                   allVariables={this.allVariables}
                   dimensionValueVariables={this.getDimensionValueVariables as { name: string }[]}
+                  hasVariableOperate={true}
                   metricDetail={this.queryConfig.metricDetail}
                   options={this.getWhereDimensionList as IConditionOptionsItem[]}
                   value={this.queryConfig.agg_condition}

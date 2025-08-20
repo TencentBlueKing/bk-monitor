@@ -51,7 +51,6 @@ interface IProps {
   metricDetail?: MetricDetailV2;
   options?: IConditionOptionsItem[];
   showLabel?: boolean;
-  showVariables?: boolean;
   value?: AggCondition[];
   variables?: IVariablesItem[];
   onChange?: (val: AggCondition[]) => void;
@@ -68,7 +67,6 @@ export default class ConditionCreator extends tsc<IProps> {
   /* 可选项列表 */
   @Prop({ default: () => [] }) options: IConditionOptionsItem[];
   /* 是否展示变量 */
-  @Prop({ default: false }) showVariables: boolean;
   @Prop({ default: true }) hasVariableOperate: boolean;
   @Prop({ default: () => [] }) value: AggCondition[];
   @Prop({ default: () => null }) metricDetail: MetricDetailV2;
