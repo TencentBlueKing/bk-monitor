@@ -62,9 +62,12 @@ import './variable-panel.scss';
 
 interface VariablePanelEvents {
   onDataChange: (variable: VariableModelType) => void;
+  onDelete: () => void;
 }
 
 interface VariablePanelProps {
+  /** 变量是否使用 */
+  isUseVariable?: boolean;
   metricFunctions?: any[];
   scene?: 'create' | 'detail' | 'edit';
   variable: VariableModelType;
@@ -76,6 +79,9 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
   @Prop() variable: VariableModelType;
   @Prop({ default: 'create', type: String }) scene: VariablePanelProps['scene'];
   @Prop({ default: () => [] }) metricFunctions: any[];
+  /** 变量是否使用 */
+  @Prop({ default: false, type: Boolean }) isUseVariable: boolean;
+
   @ProvideReactive('variableList')
   @Prop({ type: Array, default: () => [] })
   variableList: VariableModelType[];
@@ -88,6 +94,11 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
   @Debounce(200)
   handleDataChange(value: VariableModelType) {
     this.$emit('dataChange', value);
+  }
+
+  handleDelete() {
+    if (this.isUseVariable) return;
+    this.$emit('delete');
   }
 
   /** 变量详情 */
@@ -228,12 +239,29 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
     }
   }
 
-  handleEditValueBlur() {}
+  handleEditValueFocus() {
+    const queryTemplateViewDom = document.querySelector('.query-template-view');
+    const variableDom = queryTemplateViewDom?.querySelectorAll(`#${this.variable.variableName}`);
+    console.log(variableDom);
+    if (variableDom) {
+      for (const element of Array.from(variableDom)) {
+        element.classList.add('variable-tag-active');
+      }
+    }
+  }
 
-  handleEditValueFocus() {}
+  handleEditValueBlur() {
+    const queryTemplateViewDom = document.querySelector('.query-template-view');
+    const variableDom = queryTemplateViewDom?.querySelectorAll(`#${this.variable.variableName}`);
+    if (variableDom) {
+      for (const element of Array.from(variableDom)) {
+        element.classList.remove('variable-tag-active');
+      }
+    }
+  }
 
   validateForm() {
-    return this.variableForm?.validateForm?.().catch(() => {});
+    return this.variableForm?.validateForm?.();
   }
 
   render() {
@@ -241,7 +269,20 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
 
     return (
       <div class={['variable-panel', this.scene]}>
-        <div class='variable-type-title'>{this.title}</div>
+        <div class='variable-panel-header'>
+          <div class='variable-type-title'>{this.title}</div>
+          {this.scene === 'create' && (
+            <i
+              class={['icon-monitor icon-mc-delete-line', { disabled: this.isUseVariable }]}
+              v-bk-tooltips={{
+                content: this.$t('该变量有被使用，暂不可删除'),
+                placements: ['right', 'top-end'],
+                disabled: !this.isUseVariable,
+              }}
+              onClick={this.handleDelete}
+            />
+          )}
+        </div>
         <div class='variable-form'>
           {this.scene === 'detail' ? this.renderVariableDetail() : this.renderVariableForm()}
         </div>
