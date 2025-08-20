@@ -85,6 +85,10 @@ export default class SelectWrap extends tsc<IProps> {
 
   isHover = false;
 
+  beforeDestroy() {
+    this.popoverDestroy();
+  }
+
   @Watch('expanded')
   handleWatchShowPop(val) {
     if (!val && this.needPop) {
