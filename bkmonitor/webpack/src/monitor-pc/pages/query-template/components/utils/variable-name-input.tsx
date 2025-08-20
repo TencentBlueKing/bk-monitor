@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import './variable-name-input.scss';
 
 interface IProps {
+  isErr?: boolean;
   show?: boolean;
   value: string;
   onChange?: (val: string) => void;
@@ -39,6 +40,7 @@ interface IProps {
 export default class VariableNameInput extends tsc<IProps> {
   @Prop({ type: String, default: '' }) value: string;
   @Prop({ type: Boolean, default: false }) show: boolean;
+  @Prop({ type: Boolean, default: false }) isErr: boolean;
 
   @Ref('input') inputRef;
 
@@ -69,7 +71,7 @@ export default class VariableNameInput extends tsc<IProps> {
 
   render() {
     return (
-      <div class='template-config-variable-name-input'>
+      <div class={['template-config-variable-name-input', { 'is-err': this.isErr }]}>
         <div class='label-left'>{'${'}</div>
         <bk-input
           ref='input'

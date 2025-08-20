@@ -28,10 +28,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import AutoWidthInput from '../../../../components/retrieval-filter/auto-width-input';
 import { EFieldType, isNumeric, onClickOutside } from '../../../../components/retrieval-filter/utils';
-import ValueOptions from '../../../../components/retrieval-filter/value-options';
 import ValueTagInput from '../../../../components/retrieval-filter/value-tag-input';
-import { isVariableName } from '../utils/utils';
+import { isVariableName } from '../../variables/template/utils';
 import VariableName from '../utils/variable-name';
+import ValueOptions from './value-options';
 
 import type { IFieldItem, TGetValueFn } from '../../../../components/retrieval-filter/value-selector-typing';
 
@@ -44,6 +44,7 @@ export interface IValue {
 }
 
 interface IProps {
+  allVariables?: { name: string }[];
   autoFocus?: boolean;
   fieldInfo?: IFieldItem;
   /* 获取数据 */
@@ -76,6 +77,8 @@ export default class ValueTagSelector extends tsc<IProps> {
   getValueFn: TGetValueFn;
   @Prop({ type: Array, default: () => [] }) variables: { name: string }[];
   @Prop({ type: Boolean, default: false }) hasVariableOperate: boolean;
+  /* 所有变量，用于校验变量名是否重复 */
+  @Prop({ default: () => [] }) allVariables: { name: string }[];
 
   /* tag列表 */
   localValue: IValue[] = [];
@@ -311,6 +314,11 @@ export default class ValueTagSelector extends tsc<IProps> {
   }
 
   handleCreateVariable(val: string) {
+    this.handleCheck({
+      id: val,
+      name: val,
+      isVariable: true,
+    });
     this.$emit('createVariable', val);
   }
 
@@ -366,6 +374,7 @@ export default class ValueTagSelector extends tsc<IProps> {
         </div>
         {this.isShowDropDown && (
           <ValueOptions
+            allVariables={this.allVariables}
             fieldInfo={this.fieldInfo}
             getValueFn={this.getValueFn}
             hasVariableOperate={this.hasVariableOperate}
