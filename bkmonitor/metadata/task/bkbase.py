@@ -149,7 +149,7 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
                 )
 
                 # Celery异步调用同步逻辑
-                sync_bkbase_v4_metadata.delay(key=key)
+                sync_bkbase_v4_metadata.delay(key=key, skip_types=["es"])
 
         except redis.exceptions.ConnectionError as e:
             logger.error("watch_bkbase_meta_redis: Redis connection error->[%s]", e)
@@ -256,7 +256,7 @@ def sync_bkbase_metadata_all():
     # 使用线程池并发发送任务
     def _send_task(key):
         try:
-            sync_bkbase_v4_metadata.delay(key=key)
+            sync_bkbase_v4_metadata.delay(key=key, skip_types=["es"])
         except Exception as e:
             logger.error(f"Failed to send task for key {key}: {e}")
 
