@@ -27,57 +27,32 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type VariableModelType } from '../../variables';
 import { getTemplateSrv } from '../../variables/template/template-srv';
 import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
+
+import type { VariableModelType } from '../../variables';
 
 import './method-detail.scss';
 
 interface MethodProps {
   /* 汇聚方法 */
   value: string;
-  /* 变量列表 */
-  variables?: VariableModelType[];
+  /* 变量 variableName-变量对象 映射表 */
+  variableMap?: Record<string, VariableModelType>;
 }
 
 @Component
 export default class MethodDetail extends tsc<MethodProps> {
   /* 汇聚方法 */
   @Prop({ type: String, default: '' }) value: string;
-  /* 变量列表 */
-  @Prop({ default: () => [] }) variables?: VariableModelType[];
+  /* 变量 variableName-变量对象 映射表 */
+  @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
   variablesToolInstance = new QueryVariablesTool();
-  templateSrv = getTemplateSrv();
-
-  get variableMap() {
-    if (!this.variables?.length) {
-      return {};
-    }
-    return this.variables?.reduce?.((prev, curr) => {
-      prev[curr.name] = curr;
-      return prev;
-    }, {});
-  }
 
   /** 将已选汇聚方法字符串 转换为渲染所需的 QueryVariablesTransformResult 结构数据 */
   get methodToVariableModel(): QueryVariablesTransformResult {
     return this.variablesToolInstance.transformVariables(this.value);
-  }
-
-  get methodViewDom() {
-    return this.methodToVariableModel.isVariable ? VariableSpan : 'span';
-  }
-
-  get methodValue() {
-    if (!this.methodToVariableModel.isVariable) {
-      return this.methodToVariableModel?.value || '--';
-    }
-
-    return (
-      this.templateSrv.replace(this.methodToVariableModel.value as string, this.variableMap) ||
-      this.methodToVariableModel?.value
-    );
   }
 
   render() {
@@ -85,12 +60,22 @@ export default class MethodDetail extends tsc<MethodProps> {
       <div class='template-method-detail-component'>
         <span class='method-label'>{this.$slots?.label || this.$t('汇聚方法')}</span>
         <span class='method-colon'>:</span>
-        <this.methodViewDom
-          id={this.methodToVariableModel.variableName}
-          class='method-name'
-        >
-          {this.methodValue}
-        </this.methodViewDom>
+        {this.methodToVariableModel.isVariable ? (
+          <VariableSpan
+            id={this.methodToVariableModel.variableName}
+            class='method-name'
+          >
+            {getTemplateSrv().replace(this.methodToVariableModel.value as string, this.variableMap) ||
+              this.methodToVariableModel?.value}
+          </VariableSpan>
+        ) : (
+          <span
+            id={this.methodToVariableModel.variableName}
+            class='method-name'
+          >
+            {this.methodToVariableModel?.value || '--'}
+          </span>
+        )}
       </div>
     );
   }
