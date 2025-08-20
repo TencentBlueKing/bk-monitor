@@ -113,7 +113,6 @@ class GetSceneViewListResource(ApiAuthResource):
         scene_id = params["scene_id"]
         scene_type = params.get("type", "")
         bk_biz_id = params["bk_biz_id"]
-        # todo hhh 从数据库中动态返回国际化数据
         # 添加自定义视图
         views = SceneViewModel.objects.filter(bk_biz_id=bk_biz_id, scene_id=scene_id, type=scene_type)
 
