@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { variableRegex } from '../../variables/template/utils';
+
 export function getVariableNameInput(val: string) {
   const matches = val.matchAll(/\$\{([^}]+)\}/g);
   let str = '';
@@ -35,5 +37,5 @@ export function getVariableNameInput(val: string) {
 }
 
 export function isVariableName(val: string) {
-  return !!val && /^\$\{(\w+)(?:\.([^:^}]+))?(?::([^}]+))?}$/.test(val);
+  return !!val && variableRegex.test(val);
 }
