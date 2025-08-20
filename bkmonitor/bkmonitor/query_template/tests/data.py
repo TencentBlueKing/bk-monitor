@@ -127,6 +127,45 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
     ],
 }
 
+
+CALLEE_SUCCESS_RATE_QUERY_INSTANCE: dict[str, Any] = {
+    "name": "被调成功率（%）",
+    "bk_biz_id": 0,
+    "query_configs": [
+        {
+            "table": "APM.__default__",
+            "data_label": "APM",
+            "data_type_label": "time_series",
+            "data_source_label": "custom",
+            "interval": 60,
+            "promql": "",
+            "metrics": [{"field": "rpc_server_handled_total", "method": "SUM", "alias": "a"}],
+            "where": [
+                {"key": "code_type", "value": ["success"], "method": "eq"},
+                {"key": "rpc_system", "method": "eq", "value": ""},
+            ],
+            "functions": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}],
+            "group_by": ["service_name", "callee_method"],
+        },
+        {
+            "table": "APM.__default__",
+            "data_label": "APM",
+            "data_type_label": "time_series",
+            "data_source_label": "custom",
+            "interval": 60,
+            "promql": "",
+            "metrics": [{"field": "rpc_server_handled_total", "method": "SUM", "alias": "b"}],
+            "where": [{"key": "rpc_system", "method": "eq", "value": ""}],
+            "functions": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}],
+            "group_by": ["service_name", "callee_method"],
+        },
+    ],
+    "expression": "(a or b < bool 0) / (b > 0) * 100",
+    "space_scope": [],
+    "functions": [],
+}
+
+
 CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": 0,
     "name": "被调 P99 耗时（ms）",
