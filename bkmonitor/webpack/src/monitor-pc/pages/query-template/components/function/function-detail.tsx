@@ -39,28 +39,18 @@ import './function-detail.scss';
 interface FunctionProps {
   /* 已选函数数组 */
   value: AggFunction[];
-  /* 变量列表 */
-  variables?: VariableModelType[];
+  /* 变量 variableName-变量对象 映射表 */
+  variableMap?: Record<string, VariableModelType>;
 }
 
 @Component
 export default class FunctionDetail extends tsc<FunctionProps> {
   /* 已选函数数组 */
   @Prop({ type: Array }) value: AggFunction[];
-  /* 变量列表 */
-  @Prop({ default: () => [] }) variables?: VariableModelType[];
+  /* 变量 variableName-变量对象 映射表 */
+  @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
   variablesToolInstance = new QueryVariablesTool();
   templateSrv = getTemplateSrv();
-
-  get variableMap() {
-    if (!this.variables?.length) {
-      return {};
-    }
-    return this.variables?.reduce?.((prev, curr) => {
-      prev[curr.name] = curr;
-      return prev;
-    }, {});
-  }
 
   /** 将已选函数数组 源数据数组 转换为渲染所需的 QueryVariablesTransformResult 结构数组 */
   get functionsToVariableModel(): QueryVariablesTransformResult[] {

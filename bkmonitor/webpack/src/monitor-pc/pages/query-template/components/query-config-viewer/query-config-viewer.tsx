@@ -27,49 +27,41 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import ExpressionDetail from '../expression/expression-detail';
-import FunctionDetail from '../function/function-detail';
+import ExpressionConfigDetail from '../expression-config/expression-config.detail';
+import QueryConfigDetail from '../query-config/query-config-detail';
 
+import type { Expression } from '../../typings';
+import type { QueryConfig } from '../../typings';
 import type { VariableModelType } from '../../variables';
 
-import './expression-config-detail.scss';
+import './query-config-viewer.scss';
 
 interface IProps {
-  expressionConfig?: any;
-  variables?: VariableModelType[];
+  expressionConfig: Expression;
+  queryConfigs: QueryConfig[];
+  variablesList?: VariableModelType[];
 }
 
 @Component
-export default class ExpressionConfigDetail extends tsc<IProps> {
-  @Prop({ default: () => null }) expressionConfig: any;
-  @Prop({ default: () => [] }) variables: VariableModelType[];
-
-  get variableMap(): Record<string, VariableModelType> {
-    if (!this.variables?.length) {
-      return {};
-    }
-    return this.variables?.reduce?.((prev, curr) => {
-      prev[curr.variableName] = curr;
-      return prev;
-    }, {});
-  }
+export default class QueryConfigViewer extends tsc<IProps> {
+  @Prop({ default: () => [] }) variablesList?: VariableModelType[];
+  @Prop({ default: () => [] }) queryConfigs: QueryConfig[];
+  @Prop({ default: () => {} }) expressionConfig: Expression;
 
   render() {
     return (
-      <div class='template-expression-config-detail-component'>
-        <div class='alias-wrap'>
-          <span class='icon-monitor icon-arrow-turn' />
-        </div>
-        <div class='expression-config-wrap'>
-          <ExpressionDetail
-            expression={this.expressionConfig?.expression}
-            variableMap={this.variableMap}
+      <div class='query-config-viewer'>
+        {this.queryConfigs.map((queryConfig, i) => (
+          <QueryConfigDetail
+            key={i}
+            queryConfig={queryConfig}
+            variables={this.variablesList}
           />
-          <FunctionDetail
-            value={this.expressionConfig?.functions}
-            variableMap={this.variableMap}
-          />
-        </div>
+        ))}
+        <ExpressionConfigDetail
+          expressionConfig={this.expressionConfig}
+          variables={this.variablesList}
+        />
       </div>
     );
   }

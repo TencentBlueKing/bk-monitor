@@ -27,8 +27,6 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { VariableTypeEnum } from '../../constants';
-import { type QueryConfig } from '../../typings';
 import ConditionDetail from '../condition/condition-detail';
 import DimensionDetail from '../dimension/dimension-detail';
 import FunctionDetail from '../function/function-detail';
@@ -36,6 +34,7 @@ import IntervalDetail from '../interval/interval-detail';
 import MethodDetail from '../method/method-detail';
 import MetricDetail from '../metric/metric-detail';
 
+import type { QueryConfig } from '../../typings';
 import type { VariableModelType } from '../../variables';
 
 import './query-config-detail.scss';
@@ -50,17 +49,14 @@ export default class QueryConfigDetail extends tsc<IProps> {
   @Prop({ default: () => null }) queryConfig: QueryConfig;
   @Prop({ default: () => [] }) variables: VariableModelType[];
 
-  get getMethodVariables() {
-    return this.variables.filter(item => item.type === VariableTypeEnum.METHOD);
-  }
-  get getDimensionVariables() {
-    return this.variables.filter(item => item.type === VariableTypeEnum.DIMENSION);
-  }
-  get getFunctionVariables() {
-    return this.variables.filter(item => item.type === VariableTypeEnum.FUNCTION);
-  }
-  get getDimensionValueVariables() {
-    return this.variables.filter(item => item.type === VariableTypeEnum.DIMENSION_VALUE);
+  get variableMap(): Record<string, VariableModelType> {
+    if (!this.variables?.length) {
+      return {};
+    }
+    return this.variables?.reduce?.((prev, curr) => {
+      prev[curr.variableName] = curr;
+      return prev;
+    }, {});
   }
 
   get getDimensionList() {
@@ -77,23 +73,22 @@ export default class QueryConfigDetail extends tsc<IProps> {
           <MetricDetail metricDetail={this.queryConfig.metricDetail} />
           <MethodDetail
             value={this.queryConfig?.agg_method}
-            variables={this.getMethodVariables}
+            variableMap={this.variableMap}
           />
           <IntervalDetail value={this.queryConfig?.agg_interval} />
           <DimensionDetail
             options={this.getDimensionList}
             value={this.queryConfig?.agg_dimension}
-            variables={this.getDimensionVariables}
+            variableMap={this.variableMap}
           />
           <ConditionDetail
-            dimensionValueVariables={this.getDimensionValueVariables}
             options={this.getDimensionList}
             value={this.queryConfig.agg_condition}
-            variables={this.variables}
+            variableMap={this.variableMap}
           />
           <FunctionDetail
             value={this.queryConfig?.functions}
-            variables={this.getFunctionVariables}
+            variableMap={this.variableMap}
           />
         </div>
       </div>

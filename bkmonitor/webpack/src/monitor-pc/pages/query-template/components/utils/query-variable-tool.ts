@@ -34,7 +34,7 @@ export interface QueryVariablesTransformResult<T = unknown> {
 }
 type ScopedVariable = Record<string, any>;
 
-export const variableRegex = /\${(\w+)}/g;
+export const variableRegex = /\${([\w\u4e00-\u9fa5]+)}/g;
 
 /**
  * @class VariablesTool
