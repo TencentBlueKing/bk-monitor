@@ -13,12 +13,11 @@ import logging
 from functools import wraps
 from typing import Any
 from collections.abc import Generator
-from core.prometheus import metrics
-from bkmonitor.utils.user import get_request_username
+from ai_agent.utils import get_request_username
 from django.conf import settings
 from django.http import StreamingHttpResponse
 
-logger = logging.getLogger("ai_agents")
+logger = logging.getLogger("ai_whale")
 
 
 # ===================== 状态常量 =====================
@@ -39,12 +38,12 @@ class RequestStatus:
 class AIMetricsReporter:
     """AI小鲸指标上报器"""
 
-    def __init__(self):
+    def __init__(self, requests_total, requests_cost):
         """
         第一期包含总数统计 / 耗时统计两个指标
         """
-        self.requests_total = metrics.AI_AGENTS_REQUESTS_TOTAL
-        self.requests_cost = metrics.AI_AGENTS_REQUESTS_COST_SECONDS
+        self.requests_total = requests_total
+        self.requests_cost = requests_cost
 
     def report_request(
         self,
@@ -65,7 +64,7 @@ class AIMetricsReporter:
         """
         # 获取默认值
         agent_code = agent_code or "unknown"
-        username = username or self._get_username()
+        username = username or get_request_username()
 
         # 上报请求总数
         self.requests_total.labels(
@@ -86,34 +85,23 @@ class AIMetricsReporter:
                 command=command,
             ).set(duration)
 
-        metrics.report_all()
-
         logger.info(
             f"AIMetricsReporter: resource={resource_name}, status={status}, "
             f"duration={duration}, agent_code={agent_code}"
         )
 
-    def _get_username(self) -> str:
-        """获取用户名"""
-        try:
-            return get_request_username() or "unknown"
-        except Exception:
-            return "unknown"
-
-
-# ===================== 全局指标上报器实例 =====================
-
-ai_metrics_reporter = AIMetricsReporter()
-
 
 # ===================== 装饰器实现 =====================
 
 
-def ai_metrics_decorator(extract_agent_code_func=None, extract_username_func=None, extract_command_func=None):
+def ai_metrics_decorator(
+    ai_metrics_reporter, extract_agent_code_func=None, extract_username_func=None, extract_command_func=None
+):
     """
     AI服务指标上报装饰器
 
     Args:
+        ai_metrics_reporter: 指标上报器实例
         extract_agent_code_func: 提取agent_code的函数
         extract_username_func: 提取username的函数
         extract_command_func: 提取command的函数
@@ -217,64 +205,6 @@ def extract_command_from_request(validated_request_data):
         return "none"
 
 
-# ===================== 简化装饰器 =====================
-
-
-def ai_metrics(func):
-    """简化版AI指标装饰器，自动提取常见字段"""
-    return ai_metrics_decorator()(func)
-
-
-# ===================== 流式响应专用装饰器 =====================
-
-
-def ai_streaming_metrics(func):
-    """流式响应专用指标装饰器"""
-
-    @wraps(func)
-    def wrapper(self, validated_request_data, *args, **kwargs):
-        resource_name = self.__class__.__name__
-        start_time = time.time()
-
-        # 提取标签值
-        agent_code = validated_request_data.get("agent_code")
-
-        try:
-            # 上报流式开始
-            ai_metrics_reporter.report_request(
-                resource_name=resource_name,
-                status=RequestStatus.STREAMING,
-                agent_code=agent_code,
-            )
-
-            # 执行原方法
-            result = func(self, validated_request_data, *args, **kwargs)
-
-            # 流式响应完成后上报耗时
-            duration = time.time() - start_time
-            ai_metrics_reporter.report_request(
-                resource_name=resource_name,
-                status=RequestStatus.COMPLETED,
-                duration=duration,
-                agent_code=agent_code,
-            )
-
-            return result
-
-        except Exception as e:
-            duration = time.time() - start_time
-            ai_metrics_reporter.report_request(
-                resource_name=resource_name,
-                status=RequestStatus.ERROR,
-                duration=duration,
-                agent_code=agent_code,
-            )
-            logger.error(f"AIMetricsReporter: AI streaming service error in {resource_name}: {e}")
-            raise
-
-    return wrapper
-
-
 def extract_agent_code_from_request(validated_request_data):
     """自定义Agent代码提取函数"""
     return validated_request_data.get("agent_code", settings.AIDEV_AGENT_APP_CODE)
@@ -286,10 +216,13 @@ def extract_agent_code_from_request(validated_request_data):
 class StreamingMetricsTracker:
     """流式响应指标跟踪器"""
 
-    def __init__(self, resource_name: str, agent_code: str, username: str):
+    def __init__(self, ai_metrics_reporter: AIMetricsReporter, resource_name: str, agent_code: str, username: str):
         self.resource_name = resource_name
         self.agent_code = agent_code
         self.username = username
+
+        # 上报器实例
+        self.ai_metrics_reporter = ai_metrics_reporter
 
         # 时间节点
         self.start_time = time.time()
@@ -310,7 +243,7 @@ class StreamingMetricsTracker:
 
             # 上报流式开始指标（到第一个chunk的耗时）
             setup_duration = self.first_chunk_time - self.start_time
-            ai_metrics_reporter.report_request(
+            self.ai_metrics_reporter.report_request(
                 resource_name=self.resource_name,
                 status=RequestStatus.STREAMING,
                 duration=setup_duration,
@@ -338,7 +271,7 @@ class StreamingMetricsTracker:
         streaming_duration = (self.end_time - self.first_chunk_time) if self.first_chunk_time else 0
 
         # 上报完成指标
-        ai_metrics_reporter.report_request(
+        self.ai_metrics_reporter.report_request(
             resource_name=self.resource_name,
             status=RequestStatus.COMPLETED,
             duration=total_duration,
@@ -347,7 +280,7 @@ class StreamingMetricsTracker:
         )
 
         # 上报流式统计信息（用额外的指标记录）
-        ai_metrics_reporter.report_request(
+        self.ai_metrics_reporter.report_request(
             resource_name=f"{self.resource_name}_StreamingStats",
             status="chunk_count",
             duration=self.chunk_count,  # 使用duration字段存储chunk数量
@@ -370,7 +303,7 @@ class StreamingMetricsTracker:
         total_duration = self.end_time - self.start_time
 
         # 上报错误指标
-        ai_metrics_reporter.report_request(
+        self.ai_metrics_reporter.report_request(
             resource_name=self.resource_name,
             status=RequestStatus.ERROR,
             duration=total_duration,
@@ -423,59 +356,62 @@ class EnhancedStreamingResponseWrapper:
 # ===================== 改进的装饰器 =====================
 
 
-def ai_enhanced_streaming_metrics(func):
+def ai_enhanced_streaming_metrics(ai_metrics_reporter: AIMetricsReporter):
     """增强的流式响应指标装饰器"""
 
-    @wraps(func)
-    def wrapper(self, validated_request_data, *args, **kwargs):
-        resource_name = self.__class__.__name__
-        start_time = time.time()
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, validated_request_data, *args, **kwargs):
+            resource_name = self.__class__.__name__
+            start_time = time.time()
 
-        # 提取标签值
-        agent_code = validated_request_data.get("agent_code", "unknown")
-        username = ai_metrics_reporter._get_username()
-        execute_kwargs = validated_request_data["execute_kwargs"]
+            # 提取标签值
+            agent_code = validated_request_data.get("agent_code", "unknown")
+            username = get_request_username()
+            execute_kwargs = validated_request_data["execute_kwargs"]
 
-        try:
-            # 上报请求开始
-            ai_metrics_reporter.report_request(
-                resource_name=resource_name,
-                status=RequestStatus.STARTED,
-                agent_code=agent_code,
-                username=username,
-            )
-
-            # 执行原方法
-            result = func(self, validated_request_data, *args, **kwargs)
-
-            # 对于流式响应，我们不在这里上报完成状态
-            # 完成状态由 StreamingMetricsTracker 负责上报
-            if execute_kwargs.get("stream", False):
-                setup_duration = time.time() - start_time
-                logger.info(f"Streaming response setup completed in {setup_duration:.3f}s")
-            else:
-                # 非流式响应，正常上报
-                duration = time.time() - start_time
+            try:
+                # 上报请求开始
                 ai_metrics_reporter.report_request(
                     resource_name=resource_name,
-                    status=RequestStatus.SUCCESS,
-                    duration=duration,
+                    status=RequestStatus.STARTED,
                     agent_code=agent_code,
                     username=username,
                 )
 
-            return result
+                # 执行原方法
+                result = func(self, validated_request_data, *args, **kwargs)
 
-        except Exception as e:
-            duration = time.time() - start_time
-            ai_metrics_reporter.report_request(
-                resource_name=resource_name,
-                status=RequestStatus.ERROR,
-                duration=duration,
-                agent_code=agent_code,
-                username=username,
-            )
-            logger.error(f"AIMetricsReporter: AI streaming service error in {resource_name}: {e}")
-            raise
+                # 对于流式响应，我们不在这里上报完成状态
+                # 完成状态由 StreamingMetricsTracker 负责上报
+                if execute_kwargs.get("stream", False):
+                    setup_duration = time.time() - start_time
+                    logger.info(f"Streaming response setup completed in {setup_duration:.3f}s")
+                else:
+                    # 非流式响应，正常上报
+                    duration = time.time() - start_time
+                    ai_metrics_reporter.report_request(
+                        resource_name=resource_name,
+                        status=RequestStatus.SUCCESS,
+                        duration=duration,
+                        agent_code=agent_code,
+                        username=username,
+                    )
 
-    return wrapper
+                return result
+
+            except Exception as e:
+                duration = time.time() - start_time
+                ai_metrics_reporter.report_request(
+                    resource_name=resource_name,
+                    status=RequestStatus.ERROR,
+                    duration=duration,
+                    agent_code=agent_code,
+                    username=username,
+                )
+                logger.error(f"AIMetricsReporter: AI streaming service error in {resource_name}: {e}")
+                raise
+
+        return wrapper
+
+    return decorator

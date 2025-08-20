@@ -11,13 +11,13 @@ specific language governing permissions and limitations under the License.
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
-from ai_agents.resources.resources import (
+from ai_whale.resources.resources import (
     CreateChatSessionResource,
     CreateChatSessionContentResource,
     DestroyChatSessionResource,
 )
-from ai_agents.services.command_handler import *  # noqa
-from ai_agents.utils import generate_uuid
+from ai_whale.utils import generate_uuid
+from ai_agent.services.local_command_handler import LocalCommandProcessor
 
 command_processor = LocalCommandProcessor()  # noqa
 
@@ -86,10 +86,10 @@ def test_tracing_analysis_command():
     command_data = property_data.get("extra")
 
     with patch(
-        "ai_agents.services.command_handler.api.apm_api.query_trace_detail",
+        "ai_whale.services.command_handler.api.apm_api.query_trace_detail",
         return_value=mock_trace_data,
     ):
-        with patch("ai_agents.services.command_handler.get_request", return_value=mock_req):
+        with patch("ai_whale.services.command_handler.get_request", return_value=mock_req):
             processed_content = command_processor.process_command(command_data)
 
     expected = (
