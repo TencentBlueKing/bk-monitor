@@ -52,6 +52,8 @@ export default class TemplateCreate extends tsc<object> {
   @Ref('queryTemplateSet') queryTemplateSetRef: QueryTemplateSet;
   @Ref() variablesManage: VariablesManage;
 
+  title = this.$t('新建查询模板');
+
   steps = [
     { title: this.$t('模板配置'), icon: 1 },
     { title: this.$t('模板预览'), icon: 2 },
@@ -184,7 +186,7 @@ export default class TemplateCreate extends tsc<object> {
             class='icon-monitor icon-back-left navigation-bar-back'
             onClick={() => this.handleBackGotoPage()}
           />
-          <span class='title'>{this.$t('新建查询模板')}</span>
+          <span class='title'>{this.title}</span>
           <bk-steps
             class='template-steps'
             cur-step={this.curStep}
