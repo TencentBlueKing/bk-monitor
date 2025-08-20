@@ -69,12 +69,7 @@ export default class MethodDetail extends tsc<MethodProps> {
               this.methodToVariableModel?.value}
           </VariableSpan>
         ) : (
-          <span
-            id={this.methodToVariableModel.variableName}
-            class='method-name'
-          >
-            {this.methodToVariableModel?.value || '--'}
-          </span>
+          <span class='method-name'>{this.methodToVariableModel?.value || '--'}</span>
         )}
       </div>
     );

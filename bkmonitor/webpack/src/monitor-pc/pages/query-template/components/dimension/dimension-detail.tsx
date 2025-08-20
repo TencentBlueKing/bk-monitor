@@ -54,7 +54,6 @@ export default class DimensionDetail extends tsc<DimensionProps> {
   /* 变量 variableName-变量对象 映射表 */
   @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
   variablesToolInstance = new QueryVariablesTool();
-  templateSrv = getTemplateSrv();
 
   get allDimensionMap() {
     if (!this.options?.length) {
@@ -107,25 +106,24 @@ export default class DimensionDetail extends tsc<DimensionProps> {
         return prev;
       }
       let varValue = '';
-      const result = this.templateSrv.replace(`\${${curr.variableName}:json}` as string, this.variableMap);
+      const templateReplaceKey = `\${${curr.variableName}:json}`;
+      const result = getTemplateSrv().replace(templateReplaceKey, this.variableMap);
       try {
         varValue = JSON.parse(result);
       } catch {
-        varValue = '';
+        if (result !== templateReplaceKey) varValue = result || '';
       }
       if (Array.isArray(varValue)) {
-        prev.push(
-          ...varValue.map(v =>
-            this.tagItemRenderer({ value: v, variableName: curr.variableName, isVariable: curr.isVariable })
-          )
-        );
+        const items = varValue?.length
+          ? varValue.map(v => this.tagItemRenderer({ ...curr, value: v }))
+          : [this.tagItemRenderer(curr)];
+        prev.push(...items);
         return prev;
       }
       prev.push(
         this.tagItemRenderer({
+          ...curr,
           value: varValue || curr.value,
-          variableName: curr.variableName,
-          isVariable: curr.isVariable,
         })
       );
       return prev;

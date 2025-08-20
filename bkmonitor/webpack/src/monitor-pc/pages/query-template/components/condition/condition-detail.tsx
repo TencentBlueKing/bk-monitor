@@ -55,7 +55,6 @@ export default class ConditionDetail extends tsc<IProps> {
   /* 所有聚合维度信息列表数组 */
   @Prop({ default: () => [] }) options: DimensionField[];
   variablesToolInstance = new QueryVariablesTool();
-  templateSrv = getTemplateSrv();
 
   get allDimensionMap() {
     if (!this.options?.length) {
@@ -96,54 +95,58 @@ export default class ConditionDetail extends tsc<IProps> {
     );
   }
 
+  emptyVariableTagItemRenderer(item) {
+    return (
+      <div
+        key={item.value.key}
+        class='variable-tag'
+      >
+        <VariableSpan>{item.value?.key}</VariableSpan>
+      </div>
+    );
+  }
+
   /**
    * @description 条件变量渲染逻辑
    */
   conditionVariableRenderer(item: QueryVariablesTransformResult<AggCondition>) {
     let varValue = '';
-    const result = this.templateSrv.replace(`\${${item.variableName}:json}` as string, this.variableMap);
+    const result = getTemplateSrv().replace(`\${${item.variableName}:json}` as string, this.variableMap);
     try {
       varValue = JSON.parse(result);
     } catch {
       varValue = '';
     }
     if (!varValue) {
-      return [
-        <div
-          key={item.value.key}
-          class='variable-tag'
-        >
-          <VariableSpan>{item.value?.key}</VariableSpan>
-        </div>,
-      ];
+      return [this.emptyVariableTagItemRenderer(item)];
     }
     if (Array.isArray(varValue)) {
-      return varValue.map(v =>
-        this.conditionVariableTagItemRenderer({
-          value: v,
-          variableName: item.variableName,
-          isVariable: item.isVariable,
-        })
-      );
+      return varValue?.length
+        ? varValue.map(v =>
+            this.conditionVariableTagItemRenderer({
+              ...item,
+              value: v,
+            })
+          )
+        : [this.emptyVariableTagItemRenderer(item)];
     }
     return [
       this.conditionVariableTagItemRenderer({
+        ...item,
         value: varValue,
-        variableName: item.variableName,
-        isVariable: item.isVariable,
       }),
     ];
   }
 
   tagWrapRenderer() {
     const content = this.conditionToVariableModel?.reduce?.((prev, curr) => {
-      // 条件变量执行支线
-      if (curr.isVariable) {
-        prev.push(...this.conditionVariableRenderer(curr));
+      // 非条件变量则判断知否存在维度值变量
+      if (!curr.isVariable) {
+        prev.push(this.conditionVariableTagItemRenderer(curr));
         return prev;
       }
-      // 非条件变量则判断知否存在维度值变量
-      prev.push(this.conditionVariableTagItemRenderer(curr));
+      // 条件变量执行支线
+      prev.push(...this.conditionVariableRenderer(curr));
 
       return prev;
     }, []);
