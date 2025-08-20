@@ -29,6 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import QueryTemplateTable from './components/query-template-table/query-template-table';
 
+import type { QueryTemplateListItem } from './typings';
+
 import './query-template.scss';
 
 @Component
@@ -39,7 +41,7 @@ export default class MetricTemplate extends tsc<object> {
   sort = '-update_time';
   searchKeyword = '';
   tableLoading = false;
-  tableData = new Array(Math.floor(Math.random() * 100)).fill(1).map((v, i) => {
+  tableData: QueryTemplateListItem[] = new Array(Math.floor(Math.random() * 100)).fill(1).map((v, i) => {
     if (i % 4 === 0) {
       return {
         id: i,
@@ -49,7 +51,7 @@ export default class MetricTemplate extends tsc<object> {
         create_time: '2025-06-24 10:32:51+0800',
         update_user: '更新人',
         update_time: '2025-06-24 10:32:51+0800',
-        relevance_configs: [1, 2, 3, 4, 5, 6, 7, 87],
+        relation_config_count: 8,
       };
     }
     return {
@@ -60,7 +62,7 @@ export default class MetricTemplate extends tsc<object> {
       create_time: '2025-06-24 10:32:51+0800',
       update_user: '更新人',
       update_time: '2025-06-24 10:32:51+0800',
-      relevance_configs: [],
+      relation_config_count: null,
     };
   });
 
