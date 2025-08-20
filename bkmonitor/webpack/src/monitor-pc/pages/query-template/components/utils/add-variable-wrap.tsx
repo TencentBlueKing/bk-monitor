@@ -86,7 +86,7 @@ export default class AddVariableWrap extends tsc<IProps> {
         onClick={e => e.stopPropagation()}
       >
         <div class='header-title'>
-          {this.$t('变量名')} <span class='red-point'>*</span>
+          <span class='header-title-name'>{this.$t('变量名')}</span>
         </div>
         <VariableNameInput
           ref='varInput'
