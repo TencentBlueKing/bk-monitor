@@ -41,8 +41,8 @@ interface DimensionProps {
   options: DimensionField[];
   /* 已选聚合维度id数组 */
   value: string[];
-  /* 变量列表 */
-  variables?: VariableModelType[];
+  /* 变量 variableName-变量对象 映射表 */
+  variableMap?: Record<string, VariableModelType>;
 }
 
 @Component
@@ -51,8 +51,8 @@ export default class DimensionDetail extends tsc<DimensionProps> {
   @Prop({ type: Array }) value: string[];
   /* 所有聚合维度信息列表数组 */
   @Prop({ default: () => [] }) options: DimensionField[];
-  /* 变量列表 */
-  @Prop({ default: () => [] }) variables?: VariableModelType[];
+  /* 变量 variableName-变量对象 映射表 */
+  @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
   variablesToolInstance = new QueryVariablesTool();
   templateSrv = getTemplateSrv();
 
@@ -62,16 +62,6 @@ export default class DimensionDetail extends tsc<DimensionProps> {
     }
     return this.options?.reduce?.((prev, curr) => {
       prev[curr.id] = curr;
-      return prev;
-    }, {});
-  }
-
-  get variableMap() {
-    if (!this.variables?.length) {
-      return {};
-    }
-    return this.variables?.reduce?.((prev, curr) => {
-      prev[curr.name] = curr;
       return prev;
     }, {});
   }
