@@ -59,6 +59,9 @@ export default class QueryConfigDetail extends tsc<IProps> {
   get getFunctionVariables() {
     return this.variables.filter(item => item.type === VariableTypeEnum.FUNCTION);
   }
+  get getDimensionValueVariables() {
+    return this.variables.filter(item => item.type === VariableTypeEnum.DIMENSION_VALUE);
+  }
 
   get getDimensionList() {
     return this.queryConfig.metricDetail?.dimensionList || [];
@@ -83,6 +86,7 @@ export default class QueryConfigDetail extends tsc<IProps> {
             variables={this.getDimensionVariables}
           />
           <ConditionDetail
+            dimensionValueVariables={this.getDimensionValueVariables}
             options={this.getDimensionList}
             value={this.queryConfig.agg_condition}
             variables={this.variables}
