@@ -33,12 +33,12 @@
 import Vue, { set } from 'vue';
 
 import {
-  unifyObjectStyle,
-  getOperatorKey,
-  readBlobRespToJson,
-  parseBigNumberList,
-  setDefaultTableWidth,
   formatDate,
+  getOperatorKey,
+  parseBigNumberList,
+  readBlobRespToJson,
+  setDefaultTableWidth,
+  unifyObjectStyle,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
@@ -50,22 +50,21 @@ import { menuArr } from '../components/nav/complete-menu';
 import collect from './collect';
 import { ConditionOperator } from './condition-operator';
 import {
-  IndexSetQueryResult,
+  BkLogGlobalStorageKey,
   IndexFieldInfo,
   IndexItem,
-  indexSetClusteringData,
+  IndexSetQueryResult,
+  URL_ARGS,
   getDefaultRetrieveParams,
   getStorageOptions,
-  BkLogGlobalStorageKey,
-  URL_ARGS,
+  indexSetClusteringData,
 } from './default-values.ts';
 import globals from './globals';
-import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
+import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
-import { axiosInstance } from '@/api';
-import http from '@/api';
+import http, { axiosInstance } from '@/api';
 Vue.use(Vuex);
 
 export const SET_APP_STATE = 'SET_APP_STATE';
@@ -1687,6 +1686,8 @@ const store = new Vuex.Store({
           // is is not 值映射
           is: val => `${field}: "${formatValue(val)}"`,
           'is not': val => `NOT ${field}: "${formatValue(val)}"`,
+          '=': val => `${field}: "${formatValue(val)}"`,
+          '!=': val => `NOT ${field}: "${formatValue(val)}"`,
         };
 
         return mappingKey[operator] ?? operator; // is is not 值映射
