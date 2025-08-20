@@ -12,27 +12,35 @@
     .variable-name-input {
       .bk-form-input,
       .group-box {
-        border-color: #dc9db8;
+        border-color: #c4c6cc;
       }
 
       .bk-form-input {
         color: #e54488;
-        background-color: #fef9fb !important;
       }
 
       .group-box {
-        background-color: #feeaf2;
+        background-color: #f5f7fa;
 
         .group-text {
           padding: 0 8px;
-          color: #e54488;
+          line-height: 30px;
+          color: #313238;
+        }
+      }
+    }
+
+    &.is-error {
+      .variable-name-input {
+        .bk-form-input {
+          border-color: #EA3636
         }
       }
     }
 
     &.variable-name-form-item {
       .bk-form-input:focus {
-        border-color: #dc9db8 !important;
+        border-color: #c4c6cc !important;
       }
     }
 
@@ -42,6 +50,4 @@
       }
     }
   }
-
-
 }

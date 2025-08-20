@@ -23,13 +23,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import EmptyStatus from '@/components/empty-status/empty-status';
 
 import './variable-guide.scss';
 
+interface VariablesGuideEvents {
+  onClear: () => void;
+}
+
+interface VariablesGuideProps {
+  mode?: 'guide' | 'search-empty';
+}
+
 @Component
-export default class VariablesGuide extends tsc<object> {
+export default class VariablesGuide extends tsc<VariablesGuideProps, VariablesGuideEvents> {
+  @Prop({ default: 'guide' }) readonly mode!: VariablesGuideProps['mode'];
+
   guideSteps = [
     { id: 1, title: this.$t('使用变量') },
     { id: 2, title: this.$t('定义变量') },
@@ -80,11 +92,10 @@ export default class VariablesGuide extends tsc<object> {
             <span class='dot' />
             <i18n
               class='text'
-              path='可以定义 {0} {1} {2}'
+              path='可以定义 {0} {1}'
             >
               <span class='variable-tag'>{this.$t('变量别名')}</span>
               <span class='variable-tag'>{this.$t('变量类型')}</span>
-              <span class='variable-tag'>{this.$t('数据类型')}</span>
             </i18n>
           </div>
         </div>
@@ -106,7 +117,20 @@ export default class VariablesGuide extends tsc<object> {
     );
   }
 
+  @Emit('clear')
+  handleOperation() {}
+
   render() {
+    if (this.mode === 'search-empty')
+      return (
+        <div class='variable-guide'>
+          <EmptyStatus
+            type='search-empty'
+            onOperation={this.handleOperation}
+          />
+        </div>
+      );
+
     return (
       <div class='variable-guide'>
         <div class='guide-title'>

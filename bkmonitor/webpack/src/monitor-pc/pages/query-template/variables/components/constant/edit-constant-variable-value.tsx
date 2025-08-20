@@ -56,7 +56,8 @@ export default class EditConstantVariableValue extends tsc<ConstantValueProps, C
     this.$emit('focus');
   }
 
-  handleInputBlur() {
+  handleInputBlur(val: string) {
+    this.handleValueChange(val);
     this.$emit('blur');
   }
 
@@ -64,9 +65,10 @@ export default class EditConstantVariableValue extends tsc<ConstantValueProps, C
     return (
       <EditVariableValue data={this.variable.data}>
         <bk-input
+          clearable={false}
           value={this.variable.data.value || this.variable.data.defaultValue}
           onBlur={this.handleInputBlur}
-          onChange={this.handleValueChange}
+          onEnter={this.handleValueChange}
           onFocus={this.handleInputFocus}
         />
       </EditVariableValue>

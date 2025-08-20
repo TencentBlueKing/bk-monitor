@@ -40,6 +40,8 @@ interface VariablesManageEvents {
 interface VariablesManageProps {
   metricFunctions?: any[];
   scene?: 'create' | 'detail' | 'edit';
+  /** 已使用的变量列表 */
+  useVariables?: string[];
   variablesList: VariableModelType[];
 }
 
@@ -49,14 +51,29 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
   @Prop({ default: () => [] }) variablesList!: VariableModelType[];
   @Prop({ default: () => [] }) metricFunctions!: any[];
   @Prop({ default: 'create' }) scene!: VariablesManageProps['scene'];
+  @Prop({ default: () => [] }) useVariables!: string[];
+
+  get showVariableList() {
+    return this.variablesList.filter(item => item.name.includes(this.searchValue));
+  }
 
   searchValue = '';
+
+  handleClear() {
+    this.searchValue = '';
+  }
 
   handleDataChange(value: VariableModelType, index: number) {
     const list = [...this.variablesList];
     list[index] = value;
     this.$emit('change', [...list]);
     this.validateVariable();
+  }
+
+  handleDelete(index: number) {
+    const list = [...this.variablesList];
+    list.splice(index, 1);
+    this.$emit('change', [...list]);
   }
 
   validateVariable() {
@@ -84,10 +101,11 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
           </div>
         )}
         <div class='variable-manage-content'>
-          {this.variablesList.map((item, index) => [
+          {this.showVariableList.map((item, index) => [
             <VariablePanel
               key={item.id}
               ref={`${refKey}_${item.id}`}
+              isUseVariable={this.useVariables.includes(item.name)}
               metricFunctions={this.metricFunctions}
               scene={this.scene}
               variable={item}
@@ -95,10 +113,18 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
               onDataChange={value => {
                 this.handleDataChange(value, index);
               }}
+              onDelete={() => {
+                this.handleDelete(index);
+              }}
             />,
           ])}
 
-          {!this.variablesList.length && this.scene === 'create' && <VariablesGuide />}
+          {!this.showVariableList.length && this.scene === 'create' && (
+            <VariablesGuide
+              mode={this.variablesList.length ? 'search-empty' : 'guide'}
+              onClear={this.handleClear}
+            />
+          )}
         </div>
       </div>
     );

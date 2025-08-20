@@ -1964,4 +1964,10 @@ export default {
   '模板名称:': 'Template name:',
   模板详情: 'Template details',
   模板配置: 'Template configuration',
+  模版名称: 'Template name',
+  生效范围: 'Effective range',
+  变量别名: 'Variable alias',
+  变量类型: 'Variable type',
+  变量描述: 'Variable description',
+  可选维度: 'Optional dimensions',
 };
