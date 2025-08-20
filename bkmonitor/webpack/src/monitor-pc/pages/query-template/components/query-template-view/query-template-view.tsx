@@ -37,7 +37,7 @@ import type { VariableModelType } from '../../variables';
 import './query-template-view.scss';
 
 interface QueryTemplateViewEvents {
-  onBackGotoPage: () => void;
+  onCancel: () => void;
   onStepChange: (index: number) => void;
   onSubmit: () => void;
   onVariablesChange: (variablesList: VariableModelType[]) => void;
@@ -72,8 +72,8 @@ export default class QueryTemplateView extends tsc<QueryTemplateViewProps, Query
     return 1;
   }
 
-  @Emit('backGotoPage')
-  handleBackGotoPage() {}
+  @Emit('cancel')
+  handleCancel() {}
 
   render() {
     return (
@@ -113,14 +113,14 @@ export default class QueryTemplateView extends tsc<QueryTemplateViewProps, Query
         <div class='submit-btns'>
           <bk-button
             theme='primary'
-            onClick={this.handlePrevStep}
+            onClick={this.handleSubmit}
           >
             {this.$t('提交')}
           </bk-button>
           <bk-button onClick={this.handlePrevStep}>{this.$t('上一步')}</bk-button>
           <bk-button
             theme='default'
-            onClick={this.handleBackGotoPage}
+            onClick={this.handleCancel}
           >
             {this.$t('取消')}
           </bk-button>

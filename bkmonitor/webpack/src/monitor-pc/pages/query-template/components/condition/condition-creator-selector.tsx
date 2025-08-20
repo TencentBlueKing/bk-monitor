@@ -52,6 +52,7 @@ interface IProps {
   onChange?: (v: IFilterItem[]) => void;
   onCreateValueVariable?: (val: { name: string; relationDimension: string }) => void;
   onCreateVariable?: (variableName: string) => void;
+  onPopoverShowChange?: (val: boolean) => void;
 }
 
 @Component
@@ -121,6 +122,7 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
     });
     await this.$nextTick();
     this.popoverInstance?.show();
+    this.handlePopoverShowChange(true);
     this.showSelector = true;
   }
   destroyPopoverInstance() {
@@ -128,6 +130,7 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
     this.showSelector = false;
+    this.handlePopoverShowChange(false);
   }
 
   handleAdd(event: MouseEvent) {
@@ -190,6 +193,10 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
 
   handleChange() {
     this.$emit('change', this.localValue);
+  }
+
+  handlePopoverShowChange(show: boolean) {
+    this.$emit('popoverShowChange', show);
   }
 
   handleMouseEnter() {

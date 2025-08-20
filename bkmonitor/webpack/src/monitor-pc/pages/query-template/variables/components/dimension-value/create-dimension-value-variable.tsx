@@ -26,6 +26,7 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { fetchMetricDimensionValueList } from '../../../service';
 import { DimensionValueVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
 
@@ -47,6 +48,10 @@ export default class CreateDimensionValueVariable extends tsc<
 
   @Ref() variableCommonForm!: VariableCommonForm;
 
+  loading = false;
+
+  valueList = [];
+
   handleValueChange(value: string) {
     this.handleDataChange({
       ...this.variable.data,
@@ -65,6 +70,22 @@ export default class CreateDimensionValueVariable extends tsc<
 
   validateForm() {
     return this.variableCommonForm.validateForm();
+  }
+
+  mounted() {
+    this.getValueList();
+  }
+
+  async getValueList() {
+    this.loading = true;
+    const data = await fetchMetricDimensionValueList(this.variable.relationDimension, {
+      data_source_label: this.variable.metric.data_source_label,
+      data_type_label: this.variable.metric.data_type_label,
+      result_table_id: this.variable.metric.result_table_id,
+      metric_field: this.variable.metric.metric_field,
+    }).catch(() => []);
+    this.valueList = data;
+    this.loading = false;
   }
 
   render() {
@@ -90,9 +111,18 @@ export default class CreateDimensionValueVariable extends tsc<
           >
             <bk-select
               clearable={false}
+              loading={this.loading}
               value={this.variable.defaultValue}
               onChange={this.handleValueChange}
-            />
+            >
+              {this.valueList.map(item => (
+                <bk-option
+                  id={item.value}
+                  key={item.value}
+                  name={item.label}
+                />
+              ))}
+            </bk-select>
           </bk-form-item>
         </VariableCommonForm>
       </div>
