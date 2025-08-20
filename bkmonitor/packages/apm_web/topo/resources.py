@@ -87,7 +87,6 @@ class TopoViewResource(Resource):
             service_name=validated_data.get("service_name"),
             runtime={"start_time": start_time, "end_time": end_time},
         )
-        # todo hhh 查询表格时表头、操作的国际化，查询拓扑图时的 nodetips、menus
         graph = GraphQuery(**{**params, "start_time": start_time, "end_time": end_time}).execute(
             edge_data_type=validated_data["edge_data_type"],
             converter=converter,
