@@ -204,7 +204,7 @@ class CreateDorisRouter(BaseLogRouter):
                 bk_tenant_id=bk_tenant_id,
                 table_id=data["table_id"],
                 is_sync_db=False,
-                source_type=data.get("source_type"),
+                source_type=data.get("source_type", ""),
                 bkbase_table_id=data.get("bkbase_table_id"),
                 index_set=data.get("index_set"),
                 storage_cluster_id=data.get("cluster_id"),
@@ -455,7 +455,7 @@ class CreateOrUpdateLogRouter(Resource):
             raise ValueError(f"Unsupported storage type: {validated_request_data['storage_type']}")
 
 
-class CreateOrUpdateLogDataLink(Resource):
+class CreateOrUpdateLogDataLink(BaseLogRouter):
     class RequestSerializer(serializers.Serializer):
         space_type = serializers.CharField(label="空间类型")
         space_id = serializers.CharField(label="空间ID")
@@ -483,5 +483,260 @@ class CreateOrUpdateLogDataLink(Resource):
                 required=False, label="查询别名设置", default=None, many=True
             )
 
+        table_info = serializers.ListField(child=TableInfoSerializer(), required=True, label="结果表信息列表")
+
     def perform_request(self, validated_request_data: dict[str, Any]):
-        pass
+        space_type = validated_request_data["space_type"]
+        space_id = validated_request_data["space_id"]
+        data_label = validated_request_data.get("data_label", "")
+        table_info_list = validated_request_data["table_info"]
+
+        space = models.Space.objects.get(
+            space_type_id=space_type, space_id=space_id, bk_tenant_id=get_request_tenant_id()
+        )
+        bk_tenant_id = space.bk_tenant_id
+
+        logger.info(
+            "CreateOrUpdateLogDataLink: processing %d table(s) for space [%s:%s] with data_label [%s]",
+            len(table_info_list),
+            space_type,
+            space_id,
+            data_label,
+        )
+
+        # 批量处理所有表信息
+        processed_table_ids = []
+        es_table_ids = []
+        doris_table_ids = []
+        need_refresh_data_label = False
+
+        with atomic(config.DATABASE_CONNECTION_NAME):
+            for table_info in table_info_list:
+                table_id = table_info["table_id"]
+                storage_type = table_info.get("storage_type", models.ClusterInfo.TYPE_ES)
+
+                try:
+                    # 检查结果表是否存在
+                    result_table = models.ResultTable.objects.filter(
+                        bk_tenant_id=bk_tenant_id, table_id=table_id
+                    ).first()
+
+                    if result_table:
+                        # 更新现有表
+                        self._update_existing_table(bk_tenant_id, table_id, table_info, data_label, result_table)
+                    else:
+                        # 创建新表
+                        self._create_new_table(bk_tenant_id, space, table_id, table_info, data_label, storage_type)
+
+                    # 处理查询别名设置
+                    if table_info.get("query_alias_settings") is not None:
+                        operator = get_request_username() or "system"
+                        models.ESFieldQueryAliasOption.manage_query_alias_settings(
+                            table_id=table_id,
+                            query_alias_settings=table_info["query_alias_settings"],
+                            operator=operator,
+                            bk_tenant_id=bk_tenant_id,
+                        )
+
+                    processed_table_ids.append(table_id)
+                    if storage_type == models.ClusterInfo.TYPE_ES:
+                        es_table_ids.append(table_id)
+                    elif storage_type == models.ClusterInfo.TYPE_DORIS:
+                        doris_table_ids.append(table_id)
+
+                    if data_label:
+                        need_refresh_data_label = True
+
+                    logger.info("CreateOrUpdateLogDataLink: processed table_id [%s]", table_id)
+                except Exception as e:
+                    logger.error(
+                        "CreateOrUpdateLogDataLink: failed to process table_id [%s], error: %s",
+                        table_id,
+                        str(e),
+                    )
+                    raise e
+
+        # 统一推送路由信息
+        self._push_routes(
+            bk_tenant_id, space_type, space_id, es_table_ids, doris_table_ids, data_label, need_refresh_data_label
+        )
+
+        # 清理data_label下多余的配置
+        if data_label:
+            self._cleanup_excess_data_label_config(bk_tenant_id, data_label, processed_table_ids)
+
+        logger.info(
+            "CreateOrUpdateLogDataLink: successfully processed all %d table(s) for space [%s:%s]",
+            len(table_info_list),
+            space_type,
+            space_id,
+        )
+
+    def _update_existing_table(self, bk_tenant_id: str, table_id: str, table_info: dict, data_label: str, result_table):
+        """更新现有结果表"""
+        storage_type = table_info.get("storage_type", models.ClusterInfo.TYPE_ES)
+
+        # 更新结果表data_label
+        if data_label and data_label != result_table.data_label:
+            result_table.data_label = data_label
+            result_table.save(update_fields=["data_label"])
+
+        # 更新options
+        if table_info.get("options"):
+            self.create_or_update_options(bk_tenant_id=bk_tenant_id, table_id=table_id, options=table_info["options"])
+
+        # 根据存储类型更新存储记录
+        if storage_type == models.ClusterInfo.TYPE_ES:
+            self._update_es_storage(bk_tenant_id, table_id, table_info)
+        elif storage_type == models.ClusterInfo.TYPE_DORIS:
+            self._update_doris_storage(bk_tenant_id, table_id, table_info)
+
+    def _create_new_table(
+        self, bk_tenant_id: str, space, table_id: str, table_info: dict, data_label: str, storage_type: str
+    ):
+        """创建新的结果表"""
+        # 创建结果表
+        models.ResultTable.objects.create(
+            bk_tenant_id=bk_tenant_id,
+            table_id=table_id,
+            table_name_zh=table_id,
+            is_custom_table=True,
+            default_storage=storage_type,
+            creator="system",
+            bk_biz_id=space.get_bk_biz_id(),
+            data_label=data_label,
+        )
+
+        # 创建结果表options
+        if table_info.get("options"):
+            self.create_or_update_options(bk_tenant_id=bk_tenant_id, table_id=table_id, options=table_info["options"])
+
+        # 根据存储类型创建存储记录
+        if storage_type == models.ClusterInfo.TYPE_ES:
+            models.ESStorage.create_table(
+                bk_tenant_id=bk_tenant_id,
+                table_id=table_id,
+                is_sync_db=False,
+                cluster_id=table_info.get("cluster_id"),
+                enable_create_index=False,
+                source_type=table_info.get("source_type", ""),
+                index_set=table_info.get("index_set", ""),
+                need_create_index=True,
+                origin_table_id=table_info.get("origin_table_id", ""),
+            )
+        elif storage_type == models.ClusterInfo.TYPE_DORIS:
+            models.DorisStorage.create_table(
+                bk_tenant_id=bk_tenant_id,
+                table_id=table_id,
+                is_sync_db=False,
+                source_type=table_info.get("source_type", ""),
+                bkbase_table_id=table_info.get("bkbase_table_id"),
+                index_set=table_info.get("index_set"),
+                storage_cluster_id=table_info.get("cluster_id"),
+            )
+
+    def _update_es_storage(self, bk_tenant_id: str, table_id: str, table_info: dict):
+        """更新ES存储记录"""
+        try:
+            es_storage = models.ESStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+            update_fields = []
+
+            if table_info.get("index_set") and table_info["index_set"] != es_storage.index_set:
+                es_storage.index_set = table_info["index_set"]
+                update_fields.append("index_set")
+
+            if table_info.get("cluster_id") and table_info["cluster_id"] != es_storage.storage_cluster_id:
+                es_storage.storage_cluster_id = table_info["cluster_id"]
+                update_fields.append("storage_cluster_id")
+
+            if table_info.get("origin_table_id") and table_info["origin_table_id"] != es_storage.origin_table_id:
+                es_storage.origin_table_id = table_info["origin_table_id"]
+                update_fields.append("origin_table_id")
+
+            if update_fields:
+                es_storage.save(update_fields=update_fields)
+        except models.ESStorage.DoesNotExist:
+            logger.warning("ESStorage not found for table_id [%s], skipping ES storage update", table_id)
+
+    def _update_doris_storage(self, bk_tenant_id: str, table_id: str, table_info: dict):
+        """更新Doris存储记录"""
+        try:
+            doris_storage = models.DorisStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+            update_fields = []
+
+            if table_info.get("index_set") and table_info["index_set"] != doris_storage.index_set:
+                doris_storage.index_set = table_info["index_set"]
+                update_fields.append("index_set")
+
+            if table_info.get("bkbase_table_id") and table_info["bkbase_table_id"] != doris_storage.bkbase_table_id:
+                doris_storage.bkbase_table_id = table_info["bkbase_table_id"]
+                update_fields.append("bkbase_table_id")
+
+            if table_info.get("cluster_id") and table_info["cluster_id"] != doris_storage.storage_cluster_id:
+                doris_storage.storage_cluster_id = table_info["cluster_id"]
+                update_fields.append("storage_cluster_id")
+
+            if update_fields:
+                doris_storage.save(update_fields=update_fields)
+        except models.DorisStorage.DoesNotExist:
+            logger.warning("DorisStorage not found for table_id [%s], skipping Doris storage update", table_id)
+
+    def _push_routes(
+        self,
+        bk_tenant_id: str,
+        space_type: str,
+        space_id: str,
+        es_table_ids: list,
+        doris_table_ids: list,
+        data_label: str,
+        need_refresh_data_label: bool,
+    ):
+        """统一推送路由信息"""
+        logger.info("CreateOrUpdateLogDataLink: pushing routes for space [%s:%s]", space_type, space_id)
+
+        # 推送空间路由
+        client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
+
+        # 批量推送ES表详情路由
+        if es_table_ids:
+            logger.info("CreateOrUpdateLogDataLink: pushing ES routes for %d tables", len(es_table_ids))
+            client.push_es_table_id_detail(table_id_list=es_table_ids, is_publish=True, bk_tenant_id=bk_tenant_id)
+
+        # 批量推送Doris表详情路由
+        if doris_table_ids:
+            logger.info("CreateOrUpdateLogDataLink: pushing Doris routes for %d tables", len(doris_table_ids))
+            client.push_doris_table_id_detail(table_id_list=doris_table_ids, is_publish=True, bk_tenant_id=bk_tenant_id)
+
+        # 推送data_label路由并处理别名
+        if need_refresh_data_label and data_label:
+            logger.info("CreateOrUpdateLogDataLink: pushing data_label route for [%s]", data_label)
+            client.push_data_label_table_ids(data_label_list=[data_label], bk_tenant_id=bk_tenant_id, is_publish=True)
+            push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=data_label)
+
+    def _cleanup_excess_data_label_config(self, bk_tenant_id: str, data_label: str, processed_table_ids: list):
+        """清理data_label下多余的配置"""
+        logger.info("CreateOrUpdateLogDataLink: cleaning up excess configurations for data_label [%s]", data_label)
+
+        # 查找该data_label下的所有结果表
+        existing_tables = models.ResultTable.objects.filter(
+            bk_tenant_id=bk_tenant_id, data_label=data_label
+        ).values_list("table_id", flat=True)
+
+        # 找出需要清理的table_ids（存在于数据库中但不在当前处理列表中的）
+        excess_table_ids = set(existing_tables) - set(processed_table_ids)
+
+        if excess_table_ids:
+            logger.info(
+                "CreateOrUpdateLogDataLink: found %d excess tables to clean up: %s",
+                len(excess_table_ids),
+                list(excess_table_ids),
+            )
+
+            # 清理多余的结果表data_label
+            models.ResultTable.objects.filter(
+                bk_tenant_id=bk_tenant_id, table_id__in=excess_table_ids, data_label=data_label
+            ).update(data_label="")
+
+            logger.info("CreateOrUpdateLogDataLink: cleaned up %d excess table configurations", len(excess_table_ids))
+        else:
+            logger.info("CreateOrUpdateLogDataLink: no excess configurations found for data_label [%s]", data_label)
