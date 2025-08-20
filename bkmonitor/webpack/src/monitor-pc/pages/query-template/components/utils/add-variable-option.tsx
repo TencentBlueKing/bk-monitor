@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AddVariableWrap from './add-variable-wrap';
@@ -32,6 +32,7 @@ import AddVariableWrap from './add-variable-wrap';
 import './add-variable-option.scss';
 
 interface IProps {
+  allVariables?: { name: string }[];
   onAdd?: (val: string) => void;
   onOpenChange?: (v: boolean) => void;
 }
@@ -39,6 +40,8 @@ interface IProps {
 @Component
 export default class AddVariableOption extends tsc<IProps> {
   @Ref('addVarPopRef') addVarPopRef: HTMLDivElement;
+  /* 所有变量，用于校验变量名是否重复 */
+  @Prop({ default: () => [] }) allVariables: { name: string }[];
 
   inputValue = '';
 
@@ -108,6 +111,7 @@ export default class AddVariableOption extends tsc<IProps> {
         <div style={{ display: 'none' }}>
           <AddVariableWrap
             ref='addVarPopRef'
+            allVariables={this.allVariables}
             show={this.isShowPop}
             value={this.inputValue}
             onAdd={this.handleAdd}
