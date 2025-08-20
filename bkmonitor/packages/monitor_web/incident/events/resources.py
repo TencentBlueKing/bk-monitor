@@ -74,7 +74,7 @@ class BaseIncidentEventsResource(Resource):
         根据表名获取特殊字段
         """
         for table_key, mapping_keys in self.TableWhereSpecialKeyMapping.items():
-            if table in table_key:
+            if table_key in table:
                 return mapping_keys
         return [] 
     
@@ -335,7 +335,6 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
             table = next(iter(query_config_list), {}).get("table", "")
             with self._lock:
                 self.format_events_response(resp, events_search_response, table)
-
         # 并发执行查询
         if validated_query_requests:
             run_threads([InheritParentThread(target=_aggregation, args=(req,)) for req in validated_query_requests])
@@ -371,7 +370,7 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
                 "dimensions": series_data.get("dimensions", {}),
                 "target": series_data.get("target", ""),
                 "metric_field": series_data.get("metric_field", ""),
-                "datapoints": [[datapoint[1], datapoint[0]] for datapoint in series_data.get("datapoints", [])],
+                "datapoints": [[datapoint[1], datapoint[0]] for datapoint in datapoints],
                 "alias": series_data.get("alias", ""),
                 "type": series_data.get("type", ""),
                 "dimensions_translation": series_data.get("dimensions_translation", {}),
@@ -436,7 +435,7 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
         }
         tables = self.get_tables_by_entity_type(entity_type, bk_biz_id=bk_biz_id, **dimensions_filter)
         for table in tables:
-            query_request["query_configs"].append( {
+            query_request["query_configs"].append({
                     "data_source_label": data_source_label, 
                     "data_type_label": data_type_label,
                     "query_string": self.DEFAULT_QUERY_STRING,
@@ -496,8 +495,8 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
                 if key.startswith("dimensions."):
                     target_dimensions[key.split(".", 1)[1]] = value
 
-            event_name = event_detail.get("event_name", "")
-            target_info["event_name"] = event_name["value"]
+            event_name = event_detail.get("event_name", {})
+            target_info["event_name"] = event_name.get("value", "")
 
             app_name = dimensions.get("apm_application_name", "")
             if app_name:
