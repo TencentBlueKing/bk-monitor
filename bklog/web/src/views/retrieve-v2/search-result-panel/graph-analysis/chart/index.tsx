@@ -224,8 +224,8 @@ export default defineComponent({
         item => `${item.index_set_id}` === `${store.state.indexId}`,
       )?.lightenName;
       const filename = lightName
-        ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt`
-        : 'bk_log_search.txt';
+        ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.csv`
+        : 'bk_log_search.csv';
 
       // 如果数据是一个对象数组并且需要提取表头
       if (tableData.value.length === 0) {
