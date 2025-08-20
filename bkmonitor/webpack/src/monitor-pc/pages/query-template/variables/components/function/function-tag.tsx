@@ -23,59 +23,67 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import FunctionCreator from '../../../components/function/function-creator';
-import { FunctionVariableModel } from '../../index';
-import EditVariableValue from '../common-form/edit-variable-value';
+import type { AggFunction } from '../../../typings';
 
-import type { AggFunction } from '../../../../query-template/typings';
-
-interface FunctionValueEvents {
-  onBlur: () => void;
-  onChange: (data: FunctionVariableModel) => void;
-  onFocus: () => void;
-}
-
-interface FunctionValueProps {
+interface FunctionTagProps {
+  data: AggFunction;
   metricFunctions: any[];
-  variable: FunctionVariableModel;
 }
 
 @Component
-export default class EditFunctionVariableValue extends tsc<FunctionValueProps, FunctionValueEvents> {
-  @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
+export default class FunctionTag extends tsc<FunctionTagProps> {
+  @Prop({ required: true }) data!: AggFunction;
   @Prop({ default: () => [] }) metricFunctions!: any[];
 
-  @Emit('change')
-  handleValueChange(value: AggFunction[]) {
-    return new FunctionVariableModel({
-      ...this.variable.data,
-      value,
-    });
+  get optionMap() {
+    const optionMap = new Map();
+    for (const option of this.metricFunctions) {
+      for (const child of option?.children || []) {
+        optionMap.set(child.id, child);
+      }
+    }
+    return optionMap;
   }
 
-  handleSelectToggle(value: boolean) {
-    if (value) {
-      this.$emit('focus');
-    } else {
-      this.$emit('blur');
-    }
+  get functionItem() {
+    const option = this.optionMap.get(this.data.id);
+    return {
+      ...option,
+      params:
+        this.data?.params?.map(p => {
+          const optionP = option?.params?.find(param => param.id === p.id);
+          if (optionP) {
+            return {
+              ...optionP,
+              value: p.value,
+            };
+          }
+          return {
+            ...p,
+          };
+        }) || [],
+    };
   }
 
   render() {
     return (
-      <EditVariableValue data={this.variable.data}>
-        <FunctionCreator
-          options={this.metricFunctions}
-          showLabel={false}
-          showVariables={false}
-          value={this.variable.data.value.length ? this.variable.data.value : this.variable.data.defaultValue}
-          onChange={this.handleValueChange}
-        />
-      </EditVariableValue>
+      <span class='function-tag'>
+        <span class={['is-hover', 'func-name']}>{this.functionItem?.name}</span>
+        {this.functionItem.params?.length ? <span class='brackets'>&nbsp;(&nbsp;</span> : undefined}
+        {this.functionItem.params.map((param, pIndex) => (
+          <span
+            key={`item-${pIndex}}`}
+            class='params-item'
+          >
+            <span class={['params-text', 'is-hover']}>{param.value || `-${this.$t('空')}-`}</span>
+            {pIndex !== this.functionItem.params.length - 1 && <span>,&nbsp;</span>}
+          </span>
+        ))}
+        {this.functionItem.params.length ? <span class='brackets'>&nbsp;)&nbsp;</span> : undefined}
+      </span>
     );
   }
 }
