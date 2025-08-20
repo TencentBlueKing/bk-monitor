@@ -38,7 +38,7 @@ import {
   MetricDetailV2,
   QueryConfig,
 } from '../typings';
-import { type VariableModelType, getVariableModel } from '../variables';
+import { type VariableModelType, getVariableModel, getVariableSubmitParams } from '../variables';
 import { LETTERS } from '@/common/constant';
 
 import type { MetricDetail } from '../components/type/query-config';
@@ -46,13 +46,14 @@ import type VariablesManage from '../variables/variables-manage/variables-manage
 
 import './template-create.scss';
 
+Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class TemplateCreate extends tsc<object> {
   @Ref() createContentWrap: HTMLDivElement;
   @Ref('queryTemplateSet') queryTemplateSetRef: QueryTemplateSet;
   @Ref() variablesManage: VariablesManage;
 
-  title = this.$t('新建查询模板');
+  title = this.$t('route-新建查询模板');
 
   steps = [
     { title: this.$t('模板配置'), icon: 1 },
@@ -75,6 +76,11 @@ export default class TemplateCreate extends tsc<object> {
 
   variablesList: VariableModelType[] = [];
 
+  async beforeRouteLeave(to, _from, next) {
+    const needNext = await this.handleCancel();
+    next(needNext);
+  }
+
   handleBasicInfoChange(basicInfo) {
     this.basicInfoData = basicInfo;
   }
@@ -88,7 +94,28 @@ export default class TemplateCreate extends tsc<object> {
     this.curStep = step;
   }
 
-  handleSubmit() {}
+  handleSubmit() {
+    const params = {
+      name: this.basicInfoData.name,
+      description: this.basicInfoData.desc,
+      biz_scope: this.basicInfoData.effect,
+      variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
+    };
+    console.log(params);
+  }
+
+  handleCancel() {
+    return new Promise(resolve => {
+      this.$bkInfo({
+        extCls: 'strategy-config-cancel',
+        title: this.$t('是否放弃本次操作？'),
+        confirmFn: () => {
+          resolve(true);
+        },
+        cancelFn: () => resolve(false),
+      });
+    });
+  }
 
   handleBackGotoPage() {
     this.$router.push({ name: 'query-template' });
@@ -97,7 +124,7 @@ export default class TemplateCreate extends tsc<object> {
   init() {
     this.curStep = 1;
     this.basicInfoData = {
-      name: 'test',
+      name: '',
       desc: '',
       effect: [this.$store.getters.bizId],
     };
@@ -185,7 +212,7 @@ export default class TemplateCreate extends tsc<object> {
         <div class='template-create-nav'>
           <span
             class='icon-monitor icon-back-left navigation-bar-back'
-            onClick={() => this.handleBackGotoPage()}
+            onClick={this.handleBackGotoPage}
           />
           <span class='title'>{this.title}</span>
           <bk-steps
@@ -205,8 +232,8 @@ export default class TemplateCreate extends tsc<object> {
               queryConfigs={this.queryConfigs}
               variablesList={this.variablesList}
               onAddQueryConfig={this.handleAdd}
-              onBackGotoPage={this.handleBackGotoPage}
               onBasicInfoChange={this.handleBasicInfoChange}
+              onCancel={this.handleBackGotoPage}
               onChangeCondition={this.handleChangeCondition}
               onChangeDimension={this.handleDimensionChange}
               onChangeExpression={this.handleChangeExpression}
@@ -227,7 +254,7 @@ export default class TemplateCreate extends tsc<object> {
               metricFunctions={this.metricFunctions}
               queryConfigs={this.queryConfigs}
               variablesList={this.variablesList}
-              onBackGotoPage={this.handleBackGotoPage}
+              onCancel={this.handleBackGotoPage}
               onStepChange={this.handleStepChange}
               onSubmit={this.handleSubmit}
               onVariablesChange={this.handleVariablesChange}

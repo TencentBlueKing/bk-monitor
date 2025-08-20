@@ -27,6 +27,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { fetchMetricDimensionValueList } from '../../../service';
 import { DimensionValueVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
 
@@ -44,6 +45,10 @@ interface DimensionValueValueProps {
 export default class EditDimensionValueVariableValue extends tsc<DimensionValueValueProps, DimensionValueValueEvents> {
   @Prop({ type: Object, required: true }) variable!: DimensionValueVariableModel;
 
+  loading = false;
+
+  valueList = [];
+
   @Emit('change')
   handleValueChange(value: string) {
     return new DimensionValueVariableModel({
@@ -60,15 +65,39 @@ export default class EditDimensionValueVariableValue extends tsc<DimensionValueV
     }
   }
 
+  mounted() {
+    this.getValueList();
+  }
+
+  async getValueList() {
+    this.loading = true;
+    const data = await fetchMetricDimensionValueList(this.variable.relationDimension, {
+      data_source_label: this.variable.metric.data_source_label,
+      data_type_label: this.variable.metric.data_type_label,
+      result_table_id: this.variable.metric.result_table_id,
+      metric_field: this.variable.metric.metric_field,
+    }).catch(() => []);
+    this.valueList = data;
+    this.loading = false;
+  }
+
   render() {
     return (
       <EditVariableValue data={this.variable.data}>
         <bk-select
+          clearable={false}
+          loading={this.loading}
           value={this.variable.data.value || this.variable.data.defaultValue}
           onChange={this.handleValueChange}
           onToggle={this.handleSelectToggle}
         >
-          <bk-option />
+          {this.valueList.map(item => (
+            <bk-option
+              id={item.value}
+              key={item.value}
+              name={item.label}
+            />
+          ))}
         </bk-select>
       </EditVariableValue>
     );

@@ -61,6 +61,7 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
   }
 
   handleValueChange(value: AggCondition[]) {
+    console.log(value);
     this.handleDataChange({
       ...this.variable.data,
       defaultValue: value,
@@ -124,6 +125,7 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
             </bk-select>
           </bk-form-item>
           <bk-form-item
+            class='default-value-form-item'
             label={this.$t('默认值')}
             property='value'
           >
@@ -133,6 +135,7 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
               options={this.variable.dimensionOptionsMap as IConditionOptionsItem[]}
               showLabel={false}
               value={this.variable.data.defaultValue}
+              onChange={this.handleValueChange}
             />
           </bk-form-item>
         </VariableCommonForm>

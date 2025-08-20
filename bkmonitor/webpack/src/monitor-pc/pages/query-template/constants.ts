@@ -49,12 +49,12 @@ export const TemplateDetailTabEnum = {
 
 /** 变量类型枚举 */
 export const VariableTypeEnum = {
-  FUNCTION: 'function',
-  DIMENSION: 'dimension',
-  DIMENSION_VALUE: 'dimension_value',
-  METHOD: 'method',
-  CONDITION: 'condition',
-  CONSTANT: 'constant',
+  FUNCTION: 'FUNCTIONS',
+  DIMENSION: 'GROUP_BY',
+  DIMENSION_VALUE: 'TAG_VALUES',
+  METHOD: 'METHOD',
+  CONDITION: 'CONDITIONS',
+  CONSTANT: 'CONSTANTS',
 } as const;
 
 export const VariableTypeMap = {

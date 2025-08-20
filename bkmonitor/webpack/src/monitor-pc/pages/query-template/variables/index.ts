@@ -92,7 +92,7 @@ export class ConditionVariableModel extends VariableBase {
     super(config);
     this.metric = config.metric;
     this.value = config.value || [];
-    this.defaultValue = config.value || [];
+    this.defaultValue = config.defaultValue || [];
     this.dimensionOption = config.dimensionOption || ['all'];
   }
 
@@ -268,7 +268,7 @@ export class MethodVariableModel extends VariableBase {
   constructor(config: IMethodVariableModel) {
     super(config);
     this.value = config.value || '';
-    this.defaultValue = config.defaultValue || 'SUM';
+    this.defaultValue = config.defaultValue || 'AVG';
     this.metric = config.metric;
   }
 
@@ -287,6 +287,38 @@ export class MethodVariableModel extends VariableBase {
   }
 }
 
+/** 获取创建变量所需参数结构 */
+export function getCreateVariableParams(params, metrics: MetricDetailV2[]): IVariableModel {
+  const {
+    type,
+    name,
+    alias,
+    description,
+    config: {
+      default: defaultValue,
+      related_metrics: [{ metric_id, metric_field }],
+      related_tag: relationDimension,
+      options: dimensionOption,
+    },
+  } = params;
+
+  let metric = null;
+  if (metric_field && metric_id) {
+    metric = metrics.find(item => item.metric_id === metric_id && item.metric_field === metric_field);
+  }
+
+  return {
+    name,
+    type,
+    alias,
+    desc: description,
+    defaultValue,
+    metric,
+    relationDimension,
+    dimensionOption,
+  };
+}
+
 export function getVariableModel(config: IVariableModel): VariableModelType {
   switch (config.type) {
     case VariableTypeEnum.METHOD:
@@ -302,4 +334,45 @@ export function getVariableModel(config: IVariableModel): VariableModelType {
     case VariableTypeEnum.CONSTANT:
       return new ConstantVariableModel(config);
   }
+}
+
+/** 获取变量接口提交参数结构 */
+export function getVariableSubmitParams(variable: VariableModelType) {
+  const { type, name, alias, desc, defaultValue } = variable.data;
+  let otherConfig = {};
+  if (type === VariableTypeEnum.DIMENSION_VALUE) {
+    const { relationDimension, metric } = variable.data;
+    otherConfig = {
+      related_metrics: [
+        {
+          metric_id: metric.metric_id,
+          metric_field: metric.metric_field,
+        },
+      ],
+      related_tag: relationDimension,
+      options: [],
+    };
+  }
+  if (type === VariableTypeEnum.CONDITION || type === VariableTypeEnum.DIMENSION) {
+    const { metric } = variable.data;
+    otherConfig = {
+      related_metrics: [
+        {
+          metric_id: metric.metric_id,
+          metric_field: metric.metric_field,
+        },
+      ],
+      options: (variable as ConditionVariableModel | DimensionVariableModel).dimensionOptionsMap.map(item => item.id),
+    };
+  }
+  return {
+    type,
+    name,
+    alias,
+    description: desc,
+    config: {
+      default: defaultValue,
+      ...otherConfig,
+    },
+  };
 }

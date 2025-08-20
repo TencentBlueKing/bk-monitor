@@ -73,6 +73,7 @@ export default class CreateFunctionVariable extends tsc<FunctionVariableProps, F
             property='value'
           >
             <FunctionCreator
+              needClear={false}
               options={this.metricFunctions}
               showLabel={false}
               showVariables={false}

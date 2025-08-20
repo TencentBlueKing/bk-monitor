@@ -26,6 +26,7 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { variableRegex } from '../../variables/template/utils';
 import VariablesManage from '../../variables/variables-manage/variables-manage';
 import BasicInfoCreate from '../basic-info/basic-info-create';
 import ExpressionPanel from '../expression-panel/expression-panel';
@@ -46,8 +47,8 @@ import './query-template-set.scss';
 
 interface QueryConfigSetEvents {
   onAddQueryConfig: (index: number) => void;
-  onBackGotoPage: () => void;
   onBasicInfoChange: (basicInfo: IBasicInfoData) => void;
+  onCancel: () => void;
   onChangeCondition?: (val: { index: number; value: AggCondition[] }) => void;
   onChangeDimension?: (val: { index: number; value: string[] }) => void;
   onChangeExpression?: (val: string) => void;
@@ -87,6 +88,13 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
 
   get getNextStepDisabled() {
     return !this.queryConfigs.some(item => item.metricDetail);
+  }
+
+  /** 获取已使用的变量列表 */
+  get useVariables() {
+    const queryConfigsVariables = JSON.stringify(this.queryConfigs).match(variableRegex) || [];
+    const expressionVariables = JSON.stringify(this.expressionConfig).match(variableRegex) || [];
+    return [...queryConfigsVariables, ...expressionVariables];
   }
 
   @Emit('basicInfoChange')
@@ -146,8 +154,8 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
     });
   }
 
-  @Emit('backGotoPage')
-  handleBackGotoPage() {}
+  @Emit('cancel')
+  handleCancel() {}
 
   observerCreateConfigResize() {
     this.resizeObserver = new ResizeObserver(() => {
@@ -221,7 +229,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
             </bk-button>
             <bk-button
               theme='default'
-              onClick={this.handleBackGotoPage}
+              onClick={this.handleCancel}
             >
               {this.$t('取消')}
             </bk-button>
@@ -232,6 +240,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
           ref='variablesManage'
           metricFunctions={this.metricFunctions}
           scene='create'
+          useVariables={this.useVariables}
           variablesList={this.variablesList}
           onChange={this.handleVariablesChange}
         />
