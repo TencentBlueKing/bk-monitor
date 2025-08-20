@@ -35,6 +35,7 @@ export interface RowData {
   pattern: string;
   occupy: string;
   highlight: string;
+  disabled?: boolean;
 }
 
 export default defineComponent({
@@ -66,7 +67,7 @@ export default defineComponent({
         message: t('不能为空'),
       },
       {
-        validator: (value: string) => /^[A-Z]+$/.test(value),
+        validator: (value: string) => /^[A-Z_-]+$/.test(value),
         message: t('{n}不规范, 包含特殊符号.', { n: t('占位符') }),
       },
     ];
@@ -88,35 +89,59 @@ export default defineComponent({
       }
 
       const list = _.cloneDeep(tableData.value);
-      [list[currentIndex], list[hoverRowIndex]] = [list[hoverRowIndex], list[currentIndex]];
+      const currentItem = list[currentIndex];
+      list.splice(currentIndex, 1);
+      list.splice(hoverRowIndex, 0, currentItem);
       tableData.value = list;
       currentIndex = -1;
       hoverRowIndex = -1;
       tableRenderKey.value += 1;
       emit('change', tableData.value);
+      setTimeout(() => {
+        updateTableRenderKey();
+      });
     };
 
     const handleDeleteItem = (index: number) => {
       const currentRow = tableData.value[index];
+      if (currentRow.disabled) {
+        return;
+      }
+
       emit('delete', currentRow);
       tableData.value.splice(index, 1);
       emit('change', tableData.value);
+      setTimeout(() => {
+        updateTableRenderKey();
+      });
     };
 
     const setItemRef = (type: string, index: number) => (el: HTMLElement | null) => {
       inputColumnsMapRef.value[type][index] = el;
     };
 
+    const updateTableRenderKey = () => {
+      inputColumnsMapRef.value = {
+        regex: [],
+        occupy: [],
+      };
+      setTimeout(() => {
+        tableRenderKey.value += 1;
+      });
+    };
+
     expose({
-      appendItem: (item: RowData) => {
-        tableData.value.push({
+      setDataList: (list: RowData[]) => {
+        tableData.value = list.map(item => ({ ...item, rowKey: random() }));
+        updateTableRenderKey();
+      },
+      addItem: (item: RowData) => {
+        tableData.value.unshift({
           rowKey: random(),
           ...item,
         });
         emit('change', tableData.value);
-        setTimeout(() => {
-          tableRef.value.scrollTop = tableRef.value.scrollHeight;
-        });
+        updateTableRenderKey();
       },
       getData: async () => {
         await Promise.all(inputColumnsMapRef.value.regex.map(el => el.getValue()));
@@ -172,6 +197,7 @@ export default defineComponent({
                     ref={setItemRef('regex', index)}
                     value={row.pattern}
                     rules={regexRules}
+                    disabled={row.disabled}
                     on-input={value => (row.pattern = value.trim())}
                   />
                 </div>
@@ -182,6 +208,7 @@ export default defineComponent({
                     ref={setItemRef('occupy', index)}
                     value={row.occupy}
                     rules={occupyRules}
+                    disabled={row.disabled}
                     on-input={value => (row.occupy = value.trim())}
                   />
                 </div>
@@ -191,7 +218,7 @@ export default defineComponent({
                   <span on-click={() => handleDeleteItem(index)}>
                     <log-icon
                       type='circle-minus-filled'
-                      class='delete-icon'
+                      class={{ 'delete-icon': true, 'is-disabled': row.disabled }}
                     />
                   </span>
                 </div>

@@ -22,12 +22,28 @@
       }
     }
 
+    .count-display {
+      color: #4d4f56;
+      opacity: 0.6;
+      flex: 1;
+    }
+
+    .add-search {
+      color: #3a84ff;
+      font-size: 14px;
+      margin-left: 8px;
+      cursor: pointer;
+    }
+
     .group-value-display {
       font-family: Arial-BoldMT;
       font-weight: BoldMT;
       font-size: 12px;
       color: #313238;
       display: flex;
+      overflow: hidden;
+      white-space: nowrap;
+      max-width: calc(100% - 160px);
 
       .value-item {
         display: flex;

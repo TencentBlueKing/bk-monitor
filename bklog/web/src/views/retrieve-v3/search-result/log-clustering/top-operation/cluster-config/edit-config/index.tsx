@@ -35,6 +35,7 @@ import FilterRule from '@/components/filter-rule';
 import RuleConfigOperate from '@/components/rule-config-operate';
 import { type ConfigInfo } from '@/services/log-clustering';
 import { type IResponseData } from '@/services/type';
+import { bkNotify } from 'bk-magic-vue';
 
 import './index.scss';
 
@@ -57,7 +58,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  setup(props) {
+  setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
 
@@ -66,7 +67,6 @@ export default defineComponent({
     const ruleTableRef = ref(null);
     const filterRuleRef = ref(null);
     const formRef = ref(null);
-    // const ruleTableRef = ref(null);
     const formData = ref({
       max_dist_list: '', // 敏感度
       predefined_varibles: '', //	预先定义的正则表达式
@@ -79,8 +79,6 @@ export default defineComponent({
     });
     const currentRuleType = ref('template'); // 规则类型
     const globalLoading = ref(false);
-    const isShowSubmitDialog = ref(false); // 是否展开保存弹窗
-    const defaultVaribles = ref('');
     const defaultData = ref({} as any);
     const clusterField = ref<
       {
@@ -158,7 +156,7 @@ export default defineComponent({
             value: Array.isArray(item.value) ? [...item.value] : [item.value],
           };
         });
-        defaultVaribles.value = predefined_varibles;
+        // defaultVaribles.value = predefined_varibles;
         const assignObj = {
           max_dist_list,
           predefined_varibles,
@@ -168,7 +166,6 @@ export default defineComponent({
           regex_rule_type,
           regex_template_id,
         };
-        console.log('assignObj>>>', assignObj);
         Object.assign(formData.value, assignObj);
         defaultData.value = _.cloneDeep(assignObj);
         // 当前回填的字段如果在聚类字段列表里找不到则赋值为空需要用户重新赋值
@@ -226,7 +223,13 @@ export default defineComponent({
               },
             })
             .then(() => {
-              isShowSubmitDialog.value = true;
+              bkNotify({
+                title: t('保存待生效'),
+                message: t('该保存需要10分钟生效, 请耐心等待'),
+                limitLine: 3,
+                offsetY: 80,
+              });
+              emit('close');
             })
             .finally(() => {
               ruleConfigOperateRef.value?.setSaveLoading(false);
@@ -341,7 +344,7 @@ export default defineComponent({
                 on-rule-type-change={rule => (currentRuleType.value = rule)}
                 on-search={handleSearchRuleList}
               />
-              <rule-table
+              <RuleTable
                 ref={ruleTableRef}
                 readonly={isRuleTableReadonly.value}
                 ruleList={ruleList.value}
@@ -357,27 +360,6 @@ export default defineComponent({
           on-reset={handleReset}
           on-submit={handleSubmit}
         />
-
-        <bk-dialog
-          width={360}
-          ext-cls='submit-dialog'
-          value={isShowSubmitDialog.value}
-          mask-close={false}
-          show-footer={false}
-          header-position='left'
-        >
-          <div class='submit-dialog-container'>
-            <p class='submit-dialog-title'>{t('保存待生效')}</p>
-            <p class='submit-dialog-text'>{t('该保存需要10分钟生效, 请耐心等待')}</p>
-            <bk-button
-              class='submit-dialog-btn'
-              theme='primary'
-              on-click={() => (isShowSubmitDialog.value = false)}
-            >
-              {t('我知道了')}
-            </bk-button>
-          </div>
-        </bk-dialog>
       </div>
     );
   },

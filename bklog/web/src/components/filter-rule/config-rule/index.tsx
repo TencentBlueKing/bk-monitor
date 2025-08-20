@@ -50,7 +50,7 @@ export default defineComponent({
       default: true,
     },
   },
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
 
@@ -166,7 +166,6 @@ export default defineComponent({
     };
 
     const handleFieldItemClick = (fieldInfo: any, index: number) => {
-      console.log('fieldInfo>>>', fieldInfo);
       activeIndex.value = index;
       hoverIndex.value = index;
     };
@@ -187,7 +186,6 @@ export default defineComponent({
             op: formData.value.op,
             value: formData.value.values,
           };
-          console.log('confirm = ', result);
           emit('confirm', result);
           handleClickCancel();
         })
@@ -215,6 +213,7 @@ export default defineComponent({
     };
 
     const handleClickTrigger = () => {
+      emit('click-trigger');
       popoverRef.value.showHandler();
     };
 
@@ -232,9 +231,13 @@ export default defineComponent({
     };
 
     const handlePopoverHide = () => {
-      formData.value = { op: '', values: [] };
+      // formData.value = { op: '', values: [] };
       controlOperateRef.value.unbindKeyEvent();
     };
+
+    expose({
+      hide: handleClickCancel,
+    });
 
     return () => (
       <bk-popover
@@ -244,13 +247,13 @@ export default defineComponent({
         width={720}
         tippy-options={{
           theme: 'light',
-          trigger: 'manual',
+          trigger: 'click',
           hideOnClick: false,
         }}
         on-show={handlePopoverShow}
         on-hide={handlePopoverHide}
       >
-        <rule-trigger
+        <RuleTrigger
           isCreate={props.isCreate}
           data={localFormData.value}
           on-click={handleClickTrigger}

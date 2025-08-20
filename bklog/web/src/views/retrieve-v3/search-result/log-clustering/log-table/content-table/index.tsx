@@ -122,7 +122,6 @@ export default defineComponent({
       () => props.widthList,
       () => {
         if (props.widthList.length) {
-          console.log('props.widthList == ', props.widthList);
           columnWidthList.value = props.widthList;
         }
       },
@@ -145,7 +144,6 @@ export default defineComponent({
     watch(
       () => props.filterSortMap,
       () => {
-        console.log('props.filterSortMap == ', props.filterSortMap);
         const sortObj = Object.entries(props.filterSortMap.sort).find(item => !!item[1]);
         let dataList = _.cloneDeep(localTableData);
         if (sortObj) {
@@ -380,8 +378,18 @@ export default defineComponent({
     };
 
     const handleUpdateRemark = (remark: LogPattern['remark']) => {
-      console.log('remark = ', remark);
       updateTableRowData(currentRowValue.value.id, 'remark', remark);
+    };
+
+    const handleAddSearch = (e: Event) => {
+      e.stopPropagation();
+      const addConditions = props.requestData.group_by.map((item, index) => ({
+        field: item,
+        operator: '=',
+        value: [props.tableInfo.group[index]],
+      }));
+      console.log(addConditions);
+      store.dispatch('setQueryCondition', addConditions);
     };
 
     expose({
@@ -390,6 +398,7 @@ export default defineComponent({
 
     return () => (
       <div
+        v-show={tableData.value.length > 0}
         class='log-content-table-main'
         style={{
           borderLeft: showGounpBy.value ? '1px solid #dcdee5' : 'none',
@@ -405,7 +414,12 @@ export default defineComponent({
             <div class={{ 'collapse-icon': true, 'is-open': isOpen.value }}>
               <log-icon type='arrow-down-filled-2' />
             </div>
-            <div class='group-value-display'>
+            <div
+              class='group-value-display'
+              v-bk-overflow-tips={{
+                content: groupValueList.value.join(' , '),
+              }}
+            >
               {groupValueList.value.map((value, index) => (
                 <div class='value-item'>
                   <span>{value}</span>
@@ -414,6 +428,13 @@ export default defineComponent({
                   )}
                 </div>
               ))}
+            </div>
+            <div
+              v-bk-tooltips={t('添加为检索条件')}
+              class='add-search'
+              on-click={handleAddSearch}
+            >
+              <log-icon type='sousuo-' />
             </div>
             <div class='count-display'>（{t('共有 {0} 条数据', [tableData.value.length])}）</div>
           </div>
