@@ -773,7 +773,7 @@ def create_bkbase_data_link(
         storage_cluster_id,
         data_link_strategy,
     )
-    datalink_biz_id = get_tenant_datalink_biz_id(data_source.bk_tenant_id)
+    datalink_biz_id = get_tenant_datalink_biz_id(bk_tenant_id=data_source.bk_tenant_id, bk_biz_id=bk_biz_id)
     AccessVMRecord.objects.update_or_create(
         bk_tenant_id=data_source.bk_tenant_id,
         result_table_id=monitor_table_id,

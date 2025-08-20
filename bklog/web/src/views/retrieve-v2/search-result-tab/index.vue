@@ -26,6 +26,7 @@
   );
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
+  const requestAddition = computed(() => store.getters.requestAddition);
 
   const isAiopsToggle = computed(() => {
       // 日志聚类总开关
@@ -86,10 +87,10 @@
       params.scenarioId = indexSet.category_id;
     }
 
-    if (retrieveParams.value.addition.length) {
+    if (requestAddition.value.length) {
       const resp = await $http.request('retrieve/generateQueryString', {
         data: {
-          addition: retrieveParams.value.addition,
+          addition: requestAddition.value,
         },
       });
 

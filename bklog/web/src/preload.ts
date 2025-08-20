@@ -74,7 +74,7 @@ export default ({
       space = (spaceList ?? []).find(item => item.bk_biz_id === bkBizId);
     }
 
-    if (!space) {
+    if (!space?.permission?.[VIEW_BUSINESS]) {
       space = spaceList?.find(item => item?.permission?.[VIEW_BUSINESS]) ?? spaceList?.[0];
     }
 

@@ -24,14 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import DOMPurify from 'dompurify';
 import { escape as _escape } from 'lodash';
 
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 import $http from '@/api';
 import store from '@/store';
 
@@ -134,6 +136,13 @@ export default class AggChart extends tsc<object> {
     return { datePickerValue, ip_chooser, addition, timezone, keyword };
   }
 
+  /**
+   * 当前查询模式 0：ui，1:sql
+   */
+  get searchMode() {
+    return store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
+  }
+
   @Watch('watchQueryParams', { deep: true })
   watchPicker() {
     if (this.isFrontStatistics) return;
@@ -211,16 +220,55 @@ export default class AggChart extends tsc<object> {
   filterIsExist = (operator: string, value: any, fieldName: string) => {
     if (this.fieldType === '__virtual__') return true;
 
-    const mappedOperator = OPERATOR_MAPPING[operator] || operator;
-    return (
-      store.getters.retrieveParams?.addition?.some(addition => {
-        return (
-          addition.field === fieldName &&
-          addition.operator === mappedOperator &&
-          addition.value.toString() === value.toString()
-        );
-      }) || false
-    );
+    if (this.searchMode === 0) {
+      const mappedOperator = OPERATOR_MAPPING[operator] || operator;
+      return (
+        store.getters.retrieveParams?.addition?.some(addition => {
+          return (
+            addition.field === fieldName &&
+            addition.operator === mappedOperator &&
+            addition.value.toString() === value.toString()
+          );
+        }) || false
+      );
+    }
+
+    const formatJsonString = formatResult => {
+      if (typeof formatResult === 'string') {
+        return DOMPurify.sanitize(formatResult);
+      }
+
+      return formatResult;
+    };
+
+    const getSqlAdditionMappingOperator = ({ operator, field }) => {
+      const textType = this.fieldType;
+
+      const formatValue = value => {
+        let formatResult = value;
+        if (['text', 'string', 'keyword'].includes(textType)) {
+          if (Array.isArray(formatResult)) {
+            formatResult = formatResult.map(formatJsonString);
+          } else {
+            formatResult = formatJsonString(formatResult);
+          }
+        }
+
+        return formatResult;
+      };
+
+      let mappingKey = {
+        // is is not 值映射
+        is: val => `${field}: "${formatValue(val)}"`,
+        'is not': val => `NOT ${field}: "${formatValue(val)}"`,
+        '=': val => `${field}: "${formatValue(val)}"`,
+        '!=': val => `NOT ${field}: "${formatValue(val)}"`,
+      };
+
+      return mappingKey[operator] ?? operator; // is is not 值映射
+    };
+    const keyword = getSqlAdditionMappingOperator({ operator, field: fieldName })?.(value) ?? value;
+    return store.getters.retrieveParams?.keyword.indexOf(keyword) >= 0;
   };
   // 查询字段数据
   async queryFieldFetchTopList(limit = 5) {

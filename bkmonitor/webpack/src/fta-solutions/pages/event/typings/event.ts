@@ -68,6 +68,7 @@ export interface IChatGroupDialogOptions {
 export interface ICommonItem {
   id: string;
   name: string | TranslateResult;
+  needSearch?: boolean;
 }
 export interface ICommonTreeItem {
   children?: ICommonTreeItem[];
