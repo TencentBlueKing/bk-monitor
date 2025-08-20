@@ -31,7 +31,7 @@ def get_value_if_not_none(value, default):
     return value
 
 
-def compose_es_hosts(host: str, port: int) -> list:
+def compose_es_hosts(host: str, port: int) -> list[str]:
     """组装 es 需要的 host
     NOTE：兼容 IPV6与python3.11，将IPV6对应格式组装为 [host]:port
     """
