@@ -41,6 +41,7 @@ import './function-creator.scss';
 interface IProps {
   allVariables?: { name: string }[];
   isExpSupport?: boolean;
+  needClear?: boolean;
   options?: IFunctionOptionsItem[];
   showLabel?: boolean;
   showVariables?: boolean;
@@ -48,6 +49,7 @@ interface IProps {
   variables?: IVariablesItem[];
   onChange?: (val: AggFunction[]) => void;
   onCreateVariable?: (val: string) => void;
+  onOpenChange?: (val: boolean) => void;
 }
 
 @Component
@@ -65,6 +67,7 @@ export default class FunctionCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) value: AggFunction[];
   /* 所有变量，用于校验变量名是否重复 */
   @Prop({ default: () => [] }) allVariables: { name: string }[];
+  @Prop({ default: true }) needClear: boolean;
 
   showSelect = false;
   popClickHide = true;
@@ -113,6 +116,7 @@ export default class FunctionCreator extends tsc<IProps> {
 
   handleOpenChange(v) {
     this.showSelect = v;
+    this.$emit('openChange', v);
   }
 
   handleAddVar(val: string) {
@@ -198,7 +202,7 @@ export default class FunctionCreator extends tsc<IProps> {
         <SelectWrap
           expanded={this.showSelect}
           minWidth={357}
-          needClear={!!this.curTags.length}
+          needClear={this.needClear && !!this.curTags.length}
           needPop={true}
           popClickHide={this.popClickHide}
           onClear={this.handleClear}

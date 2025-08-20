@@ -215,4 +215,7 @@ export default {
   'route-配置服务': 'Configuration Service',
   智能: 'AI',
   'route-容器监控': 'Container Monitor',
+
+  'route-新建查询模板': 'New Query Template',
+  'route-编辑查询模板': 'Edit Query Template',
 };

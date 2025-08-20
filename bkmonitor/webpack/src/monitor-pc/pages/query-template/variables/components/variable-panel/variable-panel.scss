@@ -1,16 +1,34 @@
 .variable-panel {
   background: #fff;
 
-  .variable-type-title {
-    display: inline-block;
-    height: 30px;
-    padding: 0 16px;
-    margin-bottom: 2px;
-    font-size: 12px;
-    line-height: 30px;
-    color: #fff;
-    background: #e54488;
-    border-radius: 2px 0 8px;
+  .variable-panel-header {
+    display: flex;
+    align-items: center;
+
+    .variable-type-title {
+      display: inline-block;
+      height: 30px;
+      padding: 0 16px;
+      margin-bottom: 2px;
+      font-size: 12px;
+      line-height: 30px;
+      color: #fff;
+      background: #929EB6;
+      border-radius: 2px 0 8px;
+    }
+
+    .icon-mc-delete-line {
+      margin-right: 7.5px;
+      margin-left: auto;
+      font-size: 13px;
+      color: #EA3636;
+      cursor: pointer;
+
+      &.disabled {
+        color: #DCDEE5;
+        cursor: not-allowed;
+      }
+    }
   }
 
   &.create {

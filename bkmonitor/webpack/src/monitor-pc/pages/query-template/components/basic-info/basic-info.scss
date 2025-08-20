@@ -25,13 +25,8 @@
 
     .bk-tag-input {
       .tag {
-        .tag-name {
-          vertical-align: middle;
-        }
-
-        .icon-monitor {
-          vertical-align: middle;
-        }
+        display: flex;
+        align-items: center;
       }
     }
   }
