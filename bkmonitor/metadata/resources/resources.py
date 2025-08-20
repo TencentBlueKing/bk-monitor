@@ -507,10 +507,10 @@ class ModifyResultTableResource(Resource):
         # 刷新一波对象，防止存在缓存等情况
         result_table.refresh_from_db()
 
-        es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
-        if es_storage:
-            # 判断是否修改了字段，而且是存在ES存储，如果是，需要重新创建一下当前的index
-            if validated_request_data["field_list"] is not None:
+        # 判断是否修改了字段，而且是存在ES存储，如果是，需要重新创建一下当前的index
+        if validated_request_data["field_list"] is not None:
+            es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+            if es_storage:
                 logger.info(
                     "ModifyResultTableResource: table_id->[%s] has es storage,update index,is_moving_cluster->[%s]",
                     table_id,
@@ -518,6 +518,7 @@ class ModifyResultTableResource(Resource):
                 )
                 es_storage.update_index_and_aliases(ahead_time=0, is_moving_cluster=is_moving_cluster)
 
+        if result_table.default_storage == models.ClusterInfo.TYPE_ES:
             # 通知数据平台信息变更，目前只有es类型需要通知
             bk_data_id = models.DataSourceResultTable.objects.get(
                 table_id=table_id, bk_tenant_id=bk_tenant_id
@@ -539,7 +540,6 @@ class ModifyResultTableResource(Resource):
                 except Exception as e:  # pylint: disable=broad-except
                     logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
-        if result_table.default_storage == models.ClusterInfo.TYPE_ES:
             # 推送路由 (关联的虚拟RT）
             virtual_rt_list = list(
                 models.ESStorage.objects.filter(origin_table_id=result_table.table_id).values_list(
