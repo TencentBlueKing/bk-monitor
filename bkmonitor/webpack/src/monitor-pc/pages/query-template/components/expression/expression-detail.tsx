@@ -49,7 +49,6 @@ export default class ExpressionDetail extends tsc<ExpressionProps> {
   /* 变量 variableName-变量对象 映射表 */
   @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
   variablesToolInstance = new QueryVariablesTool();
-  templateSrv = getTemplateSrv();
 
   get expressionToVariableModel() {
     const regex = /(\${(?:[\w\u4e00-\u9fa5]+)})|([^{$]+|\${(?![\w\u4e00-\u9fa5]+\}))/g;
@@ -72,7 +71,7 @@ export default class ExpressionDetail extends tsc<ExpressionProps> {
     const content = this.expressionToVariableModel?.map?.((variableModel, index) => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const DomTag = variableModel.isVariable ? VariableSpan : 'span';
-      const result = this.templateSrv.replace(variableModel.value as string, this.variableMap);
+      const result = getTemplateSrv().replace(variableModel.value as string, this.variableMap);
       return (
         <DomTag
           id={variableModel.variableName}
