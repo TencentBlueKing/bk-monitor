@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { NUMBER_CONDITION_METHOD_LIST } from '../../constant/constant';
+
 /** 查询模板列表-表格固定展示字段 */
 export const TABLE_FIXED_DISPLAY_FIELDS = ['name', 'operator'];
 /** 查询模板列表-表格默认展示字段 */
@@ -63,3 +65,9 @@ export const VariableTypeMap = {
   [VariableTypeEnum.CONDITION]: window.i18n.tc('条件变量'),
   [VariableTypeEnum.CONSTANT]: window.i18n.tc('常规变量'),
 };
+
+/** 条件方法别名映射 */
+export const ConditionMethodAliasMap = NUMBER_CONDITION_METHOD_LIST.reduce((acc, cur) => {
+  acc[cur.id] = cur.name;
+  return acc;
+}, {});

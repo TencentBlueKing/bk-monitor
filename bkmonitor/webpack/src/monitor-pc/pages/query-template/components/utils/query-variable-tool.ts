@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-export interface QueryVariablesTransformResult {
+export interface QueryVariablesTransformResult<T = unknown> {
   /** 是否包含变量 */
   isVariable: boolean;
   /** 转换后的变量值 */
-  value: unknown;
+  value: T;
   /** 变量名 */
   variableName: string;
 }

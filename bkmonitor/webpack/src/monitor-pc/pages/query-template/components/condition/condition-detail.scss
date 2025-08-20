@@ -21,6 +21,18 @@
     flex-wrap: wrap;
     gap: 4px;
 
+    .variable-tag {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 80px;
+      min-height: 40px;
+      padding: 4px;
+      line-height: 16px;
+      background: #eaebf0;
+      border-radius: 2px;
+    }
+
     .tags-item {
       display: flex;
       align-items: center;
