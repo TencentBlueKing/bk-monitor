@@ -50,7 +50,6 @@ export default class FunctionDetail extends tsc<FunctionProps> {
   /* 变量 variableName-变量对象 映射表 */
   @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
   variablesToolInstance = new QueryVariablesTool();
-  templateSrv = getTemplateSrv();
 
   /** 将已选函数数组 源数据数组 转换为渲染所需的 QueryVariablesTransformResult 结构数组 */
   get functionsToVariableModel(): QueryVariablesTransformResult[] {
@@ -95,20 +94,19 @@ export default class FunctionDetail extends tsc<FunctionProps> {
         return prev;
       }
       let varValue = '';
-      const result = this.templateSrv.replace(`\${${curr.variableName}:json}` as string, this.variableMap);
+      const result = getTemplateSrv().replace(`\${${curr.variableName}:json}` as string, this.variableMap);
       try {
         varValue = JSON.parse(result);
       } catch {
         varValue = '';
       }
-
       if (Array.isArray(varValue)) {
         prev.push(
           this.createFunctionNameVariableChunk(
             curr.variableName,
-            varValue.map(v =>
-              this.functionNameRenderer({ value: v, variableName: curr.variableName, isVariable: curr.isVariable })
-            )
+            varValue?.length
+              ? varValue.map(v => this.functionNameRenderer({ ...curr, value: v }))
+              : this.functionNameRenderer(curr)
           )
         );
         return prev;
@@ -117,9 +115,8 @@ export default class FunctionDetail extends tsc<FunctionProps> {
         this.createFunctionNameVariableChunk(
           curr.variableName,
           this.functionNameRenderer({
+            ...curr,
             value: varValue || curr.value,
-            variableName: curr.variableName,
-            isVariable: curr.isVariable,
           })
         )
       );
