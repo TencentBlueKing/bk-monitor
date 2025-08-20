@@ -125,6 +125,7 @@ export default class MethodCreator extends tsc<IProps> {
       name: val,
       isVariable: true,
     };
+    this.showSelect = false;
     this.$emit('change', val);
     this.$emit('createVariable', val);
   }

@@ -85,6 +85,10 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
   resizeObserver = null;
   isSticky = false;
 
+  get getNextStepDisabled() {
+    return !this.queryConfigs.some(item => item.metricDetail);
+  }
+
   @Emit('basicInfoChange')
   handleBasicInfoChange(basicInfo: IBasicInfoData) {
     return basicInfo;
@@ -209,6 +213,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
 
           <div class={['submit-btns', { sticky: this.isSticky }]}>
             <bk-button
+              disabled={this.getNextStepDisabled}
               theme='primary'
               onClick={this.handleNextStep}
             >
