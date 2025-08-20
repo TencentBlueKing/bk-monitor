@@ -12275,3 +12275,45 @@ msgstr "Top5 average time of interface"
 
 msgid "URI请求统计"
 msgstr "URI request statistics"
+
+msgid "请求量"
+msgstr "Amount of requests"
+
+msgid "成功率"
+msgstr "Success rate"
+
+msgid "超时率"
+msgstr "Timeout rate"
+
+msgid "异常率"
+msgstr "Exception rate"
+
+msgid "耗时分布"
+msgstr "Time consumption distribution"
+
+msgid "耗时热力图"
+msgstr "Time heatmap"
+
+msgid "维度值分布"
+msgstr "Dimensional value distribution"
+
+msgid "成功异常超时率"
+msgstr "Success exception timeout rate"
+
+msgid "容器列表"
+msgstr "List of containers"
+
+msgid "自定义指标维度列表"
+msgstr "Custom indicator dimension list"
+
+msgid "主机概览"
+msgstr "Host Overview"
+
+msgid "主机详情"
+msgstr "Host Details"
+
+msgid "主机列表"
+msgstr "Host list"
+
+msgid "总趋势"
+msgstr "Total trend"

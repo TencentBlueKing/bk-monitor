@@ -12568,3 +12568,45 @@ msgstr "接口平均耗时 Top5"
 
 msgid "URI请求统计"
 msgstr "URI 请求统计"
+
+msgid "请求量"
+msgstr "请求量"
+
+msgid "成功率"
+msgstr "成功率"
+
+msgid "超时率"
+msgstr "超时率"
+
+msgid "异常率"
+msgstr "异常率"
+
+msgid "耗时分布"
+msgstr "耗时分布"
+
+msgid "耗时热力图"
+msgstr "耗时热力图"
+
+msgid "维度值分布"
+msgstr "维度值分布"
+
+msgid "成功异常超时率"
+msgstr "成功异常超时率"
+
+msgid "容器列表"
+msgstr "容器列表"
+
+msgid "自定义指标维度列表"
+msgstr "自定义指标维度列表"
+
+msgid "主机概览"
+msgstr "主机概览"
+
+msgid "主机详情"
+msgstr "主机详情"
+
+msgid "主机列表"
+msgstr "主机列表"
+
+msgid "总趋势"
+msgstr "总趋势"
