@@ -82,6 +82,9 @@ export default class QueryConfigCreator extends tsc<IProps> {
   get getDimensionValueVariables() {
     return this.variables.filter(item => item.type === VariableTypeEnum.DIMENSION_VALUE);
   }
+  get allVariables() {
+    return this.variables.map(item => ({ name: item.name }));
+  }
   get getAggMethodList() {
     return this.queryConfig.metricDetail?.methodList || [];
   }
@@ -168,8 +171,10 @@ export default class QueryConfigCreator extends tsc<IProps> {
               {!!this.queryConfig.metricDetail && [
                 <MethodCreator
                   key={'method'}
+                  allVariables={this.allVariables}
                   options={this.getAggMethodList}
                   showVariables={true}
+                  value={this.queryConfig.agg_method}
                   variables={this.getMethodVariables}
                   onChange={this.handleChangeMethod}
                   onCreateVariable={this.handleCreateMethodVariable}
@@ -188,6 +193,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
               >
                 <DimensionCreator
                   key={'dimension'}
+                  allVariables={this.allVariables}
                   options={this.getDimensionList as IDimensionOptionsItem[]}
                   showVariables={true}
                   value={this.queryConfig.agg_dimension}
@@ -197,6 +203,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                 />
                 <FunctionCreator
                   key={'function'}
+                  allVariables={this.allVariables}
                   options={this.metricFunctions}
                   showVariables={true}
                   value={this.queryConfig.functions}
@@ -212,6 +219,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                 class='query-config-row'
               >
                 <ConditionCreator
+                  allVariables={this.allVariables}
                   dimensionValueVariables={this.getDimensionValueVariables as { name: string }[]}
                   metricDetail={this.queryConfig.metricDetail}
                   options={this.getWhereDimensionList as IConditionOptionsItem[]}

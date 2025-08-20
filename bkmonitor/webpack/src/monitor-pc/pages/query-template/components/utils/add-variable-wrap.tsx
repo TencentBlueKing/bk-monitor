@@ -24,14 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { validateVariableNameInput } from '../../variables/template/utils';
 import VariableNameInput from './variable-name-input';
 
 import './add-variable-wrap.scss';
 
 interface IProps {
+  allVariables?: { name: string }[];
   hasOperate?: boolean;
   notPop?: boolean;
   show?: boolean;
@@ -47,13 +49,31 @@ export default class AddVariableWrap extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) notPop: boolean;
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Boolean, default: true }) hasOperate: boolean;
+  /* 所有变量，用于校验变量名是否重复 */
+  @Prop({ default: () => [] }) allVariables: { name: string }[];
+
+  @Ref('varInput') varInput: VariableNameInput;
+
+  errMsg = '';
 
   handleChange(val) {
     this.$emit('change', val);
+    this.errMsg = '';
   }
 
-  handleAdd(e) {
+  handleAdd() {
+    this.errMsg = validateVariableNameInput(this.varInput.localValue);
+    if (this.errMsg) {
+      return this.errMsg;
+    }
+    const allVarSet = new Set(this.allVariables.map(item => item.name));
+    const varName = '${' + this.varInput.localValue + '}';
+    if (allVarSet.has(varName)) {
+      this.errMsg = this.$t('变量名不可重复') as string;
+      return this.errMsg;
+    }
     this.$emit('add');
+    return this.errMsg;
   }
   handleCancel() {
     this.$emit('cancel');
@@ -69,11 +89,14 @@ export default class AddVariableWrap extends tsc<IProps> {
           {this.$t('变量名')} <span class='red-point'>*</span>
         </div>
         <VariableNameInput
+          ref='varInput'
           class='var-input'
+          isErr={!!this.errMsg}
           show={this.show}
           value={this.value}
           onChange={this.handleChange}
         />
+        {!!this.errMsg && <div class='error-tip'>{this.errMsg}</div>}
         {this.hasOperate && (
           <div class='btn-wrap'>
             <bk-button

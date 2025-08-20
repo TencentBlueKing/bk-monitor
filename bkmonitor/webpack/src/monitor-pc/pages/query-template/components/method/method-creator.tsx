@@ -27,9 +27,9 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { isVariableName } from '../../variables/template/utils';
 import AddVariableOption from '../utils/add-variable-option';
 import SelectWrap from '../utils/select-wrap';
-import { isVariableName } from '../utils/utils';
 import VariableName from '../utils/variable-name';
 
 import type { IMethodOptionsItem, IVariablesItem } from '../type/query-config';
@@ -37,6 +37,7 @@ import type { IMethodOptionsItem, IVariablesItem } from '../type/query-config';
 import './method-creator.scss';
 
 interface IProps {
+  allVariables?: { name: string }[];
   options?: IMethodOptionsItem[];
   showLabel?: boolean;
   showVariables?: boolean;
@@ -52,6 +53,8 @@ export default class MethodCreator extends tsc<IProps> {
   @Prop({ default: true }) showLabel: boolean;
   /* 变量列表 */
   @Prop({ default: () => [] }) variables: IVariablesItem[];
+  /* 所有变量，用于校验变量名是否重复 */
+  @Prop({ default: () => [] }) allVariables: { name: string }[];
   /* 可选项列表 */
   @Prop({ default: () => [] }) options: IMethodOptionsItem[];
   /* 是否展示变量 */
@@ -84,6 +87,7 @@ export default class MethodCreator extends tsc<IProps> {
         name: this.value,
         isVariable: isVariableName(this.value),
       };
+      this.getAllOptions();
     }
   }
 
@@ -95,7 +99,7 @@ export default class MethodCreator extends tsc<IProps> {
         isVariable: true,
       })),
       ...this.options,
-    ];
+    ].filter(item => this.value !== item.id);
   }
 
   handleOpenChange(val: boolean) {
@@ -116,7 +120,12 @@ export default class MethodCreator extends tsc<IProps> {
   }
 
   handleAddVar(val) {
-    console.log(val);
+    this.curValue = {
+      id: val,
+      name: val,
+      isVariable: true,
+    };
+    this.$emit('change', val);
     this.$emit('createVariable', val);
   }
 
@@ -141,6 +150,7 @@ export default class MethodCreator extends tsc<IProps> {
           >
             {this.showVariables && (
               <AddVariableOption
+                allVariables={this.allVariables}
                 onAdd={this.handleAddVar}
                 onOpenChange={this.handleAddVariableOpenChange}
               />
