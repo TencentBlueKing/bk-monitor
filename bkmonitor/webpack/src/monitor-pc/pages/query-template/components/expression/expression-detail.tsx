@@ -27,9 +27,11 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type VariableModelType } from '../../variables';
+import { getTemplateSrv } from '../../variables/template/template-srv';
 import { QueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
+
+import type { VariableModelType } from '../../variables';
 
 import './expression-detail.scss';
 
@@ -47,13 +49,14 @@ export default class ExpressionDetail extends tsc<ExpressionProps> {
   /* 变量列表 */
   @Prop({ default: () => [] }) variables?: VariableModelType[];
   variablesToolInstance = new QueryVariablesTool();
+  templateSrv = getTemplateSrv();
 
   get variableMap() {
     if (!this.variables?.length) {
       return {};
     }
     return this.variables?.reduce?.((prev, curr) => {
-      prev[curr.name] = curr.value;
+      prev[curr.name] = curr;
       return prev;
     }, {});
   }
@@ -61,8 +64,10 @@ export default class ExpressionDetail extends tsc<ExpressionProps> {
   get expressionToVariableModel() {
     const regex = /(\${(?:\w+)})|([^{$]+|\${(?!\w+\}))/g;
     const strArr = [];
-    let match;
-    while ((match = regex.exec(this.expression)) !== null) {
+    let match: null | RegExpExecArray;
+    while (true) {
+      match = regex.exec(this.expression);
+      if (match === null) break;
       const [_full, variable, str] = match;
       if (variable) {
         strArr.push(variable);
@@ -70,8 +75,26 @@ export default class ExpressionDetail extends tsc<ExpressionProps> {
         strArr.push(str);
       }
     }
-    const models = strArr.map(str => this.variablesToolInstance.transformVariables(str, this.variableMap));
-    return models;
+    return strArr.map(str => this.variablesToolInstance.transformVariables(str));
+  }
+
+  expressionNameWrapRenderer() {
+    const content = this.expressionToVariableModel?.map?.((variableModel, index) => {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const DomTag = variableModel.isVariable ? VariableSpan : 'span';
+      const result = this.templateSrv.replace(variableModel.value as string, this.variableMap);
+      return (
+        <DomTag
+          id={variableModel.variableName}
+          key={index}
+          class='expression-name'
+        >
+          {result || variableModel.value}
+        </DomTag>
+      );
+    });
+
+    return <span class='expression-name-wrap'>{content?.length ? content : '--'}</span>;
   }
 
   render() {
@@ -79,12 +102,7 @@ export default class ExpressionDetail extends tsc<ExpressionProps> {
       <div class='template-expression-detail-component'>
         <span class='expression-label'>{this.$slots?.label || this.$t('表达式')}</span>
         <span class='expression-colon'>:</span>
-        <span class='expression-name-wrap'>
-          {this.expressionToVariableModel.map(variableModel => {
-            const domTag = variableModel.isVariable ? VariableSpan : 'span';
-            return <domTag class='expression-name'>{variableModel.value}</domTag>;
-          })}
-        </span>
+        {this.expressionNameWrapRenderer()}
       </div>
     );
   }

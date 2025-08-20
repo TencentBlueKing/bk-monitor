@@ -27,32 +27,39 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type AggCondition, type DimensionField } from '../../typings';
-import { type VariableModelType } from '../../variables';
-import { QueryVariablesTool } from '../utils/query-variable-tool';
-import { type IFilterField, EFieldType } from '@/components/retrieval-filter/utils';
-import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '@/constant/constant';
+import { getTemplateSrv } from '../../variables/template/template-srv';
+import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
+import VariableSpan from '../utils/variable-span';
+import ConditionDetailKvTag from './condition-detail-kv-tag';
+
+import type { AggCondition, DimensionField } from '../../typings';
+import type { VariableModelType } from '../../variables';
 
 import './condition-detail.scss';
 
 interface IProps {
+  /* 维度值变量列表 */
+  dimensionValueVariables?: VariableModelType[];
   /* 所有聚合维度信息列表数组 */
   options?: DimensionField[];
   /* 已选过滤条件 */
   value: AggCondition[];
-  /* 变量列表 */
+  /* 条件变量列表 */
   variables?: VariableModelType[];
 }
 
 @Component
-export default class ConditionCreator extends tsc<IProps> {
-  /* 变量列表 */
+export default class ConditionDetail extends tsc<IProps> {
+  /* 条件变量列表 */
   @Prop({ default: () => [] }) variables: VariableModelType[];
+  /* 维度值变量列表 */
+  @Prop({ default: () => [] }) dimensionValueVariables: VariableModelType[];
   /* 已选过滤条件 */
   @Prop({ default: () => [] }) value: AggCondition[];
   /* 所有聚合维度信息列表数组 */
   @Prop({ default: () => [] }) options: DimensionField[];
   variablesToolInstance = new QueryVariablesTool();
+  templateSrv = getTemplateSrv();
 
   get allDimensionMap() {
     if (!this.options?.length) {
@@ -69,7 +76,17 @@ export default class ConditionCreator extends tsc<IProps> {
       return {};
     }
     return this.variables?.reduce?.((prev, curr) => {
-      prev[curr.name] = curr.value;
+      prev[curr.name] = curr;
+      return prev;
+    }, {});
+  }
+
+  get dimensionValueVariableMap() {
+    if (!this.dimensionValueVariables?.length) {
+      return {};
+    }
+    return this.dimensionValueVariables?.reduce?.((prev, curr) => {
+      prev[curr.name] = curr;
       return prev;
     }, {});
   }
@@ -79,43 +96,90 @@ export default class ConditionCreator extends tsc<IProps> {
       return [];
     }
     return this.value.reduce((prev, curr) => {
-      const conditionResult = this.variablesToolInstance.transformVariables(curr.key);
-      if (!Array.isArray(conditionResult.value)) {
-        prev.push(conditionResult);
+      const conditionResult = this.variablesToolInstance.transformVariables(
+        curr.key
+      ) as QueryVariablesTransformResult<AggCondition>;
+      if (!conditionResult.value) {
         return prev;
       }
-      prev.push(...conditionResult.value.map(dimensionId => ({ ...conditionResult, value: dimensionId })));
+      // 浅拷贝，避免后续转换结构影响上层源数据
+      conditionResult.value = { ...curr, value: [...(curr.value || [])] };
+      prev.push(conditionResult);
+      // 非条件变量的数据则还需要判断是否存在维度值变量
+      // if (!conditionResult.isVariable) {
+      //   conditionResult.value.value = conditionResult.value.value.reduce((prev, curr) => {
+      //     const conditionValueResult = this.variablesToolInstance.transformVariables(curr);
+      //     if (!conditionValueResult.value) {
+      //       return prev;
+      //     }
+      //     prev.push(conditionValueResult);
+      //     return prev;
+      //   }, []);
+      // }
       return prev;
     }, []);
   }
 
-  tagRenderer() {
-    if (!this.conditionToVariableModel?.length) {
-      return '--';
+  conditionVariableTagItemRenderer(item) {
+    return (
+      <ConditionDetailKvTag
+        isConditionVariable={item.isVariable ?? false}
+        value={item.value}
+        variableMap={this.dimensionValueVariableMap}
+        variableName={item.variableName}
+      ></ConditionDetailKvTag>
+    );
+  }
+
+  /**
+   * @description 条件变量渲染逻辑
+   */
+  conditionVariableRenderer(item: QueryVariablesTransformResult<AggCondition>) {
+    let varValue = '';
+    const result = this.templateSrv.replace(`\${${item.variableName}:json}` as string, this.variableMap);
+    try {
+      varValue = JSON.parse(result);
+    } catch {
+      varValue = '';
     }
-    return '--';
-    // return this.conditionToVariableModel?.map?.((item, index) => {
-    //   const domTag = item.isVariable ? VariableSpan : 'span';
-    //   return (
-    //     <div
-    //       class='tags-item'
-    //       v-bk-tooltips={{
-    //         content: item.value,
-    //         placement: 'top',
-    //         disabled: !item.value,
-    //         delay: [300, 0],
-    //       }}
-    //     >
-    //       <domTag
-    //         id={item.variableName}
-    //         key={index}
-    //         class='tags-item-name'
-    //       >
-    //         {this.allDimensionMap?.[item.value]?.name || item.value}
-    //       </domTag>
-    //     </div>
-    //   );
-    // });
+    if (!varValue) {
+      return [
+        <div class='variable-tag'>
+          <VariableSpan>{item.value?.key}</VariableSpan>
+        </div>,
+      ];
+    }
+    if (Array.isArray(varValue)) {
+      return varValue.map(v =>
+        this.conditionVariableTagItemRenderer({
+          value: v,
+          variableName: item.variableName,
+          isVariable: item.isVariable,
+        })
+      );
+    }
+    return [
+      this.conditionVariableTagItemRenderer({
+        value: varValue,
+        variableName: item.variableName,
+        isVariable: item.isVariable,
+      }),
+    ];
+  }
+
+  tagWrapRenderer() {
+    const content = this.conditionToVariableModel?.reduce?.((prev, curr) => {
+      // 条件变量执行支线
+      if (curr.isVariable) {
+        prev.push(...this.conditionVariableRenderer(curr));
+        return prev;
+      }
+      // 非条件变量则判断知否存在维度值变量
+      prev.push(this.conditionVariableTagItemRenderer(curr));
+
+      return prev;
+    }, []);
+    return <div class='tags-wrap'>{content?.length ? content : '--'}</div>;
   }
 
   render() {
@@ -123,7 +187,7 @@ export default class ConditionCreator extends tsc<IProps> {
       <div class='template-condition-detail-component'>
         <span class='condition-label'>{this.$slots?.label || this.$t('过滤条件')}</span>
         <span class='condition-colon'>:</span>
-        <div class='tags-wrap'>{this.tagRenderer()}</div>
+        {this.tagWrapRenderer()}
       </div>
     );
   }

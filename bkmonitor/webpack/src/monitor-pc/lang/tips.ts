@@ -369,8 +369,9 @@ export default {
   用户指令: 'User Instruction',
   '请输入指标/PromQL语句': 'Please enter the metric/PromQL statement',
   请输入用户指令: 'Please enter the user instruction',
-  '调试数据范围取当前时间窗口前1000条数据': 'The debugging data range takes the previous 1000 entries from the current time window',
-  只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators'
+  调试数据范围取当前时间窗口前1000条数据:
+    'The debugging data range takes the previous 1000 entries from the current time window',
+  只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
 
   // 查询模板
   '当前仍然有关联的消费场景，无法编辑':
