@@ -294,7 +294,7 @@ export default () => {
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
-          const type = indexId ?? route.params.indexId ? 'single' : 'union';
+          const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
           if (indexId && type === 'single') {
             store.commit('updateIndexId', indexId);
             store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });

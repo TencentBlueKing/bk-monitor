@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -182,39 +181,6 @@ class ReplaceConfigAdmin(admin.ModelAdmin):
     search_fields = ("rule_name", "source_name", "target_name")
 
 
-class DownsampledDatabaseAdmin(admin.ModelAdmin):
-    list_display = ("database", "tag_name", "tag_value", "enable", "create_time", "last_modify_time")
-    search_fields = ("database", "tag_name")
-    list_filter = ("database", "tag_name", "enable")
-
-
-class DownsampledRetentionPoliciesAdmin(admin.ModelAdmin):
-    list_display = ("database", "name", "resolution", "duration", "replication", "create_time", "last_modify_time")
-    search_fields = ("database", "name")
-    list_filter = ("database", "name")
-
-
-class DownsampledContinuousQueriesAdmin(admin.ModelAdmin):
-    list_display = (
-        "database",
-        "measurement",
-        "fields",
-        "aggregations",
-        "source_rp",
-        "target_rp",
-        "create_time",
-        "last_modify_time",
-    )
-    search_fields = ("database", "measurement", "fields", "target_rp")
-    list_filter = ("database", "measurement", "source_rp", "target_rp")
-
-
-class DownsampleByDateFlowAdmin(admin.ModelAdmin):
-    list_display = ("table_id", "bk_biz_id", "project_id", "flow_id", "status", "create_time")
-    search_fields = ("table_id", "status", "flow_id")
-    list_filter = ("status", "flow_id")
-
-
 class InfluxDBProxyStorageAdmin(admin.ModelAdmin):
     list_display = ("id", "proxy_cluster_id", "service_name", "instance_cluster_name", "is_default")
     search_fields = ("id", "proxy_cluster_id", "service_name", "instance_cluster_name")
@@ -285,10 +251,6 @@ admin.site.register(models.InfluxDBTagInfo, InfluxdbTagAdmin)
 admin.site.register(models.ResultTable, ResultTableAdmin)
 admin.site.register(models.ResultTableOption, ResultTableOptionAdmin)
 admin.site.register(models.ReplaceConfig, ReplaceConfigAdmin)
-admin.site.register(models.DownsampledDatabase, DownsampledDatabaseAdmin)
-admin.site.register(models.DownsampledRetentionPolicies, DownsampledRetentionPoliciesAdmin)
-admin.site.register(models.DownsampledContinuousQueries, DownsampledContinuousQueriesAdmin)
-admin.site.register(models.DownsampleByDateFlow, DownsampleByDateFlowAdmin)
 admin.site.register(models.InfluxDBProxyStorage, InfluxDBProxyStorageAdmin)
 admin.site.register(models.AccessVMRecord, AccessVMRecordAdmin)
 admin.site.register(models.BCSClusterInfo, BCSClusterInfoAdmin)

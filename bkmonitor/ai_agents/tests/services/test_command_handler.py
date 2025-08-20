@@ -11,69 +11,45 @@ specific language governing permissions and limitations under the License.
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
+from ai_agents.resources.resources import (
+    CreateChatSessionResource,
+    CreateChatSessionContentResource,
+    DestroyChatSessionResource,
+)
 from ai_agents.services.command_handler import *  # noqa
 from ai_agents.utils import generate_uuid
 
-command_processor = CommandProcessor()  # noqa
+command_processor = LocalCommandProcessor()  # noqa
 
 
-def test_translate_command():
+def test_explanation_command_processed_by_platform():
     """
-    测试【翻译】快捷指令
+    测试平台对于「解读」快捷指令的处理逻辑
     """
-    params = {
-        "session_code": generate_uuid(),
+    session_code = generate_uuid()
+    create_session_res = CreateChatSessionResource().request(session_code=session_code, session_name="test_session")
+    assert create_session_res
+
+    explanation_command_params = {
+        "session_code": session_code,
         "role": "user",
-        "content": "翻译",
+        "content": "解读",
         "property": {
             "extra": {
-                "command": "translate",
+                "command": "explanation",
                 "context": [
-                    {"__key": "content", "__value": "你好", "content": "你好", "context_type": "textarea"},
-                    {"__key": "language", "__value": "english", "language": "english", "context_type": "textarea"},
+                    {"__key": "content", "__value": "SRE", "content": "SRE", "context_type": "textarea"},
+                    {"__key": "scene", "__value": "devops", "scene": "devops", "context_type": "textarea"},
                 ],
                 "anchor_path_resources": {},
             }
         },
     }
+    res = CreateChatSessionContentResource().request(**explanation_command_params)
+    assert res["data"]["property"]["extra"]["rendered_content"]
 
-    property_data = params.get("property", {})
-    command_data = property_data.get("extra")
-    processed_content = command_processor.process_command(command_data)
-
-    expected = (
-        "\n"
-        "        请将以下内容翻译为english:\n"
-        "        你好\n"
-        "        翻译要求: 确保翻译准确无误，无需冗余回答内容\n"
-        "        "
-    )
-    assert processed_content == expected
-
-
-def test_explanation_command():
-    """
-    测试【解释】快捷指令
-    """
-    params = {
-        "session_code": generate_uuid(),
-        "role": "user",
-        "content": "翻译",
-        "property": {
-            "extra": {
-                "command": "explanation",
-                "context": [{"__key": "content", "__value": "SRE", "content": "SRE", "context_type": "textarea"}],
-                "anchor_path_resources": {},
-            }
-        },
-    }
-
-    property_data = params.get("property", {})
-    command_data = property_data.get("extra")
-    processed_content = command_processor.process_command(command_data)
-
-    expected = "\n        请解释以下内容SRE\n        解释要求: 确保解释准确无误，无需冗余回答内容\n        "
-    assert processed_content == expected
+    destroy_chat_session_res = DestroyChatSessionResource().request(session_code=session_code)
+    assert destroy_chat_session_res
 
 
 def test_tracing_analysis_command():
@@ -83,7 +59,7 @@ def test_tracing_analysis_command():
     mock_trace_id = uuid4().hex
     mock_req = Mock()
     mock_req.session = {"bk_biz_id": 0}
-    mock_trace_data = {'trace_data': '[TRACING DATA]'}
+    mock_trace_data = {"trace_data": "[TRACING DATA]"}
 
     params = {
         "session_code": generate_uuid(),
@@ -117,8 +93,9 @@ def test_tracing_analysis_command():
             processed_content = command_processor.process_command(command_data)
 
     expected = (
-        f"\n        请分析 trace: {mock_trace_data['trace_data']}"
-        "\n        结果要求: 确保分析准确无误，无需冗余回答内容\n        "
+        f"请帮助我分析Tracing数据: {mock_trace_data['trace_data']}.\n"
+        "        应用名称: SRE\n"
+        "        结果要求: 确保分析准确无误，无需冗余回答内容"
     )
 
     assert processed_content == expected

@@ -133,7 +133,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
-        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             logger.info(
                 "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
                 self.bk_tenant_id,
@@ -196,7 +196,7 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
-        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             logger.info(
                 "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
                 self.bk_tenant_id,
@@ -263,7 +263,7 @@ class LogResultTableConfig(DataLinkResourceConfigBase):
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
-        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             logger.info(
                 "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
                 self.bk_tenant_id,
@@ -354,7 +354,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
-        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             logger.info(
                 "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
                 self.bk_tenant_id,
@@ -432,7 +432,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
-        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             logger.info(
                 "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
                 self.bk_tenant_id,
@@ -525,7 +525,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
-        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             logger.info(
                 "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
                 self.bk_tenant_id,
@@ -582,7 +582,7 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
-        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             logger.info(
                 "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
                 self.bk_tenant_id,
@@ -661,7 +661,7 @@ class LogDataBusConfig(DataLinkResourceConfigBase):
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
-        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             logger.info(
                 "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
                 self.bk_tenant_id,

@@ -53,7 +53,7 @@ export default class UserConfigMixin extends Vue {
   //   return window.space_list.some(item => +item.id === +window.cc_biz_id);
   // }
   // if (!space.permission?.[authorityMap.VIEW_BUSINESS]) return;
-  
+
   /**1
    * @description: 获取用户个性化配置
    * @param {string} key key

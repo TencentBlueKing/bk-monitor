@@ -625,7 +625,7 @@ export const copyMessage = (val, alertMsg = undefined) => {
     document.execCommand('copy');
     document.body.removeChild(input);
     window.mainComponent.messageSuccess(
-      alertMsg ? alertMsg ?? window.mainComponent.$t('复制失败') : window.mainComponent.$t('复制成功'),
+      alertMsg ? (alertMsg ?? window.mainComponent.$t('复制失败')) : window.mainComponent.$t('复制成功'),
     );
   } catch (e) {
     console.warn(e);

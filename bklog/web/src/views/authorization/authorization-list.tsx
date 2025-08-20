@@ -652,7 +652,9 @@ export default class AuthorizationList extends tsc<object> {
           scopedSlots={{
             default: ({ row }) => (
               <div v-bk-overflow-tips={{ content: row.authorized_users?.join(',') }}>
-                {row.authorized_users?.map(item => <Tag class='user-tag'>{item}</Tag>)}
+                {row.authorized_users?.map(item => (
+                  <Tag class='user-tag'>{item}</Tag>
+                ))}
               </div>
             ),
           }}
