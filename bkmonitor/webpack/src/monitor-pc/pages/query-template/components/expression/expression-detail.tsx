@@ -38,31 +38,21 @@ import './expression-detail.scss';
 interface ExpressionProps {
   /* 表达式 */
   expression: string;
-  /* 变量列表 */
-  variables?: VariableModelType[];
+  /* 变量 variableName-变量对象 映射表 */
+  variableMap?: Record<string, VariableModelType>;
 }
 
 @Component
 export default class ExpressionDetail extends tsc<ExpressionProps> {
   /* 表达式 */
   @Prop({ type: String, default: '' }) expression: string;
-  /* 变量列表 */
-  @Prop({ default: () => [] }) variables?: VariableModelType[];
+  /* 变量 variableName-变量对象 映射表 */
+  @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
   variablesToolInstance = new QueryVariablesTool();
   templateSrv = getTemplateSrv();
 
-  get variableMap() {
-    if (!this.variables?.length) {
-      return {};
-    }
-    return this.variables?.reduce?.((prev, curr) => {
-      prev[curr.name] = curr;
-      return prev;
-    }, {});
-  }
-
   get expressionToVariableModel() {
-    const regex = /(\${(?:\w+)})|([^{$]+|\${(?!\w+\}))/g;
+    const regex = /(\${(?:[\w\u4e00-\u9fa5]+)})|([^{$]+|\${(?![\w\u4e00-\u9fa5]+\}))/g;
     const strArr = [];
     let match: null | RegExpExecArray;
     while (true) {
