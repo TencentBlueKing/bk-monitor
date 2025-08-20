@@ -121,12 +121,12 @@ export default class ConfigPanel extends tsc<object> {
             }}
             variables={[
               {
-                name: 'dimension',
+                variableName: 'dimension',
                 value: ['bk_agent_id', 'device_name'],
                 type: VariableTypeEnum.DIMENSION,
               },
               {
-                name: 'condition_variable',
+                variableName: 'condition_variable',
                 value: [
                   {
                     key: 'ip',
@@ -190,12 +190,12 @@ export default class ConfigPanel extends tsc<object> {
             }}
             variables={[
               {
-                name: 'method_var',
+                variableName: 'method_var',
                 value: 'SUM',
                 type: VariableTypeEnum.METHOD,
               },
               {
-                name: 'functions_variable',
+                variableName: 'functions_variable',
                 value: [
                   {
                     id: 'ceil',
@@ -214,7 +214,7 @@ export default class ConfigPanel extends tsc<object> {
                 type: VariableTypeEnum.FUNCTION,
               },
               {
-                name: 'condition_value_variable',
+                variableName: 'condition_value_variable',
                 value: ['vvvvv', 'ssss'],
                 type: VariableTypeEnum.DIMENSION_VALUE,
               },
@@ -236,7 +236,7 @@ export default class ConfigPanel extends tsc<object> {
             }}
             variables={[
               {
-                name: 'expression_variable',
+                variableName: 'expression_variable',
                 value: '100%',
                 type: VariableTypeEnum.CONSTANT,
               },
