@@ -15,7 +15,7 @@ import tempfile
 import time
 import uuid
 from itertools import chain
-from typing import cast
+from typing import Any, cast
 
 import yaml
 from confluent_kafka import Consumer as ConfluentConsumer
@@ -445,23 +445,15 @@ class ModifyResultTableResource(Resource):
         data_label = serializers.CharField(required=False, label="数据标签", default=None)
         need_delete_storages = serializers.DictField(required=False, label="需要删除的额外存储", default=None)
 
-    def perform_request(self, request_data):
-        table_id = request_data.pop("table_id")
-        query_alias_settings = request_data.pop("query_alias_settings", None)
-        operator = request_data.get("operator", None)
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        table_id = validated_request_data.pop("table_id")
+        query_alias_settings = validated_request_data.pop("query_alias_settings", None)
+        operator = validated_request_data.get("operator", None)
 
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("ModifyResultTableResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
+        bk_tenant_id = cast(str, get_request_tenant_id())
 
-        if query_alias_settings is not None:  # 当有query_alias_settings时，需要处理
+        # 处理查询别名设置
+        if query_alias_settings is not None:
             try:
                 logger.info(
                     "ModifyResultTableResource: try to manage alias_settings,table_id->[%s],query_alias_settings->[%s]",
@@ -482,38 +474,32 @@ class ModifyResultTableResource(Resource):
                     query_alias_settings,
                     e,
                 )
+
+        # 判断是否修改了ES存储，如果是，需要重新创建一下当前的index
         is_moving_cluster = False
-        try:
-            es_storage_queryset = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
-            if es_storage_queryset.exists() and request_data.get("external_storage", {}).get(
-                models.ClusterInfo.TYPE_ES.value
-            ):
-                param_cluster_id = (
-                    request_data.get("external_storage", {})
-                    .get(models.ClusterInfo.TYPE_ES.value)
-                    .get("storage_cluster_id")
-                )
-                storage_ins = es_storage_queryset.first()
-                if storage_ins.storage_cluster_id != param_cluster_id:
+        external_storage = validated_request_data.get("external_storage", {})
+        if external_storage.get(models.ClusterInfo.TYPE_ES):
+            es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+            if es_storage:
+                param_cluster_id = external_storage[models.ClusterInfo.TYPE_ES].get("storage_cluster_id")
+                if es_storage.storage_cluster_id != param_cluster_id:
                     logger.info(
                         "ModifyResultTableResource: table_id->[%s] moved es cluster from old->[%s] to new->[%s]",
                         table_id,
-                        storage_ins.storage_cluster_id,
+                        es_storage.storage_cluster_id,
                         param_cluster_id,
                     )
                     is_moving_cluster = True
 
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get es_storage_ins,table_id->[%s],error->[%s]", table_id, e)
-
+        # 修改结果表信息
         try:
             result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
-            result_table.modify(**request_data)
+            result_table.modify(**validated_request_data)
         except RetryError as e:
             logger.error(
                 "ModifyResultTableResource: modify table failed,table_id->[%s],error->[%s]", table_id, e.__cause__
             )
-            raise e.__cause__
+            raise e.__cause__ or e
         except Exception as e:  # pylint: disable=broad-except
             logger.error("ModifyResultTableResource: modify table failed,table_id->[%s],error->[%s]", table_id, e)
             raise e
@@ -521,19 +507,18 @@ class ModifyResultTableResource(Resource):
         # 刷新一波对象，防止存在缓存等情况
         result_table.refresh_from_db()
 
-        # 判断是否修改了字段，而且是存在ES存储，如果是，需要重新创建一下当前的index
-        query_set = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+        es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+        if es_storage:
+            # 判断是否修改了字段，而且是存在ES存储，如果是，需要重新创建一下当前的index
+            if validated_request_data["field_list"] is not None:
+                logger.info(
+                    "ModifyResultTableResource: table_id->[%s] has es storage,update index,is_moving_cluster->[%s]",
+                    table_id,
+                    is_moving_cluster,
+                )
+                es_storage.update_index_and_aliases(ahead_time=0, is_moving_cluster=is_moving_cluster)
 
-        if query_set.exists() and request_data["field_list"] is not None:
-            logger.info(
-                "ModifyResultTableResource: table_id->[%s] has es storage,update index,is_moving_cluster->[%s]",
-                table_id,
-                is_moving_cluster,
-            )
-            storage = query_set[0]
-            storage.update_index_and_aliases(ahead_time=0, is_moving_cluster=is_moving_cluster)
-
-            # 通知数据平台变更
+            # 通知数据平台信息变更，目前只有es类型需要通知
             bk_data_id = models.DataSourceResultTable.objects.get(
                 table_id=table_id, bk_tenant_id=bk_tenant_id
             ).bk_data_id
@@ -546,6 +531,11 @@ class ModifyResultTableResource(Resource):
                         table_id,
                         bk_data_id,
                     )
+                except RetryError as e:
+                    logger.warning(
+                        "notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__
+                    )
+                    raise e.__cause__ or e
                 except Exception as e:  # pylint: disable=broad-except
                     logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
