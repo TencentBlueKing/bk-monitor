@@ -154,6 +154,25 @@
         </bk-collapse-item>
       </bk-collapse>
     </section>
+    <!-- 目标目录 -->
+    <section class="import-config-directory">
+      <div class="directory-label is-required">{{ $t('目标目录') }}</div>
+      <bk-select
+        class="directory-select"
+        v-model="targetDirectoryVal"
+        :placeholder="$t('请选择目标目录')"
+        searchable
+        @change="handleDirectoryChange"
+      >
+        <bk-option
+          v-for="(item, index) in targetDirectoryList"
+          :id="item.id"
+          :key="index"
+          :name="item.title"
+        />
+      </bk-select>
+      <div v-show="directoryErrorShow" class="directory-error">{{ $t('请选择目标目录') }}</div>
+    </section>
     <!--底部按钮-->
     <section
       v-if="collapseList.length"
@@ -245,6 +264,7 @@
 <script>
 import { transformDataKey } from 'monitor-common/utils/utils';
 import { mapActions } from 'vuex';
+import { getDirectoryTree } from 'monitor-api/modules/grafana';
 
 import ContentEmpty from '../components/content-empty';
 import mixin from './import-mixin';
@@ -310,6 +330,10 @@ export default {
       // 当前筛选的状态表格
       currentStatus: '',
       isOverwriteMode: false,
+      // 目标目录
+      targetDirectoryVal: '',
+      targetDirectoryList: [],
+      directoryErrorShow: false,
     };
   },
   computed: {
@@ -350,6 +374,8 @@ export default {
       // 初始化任务状态列状态
       this.handleInitStatusCol();
       await this.handleInitImportConfigData();
+      // 获取目标目录
+      await this.handleGetTargetDirectory();
       // 默认展开第一个有数据的项
       this.handleExpandCollapse();
       // 首次展开勾选表格所有项
@@ -428,11 +454,15 @@ export default {
      * 开始导入
      */
     async handleImportClick() {
+      if (this.targetDirectoryVal === '') {
+        this.directoryErrorShow = true;
+        return;
+      }
       const uuids = this.table.list
         .filter(item => item.checked && item.type !== 'bkmonitor.models.fta.plugin')
         .map(item => item.uuid);
       this.loading = true;
-      const data = await this.handleImportConfig({ uuids, isOverwriteMode: this.isOverwriteMode });
+      const data = await this.handleImportConfig({ uuids, isOverwriteMode: this.isOverwriteMode, folderId: this.targetDirectoryVal });
       this.loading = false;
       // 等待状态设置为importing后跳转
       if (data?.importHistoryId) {
@@ -550,6 +580,21 @@ export default {
       });
       this.handleStatusChange();
     },
+    // 获取目标目录
+    async handleGetTargetDirectory() {
+      const list = await getDirectoryTree().catch(() => []);
+      this.targetDirectoryList = list.map(item => {
+        return {
+          title: item.title,
+          id: item.id,
+        }
+      });
+    },
+    handleDirectoryChange() {
+      if (this.targetDirectoryVal !== '') {
+        this.directoryErrorShow = false;
+      }
+    },
   },
 };
 </script>
@@ -646,6 +691,46 @@ $itemHoverColor: #e1ecff;
 
   .bk-switcher {
     margin: 0 16px 0 8px;
+  }
+}
+
+.import-config-directory {
+  margin: 24px 0;
+  padding: 0 10px;
+
+  .directory-label {
+    font-size: 12px;
+    line-height: 20px;
+    color: #313238;
+
+    &.is-required {
+      display: inline-block;
+      position: relative;
+      padding-right: 14px;
+
+      &::after {
+        content: '*';
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #ea3636;
+        line-height: 1;
+      }
+    }
+  }
+
+  .directory-select {
+    margin-top: 8px;
+    width: 280px;
+    background-color: #fff;
+  }
+
+  .directory-error {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #ea3636;
   }
 }
 </style>
