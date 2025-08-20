@@ -35,7 +35,7 @@ export const TABLE_DEFAULT_DISPLAY_FIELDS = [
   'create_time',
   'update_user',
   'update_time',
-  'relevance_configs',
+  'relation_config_count',
   'operator',
 ];
 

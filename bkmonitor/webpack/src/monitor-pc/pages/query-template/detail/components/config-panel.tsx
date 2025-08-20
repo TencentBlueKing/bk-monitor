@@ -99,7 +99,7 @@ export default class ConfigPanel extends tsc<object> {
               ],
               agg_method: 'AVG',
               agg_interval: 60,
-              agg_dimension: ['hostname', '${dimension}', 'ip'],
+              agg_dimension: ['hostname', '${dimension_single}', 'ip', '${dimension_multiple}'],
               agg_condition: [
                 {
                   key: 'hostname',
@@ -121,8 +121,13 @@ export default class ConfigPanel extends tsc<object> {
             }}
             variables={[
               {
-                variableName: 'dimension',
-                value: ['bk_agent_id', 'device_name'],
+                variableName: 'dimension_single',
+                value: 'bk_agent_id',
+                type: VariableTypeEnum.DIMENSION,
+              },
+              {
+                variableName: 'dimension_multiple',
+                value: ['agent_id1', 'device'],
                 type: VariableTypeEnum.DIMENSION,
               },
               {
