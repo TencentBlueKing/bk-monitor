@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, reactive, computed, watch, nextTick } from 'vue';
+import { defineComponent, ref, computed, watch, nextTick } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
 import http from '@/api';
@@ -76,7 +76,7 @@ export default defineComponent({
 
     const isChangeOperatorLoading = ref(false); // 修改执行人加载状态
     const showSelectDialog = ref(false); // 是否显示选择对话框
-    const manageStrategyData = reactive(JSON.parse(JSON.stringify(props.strategyData))); // 管理策略数据
+    const manageStrategyData = ref(JSON.parse(JSON.stringify(props.strategyData))); // 管理策略数据
 
     // 初始化数据，避免后台造的数据为空数组
     if (!manageStrategyData.visible_dir?.length) {
