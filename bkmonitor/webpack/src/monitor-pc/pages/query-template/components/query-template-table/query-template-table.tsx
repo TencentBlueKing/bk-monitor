@@ -32,7 +32,13 @@ import { TABLE_DEFAULT_DISPLAY_FIELDS, TABLE_FIXED_DISPLAY_FIELDS, TemplateDetai
 import QueryTemplateSlider from '../../detail/template-detail';
 import DeleteConfirm from './components/delete-confirm';
 
-import type { IPagination, ITableSettingChangeEvent, ITableSettingSize, ITableSort } from '../../typings';
+import type {
+  IPagination,
+  ITableSettingChangeEvent,
+  ITableSettingSize,
+  ITableSort,
+  QueryTemplateListItem,
+} from '../../typings';
 import type { TemplateDetailTabEnumType } from '../../typings/constants';
 
 import './query-template-table.scss';
@@ -56,7 +62,7 @@ interface QueryTemplateTableProps {
   /** 排序 */
   sort: `-${string}` | string;
   /** 表格数据 */
-  tableData: any[];
+  tableData: QueryTemplateListItem[];
   /** 总数 */
   total: number;
 }
@@ -75,7 +81,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   /** 排序 */
   @Prop({ type: String }) sort: `-${string}` | string;
   /** 表格数据 */
-  @Prop({ type: Array, default: () => [] }) tableData: any[];
+  @Prop({ type: Array, default: () => [] }) tableData: QueryTemplateListItem[];
   /** 总数 */
   @Prop({ type: Number }) total: number;
 
@@ -126,8 +132,8 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       sortable: true,
       width: 180,
     },
-    relevance_configs: {
-      id: 'relevance_configs',
+    relation_config_count: {
+      id: 'relation_config_count',
       label: this.$t('消费场景'),
       sortable: true,
       align: 'right',
@@ -323,8 +329,8 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       id: row.id,
     };
     let alias = row?.[columnKey];
-    if (columnKey === 'relevance_configs') {
-      alias = row?.[columnKey]?.length || 0;
+    if (columnKey === 'relation_config_count') {
+      alias = row?.[columnKey] || 0;
     }
     return (
       <span
@@ -339,7 +345,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
    * @description: 表格 操作 列渲染
    */
   operatorColRenderer(row) {
-    const disabledOperation = row.relevance_configs?.length > 0;
+    const disabledOperation = row.relation_config_count > 0;
     return (
       <div class='operator-col'>
         <span

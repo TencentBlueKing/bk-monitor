@@ -53,3 +53,14 @@ export interface ITableSort {
   order: 'ascending' | 'descending' | null;
   prop: string;
 }
+
+export interface QueryTemplateListItem {
+  create_time: string;
+  create_user: string;
+  description: string;
+  id: number | string;
+  name: string;
+  relation_config_count?: number;
+  update_time: string;
+  update_user: string;
+}
