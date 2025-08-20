@@ -74,7 +74,7 @@ class BaseIncidentEventsResource(Resource):
         根据表名获取特殊字段
         """
         for table_key, mapping_keys in self.TableWhereSpecialKeyMapping.items():
-            if table in table_key:
+            if table_key in table:
                 return mapping_keys
         return []
 
@@ -371,7 +371,7 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
                 "dimensions": series_data.get("dimensions", {}),
                 "target": series_data.get("target", ""),
                 "metric_field": series_data.get("metric_field", ""),
-                "datapoints": [[datapoint[1], datapoint[0]] for datapoint in series_data.get("datapoints", [])],
+                "datapoints": [[datapoint[1], datapoint[0]] for datapoint in datapoints],
                 "alias": series_data.get("alias", ""),
                 "type": series_data.get("type", ""),
                 "dimensions_translation": series_data.get("dimensions_translation", {}),
@@ -496,8 +496,8 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
                 if key.startswith("dimensions."):
                     target_dimensions[key.split(".", 1)[1]] = value
 
-            event_name = event_detail.get("event_name", "")
-            target_info["event_name"] = event_name["value"]
+            event_name = event_detail.get("event_name", {})
+            target_info["event_name"] = event_name.get("value", "")
 
             app_name = dimensions.get("apm_application_name", "")
             if app_name:

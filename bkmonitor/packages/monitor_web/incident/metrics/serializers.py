@@ -25,28 +25,22 @@ class MetricsSearchSerializer(serializers.Serializer):
         if entity_type not in valid_entity_types:
             raise serializers.ValidationError(f"entity_type must be one of {valid_entity_types}")
         dimensions = index_info.get("dimensions", {})
-        if entity_type == EntityType.APMService.value:
-            if not dimensions.get("apm_service_name"):
-                raise serializers.ValidationError("dimension.apm_service_name is required")
-            if not dimensions.get("apm_application_name"):
-                raise serializers.ValidationError("dimension.apm_application_name is required")
 
-        elif entity_type == EntityType.BcsPod.value:
-            if not dimensions.get("cluster_id"):
-                raise serializers.ValidationError("dimension.cluster_id is required")
-            if not dimensions.get("namespace"):
-                raise serializers.ValidationError("dimension.namespace is required")
-            if not dimensions.get("pod_name"):
-                raise serializers.ValidationError("dimension.pod_name is required")
+        # 定义各entity_type所需的必填维度字段
+        required_dimensions = {
+            EntityType.APMService.value: ["apm_service_name", "apm_application_name"],
+            EntityType.BcsPod.value: ["cluster_id", "namespace", "pod_name"],
+            EntityType.BkNodeHost.value: ["inner_ip", "bk_cloud_id"],
+            EntityType.UnKnown.value: [],
+        }
 
-        elif entity_type == EntityType.BkNodeHost.value:
-            if not dimensions.get("inner_ip"):
-                raise serializers.ValidationError("dimension.inner_ip is required")
-            if not dimensions.get("bk_cloud_id"):
-                raise serializers.ValidationError("dimension.bk_cloud_id is required")
+        # 获取当前entity_type所需的必填字段列表，如果entity_type不在配置中则默认为空列表
+        required_fields = required_dimensions.get(entity_type, [])
 
-        elif entity_type == EntityType.UnKnown.value:
-            pass
+        # 遍历必填字段并进行校验
+        for field in required_fields:
+            if not dimensions.get(field):
+                raise serializers.ValidationError(f"dimension.{field} is required")
 
     def validate_edge(self, index_info: dict):
         source_type = index_info.get("source_type", "")

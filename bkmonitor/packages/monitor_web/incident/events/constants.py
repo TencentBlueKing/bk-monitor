@@ -13,7 +13,35 @@ from django.utils.translation import gettext_lazy as _
 from constants.apm import CachedEnum
 
 
-class EntityType(CachedEnum):
+class LabelMixin:
+    """
+    标签映射混入类，提供统一的标签获取逻辑
+
+    子类需要定义 _LABEL_MAPPING 类变量或 _get_label_mapping 类方法
+    """
+
+    @cached_property
+    def label(self):
+        """
+        获取枚举成员的标签值
+
+        从子类的 _LABEL_MAPPING 或 _get_label_mapping 方法中获取标签
+        """
+        # 首先尝试获取 _LABEL_MAPPING 类变量
+        label_mapping = getattr(self.__class__, "_LABEL_MAPPING", None)
+
+        # 如果没有 _LABEL_MAPPING，尝试调用 _get_label_mapping 方法
+        if label_mapping is None:
+            get_mapping_method = getattr(self.__class__, "_get_label_mapping", None)
+            if get_mapping_method is not None:
+                label_mapping = get_mapping_method()
+
+        if label_mapping is not None:
+            return str(label_mapping.get(self, self.value))
+        return str(self.value)
+
+
+class EntityType(LabelMixin, CachedEnum):
     """
     事件类型
     """
@@ -24,28 +52,21 @@ class EntityType(CachedEnum):
     UnKnown = "Unknown"
 
     @classmethod
+    def _get_label_mapping(cls):
+        return {
+            cls.BcsPod: _("BCS Pod"),
+            cls.APMService: _("APM服务"),
+            cls.BkNodeHost: _("主机节点"),
+            cls.UnKnown: _("未知"),
+        }
+
+    @classmethod
     def choices(cls):
         return [choice.value for choice in cls.__members__.values()]
 
-    @cached_property
-    def label(self):
-        return str(
-            {
-                EntityType.BcsPod: _("BCS Pod"),
-                EntityType.APMService: _("APM服务"),
-                EntityType.BkNodeHost: _("主机节点"),
-                EntityType.UnKnown: _("未知"),
-            }.get(self, self.value)
-        )
-
     @classmethod
     def label_mapping(cls):
-        return {
-            EntityType.BcsPod: _("BCS Pod"),
-            EntityType.APMService: _("APM服务"),
-            EntityType.BkNodeHost: _("主机节点"),
-            EntityType.UnKnown: _("未知"),
-        }
+        return cls._get_label_mapping()
 
     @classmethod
     def get_default(cls, value):
