@@ -35,12 +35,14 @@ import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config'
 import './function-creator-pop.scss';
 
 interface IProps {
+  allVariables?: { name: string }[];
   hasCreateVariable?: boolean;
   isExpSupport?: boolean;
   options?: IFunctionOptionsItem[];
   selected?: IFunctionOptionsItem[];
   variables?: IVariablesItem[];
   onAddVar?: (val: string) => void;
+  onCancel?: () => void;
   onSelect?: (val: IFunctionOptionsItem) => void;
   onSelectVar?: (val: IVariablesItem) => void;
 }
@@ -55,6 +57,8 @@ export default class FunctionCreatorPop extends tsc<IProps> {
   /** 只展示支持表达式的函数 */
   @Prop({ default: false, type: Boolean }) readonly isExpSupport: boolean;
   @Prop({ default: () => [] }) selected: IFunctionOptionsItem[];
+  /* 所有变量，用于校验变量名是否重复 */
+  @Prop({ default: () => [] }) allVariables: { name: string }[];
 
   /* 搜索关键词 */
   keyword = '';
@@ -132,6 +136,10 @@ export default class FunctionCreatorPop extends tsc<IProps> {
 
   handleAddVar() {
     this.$emit('addVar', this.varName);
+  }
+
+  handleCancelCreateVar() {
+    this.$emit('cancel');
   }
 
   render() {
@@ -220,10 +228,12 @@ export default class FunctionCreatorPop extends tsc<IProps> {
             <div class='panel-desc'>
               {this.isCreateVar ? (
                 <AddVariableWrap
+                  allVariables={this.allVariables}
                   notPop={true}
                   show={this.isCreateVar}
                   value={this.varName}
                   onAdd={this.handleAddVar}
+                  onCancel={this.handleCancelCreateVar}
                   onChange={this.handleVarNameChange}
                 />
               ) : (
