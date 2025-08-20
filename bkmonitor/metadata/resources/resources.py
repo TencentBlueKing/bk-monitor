@@ -477,7 +477,7 @@ class ModifyResultTableResource(Resource):
 
         # 判断是否修改了ES存储，如果是，需要重新创建一下当前的index
         is_moving_cluster = False
-        external_storage = validated_request_data.get("external_storage", {})
+        external_storage = validated_request_data.get("external_storage") or {}
         if external_storage.get(models.ClusterInfo.TYPE_ES):
             es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
             if es_storage:
