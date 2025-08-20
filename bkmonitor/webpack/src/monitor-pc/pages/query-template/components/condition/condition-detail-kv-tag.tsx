@@ -60,7 +60,6 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
 
   hideCount = 0;
   variablesToolInstance = new QueryVariablesTool();
-  templateSrv = getTemplateSrv();
 
   get tipContent() {
     return `<div style="max-width: 600px;">${this.value.key} ${ConditionMethodAliasMap[this.value.method]} ${this.viewValue.map(v => v.id).join(' OR ')}<div>`;
@@ -96,6 +95,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
         variableName: '',
       }));
     }
+
     return (this.dimensionValueToVariableModel as ConditionDetailTagItem['value'])?.reduce?.((prev, curr) => {
       if (!curr.isVariable) {
         prev.push({
@@ -107,28 +107,37 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
         return prev;
       }
       let varValue = '';
-      const result = this.templateSrv.replace(`\${${curr.variableName}:json}` as string, this.variableMap);
+      const templateReplaceKey = `\${${curr.variableName}:json}`;
+      const result = getTemplateSrv().replace(templateReplaceKey, this.variableMap);
       try {
         varValue = JSON.parse(result);
       } catch {
-        varValue = '';
+        if (result !== templateReplaceKey) varValue = result || '';
       }
       if (Array.isArray(varValue)) {
-        prev.push(
-          ...varValue.map(v => ({
-            id: v,
-            name: this.showNameSlice(v),
-            isVariable: curr.isVariable,
-            variableName: '',
-          }))
-        );
+        const items = varValue?.length
+          ? varValue.map(v => ({
+              id: v,
+              name: this.showNameSlice(v),
+              isVariable: curr.isVariable,
+              variableName: curr.variableName,
+            }))
+          : [
+              {
+                id: curr.value,
+                name: this.showNameSlice(curr.value),
+                isVariable: curr.isVariable,
+                variableName: curr.variableName,
+              },
+            ];
+        prev.push(...items);
         return prev;
       }
       prev.push({
         id: varValue || curr.value,
         name: this.showNameSlice(varValue || curr.value),
         isVariable: curr.isVariable,
-        variableName: '',
+        variableName: curr.variableName,
       });
       return prev;
     }, []);
@@ -159,6 +168,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
               </this.DomTag>
             ),
             <ValueNameDomTag
+              id={item.variableName}
               key={`${index}_key`}
               class='value-name'
             >
