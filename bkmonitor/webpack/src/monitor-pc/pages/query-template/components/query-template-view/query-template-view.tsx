@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import QueryChart from '../../query-chart/query-chart';
 import VariablesManage from '../../variables/variables-manage/variables-manage';
+import QueryConfigViewer from '../query-config-viewer/query-config-viewer';
 
 import type { Expression } from '../../typings/expression';
 import type { QueryConfig } from '../../typings/query-config';
@@ -97,7 +98,17 @@ export default class QueryTemplateView extends tsc<QueryTemplateViewProps, Query
               />
             </div>
           </div>
-          <div class='template-view'>模板配置预览</div>
+          <div class='template-view'>
+            <div class='template-view-header'>
+              <span class='header-title'>{this.$t('模板配置预览')}</span>
+            </div>
+            <QueryConfigViewer
+              class='template-config-view'
+              expressionConfig={this.expressionConfig}
+              queryConfigs={this.queryConfigs}
+              variablesList={this.variablesList}
+            />
+          </div>
         </div>
         <div class='submit-btns'>
           <bk-button
