@@ -36,9 +36,9 @@ class QueryTemplateViewSet(GenericViewSet):
         query_template_id = int(kwargs[self.lookup_field])
         if validated_data.get("is_mock"):
             if query_template_id == 1:
-                response_data = mock_data.AvgDurationQueryTemplateDetail
+                response_data = mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL
             elif query_template_id == 2:
-                response_data = mock_data.RPCCalleeQueryTemplateDetail
+                response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
         return Response(response_data)
 
     def list(self, request, *args, **kwargs):
@@ -47,7 +47,7 @@ class QueryTemplateViewSet(GenericViewSet):
         validated_data = serializer.validated_data
         response_data = []
         if validated_data.get("is_mock"):
-            response_data = mock_data.QueryTemplateList
+            response_data = mock_data.QUERY_TEMPLATE_LIST
         return Response(response_data)
 
     def create(self, request, *args, **kwargs):
@@ -56,7 +56,7 @@ class QueryTemplateViewSet(GenericViewSet):
         validated_data = serializer.validated_data
         response_data = {}
         if validated_data.get("is_mock"):
-            response_data = mock_data.RPCCalleeQueryTemplateDetail
+            response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
         return Response(response_data)
 
     def update(self, request, *args, **kwargs):
@@ -65,7 +65,7 @@ class QueryTemplateViewSet(GenericViewSet):
         validated_data = serializer.validated_data
         response_data = {}
         if validated_data.get("is_mock"):
-            response_data = mock_data.RPCCalleeQueryTemplateDetail
+            response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
         return Response(response_data)
 
     @action(methods=["POST"], detail=False)
@@ -75,7 +75,7 @@ class QueryTemplateViewSet(GenericViewSet):
         validated_data = serializer.validated_data
         response_data = {}
         if validated_data.get("is_mock"):
-            response_data = mock_data.RPCCalleeQueryTemplatePreview
+            response_data = mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_PREVIEW
         return Response(response_data)
 
     @action(methods=["POST"], detail=True)
@@ -85,7 +85,7 @@ class QueryTemplateViewSet(GenericViewSet):
         validated_data = serializer.validated_data
         response_data = []
         if validated_data.get("is_mock"):
-            response_data = mock_data.RPCCalleeQueryTemplateRelation
+            response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_RELATION
         return Response(response_data)
 
     @action(methods=["POST"], detail=False)
@@ -95,5 +95,5 @@ class QueryTemplateViewSet(GenericViewSet):
         validated_data = serializer.validated_data
         response_data = []
         if validated_data.get("is_mock"):
-            response_data = mock_data.QueryTemplateRelations
+            response_data = mock_data.QUERY_TEMPLATE_RELATIONS
         return Response(response_data)
