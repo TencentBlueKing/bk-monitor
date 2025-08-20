@@ -38,22 +38,18 @@ import type { VariableModelType } from '../../variables';
 import './condition-detail.scss';
 
 interface IProps {
-  /* 维度值变量列表 */
-  dimensionValueVariables?: VariableModelType[];
   /* 所有聚合维度信息列表数组 */
   options?: DimensionField[];
   /* 已选过滤条件 */
   value: AggCondition[];
-  /* 条件变量列表 */
-  variables?: VariableModelType[];
+  /* 变量 variableName-变量对象 映射表 */
+  variableMap?: Record<string, VariableModelType>;
 }
 
 @Component
 export default class ConditionDetail extends tsc<IProps> {
-  /* 条件变量列表 */
-  @Prop({ default: () => [] }) variables: VariableModelType[];
-  /* 维度值变量列表 */
-  @Prop({ default: () => [] }) dimensionValueVariables: VariableModelType[];
+  /* 变量 variableName-变量对象 映射表 */
+  @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
   /* 已选过滤条件 */
   @Prop({ default: () => [] }) value: AggCondition[];
   /* 所有聚合维度信息列表数组 */
@@ -67,26 +63,6 @@ export default class ConditionDetail extends tsc<IProps> {
     }
     return this.options?.reduce?.((prev, curr) => {
       prev[curr.id] = curr;
-      return prev;
-    }, {});
-  }
-
-  get variableMap() {
-    if (!this.variables?.length) {
-      return {};
-    }
-    return this.variables?.reduce?.((prev, curr) => {
-      prev[curr.name] = curr;
-      return prev;
-    }, {});
-  }
-
-  get dimensionValueVariableMap() {
-    if (!this.dimensionValueVariables?.length) {
-      return {};
-    }
-    return this.dimensionValueVariables?.reduce?.((prev, curr) => {
-      prev[curr.name] = curr;
       return prev;
     }, {});
   }
@@ -105,17 +81,6 @@ export default class ConditionDetail extends tsc<IProps> {
       // 浅拷贝，避免后续转换结构影响上层源数据
       conditionResult.value = { ...curr, value: [...(curr.value || [])] };
       prev.push(conditionResult);
-      // 非条件变量的数据则还需要判断是否存在维度值变量
-      // if (!conditionResult.isVariable) {
-      //   conditionResult.value.value = conditionResult.value.value.reduce((prev, curr) => {
-      //     const conditionValueResult = this.variablesToolInstance.transformVariables(curr);
-      //     if (!conditionValueResult.value) {
-      //       return prev;
-      //     }
-      //     prev.push(conditionValueResult);
-      //     return prev;
-      //   }, []);
-      // }
       return prev;
     }, []);
   }
@@ -125,9 +90,9 @@ export default class ConditionDetail extends tsc<IProps> {
       <ConditionDetailKvTag
         isConditionVariable={item.isVariable ?? false}
         value={item.value}
-        variableMap={this.dimensionValueVariableMap}
+        variableMap={this.variableMap}
         variableName={item.variableName}
-      ></ConditionDetailKvTag>
+      />
     );
   }
 
@@ -144,7 +109,10 @@ export default class ConditionDetail extends tsc<IProps> {
     }
     if (!varValue) {
       return [
-        <div class='variable-tag'>
+        <div
+          key={item.value.key}
+          class='variable-tag'
+        >
           <VariableSpan>{item.value?.key}</VariableSpan>
         </div>,
       ];
