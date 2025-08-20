@@ -141,7 +141,7 @@ class GetSceneViewListResource(ApiAuthResource):
                 result.append(
                     {
                         "id": view.id,
-                        "name": view.name,
+                        "name": _(view.name),
                         "show_panel_count": view_config.get("options", {}).get("show_panel_count", False),
                         "mode": view_config.get("mode", ""),
                         "type": scene_type,
@@ -161,7 +161,7 @@ class GetSceneViewListResource(ApiAuthResource):
                 result.append(
                     {
                         "id": view.id,
-                        "name": view.name,
+                        "name": _(view.name),
                         "show_panel_count": False,
                         "mode": mode,
                         "type": scene_type,
