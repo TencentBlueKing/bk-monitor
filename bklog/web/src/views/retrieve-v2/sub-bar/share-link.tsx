@@ -37,6 +37,7 @@ import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
 import { useRoute } from 'vue-router/composables';
 
+import './share-link.scss';
 export default defineComponent({
   setup() {
     const store = useStore();
@@ -320,7 +321,7 @@ export default defineComponent({
     return () => {
       return (
         <BklogPopover
-          style='height: 100%;border-right: solid 1px #eaebf0; align-items: center; display: flex; justify-content: center; cursor: pointer; padding: 0 20px;'
+          class='bklog-v3-select-popover-share'
           beforeHide={beforePopoverHide}
           options={{ hideOnClick: false, onShow: beforeShow } as any}
           trigger='click'
@@ -328,8 +329,16 @@ export default defineComponent({
             scopedSlots: { content: getContentView },
           }}
         >
-          <span class='bklog-icon bklog-share'></span>
-          <span style='margin-left: 6px;'>{t('分享')}</span>
+          <span
+            class='bklog-icon bklog-share'
+            v-bk-tooltips={t('分享')}
+          ></span>
+          <span
+            style='margin-left: 6px;'
+            class='popover-share-text'
+          >
+            {t('分享')}
+          </span>
         </BklogPopover>
       );
     };

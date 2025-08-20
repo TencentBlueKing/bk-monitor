@@ -187,7 +187,7 @@ class RouteUrlResolver {
   private searchModeResolver() {
     const hasKeyword = this.query.keyword?.length;
     const additionArray = this.additionArrayResolver(this.query.addition).filter(
-      str => str.length > 0 && str !== "" && str !== null && str !== undefined && str !== '',
+      str => str.length > 0 && str !== '' && str !== null && str !== undefined && str !== '',
     );
     const hasAddition = additionArray.length;
     const defValue = ['sql', 'ui'].includes(this.query.search_mode) ? this.query.search_mode : 'ui';

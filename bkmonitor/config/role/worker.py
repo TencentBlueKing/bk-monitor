@@ -235,10 +235,6 @@ DEFAULT_CRONTAB += [
     # 检查V4数据源是否存在对应的Consul配置，若存在则删除
     ("metadata.task.config_refresh.check_and_delete_ds_consul_config", "*/5 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),
-    # 刷新metadata降精度配置，10分钟一次
-    ("metadata.task.downsampled.refresh_influxdb_downsampled", "*/10 * * * *", "global"),
-    # 降精度计算，5分钟一次检测一次
-    ("metadata.task.downsampled.access_and_calc_for_downsample", "*/5 * * * *", "global"),
     # 刷新回溯配置
     ("metadata.task.config_refresh.refresh_es_restore", "* * * * *", "global"),
     # 上报自采集指标--每分钟一次

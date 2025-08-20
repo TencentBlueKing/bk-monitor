@@ -9,9 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from abc import ABC, abstractmethod
-from string import Formatter
-
+from aidev_agent.services.command_handler import CommandHandler
+from ai_agents.utils import get_nested_value
 from bkmonitor.utils.request import get_request
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -19,112 +18,121 @@ from core.errors.api import BKAPIError
 logger = logging.getLogger("ai_agents")
 
 
-class CommandHandler(ABC):
+class LocalCommandRegistry:
+    """本地快捷指令处理器注册表"""
+
+    _handlers: dict[str, type[CommandHandler]] = {}
+
+    @classmethod
+    def register(cls, command: str, handler_class: type[CommandHandler]):
+        """注册本地处理器"""
+        cls._handlers[command] = handler_class
+        logger.info(f"LocalCommandRegistry: registered handler for command->[{command}]")
+
+    @classmethod
+    def get_handler(cls, command: str) -> type[CommandHandler] | None:
+        """获取本地处理器"""
+        return cls._handlers.get(command)
+
+    @classmethod
+    def has_handler(cls, command: str) -> bool:
+        """检查是否存在本地处理器"""
+        return command in cls._handlers
+
+    @classmethod
+    def list_commands(cls) -> list:
+        """列出所有注册的命令"""
+        return list(cls._handlers.keys())
+
+
+def local_command_handler(command: str):
     """
-    快捷指令处理器基类
+    本地快捷指令处理器装饰器
+
+    Args:
+        command: 快捷指令名称
+
+    Usage:
+        @local_command_handler("tracing_analysis")
+        class TracingAnalysisCommandHandler(CommandHandler):
+            def process_content(self, context: list[dict]) -> str:
+                # 实现处理逻辑
+                pass
     """
 
-    agent_code = None
-    command = None
+    def decorator(handler_class: type[CommandHandler]):
+        if not issubclass(handler_class, CommandHandler):
+            raise TypeError("Handler class must inherit from CommandHandler")
 
-    @abstractmethod
-    def get_template(self) -> str:
-        """获取命令对应的提示词模板"""
-        pass
+        # 设置command属性（如果未设置）
+        if not hasattr(handler_class, "command") or not handler_class.command:
+            handler_class.command = command
 
-    def extract_context_vars(self, context: list[dict]) -> dict[str, str]:
-        """
-        从上下文中提取模板变量（通用实现可被重写）
-        """
-        variables = {}
-        for item in context:
-            if "__key" in item and "__value" in item:
-                variables[item["__key"]] = item["__value"]  # 去除__前缀
-        return variables
+        # 注册到本地注册表
+        LocalCommandRegistry.register(command, handler_class)
 
-    def process_content(self, context: list[dict]) -> str:
+        return handler_class
+
+    return decorator
+
+
+class LocalCommandProcessor:
+    """本地快捷指令处理器"""
+
+    def __init__(self):
+        self._handler_instances: dict[str, CommandHandler] = {}
+
+    @classmethod
+    def has_local_handler(cls, command: str) -> bool:
+        """检查是否存在本地处理器"""
+        return LocalCommandRegistry.has_handler(command)
+
+    def process_command(self, command_data: dict) -> str:
         """
-        处理内容（使用模板和变量）
+        处理快捷指令
+
+        Args:
+            command_data: 包含command和context的字典
+
+        Returns:
+            处理后的内容
+
+        Raises:
+            ValueError: 当命令不存在或处理失败时
         """
-        template = self.get_template()
-        variables = self.extract_context_vars(context)
+        command = command_data.get("command")
+        if not command:
+            raise ValueError("Command is required")
+
+        if not self.has_local_handler(command):
+            raise ValueError(f"No local handler found for command: {command}")
+
+        # 获取或创建处理器实例
+        if command not in self._handler_instances:
+            handler_class = LocalCommandRegistry.get_handler(command)
+            self._handler_instances[command] = handler_class()
+
+        handler = self._handler_instances[command]
+        context = command_data.get("context", [])
 
         try:
-            # 安全格式化，缺失变量保持原样
-            return Formatter().vformat(template, (), variables)
-        except KeyError as e:
-            missing = str(e).strip("'")
-            raise ValueError(f"Missing required context variable: {missing}")
+            return handler.process_content(context)
+        except Exception as e:
+            logger.error(f"LocalCommandProcessor: failed to process command->[{command}], error->[{e}]")
+            raise ValueError(f"Failed to process command {command}") from e
 
 
-class TranslateCommandHandler(CommandHandler):
-    command = "translate"
-
-    def get_template(self) -> str:
-        return """
-        请将以下内容翻译为{language}:
-        {content}
-        翻译要求: 确保翻译准确无误，无需冗余回答内容
-        """
-
-    def extract_context_vars(self, context: list[dict]) -> dict[str, str]:
-        variables = super().extract_context_vars(context)
-        # 特殊处理：确保必须有content变量
-        if "content" not in variables:
-            raise ValueError("Translation requires 'content' in context")
-        return variables
-
-
-class ExplanationCommandHandler(CommandHandler):
-    command = "explanation"
-
-    def get_template(self) -> str:
-        return """
-        请解释以下内容{content}
-        解释要求: 确保解释准确无误，无需冗余回答内容
-        """
-
-
-class MetadataDiagnosisCommandHandler(CommandHandler):
-    command = "metadata_diagnosis"
-
-    def get_template(self) -> str:
-        return """
-        请帮助我分析排障,数据源ID为{bk_data_id}
-        """
-
-
-class PromQLHelperCommandHandler(CommandHandler):
-    command = "promql_helper"
-
-    def get_template(self) -> str:
-        return """
-        请根据用户的需求,生成PromQL查询语句
-        指标/语句:{promql}
-        用户需求:{user_demand}
-        """
-
-
+# TODO:平台暂时不支持MCP，若需要对输入数据进行特殊处理，临时在业务逻辑中实现LocalCommandHandler,实现process_content和get_template方法
+@local_command_handler("tracing_analysis")
 class TracingAnalysisCommandHandler(CommandHandler):
-    command = "tracing_analysis"
-
-    keys = ['status', 'kind', 'elapsed_time', 'start_time', 'span_name']
+    keys = ["status", "kind", "elapsed_time", "start_time", "span_name"]
 
     # 基于 128K 上下文长度设置
     max_character_length = 120_000
     max_span = 50
 
-    def _get_nested_value(self, data: dict, key: str, sep: str = '.'):
-        """获取嵌套字典中的值"""
-        keys = key.split(sep)
-        for k in keys:
-            if isinstance(data, dict) and k in data:
-                data = data[k]
-            else:
-                return None
-        return data
-
     def process_content(self, context: list[dict]) -> str:
+        template = self.get_template()
         variables = self.extract_context_vars(context)
 
         req = get_request()
@@ -140,52 +148,23 @@ class TracingAnalysisCommandHandler(CommandHandler):
                     "trace_id": variables["trace_id"],
                 }
             )
-            trace_data = resp['trace_data']
+            trace_data = resp["trace_data"]
 
             processed_trace_data = trace_data
             if len(trace_data) > self.max_span:
-                processed_trace_data = [
-                    {k: self._get_nested_value(x, k) for k in self.keys} for x in trace_data
-                ]
+                processed_trace_data = [{k: get_nested_value(x, k) for k in self.keys} for x in trace_data]
         except (BKAPIError, KeyError) as e:
             raise ValueError("TracingAnalysis failed to query trace data") from e
 
-        return f"""
-        请分析 trace: {str(processed_trace_data)[: self.max_character_length]}
-        结果要求: 确保分析准确无误，无需冗余回答内容
-        """
+        trace_data_lite = str(processed_trace_data)[: self.max_character_length]
+
+        variables["trace_data"] = trace_data_lite
+
+        return self.jinja_env.render(template, variables)
 
     def get_template(self):
-        pass
-
-
-class CommandProcessor:
-    _handlers: dict[str, type[CommandHandler]] = {}
-
-    @classmethod
-    def register_handler(cls, command: str, handler: type[CommandHandler]):
-        cls._handlers[command] = handler
-
-    def process_command(self, command_data: dict) -> str:
-        if not (command := command_data.get("command")):
-            logger.warning("CommandProcessor: No command found in data->[%s]", command_data)
-            raise ValueError("No command found in data")
-
-        if (handler_class := self._handlers.get(command)) is None:
-            logger.warning("CommandProcessor: No handler registered for command->[%s]", command)
-            raise ValueError(f"No handler registered for command: {command}")
-
-        try:
-            logger.info("CommandProcessor: Processing command->[%s]", command)
-            return handler_class().process_content(command_data.get("context", []))
-        except ValueError as e:
-            logger.warning("CommandProcessor: Command processing failed->[%s]", str(e))
-            raise e
-
-
-# 注册处理器
-CommandProcessor.register_handler("translate", TranslateCommandHandler)
-CommandProcessor.register_handler("explanation", ExplanationCommandHandler)
-CommandProcessor.register_handler("metadata_diagnosis", MetadataDiagnosisCommandHandler)
-CommandProcessor.register_handler("promql_helper", PromQLHelperCommandHandler)
-CommandProcessor.register_handler("tracing_analysis", TracingAnalysisCommandHandler)
+        return """
+        请帮助我分析Tracing数据: {{ trace_data }}.
+        应用名称: {{ app_name }}
+        结果要求: 确保分析准确无误，无需冗余回答内容
+        """

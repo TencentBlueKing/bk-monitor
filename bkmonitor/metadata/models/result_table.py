@@ -384,24 +384,8 @@ class ResultTable(models.Model):
             )
             raise ValueError(_("结果表ID在租户下已经存在，请确认"))
 
-        # 校验biz_id是否符合要求
-        if str(bk_biz_id) > "0":
-            # 如果有指定表的对应业务信息，需要校验结果表的命名是否符合规范
-            tenant_start_string = f"{bk_tenant_id}_{bk_biz_id}_"
-            start_string = f"{bk_biz_id}_"
-            if not table_id.startswith((start_string, tenant_start_string)):
-                logger.error(
-                    "create_result_table: user->[%s] try to set table->[%s] under biz->[%s] in bk_tenant_id->[%s] but "
-                    "table_id is not start with->[%s], maybe something go wrong?",
-                    operator,
-                    table_id,
-                    bk_biz_id,
-                    bk_tenant_id,
-                    start_string,
-                )
-                raise ValueError(_("结果表[%s]不符合命名规范，请确认后重试") % table_id)
-
-        elif str(bk_biz_id) == "0":
+        # 全业务的结果表，不可以已数字下划线开头
+        if str(bk_biz_id) == "0":
             # 全业务的结果表，不可以已数字下划线开头
             if re.match(r"\d+_", table_id):
                 logger.error(
@@ -1563,6 +1547,7 @@ class ResultTable(models.Model):
         except CMDBLevelRecord.DoesNotExist:
             # 如果未能找到已有的记录，需要创建一个新的数据源
             data_source = DataSource.create_data_source(
+                bk_biz_id=self.bk_biz_id,
                 data_name=config.RT_CMDB_LEVEL_DATA_SOURCE_NAME.format(self.table_id),
                 bk_tenant_id=self.bk_tenant_id,
                 # 由于重复流转之后的数据，都是标准格式数据，因此此处写死是bk_standard即可

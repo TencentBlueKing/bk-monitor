@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
-from typing import Dict
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -60,19 +59,19 @@ class Command(BaseCommand):
         )
         # 创建DataId实例（计算平台侧）
         data_id_ins, _ = models.DataIdConfig.objects.get_or_create(
-            name=bkbase_data_name, namespace='bkmonitor', bk_biz_id=bk_biz_id
+            name=bkbase_data_name, namespace="bkmonitor", bk_biz_id=bk_biz_id
         )
         # 组装DataId Config
         config = self.compose_data_id_config(
-            data_id_ins=data_id_ins, datasource=datasource, kafka_name='kafka_outer_default'
+            data_id_ins=data_id_ins, datasource=datasource, kafka_name="kafka_outer_default"
         )
         # 将bk_data_id修改为int
-        config['spec']['predefined']['dataId'] = int(config['spec']['predefined']['dataId'])
+        config["spec"]["predefined"]["dataId"] = int(config["spec"]["predefined"]["dataId"])
 
         self.stdout.write(f"use data_id_config->{config} to access bkbase")
 
         # Step4. 下发DataId Config至BkBase
-        api.bkdata.apply_data_link({"config": [config]})
+        api.bkdata.apply_data_link(bk_tenant_id=datasource.bk_tenant_id, config=[config])
 
         # Step5. 将完整链路接入至BkBase
         table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
@@ -84,7 +83,7 @@ class Command(BaseCommand):
         # Step6. 验证此前接入的资源是否畅通
         self.stdout.write(f"bk_data_id->{bk_data_id}, bkbase component config->{data_id_ins.component_config}")
 
-    def compose_data_id_config(self, data_id_ins, datasource, kafka_name) -> Dict:
+    def compose_data_id_config(self, data_id_ins, datasource, kafka_name) -> dict:
         """
         组装生成DataId配置
         @param data_id_ins: 数据源实例（计算平台侧）

@@ -27,6 +27,7 @@ import { computed, defineComponent, ref, watch } from 'vue';
 
 import { formatDateTimeField, getRegExp } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
+import dayjs from 'dayjs';
 import { debounce } from 'lodash';
 
 import ChartRoot from './chart-root';
@@ -230,6 +231,42 @@ export default defineComponent({
       searchValue.value = value;
     };
 
+    const replacer = (key, value) => {
+      // 处理undefined或null等特殊值，转化为字符串
+      return value === null ? '' : value;
+    };
+
+    const handleDownloadData = () => {
+      const filename = `bklog-${dayjs(new Date()).format('YYYY-MM-DD-HH-MM-SS')}.csv`;
+      // 如果数据是一个对象数组并且需要提取表头
+      if (tableData.value.length === 0) {
+        console.error('No data to export');
+        return;
+      }
+
+      // 提取表头
+      const headers = columns.value;
+
+      // 生成 CSV 字符串
+      const csvContent = [
+        headers.join(','), // 表头行
+        ...tableData.value.map(row => headers.map(header => JSON.stringify(row[header], replacer)).join(',')), // 数据行
+      ].join('\n');
+
+      // 创建 Blob 对象
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+      // 创建链接并启动下载
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
     const rendChildNode = () => {
       if (showNumber.value) {
         return (
@@ -262,19 +299,33 @@ export default defineComponent({
               value={searchValue.value}
               onChange={handleSearchClick}
             ></bk-input>
-            <bk-pagination
-              style='display: inline-flex'
-              class='top-pagination'
-              count={tableData.value.length}
-              current={pagination.value.current}
-              limit={pagination.value.limit}
-              location='right'
-              show-total-count={true}
-              size='small'
-              small={true}
-              onChange={handlePageChange}
-              onLimit-change={handlePageLimitChange}
-            ></bk-pagination>
+            <div>
+              {tableData.value.length > 0 ? (
+                <span
+                  style='font-size: 12px; color: #3A84FF; cursor: pointer;'
+                  onClick={handleDownloadData}
+                >
+                  <i
+                    style='font-size: 14px;'
+                    class='bklog-icon bklog-download'
+                  ></i>
+                  {$t('下载')}
+                </span>
+              ) : null}
+              <bk-pagination
+                style='display: inline-flex'
+                class='top-pagination'
+                count={tableData.value.length}
+                current={pagination.value.current}
+                limit={pagination.value.limit}
+                location='right'
+                show-total-count={true}
+                size='small'
+                small={true}
+                onChange={handlePageChange}
+                onLimit-change={handlePageLimitChange}
+              ></bk-pagination>
+            </div>
           </div>,
           <bk-table data={filterTableData.value}>
             <bk-table-column

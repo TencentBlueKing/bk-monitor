@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+const oxlintPlugin = require('eslint-plugin-oxlint');
+
 module.exports = [
   ...require('@blueking/bkui-lint/eslint'),
   {
@@ -56,4 +58,10 @@ module.exports = [
       'src/**/.config',
     ],
   },
+  {
+    rules: {
+      'prettier/prettier': 'off', // 关闭此规则
+    },
+  },
+  ...oxlintPlugin.buildFromOxlintConfigFile('./.oxlintrc.json'),
 ];
