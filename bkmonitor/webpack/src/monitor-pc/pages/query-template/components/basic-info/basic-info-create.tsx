@@ -73,21 +73,31 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
     });
   }
 
+  handleDeleteEffect(data) {
+    this.handleEffectChange(this.formData.effect.filter(item => item !== data.id));
+  }
+
   tagTpl(data) {
     return (
       <div class='tag'>
         <span class='tag-name'>{data.name}</span>
-        {this.bizId !== data.id && <i class='icon-monitor icon-mc-close' />}
+        {this.bizId !== data.id && (
+          <i
+            class='icon-monitor icon-mc-close'
+            onClick={() => {
+              this.handleDeleteEffect(data);
+            }}
+          />
+        )}
       </div>
     );
   }
 
-  handleEffectChange(value: string) {
-    console.log(value);
-    // this.$emit('change', {
-    //   ...this.formData,
-    //   effect: value,
-    // });
+  handleEffectChange(value: (number | string)[]) {
+    this.$emit('change', {
+      ...this.formData,
+      effect: value,
+    });
   }
 
   handleDescChange(value: string) {
@@ -142,6 +152,7 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
               tag-tpl={this.tagTpl}
               trigger='focus'
               value={this.formData.effect}
+              collapseTags
               onChange={this.handleEffectChange}
             />
           </bk-form-item>
@@ -154,7 +165,7 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
             <bk-input
               type='textarea'
               value={this.formData.desc}
-              onChange={this.handleEffectChange}
+              onChange={this.handleDescChange}
             />
           </bk-form-item>
         </bk-form>
