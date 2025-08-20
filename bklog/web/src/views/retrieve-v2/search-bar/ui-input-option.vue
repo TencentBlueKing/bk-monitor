@@ -265,10 +265,16 @@
     return fieldList.value.filter(filterFn).map(mapFn).sort(sortByMatch);
   });
 
-  const handleBatchInputChange = val => {
+  const handleBatchShowChange = val => {
     emit('batch-input-change', val);
   }
 
+  const handleBatchInputChange = (selectData) => {
+    condition.value.value = [...new Set([
+      ...(condition.value.value || []), 
+      ...selectData                    
+    ])];
+  };
   const tagValidateFun = item => {
     // 如果是数值类型， 返回一个检验的函数
     if (['long', 'integer', 'float'].includes(activeFieldItem.value.field_type)) {
@@ -1247,7 +1253,7 @@
             <div class="ui-value-label">
               <span>
                 {{ $t('检索内容') }}
-                <BatchInput @value-change="handleBatchInputChange"/>
+                <BatchInput  v-if="activeFieldItem.field_name !== '*'" @value-change="handleBatchInputChange" @show-change="handleBatchShowChange"/>
               </span>
               <span v-show="['text', 'string'].includes(activeFieldItem.field_type)">
                 <bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox>

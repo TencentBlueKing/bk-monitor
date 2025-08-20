@@ -23,18 +23,19 @@
 * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 * IN THE SOFTWARE.
 */
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, nextTick } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import { messageError } from '@/common/bkmagic';
 
 export default defineComponent({
   name: 'BatchInput',
-  emits: ['value-change'],
+  emits: ['value-change','show-change'],
   setup(_, { emit }) {
     const showBtachDialog = ref(false);
     const textValue = ref('');
     const splitResult = ref([]);
+    const selectResult = ref([]);
     const { $t } = useLocale();
     const style = {
       color: '#3A84FF',
@@ -44,8 +45,11 @@ export default defineComponent({
 
 
     const handleDialogValueChange = isShow => {
-      showBtachDialog.value = isShow;
-      emit('value-change', isShow);
+        nextTick(() => {
+          handleClearBtnClick();
+        })
+        showBtachDialog.value = isShow;
+        emit('show-change', isShow); 
     }
 
     const handleInputTextChange = val => {
@@ -95,7 +99,14 @@ export default defineComponent({
       splitResult.value = [];
       textValue.value = '';
     }
+    const handleConfirm = () => {
+      emit('value-change',  selectResult.value);
+      showBtachDialog.value = false
+    }
 
+    const handleSelect = (selectedRows) => {
+      selectResult.value = selectedRows;
+    }
     return () => (
       <span
         style={style}
@@ -104,16 +115,17 @@ export default defineComponent({
         {$t('批量输入')}
         <bk-dialog
           width='860px'
+          mask-close={false}
           title={$t('批量输入')}
           value={showBtachDialog.value}
           header-position="left"
           on-value-change={handleDialogValueChange}
         >
           <div
-            style='display: flex; padding: 16px 24px;'
+            style='display: flex; padding: 16px 0px;'
           >
             <div style='width: 400px; height: 358px;'>
-              <div>解析文本</div>
+              <div style='padding-bottom: 6px'>解析文本<span style='color: #EA3636; padding-left: 2px;'>*</span></div>
               <div>
                 <bk-input
                   maxlength={100}
@@ -126,7 +138,7 @@ export default defineComponent({
               </div>
               <div style='margin-top: 16px;display: flex;justify-content: space-between;'>
                 <bk-button
-                  style='width: 280px'
+                  style='width: 280px,margin-right: 8px'
                   outline={true}
                   theme='primary'
                   on-click={handleResolveBtnClick}
@@ -137,18 +149,40 @@ export default defineComponent({
               </div>
             </div>
             <div style='width: 460px; margin-left: 16px;'>
-              <div>选择解析结果</div>
-              <bk-table  data={splitResult.value}>
+              <div style='padding-bottom: 6px'>选择解析结果</div>
+              <bk-table  
+                data={splitResult.value} 
+                empty-text={$t('请先在右侧输入并解析')}
+                on-select={handleSelect}
+                onselect-all={handleSelect}
+                max-height="316"
+              >
                 <bk-table-column type="selection"></bk-table-column>
                 <bk-table-column label="解析结果" scopedSlots={{
                   default: ({ row }) => {
-                    console.log(row)
                     return row;
                   }
                 }}>
                 </bk-table-column>
               </bk-table>
             </div>
+          </div>
+          <div slot='footer'> 
+          <bk-button
+            class='btn-confirm'
+            style='margin-right: 8px'
+            theme='primary'
+            disabled={!selectResult.value.length}
+            on-click={handleConfirm}
+          >
+            确认
+          </bk-button>
+          <bk-button
+            class='btn-cancel'
+            onClick={() => (showBtachDialog.value = false)}
+          >
+            取消
+          </bk-button>
           </div>
         </bk-dialog>
       </span>
