@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import OrderedDict
+from typing import Any
 
 from django.db.transaction import atomic
 from rest_framework import serializers
@@ -238,11 +239,11 @@ class UpdateEsRouter(BaseLogRouter):
         need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
         origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
 
-    def perform_request(self, data: OrderedDict):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         bk_tenant_id = get_request_tenant_id()
 
         # 查询结果表存在
-        table_id = data["table_id"]
+        table_id = validated_request_data["table_id"]
         try:
             result_table = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
         except models.ResultTable.DoesNotExist:
@@ -255,40 +256,48 @@ class UpdateEsRouter(BaseLogRouter):
         # 因为可以重复执行，这里可以不设置事务
         # 更新结果表别名
         need_refresh_data_label = False
-        if data.get("data_label") and data["data_label"] != result_table.data_label:
-            result_table.data_label = data["data_label"]
+        if validated_request_data.get("data_label") and validated_request_data["data_label"] != result_table.data_label:
+            result_table.data_label = validated_request_data["data_label"]
             result_table.save(update_fields=["data_label"])
             need_refresh_data_label = True
         # 更新索引集或者使用的集群
         update_es_fields = []
-        if data.get("need_create_index"):
-            es_storage.need_create_index = data.get("need_create_index")
+        if validated_request_data.get("need_create_index"):
+            es_storage.need_create_index = validated_request_data.get("need_create_index")
             update_es_fields.append("need_create_index")
-        if data.get("index_set") and data["index_set"] != es_storage.index_set:
-            es_storage.index_set = data["index_set"]
+        if validated_request_data.get("index_set") and validated_request_data["index_set"] != es_storage.index_set:
+            es_storage.index_set = validated_request_data["index_set"]
             update_es_fields.append("index_set")
-        if data.get("cluster_id") and data["cluster_id"] != es_storage.storage_cluster_id:
-            es_storage.storage_cluster_id = data["cluster_id"]
+        if (
+            validated_request_data.get("cluster_id")
+            and validated_request_data["cluster_id"] != es_storage.storage_cluster_id
+        ):
+            es_storage.storage_cluster_id = validated_request_data["cluster_id"]
             update_es_fields.append("storage_cluster_id")
-        if data.get("origin_table_id") and data["origin_table_id"] != es_storage.origin_table_id:
-            es_storage.origin_table_id = data["origin_table_id"]
+        if (
+            validated_request_data.get("origin_table_id")
+            and validated_request_data["origin_table_id"] != es_storage.origin_table_id
+        ):
+            es_storage.origin_table_id = validated_request_data["origin_table_id"]
             update_es_fields.append("origin_table_id")
         if update_es_fields:
             es_storage.save(update_fields=update_es_fields)
         # 更新options
-        if data.get("options"):
-            self.create_or_update_options(bk_tenant_id=bk_tenant_id, table_id=table_id, options=data["options"])
+        if validated_request_data.get("options"):
+            self.create_or_update_options(
+                bk_tenant_id=bk_tenant_id, table_id=table_id, options=validated_request_data["options"]
+            )
         # 如果别名或者索引集有变动，则需要通知到unify-query
         if need_refresh_data_label:
             logger.info(
                 "UpdateEsRouter: try to push data label router for table_id->[%s], data_label->[%s]",
                 table_id,
-                data["data_label"],
+                validated_request_data["data_label"],
             )
             client.push_data_label_table_ids(
-                data_label_list=[data["data_label"]], bk_tenant_id=bk_tenant_id, is_publish=True
+                data_label_list=[validated_request_data["data_label"]], bk_tenant_id=bk_tenant_id, is_publish=True
             )
-            push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=data["data_label"])
+            push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=validated_request_data["data_label"])
         logger.info("UpdateEsRouter: try to push es detail router for table_id->[%s]", table_id)
         client.push_es_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
 
@@ -444,3 +453,35 @@ class CreateOrUpdateLogRouter(Resource):
             router_class().request(validated_request_data)
         else:
             raise ValueError(f"Unsupported storage type: {validated_request_data['storage_type']}")
+
+
+class CreateOrUpdateLogDataLink(Resource):
+    class RequestSerializer(serializers.Serializer):
+        space_type = serializers.CharField(label="空间类型")
+        space_id = serializers.CharField(label="空间ID")
+        data_label = serializers.CharField(allow_blank=True, label="数据标签")
+
+        class TableInfoSerializer(ParamsSerializer):
+            table_id = serializers.CharField(required=True, label="结果表ID")
+            cluster_id = serializers.IntegerField(required=False, allow_null=True, label="集群ID")
+            index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
+            source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
+            bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
+            origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
+            storage_type = serializers.ChoiceField(
+                required=False,
+                choices=[models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS],
+                label="存储类型",
+                default=models.ClusterInfo.TYPE_ES,
+            )
+
+            class QueryAliasSettingSerializer(serializers.Serializer):
+                field_name = serializers.CharField(required=True, label="字段名", help_text="需要设置查询别名的字段名")
+                query_alias = serializers.CharField(required=True, label="查询别名", help_text="字段的查询别名")
+
+            query_alias_settings = QueryAliasSettingSerializer(
+                required=False, label="查询别名设置", default=None, many=True
+            )
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        pass
