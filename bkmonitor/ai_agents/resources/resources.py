@@ -10,9 +10,13 @@ specific language governing permissions and limitations under the License.
 
 from aidev_agent.services.chat import ExecuteKwargs
 from django.http import StreamingHttpResponse
+from aidev_agent.services.agent import AgentInstanceFactory
 
-from ai_agents.services.agent_instance import AgentInstanceBuilder
-from ai_agents.services.command_handler import CommandProcessor
+from ai_agents.services.callback import get_langfuse_callback
+from aidev_agent.api.bk_aidev import BKAidevApi
+from aidev_agent.enums import AgentBuildType
+
+from ai_agents.services.command_handler import LocalCommandProcessor
 from ai_agents.services.metrics_reporter import (
     ai_metrics_decorator,
     extract_agent_code_from_request,
@@ -23,7 +27,7 @@ from ai_agents.services.metrics_reporter import (
 )
 from core.drf_resource import Resource
 from rest_framework import serializers
-from ai_agents.services.api_client import AidevApiClientBuilder
+
 import logging
 from django.conf import settings
 from bkmonitor.utils.user import get_request_username
@@ -32,9 +36,7 @@ from rest_framework.views import Response
 logger = logging.getLogger("ai_agents")
 
 # API 客户端
-api_client = AidevApiClientBuilder.get_client(
-    bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
-)
+api_client = BKAidevApi.get_client(app_code=settings.AIDEV_AGENT_APP_CODE, app_secret=settings.AIDEV_AGENT_APP_SECRET)
 
 
 # -------------------- 会话管理 -------------------- #
@@ -143,7 +145,7 @@ class CreateChatSessionContentResource(Resource):
 
     def __init__(self):
         super().__init__()
-        self.command_processor = CommandProcessor()
+        self.local_command_processor = LocalCommandProcessor()
 
     @ai_metrics_decorator(extract_command_func=extract_command_from_request)
     def perform_request(self, validated_request_data):
@@ -158,11 +160,14 @@ class CreateChatSessionContentResource(Resource):
 
         # 快捷指令
         try:
-            command_data = property_data.get("extra")
-            if command_data.get("command"):
+            command_data = property_data.get("extra", {})
+            command = command_data.get("command")
+            # 若在runtime中存在注册的LocalHandler，则使用本地处理逻辑
+            if command and self.local_command_processor.has_local_handler(command):
                 logger.info("CreateChatSessionContentResource: try to process command->[%s]", command_data)
-                processed_content = self.command_processor.process_command(command_data)
-                validated_request_data["content"] = processed_content
+                processed_content = self.local_command_processor.process_command(command_data)
+                if processed_content:
+                    validated_request_data["property"]["extra"]["rendered_content"] = processed_content
         except Exception as e:  # pylint: disable=broad-except
             logger.error("CreateChatSessionContentResource: process command error->[%s]", e)
 
@@ -257,7 +262,6 @@ class GetAgentInfoResource(Resource):
 
     @ai_metrics_decorator(extract_agent_code_func=extract_agent_code_from_request)
     def perform_request(self, validated_request_data):
-        # user_name = get_request_username()  # 获取用户名
         agent_code = validated_request_data.get("agent_code")
         logger.info("GetAgentInfoResource: try to get agent info with agent_code->[%s]", agent_code)
         res = api_client.api.retrieve_agent_config(path_params={"agent_code": agent_code})
@@ -363,9 +367,12 @@ class CreateChatCompletionResource(Resource):
             agent_code,
         )
 
-        # 传递默认智能体 agent_code 保持和session的创建者一致
-        agent_instance = AgentInstanceBuilder.build_agent_instance_by_session(
-            session_code=session_code, api_client=api_client, agent_code=agent_code
+        callbacks = [get_langfuse_callback()] if settings.AIDEV_AGENT_ENABLE_LANGFUSE else []
+        agent_instance = AgentInstanceFactory.build_agent(
+            build_type=AgentBuildType.SESSION,
+            session_code=session_code,
+            resource_manager=api_client,
+            callbacks=callbacks,
         )
 
         # 根据流式配置执行

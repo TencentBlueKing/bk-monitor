@@ -546,7 +546,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         isBack: true,
         batch: [first],
       });
-      cachedBatch.value.splice(0, cachedBatch.value.length);  // 清空缓存时间组
+      cachedBatch.value.splice(0, cachedBatch.value.length); // 清空缓存时间组
       store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
   };

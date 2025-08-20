@@ -33,7 +33,7 @@ from apps.log_search.constants import (
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
     MAX_ASYNC_COUNT,
-    SCROLL,
+    SCROLL, MAX_QUICK_EXPORT_ASYNC_COUNT,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException, TokenInvalidException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -993,7 +993,8 @@ class UnifyQueryHandler:
         search_dict["limit"] = max_result_window
         search_dict["trace_id"] = scroll_result["trace_id"]
         search_dict["scroll"] = scroll
-        while scroll_size >= max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
+        while scroll_size >= max_result_window and\
+                result_size < max(index_set.max_async_count, MAX_QUICK_EXPORT_ASYNC_COUNT):
             search_dict["result_table_options"] = scroll_result["result_table_options"]
             scroll_result = UnifyQueryApi.query_ts_raw(search_dict)
             scroll_size = len(scroll_result["list"])

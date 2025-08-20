@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import abc
 import json
-import os
+from pathlib import Path
 
 import yaml
 from django.utils.translation import gettext as _
@@ -25,10 +25,11 @@ from monitor_web.plugin.manager import PluginManagerFactory
 
 
 class BaseParse:
-    def __init__(self, file_path):
+    def __init__(self, file_path, file_content={}, plugin_configs: dict[Path, bytes] = None):
         self.file_path = file_path
-        self.file_content = {}
+        self.file_content = file_content
         self.plugin_path = None
+        self.plugin_configs = plugin_configs
 
     def read_file(self):
         with open(self.file_path) as fs:
@@ -78,15 +79,14 @@ class CollectConfigParse(BaseParse):
             return fields_check_result
 
         plugin_id = self.file_content.get("plugin_id")
-        self.plugin_path = os.path.join(os.path.dirname(os.path.dirname(self.file_path)), "plugin_directory", plugin_id)
-        if not os.path.exists(self.plugin_path):
+        if not self.get_plugin_path(plugin_id):
             return {
                 "file_status": ImportDetailStatus.FAILED,
                 "name": self.file_content.get("name"),
                 "collect_config": self.file_content,
                 "error_msg": _("缺少依赖的插件"),
             }
-        parse_plugin_config = self.parse_plugin_msg()
+        parse_plugin_config = self.parse_plugin_msg(plugin_id)
         if parse_plugin_config.get("tmp_version"):
             tmp_version = parse_plugin_config["tmp_version"]
             plugin_config = {}
@@ -114,12 +114,21 @@ class CollectConfigParse(BaseParse):
         else:
             return parse_plugin_config
 
-    def parse_plugin_msg(self):
+    def get_meta_path(self, plugin_id):
+        """获取 meta.yaml 的路径"""
         meta_path = ""
-        for root, dirs, filename_list in os.walk(self.plugin_path):
-            if root.endswith("info") and "meta.yaml" in filename_list:
-                meta_path = os.path.join(root, "meta.yaml")
+        for file_path in self.plugin_configs.keys():
+            if (
+                str(file_path).split("/")[0] == plugin_id
+                and file_path.parent.name == "info"
+                and file_path.name == "meta.yaml"
+            ):
+                meta_path = file_path
                 break
+        return meta_path
+
+    def parse_plugin_msg(self, plugin_id):
+        meta_path = self.get_meta_path(plugin_id)
 
         if not meta_path:
             return {
@@ -129,8 +138,7 @@ class CollectConfigParse(BaseParse):
                 "error_msg": _("关联插件信息不完整"),
             }
         try:
-            with open(meta_path) as f:
-                meta_content = f.read()
+            meta_content = self.plugin_configs[meta_path]
             meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
             plugin_type_display = meta_dict.get("plugin_type")
             for name, display_name in CollectorPluginMeta.PLUGIN_TYPE_CHOICES:
@@ -144,10 +152,16 @@ class CollectConfigParse(BaseParse):
                 bk_tenant_id=get_request_tenant_id(),
                 plugin=self.file_content.get("plugin_id"),
                 plugin_type=plugin_type,
-                tmp_path=self.plugin_path,
             )
+            import_manager.filename_list = self.get_filename_list(plugin_id)
+            import_manager.plugin_configs = self.plugin_configs
+            info_path = {
+                file_path.name: self.plugin_configs[file_path]
+                for file_path in import_manager.filename_list
+                if file_path.parent.name == "info"
+            }
 
-            tmp_version = import_manager.get_tmp_version()
+            tmp_version = import_manager.get_tmp_version(info_path=info_path)
             return {"tmp_version": tmp_version}
         except Exception:
             return {
@@ -156,6 +170,26 @@ class CollectConfigParse(BaseParse):
                 "config": self.file_content,
                 "error_msg": _("关联插件信息解析失败"),
             }
+
+    def get_filename_list(self, plugin_id: str) -> list[Path]:
+        """获取插件的文件列表"""
+        filename_list = []
+        for file_path in self.plugin_configs.keys():
+            if str(file_path).split("/")[0] == plugin_id:
+                filename_list.append(file_path)
+
+        return filename_list
+
+    def get_plugin_path(self, plugin_id) -> bool:
+        """
+        遍历 self.plugin_configs 查找是否有包含 plugin_id 的路径
+        """
+        result = False
+        for config_path in self.plugin_configs.keys():
+            if str(config_path).split("/")[0] == plugin_id:
+                result = True
+                break
+        return result
 
 
 class StrategyConfigParse(BaseParse):

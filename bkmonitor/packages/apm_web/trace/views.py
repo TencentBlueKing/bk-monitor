@@ -55,7 +55,15 @@ class TraceQueryViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
-        if self.action in ["trace_option_value", "trace_charts", "list_traces", "trace_detail"]:
+        if self.action in [
+            "trace_option_value",
+            "trace_charts",
+            "list_traces",
+            "trace_detail",
+            "list_flatten_traces",
+            "list_flatten_spans",
+            "list_spans",
+        ]:
             return [
                 InstanceActionForDataPermission(
                     self.INSTANCE_ID,

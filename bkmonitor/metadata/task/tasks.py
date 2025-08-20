@@ -869,6 +869,7 @@ def bulk_create_fed_data_link(sub_clusters):
             )
 
             create_fed_bkbase_data_link(
+                bk_biz_id=sub_cluster.bk_biz_id,
                 monitor_table_id=table_id,
                 data_source=ds,
                 storage_cluster_name=vm_cluster.get("cluster_name"),
@@ -880,7 +881,7 @@ def bulk_create_fed_data_link(sub_clusters):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def sync_bkbase_v4_metadata(key):
+def sync_bkbase_v4_metadata(key, skip_types: list[str] | None = None):
     """
     同步计算平台元数据信息至Metadata
     Redis中的数据格式
@@ -889,12 +890,17 @@ def sync_bkbase_v4_metadata(key):
         vm: {rt1:{},rt2:{},rt3:{}}
         es: {rt1:[],rt2:[],rt3:[]}
     @param key: 计算平台对应的DataBusKey
+    @param skip_types: 跳过同步的类型,默认跳过es类型
     """
     logger.info("sync_bkbase_v4_metadata: try to sync bkbase metadata,key->[%s]", key)
     start_time = time.time()
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="sync_bkbase_v4_metadata", status=TASK_STARTED, process_target=None
     ).inc()
+
+    # 默认跳过es类型
+    if skip_types is None:
+        skip_types = []
 
     bkbase_redis = bkbase_redis_client()
 
@@ -934,7 +940,7 @@ def sync_bkbase_v4_metadata(key):
 
     # 处理 Kafka 信息
     kafka_info = bkbase_metadata_dict.get("kafka")
-    if kafka_info:
+    if kafka_info and "kafka" not in skip_types:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got kafka_info->[%s],bk_data_id->[%s],try to sync kafka info",
@@ -946,7 +952,7 @@ def sync_bkbase_v4_metadata(key):
 
     # 处理 ES 信息
     es_info = bkbase_metadata_dict.get("es")
-    if es_info:
+    if es_info and "es" not in skip_types:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got es_info->[%s],bk_data_id->[%s],try to sync es info", es_info, bk_data_id
@@ -959,7 +965,7 @@ def sync_bkbase_v4_metadata(key):
 
     # 处理 VM 信息
     vm_info = bkbase_metadata_dict.get("vm")
-    if vm_info:
+    if vm_info and "vm" not in skip_types:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got vm_info->[%s],bk_data_id->[%s],try to sync vm info", vm_info, bk_data_id
@@ -1271,7 +1277,7 @@ def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
         )
         data_source = models.DataSource.create_data_source(
             data_name=data_name,
-            etl_config=EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG,
+            etl_config=EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
             operator="system",
             source_label="bk_monitor",
             type_label="event",
@@ -1584,6 +1590,7 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
             )
 
         # 创建AccessVMRecord
+        vm_rt = f"{bk_biz_id}_base_{bk_biz_id}_{data_name_to_data_link_strategy[data_link_type]}"
         AccessVMRecord.objects.update_or_create(
             bk_tenant_id=bk_tenant_id,
             result_table_id=table_id,
@@ -1592,7 +1599,7 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
             defaults={
                 "vm_cluster_id": cluster.cluster_id,
                 "storage_cluster_id": cluster.cluster_id,
-                "vm_result_table_id": f"{bk_biz_id}_base_{bk_biz_id}_{data_name_to_data_link_strategy[data_link_type]}",
+                "vm_result_table_id": vm_rt,
             },
         )
 

@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import type { TranslateResult } from 'vue-i18n';
+
 // AI 快捷方式类型
 export interface AIBluekingShortcut {
   components: ComponentConfig[];
   icon?: string;
   id: string;
-  name: any; // 兼容 i18n 翻译结果
+  name: string | TranslateResult; // 兼容 i18n 翻译结果
 }
 
 // AI 快捷方式数组类型
@@ -40,9 +42,10 @@ export interface ComponentConfig {
   default?: string;
   fillBack: boolean;
   key: string;
-  name: any; // 兼容 i18n 翻译结果
+  name: string | TranslateResult; // 兼容 i18n 翻译结果
   options?: ComponentOption[];
-  placeholder: any; // 兼容 i18n 翻译结果
+  placeholder: string | TranslateResult; // 兼容 i18n 翻译结果
+  required?: boolean;
   selectedText?: string;
   type: 'select' | 'textarea';
 }
@@ -63,7 +66,7 @@ export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeo
 export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
   {
     id: AI_BLUEKING_SHORTCUTS_ID.EXPLANATION,
-    name: window.i18n.t('解释'),
+    name: window.i18n.t('解读'),
     // icon: 'bkai-help',
     components: [
       {
@@ -71,7 +74,7 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         key: 'content',
         name: window.i18n.t('内容'),
         fillBack: true,
-        placeholder: window.i18n.t('请输入需要解释的内容'),
+        placeholder: window.i18n.t('请输入需要解读的内容'),
       },
     ],
   },
@@ -110,39 +113,43 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         type: 'textarea',
         key: 'promql',
         fillBack: true,
+        required: true,
         name: window.i18n.t('指标/PromQL语句'),
         placeholder: window.i18n.t('请输入指标/PromQL语句'),
       },
       {
         type: 'textarea',
-        key: 'user_demand',
+        key: 'user-demand',
         fillBack: false,
+        required: true,
         name: window.i18n.t('用户指令'),
         placeholder: window.i18n.t('请输入用户指令'),
       },
     ],
   },
-  {
-    id: AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS,
-    name: window.i18n.t('Trace 助手'),
-    // icon: 'icon-monitor icon-mc-help-fill',
-    components: [
-      {
-        type: 'textarea',
-        key: 'trace_id',
-        fillBack: true,
-        name: window.i18n.t('Trace ID'),
-        placeholder: window.i18n.t('请输入Trace ID'),
-      },
-      {
-        type: 'textarea',
-        key: 'app_name',
-        fillBack: false,
-        name: window.i18n.t('应用名称'),
-        placeholder: window.i18n.t('请输入应用名称'),
-      },
-    ],
-  },
+  // {
+  //   id: AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS,
+  //   name: window.i18n.t('Trace 助手'),
+  //   // icon: 'icon-monitor icon-mc-help-fill',
+  //   components: [
+  //     {
+  //       type: 'textarea',
+  //       key: 'trace_id',
+  //       fillBack: true,
+  //       required: true,
+  //       name: window.i18n.t('Trace ID'),
+  //       placeholder: window.i18n.t('请输入Trace ID'),
+  //     },
+  //     {
+  //       type: 'textarea',
+  //       key: 'app_name',
+  //       fillBack: false,
+  //       required: true,
+  //       name: window.i18n.t('应用名称'),
+  //       placeholder: window.i18n.t('请输入应用名称'),
+  //     },
+  //   ],
+  // },
   // {
   //   id: AI_BLUEKING_SHORTCUTS_ID.METADATA_DIAGNOSIS,
   //   name: window.i18n.t('链路排障'),
