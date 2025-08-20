@@ -31,7 +31,7 @@ import useLocale from '@/hooks/use-locale';
 import http from '@/api';
 import EmptyStatus from '@/components/empty-status/index.vue';
 import IntroPanel from './intro-panel.vue';
-import EsSlider from './es-slider.vue';
+import EsSlider from './es-slider.tsx';
 import * as authorityMap from '@/common/authority-map';
 import { InfoBox } from 'bk-magic-vue';
 import {
@@ -438,10 +438,7 @@ export default defineComponent({
 
     // 侧边栏隐藏处理
     const handleSliderHidden = () => {
-      isRenderSlider.value = false;
-      nextTick(() => {
-        isRenderSlider.value = true;
-      });
+      showSlider.value = false;
     };
 
     // 设置变化处理
@@ -539,7 +536,7 @@ export default defineComponent({
               placeholder={t('搜索ES源名称，地址，创建人')}
               data-test-id='esAccessBox_input_search'
               right-icon='bk-icon icon-search'
-              onChange={val => params.keyword = val}
+              onChange={val => (params.keyword = val)}
               onClear={handleSearch}
               onEnter={handleSearch}
               on-right-icon-click={handleSearch}
@@ -703,8 +700,9 @@ export default defineComponent({
                       disabled={!props.row.is_editable || props.row.is_platform}
                       theme='primary'
                       text
-                      onClick={() => createIndexSet(props.row)}
-                    />
+                      on-on-click={() => createIndexSet(props.row)}
+                    >
+                    </log-button>
                     <log-button
                       class='mr10'
                       vCursor={{
@@ -712,13 +710,14 @@ export default defineComponent({
                           props.row.permission && props.row.permission[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]
                         ),
                       }}
+                      disabled={!props.row.is_editable}
+                      tips-conf={t('平台默认的集群不允许编辑和删除，请联系管理员。')}
                       button-text={t('编辑')}
-                      disabled={!props.row.is_editable}
-                      tips-conf={t('平台默认的集群不允许编辑和删除，请联系管理员。')}
                       theme='primary'
                       text
-                      onClick={() => editDataSource(props.row)}
-                    />
+                      on-on-click={() => editDataSource(props.row)}
+                    >
+                    </log-button>
                     <log-button
                       class='mr10'
                       vCursor={{
@@ -726,13 +725,14 @@ export default defineComponent({
                           props.row.permission && props.row.permission[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]
                         ),
                       }}
-                      button-text={t('删除')}
                       disabled={!props.row.is_editable}
                       tips-conf={t('平台默认的集群不允许编辑和删除，请联系管理员。')}
+                      button-text={t('删除')}
                       theme='primary'
                       text
-                      onClick={() => deleteDataSource(props.row)}
-                    />
+                      on-on-click={() => deleteDataSource(props.row)}
+                    >
+                    </log-button>
                   </div>
                 ),
               }}
@@ -774,15 +774,12 @@ export default defineComponent({
           />
         </div>
 
-        {isRenderSlider.value && (
-          <EsSlider
-            edit-cluster-id={editClusterId.value}
-            show-slider={showSlider.value}
-            onUpdate:show-slider={val => (showSlider.value = val)}
-            on-Hidden={handleSliderHidden}
-            on-Updated={handleUpdated}
-          />
-        )}
+        <EsSlider
+          showSlider={showSlider.value}
+          editClusterId={editClusterId.value}
+          onHandleCancelSlider={handleSliderHidden}
+          onHandleUpdatedTable={handleUpdated}
+        />
       </div>
     );
   },

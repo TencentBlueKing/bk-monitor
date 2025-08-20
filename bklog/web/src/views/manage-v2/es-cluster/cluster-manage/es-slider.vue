@@ -37,11 +37,11 @@
       :width="640"
       transfer
       @shown="handleShowSlider"
-      @animation-end="updateIsShow"
+      @animation-end="handleCancel"
     >
       <template #content>
         <div
-          class="king-slider-content"
+          class="es-king-slider-content"
           v-bkloading="{ isLoading: sliderLoading }"
         >
           <bk-form
@@ -594,6 +594,8 @@
 
   import EsDialog from './es-dialog';
 
+  import './es-slider.scss';
+
   export default { 
     components: {
       EsDialog,
@@ -609,6 +611,8 @@
         type: Number,
         default: null,
       },
+      onHandleCancelSlider: { type: Function },
+      onHandleUpdatedTable: { type: Function },
     },
     data() {
       return {
@@ -953,6 +957,7 @@
           };
           Object.assign(this.formData, this.basicFormData);
           this.initSidebarFormData();
+
           (res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []).forEach(val => {
             const target = this.mySpaceList.find(project => project.bk_biz_id === String(val.bk_biz_id));
             if (target) {
@@ -1032,12 +1037,14 @@
           this.dealWithHotColdData();
         }
       },
+
       handleChangeHotWarm(v) {
         if (!this.isEdit && v) {
           this.formData.setup_config.es_shards_default = this.hotColdAttrSet.length;
           this.formData.setup_config.es_shards_max = this.hotColdAttrSet.length;
         }
       },
+
       dealWithHotColdData() {
         const hotColdAttrSet = [];
         this.hotColdOriginList.forEach(item => {
@@ -1061,12 +1068,14 @@
           ? `${this.formData.warm_attr_name}:${this.formData.warm_attr_value}`
           : '';
       },
+
       handleHotSelected(value) {
         const item = this.hotColdAttrSet.find(item => item.computedId === value);
         this.formData.hot_attr_name = item?.attr || '';
         this.formData.hot_attr_value = item?.value || '';
         this.computeIsSelected();
       },
+
       handleColdSelected(value) {
         const item = this.hotColdAttrSet.find(item => item.computedId === value);
         this.formData.warm_attr_name = item?.attr || '';
@@ -1135,16 +1144,18 @@
             message: this.$t('保存成功'),
             delay: 1500,
           });
-          this.$emit('updated');
+          this.$emit('handleUpdatedTable');
         } catch (e) {
           console.warn(e);
         } finally {
           this.confirmLoading = false;
         }
       },
+
       handleCancel() {
-        this.$emit('update:show-slider', false);
+        this.$emit('handleCancelSlider');
       },
+      
       updateDaysList() {
         const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
           return item.id;
@@ -1321,284 +1332,3 @@
     },
   };
 </script>
-
-<style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
-  @import '@/scss/mixins/scroller.scss';
-
-  .king-slider-content {
-    min-height: 394px;
-    overflow-y: auto;
-
-    .add-collection-title {
-      width: 100%;
-      padding-top: 18px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #63656e;
-    }
-
-    .king-form {
-      padding: 16px 36px 36px;
-
-      .form-flex-container {
-        display: flex;
-        align-items: center;
-        // height: 32px;
-        font-size: 12px;
-        color: #63656e;
-
-        .icon-info {
-          margin: 0 8px 0 24px;
-          font-size: 14px;
-          color: #3a84ff;
-        }
-      }
-
-      .bk-form-item {
-        margin-top: 18px;
-      }
-
-      .source-item {
-        display: flex;
-      }
-
-      .selected-tag {
-        max-width: 94%;
-
-        .bk-tag {
-          position: relative;
-          padding-left: 18px;
-          margin-left: 10px;
-        }
-
-        .tag-icon::before {
-          position: absolute;
-          top: 9px;
-          left: 8px;
-          width: 4px;
-          height: 4px;
-          content: '';
-          border-radius: 50%;
-        }
-
-        .is-active::before {
-          background-color: #45e35f;
-        }
-
-        .is-normal::before {
-          background-color: #699df4;
-        }
-      }
-
-      .source-name-input.is-error {
-        color: #f56c6c;
-        background-color: #ffeded;
-        border-color: #fde2e2;
-        transition: all 0.2s;
-
-        &:hover {
-          color: #fff;
-          background: #fbb8ac;
-          transition: all 0.2s;
-        }
-      }
-
-      .form-item-container {
-        @include flex-justify(space-between);
-
-        .bk-form-item {
-          position: relative;
-          width: 48%;
-        }
-
-        .es-address {
-          width: 108%;
-        }
-
-        .form-item-label {
-          margin-bottom: 8px;
-          font-size: 14px;
-          color: #63656e;
-
-          @include flex-align;
-        }
-
-        .button-text {
-          font-size: 12px;
-
-          .icon-eye {
-            margin: 0 6px 0 8px;
-          }
-        }
-
-        .document-container {
-          transform: translateY(2px);
-
-          @include flex-align;
-
-          .check-document {
-            margin: 0 6px 0 20px;
-            font-size: 12px;
-          }
-
-          .icon-text-file {
-            display: inline-block;
-            transform: rotateX(180deg) translateY(2px);
-          }
-        }
-      }
-
-      .es-cluster-management {
-        display: flex;
-        align-items: center;
-        font-size: 14px;
-
-        .icon-angle-double-down {
-          font-size: 24px;
-
-          &.is-show {
-            transform: rotateZ(180deg);
-          }
-        }
-      }
-
-      .scope-radio {
-        &:not(:last-child) {
-          margin: 0 26px 14px 0;
-        }
-      }
-
-      .visible-scope-box {
-        position: relative;
-        display: flex;
-        min-height: 30px;
-
-        .please-select {
-          margin-left: 10px;
-          color: #c3cdd7;
-        }
-
-        .icon-angle-down {
-          position: absolute;
-          top: 4px;
-          right: 0;
-          font-size: 20px;
-          transition: all 0.3s;
-          transform: rotateZ(0deg);
-        }
-
-        .icon-rotate {
-          transform: rotateZ(-180deg);
-        }
-      }
-
-      .principal .user-selector {
-        width: 100%;
-      }
-
-      :deep(.is-error .user-selector-container) {
-        border-color: #ff5656;
-      }
-    }
-  }
-
-  .king-slider-footer {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    width: 100%;
-    height: 100%;
-    padding-right: 36px;
-    background-color: #fff;
-    border-top: 1px solid #dcdee5;
-
-    .king-button {
-      min-width: 86px;
-    }
-  }
-
-  .submit-container {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    padding: 8px 0 8px 20px;
-    background: #fafbfd;
-    border-top: 1px solid #dcdee5;
-  }
-
-  .illustrate {
-    margin-bottom: 80px;
-  }
-
-  :deep(.bk-form-textarea) {
-    @include scroller;
-  }
-
-  .test-container {
-    display: flex;
-    align-items: center;
-    margin-top: 10px;
-    font-size: 14px;
-    color: #63656e;
-
-    .success-text .bk-icon {
-      margin: 0 6px 0 10px;
-      color: rgb(45, 203, 86);
-    }
-
-    .error-text .bk-icon {
-      margin: 0 6px 0 10px;
-      color: rgb(234, 54, 54);
-    }
-  }
-
-  .connect-message {
-    font-size: 14px;
-    line-height: 18px;
-    color: #63656e;
-  }
-
-  .flex-space {
-    display: flex;
-
-    @include flex-justify(space-between);
-
-    .flex-space-item {
-      width: 48%;
-
-      @include flex-justify(space-between);
-
-      .bk-select,
-      .bk-form-control {
-        flex: 1;
-      }
-
-      :deep(.bk-form-input) {
-        height: 34px;
-      }
-    }
-
-    .space-item-label {
-      min-width: 48px;
-      padding: 0 4px;
-      font-size: 12px;
-      color: #63656e;
-      background: #fafbfd;
-      border: 1px solid #c4c6cc;
-      border-radius: 2px 0 0 2px;
-      transform: translateX(1px);
-
-      @include flex-center;
-    }
-  }
-
-</style>
-
-<style lang="scss">
-  @import '@/scss/space-tag-option';
-
-  .tippy-tooltip{
-    padding: .3rem .6rem;
-  }
-</style>
