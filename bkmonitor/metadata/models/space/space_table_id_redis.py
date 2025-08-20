@@ -628,9 +628,9 @@ class SpaceTableIDRedis:
         )
         vm_cluster_id_name = {
             cluster["cluster_id"]: cluster["cluster_name"]
-            for cluster in models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM).values(
-                "cluster_id", "cluster_name"
-            )
+            for cluster in models.ClusterInfo.objects.filter(
+                bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM
+            ).values("cluster_id", "cluster_name")
         }
         _table_id_detail: dict[str, dict] = {}
         for obj in record_rule_objs:

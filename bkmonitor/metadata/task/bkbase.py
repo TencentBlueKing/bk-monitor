@@ -111,6 +111,7 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
     end_time = start_time + timedelta(seconds=runtime_limit)
 
     while datetime.now() < end_time:  # 运行时间控制
+        pubsub = None
         try:
             # 初始化 pubsub
             pubsub = redis_conn.pubsub()
@@ -151,11 +152,10 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
                 # Celery异步调用同步逻辑
                 sync_bkbase_v4_metadata.delay(key=key, skip_types=["es"])
 
-        except redis.exceptions.ConnectionError as e:
+        except redis.ConnectionError as e:
             logger.error("watch_bkbase_meta_redis: Redis connection error->[%s]", e)
             logger.info("watch_bkbase_meta_redis: Retrying connection in 10 seconds...")
             time.sleep(settings.BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS)  # 等待x秒后尝试重连
-
         except Exception as e:  # pylint: disable=broad-except
             logger.error("watch_bkbase_meta_redis: Unexpected error->[%s]", e, exc_info=True)
             logger.info("watch_bkbase_meta_redis: Retrying listener in 10 seconds...")
@@ -163,7 +163,8 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
 
         finally:
             try:
-                pubsub.close()  # 确保 pubsub 在异常退出时被正确关闭
+                if pubsub:
+                    pubsub.close()  # 确保 pubsub 在异常退出时被正确关闭
                 logger.info("watch_bkbase_meta_redis: Pubsub connection closed.")
             except Exception as close_error:  # pylint: disable=broad-except
                 logger.warning("watch_bkbase_meta_redis: Failed to close pubsub->[%s]", close_error)
@@ -184,13 +185,17 @@ def sync_bkbase_cluster_info():
     ).inc()
 
     # 遍历所有存储类型配置
-    for config in BKBASE_V4_KIND_STORAGE_CONFIGS:
-        clusters = api.bkdata.list_data_bus_raw_data(namespace=config["namespace"], kind=config["kind"])
-        _sync_cluster_info(
-            cluster_list=clusters,
-            field_mappings=config["field_mappings"],
-            cluster_type=config["cluster_type"],
-        )
+    for tenant in api.bk_login.list_tenant():
+        for config in BKBASE_V4_KIND_STORAGE_CONFIGS:
+            clusters = api.bkdata.list_data_bus_raw_data(
+                bk_tenant_id=tenant["id"], namespace=config["namespace"], kind=config["kind"]
+            )
+            _sync_cluster_info(
+                bk_tenant_id=tenant["id"],
+                cluster_list=clusters,
+                field_mappings=config["field_mappings"],
+                cluster_type=config["cluster_type"],
+            )
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="sync_bkbase_cluster_info", status=TASK_FINISHED_SUCCESS, process_target=None
@@ -202,7 +207,7 @@ def sync_bkbase_cluster_info():
     logger.info("sync_bkbase_cluster_info: Finished syncing cluster info from bkbase, cost time->[%s]", cost_time)
 
 
-def _sync_cluster_info(cluster_list: list, field_mappings: dict, cluster_type: str):
+def _sync_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappings: dict, cluster_type: str):
     """通用集群信息同步函数"""
     for cluster_data in cluster_list:
         try:
@@ -211,10 +216,11 @@ def _sync_cluster_info(cluster_list: list, field_mappings: dict, cluster_type: s
 
             # 动态获取字段映射（支持不同存储类型的字段差异）
             domain_name = cluster_auth_info.get(field_mappings["domain_name"])
-            if not models.ClusterInfo.objects.filter(domain_name=domain_name).exists():
+            if not models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, domain_name=domain_name).exists():
                 logger.info(f"sync_bkbase_cluster_info: create {cluster_type} cluster, domain_name->[{domain_name}]")
                 with transaction.atomic():
                     models.ClusterInfo.objects.create(
+                        bk_tenant_id=bk_tenant_id,
                         domain_name=domain_name,
                         port=cluster_auth_info.get(field_mappings["port"]),
                         username=cluster_auth_info.get(field_mappings["username"]),

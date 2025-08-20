@@ -9,10 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import OrderedDict
+from typing import Any, cast
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource import Resource
 from metadata.models.storage import ClusterInfo
 from metadata.service.storage_details import StorageClusterDetail
@@ -24,10 +26,12 @@ class ListClusters(Resource):
         page_size = serializers.IntegerField(default=10, label="每页的条数")
         page = serializers.IntegerField(default=1, min_value=1, label="页数")
 
-    def perform_request(self, validated_request_data: OrderedDict):
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = get_request_tenant_id()
         cluster_type = validated_request_data["cluster_type"]
         objs = ClusterInfo.objects.filter(
-            cluster_type__in=[ClusterInfo.TYPE_ES, ClusterInfo.TYPE_INFLUXDB, ClusterInfo.TYPE_KAFKA]
+            bk_tenant_id=bk_tenant_id,
+            cluster_type__in=[ClusterInfo.TYPE_ES, ClusterInfo.TYPE_INFLUXDB, ClusterInfo.TYPE_KAFKA],
         )
         if cluster_type != "all":
             objs = objs.filter(cluster_type=cluster_type)
@@ -54,8 +58,11 @@ class GetStorageClusterDetail(Resource):
         page_size = serializers.IntegerField(default=10, label="每页的条数")
         page = serializers.IntegerField(default=1, min_value=1, label="页数")
 
-    def perform_request(self, validated_request_data: OrderedDict):
-        return StorageClusterDetail.get_detail(validated_request_data["cluster_id"])
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        return StorageClusterDetail.get_detail(
+            bk_tenant_id=bk_tenant_id, cluster_id=validated_request_data["cluster_id"]
+        )
 
 
 class RegisterCluster(Resource):
@@ -98,16 +105,10 @@ class UpdateRegisteredCluster(Resource):
         label = serializers.CharField(label="标签", default="", required=False, allow_blank=True)
         default_settings = serializers.JSONField(required=False, label="默认集群配置", default={})
 
-    def validate_cluster_id(self, cluster_id: str):
-        """集群是否存在"""
-        if not ClusterInfo.objects.filter(cluster_id=cluster_id).exists():
-            raise ValidationError("cluster_id: %s not found", cluster_id)
-        return cluster_id
-
     def perform_request(self, validated_request_data: OrderedDict):
         cluster_id = validated_request_data.pop("cluster_id")
         try:
-            cluster = ClusterInfo.objects.get(cluster_id=cluster_id)
+            cluster = ClusterInfo.objects.get(bk_tenant_id=get_request_tenant_id(), cluster_id=cluster_id)
         except ClusterInfo.DoesNotExist:
             raise ValidationError("cluster_id: %s not found", cluster_id)
 

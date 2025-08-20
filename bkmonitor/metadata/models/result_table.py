@@ -1697,21 +1697,6 @@ class ResultTable(models.Model):
 
         raise NotImplementedError("no storage support get_tag_values")
 
-    @classmethod
-    def get_table_id_and_data_id(cls, bk_biz_id: int, bk_tenant_id=DEFAULT_TENANT_ID) -> list[dict]:
-        """
-        获取结果表和数据源 ID,禁止跨租户获取
-        """
-        table_id_list = cls.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=bk_tenant_id).values_list(
-            "table_id", flat=True
-        )
-        # 过滤 table_id 对应的数据源 ID
-        return list(
-            DataSourceResultTable.objects.filter(table_id__in=table_id_list, bk_tenant_id=bk_tenant_id).values(
-                "table_id", "bk_data_id"
-            )
-        )
-
 
 class ResultTableField(models.Model):
     """逻辑结果表字段"""
