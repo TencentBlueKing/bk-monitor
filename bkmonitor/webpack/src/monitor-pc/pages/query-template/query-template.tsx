@@ -27,14 +27,19 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import QueryTemplateTable from './components/query-template-table/query-template-table';
+import { random } from 'monitor-common/utils';
 
-import type { QueryTemplateListItem } from './typings';
+import QueryTemplateTable from './components/query-template-table/query-template-table';
+import { fetchQueryTemplateList } from './service/table';
+
+import type { QueryListRequestParams, QueryTemplateListItem } from './typings';
 
 import './query-template.scss';
 
 @Component
 export default class MetricTemplate extends tsc<object> {
+  /** 下发重新请求接口数据标志 */
+  refreshKey = random(8);
   current = 1;
   pageSize = 50;
   total = 100;
@@ -65,6 +70,34 @@ export default class MetricTemplate extends tsc<object> {
       relation_config_count: null,
     };
   });
+
+  get requestParam() {
+    const param = {
+      refreshKey: this.refreshKey,
+      page: this.current,
+      page_size: this.pageSize,
+      order_by: [this.sort],
+      conditions: [
+        {
+          key: 'query',
+          value: 'test',
+        },
+      ],
+    };
+
+    delete param.refreshKey;
+    return param as unknown as QueryListRequestParams;
+  }
+
+  beforeMount() {
+    this.getQueryTemplateList();
+  }
+
+  async getQueryTemplateList() {
+    this.tableLoading = true;
+    await fetchQueryTemplateList(this.requestParam);
+    this.tableLoading = false;
+  }
 
   handleSortChange(sort: `-${string}` | string) {
     this.sort = sort;

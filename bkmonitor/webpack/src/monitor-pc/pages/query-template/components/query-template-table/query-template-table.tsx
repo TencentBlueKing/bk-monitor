@@ -116,6 +116,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       id: 'create_user',
       label: this.$t('创建人'),
       width: 100,
+      formatter: this.userColRenderer,
     },
     create_time: {
       id: 'create_time',
@@ -127,6 +128,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       id: 'update_user',
       label: this.$t('更新人'),
       width: 100,
+      formatter: this.userColRenderer,
     },
     update_time: {
       id: 'update_time',
@@ -342,6 +344,14 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
         {alias}
       </span>
     );
+  }
+
+  /**
+   * @description 用户名 列渲染（兼容多租户）
+   */
+  userColRenderer(row, column) {
+    const colKey = column.columnKey;
+    return <bk-user-display-name user_id={row[colKey]} />;
   }
   /**
    * @description: 表格 操作 列渲染

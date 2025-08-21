@@ -54,6 +54,18 @@ export interface ITableSort {
   prop: string;
 }
 
+export interface QueryListRequestParams {
+  /** 业务ID */
+  bk_biz_id?: number;
+  /** 搜索，支持模板名称，模板说明，创建人，更新人 */
+  conditions?: [{ key: 'query'; value: string }];
+  /** 排序字段 例： ["id"] or ["-id"] */
+  order_by?: string[];
+  /** 页码 */
+  page?: number;
+  /** 每页条数 */
+  page_size?: number;
+}
 export interface QueryTemplateListItem {
   create_time: string;
   create_user: string;
@@ -63,4 +75,12 @@ export interface QueryTemplateListItem {
   relation_config_count?: number;
   update_time: string;
   update_user: string;
+}
+export interface QueryTemplateRelationItem {
+  query_template_id: QueryTemplateListItem['id'];
+  relation_config_count: number;
+}
+
+export interface QueryTemplateRelationsRequestParams {
+  query_template_ids: QueryTemplateListItem['id'][];
 }
