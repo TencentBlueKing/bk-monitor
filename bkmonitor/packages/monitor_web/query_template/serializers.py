@@ -100,6 +100,5 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         self._is_allowed_by_bk_biz_ids([validated_data["space_scope"]])
         self._base_validate(validated_data)
-        validated_data.pop("is_mock", None)
         instance = super().create(validated_data)
         return instance
