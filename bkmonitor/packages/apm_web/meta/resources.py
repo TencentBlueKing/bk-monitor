@@ -481,6 +481,10 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
             data["trace_data_status"] = DataStatus.NO_DATA
             if ApplicationHandler.have_data(application, start_time, end_time):
                 data["trace_data_status"] = DataStatus.NORMAL
+
+        # 增加一个信息给到页面，是否需要提供尾部采样的选项。
+        # 如果没有 bk base 等相关配置，则不提供尾部采样选项
+        data["is_enabled_tail_sampling"] = bool(settings.APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID)
         return data
 
 

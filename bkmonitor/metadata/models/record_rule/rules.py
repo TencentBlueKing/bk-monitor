@@ -199,7 +199,7 @@ class ResultTableFlow(BaseModelWithTime):
         return nodes
 
     @classmethod
-    def compose_process_node(cls, table_id: str, vm_table_ids: list, waiting_time: int = 30) -> dict:
+    def compose_process_node(cls, bk_tenant_id: str, table_id: str, vm_table_ids: list, waiting_time: int = 30) -> dict:
         """
         组装计算节点配置
         :param table_id: 结果表ID
@@ -213,7 +213,7 @@ class ResultTableFlow(BaseModelWithTime):
             from_nodes.append({"id": index + 1, "from_result_table_ids": [tid]})
         # 获取bksql计算配置
         try:
-            rule_record = RecordRule.objects.get(table_id=table_id)
+            rule_record = RecordRule.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
         except RecordRule.DoesNotExist:
             logger.error("table_id: %s not found record rule", table_id)
             return {}
@@ -238,7 +238,9 @@ class ResultTableFlow(BaseModelWithTime):
         }
 
     @classmethod
-    def compose_vm_storage(cls, table_id: str, process_id: int, expires: int = 30, schemaless: bool = True) -> dict:
+    def compose_vm_storage(
+        cls, bk_tenant_id: str, table_id: str, process_id: int, expires: int = 30, schemaless: bool = True
+    ) -> dict:
         """
         组装存储配置
         :param table_id: 结果表ID
@@ -250,8 +252,10 @@ class ResultTableFlow(BaseModelWithTime):
         from metadata.models.vm import utils as vm_utils
 
         rt_name = RecordRule.get_dst_table_id(table_id)
-        rt_obj = RecordRule.objects.get(table_id=table_id)
-        vm_info = vm_utils.get_vm_cluster_id_name(space_type=rt_obj.space_type, space_id=rt_obj.space_id)
+        rt_obj = RecordRule.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+        vm_info = vm_utils.get_vm_cluster_id_name(
+            bk_tenant_id=bk_tenant_id, space_type=rt_obj.space_type, space_id=rt_obj.space_id
+        )
         return {
             "id": process_id + 1,
             "node_type": "vm_storage",
@@ -266,7 +270,9 @@ class ResultTableFlow(BaseModelWithTime):
         }
 
     @classmethod
-    def create_flow(cls, table_id: str, waiting_time: int = 30, expires: int = 30, schemaless: bool = True) -> bool:
+    def create_flow(
+        cls, bk_tenant_id: str, table_id: str, waiting_time: int = 30, expires: int = 30, schemaless: bool = True
+    ) -> bool:
         """
         创建计算平台flow
         :param table_id: 结果表ID
@@ -277,7 +283,7 @@ class ResultTableFlow(BaseModelWithTime):
         """
         # 获取预计算结果表数据
         try:
-            rule_obj = RecordRule.objects.get(table_id=table_id)
+            rule_obj = RecordRule.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
         except RecordRule.DoesNotExist:
             logger.error("create_flow：table_id->[%s] not found record rule", table_id)
             return False
@@ -296,17 +302,30 @@ class ResultTableFlow(BaseModelWithTime):
             return False
         nodes = cls.compose_source_node(rule_obj.src_vm_table_ids)
         # 添加预计算节点
-        nodes.append(cls.compose_process_node(table_id, rule_obj.src_vm_table_ids, waiting_time))
+        nodes.append(
+            cls.compose_process_node(
+                bk_tenant_id=bk_tenant_id,
+                table_id=table_id,
+                vm_table_ids=rule_obj.src_vm_table_ids,
+                waiting_time=waiting_time,
+            )
+        )
         node_len = len(nodes)
         # 添加存储节点
         nodes.append(
-            cls.compose_vm_storage(table_id=table_id, process_id=node_len, expires=expires, schemaless=schemaless)
+            cls.compose_vm_storage(
+                bk_tenant_id=bk_tenant_id,
+                table_id=table_id,
+                process_id=node_len,
+                expires=expires,
+                schemaless=schemaless,
+            )
         )
         req_data["nodes"] = nodes
         logger.info("create_flow: try to create flow for table_id->[%s] with params->[%s]", table_id, req_data)
         # 调用接口，然后保存数据
         try:
-            data = api.bkdata.apply_data_flow(bk_tenant_id=rule_obj.bk_tenant_id, **req_data)
+            data = api.bkdata.apply_data_flow(bk_tenant_id=bk_tenant_id, **req_data)
             logger.info("create_flow: create flow for table_id->[%s] successfully", table_id)
         except BKAPIError as e:
             logger.error("create_flow: create data flow for table_id->[%s] failed,error->[%s]", table_id, e)
@@ -318,12 +337,18 @@ class ResultTableFlow(BaseModelWithTime):
             logger.error("create_flow: create data flow error, response not found flow id: %s", json.dumps(data))
             return False
         # 保存记录
-        cls.objects.create(table_id=table_id, flow_id=flow_id, config=req_data, status=BkDataFlowStatus.NO_START.value)
+        cls.objects.create(
+            bk_tenant_id=bk_tenant_id,
+            table_id=table_id,
+            flow_id=flow_id,
+            config=req_data,
+            status=BkDataFlowStatus.NO_START.value,
+        )
         logger.info("create_flow: create flow for table_id->[%s] successfully,flow_", table_id)
         return True
 
     @classmethod
-    def start_flow(self, flow_id: int, consuming_mode: str | None = ConsumingMode.Current) -> bool:
+    def start_flow(cls, bk_tenant_id: str, flow_id: int, consuming_mode: str | None = ConsumingMode.Current) -> bool:
         """启动 flow
 
         NOTE:
@@ -338,27 +363,27 @@ class ResultTableFlow(BaseModelWithTime):
             "flow_id": flow_id,
         }
         try:
-            api.bkdata.start_data_flow(req_data)
+            api.bkdata.start_data_flow(bk_tenant_id=bk_tenant_id, **req_data)
             return True
         except BKAPIError as e:
             logger.error("start data flow error, flow_id: %s, error: %s", flow_id, e)
             return False
 
     @classmethod
-    def stop_flow(cls, flow_id: int):
+    def stop_flow(cls, bk_tenant_id: str, flow_id: int):
         """停止 flow"""
         try:
-            api.bkdata.stop_data_flow({"flow_id": flow_id})
+            api.bkdata.stop_data_flow(bk_tenant_id=bk_tenant_id, flow_id=flow_id)
             return True
         except BKAPIError as e:
             logger.error("stop data flow error, flow_id: %s, error: %s", flow_id, e)
             return False
 
     @classmethod
-    def delete_flow(cls, flow_id: int) -> bool:
+    def delete_flow(cls, bk_tenant_id: str, flow_id: int) -> bool:
         """删除 flow"""
         try:
-            api.bkdata.delete_data_flow({"flow_id": flow_id})
+            api.bkdata.delete_data_flow(bk_tenant_id=bk_tenant_id, flow_id=flow_id)
             return True
         except BKAPIError as e:
             logger.error("delete data flow error, flow_id: %s, error: %s", flow_id, e)

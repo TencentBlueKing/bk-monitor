@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import csv
 import io
@@ -27,7 +27,7 @@ logger = logging.getLogger("metadata")
 
 def extract_cluster_id(data_name):
     # 定义匹配集群ID的正则表达式
-    pattern = r'(BCS-K8S-\d+)'
+    pattern = r"(BCS-K8S-\d+)"
     # 使用re.search查找匹配的内容
     match = re.search(pattern, data_name)
     # 如果找到匹配内容，返回匹配的字符串
@@ -64,41 +64,41 @@ class SpaceDataLinkMetaReport(Resource):
             send_mail,
         )
         # 创建内存中的文件缓冲区
-        csv_buffer = io.StringIO(newline='')
+        csv_buffer = io.StringIO(newline="")
         writer = csv.writer(csv_buffer)
 
         writer.writerow(
             [
-                '数据DataId',
-                '数据源名称',
-                'Kafka集群ID',
-                'Kafka集群域名',
-                'Kafka Topic名称',
-                'Kafka分区数',
-                '清洗配置类型',
-                '链路版本',
-                '归属空间名称',
-                '归属空间类型',
-                '归属空间ID',
-                '结果表',
-                '计算平台ID',
-                '计算平台VMRT',
-                'VM存储集群',
-                'ES集群名称',
-                'ES集群域名',
-                'ES过期时间',
-                'ES轮转大小(GB)',
+                "数据DataId",
+                "数据源名称",
+                "Kafka集群ID",
+                "Kafka集群域名",
+                "Kafka Topic名称",
+                "Kafka分区数",
+                "清洗配置类型",
+                "链路版本",
+                "归属空间名称",
+                "归属空间类型",
+                "归属空间ID",
+                "结果表",
+                "计算平台ID",
+                "计算平台VMRT",
+                "VM存储集群",
+                "ES集群名称",
+                "ES集群域名",
+                "ES过期时间",
+                "ES轮转大小(GB)",
             ]
         )
 
         # 中间处理逻辑保持不变，只需将涉及 temp_file 的操作改为 writer
-        space_uid = f'{space_type}__{space_id}'
+        space_uid = f"{space_type}__{space_id}"
         bk_biz_id = space_id
         expected_bk_biz_id = get_biz_id_by_space_uid(space_uid)
 
         # 如果是bkcc空间类型，查询关联的bkci空间
-        if space_type == 'bkcc' and with_related_spaces:
-            related_spaces = get_related_spaces(space_type, space_id, target_space_type_id='bkci')
+        if space_type == "bkcc" and with_related_spaces:
+            related_spaces = get_related_spaces(space_type, space_id, target_space_type_id="bkci")
             logger.info(
                 "SpaceDataLinkMetaReport: found related spaces for bkcc space->[%s], related_spaces->[%s]",
                 space_uid,
@@ -107,7 +107,7 @@ class SpaceDataLinkMetaReport(Resource):
         else:
             related_spaces = []
 
-        if space_type != 'bkcc':
+        if space_type != "bkcc":
             space_record = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
             bk_biz_id = -space_record.id
 
@@ -119,7 +119,7 @@ class SpaceDataLinkMetaReport(Resource):
         # 合并bkcc和关联的bkci空间的数据
         for related_space in related_spaces:
             data = get_space_table_id_data_id(
-                'bkci', related_space, include_platform_data_id=False, from_authorization=False
+                "bkci", related_space, include_platform_data_id=False, from_authorization=False
             )
             data_ids.extend(list(data.values()))
 
@@ -154,22 +154,22 @@ class SpaceDataLinkMetaReport(Resource):
                 continue
 
             temp_table_ids = list(
-                models.DataSourceResultTable.objects.filter(bk_data_id=data_id).values_list('table_id', flat=True)
+                models.DataSourceResultTable.objects.filter(bk_data_id=data_id).values_list("table_id", flat=True)
             )
             table_ids = table_ids + temp_table_ids
 
         # 合并 log_table_ids 的处理，查询当前空间及其关联空间的 log_table_ids
-        log_table_ids = list(models.ResultTable.objects.filter(bk_biz_id=bk_biz_id).values_list('table_id', flat=True))
+        log_table_ids = list(models.ResultTable.objects.filter(bk_biz_id=bk_biz_id).values_list("table_id", flat=True))
 
         # 如果是 bkcc，查询关联的 bkci 空间的 log_table_ids
         if related_spaces:
             for related_space in related_spaces:
-                space_record = models.Space.objects.get(space_type_id='bkci', space_id=related_space)
+                space_record = models.Space.objects.get(space_type_id="bkci", space_id=related_space)
                 related_bk_biz_id = -space_record.id
                 log_table_ids.extend(
                     list(
                         models.ResultTable.objects.filter(bk_biz_id=related_bk_biz_id).values_list(
-                            'table_id', flat=True
+                            "table_id", flat=True
                         )
                     )
                 )
@@ -195,7 +195,7 @@ class SpaceDataLinkMetaReport(Resource):
                         belong_space_type = belong_space.space_type_id
                         belong_space_id = belong_space.space_id
                     else:
-                        belong_space = models.Space.objects.get(space_type_id='bkcc', space_id=rt.bk_biz_id)
+                        belong_space = models.Space.objects.get(space_type_id="bkcc", space_id=rt.bk_biz_id)
                         belong_space_name = belong_space.space_name
                         belong_space_type = belong_space.space_type_id
                         belong_space_id = belong_space.space_id
@@ -257,7 +257,7 @@ class SpaceDataLinkMetaReport(Resource):
                             }
                         )
                 elif es_storages.exists():
-                    es_record = es_storages.first()
+                    es_record = es_storages[0]
                     es_cluster = models.ClusterInfo.objects.get(cluster_id=es_record.storage_cluster_id)
                     writer.writerow(
                         [
@@ -368,10 +368,8 @@ class SpaceDataLinkMetaReport(Resource):
                 "disposition": "attachment",
                 "type": "csv",
                 "content": base64.b64encode(
-                    '\ufeff'.encode('utf-8') + csv_content.encode('utf-8-sig')  # 添加 BOM + 兼容 Excel 的编码
-                ).decode(
-                    'utf-8'
-                ),  # 兼容中文
+                    "\ufeff".encode() + csv_content.encode("utf-8-sig")  # 添加 BOM + 兼容 Excel 的编码
+                ).decode("utf-8"),  # 兼容中文
             }
         ]
 
@@ -383,7 +381,7 @@ class SpaceDataLinkMetaReport(Resource):
                 receiver__username=rtx,
                 title=title,
                 content=f"{space_name} 链路元信息报表已生成，请查看附件。",
-                msg_type='mail',
+                msg_type="mail",
                 attachments=attachments,
             )
             logger.info("SpaceDataLinkMetaReport: send msg to->[%s], result->[%s]", rtx, res)

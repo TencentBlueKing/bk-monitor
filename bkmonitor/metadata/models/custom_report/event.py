@@ -18,6 +18,8 @@ from django.db import models
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 from elasticsearch import Elasticsearch
+from elasticsearch5 import Elasticsearch as Elasticsearch5
+from elasticsearch6 import Elasticsearch as Elasticsearch6
 
 from bkmonitor.utils.db.fields import JsonField
 from constants.common import DEFAULT_TENANT_ID
@@ -176,7 +178,7 @@ class EventGroup(CustomGroupBase):
 
         return f"{config.CONSUL_PATH}/data_id/{self.bk_data_id}/event"
 
-    def update_event_dimensions_from_es(self, client: Elasticsearch | None = None):
+    def update_event_dimensions_from_es(self, client: Elasticsearch | Elasticsearch5 | Elasticsearch6 | None = None):
         """
         从ES更新事件及维度信息等内容
         对于一个过久未有上报的事件，那么其将会一直被保留在元数据当中
@@ -246,9 +248,7 @@ class EventGroup(CustomGroupBase):
         # 删除所有的事件以及事件维度
         custom_events = Event.objects.filter(event_group_id=self.event_group_id)
         logger.debug(
-            "going to delete all dimension and custom_event->[{}] for EventGroup->[{}] deletion.".format(
-                custom_events.count(), self.event_group_id
-            )
+            f"going to delete all dimension and custom_event->[{custom_events.count()}] for EventGroup->[{self.event_group_id}] deletion."
         )
         custom_events.delete()
         logger.info(f"all metrics about EventGroup->[{self.event_group_id}] is deleted.")
@@ -453,9 +453,7 @@ class Event(models.Model):
 
             # 后续可以在此处追加其他修改内容
             logger.info(
-                "event_group_id->[{}] has update event_id->[{}] all dimension->[{}]".format(
-                    event_group_id, custom_event.event_name, len(dimension_list)
-                )
+                f"event_group_id->[{event_group_id}] has update event_id->[{custom_event.event_name}] all dimension->[{len(dimension_list)}]"
             )
 
         return True
