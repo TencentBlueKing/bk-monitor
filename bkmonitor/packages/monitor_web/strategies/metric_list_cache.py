@@ -460,6 +460,10 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         # 自定义指标，补上进程采集相关(映射到了，bkmonitor + timeseries[业务id为0])
         # 这里不filter 业务id 是因为基类 _run 方法已有兜底过滤
         queryset = super().get_metric_pool()
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return queryset
+
         return queryset | MetricListCache.objects.filter(
             result_table_id__in=BuildInProcessMetric.result_table_list(),
             bk_tenant_id=self.bk_tenant_id,
@@ -1479,15 +1483,15 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
     def get_metric_pool(self):
         # 去掉进程采集相关,因为实际是自定义指标上报上来的。
-        return (
-            MetricListCache.objects.filter(
-                data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
-                data_type_label=DataTypeLabel.TIME_SERIES,
-                bk_tenant_id=self.bk_tenant_id,
-            )
-            .exclude(result_table_id="")
-            .exclude(result_table_id__in=BuildInProcessMetric.result_table_list())
-        )
+        metric_queryset = MetricListCache.objects.filter(
+            data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
+            data_type_label=DataTypeLabel.TIME_SERIES,
+            bk_tenant_id=self.bk_tenant_id,
+        ).exclude(result_table_id="")
+
+        if not settings.ENABLE_MULTI_TENANT_MODE:
+            metric_queryset = metric_queryset.exclude(result_table_id__in=BuildInProcessMetric.result_table_list())
+        return metric_queryset
 
     def get_tables(self):
         """
@@ -1745,7 +1749,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
                 for metric_info in metric_infos:
                     yield {
-                        "bk_biz_id": 0,
+                        "bk_biz_id": self.bk_biz_id,
                         "result_table_id": PluginVersionHistory.get_result_table_id(
                             plugin, table["table_name"]
                         ).lower(),
