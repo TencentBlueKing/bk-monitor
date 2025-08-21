@@ -17,6 +17,8 @@ from bkmonitor.models.query_template import QueryTemplate
 from bkmonitor.query_template.serializers import QueryTemplateSerializer
 from constants.query_template import GLOBAL_BIZ_ID
 
+from .constants import SearchConfig
+
 
 class BaseQueryTemplateRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
@@ -29,29 +31,18 @@ class QueryTemplateDetailRequestSerializer(BaseQueryTemplateRequestSerializer):
 
 class QueryTemplateListRequestSerializer(BaseQueryTemplateRequestSerializer):
     class ConditionSerializer(serializers.Serializer):
-        key = serializers.CharField(label="查询条件")
+        key = serializers.ChoiceField(label="查询条件", choices=SearchConfig.CONDITION_KEYS)
         value = serializers.ListField(label="查询条件值", child=serializers.CharField())
 
     page = serializers.IntegerField(label="页码", min_value=1, default=1)
     page_size = serializers.IntegerField(label="每页条数", min_value=1, default=50)
     order_by = serializers.ListField(
-        label="排序字段", child=serializers.CharField(), default=["-update_time"], allow_empty=True
+        label="排序字段",
+        child=serializers.ChoiceField(choices=SearchConfig.ORDERING_FIELDS),
+        default=["-update_time"],
+        allow_empty=True,
     )
     conditions = serializers.ListField(label="查询条件", child=ConditionSerializer(), default=[], allow_empty=True)
-
-    def validate_order_by(self, values):
-        allowed_fields = ["update_time", "-update_time", "create_time", "-create_time"]
-        for value in values:
-            if value not in allowed_fields:
-                raise serializers.ValidationError(_("排序字段 {value} 不支持").format(value=value))
-        return values
-
-    def validate_conditions(self, values):
-        allowed_keys = ["query", "name", "description", "create_user", "update_user"]
-        for value in values:
-            if value["key"] not in allowed_keys:
-                raise serializers.ValidationError(_("查询条件 {key} 不支持").format(key=value["key"]))
-        return values
 
 
 class FunctionSerializer(serializers.Serializer):
