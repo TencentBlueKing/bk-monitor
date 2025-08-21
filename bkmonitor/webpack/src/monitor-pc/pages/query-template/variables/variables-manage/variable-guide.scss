@@ -60,14 +60,14 @@
           color: #8e9bb3;
         }
 
-        .desc {
+        .description {
           margin: 8px 0;
 
-          .desc-item {
+          .description-item {
             display: flex;
             align-items: center;
 
-            & + .desc-item {
+            & + .description-item {
               margin-top: 6px;
             }
 

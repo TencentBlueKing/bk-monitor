@@ -70,7 +70,7 @@ export default class CreateFunctionVariable extends tsc<FunctionVariableProps, F
         >
           <bk-form-item
             label={this.$t('默认值')}
-            property='value'
+            property='defaultValue'
           >
             <FunctionCreator
               needClear={false}

@@ -48,20 +48,25 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
 
   checkboxDisabled(dimensionId: string) {
     const isAllDisabled =
-      dimensionId === 'all' && this.variable.dimensionOption.length && !this.variable.dimensionOption.includes('all');
-    const isOtherDisabled = dimensionId !== 'all' && this.variable.dimensionOption.includes('all');
+      dimensionId === 'all' && this.variable.options.length && !this.variable.options.includes('all');
+    const isOtherDisabled = dimensionId !== 'all' && this.variable.options.includes('all');
     return isAllDisabled || isOtherDisabled;
   }
 
   handleDimensionChange(value: string[]) {
+    let defaultValue = this.variable.data.defaultValue || [];
+    if (!value.includes('all')) {
+      defaultValue = defaultValue.filter(item => value.includes(item.key));
+    }
+
     this.handleDataChange({
       ...this.variable.data,
-      dimensionOption: value,
+      options: value,
+      defaultValue,
     });
   }
 
   handleValueChange(value: AggCondition[]) {
-    console.log(value);
     this.handleDataChange({
       ...this.variable.data,
       defaultValue: value,
@@ -89,10 +94,7 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
           data={this.variable.data}
           onDataChange={this.handleDataChange}
         >
-          <bk-form-item
-            label={this.$t('关联指标')}
-            property='value'
-          >
+          <bk-form-item label={this.$t('关联指标')}>
             <bk-input
               value={this.variable?.metric?.related_name}
               readonly
@@ -100,12 +102,12 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
           </bk-form-item>
           <bk-form-item
             label={this.$t('可选维度')}
-            property='value'
+            property='options'
           >
             <bk-select
               clearable={false}
               selected-style='checkbox'
-              value={this.variable.dimensionOption}
+              value={this.variable.options}
               multiple
               onChange={this.handleDimensionChange}
             >
@@ -127,7 +129,7 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
           <bk-form-item
             class='default-value-form-item'
             label={this.$t('默认值')}
-            property='value'
+            property='defaultValue'
           >
             <ConditionCreator
               hasVariableOperate={false}

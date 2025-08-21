@@ -61,7 +61,7 @@ interface IProps {
   onAddVariableOpenChange?: (val: boolean) => void;
   onCancel?: () => void;
   onConfirm?: (v: IFilterItem) => void;
-  onCreateValueVariable?: (val: { name: string; relationDimension: string }) => void;
+  onCreateValueVariable?: (val: { name: string; related_tag: string }) => void;
   onCreateVariable?: (variableName: string) => void;
 }
 @Component
@@ -474,7 +474,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
 
   handleCreateValueVariable(val: string) {
     this.$emit('createValueVariable', {
-      relationDimension: this.checkedItem?.name,
+      related_tag: this.checkedItem?.name,
       name: val,
     });
   }

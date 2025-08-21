@@ -27,12 +27,16 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { BasicInfoData, BasicInfoProps } from './typing';
+import type { BasicInfoData } from '../../typings';
 
 import './basic-info.scss';
 
 interface BasicInfoCreateEvents {
   onChange(data: BasicInfoData): void;
+}
+
+interface BasicInfoProps {
+  formData: BasicInfoData;
 }
 
 @Component
@@ -57,7 +61,7 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
         trigger: 'blur',
       },
     ],
-    effect: [
+    biz_scope: [
       {
         required: true,
         message: window.i18n.t('生效范围必填'),
@@ -74,7 +78,7 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
   }
 
   handleDeleteEffect(data) {
-    this.handleEffectChange(this.formData.effect.filter(item => item !== data.id));
+    this.handleEffectChange(this.formData.biz_scope.filter(item => item !== data.id));
   }
 
   tagTpl(data) {
@@ -96,14 +100,14 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
   handleEffectChange(value: (number | string)[]) {
     this.$emit('change', {
       ...this.formData,
-      effect: value,
+      biz_scope: value,
     });
   }
 
   handleDescChange(value: string) {
     this.$emit('change', {
       ...this.formData,
-      desc: value,
+      description: value,
     });
   }
 
@@ -143,7 +147,7 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
             class='w50'
             error-display-type='normal'
             label={this.$t('生效范围')}
-            property='effect'
+            property='biz_scope'
             required
           >
             <bk-tag-input
@@ -151,7 +155,7 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
               list={this.bizList}
               tag-tpl={this.tagTpl}
               trigger='focus'
-              value={this.formData.effect}
+              value={this.formData.biz_scope}
               collapseTags
               onChange={this.handleEffectChange}
             />
@@ -160,11 +164,11 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
             class='w100'
             error-display-type='normal'
             label={this.$t('模板说明')}
-            property='desc'
+            property='description'
           >
             <bk-input
               type='textarea'
-              value={this.formData.desc}
+              value={this.formData.description}
               onChange={this.handleDescChange}
             />
           </bk-form-item>

@@ -53,17 +53,17 @@ export default class ExpressionConfigCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) variables: IVariablesItem[];
 
   get getFunctionVariables() {
-    return this.variables.filter(item => item.type === VariableTypeEnum.FUNCTION);
+    return this.variables.filter(item => item.type === VariableTypeEnum.FUNCTIONS);
   }
 
   get getExpressionVariables() {
-    return this.variables.filter(item => item.type === VariableTypeEnum.CONSTANT);
+    return this.variables.filter(item => item.type === VariableTypeEnum.CONSTANTS);
   }
 
   handleCreateFunctionVariable(val) {
     this.$emit('createVariable', {
       name: val,
-      type: VariableTypeEnum.FUNCTION,
+      type: VariableTypeEnum.FUNCTIONS,
       metric: null,
     });
   }
@@ -71,7 +71,7 @@ export default class ExpressionConfigCreator extends tsc<IProps> {
   handleCreateExpressionVariable(val) {
     this.$emit('createVariable', {
       name: val,
-      type: VariableTypeEnum.CONSTANT,
+      type: VariableTypeEnum.CONSTANTS,
       metric: null,
     });
   }
