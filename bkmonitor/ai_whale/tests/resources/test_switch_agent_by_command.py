@@ -8,14 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from ai_agents.resources.resources import (
+from ai_whale.resources.resources import (
     CreateChatCompletionResource,
     CreateChatSessionContentResource,
     CreateChatSessionResource,
     DestroyChatSessionResource,
 )
 from aidev_agent.api.bk_aidev import BKAidevApi
-from ai_agents.utils import generate_uuid, collect_streaming_response
+from ai_whale.utils import generate_uuid, collect_streaming_response
 from django.conf import settings
 from aidev_agent.services.config_manager import AgentConfigManager
 
