@@ -106,6 +106,9 @@ export default class DimensionCreator extends tsc<IProps> {
 
   handleOpenChange(v) {
     this.showSelect = v;
+    if (v) {
+      this.getAllOptions();
+    }
   }
 
   handleAddVar(val) {
