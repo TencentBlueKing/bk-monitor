@@ -392,7 +392,7 @@ class BaseMetricCacheManager:
         """
         if self._label_names_map is None:
             try:
-                result = api.metadata.get_label(include_admin_only=True)
+                result = api.metadata.get_label(bk_tenant_id=self.bk_tenant_id, include_admin_only=True)
                 self._label_names_map = {
                     label["label_id"]: label["label_name"] for label in result["result_table_label"]
                 }
@@ -470,7 +470,9 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         )
 
     def get_tables(self):
-        custom_ts_result = api.metadata.query_time_series_group(bk_biz_id=self.bk_biz_id)
+        custom_ts_result = api.metadata.query_time_series_group(
+            bk_biz_id=self.bk_biz_id, bk_tenant_id=self.bk_tenant_id
+        )
         # 过滤插件数据，且已知插件的bk_biz_id都为 0，所以可以仅对 0 的数据做过滤，减少不必要的查询
         if self.bk_biz_id == 0:
             plugin_data = (
@@ -740,7 +742,9 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
             return
         else:
             yield from api.bkdata.list_result_table(
-                bk_biz_id=self.bk_biz_id, storages=["mysql", "tspider", "databus_tspider"]
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=self.bk_biz_id,
+                storages=["mysql", "tspider", "databus_tspider"],
             )
 
     def get_metrics_by_table(self, table):
@@ -843,7 +847,7 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
         }
 
     def get_tables(self):
-        index_list = api.log_search.search_index_set(bk_biz_id=self.bk_biz_id)
+        index_list = api.log_search.search_index_set(bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id)
         for index_set_msg in index_list:
             index_set_msg["bk_biz_id"] = self.bk_biz_id
             if not index_set_msg["category_id"]:
@@ -892,7 +896,7 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
 
         try:
             fields_response = api.log_search.search_index_fields(
-                bk_biz_id=table["bk_biz_id"], index_set_id=table["index_set_id"]
+                bk_tenant_id=self.bk_tenant_id, bk_biz_id=table["bk_biz_id"], index_set_id=table["index_set_id"]
             )
         except BKAPIError:
             self.has_exception = True
@@ -1068,7 +1072,9 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         # 1.系统事件(biz_id为0)
         yield from self.get_system_event_tables(self.bk_tenant_id, self.bk_biz_id)
         # # 2.自定义事件[查询CustomEventGroup表]
-        custom_event_result = api.metadata.query_event_group.request.refresh(bk_biz_id=self.bk_biz_id)
+        custom_event_result = api.metadata.query_event_group.request.refresh(
+            bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id
+        )
         event_group_ids = [
             custom_event.bk_event_group_id
             for custom_event in CustomEventGroup.objects.filter(type="custom_event").only("bk_event_group_id")
@@ -1081,7 +1087,9 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
             if space_uid.startswith(SpaceTypeEnum.BKCI.value):
                 space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
-                custom_event_result += api.metadata.query_event_group.request.refresh(bk_biz_id=space.bk_biz_id)
+                custom_event_result += api.metadata.query_event_group.request.refresh(
+                    bk_tenant_id=self.bk_tenant_id, bk_biz_id=space.bk_biz_id
+                )
         # 3.k8s 事件
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)
@@ -1097,7 +1105,9 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         if not bcs_clusters:
             return
         # 启动监控的集群id 列表
-        alert_ids = api.kubernetes.fetch_bcs_cluster_alert_enabled_id_list(bk_biz_id=self.bk_biz_id)
+        alert_ids = api.kubernetes.fetch_bcs_cluster_alert_enabled_id_list(
+            bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id
+        )
         cluster_map = {bcs_cluster["cluster_id"]: bcs_cluster for bcs_cluster in bcs_clusters}
         for cluster_id in cluster_map:
             for result in custom_event_result:
@@ -1267,7 +1277,7 @@ class BkMonitorLogCacheManager(BaseMetricCacheManager):
     data_sources = ((DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),)
 
     def get_tables(self):
-        custom_event_result = api.metadata.query_event_group.request.refresh()
+        custom_event_result = api.metadata.query_event_group.request.refresh(bk_tenant_id=self.bk_tenant_id)
         logger.info(f"[QUERY_EVENT_GROUP] event_group_list length is {len(custom_event_result)}")
 
         self.event_group_id_to_event_info = {}
@@ -1502,9 +1512,11 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
             yield {}
             return
         if self.bk_biz_id is None:
-            yield from api.metadata.list_monitor_result_table(with_option=False)
+            yield from api.metadata.list_monitor_result_table(bk_tenant_id=self.bk_tenant_id, with_option=False)
         else:
-            yield from api.metadata.list_monitor_result_table(bk_biz_id=self.bk_biz_id, with_option=False)
+            yield from api.metadata.list_monitor_result_table(
+                bk_biz_id=self.bk_biz_id, bk_tenant_id=self.bk_tenant_id, with_option=False
+            )
 
         plugin_data = (
             CollectorPluginMeta.objects.filter(bk_tenant_id=self.bk_tenant_id)
@@ -2025,7 +2037,8 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
             logger.exception("get k8s metrics error, bk_biz_id is None.")
         else:
             yield from self.get_k8s_metric(
-                api.metadata.query_bcs_metrics(bk_biz_ids=[self.bk_biz_id]), bk_biz_id=self.bk_biz_id
+                api.metadata.query_bcs_metrics(bk_biz_ids=[self.bk_biz_id], bk_tenant_id=self.bk_tenant_id),
+                bk_biz_id=self.bk_biz_id,
             )
 
     def get_k8s_metric(self, metrics, bk_biz_id):
