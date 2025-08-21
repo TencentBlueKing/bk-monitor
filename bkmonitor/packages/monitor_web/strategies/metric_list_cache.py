@@ -1981,7 +1981,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         """
         spaces: list[Space] = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
         # 默认只刷新bkcc业务，其他业务引导用户自行触发刷新
-        return [space.bk_biz_id for space in spaces if space.bk_biz_id > 0]
+        return [space.bk_biz_id for space in spaces if space.bk_biz_id > 0] + [0]
 
 
 class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
