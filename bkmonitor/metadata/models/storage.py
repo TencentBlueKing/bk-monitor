@@ -346,6 +346,7 @@ class ClusterInfo(models.Model):
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_cluster(
         cls,
+        bk_tenant_id: str,
         cluster_name,
         cluster_type,
         domain_name,

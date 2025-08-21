@@ -993,6 +993,7 @@ class TestDataSource:
         try:
             # 类型不支持
             cluster = models.ClusterInfo.create_cluster(
+                bk_tenant_id="system",
                 cluster_name="test_cluster",
                 cluster_type="influxdb",
                 domain_name="haha.domain",
@@ -1008,6 +1009,7 @@ class TestDataSource:
             with pytest.raises(ValueError):
                 # 类型不支持
                 models.ClusterInfo.create_cluster(
+                    bk_tenant_id="system",
                     cluster_name="test_cluster",
                     cluster_type="influxDB",
                     domain_name="haha.domain",
@@ -1019,6 +1021,7 @@ class TestDataSource:
             with pytest.raises(ValueError):
                 # 重复的集群名
                 models.ClusterInfo.create_cluster(
+                    bk_tenant_id="system",
                     cluster_name="test_cluster",
                     cluster_type="influxdb",
                     domain_name="haha.domain",
@@ -1030,6 +1033,7 @@ class TestDataSource:
             with pytest.raises(ValueError):
                 # 重复的域名端口信息
                 models.ClusterInfo.create_cluster(
+                    bk_tenant_id="system",
                     cluster_name="test_cluster123",
                     cluster_type="influxdb",
                     domain_name="haha.domain",
