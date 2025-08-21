@@ -37,8 +37,8 @@ import QueryPanelLoading from '../query-panel/query-panel-loading';
 import type {
   AggCondition,
   AggFunction,
+  BasicInfoData,
   Expression,
-  IBasicInfoData,
   IVariableModel,
   MetricDetailV2,
   QueryConfig,
@@ -49,7 +49,7 @@ import './query-template-set.scss';
 
 interface QueryConfigSetEvents {
   onAddQueryConfig: (index: number) => void;
-  onBasicInfoChange: (basicInfo: IBasicInfoData) => void;
+  onBasicInfoChange: (basicInfo: BasicInfoData) => void;
   onCancel: () => void;
   onChangeCondition?: (val: { index: number; value: AggCondition[] }) => void;
   onChangeDimension?: (val: { index: number; value: string[] }) => void;
@@ -67,7 +67,7 @@ interface QueryConfigSetEvents {
 }
 
 interface QueryConfigSetProps {
-  basicInfo: IBasicInfoData;
+  basicInfo: BasicInfoData;
   expressionConfig: Expression;
   loading?: boolean;
   metricFunctions: any[];
@@ -77,7 +77,7 @@ interface QueryConfigSetProps {
 
 @Component
 export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConfigSetEvents> {
-  @Prop() basicInfo: IBasicInfoData;
+  @Prop() basicInfo: BasicInfoData;
   @Prop({ default: () => [] }) queryConfigs: QueryConfig[];
   @Prop() expressionConfig: Expression;
   @Prop({ default: () => [] }) metricFunctions: any[];
@@ -102,7 +102,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
   }
 
   @Emit('basicInfoChange')
-  handleBasicInfoChange(basicInfo: IBasicInfoData) {
+  handleBasicInfoChange(basicInfo: BasicInfoData) {
     return basicInfo;
   }
 

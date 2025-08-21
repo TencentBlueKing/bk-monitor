@@ -13,20 +13,29 @@
       font-size: 12px;
       line-height: 30px;
       color: #fff;
-      background: #929EB6;
+      background: #929eb6;
       border-radius: 2px 0 8px;
     }
 
     .icon-mc-delete-line {
+      display: none;
       margin-right: 7.5px;
       margin-left: auto;
       font-size: 13px;
-      color: #EA3636;
+      color: #ea3636;
       cursor: pointer;
 
       &.disabled {
-        color: #DCDEE5;
+        color: #dcdee5;
         cursor: not-allowed;
+      }
+    }
+  }
+
+  &:hover {
+    .variable-panel-header {
+      .icon-mc-delete-line {
+        display: block;
       }
     }
   }

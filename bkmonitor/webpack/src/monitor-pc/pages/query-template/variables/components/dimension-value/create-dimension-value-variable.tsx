@@ -78,7 +78,7 @@ export default class CreateDimensionValueVariable extends tsc<
 
   async getValueList() {
     this.loading = true;
-    const data = await fetchMetricDimensionValueList(this.variable.relationDimension, {
+    const data = await fetchMetricDimensionValueList(this.variable.related_tag, {
       data_source_label: this.variable.metric.data_source_label,
       data_type_label: this.variable.metric.data_type_label,
       result_table_id: this.variable.metric.result_table_id,
@@ -96,18 +96,24 @@ export default class CreateDimensionValueVariable extends tsc<
           data={this.variable.data}
           onDataChange={this.handleDataChange}
         >
+          <bk-form-item label={this.$t('关联指标')}>
+            <bk-input
+              value={this.variable.metric.metric_id}
+              readonly
+            />
+          </bk-form-item>
           <bk-form-item
             label={this.$t('关联维度')}
-            property='relatedDimension'
+            property='related_tag'
           >
             <bk-input
-              value={this.variable.relationDimension}
+              value={this.variable.related_tag}
               readonly
             />
           </bk-form-item>
           <bk-form-item
             label={this.$t('默认值')}
-            property='value'
+            property='defaultValue'
           >
             <bk-select
               clearable={false}
