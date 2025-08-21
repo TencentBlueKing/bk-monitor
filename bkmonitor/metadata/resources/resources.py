@@ -2585,7 +2585,7 @@ class KafkaTailResource(Resource):
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
             datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
             try:
-                table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+                table_id = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).first().table_id
                 result_table = models.ResultTable.objects.get(table_id=table_id)
             except models.DataSourceResultTable.DoesNotExist:
                 logger.error("KafkaTailResource: bk_data_id->[%s] not found table_id,try to tail kafka", bk_data_id)
