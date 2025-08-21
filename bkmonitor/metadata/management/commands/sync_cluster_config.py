@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import os
+from typing import Any
 
 from django.core.management.base import BaseCommand, CommandParser
 from django.db.models import Q
@@ -213,13 +214,11 @@ def refresh_bkbase_cluster_info(bk_tenant_id: str):
     """
     同步bkbase集群信息
     """
-    clusters = []
     for storage_config in BKBASE_V4_KIND_STORAGE_CONFIGS:
-        clusters.extend(
-            api.bkdata.list_data_bus_raw_data(
-                bk_tenant_id=bk_tenant_id, namespace=storage_config["namespace"], kind=storage_config["kind"]
-            )
+        clusters: list[dict[str, Any]] = api.bkdata.list_data_bus_raw_data(
+            bk_tenant_id=bk_tenant_id, namespace=storage_config["namespace"], kind=storage_config["kind"]
         )
+
         sync_bkbase_cluster_info(
             bk_tenant_id=bk_tenant_id,
             cluster_list=clusters,
@@ -259,7 +258,7 @@ def refresh_bkbase_cluster_info(bk_tenant_id: str):
 
 class Command(BaseCommand):
     def add_arguments(self, parser: CommandParser) -> None:
-        parser.add_argument("--bk_tenant_id", type="str", default=DEFAULT_TENANT_ID, help="租户ID")
+        parser.add_argument("--bk_tenant_id", type=str, default=DEFAULT_TENANT_ID, help="租户ID")
         return super().add_arguments(parser)
 
     def handle(self, *args, **options):
