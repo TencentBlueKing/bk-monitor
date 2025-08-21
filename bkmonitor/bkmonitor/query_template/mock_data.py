@@ -15,7 +15,7 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from typing import Any
 from constants.data_source import DataTypeLabel, DataSourceLabel
 
-from .. import constants
+from . import constants
 
 
 COMMON_BUILDER: QueryConfigBuilder = (
@@ -27,7 +27,7 @@ COMMON_BUILDER: QueryConfigBuilder = (
 
 
 def format_query_params(query_params: dict[str, Any]) -> dict[str, Any]:
-    return {"expression": query_params["expression"], "query_configs": query_params["query_configs"]}
+    return {"functions": [], "expression": query_params["expression"], "query_configs": query_params["query_configs"]}
 
 
 def callee_success_rate_query_params() -> dict[str, Any]:
@@ -121,7 +121,7 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
             "name": "ALARM_THRESHOLD_VALUE",
             "alias": "告警起算值",
             "type": constants.VariableType.CONSTANTS.value,
-            "config": {"data_type": constants.DataType.INTEGER.value, "default": 0},
+            "config": {"default": "0"},
             "description": "告警起算值是为了避免在请求数较少的情况下，因少量请求的异常导致告警触发，起算值可以根据实际业务情况进行调整。",
         },
     ],
@@ -178,10 +178,13 @@ CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
             "config": {
                 "default": ["service_name", "callee_method"],
                 "related_metrics": [
-                    {"metric_id": "custom:APM:rpc_server_handled_total", "metric_field": "rpc_server_handled_total"},
                     {
-                        "metric_id": "custom:APM:rpc_server_handled_seconds_bucket",
+                        "metric_field": "rpc_server_handled_total",
+                        "metric_id": "custom.APM.__default__.rpc_server_handled_total",
+                    },
+                    {
                         "metric_field": "rpc_server_handled_seconds_bucket",
+                        "metric_id": "custom.APM.__default__.rpc_server_handled_seconds_bucket",
                     },
                 ],
             },
@@ -194,10 +197,13 @@ CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
             "config": {
                 "default": [{"key": "rpc_system", "method": "eq", "value": ""}],
                 "related_metrics": [
-                    {"metric_id": "custom:APM:rpc_server_handled_total", "metric_field": "rpc_server_handled_total"},
                     {
-                        "metric_id": "custom:APM:rpc_server_handled_seconds_bucket",
+                        "metric_field": "rpc_server_handled_total",
+                        "metric_id": "custom.APM.__default__.rpc_client_handled_total",
+                    },
+                    {
                         "metric_field": "rpc_server_handled_seconds_bucket",
+                        "metric_id": "custom.APM.__default__.rpc_server_handled_seconds_bucket",
                     },
                 ],
             },
@@ -223,7 +229,10 @@ CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
                 "default": ["success"],
                 "related_tag": "code_type",
                 "related_metrics": [
-                    {"metric_id": "custom:APM:rpc_server_handled_total", "metric_field": "rpc_server_handled_total"}
+                    {
+                        "metric_field": "rpc_server_handled_total",
+                        "metric_id": "custom.APM.__default__.rpc_server_handled_total",
+                    }
                 ],
             },
             "description": "返回码类型",
@@ -232,7 +241,7 @@ CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
             "name": "ALARM_THRESHOLD_VALUE",
             "type": constants.VariableType.CONSTANTS.value,
             "alias": "告警起算值",
-            "config": {"data_type": constants.DataType.INTEGER.value, "default": 0},
+            "config": {"default": "0"},
             "description": "告警起算值是为了避免在请求数较少的情况下，因少量请求的异常导致告警触发，起算值可以根据实际业务情况进行调整。",
         },
     ],
