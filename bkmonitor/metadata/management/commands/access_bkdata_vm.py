@@ -41,10 +41,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self._valid(options)
         # 获取参数
-        space_type = options.get("space_type")
-        space_id = options.get("space_id")
-        bk_tenant_id = space_uid_to_bk_tenant_id(space_uid=f"{space_type}__{space_id}")
-        kafka_storage_cluster_id = refine_bkdata_kafka_info()["cluster_id"]
+        space_type: str = options["space_type"]
+        space_id: str = options["space_id"]
+        bk_tenant_id: str = space_uid_to_bk_tenant_id(space_uid=f"{space_type}__{space_id}")
+        kafka_storage_cluster_id = refine_bkdata_kafka_info(bk_tenant_id=bk_tenant_id)["cluster_id"]
         partition = options.get("partition")
         input_table_ids = options.get("table_ids") or ""
         input_table_id_list = input_table_ids.split(";") if input_table_ids else []
@@ -88,6 +88,7 @@ class Command(BaseCommand):
             self.stdout.write(f"table_id: {table_id} start to access bkbase vm")
             try:
                 bkdata_id_vm_table_id = access_vm_by_kafka(
+                    bk_tenant_id,
                     table_id,
                     name_and_topic["raw_data_name"],
                     vm_cluster_name,

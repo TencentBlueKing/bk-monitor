@@ -611,7 +611,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
         # 获取集群信息
         try:
             cluster_info_list = api.metadata.query_cluster_info(
-                {"cluster_id": option["es_storage_cluster"], "cluster_type": "elasticsearch"}
+                bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id),
+                cluster_id=option["es_storage_cluster"],
+                cluster_type="elasticsearch",
             )
             cluster_info = cluster_info_list[0]
             custom_option = json.loads(cluster_info["cluster_config"].get("custom_option"))

@@ -835,7 +835,7 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
 
         self.cluster_id_to_name = {
             cluster["cluster_config"]["cluster_id"]: cluster["cluster_config"]["cluster_name"]
-            for cluster in api.metadata.query_cluster_info(cluster_type="elasticsearch")
+            for cluster in api.metadata.query_cluster_info(bk_tenant_id=self.bk_tenant_id, cluster_type="elasticsearch")
         }
 
     def get_tables(self):
