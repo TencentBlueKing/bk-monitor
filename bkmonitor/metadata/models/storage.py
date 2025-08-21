@@ -123,7 +123,7 @@ class ClusterInfo(models.Model):
     bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
     cluster_id = models.AutoField("集群ID", primary_key=True)
     # 集群中文名，便于管理员维护
-    cluster_name = models.CharField("集群名称", max_length=128, unique=True)
+    cluster_name = models.CharField("集群名称", max_length=128)
     cluster_type = models.CharField("集群类型", max_length=32, db_index=True)
     domain_name = models.CharField("集群域名", max_length=128)
     port = models.IntegerField("端口")
@@ -175,6 +175,7 @@ class ClusterInfo(models.Model):
     class Meta:
         verbose_name = "集群配置信息"
         verbose_name_plural = "集群配置信息"
+        unique_together = (("bk_tenant_id", "cluster_name"),)
 
     def to_dict(self, fields: list | None = None, exclude: list | None = None) -> dict:
         data = {}
