@@ -106,18 +106,18 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
     switch (this.variable.type) {
       case VariableTypeEnum.METHOD:
         return <MethodVariableDetail variable={this.variable as MethodVariableModel} />;
-      case VariableTypeEnum.DIMENSION:
+      case VariableTypeEnum.GROUP_BY:
         return <DimensionVariableDetail variable={this.variable as DimensionVariableModel} />;
-      case VariableTypeEnum.DIMENSION_VALUE:
+      case VariableTypeEnum.TAG_VALUES:
         return <DimensionValueVariableDetail variable={this.variable as DimensionValueVariableModel} />;
-      case VariableTypeEnum.FUNCTION:
+      case VariableTypeEnum.FUNCTIONS:
         return (
           <FunctionVariableDetail
             metricFunctions={this.metricFunctions}
             variable={this.variable as FunctionVariableModel}
           />
         );
-      case VariableTypeEnum.CONDITION:
+      case VariableTypeEnum.CONDITIONS:
         return <ConditionVariableDetail variable={this.variable as ConditionVariableModel} />;
       default:
         return <ConstantVariableDetail variable={this.variable as ConstantVariableModel} />;
@@ -135,7 +135,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
             onDataChange={this.handleDataChange}
           />
         );
-      case VariableTypeEnum.DIMENSION:
+      case VariableTypeEnum.GROUP_BY:
         return (
           <CreateDimensionVariable
             ref='variableForm'
@@ -143,7 +143,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
             onDataChange={this.handleDataChange}
           />
         );
-      case VariableTypeEnum.DIMENSION_VALUE:
+      case VariableTypeEnum.TAG_VALUES:
         return (
           <CreateDimensionValueVariable
             ref='variableForm'
@@ -151,7 +151,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
             onDataChange={this.handleDataChange}
           />
         );
-      case VariableTypeEnum.FUNCTION:
+      case VariableTypeEnum.FUNCTIONS:
         return (
           <CreateFunctionVariable
             ref='variableForm'
@@ -160,7 +160,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
             onDataChange={this.handleDataChange}
           />
         );
-      case VariableTypeEnum.CONDITION:
+      case VariableTypeEnum.CONDITIONS:
         return (
           <CreateConditionVariable
             ref='variableForm'
@@ -190,7 +190,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
             onFocus={this.handleEditValueFocus}
           />
         );
-      case VariableTypeEnum.DIMENSION:
+      case VariableTypeEnum.GROUP_BY:
         return (
           <EditDimensionVariableValue
             variable={this.variable as DimensionVariableModel}
@@ -199,7 +199,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
             onFocus={this.handleEditValueFocus}
           />
         );
-      case VariableTypeEnum.DIMENSION_VALUE:
+      case VariableTypeEnum.TAG_VALUES:
         return (
           <EditDimensionValueVariableValue
             variable={this.variable as DimensionValueVariableModel}
@@ -208,7 +208,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
             onFocus={this.handleEditValueFocus}
           />
         );
-      case VariableTypeEnum.FUNCTION:
+      case VariableTypeEnum.FUNCTIONS:
         return (
           <EditFunctionVariableValue
             metricFunctions={this.metricFunctions}
@@ -218,7 +218,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
             onFocus={this.handleEditValueFocus}
           />
         );
-      case VariableTypeEnum.CONDITION:
+      case VariableTypeEnum.CONDITIONS:
         return (
           <EditConditionVariableValue
             variable={this.variable as ConditionVariableModel}
@@ -242,7 +242,6 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
   handleEditValueFocus() {
     const queryTemplateViewDom = document.querySelector('.query-template-view');
     const variableDom = queryTemplateViewDom?.querySelectorAll(`#${this.variable.variableName}`);
-    console.log(variableDom);
     if (variableDom) {
       for (const element of Array.from(variableDom)) {
         element.classList.add('variable-tag-active');

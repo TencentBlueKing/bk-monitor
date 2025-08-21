@@ -96,7 +96,7 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
   }
 
   handleDescChange(value: string) {
-    this.handleDataChange({ ...this.data, desc: value });
+    this.handleDataChange({ ...this.data, description: value });
   }
 
   handleDataChange(value: IVariableData) {
@@ -137,7 +137,7 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
           </bk-input>
         </bk-form-item>
         <bk-form-item
-          desc={{
+          description={{
             content: `${this.$t('消费场景优先显示“变量别名”')}<br />${this.$t('变量别名留空，则显示“变量名”')}`,
             width: 200,
             allowHTML: true,
@@ -151,17 +151,17 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
           />
         </bk-form-item>
         <bk-form-item
-          desc={{
+          description={{
             content: this.$t('消费场景，hover 变量名 / 别名的 label，可以显示“变量描述”'),
             width: 200,
           }}
           label={this.$t('变量描述')}
-          property='desc'
+          property='description'
         >
           <bk-input
             maxlength={100}
             type='textarea'
-            value={this.data.desc}
+            value={this.data.description}
             onChange={this.handleDescChange}
           />
         </bk-form-item>

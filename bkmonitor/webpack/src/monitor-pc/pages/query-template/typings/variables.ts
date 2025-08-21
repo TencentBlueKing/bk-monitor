@@ -31,42 +31,42 @@ import type { AggCondition } from './query-config';
 
 export interface ICommonVariableModel<T extends VariableTypeEnumType> {
   alias?: string;
-  desc?: string;
+  description?: string;
   id?: string;
   name: string;
   type: T;
 }
 
-export type IConditionVariableModel = {
+export type IConditionVariableModel = ICommonVariableModel<typeof VariableTypeEnum.CONDITIONS> & {
   defaultValue?: AggCondition[];
-  /** 可选维度 */
-  dimensionOption?: string[];
   metric: MetricDetailV2;
+  /** 可选维度 */
+  options?: string[];
   value?: AggCondition[];
-} & ICommonVariableModel<typeof VariableTypeEnum.CONDITION>;
+};
 
-export type IConstantVariableModel = ICommonVariableModel<typeof VariableTypeEnum.CONSTANT> & {
+export type IConstantVariableModel = ICommonVariableModel<typeof VariableTypeEnum.CONSTANTS> & {
   defaultValue?: string;
   value?: string;
 };
 
-export type IDimensionValueVariableModel = ICommonVariableModel<typeof VariableTypeEnum.DIMENSION_VALUE> & {
+export type IDimensionValueVariableModel = ICommonVariableModel<typeof VariableTypeEnum.TAG_VALUES> & {
   defaultValue?: string;
   metric: MetricDetailV2;
   /** 关联维度 */
-  relationDimension: string;
+  related_tag: string;
   value?: string;
 };
 
-export type IDimensionVariableModel = {
+export type IDimensionVariableModel = ICommonVariableModel<typeof VariableTypeEnum.GROUP_BY> & {
   defaultValue?: string;
-  /** 可选维度 */
-  dimensionOption?: string[];
   metric: MetricDetailV2;
+  /** 可选维度 */
+  options?: string[];
   value?: string;
-} & ICommonVariableModel<typeof VariableTypeEnum.DIMENSION>;
+};
 
-export type IFunctionVariableModel = ICommonVariableModel<typeof VariableTypeEnum.FUNCTION> & {
+export type IFunctionVariableModel = ICommonVariableModel<typeof VariableTypeEnum.FUNCTIONS> & {
   defaultValue?: any;
   value?: any;
 };

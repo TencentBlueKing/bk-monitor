@@ -50,7 +50,7 @@ interface IProps {
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onAddVariableOpenChange?: (val: boolean) => void;
   onChange?: (v: IFilterItem[]) => void;
-  onCreateValueVariable?: (val: { name: string; relationDimension: string }) => void;
+  onCreateValueVariable?: (val: { name: string; related_tag: string }) => void;
   onCreateVariable?: (variableName: string) => void;
   onPopoverShowChange?: (val: boolean) => void;
 }

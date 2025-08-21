@@ -43,7 +43,7 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
   @Ref() variableCommonForm!: VariableCommonForm;
 
   rules = {
-    dimensionOption: [
+    options: [
       {
         required: true,
         message: this.$t('可选维度值必选'),
@@ -53,17 +53,23 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
   };
 
   checkboxDisabled(dimensionId: string) {
-    const isAllDisabled =
-      dimensionId === 'all' && this.variable.dimensionOption.length && !this.variable.isAllDimensionOptions;
+    const isAllDisabled = dimensionId === 'all' && this.variable.options.length && !this.variable.isAllDimensionOptions;
     const isOtherDisabled = dimensionId !== 'all' && this.variable.isAllDimensionOptions;
     return isAllDisabled || isOtherDisabled;
   }
 
   handleDimensionChange(value: string[]) {
+    let defaultValue = this.variable.data.defaultValue;
+    if (value.includes('all')) {
+      defaultValue = defaultValue || this.variable.dimensionList[0].id;
+    } else {
+      defaultValue = value.includes(defaultValue) ? defaultValue : value[0];
+    }
+
     this.handleDataChange({
       ...this.variable.data,
-      dimensionOption: value,
-      value: String(value.includes('all') ? this.variable.dimensionList[0].id : value[0]),
+      options: value,
+      defaultValue,
     });
   }
 
@@ -105,13 +111,13 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
           <bk-form-item
             error-display-type='normal'
             label={this.$t('可选维度')}
-            property='dimensionOption'
+            property='options'
             required
           >
             <bk-select
               clearable={false}
               selected-style='checkbox'
-              value={this.variable.dimensionOption}
+              value={this.variable.options}
               multiple
               onChange={this.handleDimensionChange}
             >
@@ -132,7 +138,7 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
           </bk-form-item>
           <bk-form-item
             label={this.$t('默认值')}
-            property='value'
+            property='defaultValue'
           >
             <bk-select
               clearable={false}

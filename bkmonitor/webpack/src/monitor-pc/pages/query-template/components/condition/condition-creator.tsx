@@ -54,7 +54,7 @@ interface IProps {
   value?: AggCondition[];
   variables?: IVariablesItem[];
   onChange?: (val: AggCondition[]) => void;
-  onCreateValueVariable?: (val: { name: string; relationDimension: string }) => void;
+  onCreateValueVariable?: (val: { name: string; related_tag: string }) => void;
   onCreateVariable?: (val: string) => void;
   onPopoverShowChange?: (val: boolean) => void;
 }
