@@ -199,6 +199,7 @@ class CreateCustomTimeSeries(Resource):
     def perform_request(self, validated_request_data):
         # 如果是平台级，则ts_group 及对应表的业务id为0
         # 当前业务为关联的平台级业务id，内置到data_id的data_name里面
+
         # data_id有个业务归属，而对应的table可以在各业务下使用
 
         # 权限校验
