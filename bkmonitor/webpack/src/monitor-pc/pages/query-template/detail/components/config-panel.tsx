@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import ExploreCollapseWrapper from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/components/explore-collapse-wrapper';
@@ -32,11 +32,22 @@ import ExploreCollapseWrapper from 'monitor-ui/chart-plugins/plugins/explore-cus
 import ExpressionConfigDetail from '../../components/expression-config/expression-config.detail';
 import QueryConfigDetail from '../../components/query-config/query-config-detail';
 import { VariableTypeEnum } from '../../constants';
+import VariablesManage from '../../variables/variables-manage/variables-manage';
+
+import type { VariableModelType } from '../../variables';
 
 import './config-panel.scss';
 
+interface ConfigPanelProps {
+  metricFunctions: any[];
+  variables: VariableModelType[];
+}
+
 @Component
-export default class ConfigPanel extends tsc<object> {
+export default class ConfigPanel extends tsc<ConfigPanelProps> {
+  @Prop({ default: () => [] }) variables: VariableModelType[];
+  @Prop({ default: () => [] }) metricFunctions: any[];
+
   render() {
     return (
       <div class='config-panel'>
@@ -255,22 +266,11 @@ export default class ConfigPanel extends tsc<object> {
           hasResize={false}
           title={this.$t('变量列表') as string}
         >
-          {new Array(Math.floor(Math.random() * 10)).fill(1).map((_, index) => (
-            <div
-              key={index}
-              style={{
-                height: '152px',
-                background: '#FFFFFF',
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '1px solid #DCDEE5',
-              }}
-            >
-              变量卡片{index}
-            </div>
-          ))}
+          <VariablesManage
+            metricFunctions={this.metricFunctions}
+            scene='detail'
+            variablesList={this.variables}
+          />
         </ExploreCollapseWrapper>
       </div>
     );

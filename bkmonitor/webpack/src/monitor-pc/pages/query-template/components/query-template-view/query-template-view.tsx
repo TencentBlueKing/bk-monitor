@@ -48,6 +48,7 @@ interface QueryTemplateViewProps {
   expressionConfig: Expression;
   metricFunctions: any[];
   queryConfigs: QueryConfig[];
+  submitLoading?: boolean;
   variablesList: VariableModelType[];
 }
 
@@ -58,6 +59,7 @@ export default class QueryTemplateView extends tsc<QueryTemplateViewProps, Query
   @Prop({ default: () => [] }) queryConfigs: QueryConfig[];
   @Prop({ default: () => {} }) expressionConfig: Expression;
   @Prop({ default: () => '' }) chartTitle: string;
+  @Prop({ default: false }) submitLoading: boolean;
 
   @Emit('variablesChange')
   handleVariablesListChange(variablesList: VariableModelType[]) {
@@ -112,6 +114,7 @@ export default class QueryTemplateView extends tsc<QueryTemplateViewProps, Query
         </div>
         <div class='submit-btns'>
           <bk-button
+            loading={this.submitLoading}
             theme='primary'
             onClick={this.handleSubmit}
           >

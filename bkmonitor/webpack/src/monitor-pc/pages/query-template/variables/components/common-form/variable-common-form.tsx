@@ -72,6 +72,7 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
           trigger: 'blur',
         },
       ],
+      alias: [{ required: true, message: this.$t('变量别名必填'), trigger: 'blur' }],
       ...this.rules,
     };
   }
@@ -142,8 +143,10 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
             width: 200,
             allowHTML: true,
           }}
+          error-display-type='normal'
           label={this.$t('变量别名')}
           property='alias'
+          required
         >
           <bk-input
             value={this.data.alias}

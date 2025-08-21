@@ -62,6 +62,10 @@ interface DimensionDetailProps {
 export default class DimensionVariableDetail extends tsc<DimensionDetailProps> {
   @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
 
+  get defaultValueMap() {
+    return this.variable.data.defaultValue.map(item => this.variable.dimensionOptionsMap.find(i => i.id === item));
+  }
+
   render() {
     return (
       <div class='dimension-detail'>
@@ -87,7 +91,18 @@ export default class DimensionVariableDetail extends tsc<DimensionDetailProps> {
           </div>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
-            <div class='form-item-value'>{this.variable.defaultValueMap?.name || '--'}</div>
+            <div class='form-item-value'>
+              <div class='tag-list'>
+                {this.defaultValueMap.map(item => (
+                  <div
+                    key={item.id}
+                    class='tag-item'
+                  >
+                    {item.name}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </VariableCommonFormDetail>
       </div>
