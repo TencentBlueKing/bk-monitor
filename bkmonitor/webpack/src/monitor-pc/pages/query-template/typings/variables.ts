@@ -51,19 +51,19 @@ export type IConstantVariableModel = ICommonVariableModel<typeof VariableTypeEnu
 };
 
 export type IDimensionValueVariableModel = ICommonVariableModel<typeof VariableTypeEnum.TAG_VALUES> & {
-  defaultValue?: string;
+  defaultValue?: string[];
   metric: MetricDetailV2;
   /** 关联维度 */
   related_tag: string;
-  value?: string;
+  value?: string[];
 };
 
 export type IDimensionVariableModel = ICommonVariableModel<typeof VariableTypeEnum.GROUP_BY> & {
-  defaultValue?: string;
+  defaultValue?: string[];
   metric: MetricDetailV2;
   /** 可选维度 */
   options?: string[];
-  value?: string;
+  value?: string[];
 };
 
 export type IFunctionVariableModel = ICommonVariableModel<typeof VariableTypeEnum.FUNCTIONS> & {
