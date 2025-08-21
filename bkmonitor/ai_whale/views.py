@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from ai_agents.resources.resources import (
+from ai_whale.resources.resources import (
     GetAgentInfoResource,
     CreateChatSessionResource,
     RetrieveChatSessionResource,

@@ -1,4 +1,4 @@
-import { defineComponent, ref, reactive, computed, onMounted } from 'vue';
+import { defineComponent, ref, computed, onMounted } from 'vue';
 import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
 import useLocale from '@/hooks/use-locale';
@@ -24,7 +24,7 @@ export default defineComponent({
     const cacheOperator = ref<any[]>([]); // 缓存的人员
     const isDisableCommon = ref(false); // 是否禁用内网链路
     const editInitLinkType = ref(''); // 编辑初始化时的链路类型
-    const formData = reactive<any>({
+    const formData = ref<any>({
       // 表单数据
       name: '',
       link_type: 'common',
@@ -74,9 +74,9 @@ export default defineComponent({
           if (data.link_type === 'qcloud_cos') {
             data.qcloud_secret_key = res.qcloud_secret_key || '******';
           }
-          Object.assign(formData, data);
+          Object.assign(formData.value, data);
           basicLoading.value = false;
-          editInitLinkType.value = formData.link_type;
+          editInitLinkType.value = formData.value.link_type;
         } catch (e) {
           console.warn(e);
           router.push({ name: 'extract-link-list', query: { spaceUid: store.state.spaceUid } });
@@ -86,13 +86,13 @@ export default defineComponent({
           }
         }
       } else {
-        if (isK8sDeploy.value) formData.link_type = 'qcloud_cos';
+        if (isK8sDeploy.value) formData.value.link_type = 'qcloud_cos';
       }
     };
 
     // 添加中转机
     const addHost = () => {
-      formData.hosts.push({
+      formData.value.hosts.push({
         keyId: Date.now(),
         target_dir: '',
         bk_cloud_id: '',
@@ -102,7 +102,7 @@ export default defineComponent({
 
     // 删除中转机
     const deleteHost = (index: number) => {
-      formData.hosts.splice(index, 1);
+      formData.value.hosts.splice(index, 1);
     };
 
     // 输入框失焦校验
@@ -134,7 +134,7 @@ export default defineComponent({
         if (isError || isAdminError.value) return;
 
         submitLoading.value = true;
-        const requestData = { ...formData };
+        const requestData = { ...formData.value };
         if (requestData.link_type === 'common') {
           delete requestData.qcloud_cos_bucket;
           delete requestData.qcloud_cos_region;
@@ -174,22 +174,22 @@ export default defineComponent({
     const handleUserChange = (val: any[]) => {
       const realVal = val.filter(item => item !== undefined);
       isAdminError.value = !realVal.length;
-      formData.operator = realVal;
+      formData.value.operator = realVal;
       cacheOperator.value = realVal;
     };
 
     // 清空人员选择
     const handleClearOperator = () => {
-      if (formData.operator.length) {
-        cacheOperator.value = formData.operator;
-        formData.operator = [];
+      if (formData.value.operator.length) {
+        cacheOperator.value = formData.value.operator;
+        formData.value.operator = [];
       }
     };
 
     // 人员选择失焦
     const handleBlur = () => {
       if (cacheOperator.value.length) {
-        formData.operator = cacheOperator.value;
+        formData.value.operator = cacheOperator.value;
       }
     };
 
@@ -217,7 +217,7 @@ export default defineComponent({
             label-width={160}
             {...{
               props: {
-                model: formData,
+                model: formData.value,
                 rules: formRules,
               },
             }}
@@ -229,8 +229,8 @@ export default defineComponent({
               required
             >
               <bk-input
-                value={formData.name}
-                onChange={val => (formData.name = val)}
+                value={formData.value.name}
+                onChange={val => (formData.value.name = val)}
                 data-test-id='basicInformation_input_linkName'
               />
             </bk-form-item>
@@ -242,8 +242,8 @@ export default defineComponent({
               required
             >
               <bk-select
-                value={formData.link_type}
-                onChange={val => (formData.link_type = val)}
+                value={formData.value.link_type}
+                onChange={val => (formData.value.link_type = val)}
                 clearable={false}
                 data-test-id='basicInformation_select_selectLinkType'
               >
@@ -276,7 +276,7 @@ export default defineComponent({
                 class={isAdminError.value ? 'is-error' : ''}
                 empty-text={t('无匹配人员')}
                 placeholder={t('请选择用户')}
-                value={formData.operator}
+                value={formData.value.operator}
                 data-test-id='basicInformation_input_executive'
                 onBlur={handleBlur}
                 onChange={handleUserChange}
@@ -291,22 +291,22 @@ export default defineComponent({
               required
             >
               <bk-input
-                value={formData.op_bk_biz_id}
-                onChange={val => (formData.op_bk_biz_id = val)}
+                value={formData.value.op_bk_biz_id}
+                onChange={val => (formData.value.op_bk_biz_id = val)}
                 data-test-id='basicInformation_input_executivebk_biz_id'
               />
             </bk-form-item>
 
             {/* 腾讯云相关表单项，仅在qcloud_cos时显示 */}
-            {formData.link_type === 'qcloud_cos' && [
+            {formData.value.link_type === 'qcloud_cos' && [
               <bk-form-item
                 label={t('腾讯云SecretId')}
                 property='qcloud_secret_id'
                 required
               >
                 <bk-input
-                  value={formData.qcloud_secret_id}
-                  onChange={val => (formData.qcloud_secret_id = val)}
+                  value={formData.value.qcloud_secret_id}
+                  onChange={val => (formData.value.qcloud_secret_id = val)}
                   data-test-id='basicInformation_input_SecretId'
                 />
               </bk-form-item>,
@@ -316,8 +316,8 @@ export default defineComponent({
                 required
               >
                 <bk-input
-                  value={formData.qcloud_secret_key}
-                  onChange={val => (formData.qcloud_secret_key = val)}
+                  value={formData.value.qcloud_secret_key}
+                  onChange={val => (formData.value.qcloud_secret_key = val)}
                   data-test-id='basicInformation_input_SecretKey'
                   type='password'
                 />
@@ -328,8 +328,8 @@ export default defineComponent({
                 required
               >
                 <bk-input
-                  value={formData.qcloud_cos_bucket}
-                  onChange={val => (formData.qcloud_cos_bucket = val)}
+                  value={formData.value.qcloud_cos_bucket}
+                  onChange={val => (formData.value.qcloud_cos_bucket = val)}
                   data-test-id='basicInformation_input_cosBucket'
                 />
               </bk-form-item>,
@@ -339,8 +339,8 @@ export default defineComponent({
                 required
               >
                 <bk-input
-                  value={formData.qcloud_cos_region}
-                  onChange={val => (formData.qcloud_cos_region = val)}
+                  value={formData.value.qcloud_cos_region}
+                  onChange={val => (formData.value.qcloud_cos_region = val)}
                   data-test-id='basicInformation_input_cosRegion'
                 />
               </bk-form-item>,
@@ -354,8 +354,8 @@ export default defineComponent({
               class='is-enable-group'
             >
               <bk-radio-group
-                value={formData.is_enable}
-                onChange={val => (formData.is_enable = val)}
+                value={formData.value.is_enable}
+                onChange={val => (formData.value.is_enable = val)}
                 data-test-id='basicInformation_radio_whetherToEnable'
               >
                 <bk-radio
@@ -413,7 +413,7 @@ export default defineComponent({
                 </li>
 
                 {/* 列表内容 */}
-                {formData.hosts.map((item: any, index: number) => (
+                {formData.value.hosts.map((item: any, index: number) => (
                   <li
                     class='host-item'
                     key={item.keyId}
@@ -445,7 +445,7 @@ export default defineComponent({
                     <div class='min-box operation-container'>
                       <bk-button
                         style='padding: 0'
-                        disabled={formData.hosts.length === 1}
+                        disabled={formData.value.hosts.length === 1}
                         size='small'
                         text
                         onClick={() => deleteHost(index)}

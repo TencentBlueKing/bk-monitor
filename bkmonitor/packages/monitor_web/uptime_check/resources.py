@@ -355,7 +355,7 @@ class TestTaskResource(Resource):
                 biz_nodes.append(node)
 
         # 检查权限：如果有公共节点，验证用户是否有公共节点的使用权限
-        if common_nodes:
+        if common_nodes and settings.ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH:
             Permission().is_allowed(ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
 
         # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303 # noqa

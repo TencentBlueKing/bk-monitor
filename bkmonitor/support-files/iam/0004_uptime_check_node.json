@@ -191,14 +191,27 @@
               "name": "仪表盘",
               "name_en": "Dashboard",
               "actions": [
+
                 {
-                  "id": "view_dashboard_v2"
+                  "id": "view_single_dashboard"
                 },
                 {
-                  "id": "manage_dashboard_v2"
+                  "id": "edit_single_dashboard"
                 },
                 {
                   "id": "manage_datasource_v2"
+                },
+                {
+                  "id": "new_dashboard"
+                }
+              ]
+            },
+            {
+              "name": "视图订阅",
+              "name_en": "Report",
+              "actions": [
+                {
+                  "id": "manage_report"
                 }
               ]
             }

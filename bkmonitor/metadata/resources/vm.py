@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import OrderedDict
+from typing import Any
 
 from django.conf import settings
 from django.db import transaction
@@ -40,19 +41,21 @@ class CreateVmCluster(Resource):
         description = serializers.CharField(required=False, label="集群描述", default="vm 集群")
         is_default_cluster = serializers.BooleanField(required=False, label="是否设置为默认集群", default=False)
 
-    def perform_request(self, data: OrderedDict) -> dict:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict:
+        bk_tenant_id = get_request_tenant_id()
+
         # 如果不设置为默认集群，则直接创建记录即可
-        data["cluster_type"] = models.ClusterInfo.TYPE_VM
-        if not data["is_default_cluster"]:
-            obj = models.ClusterInfo.objects.create(**data)
+        validated_request_data["cluster_type"] = models.ClusterInfo.TYPE_VM
+        if not validated_request_data["is_default_cluster"]:
+            obj = models.ClusterInfo.objects.create(bk_tenant_id=bk_tenant_id, **validated_request_data)
             return {"cluster_id": obj.cluster_id}
 
         # 否则，需要先把已有的默认集群设置为False，并且在集群创建后刷新空间使用的默认集群信息
         with atomic(config.DATABASE_CONNECTION_NAME):
-            models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True).update(
-                is_default_cluster=False
-            )
-            obj = models.ClusterInfo.objects.create(**data)
+            models.ClusterInfo.objects.filter(
+                bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True
+            ).update(is_default_cluster=False)
+            obj = models.ClusterInfo.objects.create(bk_tenant_id=bk_tenant_id, **validated_request_data)
             # 刷新空间使用的 vm 集群
             # NOTE: 注意排除掉使用特定集群的空间
             models.SpaceVMInfo.objects.exclude(space_id__in=settings.SINGLE_VM_SPACE_ID_LIST).update(
@@ -185,17 +188,18 @@ class NotifyDataLinkVmChange(Resource):
         vmrt = serializers.CharField(required=True, label="VM结果表ID")
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         cluster_name = validated_request_data.get("cluster_name")
         vmrt = validated_request_data.get("vmrt")
         logger.info("NotifyDataLinkChangeStorageCluster: vmrt->[%s] will change to cluster->[%s]", vmrt, cluster_name)
 
         try:
-            vm_cluster = models.ClusterInfo.objects.get(cluster_name=cluster_name)
+            vm_cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=cluster_name)
         except models.ClusterInfo.DoesNotExist:
             logger.error("NotifyDataLinkChangeStorageCluster: can't find vm cluster name [%s]", cluster_name)
             raise ValidationError(f"can't find vm cluster name [{cluster_name}]")
 
-        vm_records = models.AccessVMRecord.objects.filter(vm_result_table_id=vmrt)
+        vm_records = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, vm_result_table_id=vmrt)
         if not vm_records.exists():
             logger.warning("NotifyDataLinkChangeStorageCluster: no record for vm result table [%s]", vmrt)
             raise ValidationError(f"no record for vm result table [{vmrt}]")

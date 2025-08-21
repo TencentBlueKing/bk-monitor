@@ -8,13 +8,22 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.urls import include, re_path
+import pytest
+from aidev_agent.api import BKAidevApi
+from ai_whale.models import AgentConfigManager
 
-from core.drf_resource.routers import ResourceRouter
-from ai_agents import views
+pytestmark = pytest.mark.django_db
 
-router = ResourceRouter()
-router.register_module(views)
-urlpatterns = [
-    re_path(r"^chat/", include(router.urls)),
-]
+
+def test_retrieve_agent_config():
+    client = BKAidevApi.get_client()
+
+    res = client.api.retrieve_agent_config(path_params={"agent_code": "aidev-metadata"})["data"]
+
+    assert res["agent_code"] == "aidev-metadata"
+
+
+def test_agent_config_manager():
+    config = AgentConfigManager.get_config("aidev-metadata")
+    assert config.agent_code == "aidev-metadata"
+    assert config.agent_name == "metadata-agent"
