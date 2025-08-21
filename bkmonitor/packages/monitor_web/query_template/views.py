@@ -19,9 +19,10 @@ class QueryTemplateViewSet(GenericViewSet):
     def get_serializer_class(self):
         action_serializer_map = {
             "retrieve": serializers.QueryTemplateDetailRequestSerializer,
-            "list": serializers.QueryTemplateListRequestSerializer,
+            "destroy": serializers.QueryTemplateDetailRequestSerializer,
             "create": serializers.QueryTemplateCreateRequestSerializer,
             "update": serializers.QueryTemplateUpdateRequestSerializer,
+            "search": serializers.QueryTemplateListRequestSerializer,
             "preview": serializers.QueryTemplatePreviewRequestSerializer,
             "relation": serializers.QueryTemplateRelationRequestSerializer,
             "relations": serializers.QueryTemplateRelationsRequestSerializer,
@@ -41,13 +42,10 @@ class QueryTemplateViewSet(GenericViewSet):
                 response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
         return Response(response_data)
 
-    def list(self, request, *args, **kwargs):
+    def destroy(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-        response_data = []
-        if validated_data.get("is_mock"):
-            response_data = mock_data.QUERY_TEMPLATE_LIST
+        response_data = {}
         return Response(response_data)
 
     def create(self, request, *args, **kwargs):
@@ -66,6 +64,18 @@ class QueryTemplateViewSet(GenericViewSet):
         response_data = {}
         if validated_data.get("is_mock"):
             response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
+        return Response(response_data)
+
+    @action(methods=["POST"], detail=False)
+    def search(self, request, *args, **kwargs):
+        """查询模板列表"""
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        response_data = []
+        if validated_data.get("is_mock"):
+            response_data = mock_data.QUERY_TEMPLATE_LIST
         return Response(response_data)
 
     @action(methods=["POST"], detail=False)
