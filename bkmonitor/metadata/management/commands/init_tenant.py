@@ -17,7 +17,7 @@ class Command(BaseCommand):
     help = "init tenant"
 
     def add_arguments(self, parser: CommandParser) -> None:
-        parser.add_argument("bk_tenant_id", type=str, help="租户ID", required=True)
+        parser.add_argument("--bk_tenant_id", type=str, help="租户ID")
         return super().add_arguments(parser)
 
     def handle(self, *args, **options):

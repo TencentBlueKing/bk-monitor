@@ -159,10 +159,17 @@ def init_tenant(bk_tenant_id: str):
     """初始化租户"""
 
     # 初始化存储集群
+    logger.info(f"start init tenant({bk_tenant_id})")
+
+    logger.info(f"init cluster for tenant({bk_tenant_id})")
     _init_kafka_cluster(bk_tenant_id)
     _init_es_cluster(bk_tenant_id)
     _init_bkbase_cluster(bk_tenant_id)
+    logger.info(f"init cluster for tenant({bk_tenant_id}) done.")
 
     # 标记已初始化的租户
     if bk_tenant_id not in settings.INITIALIZED_TENANT_LIST:
+        logger.info(f"tenant({bk_tenant_id}) is initialized.")
         settings.INITIALIZED_TENANT_LIST.append(bk_tenant_id)
+    else:
+        logger.info(f"tenant({bk_tenant_id}) is already initialized")
