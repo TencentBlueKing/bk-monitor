@@ -112,7 +112,9 @@ export default defineComponent({
     const setTableData = () => {
       if (showTable.value || showNumber.value) {
         if (props.chartOptions.category === 'table') {
-          tableData.value.splice(0, tableData.value.length, ...(formatListData.value?.list ?? []));
+          tableData.value.length = 0;
+          tableData.value = [];
+          (formatListData.value?.list ?? []).forEach(t => tableData.value.push(t));
           return;
         }
 
