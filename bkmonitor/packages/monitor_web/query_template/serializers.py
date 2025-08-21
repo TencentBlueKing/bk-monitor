@@ -122,7 +122,7 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
 
     @property
     def _request_bk_biz_id(self):
-        return get_local_request().biz_id
+        return int(get_local_request().biz_id)
 
     def get_can_edit(self, obj):
         # 全局模板不可编辑
