@@ -16,6 +16,7 @@ from rest_framework.viewsets import GenericViewSet
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.models.query_template import QueryTemplate
+from constants.query_template import GLOBAL_BIZ_ID
 
 from . import mock_data, serializers
 
@@ -44,7 +45,7 @@ class QueryTemplateViewSet(GenericViewSet):
         bk_biz_id = self.request.query_params.get("bk_biz_id") or self.request.data.get("bk_biz_id")
         if isinstance(bk_biz_id, str) and bk_biz_id.isdigit():
             bk_biz_id = int(bk_biz_id)
-        return queryset.filter(Q(bk_biz_id=bk_biz_id) | Q(space_scope__contains=bk_biz_id))
+        return queryset.filter(Q(bk_biz_id=bk_biz_id) | Q(space_scope__contains=bk_biz_id) | Q(bk_biz_id=GLOBAL_BIZ_ID))
 
     def retrieve(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.query_params)

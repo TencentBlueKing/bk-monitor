@@ -16,26 +16,29 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL = {"id": 1, **deepcopy(data.CALLEE_SUC
 
 CALLEE_P99_QUERY_TEMPLATE_DETAIL = {"id": 2, **deepcopy(data.CALLEE_P99_QUERY_TEMPLATE)}
 
-QUERY_TEMPLATE_LIST = [
-    {
-        "id": CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL["id"],
-        "name": CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL["name"],
-        "description": "模板说明",
-        "create_user": "admin",
-        "create_time": "2025-08-04 17:43:26+0800",
-        "update_user": "admin",
-        "update_time": "2025-08-04 17:43:26+0800",
-    },
-    {
-        "id": CALLEE_P99_QUERY_TEMPLATE_DETAIL["id"],
-        "name": CALLEE_P99_QUERY_TEMPLATE_DETAIL["name"],
-        "description": "模板演示数据",
-        "create_user": "admin",
-        "create_time": "2025-08-04 17:43:26+0800",
-        "update_user": "admin",
-        "update_time": "2025-08-04 17:43:26+0800",
-    },
-]
+QUERY_TEMPLATE_LIST = {
+    "total": 2,
+    "list": [
+        {
+            "id": CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL["id"],
+            "name": CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL["name"],
+            "description": "模板说明",
+            "create_user": "admin",
+            "create_time": "2025-08-04 17:43:26+0800",
+            "update_user": "admin",
+            "update_time": "2025-08-04 17:43:26+0800",
+        },
+        {
+            "id": CALLEE_P99_QUERY_TEMPLATE_DETAIL["id"],
+            "name": CALLEE_P99_QUERY_TEMPLATE_DETAIL["name"],
+            "description": "模板演示数据",
+            "create_user": "admin",
+            "create_time": "2025-08-04 17:43:26+0800",
+            "update_user": "admin",
+            "update_time": "2025-08-04 17:43:26+0800",
+        },
+    ],
+}
 
 # 查询模板列表关联资源数量
 QUERY_TEMPLATE_RELATIONS = [
