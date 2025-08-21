@@ -68,16 +68,16 @@ export default class QueryConfigCreator extends tsc<IProps> {
     return this.variables.filter(item => item.type === VariableTypeEnum.METHOD);
   }
   get getDimensionVariables() {
-    return this.variables.filter(item => item.type === VariableTypeEnum.DIMENSION);
+    return this.variables.filter(item => item.type === VariableTypeEnum.GROUP_BY);
   }
   get getFunctionVariables() {
-    return this.variables.filter(item => item.type === VariableTypeEnum.FUNCTION);
+    return this.variables.filter(item => item.type === VariableTypeEnum.FUNCTIONS);
   }
   get getConditionVariables() {
-    return this.variables.filter(item => item.type === VariableTypeEnum.CONDITION);
+    return this.variables.filter(item => item.type === VariableTypeEnum.CONDITIONS);
   }
   get getDimensionValueVariables() {
-    return this.variables.filter(item => item.type === VariableTypeEnum.DIMENSION_VALUE);
+    return this.variables.filter(item => item.type === VariableTypeEnum.TAG_VALUES);
   }
   get allVariables() {
     return this.variables.map(item => ({ name: item.name }));
@@ -105,21 +105,21 @@ export default class QueryConfigCreator extends tsc<IProps> {
   handleCreateDimensionVariable(val) {
     this.$emit('createVariable', {
       name: val,
-      type: VariableTypeEnum.DIMENSION,
+      type: VariableTypeEnum.GROUP_BY,
       metric: this.queryConfig.metricDetail,
     });
   }
   handleCreateFunctionVariable(val) {
     this.$emit('createVariable', {
       name: val,
-      type: VariableTypeEnum.FUNCTION,
+      type: VariableTypeEnum.FUNCTIONS,
       metric: this.queryConfig.metricDetail,
     });
   }
   handleCreateConditionVariable(val) {
     this.$emit('createVariable', {
       name: val,
-      type: VariableTypeEnum.CONDITION,
+      type: VariableTypeEnum.CONDITIONS,
       metric: this.queryConfig.metricDetail,
     });
   }
@@ -127,9 +127,9 @@ export default class QueryConfigCreator extends tsc<IProps> {
     console.log(val);
     this.$emit('createVariable', {
       name: val.name,
-      type: VariableTypeEnum.DIMENSION_VALUE,
+      type: VariableTypeEnum.TAG_VALUES,
       metric: this.queryConfig.metricDetail,
-      relationDimension: val.relationDimension,
+      related_tag: val.related_tag,
     });
   }
 

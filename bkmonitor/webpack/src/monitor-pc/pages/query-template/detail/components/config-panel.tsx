@@ -123,12 +123,12 @@ export default class ConfigPanel extends tsc<object> {
               {
                 variableName: 'dimension_single',
                 value: 'bk_agent_id',
-                type: VariableTypeEnum.DIMENSION,
+                type: VariableTypeEnum.GROUP_BY,
               },
               {
                 variableName: 'dimension_multiple',
                 value: ['agent_id1', 'device'],
-                type: VariableTypeEnum.DIMENSION,
+                type: VariableTypeEnum.GROUP_BY,
               },
               {
                 variableName: 'condition_variable',
@@ -141,7 +141,7 @@ export default class ConfigPanel extends tsc<object> {
                     dimension_name: '目标ID',
                   },
                 ],
-                type: VariableTypeEnum.CONDITION,
+                type: VariableTypeEnum.CONDITIONS,
               },
             ]}
           />
@@ -216,12 +216,12 @@ export default class ConfigPanel extends tsc<object> {
                     ],
                   },
                 ],
-                type: VariableTypeEnum.FUNCTION,
+                type: VariableTypeEnum.FUNCTIONS,
               },
               {
                 variableName: 'condition_value_variable',
                 value: ['vvvvv', 'ssss'],
-                type: VariableTypeEnum.DIMENSION_VALUE,
+                type: VariableTypeEnum.TAG_VALUES,
               },
             ]}
           />
@@ -243,7 +243,7 @@ export default class ConfigPanel extends tsc<object> {
               {
                 variableName: 'expression_variable',
                 value: '100%',
-                type: VariableTypeEnum.CONSTANT,
+                type: VariableTypeEnum.CONSTANTS,
               },
             ]}
           />

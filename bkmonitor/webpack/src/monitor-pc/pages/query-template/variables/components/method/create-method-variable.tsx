@@ -68,7 +68,7 @@ export default class CreateMethodVariable extends tsc<MethodVariableProps, Metho
         >
           <bk-form-item
             label={this.$t('默认值')}
-            property='value'
+            property='defaultValue'
           >
             <bk-select
               clearable={false}

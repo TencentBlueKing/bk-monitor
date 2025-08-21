@@ -68,7 +68,7 @@ export default class DimensionValueVariableDetail extends tsc<DimensionValueDeta
         <VariableCommonFormDetail data={this.variable.data}>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('关联维度')}：</div>
-            <div class='form-item-value'>{this.variable.relationDimension || '--'}</div>
+            <div class='form-item-value'>{this.variable.related_tag || '--'}</div>
           </div>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
