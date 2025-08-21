@@ -24,47 +24,59 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import QueryTemplateTable from './components/query-template-table/query-template-table';
+import { random } from 'monitor-common/utils';
 
-import type { QueryTemplateListItem } from './typings';
+import QueryTemplateTable from './components/query-template-table/query-template-table';
+import { fetchQueryTemplateList } from './service/table';
+
+import type { QueryListRequestParams, QueryTemplateListItem } from './typings';
 
 import './query-template.scss';
 
 @Component
 export default class MetricTemplate extends tsc<object> {
+  /** 下发重新请求接口数据标志 */
+  refreshKey = random(8);
   current = 1;
   pageSize = 50;
   total = 100;
   sort = '-update_time';
   searchKeyword = '';
   tableLoading = false;
-  tableData: QueryTemplateListItem[] = new Array(Math.floor(Math.random() * 100)).fill(1).map((v, i) => {
-    if (i % 4 === 0) {
-      return {
-        id: i,
-        name: `指标模板名称占位${i}${i}${i}${i}`,
-        description: '1×1×1×1×……×1=1，不要事情找你，而要你找事情，很傻很天真，又猛又持久',
-        create_user: '创建人',
-        create_time: '2025-06-24 10:32:51+0800',
-        update_user: '更新人',
-        update_time: '2025-06-24 10:32:51+0800',
-        relation_config_count: 8,
-      };
-    }
-    return {
-      id: i,
-      name: `指标模板名称占位${i}${i}${i}${i}`,
-      description: '1×1×1×1×……×1=1，不要事情找你，而要你找事情，很傻很天真，又猛又持久',
-      create_user: '创建人',
-      create_time: '2025-06-24 10:32:51+0800',
-      update_user: '更新人',
-      update_time: '2025-06-24 10:32:51+0800',
-      relation_config_count: null,
+  tableData: QueryTemplateListItem[] = [];
+
+  get requestParam() {
+    const param = {
+      refreshKey: this.refreshKey,
+      page: this.current,
+      page_size: this.pageSize,
+      order_by: [this.sort],
+      conditions: [
+        {
+          key: 'query',
+          value: this.searchKeyword ? [this.searchKeyword] : [],
+        },
+      ],
     };
-  });
+
+    delete param.refreshKey;
+    return param as unknown as QueryListRequestParams;
+  }
+
+  beforeMount() {
+    this.getQueryTemplateList();
+  }
+
+  @Watch('requestParam')
+  async getQueryTemplateList() {
+    this.tableLoading = true;
+    const data = await fetchQueryTemplateList(this.requestParam);
+    this.tableData = data;
+    this.tableLoading = false;
+  }
 
   handleSortChange(sort: `-${string}` | string) {
     this.sort = sort;
