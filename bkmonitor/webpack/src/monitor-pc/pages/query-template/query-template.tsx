@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
@@ -46,30 +46,7 @@ export default class MetricTemplate extends tsc<object> {
   sort = '-update_time';
   searchKeyword = '';
   tableLoading = false;
-  tableData: QueryTemplateListItem[] = new Array(Math.floor(Math.random() * 100)).fill(1).map((v, i) => {
-    if (i % 4 === 0) {
-      return {
-        id: i,
-        name: `指标模板名称占位${i}${i}${i}${i}`,
-        description: '1×1×1×1×……×1=1，不要事情找你，而要你找事情，很傻很天真，又猛又持久',
-        create_user: '创建人',
-        create_time: '2025-06-24 10:32:51+0800',
-        update_user: '更新人',
-        update_time: '2025-06-24 10:32:51+0800',
-        relation_config_count: 8,
-      };
-    }
-    return {
-      id: i,
-      name: `指标模板名称占位${i}${i}${i}${i}`,
-      description: '1×1×1×1×……×1=1，不要事情找你，而要你找事情，很傻很天真，又猛又持久',
-      create_user: '创建人',
-      create_time: '2025-06-24 10:32:51+0800',
-      update_user: '更新人',
-      update_time: '2025-06-24 10:32:51+0800',
-      relation_config_count: null,
-    };
-  });
+  tableData: QueryTemplateListItem[] = [];
 
   get requestParam() {
     const param = {
@@ -80,7 +57,7 @@ export default class MetricTemplate extends tsc<object> {
       conditions: [
         {
           key: 'query',
-          value: 'test',
+          value: this.searchKeyword ? [this.searchKeyword] : [],
         },
       ],
     };
@@ -93,9 +70,11 @@ export default class MetricTemplate extends tsc<object> {
     this.getQueryTemplateList();
   }
 
+  @Watch('requestParam')
   async getQueryTemplateList() {
     this.tableLoading = true;
-    await fetchQueryTemplateList(this.requestParam);
+    const data = await fetchQueryTemplateList(this.requestParam);
+    this.tableData = data;
     this.tableLoading = false;
   }
 

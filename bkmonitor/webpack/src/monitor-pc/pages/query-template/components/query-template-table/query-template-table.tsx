@@ -27,6 +27,8 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { TABLE_DEFAULT_DISPLAY_FIELDS, TABLE_FIXED_DISPLAY_FIELDS, TemplateDetailTabEnum } from '../../constants';
 import QueryTemplateSlider from '../../detail/template-detail';
@@ -142,7 +144,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       sortable: true,
       align: 'right',
       width: 120,
-      formatter: this.clickShowSlicerColRenderer,
+      formatter: this.relationCountColRenderer,
     },
     operator: {
       id: 'operator',
@@ -324,6 +326,25 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   }
 
   /**
+   * @description: 消费场景 列渲染
+   * 由于消费场景列是异步请求，所以需要使用增加 loading 状态交互过渡
+   */
+  relationCountColRenderer(row, column) {
+    if (row.relation_config_count == null) {
+      return (
+        <div class='relation-count-col'>
+          <img
+            class='loading-svg'
+            alt=''
+            src={loadingIcon}
+          />
+        </div>
+      );
+    }
+    return this.clickShowSlicerColRenderer(row, column);
+  }
+
+  /**
    * @description: 表格 点击打开侧弹详情抽屉面板 列渲染
    */
   clickShowSlicerColRenderer(row, column) {
@@ -334,7 +355,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
     };
     let alias = row?.[columnKey];
     if (columnKey === 'relation_config_count') {
-      alias = row?.[columnKey] || 0;
+      alias ||= 0;
     }
     return (
       <span
@@ -351,24 +372,24 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
    */
   userColRenderer(row, column) {
     const colKey = column.columnKey;
-    return <bk-user-display-name user_id={row[colKey]} />;
+    return <bk-user-display-name user-id={row[colKey]} />;
   }
   /**
    * @description: 表格 操作 列渲染
    */
   operatorColRenderer(row) {
-    const disabledOperation = row.relation_config_count > 0;
+    const disabledOperation = row.relation_config_count == null || row.relation_config_count > 0;
     return (
       <div class='operator-col'>
         <span
-          v-bk-tooltips={{
-            content: this.$t('当前仍然有关联的消费场景，无法编辑'),
-            disabled: !disabledOperation,
-            placement: 'right',
-          }}
+        // v-bk-tooltips={{
+        //   content: this.$t('当前仍然有关联的消费场景，无法编辑'),
+        //   disabled: !disabledOperation,
+        //   placement: 'right',
+        // }}
         >
           <bk-button
-            disabled={disabledOperation}
+            // disabled={disabledOperation}
             text={true}
             onClick={() => this.jumpToEditPage(row.id)}
           >

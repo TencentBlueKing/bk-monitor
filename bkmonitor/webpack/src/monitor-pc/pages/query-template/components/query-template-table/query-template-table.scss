@@ -34,6 +34,13 @@
       cursor: pointer;
     }
 
+    .relation-count-col {
+      .loading-svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
     .operator-col {
       display: flex;
       column-gap: 16px;

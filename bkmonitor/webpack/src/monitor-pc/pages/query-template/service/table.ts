@@ -43,9 +43,16 @@ import type {
  * @param templateList
  * @returns 需要请求关联场景接口的 query_template_ids 数组
  */
-const formatTemplateList = (templateList: QueryTemplateListItem[]) => {
+const formatTemplateList = (
+  templateList: QueryTemplateListItem[],
+  relationsMap?: Record<
+    QueryTemplateRelationItem['query_template_id'],
+    QueryTemplateRelationItem['relation_config_count']
+  >
+) => {
+  const defaultValue = relationsMap ? 0 : null;
   return templateList.reduce((prev, curr) => {
-    curr.relation_config_count = null;
+    curr.relation_config_count = relationsMap?.[curr.id] ?? defaultValue;
     prev.push(curr.id);
     return prev;
   }, []);
@@ -61,7 +68,15 @@ export const fetchQueryTemplateList = async (param: QueryListRequestParams) => {
     () => [] as QueryTemplateListItem[]
   );
   const ids = formatTemplateList(templateList);
-  fetchQueryTemplateRelationsCount({ query_template_ids: ids });
+  if (ids?.length) {
+    fetchQueryTemplateRelationsCount({ query_template_ids: ids }).then(res => {
+      const countByIdMap = res.reduce((prev, curr) => {
+        prev[curr.query_template_id] = curr.relation_config_count;
+        return prev;
+      }, {});
+      formatTemplateList(templateList, countByIdMap);
+    });
+  }
   return templateList;
 };
 
@@ -70,22 +85,10 @@ export const fetchQueryTemplateList = async (param: QueryListRequestParams) => {
  * @param {QueryListRequestParams} 查询参数
  * @returns {number} 关联数量
  */
-export const fetchQueryTemplateRelationsCount = async (
-  param: QueryTemplateRelationsRequestParams,
-  templateList?: QueryTemplateListItem[]
-) => {
+export const fetchQueryTemplateRelationsCount = async (param: QueryTemplateRelationsRequestParams) => {
   const relationList = await relationsQueryTemplate<QueryTemplateRelationItem[]>(param).catch(
     () => [] as QueryTemplateRelationItem[]
   );
-  const countByIdMap = relationList.reduce((prev, curr) => {
-    prev[curr.query_template_id] = curr.relation_config_count;
-    return prev;
-  }, {});
-  if (templateList?.length) {
-    for (const item of templateList) {
-      item.relation_config_count = countByIdMap[item.id] || 0;
-    }
-  }
   return relationList;
 };
 

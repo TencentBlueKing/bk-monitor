@@ -58,7 +58,7 @@ export interface QueryListRequestParams {
   /** 业务ID */
   bk_biz_id?: number;
   /** 搜索，支持模板名称，模板说明，创建人，更新人 */
-  conditions?: [{ key: 'query'; value: string }];
+  conditions?: [{ key: 'query'; value: string[] }];
   /** 排序字段 例： ["id"] or ["-id"] */
   order_by?: string[];
   /** 页码 */
