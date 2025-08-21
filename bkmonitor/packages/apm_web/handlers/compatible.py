@@ -25,22 +25,23 @@ class CompatibleQuery:
             return res
 
         try:
+            service_name = re.escape(service_name)
             node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
             if ComponentHandler.is_component_by_node(node):
                 query = (
                     f"tags.{ComponentHandler.get_dimension_key(node)}: "
-                    f'"{re.escape(node["extra_data"]["predicate_value"])}" AND '
-                    f'tags.service_name: "{re.escape(ComponentHandler.get_component_belong_service(service_name))}"'
+                    f'"{node["extra_data"]["predicate_value"]}" AND '
+                    f'tags.service_name: "{ComponentHandler.get_component_belong_service(service_name)}"'
                 )
             elif ServiceHandler.is_remote_service_by_node(node):
-                query = f'tags.peer_service: "{re.escape(ServiceHandler.get_remote_service_origin_name(service_name))}"'
+                query = f'tags.peer_service: "{ServiceHandler.get_remote_service_origin_name(service_name)}"'
             else:
-                query = f'tags.service_name: "{re.escape(service_name)}"'
+                query = f'tags.service_name: "{service_name}"'
         except ValueError:
-            query = f'tags.service_name: "{re.escape(service_name)}"'
+            query = f'tags.service_name: "{service_name}"'
 
         if endpoint_name:
-            query += f' AND tags.span_name: "{re.escape(endpoint_name)}"'
+            query += f' AND tags.span_name: "{endpoint_name}"'
 
         return f"{res} AND {query}"
 

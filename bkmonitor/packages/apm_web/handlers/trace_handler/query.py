@@ -203,7 +203,7 @@ class QueryTreeTransformer(BaseTreeTransformer):
             return f'{predicted_field}: "{keyword}"'
 
         try:
-            query_tree = parser.parse(re.escape(query_string), lexer=lexer)
+            query_tree = parser.parse(query_string, lexer=lexer)
         except ParseError as e:
             raise QueryStringParseError({"msg": e})
 
