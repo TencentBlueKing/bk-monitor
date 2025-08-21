@@ -51,7 +51,6 @@ class QueryTemplateViewSet(GenericViewSet):
         serializer = self.get_serializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        response_data = {}
         query_template_id = int(kwargs[self.lookup_field])
         if validated_data.get("is_mock"):
             if query_template_id == 1:
@@ -73,9 +72,12 @@ class QueryTemplateViewSet(GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        response_data = {}
         if validated_data.get("is_mock"):
             response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
+        else:
+            validated_data.pop("is_mock", None)
+            instance = self.serializer_class().create(validated_data)
+            response_data = self.serializer_class(instance).data
         return Response(response_data)
 
     def update(self, request, *args, **kwargs):
