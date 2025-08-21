@@ -42,6 +42,7 @@ import {
   QueryConfig,
 } from '../typings';
 import { type VariableModelType, getVariableModel, getVariableSubmitParams } from '../variables';
+import { isVariableName } from '../variables/template/utils';
 import { LETTERS } from '@/common/constant';
 
 import type { MetricDetail } from '../components/type/query-config';
@@ -139,7 +140,12 @@ export default class TemplateCreate extends tsc<object> {
       variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
       query_configs: createQueryTemplateQueryConfigsParams(this.queryConfigs),
       expression: this.expressionConfig.expression,
-      functions: this.expressionConfig.functions,
+      functions: this.expressionConfig.functions.map(f => {
+        if (isVariableName(f.id)) {
+          return f.id;
+        }
+        return f;
+      }),
     };
     const data = await createQueryTemplate(params).catch(() => false);
     console.log(params, data);
