@@ -564,18 +564,21 @@ export default defineComponent({
             }}
           >
             <bk-table-column
+              key='id'
               renderHeader={renderHeader}
               label='ID'
               min-width='60'
               prop='cluster_config.cluster_id'
             />
             <bk-table-column
+              key='name'
               label={t('名称')}
               renderHeader={renderHeader}
               min-width='170'
               prop='cluster_config.cluster_name'
             />
             <bk-table-column
+              key='address'
               label={t('地址')}
               renderHeader={renderHeader}
               min-width='170'
@@ -583,6 +586,7 @@ export default defineComponent({
             />
             {checkcFields('source_type') && (
               <bk-table-column
+                key='source_type'
                 filter-method={sourceFilterMethod}
                 filter-multiple={false}
                 filters={sourceFilters.value}
@@ -597,6 +601,7 @@ export default defineComponent({
             )}
             {checkcFields('port') && (
               <bk-table-column
+                key='port'
                 label={t('端口')}
                 renderHeader={renderHeader}
                 min-width='80'
@@ -605,6 +610,7 @@ export default defineComponent({
             )}
             {checkcFields('schema') && (
               <bk-table-column
+                key='schema'
                 label={t('协议')}
                 renderHeader={renderHeader}
                 min-width='80'
@@ -613,6 +619,7 @@ export default defineComponent({
             )}
             {checkcFields('cluster_config') && (
               <bk-table-column
+                key='status'
                 filter-method={sourceStateFilterMethod}
                 filter-multiple={false}
                 filters={sourceStateFilters.value}
@@ -629,6 +636,7 @@ export default defineComponent({
             )}
             {checkcFields('enable_hot_warm') && (
               <bk-table-column
+                key='hot_warm'
                 label={t('冷热数据')}
                 renderHeader={renderHeader}
                 min-width='80'
@@ -637,6 +645,7 @@ export default defineComponent({
             )}
             {checkcFields('storage_total') && (
               <bk-table-column
+                key='storage_total'
                 width='90'
                 label={t('总量')}
                 renderHeader={renderHeader}
@@ -645,6 +654,7 @@ export default defineComponent({
             )}
             {checkcFields('storage_usage') && (
               <bk-table-column
+                key='storage_usage'
                 width='110'
                 label={t('空闲率')}
                 renderHeader={renderHeader}
@@ -666,6 +676,7 @@ export default defineComponent({
             )}
             {checkcFields('creator') && (
               <bk-table-column
+                key='creator'
                 label={t('创建人')}
                 renderHeader={renderHeader}
                 min-width='80'
@@ -674,6 +685,7 @@ export default defineComponent({
             )}
             {checkcFields('create_time') && (
               <bk-table-column
+                key='create_time'
                 label={t('创建时间')}
                 renderHeader={renderHeader}
                 class-name='filter-column'
@@ -683,6 +695,7 @@ export default defineComponent({
               />
             )}
             <bk-table-column
+              key='operate'
               width='180'
               label={t('操作')}
               renderHeader={renderHeader}
@@ -738,6 +751,7 @@ export default defineComponent({
               }}
             />
             <bk-table-column
+              key='setting'
               tippy-options={{ zIndex: 3000 }}
               type='setting'
             >
@@ -745,7 +759,7 @@ export default defineComponent({
                 v-en-style='width: 530px'
                 fields={clusterSetting.fields}
                 selected={clusterSetting.selectedFields}
-                onSetting-change={handleSettingChange}
+                on-setting-change={handleSettingChange}
               />
             </bk-table-column>
           </bk-table>
