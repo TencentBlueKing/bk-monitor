@@ -58,7 +58,10 @@ export default class ExpressionCreator extends tsc<IProps> {
   handleWatchValue(val: string) {
     if (this.inputValue !== val) {
       this.inputValue = val;
-      this.handleSetInputParse(val, false);
+      this.$nextTick(() => {
+        this.handleSetInputParse(val, false);
+      });
+
       this.active = false;
     }
   }
