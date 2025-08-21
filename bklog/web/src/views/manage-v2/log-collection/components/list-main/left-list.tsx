@@ -24,59 +24,139 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, ref, onMounted, onBeforeUnmount } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import ItemSkeleton from '@/skeleton/item-skeleton';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
+
+import AddIndexSet from '../common-comp/add-index-set';
+import ListItem from './list-item';
 
 import './left-list.scss';
 
 export default defineComponent({
   name: 'LeftList',
-
+  props: {
+    list: {
+      type: Array,
+      default: () => [],
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+  },
   emits: ['choose'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
     const activeKey = ref('all');
-    const list = [
-      { label: 'bk_apm_trace', count: 11, key: 'bk_apm_trace' },
-      { label: 'bk_aiop', count: 23, key: 'bk_apm_trace1' },
-      { label: 'bk_apm_trace', count: 164, key: 'bk_apm_trace2' },
-      { label: '容器日志采集示例', count: 99, key: 'bk_apm_trace3' },
-      { label: '默认索引集', count: 11, key: 'bk_apm_trace4' },
-      { label: '主机采集示例', count: 101, key: 'bk_apm_trace5' },
-    ];
+    const addPanelRef = ref();
+    const rootRef = ref();
+    const formData = ref({ label: '' });
+    const isHover = ref(false);
+    let tippyInstance: Instance | null = null;
+    const searchValue = ref('');
+
+    const baseItem = computed(() => [
+      { label: t('全部采集项'), count: 1124, key: 'all', icon: 'all2', unEditable: true },
+      // { label: t('未归属索引集'), count: 23, key: 'unassigned', icon: 'weiguishu', unEditable: true },
+    ]);
+    /** 过滤后的数据 */
+    const filterDataList = computed(() => (props.list || []).filter(item => item.label.includes(searchValue.value)));
+
+    /** 选中索引集 */
     const handleItem = item => {
       activeKey.value = item.key;
       emit('choose', item);
     };
+
     const renderBaseItem = item => (
-      <div
-        class={['base-item', { active: activeKey.value === item.key }]}
-        onClick={() => handleItem(item)}
-      >
-        <i class='bklog-icon item-icon bklog-file-close'></i>
-        <span class='item-label'>{item.label}</span>
-        <span class='item-count'>{item.count}</span>
-      </div>
+      <ListItem
+        activeKey={activeKey.value}
+        data={item}
+        on-choose={handleItem}
+      />
     );
+
+    const initActionPop = () => {
+      tippyInstance = tippy(rootRef.value as SingleTarget, {
+        content: addPanelRef.value as any,
+        trigger: 'click',
+        placement: 'bottom-end',
+        theme: 'light',
+        arrow: false,
+        interactive: true,
+        hideOnClick: true,
+        appendTo: () => document.body,
+        onShow: () => {
+          isHover.value = true;
+        },
+        onHide: () => {
+          isHover.value = false;
+        },
+      });
+    };
+    const handleEditGroupCancel = () => {
+      tippyInstance?.hide();
+    };
+    const handleEditGroupSubmit = () => {
+      tippyInstance?.hide();
+    };
+
+    onMounted(initActionPop);
+
+    onBeforeUnmount(() => {
+      tippyInstance?.hide();
+      tippyInstance?.destroy();
+    });
+
     return () => (
       <div class='log-collection-left-list'>
-        <div class='list-top'>
-          {renderBaseItem({ label: t('全部采集项'), count: 1124, key: 'all' })}
-          {renderBaseItem({ label: t('未归属索引集'), count: 23, key: 'unassigned' })}
-        </div>
+        <div class='list-top'>{baseItem.value.map(item => renderBaseItem(item))}</div>
         <div class='list-main'>
           <div class='list-main-title'>{t('索引集列表')}</div>
           <div class='list-main-search'>
-            <span class='add-btn'>+</span>
+            <span
+              ref={rootRef}
+              class={{
+                'add-btn': true,
+                'is-hover': isHover.value,
+              }}
+            >
+              +
+            </span>
             <bk-input
               class='search-input'
               placeholder={t('搜索 索引集名称')}
               right-icon='bk-icon icon-search'
+              value={searchValue.value}
+              onInput={val => (searchValue.value = val)}
             />
           </div>
-          <div class='list-main-content'>{list.map(item => renderBaseItem(item))}</div>
+          <div style='display: none'>
+            <div ref={addPanelRef}>
+              <AddIndexSet
+                data={formData.value}
+                isAdd={true}
+                on-cancel={handleEditGroupCancel}
+                on-submit={handleEditGroupSubmit}
+              />
+            </div>
+          </div>
+          <div class='list-main-content'>
+            {props.loading ? (
+              <ItemSkeleton
+                style={{ padding: '0 16px' }}
+                rowHeight={'30px'}
+                rows={6}
+                widths={['100%']}
+              />
+            ) : (
+              (filterDataList.value || []).map(item => renderBaseItem(item))
+            )}
+          </div>
         </div>
       </div>
     );

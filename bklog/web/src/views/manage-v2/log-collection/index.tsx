@@ -24,8 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, ref, onMounted } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
+
 import LeftList from './components/list-main/left-list';
 import TableList from './components/list-main/table-list';
 
@@ -38,19 +40,41 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const isShowLeft = ref(false);
+    const isShowLeft = ref(true);
+    const listLoading = ref(false);
     const currentIndexSet = ref({ label: t('全部采集项'), count: 1124, key: 'all' });
+    const list = [
+      { label: 'bk_apm_trace', count: 11, key: 'bk_apm_trace', isDelete: false },
+      { label: 'bk_aiop', count: 23, key: 'bk_apm_trace1', isDelete: true },
+      { label: 'bk_apm_trace', count: 164, key: 'bk_apm_trace2', isDelete: true },
+      { label: '容器日志采集示例', count: 99, key: 'bk_apm_trace3', isDelete: true },
+      { label: '默认索引集', count: 11, key: 'bk_apm_trace4', isDelete: true },
+      { label: '主机采集示例', count: 101, key: 'bk_apm_trace5', isDelete: true },
+    ];
+    /** 展开/收起左侧采集项列表 */
     const handleShowLeft = () => {
       isShowLeft.value = !isShowLeft.value;
     };
+    /** 选中索引集 */
     const handleChoose = item => {
       currentIndexSet.value = item;
     };
+    onMounted(() => {
+      listLoading.value = true;
+      setTimeout(() => {
+        listLoading.value = false;
+      }, 1200);
+    });
+
     return () => (
       <div class='v2-log-collection-main'>
         {isShowLeft.value && (
           <div class='v2-log-collection-left'>
-            <LeftList on-choose={handleChoose} />
+            <LeftList
+              list={list}
+              loading={listLoading.value}
+              on-choose={handleChoose}
+            />
           </div>
         )}
         <div class='v2-log-collection-right'>
