@@ -31,7 +31,7 @@ import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { TABLE_DEFAULT_DISPLAY_FIELDS, TABLE_FIXED_DISPLAY_FIELDS, TemplateDetailTabEnum } from '../../constants';
-import QueryTemplateSlider from '../../detail/template-detail';
+import TemplateDetail from '../../detail/template-detail';
 import DeleteConfirm from './components/delete-confirm';
 
 import type {
@@ -93,6 +93,8 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   sliderShow = false;
   /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
   sliderActiveTab: TemplateDetailTabEnumType = null;
+  /** 模板详情 - 当前需要显示详情信息的数据 id */
+  sliderActiveId: QueryTemplateListItem['id'] = '';
   /** 删除二次确认 popover 实例 */
   deletePopoverInstance = null;
   /** 删除二次确认 popover 延迟打开定时器 */
@@ -310,6 +312,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
     }
     this.detailId = showEvent?.id;
     this.sliderActiveTab = sliderTab;
+    this.sliderActiveId = showEvent?.id;
     this.sliderShow = isShow;
   }
 
@@ -475,10 +478,10 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
             onCancel={this.handlePopoverHide}
             onConfirm={this.handlePopoverHide}
           />
-          <QueryTemplateSlider
-            id={this.detailId}
+          <TemplateDetail
             defaultActiveTab={this.sliderActiveTab}
             sliderShow={this.sliderShow}
+            templateId={this.sliderActiveId}
             onSliderShowChange={this.handleSliderShowChange}
           />
         </div>
