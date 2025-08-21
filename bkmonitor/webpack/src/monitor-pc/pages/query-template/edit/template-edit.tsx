@@ -25,7 +25,11 @@
  */
 import { Component } from 'vue-property-decorator';
 
+import { retrieveQueryTemplate, updateQueryTemplate } from 'monitor-api/modules/model';
+
 import TemplateCreate from '../create/template-create';
+import { createQueryTemplateQueryConfigsParams, getRetrieveQueryTemplateQueryConfigs } from '../service';
+import { getCreateVariableParams, getVariableModel, getVariableSubmitParams } from '../variables';
 
 import './template-edit.scss';
 
@@ -33,9 +37,53 @@ import './template-edit.scss';
 export default class TemplateEdit extends TemplateCreate {
   title = this.$t('route-编辑查询模板');
 
-  init() {
-    this.curStep = 1;
+  get editId() {
+    return this.$route.params.id;
   }
 
-  handleSubmit() {}
+  /**
+   * @description 获取查询模板详情
+   */
+  async getQueryTemplateDetail() {
+    this.loading = true;
+    const data = await retrieveQueryTemplate(this.editId).catch(() => null);
+    if (data) {
+      this.queryConfigs = await getRetrieveQueryTemplateQueryConfigs(data.query_configs);
+      this.basicInfoData = {
+        name: data.name,
+        description: data.description,
+        space_scope: data.space_scope,
+      };
+      this.variablesList = data.variables.map(item =>
+        getVariableModel(
+          getCreateVariableParams(
+            item,
+            this.queryConfigs.map(queryConfig => queryConfig.metricDetail)
+          )
+        )
+      );
+    }
+    this.loading = false;
+  }
+
+  async init() {
+    this.curStep = 1;
+    await this.getQueryTemplateDetail();
+  }
+
+  async handleSubmit() {
+    const params = {
+      name: this.basicInfoData.name,
+      description: this.basicInfoData.description,
+      space_scope: this.basicInfoData.space_scope,
+      variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
+      query_configs: createQueryTemplateQueryConfigsParams(this.queryConfigs),
+      expression: this.expressionConfig.expression,
+      functions: this.expressionConfig.functions,
+    };
+    this.submitLoading = true;
+    const data = await updateQueryTemplate(params).catch(() => false);
+    this.submitLoading = false;
+    console.log(data);
+  }
 }

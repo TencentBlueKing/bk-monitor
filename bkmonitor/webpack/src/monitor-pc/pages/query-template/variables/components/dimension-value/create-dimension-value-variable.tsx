@@ -52,7 +52,7 @@ export default class CreateDimensionValueVariable extends tsc<
 
   valueList = [];
 
-  handleValueChange(value: string) {
+  handleValueChange(value: string[]) {
     this.handleDataChange({
       ...this.variable.data,
       defaultValue: value,
@@ -119,6 +119,9 @@ export default class CreateDimensionValueVariable extends tsc<
               clearable={false}
               loading={this.loading}
               value={this.variable.defaultValue}
+              collapse-tag
+              display-tag
+              multiple
               onChange={this.handleValueChange}
             >
               {this.valueList.map(item => (

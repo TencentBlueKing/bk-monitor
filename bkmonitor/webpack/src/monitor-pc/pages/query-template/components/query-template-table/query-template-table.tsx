@@ -85,6 +85,8 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   /** 总数 */
   @Prop({ type: Number }) total: number;
 
+  /** 模板详情 - id */
+  detailId = '';
   /** 模板详情 - 侧弹抽屉显示状态 */
   sliderShow = false;
   /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
@@ -302,7 +304,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
     if (isShow) {
       sliderTab = showEvent?.columnKey === 'name' ? TemplateDetailTabEnum.CONFIG : TemplateDetailTabEnum.CONSUME;
     }
-
+    this.detailId = showEvent?.id;
     this.sliderActiveTab = sliderTab;
     this.sliderShow = isShow;
   }
@@ -443,6 +445,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
             onConfirm={this.handlePopoverHide}
           />
           <QueryTemplateSlider
+            id={this.detailId}
             defaultActiveTab={this.sliderActiveTab}
             sliderShow={this.sliderShow}
             onSliderShowChange={this.handleSliderShowChange}

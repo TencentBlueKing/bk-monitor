@@ -61,7 +61,7 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
         trigger: 'blur',
       },
     ],
-    biz_scope: [
+    space_scope: [
       {
         required: true,
         message: window.i18n.t('生效范围必填'),
@@ -78,7 +78,7 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
   }
 
   handleDeleteEffect(data) {
-    this.handleEffectChange(this.formData.biz_scope.filter(item => item !== data.id));
+    this.handleEffectChange(this.formData.space_scope.filter(item => item !== data.id));
   }
 
   tagTpl(data) {
@@ -100,7 +100,7 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
   handleEffectChange(value: (number | string)[]) {
     this.$emit('change', {
       ...this.formData,
-      biz_scope: value,
+      space_scope: value,
     });
   }
 
@@ -147,15 +147,16 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
             class='w50'
             error-display-type='normal'
             label={this.$t('生效范围')}
-            property='biz_scope'
+            property='space_scope'
             required
           >
             <bk-tag-input
               clearable={false}
               list={this.bizList}
+              save-key='bk_biz_id'
               tag-tpl={this.tagTpl}
               trigger='focus'
-              value={this.formData.biz_scope}
+              value={this.formData.space_scope}
               collapseTags
               onChange={this.handleEffectChange}
             />
