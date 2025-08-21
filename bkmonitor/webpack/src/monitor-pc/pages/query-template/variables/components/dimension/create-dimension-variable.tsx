@@ -61,9 +61,10 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
   handleDimensionChange(value: string[]) {
     let defaultValue = this.variable.data.defaultValue;
     if (value.includes('all')) {
-      defaultValue = defaultValue || this.variable.dimensionList[0].id;
+      defaultValue = defaultValue || [this.variable.dimensionList[0].id];
     } else {
-      defaultValue = value.includes(defaultValue) ? defaultValue : value[0];
+      defaultValue = defaultValue.filter(item => value.includes(item));
+      defaultValue = defaultValue.length ? defaultValue : [value[0]];
     }
 
     this.handleDataChange({
@@ -73,7 +74,7 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
     });
   }
 
-  handleValueChange(value: string) {
+  handleValueChange(value: string[]) {
     this.handleDataChange({
       ...this.variable.data,
       defaultValue: value,
@@ -143,6 +144,9 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
             <bk-select
               clearable={false}
               value={this.variable.defaultValue}
+              collapse-tag
+              display-tag
+              multiple
               onChange={this.handleValueChange}
             >
               {this.variable.dimensionOptionsMap.map(item => (

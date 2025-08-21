@@ -52,6 +52,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
+import { fetchMetricDimensionValueList } from '@/pages/query-template/service';
 
 import type { DimensionValueVariableModel } from '../../index';
 interface DimensionValueDetailProps {
@@ -61,6 +62,26 @@ interface DimensionValueDetailProps {
 @Component
 export default class DimensionValueVariableDetail extends tsc<DimensionValueDetailProps> {
   @Prop({ type: Object, required: true }) variable!: DimensionValueVariableModel;
+
+  valueList = [];
+
+  get defaultValueMap() {
+    return this.variable.data.defaultValue.map(item => this.valueList.find(i => i.value === item));
+  }
+
+  mounted() {
+    this.getValueList();
+  }
+
+  async getValueList() {
+    const data = await fetchMetricDimensionValueList(this.variable.related_tag, {
+      data_source_label: this.variable.metric.data_source_label,
+      data_type_label: this.variable.metric.data_type_label,
+      result_table_id: this.variable.metric.result_table_id,
+      metric_field: this.variable.metric.metric_field,
+    }).catch(() => []);
+    this.valueList = data;
+  }
 
   render() {
     return (
@@ -72,7 +93,18 @@ export default class DimensionValueVariableDetail extends tsc<DimensionValueDeta
           </div>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
-            <div class='form-item-value'>{this.variable.defaultValue || '--'}</div>
+            <div class='form-item-value'>
+              <div class='tag-list'>
+                {this.defaultValueMap.map(item => (
+                  <div
+                    key={item.id}
+                    class='tag-item'
+                  >
+                    {item.name}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </VariableCommonFormDetail>
       </div>

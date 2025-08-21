@@ -27,11 +27,11 @@ import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFunctions } from 'monitor-api/modules/grafana';
-import { createQueryTemplate, retrieveQueryTemplate } from 'monitor-api/modules/model';
+import { createQueryTemplate } from 'monitor-api/modules/model';
 
 import QueryTemplateSet from '../components/query-template-set/query-template-set';
 import QueryTemplateView from '../components/query-template-view/query-template-view';
-import { createQueryTemplateQueryConfigsParams, getRetrieveQueryTemplateQueryConfigs } from '../service/metric';
+import { createQueryTemplateQueryConfigsParams } from '../service/metric';
 import {
   type AggCondition,
   type AggFunction,
@@ -45,7 +45,6 @@ import { type VariableModelType, getVariableModel, getVariableSubmitParams } fro
 import { isVariableName } from '../variables/template/utils';
 import { LETTERS } from '@/common/constant';
 
-import type { MetricDetail } from '../components/type/query-config';
 import type VariablesManage from '../variables/variables-manage/variables-manage';
 
 import './template-create.scss';
@@ -69,10 +68,10 @@ export default class TemplateCreate extends tsc<object> {
   basicInfoData: BasicInfoData = {
     name: '',
     description: '',
-    biz_scope: [this.$store.getters.bizId],
+    space_scope: [this.$store.getters.bizId],
   };
 
-  metricsList: MetricDetail[] = [];
+  metricsList: MetricDetailV2[] = [];
   queryConfigs: QueryConfig[] = [new QueryConfig(null, { alias: 'a' })];
   expressionConfig = new Expression();
 
@@ -83,10 +82,6 @@ export default class TemplateCreate extends tsc<object> {
   submitLoading = false;
 
   loading = false;
-
-  get editId() {
-    return this.$route.params.id;
-  }
 
   async beforeRouteLeave(to, _from, next) {
     const needNext = await this.handleCancel();
@@ -105,38 +100,11 @@ export default class TemplateCreate extends tsc<object> {
     this.curStep = step;
   }
 
-  /**
-   * @description 获取查询模板详情
-
-   */
-  async getQueryTemplateDetail() {
-    this.loading = true;
-    const data = await retrieveQueryTemplate(this.editId).catch(() => null);
-    if (data) {
-      this.queryConfigs = await getRetrieveQueryTemplateQueryConfigs(data.query_configs);
-      this.expressionConfig = new Expression({
-        expression: data.expression,
-        functions: data.functions.map(f => {
-          if (typeof f === 'string') {
-            return {
-              id: f,
-              name: '',
-              params: [],
-            };
-          }
-          return f;
-        }),
-      });
-    }
-    this.loading = false;
-    console.log(data);
-  }
-
   async handleSubmit() {
     const params = {
       name: this.basicInfoData.name,
       description: this.basicInfoData.description,
-      biz_scope: this.basicInfoData.biz_scope,
+      space_scope: this.basicInfoData.space_scope,
       variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
       query_configs: createQueryTemplateQueryConfigsParams(this.queryConfigs),
       expression: this.expressionConfig.expression,
@@ -147,7 +115,9 @@ export default class TemplateCreate extends tsc<object> {
         return f;
       }),
     };
+    this.submitLoading = true;
     const data = await createQueryTemplate(params).catch(() => false);
+    this.submitLoading = false;
     console.log(params, data);
   }
 
@@ -173,7 +143,7 @@ export default class TemplateCreate extends tsc<object> {
     this.basicInfoData = {
       name: '',
       description: '',
-      biz_scope: [this.$store.getters.bizId],
+      space_scope: [this.$store.getters.bizId],
     };
     this.metricsList = [];
     this.queryConfigs = [new QueryConfig(null, { alias: 'a' })];
@@ -183,9 +153,6 @@ export default class TemplateCreate extends tsc<object> {
   async activated() {
     this.init();
     this.handleGetMetricFunctions();
-    if (this.editId) {
-      this.getQueryTemplateDetail();
-    }
   }
 
   handleCreateVariable(val: IVariableModel) {
@@ -304,6 +271,7 @@ export default class TemplateCreate extends tsc<object> {
               expressionConfig={this.expressionConfig}
               metricFunctions={this.metricFunctions}
               queryConfigs={this.queryConfigs}
+              submitLoading={this.submitLoading}
               variablesList={this.variablesList}
               onCancel={this.handleBackGotoPage}
               onStepChange={this.handleStepChange}
