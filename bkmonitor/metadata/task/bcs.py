@@ -213,7 +213,7 @@ def discover_bcs_clusters():
         for bcs_cluster in bcs_clusters:
             logger.info("discover_bcs_clusters: get bcs cluster:{},start to register".format(bcs_cluster["cluster_id"]))
             project_id = bcs_cluster["project_id"]
-            bk_biz_id = bcs_cluster["bk_biz_id"]
+            bk_biz_id = int(bcs_cluster["bk_biz_id"])
             cluster_id = bcs_cluster["cluster_id"]
             cluster_raw_status = bcs_cluster["status"]
             cluster_list.append(cluster_id)
@@ -250,7 +250,7 @@ def discover_bcs_clusters():
                     change_cluster_router(
                         cluster=cluster,
                         old_bk_biz_id=old_bk_biz_id,
-                        new_bk_biz_id=int(bk_biz_id),
+                        new_bk_biz_id=bk_biz_id,
                         is_fed_cluster=is_fed_cluster,
                     )
 

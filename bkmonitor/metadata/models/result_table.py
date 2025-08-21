@@ -384,24 +384,8 @@ class ResultTable(models.Model):
             )
             raise ValueError(_("结果表ID在租户下已经存在，请确认"))
 
-        # 校验biz_id是否符合要求
-        if str(bk_biz_id) > "0":
-            # 如果有指定表的对应业务信息，需要校验结果表的命名是否符合规范
-            tenant_start_string = f"{bk_tenant_id}_{bk_biz_id}_"
-            start_string = f"{bk_biz_id}_"
-            if not table_id.startswith((start_string, tenant_start_string)):
-                logger.error(
-                    "create_result_table: user->[%s] try to set table->[%s] under biz->[%s] in bk_tenant_id->[%s] but "
-                    "table_id is not start with->[%s], maybe something go wrong?",
-                    operator,
-                    table_id,
-                    bk_biz_id,
-                    bk_tenant_id,
-                    start_string,
-                )
-                raise ValueError(_("结果表[%s]不符合命名规范，请确认后重试") % table_id)
-
-        elif str(bk_biz_id) == "0":
+        # 全业务的结果表，不可以已数字下划线开头
+        if str(bk_biz_id) == "0":
             # 全业务的结果表，不可以已数字下划线开头
             if re.match(r"\d+_", table_id):
                 logger.error(
@@ -1712,21 +1696,6 @@ class ResultTable(models.Model):
                 )  # 这里无需补充租户ID作为查询条件,因为real_storage已经进行了过滤
 
         raise NotImplementedError("no storage support get_tag_values")
-
-    @classmethod
-    def get_table_id_and_data_id(cls, bk_biz_id: int, bk_tenant_id=DEFAULT_TENANT_ID) -> list[dict]:
-        """
-        获取结果表和数据源 ID,禁止跨租户获取
-        """
-        table_id_list = cls.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=bk_tenant_id).values_list(
-            "table_id", flat=True
-        )
-        # 过滤 table_id 对应的数据源 ID
-        return list(
-            DataSourceResultTable.objects.filter(table_id__in=table_id_list, bk_tenant_id=bk_tenant_id).values(
-                "table_id", "bk_data_id"
-            )
-        )
 
 
 class ResultTableField(models.Model):

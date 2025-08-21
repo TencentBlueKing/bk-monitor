@@ -127,6 +127,7 @@ export default class ExploreExpandViewWrapper extends tsc<
         entities,
         canOpenStatistics: fieldItem?.is_option_enabled || false,
         canClick,
+        sceneUrls: this.detailData?.[sourceName]?.scene_urls ?? [],
       };
       return kvFieldItem;
     });

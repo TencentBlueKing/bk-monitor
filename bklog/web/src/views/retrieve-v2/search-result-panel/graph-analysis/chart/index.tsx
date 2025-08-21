@@ -25,8 +25,9 @@
  */
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { formatDateTimeField, getRegExp } from '@/common/util';
+import { formatDateTimeField, getRegExp, blobDownload } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import { debounce } from 'lodash';
 
 import ChartRoot from './chart-root';
@@ -51,6 +52,7 @@ export default defineComponent({
     const refRootContent = ref();
     const searchValue = ref('');
     const { $t } = useLocale();
+    const store = useStore();
 
     const { setChartOptions, destroyInstance, getChartInstance } = useChartRender({
       target: refRootElement,
@@ -110,7 +112,9 @@ export default defineComponent({
     const setTableData = () => {
       if (showTable.value || showNumber.value) {
         if (props.chartOptions.category === 'table') {
-          tableData.value.splice(0, tableData.value.length, ...(formatListData.value?.list ?? []));
+          tableData.value.length = 0;
+          tableData.value = [];
+          (formatListData.value?.list ?? []).forEach(t => tableData.value.push(t));
           return;
         }
 
@@ -204,30 +208,43 @@ export default defineComponent({
       return tableData.value.filter(data => columns.value.some(col => reg.test(data[col]))).slice(startIndex, endIndex);
     });
 
-    // const formatTableData = computed(() => {
-    //   return filterTableData.value.map(row => {
-    //     return columns.value.reduce((acc, cur) => {
-    //       return Object.assign({}, acc, { [cur]: getDateTimeFormatValue(row, cur) });
-    //     }, {});
-    //   });
-    // });
-
     const handleChartRootResize = debounce(() => {
       getChartInstance()?.resize();
     });
 
-    // const getDateTimeFormatValue = (row, col) => {
-    //   let value = row[col];
-    //   if (!/data|time/i.test(col)) {
-    //     return value;
-    //   }
-    //   const timestamp = /^\d+$/.test(value) ? Number(value) : value;
-    //   const timeValue = formatDate(timestamp, /^\d+$/.test(value), true);
-    //   return timeValue || value;
-    // };
-
     const handleSearchClick = value => {
       searchValue.value = value;
+    };
+
+    const replacer = (key, value) => {
+      // 处理undefined或null等特殊值，转化为字符串
+      return value === null ? '' : value;
+    };
+
+    const handleDownloadData = () => {
+      const lightName = store.state.retrieve.indexSetList.find(
+        item => `${item.index_set_id}` === `${store.state.indexId}`,
+      )?.lightenName;
+      const filename = lightName
+        ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.csv`
+        : 'bk_log_search.csv';
+
+      // 如果数据是一个对象数组并且需要提取表头
+      if (tableData.value.length === 0) {
+        console.error('No data to export');
+        return;
+      }
+
+      // 提取表头
+      const headers = columns.value;
+
+      // 生成 CSV 字符串
+      const csvContent = [
+        headers.join(','), // 表头行
+        ...tableData.value.map(row => headers.map(header => JSON.stringify(row[header], replacer)).join(',')), // 数据行
+      ].join('\n');
+
+      blobDownload(csvContent, filename);
     };
 
     const rendChildNode = () => {
@@ -262,19 +279,33 @@ export default defineComponent({
               value={searchValue.value}
               onChange={handleSearchClick}
             ></bk-input>
-            <bk-pagination
-              style='display: inline-flex'
-              class='top-pagination'
-              count={tableData.value.length}
-              current={pagination.value.current}
-              limit={pagination.value.limit}
-              location='right'
-              show-total-count={true}
-              size='small'
-              small={true}
-              onChange={handlePageChange}
-              onLimit-change={handlePageLimitChange}
-            ></bk-pagination>
+            <div>
+              {tableData.value.length > 0 ? (
+                <span
+                  style='font-size: 12px; color: #3A84FF; cursor: pointer;'
+                  onClick={handleDownloadData}
+                >
+                  <i
+                    style='font-size: 14px;'
+                    class='bklog-icon bklog-download'
+                  ></i>
+                  {$t('下载')}
+                </span>
+              ) : null}
+              <bk-pagination
+                style='display: inline-flex'
+                class='top-pagination'
+                count={tableData.value.length}
+                current={pagination.value.current}
+                limit={pagination.value.limit}
+                location='right'
+                show-total-count={true}
+                size='small'
+                small={true}
+                onChange={handlePageChange}
+                onLimit-change={handlePageLimitChange}
+              ></bk-pagination>
+            </div>
           </div>,
           <bk-table data={filterTableData.value}>
             <bk-table-column

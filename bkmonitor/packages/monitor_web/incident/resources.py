@@ -1555,4 +1555,13 @@ class IncidentDiagnosisResource(IncidentBaseResource):
                 content.append(content_item)
         else:
             content = raw_content
-        return {"sub_panel": display_panel, "contents": content}
+        diagnosis_result = {"sub_panel": display_panel, "contents": content}
+        display_content = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("display")
+        individual_summary_content = (
+            raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("individual_summary")
+        )
+        if display_content:
+            diagnosis_result.update({"display": display_content})
+        if individual_summary_content:
+            diagnosis_result.update({"individual_summary": individual_summary_content})
+        return diagnosis_result

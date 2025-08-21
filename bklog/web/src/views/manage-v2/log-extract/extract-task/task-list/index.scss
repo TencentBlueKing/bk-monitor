@@ -1,0 +1,162 @@
+/*提取任务表格页面*/
+.extract-task-list-container {
+  /*新增任务样式*/
+  .option-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
+
+    .king-input-search {
+      width: 486px;
+
+      .icon-search {
+        &:hover {
+          color: #3b84ff;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+
+  /*表格内容样式*/
+  .king-table {
+    background-color: #fff;
+
+    /*分页下拉*/
+    .bk-select-name {
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 76px !important;
+    }
+
+    .task-operation-container {
+      display: flex;
+      align-items: center;
+
+      .task-operation {
+        margin-right: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .cannot-click {
+        color: #989dab;
+        cursor: no-drop;
+      }
+    }
+
+    .task-status-warning {
+      display: flex;
+      align-items: center;
+      color: #ff9c01;
+
+      .icon-info-fill {
+        margin-left: 2px;
+        cursor: pointer;
+      }
+
+      .icon-refresh {
+        margin-right: 2px;
+        animation: refresh-rotate 1s linear infinite;
+
+        @keyframes refresh-rotate {
+          0% {
+            transform: rotate(0deg);
+          }
+
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+      }
+    }
+
+    .task-status-success {
+      color: #2dcb56;
+    }
+
+    .task-status-error {
+      color: #ea3636;
+    }
+  }
+}
+
+/*侧边栏插槽*/
+.extract-task-detail-content {
+  height: calc(100vh - 60px);
+  padding-bottom: 20px;
+  overflow: auto;
+
+  .list-box-container {
+    padding: 14px 20px 10px;
+    font-size: 15px;
+    line-height: 40px;
+    color: #63656e;
+
+    .icon-check-circle {
+      color: #2dcb56;
+    }
+
+    .icon-close-circle {
+      color: #ea3636;
+    }
+
+    .bk-icon {
+      margin-right: 3px;
+    }
+
+    .bk-alert {
+      .icon-info{
+        margin-right: 8px;
+      }
+    }
+
+    .list-title {
+      display: flex;
+      align-items: center;
+
+      .bk-icon {
+        margin-right: 6px;
+        font-size: 14px;
+      }
+
+      .text {
+        padding: 10px 0;
+        margin: 0;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 20px;
+        color: #313238;
+        word-break: break-all;
+      }
+
+      &.mark {
+        .bklog-icon {
+          margin-right: 4px;
+          font-size: 16px;
+          color: #ea3636;
+        }
+
+        .text {
+          color: #ea3636;
+        }
+      }
+    }
+
+    .list-box {
+      border-top: 1px solid #dcdee5;
+
+      .list-item {
+        padding: 10px 0;
+        line-height: 20px;
+        word-break: break-all;
+        border-bottom: 1px solid #dcdee5;
+
+        &:hover {
+          background-color: #f0f1f5;
+        }
+      }
+    }
+  }
+}
+

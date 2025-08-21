@@ -123,6 +123,11 @@ enum RetrieveEvent {
    * 趋势图缩放
    */
   TREND_GRAPH_ZOOM = 'trend-graph-zoom',
+
+  /**
+   * 打开别名配置
+   */
+  ALIAS_CONFIG_OPEN = 'alias_config_open',
 }
 
 export default RetrieveEvent;
