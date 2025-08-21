@@ -41,11 +41,11 @@ def test_get_result_tables_by_data_ids(create_and_delete_record, data_id_list, t
 
 
 def test_get_table_info_for_influxdb_and_vm(create_and_delete_record):
-    data = ds_rt.get_table_info_for_influxdb_and_vm([DEFAULT_TABLE_ID])
+    data = ds_rt.get_table_info_for_influxdb_and_vm(bk_tenant_id="system", table_id_list=[DEFAULT_TABLE_ID])
     keys = ["cluster_name", "db", "measurement", "storage_id", "vm_rt", "tags_key", "storage_name", "storage_type"]
     assert set(keys) == set(data[DEFAULT_TABLE_ID].keys())
 
-    data = ds_rt.get_table_info_for_influxdb_and_vm(["test.not_exist"])
+    data = ds_rt.get_table_info_for_influxdb_and_vm(bk_tenant_id="system", table_id_list=["test.not_exist"])
     assert not data
 
 

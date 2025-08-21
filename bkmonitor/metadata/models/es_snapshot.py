@@ -226,11 +226,13 @@ class EsSnapshotRepository(models.Model):
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_repository(
-        cls, cluster_id, snapshot_repository_name, es_config, alias, operator, bk_tenant_id=DEFAULT_TENANT_ID
+        cls, bk_tenant_id: str, cluster_id: int, snapshot_repository_name, es_config, alias, operator
     ):
         from metadata.models import ClusterInfo
 
-        cluster: ClusterInfo = ClusterInfo.objects.filter(cluster_id=cluster_id).first()
+        cluster: ClusterInfo | None = ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id, cluster_id=cluster_id
+        ).first()
         if not cluster:
             raise ValueError(_("集群不存在"))
         if cluster.cluster_type != cluster.TYPE_ES:
@@ -238,7 +240,7 @@ class EsSnapshotRepository(models.Model):
         if cls.objects.filter(repository_name=snapshot_repository_name).exists():
             raise ValueError(_("仓库名称已经存在"))
 
-        es_client = get_client(cluster)
+        es_client = get_client(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
         new_rep = cls.objects.create(
             cluster_id=cluster_id,
             repository_name=snapshot_repository_name,
@@ -270,7 +272,9 @@ class EsSnapshotRepository(models.Model):
         cls.objects.filter(
             cluster_id=cluster_id, repository_name=snapshot_repository_name, bk_tenant_id=bk_tenant_id
         ).update(is_deleted=True, last_modify_user=operator)
-        get_client(cluster_id).snapshot.delete_repository(snapshot_repository_name)
+        get_client(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id).snapshot.delete_repository(
+            snapshot_repository_name
+        )
 
     @classmethod
     def verify_repository(cls, cluster_id, snapshot_repository_name, bk_tenant_id=DEFAULT_TENANT_ID):
@@ -278,7 +282,9 @@ class EsSnapshotRepository(models.Model):
             cluster_id=cluster_id, repository_name=snapshot_repository_name, is_deleted=False, bk_tenant_id=bk_tenant_id
         ).exists():
             raise ValueError(_("仓库不存在"))
-        return get_client(cluster_id).snapshot.verify_repository(snapshot_repository_name)
+        return get_client(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id).snapshot.verify_repository(
+            snapshot_repository_name
+        )
 
     def to_json(self):
         result = {
@@ -293,7 +299,9 @@ class EsSnapshotRepository(models.Model):
         }
         try:
             result.update(
-                get_client(self.cluster_id).snapshot.get_repository(self.repository_name).get(self.repository_name, {})
+                get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=self.cluster_id)
+                .snapshot.get_repository(self.repository_name)
+                .get(self.repository_name, {})
             )
         except Exception as e:  # noqa
             logger.exception("get repository(%s) cluster_id(%s) error", self.repository_name, self.cluster_id)
@@ -578,8 +586,7 @@ class EsSnapshotRestore(models.Model):
                 cluster_id = EsSnapshotRepository.objects.get(
                     repository_name=repository_name, bk_tenant_id=self.bk_tenant_id
                 ).cluster_id
-                es_client = get_client(cluster_id)
-
+                es_client = get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=cluster_id)
                 es_client.snapshot.restore(
                     repository_name,
                     snapshot,
@@ -612,7 +619,7 @@ class EsSnapshotRestore(models.Model):
         from metadata.models import ESStorage
 
         es_storage = ESStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-        es_client = get_client(es_storage.storage_cluster_id)
+        es_client = get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=es_storage.storage_cluster_id)
 
         # es index 删除是通过url带参数 防止索引太多超过url长度限制 所以进行多批删除
         indices_chunks = utils.chunk_index_list([self.build_restore_index_name(indice) for indice in indices])

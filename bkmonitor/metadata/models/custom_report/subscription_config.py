@@ -422,7 +422,7 @@ class CustomReportSubscription(models.Model):
             try:
                 # 1. 下发配置（走节点管理下发至主机）
                 cls._refresh_collect_custom_config_by_biz(
-                    bk_tenant_id=bk_tenant_id,
+                    bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
                     bk_biz_id=bk_biz_id,
                     op_type=op_type,
                     data_id_configs=data_id_configs,

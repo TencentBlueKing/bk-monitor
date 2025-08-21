@@ -96,6 +96,14 @@
 
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
 
+  const computedIconClass = computed(() => {
+    const iconClass = {
+        0: "bklog-icon bklog-ui1 mode-icon",
+        1: "bklog-icon bklog-yuju1 mode-icon"
+      };
+      return iconClass[activeIndex.value] || "";
+  });
+
   watch(
     () => isIndexFieldLoading.value,
     () => {
@@ -500,6 +508,10 @@
         @click="handleQueryTypeChange"
       >
         <span class="mode-text">{{ queryText }}</span>
+        <span 
+          v-bk-tooltips.top="queryText" 
+          :class="computedIconClass"
+        ></span>
         <span class="bklog-icon bklog-qiehuan-2" />
       </div>
       <div

@@ -33,7 +33,6 @@
         :key="index"
       >
         <div
-          :style="`max-width: ${getMaxWidth}px; width: ${getMaxWidth}px;`"
           class="field-label"
         >
           <span
@@ -98,7 +97,7 @@
 </template>
 
 <script>
-  import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
+  // import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
   import JsonFormatter from '@/global/json-formatter.vue';
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
@@ -204,12 +203,7 @@
           .filter(item => this.kvShowFieldsList.includes(item.field_name))
           .map(el => el.field_name);
       },
-      /** 获取字段里最大的字段宽度 */
-      getMaxWidth() {
-        // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
-        const fieldWidthList = this.fieldKeyMap.map(item => getTextPxWidth(item, '13px', TABLE_FOUNT_FAMILY));
-        return Math.max(...fieldWidthList) + 22; // 22是icon的宽度
-      },
+
       hiddenFields() {
         return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
       },
@@ -459,6 +453,7 @@
         margin: 5px 0;
         margin-right: 18px;
         align-self: flex-start;
+        width: 300px;
 
         .field-eye-icon {
           display: inline-flex;

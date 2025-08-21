@@ -126,6 +126,16 @@ class ActionEnum:
         version=1,
     )
 
+    USE_PUBLIC_SYNTHETIC_LOCATION = ActionMeta(
+        id="use_public_synthetic_location",
+        name=_("拨测公共节点使用"),
+        name_en="Use Public Synthetic Location",
+        type="view",
+        related_resource_types=[],
+        related_actions=[VIEW_SYNTHETIC.id],
+        version=1,
+    )
+
     MANAGE_PUBLIC_SYNTHETIC_LOCATION = ActionMeta(
         id="manage_public_synthetic_location",
         name=_("拨测公共节点管理"),
@@ -595,6 +605,7 @@ MINI_ACTION_IDS = [
     ActionEnum.VIEW_INCIDENT.id,
     ActionEnum.MANAGE_INCIDENT.id,
     ActionEnum.USE_ALL_BIZ_IN_CUSTOM_METRIC.id,
+    ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION.id,
 ]
 # CMDB（主机依赖）权限
 CMDB_REQUIRE_ACTION_IDS = [

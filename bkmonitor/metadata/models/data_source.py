@@ -161,7 +161,7 @@ class DataSource(models.Model):
         """返回数据源的消息队列类型"""
         # 这个配置应该是很少变化的，所以考虑增加缓存
         if getattr(self, "_mq_cluster", None) is None:
-            self._mq_cluster = ClusterInfo.objects.get(cluster_id=self.mq_cluster_id)
+            self._mq_cluster = ClusterInfo.objects.get(bk_tenant_id=self.bk_tenant_id, cluster_id=self.mq_cluster_id)
 
         return self._mq_cluster
 
@@ -540,9 +540,11 @@ class DataSource(models.Model):
         try:
             # 如果集群信息无提供，则使用默认的MQ集群信息
             if mq_cluster is None:
-                mq_cluster = ClusterInfo.objects.get(cluster_type=cls.DEFAULT_MQ_TYPE, is_default_cluster=True)
+                mq_cluster = ClusterInfo.objects.get(
+                    bk_tenant_id=bk_tenant_id, cluster_type=cls.DEFAULT_MQ_TYPE, is_default_cluster=True
+                )
             else:
-                mq_cluster = ClusterInfo.objects.get(cluster_id=mq_cluster)
+                mq_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=mq_cluster)
         except ClusterInfo.DoesNotExist:
             # 此时，用户无提供新的数据源配置的集群信息，而也没有配置默认的集群信息，新的数据源无法配置集群信息
             # 需要抛出异常
@@ -797,7 +799,7 @@ class DataSource(models.Model):
         # 2.2 mq_cluster_id集群修改
         if mq_cluster_id is not None:
             # 是否存在，集群配置是否合理
-            if not ClusterInfo.objects.filter(cluster_id=mq_cluster_id).exists():
+            if not ClusterInfo.objects.filter(bk_tenant_id=self.bk_tenant_id, cluster_id=mq_cluster_id).exists():
                 logger.error(f"cluster_id->[{mq_cluster_id}] is not exists, nothing will update.")
                 raise ValueError(_("集群配置不存在，请确认"))
 
@@ -827,7 +829,11 @@ class DataSource(models.Model):
             # 更新option配置
             for option_name, option_value in list(option.items()):
                 DataSourceOption.create_or_update(
-                    bk_data_id=self.bk_data_id, name=option_name, value=option_value, creator=operator
+                    bk_data_id=self.bk_data_id,
+                    name=option_name,
+                    value=option_value,
+                    creator=operator,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
                 logger.info(
                     f"bk_data_id->[{self.bk_data_id}] now has option->[{option_name}] with value->[{option_value}]"
@@ -887,7 +893,7 @@ class DataSource(models.Model):
 
         if authorized_spaces is not None:
             # 写入 空间与数据源的关系表
-            space_info = self.get_spaces_by_data_id(self.bk_data_id)
+            space_info = self.get_spaces_by_data_id(self.bk_data_id, self.bk_tenant_id)
             if space_info:
                 try:
                     self._save_space_datasource(

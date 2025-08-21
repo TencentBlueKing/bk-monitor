@@ -26,9 +26,11 @@ from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
 from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip, deserialize_and_decompress
 from bkmonitor.utils.custom_report_tools import custom_report_tool
+from bkmonitor.utils.tenant import set_local_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
 from constants.apm import TelemetryDataType
+from core.drf_resource import api
 
 
 class APMEvent(Enum):
@@ -125,8 +127,8 @@ def build_event_body(
 
 
 @shared_task(ignore_result=True)
-def update_application_config(application_id):
-    Application.objects.get(application_id=application_id).refresh_config()
+def update_application_config(bk_biz_id, app_name, config):
+    api.apm_api.release_app_config({"bk_biz_id": bk_biz_id, "app_name": app_name, **config})
 
 
 @shared_task(ignore_result=True)
@@ -134,6 +136,7 @@ def refresh_application():
     logger.info("[REFRESH_APPLICATION] task start")
 
     for application in Application.objects.filter(is_enabled=True):
+        set_local_tenant_id(application.bk_tenant_id)
         try:
             # 刷新数据状态
             application.set_data_status()

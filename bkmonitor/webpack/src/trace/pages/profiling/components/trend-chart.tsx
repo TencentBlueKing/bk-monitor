@@ -236,6 +236,7 @@ export default defineComponent({
               </div>
             ),
           }}
+          alone={true}
           modelValue={this.collapse}
           onUpdate:modelValue={this.handleCollapseChange}
         >
