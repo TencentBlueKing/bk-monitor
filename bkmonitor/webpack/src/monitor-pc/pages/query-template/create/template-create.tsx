@@ -27,9 +27,11 @@ import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFunctions } from 'monitor-api/modules/grafana';
+import { createQueryTemplate, retrieveQueryTemplate } from 'monitor-api/modules/model';
 
 import QueryTemplateSet from '../components/query-template-set/query-template-set';
 import QueryTemplateView from '../components/query-template-view/query-template-view';
+import { createQueryTemplateQueryConfigsParams, getRetrieveQueryTemplateQueryConfigs } from '../service/metric';
 import {
   type AggCondition,
   type AggFunction,
@@ -94,14 +96,30 @@ export default class TemplateCreate extends tsc<object> {
     this.curStep = step;
   }
 
-  handleSubmit() {
+  /**
+   * @description 获取查询模板详情
+
+   */
+  async getQueryTemplateDetail() {
+    const data = await retrieveQueryTemplate().catch(() => null);
+    if (data) {
+      this.queryConfigs = await getRetrieveQueryTemplateQueryConfigs(data.query_configs);
+    }
+    console.log(data);
+  }
+
+  async handleSubmit() {
     const params = {
       name: this.basicInfoData.name,
       description: this.basicInfoData.desc,
       biz_scope: this.basicInfoData.effect,
       variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
+      query_configs: createQueryTemplateQueryConfigsParams(this.queryConfigs),
+      expression: this.expressionConfig.expression,
+      functions: this.expressionConfig.functions,
     };
-    console.log(params);
+    const data = await createQueryTemplate(params).catch(() => false);
+    console.log(params, data);
   }
 
   handleCancel() {
