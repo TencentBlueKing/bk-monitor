@@ -113,6 +113,19 @@ export default class TemplateCreate extends tsc<object> {
     const data = await retrieveQueryTemplate(this.editId).catch(() => null);
     if (data) {
       this.queryConfigs = await getRetrieveQueryTemplateQueryConfigs(data.query_configs);
+      this.expressionConfig = new Expression({
+        expression: data.expression,
+        functions: data.functions.map(f => {
+          if (typeof f === 'string') {
+            return {
+              id: f,
+              name: '',
+              params: [],
+            };
+          }
+          return f;
+        }),
+      });
     }
     this.loading = false;
     console.log(data);
