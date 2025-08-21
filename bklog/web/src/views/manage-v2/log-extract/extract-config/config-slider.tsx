@@ -203,7 +203,7 @@ export default defineComponent({
           <ValidateInput
             style='width: 256px; margin-right: 4px'
             value={item}
-            onChange={(val: string) => {
+            on-change={(val: string) => {
               manageStrategyData.value.visible_dir[index] = val;
             }}
             validator={validateVisibleDir}
