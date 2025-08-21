@@ -30,7 +30,9 @@ import { variableRegex } from '../../variables/template/utils';
 import VariablesManage from '../../variables/variables-manage/variables-manage';
 import BasicInfoCreate from '../basic-info/basic-info-create';
 import ExpressionPanel from '../expression-panel/expression-panel';
+import ExpressionPanelLoading from '../expression-panel/expression-panel-loading';
 import QueryPanel from '../query-panel/query-panel';
+import QueryPanelLoading from '../query-panel/query-panel-loading';
 
 import type {
   AggCondition,
@@ -67,6 +69,7 @@ interface QueryConfigSetEvents {
 interface QueryConfigSetProps {
   basicInfo: IBasicInfoData;
   expressionConfig: Expression;
+  loading?: boolean;
   metricFunctions: any[];
   queryConfigs: QueryConfig[];
   variablesList: VariableModelType[];
@@ -79,6 +82,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
   @Prop() expressionConfig: Expression;
   @Prop({ default: () => [] }) metricFunctions: any[];
   @Prop({ default: () => [] }) variablesList: VariableModelType[];
+  @Prop({ default: false }) loading: boolean;
   @Ref('basicInfo') basicInfoRef: BasicInfoCreate;
   @Ref('createContainer') createContainerRef: HTMLDivElement;
   @Ref('variablesManage') variablesManageRef: VariablesManage;
@@ -187,35 +191,43 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
             />
             <div class='template-config-wrap-component panel'>
               <div class='template-config-title'>{this.$t('模板配置')}</div>
-              <div class='template-config-content'>
-                {this.queryConfigs.map((item, index) => (
-                  <QueryPanel
-                    key={item.key}
-                    hasAdd={index === this.queryConfigs.length - 1}
-                    hasDelete={this.queryConfigs.length >= 2}
+              {this.loading ? (
+                <div class='template-config-content'>
+                  <QueryPanelLoading />
+                  <ExpressionPanelLoading class='mt-12' />
+                </div>
+              ) : (
+                <div class='template-config-content'>
+                  {this.queryConfigs.map((item, index) => (
+                    <QueryPanel
+                      key={item.key}
+                      hasAdd={index === this.queryConfigs.length - 1}
+                      hasDelete={this.queryConfigs.length >= 2}
+                      metricFunctions={this.metricFunctions}
+                      queryConfig={item}
+                      variables={this.variablesList}
+                      onAdd={() => this.handleAddQueryConfig(index)}
+                      onChangeCondition={val => this.handleChangeCondition(val, index)}
+                      onChangeDimension={val => this.handleDimensionChange(val, index)}
+                      onChangeFunction={val => this.handleChangeFunction(val, index)}
+                      onChangeInterval={val => this.handleChangeInterval(val, index)}
+                      onChangeMethod={val => this.handleChangeMethod(val, index)}
+                      onCreateVariable={this.handleCreateVariable}
+                      onDelete={() => this.handleDeleteQueryConfig(index)}
+                      onSelectMetric={metric => this.handleSelectMetric(index, metric)}
+                    />
+                  ))}
+
+                  <ExpressionPanel
+                    expressionConfig={this.expressionConfig}
                     metricFunctions={this.metricFunctions}
-                    queryConfig={item}
                     variables={this.variablesList}
-                    onAdd={() => this.handleAddQueryConfig(index)}
-                    onChangeCondition={val => this.handleChangeCondition(val, index)}
-                    onChangeDimension={val => this.handleDimensionChange(val, index)}
-                    onChangeFunction={val => this.handleChangeFunction(val, index)}
-                    onChangeInterval={val => this.handleChangeInterval(val, index)}
-                    onChangeMethod={val => this.handleChangeMethod(val, index)}
+                    onChangeExpression={val => this.handleChangeExpression(val)}
+                    onChangeFunction={val => this.handleChangeExpressionFunction(val)}
                     onCreateVariable={this.handleCreateVariable}
-                    onDelete={() => this.handleDeleteQueryConfig(index)}
-                    onSelectMetric={metric => this.handleSelectMetric(index, metric)}
                   />
-                ))}
-                <ExpressionPanel
-                  expressionConfig={this.expressionConfig}
-                  metricFunctions={this.metricFunctions}
-                  variables={this.variablesList}
-                  onChangeExpression={val => this.handleChangeExpression(val)}
-                  onChangeFunction={val => this.handleChangeExpressionFunction(val)}
-                  onCreateVariable={this.handleCreateVariable}
-                />
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
