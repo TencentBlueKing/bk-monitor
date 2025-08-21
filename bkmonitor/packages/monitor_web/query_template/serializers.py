@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from rest_framework import serializers
 
+from bkmonitor.models.query_template import QueryTemplate
 from bkmonitor.query_template.serializers import QueryTemplateSerializer
 
 
@@ -62,3 +63,9 @@ class QueryTemplateRelationsRequestSerializer(BaseQueryTemplateRequestSerializer
 
 class QueryTemplateRelationRequestSerializer(BaseQueryTemplateRequestSerializer):
     pass
+
+
+class QueryTemplateModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QueryTemplate
+        fields = "__all__"
