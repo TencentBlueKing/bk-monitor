@@ -8,10 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models.query_template import QueryTemplate
 from bkmonitor.query_template.serializers import QueryTemplateSerializer
+from constants.query_template import GLOBAL_BIZ_ID
 
 
 class BaseQueryTemplateRequestSerializer(serializers.Serializer):
@@ -69,3 +72,33 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = QueryTemplate
         fields = "__all__"
+
+    @staticmethod
+    def _is_allowed_by_bk_biz_ids(bk_biz_ids: list):
+        permission = Permission()
+        for bk_biz_id in bk_biz_ids:
+            if permission.is_allowed_by_biz(bk_biz_id, ActionEnum.EXPLORE_METRIC):
+                continue
+            raise serializers.ValidationError(
+                _("您没有业务 ID 为 {bk_biz_id} 的指标探索权限").format(bk_biz_id=bk_biz_id)
+            )
+
+    @staticmethod
+    def _base_validate(validated_data):
+        if validated_data["bk_biz_id"] == GLOBAL_BIZ_ID:
+            raise serializers.ValidationError(_("全局模板不允许在页面进行操作"))
+
+        # 校验生效范围必须包含本业务 ID
+        bk_biz_id = validated_data["bk_biz_id"]
+        if bk_biz_id != GLOBAL_BIZ_ID and bk_biz_id not in validated_data["space_scope"]:
+            raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
+
+        # 校验同一业务下查询模板名称不能重复
+        if QueryTemplate.objects.filter(bk_biz_id=bk_biz_id, name=validated_data["name"]).exists():
+            raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
+
+    def create(self, validated_data):
+        self._is_allowed_by_bk_biz_ids([validated_data["space_scope"]])
+        self._base_validate(validated_data)
+        instance = super().create(validated_data)
+        return instance
