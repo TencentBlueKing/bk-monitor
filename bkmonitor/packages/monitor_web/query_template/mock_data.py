@@ -10,11 +10,11 @@ specific language governing permissions and limitations under the License.
 
 from copy import deepcopy
 
-from bkmonitor.query_template.tests import data
+from bkmonitor.query_template import mock_data
 
-CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL = {"id": 1, **deepcopy(data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE)}
+CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL = {"id": 1, **deepcopy(mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE)}
 
-CALLEE_P99_QUERY_TEMPLATE_DETAIL = {"id": 2, **deepcopy(data.CALLEE_P99_QUERY_TEMPLATE)}
+CALLEE_P99_QUERY_TEMPLATE_DETAIL = {"id": 2, **deepcopy(mock_data.CALLEE_P99_QUERY_TEMPLATE)}
 
 QUERY_TEMPLATE_LIST = [
     {
@@ -51,4 +51,4 @@ CALLEE_P99_QUERY_TEMPLATE_RELATION = [
     },
 ]
 
-CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_PREVIEW = data.CALLEE_SUCCESS_RATE_QUERY_INSTANCE
+CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_PREVIEW = mock_data.CALLEE_SUCCESS_RATE_QUERY_INSTANCE
