@@ -177,7 +177,6 @@ export const listUserGroup = request('GET', 'rest/v2/user_groups/');
 export const partialUpdateUserGroup = request('PATCH', 'rest/v2/user_groups/{pk}/');
 export const retrieveUserGroup = request('GET', 'rest/v2/user_groups/{pk}/');
 export const updateUserGroup = request('PUT', 'rest/v2/user_groups/{pk}/');
-export const bulkUpdateUserGroup = request('POST', 'rest/v2/user_groups/bulk_update/');
 export const createDutyRule = request('POST', 'rest/v2/duty_rules/');
 export const destroyDutyRule = request('DELETE', 'rest/v2/duty_rules/{pk}/');
 export const listDutyRule = request('GET', 'rest/v2/duty_rules/');
@@ -186,11 +185,12 @@ export const retrieveDutyRule = request('GET', 'rest/v2/duty_rules/{pk}/');
 export const switchDutyRule = request('POST', 'rest/v2/duty_rules/switch/');
 export const updateDutyRule = request('PUT', 'rest/v2/duty_rules/{pk}/');
 export const createQueryTemplate = request('POST', 'rest/v2/query_template/');
-export const listQueryTemplate = request('GET', 'rest/v2/query_template/');
+export const destroyQueryTemplate = request('DELETE', 'rest/v2/query_template/{pk}/');
 export const previewQueryTemplate = request('POST', 'rest/v2/query_template/preview/');
 export const relationQueryTemplate = request('POST', 'rest/v2/query_template/{pk}/relation/');
 export const relationsQueryTemplate = request('POST', 'rest/v2/query_template/relations/');
 export const retrieveQueryTemplate = request('GET', 'rest/v2/query_template/{pk}/');
+export const searchQueryTemplate = request('POST', 'rest/v2/query_template/search/');
 export const updateQueryTemplate = request('PUT', 'rest/v2/query_template/{pk}/');
 export const createActionConfig = request('POST', 'fta/action/config/');
 export const destroyActionConfig = request('DELETE', 'fta/action/config/{pk}/');
@@ -349,7 +349,6 @@ export default {
   partialUpdateUserGroup,
   retrieveUserGroup,
   updateUserGroup,
-  bulkUpdateUserGroup,
   createDutyRule,
   destroyDutyRule,
   listDutyRule,
@@ -358,11 +357,12 @@ export default {
   switchDutyRule,
   updateDutyRule,
   createQueryTemplate,
-  listQueryTemplate,
+  destroyQueryTemplate,
   previewQueryTemplate,
   relationQueryTemplate,
   relationsQueryTemplate,
   retrieveQueryTemplate,
+  searchQueryTemplate,
   updateQueryTemplate,
   createActionConfig,
   destroyActionConfig,
