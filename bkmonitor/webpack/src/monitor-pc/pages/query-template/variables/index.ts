@@ -55,7 +55,7 @@ abstract class VariableBase {
   alias = '';
   /** 默认值 */
   abstract defaultValue: any;
-  desc = '';
+  description = '';
   id = '';
   name = '';
   type: VariableTypeEnumType;
@@ -65,7 +65,7 @@ abstract class VariableBase {
   constructor(config: ICommonVariableModel<VariableTypeEnumType>) {
     this.name = config.name;
     this.alias = config.alias;
-    this.desc = config.desc;
+    this.description = config.description;
     this.type = config.type;
     this.id = config.id || random(5);
   }
@@ -83,9 +83,9 @@ abstract class VariableBase {
 
 export class ConditionVariableModel extends VariableBase {
   defaultValue: IConditionVariableModel['value'] = [];
-  dimensionOption = [];
   /** 关联指标 */
   metric: MetricDetailV2 = null;
+  options = [];
   value: IConditionVariableModel['value'] = [];
 
   constructor(config: IConditionVariableModel) {
@@ -93,18 +93,18 @@ export class ConditionVariableModel extends VariableBase {
     this.metric = config.metric;
     this.value = config.value || [];
     this.defaultValue = config.defaultValue || [];
-    this.dimensionOption = config.dimensionOption || ['all'];
+    this.options = config.options || ['all'];
   }
 
   get data() {
     return {
       id: this.id,
-      type: VariableTypeEnum.CONDITION,
+      type: VariableTypeEnum.CONDITIONS,
       name: this.name,
       alias: this.alias,
-      desc: this.desc,
+      description: this.description,
       metric: this.metric,
-      dimensionOption: this.dimensionOption,
+      options: this.options,
       value: this.value,
       defaultValue: this.defaultValue,
       variableName: this.variableName,
@@ -118,10 +118,10 @@ export class ConditionVariableModel extends VariableBase {
   get dimensionOptionsMap() {
     return this.isAllDimensionOptions
       ? this.dimensionList
-      : this.dimensionList.filter(item => this.dimensionOption.includes(item.id));
+      : this.dimensionList.filter(item => this.options.includes(item.id));
   }
   get isAllDimensionOptions() {
-    return this.dimensionOption.includes('all');
+    return this.options.includes('all');
   }
 }
 
@@ -137,10 +137,10 @@ export class ConstantVariableModel extends VariableBase {
   get data() {
     return {
       id: this.id,
-      type: VariableTypeEnum.CONSTANT,
+      type: VariableTypeEnum.CONSTANTS,
       name: this.name,
       alias: this.alias,
-      desc: this.desc,
+      description: this.description,
       value: this.value,
       defaultValue: this.defaultValue,
       variableName: this.variableName,
@@ -153,12 +153,12 @@ export class DimensionValueVariableModel extends VariableBase {
   /** 关联指标 */
   metric: MetricDetailV2 = null;
   /** 关联维度 */
-  relationDimension = '';
+  related_tag = '';
   value = '';
   constructor(config: IDimensionValueVariableModel) {
     super(config);
     this.metric = config.metric;
-    this.relationDimension = config.relationDimension || '';
+    this.related_tag = config.related_tag || '';
     this.value = config.value || '';
     this.defaultValue = config.defaultValue || '';
   }
@@ -166,47 +166,47 @@ export class DimensionValueVariableModel extends VariableBase {
   get data() {
     return {
       id: this.id,
-      type: VariableTypeEnum.DIMENSION_VALUE,
+      type: VariableTypeEnum.TAG_VALUES,
       name: this.name,
       alias: this.alias,
-      desc: this.desc,
+      description: this.description,
       metric: this.metric,
       value: this.value,
       defaultValue: this.defaultValue,
       variableName: this.variableName,
-      relationDimension: this.relationDimension,
+      related_tag: this.related_tag,
     };
   }
 }
 
 export class DimensionVariableModel extends VariableBase {
   defaultValue = '';
-  /** 可选维度 */
-  dimensionOption = [];
   metric: MetricDetailV2 = null;
+  /** 可选维度 */
+  options = [];
   value = '';
 
   constructor(config: IDimensionVariableModel) {
     super(config);
     this.metric = config.metric;
-    this.dimensionOption = config.dimensionOption || ['all'];
+    this.options = config.options || ['all'];
     this.value = config.value || '';
     if (config.defaultValue) {
       this.defaultValue = config.defaultValue;
     } else {
-      this.defaultValue = this.isAllDimensionOptions ? this.dimensionList[0].id : this.dimensionOption[0] || '';
+      this.defaultValue = this.isAllDimensionOptions ? this.dimensionList[0].id : this.options[0] || '';
     }
   }
 
   get data() {
     return {
       id: this.id,
-      type: VariableTypeEnum.DIMENSION,
+      type: VariableTypeEnum.GROUP_BY,
       name: this.name,
       alias: this.alias,
-      desc: this.desc,
+      description: this.description,
       metric: this.metric,
-      dimensionOption: this.dimensionOption,
+      options: this.options,
       value: this.value,
       defaultValue: this.defaultValue,
       variableName: this.variableName,
@@ -226,11 +226,11 @@ export class DimensionVariableModel extends VariableBase {
   get dimensionOptionsMap() {
     return this.isAllDimensionOptions
       ? this.dimensionList
-      : this.dimensionList.filter(item => this.dimensionOption.includes(item.id));
+      : this.dimensionList.filter(item => this.options.includes(item.id));
   }
 
   get isAllDimensionOptions() {
-    return this.dimensionOption.includes('all');
+    return this.options.includes('all');
   }
 
   get valueMap() {
@@ -250,10 +250,10 @@ export class FunctionVariableModel extends VariableBase {
   get data() {
     return {
       id: this.id,
-      type: VariableTypeEnum.FUNCTION,
+      type: VariableTypeEnum.FUNCTIONS,
       name: this.name,
       alias: this.alias,
-      desc: this.desc,
+      description: this.description,
       value: this.value,
       defaultValue: this.defaultValue,
       variableName: this.variableName,
@@ -279,7 +279,7 @@ export class MethodVariableModel extends VariableBase {
       name: this.name,
       alias: this.alias,
       metric: this.metric,
-      desc: this.desc,
+      description: this.description,
       value: this.value,
       defaultValue: this.defaultValue,
       variableName: this.variableName,
@@ -297,8 +297,8 @@ export function getCreateVariableParams(params, metrics: MetricDetailV2[]): IVar
     config: {
       default: defaultValue,
       related_metrics: [{ metric_id, metric_field }],
-      related_tag: relationDimension,
-      options: dimensionOption,
+      related_tag,
+      options,
     },
   } = params;
 
@@ -311,11 +311,11 @@ export function getCreateVariableParams(params, metrics: MetricDetailV2[]): IVar
     name,
     type,
     alias,
-    desc: description,
+    description,
     defaultValue,
     metric,
-    relationDimension,
-    dimensionOption,
+    related_tag,
+    options,
   };
 }
 
@@ -323,25 +323,25 @@ export function getVariableModel(config: IVariableModel): VariableModelType {
   switch (config.type) {
     case VariableTypeEnum.METHOD:
       return new MethodVariableModel(config);
-    case VariableTypeEnum.DIMENSION:
+    case VariableTypeEnum.GROUP_BY:
       return new DimensionVariableModel(config);
-    case VariableTypeEnum.DIMENSION_VALUE:
+    case VariableTypeEnum.TAG_VALUES:
       return new DimensionValueVariableModel(config);
-    case VariableTypeEnum.FUNCTION:
+    case VariableTypeEnum.FUNCTIONS:
       return new FunctionVariableModel(config);
-    case VariableTypeEnum.CONDITION:
+    case VariableTypeEnum.CONDITIONS:
       return new ConditionVariableModel(config);
-    case VariableTypeEnum.CONSTANT:
+    case VariableTypeEnum.CONSTANTS:
       return new ConstantVariableModel(config);
   }
 }
 
 /** 获取变量接口提交参数结构 */
 export function getVariableSubmitParams(variable: VariableModelType) {
-  const { type, name, alias, desc, defaultValue } = variable.data;
+  const { type, variableName, alias, description, defaultValue } = variable.data;
   let otherConfig = {};
-  if (type === VariableTypeEnum.DIMENSION_VALUE) {
-    const { relationDimension, metric } = variable.data;
+  if (type === VariableTypeEnum.TAG_VALUES) {
+    const { related_tag, metric } = variable.data;
     otherConfig = {
       related_metrics: [
         {
@@ -349,11 +349,11 @@ export function getVariableSubmitParams(variable: VariableModelType) {
           metric_field: metric.metric_field,
         },
       ],
-      related_tag: relationDimension,
+      related_tag: related_tag,
       options: [],
     };
   }
-  if (type === VariableTypeEnum.CONDITION || type === VariableTypeEnum.DIMENSION) {
+  if (type === VariableTypeEnum.CONDITIONS || type === VariableTypeEnum.GROUP_BY) {
     const { metric } = variable.data;
     otherConfig = {
       related_metrics: [
@@ -362,14 +362,16 @@ export function getVariableSubmitParams(variable: VariableModelType) {
           metric_field: metric.metric_field,
         },
       ],
-      options: (variable as ConditionVariableModel | DimensionVariableModel).dimensionOptionsMap.map(item => item.id),
+      options: (variable as ConditionVariableModel | DimensionVariableModel).isAllDimensionOptions
+        ? []
+        : (variable as ConditionVariableModel | DimensionVariableModel).options,
     };
   }
   return {
     type,
-    name,
+    name: variableName,
     alias,
-    description: desc,
+    description: description,
     config: {
       default: defaultValue,
       ...otherConfig,

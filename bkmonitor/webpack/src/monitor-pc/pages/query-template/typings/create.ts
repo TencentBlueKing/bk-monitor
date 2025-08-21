@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-export interface IBasicInfoData {
-  desc: string;
-  effect: string[];
+export interface BasicInfoData {
+  biz_scope: string[];
+  description: string;
   name: string;
 }
 export interface ICreateEvents {

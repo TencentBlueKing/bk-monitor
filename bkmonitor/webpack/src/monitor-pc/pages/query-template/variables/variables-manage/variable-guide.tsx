@@ -51,8 +51,8 @@ export default class VariablesGuide extends tsc<VariablesGuideProps, VariablesGu
   renderGuideDesc(id: number) {
     if (id === 1) {
       return (
-        <div class='desc'>
-          <div class='desc-item'>
+        <div class='description'>
+          <div class='description-item'>
             <span class='dot' />
             <i18n
               class='text'
@@ -61,7 +61,7 @@ export default class VariablesGuide extends tsc<VariablesGuideProps, VariablesGu
               <div class='variable-tag'>{'${variable_name}'}</div>
             </i18n>
           </div>
-          <div class='desc-item'>
+          <div class='description-item'>
             <span class='dot' />
             <i18n
               class='text'
@@ -78,8 +78,8 @@ export default class VariablesGuide extends tsc<VariablesGuideProps, VariablesGu
     }
     if (id === 2) {
       return (
-        <div class='desc'>
-          <div class='desc-item'>
+        <div class='description'>
+          <div class='description-item'>
             <span class='dot' />
             <i18n
               class='text'
@@ -88,7 +88,7 @@ export default class VariablesGuide extends tsc<VariablesGuideProps, VariablesGu
               <div class='variable-tag'>{this.$t('变量配置框')}</div>
             </i18n>
           </div>
-          <div class='desc-item'>
+          <div class='description-item'>
             <span class='dot' />
             <i18n
               class='text'
@@ -102,8 +102,8 @@ export default class VariablesGuide extends tsc<VariablesGuideProps, VariablesGu
       );
     }
     return (
-      <div class='desc'>
-        <div class='desc-item'>
+      <div class='description'>
+        <div class='description-item'>
           <span class='dot' />
           <i18n
             class='text'
