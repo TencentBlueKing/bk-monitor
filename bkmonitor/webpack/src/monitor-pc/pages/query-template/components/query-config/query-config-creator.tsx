@@ -64,9 +64,6 @@ export default class QueryConfigCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
   @Prop({ default: () => null }) queryConfig: QueryConfig;
 
-  /* 汇聚周期 */
-  method = 'avg';
-
   get getMethodVariables() {
     return this.variables.filter(item => item.type === VariableTypeEnum.METHOD);
   }

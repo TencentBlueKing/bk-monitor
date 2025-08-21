@@ -28,6 +28,7 @@
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 
 import { MetricDetailV2, QueryConfig } from '../typings';
+import { isVariableName } from '../variables/template/utils';
 
 export const transformMetricId = (
   metricId: string,
@@ -86,7 +87,12 @@ export const createQueryTemplateQueryConfigsParams = (queryConfigs: QueryConfig[
       },
     ],
     group_by: item.agg_dimension,
-    where: item.agg_condition,
+    where: item.agg_condition.map(w => {
+      if (isVariableName(w.key)) {
+        return w.key;
+      }
+      return w;
+    }),
     interval: item.agg_interval,
     interval_unit: 's',
     functions: item.functions,
@@ -100,10 +106,20 @@ export const getRetrieveQueryTemplateQueryConfigs = async (query_configs: any[])
     const metricDetail = metricList.find(metric => metric.metric_id === item.metric_id);
 
     const queryConfig = new QueryConfig(metricDetail || null, {
-      agg_condition: item.where,
+      agg_condition: item.where.map(w => {
+        if (typeof w === 'string') {
+          return {
+            key: w,
+            value: [],
+            method: 'eq',
+          };
+        }
+        return w;
+      }),
       agg_dimension: item.group_by,
       functions: item.functions,
       agg_interval: item.interval,
+      alias: item.metrics?.[0]?.alias || 'a',
       agg_method: item.metrics?.[0]?.method || 'AVG',
     });
     queryConfigs.push(queryConfig);

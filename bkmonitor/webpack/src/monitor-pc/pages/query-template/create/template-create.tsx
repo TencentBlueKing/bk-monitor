@@ -81,6 +81,12 @@ export default class TemplateCreate extends tsc<object> {
 
   submitLoading = false;
 
+  loading = false;
+
+  get editId() {
+    return this.$route.params.id;
+  }
+
   async beforeRouteLeave(to, _from, next) {
     const needNext = await this.handleCancel();
     next(needNext);
@@ -103,10 +109,12 @@ export default class TemplateCreate extends tsc<object> {
 
    */
   async getQueryTemplateDetail() {
-    const data = await retrieveQueryTemplate().catch(() => null);
+    this.loading = true;
+    const data = await retrieveQueryTemplate(this.editId).catch(() => null);
     if (data) {
       this.queryConfigs = await getRetrieveQueryTemplateQueryConfigs(data.query_configs);
     }
+    this.loading = false;
     console.log(data);
   }
 
@@ -156,6 +164,9 @@ export default class TemplateCreate extends tsc<object> {
   async activated() {
     this.init();
     this.handleGetMetricFunctions();
+    if (this.editId) {
+      this.getQueryTemplateDetail();
+    }
   }
 
   handleCreateVariable(val: IVariableModel) {
@@ -248,6 +259,7 @@ export default class TemplateCreate extends tsc<object> {
               ref='queryTemplateSet'
               basicInfo={this.basicInfoData}
               expressionConfig={this.expressionConfig}
+              loading={this.loading}
               metricFunctions={this.metricFunctions}
               queryConfigs={this.queryConfigs}
               variablesList={this.variablesList}
