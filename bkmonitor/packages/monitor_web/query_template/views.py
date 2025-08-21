@@ -23,7 +23,7 @@ from . import mock_data, serializers
 
 class QueryTemplateViewSet(GenericViewSet):
     queryset = QueryTemplate.objects.all()
-    serializer_class = serializers.QueryTemplateSerializer
+    serializer_class = serializers.QueryTemplateModelSerializer
 
     def get_permissions(self):
         return [BusinessActionPermission([ActionEnum.EXPLORE_METRIC])]
