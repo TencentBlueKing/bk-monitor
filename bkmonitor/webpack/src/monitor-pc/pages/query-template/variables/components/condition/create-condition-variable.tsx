@@ -96,7 +96,7 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
         >
           <bk-form-item label={this.$t('关联指标')}>
             <bk-input
-              value={this.variable?.metric?.related_name}
+              value={this.variable?.metric?.metric_id}
               readonly
             />
           </bk-form-item>

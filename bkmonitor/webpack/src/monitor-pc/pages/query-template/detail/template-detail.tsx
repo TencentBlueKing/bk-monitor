@@ -26,11 +26,17 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getFunctions } from 'monitor-api/modules/grafana';
+import { retrieveQueryTemplate } from 'monitor-api/modules/model';
+
 import { TemplateDetailTabEnum } from '../constants';
+import { getRetrieveQueryTemplateQueryConfigs } from '../service';
+import { type VariableModelType, getCreateVariableParams, getVariableModel } from '../variables';
 import ConfigPanel from './components/config-panel';
 import ConsumePanel from './components/consume-panel';
 import MonitorTab from '@/components/monitor-tab/monitor-tab';
 
+import type { BasicInfoData, QueryConfig } from '../typings';
 import type { TemplateDetailTabEnumType } from '../typings/constants';
 
 import './template-detail.scss';
@@ -42,11 +48,13 @@ interface TemplateDetailEmits {
 interface TemplateDetailProps {
   /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
   defaultActiveTab?: TemplateDetailTabEnumType;
+  id: number | string;
   /** 模板详情 - 侧弹抽屉是否可见 */
   sliderShow: boolean;
 }
 @Component
 export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDetailEmits> {
+  @Prop({ type: [String, Number], required: true }) id: number | string;
   /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
   @Prop({ type: String, default: TemplateDetailTabEnum.CONFIG }) defaultActiveTab?: TemplateDetailTabEnumType;
   /** 模板详情 - 侧弹抽屉是否可见 */
@@ -55,10 +63,54 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
   /** 当前激活的 tab 面板 */
   activeTab: TemplateDetailTabEnumType = TemplateDetailTabEnum.CONFIG;
 
+  basicInfoData: BasicInfoData = {
+    name: '',
+    description: '',
+    space_scope: [],
+  };
+
+  queryConfigs: QueryConfig[] = [];
+
+  variablesList: VariableModelType[] = [];
+
+  metricFunctions = [];
+
+  mounted() {
+    this.handleGetMetricFunctions();
+  }
+
+  async handleGetMetricFunctions() {
+    this.metricFunctions = await getFunctions().catch(() => []);
+  }
+
   @Watch('sliderShow')
   sliderShowChange() {
     if (!this.sliderShow) return;
     this.activeTab = this.defaultActiveTab || TemplateDetailTabEnum.CONFIG;
+    this.getQueryTemplateDetail();
+  }
+
+  /**
+   * @description 获取查询模板详情
+   */
+  async getQueryTemplateDetail() {
+    const data = await retrieveQueryTemplate(this.id).catch(() => null);
+    if (data) {
+      this.queryConfigs = await getRetrieveQueryTemplateQueryConfigs(data.query_configs);
+      this.basicInfoData = {
+        name: data.name,
+        description: data.description,
+        space_scope: data.space_scope,
+      };
+      this.variablesList = data.variables.map(item =>
+        getVariableModel(
+          getCreateVariableParams(
+            item,
+            this.queryConfigs.map(queryConfig => queryConfig.metricDetail)
+          )
+        )
+      );
+    }
   }
 
   /**
@@ -127,7 +179,10 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
               name={TemplateDetailTabEnum.CONFIG}
               renderDirective='if'
             >
-              <ConfigPanel />
+              <ConfigPanel
+                metricFunctions={this.metricFunctions}
+                variables={this.variablesList}
+              />
             </bk-tab-panel>
             <bk-tab-panel
               label={`${this.$t('消费场景')} (6)`}
