@@ -103,7 +103,7 @@ class QueryTemplateViewSet(GenericViewSet):
                 for v in c["value"]:
                     for f in fuzzy_match_fields:
                         q |= Q(**{f"{f}__icontains": v})
-                        queryset = queryset.filter(q)
+                queryset = queryset.filter(q)
         return queryset
 
     @staticmethod
