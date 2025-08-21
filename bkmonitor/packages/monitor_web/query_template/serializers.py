@@ -25,7 +25,7 @@ class QueryTemplateDetailRequestSerializer(BaseQueryTemplateRequestSerializer):
 class QueryTemplateListRequestSerializer(BaseQueryTemplateRequestSerializer):
     class ConditionSerializer(serializers.Serializer):
         key = serializers.CharField(label="查询条件")
-        value = serializers.CharField(label="查询值")
+        value = serializers.ListField(label="查询条件值", child=serializers.CharField())
 
     page = serializers.IntegerField(label="页码", min_value=1, default=1)
     page_size = serializers.IntegerField(label="每页条数", min_value=1, default=50)
