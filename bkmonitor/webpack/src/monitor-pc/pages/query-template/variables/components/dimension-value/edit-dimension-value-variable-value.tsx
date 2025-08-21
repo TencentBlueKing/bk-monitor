@@ -50,7 +50,7 @@ export default class EditDimensionValueVariableValue extends tsc<DimensionValueV
   valueList = [];
 
   @Emit('change')
-  handleValueChange(value: string) {
+  handleValueChange(value: string[]) {
     return new DimensionValueVariableModel({
       ...this.variable.data,
       value,
@@ -88,6 +88,9 @@ export default class EditDimensionValueVariableValue extends tsc<DimensionValueV
           clearable={false}
           loading={this.loading}
           value={this.variable.data.value || this.variable.data.defaultValue}
+          collapse-tag
+          display-tag
+          multiple
           onChange={this.handleValueChange}
           onToggle={this.handleSelectToggle}
         >

@@ -25,9 +25,9 @@
  */
 
 export interface BasicInfoData {
-  biz_scope: string[];
   description: string;
   name: string;
+  space_scope: string[];
 }
 export interface ICreateEvents {
   onClose: () => void;

@@ -149,18 +149,18 @@ export class ConstantVariableModel extends VariableBase {
 }
 
 export class DimensionValueVariableModel extends VariableBase {
-  defaultValue = '';
+  defaultValue = [];
   /** 关联指标 */
   metric: MetricDetailV2 = null;
   /** 关联维度 */
   related_tag = '';
-  value = '';
+  value = [];
   constructor(config: IDimensionValueVariableModel) {
     super(config);
     this.metric = config.metric;
     this.related_tag = config.related_tag || '';
-    this.value = config.value || '';
-    this.defaultValue = config.defaultValue || '';
+    this.value = config.value || [];
+    this.defaultValue = config.defaultValue || [];
   }
 
   get data() {
@@ -180,19 +180,19 @@ export class DimensionValueVariableModel extends VariableBase {
 }
 
 export class DimensionVariableModel extends VariableBase {
-  defaultValue = '';
+  defaultValue = [];
   metric: MetricDetailV2 = null;
   /** 可选维度 */
   options = [];
-  value = '';
+  value = [];
 
   constructor(config: IDimensionVariableModel) {
     super(config);
     this.metric = config.metric;
     this.options = config.options || ['all'];
-    this.value = config.value || '';
+    this.value = config.value || [];
     if (config.defaultValue) {
-      this.defaultValue = config.defaultValue;
+      this.defaultValue = config.defaultValue || [];
     } else {
       this.defaultValue = this.isAllDimensionOptions ? this.dimensionList[0].id : this.options[0] || '';
     }
@@ -213,10 +213,6 @@ export class DimensionVariableModel extends VariableBase {
     };
   }
 
-  get defaultValueMap() {
-    return this.dimensionList.find(item => item.id === this.defaultValue);
-  }
-
   /** 维度列表 */
   get dimensionList() {
     return this.metric.dimensions;
@@ -231,10 +227,6 @@ export class DimensionVariableModel extends VariableBase {
 
   get isAllDimensionOptions() {
     return this.options.includes('all');
-  }
-
-  get valueMap() {
-    return this.dimensionList.find(item => item.id === this.value);
   }
 }
 
@@ -294,16 +286,12 @@ export function getCreateVariableParams(params, metrics: MetricDetailV2[]): IVar
     name,
     alias,
     description,
-    config: {
-      default: defaultValue,
-      related_metrics: [{ metric_id, metric_field }],
-      related_tag,
-      options,
-    },
+    config: { default: defaultValue, related_metrics, related_tag, options },
   } = params;
 
   let metric = null;
-  if (metric_field && metric_id) {
+  if (related_metrics) {
+    const [{ metric_field, metric_id }] = related_metrics;
     metric = metrics.find(item => item.metric_id === metric_id && item.metric_field === metric_field);
   }
 
