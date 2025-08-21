@@ -143,7 +143,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
     }, []);
   }
 
-  @Watch('viewValue')
+  @Watch('viewValue', { immediate: true })
   calcHideCount(newVal) {
     this.hideCount = this.visibleItemLimit ? newVal?.length - this.visibleItemLimit : 0;
   }
@@ -155,7 +155,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
   valueWrapRenderer() {
     return (
       <div class='value-wrap'>
-        {this.viewValue.map((item, index) => {
+        {this.viewValue.slice(0, this.visibleItemLimit || this.viewValue?.length).map((item, index) => {
           // eslint-disable-next-line @typescript-eslint/naming-convention
           const ValueNameDomTag = item?.isVariable ? VariableSpan : this.DomTag;
           return [
