@@ -42,6 +42,7 @@ import {
   QueryConfig,
 } from '../typings';
 import { type VariableModelType, getVariableModel, getVariableSubmitParams } from '../variables';
+import { isVariableName } from '../variables/template/utils';
 import { LETTERS } from '@/common/constant';
 
 import type { MetricDetail } from '../components/type/query-config';
@@ -113,6 +114,19 @@ export default class TemplateCreate extends tsc<object> {
     const data = await retrieveQueryTemplate(this.editId).catch(() => null);
     if (data) {
       this.queryConfigs = await getRetrieveQueryTemplateQueryConfigs(data.query_configs);
+      this.expressionConfig = new Expression({
+        expression: data.expression,
+        functions: data.functions.map(f => {
+          if (typeof f === 'string') {
+            return {
+              id: f,
+              name: '',
+              params: [],
+            };
+          }
+          return f;
+        }),
+      });
     }
     this.loading = false;
     console.log(data);
@@ -126,7 +140,12 @@ export default class TemplateCreate extends tsc<object> {
       variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
       query_configs: createQueryTemplateQueryConfigsParams(this.queryConfigs),
       expression: this.expressionConfig.expression,
-      functions: this.expressionConfig.functions,
+      functions: this.expressionConfig.functions.map(f => {
+        if (isVariableName(f.id)) {
+          return f.id;
+        }
+        return f;
+      }),
     };
     const data = await createQueryTemplate(params).catch(() => false);
     console.log(params, data);

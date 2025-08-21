@@ -61,16 +61,24 @@ export const fetchMetricDetailList = async (
     conditions: [
       {
         key: 'metric_id',
-        value: queryConfigs.map(item =>
-          transformMetricId(item.metric_id, {
-            data_source_label: item.data_source_label,
-            data_type_label: item.data_type_label,
-          })
+        value: Array.from(
+          new Set(
+            queryConfigs.map(item =>
+              transformMetricId(item.metric_id, {
+                data_source_label: item.data_source_label,
+                data_type_label: item.data_type_label,
+              })
+            )
+          )
         ),
       },
     ],
   }).catch(() => ({ metric_list: [] as MetricDetailV2[] }));
   return metric_list.map(item => new MetricDetailV2(item));
+};
+
+const getMetricId = queryConfig => {
+  return `${queryConfig?.data_source_label}.${queryConfig?.table}.${queryConfig.metrics?.[0]?.field}`;
 };
 
 export const createQueryTemplateQueryConfigsParams = (queryConfigs: QueryConfig[]) => {
@@ -94,17 +102,26 @@ export const createQueryTemplateQueryConfigsParams = (queryConfigs: QueryConfig[
       return w;
     }),
     interval: item.agg_interval,
-    interval_unit: 's',
-    functions: item.functions,
+    functions: item.functions.map(f => {
+      if (isVariableName(f.id)) {
+        return f.id;
+      }
+      return f;
+    }),
   }));
 };
 
 export const getRetrieveQueryTemplateQueryConfigs = async (query_configs: any[]): Promise<QueryConfig[]> => {
   const queryConfigs: QueryConfig[] = [];
-  const metricList = await fetchMetricDetailList(query_configs);
+  const metricList = await fetchMetricDetailList(
+    query_configs.map(item => ({
+      ...item,
+      metric_id: item.metric_id || getMetricId(item),
+    }))
+  );
   for (const item of query_configs) {
-    const metricDetail = metricList.find(metric => metric.metric_id === item.metric_id);
-
+    const metricId = item.metric_id || getMetricId(item);
+    const metricDetail = metricList.find(metric => metric.metric_id === metricId);
     const queryConfig = new QueryConfig(metricDetail || null, {
       agg_condition: item.where.map(w => {
         if (typeof w === 'string') {
@@ -117,7 +134,17 @@ export const getRetrieveQueryTemplateQueryConfigs = async (query_configs: any[])
         return w;
       }),
       agg_dimension: item.group_by,
-      functions: item.functions,
+      functions: item.functions.map(f => {
+        if (typeof f === 'string') {
+          return {
+            id: f,
+            name: '',
+            params: [],
+          };
+        }
+        return f;
+      }),
+      metric_id: metricId,
       agg_interval: item.interval,
       alias: item.metrics?.[0]?.alias || 'a',
       agg_method: item.metrics?.[0]?.method || 'AVG',
