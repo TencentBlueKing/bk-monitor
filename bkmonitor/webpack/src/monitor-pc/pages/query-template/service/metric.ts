@@ -119,6 +119,7 @@ export const getRetrieveQueryTemplateQueryConfigs = async (query_configs: any[])
       agg_dimension: item.group_by,
       functions: item.functions,
       agg_interval: item.interval,
+      alias: item.metrics?.[0]?.alias || 'a',
       agg_method: item.metrics?.[0]?.method || 'AVG',
     });
     queryConfigs.push(queryConfig);
