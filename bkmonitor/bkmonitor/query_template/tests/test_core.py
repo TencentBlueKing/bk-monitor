@@ -13,8 +13,7 @@ import json
 
 from typing import Any
 
-from .. import core
-from . import data
+from .. import core, mock_data
 
 
 def _sorted_repr(item: Any) -> str:
@@ -38,9 +37,9 @@ class TestQueryTemplateWrapper:
     @pytest.mark.parametrize(
         "template,expect,context",
         [
-            [data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE, data.CALLEE_SUCCESS_RATE_QUERY_INSTANCE, {}],
+            [mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE, mock_data.CALLEE_SUCCESS_RATE_QUERY_INSTANCE, {}],
             [
-                data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE,
+                mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE,
                 {
                     "name": "被调成功率（%）",
                     "bk_biz_id": 0,
@@ -82,7 +81,7 @@ class TestQueryTemplateWrapper:
                 },
             ],
             [
-                data.CALLEE_P99_QUERY_TEMPLATE,
+                mock_data.CALLEE_P99_QUERY_TEMPLATE,
                 {
                     "bk_biz_id": 0,
                     "expression": "(b > bool 0) * a * 1000",
