@@ -359,9 +359,8 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         try:
             points = first_item.query_record(self.from_timestamp, self.until_timestamp)
-            is_partial = first_item.query.is_partial
             # 判定is_partial
-            if is_partial:
+            if first_item.query.is_partial:
                 if first_item.strategy.id in settings.DOUBLE_CHECK_SUM_STRATEGY_IDS:
                     logger.warning(
                         f"strategy_group_key({self.strategy_group_key}) strategy({first_item.strategy.id}) "
