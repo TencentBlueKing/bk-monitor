@@ -49,21 +49,21 @@ export const TemplateDetailTabEnum = {
 
 /** 变量类型枚举 */
 export const VariableTypeEnum = {
-  FUNCTION: 'FUNCTIONS',
-  DIMENSION: 'GROUP_BY',
-  DIMENSION_VALUE: 'TAG_VALUES',
+  FUNCTIONS: 'FUNCTIONS',
+  GROUP_BY: 'GROUP_BY',
+  TAG_VALUES: 'TAG_VALUES',
   METHOD: 'METHOD',
-  CONDITION: 'CONDITIONS',
-  CONSTANT: 'CONSTANTS',
+  CONDITIONS: 'CONDITIONS',
+  CONSTANTS: 'CONSTANTS',
 } as const;
 
 export const VariableTypeMap = {
-  [VariableTypeEnum.FUNCTION]: window.i18n.tc('函数变量'),
-  [VariableTypeEnum.DIMENSION]: window.i18n.tc('维度变量'),
-  [VariableTypeEnum.DIMENSION_VALUE]: window.i18n.tc('维度值变量'),
+  [VariableTypeEnum.FUNCTIONS]: window.i18n.tc('函数变量'),
+  [VariableTypeEnum.GROUP_BY]: window.i18n.tc('维度变量'),
+  [VariableTypeEnum.TAG_VALUES]: window.i18n.tc('维度值变量'),
   [VariableTypeEnum.METHOD]: window.i18n.tc('汇聚变量'),
-  [VariableTypeEnum.CONDITION]: window.i18n.tc('条件变量'),
-  [VariableTypeEnum.CONSTANT]: window.i18n.tc('常规变量'),
+  [VariableTypeEnum.CONDITIONS]: window.i18n.tc('条件变量'),
+  [VariableTypeEnum.CONSTANTS]: window.i18n.tc('常规变量'),
 };
 
 /** 条件方法别名映射 */

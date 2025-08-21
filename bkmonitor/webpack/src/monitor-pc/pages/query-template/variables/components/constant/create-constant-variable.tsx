@@ -67,7 +67,7 @@ export default class CreateConstantVariable extends tsc<ConstantVariableProps, C
         >
           <bk-form-item
             label={this.$t('默认值')}
-            property='value'
+            property='defaultValue'
           >
             <bk-input
               value={this.variable.data.defaultValue}
