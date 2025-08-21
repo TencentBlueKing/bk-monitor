@@ -27,7 +27,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce, xssFilter } from 'monitor-common/utils';
+import { xssFilter } from 'monitor-common/utils';
 
 import { replaceContent } from '@/components/retrieval-filter/query-string-utils';
 
@@ -69,12 +69,8 @@ export default class ExpressionCreator extends tsc<IProps> {
     this.active = false;
   }
 
-  @Debounce(300)
   handleInput(e: InputEvent) {
     const target = e.target as HTMLElement;
-    this.handleSetInputParse(target.textContent, true, vars => {
-      this.vars = vars;
-    });
     this.inputValue = target.textContent;
   }
 
@@ -103,9 +99,12 @@ export default class ExpressionCreator extends tsc<IProps> {
   }
   handleBlur() {
     this.active = false;
-    for (const v of this.vars) {
-      this.$emit('createVariable', v);
-    }
+    this.handleSetInputParse(this.inputValue, false, vars => {
+      this.vars = vars;
+      for (const v of this.vars) {
+        this.$emit('createVariable', v);
+      }
+    });
     this.$emit('change', this.inputValue);
   }
 
@@ -117,7 +116,15 @@ export default class ExpressionCreator extends tsc<IProps> {
           <div
             class='expression-input'
             contenteditable={true}
+            data-placeholder={this.inputValue ? '' : this.$t('支持四则运算 + - * / % ^ ( ) ,如(A+B)/100')}
+            spellcheck={false}
             onBlur={this.handleBlur}
+            // onCompositionend={() => {
+            //   this.isComposing = false;
+            // }}
+            // onCompositionstart={() => {
+            //   this.isComposing = true;
+            // }}
             onFocus={this.handleFocus}
             onInput={this.handleInput}
           />

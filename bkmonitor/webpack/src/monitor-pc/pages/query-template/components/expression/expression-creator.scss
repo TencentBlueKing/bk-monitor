@@ -3,6 +3,7 @@
   display: flex;
   align-items: center;
   min-height: 32px;
+  overflow: hidden;
   font-size: 12px;
   border: 1px solid #dcdee5;
 
@@ -38,7 +39,20 @@
       font-size: 12px;
       line-height: 20px;
       color: #4d4f56;
+      word-break: break-all;
       white-space: pre-wrap;
+      
+      &::before {
+        position: absolute;
+        top: 0;
+        left: 10px;
+        font-family: Menlo, Monaco, Consolas, Courier, "PingFang SC", "Microsoft Yahei", monospace;
+        font-size: 12px;
+        line-height: 30px;
+        color: #C4C6CC;
+        pointer-events: none;
+        content: attr(data-placeholder);
+      }
     }
   }
 }
