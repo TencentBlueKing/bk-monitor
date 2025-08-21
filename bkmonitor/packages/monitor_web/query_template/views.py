@@ -76,6 +76,9 @@ class QueryTemplateViewSet(GenericViewSet):
         response_data = {}
         if validated_data.get("is_mock"):
             response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
+        else:
+            instance = self.serializer_class().create(validated_data)
+            response_data = self.serializer_class(instance).data
         return Response(response_data)
 
     def update(self, request, *args, **kwargs):

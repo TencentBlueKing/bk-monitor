@@ -8,8 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models.query_template import QueryTemplate
 from bkmonitor.query_template.serializers import QueryTemplateSerializer
 
@@ -17,6 +19,11 @@ from bkmonitor.query_template.serializers import QueryTemplateSerializer
 class BaseQueryTemplateRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     is_mock = serializers.BooleanField(label="是否为 Mock 数据", default=True)
+
+    def validate_bk_biz_id(self, value):
+        if value == 0:
+            raise serializers.ValidationError(_("全局模板不允许在页面进行操作"))
+        return value
 
 
 class QueryTemplateDetailRequestSerializer(BaseQueryTemplateRequestSerializer):
@@ -69,3 +76,34 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = QueryTemplate
         fields = "__all__"
+
+    @staticmethod
+    def _is_allowed_by_bk_biz_ids(bk_biz_ids: list):
+        permission = Permission()
+        for bk_biz_id in bk_biz_ids:
+            if permission.is_allowed_by_biz(bk_biz_id, ActionEnum.EXPLORE_METRIC):
+                continue
+            raise serializers.ValidationError(
+                _("您没有业务ID为 {bk_biz_id} 的指标探索权限").format(bk_biz_id=bk_biz_id)
+            )
+
+    @staticmethod
+    def _base_validate(validated_data):
+        # 校验生效范围必须包含本业务 ID
+        bk_biz_id = validated_data["bk_biz_id"]
+        if bk_biz_id != 0 and bk_biz_id not in validated_data["space_scope"]:
+            raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
+
+        # 校验同一业务下查询模板名称不能重复
+        bk_biz_id = validated_data["bk_biz_id"]
+        name = validated_data["name"]
+        query_template_obj = QueryTemplate.objects.filter(bk_biz_id=bk_biz_id, name=name).first()
+        if query_template_obj:
+            raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
+
+    def create(self, validated_data):
+        self._is_allowed_by_bk_biz_ids([validated_data["space_scope"]])
+        self._base_validate(validated_data)
+        validated_data.pop("is_mock", None)
+        instance = super().create(validated_data)
+        return instance
