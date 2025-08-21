@@ -40,7 +40,7 @@
       line-height: 20px;
       color: #4d4f56;
       word-break: break-all;
-      white-space: pre-wrap;
+      overflow-wrap: break-word;
       
       &::before {
         position: absolute;
