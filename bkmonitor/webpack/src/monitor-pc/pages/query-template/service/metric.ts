@@ -27,7 +27,7 @@
 
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 
-import { type QueryConfig, MetricDetailV2 } from '../typings';
+import { MetricDetailV2, QueryConfig } from '../typings';
 
 export const transformMetricId = (
   metricId: string,
@@ -70,4 +70,43 @@ export const fetchMetricDetailList = async (
     ],
   }).catch(() => ({ metric_list: [] as MetricDetailV2[] }));
   return metric_list.map(item => new MetricDetailV2(item));
+};
+
+export const createQueryTemplateQueryConfigsParams = (queryConfigs: QueryConfig[]) => {
+  return queryConfigs.map(item => ({
+    data_source_label: item.data_source_label,
+    data_type_label: item.data_type_label,
+    metric_id: item.metricDetail.metric_id,
+    table: item.metricDetail.result_table_id,
+    metrics: [
+      {
+        field: item.metricDetail.metric_field,
+        method: item.agg_method,
+        alias: item.alias || 'a',
+      },
+    ],
+    group_by: item.agg_dimension,
+    where: item.agg_condition,
+    interval: item.agg_interval,
+    interval_unit: 's',
+    functions: item.functions,
+  }));
+};
+
+export const getRetrieveQueryTemplateQueryConfigs = async (query_configs: any[]): Promise<QueryConfig[]> => {
+  const queryConfigs: QueryConfig[] = [];
+  const metricList = await fetchMetricDetailList(query_configs);
+  for (const item of query_configs) {
+    const metricDetail = metricList.find(metric => metric.metric_id === item.metric_id);
+
+    const queryConfig = new QueryConfig(metricDetail || null, {
+      agg_condition: item.where,
+      agg_dimension: item.group_by,
+      functions: item.functions,
+      agg_interval: item.interval,
+      agg_method: item.metrics?.[0]?.method || 'AVG',
+    });
+    queryConfigs.push(queryConfig);
+  }
+  return queryConfigs;
 };
