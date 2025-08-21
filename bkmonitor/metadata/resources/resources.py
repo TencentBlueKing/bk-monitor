@@ -1134,6 +1134,7 @@ class ModifyClusterInfoResource(Resource):
     def perform_request(self, validated_request_data):
         request = get_request()
         bk_app_code = get_app_code_by_request(request)
+        bk_tenant_id = get_request_tenant_id()
 
         # 1. 判断是否存在cluster_id或者cluster_name
         cluster_id = validated_request_data.pop("cluster_id")
@@ -1146,7 +1147,9 @@ class ModifyClusterInfoResource(Resource):
         query_dict = {"cluster_id": cluster_id} if cluster_id is not None else {"cluster_name": cluster_name}
         try:
             cluster_info = models.ClusterInfo.objects.get(
-                registered_system__in=[bk_app_code, models.ClusterInfo.DEFAULT_REGISTERED_SYSTEM], **query_dict
+                bk_tenant_id=bk_tenant_id,
+                registered_system__in=[bk_app_code, models.ClusterInfo.DEFAULT_REGISTERED_SYSTEM],
+                **query_dict,
             )
         except models.ClusterInfo.DoesNotExist:
             raise ValueError(_("找不到指定的集群配置，请确认后重试"))
@@ -1172,6 +1175,7 @@ class DeleteClusterInfoResource(Resource):
     def perform_request(self, validated_request_data):
         request = get_request()
         bk_app_code = get_app_code_by_request(request)
+        bk_tenant_id = get_request_tenant_id()
 
         #  判断是否存在cluster_id或者cluster_name
         cluster_id = validated_request_data.pop("cluster_id")
@@ -1183,7 +1187,9 @@ class DeleteClusterInfoResource(Resource):
         #  判断是否可以拿到一个唯一的cluster_info
         query_dict = {"cluster_id": cluster_id} if cluster_id is not None else {"cluster_name": cluster_name}
         try:
-            cluster_info = models.ClusterInfo.objects.get(registered_system=bk_app_code, **query_dict)
+            cluster_info = models.ClusterInfo.objects.get(
+                bk_tenant_id=bk_tenant_id, registered_system=bk_app_code, **query_dict
+            )
         except models.ClusterInfo.DoesNotExist:
             raise ValueError(_("找不到指定的集群配置，请确认后重试"))
 
@@ -1192,17 +1198,27 @@ class DeleteClusterInfoResource(Resource):
 
 class QueryClusterInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=False, label="租户ID", default=None)
         cluster_id = serializers.IntegerField(required=False, label="存储集群ID", default=None)
         cluster_name = serializers.CharField(required=False, label="存储集群名", default=None)
         cluster_type = serializers.CharField(required=False, label="存储集群类型", default=None)
         is_plain_text = serializers.BooleanField(required=False, label="是否需要明文显示登陆信息", default=False)
 
     def perform_request(self, validated_request_data):
+        request_tenant_id = get_request_tenant_id(peaceful=True)
+        bk_tenant_id = validated_request_data.get("bk_tenant_id")
+        # 如果请求的租户ID与参数的租户ID不一致，则抛出异常
+        if request_tenant_id and bk_tenant_id and request_tenant_id != bk_tenant_id:
+            raise ValueError(
+                f"query_cluster_info tenant_id mismatch, request_tenant_id->[{request_tenant_id}], bk_tenant_id->[{bk_tenant_id}]"
+            )
+        bk_tenant_id = request_tenant_id or bk_tenant_id
+        if not bk_tenant_id:
+            raise ValueError("query_cluster_info bk_tenant_id is required")
+
         query_dict = {}
         if validated_request_data["cluster_id"] is not None:
-            query_dict = {
-                "cluster_id": validated_request_data["cluster_id"],
-            }
+            query_dict = {"cluster_id": validated_request_data["cluster_id"]}
 
         elif validated_request_data["cluster_name"] is not None:
             query_dict = {"cluster_name": validated_request_data["cluster_name"]}
@@ -1210,7 +1226,7 @@ class QueryClusterInfoResource(Resource):
         if validated_request_data["cluster_type"] is not None:
             query_dict["cluster_type"] = validated_request_data["cluster_type"]
 
-        query_result = models.ClusterInfo.objects.filter(**query_dict)
+        query_result = models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, **query_dict)
 
         result_list = []
         is_plain_text = validated_request_data["is_plain_text"]
@@ -2538,7 +2554,8 @@ class EsRouteResource(Resource):
         raise ValidationError(_("非法的url路径"))
 
     def perform_request(self, validated_request_data):
-        es_client = get_client(validated_request_data["es_storage_cluster"])
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        es_client = get_client(bk_tenant_id=bk_tenant_id, cluster_id=validated_request_data["es_storage_cluster"])
         url = validated_request_data["url"]
         if not url.startswith("/"):
             url = "/" + url
