@@ -31,6 +31,7 @@ import BkUserSelector from '@blueking/user-selector';
 import http from '@/api';
 import { sidebarDiffMixin } from '@/mixins/sidebar-diff-mixin-new.ts';
 import { spaceSelectorMixin } from '@/mixins/space-selector-mixin-new.ts';
+import ManageHelper from '../../manage-helper.ts';
 import { Message } from 'bk-magic-vue';
 import { messageError } from '@/common/bkmagic';
 
@@ -1326,7 +1327,7 @@ export default defineComponent({
                             {!!archiveDocUrl.value && (
                               <div
                                 class='check-document button-text'
-                                onClick={() => handleGotoLink('logArchive')}
+                                onClick={() => ManageHelper.handleGotoLink('logArchive')}
                               >
                                 <span class='bk-icon icon-text-file'></span>
                                 <a>{t('查看说明文档')}</a>
