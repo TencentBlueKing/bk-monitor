@@ -16,14 +16,20 @@ from metadata.utils.basic import get_space_uid_and_bk_biz_id_by_bk_data_id
 
 @pytest.fixture
 def create_or_delete_records(mocker):
-    models.SpaceDataSource.objects.create(space_type_id="bkci", space_id="test", bk_data_id=6001)
+    models.SpaceDataSource.objects.create(bk_tenant_id="test", space_type_id="bkci", space_id="test", bk_data_id=6001)
 
-    models.SpaceDataSource.objects.create(space_type_id="bkcc", space_id=-100000002, bk_data_id=6002)
+    models.SpaceDataSource.objects.create(
+        bk_tenant_id="test", space_type_id="bkcc", space_id=-100000002, bk_data_id=6002
+    )
 
-    models.SpaceResource.objects.create(space_type_id="bkci", space_id="test", resource_type="bkcc", resource_id=111)
-    models.SpaceResource.objects.create(space_type_id="bkci", space_id="test2", resource_type="bkcc", resource_id=222)
+    models.SpaceResource.objects.create(
+        bk_tenant_id="test", space_type_id="bkci", space_id="test", resource_type="bkcc", resource_id=111
+    )
+    models.SpaceResource.objects.create(
+        bk_tenant_id="test", space_type_id="bkci", space_id="test2", resource_type="bkcc", resource_id=222
+    )
 
-    models.Space.objects.create(space_type_id="bkci", space_id="test2", id=100000002)
+    models.Space.objects.create(bk_tenant_id="test", space_type_id="bkci", space_id="test2", id=100000002)
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -31,14 +37,14 @@ def test_get_space_uid_and_bk_biz_id_by_bk_data_id(create_or_delete_records, moc
     """
     测试根据bk_data_id获取空间id和bk_biz_id
     """
-    bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(bk_data_id=6001)
+    bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(bk_tenant_id="test", bk_data_id=6001)
     assert space_uid == "bkci__test"
     assert bk_biz_id == 111
 
-    bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(bk_data_id=6002)
+    bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(bk_tenant_id="test", bk_data_id=6002)
     assert space_uid == "bkci__test2"
     assert bk_biz_id == 222
 
-    bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(bk_data_id=6003)
+    bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(bk_tenant_id="test", bk_data_id=6003)
     assert space_uid == ""
     assert bk_biz_id == 0

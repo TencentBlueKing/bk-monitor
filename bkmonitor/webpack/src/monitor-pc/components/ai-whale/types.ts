@@ -119,7 +119,7 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
       },
       {
         type: 'textarea',
-        key: 'user_demand',
+        key: 'user-demand',
         fillBack: false,
         required: true,
         name: window.i18n.t('用户指令'),

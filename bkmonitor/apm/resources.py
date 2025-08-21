@@ -80,7 +80,8 @@ from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.common_utils import format_percent
-from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.request import get_request_tenant_id, get_request_username
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from constants.apm import (
     DataSamplingLogTypeChoices,
@@ -1208,9 +1209,14 @@ class ListEsClusterInfoResource(Resource):
             return True
         return bk_biz_id in visible_bk_biz
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = get_request_tenant_id(peaceful=True) or bk_biz_id_to_bk_tenant_id(
+            validated_request_data["bk_biz_id"]
+        )
         bk_biz_id = str(validated_request_data["bk_biz_id"])
-        query_result = models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_ES)
+        query_result = models.ClusterInfo.objects.filter(
+            cluster_type=models.ClusterInfo.TYPE_ES, bk_tenant_id=bk_tenant_id
+        )
         result = []
         for cluster in query_result:
             cluster_info = cluster.consul_config

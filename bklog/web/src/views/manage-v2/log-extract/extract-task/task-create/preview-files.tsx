@@ -271,7 +271,7 @@ export default defineComponent({
     };
 
     // 暴露方法
-    expose({ handleClone });
+    expose({ getExplorerList, handleClone, getFindIpList,  timeRange, timeStringValue, isSearchChild });
 
     // 主渲染函数
     return () => (
