@@ -529,17 +529,18 @@ class UnionAsyncExportUtils(BaseExportUtils):
         index_info_list = copy.deepcopy(self.unify_query_handler.index_info_list)
         multi_execute_func = MultiExecuteFunc()
         export_method = self._quick_export if self.is_quick_export else self._async_export
-        self.unify_query_handler.index_info_list =index_info_list
-        # 基础查询参数初始化
-        self.unify_query_handler.base_dict = self.unify_query_handler.init_base_dict()
-        index_set_id = index_info["index_set_id"]
-        file_path = f"{ASYNC_DIR}/{self.file_name}_{index_set_id}.{self.export_file_type}"
-        multi_execute_func.append(
-            result_key=index_set_id,
-            func=export_method,
-            params={"file_path": file_path, "unify_query_handler": copy.deepcopy(self.unify_query_handler)},
-            multi_func_params=True,
-        )
+        for index_info in index_info_list:
+            self.unify_query_handler.index_info_list = [index_info]
+            # 基础查询参数初始化
+            self.unify_query_handler.base_dict = self.unify_query_handler.init_base_dict()
+            index_set_id = index_info["index_set_id"]
+            file_path = f"{ASYNC_DIR}/{self.file_name}_{index_set_id}.{self.export_file_type}"
+            multi_execute_func.append(
+                result_key=index_set_id,
+                func=export_method,
+                params={"file_path": file_path, "unify_query_handler": copy.deepcopy(self.unify_query_handler)},
+                multi_func_params=True,
+            )
         multi_result = multi_execute_func.run(return_exception=True)
         summary_file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
         with open(summary_file_path, "a+", encoding="utf-8") as summary_file:
