@@ -50,7 +50,6 @@ class MetricInfoSerializer(serializers.Serializer):
 
 class VariableConfigSerializer(serializers.Serializer):
     default = serializers.JSONField(label=_("默认值"), required=False, default=None)
-    data_type = serializers.ChoiceField(label=_("数据类型"), required=False, choices=constants.DataType.choices())
     related_tag = serializers.CharField(label=_("关联维度"), required=False)
     related_metrics = serializers.ListField(
         label=_("关联指标"), required=False, min_length=1, child=MetricInfoSerializer()
@@ -67,11 +66,6 @@ class VariableSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         variable_type: constants.VariableType = constants.VariableType.from_value(attrs["type"])
-
-        if variable_type.is_required_data_type() and not attrs["config"].get("data_type"):
-            raise serializers.ValidationError(
-                _("变量类型为 {name} 时，必须指定「数据类型」。").format(name=variable_type.label)
-            )
 
         if variable_type.is_required_related_tag() and not attrs["config"].get("related_tag"):
             raise serializers.ValidationError(

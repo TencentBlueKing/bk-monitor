@@ -50,11 +50,6 @@ class VariableType(CachedEnum):
     CONSTANTS = "CONSTANTS"
 
     @cached_property
-    def require_data_type(self) -> list[str]:
-        """返回需要「数据类型」的变量类型列表"""
-        return [self.CONSTANTS.value]
-
-    @cached_property
     def require_related_tag(self) -> list[str]:
         """返回需要「关联维度」的变量类型列表"""
         return [self.TAG_VALUES.value]
@@ -63,10 +58,6 @@ class VariableType(CachedEnum):
     def require_related_metrics(self) -> list[str]:
         """返回需要「关联指标」的变量类型列表"""
         return [self.GROUP_BY.value, self.TAG_VALUES.value, self.CONDITIONS.value]
-
-    def is_required_data_type(self) -> bool:
-        """判断当前变量类型是否需要「数据类型」"""
-        return self.value in self.require_data_type
 
     def is_required_related_tag(self) -> bool:
         """判断当前变量类型是否需要「关联维度」"""
