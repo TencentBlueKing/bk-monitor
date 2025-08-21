@@ -18,6 +18,6 @@ pytestmark = pytest.mark.django_db
 
 def pytest_configure():
     mock.patch(
-        "apm.core.handlers.instance_handlers.InstanceHandler.get_redis_client",
+        "apm.core.handlers.instance_handlers.FieldCacheHandler.get_redis_client",
         return_value=fakeredis.FakeRedis(decode_responses=True)
     ).start()

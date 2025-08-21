@@ -4,12 +4,12 @@ import logging
 
 from django.conf import settings
 
-from apm.constants import APM_TOPO_INSTANCE, DEFAULT_TOPO_INSTANCE_EXPIRE
+from apm.constants import APM_TOPO_INSTANCE, DEFAULT_TOPO_INSTANCE_EXPIRE, APM_ENDPOINT
 
 logger = logging.getLogger("apm_topo")
 
 
-class InstanceHandler:
+class FieldCacheHandler:
     def __init__(self):
         self.redis_client = self.get_redis_client()
 
@@ -34,6 +34,10 @@ class InstanceHandler:
         组装 key 值
         """
         return APM_TOPO_INSTANCE.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
+
+    @staticmethod
+    def get_endpoint_cache_key(bk_biz_id, app_name):
+        return APM_ENDPOINT.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
 
     def refresh_data(self, name: str, update_map: dict):
         """

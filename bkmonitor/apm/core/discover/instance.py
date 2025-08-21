@@ -19,7 +19,7 @@ from apm.core.discover.base import (
     extract_field_value,
     get_topo_instance_key,
 )
-from apm.core.handlers.instance_handlers import InstanceHandler
+from apm.core.handlers.field_cache_handlers import FieldCacheHandler
 from apm.models import ApmTopoDiscoverRule, TopoInstance
 from constants.apm import OtlpKey
 
@@ -267,8 +267,8 @@ class InstanceDiscover(DiscoverBase):
         now = int(time.time())
         old_cache_data.update({i: now for i in (create_instance_keys | update_instance_keys)})
         cache_data = {i: old_cache_data[i] for i in (set(old_cache_data.keys()) - delete_instance_keys)}
-        name = InstanceHandler.get_topo_instance_cache_key(self.bk_biz_id, self.app_name)
-        InstanceHandler().refresh_data(name, cache_data)
+        name = FieldCacheHandler.get_topo_instance_cache_key(self.bk_biz_id, self.app_name)
+        FieldCacheHandler().refresh_data(name, cache_data)
 
     def query_cache_and_instance_data(self):
         """
@@ -276,8 +276,8 @@ class InstanceDiscover(DiscoverBase):
         """
 
         # 查询应用下的缓存数据
-        name = InstanceHandler.get_topo_instance_cache_key(self.bk_biz_id, self.app_name)
-        cache_data = InstanceHandler().get_cache_data(name)
+        name = FieldCacheHandler.get_topo_instance_cache_key(self.bk_biz_id, self.app_name)
+        cache_data = FieldCacheHandler().get_cache_data(name)
 
         # 查询应用下的实例数据
         filter_params = {"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}

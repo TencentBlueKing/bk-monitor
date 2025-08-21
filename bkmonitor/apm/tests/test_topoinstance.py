@@ -2,7 +2,7 @@ import django
 import pytest
 
 from apm.core.discover.instance import InstanceDiscover
-from apm.core.handlers.instance_handlers import InstanceHandler
+from apm.core.handlers.field_cache_handlers import FieldCacheHandler
 from apm.models import ApmApplication, TopoInstance
 from apm.models.datasource import TraceDataSource
 
@@ -105,8 +105,8 @@ class TestTopoInstance(django.test.TestCase):
         assert queryset.count() <= topo_instance.MAX_COUNT
 
         topo_instance.discover(SPAN_DATA_LIST)
-        name = InstanceHandler.get_topo_instance_cache_key(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME)
-        cache_data = InstanceHandler().get_cache_data(name)
+        name = FieldCacheHandler.get_topo_instance_cache_key(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME)
+        cache_data = FieldCacheHandler().get_cache_data(name)
 
         assert len(cache_data) <= topo_instance.MAX_COUNT
 
@@ -120,4 +120,4 @@ class TestTopoInstance(django.test.TestCase):
         TraceDataSource.objects.all().delete()
         metadata_models.ESStorage.objects.all().delete()
 
-        InstanceHandler().redis_client.delete(name)
+        FieldCacheHandler().redis_client.delete(name)

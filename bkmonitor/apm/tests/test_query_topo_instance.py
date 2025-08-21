@@ -70,7 +70,7 @@ class TestTopoInstance(django.test.TestCase):
             return_value={"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME},
         ).start()
 
-        mock.patch("apm.core.handlers.instance_handlers.InstanceHandler.get_cache_data", return_value={}).start()
+        mock.patch("apm.core.handlers.instance_handlers.FieldCacheHandler.get_cache_data", return_value={}).start()
 
         obj = QueryTopoInstanceResource()
 
@@ -96,7 +96,7 @@ class TestTopoInstance(django.test.TestCase):
             return_value={"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME},
         ).start()
 
-        mock.patch("apm.core.handlers.instance_handlers.InstanceHandler.get_cache_data", return_value={}).start()
+        mock.patch("apm.core.handlers.instance_handlers.FieldCacheHandler.get_cache_data", return_value={}).start()
 
         obj = QueryTopoInstanceResource()
 
@@ -123,7 +123,7 @@ class TestTopoInstance(django.test.TestCase):
             return_value={"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME},
         ).start()
 
-        mock.patch("apm.core.handlers.instance_handlers.InstanceHandler.get_cache_data", return_value={}).start()
+        mock.patch("apm.core.handlers.instance_handlers.FieldCacheHandler.get_cache_data", return_value={}).start()
 
         obj = QueryTopoInstanceResource()
 
