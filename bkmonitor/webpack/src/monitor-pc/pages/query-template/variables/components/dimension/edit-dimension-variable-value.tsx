@@ -45,7 +45,7 @@ export default class EditDimensionVariableValue extends tsc<DimensionValueProps,
   @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
 
   @Emit('change')
-  handleValueChange(value: string) {
+  handleValueChange(value: string[]) {
     return new DimensionVariableModel({
       ...this.variable.data,
       value,
@@ -66,6 +66,9 @@ export default class EditDimensionVariableValue extends tsc<DimensionValueProps,
         <bk-select
           clearable={false}
           value={this.variable.data.value || this.variable.data.defaultValue}
+          collapse-tag
+          display-tag
+          multiple
           onChange={this.handleValueChange}
           onToggle={this.handleSelectToggle}
         >
