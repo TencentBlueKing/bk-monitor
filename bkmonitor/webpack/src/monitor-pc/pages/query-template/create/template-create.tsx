@@ -35,6 +35,7 @@ import { createQueryTemplateQueryConfigsParams, getRetrieveQueryTemplateQueryCon
 import {
   type AggCondition,
   type AggFunction,
+  type BasicInfoData,
   type IVariableModel,
   Expression,
   MetricDetailV2,
@@ -64,10 +65,10 @@ export default class TemplateCreate extends tsc<object> {
 
   curStep = 1;
 
-  basicInfoData = {
+  basicInfoData: BasicInfoData = {
     name: '',
-    desc: '',
-    effect: [this.$store.getters.bizId],
+    description: '',
+    biz_scope: [this.$store.getters.bizId],
   };
 
   metricsList: MetricDetail[] = [];
@@ -77,6 +78,8 @@ export default class TemplateCreate extends tsc<object> {
   metricFunctions = [];
 
   variablesList: VariableModelType[] = [];
+
+  submitLoading = false;
 
   async beforeRouteLeave(to, _from, next) {
     const needNext = await this.handleCancel();
@@ -88,7 +91,6 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleVariablesChange(variablesList: VariableModelType[]) {
-    console.log(variablesList);
     this.variablesList = variablesList;
   }
 
@@ -111,8 +113,8 @@ export default class TemplateCreate extends tsc<object> {
   async handleSubmit() {
     const params = {
       name: this.basicInfoData.name,
-      description: this.basicInfoData.desc,
-      biz_scope: this.basicInfoData.effect,
+      description: this.basicInfoData.description,
+      biz_scope: this.basicInfoData.biz_scope,
       variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
       query_configs: createQueryTemplateQueryConfigsParams(this.queryConfigs),
       expression: this.expressionConfig.expression,
@@ -143,8 +145,8 @@ export default class TemplateCreate extends tsc<object> {
     this.curStep = 1;
     this.basicInfoData = {
       name: '',
-      desc: '',
-      effect: [this.$store.getters.bizId],
+      description: '',
+      biz_scope: [this.$store.getters.bizId],
     };
     this.metricsList = [];
     this.queryConfigs = [new QueryConfig(null, { alias: 'a' })];

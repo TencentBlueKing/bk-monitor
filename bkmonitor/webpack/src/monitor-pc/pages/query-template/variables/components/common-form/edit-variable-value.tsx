@@ -42,7 +42,7 @@ export default class EditVariableValue extends tsc<EditVariableValueProps> {
     return [
       { label: this.$tc('变量名'), value: this.data.variableName },
       { label: this.$tc('变量别名'), value: this.data.alias },
-      { label: this.$tc('变量描述'), value: this.data.desc },
+      { label: this.$tc('变量描述'), value: this.data.description },
     ];
   }
 

@@ -71,7 +71,7 @@ export default class EditDimensionValueVariableValue extends tsc<DimensionValueV
 
   async getValueList() {
     this.loading = true;
-    const data = await fetchMetricDimensionValueList(this.variable.relationDimension, {
+    const data = await fetchMetricDimensionValueList(this.variable.related_tag, {
       data_source_label: this.variable.metric.data_source_label,
       data_type_label: this.variable.metric.data_type_label,
       result_table_id: this.variable.metric.result_table_id,
