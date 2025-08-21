@@ -8,7 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.utils.translation import gettext as _
+from blueapps.utils.request_provider import get_local_request
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from bkmonitor.iam import ActionEnum, Permission
@@ -29,7 +30,7 @@ class QueryTemplateDetailRequestSerializer(BaseQueryTemplateRequestSerializer):
 class QueryTemplateListRequestSerializer(BaseQueryTemplateRequestSerializer):
     class ConditionSerializer(serializers.Serializer):
         key = serializers.CharField(label="查询条件")
-        value = serializers.ListField(label="查询条件值", child=serializers.CharField())
+        value = serializers.ListField(label="查询条件值", child=serializers.CharField(allow_blank=True))
 
     page = serializers.IntegerField(label="页码", min_value=1, default=1)
     page_size = serializers.IntegerField(label="每页条数", min_value=1, default=50)
@@ -38,6 +39,20 @@ class QueryTemplateListRequestSerializer(BaseQueryTemplateRequestSerializer):
     )
     conditions = serializers.ListField(label="查询条件", child=ConditionSerializer(), default=[], allow_empty=True)
 
+    def validate_order_by(self, values):
+        allowed_fields = ["update_time", "-update_time", "create_time", "-create_time"]
+        for value in values:
+            if value not in allowed_fields:
+                raise serializers.ValidationError(_("排序字段 {value} 不支持").format(value=value))
+        return values
+
+    def validate_conditions(self, values):
+        allowed_keys = ["query", "name", "description", "create_user", "update_user"]
+        for value in values:
+            if value["key"] not in allowed_keys:
+                raise serializers.ValidationError(_("查询条件 {key} 不支持").format(key=value["key"]))
+        return values
+
 
 class FunctionSerializer(serializers.Serializer):
     id = serializers.CharField()
@@ -45,8 +60,7 @@ class FunctionSerializer(serializers.Serializer):
 
 
 class QueryTemplateCreateRequestSerializer(BaseQueryTemplateRequestSerializer, QueryTemplateSerializer):
-    def validate(self, attrs):
-        return super().validate(attrs)
+    pass
 
 
 class QueryTemplateUpdateRequestSerializer(QueryTemplateCreateRequestSerializer):
@@ -69,6 +83,9 @@ class QueryTemplateRelationRequestSerializer(BaseQueryTemplateRequestSerializer)
 
 
 class QueryTemplateModelSerializer(serializers.ModelSerializer):
+    can_edit = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+
     class Meta:
         model = QueryTemplate
         fields = "__all__"
@@ -102,3 +119,25 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         self._base_validate(validated_data)
         instance = super().create(validated_data)
         return instance
+
+    @property
+    def _request_bk_biz_id(self):
+        return get_local_request().biz_id
+
+    def get_can_edit(self, obj):
+        # 全局模板不可编辑
+        if obj.bk_biz_id == GLOBAL_BIZ_ID:
+            return False
+        # 可见但非归属的业务不可编辑
+        if obj.bk_biz_id != self._request_bk_biz_id:
+            return False
+        return True
+
+    def get_can_delete(self, obj):
+        # 全局模板不可删除
+        if obj.bk_biz_id == GLOBAL_BIZ_ID:
+            return False
+        # 可见但非归属的业务不可删除
+        if obj.bk_biz_id != self._request_bk_biz_id:
+            return False
+        return True

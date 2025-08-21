@@ -89,6 +89,33 @@ class QueryTemplateViewSet(GenericViewSet):
             response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
         return Response(response_data)
 
+    @staticmethod
+    def _search_filter_by_conditions(queryset, conditions):
+        fuzzy_match_fields = ["name", "description", "create_user", "update_user"]
+        for c in conditions:
+            if c["key"] in fuzzy_match_fields:
+                q = Q()
+                for v in c["value"]:
+                    q |= Q(**{f"{c['key']}__icontains": v})
+                queryset = queryset.filter(q)
+            elif c["key"] == "query":
+                q = Q()
+                for v in c["value"]:
+                    for f in fuzzy_match_fields:
+                        q |= Q(**{f"{f}__icontains": v})
+                        queryset = queryset.filter(q)
+        return queryset
+
+    @staticmethod
+    def _search_order_by(queryset, order_by):
+        return queryset.order_by(*order_by)
+
+    @staticmethod
+    def _search_page(queryset, page, page_size):
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+        return queryset[start_index:end_index]
+
     @action(methods=["POST"], detail=False)
     def search(self, request, *args, **kwargs):
         """查询模板列表"""
@@ -99,6 +126,13 @@ class QueryTemplateViewSet(GenericViewSet):
         response_data = []
         if validated_data.get("is_mock"):
             response_data = mock_data.QUERY_TEMPLATE_LIST
+        else:
+            queryset = self.filter_queryset(self.get_queryset())
+            queryset = self._search_filter_by_conditions(queryset, validated_data.get("conditions", []))
+            queryset = self._search_order_by(queryset, validated_data.get("order_by", []))
+            queryset = self._search_page(queryset, validated_data.get("page", 1), validated_data.get("page_size", 50))
+            response_data = self.serializer_class(queryset, many=True).data
+
         return Response(response_data)
 
     @action(methods=["POST"], detail=False)
