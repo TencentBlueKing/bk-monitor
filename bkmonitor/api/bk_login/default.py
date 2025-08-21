@@ -71,7 +71,7 @@ class ListTenantResource(BkUserApiResource):
             return [{"id": "system", "name": "Blueking", "status": "enabled"}]
 
         result = super().perform_request({"bk_tenant_id": DEFAULT_TENANT_ID})
-        # result = [item for item in result if item["id"] in settings.INITIALIZED_TENANT_LIST]
+        result = [item for item in result if item["id"] in settings.INITIALIZED_TENANT_LIST]
         return result
 
 
