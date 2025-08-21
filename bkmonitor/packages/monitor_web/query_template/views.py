@@ -8,14 +8,25 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.db.models import Q
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
+
+from bkmonitor.iam import ActionEnum
+from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.models.query_template import QueryTemplate
 
 from . import mock_data, serializers
 
 
 class QueryTemplateViewSet(GenericViewSet):
+    queryset = QueryTemplate.objects.all()
+    serializer_class = serializers.QueryTemplateSerializer
+
+    def get_permissions(self):
+        return [BusinessActionPermission([ActionEnum.EXPLORE_METRIC])]
+
     def get_serializer_class(self):
         action_serializer_map = {
             "retrieve": serializers.QueryTemplateDetailRequestSerializer,
@@ -29,6 +40,12 @@ class QueryTemplateViewSet(GenericViewSet):
         }
         return action_serializer_map.get(self.action) or self.serializer_class
 
+    def filter_queryset(self, queryset):
+        bk_biz_id = self.request.query_params.get("bk_biz_id") or self.request.data.get("bk_biz_id")
+        if isinstance(bk_biz_id, str) and bk_biz_id.isdigit():
+            bk_biz_id = int(bk_biz_id)
+        return queryset.filter(Q(bk_biz_id=bk_biz_id) | Q(space_scope__contains=bk_biz_id))
+
     def retrieve(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
@@ -40,6 +57,9 @@ class QueryTemplateViewSet(GenericViewSet):
                 response_data = mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL
             elif query_template_id == 2:
                 response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
+        else:
+            instance = self.get_object()
+            response_data = self.serializer_class(instance).data
         return Response(response_data)
 
     def destroy(self, request, *args, **kwargs):
