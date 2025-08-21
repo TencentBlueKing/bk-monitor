@@ -336,6 +336,8 @@ class DataAPI:
             # 将bk_tenant_id传到before_request进行处理（添加管理员账号）
             _bk_tenant_id = bk_tenant_id or self.bk_tenant_id
             if not origin_params.get("bk_tenant_id") and _bk_tenant_id:
+                if callable(_bk_tenant_id):
+                    _bk_tenant_id = _bk_tenant_id(params)
                 params["bk_tenant_id"] = _bk_tenant_id
                 params = self.before_request(params)
                 del params["bk_tenant_id"]

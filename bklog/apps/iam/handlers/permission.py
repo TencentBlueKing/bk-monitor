@@ -50,7 +50,7 @@ from apps.iam.handlers.compatible import CompatibleIAM
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
 from apps.iam.utils import gen_perms_apply_data
-from apps.utils.local import get_request, get_request_username, get_local_username
+from apps.utils.local import get_request, get_request_username, get_local_username, get_request_tenant_id
 from apps.utils.log import logger
 
 
@@ -69,7 +69,7 @@ class Permission:
                 # web请求
                 if request:
                     self.username = request.user.username
-                    self.bk_tenant_id = request.user.tenant_id
+                    self.bk_tenant_id = get_request_tenant_id()
                 else:
                     self.bk_tenant_id = settings.BK_APP_TENANT_ID
                     logger.warning(
