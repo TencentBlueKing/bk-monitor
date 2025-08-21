@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,18 +7,20 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import copy
 import gzip
 import json
 import time
 from collections import defaultdict
+from unittest import mock
 
-import mock
 import pytest
 from django.conf import settings
 
 from alarm_backends.core.cache import key
+from alarm_backends.core.control.item import Item
 from alarm_backends.service.access.data import AccessBatchDataProcess, AccessDataProcess
 from bkmonitor.models import CacheNode
 from bkmonitor.utils.common_utils import count_md5
@@ -38,15 +39,17 @@ pytestmark = pytest.mark.django_db
 
 
 class MockRecord:
+    items: list["Item"]
+    is_retains: dict[int, bool]
+
     def __init__(self, attrs):
         self.data = copy.deepcopy(attrs)
         self.__dict__.update(attrs)
 
-        self.is_duplicate = False
-        self.inhibitions = defaultdict(lambda: False)
+        self.inhibitions: dict[int, bool] = defaultdict(lambda: False)
 
 
-class TestAccessDataProcess(object):
+class TestAccessDataProcess:
     def setup_method(self):
         CacheNode.refresh_from_settings()
         c = key.ACCESS_BATCH_DATA_KEY.client
@@ -144,9 +147,7 @@ class TestAccessDataProcess(object):
         record.inhibitions = {item_id: False}
         record.items = [acc_data.items[0]]
         record.is_retains = {item_id: True}
-        acc_data.record_list = [
-            record,
-        ]
+        acc_data.record_list = [record]
         acc_data.push()
         assert mock_strategy.call_count == 1
 

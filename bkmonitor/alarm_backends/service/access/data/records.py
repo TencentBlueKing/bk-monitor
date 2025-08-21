@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import time
 from collections import defaultdict
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Union
 
 import six
 from django.conf import settings
@@ -57,27 +57,28 @@ class DataRecord(base.BaseRecord):
     }
     """
 
-    items: List["Item"]
+    items: list["Item"]
     _item: "Item"
 
-    def __init__(self, item_or_items, raw_data):
+    def __init__(self, item_or_items: Union["Item", list["Item"]], raw_data: dict):
         """
         :param item_or_items: 具有相同查询条件的item集合
         :param raw_data: 原始数据记录
         """
-        super(DataRecord, self).__init__(raw_data)
+        super().__init__(raw_data)
 
         # 一个Record可以属于多个items，后续不能再使用record身上的item，需要使用items
-        if not isinstance(item_or_items, (list, tuple)):
+        if not isinstance(item_or_items, list | tuple):
             self.items = [item_or_items]
             self._item = item_or_items
         else:
             self.items = item_or_items
             self._item = self.items[0]
-        self.scenario = self._item.strategy.scenario  # 监控对象，相同查询条件的items，监控场景一定是相同的，由rt的label决定
+
+        # 监控对象，相同查询条件的items，监控场景一定是相同的，由rt的label决定
+        self.scenario = self._item.strategy.scenario
 
         self.is_retains = defaultdict(lambda: True)  # 保留记录，记录当前record经过filter之后是否仍然保留下来
-        self.is_duplicate = False  # 是否重复记录，记录当前record是否是重复记录
         self.inhibitions = defaultdict(lambda: False)  # 抑制记录，记录当前record是否被抑制
 
     @cached_property
@@ -143,7 +144,7 @@ class DataRecord(base.BaseRecord):
             }
 
         md5_dimension = count_md5(origin_dimensions)
-        return "{md5_dimension}.{timestamp}".format(md5_dimension=md5_dimension, timestamp=self.time)
+        return f"{md5_dimension}.{self.time}"
 
     def clean(self):
         """
@@ -155,7 +156,7 @@ class DataRecord(base.BaseRecord):
 
         standard_prop = {}
         for prop in constants.StandardDataFields:
-            clean_method_name = "clean_%s" % prop
+            clean_method_name = f"clean_{prop}"
             clean_value = getattr(self, clean_method_name, clean_default_method)()
             standard_prop[prop] = clean_value
         self.data.update(standard_prop)
@@ -164,7 +165,7 @@ class DataRecord(base.BaseRecord):
         self.data["access_time"] = time.time()
         return self
 
-    def clean_dimension_fields(self) -> List[str]:
+    def clean_dimension_fields(self) -> list[str]:
         # 动态维度，不参与后续detect之后的唯一性判定。
         # dimension_fields 在trigger模块中， 参与生成event的 tags，用以标识事件唯一性。
         fields = self._origin_dimension().keys()

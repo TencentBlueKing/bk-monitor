@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from alarm_backends.core.cache import key
+from alarm_backends.service.access.data.records import DataRecord
 
 
 class Duplicate:
+    """
+    重复数据记录
+    """
+
     def __init__(self, strategy_group_key, strategy_id=None):
         self.strategy_group_key = strategy_group_key
         self.record_ids_cache = {}
@@ -32,7 +37,7 @@ class Duplicate:
 
         return self.record_ids_cache[dup_key]
 
-    def is_duplicate(self, record):
+    def is_duplicate(self, record: DataRecord):
         """
         判断数据是否重复
         采用redis的集合功能。以分钟+维度作为key，值为record_id的集合
@@ -66,3 +71,11 @@ class Duplicate:
             ttl_dup_key.strategy_id = self.strategy_id
             pipeline.expire(ttl_dup_key, key.ACCESS_DUPLICATE_KEY.ttl)
         pipeline.execute()
+
+    def clean_old_data(self, timestamp: int):
+        """
+        清理过期数据
+        """
+        self.client.delete(
+            key.ACCESS_DUPLICATE_KEY.get_key(strategy_group_key=self.strategy_group_key, dt_event_time=timestamp)
+        )

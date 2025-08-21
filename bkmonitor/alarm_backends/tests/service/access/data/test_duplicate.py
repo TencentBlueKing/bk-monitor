@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import copy
 
 import fakeredis
@@ -19,16 +17,17 @@ from alarm_backends.service.access.data.duplicate import Duplicate
 
 from .config import STANDARD_DATA
 
-
 pytestmark = pytest.mark.django_db
 
 
-class MockRecord(object):
+class MockRecord:
+    time: int
+
     def __init__(self, attrs):
         self.__dict__.update(attrs)
 
 
-class TestDuplicate(object):
+class TestDuplicate:
     def setup_method(self, method):
         redis = fakeredis.FakeRedis(decode_responses=True)
         redis.flushall()
@@ -59,9 +58,22 @@ class TestDuplicate(object):
         record_2.time += 120
         dup.add_record(record_2)
 
+        raw_data_3 = copy.deepcopy(STANDARD_DATA)
+        record_3 = MockRecord(raw_data_3)
+        record_3.time += 180
+        dup.add_record(record_3)
+
         dup.refresh_cache()
 
         dup = Duplicate(strategy_group_key)
         assert dup.is_duplicate(record_1) is True
         assert dup.is_duplicate(record_2) is True
+        assert dup.is_duplicate(record_3) is True
+        assert dup.is_duplicate(record) is False
+
+        dup = Duplicate(strategy_group_key)
+        dup.clean_old_data(timestamp=record_3.time)
+        assert dup.is_duplicate(record_1) is True
+        assert dup.is_duplicate(record_2) is True
+        assert dup.is_duplicate(record_3) is False
         assert dup.is_duplicate(record) is False
