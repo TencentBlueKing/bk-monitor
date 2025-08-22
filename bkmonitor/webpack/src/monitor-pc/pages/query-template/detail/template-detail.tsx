@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import DeleteConfirm, { type DeleteConfirmEvent } from '../components/query-template-table/components/delete-confirm';
 import { TemplateDetailTabEnum } from '../constants';
 import { fetchQueryTemplateDetail, fetchQueryTemplateRelation } from '../service';
 import { type QueryTemplateListItem } from '../typings';
@@ -38,6 +39,8 @@ import type { TemplateDetailTabEnumType } from '../typings/constants';
 import './template-detail.scss';
 
 interface TemplateDetailEmits {
+  /** 删除查询模板事件回调 */
+  onDeleteTemplate: (templateId: string, confirmEvent: DeleteConfirmEvent) => void;
   /** 模板详情 - 编辑按钮点击后回调 */
   onEdit: (id: string) => void;
   /** 模板详情 - 侧弹抽屉展示状态改变回调 */
@@ -53,6 +56,8 @@ interface TemplateDetailProps {
 }
 @Component
 export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDetailEmits> {
+  @Ref('deleteConfirmTipRef') deleteConfirmTipRef: InstanceType<typeof DeleteConfirm>;
+
   /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
   @Prop({ type: String, default: TemplateDetailTabEnum.CONFIG }) defaultActiveTab?: TemplateDetailTabEnumType;
   /** 模板详情 - 侧弹抽屉是否可见 */
@@ -66,6 +71,12 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
   templateBaseInfo = null;
   /** 查询模板消费场景列表数据 */
   relationInfo = null;
+  /** 删除二次确认 popover 实例 */
+  deletePopoverInstance = null;
+  /** 删除二次确认 popover 延迟打开定时器 */
+  deletePopoverDelayTimer = null;
+  /** 是否出于请求删除接口中状态 */
+  isDeleteActive = false;
 
   @Watch('sliderShow')
   sliderShowChange() {
@@ -84,6 +95,7 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
    */
   @Emit('sliderShowChange')
   handleSliderShowChange(isShow: boolean) {
+    if (this.isDeleteActive) return;
     return isShow;
   }
 
@@ -91,6 +103,85 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
   handleEdit() {
     this.handleSliderShowChange(false);
     return this.templateId;
+  }
+
+  /**
+   * @description: 显示 删除二次确认 popover
+   * @param {MouseEvent} e
+   */
+  handleDeletePopoverShow(e: MouseEvent) {
+    if (this.isDeleteActive) return;
+    if (this.deletePopoverInstance || this.deletePopoverDelayTimer) {
+      this.handlePopoverHide();
+    }
+    const instance = this.$bkPopover(e.currentTarget, {
+      content: this.deleteConfirmTipRef.$el,
+      trigger: 'click',
+      animation: false,
+      placement: 'bottom',
+      maxWidth: 'none',
+      arrow: true,
+      boundary: 'window',
+      interactive: true,
+      theme: 'light padding-0',
+      onHide: () => {
+        return !this.isDeleteActive;
+      },
+      onHidden: () => {
+        this.handlePopoverHide();
+      },
+    });
+    // @ts-ignore
+    instance.deleteConfirmConfig = {
+      id: this.templateId,
+      templateName: this.templateBaseInfo.name,
+    };
+    this.deletePopoverInstance = instance;
+    const popoverCache = this.deletePopoverInstance;
+    this.deletePopoverDelayTimer = setTimeout(() => {
+      if (popoverCache === this.deletePopoverInstance) {
+        this.deletePopoverInstance?.show?.(0);
+      } else {
+        popoverCache?.hide?.(0);
+        popoverCache?.destroy?.();
+      }
+    }, 300);
+  }
+
+  /**
+   * @description: 清除popover
+   */
+  handlePopoverHide() {
+    if (this.isDeleteActive) return;
+    this.handleClearTimer();
+    this.deletePopoverInstance?.hide?.(0);
+    this.deletePopoverInstance?.destroy?.();
+    this.deletePopoverInstance = null;
+  }
+  /**
+   * @description: 清除popover延时打开定时器
+   *
+   */
+  handleClearTimer() {
+    this.deletePopoverDelayTimer && clearTimeout(this.deletePopoverDelayTimer);
+    this.deletePopoverDelayTimer = null;
+  }
+
+  /**
+   * @description: 删除模板确认回调
+   */
+  handleDeleteTemplateConfirm(templateId: QueryTemplateListItem['id'], confirmEvent: DeleteConfirmEvent) {
+    this.isDeleteActive = true;
+    confirmEvent?.confirmPromise
+      ?.then(() => {
+        this.isDeleteActive = false;
+        this.handlePopoverHide();
+        this.handleSliderShowChange(false);
+      })
+      .catch(() => {
+        this.isDeleteActive = false;
+      });
+    this.$emit('deleteTemplate', templateId, confirmEvent);
   }
 
   /**
@@ -128,7 +219,7 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
         width='60vw'
         ext-cls='template-detail'
         is-show={this.sliderShow}
-        quick-close={true}
+        quick-close={false}
         show-mask={true}
         transfer={true}
         {...{ on: { 'update:isShow': this.handleSliderShowChange } }}
@@ -173,7 +264,7 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
               <bk-button
                 disabled={!this.templateBaseInfo?.can_delete}
                 title={this.$t('删除')}
-                onClick={this.handleSliderShowChange.bind(this, false)}
+                onClick={this.handleDeletePopoverShow}
               >
                 {this.$t('删除')}
               </bk-button>
@@ -208,6 +299,15 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
               />
             </bk-tab-panel>
           </MonitorTab>
+          <div style='display: none'>
+            <DeleteConfirm
+              ref='deleteConfirmTipRef'
+              templateId={this.deletePopoverInstance?.deleteConfirmConfig?.id}
+              templateName={this.deletePopoverInstance?.deleteConfirmConfig?.templateName}
+              onCancel={this.handlePopoverHide}
+              onConfirm={this.handleDeleteTemplateConfirm}
+            />
+          </div>
         </div>
       </bk-sideslider>
     );
