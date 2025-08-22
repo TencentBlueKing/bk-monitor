@@ -72,12 +72,14 @@ interface QueryConfigSetProps {
   loading?: boolean;
   metricFunctions: any[];
   queryConfigs: QueryConfig[];
+  scene?: 'create' | 'edit';
   variablesList: VariableModelType[];
 }
 
 @Component
 export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConfigSetEvents> {
   @Prop() basicInfo: BasicInfoData;
+  @Prop({ type: String, default: 'create' }) readonly scene: 'create' | 'edit';
   @Prop({ default: () => [] }) queryConfigs: QueryConfig[];
   @Prop() expressionConfig: Expression;
   @Prop({ default: () => [] }) metricFunctions: any[];
@@ -187,6 +189,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
             <BasicInfoCreate
               ref='basicInfo'
               formData={this.basicInfo}
+              scene={this.scene}
               onChange={this.handleBasicInfoChange}
             />
             <div class='template-config-wrap-component panel'>

@@ -39,6 +39,8 @@ import './template-edit.scss';
 export default class TemplateEdit extends TemplateCreate {
   title = this.$t('route-编辑查询模板');
 
+  scene: 'create' | 'edit' = 'edit';
+
   get editId() {
     return this.$route.params.id;
   }
@@ -63,7 +65,7 @@ export default class TemplateEdit extends TemplateCreate {
       this.basicInfoData = {
         name: data.name,
         description: data.description,
-        space_scope: data.space_scope,
+        space_scope: data.space_scope.length ? data.space_scope : ['all'],
       };
       this.variablesList = data.variables.map(item =>
         getVariableModel(

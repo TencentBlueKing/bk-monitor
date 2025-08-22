@@ -33,6 +33,7 @@ export interface ICommonVariableModel<T extends VariableTypeEnumType> {
   alias?: string;
   description?: string;
   id?: string;
+  isValueEditable?: boolean;
   name: string;
   type: T;
 }
