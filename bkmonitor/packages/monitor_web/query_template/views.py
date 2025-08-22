@@ -93,16 +93,14 @@ class QueryTemplateViewSet(GenericViewSet):
     def _search_filter_by_conditions(queryset, conditions):
         fuzzy_match_fields = ["name", "description", "create_user", "update_user"]
         for cond in conditions:
+            q = Q()
             if cond["key"] == "query":
-                q = Q()
                 for v in cond["value"]:
                     for f in fuzzy_match_fields:
                         q |= Q(**{f"{f}__icontains": v})
             else:
-                q = Q()
                 for v in cond["value"]:
                     q |= Q(**{f"{cond['key']}__icontains": v})
-
             queryset = queryset.filter(q)
         return queryset
 
