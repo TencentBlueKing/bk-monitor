@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, reactive, computed, watch, nextTick } from 'vue';
+import { defineComponent, ref, computed, watch } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
 import BkUserSelector from '@blueking/user-selector';
@@ -76,7 +76,7 @@ export default defineComponent({
     const sliderLoading = ref(false); // 侧边栏加载状态
 
     // 连通性测试表单
-    const formData = reactive<any>({
+    const formData = ref<any>({
       cluster_name: '', // 集群名称
       source_type: '', // 来源
       source_name: '',
@@ -114,7 +114,7 @@ export default defineComponent({
     });
 
     // 基本信息表单
-    const basicFormData = reactive<any>({
+    const basicFormData = ref<any>({
       cluster_name: '', // 集群名
       source_type: '', // 来源
       source_name: '',
@@ -128,7 +128,7 @@ export default defineComponent({
     });
 
     // 表单校验规则
-    const basicRules = reactive<any>({
+    const basicRules = ref<any>({
       source_type: [{ required: true, trigger: 'blur' }],
       cluster_name: [{ required: true, trigger: 'blur' }],
       domain_name: [{ required: true, trigger: 'blur' }],
@@ -180,24 +180,24 @@ export default defineComponent({
 
     // 冷热设置不对，禁用提交
     const invalidHotSetting = computed(() => {
-      formData.enable_hot_warm && !(formData.hot_attr_name && formData.warm_attr_value);
+      formData.value.enable_hot_warm && !(formData.value.hot_attr_name && formData.value.warm_attr_value);
     });
 
-    const isRulesCheckSubmit = computed(() => !formData.admin.length);
+    const isRulesCheckSubmit = computed(() => !formData.value.admin.length);
     const isDisableHotSetting = computed(() => hotColdAttrSet.value.length < 2); // 标签数量不足，禁止开启冷热设置
     const sourceNameCheck = computed(() => {
-      const { source_type, source_name } = formData;
+      const { source_type, source_name } = formData.value;
       return source_type === 'other' && source_name.trim() === '';
     });
-    const scopeValueType = computed(() => formData.visible_config.visible_type !== 'multi_biz'); // 可见范围单选判断，禁用下拉框
-    const isBizAttr = computed(() => formData.visible_config.visible_type === 'biz_attr');
+    const scopeValueType = computed(() => formData.value.visible_config.visible_type !== 'multi_biz'); // 可见范围单选判断，禁用下拉框
+    const isBizAttr = computed(() => formData.value.visible_config.visible_type === 'biz_attr');
     // 提交按钮是否禁用
     const isDisableClickSubmit = computed(
       () => connectResult.value !== 'success' || invalidHotSetting.value || isRulesCheckSubmit.value,
     );
 
     // 侧边栏需要对比的formData
-    const watchFormData = computed(() => ({ formData, basicFormData }));
+    const watchFormData = computed(() => ({ formData: formData.value, basicFormData: basicFormData.value }));
 
     const { initSidebarFormData, handleCloseSidebar } = sidebarDiffMixin(watchFormData.value);
     const { virtualscrollSpaceList } = spaceSelectorMixin(visibleBkBiz.value);
@@ -217,7 +217,7 @@ export default defineComponent({
     };
     // 来源变更：非 other 时清空来源名称
     const handleChangeSource = (val: string) => {
-      if (val !== 'other') formData.source_name = '';
+      if (val !== 'other') formData.value.source_name = '';
     };
 
     // 多空间选择下拉展开/收起
@@ -247,8 +247,8 @@ export default defineComponent({
           },
         });
 
-        // 回填 basicFormData
-        Object.assign(basicFormData, {
+        // 回填 basicFormData.value
+        Object.assign(basicFormData.value, {
           cluster_name: res.data.cluster_config.cluster_name,
           source_type: res.data.cluster_config.custom_option?.source_type || '',
           source_name:
@@ -264,8 +264,8 @@ export default defineComponent({
           },
         });
 
-        // 回填 formData
-        Object.assign(formData, {
+        // 回填 formData.value
+        Object.assign(formData.value, {
           enable_hot_warm: res.data.cluster_config.enable_hot_warm,
           hot_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_name || '',
           hot_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_value || '',
@@ -277,14 +277,14 @@ export default defineComponent({
           enable_archive: res.data.cluster_config.custom_option?.enable_archive || false,
           enable_assessment: res.data.cluster_config.custom_option?.enable_assessment || false,
           visible_config: res.data.cluster_config.custom_option?.visible_config || {},
-          // 合并 basicFormData 的基础属性
-          cluster_name: basicFormData.cluster_name,
-          source_type: basicFormData.source_type,
-          source_name: basicFormData.source_name,
-          domain_name: basicFormData.domain_name,
-          port: basicFormData.port,
-          schema: basicFormData.schema,
-          auth_info: basicFormData.auth_info,
+          // 合并 basicFormData.value 的基础属性
+          cluster_name: basicFormData.value.cluster_name,
+          source_type: basicFormData.value.source_type,
+          source_name: basicFormData.value.source_name,
+          domain_name: basicFormData.value.domain_name,
+          port: basicFormData.value.port,
+          schema: basicFormData.value.schema,
+          auth_info: basicFormData.value.auth_info,
         });
 
         initSidebarFormData();
@@ -338,13 +338,13 @@ export default defineComponent({
         await validateForm.value.validate();
         const postData: any = {
           bk_biz_id: bkBizId.value,
-          cluster_name: basicFormData.cluster_name,
-          domain_name: basicFormData.domain_name,
-          port: basicFormData.port,
-          schema: basicFormData.schema,
+          cluster_name: basicFormData.value.cluster_name,
+          domain_name: basicFormData.value.domain_name,
+          port: basicFormData.value.port,
+          schema: basicFormData.value.schema,
           es_auth_info: {
-            username: basicFormData.auth_info.username,
-            password: basicFormData.auth_info.password,
+            username: basicFormData.value.auth_info.username,
+            password: basicFormData.value.auth_info.password,
           },
         };
         if (isEdit.value) postData.cluster_id = props.editClusterId;
@@ -360,8 +360,8 @@ export default defineComponent({
 
         // 新建时默认用节点数作为默认/最大分片数
         if (!isEdit.value) {
-          formData.setup_config.es_shards_default = hotColdOriginList.value.length;
-          formData.setup_config.es_shards_max = hotColdOriginList.value.length;
+          formData.value.setup_config.es_shards_default = hotColdOriginList.value.length;
+          formData.value.setup_config.es_shards_max = hotColdOriginList.value.length;
         }
       } catch (e: any) {
         console.warn(e);
@@ -377,8 +377,8 @@ export default defineComponent({
     // 冷热开关变更：新建时开启将分片默认设为标签数
     const handleChangeHotWarm = (v: boolean) => {
       if (!isEdit.value && v) {
-        formData.setup_config.es_shards_default = hotColdAttrSet.value.length;
-        formData.setup_config.es_shards_max = hotColdAttrSet.value.length;
+        formData.value.setup_config.es_shards_default = hotColdAttrSet.value.length;
+        formData.value.setup_config.es_shards_max = hotColdAttrSet.value.length;
       }
     };
 
@@ -396,8 +396,12 @@ export default defineComponent({
         else set.push(newItem);
       });
       hotColdAttrSet.value = set;
-      selectedHotId.value = formData.hot_attr_name ? `${formData.hot_attr_name}:${formData.hot_attr_value}` : '';
-      selectedColdId.value = formData.warm_attr_name ? `${formData.warm_attr_name}:${formData.warm_attr_value}` : '';
+      selectedHotId.value = formData.value.hot_attr_name
+        ? `${formData.value.hot_attr_name}:${formData.value.hot_attr_value}`
+        : '';
+      selectedColdId.value = formData.value.warm_attr_name
+        ? `${formData.value.warm_attr_name}:${formData.value.warm_attr_value}`
+        : '';
       computeIsSelected();
     };
 
@@ -405,8 +409,8 @@ export default defineComponent({
     const handleHotSelected = (v: string) => {
       selectedHotId.value = v;
       const item = hotColdAttrSet.value.find(i => i.computedId === v) || {};
-      formData.hot_attr_name = (item as any).attr || '';
-      formData.hot_attr_value = (item as any).value || '';
+      formData.value.hot_attr_name = (item as any).attr || '';
+      formData.value.hot_attr_value = (item as any).value || '';
       computeIsSelected();
     };
 
@@ -414,8 +418,8 @@ export default defineComponent({
     const handleColdSelected = (v: string) => {
       selectedColdId.value = v;
       const item = hotColdAttrSet.value.find(i => i.computedId === v) || {};
-      formData.warm_attr_name = (item as any).attr || '';
-      formData.warm_attr_value = (item as any).value || '';
+      formData.value.warm_attr_name = (item as any).attr || '';
+      formData.value.warm_attr_value = (item as any).value || '';
       computeIsSelected();
     };
 
@@ -442,8 +446,8 @@ export default defineComponent({
         const paramsData: any = { bk_biz_id: bkBizId.value };
 
         // 合并基础信息到完整表单中
-        Object.assign(formData, basicFormData);
-        const postData: any = JSON.parse(JSON.stringify(formData));
+        Object.assign(formData.value, basicFormData.value);
+        const postData: any = JSON.parse(JSON.stringify(formData.value));
         postData.bk_biz_id = bkBizId.value;
 
         // 冷热关闭时移除相关字段
@@ -497,7 +501,7 @@ export default defineComponent({
     // 可见范围必填校验
     const checkSelectItem = () => {
       let messageType = '';
-      const { visible_type: visibleType } = formData.visible_config;
+      const { visible_type: visibleType } = formData.value.visible_config;
       if (visibleType === 'multi_biz' && !visibleList.value.length) {
         messageType = t('可见类型为多业务时，可见业务范围不能为空');
       }
@@ -548,7 +552,7 @@ export default defineComponent({
 
     // 更新过期时间列表里禁止选中的情况
     const daySelectAddToDisable = () => {
-      const { retention_days_default: d, retention_days_max: m } = formData.setup_config;
+      const { retention_days_default: d, retention_days_max: m } = formData.value.setup_config;
       retentionDaysList.value.forEach(el => (el.disabled = Number(m) < Number(el.id)));
       maxDaysList.value.forEach(el => (el.disabled = Number(d) > Number(el.id)));
     };
@@ -560,8 +564,8 @@ export default defineComponent({
       const isRetention = type === 'retention';
       if (numberVal) {
         const isExceed = isRetention
-          ? formData.setup_config.retention_days_max < numberVal
-          : formData.setup_config.retention_days_default > numberVal;
+          ? formData.value.setup_config.retention_days_max < numberVal
+          : formData.value.setup_config.retention_days_default > numberVal;
         if (isExceed) {
           messageError(t('默认天数不能大于最大天数'));
           return;
@@ -573,7 +577,7 @@ export default defineComponent({
               name: stringVal + t('天'),
             });
           }
-          formData.setup_config.retention_days_default = stringVal;
+          formData.value.setup_config.retention_days_default = stringVal;
           customRetentionDay.value = '';
         } else {
           if (!maxDaysList.value.some(item => item.id === stringVal)) {
@@ -582,7 +586,7 @@ export default defineComponent({
               name: stringVal + t('天'),
             });
           }
-          formData.setup_config.retention_days_max = stringVal;
+          formData.value.setup_config.retention_days_max = stringVal;
           customMaxDay.value = '';
         }
         document.body.click();
@@ -596,10 +600,10 @@ export default defineComponent({
     const handleChangePrincipal = (val: any[]) => {
       const realVal = val.filter(item => item !== undefined);
       isAdminError.value = !realVal.length;
-      formData.admin = realVal;
+      formData.value.admin = realVal;
     };
     const handleBlur = () => {
-      isAdminError.value = !formData.admin.length;
+      isAdminError.value = !formData.value.admin.length;
     };
 
     // 获取业务属性（父/子）列表
@@ -677,13 +681,13 @@ export default defineComponent({
             isShowManagement.value = true;
             editDataSource();
           } else {
-            formData.admin = [userMeta.value.username];
+            formData.value.admin = [userMeta.value.username];
             initSidebarFormData();
           }
           updateDaysList();
           getBizPropertyId();
         } else {
-          Object.assign(formData, {
+          Object.assign(formData.value, {
             cluster_name: '',
             source_type: '',
             source_name: '',
@@ -714,7 +718,7 @@ export default defineComponent({
               bk_biz_labels: {},
             },
           });
-          Object.assign(basicFormData, {
+          Object.assign(basicFormData.value, {
             cluster_name: '',
             source_type: '',
             source_name: '',
@@ -738,7 +742,7 @@ export default defineComponent({
 
     // 监听：基础信息变更后清空联通结果（避免误用老结果）
     watch(
-      () => basicFormData,
+      () => basicFormData.value,
       () => {
         if (!isFirstShow.value) connectResult.value = '';
         isFirstShow.value = false;
@@ -748,19 +752,19 @@ export default defineComponent({
 
     // 监听：默认时间变更
     watch(
-      () => formData.setup_config.retention_days_default,
+      () => formData.value.setup_config.retention_days_default,
       () => daySelectAddToDisable(),
     );
 
     // 监听：最大时间变更
     watch(
-      () => formData.setup_config.retention_days_max,
+      () => formData.value.setup_config.retention_days_max,
       () => daySelectAddToDisable(),
     );
 
     // 监听：可见范围类型切换
     watch(
-      () => formData.visible_config.visible_type,
+      () => formData.value.visible_config.visible_type,
       val => {
         if (val !== 'multi_biz') {
           visibleList.value = [];
@@ -813,8 +817,8 @@ export default defineComponent({
                   form-type='vertical'
                   {...{
                     props: {
-                      model: basicFormData,
-                      rules: basicRules,
+                      model: basicFormData.value,
+                      rules: basicRules.value,
                     },
                   }}
                 >
@@ -828,11 +832,11 @@ export default defineComponent({
                     required
                   >
                     <bk-input
-                      value={basicFormData.cluster_name}
+                      value={basicFormData.value.cluster_name}
                       readonly={isEdit.value}
                       data-test-id='esAccessFromBox_input_fillName'
                       maxlength={50}
-                      onChange={(val: string) => (basicFormData.cluster_name = val)}
+                      onChange={(val: string) => (basicFormData.value.cluster_name = val)}
                     />
                   </bk-form-item>
 
@@ -846,9 +850,9 @@ export default defineComponent({
                       <div class='source-item'>
                         <bk-select
                           style='width: 154px; margin-right: 10px'
-                          value={basicFormData.source_type}
+                          value={basicFormData.value.source_type}
                           onChange={(val: string) => {
-                            basicFormData.source_type = val;
+                            basicFormData.value.source_type = val;
                             handleChangeSource(val);
                           }}
                         >
@@ -871,10 +875,10 @@ export default defineComponent({
                     >
                       <bk-input
                         class='address-input'
-                        value={basicFormData.domain_name}
+                        value={basicFormData.value.domain_name}
                         readonly={isEdit.value}
                         data-test-id='esAccessFromBox_input_fillDomainName'
-                        onChange={(val: string) => (basicFormData.domain_name = val)}
+                        onChange={(val: string) => (basicFormData.value.domain_name = val)}
                       />
                     </bk-form-item>
                   </div>
@@ -887,14 +891,14 @@ export default defineComponent({
                       required
                     >
                       <bk-input
-                        value={basicFormData.port}
+                        value={basicFormData.value.port}
                         max={65535}
                         min={0}
                         readonly={isEdit.value}
                         show-controls={false}
                         data-test-id='esAccessFromBox_input_fillPort'
                         type='number'
-                        onChange={(val: string | number) => (basicFormData.port = String(val))}
+                        onChange={(val: string | number) => (basicFormData.value.port = String(val))}
                       />
                     </bk-form-item>
 
@@ -903,10 +907,10 @@ export default defineComponent({
                       required
                     >
                       <bk-select
-                        value={basicFormData.schema}
+                        value={basicFormData.value.schema}
                         clearable={false}
                         data-test-id='esAccessFromBox_select_selectProtocol'
-                        onChange={(val: string) => (basicFormData.schema = val)}
+                        onChange={(val: string) => (basicFormData.value.schema = val)}
                       >
                         <bk-option
                           id='http'
@@ -924,17 +928,17 @@ export default defineComponent({
                   <div class='form-item-container'>
                     <bk-form-item label={t('用户名')}>
                       <bk-input
-                        value={basicFormData.auth_info.username}
+                        value={basicFormData.value.auth_info.username}
                         data-test-id='esAccessFromBox_input_fillUsername'
-                        onChange={(val: string) => (basicFormData.auth_info.username = val)}
+                        onChange={(val: string) => (basicFormData.value.auth_info.username = val)}
                       />
                     </bk-form-item>
                     <bk-form-item label={t('密码')}>
                       <bk-input
-                        value={basicFormData.auth_info.password}
+                        value={basicFormData.value.auth_info.password}
                         data-test-id='esAccessFromBox_input_fillPassword'
                         type='password'
-                        onChange={(val: string) => (basicFormData.auth_info.password = val)}
+                        onChange={(val: string) => (basicFormData.value.auth_info.password = val)}
                       />
                     </bk-form-item>
                   </div>
@@ -997,8 +1001,8 @@ export default defineComponent({
                         label={t('可见范围')}
                       >
                         <bk-radio-group
-                          value={formData.visible_config.visible_type}
-                          onChange={(v: string) => (formData.visible_config.visible_type = v)}
+                          value={formData.value.visible_config.visible_type}
+                          onChange={(v: string) => (formData.value.visible_config.visible_type = v)}
                         >
                           {visibleScopeSelectList.value.map(item => (
                             <bk-radio
@@ -1083,14 +1087,14 @@ export default defineComponent({
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('默认')}</div>
                             <bk-select
-                              value={formData.setup_config.retention_days_default}
+                              value={formData.value.setup_config.retention_days_default}
                               clearable={false}
                               data-test-id='storageBox_select_selectExpiration'
-                              onChange={(val: string) => (formData.setup_config.retention_days_default = val)}
+                              onChange={(val: string) => (formData.value.setup_config.retention_days_default = val)}
                               scopedSlots={{
                                 trigger: () => (
                                   <div class='bk-select-name'>
-                                    {String(formData.setup_config.retention_days_default) + t('天')}
+                                    {String(formData.value.setup_config.retention_days_default) + t('天')}
                                   </div>
                                 ),
                                 extension: () => (
@@ -1122,14 +1126,14 @@ export default defineComponent({
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('最大')}</div>
                             <bk-select
-                              value={formData.setup_config.retention_days_max}
+                              value={formData.value.setup_config.retention_days_max}
                               clearable={false}
                               data-test-id='storageBox_select_selectExpiration'
-                              onChange={(val: string) => (formData.setup_config.retention_days_max = val)}
+                              onChange={(val: string) => (formData.value.setup_config.retention_days_max = val)}
                               scopedSlots={{
                                 trigger: () => (
                                   <div class='bk-select-name'>
-                                    {String(formData.setup_config.retention_days_max) + t('天')}
+                                    {String(formData.value.setup_config.retention_days_max) + t('天')}
                                   </div>
                                 ),
                                 extension: () => (
@@ -1169,23 +1173,23 @@ export default defineComponent({
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('默认')}</div>
                             <bk-input
-                              value={formData.setup_config.number_of_replicas_default}
-                              max={Number(formData.setup_config.number_of_replicas_max)}
+                              value={formData.value.setup_config.number_of_replicas_default}
+                              max={Number(formData.value.setup_config.number_of_replicas_max)}
                               min={0}
                               type='number'
                               onChange={(val: string | number) =>
-                                (formData.setup_config.number_of_replicas_default = Number(val))
+                                (formData.value.setup_config.number_of_replicas_default = Number(val))
                               }
                             />
                           </div>
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('最大')}</div>
                             <bk-input
-                              value={formData.setup_config.number_of_replicas_max}
-                              min={Number(formData.setup_config.number_of_replicas_default)}
+                              value={formData.value.setup_config.number_of_replicas_max}
+                              min={Number(formData.value.setup_config.number_of_replicas_default)}
                               type='number'
                               onChange={(val: string | number) =>
-                                (formData.setup_config.number_of_replicas_max = Number(val))
+                                (formData.value.setup_config.number_of_replicas_max = Number(val))
                               }
                             />
                           </div>
@@ -1201,22 +1205,24 @@ export default defineComponent({
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('默认')}</div>
                             <bk-input
-                              value={formData.setup_config.es_shards_default}
-                              max={Number(formData.setup_config.es_shards_max)}
+                              value={formData.value.setup_config.es_shards_default}
+                              max={Number(formData.value.setup_config.es_shards_max)}
                               min={1}
                               type='number'
                               onChange={(val: string | number) =>
-                                (formData.setup_config.es_shards_default = Number(val))
+                                (formData.value.setup_config.es_shards_default = Number(val))
                               }
                             />
                           </div>
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('最大')}</div>
                             <bk-input
-                              value={formData.setup_config.es_shards_max}
-                              min={Number(formData.setup_config.es_shards_default)}
+                              value={formData.value.setup_config.es_shards_max}
+                              min={Number(formData.value.setup_config.es_shards_default)}
                               type='number'
-                              onChange={(val: string | number) => (formData.setup_config.es_shards_max = Number(val))}
+                              onChange={(val: string | number) =>
+                                (formData.value.setup_config.es_shards_max = Number(val))
+                              }
                             />
                           </div>
                         </div>
@@ -1229,14 +1235,14 @@ export default defineComponent({
                       >
                         <div class='form-flex-container'>
                           <bk-switcher
-                            value={formData.enable_hot_warm}
+                            value={formData.value.enable_hot_warm}
                             disabled={isDisableHotSetting.value}
                             size='large'
                             theme='primary'
                             onChange={(v: boolean) => handleChangeHotWarm(v)}
                           />
-                          {isDisableHotSetting.value && !connectLoading.value && 
-                            [
+                          {isDisableHotSetting.value &&
+                            !connectLoading.value && [
                               <span class='bk-icon icon-info'></span>,
                               <span style='font-size: 12px'>{t('没有获取到正确的标签，')}</span>,
                               <a
@@ -1246,19 +1252,18 @@ export default defineComponent({
                               >
                                 {t('查看具体的配置方法')}
                               </a>,
-                            ]
-                          }
+                            ]}
                         </div>
                       </bk-form-item>
 
                       {/* 冷热数据标签 */}
-                      {formData.enable_hot_warm && (
+                      {formData.value.enable_hot_warm && (
                         <div class='form-item-container'>
                           {/* 热数据标签 */}
                           <div class='bk-form-item'>
                             <div class='form-item-label'>
                               <p>{t('热数据标签')}</p>
-                              {formData.hot_attr_name && formData.hot_attr_value && (
+                              {formData.value.hot_attr_name && formData.value.hot_attr_value && (
                                 <div
                                   class='button-text'
                                   onClick={() => handleViewInstanceList('hot')}
@@ -1287,7 +1292,7 @@ export default defineComponent({
                           <div class='bk-form-item'>
                             <div class='form-item-label'>
                               <p>{t('冷数据标签')}</p>
-                              {formData.warm_attr_name && formData.warm_attr_value && (
+                              {formData.value.warm_attr_name && formData.value.warm_attr_value && (
                                 <div
                                   class='button-text'
                                   onClick={() => handleViewInstanceList('cold')}
@@ -1319,10 +1324,10 @@ export default defineComponent({
                         <bk-form-item label={t('日志归档')}>
                           <div class='document-container'>
                             <bk-switcher
-                              value={formData.enable_archive}
+                              value={formData.value.enable_archive}
                               size='large'
                               theme='primary'
-                              onChange={(v: boolean) => (formData.enable_archive = v)}
+                              onChange={(v: boolean) => (formData.value.enable_archive = v)}
                             />
                             {!!archiveDocUrl.value && (
                               <div
@@ -1338,10 +1343,10 @@ export default defineComponent({
                         {isItsm.value && (
                           <bk-form-item label={t('容量评估')}>
                             <bk-switcher
-                              value={formData.enable_assessment}
+                              value={formData.value.enable_assessment}
                               size='large'
                               theme='primary'
-                              onChange={(v: boolean) => (formData.enable_assessment = v)}
+                              onChange={(v: boolean) => (formData.value.enable_assessment = v)}
                             />
                           </bk-form-item>
                         )}
@@ -1359,7 +1364,7 @@ export default defineComponent({
                             class={isAdminError.value && 'is-error'}
                             empty-text={t('无匹配人员')}
                             placeholder={t('请选择集群负责人')}
-                            value={formData.admin}
+                            value={formData.value.admin}
                             onBlur={handleBlur}
                             onChange={handleChangePrincipal}
                           />
@@ -1372,11 +1377,11 @@ export default defineComponent({
                         label={t('说明')}
                       >
                         <bk-input
-                          value={formData.description}
+                          value={formData.value.description}
                           maxlength={100}
                           rows={3}
                           type='textarea'
-                          onChange={(val: string) => (formData.description = val)}
+                          onChange={(val: string) => (formData.value.description = val)}
                         />
                       </bk-form-item>
                     </div>
@@ -1410,7 +1415,7 @@ export default defineComponent({
         {/* 查看实例列表弹窗 */}
         <EsDialog
           value={showInstanceDialog.value}
-          formData={formData}
+          formData={formData.value}
           list={hotColdOriginList.value}
           type={viewInstanceType.value}
         />

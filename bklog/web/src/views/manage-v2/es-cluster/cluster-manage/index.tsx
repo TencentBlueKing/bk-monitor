@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { defineComponent, ref, computed, onMounted, nextTick } from 'vue';
 import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
 import useLocale from '@/hooks/use-locale';
 import http from '@/api';
 import EmptyStatus from '@/components/empty-status/index.vue';
-import IntroPanel from './intro-panel.vue';
+import IntroPanel from './intro-panel.tsx';
 import EsSlider from './es-slider.tsx';
 import * as authorityMap from '@/common/authority-map';
 import { InfoBox } from 'bk-magic-vue';
@@ -63,14 +63,14 @@ export default defineComponent({
     const tableDataOrigin = ref([]); // 原始数据
     const tableDataSearched = ref([]); // 搜索过滤数据
     const tableDataPaged = ref([]); // 前端分页
-    const pagination = reactive({
+    const pagination = ref({
       count: 0,
       limit: 10,
       current: 1,
       limitList: [10, 20, 50, 100],
     });
     const stateMap = ref({}); // 连接状态映射
-    const params = reactive({
+    const params = ref({
       keyword: '',
     });
     const isAllowedCreate = ref(null); // 是否有权限新建
@@ -110,7 +110,7 @@ export default defineComponent({
     ]);
 
     // 集群设置
-    const clusterSetting = reactive({
+    const clusterSetting = ref({
       fields: settingFields.value,
       selectedFields: settingFields.value.slice(0, 10),
     });
@@ -166,7 +166,7 @@ export default defineComponent({
         if (!list.length) return;
         tableDataOrigin.value = list;
         tableDataSearched.value = list;
-        pagination.count = list.length;
+        pagination.value.count = list.length;
         computePageData();
 
         // 连接状态
@@ -189,7 +189,7 @@ export default defineComponent({
         tableLoading.value = false;
         tableDataOrigin.value.splice(0);
         tableDataSearched.value.splice(0);
-        pagination.count = 0;
+        pagination.value.count = 0;
       }
     };
 
@@ -217,17 +217,17 @@ export default defineComponent({
 
     // 页面变化处理
     const handlePageChange = page => {
-      if (pagination.current !== page) {
-        pagination.current = page;
+      if (pagination.value.current !== page) {
+        pagination.value.current = page;
         computePageData();
       }
     };
 
     // 每页条数变化处理
     const handleLimitChange = limit => {
-      if (pagination.limit !== limit) {
-        pagination.current = 1;
-        pagination.limit = limit;
+      if (pagination.value.limit !== limit) {
+        pagination.value.current = 1;
+        pagination.value.limit = limit;
         computePageData();
       }
     };
@@ -254,7 +254,7 @@ export default defineComponent({
 
     // 搜索回调
     const searchCallback = () => {
-      const keyword = params.keyword.trim();
+      const keyword = params.value.keyword.trim();
       if (keyword) {
         tableDataSearched.value = tableDataOrigin.value.filter(item => {
           if (isIPv6(keyword)) {
@@ -272,9 +272,9 @@ export default defineComponent({
       } else {
         tableDataSearched.value = tableDataOrigin.value;
       }
-      emptyType.value = params.keyword || isFilterSearch.value ? 'search-empty' : 'empty';
-      pagination.current = 1;
-      pagination.count = tableDataSearched.value.length;
+      emptyType.value = params.value.keyword || isFilterSearch.value ? 'search-empty' : 'empty';
+      pagination.value.current = 1;
+      pagination.value.count = tableDataSearched.value.length;
       computePageData();
     };
 
@@ -299,9 +299,9 @@ export default defineComponent({
 
     // 根据分页数据过滤表格
     const computePageData = () => {
-      const { current, limit } = pagination;
+      const { current, limit } = pagination.value;
       const start = (current - 1) * limit;
-      const end = pagination.current * pagination.limit;
+      const end = pagination.value.current * pagination.value.limit;
       tableDataPaged.value = tableDataSearched.value.slice(start, end);
     };
 
@@ -417,7 +417,7 @@ export default defineComponent({
         .then(res => {
           if (res.result) {
             if (tableDataPaged.value.length <= 1) {
-              pagination.current = pagination.current > 1 ? pagination.current - 1 : 1;
+              pagination.value.current = pagination.value.current > 1 ? pagination.value.current - 1 : 1;
             }
             const deleteIndex = tableDataSearched.value.findIndex(item => {
               return item.cluster_config.cluster_id === row.cluster_config.cluster_id;
@@ -432,7 +432,7 @@ export default defineComponent({
     // 新建、编辑源更新
     const handleUpdated = () => {
       showSlider.value = false;
-      pagination.count = 1;
+      pagination.value.count = 1;
       getTableData();
     };
 
@@ -443,7 +443,7 @@ export default defineComponent({
 
     // 设置变化处理
     const handleSettingChange = ({ fields }) => {
-      clusterSetting.selectedFields = fields;
+      clusterSetting.value.selectedFields = fields;
       setDefaultSettingSelectFiled(settingCacheKey, fields);
     };
 
@@ -462,7 +462,7 @@ export default defineComponent({
 
     // 检查字段显示
     const checkcFields = field => {
-      return clusterSetting.selectedFields.some(item => item.id === field);
+      return clusterSetting.value.selectedFields.some(item => item.id === field);
     };
 
     // 获取百分比
@@ -482,7 +482,7 @@ export default defineComponent({
     // 操作处理
     const handleOperation = type => {
       if (type === 'clear-filter') {
-        params.keyword = '';
+        params.value.keyword = '';
         clearTableFilter(clusterTable.value);
         getTableData();
         return;
@@ -498,8 +498,8 @@ export default defineComponent({
     onMounted(() => {
       checkCreateAuth();
       getTableData();
-      const { selectedFields } = clusterSetting;
-      clusterSetting.selectedFields = getDefaultSettingSelectFiled(settingCacheKey, selectedFields);
+      const { selectedFields } = clusterSetting.value;
+      clusterSetting.value.selectedFields = getDefaultSettingSelectFiled(settingCacheKey, selectedFields);
       nextTick(() => {
         maxIntroWidth.value = accessContainerRef.value.clientWidth - 580;
       });
@@ -531,12 +531,12 @@ export default defineComponent({
             </bk-button>
             <bk-input
               style='float: right; width: 360px'
-              value={params.keyword}
+              value={params.value.keyword}
               clearable={true}
               placeholder={t('搜索ES源名称，地址，创建人')}
               data-test-id='esAccessBox_input_search'
               right-icon='bk-icon icon-search'
-              onChange={val => (params.keyword = val)}
+              onChange={val => (params.value.keyword = val)}
               onClear={handleSearch}
               onEnter={handleSearch}
               on-right-icon-click={handleSearch}
@@ -547,7 +547,7 @@ export default defineComponent({
             class='king-table'
             v-bkloading={{ isLoading: tableLoading.value }}
             data={tableDataPaged.value}
-            pagination={pagination}
+            pagination={pagination.value}
             data-test-id='esAccessBox_table_esAccessTableBox'
             onFilter-change={handleFilterChange}
             onPage-change={handlePageChange}
@@ -714,8 +714,7 @@ export default defineComponent({
                       theme='primary'
                       text
                       on-on-click={() => createIndexSet(props.row)}
-                    >
-                    </log-button>
+                    ></log-button>
                     <log-button
                       class='mr10'
                       vCursor={{
@@ -729,8 +728,7 @@ export default defineComponent({
                       theme='primary'
                       text
                       on-on-click={() => editDataSource(props.row)}
-                    >
-                    </log-button>
+                    ></log-button>
                     <log-button
                       class='mr10'
                       vCursor={{
@@ -744,8 +742,7 @@ export default defineComponent({
                       theme='primary'
                       text
                       on-on-click={() => deleteDataSource(props.row)}
-                    >
-                    </log-button>
+                    ></log-button>
                   </div>
                 ),
               }}
@@ -757,8 +754,8 @@ export default defineComponent({
             >
               <bk-table-setting-content
                 v-en-style='width: 530px'
-                fields={clusterSetting.fields}
-                selected={clusterSetting.selectedFields}
+                fields={clusterSetting.value.fields}
+                selected={clusterSetting.value.selectedFields}
                 on-setting-change={handleSettingChange}
               />
             </bk-table-column>
