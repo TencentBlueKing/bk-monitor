@@ -182,9 +182,8 @@ export default class ConditionCreator extends tsc<IProps> {
           data_type_label: this.metricDetail?.data_type_label,
           result_table_id: this.metricDetail?.result_table_id,
           metric_field: this.metricDetail?.metric_field,
-          where: [],
-        }).then(res => {
-          const result = Array.isArray(res.data) ? res.data.map(item => ({ name: item.label, id: item.value })) : [];
+        }).then(data => {
+          const result = Array.isArray(data) ? data.map(item => ({ name: item.label, id: item.value })) : [];
           const allOptions = [
             ...this.dimensionValueVariables.map(item => ({ name: item.name, id: item.name, isVariable: true })),
             ...result,
