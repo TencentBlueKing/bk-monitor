@@ -154,7 +154,7 @@ export default class SpaceAddList extends tsc<IProps> {
       const map: Record<string, any> = {
         [SpaceAddType.research]: {
           title: this.$tc('新建研发项目'),
-          href: `${window.bk_ci_url.replace(/\/$/, '')}/console/manage/apply`,
+          href: `${window.bk_ci_url?.replace(/\/$/, '')}/console/manage/apply`,
         },
         [SpaceAddType.container]: {
           title: this.$tc('新建容器项目'),
