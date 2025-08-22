@@ -76,6 +76,16 @@
             :api="userApi"
             :placeholder="allowCreate ? $t('请输入QQ并按Enter结束（可多次添加）') : ''"
           />
+          <!-- <bk-user-selector
+            style="width: 400px"
+            :placeholder="$t('请选择群成员')"
+            :disabled="isExternal"
+            :api="userApi"
+            :empty-text="$t('无匹配人员')"
+            :value="manageStrategyData.user_list"
+            @change="handleChangePrincipal"
+          >
+          </bk-user-selector> -->
         </div>
       </div>
 
@@ -245,6 +255,7 @@
   import ModuleSelect from './module-select';
   import ValidateInput from './validate-input';
   import ValidateUserSelector from './validate-user-selector';
+  import BkUserSelector from '@blueking/user-selector';
 
   export default {
     components: {
@@ -252,6 +263,7 @@
       ModuleSelect,
       ValidateInput,
       ValidateUserSelector,
+      BkUserSelector
     },
     mixins: [SidebarDiffMixin],
     props: {
@@ -306,6 +318,9 @@
       // 侧边栏需要对比的formData
       _watchFormData_({ manageStrategyData }) {
         return { manageStrategyData };
+      },
+      isExternal() {
+        return this.$store.state.isExternal;
       },
     },
     mounted() {
@@ -381,6 +396,9 @@
       handleConfirm() {
         this.$emit('confirm', this.manageStrategyData);
       },
+      handleChangePrincipal(val){
+        this.manageStrategyData.user_list = val;
+      }
     },
   };
 </script>
