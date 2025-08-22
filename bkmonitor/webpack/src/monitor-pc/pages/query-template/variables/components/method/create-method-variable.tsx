@@ -43,10 +43,16 @@ export default class CreateMethodVariable extends tsc<MethodVariableProps, Metho
   @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
 
-  handleValueChange(value: string) {
+  handleValueChange(defaultValue: string) {
+    let value = this.variable.value || '';
+    if (!this.variable.isValueEditable) {
+      value = defaultValue;
+    }
+
     this.handleDataChange({
       ...this.variable.data,
-      defaultValue: value,
+      defaultValue,
+      value,
     });
   }
 
