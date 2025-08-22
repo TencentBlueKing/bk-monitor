@@ -55,10 +55,7 @@ export default class ConfigPanel extends tsc<ConfigPanelProps> {
             </div>
             <div class='info-item'>
               <span class='info-item-label'>{`${this.$t('模板说明')}:`}</span>
-              <span class='info-item-value'>
-                {/* TODO xxx */}
-                模板说明待补充
-              </span>
+              <span class='info-item-value'>{this.templateInfo?.description || '--'}</span>
             </div>
           </div>
         </div>
