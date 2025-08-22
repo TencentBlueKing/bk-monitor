@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import useStore from '@/hooks/use-store';
+import useLocale from '@/hooks/use-locale';
 import MainHeader from './main-header';
 import $http from '@/api';
 import ClusteringLoader from '@/skeleton/clustering-loader.vue';
@@ -72,6 +73,7 @@ export default defineComponent({
   },
   setup(props, { expose }) {
     const store = useStore();
+    const { t } = useLocale();
 
     const initFilterSortMap = () => ({
       filter: {
@@ -332,7 +334,7 @@ export default defineComponent({
               width-list={smallLoaderWidthList.value}
               is-loading
             />
-          ) : (
+          ) : tablesInfoList.value.length > 0 && tablesInfoList.value.every(item => item.dataList.length > 0) ? (
             tablesInfoList.value.map((info, index) => (
               <ContentTable
                 ref={setTableItemRef(index)}
@@ -346,6 +348,14 @@ export default defineComponent({
                 on-open-ai={handleOpenAi}
               />
             ))
+          ) : (
+            <bk-exception
+              type='empty'
+              scene='part'
+              style='margin-top: 80px'
+            >
+              <span>{props.retrieveParams.addition.length > 0 ? t('搜索结果为空') : t('暂无数据')}</span>
+            </bk-exception>
           )}
         </div>
         <AiAssitant

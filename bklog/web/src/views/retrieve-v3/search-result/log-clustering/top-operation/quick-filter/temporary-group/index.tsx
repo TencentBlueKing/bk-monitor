@@ -124,7 +124,7 @@ export default defineComponent({
           on-click={handleShowPopover}
         >
           <log-icon
-            type='organization'
+            type='group'
             class='trigger-icon'
           />
           <span>{t('临时分组')}</span>

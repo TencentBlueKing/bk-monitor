@@ -14,5 +14,9 @@
   .template-list {
     flex: 1;
     overflow-y: auto;
+
+    .empty-main {
+      margin-top: 80px;
+    }
   }
 }

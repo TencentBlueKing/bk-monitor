@@ -48,7 +48,7 @@ export default defineComponent({
           trigger: 'blur',
         },
         {
-          validator: (value: string) => /^[A-Z]+$/.test(value),
+          validator: (value: string) => /^[A-Z_-]+$/.test(value),
           message: t('{n}不规范, 包含特殊符号.', { n: t('占位符') }),
           trigger: 'blur',
         },

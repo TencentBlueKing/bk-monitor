@@ -28,7 +28,7 @@ import { defineComponent, ref, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import EmptyStatus from '@/components/empty-status/index.vue';
 import VueDraggable from 'vuedraggable';
-import ClusterEventPopover from '@/views/retrieve/result-table-panel/log-clustering/components/cluster-event-popover.vue';
+import Regexopover from './regex-popover';
 import { copyMessage, base64Encode } from '@/common/util';
 import AddRule from './add-rule';
 import './index.scss';
@@ -38,7 +38,7 @@ export default defineComponent({
   components: {
     EmptyStatus,
     VueDraggable,
-    ClusterEventPopover,
+    Regexopover,
     AddRule,
   },
   props: {
@@ -59,6 +59,7 @@ export default defineComponent({
     const isEditRow = ref(false);
     const ruleList = ref([]);
     const currentRowData = ref({});
+    const searchValue = ref('');
 
     let currentRowIndex = 0;
     let localRuleList = [];
@@ -140,6 +141,7 @@ export default defineComponent({
     };
 
     const handleSearch = (keyword: string) => {
+      searchValue.value = keyword;
       if (!keyword) {
         ruleList.value = _.cloneDeep(localRuleList);
         return;
@@ -194,13 +196,13 @@ export default defineComponent({
                       <span>{index + 1}</span>
                     </div>
                     <div class='regular-column'>
-                      <cluster-event-popover
+                      <Regexopover
                         is-cluster={false}
                         placement='top'
                         on-event-click={() => handleMenuClick(item)}
                       >
                         <span class='row-left-regular'> {Object.values(item)[0]}</span>
-                      </cluster-event-popover>
+                      </Regexopover>
                     </div>
                     <div class='placement-column'>{Object.keys(item)[0]}</div>
                     {!props.readonly && (
@@ -249,19 +251,30 @@ export default defineComponent({
           </div>
         ) : (
           <div class='no-cluster-rule'>
-            <empty-status
-              show-text={false}
-              empty-type='empty'
-            >
-              <span>{t('暂无聚类规则')}，</span>
-              <bk-button
-                text
-                theme='primary'
-                on-click={() => handleClickEditRule(null, -1, true)}
+            {searchValue.value ? (
+              <bk-exception
+                type='search-empty'
+                scene='part'
               >
-                {t('立即新建')}
-              </bk-button>
-            </empty-status>
+                <span style='font-size:12px;'>{t('搜索为空')}</span>
+              </bk-exception>
+            ) : (
+              <bk-exception
+                type='empty'
+                scene='part'
+              >
+                <span style='font-size:12px;'>{t('暂无聚类规则')}，</span>
+                <bk-button
+                  text
+                  theme='primary'
+                  size='small'
+                  style='padding:0;'
+                  on-click={() => handleClickEditRule(null, -1, true)}
+                >
+                  {t('立即新建')}
+                </bk-button>
+              </bk-exception>
+            )}
           </div>
         )}
         <add-rule

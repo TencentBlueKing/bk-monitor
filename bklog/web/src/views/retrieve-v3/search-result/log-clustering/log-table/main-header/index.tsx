@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import _ from 'lodash';
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import SortOperate from './sort-operate';
 import FilterOperate from './filter-operate';
@@ -158,6 +158,12 @@ export default defineComponent({
       getColumnWidthList: () => columnsRef.map(item => item.value?.getWidth()),
     });
 
+    onMounted(() => {
+      setTimeout(() => {
+        handleResizeColumn();
+      }, 1000);
+    });
+
     return () => (
       <div
         class='log-table-header-main-wraper'
@@ -169,8 +175,7 @@ export default defineComponent({
               {showGroupBy.value && <th style='width: 12px'></th>}
               <HeadColumn
                 ref={columnsRef[0]}
-                width={150}
-                customStyle={{ paddingLeft: showGroupBy.value ? '24px' : '12px' }}
+                width={75}
                 on-resize-width={handleResizeColumn}
               >
                 {t('数据指纹')}
@@ -241,6 +246,7 @@ export default defineComponent({
               <HeadColumn
                 ref={columnsRef[6]}
                 width={200}
+                customStyle={{ paddingLeft: '10px' }}
                 on-resize-width={handleResizeColumn}
               >
                 <div class='sort-column'>

@@ -91,7 +91,7 @@ export default defineComponent({
             <span style='margin-right: 4px'>{t('调试工具')}</span>
             <log-icon
               common
-              type={showDebug.value ? 'angle-double-up' : 'angle-double-down'}
+              type={showDebug.value ? 'angle-double-down' : 'angle-double-up'}
             />
           </bk-button>
           <bk-button on-click={handleReset}>{t('重置')}</bk-button>
