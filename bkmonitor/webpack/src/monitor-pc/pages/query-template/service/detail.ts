@@ -27,7 +27,7 @@
 import { getFunctions } from 'monitor-api/modules/grafana';
 import { relationQueryTemplate, retrieveQueryTemplate } from 'monitor-api/modules/model';
 
-import { type QueryTemplateListItem } from '../typings';
+import { type QueryTemplateListItem, Expression } from '../typings';
 import { getCreateVariableParams, getVariableModel } from '../variables';
 import { getRetrieveQueryTemplateQueryConfigs } from './metric';
 
@@ -40,6 +40,7 @@ export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem
     query_configs: [],
     variables: [],
   }));
+  const expressionConfig = new Expression({ expression: detail.expression, functions: detail.functions });
   let queryConfigs = [];
   if (detail.query_configs?.length) {
     queryConfigs = await getRetrieveQueryTemplateQueryConfigs(detail.query_configs);
@@ -60,6 +61,7 @@ export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem
     queryConfigs,
     variables,
     metricFunctions,
+    expressionConfig,
   };
 };
 
