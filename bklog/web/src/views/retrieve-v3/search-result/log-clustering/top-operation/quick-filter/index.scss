@@ -7,21 +7,12 @@
   font-size: 12px;
   line-height: 24px;
 
-  .is-near24 {
-    margin-right: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    > span {
-      margin-left: 4px;
-      line-height: 16px;
-      cursor: pointer;
-    }
+  .bk-checkbox-text {
+    color: #4d4f56;
   }
 
   .split-line {
-    margin: 0 16px 0 8px;
+    margin: 0 6px 0 16px;
     width: 1px;
     height: 16px;
     background: #dcdee5;
@@ -35,6 +26,7 @@
   justify-content: center;
   align-items: center;
   cursor: pointer;
+  color: #4d4f56;
 
   &:hover {
     background: #f0f1f5;

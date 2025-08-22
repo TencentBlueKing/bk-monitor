@@ -134,6 +134,9 @@ export default defineComponent({
           });
         });
       }
+
+      const width = refRoot.value?.getBoundingClientRect().width;
+      refRoot.value.style.width = `${width}px`;
     });
 
     onBeforeUnmount(() => {

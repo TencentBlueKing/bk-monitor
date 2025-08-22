@@ -755,3 +755,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-sousuo-:before {
 	content: "\e227";
 }
+.bklog-rizhituomin:before {
+	content: "\e232";
+}
+.bklog-group:before {
+	content: "\e233";
+}

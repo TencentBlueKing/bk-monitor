@@ -82,7 +82,7 @@ export default defineComponent({
         })
         .then(res => {
           if (res.code === 0) {
-            emit('success');
+            emit('success', res.data.id);
             handleCancel();
           }
         })

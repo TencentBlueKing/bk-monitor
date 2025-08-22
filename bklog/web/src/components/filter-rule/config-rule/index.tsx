@@ -95,8 +95,8 @@ export default defineComponent({
     const conditionList = [
       { id: '=', name: '=' },
       { id: '!=', name: '!=' },
-      { id: 'LIKE', name: 'LIKE' },
-      { id: 'NOT LIKE', name: 'NOT LIKE' },
+      { id: 'contains', name: t('包含') },
+      { id: 'not contains', name: t('不包含') },
     ];
 
     const formRules = {
@@ -113,17 +113,17 @@ export default defineComponent({
           message: t('必填项'),
           trigger: 'blur',
         },
-        {
-          validator: (values: string[]) => {
-            if (['NOT LIKE', 'LIKE'].includes(formData.value.op)) {
-              return values.every(item => /%/.test(item));
-            }
+        // {
+        //   validator: (values: string[]) => {
+        //     if (['NOT LIKE', 'LIKE'].includes(formData.value.op)) {
+        //       return values.every(item => /%/.test(item));
+        //     }
 
-            return true;
-          },
-          message: t('使用LIKE、NOT LINK操作符时请在过滤值前后增加%'),
-          trigger: 'blur',
-        },
+        //     return true;
+        //   },
+        //   message: t('使用LIKE、NOT LINK操作符时请在过滤值前后增加%'),
+        //   trigger: 'blur',
+        // },
       ],
     };
 

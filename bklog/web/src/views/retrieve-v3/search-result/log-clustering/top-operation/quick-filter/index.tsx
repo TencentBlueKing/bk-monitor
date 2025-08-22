@@ -117,7 +117,6 @@ export default defineComponent({
     return () => (
       <div class='fingerprint-setting'>
         <div
-          class='is-near24'
           v-bk-tooltips={{
             content: t('请先新建新类告警策略'),
             disabled: props.strategyHaveSubmit,

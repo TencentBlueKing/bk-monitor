@@ -75,8 +75,8 @@ export default defineComponent({
       const start = dayjs().subtract(7, 'day').startOf('day').valueOf();
       const end = dayjs().subtract(1, 'day').endOf('day').valueOf();
       return {
-        start: dayjs(start).format('YYYY-MM-DD HH:mm:ss'),
-        end: dayjs(end).format('YYYY-MM-DD HH:mm:ss'),
+        start,
+        end,
       };
     };
 
@@ -176,6 +176,7 @@ export default defineComponent({
         start_time: start,
         end_time: end,
         addition,
+        interval: '1d',
       };
     };
 

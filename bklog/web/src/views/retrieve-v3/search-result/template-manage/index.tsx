@@ -229,8 +229,7 @@ export default defineComponent({
                     <bk-dropdown-menu>
                       <div slot='dropdown-trigger'>
                         <bk-button
-                          style='min-width: 48px'
-                          class='btn-hover'
+                          class='operate-btn'
                           data-test-id='LogCluster_button_addNewRules'
                         >
                           {t('导入')}
@@ -259,8 +258,7 @@ export default defineComponent({
                       </ul>
                     </bk-dropdown-menu>
                     <bk-button
-                      style='min-width: 48px'
-                      class='btn-hover'
+                      class='operate-btn'
                       on-click={handleExportRule}
                     >
                       {t('导出')}

@@ -110,6 +110,12 @@ export default defineComponent({
       currentTemplateIndex.value = index;
     };
 
+    const handleCreateTemplateSuccess = (id: number) => {
+      initTemplateList().then(() => {
+        currentTemplateIndex.value = templateList.value.findIndex(item => item.id === id);
+      });
+    };
+
     initTemplateList();
 
     expose({
@@ -124,7 +130,7 @@ export default defineComponent({
     return () => (
       <div class='template-list-main'>
         <div class='search-main'>
-          <CreateTemplate on-success={initTemplateList} />
+          <CreateTemplate on-success={handleCreateTemplateSuccess} />
           <bk-input
             clearable
             style='width: 168px'
@@ -138,14 +144,34 @@ export default defineComponent({
           />
         </div>
         <div class='template-list'>
-          {templateList.value.map((item, index) => (
-            <template-item
-              data={item}
-              is-active={currentTemplateIndex.value === index}
-              on-click={() => handleClickTemplateItem(index)}
-              on-refresh={initTemplateList}
-            />
-          ))}
+          {templateList.value.length > 0 ? (
+            templateList.value.map((item, index) => (
+              <template-item
+                data={item}
+                is-active={currentTemplateIndex.value === index}
+                on-click={() => handleClickTemplateItem(index)}
+                on-refresh={initTemplateList}
+              />
+            ))
+          ) : (
+            <div class='empty-main'>
+              {searchValue.value ? (
+                <bk-exception
+                  type='search-empty'
+                  scene='part'
+                >
+                  <span style='font-size:12px'>{t('搜索为空')}</span>
+                </bk-exception>
+              ) : (
+                <bk-exception
+                  type='empty'
+                  scene='part'
+                >
+                  <span style='font-size:12px'>{t('暂无数据')}，</span>
+                </bk-exception>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
