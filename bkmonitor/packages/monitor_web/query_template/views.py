@@ -16,6 +16,7 @@ from rest_framework.viewsets import GenericViewSet
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.models.query_template import QueryTemplate
+from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.query_template import GLOBAL_BIZ_ID
 
 from . import mock_data, serializers
@@ -139,9 +140,12 @@ class QueryTemplateViewSet(GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        response_data = {}
         if validated_data.get("is_mock"):
             response_data = mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_PREVIEW
+        else:
+            response_data = QueryTemplateWrapper.from_dict(validated_data["query_template"]).render(
+                validated_data["context"]
+            )
         return Response(response_data)
 
     @action(methods=["POST"], detail=True)

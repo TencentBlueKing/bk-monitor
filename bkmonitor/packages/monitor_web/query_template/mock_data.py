@@ -16,6 +16,8 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL = {
     "id": 1,
     "space_scope": [2],
     "description": "模板说明",
+    "can_edit": True,
+    "can_delete": True,
     **deepcopy(mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE),
 }
 
@@ -23,6 +25,8 @@ CALLEE_P99_QUERY_TEMPLATE_DETAIL = {
     "id": 2,
     "space_scope": [],
     "description": "模板说明",
+    "can_edit": False,
+    "can_delete": False,
     **deepcopy(mock_data.CALLEE_P99_QUERY_TEMPLATE),
 }
 
