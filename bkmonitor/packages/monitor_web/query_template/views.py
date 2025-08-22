@@ -84,9 +84,12 @@ class QueryTemplateViewSet(GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        response_data = {}
         if validated_data.get("is_mock"):
             response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
+        else:
+            instance = self.get_object()
+            instance = self.serializer_class().update(instance, validated_data)
+            response_data = self.serializer_class(instance).data
         return Response(response_data)
 
     @staticmethod

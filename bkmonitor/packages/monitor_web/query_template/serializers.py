@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from collections.abc import Iterable
+
 from blueapps.utils.request_provider import get_request
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -82,7 +84,7 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     @staticmethod
-    def _is_allowed_by_bk_biz_ids(bk_biz_ids: list):
+    def _is_allowed_by_bk_biz_ids(bk_biz_ids: Iterable[int]):
         permission = Permission()
         for bk_biz_id in bk_biz_ids:
             if permission.is_allowed_by_biz(bk_biz_id, ActionEnum.EXPLORE_METRIC):
@@ -90,6 +92,29 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 _("您没有业务 ID 为 {bk_biz_id} 的指标探索权限").format(bk_biz_id=bk_biz_id)
             )
+
+    def _base_create_validate(cls, validated_data):
+        cls._is_allowed_by_bk_biz_ids([validated_data["space_scope"]])
+        # 校验同一业务下查询模板名称不能重复
+        if QueryTemplate.objects.filter(bk_biz_id=validated_data["bk_biz_id"], name=validated_data["name"]).exists():
+            raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
+
+    @classmethod
+    def _base_update_validate(cls, instance, validated_data):
+        existing_space_scopes = set(instance.space_scope)
+        modified_space_scopes = set(validated_data.get("space_scope", []))
+        # 移除的 scopes
+        removed_scopes = existing_space_scopes - modified_space_scopes
+        # 新增的 scopes
+        added_scopes = modified_space_scopes - existing_space_scopes
+        cls._is_allowed_by_bk_biz_ids(removed_scopes | added_scopes)
+        # 校验除了自身外，同一业务下查询模板名称不能重复
+        if (
+            QueryTemplate.objects.filter(bk_biz_id=validated_data["bk_biz_id"], name=validated_data["name"])
+            .exclude(id=instance.id)
+            .exists()
+        ):
+            raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
 
     @classmethod
     def _base_validate(cls, validated_data):
@@ -103,15 +128,15 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         elif bk_biz_id not in validated_data["space_scope"]:
             raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
 
-        # 校验同一业务下查询模板名称不能重复
-        if QueryTemplate.objects.filter(bk_biz_id=bk_biz_id, name=validated_data["name"]).exists():
-            raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
-
     def create(self, validated_data):
-        self._is_allowed_by_bk_biz_ids([validated_data["space_scope"]])
         self._base_validate(validated_data)
-        instance = super().create(validated_data)
-        return instance
+        self._base_create_validate(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        self._base_validate(validated_data)
+        self._base_update_validate(instance, validated_data)
+        return super().update(instance, validated_data)
 
     @property
     def _request_bk_biz_id(self):
