@@ -1340,7 +1340,7 @@ class QueryEventGroupResource(Resource):
 
 class CreateEventGroupResource(Resource):
     class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(default=DEFAULT_TENANT_ID)
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_data_id = serializers.CharField(required=True, label="数据源ID")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
         event_group_name = serializers.CharField(required=True, label="事件分组名")
