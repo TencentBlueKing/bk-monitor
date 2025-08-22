@@ -45,7 +45,7 @@ export default class EditMethodVariableValue extends tsc<MethodValueProps, Metho
 
   @Emit('change')
   handleValueChange(value: string) {
-    return new MethodVariableModel({ ...this.variable.data, value });
+    return new MethodVariableModel({ ...this.variable.data, value, isValueEditable: true });
   }
 
   handleSelectToggle(value: boolean) {
@@ -61,7 +61,7 @@ export default class EditMethodVariableValue extends tsc<MethodValueProps, Metho
       <EditVariableValue data={this.variable.data}>
         <bk-select
           clearable={false}
-          value={this.variable.value || this.variable.defaultValue}
+          value={this.variable.value}
           onChange={this.handleValueChange}
           onToggle={this.handleSelectToggle}
         >

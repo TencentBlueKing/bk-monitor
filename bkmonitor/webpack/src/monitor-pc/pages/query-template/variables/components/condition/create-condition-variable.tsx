@@ -53,23 +53,34 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
     return isAllDisabled || isOtherDisabled;
   }
 
-  handleDimensionChange(value: string[]) {
+  handleDimensionChange(options: string[]) {
     let defaultValue = this.variable.data.defaultValue || [];
-    if (!value.includes('all')) {
-      defaultValue = defaultValue.filter(item => value.includes(item.key));
+    if (!options.includes('all')) {
+      defaultValue = defaultValue.filter(item => options.includes(item.key));
+    }
+
+    let value = this.variable.value || [];
+    if (!this.variable.isValueEditable) {
+      value = defaultValue;
     }
 
     this.handleDataChange({
       ...this.variable.data,
-      options: value,
+      options,
       defaultValue,
+      value,
     });
   }
 
-  handleValueChange(value: AggCondition[]) {
+  handleValueChange(defaultValue: AggCondition[]) {
+    let value = this.variable.value || [];
+    if (!this.variable.isValueEditable) {
+      value = defaultValue;
+    }
     this.handleDataChange({
       ...this.variable.data,
-      defaultValue: value,
+      defaultValue,
+      value,
     });
   }
 

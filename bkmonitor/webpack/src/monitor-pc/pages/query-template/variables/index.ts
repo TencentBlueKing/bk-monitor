@@ -57,6 +57,8 @@ abstract class VariableBase {
   abstract defaultValue: any;
   description = '';
   id = '';
+  /** value值是否编辑过 */
+  isValueEditable = false;
   name = '';
   type: VariableTypeEnumType;
   /** 已选值 */
@@ -68,6 +70,7 @@ abstract class VariableBase {
     this.description = config.description;
     this.type = config.type;
     this.id = config.id || random(5);
+    this.isValueEditable = config.isValueEditable || false;
   }
 
   abstract get data(): Required<IVariableData>;
@@ -99,6 +102,7 @@ export class ConditionVariableModel extends VariableBase {
   get data() {
     return {
       id: this.id,
+      isValueEditable: this.isValueEditable,
       type: VariableTypeEnum.CONDITIONS,
       name: this.name,
       alias: this.alias,
@@ -138,6 +142,7 @@ export class ConstantVariableModel extends VariableBase {
     return {
       id: this.id,
       type: VariableTypeEnum.CONSTANTS,
+      isValueEditable: this.isValueEditable,
       name: this.name,
       alias: this.alias,
       description: this.description,
@@ -167,6 +172,7 @@ export class DimensionValueVariableModel extends VariableBase {
     return {
       id: this.id,
       type: VariableTypeEnum.TAG_VALUES,
+      isValueEditable: this.isValueEditable,
       name: this.name,
       alias: this.alias,
       description: this.description,
@@ -194,7 +200,7 @@ export class DimensionVariableModel extends VariableBase {
     if (config.defaultValue) {
       this.defaultValue = config.defaultValue || [];
     } else {
-      this.defaultValue = this.isAllDimensionOptions ? this.dimensionList[0].id : this.options[0] || '';
+      this.defaultValue = this.isAllDimensionOptions ? [this.dimensionList[0].id] : [this.options[0]];
     }
   }
 
@@ -202,6 +208,7 @@ export class DimensionVariableModel extends VariableBase {
     return {
       id: this.id,
       type: VariableTypeEnum.GROUP_BY,
+      isValueEditable: this.isValueEditable,
       name: this.name,
       alias: this.alias,
       description: this.description,
@@ -243,6 +250,7 @@ export class FunctionVariableModel extends VariableBase {
     return {
       id: this.id,
       type: VariableTypeEnum.FUNCTIONS,
+      isValueEditable: this.isValueEditable,
       name: this.name,
       alias: this.alias,
       description: this.description,
@@ -268,6 +276,7 @@ export class MethodVariableModel extends VariableBase {
     return {
       id: this.id,
       type: VariableTypeEnum.METHOD,
+      isValueEditable: this.isValueEditable,
       name: this.name,
       alias: this.alias,
       metric: this.metric,
