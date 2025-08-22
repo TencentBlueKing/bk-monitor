@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import os
-from typing import List, Optional
 
 from django.conf import settings
 from django.core.management import BaseCommand
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.space.constants import SYSTEM_USERNAME, EtlConfigs, SpaceTypes
 from metadata.task.sync_space import push_and_publish_space_router
@@ -52,11 +52,11 @@ class Command(BaseCommand):
         self._create_space_resource(space_id)
         # 6. 推送数据到 redis并发布
         # NOTE: 仅 bkci 类型更新
-        push_and_publish_space_router(space_type=SpaceTypes.BKCI.value)
+        push_and_publish_space_router(bk_tenant_id=DEFAULT_TENANT_ID, space_type=SpaceTypes.BKCI.value)
 
         print("init bkci data successfully")
 
-    def _create_bkci_system_space(self, space_id: Optional[str] = None):
+    def _create_bkci_system_space(self, space_id: str | None = None):
         """创建 bkci 的系统空间"""
         if not space_id:
             return
@@ -85,7 +85,7 @@ class Command(BaseCommand):
             space_type_id=SpaceTypes.BKCI.value,
         )
 
-    def _get_or_create_space_data_source(self, bk_data_id: int, space_id: Optional[str] = None):
+    def _get_or_create_space_data_source(self, bk_data_id: int, space_id: str | None = None):
         if not space_id:
             return
         models.SpaceDataSource.objects.get_or_create(
@@ -148,7 +148,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"update result table: {table.table_id} successfully")
         self.stdout.write("update result table end")
 
-    def _get_rt_field_list(self, table_id: str) -> List:
+    def _get_rt_field_list(self, table_id: str) -> list:
         measurements = table_id.split(".")[-1]
         # 指标数据
         field_list = [
@@ -187,7 +187,7 @@ class Command(BaseCommand):
 
         return field_list
 
-    def _create_space_resource(self, space_id: Optional[str] = None):
+    def _create_space_resource(self, space_id: str | None = None):
         """创建关联资源"""
         if not space_id:
             return

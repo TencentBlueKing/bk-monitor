@@ -23,9 +23,9 @@ logger = logging.getLogger("metadata")
 
 
 def get_result_tables_by_data_ids(
+    bk_tenant_id: str,
     data_id_list: list | None = None,
     table_id_list: list | None = None,
-    bk_tenant_id: str | None = DEFAULT_TENANT_ID,
 ) -> dict:
     """通过数据源 ID 获取结果表数据"""
     query_filter = Q()
@@ -43,7 +43,7 @@ def get_result_tables_by_data_ids(
 
 
 # 缓存平台或者类型级的数据源,区分多租户、分多租户环境,多租户环境下仅返回租户下的全局数据和平台全局数据(1001)
-def get_platform_data_ids(space_type: str | None = None, bk_tenant_id=DEFAULT_TENANT_ID) -> dict[int, str]:
+def get_platform_data_ids(bk_tenant_id: str, space_type: str | None = None) -> dict[int, str]:
     """获取平台级的数据源
     NOTE: 仅针对当前空间类型，比如 bkcc，特殊的是 all 类型
     """
@@ -181,11 +181,11 @@ def get_table_info_for_influxdb_and_vm(bk_tenant_id: str, table_id_list: list | 
 def get_space_table_id_data_id(
     space_type: str,
     space_id: str,
+    bk_tenant_id: str,
     table_id_list: list | None = None,
     from_authorization: bool | None = None,
     include_platform_data_id: bool | None = True,
     exclude_data_id_list: list | None = None,
-    bk_tenant_id: str | None = DEFAULT_TENANT_ID,
 ) -> dict:
     """获取空间下的结果表和数据源信息"""
     logger.info(
@@ -243,7 +243,7 @@ def get_space_table_id_data_id(
 
 
 def get_measurement_type_by_table_id(
-    table_ids: set, table_list: list, table_id_data_id: dict, bk_tenant_id: str | None = DEFAULT_TENANT_ID
+    bk_tenant_id: str, table_ids: set, table_list: list, table_id_data_id: dict
 ) -> dict:
     """通过结果表 ID, 获取节点表对应的 option 配置
     通过 option 转到到 measurement 类型
@@ -257,15 +257,10 @@ def get_measurement_type_by_table_id(
         table_id_data_id,
     )
 
-    if settings.ENABLE_MULTI_TENANT_MODE:
-        logger.info("get_measurement_type_by_table_id: try to get data with bk_tenant_id->[%s]", bk_tenant_id)
-        qs = models.ResultTableOption.objects.filter(
-            table_id__in=table_ids, name=models.DataSourceOption.OPTION_IS_SPLIT_MEASUREMENT, bk_tenant_id=bk_tenant_id
-        ).values("table_id", "name", "value")
-    else:
-        qs = models.ResultTableOption.objects.filter(
-            table_id__in=table_ids, name=models.DataSourceOption.OPTION_IS_SPLIT_MEASUREMENT
-        ).values("table_id", "name", "value")
+    logger.info("get_measurement_type_by_table_id: try to get data with bk_tenant_id->[%s]", bk_tenant_id)
+    qs = models.ResultTableOption.objects.filter(
+        table_id__in=table_ids, name=models.DataSourceOption.OPTION_IS_SPLIT_MEASUREMENT, bk_tenant_id=bk_tenant_id
+    ).values("table_id", "name", "value")
 
     rto_dict = {rto["table_id"]: json.loads(rto["value"]) for rto in qs}
 
