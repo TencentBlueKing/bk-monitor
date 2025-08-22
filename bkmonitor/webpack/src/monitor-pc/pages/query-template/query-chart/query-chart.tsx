@@ -30,11 +30,13 @@ import { random } from 'monitor-common/utils';
 import QueryTemplateGraph from 'monitor-ui/chart-plugins/plugins/quey-template-graph/query-template-graph';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
+import { hasVariable } from '../variables/template/utils';
 import TimeRange, { type TimeRangeType } from '@/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '@/components/time-range/utils';
 
 import type { Expression } from '../typings/expression';
-import type { QueryConfig } from '../typings/query-config';
+import type { AggCondition, QueryConfig } from '../typings/query-config';
+import type { VariableModelType } from '../variables';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './query-chart.scss';
@@ -44,10 +46,12 @@ export default class QueryChart extends tsc<{
   expressionConfig: Expression;
   queryConfigs: QueryConfig[];
   title: string;
+  variablesList: VariableModelType[];
 }> {
   @Prop({ type: Array, default: () => [] }) queryConfigs: QueryConfig[];
   @Prop({ type: Object, default: () => {} }) expressionConfig: Expression;
   @Prop({ type: String, default: '' }) title: string;
+  @Prop({ type: Array, default: () => [] }) variablesList: VariableModelType[];
 
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions & { unit?: string } = {};
@@ -73,8 +77,31 @@ export default class QueryChart extends tsc<{
       interval: 'auto',
     };
   }
+  getVariableValue<T>(variableName: string, callback?: (v: T) => void) {
+    if (hasVariable(variableName)) {
+      return this.variablesList.reduce((acc, item) => {
+        return item.replace(acc, callback);
+      }, variableName);
+    }
+    return variableName;
+  }
+  getVariableValues<T>(targets: string[]) {
+    return targets.reduce((acc, target) => {
+      if (hasVariable(target)) {
+        this.getVariableValue<T>(target, v => {
+          if (Array.isArray(v)) {
+            acc.push(...v);
+          } else {
+            acc.push(v);
+          }
+        });
+      } else {
+        acc.push(target as T);
+      }
+      return acc;
+    }, [] as T[]);
+  }
   createPanel() {
-    console.log('this.queryConfigs', this.queryConfigs);
     this.panel = new PanelModel({
       id: random(10),
       type: 'query-template-graph',
@@ -84,7 +111,7 @@ export default class QueryChart extends tsc<{
         {
           data: {
             series_num: this.limit,
-            expression: this.expressionConfig.expression || 'a',
+            expression: this.getVariableValue(this.expressionConfig.expression || 'a'), // 表达式变量解析
             query_configs: this.queryConfigs.map(item => ({
               data_label: item.metricDetail.data_label || undefined,
               data_source_label: item.data_source_label,
@@ -92,18 +119,30 @@ export default class QueryChart extends tsc<{
               interval: item.agg_interval,
               alias: item.alias || 'a',
               functions: item.functions,
-              group_by: item.agg_dimension,
+              group_by: this.getVariableValues(item.agg_dimension || []), // 维度变量解析
               filter_dict: {},
               metrics: [
                 {
                   field: item.metricDetail.metric_field,
-                  method: item.agg_method,
+                  method: this.getVariableValue(item.agg_method), // 聚合方法变量解析
                   alias: item.alias || 'a',
                   display: false,
                 },
               ],
               table: item.metricDetail.result_table_id,
-              where: item.agg_condition,
+              where: item.agg_condition.reduce((acc, item) => {
+                const { key, value } = item;
+                if (hasVariable(key)) {
+                  // 条件变量解析
+                  acc.push(...this.getVariableValues<AggCondition>([key]));
+                } else {
+                  // 条件值变量解析
+                  const newItem = structuredClone(item);
+                  newItem.value = this.getVariableValues(value);
+                  acc.push(newItem);
+                }
+                return acc;
+              }, [] as AggCondition[]),
             })),
           },
           datasource: 'time_series',
