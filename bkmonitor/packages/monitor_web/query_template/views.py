@@ -146,20 +146,28 @@ class QueryTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=True)
     def relation(self, request, *args, **kwargs):
+        """获取单个模板关联资源列表"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        response_data = []
         if validated_data.get("is_mock"):
-            response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_RELATION
+            response_data = {"total": 2, "list": mock_data.CALLEE_P99_QUERY_TEMPLATE_RELATION}
+        else:
+            response_data = {"total": 0, "list": []}
+
         return Response(response_data)
 
     @action(methods=["POST"], detail=False)
     def relations(self, request, *args, **kwargs):
+        """获取列表关联资源数量"""
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
         response_data = []
         if validated_data.get("is_mock"):
             response_data = mock_data.QUERY_TEMPLATE_RELATIONS
+        else:
+            for query_template_id in validated_data.get("query_template_ids", []):
+                response_data.append({"query_template_id": query_template_id, "relation_count": 0})
         return Response(response_data)
