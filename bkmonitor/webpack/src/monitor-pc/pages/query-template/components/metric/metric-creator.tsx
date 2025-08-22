@@ -86,7 +86,7 @@ export default class MetricCreator extends tsc<IProps> {
           {this.metricDetail ? (
             <span class='metric-name'>{this.metricDetail?.metricAlias || this.metricDetail?.name}</span>
           ) : (
-            <span class='metric-placeholder'>{this.$t('添加')}</span>
+            <span class='metric-placeholder'>{this.$t('点击添加指标')}</span>
           )}
         </SelectWrap>
         <MetricSelector
