@@ -92,23 +92,19 @@ class QueryTemplateViewSet(GenericViewSet):
     @staticmethod
     def _search_filter_by_conditions(queryset, conditions):
         fuzzy_match_fields = ["name", "description", "create_user", "update_user"]
-        for c in conditions:
-            if c["key"] in fuzzy_match_fields:
+        for cond in conditions:
+            if cond["key"] == "query":
                 q = Q()
-                for v in c["value"]:
-                    q |= Q(**{f"{c['key']}__icontains": v})
-                queryset = queryset.filter(q)
-            elif c["key"] == "query":
-                q = Q()
-                for v in c["value"]:
+                for v in cond["value"]:
                     for f in fuzzy_match_fields:
                         q |= Q(**{f"{f}__icontains": v})
-                queryset = queryset.filter(q)
-        return queryset
+            else:
+                q = Q()
+                for v in cond["value"]:
+                    q |= Q(**{f"{cond['key']}__icontains": v})
 
-    @staticmethod
-    def _search_order_by(queryset, order_by):
-        return queryset.order_by(*order_by)
+            queryset = queryset.filter(q)
+        return queryset
 
     @staticmethod
     def _search_page(queryset, page, page_size):
@@ -123,15 +119,14 @@ class QueryTemplateViewSet(GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        response_data = []
         if validated_data.get("is_mock"):
-            response_data = mock_data.QUERY_TEMPLATE_LIST
+            response_data = {"total": 2, "list": mock_data.QUERY_TEMPLATE_LIST}
         else:
-            queryset = self.filter_queryset(self.get_queryset())
+            queryset = self.filter_queryset(self.get_queryset()).order_by(*validated_data.get("order_by", []))
             queryset = self._search_filter_by_conditions(queryset, validated_data.get("conditions", []))
-            queryset = self._search_order_by(queryset, validated_data.get("order_by", []))
+            total = queryset.count()
             queryset = self._search_page(queryset, validated_data.get("page", 1), validated_data.get("page_size", 50))
-            response_data = self.serializer_class(queryset, many=True).data
+            response_data = {"total": total, "list": self.serializer_class(queryset, many=True).data}
 
         return Response(response_data)
 

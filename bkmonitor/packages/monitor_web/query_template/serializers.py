@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from blueapps.utils.request_provider import get_local_request
+from blueapps.utils.request_provider import get_request
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -16,8 +16,6 @@ from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models.query_template import QueryTemplate
 from bkmonitor.query_template.serializers import QueryTemplateSerializer
 from constants.query_template import GLOBAL_BIZ_ID
-
-from .constants import SearchConfig
 
 
 class BaseQueryTemplateRequestSerializer(serializers.Serializer):
@@ -31,14 +29,16 @@ class QueryTemplateDetailRequestSerializer(BaseQueryTemplateRequestSerializer):
 
 class QueryTemplateListRequestSerializer(BaseQueryTemplateRequestSerializer):
     class ConditionSerializer(serializers.Serializer):
-        key = serializers.ChoiceField(label="查询条件", choices=SearchConfig.CONDITION_KEYS)
+        key = serializers.ChoiceField(
+            label="查询条件", choices=["query", "name", "description", "create_user", "update_user"]
+        )
         value = serializers.ListField(label="查询条件值", child=serializers.CharField())
 
     page = serializers.IntegerField(label="页码", min_value=1, default=1)
     page_size = serializers.IntegerField(label="每页条数", min_value=1, default=50)
     order_by = serializers.ListField(
         label="排序字段",
-        child=serializers.ChoiceField(choices=SearchConfig.ORDERING_FIELDS),
+        child=serializers.ChoiceField(choices=["update_time", "-update_time", "create_time", "-create_time"]),
         default=["-update_time"],
         allow_empty=True,
     )
@@ -91,14 +91,16 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
                 _("您没有业务 ID 为 {bk_biz_id} 的指标探索权限").format(bk_biz_id=bk_biz_id)
             )
 
-    @staticmethod
-    def _base_validate(validated_data):
-        if validated_data["bk_biz_id"] == GLOBAL_BIZ_ID:
-            raise serializers.ValidationError(_("全局模板不允许在页面进行操作"))
-
-        # 校验生效范围必须包含本业务 ID
+    @classmethod
+    def _base_validate(cls, validated_data):
         bk_biz_id = validated_data["bk_biz_id"]
-        if bk_biz_id != GLOBAL_BIZ_ID and bk_biz_id not in validated_data["space_scope"]:
+
+        # 只有超级管理员允许在页面对全局模板进行操作
+        if cls.is_global_template(bk_biz_id):
+            if not get_request().user.is_superuser:
+                raise serializers.ValidationError(_("全局模板只允许超级管理员在页面进行操作"))
+        # 非全局模板，生效范围必须包含本业务 ID
+        elif bk_biz_id not in validated_data["space_scope"]:
             raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
 
         # 校验同一业务下查询模板名称不能重复
@@ -113,22 +115,24 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
 
     @property
     def _request_bk_biz_id(self):
-        return int(get_local_request().biz_id)
+        return int(get_request().biz_id)
+
+    @staticmethod
+    def is_global_template(bk_biz_id):
+        return bk_biz_id == GLOBAL_BIZ_ID
+
+    def is_read_only(self, obj):
+        if get_request().user.is_superuser:
+            return False
+
+        if self.is_global_template(obj.bk_biz_id):
+            return True
+
+        if obj.bk_biz_id != self._request_bk_biz_id:
+            return True
 
     def get_can_edit(self, obj):
-        # 全局模板不可编辑
-        if obj.bk_biz_id == GLOBAL_BIZ_ID:
-            return False
-        # 可见但非归属的业务不可编辑
-        if obj.bk_biz_id != self._request_bk_biz_id:
-            return False
-        return True
+        return not self.is_read_only(obj)
 
     def get_can_delete(self, obj):
-        # 全局模板不可删除
-        if obj.bk_biz_id == GLOBAL_BIZ_ID:
-            return False
-        # 可见但非归属的业务不可删除
-        if obj.bk_biz_id != self._request_bk_biz_id:
-            return False
-        return True
+        return not self.is_read_only(obj)
