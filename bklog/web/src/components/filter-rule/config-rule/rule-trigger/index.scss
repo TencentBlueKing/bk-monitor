@@ -23,13 +23,15 @@
     min-width: 142px;
     max-width: 527px;
     height: 40px;
-    background: #eaebf0;
+    background: #f0f1f5;
     border-radius: 2px;
     padding: 0 4px;
     font-size: 12px;
     position: relative;
 
     &:hover {
+      background: #eaebf0;
+
       .field-display {
         .close-main {
           box-shadow: 0 1px 2px 0 #00000014;
@@ -56,6 +58,10 @@
         font-weight: 400;
         color: #699df4;
         margin-right: 20px;
+
+        &.is-negtive {
+          color: #ea3636;
+        }
       }
 
       .close-main {

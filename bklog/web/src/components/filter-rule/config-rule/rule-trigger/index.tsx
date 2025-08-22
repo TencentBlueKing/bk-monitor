@@ -73,7 +73,9 @@ export default defineComponent({
               <span class='name-title'>
                 {props.data.field_alias}({props.data.field_name})
               </span>
-              <span class='opt-sign'>{props.data.op}</span>
+              <span class={{ 'opt-sign': true, 'is-negtive': ['!=', 'not contains'].includes(props.data.op) }}>
+                {props.data.op}
+              </span>
               <div
                 class='close-main'
                 on-click={handleClickDelete}

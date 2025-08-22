@@ -159,8 +159,8 @@ export default defineComponent({
           const targetField = props.totalFields.find(f => f.field_name === clusterField.value[0]?.id);
           formData.value.filter_rules.push({
             ...targetField,
-            op: 'LIKE',
-            value: ['%ERROR%'],
+            op: 'contains',
+            value: ['ERROR'],
             field_name: targetField.field_name,
           });
         }

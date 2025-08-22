@@ -100,11 +100,10 @@ export default defineComponent({
         }
         return;
       }
-      if (!templateRuleId.value) {
+      if (!templateRuleId.value && templateList.value.length > 0) {
         templateRuleId.value = templateList.value[0].id;
         handleSelectTemplate(templateRuleId.value);
       }
-      // emit('rule-list-change', []);
     };
 
     const initDefaultConfig = (updateType = true) => {
@@ -181,7 +180,6 @@ export default defineComponent({
     const handleRefresh = async () => {
       await initTemplateList();
       handleSelectTemplate(templateRuleId.value);
-      // initDefaultConfig();
     };
 
     const inputFileEvent = () => {
@@ -269,8 +267,9 @@ export default defineComponent({
       window.open(href.href, '_blank');
     };
 
+    initTemplateList();
+
     onMounted(() => {
-      initTemplateList();
       initInputType();
     });
 
@@ -309,8 +308,7 @@ export default defineComponent({
               <bk-dropdown-menu>
                 <div slot='dropdown-trigger'>
                   <bk-button
-                    style='min-width: 48px'
-                    class='btn-hover'
+                    class='operate-btn'
                     data-test-id='LogCluster_button_addNewRules'
                   >
                     {t('导入')}
@@ -339,8 +337,7 @@ export default defineComponent({
                 </ul>
               </bk-dropdown-menu>
               <bk-button
-                style='min-width: 48px'
-                class='btn-hover'
+                class='operate-btn'
                 on-click={handleExportRule}
               >
                 {t('导出')}
@@ -348,7 +345,7 @@ export default defineComponent({
               {!isOriginTemplateConfig.value && (
                 <bk-button
                   style='min-width: 72px'
-                  class='btn-hover'
+                  class='operate-btn'
                   on-click={() => initDefaultConfig(false)}
                 >
                   {t('恢复默认')}
@@ -403,7 +400,7 @@ export default defineComponent({
                   <div class='rule-template-unbind-main'>
                     <div class='warn-title'>{t('确认与模板解绑？')}</div>
                     <div class='template-name'>
-                      {t('模板名称')}：{currentTemplate.value.name}
+                      {t('模板名称')}：{currentTemplate.value?.name}
                     </div>
                     <div class='tip-display'>
                       <div>{t('与模板解除绑定后，不再跟随模板变更')}；</div>

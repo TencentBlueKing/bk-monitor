@@ -32,6 +32,7 @@
       color: #3a84ff;
       font-size: 14px;
       margin-left: 8px;
+      margin-bottom: 2px;
       cursor: pointer;
     }
 
@@ -114,7 +115,7 @@
           }
         }
         td {
-          padding: 0 0 0 8px;
+          padding-left: 12px;
 
           .signature-box {
             padding-right: 12px;

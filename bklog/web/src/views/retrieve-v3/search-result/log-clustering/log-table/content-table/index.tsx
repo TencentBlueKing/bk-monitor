@@ -408,7 +408,6 @@ export default defineComponent({
         {showGounpBy.value && (
           <div
             class='collpase-main'
-            style={{ borderTop: props.index === 0 && '1px solid #dcdee5' }}
             on-click={() => (isOpen.value = !isOpen.value)}
           >
             <div class={{ 'collapse-icon': true, 'is-open': isOpen.value }}>
@@ -454,7 +453,7 @@ export default defineComponent({
           <table class='log-content-table'>
             <thead class='hide-header'>
               <tr>
-                <th style={{ width: columnWidthList.value[0] || '150px' }}>数据指纹</th>
+                <th style={{ width: columnWidthList.value[0] || '75px' }}>数据指纹</th>
                 <th style={{ width: columnWidthList.value[1] || props.tableColumnWidth.number + 'px' }}>数量</th>
                 <th style={{ width: columnWidthList.value[2] || props.tableColumnWidth.percentage + 'px' }}>占比</th>
                 {showYOY.value && (
@@ -552,7 +551,7 @@ export default defineComponent({
                   )}
                   <td>
                     <div class={['pattern-content', { 'is-limit': getLimitState(rowIndex) }]}>
-                      <cluster-event-popover
+                      <ClusterEventPopover
                         rowData={row}
                         indexId={props.indexId}
                         on-event-click={isLink => handleMenuClick(row, isLink)}
@@ -564,7 +563,7 @@ export default defineComponent({
                         >
                           {row.pattern ? row.pattern : t('未匹配')}
                         </text-highlight>
-                      </cluster-event-popover>
+                      </ClusterEventPopover>
                       {!isLimitExpandView.value && (
                         <div>
                           {!cacheExpandStr.value.includes(rowIndex) ? (
@@ -650,7 +649,7 @@ export default defineComponent({
                       </div>
                     </td>
                   )}
-                  <td style='padding-right: 8px'>
+                  <td style='padding-right: 8px;'>
                     <div
                       class='remark-column'
                       on-mouseenter={handleHoverRemarkIcon}
