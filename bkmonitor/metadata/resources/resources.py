@@ -576,7 +576,6 @@ class ModifyResultTableResource(Resource):
                 )
             except RetryError as e:
                 logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__)
-                raise e.__cause__ if e.__cause__ else e
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
@@ -2585,7 +2584,7 @@ class KafkaTailResource(Resource):
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
             datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
             try:
-                table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+                table_id = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).first().table_id
                 result_table = models.ResultTable.objects.get(table_id=table_id)
             except models.DataSourceResultTable.DoesNotExist:
                 logger.error("KafkaTailResource: bk_data_id->[%s] not found table_id,try to tail kafka", bk_data_id)

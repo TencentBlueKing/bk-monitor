@@ -172,16 +172,16 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
     logger.info("watch_bkbase_meta_redis: Task completed after reaching runtime limit.")
 
 
-@share_lock(ttl=3600, identify="metadata_sync_bkbase_cluster_info")
-def sync_bkbase_cluster_info():
+@share_lock(ttl=3600, identify="metadata_sync_all_bkbase_cluster_info")
+def sync_all_bkbase_cluster_info():
     """
     同步 bkbase 集群信息
     VM / ES /Doris ...
     """
-    logger.info("sync_bkbase_cluster_info: Start syncing cluster info from bkbase.")
+    logger.info("sync_all_bkbase_cluster_info: Start syncing cluster info from bkbase.")
     start_time = time.time()
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="sync_bkbase_cluster_info", status=TASK_STARTED, process_target=None
+        task_name="sync_all_bkbase_cluster_info", status=TASK_STARTED, process_target=None
     ).inc()
 
     # 遍历所有存储类型配置
@@ -190,7 +190,7 @@ def sync_bkbase_cluster_info():
             clusters = api.bkdata.list_data_bus_raw_data(
                 bk_tenant_id=tenant["id"], namespace=config["namespace"], kind=config["kind"]
             )
-            _sync_cluster_info(
+            sync_bkbase_cluster_info(
                 bk_tenant_id=tenant["id"],
                 cluster_list=clusters,
                 field_mappings=config["field_mappings"],
@@ -198,16 +198,16 @@ def sync_bkbase_cluster_info():
             )
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="sync_bkbase_cluster_info", status=TASK_FINISHED_SUCCESS, process_target=None
+        task_name="sync_all_bkbase_cluster_info", status=TASK_FINISHED_SUCCESS, process_target=None
     ).inc()
-    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="sync_bkbase_cluster_info", process_target=None).observe(
-        cost_time
-    )
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="sync_all_bkbase_cluster_info", process_target=None
+    ).observe(cost_time)
 
-    logger.info("sync_bkbase_cluster_info: Finished syncing cluster info from bkbase, cost time->[%s]", cost_time)
+    logger.info("sync_all_bkbase_cluster_info: Finished syncing cluster info from bkbase, cost time->[%s]", cost_time)
 
 
-def _sync_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappings: dict, cluster_type: str):
+def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappings: dict, cluster_type: str):
     """通用集群信息同步函数"""
     for cluster_data in cluster_list:
         try:
