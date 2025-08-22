@@ -38,6 +38,8 @@ import type { TemplateDetailTabEnumType } from '../typings/constants';
 import './template-detail.scss';
 
 interface TemplateDetailEmits {
+  /** 模板详情 - 编辑按钮点击后回调 */
+  onEdit: (id: string) => void;
   /** 模板详情 - 侧弹抽屉展示状态改变回调 */
   onSliderShowChange: (isShow: boolean) => void;
 }
@@ -83,6 +85,12 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
   @Emit('sliderShowChange')
   handleSliderShowChange(isShow: boolean) {
     return isShow;
+  }
+
+  @Emit('edit')
+  handleEdit() {
+    this.handleSliderShowChange(false);
+    return this.templateId;
   }
 
   /**
@@ -139,19 +147,37 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
             </div>
           </div>
           <div class='header-operations'>
-            <bk-button
-              theme='primary'
-              title={this.$t('编辑')}
-              onClick={this.handleSliderShowChange.bind(this, false)}
+            <span
+              v-bk-tooltips={{
+                content: this.$t('当前仍然有关联的消费场景，无法编辑'),
+                disabled: this.templateBaseInfo?.can_edit,
+                placement: 'right',
+              }}
             >
-              {this.$t('编辑')}
-            </bk-button>
-            <bk-button
-              title={this.$t('删除')}
-              onClick={this.handleSliderShowChange.bind(this, false)}
+              <bk-button
+                disabled={!this.templateBaseInfo?.can_edit}
+                theme='primary'
+                title={this.$t('编辑')}
+                onClick={this.handleEdit}
+              >
+                {this.$t('编辑')}
+              </bk-button>
+            </span>
+            <span
+              v-bk-tooltips={{
+                content: this.$t('当前仍然有关联的消费场景，无法删除'),
+                disabled: this.templateBaseInfo?.can_delete,
+                placement: 'right',
+              }}
             >
-              {this.$t('删除')}
-            </bk-button>
+              <bk-button
+                disabled={!this.templateBaseInfo?.can_delete}
+                title={this.$t('删除')}
+                onClick={this.handleSliderShowChange.bind(this, false)}
+              >
+                {this.$t('删除')}
+              </bk-button>
+            </span>
           </div>
         </div>
         <div
@@ -172,12 +198,12 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
               <ConfigPanel templateInfo={this.templateBaseInfo} />
             </bk-tab-panel>
             <bk-tab-panel
-              label={`${this.$t('消费场景')} (${this.relationInfo?.length || 0})`}
+              label={`${this.$t('消费场景')} (${this.relationInfo?.total || 0})`}
               name={TemplateDetailTabEnum.CONSUME}
               renderDirective='if'
             >
               <ConsumePanel
-                relationList={this.relationInfo}
+                relationInfo={this.relationInfo}
                 onRefresh={() => this.getRelationInfoList({ forceRefresh: true })}
               />
             </bk-tab-panel>

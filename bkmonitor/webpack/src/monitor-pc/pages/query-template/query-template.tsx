@@ -54,7 +54,7 @@ export default class MetricTemplate extends tsc<object> {
       refreshKey: this.refreshKey,
       page: this.current,
       page_size: this.pageSize,
-      order_by: [this.sort],
+      order_by: this.sort ? [this.sort] : [],
       conditions: [
         {
           key: 'query',

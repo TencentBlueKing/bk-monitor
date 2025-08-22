@@ -507,6 +507,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
             defaultActiveTab={this.sliderActiveTab}
             sliderShow={this.sliderShow}
             templateId={this.sliderActiveId}
+            onEdit={this.jumpToEditPage}
             onSliderShowChange={this.handleSliderShowChange}
           />
         </div>
