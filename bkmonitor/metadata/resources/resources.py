@@ -576,7 +576,6 @@ class ModifyResultTableResource(Resource):
                 )
             except RetryError as e:
                 logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__)
-                raise e.__cause__ if e.__cause__ else e
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
