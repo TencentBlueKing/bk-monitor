@@ -35,6 +35,7 @@ from tenacity import RetryError
 from bkmonitor.utils import consul
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_events, get_built_in_k8s_metrics
 from bkmonitor.utils.request import get_app_code_by_request, get_request, get_request_tenant_id
+from bkmonitor.utils.serializers import TenantIdField
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import Resource, api
@@ -1073,6 +1074,7 @@ class CreateClusterInfoResource(Resource):
     """创建存储集群资源"""
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         cluster_name = serializers.CharField(required=True, label="集群名")
         cluster_type = serializers.CharField(required=True, label="集群类型")
         domain_name = serializers.CharField(required=True, label="集群域名")
@@ -1093,8 +1095,6 @@ class CreateClusterInfoResource(Resource):
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
-        # TODO：集群资源元信息暂时没有租户属性
-
         # 获取请求来源系统
         request = get_request()
         bk_app_code = get_app_code_by_request(request)
@@ -2585,7 +2585,7 @@ class KafkaTailResource(Resource):
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
             datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
             try:
-                table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+                table_id = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).first().table_id
                 result_table = models.ResultTable.objects.get(table_id=table_id)
             except models.DataSourceResultTable.DoesNotExist:
                 logger.error("KafkaTailResource: bk_data_id->[%s] not found table_id,try to tail kafka", bk_data_id)

@@ -41,7 +41,7 @@ export default class AiBluekingWrapper extends tsc<object> {
     Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
   };
   get apiUrl() {
-    return '/ai_agents/chat';
+    return '/ai_whale/chat';
   }
   get showDialog() {
     return aiWhaleStore.showAIBlueking;

@@ -160,7 +160,7 @@ class DataSource(models.Model):
     def mq_cluster(self):
         """返回数据源的消息队列类型"""
         # 这个配置应该是很少变化的，所以考虑增加缓存
-        if getattr(self, "_mq_cluster", None) is None:
+        if self._mq_cluster is None:
             self._mq_cluster = ClusterInfo.objects.get(bk_tenant_id=self.bk_tenant_id, cluster_id=self.mq_cluster_id)
 
         return self._mq_cluster
@@ -187,7 +187,7 @@ class DataSource(models.Model):
     @property
     def mq_config(self):
         """获取data_id对应消息队列的配置信息"""
-        if getattr(self, "_mq_config", None) is None:
+        if self._mq_config is None:
             self._mq_config = KafkaTopicInfo.objects.get(bk_data_id=self.bk_data_id)
 
         return self._mq_config
@@ -253,7 +253,7 @@ class DataSource(models.Model):
         # 添加集群信息
         mq_config.update(self.mq_cluster.consul_config)
         mq_config["cluster_config"].pop("last_modify_time")
-        bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(self.bk_data_id)
+        bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(self.bk_tenant_id, self.bk_data_id)
         result_config = {
             "bk_data_id": self.bk_data_id,
             "data_id": self.bk_data_id,

@@ -396,9 +396,7 @@ def get_vm_cluster_id_name(
             raise ValueError(f"vm_cluster_name: {vm_cluster_name} not found")
         return {"cluster_id": cluster.cluster_id, "cluster_name": cluster.cluster_name}
     elif space_type and space_id:
-        space_vm_info = SpaceVMInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id, space_type=space_type, space_id=space_id
-        ).first()
+        space_vm_info = SpaceVMInfo.objects.filter(space_type=space_type, space_id=space_id).first()
         if not space_vm_info:
             logger.warning("space_type: %s, space_id: %s not access vm", space_type, space_id)
         else:
