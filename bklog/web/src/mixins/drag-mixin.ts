@@ -32,7 +32,7 @@ export function dragMixin() {
 
   const minIntroWidth = ref(300); // 最小宽度
   const maxIntroWidth = ref(480); // 默认最大宽度
-  const introWidth = ref(400); // 侧边栏宽度
+  const introWidth = ref(1); // 侧边栏宽度
   const isDraging = ref(false); // 是否正在拖拽
   const currentTreeBoxWidth = ref<number | null>(null); // 当前侧边宽度
   const currentScreenX = ref<number | null>(null); // 当前鼠标位置

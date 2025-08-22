@@ -57,7 +57,7 @@ export default defineComponent({
     const router = useRouter();
     const { t } = useLocale();
 
-    const { maxIntroWidth, isDraging, dragBegin } = dragMixin();
+    const { maxIntroWidth, introWidth, isDraging, dragBegin } = dragMixin();
 
     const tableLoading = ref(true); // 表格加载状态
     const tableDataOrigin = ref([]); // 原始数据
@@ -85,7 +85,6 @@ export default defineComponent({
     const searchTimer = ref(null); // 搜索定时器
     const accessContainerRef = ref(null); // 容器引用
     const clusterTable = ref(null); // 表格引用
-    const introWidth = ref(1); // 侧边栏宽度
 
     // 来源状态过滤器
     const sourceStateFilters = ref([
