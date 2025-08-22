@@ -692,8 +692,8 @@ class ResultTable(models.Model):
             table_id = "{}.{}".format(result_group["database"], result_group["table_id"])
 
         # 2. 使用业务ID及结果表ID来查询获取结果表对象
+        table_id_with_biz = f"{bk_biz_id}_{table_id}"
         try:
-            table_id_with_biz = f"{bk_biz_id}_{table_id}"
             return cls.objects.get(
                 bk_biz_id=bk_biz_id, table_id=table_id_with_biz, is_deleted=False, bk_tenant_id=bk_tenant_id
             )
@@ -730,7 +730,7 @@ class ResultTable(models.Model):
         return cls.objects.get(bk_biz_id=0, table_id=table_id, is_deleted=False, bk_tenant_id=bk_tenant_id)
 
     @classmethod
-    def batch_to_json(cls, result_table_id_list=None, with_option=True, bk_tenant_id=DEFAULT_TENANT_ID):
+    def batch_to_json(cls, bk_tenant_id: str, result_table_id_list: list[str], with_option=True):
         """
         批量查询结果表的to_json结果，会加入缺失的几个依赖查询项,禁止跨租户查询
         :param result_table_id_list: ['table_id1', 'table_id2']
