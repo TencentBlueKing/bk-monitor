@@ -70,22 +70,24 @@
           ></span>
         </div>
         <div class="content">
-          <validate-user-selector
+          <!-- <validate-user-selector
             v-model="manageStrategyData.user_list"
             :allow-create="allowCreate"
             :api="userApi"
             :placeholder="allowCreate ? $t('请输入QQ并按Enter结束（可多次添加）') : ''"
-          />
-          <!-- <bk-user-selector
+          /> -->
+          <bk-user-selector
             style="width: 400px"
+            :class="isError && 'is-error'"
             :placeholder="$t('请选择群成员')"
             :disabled="isExternal"
             :api="userApi"
             :empty-text="$t('无匹配人员')"
             :value="manageStrategyData.user_list"
-            @change="handleChangePrincipal"
+            @blur="handleBlur()"
+            @change="val => handleChangePrincipal(val)"
           >
-          </bk-user-selector> -->
+          </bk-user-selector>
         </div>
       </div>
 
@@ -254,7 +256,7 @@
   // import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import ModuleSelect from './module-select';
   import ValidateInput from './validate-input';
-  import ValidateUserSelector from './validate-user-selector';
+  // import ValidateUserSelector from './validate-user-selector';
   import BkUserSelector from '@blueking/user-selector';
 
   export default {
@@ -262,7 +264,7 @@
       // LogIpSelector,
       ModuleSelect,
       ValidateInput,
-      ValidateUserSelector,
+      // ValidateUserSelector,
       BkUserSelector
     },
     mixins: [SidebarDiffMixin],
@@ -302,6 +304,7 @@
         isChangeOperatorLoading: false,
         showSelectDialog: false,
         manageStrategyData: strategyData,
+        isError: false,
       };
     },
     computed: {
@@ -397,8 +400,12 @@
         this.$emit('confirm', this.manageStrategyData);
       },
       handleChangePrincipal(val){
+        this.isError = !val.length;
         this.manageStrategyData.user_list = val;
-      }
+      },
+      handleBlur() {
+        this.isError = !this.manageStrategyData.user_list.length;
+      },
     },
   };
 </script>
@@ -486,6 +493,10 @@
       padding-right: 24px;
       background: #fff;
       border-top: 1px solid #dcdee5;
+    }
+
+    :deep(.is-error .user-selector-container) {
+      border-color:#ff5656;
     }
   }
 </style>
