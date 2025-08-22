@@ -11,24 +11,34 @@
   }
 
   .template-create-nav {
+    position: relative;
     display: flex;
     align-items: center;
+    justify-content: center;
     height: 52px;
     background: #fff;
     box-shadow: 0 3px 4px 0 #0000000a;
 
-    .navigation-bar-back {
-      margin-left: 10px;
-    }
+    &-title {
+      position: absolute;
+      left: 0;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      height: 100%;
 
-    .title {
-      font-size: 16px;
-      color: #313238;
+      .navigation-bar-back {
+        margin-left: 10px;
+      }
+
+      .title {
+        font-size: 16px;
+        color: #313238;
+      }
     }
 
     .template-steps {
       max-width: 338px;
-      margin: 0 50% 0 auto;
 
       .bk-step {
         .bk-step-number {
