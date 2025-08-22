@@ -20,6 +20,7 @@ from django.db.models import Q
 from mockredis.redis import mock_redis_client
 
 from bkmonitor.utils import consul
+from constants.common import DEFAULT_TENANT_ID
 from metadata import config, models
 
 from ..utils import consul_tools
@@ -1096,6 +1097,7 @@ class TestDataSource:
                     "dimension_list": ["dimension_one", "dimension_one", "dimension_two"],
                 }
             ],
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 判断是否正确的获取事件信息
@@ -1210,6 +1212,7 @@ class TestDataSource:
                         "dimension_list": ["dimension_one", "dimension_one", "dimension_two"],
                     }
                 ],
+                bk_tenant_id=DEFAULT_TENANT_ID,
             )
 
         # 检查全业务的事件源table_id是否符合预期
@@ -1243,6 +1246,7 @@ class TestDataSource:
                     "dimension_list": ["dimension_one", "dimension_one", "dimension_two"],
                 }
             ],
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         assert new_group.table_id == f"bkmonitor_event_{new_group.bk_data_id}"
@@ -1265,6 +1269,7 @@ class TestDataSource:
             custom_group_name="test_group_name",
             label="applications",
             operator="admin",
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 判断是否正确的获取事件信息
@@ -1309,6 +1314,7 @@ class TestDataSource:
             custom_group_name="test_group_name",
             label="applications",
             operator="admin",
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
         assert new_group.table_id == f"bkmonitor_time_series_{new_group.bk_data_id}.__default__"
 
