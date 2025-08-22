@@ -1340,6 +1340,7 @@ class QueryEventGroupResource(Resource):
 
 class CreateEventGroupResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(default=DEFAULT_TENANT_ID)
         bk_data_id = serializers.CharField(required=True, label="数据源ID")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
         event_group_name = serializers.CharField(required=True, label="事件分组名")
@@ -1349,19 +1350,6 @@ class CreateEventGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default="")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("CreateEventGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
-
         # 默认都是返回已经删除的内容
         event_group = models.EventGroup.create_event_group(**validated_request_data)
         return event_group.to_json()
@@ -1526,6 +1514,7 @@ class CreateLogGroupResource(LogGroupBaseResource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_data_id = serializers.CharField(required=True, label="数据源ID")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
         log_group_name = serializers.CharField(required=True, label="日志分组名")
@@ -1534,18 +1523,6 @@ class CreateLogGroupResource(LogGroupBaseResource):
         max_rate = serializers.IntegerField(required=False, label="最大上报速率", default=-1)
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("CreateLogGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         log_group = models.LogGroup.create_log_group(**validated_request_data)
         return log_group.to_json(with_token=True)
 
@@ -1598,6 +1575,7 @@ class DeleteLogGroupResource(LogGroupBaseResource):
 
 class CreateTimeSeriesGroupResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_data_id = serializers.CharField(required=True, label="数据源ID")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
         time_series_group_name = serializers.CharField(required=True, label="自定义时序分组名")
@@ -1611,18 +1589,6 @@ class CreateTimeSeriesGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default="")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("CreateTimeSeriesGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         # 默认都是返回已经删除的内容
         time_series_group = models.TimeSeriesGroup.create_time_series_group(**validated_request_data)
         return time_series_group.to_json()
@@ -1977,6 +1943,7 @@ class RegisterBCSClusterResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务id")
         cluster_id = serializers.CharField(required=True, label="bcs集群id")
         project_id = serializers.CharField(required=True, label="bcs项目id")
@@ -1990,19 +1957,6 @@ class RegisterBCSClusterResource(Resource):
         bk_env = serializers.CharField(required=False, default="", label="配置来源标签")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("RegisterBCSClusterResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
-
         # 注册集群
         cluster = BCSClusterInfo.register_cluster(**validated_request_data)
         cluster.init_resource()
