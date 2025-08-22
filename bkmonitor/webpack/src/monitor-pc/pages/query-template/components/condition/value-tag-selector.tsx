@@ -194,13 +194,14 @@ export default class ValueTagSelector extends tsc<IProps> {
       this.inputValue = '';
       return;
     }
-    const isVariable = isVariableName(this.inputValue);
+    const isVariable = this.hasVariableOperate && isVariableName(this.inputValue);
     if (isVariable) {
       this.handleCreateVariable(this.inputValue);
+      this.activeIndex = this.localValue.length - 1;
+    } else {
+      this.localValue.push({ id: this.inputValue, name: this.inputValue });
+      this.activeIndex += 1;
     }
-
-    this.localValue.push({ id: this.inputValue, name: this.inputValue, isVariable });
-    this.activeIndex += 1;
     this.inputValue = '';
     this.handleChange();
     this.isFocus = true;

@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce } from 'monitor-common/utils';
 import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 
+import { isVariableName } from '../../variables/template/utils';
 import AddVariableOption from '../utils/add-variable-option';
 import VariableName from '../utils/variable-name';
 import EmptyStatus from '@/components/empty-status/empty-status';
@@ -59,6 +60,7 @@ interface IProps {
 
 interface IValue {
   id: string;
+  isVariable?: boolean;
   name: string;
 }
 
@@ -362,7 +364,11 @@ export default class ValueOptions extends tsc<IProps> {
                 class={['options-item', { 'active-index': this.hoverActiveIndex === -1 }]}
                 onMousedown={e => {
                   e.stopPropagation();
-                  this.handleCheck({ id: this.search, name: this.search });
+                  this.handleCheck({
+                    id: this.search,
+                    name: this.search,
+                    isVariable: this.hasVariableOperate && isVariableName(this.search),
+                  });
                 }}
               >
                 <i18n path='直接输入 "{0}"'>
