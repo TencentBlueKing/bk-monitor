@@ -37,6 +37,11 @@ export interface DimensionField {
   type?: string;
 }
 
+export interface DimensionValue {
+  label: string;
+  value: string;
+}
+
 // 默认触发配置接口
 interface DefaultTriggerConfig {
   check_window: number;

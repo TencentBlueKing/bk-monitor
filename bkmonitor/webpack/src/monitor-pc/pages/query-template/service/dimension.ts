@@ -26,7 +26,7 @@
 
 import { getVariableValue } from 'monitor-api/modules/grafana';
 
-import type { DimensionField, MetricDetailV2 } from '../typings';
+import type { DimensionValue, MetricDetailV2 } from '../typings';
 
 /**
  * 获取指标维度值列表
@@ -38,16 +38,16 @@ export const fetchMetricDimensionValueList = async (
   dimension: string,
   data: Pick<MetricDetailV2, 'data_source_label' | 'data_type_label' | 'metric_field' | 'result_table_id'>
 ) => {
-  const valueList = await getVariableValue<DimensionField[]>({
+  const valueList = await getVariableValue<DimensionValue[]>({
     params: {
       data_source_label: data.data_source_label,
       data_type_label: data.data_type_label,
       field: dimension,
       metric_field: data.metric_field,
       result_table_id: data.result_table_id,
-      where: data?.where || [],
+      where: [],
     },
     type: 'dimension',
-  }).catch(() => [] as DimensionField[]);
+  }).catch(() => [] as DimensionValue[]);
   return valueList;
 };
