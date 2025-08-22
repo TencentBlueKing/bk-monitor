@@ -56,6 +56,8 @@ export default class TemplateCreate extends tsc<object> {
   @Ref('queryTemplateSet') queryTemplateSetRef: QueryTemplateSet;
   @Ref() variablesManage: VariablesManage;
 
+  scene: 'create' | 'edit' = 'create';
+
   title = this.$t('route-新建查询模板');
 
   steps = [
@@ -250,6 +252,7 @@ export default class TemplateCreate extends tsc<object> {
               loading={this.loading}
               metricFunctions={this.metricFunctions}
               queryConfigs={this.queryConfigs}
+              scene={this.scene}
               variablesList={this.variablesList}
               onAddQueryConfig={this.handleAdd}
               onBasicInfoChange={this.handleBasicInfoChange}

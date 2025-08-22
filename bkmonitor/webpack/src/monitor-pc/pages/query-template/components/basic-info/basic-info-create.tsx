@@ -37,11 +37,13 @@ interface BasicInfoCreateEvents {
 
 interface BasicInfoProps {
   formData: BasicInfoData;
+  scene?: 'create' | 'edit';
 }
 
 @Component
 export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreateEvents> {
   @Prop() readonly formData: BasicInfoData;
+  @Prop({ type: String, default: 'create' }) readonly scene: 'create' | 'edit';
 
   @Ref('form') formRef!: any;
 
@@ -50,7 +52,9 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
   }
 
   get bizList() {
-    return this.$store.getters.bizList;
+    if (this.scene === 'create') return [...this.$store.getters.bizList];
+    // 全局模板是全业务可见，目前全局模板只有编辑功能
+    return [{ bk_biz_id: 'all', name: this.$t('全业务可见') }, ...this.$store.getters.bizList];
   }
 
   rules = {
@@ -82,10 +86,11 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
   }
 
   tagTpl(data) {
+    console.log(data);
     return (
       <div class='tag'>
         <span class='tag-name'>{data.name}</span>
-        {this.bizId !== data.id && (
+        {this.bizId !== data.bk_biz_id && data.bk_biz_id !== 'all' && (
           <i
             class='icon-monitor icon-mc-close'
             onClick={() => {
@@ -152,6 +157,7 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
           >
             <bk-tag-input
               clearable={false}
+              disabled={this.formData.space_scope.includes('all')}
               list={this.bizList}
               save-key='bk_biz_id'
               tag-tpl={this.tagTpl}

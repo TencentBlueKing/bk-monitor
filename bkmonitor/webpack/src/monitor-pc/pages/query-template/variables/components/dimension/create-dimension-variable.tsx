@@ -58,26 +58,37 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
     return isAllDisabled || isOtherDisabled;
   }
 
-  handleDimensionChange(value: string[]) {
+  handleDimensionChange(options: string[]) {
     let defaultValue = this.variable.data.defaultValue;
-    if (value.includes('all')) {
+    if (options.includes('all')) {
       defaultValue = defaultValue || [this.variable.dimensionList[0].id];
     } else {
-      defaultValue = defaultValue.filter(item => value.includes(item));
-      defaultValue = defaultValue.length ? defaultValue : [value[0]];
+      defaultValue = defaultValue.filter(item => options.includes(item));
+      defaultValue = defaultValue.length ? defaultValue : [options[0]];
+    }
+
+    let value = this.variable.value || [];
+    if (!this.variable.isValueEditable) {
+      value = defaultValue;
     }
 
     this.handleDataChange({
       ...this.variable.data,
-      options: value,
+      options,
       defaultValue,
+      value,
     });
   }
 
-  handleValueChange(value: string[]) {
+  handleValueChange(defaultValue: string[]) {
+    let value = this.variable.value || [];
+    if (!this.variable.isValueEditable) {
+      value = defaultValue;
+    }
     this.handleDataChange({
       ...this.variable.data,
-      defaultValue: value,
+      defaultValue,
+      value,
     });
   }
 
