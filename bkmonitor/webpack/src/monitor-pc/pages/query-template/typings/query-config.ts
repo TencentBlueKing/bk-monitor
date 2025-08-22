@@ -87,6 +87,7 @@ export class QueryConfig {
             ? metricDetail.default_condition || []
             : []
           : metricDetail.default_condition || [];
+      this.functions = [];
     }
     if (data?.metric_id) {
       Object.assign(this, data);

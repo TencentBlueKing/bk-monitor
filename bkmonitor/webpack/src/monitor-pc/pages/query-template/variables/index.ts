@@ -296,7 +296,7 @@ export function getCreateVariableParams(params, metrics: MetricDetailV2[]): IVar
   }
 
   return {
-    name,
+    name: '${' + name + '}',
     type,
     alias,
     description,
