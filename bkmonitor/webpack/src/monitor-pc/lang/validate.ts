@@ -289,4 +289,5 @@ export default {
   变量名必填: 'Variable name is required',
   变量名不能重复: 'Variable name cannot be duplicated',
   可选维度值必选: 'Optional dimension value must be selected',
+  变量名不能包含非法字符: 'Variable name cannot contain illegal characters',
 };
