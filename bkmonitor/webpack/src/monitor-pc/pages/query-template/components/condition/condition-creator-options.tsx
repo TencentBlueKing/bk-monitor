@@ -357,7 +357,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
   updateSelection() {
     this.$nextTick(() => {
       const listEl = this.$el.querySelector('.component-top-left .options-wrap');
-      const el = listEl?.children?.[this.cursorIndex];
+      const el = listEl?.children?.[this.hasVariableOperate ? this.cursorIndex + 1 : this.cursorIndex];
       if (el) {
         el.scrollIntoView(false);
       }
