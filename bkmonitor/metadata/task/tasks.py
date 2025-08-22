@@ -17,7 +17,6 @@ from typing import Any
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
 from django.utils.translation import gettext as _
 from tenacity import RetryError
 
@@ -484,7 +483,6 @@ def _access_bkdata_vm(
     bk_biz_id: int,
     table_id: str,
     data_id: int,
-    bcs_cluster_id: str | None = None,
     allow_access_v2_data_link: bool | None = False,
 ):
     """接入计算平台 VM 任务
@@ -493,9 +491,7 @@ def _access_bkdata_vm(
     from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
 
     # NOTE：只有当allow_access_v2_data_link为True，即单指标单表时序指标数据时，才允许接入V4链路
-    if (settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link) or (
-        bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST
-    ):
+    if settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link:
         logger.info("_access_bkdata_vm: start to access v2 bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
     else:
@@ -510,23 +506,15 @@ def access_bkdata_vm(
     data_id: int,
     space_type: str | None = None,
     space_id: str | None = None,
-    allow_access_v2_data_link: bool | None = False,
+    allow_access_v2_data_link: bool = False,
 ):
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
     try:
-        from metadata.models import BCSClusterInfo
-
-        # 查询`data_id`所在的集群 ID 在启用新链路的白名单中
-        fq = Q(K8sMetricDataID=data_id) | Q(CustomMetricDataID=data_id) | Q(K8sEventDataID=data_id)
-        obj = BCSClusterInfo.objects.filter(fq).first()
-        bcs_cluster_id = obj.cluster_id if obj else None
-
         _access_bkdata_vm(
             bk_biz_id=bk_biz_id,
             table_id=table_id,
             data_id=data_id,
-            bcs_cluster_id=bcs_cluster_id,
             allow_access_v2_data_link=allow_access_v2_data_link,
         )
     except RetryError as e:
@@ -553,10 +541,7 @@ def access_bkdata_vm(
     # 更新数据源依赖的 consul
     try:
         # 保证有 backend，才进行更新
-        if (
-            settings.ENABLE_V2_VM_DATA_LINK
-            or (bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST)
-        ) and models.DataSourceResultTable.objects.filter(bk_data_id=data_id).exists():
+        if settings.ENABLE_V2_VM_DATA_LINK and models.DataSourceResultTable.objects.filter(bk_data_id=data_id).exists():
             data_source = models.DataSource.objects.get(bk_data_id=data_id, is_enable=True)
             data_source.refresh_consul_config()
     except models.DataSource.DoesNotExist:
@@ -909,6 +894,9 @@ def sync_bkbase_v4_metadata(key, skip_types: list[str] | None = None):
         skip_types = []
 
     bkbase_redis = bkbase_redis_client()
+    if not bkbase_redis:
+        logger.warning("sync_bkbase_v4_metadata: bkbase redis config is not set.")
+        return
 
     bk_base_data_id = key.split(":")[-1]  # 提取 bk_base_data_id
 

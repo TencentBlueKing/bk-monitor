@@ -39,6 +39,13 @@ def watch_bkbase_meta_redis_task():
     """
     任务入口 计算平台元数据Redis键变化事件
     """
+    bkbase_redis = bkbase_redis_client()
+
+    # 检查bkbase redis配置是否存在
+    if not bkbase_redis:
+        logger.info("watch_bkbase_meta_redis_task: bkbase redis config is not set.")
+        return
+
     logger.info("watch_bkbase_meta_redis_task: Start watching bkbase meta redis")
 
     # 初始化分布式锁
@@ -58,7 +65,6 @@ def watch_bkbase_meta_redis_task():
     stop_event = threading.Event()
 
     try:
-        bkbase_redis = bkbase_redis_client()
         key_pattern = f"{settings.BKBASE_REDIS_PATTERN}:*"
         runtime_limit = settings.BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS  # 任务运行时间限制为一天
 
@@ -80,10 +86,8 @@ def watch_bkbase_meta_redis_task():
             key_pattern=key_pattern,
             runtime_limit=runtime_limit,
         )
-
     except Exception as e:  # pylint: disable=broad-except
         logger.exception("watch_bkbase_meta_redis_task: Error watching bkbase meta redis, error->[%s]", e)
-
     finally:
         # 确保在任务完成后释放锁
         stop_event.set()  # 设置停止事件来终止守护线程
@@ -247,6 +251,10 @@ def sync_bkbase_metadata_all():
 
     # 获取BkBase数据一致性Redis中符合模式的所有key
     bkbase_redis = bkbase_redis_client()
+    if not bkbase_redis:
+        logger.warning("sync_bkbase_metadata_all: bkbase redis config is not set.")
+        return
+
     cursor = 0
     matching_keys = []
 

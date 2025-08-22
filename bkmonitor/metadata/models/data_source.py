@@ -559,9 +559,9 @@ class DataSource(models.Model):
             # 添加过滤条件，只接入单指标单表时序数据到V4链路
             from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
 
-            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
+            # 开启V4链路后，特定etl_config的data_id均从计算平台获取
+            if settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
                 logger.info(f"apply for data id from bkdata,type_label->{type_label},etl_config->{etl_config}")
-                # TODO: 多租户 等待BkBase多租户协议,传递租户ID
                 is_base = False
 
                 # 根据清洗类型判断是否是系统基础数据

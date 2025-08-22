@@ -144,6 +144,10 @@ def bkbase_redis_client():
     bkbase_redis_port = settings.BKBASE_REDIS_PORT
     bkbase_redis_pwd = settings.BKBASE_REDIS_PASSWORD
 
+    # 检查bkbase redis配置是否存在
+    if not bkbase_redis_host or not bkbase_redis_port:
+        return None
+
     configs = {
         "host": bkbase_redis_host,
         "port": bkbase_redis_port,
