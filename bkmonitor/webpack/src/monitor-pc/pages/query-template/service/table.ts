@@ -64,9 +64,13 @@ const formatTemplateList = (
  * @returns {QueryTemplateListItem[]} 查询模板列表数据
  */
 export const fetchQueryTemplateList = async (param: QueryListRequestParams) => {
-  const templateList = await searchQueryTemplate<QueryTemplateListItem[]>(param).catch(
-    () => [] as QueryTemplateListItem[]
-  );
+  const {
+    total,
+    list: [templateList],
+  } = await searchQueryTemplate<{ list: [QueryTemplateListItem[]]; total: number }>(param).catch(() => ({
+    total: 0,
+    list: [[] as QueryTemplateListItem[]],
+  }));
   const ids = formatTemplateList(templateList);
   if (ids?.length) {
     fetchQueryTemplateRelationsCount({ query_template_ids: ids }).then(res => {
@@ -77,7 +81,7 @@ export const fetchQueryTemplateList = async (param: QueryListRequestParams) => {
       formatTemplateList(templateList, countByIdMap);
     });
   }
-  return templateList;
+  return { total, templateList };
 };
 
 /**
@@ -97,5 +101,5 @@ export const fetchQueryTemplateRelationsCount = async (param: QueryTemplateRelat
  * @param {string} id 查询模板 id
  */
 export const destroyQueryTemplateById = async (id: QueryTemplateListItem['id']) => {
-  return await destroyQueryTemplate(id);
+  return destroyQueryTemplate(id);
 };

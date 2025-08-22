@@ -34,18 +34,18 @@ interface ConsumePanelEmits {
 }
 
 interface ConsumePanelProps {
-  relationList: any;
+  relationInfo: any;
 }
 @Component
 export default class ConsumePanel extends tsc<ConsumePanelProps, ConsumePanelEmits> {
   /** 消费场景表格源数据 */
-  @Prop({ type: Array, default: () => [] }) relationList: any[];
+  @Prop({ type: Object, default: () => {} }) relationInfo: any;
   /** 筛选输入的关键字 */
   searchKeyword = '';
   /** 表格实际渲染的数据 */
   get tableViewData() {
-    if (!this.relationList?.length) return [];
-    return this.relationList?.filter?.(item => {
+    if (!this.relationInfo?.list?.length) return [];
+    return this.relationInfo?.list?.filter?.(item => {
       const matchReg = new RegExp(`${this.searchKeyword}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'ig');
       return matchReg.test(item.name) || matchReg.test(item.type);
     });
