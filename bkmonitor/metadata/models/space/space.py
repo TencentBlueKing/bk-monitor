@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import ClassVar
 
 from django.db import models
 from django.db.models.fields import DateTimeField
@@ -56,7 +57,7 @@ class Space(BaseModel):
     language = models.CharField("默认语言", max_length=16, default="zh-hans", help_text="使用的语言")
     is_bcs_valid = models.BooleanField("BCS 是否可用", default=False)
 
-    objects = SpaceManager()
+    objects: ClassVar[SpaceManager] = SpaceManager()
 
     class Meta:
         unique_together = (("space_type_id", "space_id"), ("space_type_id", "space_name", "bk_tenant_id"))

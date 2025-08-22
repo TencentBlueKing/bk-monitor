@@ -327,6 +327,7 @@ class ListResultTableResource(Resource):
     """查询返回结果表"""
 
     class RequestSerializer(PageSerializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         datasource_type = serializers.CharField(required=False, label="过滤的结果表类型", default=None)
         bk_biz_id = serializers.IntegerField(required=False, label="获取指定业务下的结果表信息", default=None)
         with_option = serializers.BooleanField(required=False, label="是否包含option字段信息", default=True)
@@ -336,22 +337,8 @@ class ListResultTableResource(Resource):
         )
 
     def perform_request(self, request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("ListResultTableResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        request_data["bk_tenant_id"] = bk_tenant_id
-
         # 获取bcs相关的dataid
-        # TODO：理论上业务ID已经决定了租户ID，无需再次指定租户ID
-        data_ids, data_id_cluster_map = get_bcs_dataids()
+        data_ids, _ = get_bcs_dataids()
 
         # 使用datasource排除掉dataid,得到table_id列表
         table_ids = [
@@ -408,13 +395,17 @@ class ListResultTableResource(Resource):
                 result_table_queryset.values_list("table_id", flat=True)[offset : offset + limit]
             )
             result_list = models.ResultTable.batch_to_json(
-                result_table_id_list=result_table_id_list, with_option=request_data["with_option"]
+                bk_tenant_id=request_data["bk_tenant_id"],
+                result_table_id_list=result_table_id_list,
+                with_option=request_data["with_option"],
             )
             return {"count": count, "info": result_list}
 
         result_table_id_list = list(result_table_queryset.values_list("table_id", flat=True))
         result_list = models.ResultTable.batch_to_json(
-            result_table_id_list=result_table_id_list, with_option=request_data["with_option"]
+            bk_tenant_id=request_data["bk_tenant_id"],
+            result_table_id_list=result_table_id_list,
+            with_option=request_data["with_option"],
         )
 
         if record_rule_metrics:
@@ -2604,7 +2595,7 @@ class KafkaTailResource(Resource):
         # 是否是V4数据链路
         elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
             # 若开启特性开关且存在RT且非日志数据，则V4链路使用BkBase侧的Kafka采样接口拉取数据
-            if settings.ENABLE_BKDATA_KAFKA_TAIL_API and result_table and datasource.etl_config != "bk_flat_batch":
+            if result_table and datasource.etl_config != "bk_flat_batch":
                 logger.info("KafkaTailResource: using bkdata kafka tail api,bk_data_id->[%s]", datasource.bk_data_id)
                 # TODO: 获取计算平台数据名称,待数据一致性实现后,统一通过BkBaseResultTable获取,不再进行复杂转换
                 vm_record = models.AccessVMRecord.objects.get(

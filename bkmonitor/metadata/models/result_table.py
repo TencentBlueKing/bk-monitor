@@ -357,12 +357,10 @@ class ResultTable(models.Model):
 
         table_id = table_id.lower()
         # 1. 判断data_source是否存在
-        datasource_qs = DataSource.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id)
-        if not datasource_qs.exists():
+        datasource = DataSource.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).first()
+        if not datasource:
             logger.error("create_result_table: bk_data_id->[%s] is not exists, nothing will do.", bk_data_id)
             raise ValueError(_("数据源ID不存在，请确认"))
-        datasource = datasource_qs.first()
-        allow_access_v2_data_link = datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
 
         # 非系统创建的结果表，不可以使用容器监控的表前缀名
         if operator != "system" and table_id.startswith(config.BCS_TABLE_ID_PREFIX):
@@ -411,7 +409,6 @@ class ResultTable(models.Model):
             datasource.save()
             from .custom_report import EventGroup, TimeSeriesGroup  # noqa
 
-            # TODO: 多租户 关联模型适配租户ID
             if TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
                 # 自定义时序指标，查找所属空间
                 target_bk_biz_id = datasource.data_name.split("_")[0]
@@ -445,7 +442,6 @@ class ResultTable(models.Model):
                     space_id,
                 )
                 # 获取空间信息
-                # TODO: 多租户，是否补充租户ID
                 space = Space.objects.get_space_info_by_biz_id(bk_biz_id=int(target_bk_biz_id))
                 # data id 已有所属记录，则不处理（dataid 和 rt 是1对多的关系）
                 space_type, space_id = space["space_type"], space["space_id"]
@@ -548,72 +544,65 @@ class ResultTable(models.Model):
             result_table.check_and_create_storage(
                 is_sync_db=is_sync_db,
                 external_storage=external_storage,
-                option=option,
                 default_storage_config=default_storage_config,
                 bk_tenant_id=bk_tenant_id,
             )
         # 6. 更新数据写入 consul
         result_table.refresh_etl_config()
 
-        # 7. 针对白名单中的空间及 etl_config 为 `bk_standard_v2_time_series` 的数据源接入 vm
-        # 出错时，记录日志，不影响已有功能
-        # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
-        # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
-        try:
-            # TODO： INFLUXDB->VM
-            # 仅针对 influxdb 类型进行过滤
-            if default_storage == ClusterInfo.TYPE_INFLUXDB:
-                # 避免出现引包导致循环引用问题
-                from metadata.task.tasks import access_bkdata_vm
+        if default_storage == ClusterInfo.TYPE_INFLUXDB:
+            # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
+            # 2. 如果启用了新版数据链路，且etcl_config在启用的列表中，则使用vm存储，
+            is_v4_datalink_etl_config = datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
+            if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
+                # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
+                # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
+                try:
+                    from metadata.task.tasks import access_bkdata_vm
 
-                # TODO: 多租户： 等待BkBase多租户接口
-                access_bkdata_vm.delay(
-                    int(target_bk_biz_id),
-                    table_id,
-                    datasource.bk_data_id,
-                    space_type,
-                    space_id,
-                    allow_access_v2_data_link,
-                )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("create_result_table: access vm error: %s", e)
-
-        # 因为多个事务嵌套，针对 ES 的操作放在最后执行
-        try:
-            if default_storage == ClusterInfo.TYPE_ES:
+                    access_bkdata_vm.delay(
+                        int(target_bk_biz_id),
+                        table_id,
+                        datasource.bk_data_id,
+                        space_type,
+                        space_id,
+                        is_v4_datalink_etl_config,
+                    )
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error("create_result_table: access vm error: %s", e)
+        elif default_storage == ClusterInfo.TYPE_ES:
+            # 因为多个事务嵌套，针对 ES 的操作放在最后执行
+            try:
                 es_storage = ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
                 on_commit(lambda: es_storage.create_es_index(is_sync_db=is_sync_db))
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("create_result_table: create es storage index error, %s", e)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("create_result_table: create es storage index error, %s", e)
 
         return result_table
 
     def check_and_create_storage(
         self,
+        bk_tenant_id: str,
         is_sync_db: bool,
         external_storage: dict | None = None,
-        option: dict | None = None,
         default_storage_config: dict | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
-    ) -> bool:
-        """检测并创建存储
-        NOTE: 针对 influxdb 类型的存储，如果功能开关设置为禁用，则禁用所有新建结果表 influxdb 写入
-        """
-        storage_enabled = True
-        if self.default_storage == ClusterInfo.TYPE_INFLUXDB and not settings.ENABLE_INFLUXDB_STORAGE:
-            storage_enabled = False
+    ) -> None:
+        """检测并创建存储"""
 
-        if storage_enabled:
-            # 当 default_storage_config 值为 None 时，需要设置为 {}
-            default_storage_config = default_storage_config or {}
-            self.create_storage(
-                storage=self.default_storage,
-                is_sync_db=is_sync_db,
-                bk_tenant_id=bk_tenant_id,
-                external_storage=external_storage,
-                **default_storage_config,
-            )
-            logger.info("result_table:[%s] has create storage on type:[%s]", self.table_id, self.default_storage)
+        # 如果是influxdb类型的存储，并且禁止了influxdb存储，则不创建
+        if self.default_storage == ClusterInfo.TYPE_INFLUXDB and not settings.ENABLE_INFLUXDB_STORAGE:
+            return
+
+        # 当 default_storage_config 值为 None 时，需要设置为 {}
+        default_storage_config = default_storage_config or {}
+        self.create_storage(
+            storage=self.default_storage,
+            is_sync_db=is_sync_db,
+            bk_tenant_id=bk_tenant_id,
+            external_storage=external_storage,
+            **default_storage_config,
+        )
+        logger.info("result_table:[%s] has create storage on type:[%s]", self.table_id, self.default_storage)
 
     @classmethod
     def get_result_table_storage_info(cls, table_id, storage_type, bk_tenant_id=DEFAULT_TENANT_ID):
@@ -702,8 +691,8 @@ class ResultTable(models.Model):
             table_id = "{}.{}".format(result_group["database"], result_group["table_id"])
 
         # 2. 使用业务ID及结果表ID来查询获取结果表对象
+        table_id_with_biz = f"{bk_biz_id}_{table_id}"
         try:
-            table_id_with_biz = f"{bk_biz_id}_{table_id}"
             return cls.objects.get(
                 bk_biz_id=bk_biz_id, table_id=table_id_with_biz, is_deleted=False, bk_tenant_id=bk_tenant_id
             )
@@ -740,7 +729,7 @@ class ResultTable(models.Model):
         return cls.objects.get(bk_biz_id=0, table_id=table_id, is_deleted=False, bk_tenant_id=bk_tenant_id)
 
     @classmethod
-    def batch_to_json(cls, result_table_id_list=None, with_option=True, bk_tenant_id=DEFAULT_TENANT_ID):
+    def batch_to_json(cls, bk_tenant_id: str, result_table_id_list: list[str], with_option=True):
         """
         批量查询结果表的to_json结果，会加入缺失的几个依赖查询项,禁止跨租户查询
         :param result_table_id_list: ['table_id1', 'table_id2']
@@ -1127,7 +1116,6 @@ class ResultTable(models.Model):
             # 判断该存储是否真实存在了
             try:
                 real_storage_class = self.REAL_STORAGE_DICT[default_storage]
-
             except KeyError:
                 logger.error(
                     "user->[%s] try to set table_id->[%s] default_storage to->[%s] but is not supported by system.",
