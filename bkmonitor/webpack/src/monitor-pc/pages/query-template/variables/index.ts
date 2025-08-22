@@ -23,10 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+/** biome-ignore-all lint/complexity/noBannedTypes: <explanation> */
 
 import { random } from 'monitor-common/utils';
 
 import { VariableTypeEnum } from '../constants';
+import { getTemplateSrv } from './template/template-srv';
 import { getVariableNameInput, isVariableName } from './template/utils';
 
 import type { AggFunction, MetricDetailV2 } from '../typings';
@@ -42,6 +44,7 @@ import type {
   IVariableModel,
   VariableTypeEnumType,
 } from '../typings/variables';
+import type { ScopedVars } from './template/types';
 
 export type VariableModelType =
   | ConditionVariableModel
@@ -51,6 +54,12 @@ export type VariableModelType =
   | FunctionVariableModel
   | MethodVariableModel;
 
+const isEmptyValue = (value: any) => {
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+  return value === '' || value === null || value === undefined;
+};
 abstract class VariableBase {
   alias = '';
   /** 默认值 */
@@ -75,12 +84,22 @@ abstract class VariableBase {
 
   abstract get data(): Required<IVariableData>;
 
+  get scopedVars(): ScopedVars {
+    return {
+      [this.variableName]: {
+        value: isEmptyValue(this.value) ? this.defaultValue : this.value,
+      },
+    };
+  }
   get variableName(): string {
     if (isVariableName(this.name)) {
       return getVariableNameInput(this.name);
     } else {
       return this.name;
     }
+  }
+  replace(target: string, format?: Function | string): string {
+    return getTemplateSrv().replace(target, this.scopedVars, format);
   }
 }
 

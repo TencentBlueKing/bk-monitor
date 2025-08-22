@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-export function escapeRegex(value: string): string {
+export const escapeRegex = (value: string): string => {
   return value.replace(/[\\^$*+?.()|[\]{}/]/g, '\\$&');
-}
+};
 
 /*
  * This regex matches 3 types of variable reference with an optional format specifier
@@ -38,7 +38,7 @@ export function escapeRegex(value: string): string {
 export const variableRegex =
   /\$([\w\u4e00-\u9fa5]+)|\[\[([\w\u4e00-\u9fa5]+?)(?::([\w\u4e00-\u9fa5]+))?\]\]|\${([\w\u4e00-\u9fa5]+)(?:\.([^:^}]+))?(?::([^}]+))?}/g;
 
-export function getVariableNameInput(val: string) {
+export const getVariableNameInput = (val: string) => {
   const matches = val.matchAll(/\$\{([^}]+)\}/g);
   let str = '';
   for (const match of matches) {
@@ -46,13 +46,13 @@ export function getVariableNameInput(val: string) {
     break;
   }
   return str;
-}
+};
 
-export function isVariableName(val: string) {
+export const isVariableName = (val: string) => {
   return !!val && /^\$\{([\w\u4e00-\u9fa5]+)(?:\.([^:^}]+))?(?::([^}]+))?}$/.test(val);
-}
+};
 
-export function validateVariableNameInput(str: string): string {
+export const validateVariableNameInput = (str: string): string => {
   if (!str) {
     return window.i18n.t('变量名不能为空') as string;
   }
@@ -60,4 +60,13 @@ export function validateVariableNameInput(str: string): string {
     return window.i18n.t('变量名不能包含非法字符') as string;
   }
   return '';
-}
+};
+
+/**
+ * 判断字符串是否包含变量
+ * @param target 目标字符串
+ * @returns 是否包含变量
+ */
+export const hasVariable = (target: string) => {
+  return target.match(variableRegex)?.length > 0;
+};

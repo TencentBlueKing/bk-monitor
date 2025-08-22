@@ -63,6 +63,7 @@ export default class QueryTemplateView extends tsc<QueryTemplateViewProps, Query
 
   @Emit('variablesChange')
   handleVariablesListChange(variablesList: VariableModelType[]) {
+    console.log('variablesList', variablesList);
     return variablesList;
   }
 
@@ -97,6 +98,7 @@ export default class QueryTemplateView extends tsc<QueryTemplateViewProps, Query
                 expressionConfig={this.expressionConfig}
                 queryConfigs={this.queryConfigs}
                 title={this.chartTitle}
+                variablesList={this.variablesList}
               />
             </div>
           </div>
