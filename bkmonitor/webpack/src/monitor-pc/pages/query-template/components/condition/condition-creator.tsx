@@ -89,10 +89,12 @@ export default class ConditionCreator extends tsc<IProps> {
         condition: { id: item.condition, name: item.condition },
         key: { id: item.key, name: keyName },
         method: { id: item.method, name: methodName },
-        value: item.value.map(v => ({ id: v, name: v, isVariable: isVariableName(v) })),
-        options: {
-          isVariable: isVariableName(item.key),
-        },
+        value: item.value.map(v => ({ id: v, name: v, isVariable: this.hasVariableOperate && isVariableName(v) })),
+        options: this.hasVariableOperate
+          ? {
+              isVariable: isVariableName(item.key),
+            }
+          : undefined,
       };
     }) as IFilterItem[];
   }
