@@ -207,4 +207,5 @@ export default {
   变量配置框: 'Variable configuration box',
   查询模板: 'Query template',
   变量值: 'Variable value',
+  模板配置预览: 'Template configuration preview',
 };
