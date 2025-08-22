@@ -60,6 +60,7 @@ export default defineComponent({
     const panelRef = ref<HTMLDivElement>();
     const groupNameEditPanelRef = ref<HTMLDivElement>();
     const delPanelRef = ref<HTMLDivElement>();
+    const addIndexSetRef = ref<any>();
     const isHover = ref(false);
     const popoverOptions = {
       arrow: false,
@@ -113,6 +114,9 @@ export default defineComponent({
         offset: [1, -5],
         onShow: () => {
           tippyInstance?.hide();
+          if (isEdit) {
+            addIndexSetRef.value?.autoFocus?.();
+          }
           // if (isEdit) editFormRef.value?.clearError?.();
         },
         onHide: () => {
@@ -204,6 +208,7 @@ export default defineComponent({
     // 新增/修改索引集名称
     const renderAddIndexSet = (item: ListItemData) => (
       <AddIndexSet
+        ref={addIndexSetRef}
         data={item}
         on-cancel={handleEditGroupCancel}
         on-submit={handleEditGroupSubmit}

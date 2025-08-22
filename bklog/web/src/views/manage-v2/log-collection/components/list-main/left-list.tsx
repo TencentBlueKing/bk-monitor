@@ -53,6 +53,7 @@ export default defineComponent({
     const { t } = useLocale();
     const activeKey = ref('all');
     const addPanelRef = ref();
+    const addIndexSetRef = ref();
     const rootRef = ref();
     const formData = ref({ label: '' });
     const isHover = ref(false);
@@ -92,6 +93,7 @@ export default defineComponent({
         appendTo: () => document.body,
         onShow: () => {
           isHover.value = true;
+          addIndexSetRef.value?.autoFocus?.();
         },
         onHide: () => {
           isHover.value = false;
@@ -138,6 +140,7 @@ export default defineComponent({
           <div style='display: none'>
             <div ref={addPanelRef}>
               <AddIndexSet
+                ref={addIndexSetRef}
                 data={formData.value}
                 isAdd={true}
                 on-cancel={handleEditGroupCancel}

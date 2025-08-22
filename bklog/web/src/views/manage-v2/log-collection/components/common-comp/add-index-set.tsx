@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType, onMounted, ref } from 'vue';
+import { defineComponent, PropType, ref, nextTick } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -49,9 +49,9 @@ export default defineComponent({
 
   emits: ['submit', 'cancel'],
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const inputRef = ref<HTMLInputElement>();
+    const inputRef = ref<any>();
     const editFormRef = ref();
     const editFormRules = {};
     const handleEditGroupSubmit = () => {
@@ -62,6 +62,13 @@ export default defineComponent({
     const handleEditGroupCancel = () => {
       emit('cancel');
     };
+    const autoFocus = () => {
+      nextTick(() => {
+        inputRef.value?.$refs.input?.focus?.();
+      });
+    };
+    expose({ autoFocus });
+
     // 新增/修改索引集名称
     const renderAddIndexSet = (item: ListItemData) => (
       <div class='popover-add-index-set'>
@@ -108,6 +115,7 @@ export default defineComponent({
         </div>
       </div>
     );
+
     return () => <div class='add-index-set-box'>{props.isFrom && renderAddIndexSet(props.data)}</div>;
   },
 });
