@@ -48,3 +48,11 @@
     }
   }
 }
+.tippy-box[data-theme~='add-index-set-popover'] {
+  .tippy-content {
+    padding: 0;
+  }
+  .tippy-arrow {
+    color: #fff;
+  }
+}

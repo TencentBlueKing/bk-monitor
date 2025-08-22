@@ -34,6 +34,7 @@ import AddIndexSet from '../common-comp/add-index-set';
 import ListItem from './list-item';
 
 import './left-list.scss';
+import 'tippy.js/dist/tippy.css';
 
 export default defineComponent({
   name: 'LeftList',
@@ -86,8 +87,7 @@ export default defineComponent({
         content: addPanelRef.value as any,
         trigger: 'click',
         placement: 'bottom-end',
-        theme: 'light',
-        arrow: false,
+        theme: 'light add-index-set-popover',
         interactive: true,
         hideOnClick: true,
         appendTo: () => document.body,

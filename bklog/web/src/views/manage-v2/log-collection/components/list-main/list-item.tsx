@@ -31,6 +31,7 @@ import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 import AddIndexSet from '../common-comp/add-index-set';
 
 import './list-item.scss';
+import 'tippy.js/dist/tippy.css';
 
 interface ListItemData {
   key: string;
@@ -111,7 +112,7 @@ export default defineComponent({
         arrow: true,
         placement: 'bottom',
         theme,
-        offset: [1, -5],
+        // offset: [1, -5],
         onShow: () => {
           tippyInstance?.hide();
           if (isEdit) {
