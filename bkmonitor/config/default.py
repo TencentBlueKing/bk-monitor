@@ -24,7 +24,6 @@ from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
 
-from ai_agent.conf.default import *  # noqa
 from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
@@ -326,7 +325,6 @@ ACTIVE_VIEWS = {
         "datalink": "monitor_web.datalink.views",
         "new_report": "monitor_web.new_report.views",
         "incident": "monitor_web.incident.views",
-        "ai_assistant": "monitor_web.ai_assistant.views",
         "k8s": "monitor_web.k8s.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},

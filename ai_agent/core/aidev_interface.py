@@ -22,22 +22,26 @@ logger = logging.getLogger("ai_whale")
 class AIDevInterface:
     def __init__(self, app_code, app_secret, metrics_reporter=None):
         self.api_client = BKAidevApi.get_client(app_code=app_code, app_secret=app_secret)
-        self.local_command_processor = LocalCommandProcessor()
-        self.metrics_reporter = metrics_reporter
+        self.local_command_processor = LocalCommandProcessor()  # 本地指令处理器
+        self.metrics_reporter = metrics_reporter  # 指标上报器
 
     # -------------------- Agent管理 -------------------- #
     def get_agent_info(self, agent_code):
+        """获取Agent配置信息"""
         return self.api_client.api.retrieve_agent_config(path_params={"agent_code": agent_code})
 
     # -------------------- 会话管理 -------------------- #
 
     def create_chat_session(self, params, username):
+        """创建会话"""
         return self.api_client.api.create_chat_session(json=params, headers={"X-BKAIDEV-USER": username})
 
     def retrieve_chat_session(self, session_code):
+        """获取单个会话"""
         return self.api_client.api.retrieve_chat_session(path_params={"session_code": session_code})
 
     def list_chat_sessions(self, username):
+        """按「用户」粒度拉取会话列表"""
         return self.api_client.api.list_chat_session(headers={"X-BKAIDEV-USER": username})
 
     def destroy_chat_session(self, session_code):
@@ -54,14 +58,14 @@ class AIDevInterface:
         property_data = params.get("property", {})
 
         # 快捷指令
-        try:
+        try:  # 本地处理（若有处理器）> 平台处理
             command_data = property_data.get("extra", {})
             command = command_data.get("command")
             # 若存在注册的LocalHandler，则使用本地处理逻辑用于渲染会话内容
             if command and self.local_command_processor.has_local_handler(command):
                 logger.info("create_chat_session_content: try to process command->[%s]", command_data)
                 processed_content = self.local_command_processor.process_command(command_data)
-                if processed_content:
+                if processed_content:  # 若处理成功,将渲染后的内容写入到property中,平台不会进行覆盖
                     params["property"]["extra"]["rendered_content"] = processed_content
         except Exception as e:  # pylint: disable=broad-except
             logger.error("create_chat_session_content: process command error->[%s]", e)
@@ -89,19 +93,19 @@ class AIDevInterface:
     # ==================== 发起对话 ====================
     def create_chat_completion(self, session_code, execute_kwargs, agent_code, username):
         """发起流式/非流式会话"""
-        callbacks = [get_langfuse_callback()]
+        callbacks = [get_langfuse_callback()]  # 添加Langfuse回调
         agent_instance = AgentInstanceFactory.build_agent(
             build_type=AgentBuildType.SESSION,
             session_code=session_code,
             resource_manager=self.api_client,
             callbacks=callbacks,
-        )
+        )  # 工厂方法构建Agent实例
         if execute_kwargs.get("stream", False):
             # 使用增强的流式处理函数
             streaming_wrapper = handle_streaming_response_with_metrics(
                 agent_instance=agent_instance,
                 execute_kwargs=execute_kwargs,
-                resource_name=self.__class__.__name__,
+                resource_name="CreateChatCompletionResource",  # 显示指定资源名称
                 agent_code=agent_code,
                 username=username,
                 metrics_reporter=self.metrics_reporter,
