@@ -227,11 +227,13 @@ export default class TemplateCreate extends tsc<object> {
     return (
       <div class='template-create'>
         <div class='template-create-nav'>
-          <span
-            class='icon-monitor icon-back-left navigation-bar-back'
-            onClick={this.handleBackGotoPage}
-          />
-          <span class='title'>{this.title}</span>
+          <div class='template-create-nav-title'>
+            <span
+              class='icon-monitor icon-back-left navigation-bar-back'
+              onClick={this.handleBackGotoPage}
+            />
+            <span class='title'>{this.title}</span>
+          </div>
           <bk-steps
             class='template-steps'
             cur-step={this.curStep}
