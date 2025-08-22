@@ -124,7 +124,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
           : [
               {
                 id: curr.value,
-                name: this.showNameSlice(curr.value),
+                name: this.showNameSlice(getQueryVariablesTool().getVariableAlias(curr.value, this.variableMap)),
                 isVariable: curr.isVariable,
                 variableName: curr.variableName,
               },
@@ -134,7 +134,7 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
       }
       prev.push({
         id: varValue || curr.value,
-        name: this.showNameSlice(varValue || curr.value),
+        name: this.showNameSlice(varValue || getQueryVariablesTool().getVariableAlias(curr.value, this.variableMap)),
         isVariable: curr.isVariable,
         variableName: curr.variableName,
       });

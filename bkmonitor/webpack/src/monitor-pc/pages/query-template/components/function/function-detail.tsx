@@ -72,7 +72,8 @@ export default class FunctionDetail extends tsc<FunctionProps> {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const DomTag = item.isVariable ? VariableSpan : 'span';
     const paramsStr = item.value?.params?.map?.(param => param.value)?.toString?.();
-    return <DomTag class='function-name'>{`${item.value?.id}${paramsStr ? `(${paramsStr})` : ''}; `}</DomTag>;
+    const alias = getQueryVariablesTool().getVariableAlias(item.value?.id, this.variableMap);
+    return <DomTag class='function-name'>{`${alias}${paramsStr ? `(${paramsStr})` : ''}; `}</DomTag>;
   }
 
   createFunctionNameVariableChunk(variableName, content) {

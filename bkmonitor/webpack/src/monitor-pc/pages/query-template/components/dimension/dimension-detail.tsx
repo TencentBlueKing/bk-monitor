@@ -93,7 +93,10 @@ export default class DimensionDetail extends tsc<DimensionProps> {
           delay: [300, 0],
         }}
       >
-        <DomTag class='tags-item-name'>{this.allDimensionMap?.[item.value]?.name || item.value}</DomTag>
+        <DomTag class='tags-item-name'>
+          {this.allDimensionMap?.[item.value]?.name ||
+            getQueryVariablesTool().getVariableAlias(item.value, this.variableMap)}
+        </DomTag>
       </div>
     );
   }

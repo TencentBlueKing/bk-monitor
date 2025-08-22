@@ -55,6 +55,9 @@ export class QueryVariablesTool {
    * @param {ScopedVars} scopedVariable 变量详情信息映射表
    */
   getVariableAlias(source: string, scopedVariable?: ScopedVariable) {
+    if (!this.hasVariables(source)) {
+      return source;
+    }
     const variableName = this.getVariableName(source);
     const alias = scopedVariable?.[variableName]?.alias;
     if (!alias) {

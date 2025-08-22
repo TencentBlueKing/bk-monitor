@@ -65,7 +65,7 @@ export default class MethodDetail extends tsc<MethodProps> {
             class='method-name'
           >
             {getTemplateSrv().replace(this.methodToVariableModel.value as string, this.variableMap) ||
-              this.methodToVariableModel?.value}
+              getQueryVariablesTool().getVariableAlias(this.methodToVariableModel?.value as string, this.variableMap)}
           </VariableSpan>
         ) : (
           <span class='method-name'>{this.methodToVariableModel?.value || '--'}</span>

@@ -77,7 +77,7 @@ export default class ExpressionDetail extends tsc<ExpressionProps> {
           key={index}
           class='expression-name'
         >
-          {result || variableModel.value}
+          {result || getQueryVariablesTool().getVariableAlias(variableModel.value as string, this.variableMap)}
         </DomTag>
       );
     });

@@ -97,10 +97,11 @@ export default class ConditionDetail extends tsc<IProps> {
   emptyVariableTagItemRenderer(item) {
     return (
       <div
+        id={item.variableName}
         key={item.value.key}
         class='variable-tag'
       >
-        <VariableSpan>{item.value?.key}</VariableSpan>
+        <VariableSpan>{getQueryVariablesTool().getVariableAlias(item.value?.key, this.variableMap)}</VariableSpan>
       </div>
     );
   }
