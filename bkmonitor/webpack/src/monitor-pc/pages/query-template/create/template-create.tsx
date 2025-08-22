@@ -85,9 +85,15 @@ export default class TemplateCreate extends tsc<object> {
 
   loading = false;
 
+  needCheck = true;
+
   async beforeRouteLeave(to, _from, next) {
-    const needNext = await this.handleCancel();
-    next(needNext);
+    if (this.needCheck) {
+      const needNext = await this.handleCancel();
+      next(needNext);
+    } else {
+      next();
+    }
   }
 
   handleBasicInfoChange(basicInfo) {
@@ -120,6 +126,10 @@ export default class TemplateCreate extends tsc<object> {
     this.submitLoading = true;
     const data = await createQueryTemplate(params).catch(() => false);
     this.submitLoading = false;
+    this.needCheck = false;
+    this.$router.push({
+      name: 'query-template',
+    });
     console.log(params, data);
   }
 
@@ -150,6 +160,7 @@ export default class TemplateCreate extends tsc<object> {
     this.metricsList = [];
     this.queryConfigs = [new QueryConfig(null, { alias: 'a' })];
     this.variablesList = [];
+    this.needCheck = true;
   }
 
   async activated() {

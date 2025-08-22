@@ -102,6 +102,10 @@ export default class TemplateEdit extends TemplateCreate {
     this.submitLoading = true;
     const data = await updateQueryTemplate(params).catch(() => false);
     this.submitLoading = false;
+    this.needCheck = false;
+    this.$router.push({
+      name: 'query-template',
+    });
     console.log(data);
   }
 }
