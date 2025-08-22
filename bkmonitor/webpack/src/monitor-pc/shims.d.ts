@@ -85,6 +85,7 @@ declare global {
     bk_biz_id: number | string;
     bk_biz_list: IBizItem[];
     bk_cc_url: string;
+    bk_ci_url: string;
     bk_component_api_url: string;
     BK_DOC_URL?: string;
     bk_doc_version: string;
