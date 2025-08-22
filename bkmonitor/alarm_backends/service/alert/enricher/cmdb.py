@@ -30,9 +30,9 @@ class CMDBEnricher(BaseEventEnricher):
         super().__init__(events)
 
         # 缓存准备，批量查询避免重复请求redis，按租户分组
-        tenant_ips: dict[str, set[str]] = {}
-        tenant_hosts: dict[str, set[str]] = {}
-        tenant_service_instance_ids: dict[str, set[int]] = {}
+        tenant_ips: dict[str, set[str]] = defaultdict(set)
+        tenant_hosts: dict[str, set[str]] = defaultdict(set)
+        tenant_service_instance_ids: dict[str, set[int]] = defaultdict(set)
 
         for event in self.events:
             if not event.target:
