@@ -29,7 +29,9 @@ import { retrieveQueryTemplate, updateQueryTemplate } from 'monitor-api/modules/
 
 import TemplateCreate from '../create/template-create';
 import { createQueryTemplateQueryConfigsParams, getRetrieveQueryTemplateQueryConfigs } from '../service';
+import { Expression } from '../typings';
 import { getCreateVariableParams, getVariableModel, getVariableSubmitParams } from '../variables';
+import { isVariableName } from '../variables/template/utils';
 
 import './template-edit.scss';
 
@@ -49,6 +51,15 @@ export default class TemplateEdit extends TemplateCreate {
     const data = await retrieveQueryTemplate(this.editId).catch(() => null);
     if (data) {
       this.queryConfigs = await getRetrieveQueryTemplateQueryConfigs(data.query_configs);
+      this.expressionConfig = new Expression({
+        expression: data.expression,
+        functions: data.functions.map(f => {
+          if (isVariableName(f.id)) {
+            return f.id;
+          }
+          return f;
+        }),
+      });
       this.basicInfoData = {
         name: data.name,
         description: data.description,
@@ -79,7 +90,12 @@ export default class TemplateEdit extends TemplateCreate {
       variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
       query_configs: createQueryTemplateQueryConfigsParams(this.queryConfigs),
       expression: this.expressionConfig.expression,
-      functions: this.expressionConfig.functions,
+      functions: this.expressionConfig.functions.map(f => {
+        if (isVariableName(f.id)) {
+          return f.id;
+        }
+        return f;
+      }),
     };
     this.submitLoading = true;
     const data = await updateQueryTemplate(params).catch(() => false);
