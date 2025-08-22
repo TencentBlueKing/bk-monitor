@@ -29,8 +29,8 @@ export interface ScopedVar<T = any> {
   value: T;
 }
 
-export interface ScopedVars {
-  [key: string]: ScopedVar | undefined;
+export interface ScopedVars<T = any> {
+  [key: string]: ScopedVar<T> | undefined;
 }
 
 export interface TimeRange {
