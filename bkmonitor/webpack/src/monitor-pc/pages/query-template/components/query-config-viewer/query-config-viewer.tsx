@@ -58,10 +58,12 @@ export default class QueryConfigViewer extends tsc<IProps> {
             variables={this.variablesList}
           />
         ))}
-        <ExpressionConfigDetail
-          expressionConfig={this.expressionConfig}
-          variables={this.variablesList}
-        />
+        {this.expressionConfig?.expression || this.expressionConfig?.functions?.length ? (
+          <ExpressionConfigDetail
+            expressionConfig={this.expressionConfig}
+            variables={this.variablesList}
+          />
+        ) : null}
       </div>
     );
   }
