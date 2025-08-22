@@ -108,6 +108,13 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         # 新增的 scopes
         added_scopes = modified_space_scopes - existing_space_scopes
         cls._is_allowed_by_bk_biz_ids(removed_scopes | added_scopes)
+        # 校验除了自身外，同一业务下查询模板名称不能重复
+        if (
+            QueryTemplate.objects.filter(bk_biz_id=validated_data["bk_biz_id"], name=validated_data["name"])
+            .exclude(id=instance.id)
+            .exists()
+        ):
+            raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
 
     @classmethod
     def _base_validate(cls, validated_data):
