@@ -551,11 +551,10 @@ class ResultTable(models.Model):
         result_table.refresh_etl_config()
 
         if default_storage == ClusterInfo.TYPE_INFLUXDB:
-            # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase旧版链路
+            # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
             # 2. 如果启用了新版数据链路，且etcl_config在启用的列表中，则使用vm存储，
-            if (
-                datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS and settings.ENABLE_V2_VM_DATA_LINK
-            ) or not settings.ENABLE_INFLUXDB_STORAGE:
+            is_v4_datalink_etl_config = datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
+            if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
                 # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
                 # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
                 try:
@@ -567,7 +566,7 @@ class ResultTable(models.Model):
                         datasource.bk_data_id,
                         space_type,
                         space_id,
-                        datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS,
+                        is_v4_datalink_etl_config,
                     )
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)

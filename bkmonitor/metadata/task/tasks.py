@@ -506,7 +506,7 @@ def access_bkdata_vm(
     data_id: int,
     space_type: str | None = None,
     space_id: str | None = None,
-    allow_access_v2_data_link: bool | None = False,
+    allow_access_v2_data_link: bool = False,
 ):
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
