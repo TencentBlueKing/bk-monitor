@@ -28,7 +28,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getTemplateSrv } from '../../variables/template/template-srv';
-import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
+import { type QueryVariablesTransformResult, getQueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
 
 import type { DimensionField } from '../../typings';
@@ -53,7 +53,6 @@ export default class DimensionDetail extends tsc<DimensionProps> {
   @Prop({ default: () => [] }) options: DimensionField[];
   /* 变量 variableName-变量对象 映射表 */
   @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
-  variablesToolInstance = new QueryVariablesTool();
 
   get allDimensionMap() {
     if (!this.options?.length) {
@@ -71,7 +70,7 @@ export default class DimensionDetail extends tsc<DimensionProps> {
       return [];
     }
     return this.value.reduce((prev, curr) => {
-      const result = this.variablesToolInstance.transformVariables(curr);
+      const result = getQueryVariablesTool().transformVariables(curr);
       if (!result.value) {
         return prev;
       }
@@ -94,7 +93,10 @@ export default class DimensionDetail extends tsc<DimensionProps> {
           delay: [300, 0],
         }}
       >
-        <DomTag class='tags-item-name'>{this.allDimensionMap?.[item.value]?.name || item.value}</DomTag>
+        <DomTag class='tags-item-name'>
+          {this.allDimensionMap?.[item.value]?.name ||
+            getQueryVariablesTool().getVariableAlias(item.value, this.variableMap)}
+        </DomTag>
       </div>
     );
   }
