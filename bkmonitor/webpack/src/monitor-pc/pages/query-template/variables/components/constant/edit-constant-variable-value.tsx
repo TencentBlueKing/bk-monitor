@@ -49,6 +49,7 @@ export default class EditConstantVariableValue extends tsc<ConstantValueProps, C
     return new ConstantVariableModel({
       ...this.variable.data,
       value,
+      isValueEditable: true,
     });
   }
 
@@ -66,7 +67,7 @@ export default class EditConstantVariableValue extends tsc<ConstantValueProps, C
       <EditVariableValue data={this.variable.data}>
         <bk-input
           clearable={false}
-          value={this.variable.data.value || this.variable.data.defaultValue}
+          value={this.variable.data.value}
           onBlur={this.handleInputBlur}
           onEnter={this.handleValueChange}
           onFocus={this.handleInputFocus}

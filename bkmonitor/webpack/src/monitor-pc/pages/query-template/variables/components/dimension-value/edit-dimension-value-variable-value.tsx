@@ -54,6 +54,7 @@ export default class EditDimensionValueVariableValue extends tsc<DimensionValueV
     return new DimensionValueVariableModel({
       ...this.variable.data,
       value,
+      isValueEditable: true,
     });
   }
 
@@ -87,7 +88,7 @@ export default class EditDimensionValueVariableValue extends tsc<DimensionValueV
         <bk-select
           clearable={false}
           loading={this.loading}
-          value={this.variable.data.value || this.variable.data.defaultValue}
+          value={this.variable.data.value}
           collapse-tag
           display-tag
           multiple

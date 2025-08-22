@@ -54,6 +54,7 @@ export default class EditFunctionVariableValue extends tsc<FunctionValueProps, F
     return new FunctionVariableModel({
       ...this.variable.data,
       value,
+      isValueEditable: true,
     });
   }
 
@@ -73,7 +74,7 @@ export default class EditFunctionVariableValue extends tsc<FunctionValueProps, F
           options={this.metricFunctions}
           showLabel={false}
           showVariables={false}
-          value={this.variable.data.value.length ? this.variable.data.value : this.variable.data.defaultValue}
+          value={this.variable.data.value}
           onChange={this.handleValueChange}
           onOpenChange={this.handleSelectToggle}
         />

@@ -45,10 +45,16 @@ export default class CreateFunctionVariable extends tsc<FunctionVariableProps, F
   @Prop({ default: () => [] }) metricFunctions!: any[];
   @Ref() variableCommonForm!: VariableCommonForm;
 
-  handleValueChange(value: AggFunction[]) {
+  handleValueChange(defaultValue: AggFunction[]) {
+    let value = this.variable.value || [];
+    if (!this.variable.isValueEditable) {
+      value = defaultValue;
+    }
+
     this.handleDataChange({
       ...this.variable.data,
-      defaultValue: value,
+      defaultValue,
+      value,
     });
   }
 

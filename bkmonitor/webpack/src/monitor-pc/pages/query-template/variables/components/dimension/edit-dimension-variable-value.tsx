@@ -49,6 +49,7 @@ export default class EditDimensionVariableValue extends tsc<DimensionValueProps,
     return new DimensionVariableModel({
       ...this.variable.data,
       value,
+      isValueEditable: true,
     });
   }
 
@@ -65,7 +66,7 @@ export default class EditDimensionVariableValue extends tsc<DimensionValueProps,
       <EditVariableValue data={this.variable.data}>
         <bk-select
           clearable={false}
-          value={this.variable.data.value || this.variable.data.defaultValue}
+          value={this.variable.data.value}
           collapse-tag
           display-tag
           multiple

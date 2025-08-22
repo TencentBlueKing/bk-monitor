@@ -42,10 +42,15 @@ export default class CreateConstantVariable extends tsc<ConstantVariableProps, C
   @Prop({ type: Object, required: true }) variable!: ConstantVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
 
-  handleValueChange(value: string) {
+  handleValueChange(defaultValue: string) {
+    let value = this.variable.value || '';
+    if (!this.variable.isValueEditable) {
+      value = defaultValue;
+    }
     this.handleDataChange({
       ...this.variable.data,
-      defaultValue: value,
+      defaultValue,
+      value,
     });
   }
 

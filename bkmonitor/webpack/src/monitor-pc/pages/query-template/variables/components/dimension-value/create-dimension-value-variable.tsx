@@ -52,10 +52,16 @@ export default class CreateDimensionValueVariable extends tsc<
 
   valueList = [];
 
-  handleValueChange(value: string[]) {
+  handleValueChange(defaultValue: string[]) {
+    let value = this.variable.value || [];
+    if (!this.variable.isValueEditable) {
+      value = defaultValue;
+    }
+
     this.handleDataChange({
       ...this.variable.data,
-      defaultValue: value,
+      defaultValue,
+      value,
     });
   }
 
