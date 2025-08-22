@@ -795,8 +795,8 @@ def create_bkcc_spaces(biz_list: list[dict]) -> bool:
     :return: 返回 True 或异常
     """
     from metadata.task.tasks import (
-        create_basereport_datalink_for_bkcc,
         create_base_event_datalink_for_bkcc,
+        create_basereport_datalink_for_bkcc,
         create_system_proc_datalink_for_bkcc,
     )
 
@@ -815,8 +815,8 @@ def create_bkcc_spaces(biz_list: list[dict]) -> bool:
 
     Space.objects.bulk_create(space_data)
 
-    # 初始化数据链路
-    if settings.ENABLE_MULTI_TENANT_MODE:
+    # 初始化空间内置数据链路
+    if settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK:
         for biz in biz_list:
             create_basereport_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=biz["bk_biz_id"])
             create_base_event_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=biz["bk_biz_id"])
