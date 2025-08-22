@@ -28,7 +28,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getTemplateSrv } from '../../variables/template/template-srv';
-import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
+import { type QueryVariablesTransformResult, getQueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
 import ConditionDetailKvTag from './condition-detail-kv-tag';
 
@@ -54,7 +54,6 @@ export default class ConditionDetail extends tsc<IProps> {
   @Prop({ default: () => [] }) value: AggCondition[];
   /* 所有聚合维度信息列表数组 */
   @Prop({ default: () => [] }) options: DimensionField[];
-  variablesToolInstance = new QueryVariablesTool();
 
   get allDimensionMap() {
     if (!this.options?.length) {
@@ -71,7 +70,7 @@ export default class ConditionDetail extends tsc<IProps> {
       return [];
     }
     return this.value.reduce((prev, curr) => {
-      const conditionResult = this.variablesToolInstance.transformVariables(
+      const conditionResult = getQueryVariablesTool().transformVariables(
         curr.key
       ) as QueryVariablesTransformResult<AggCondition>;
       if (!conditionResult.value) {

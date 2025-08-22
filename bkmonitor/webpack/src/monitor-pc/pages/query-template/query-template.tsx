@@ -29,8 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
 
+import { type DeleteConfirmEvent } from './components/query-template-table/components/delete-confirm';
 import QueryTemplateTable from './components/query-template-table/query-template-table';
-import { fetchQueryTemplateList } from './service/table';
+import { destroyQueryTemplateById, fetchQueryTemplateList } from './service/table';
 
 import type { QueryListRequestParams, QueryTemplateListItem } from './typings';
 
@@ -73,9 +74,32 @@ export default class MetricTemplate extends tsc<object> {
   @Watch('requestParam')
   async getQueryTemplateList() {
     this.tableLoading = true;
-    const data = await fetchQueryTemplateList(this.requestParam);
-    this.tableData = data;
+    const { total, templateList } = await fetchQueryTemplateList(this.requestParam);
+    this.total = total;
+    this.tableData = templateList;
     this.tableLoading = false;
+  }
+
+  /**
+   * @description 删除查询模板
+   * @param templateId 模板Id
+   */
+  deleteTemplateById(templateId: string, confirmEvent: DeleteConfirmEvent) {
+    destroyQueryTemplateById(templateId)
+      .then(() => {
+        confirmEvent.successCallback();
+        this.handleRefresh();
+      })
+      .catch(() => {
+        confirmEvent.errorCallback();
+      });
+  }
+
+  /**
+   * @description 刷新表格数据
+   */
+  handleRefresh() {
+    this.refreshKey = random(8);
   }
 
   handleSortChange(sort: `-${string}` | string) {
@@ -135,6 +159,7 @@ export default class MetricTemplate extends tsc<object> {
             tableData={this.tableData}
             total={this.total}
             onCurrentPageChange={this.handleCurrentPageChange}
+            onDeleteTemplate={this.deleteTemplateById}
             onPageSizeChange={this.handlePageSizeChange}
             onSortChange={this.handleSortChange}
           />

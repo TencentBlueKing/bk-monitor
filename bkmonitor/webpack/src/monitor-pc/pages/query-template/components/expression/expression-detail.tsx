@@ -28,7 +28,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getTemplateSrv } from '../../variables/template/template-srv';
-import { QueryVariablesTool } from '../utils/query-variable-tool';
+import { getQueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
 
 import type { VariableModelType } from '../../variables';
@@ -48,7 +48,6 @@ export default class ExpressionDetail extends tsc<ExpressionProps> {
   @Prop({ type: String, default: '' }) expression: string;
   /* 变量 variableName-变量对象 映射表 */
   @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
-  variablesToolInstance = new QueryVariablesTool();
 
   get expressionToVariableModel() {
     const regex = /(\${(?:[\w\u4e00-\u9fa5]+)})|([^{$]+|\${(?![\w\u4e00-\u9fa5]+\}))/g;
@@ -64,7 +63,7 @@ export default class ExpressionDetail extends tsc<ExpressionProps> {
         strArr.push(str);
       }
     }
-    return strArr.map(str => this.variablesToolInstance.transformVariables(str));
+    return strArr.map(str => getQueryVariablesTool().transformVariables(str));
   }
 
   expressionNameWrapRenderer() {

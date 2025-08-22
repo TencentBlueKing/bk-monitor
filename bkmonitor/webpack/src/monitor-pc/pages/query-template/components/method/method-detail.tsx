@@ -28,7 +28,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getTemplateSrv } from '../../variables/template/template-srv';
-import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
+import { type QueryVariablesTransformResult, getQueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
 
 import type { VariableModelType } from '../../variables';
@@ -48,11 +48,10 @@ export default class MethodDetail extends tsc<MethodProps> {
   @Prop({ type: String, default: '' }) value: string;
   /* 变量 variableName-变量对象 映射表 */
   @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
-  variablesToolInstance = new QueryVariablesTool();
 
   /** 将已选汇聚方法字符串 转换为渲染所需的 QueryVariablesTransformResult 结构数据 */
   get methodToVariableModel(): QueryVariablesTransformResult {
-    return this.variablesToolInstance.transformVariables(this.value);
+    return getQueryVariablesTool().transformVariables(this.value);
   }
 
   render() {

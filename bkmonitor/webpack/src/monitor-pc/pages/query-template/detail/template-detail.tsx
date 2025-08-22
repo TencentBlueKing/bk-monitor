@@ -72,7 +72,9 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
       this.relationInfo = null;
       return;
     }
-    this.handleTabChange(this.defaultActiveTab);
+    this.activeTab = this.defaultActiveTab || TemplateDetailTabEnum.CONFIG;
+    this.getTemplateDetail();
+    this.getRelationInfoList();
   }
 
   /**
@@ -170,7 +172,7 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
               <ConfigPanel templateInfo={this.templateBaseInfo} />
             </bk-tab-panel>
             <bk-tab-panel
-              label={`${this.$t('消费场景')} (6)`}
+              label={`${this.$t('消费场景')} (${this.relationInfo?.length || 0})`}
               name={TemplateDetailTabEnum.CONSUME}
               renderDirective='if'
             >

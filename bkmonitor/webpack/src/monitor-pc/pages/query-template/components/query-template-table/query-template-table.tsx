@@ -32,7 +32,7 @@ import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { TABLE_DEFAULT_DISPLAY_FIELDS, TABLE_FIXED_DISPLAY_FIELDS, TemplateDetailTabEnum } from '../../constants';
 import TemplateDetail from '../../detail/template-detail';
-import DeleteConfirm from './components/delete-confirm';
+import DeleteConfirm, { type DeleteConfirmEvent } from './components/delete-confirm';
 
 import type {
   IPagination,
@@ -48,6 +48,8 @@ import './query-template-table.scss';
 interface QueryTemplateTableEmits {
   /** 表格当前页码变化时的回调 */
   onCurrentPageChange: (currentPage: number) => void;
+  /** 删除查询模板事件回调 */
+  onDeleteTemplate: (templateId: string, confirmEvent: DeleteConfirmEvent) => void;
   /** 表格每页条数变化时的回调 */
   onPageSizeChange: (pageSize: number) => void;
   /** 表格排序变化后回调 */
@@ -95,6 +97,8 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   sliderActiveTab: TemplateDetailTabEnumType = null;
   /** 模板详情 - 当前需要显示详情信息的数据 id */
   sliderActiveId: QueryTemplateListItem['id'] = '';
+  /** 是否出于请求删除接口中状态 */
+  isDeleteActive = false;
   /** 删除二次确认 popover 实例 */
   deletePopoverInstance = null;
   /** 删除二次确认 popover 延迟打开定时器 */
@@ -234,7 +238,8 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
    * @description: 显示 删除二次确认 popover
    * @param {MouseEvent} e
    */
-  handlePopoverShow(e: MouseEvent, row) {
+  handleDeletePopoverShow(e: MouseEvent, row) {
+    if (this.isDeleteActive) return;
     if (this.deletePopoverInstance || this.deletePopoverDelayTimer) {
       this.handlePopoverHide();
     }
@@ -248,6 +253,9 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       boundary: 'window',
       interactive: true,
       theme: 'light padding-0',
+      onHide: () => {
+        return !this.isDeleteActive;
+      },
       onHidden: () => {
         this.handlePopoverHide();
       },
@@ -273,6 +281,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
    * @description: 清除popover
    */
   handlePopoverHide() {
+    if (this.isDeleteActive) return;
     this.handleClearTimer();
     this.deletePopoverInstance?.hide?.(0);
     this.deletePopoverInstance?.destroy?.();
@@ -285,6 +294,22 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   handleClearTimer() {
     this.deletePopoverDelayTimer && clearTimeout(this.deletePopoverDelayTimer);
     this.deletePopoverDelayTimer = null;
+  }
+
+  /**
+   * @description: 删除模板确认回调
+   */
+  handleDeleteTemplateConfirm(templateId: QueryTemplateListItem['id'], confirmEvent: DeleteConfirmEvent) {
+    this.isDeleteActive = true;
+    confirmEvent?.confirmPromise
+      ?.then(() => {
+        this.isDeleteActive = false;
+        this.handlePopoverHide();
+      })
+      .catch(() => {
+        this.isDeleteActive = false;
+      });
+    this.$emit('deleteTemplate', templateId, confirmEvent);
   }
 
   /**
@@ -381,18 +406,17 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
    * @description: 表格 操作 列渲染
    */
   operatorColRenderer(row) {
-    const disabledOperation = row.relation_config_count == null || row.relation_config_count > 0;
     return (
       <div class='operator-col'>
         <span
-        // v-bk-tooltips={{
-        //   content: this.$t('当前仍然有关联的消费场景，无法编辑'),
-        //   disabled: !disabledOperation,
-        //   placement: 'right',
-        // }}
+          v-bk-tooltips={{
+            content: this.$t('当前仍然有关联的消费场景，无法编辑'),
+            disabled: row?.can_delete,
+            placement: 'right',
+          }}
         >
           <bk-button
-            // disabled={disabledOperation}
+            disabled={!row?.can_edit}
             text={true}
             onClick={() => this.jumpToEditPage(row.id)}
           >
@@ -402,14 +426,14 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
         <span
           v-bk-tooltips={{
             content: this.$t('当前仍然有关联的消费场景，无法删除'),
-            disabled: !disabledOperation,
+            disabled: row?.can_delete,
             placement: 'right',
           }}
         >
           <bk-button
-            disabled={disabledOperation}
+            disabled={!row?.can_delete}
             text={true}
-            onClick={(e: MouseEvent) => this.handlePopoverShow(e, row)}
+            onClick={(e: MouseEvent) => this.handleDeletePopoverShow(e, row)}
           >
             {this.$t('删除')}
           </bk-button>
@@ -474,9 +498,10 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
         <div style='display: none'>
           <DeleteConfirm
             ref='deleteConfirmTipRef'
+            templateId={this.deletePopoverInstance?.deleteConfirmConfig?.id}
             templateName={this.deletePopoverInstance?.deleteConfirmConfig?.templateName}
             onCancel={this.handlePopoverHide}
-            onConfirm={this.handlePopoverHide}
+            onConfirm={this.handleDeleteTemplateConfirm}
           />
           <TemplateDetail
             defaultActiveTab={this.sliderActiveTab}

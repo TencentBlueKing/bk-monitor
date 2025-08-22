@@ -27,28 +27,65 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { type QueryTemplateListItem } from '../../../typings';
+
 import './delete-confirm.scss';
 
+export interface DeleteConfirmEvent {
+  /** 确认删除的 Promise */
+  confirmPromise: Promise<any>;
+  /** 失败回调 */
+  errorCallback: () => void;
+  /** 成功回调 */
+  successCallback: () => void;
+}
 interface DeleteConfirmEmit {
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (templateId: QueryTemplateListItem['id'], confirmEvent: DeleteConfirmEvent) => void;
 }
 
 interface DeleteConfirmProps {
-  templateName: string;
+  templateId: QueryTemplateListItem['id'];
+  templateName: QueryTemplateListItem['name'];
 }
 
 @Component
 export default class DeleteConfirm extends tsc<DeleteConfirmProps, DeleteConfirmEmit> {
-  @Prop({ type: String }) templateName: string;
+  @Prop({ type: [String, Number] }) templateId: QueryTemplateListItem['id'];
+  @Prop({ type: String }) templateName: QueryTemplateListItem['name'];
+  /** 是否在请求删除状态中 */
+  loading = false;
 
-  @Emit('confirm')
-  confirm() {
-    return;
-  }
   @Emit('cancel')
   cancel() {
     return;
+  }
+
+  /**
+   * @description 点击确认按钮，触发删除操作
+   * 进入 loading 状态，并将事件往上抛出
+   * 事件对象中包含 Promise 对象以及更改 状态的方法
+   */
+  handleConfirm() {
+    this.loading = true;
+    let successCallback = null;
+    let errorCallback = null;
+    const confirmPromise = new Promise((res, rej) => {
+      successCallback = res;
+      errorCallback = rej;
+    })
+      .then(() => {
+        this.loading = false;
+      })
+      .catch(() => {
+        this.loading = false;
+      });
+
+    this.$emit('confirm', this.templateId, {
+      confirmPromise,
+      successCallback,
+      errorCallback,
+    });
   }
 
   render() {
@@ -68,13 +105,15 @@ export default class DeleteConfirm extends tsc<DeleteConfirmProps, DeleteConfirm
         </div>
         <div class='tip-operation'>
           <bk-button
+            loading={this.loading}
             size='small'
             theme='primary'
-            onClick={this.confirm}
+            onClick={this.handleConfirm}
           >
             {this.$t('确定')}
           </bk-button>
           <bk-button
+            loading={this.loading}
             size='small'
             onClick={this.cancel}
           >
