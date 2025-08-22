@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { type VariableModelType } from '../../variables';
+
 export interface QueryVariablesTransformResult<T = unknown> {
   /** 是否包含变量 */
   isVariable: boolean;
@@ -32,7 +34,7 @@ export interface QueryVariablesTransformResult<T = unknown> {
   /** 变量名 */
   variableName: string;
 }
-type ScopedVariable = Record<string, any>;
+type ScopedVariable = Record<string, VariableModelType>;
 
 export const variableRegex = /\${([\w\u4e00-\u9fa5]+)}/g;
 
@@ -46,13 +48,40 @@ export class QueryVariablesTool {
    * @description 变量匹配规则(正则表达式)
    */
   protected regex = variableRegex;
+
+  /**
+   * @description 获取变量别名，如别名不存在则显示原始变量名
+   * @param source 变量格式字符串 例如：${variable}
+   * @param {ScopedVars} scopedVariable 变量详情信息映射表
+   */
+  getVariableAlias(source: string, scopedVariable?: ScopedVariable) {
+    if (!this.hasVariables(source)) {
+      return source;
+    }
+    const variableName = this.getVariableName(source);
+    const alias = scopedVariable?.[variableName]?.alias;
+    if (!alias) {
+      return source;
+    }
+    return alias;
+  }
+
+  /**
+   * @description 获取变量名 - 例如：输入 ${variable}  ==> variable
+   * @param source 变量格式字符串 例如：${variable}
+   */
+  public getVariableName(source: string) {
+    this.regex.lastIndex = 0;
+    return this.regex.exec(source)?.[1];
+  }
   /**
    * @method getVariableValue
    * @description 获取变量值
-   * @param variableName 变量名
-   * @param scopedVariable 自定义变量对应数据
+   * @param source 变量格式字符串 例如：${variable}
+   * @param {ScopedVars} scopedVariable 变量详情信息映射表
    */
-  public getVariableValue(variableName: string, scopedVariable?: ScopedVariable) {
+  public getVariableValue(source: string, scopedVariable?: ScopedVariable) {
+    const variableName = this.getVariableName(source);
     const variableValue = scopedVariable?.[variableName];
     if (!variableValue) {
       return null;
@@ -76,21 +105,19 @@ export class QueryVariablesTool {
   /**
    * @method replace
    * @description 变量替换
-   * @param source 目标字符串
-   * @param scopedVariable 自定义变量对应数据
+   * @param source 变量格式字符串 例如：${variable}
+   * @param {ScopedVars} scopedVariable 变量详情信息映射表
    */
   public replace(source: string, scopedVariable?: ScopedVariable): { value: unknown; variableName: string } {
-    this.regex.lastIndex = 0;
-    const variableName = this.regex.exec(source)?.[1];
-    const value = this.getVariableValue(variableName, scopedVariable);
-    return { value: value ?? source, variableName };
+    const value = this.getVariableValue(source, scopedVariable);
+    return { value: value ?? source, variableName: this.getVariableName(source) };
   }
 
   /**
    * @method transformVariables
    * @description 变量翻译
    * @param {Record} source 含有变量的一个元数据
-   * @param {ScopedVars} scopedVariable 自定义变量对应数据
+   * @param {ScopedVars} scopedVariable 变量详情信息映射表
    * @return {*}
    */
   public transformVariables(source: unknown, scopedVariable?: ScopedVariable): QueryVariablesTransformResult {
@@ -109,3 +136,7 @@ export class QueryVariablesTool {
     };
   }
 }
+
+const singletonVariablesToolInstance = new QueryVariablesTool();
+
+export const getQueryVariablesTool = () => singletonVariablesToolInstance;

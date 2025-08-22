@@ -28,7 +28,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getTemplateSrv } from '../../variables/template/template-srv';
-import { type QueryVariablesTransformResult, QueryVariablesTool } from '../utils/query-variable-tool';
+import { type QueryVariablesTransformResult, getQueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
 
 import type { AggFunction } from '../../typings';
@@ -49,7 +49,6 @@ export default class FunctionDetail extends tsc<FunctionProps> {
   @Prop({ type: Array }) value: AggFunction[];
   /* 变量 variableName-变量对象 映射表 */
   @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
-  variablesToolInstance = new QueryVariablesTool();
 
   /** 将已选函数数组 源数据数组 转换为渲染所需的 QueryVariablesTransformResult 结构数组 */
   get functionsToVariableModel(): QueryVariablesTransformResult[] {
@@ -57,7 +56,7 @@ export default class FunctionDetail extends tsc<FunctionProps> {
       return [];
     }
     const models = this.value.reduce((prev, curr) => {
-      const result = this.variablesToolInstance.transformVariables(curr.id);
+      const result = getQueryVariablesTool().transformVariables(curr.id);
       if (!result.value) {
         return prev;
       }
@@ -73,7 +72,8 @@ export default class FunctionDetail extends tsc<FunctionProps> {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const DomTag = item.isVariable ? VariableSpan : 'span';
     const paramsStr = item.value?.params?.map?.(param => param.value)?.toString?.();
-    return <DomTag class='function-name'>{`${item.value?.id}${paramsStr ? `(${paramsStr})` : ''}; `}</DomTag>;
+    const alias = getQueryVariablesTool().getVariableAlias(item.value?.id, this.variableMap);
+    return <DomTag class='function-name'>{`${alias}${paramsStr ? `(${paramsStr})` : ''}; `}</DomTag>;
   }
 
   createFunctionNameVariableChunk(variableName, content) {
