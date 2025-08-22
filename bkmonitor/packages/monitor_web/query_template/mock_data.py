@@ -12,13 +12,22 @@ from copy import deepcopy
 
 from bkmonitor.query_template import mock_data
 
-CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL = {"id": 1, **deepcopy(mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE)}
+CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL = {
+    "id": 1,
+    "space_scope": [2],
+    "description": "模板说明",
+    **deepcopy(mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE),
+}
 
-CALLEE_P99_QUERY_TEMPLATE_DETAIL = {"id": 2, **deepcopy(mock_data.CALLEE_P99_QUERY_TEMPLATE)}
+CALLEE_P99_QUERY_TEMPLATE_DETAIL = {
+    "id": 2,
+    "space_scope": [],
+    "description": "模板说明",
+    **deepcopy(mock_data.CALLEE_P99_QUERY_TEMPLATE),
+}
 
-QUERY_TEMPLATE_LIST = {
-    "total": 2,
-    "list": [
+QUERY_TEMPLATE_LIST = (
+    [
         {
             "id": CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL["id"],
             "name": CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL["name"],
@@ -27,6 +36,8 @@ QUERY_TEMPLATE_LIST = {
             "create_time": "2025-08-04 17:43:26+0800",
             "update_user": "admin",
             "update_time": "2025-08-04 17:43:26+0800",
+            "can_edit": True,
+            "can_delete": True,
         },
         {
             "id": CALLEE_P99_QUERY_TEMPLATE_DETAIL["id"],
@@ -36,9 +47,11 @@ QUERY_TEMPLATE_LIST = {
             "create_time": "2025-08-04 17:43:26+0800",
             "update_user": "admin",
             "update_time": "2025-08-04 17:43:26+0800",
+            "can_edit": True,
+            "can_delete": True,
         },
     ],
-}
+)
 
 # 查询模板列表关联资源数量
 QUERY_TEMPLATE_RELATIONS = [

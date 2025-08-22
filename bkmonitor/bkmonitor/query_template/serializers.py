@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
+from rest_framework import serializers
 
 from . import constants
 
@@ -59,7 +59,7 @@ class VariableConfigSerializer(serializers.Serializer):
 
 class VariableSerializer(serializers.Serializer):
     name = serializers.CharField(label=_("变量名"), max_length=128)
-    alias = serializers.CharField(label=_("变量别名"), max_length=128)
+    alias = serializers.CharField(label=_("变量别名"), max_length=128, default="", allow_blank=True)
     type = serializers.ChoiceField(label=_("变量类型"), choices=constants.VariableType.choices())
     config = VariableConfigSerializer(label=_("变量配置"), default={})
     description = serializers.CharField(label=_("变量描述"), required=False, allow_blank=True, default="")
