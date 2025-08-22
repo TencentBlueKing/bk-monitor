@@ -1340,6 +1340,7 @@ class QueryEventGroupResource(Resource):
 
 class CreateEventGroupResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(default=DEFAULT_TENANT_ID)
         bk_data_id = serializers.CharField(required=True, label="数据源ID")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
         event_group_name = serializers.CharField(required=True, label="事件分组名")
@@ -1349,16 +1350,6 @@ class CreateEventGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default="")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("CreateEventGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
-
         # 默认都是返回已经删除的内容
         event_group = models.EventGroup.create_event_group(**validated_request_data)
         return event_group.to_json()
@@ -1584,6 +1575,7 @@ class DeleteLogGroupResource(LogGroupBaseResource):
 
 class CreateTimeSeriesGroupResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_data_id = serializers.CharField(required=True, label="数据源ID")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
         time_series_group_name = serializers.CharField(required=True, label="自定义时序分组名")
@@ -1597,15 +1589,6 @@ class CreateTimeSeriesGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default="")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("CreateTimeSeriesGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         # 默认都是返回已经删除的内容
         time_series_group = models.TimeSeriesGroup.create_time_series_group(**validated_request_data)
         return time_series_group.to_json()
