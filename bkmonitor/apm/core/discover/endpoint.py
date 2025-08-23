@@ -44,16 +44,22 @@ class EndpointDiscover(DiscoverBase):
                     e.category_kind_value,
                     e.span_kind,
                 ),
-                set(),
-            ).add(e.id)
+                dict(),
+            ).update({"id": e.id, "service_name": e.service_name, "endpoint_name": e.endpoint_name})
 
-        return self.get_and_clear_if_repeat(res)
+        return res
+
+    @classmethod
+    def to_instance_key(cls, object_pk_id, readable_name):
+        return f"{str(object_pk_id)}:{str(readable_name)}"
 
     @classmethod
     def to_id_and_key(cls, instances: list):
         ids, keys = set(), set()
         for inst in instances:
-            inst_key = inst_id = inst.get("id")
+            inst_id = str(inst.get("id"))
+            readable_name = f"{str(inst.get('service_name'))}:{str(inst.get('endpoint_name'))}"
+            inst_key = cls.to_instance_key(inst_id, readable_name)
             keys.add(inst_key)
             ids.add(inst_id)
 
@@ -63,7 +69,9 @@ class EndpointDiscover(DiscoverBase):
     def merge_data(cls, endpoint_data: list[dict], cache_data: dict):
         merge_data = []
         for obj in endpoint_data:
-            key = str(obj.get("id"))
+            pk_id = str(obj.get("id"))
+            readable_name = f"{str(obj.get('service_name'))}:{str(obj.get('endpoint_name'))}"
+            key = cls.to_instance_key(pk_id, readable_name)
             if key in cache_data:
                 obj["updated_at"] = datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
             merge_data.append(obj)
@@ -105,7 +113,9 @@ class EndpointDiscover(DiscoverBase):
         cache_data = ApmCacheHandler().get_cache_data(cache_name)
 
         filter_params = {"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}
-        instance_data = list(Endpoint.objects.filter(**filter_params).values("id", "updated_at"))
+        instance_data = list(
+            Endpoint.objects.filter(**filter_params).values("id", "service_name", "endpoint_name", "updated_at")
+        )
 
         return cache_data, instance_data
 
@@ -147,7 +157,7 @@ class EndpointDiscover(DiscoverBase):
 
         exists_endpoints = self.list_exists()
 
-        need_update_instance_ids = set()
+        need_update_instances = list()
         need_create_instances = set()
 
         for span in origin_data:
@@ -190,7 +200,7 @@ class EndpointDiscover(DiscoverBase):
 
             for k in found_keys:
                 if k in exists_endpoints:
-                    need_update_instance_ids |= exists_endpoints[k]
+                    need_update_instances.append(exists_endpoints[k])
                 else:
                     need_create_instances.add(k)
 
@@ -214,8 +224,10 @@ class EndpointDiscover(DiscoverBase):
         cache_data, instance_data = self.query_cache_and_instance_data()
         delete_instance_keys = self.clear_data(cache_data, instance_data)
 
-        create_instance_keys = set(str(e.id) for e in new_endpoints)
-        update_instance_keys = set(str(i) for i in need_update_instance_ids)
+        create_instance_keys = set(
+            [self.to_instance_key(str(e.id), f"{e.service_name}:{e.endpoint_name}") for e in new_endpoints]
+        )
+        _, update_instance_keys = self.to_id_and_key(need_update_instances)
         self.refresh_cache_data(
             old_cache_data=cache_data,
             create_instance_keys=create_instance_keys,
