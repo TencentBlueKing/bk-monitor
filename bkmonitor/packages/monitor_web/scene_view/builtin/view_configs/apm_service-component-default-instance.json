@@ -8,7 +8,7 @@
   "overview_panels": [
     {
       "id": 1,
-      "title": "异常列表",
+      "title": "_(异常列表)",
       "type": "table-chart",
       "targets": [
         {
@@ -41,7 +41,7 @@
     },
     {
       "id": 2,
-      "title": "调用总数",
+      "title": "_(调用总数)",
       "type": "graph",
       "gridPos": {
         "x": 0,
@@ -54,7 +54,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "总数量",
+          "alias": "_(总数量)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -124,7 +124,7 @@
     },
     {
       "id": 3,
-      "title": "错误数",
+      "title": "_(错误数)",
       "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
@@ -137,7 +137,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误数",
+          "alias": "_(错误数)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -221,7 +221,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误率",
+          "alias": "_(错误率)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -354,7 +354,7 @@
     },
     {
       "id": 4,
-      "title": "耗时",
+      "title": "_(耗时)",
       "gridPos": {
         "x": 16,
         "y": 0,
@@ -836,7 +836,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "异常列表",
+      "title": "_(异常列表)",
       "type": "table-chart",
       "targets": [
         {
@@ -870,7 +870,7 @@
     },
     {
       "id": 2,
-      "title": "调用总数",
+      "title": "_(调用总数)",
       "type": "graph",
       "gridPos": {
         "x": 0,
@@ -883,7 +883,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "总数量",
+          "alias": "_(总数量)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -954,7 +954,7 @@
     },
     {
       "id": 3,
-      "title": "错误数",
+      "title": "_(错误数)",
       "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
@@ -967,7 +967,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误数",
+          "alias": "_(错误数)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -1052,7 +1052,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误率",
+          "alias": "_(错误率)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -1186,7 +1186,7 @@
     },
     {
       "id": 4,
-      "title": "耗时",
+      "title": "_(耗时)",
       "gridPos": {
         "x": 16,
         "y": 0,
@@ -1680,7 +1680,7 @@
       "split_switcher": false
     },
     "selector_panel": {
-      "title": "组件实例",
+      "title": "_(组件实例)",
       "type": "table",
       "options": {
         "selector_list": {

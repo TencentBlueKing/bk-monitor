@@ -5,7 +5,7 @@
   "name": "主机",
   "variables": [
     {
-      "title": "主机列表",
+      "title": "_(主机列表)",
       "type": "target_list",
       "targets": [
         {
@@ -61,7 +61,7 @@
     "alert_filterable": true,
     "overview_panel": {},
     "overview_detail_panel": {
-      "title": "主机详情",
+      "title": "_(主机详情)",
       "type": "info",
       "targets": [
         {

@@ -113,7 +113,6 @@ class GetSceneViewListResource(ApiAuthResource):
         scene_id = params["scene_id"]
         scene_type = params.get("type", "")
         bk_biz_id = params["bk_biz_id"]
-
         # 添加自定义视图
         views = SceneViewModel.objects.filter(bk_biz_id=bk_biz_id, scene_id=scene_id, type=scene_type)
 
@@ -141,7 +140,7 @@ class GetSceneViewListResource(ApiAuthResource):
                 result.append(
                     {
                         "id": view.id,
-                        "name": view.name,
+                        "name": _(view.name),
                         "show_panel_count": view_config.get("options", {}).get("show_panel_count", False),
                         "mode": view_config.get("mode", ""),
                         "type": scene_type,
@@ -161,7 +160,7 @@ class GetSceneViewListResource(ApiAuthResource):
                 result.append(
                     {
                         "id": view.id,
-                        "name": view.name,
+                        "name": _(view.name),
                         "show_panel_count": False,
                         "mode": mode,
                         "type": scene_type,

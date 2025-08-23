@@ -88,16 +88,16 @@ class TraceChatsResource(Resource):
         return [
             {
                 "id": 1,
-                "title": "请求数",
+                "title": _lazy("请求数"),
                 "type": "apm-timeseries-chart",
                 "gridPos": {"x": 0, "y": 16, "w": 8, "h": 4},
-                "alias": "请求数",
+                "alias": _lazy("请求数"),
                 "targets": [
                     {
                         "data_type": "time_series",
                         "api": "apm_metric.dynamicUnifyQuery",
                         "datasource": "time_series",
-                        "alias": "主调",
+                        "alias": _lazy("主调"),
                         "data": {
                             "app_name": app.app_name,
                             "query_configs": [
@@ -147,7 +147,7 @@ class TraceChatsResource(Resource):
                         "data_type": "time_series",
                         "api": "apm_metric.dynamicUnifyQuery",
                         "datasource": "time_series",
-                        "alias": "被调",
+                        "alias": _lazy("被调"),
                         "data": {
                             "app_name": app.app_name,
                             "query_configs": [
@@ -204,7 +204,7 @@ class TraceChatsResource(Resource):
             },
             {
                 "id": 2,
-                "title": "错误数",
+                "title": _lazy("错误数"),
                 "type": "apm-timeseries-chart",
                 "gridPos": {"x": 8, "y": 16, "w": 8, "h": 4},
                 "targets": [
@@ -212,7 +212,7 @@ class TraceChatsResource(Resource):
                         "data_type": "time_series",
                         "api": "apm_metric.dynamicUnifyQuery",
                         "datasource": "time_series",
-                        "alias": "错误数",
+                        "alias": _lazy("错误数"),
                         "data": {
                             "app_name": app.app_name,
                             "query_configs": [
@@ -263,7 +263,7 @@ class TraceChatsResource(Resource):
                         "data_type": "time_series",
                         "api": "apm_metric.dynamicUnifyQuery",
                         "datasource": "time_series",
-                        "alias": "错误率",
+                        "alias": _lazy("错误率"),
                         "data": {
                             "app_name": app.app_name,
                             "unit": "percentunit",
@@ -351,7 +351,7 @@ class TraceChatsResource(Resource):
             },
             {
                 "id": 3,
-                "title": "耗时",
+                "title": _lazy("耗时"),
                 "gridPos": {"x": 16, "y": 16, "w": 8, "h": 4},
                 "type": "apm-timeseries-chart",
                 "targets": [
