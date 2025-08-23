@@ -30,10 +30,10 @@ from apm.constants import (
     StatisticsProperty,
     VisibleEnum,
 )
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
-from apm.core.handlers.instance_handlers import InstanceHandler
 from apm.core.handlers.query.base import FilterOperator
 from apm.core.handlers.query.define import QueryMode, QueryStatisticsMode
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
@@ -760,10 +760,10 @@ class QueryTopoInstanceResource(PageListResource):
 
     def merge_data(self, instance_list, validated_request_data):
         merge_data = []
-        name = InstanceHandler.get_topo_instance_cache_key(
+        name = ApmCacheHandler.get_topo_instance_cache_key(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
-        cache_data = InstanceHandler().get_cache_data(name)
+        cache_data = ApmCacheHandler().get_cache_data(name)
         # 更新 updated_at 字段
         for instance in instance_list:
             key = str(instance["id"]) + ":" + instance["instance_id"]
