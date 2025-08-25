@@ -77,7 +77,53 @@ class VariableSerializer(serializers.Serializer):
                 _("变量类型为 {name} 时，必须指定「关联指标」。").format(name=variable_type.label)
             )
 
+        # 校验变量默认值的类型
+        if attrs["config"].get("default") is not None:
+            getattr(self, f"_validate_{variable_type.value.lower()}")(attrs["config"]["default"])
+
         return attrs
+
+    @staticmethod
+    def _validate_method(default_value):
+        if not isinstance(default_value, str):
+            raise serializers.ValidationError(_("变量类型为汇聚变量时，默认值类型必须为 str。"))
+
+    @staticmethod
+    def _validate_group_by(default_value):
+        if not isinstance(default_value, list):
+            raise serializers.ValidationError(_("变量类型为维度变量时，默认值类型必须为 list。"))
+        for v in default_value:
+            if not isinstance(v, str):
+                raise serializers.ValidationError(_("变量类型为维度变量时，默认值类型必须为 list[str]。"))
+
+    @staticmethod
+    def _validate_tag_values(default_value):
+        if not isinstance(default_value, list):
+            raise serializers.ValidationError(_("变量类型为维度值变量时，默认值类型必须为 list。"))
+        for v in default_value:
+            if not isinstance(v, str):
+                raise serializers.ValidationError(_("变量类型为维度值变量时，默认值类型必须为 list[str]。"))
+
+    @staticmethod
+    def _validate_conditions(default_value):
+        if not isinstance(default_value, list):
+            raise serializers.ValidationError(_("变量类型为条件变量时，默认值类型必须为 list。"))
+        for v in default_value:
+            if not isinstance(v, dict):
+                raise serializers.ValidationError(_("变量类型为条件变量时，默认值类型必须为 list[dict]。"))
+
+    @staticmethod
+    def _validate_functions(default_value):
+        if not isinstance(default_value, list):
+            raise serializers.ValidationError(_("变量类型为函数变量时，默认值类型必须为 list。"))
+        for v in default_value:
+            if not isinstance(v, dict):
+                raise serializers.ValidationError(_("变量类型为函数变量时，默认值类型必须为 list[dict]。"))
+
+    @staticmethod
+    def _validate_constants(default_value):
+        if not isinstance(default_value, str):
+            raise serializers.ValidationError(_("变量类型为常规变量时，默认值类型必须为 str。"))
 
 
 class QueryConfigSerializer(serializers.Serializer):
@@ -125,3 +171,13 @@ class QueryTemplateSerializer(serializers.Serializer):
     )
     functions = MixedTypeListField(label=_("函数"), required=False, default=[], allowed_types=[dict, str])
     variables = serializers.ListField(label=_("查询模板变量"), required=False, default=[], child=VariableSerializer())
+
+    def validate_variables(self, variables):
+        # 变量名称唯一性校验
+        variable_names = set()
+        for variable in variables:
+            if variable["name"] in variable_names:
+                raise serializers.ValidationError(
+                    _("变量名 {variable_name} 重复").format(variable_name=variable["name"])
+                )
+            variable_names.add(variable["name"])
