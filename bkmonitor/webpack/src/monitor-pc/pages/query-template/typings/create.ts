@@ -25,6 +25,7 @@
  */
 
 export interface BasicInfoData {
+  alias: string;
   description: string;
   name: string;
   space_scope: string[];
