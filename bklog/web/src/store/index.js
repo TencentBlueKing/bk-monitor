@@ -328,7 +328,9 @@ const store = new Vuex.Store({
       return getters.originAddition.reduce((output, current) => {
         const { field, operator, value, hidden_values = [], disabled } = current;
         if (!disabled && field !== '_ip-select_') {
-          const filterValue = value.filter(v => !hidden_values.includes(v));
+          const filterFn = v => !hidden_values.includes(v);
+
+          const filterValue = Array.isArray(value) ? value.filter(filterFn) : [value].filter(filterFn);
           if (filterValue.length > 0) {
             output.push({
               field,
