@@ -33,7 +33,7 @@ class Namespace(CachedEnum):
         )
 
     @classmethod
-    def get_default(cls, value) -> "DataType":
+    def get_default(cls, value) -> "Namespace":
         default = super().get_default(value)
         default.label = value
         return default
@@ -93,27 +93,6 @@ class VariableType(CachedEnum):
 
     @classmethod
     def get_default(cls, value) -> "VariableType":
-        default = super().get_default(value)
-        default.label = value
-        return default
-
-
-class DataType(CachedEnum):
-    """数据类型"""
-
-    STRING = "STRING"
-    INTEGER = "INTEGER"
-
-    @classmethod
-    def choices(cls) -> list[tuple[str, str]]:
-        return [(cls.STRING.value, cls.STRING.label), (cls.INTEGER.value, cls.INTEGER.label)]
-
-    @cached_property
-    def label(self) -> str:
-        return str({self.STRING: _("字符串"), self.INTEGER: _("整数")}.get(self, self.value))
-
-    @classmethod
-    def get_default(cls, value) -> "DataType":
         default = super().get_default(value)
         default.label = value
         return default

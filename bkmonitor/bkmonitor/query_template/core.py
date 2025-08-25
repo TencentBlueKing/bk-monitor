@@ -227,9 +227,9 @@ class QueryTemplateWrapper(BaseQuery):
         **kwargs,
     ):
         self.variables: list[dict[str, Any]] = variables or []
-        self.type_to_variables: dict[str, list[dict[str, Any]]] = {}
+        self._type_to_variables: dict[str, list[dict[str, Any]]] = {}
         for variable in self.variables:
-            self.type_to_variables.setdefault(variable["type"], []).append(variable)
+            self._type_to_variables.setdefault(variable["type"], []).append(variable)
 
         super().__init__(
             name=name,
@@ -242,19 +242,20 @@ class QueryTemplateWrapper(BaseQuery):
         )
 
     def render(self, context: dict[str, Any] = None) -> dict[str, Any]:
-        type_to_variables: dict[str, list[dict[str, Any]]] = {}
-        for variable in self.variables:
-            type_to_variables.setdefault(variable["type"], []).append(variable)
-
         context = context or {}
         query_instance: QueryInstance = QueryInstance(**copy.deepcopy(self.to_dict()))
-        for var_type, variables in type_to_variables.items():
+        for var_type, variables in self._type_to_variables.items():
             if var_type not in VARIABLE_HANDLERS:
                 continue
 
             query_instance = VARIABLE_HANDLERS[var_type](variables, query_instance).render(context)
 
         return query_instance.to_dict()
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["variables"] = self.variables
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "QueryTemplateWrapper":
