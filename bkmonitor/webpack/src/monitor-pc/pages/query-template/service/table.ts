@@ -25,6 +25,7 @@
  */
 
 import { destroyQueryTemplate, relationsQueryTemplate, searchQueryTemplate } from 'monitor-api/modules/model';
+import { bkMessage, makeMessage } from 'monitor-api/utils';
 
 import type {
   QueryListRequestParams,
@@ -59,29 +60,51 @@ const formatTemplateList = (
 };
 
 /**
+ * @description 请求错误时消息提示处理逻辑（ cancel 类型报错不进行提示）
+ * @param err
+ *
+ */
+const requestErrorMessage = err => {
+  const message = makeMessage(err.error_details || err.message);
+  let isAborted = false;
+  if (message && err?.message !== 'canceled' && err?.message !== 'aborted') {
+    bkMessage(message);
+  } else {
+    isAborted = true;
+  }
+  return isAborted;
+};
+
+/**
  * @description 获取查询模板列表
  * @param {QueryListRequestParams} 查询参数
  * @returns {QueryTemplateListItem[]} 查询模板列表数据
  */
-export const fetchQueryTemplateList = async (param: QueryListRequestParams) => {
-  const {
-    total,
-    list: [templateList],
-  } = await searchQueryTemplate<{ list: [QueryTemplateListItem[]]; total: number }>(param).catch(() => ({
-    total: 0,
-    list: [[] as QueryTemplateListItem[]],
-  }));
+export const fetchQueryTemplateList = async (param: QueryListRequestParams, requestConfig = {}) => {
+  const config = { needMessage: false, ...requestConfig };
+  let isAborted = false;
+  const { total, list: templateList } = await searchQueryTemplate<{ list: QueryTemplateListItem[]; total: number }>(
+    { ...param, is_mock: false },
+    config
+  ).catch(err => {
+    isAborted = requestErrorMessage(err);
+    return {
+      total: 0,
+      list: [] as QueryTemplateListItem[],
+    };
+  });
   const ids = formatTemplateList(templateList);
-  if (ids?.length) {
-    fetchQueryTemplateRelationsCount({ query_template_ids: ids }).then(res => {
-      const countByIdMap = res.reduce((prev, curr) => {
+  if (ids?.length && !isAborted) {
+    fetchQueryTemplateRelationsCount({ query_template_ids: ids }, requestConfig).then(res => {
+      if (res.isAborted) return;
+      const countByIdMap = res?.list?.reduce?.((prev, curr) => {
         prev[curr.query_template_id] = curr.relation_config_count;
         return prev;
       }, {});
       formatTemplateList(templateList, countByIdMap);
     });
   }
-  return { total, templateList };
+  return { total, templateList, isAborted };
 };
 
 /**
@@ -89,11 +112,20 @@ export const fetchQueryTemplateList = async (param: QueryListRequestParams) => {
  * @param {QueryListRequestParams} 查询参数
  * @returns {number} 关联数量
  */
-export const fetchQueryTemplateRelationsCount = async (param: QueryTemplateRelationsRequestParams) => {
-  const relationList = await relationsQueryTemplate<QueryTemplateRelationItem[]>(param).catch(
-    () => [] as QueryTemplateRelationItem[]
-  );
-  return relationList;
+export const fetchQueryTemplateRelationsCount = async (
+  param: QueryTemplateRelationsRequestParams,
+  requestConfig = {}
+) => {
+  const config = { needMessage: false, ...requestConfig };
+  let isAborted = false;
+  const relationList = await relationsQueryTemplate<QueryTemplateRelationItem[]>(
+    { ...param, is_mock: false },
+    config
+  ).catch(err => {
+    isAborted = requestErrorMessage(err);
+    return [] as QueryTemplateRelationItem[];
+  });
+  return { list: relationList, isAborted };
 };
 
 /**
