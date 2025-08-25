@@ -232,6 +232,8 @@ export default (
     });
   };
 
+  const getTippyUtil = () => popInstanceUtil;
+
   onMounted(() => {
     instance = getCurrentInstance();
     document.addEventListener('mousedown', handleWrapperClickCapture, { capture: true });
@@ -272,5 +274,6 @@ export default (
     handleInputBlur,
     delayShowInstance,
     isInstanceShown,
+    getTippyUtil
   };
 };

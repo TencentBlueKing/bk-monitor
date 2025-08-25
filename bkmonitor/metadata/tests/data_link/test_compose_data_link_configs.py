@@ -74,7 +74,7 @@ def test_compose_data_id_config(create_or_delete_records):
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor",'
         '"tenant":"system","labels":{"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test",'
-        '"bizId":2,"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
+        '"bizId":111,"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
     )
 
     content = data_id_config_ins.compose_config()
@@ -117,7 +117,7 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     expect_config = (
         '{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","tenant":"system","labels":{"bk_biz_id":"111"}},'
-        '"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":2,"dataType":"metric",'
+        '"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":111,"dataType":"metric",'
         '"description":"bkm_1001_bkmonitor_time_series_50010","maintainers":["admin"]}}'
     )
 
@@ -265,7 +265,7 @@ def test_compose_log_result_table_config(create_or_delete_records):
         },
         "spec": {
             "alias": "base_1_agent_event",
-            "bizId": 2,
+            "bizId": 1,
             "dataType": "log",
             "description": "base_1_agent_event",
             "fields": [

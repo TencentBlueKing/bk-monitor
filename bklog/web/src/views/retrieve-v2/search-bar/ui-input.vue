@@ -152,6 +152,7 @@
     delayShowInstance,
     repositionTippyInstance,
     hideTippyInstance,
+    getTippyUtil
   } = useFocusInput(props, {
     refContent: refPopInstance,
     refTarget: refHiddenFocus,
@@ -174,6 +175,9 @@
       queryItem.value = '';
       activeIndex.value = null;
     },
+    tippyOptions: {
+      hideOnClick: true
+    }
   });
 
   const debounceShowInstance = () => {
@@ -432,6 +436,17 @@
 
     return '隐藏这个选项';
   }
+
+  /**
+   * 批量添加分词弹出事件
+   * @param isShow 
+   */
+  const handleBatchInputChange = isShow => {
+    const instance = getTippyUtil();
+    if (instance) {
+      instance.setProps({ hideOnClick: !isShow });
+    }
+  }
 </script>
 
 <template>
@@ -582,6 +597,7 @@
         :value="queryItem"
         @cancel="handleCancelClick"
         @save="handleGlobalSaveQueryClick"
+        @batch-input-change="handleBatchInputChange"
       ></UiInputOptions>
     </div>
   </ul>

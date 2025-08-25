@@ -16,6 +16,7 @@ from django.conf import settings
 from django.db.utils import IntegrityError
 from tenacity import RetryError
 
+from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from core.errors.api import BKAPIError
 from metadata import models
 from metadata.models.bkdata.result_table import BkBaseResultTable
@@ -201,9 +202,10 @@ def create_or_delete_records(mocker):
         cluster_id=100111,
         is_default_cluster=False,
         version="5.x",
+        bk_tenant_id="system",
     )
     models.ClusterInfo.objects.create(
-        cluster_name="vm-default",
+        cluster_name="vm-default2",
         cluster_type=models.ClusterInfo.TYPE_VM,
         domain_name="default.vm",
         port=9090,
@@ -211,6 +213,18 @@ def create_or_delete_records(mocker):
         cluster_id=100112,
         is_default_cluster=True,
         version="6.x",
+        bk_tenant_id="system",
+    )
+    models.ClusterInfo.objects.create(
+        cluster_name="vm-default",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="default.vm",
+        port=9090,
+        description="",
+        cluster_id=100113,
+        is_default_cluster=True,
+        version="6.x",
+        bk_tenant_id="test_tenant",
     )
     models.ClusterInfo.objects.create(
         cluster_name="es_default",
@@ -221,6 +235,7 @@ def create_or_delete_records(mocker):
         cluster_id=666666,
         is_default_cluster=True,
         version="6.x",
+        bk_tenant_id="system",
     )
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
@@ -911,7 +926,7 @@ def test_create_basereport_datalink_for_bkcc_metadata_part(create_or_delete_reco
         patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
-        create_basereport_datalink_for_bkcc(bk_biz_id=1)
+        create_basereport_datalink_for_bkcc(bk_tenant_id="system", bk_biz_id=1)
         mock_apply_with_retry.assert_called_once()
 
     table_id_prefix = "system_1_sys."
@@ -966,7 +981,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
         patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
-        create_basereport_datalink_for_bkcc(bk_biz_id=1)
+        create_basereport_datalink_for_bkcc(bk_tenant_id="system", bk_biz_id=1)
         mock_apply_with_retry.assert_called_once()
 
     data_link_ins = models.DataLink.objects.get(data_link_name="system_1_sys_base")
@@ -990,7 +1005,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_cpu_summary",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_cpu_summary",
                 "maintainers": ["admin"],
@@ -1006,7 +1021,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_cpu_summary_cmdb",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_cpu_summary_cmdb",
                 "maintainers": ["admin"],
@@ -1060,7 +1075,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_cpu_detail",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_cpu_detail",
                 "maintainers": ["admin"],
@@ -1076,7 +1091,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_cpu_detail_cmdb",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_cpu_detail_cmdb",
                 "maintainers": ["admin"],
@@ -1130,7 +1145,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_disk",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_disk",
                 "maintainers": ["admin"],
@@ -1146,7 +1161,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_disk_cmdb",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_disk_cmdb",
                 "maintainers": ["admin"],
@@ -1200,7 +1215,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_env",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_env",
                 "maintainers": ["admin"],
@@ -1216,7 +1231,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_env_cmdb",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_env_cmdb",
                 "maintainers": ["admin"],
@@ -1265,7 +1280,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_inode",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_inode",
                 "maintainers": ["admin"],
@@ -1281,7 +1296,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_inode_cmdb",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_inode_cmdb",
                 "maintainers": ["admin"],
@@ -1335,7 +1350,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_io",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_io",
                 "maintainers": ["admin"],
@@ -1351,7 +1366,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_io_cmdb",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_io_cmdb",
                 "maintainers": ["admin"],
@@ -1400,7 +1415,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_load",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_load",
                 "maintainers": ["admin"],
@@ -1416,7 +1431,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_load_cmdb",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_load_cmdb",
                 "maintainers": ["admin"],
@@ -1470,7 +1485,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_mem",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_mem",
                 "maintainers": ["admin"],
@@ -1486,7 +1501,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_mem_cmdb",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_mem_cmdb",
                 "maintainers": ["admin"],
@@ -1535,7 +1550,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_net",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_net",
                 "maintainers": ["admin"],
@@ -1551,7 +1566,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_net_cmdb",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_net_cmdb",
                 "maintainers": ["admin"],
@@ -1600,7 +1615,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_netstat",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_netstat",
                 "maintainers": ["admin"],
@@ -1616,7 +1631,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_netstat_cmdb",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_netstat_cmdb",
                 "maintainers": ["admin"],
@@ -1670,7 +1685,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_swap",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_swap",
                 "maintainers": ["admin"],
@@ -1686,7 +1701,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "alias": "base_1_sys_swap_cmdb",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "metric",
                 "description": "base_1_sys_swap_cmdb",
                 "maintainers": ["admin"],
@@ -2030,7 +2045,7 @@ def test_create_base_event_datalink_for_bkcc_metadata_part(create_or_delete_reco
         patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
-        create_base_event_datalink_for_bkcc(bk_biz_id=1)
+        create_base_event_datalink_for_bkcc(bk_tenant_id="system", bk_biz_id=1)
         mock_apply_with_retry.assert_called_once()
 
     table_id = "base_system_1_event"
@@ -2082,7 +2097,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
         patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
-        create_base_event_datalink_for_bkcc(bk_biz_id=1)
+        create_base_event_datalink_for_bkcc(bk_tenant_id="system", bk_biz_id=1)
         mock_apply_with_retry.assert_called_once()
 
     data_link_ins = models.DataLink.objects.get(data_link_name="base_1_agent_event")
@@ -2104,7 +2119,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
             },
             "spec": {
                 "alias": "base_1_agent_event",
-                "bizId": 2,
+                "bizId": 1,
                 "dataType": "log",
                 "description": "base_1_agent_event",
                 "fields": [
@@ -2227,6 +2242,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
         ) as mock_apply_with_retry,
         patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
+        data_link_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id="system", bk_biz_id=1001)
         create_bkbase_data_link(
             bk_biz_id=1001, data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat"
         )
@@ -2242,7 +2258,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
 
     vm_record = models.AccessVMRecord.objects.get(result_table_id=rt.table_id)
     assert vm_record.vm_cluster_id == 100111
-    assert vm_record.vm_result_table_id == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
+    assert vm_record.vm_result_table_id == f"{data_link_biz_ids.data_biz_id}_{bkbase_vmrt_name}"
 
     with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
         actual_configs = data_link_ins.compose_configs(
@@ -2259,7 +2275,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
             },
             "spec": {
                 "alias": "bkm_1001_bkmonitor_time_series_50011",
-                "bizId": 2,
+                "bizId": 1001,
                 "dataType": "metric",
                 "description": "bkm_1001_bkmonitor_time_series_50011",
                 "maintainers": ["admin"],
@@ -2348,6 +2364,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
         ) as mock_apply_with_retry,
         patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
+        data_link_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id="system", bk_biz_id=1001)
         create_bkbase_data_link(
             bk_biz_id=1001, data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat"
         )
@@ -2363,7 +2380,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
 
     vm_record = models.AccessVMRecord.objects.get(result_table_id=rt.table_id)
     assert vm_record.vm_cluster_id == 100111
-    assert vm_record.vm_result_table_id == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
+    assert vm_record.vm_result_table_id == f"{data_link_biz_ids.data_biz_id}_{bkbase_vmrt_name}"
 
     with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
         actual_configs = data_link_ins.compose_configs(
@@ -2380,7 +2397,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
             },
             "spec": {
                 "alias": "bkm_1001_bkmonitor_time_series_50012",
-                "bizId": 2,
+                "bizId": 1001,
                 "dataType": "metric",
                 "description": "bkm_1001_bkmonitor_time_series_50012",
                 "maintainers": ["admin"],

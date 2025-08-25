@@ -381,10 +381,10 @@ export default class SpaceManage extends tsc<object> {
   handleShowChange(v: boolean) {
     this.showAdd = v;
   }
-  handleSaveSuccess() {
-    this.handleChangeSpace(this.spaceType);
-    this.showAdd = false;
-  }
+  // handleSaveSuccess() {
+  //   this.handleChangeSpace(this.spaceType);
+  //   this.showAdd = false;
+  // }
   // 判断是否有权限
   getHasAuthority(spaceUid: string) {
     return this.$store.getters.spaceUidMap.has(spaceUid);
@@ -570,7 +570,7 @@ export default class SpaceManage extends tsc<object> {
         </div>
         <SpaceAddList
           show={this.showAdd}
-          onSaveSuccess={this.handleSaveSuccess}
+          // onSaveSuccess={this.handleSaveSuccess}
           onShowChange={this.handleShowChange}
         />
       </div>

@@ -30,10 +30,10 @@ from apm.constants import (
     StatisticsProperty,
     VisibleEnum,
 )
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
-from apm.core.handlers.instance_handlers import InstanceHandler
 from apm.core.handlers.query.base import FilterOperator
 from apm.core.handlers.query.define import QueryMode, QueryStatisticsMode
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
@@ -80,7 +80,8 @@ from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
 from bkmonitor.utils.common_utils import format_percent
-from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.request import get_request_tenant_id, get_request_username
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from constants.apm import (
     DataSamplingLogTypeChoices,
@@ -759,10 +760,10 @@ class QueryTopoInstanceResource(PageListResource):
 
     def merge_data(self, instance_list, validated_request_data):
         merge_data = []
-        name = InstanceHandler.get_topo_instance_cache_key(
+        name = ApmCacheHandler.get_topo_instance_cache_key(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
-        cache_data = InstanceHandler().get_cache_data(name)
+        cache_data = ApmCacheHandler().get_cache_data(name)
         # 更新 updated_at 字段
         for instance in instance_list:
             key = str(instance["id"]) + ":" + instance["instance_id"]
@@ -1208,9 +1209,14 @@ class ListEsClusterInfoResource(Resource):
             return True
         return bk_biz_id in visible_bk_biz
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = get_request_tenant_id(peaceful=True) or bk_biz_id_to_bk_tenant_id(
+            validated_request_data["bk_biz_id"]
+        )
         bk_biz_id = str(validated_request_data["bk_biz_id"])
-        query_result = models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_ES)
+        query_result = models.ClusterInfo.objects.filter(
+            cluster_type=models.ClusterInfo.TYPE_ES, bk_tenant_id=bk_tenant_id
+        )
         result = []
         for cluster in query_result:
             cluster_info = cluster.consul_config

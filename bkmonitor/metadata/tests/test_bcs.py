@@ -20,6 +20,7 @@ from metadata import models
 from metadata.models.bcs.resource import BCSClusterInfo
 from metadata.task.bcs import discover_bcs_clusters, update_bcs_cluster_cloud_id_config
 from metadata.tests.common_utils import consul_client
+from constants.common import DEFAULT_TENANT_ID
 
 logger = logging.getLogger("metadata")
 
@@ -210,6 +211,7 @@ class TestOperateConsulConfig:
 
         c = models.BCSClusterInfo.register_cluster(
             bk_biz_id=2,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             cluster_id="test_cluster_id",
             project_id="test_project",
             creator="system",
