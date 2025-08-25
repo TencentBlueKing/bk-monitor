@@ -233,6 +233,10 @@ class CloudMonitoringTask(AbstractRecordModel):
         max_length=256,
     )
 
+    is_internal = models.BooleanField(default=True, verbose_name="是否内部环境", help_text="采集器是否部署在内部环境")
+
+    is_international = models.BooleanField(default=True, verbose_name="是否国际版", help_text="目标云厂商是否为国际版")
+
     status = models.CharField(
         max_length=32,
         choices=STATUS_CHOICES,
@@ -244,6 +248,8 @@ class CloudMonitoringTask(AbstractRecordModel):
     latest_datapoint = models.DateTimeField(
         null=True, blank=True, verbose_name="最新数据点时间", help_text="最新收到数据的时间"
     )
+
+    data_id = models.IntegerField(verbose_name="数据ID", null=True, blank=True, help_text="监控数据源的 data_id")
 
     class Meta:
         verbose_name = "云监控采集任务"

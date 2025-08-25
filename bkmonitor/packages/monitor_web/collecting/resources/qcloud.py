@@ -346,6 +346,10 @@ class CloudMonitoringSaveConfigResource(Resource):
         # 地域配置
         regions = serializers.ListField(child=serializers.DictField(), required=True, help_text=_("地域配置列表"))
 
+        # 环境配置
+        is_internal = serializers.BooleanField(required=False, default=False, help_text=_("是否内部环境"))
+        is_international = serializers.BooleanField(required=False, default=True, help_text=_("是否国际版"))
+
     class ResponseSerializer(serializers.Serializer):
         result = serializers.BooleanField(help_text=_("操作结果"))
         code = serializers.IntegerField(help_text=_("状态码"))
@@ -364,6 +368,8 @@ class CloudMonitoringSaveConfigResource(Resource):
         secret_id = validated_request_data["secret_id"]
         secret_key = validated_request_data["secret_key"]
         regions = validated_request_data["regions"]
+        is_internal = validated_request_data["is_internal"]
+        is_international = validated_request_data["is_international"]
 
         try:
             # 1. 验证凭证信息
@@ -388,15 +394,17 @@ class CloudMonitoringSaveConfigResource(Resource):
                 collect_timeout=collect_timeout,
                 secret_id=secret_id,
                 secret_key=secret_key,
+                is_internal=is_internal,
+                is_international=is_international,
             )
 
             # 6. 保存地域配置
             self._save_region_configs(task_id, regions)
 
-            # 7. TODO: 下发采集任务（后续实现）
-            # self._deploy_monitoring_task(task_id)
+            # 7. 下发采集任务
+            self._deploy_monitoring_task(task_id)
 
-            return {"message": "监控采集任务创建成功，正在后台部署中，请稍后查看任务状态", "task_id": task_id}
+            return {"message": "监控采集任务创建成功", "task_id": task_id}
 
         except Exception as e:
             logger.error(f"保存云监控配置失败: {str(e)}")
@@ -447,16 +455,22 @@ class CloudMonitoringSaveConfigResource(Resource):
             instance_selection = region.get("instance_selection", {})
             tags = instance_selection.get("tags", [])
             filters = instance_selection.get("filters", [])
+            dimensions = region.get("dimensions", [])
 
             # 验证标签配置格式
             for tag in tags:
-                if "name" not in tag or "values" not in tag:
-                    raise ValueError(f"地域配置[{i}]标签格式不正确，缺少name或values字段")
+                if "name" not in tag or "value" not in tag:
+                    raise ValueError(f"地域配置[{i}]标签格式不正确，缺少name或value字段")
 
             # 验证过滤器配置格式
             for filter_item in filters:
-                if "name" not in filter_item or "values" not in filter_item:
-                    raise ValueError(f"地域配置[{i}]过滤器格式不正确，缺少name或values字段")
+                if "name" not in filter_item or "value" not in filter_item:
+                    raise ValueError(f"地域配置[{i}]过滤器格式不正确，缺少name或value字段")
+
+            # 验证维度配置格式
+            for dimension in dimensions:
+                if "name" not in dimension or "value" not in dimension:
+                    raise ValueError(f"地域配置[{i}]维度格式不正确，缺少name或value字段")
 
             # 验证选择的指标
             selected_metrics = region.get("selected_metrics", [])
@@ -488,7 +502,17 @@ class CloudMonitoringSaveConfigResource(Resource):
         return task_id
 
     def _save_monitoring_task(
-        self, task_id, bk_biz_id, namespace, collect_name, collect_interval, collect_timeout, secret_id, secret_key
+        self,
+        task_id,
+        bk_biz_id,
+        namespace,
+        collect_name,
+        collect_interval,
+        collect_timeout,
+        secret_id,
+        secret_key,
+        is_internal,
+        is_international,
     ):
         """
         保存主任务配置
@@ -502,6 +526,8 @@ class CloudMonitoringSaveConfigResource(Resource):
             collect_timeout: 采集超时时间
             secret_id: 腾讯云SecretId
             secret_key: 腾讯云SecretKey
+            is_internal: 是否内部环境
+            is_international: 是否国际版
 
         Returns:
             CloudMonitoringTask: 保存的任务对象
@@ -522,6 +548,8 @@ class CloudMonitoringSaveConfigResource(Resource):
             collect_timeout=collect_timeout,
             secret_id=secret_id,
             secret_key=secret_key,
+            is_internal=is_internal,
+            is_international=is_international,
             status=CloudMonitoringTask.STATUS_CONNECTING,
         )
 
@@ -546,7 +574,7 @@ class CloudMonitoringSaveConfigResource(Resource):
                 tags_config.append(
                     {
                         "name": tag["name"],
-                        "values": tag["values"],
+                        "value": tag["value"],
                         "fuzzy": tag.get("fuzzy", False),  # 默认精确匹配
                     }
                 )
@@ -554,10 +582,12 @@ class CloudMonitoringSaveConfigResource(Resource):
             # 构建过滤器配置
             filters_config = []
             for filter_item in instance_selection.get("filters", []):
-                filters_config.append({"name": filter_item["name"], "values": filter_item["values"]})
+                filters_config.append({"name": filter_item["name"], "value": filter_item["value"]})
 
             # 构建维度配置
-            dimensions_config = region_config.get("dimensions", [])
+            dimensions_config = []
+            for dimension in region_config.get("dimensions", []):
+                dimensions_config.append({"name": dimension["name"], "value": dimension["value"]})
 
             # 创建地域配置
             CloudMonitoringTaskRegion.objects.create(
@@ -572,6 +602,33 @@ class CloudMonitoringSaveConfigResource(Resource):
             )
 
             logger.info(f"保存地域配置成功: task_id={task_id}, region={region_config['region']}")
+
+    def _deploy_monitoring_task(self, task_id):
+        """
+        部署腾讯云监控采集任务
+
+        Args:
+            task_id: 任务ID
+        """
+        try:
+            from monitor_web.collecting.deploy.qcloud import QCloudMonitoringTaskDeployer
+
+            deployer = QCloudMonitoringTaskDeployer(task_id)
+            deployer.deploy()
+
+            logger.info(f"腾讯云监控任务部署启动成功: task_id={task_id}")
+        except Exception as e:
+            logger.error(f"腾讯云监控任务部署失败: task_id={task_id}, error={str(e)}")
+            # 更新任务状态为失败
+            from monitor_web.models.qcloud import CloudMonitoringTask
+
+            try:
+                task = CloudMonitoringTask.objects.get(task_id=task_id)
+                task.status = CloudMonitoringTask.STATUS_FAILED
+                task.save()
+            except CloudMonitoringTask.DoesNotExist:
+                logger.error(f"未找到任务: task_id={task_id}")
+            raise
 
 
 class CloudMonitoringTaskListResource(Resource):
@@ -910,6 +967,10 @@ class CloudMonitoringUpdateConfigResource(Resource):
         # 地域配置，如果不传则不更新
         regions = serializers.ListField(child=serializers.DictField(), required=False, help_text=_("地域配置列表"))
 
+        # 环境配置
+        is_internal = serializers.BooleanField(required=False, help_text=_("是否内部环境"))
+        is_international = serializers.BooleanField(required=False, help_text=_("是否国际版"))
+
     class ResponseSerializer(serializers.Serializer):
         result = serializers.BooleanField(help_text=_("操作结果"))
         code = serializers.IntegerField(help_text=_("状态码"))
@@ -946,10 +1007,10 @@ class CloudMonitoringUpdateConfigResource(Resource):
 
             # 5. 如果更新了配置，需要重新下发采集任务
             if updated_fields:
-                # TODO: 下发采集任务（后续实现）
-                # self._deploy_monitoring_task(task_id)
+                self._deploy_monitoring_task(task_id)
+
                 return {
-                    "message": f"监控采集任务更新成功 (更新字段: {', '.join(updated_fields)})，正在后台重新部署中",
+                    "message": f"监控采集任务更新成功 (更新字段: {', '.join(updated_fields)})",
                     "task_id": task_id,
                 }
             else:
@@ -988,44 +1049,6 @@ class CloudMonitoringUpdateConfigResource(Resource):
         """
         if not secret_id or not secret_key:
             raise ValueError("secret_id和secret_key不能为空")
-
-    def _validate_regions(self, regions):
-        """
-        验证地域配置
-
-        Args:
-            regions: 地域配置列表
-        """
-        if not regions:
-            raise ValueError("地域配置不能为空")
-
-        for i, region in enumerate(regions):
-            # 验证必要字段
-            if "region" not in region:
-                raise ValueError(f"地域配置[{i}]缺少region字段")
-
-            if "id" not in region:
-                raise ValueError(f"地域配置[{i}]缺少id字段")
-
-            # 验证实例选择配置
-            instance_selection = region.get("instance_selection", {})
-            tags = instance_selection.get("tags", [])
-            filters = instance_selection.get("filters", [])
-
-            # 验证标签配置格式
-            for tag in tags:
-                if "name" not in tag or "values" not in tag:
-                    raise ValueError(f"地域配置[{i}]标签格式不正确，缺少name或values字段")
-
-            # 验证过滤器配置格式
-            for filter_item in filters:
-                if "name" not in filter_item or "values" not in filter_item:
-                    raise ValueError(f"地域配置[{i}]过滤器格式不正确，缺少name或values字段")
-
-            # 验证选择的指标
-            selected_metrics = region.get("selected_metrics", [])
-            if not selected_metrics:
-                logger.warning(f"地域配置[{i}]未选择任何指标")
 
     def _update_monitoring_task(self, task, validated_request_data):
         """
@@ -1068,6 +1091,18 @@ class CloudMonitoringUpdateConfigResource(Resource):
             task.secret_key = validated_request_data["secret_key"]
             updated_fields.append("credentials")
 
+        # 更新环境配置
+        if "is_internal" in validated_request_data and validated_request_data["is_internal"] != task.is_internal:
+            task.is_internal = validated_request_data["is_internal"]
+            updated_fields.append("is_internal")
+
+        if (
+            "is_international" in validated_request_data
+            and validated_request_data["is_international"] != task.is_international
+        ):
+            task.is_international = validated_request_data["is_international"]
+            updated_fields.append("is_international")
+
         # 如果有更新字段，保存任务
         if updated_fields:
             task.save()
@@ -1105,7 +1140,7 @@ class CloudMonitoringUpdateConfigResource(Resource):
                 tags_config.append(
                     {
                         "name": tag["name"],
-                        "values": tag["values"],
+                        "value": tag["value"],
                         "fuzzy": tag.get("fuzzy", False),  # 默认精确匹配
                     }
                 )
@@ -1113,10 +1148,12 @@ class CloudMonitoringUpdateConfigResource(Resource):
             # 构建过滤器配置
             filters_config = []
             for filter_item in instance_selection.get("filters", []):
-                filters_config.append({"name": filter_item["name"], "values": filter_item["values"]})
+                filters_config.append({"name": filter_item["name"], "value": filter_item["value"]})
 
             # 构建维度配置
-            dimensions_config = region_config.get("dimensions", [])
+            dimensions_config = []
+            for dimension in region_config.get("dimensions", []):
+                dimensions_config.append({"name": dimension["name"], "value": dimension["value"]})
 
             # 检查是否存在该地域配置
             if region_id in existing_regions:
@@ -1149,3 +1186,30 @@ class CloudMonitoringUpdateConfigResource(Resource):
                 # 标记为删除
                 region_obj.delete()
                 logger.info(f"删除地域配置成功: task_id={task_id}, region_id={region_id}")
+
+    def _deploy_monitoring_task(self, task_id):
+        """
+        部署腾讯云监控采集任务
+
+        Args:
+            task_id: 任务ID
+        """
+        try:
+            from monitor_web.collecting.deploy.qcloud import QCloudMonitoringTaskDeployer
+
+            deployer = QCloudMonitoringTaskDeployer(task_id)
+            deployer.deploy()
+
+            logger.info(f"腾讯云监控任务重新部署启动成功: task_id={task_id}")
+        except Exception as e:
+            logger.error(f"腾讯云监控任务重新部署失败: task_id={task_id}, error={str(e)}")
+            # 更新任务状态为失败
+            from monitor_web.models.qcloud import CloudMonitoringTask
+
+            try:
+                task = CloudMonitoringTask.objects.get(task_id=task_id)
+                task.status = CloudMonitoringTask.STATUS_FAILED
+                task.save()
+            except CloudMonitoringTask.DoesNotExist:
+                logger.error(f"未找到任务: task_id={task_id}")
+            raise

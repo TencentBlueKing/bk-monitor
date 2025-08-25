@@ -192,16 +192,36 @@ class DataAccessor:
         # TODO: 新规范是业务ID在后，这个要确定影响范围
         return f"{self.bk_biz_id}_{self.db_name}" if self.bk_biz_id else self.db_name
 
-    def create_dataid(self):
+    def _compose_data_name(self, per_collect_suffix: str | None = None) -> str:
+        """基于基础 data_name + 可选后缀 生成唯一 data_name。
+        说明：
+        - per_collect_suffix 为可选的“每个采集配置”的唯一标识（如采集ID/任务ID/地域名等）。
+        - 不传则保持与历史一致，使用基础 data_name。
+        - 传入时会进行简单清洗，仅保留字母/数字/下划线/中划线，并转为小写。
         """
-        创建/修改dataid
+        base = self.data_name
+        if not per_collect_suffix:
+            return base
+        import re
+
+        suffix = re.sub(r"[^a-zA-Z0-9_-]", "-", str(per_collect_suffix)).strip("-").lower()
+        if not suffix:
+            return base
+        return f"{base}_{suffix}"
+
+    def create_dataid(self, per_collect_suffix: str | None = None):
         """
+        创建/修改 data_id
+        - 可通过 per_collect_suffix 指定“每个采集配置”的唯一后缀，使 data_name 不同，从而创建独立 data_id。
+        - 不传 per_collect_suffix 时，行为与原有逻辑一致（按插件/业务维度共用 data_id）。
+        """
+        data_name = self._compose_data_name(per_collect_suffix)
         param = {
             "bk_biz_id": self.bk_biz_id,
-            "data_name": self.data_name,
+            "data_name": data_name,
             "etl_config": self.etl_config,
             "operator": self.operator,
-            "data_description": self.data_name,
+            "data_description": data_name,
             "type_label": self.type_label,
             "source_label": self.source_label,
             # 新增入库时间
@@ -330,20 +350,22 @@ class DataAccessor:
 
         return self.request_multi_thread(func_list, params_list, get_data=lambda x: x)
 
-    def access(self):
+    def access(self, per_collect_suffix: str | None = None):
         """
         接入数据链路
         :return: 创建的 data id
         """
         if not self.data_id:
-            self.create_dataid()
+            self.create_dataid(per_collect_suffix=per_collect_suffix)
 
         self.create_rt()
         return self.data_id
 
-    def get_data_id(self):
-        data_id_info = api.metadata.get_data_id({"data_name": self.data_name, "with_rt_info": False})
-        self.data_id = safe_int(data_id_info["data_id"])
+    def get_data_id(self, per_collect_suffix: str | None = None):
+        """获取 data_id；当传入 per_collect_suffix 时，按唯一 data_name 查询对应 data_id。"""
+        data_name = self._compose_data_name(per_collect_suffix)
+        data_id_info = api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})
+        self.data_id = safe_int(data_id_info.get("data_id") or data_id_info.get("bk_data_id"))
         return self.data_id
 
     def modify_label(self, label):

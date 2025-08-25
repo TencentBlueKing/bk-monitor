@@ -96,3 +96,30 @@ class QueryInstanceFiltersResource(QcloudMonitorAPIResource):
             label="过滤器列表",
             help_text="该产品支持的过滤器字段列表",
         )
+
+
+class ConvertParamsResource(QcloudMonitorAPIResource):
+    """
+    转换实例查询参数为腾讯云真实请求参数
+    """
+
+    action = "/qcloudmonitor/parameters"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        namespace = serializers.CharField(required=True, label="产品命名空间")
+        tags = serializers.ListField(
+            child=serializers.DictField(),
+            required=False,
+            default=list,
+            label="标签选择器",
+        )
+        filters = serializers.ListField(
+            child=serializers.DictField(),
+            required=False,
+            default=list,
+            label="字段过滤器",
+        )
+
+    class ResponseSerializer(serializers.Serializer):
+        req_params = serializers.JSONField(label="转换后的请求参数")
