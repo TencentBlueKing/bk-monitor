@@ -43,7 +43,17 @@ export default () => {
     return ['keyword'].includes(field.field_type);
   };
 
+  /**
+   * 自动补全提示接口请求任务
+   */
   const requestFieldEgges = (field, value?, callback?, finallyFn?) => {
+    /**
+     * 检测字段是否为 flattened 字段
+     */
+    if (field.field_name.split('.').length > 1) {
+      return;
+    }
+
     if (
       taskPool.some(task => {
         return task.fields[0] === field && task.query_value === value && task.pending;
