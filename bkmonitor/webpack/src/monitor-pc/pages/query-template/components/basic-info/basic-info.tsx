@@ -31,7 +31,7 @@ import type { BasicInfoData } from '../../typings';
 
 import './basic-info.scss';
 
-interface BasicInfoCreateEvents {
+interface BasicInfoEvents {
   onChange(data: BasicInfoData): void;
 }
 
@@ -41,7 +41,7 @@ interface BasicInfoProps {
 }
 
 @Component
-export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreateEvents> {
+export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
   @Prop() readonly formData: BasicInfoData;
   @Prop({ type: String, default: 'create' }) readonly scene: 'create' | 'edit';
 
@@ -64,6 +64,18 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
         message: window.i18n.t('模版名称必填'),
         trigger: 'blur',
       },
+      {
+        validator: val => /^[a-z0-9_]{1,50}$/.test(val),
+        message: window.i18n.t('1-50个字符，且仅支持小写字母、数字、_'),
+        trigger: 'blur',
+      },
+    ],
+    alias: [
+      {
+        required: true,
+        message: window.i18n.t('模版别名必填'),
+        trigger: 'blur',
+      },
     ],
     space_scope: [
       {
@@ -81,12 +93,18 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
     });
   }
 
+  handleAliasChange(value: string) {
+    this.$emit('change', {
+      ...this.formData,
+      alias: value,
+    });
+  }
+
   handleDeleteEffect(data) {
     this.handleEffectChange(this.formData.space_scope.filter(item => item !== data.id));
   }
 
   tagTpl(data) {
-    console.log(data);
     return (
       <div class='tag'>
         <span class='tag-name'>{data.name}</span>
@@ -122,7 +140,7 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
 
   render() {
     return (
-      <div class='basic-info create'>
+      <div class='basic-info'>
         <div class='title'>{this.$t('基本信息')}</div>
 
         <bk-form
@@ -144,12 +162,25 @@ export default class BasicInfoCreate extends tsc<BasicInfoProps, BasicInfoCreate
             required
           >
             <bk-input
+              maxlength={50}
               value={this.formData.name}
               onChange={this.handleNameChange}
             />
           </bk-form-item>
           <bk-form-item
             class='w50'
+            error-display-type='normal'
+            label={this.$t('模版别名')}
+            property='alias'
+            required
+          >
+            <bk-input
+              value={this.formData.alias}
+              onChange={this.handleAliasChange}
+            />
+          </bk-form-item>
+          <bk-form-item
+            class='w100'
             error-display-type='normal'
             label={this.$t('生效范围')}
             property='space_scope'

@@ -42,6 +42,9 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
   @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
 
+  /** 可选维度 */
+  options: string[] = [];
+
   rules = {
     options: [
       {
@@ -53,31 +56,47 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
   };
 
   checkboxDisabled(dimensionId: string) {
-    const isAllDisabled = dimensionId === 'all' && this.variable.options.length && !this.variable.isAllDimensionOptions;
-    const isOtherDisabled = dimensionId !== 'all' && this.variable.isAllDimensionOptions;
+    const isSelectAll = this.options.includes('all');
+    const isAllDisabled = dimensionId === 'all' && this.options.length && !isSelectAll;
+    const isOtherDisabled = dimensionId !== 'all' && isSelectAll;
     return isAllDisabled || isOtherDisabled;
   }
 
-  handleDimensionChange(options: string[]) {
-    let defaultValue = this.variable.data.defaultValue;
-    if (options.includes('all')) {
-      defaultValue = defaultValue || [this.variable.dimensionList[0].id];
+  /** 弹窗关闭的时候才进行传值 */
+  handleOptionsToggle(show: boolean) {
+    if (show) {
+      this.options = this.variable.options;
     } else {
-      defaultValue = defaultValue.filter(item => options.includes(item));
-      defaultValue = defaultValue.length ? defaultValue : [options[0]];
-    }
+      let defaultValue = this.variable.data.defaultValue || [];
+      const isAll = this.options.includes('all');
+      const selectList = isAll ? this.variable.dimensionList.map(item => item.id) : this.options;
+      /**
+       * 全部维度：使用默认值
+       * 非全部维度：过滤掉不在维度列表中的默认值
+       */
+      if (isAll) {
+        defaultValue = defaultValue.length ? defaultValue : [selectList[0]];
+      } else {
+        defaultValue = defaultValue.filter(item => selectList.includes(item));
+        defaultValue = defaultValue.length ? defaultValue : selectList.length ? [selectList[0]] : [];
+      }
 
-    let value = this.variable.value || [];
-    if (!this.variable.isValueEditable) {
-      value = defaultValue;
-    }
+      let value = this.variable.value || [];
+      /** 如果没有编辑过值，直接使用默认值 */
+      if (!this.variable.isValueEditable) {
+        value = defaultValue;
+      } else if (selectList.length) {
+        /** 判断编辑值是否在维度列表中 */
+        value = value.filter(item => selectList.includes(item));
+      }
 
-    this.handleDataChange({
-      ...this.variable.data,
-      options,
-      defaultValue,
-      value,
-    });
+      this.handleDataChange({
+        ...this.variable.data,
+        options: this.options,
+        defaultValue,
+        value,
+      });
+    }
   }
 
   handleValueChange(defaultValue: string[]) {
@@ -105,6 +124,10 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
     return this.variableCommonForm.validateForm();
   }
 
+  mounted() {
+    this.options = this.variable.options;
+  }
+
   render() {
     return (
       <div class='dimension-variable'>
@@ -127,11 +150,11 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
             required
           >
             <bk-select
+              v-model={this.options}
               clearable={false}
               selected-style='checkbox'
-              value={this.variable.options}
               multiple
-              onChange={this.handleDimensionChange}
+              onToggle={this.handleOptionsToggle}
             >
               <bk-option
                 id='all'

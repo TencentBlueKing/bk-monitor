@@ -86,16 +86,20 @@ export default class ConditionVariableDetail extends tsc<ConditionDetailProps> {
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('可选维度')}：</div>
             <div class='form-item-value'>
-              <div class='tag-list'>
-                {this.variable.dimensionOptionsMap.map(item => (
-                  <div
-                    key={item.id}
-                    class='tag-item'
-                  >
-                    {item.name}
-                  </div>
-                ))}
-              </div>
+              {this.variable.isAllDimensionOptions ? (
+                <span>- ALL -</span>
+              ) : (
+                <div class='tag-list'>
+                  {this.variable.dimensionOptionsMap.map(item => (
+                    <div
+                      key={item.id}
+                      class='tag-item'
+                    >
+                      {item.name}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div class='form-item'>

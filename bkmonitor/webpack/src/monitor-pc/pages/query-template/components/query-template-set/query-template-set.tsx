@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { variableRegex } from '../../variables/template/utils';
 import VariablesManage from '../../variables/variables-manage/variables-manage';
-import BasicInfoCreate from '../basic-info/basic-info-create';
+import BasicInfo from '../basic-info/basic-info';
 import ExpressionPanel from '../expression-panel/expression-panel';
 import ExpressionPanelLoading from '../expression-panel/expression-panel-loading';
 import QueryPanel from '../query-panel/query-panel';
@@ -85,7 +85,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
   @Prop({ default: () => [] }) metricFunctions: any[];
   @Prop({ default: () => [] }) variablesList: VariableModelType[];
   @Prop({ default: false }) loading: boolean;
-  @Ref('basicInfo') basicInfoRef: BasicInfoCreate;
+  @Ref('basicInfo') basicInfoRef: BasicInfo;
   @Ref('createContainer') createContainerRef: HTMLDivElement;
   @Ref('variablesManage') variablesManageRef: VariablesManage;
 
@@ -183,10 +183,10 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
       <div class='query-template-set'>
         <div
           ref='createContainer'
-          class='left-create-container'
+          class={['left-create-container', { sticky: this.isSticky }]}
         >
           <div class='create-content-wrap'>
-            <BasicInfoCreate
+            <BasicInfo
               ref='basicInfo'
               formData={this.basicInfo}
               scene={this.scene}
@@ -234,7 +234,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
             </div>
           </div>
 
-          <div class={['submit-btns', { sticky: this.isSticky }]}>
+          <div class='submit-btns'>
             <bk-button
               disabled={this.getNextStepDisabled}
               theme='primary'
