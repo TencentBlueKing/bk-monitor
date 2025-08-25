@@ -100,7 +100,7 @@ export default class TemplateEdit extends TemplateCreate {
       }),
     };
     this.submitLoading = true;
-    const data = await updateQueryTemplate(params).catch(() => false);
+    const data = await updateQueryTemplate(this.editId, params).catch(() => false);
     this.submitLoading = false;
     this.needCheck = false;
     this.$router.push({
