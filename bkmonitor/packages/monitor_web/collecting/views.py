@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
@@ -95,4 +95,33 @@ class CollectingConfigViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.collecting.fetch_collect_config_stat, endpoint="fetch_collect_config_stat"),
         # 依赖插件版本前置校验
         ResourceRoute("POST", resource.collecting.check_plugin_version, endpoint="check_plugin_version"),
+    ]
+
+
+class QcloudCollectingViewSet(ResourceViewSet):
+    """
+    Qcloud 采集视图
+    """
+
+    resource_routes = [
+        # 腾讯云产品映射接口
+        ResourceRoute("GET", resource.collecting.cloud_product_mapping, endpoint="mapping"),
+        # 腾讯云产品实例预览接口 - 对应 POST /cloud-products/instances_query
+        ResourceRoute("POST", resource.collecting.cloud_product_instance_query, endpoint="instances_query"),
+        # 腾讯云产品标签和过滤器配置接口 - 对应 GET /cloud-products/config
+        ResourceRoute("GET", resource.collecting.cloud_product_config, endpoint="config"),
+        # 保存配置并下发采集接口 - 对应 POST /cloud-products/monitoring/save_config
+        ResourceRoute("POST", resource.collecting.cloud_monitoring_save_config, endpoint="monitoring/save_config"),
+        # 获取采集配置列表接口 - 对应 GET /cloud-products/monitoring/tasks
+        ResourceRoute("GET", resource.collecting.cloud_monitoring_task_list, endpoint="monitoring/tasks"),
+        # 异步获取任务状态接口 - 对应 GET /cloud-products/monitoring/tasks/status
+        ResourceRoute("GET", resource.collecting.cloud_monitoring_task_status, endpoint="monitoring/tasks/status"),
+        # 获取采集配置详情接口 - 对应 GET /cloud-products/monitoring/tasks/{task_id}
+        ResourceRoute(
+            "GET", resource.collecting.cloud_monitoring_task_detail, endpoint="monitoring/tasks/<str:task_id>"
+        ),
+        # 更新采集配置接口 - 对应 PUT /cloud-products/monitoring/tasks/{task_id}
+        ResourceRoute(
+            "PUT", resource.collecting.cloud_monitoring_update_config, endpoint="monitoring/tasks/<str:task_id>"
+        ),
     ]
