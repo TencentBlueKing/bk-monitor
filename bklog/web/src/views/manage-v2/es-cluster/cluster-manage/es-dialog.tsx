@@ -28,7 +28,7 @@ export default defineComponent({
       default: () => [],
     },
     type: {
-      type: String as PropType<'hot' | 'warm'>,
+      type: String,
       default: 'hot',
     },
     formData: {
