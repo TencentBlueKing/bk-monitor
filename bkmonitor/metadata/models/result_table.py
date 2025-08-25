@@ -288,7 +288,7 @@ class ResultTable(models.Model):
         schema_type,
         operator,
         default_storage,
-        bk_tenant_id=DEFAULT_TENANT_ID,
+        bk_tenant_id,
         default_storage_config=None,
         field_list=(),
         is_sync_db=True,
@@ -817,9 +817,7 @@ class ResultTable(models.Model):
 
         return result_table_list
 
-    def create_storage(
-        self, storage, is_sync_db, external_storage=None, bk_tenant_id=DEFAULT_TENANT_ID, **storage_config
-    ):
+    def create_storage(self, storage, is_sync_db, bk_tenant_id: str, external_storage=None, **storage_config):
         """
         创建结果表的一个实际存储
         :param storage: 存储方案
@@ -2545,9 +2543,7 @@ class CMDBLevelRecord(models.Model):
         ).exists()
 
     @classmethod
-    def create_record(
-        cls, source_table_id, bk_data_id, cmdb_level, operator, target_table_id=None, bk_tenant_id=DEFAULT_TENANT_ID
-    ):
+    def create_record(cls, source_table_id, bk_data_id, cmdb_level, operator, bk_tenant_id: str, target_table_id=None):
         """
         创建一个新的CMDB层级清理配置
         :param source_table_id: 源结果表名

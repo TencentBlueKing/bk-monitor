@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,10 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Dict, List
-
 from django.core.management import BaseCommand
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 
 
@@ -112,6 +110,7 @@ class Command(BaseCommand):
                 "field_list": fields.get(table_id) or self.extend_fields,
                 "include_cmdb_level": False,
                 "label": "os",
+                "bk_tenant_id": DEFAULT_TENANT_ID,
                 "option": option,
                 "default_storage_config": {},
                 "create_storage": False,
@@ -124,7 +123,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("create perforce data link success!"))
 
-    def _get_table_fields(self, table_ids: List[str]) -> Dict:
+    def _get_table_fields(self, table_ids: list[str]) -> dict:
         # 获取结果表对应的字段
         table_field_map = {}
         # 过滤数据
@@ -147,7 +146,7 @@ class Command(BaseCommand):
             }
         return table_field_map
 
-    def _get_table_field_option(self, table_ids: List[str]) -> Dict:
+    def _get_table_field_option(self, table_ids: list[str]) -> dict:
         # 获取字段对应的option
         table_field_option_map = {}
         # 过滤数据
@@ -162,7 +161,7 @@ class Command(BaseCommand):
                 table_field_option_map[key] = item
         return table_field_option_map
 
-    def _get_table_option(self, table_ids: List[str]) -> Dict:
+    def _get_table_option(self, table_ids: list[str]) -> dict:
         # 获取结果表关联的option
         table_option_map = {}
         # 过滤数据

@@ -14,6 +14,7 @@ from queue import Full, Queue
 from django.core.management.base import BaseCommand
 from django.db.transaction import atomic
 
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config, models
 from metadata.models.constants import (
@@ -233,10 +234,12 @@ class Command(BaseCommand):
                     self.stderr.write(f"failed to push space table ids, err: {e}, space: {space_type, space_id}")
         # 推送标签
         if update_data_label_set:
-            client.push_data_label_table_ids(list(update_data_label_set), is_publish=True)
+            client.push_data_label_table_ids(
+                bk_tenant_id=DEFAULT_TENANT_ID, data_label_list=list(update_data_label_set), is_publish=True
+            )
         # 推送详情
         if update_rt_set:
-            client.push_table_id_detail(is_publish=True, include_es_table_ids=True)
+            client.push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, is_publish=True, include_es_table_ids=True)
 
     def _compose_create_or_update_option_objs(self, table_id: str, options: list[dict]) -> tuple[list, list]:
         """创建或者更新结果表 option"""

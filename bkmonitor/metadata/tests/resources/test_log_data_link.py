@@ -12,6 +12,7 @@ from unittest.mock import call, patch
 
 import pytest
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.resources import CreateOrUpdateLogRouter
@@ -329,7 +330,9 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
             space_client = SpaceTableIDRedis()
-            space_client.push_es_table_id_detail(table_id_list=[non_exist_es_table_id], is_publish=True)
+            space_client.push_es_table_id_detail(
+                bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=[non_exist_es_table_id], is_publish=True
+            )
 
             mock_hmset_to_redis.assert_has_calls(
                 [

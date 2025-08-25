@@ -397,6 +397,7 @@ class TestDataSource:
         settings.INFLUXDB_DEFAULT_PROXY_CLUSTER_NAME = self.influxdb_cluster_name
         new_table = models.ResultTable.create_result_table(
             bk_data_id=new_data_source.bk_data_id,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             table_id=new_data_source.data_name,
             table_name_zh=new_data_source.data_name,
             is_custom_table=False,
@@ -717,6 +718,7 @@ class TestDataSource:
         default_storage_table_id = f"{new_data_source.data_name}_kafka_defaul_storage"
         new_table = models.ResultTable.create_result_table(
             bk_data_id=new_data_source.bk_data_id,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             table_id=default_storage_table_id,
             table_name_zh=new_data_source.data_name,
             is_custom_table=False,
@@ -784,6 +786,7 @@ class TestDataSource:
         # 创建一个对应的结果表
         new_table = models.ResultTable.create_result_table(
             bk_data_id=new_data_source.bk_data_id,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             table_id=new_data_source.data_name,
             table_name_zh=new_data_source.data_name,
             is_custom_table=False,

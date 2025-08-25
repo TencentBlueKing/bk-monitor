@@ -16,6 +16,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_request_username
 from core.drf_resource import Resource
 from metadata import config, models
@@ -90,6 +91,7 @@ class CreateEsRouter(BaseLogRouter):
     """同步es路由信息"""
 
     class RequestSerializer(ParamsSerializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         space_type = serializers.CharField(required=True, label="空间类型")
         space_id = serializers.CharField(required=True, label="空间ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
@@ -101,10 +103,10 @@ class CreateEsRouter(BaseLogRouter):
         origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
 
     def perform_request(self, data: OrderedDict):
+        bk_tenant_id = data["bk_tenant_id"]
         space = models.Space.objects.get(
-            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
+            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=bk_tenant_id
         )
-        bk_tenant_id = space.bk_tenant_id
 
         # 创建结果表和ES存储记录
         need_create_index = data.get("need_create_index", True)
@@ -157,6 +159,7 @@ class CreateDorisRouter(BaseLogRouter):
     """同步doris路由信息"""
 
     class RequestSerializer(ParamsSerializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         space_type = serializers.CharField(required=True, label="空间类型")
         space_id = serializers.CharField(required=True, label="空间ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
@@ -167,10 +170,10 @@ class CreateDorisRouter(BaseLogRouter):
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
 
     def perform_request(self, data: dict):
+        bk_tenant_id = data["bk_tenant_id"]
         space = models.Space.objects.get(
-            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
+            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=bk_tenant_id
         )
-        bk_tenant_id = space.bk_tenant_id
 
         # 创建结果表和存储记录
         logger.info(
@@ -230,6 +233,7 @@ class UpdateEsRouter(BaseLogRouter):
     """更新es路由信息"""
 
     class RequestSerializer(ParamsSerializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         data_label = serializers.CharField(required=False, label="数据标签")
         cluster_id = serializers.IntegerField(required=False, allow_null=True, label="集群ID")
@@ -239,7 +243,7 @@ class UpdateEsRouter(BaseLogRouter):
         origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
 
     def perform_request(self, data: OrderedDict):
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = data["bk_tenant_id"]
 
         # 查询结果表存在
         table_id = data["table_id"]
@@ -302,6 +306,7 @@ class UpdateEsRouter(BaseLogRouter):
 
 class UpdateDorisRouter(BaseLogRouter):
     class RequestSerializer(ParamsSerializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         space_type = serializers.CharField(required=True, label="空间类型")
         space_id = serializers.CharField(required=True, label="空间ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
@@ -312,10 +317,7 @@ class UpdateDorisRouter(BaseLogRouter):
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
 
     def perform_request(self, data: OrderedDict):
-        space = models.Space.objects.get(
-            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
-        )
-        bk_tenant_id = space.bk_tenant_id
+        bk_tenant_id = data["bk_tenant_id"]
 
         table_id = data["table_id"]
         doris_storage = models.DorisStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
