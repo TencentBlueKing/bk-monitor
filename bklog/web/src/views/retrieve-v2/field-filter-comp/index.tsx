@@ -64,7 +64,7 @@ export default class FieldFilterComp extends tsc<object> {
   };
   dragVisibleFields = [];
   expandedNodes = {}; // 用于存储展开节点的 key
-  levels = {};
+  levels = {}; // 用于存储展开节点的最大层级
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
   builtInInitHiddenList = builtInInitHiddenList;
 
@@ -442,7 +442,7 @@ export default class FieldFilterComp extends tsc<object> {
     this.isShowErrInfo = false;
     this.$store.dispatch('requestIndexSetFieldInfo');
   }
-  // 记录bigTree展开节点
+  // 记录bigTree展开节点和最大层级
   expandChange(TreeNode, ref) {
     this.expandedNodes[ref] = this.expandedNodes[ref] || [];
     this.levels[ref] = this.levels[ref] || {};
@@ -499,6 +499,7 @@ export default class FieldFilterComp extends tsc<object> {
       ></bk-big-tree>
     );
   }
+  // 获取展开的最大层级
   getMaxValue(obj) {
     const values:number[] = Object.values(obj);
     if (values.length === 0) return 0;
