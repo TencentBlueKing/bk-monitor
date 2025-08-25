@@ -22,7 +22,7 @@ from bkmonitor.utils import time_tools
 from bkmonitor.utils.model_manager import AbstractRecordModel
 from bkmonitor.utils.range.period import TimeMatchByDay
 from bkmonitor.utils.request import get_source_app
-from constants.action import NoticeWay
+from constants.action import NoticeWay, UserGroupType
 from constants.common import DutyGroupType, SourceApp
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
@@ -53,6 +53,7 @@ __all__ = [
     "DefaultStrategyBizAccessModel",
     "AlgorithmChoiceConfig",
     "AlgorithmChoiceConfigAdmin",
+    "NoticeSubscribe",
 ]
 
 
@@ -968,3 +969,25 @@ class AlgorithmChoiceConfig(Model):
         verbose_name = "算法类型配置"
         verbose_name_plural = "算法类型配置"
         db_table = "algorithm_choice_config"
+
+
+class NoticeSubscribe(Model):
+    """
+    告警策略订阅表
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    username = models.CharField("用户名", max_length=64, db_index=True)
+    bk_biz_id = models.IntegerField("业务ID", db_index=True)
+    conditions = models.JSONField("条件组", default=list)
+    notice_ways = models.JSONField("通知方式", default=list)
+    user_type = models.CharField(
+        "人员类型", default=UserGroupType.FOLLOWER, choices=UserGroupType.CHOICE, max_length=32
+    )
+    is_enable = models.BooleanField("是否启用", default=True)
+    priority = models.IntegerField("优先级", default=-1)
+
+    class Meta:
+        verbose_name = "告警策略订阅"
+        verbose_name_plural = "告警策略订阅"
+        db_table = "notice_subscribe"

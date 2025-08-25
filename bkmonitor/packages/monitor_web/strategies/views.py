@@ -27,6 +27,11 @@ class StrategiesViewSet(ResourceViewSet):
             "strategy_label",
             "strategy_label_list",
             "delete_strategy_label",
+            # 策略订阅暂时不设置权限
+            "subscribe/save",
+            "subscribe/delete",
+            "subscribe/list",
+            "subscribe/detail",
         ]:
             return []
         if self.action in [
@@ -148,4 +153,12 @@ class StrategiesViewSet(ResourceViewSet):
         ),
         # 返回简易版本的策略列表
         ResourceRoute("GET", resource.strategies.get_devops_strategy_list, endpoint="get_devops_strategy_list"),
+        # 新增/保存策略订阅
+        ResourceRoute("POST", resource.strategies.save_strategy_subscribe, endpoint="subscribe/save"),
+        # 删除策略订阅
+        ResourceRoute("POST", resource.strategies.delete_strategy_subscribe, endpoint="subscribe/delete"),
+        # 获取策略订阅列表
+        ResourceRoute("GET", resource.strategies.list_strategy_subscribe, endpoint="subscribe/list"),
+        # 获取策略订阅详情
+        ResourceRoute("GET", resource.strategies.detail_strategy_subscribe, endpoint="subscribe/detail"),
     ]
