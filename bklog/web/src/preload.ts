@@ -26,6 +26,7 @@
 
 import { VIEW_BUSINESS } from './common/authority-map';
 import { BK_LOG_STORAGE } from './store/store.type';
+import BkUserDisplayName from '@blueking/bk-user-display-name';
 
 /** 外部版根据空间授权权限显示菜单 */
 export const getExternalMenuListBySpace = space => {
@@ -91,6 +92,16 @@ export default ({
   });
 
   const userInfoRequest = http.request('userInfo/getUsername').then(resp => {
+    BkUserDisplayName.configure({
+      // 必填，租户 ID
+      tenantId: resp.data.bk_tenant_id,
+      // 必填，网关地址
+      apiBaseUrl: process.env.NODE_ENV === 'development' ? '' : window.BK_LOGIN_URL,
+      // 可选，缓存时间，单位为毫秒, 默认 5 分钟, 只对单一值生效
+      cacheDuration: 1000 * 60 * 5,
+      // 可选，当输入为空时，显示的文本，默认为 '--'
+      emptyText: '--',
+    });
     store.commit('updateUserMeta', resp.data);
     return resp.data;
   });

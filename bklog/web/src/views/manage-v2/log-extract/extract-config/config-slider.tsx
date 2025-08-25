@@ -30,7 +30,7 @@ import useLocale from '@/hooks/use-locale';
 import http from '@/api';
 import ModuleSelect from './module-select.tsx';
 import ValidateInput from './validate-input.tsx';
-import ValidateUserSelector from './validate-user-selector.tsx';
+import ValidateUserSelector from '@/components/user-selector';
 
 import './config-slider.scss';
 
@@ -161,7 +161,7 @@ export default defineComponent({
     // 监听选择对话框的显示状态
     const handleValueChange = (val: any) => {
       showSelectDialog.value = val;
-    }; 
+    };
 
     // 修改执行人
     const changeOperator = async () => {
@@ -298,9 +298,6 @@ export default defineComponent({
                 onChange={(val: any[]) => {
                   manageStrategyData.user_list = val;
                 }}
-                // allowCreate={props.allowCreate}
-                api={props.userApi}
-                // placeholder={props.allowCreate ? t('请输入QQ并按Enter结束（可多次添加）') : ''}
               />
             </div>
           </div>
@@ -380,12 +377,16 @@ export default defineComponent({
             </div>
             <div class='content'>
               <div class='flex-box'>
-                <bk-input
+                {/* <bk-input
                   style='width: 256px; margin-right: 10px'
                   class={!manageStrategyData.operator && 'is-input-error'}
                   value={manageStrategyData.operator}
                   readonly
-                />
+                /> */}
+                <bk-user-display-name
+                  class='execute-people'
+                  user-id={manageStrategyData.value.operator}
+                ></bk-user-display-name>
                 <bk-button
                   loading={isChangeOperatorLoading.value}
                   size='small'
