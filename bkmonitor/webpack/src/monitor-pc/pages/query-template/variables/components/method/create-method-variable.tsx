@@ -81,7 +81,7 @@ export default class CreateMethodVariable extends tsc<MethodVariableProps, Metho
               value={this.variable.defaultValue}
               onChange={this.handleValueChange}
             >
-              {this.variable.metric.methodList.map(item => (
+              {this.variable.metric?.methodList.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}

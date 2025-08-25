@@ -319,8 +319,8 @@ export function getCreateVariableParams(params, metrics: MetricDetailV2[]): IVar
 
   let metric = null;
   if (related_metrics) {
-    const [{ metric_field, metric_id }] = related_metrics;
-    metric = metrics.find(item => item.metric_id === metric_id && item.metric_field === metric_field);
+    const [{ metric_id }] = related_metrics;
+    metric = metrics.find(item => item.metric_id === metric_id);
   }
 
   return {
