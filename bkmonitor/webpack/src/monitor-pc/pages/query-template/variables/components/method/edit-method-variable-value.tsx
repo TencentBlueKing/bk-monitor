@@ -65,7 +65,7 @@ export default class EditMethodVariableValue extends tsc<MethodValueProps, Metho
           onChange={this.handleValueChange}
           onToggle={this.handleSelectToggle}
         >
-          {this.variable.metric.methodList.map(item => (
+          {this.variable.metric?.methodList.map(item => (
             <bk-option
               id={item.id}
               key={item.id}
