@@ -26,6 +26,8 @@
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import { getCommonFilterAddition, clearStorageCommonFilterAddition } from '../../../store/helper';
   import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
+  import { handleTransformToTimestamp } from '@/components/time-range/utils';
+
 
   const props = defineProps({
     // activeFavorite: {
@@ -203,6 +205,11 @@
 
   const handleBtnQueryClick = () => {
     if (!isInputLoading.value) {
+      const { datePickerValue, format } = store.state.indexItem;
+      const result = handleTransformToTimestamp(datePickerValue, format);
+      
+      store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue });
+
       if (searchMode.value === 'sql') {
         beforeQueryBtnClick().then(() => {
           getBtnQueryResult();
