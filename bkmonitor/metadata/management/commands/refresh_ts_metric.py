@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.core.management.base import BaseCommand, CommandError
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
@@ -25,7 +26,7 @@ class Command(BaseCommand):
         try:
             bk_data_id = models.DataSourceResultTable.objects.get(table_id=table_id).bk_data_id
         except models.DataSourceResultTable.DoesNotExist:
-            raise CommandError("table_id: %s not found from DataSourceResultTable" % table_id)
+            raise CommandError(f"table_id: {table_id} not found from DataSourceResultTable")
         return bk_data_id
 
     def handle(self, *args, **options):
@@ -39,14 +40,14 @@ class Command(BaseCommand):
             data_id = self.get_data_id_by_table_id(table_id)
 
         client = SpaceTableIDRedis()
-        self.stdout.write("data id: %s start to refresh metric router" % data_id)
+        self.stdout.write(f"data id: {data_id} start to refresh metric router")
         try:
             ts_group = models.TimeSeriesGroup.objects.get(bk_data_id=data_id)
         except models.TimeSeriesGroup.DoesNotExist:
-            raise CommandError("data_id: %s not found from TimeSeriesGroup" % data_id)
+            raise CommandError(f"data_id: {data_id} not found from TimeSeriesGroup")
         ts_group.update_time_series_metrics()
-        self.stdout.write("data id: %s start to push redis data" % data_id)
-        client.push_table_id_detail(table_id_list=[ts_group.table_id], is_publish=True)
-        self.stdout.write("data id: %s refresh metric router successfully" % data_id)
+        self.stdout.write(f"data id: {data_id} start to push redis data")
+        client.push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=[ts_group.table_id], is_publish=True)
+        self.stdout.write(f"data id: {data_id} refresh metric router successfully")
 
         self.stdout.write("update time series metric successfully")

@@ -266,7 +266,10 @@ def sync_bkcc_space_data_source():
 
     # 组装数据，推送 redis 功能
     space_id_list = [str(biz_id) for biz_id in biz_id_list if str(biz_id) != "0"]
-    push_and_publish_space_router(space_type=SpaceTypes.BKCC.value, space_id_list=space_id_list)
+    # 可以通过space过滤， 租户id传递默认值
+    push_and_publish_space_router(
+        space_type=SpaceTypes.BKCC.value, space_id_list=space_id_list, bk_tenant_id=DEFAULT_TENANT_ID
+    )
     cost_time = time.time() - start_time
 
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
@@ -596,7 +599,10 @@ def refresh_cluster_resource():
 
     if space_id_list:
         # 推送 redis 功能, 包含空间到结果表，数据标签到结果表，结果表详情
-        push_and_publish_space_router(space_type=SpaceTypes.BKCI.value, space_id_list=space_id_list)
+        # 可以通过space过滤， 租户id传递默认值
+        push_and_publish_space_router(
+            space_type=SpaceTypes.BKCI.value, space_id_list=space_id_list, bk_tenant_id=DEFAULT_TENANT_ID
+        )
 
         logger.info("push updated bcs space resource to redis successfully, space: %s", json.dumps(space_id_list))
 
@@ -647,11 +653,11 @@ def refresh_bkci_space_name():
 
 
 def push_and_publish_space_router(
+    bk_tenant_id: str,
     space_type: str | None = None,
     space_id: str | None = None,
     space_id_list: list[str] | None = None,
     is_publish: bool | None = True,
-    bk_tenant_id: str | None = DEFAULT_TENANT_ID,
 ):
     """推送数据和通知"""
     from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
@@ -699,7 +705,9 @@ def push_and_publish_space_router(
 
     if settings.ENABLE_MULTI_TENANT_MODE:  # 若开启多租户模式，则以空间粒度推送路由
         for space in space_list:
-            tid_ds = get_space_table_id_data_id(space["space_type"], space["space_id"])
+            tid_ds = get_space_table_id_data_id(
+                space_type=space["space_type"], space_id=space["space_id"], bk_tenant_id=space["bk_tenant_id"]
+            )
             space_tid_list = list(tid_ds.keys())
             space_client = SpaceTableIDRedis()
             space_client.push_table_id_detail(
@@ -717,12 +725,19 @@ def push_and_publish_space_router(
         table_id_list = []
         if space_id:
             for space in space_list:
-                tid_ds = get_space_table_id_data_id(space["space_type"], space["space_id"])
+                tid_ds = get_space_table_id_data_id(
+                    space_type=space["space_type"], space_id=space["space_id"], bk_tenant_id=DEFAULT_TENANT_ID
+                )
                 table_id_list.extend(tid_ds.keys())
 
         space_client = SpaceTableIDRedis()
         space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
-        space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
+        space_client.push_table_id_detail(
+            table_id_list=table_id_list,
+            is_publish=is_publish,
+            include_es_table_ids=True,
+            bk_tenant_id=DEFAULT_TENANT_ID,
+        )
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)

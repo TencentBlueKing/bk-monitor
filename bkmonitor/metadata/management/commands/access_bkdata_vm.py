@@ -13,6 +13,7 @@ import json
 from django.core.management import BaseCommand, CommandError
 
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.vm.constants import VM_RETENTION_TIME, TimestampLen
@@ -328,6 +329,6 @@ class Command(BaseCommand):
         client = SpaceTableIDRedis()
         client.push_space_table_ids(space_type, space_id, is_publish=True)
         client.push_data_label_table_ids(table_id_list=table_id_list)
-        client.push_table_id_detail(table_id_list=table_id_list)
+        client.push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_id_list)
 
         self.stdout.write("refresh router redis config success")
