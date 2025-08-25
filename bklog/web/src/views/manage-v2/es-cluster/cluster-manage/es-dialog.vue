@@ -105,7 +105,7 @@
     },
     methods: {
       handleVisibilityChange(val) {
-        this.$emit('input', val);
+        this.$emit('handle-value-change', val);
       },
     },
   };

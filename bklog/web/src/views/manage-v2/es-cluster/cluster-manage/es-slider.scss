@@ -85,21 +85,18 @@
       @include flex-justify(space-between);
 
       .bk-form-item {
-        // border: 1px solid blue;
         position: relative;
         width: 48%;
         margin-top: 18px;
       }
 
       .es-address {
-        // border: 1px solid blue;
-        // margin-top: 18px;
         width: 108%;
       }
 
       .form-item-label {
         margin-bottom: 8px;
-        font-size: 14px;
+        font-size: 12px;
         color: #63656e;
 
         @include flex-align;

@@ -35,7 +35,7 @@ import ManageHelper from '../../manage-helper.ts';
 import { Message } from 'bk-magic-vue';
 import { messageError } from '@/common/bkmagic';
 
-import EsDialog from './es-dialog.vue';
+import EsDialog from './es-dialog.tsx';
 
 import './es-slider.scss';
 
@@ -1028,7 +1028,7 @@ export default defineComponent({
                           multiple
                           searchable
                           onToggle={handleToggleVisible}
-                          onChange={(vals: string[]) => (visibleBkBiz.value = vals)}
+                          onChange={(val: string[]) => (visibleBkBiz.value = val)}
                           scopedSlots={{
                             trigger: () => (
                               <div class='visible-scope-box'>
@@ -1239,7 +1239,10 @@ export default defineComponent({
                             disabled={isDisableHotSetting.value}
                             size='large'
                             theme='primary'
-                            onChange={(v: boolean) => handleChangeHotWarm(v)}
+                            onChange={val => {
+                              formData.value.enable_hot_warm = val;
+                              handleChangeHotWarm(val);
+                            }}
                           />
                           {isDisableHotSetting.value &&
                             !connectLoading.value && [
@@ -1418,6 +1421,7 @@ export default defineComponent({
           formData={formData.value}
           list={hotColdOriginList.value}
           type={viewInstanceType.value}
+          on-handle-value-change={val => (showInstanceDialog.value = val)}
         />
       </div>
     );
