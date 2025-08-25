@@ -1,0 +1,27 @@
+.template-metric-creator-component {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  font-size: 12px;
+  border: 1px solid #DCDEE5;
+
+  .metric-label {
+    height: 100%;
+    padding: 0 8px;
+    line-height: 32px;
+    color: #313238;
+    background: #EBEEF5;
+    border-right: 1px solid #DCDEE5;
+  }
+
+  .metric-name {
+    font-size: 12px;
+    color: #313238;
+  }
+
+  .metric-placeholder {
+    font-size: 12px;
+    color: #c4c6cc;
+  }
+}

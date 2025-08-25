@@ -41,5 +41,6 @@ urlpatterns = [
     re_path(r"^", include("monitor_web.datalink.urls")),
     re_path(r"^", include("monitor_web.new_report.urls")),
     re_path(r"^", include("monitor_web.incident.urls")),
+    re_path(r"^", include("monitor_web.query_template.urls")),
     re_path(r"^k8s/", include("monitor_web.k8s.urls")),
 ]

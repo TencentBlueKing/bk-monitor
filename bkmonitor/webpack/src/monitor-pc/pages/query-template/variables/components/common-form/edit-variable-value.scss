@@ -1,0 +1,32 @@
+.edit-variable-value {
+  min-width: 240px;
+
+  .variable-value {
+    display: flex;
+    width: 100%;
+
+    .variable-value-label {
+      max-width: 80px;
+      height: 32px;
+      padding: 0 9px 0 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 32px;
+      white-space: nowrap;
+      background: #ebeef5;
+      border: 1px solid #dcdee5;
+      border-right: none;
+      border-radius: 2px 0 0 2px;
+
+      span {
+        cursor: pointer;
+        border-bottom: 1px dashed #c4c6cc;
+      }
+    }
+
+    .variable-value-input {
+      flex: 1;
+      background-color: #fff;
+    }
+  }
+}

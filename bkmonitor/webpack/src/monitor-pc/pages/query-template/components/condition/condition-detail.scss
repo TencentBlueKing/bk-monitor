@@ -1,0 +1,49 @@
+.template-condition-detail-component {
+  display: flex;
+  color: #757880;
+
+  .condition-label {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 50px;
+    text-align: right;
+  }
+
+  .condition-colon {
+    display: inline-flex;
+    flex-shrink: 0;
+    margin-right: 10px;
+    margin-left: 2px;
+  }
+
+  .tags-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+
+    .variable-tag {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 80px;
+      min-height: 40px;
+      padding: 4px;
+      line-height: 16px;
+      background: #eaebf0;
+      border-radius: 2px;
+    }
+
+    .tags-item {
+      display: flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 8px;
+      background: #eaebf0;
+      border-radius: 2px;
+
+      .tags-item-name {
+        color: #4d4f56;
+      }
+    }
+  }
+}

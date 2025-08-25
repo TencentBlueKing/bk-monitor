@@ -1,0 +1,37 @@
+.query-chart {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  min-height: 300px;
+
+  &-header {
+    display: flex;
+    flex: 0 0 32px;
+    align-items: center;
+    width: 100%;
+
+    &-title {
+      margin-right: auto;
+      font-size: 14px;
+      font-weight: 500;
+      color: #313238;
+    }
+
+    &-limit {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      margin-left: auto;
+    }
+
+    .query-timerange {
+      margin-left: 24px;
+    }
+  }
+
+  &-content {
+    flex: 1;
+    width: 100%;
+  }
+}

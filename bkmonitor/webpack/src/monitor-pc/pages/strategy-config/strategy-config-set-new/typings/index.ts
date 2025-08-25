@@ -25,7 +25,7 @@
  * IN THE SOFTWARE.
  */
 
-import { random } from 'monitor-common/utils/utils';
+import { deepClone, random } from 'monitor-common/utils/utils';
 
 import { CP_METHOD_LIST, INTERVAL_LIST, METHOD_LIST } from '../../../../constant/constant';
 
@@ -300,6 +300,7 @@ export class MetricDetail {
   plugin_type = '';
   promql_metric?: string;
   rawDimensions: ICommonItem[] = [];
+  rawMetric = null; // 原始指标数据
   readable_name = '';
   related_id = '';
   related_name = '';
@@ -318,13 +319,14 @@ export class MetricDetail {
   use_frequency = 0;
   constructor(public metricDetail?: Partial<IMetricDetail>) {
     if (!metricDetail) return;
-    Object.keys(metricDetail).forEach(key => {
+    this.rawMetric = deepClone(metricDetail);
+    for (const [key, value] of Object.entries(metricDetail)) {
       if (key === 'unit_suffix_list') {
-        this[key] = (metricDetail[key] || []).map(set => ({ ...set, id: set.id || 'NONE' }));
+        this[key] = ((value as any[]) || []).map(set => ({ ...set, id: set.id || 'NONE' }));
       } else {
-        this[key] = metricDetail[key];
+        this[key] = value;
       }
-    });
+    }
     this.keywords_query_string = metricDetail.keywords_query_string || metricDetail.query_string || '*';
     this.localQueryString = this.keywords_query_string;
     // 自定义事件

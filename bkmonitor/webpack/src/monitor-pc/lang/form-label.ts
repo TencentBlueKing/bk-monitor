@@ -1951,4 +1951,16 @@ export default {
   非空数据: 'Non-empty data',
   非空数据占比: 'Proportion of non-empty data',
   添加方式: 'Add method',
+
+  // 查询模板
+  '模板名称:': 'Template name:',
+  模板详情: 'Template details',
+  模板配置: 'Template configuration',
+  模版名称: 'Template name',
+  模版别名: 'Template alias',
+  生效范围: 'Effective range',
+  变量别名: 'Variable alias',
+  变量类型: 'Variable type',
+  变量描述: 'Variable description',
+  可选维度: 'Optional dimensions',
 };

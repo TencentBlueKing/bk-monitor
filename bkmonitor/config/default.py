@@ -326,6 +326,7 @@ ACTIVE_VIEWS = {
         "new_report": "monitor_web.new_report.views",
         "incident": "monitor_web.incident.views",
         "k8s": "monitor_web.k8s.views",
+        "query_template": "monitor_web.query_template.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {

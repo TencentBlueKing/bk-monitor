@@ -1,0 +1,58 @@
+.template-expression-creator-component {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  overflow: hidden;
+  font-size: 12px;
+  border: 1px solid #dcdee5;
+
+  .expression-label {
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    padding: 0 8px;
+    line-height: 30px;
+    color: #313238;
+    background: #ebeef5;
+    border-right: 1px solid #dcdee5;
+  }
+
+  .expression-input-wrap {
+    position: relative;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    height: 100%;
+    min-height: 30px;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+
+    &.focus {
+      border: 1px solid #3a84ff;
+      box-shadow: 0 0 4px rgb(58 132 255 / 40%);
+    }
+
+    .expression-input {
+      flex: 1;
+      min-width: 402px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4d4f56;
+      word-break: break-all;
+      overflow-wrap: break-word;
+      
+      &::before {
+        position: absolute;
+        top: 0;
+        left: 10px;
+        font-family: Menlo, Monaco, Consolas, Courier, "PingFang SC", "Microsoft Yahei", monospace;
+        font-size: 12px;
+        line-height: 30px;
+        color: #C4C6CC;
+        pointer-events: none;
+        content: attr(data-placeholder);
+      }
+    }
+  }
+}

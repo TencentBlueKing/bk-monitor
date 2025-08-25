@@ -41,6 +41,7 @@ export interface IOption {
 }
 export interface IProps {
   appendTo?: string;
+  hasExpanded?: boolean;
   isNeedDefaultVal?: boolean;
   minSec?: number;
   needAuto?: boolean;

@@ -1,0 +1,420 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+/** biome-ignore-all lint/complexity/noBannedTypes: <explanation> */
+
+import { random } from 'monitor-common/utils';
+
+import { VariableTypeEnum } from '../constants';
+import { getTemplateSrv } from './template/template-srv';
+import { getVariableNameInput, isVariableName } from './template/utils';
+
+import type { AggFunction, MetricDetailV2 } from '../typings';
+import type {
+  ICommonVariableModel,
+  IConditionVariableModel,
+  IConstantVariableModel,
+  IDimensionValueVariableModel,
+  IDimensionVariableModel,
+  IFunctionVariableModel,
+  IMethodVariableModel,
+  IVariableData,
+  IVariableModel,
+  VariableTypeEnumType,
+} from '../typings/variables';
+import type { ScopedVars } from './template/types';
+
+export type VariableModelType =
+  | ConditionVariableModel
+  | ConstantVariableModel
+  | DimensionValueVariableModel
+  | DimensionVariableModel
+  | FunctionVariableModel
+  | MethodVariableModel;
+
+const isEmptyValue = (value: any) => {
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+  return value === '' || value === null || value === undefined;
+};
+abstract class VariableBase {
+  alias = '';
+  /** 默认值 */
+  abstract defaultValue: any;
+  description = '';
+  id = '';
+  /** value值是否编辑过 */
+  isValueEditable = false;
+  name = '';
+  type: VariableTypeEnumType;
+  /** 已选值 */
+  abstract value: any;
+
+  constructor(config: ICommonVariableModel<VariableTypeEnumType>) {
+    this.name = config.name;
+    this.alias = config.alias;
+    this.description = config.description;
+    this.type = config.type;
+    this.id = config.id || random(5);
+    this.isValueEditable = config.isValueEditable || false;
+  }
+
+  abstract get data(): Required<IVariableData>;
+
+  get scopedVars(): ScopedVars {
+    return {
+      [this.variableName]: {
+        value: isEmptyValue(this.value) ? this.defaultValue : this.value,
+      },
+    };
+  }
+  get variableName(): string {
+    if (isVariableName(this.name)) {
+      return getVariableNameInput(this.name);
+    } else {
+      return this.name;
+    }
+  }
+  replace(target: string, format?: Function | string): string {
+    return getTemplateSrv().replace(target, this.scopedVars, format);
+  }
+}
+
+export class ConditionVariableModel extends VariableBase {
+  defaultValue: IConditionVariableModel['value'] = [];
+  /** 关联指标 */
+  metric: MetricDetailV2 = null;
+  options = [];
+  value: IConditionVariableModel['value'] = [];
+
+  constructor(config: IConditionVariableModel) {
+    super(config);
+    this.metric = config.metric;
+    this.options = config.options || ['all'];
+    this.defaultValue = config.defaultValue || [];
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
+    }
+  }
+
+  get data() {
+    return {
+      id: this.id,
+      isValueEditable: this.isValueEditable,
+      type: VariableTypeEnum.CONDITIONS,
+      name: this.name,
+      alias: this.alias,
+      description: this.description,
+      metric: this.metric,
+      options: this.options,
+      value: this.value,
+      defaultValue: this.defaultValue,
+      variableName: this.variableName,
+    };
+  }
+  /** 维度列表 */
+  get dimensionList() {
+    return this.metric.dimensions;
+  }
+  /** 可选维度列表映射 */
+  get dimensionOptionsMap() {
+    return this.isAllDimensionOptions
+      ? this.dimensionList
+      : this.dimensionList.filter(item => this.options.includes(item.id));
+  }
+  get isAllDimensionOptions() {
+    return this.options.includes('all');
+  }
+}
+
+export class ConstantVariableModel extends VariableBase {
+  defaultValue = '';
+  value = '';
+  constructor(config: IConstantVariableModel) {
+    super(config);
+    this.defaultValue = config.defaultValue || '';
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
+    }
+  }
+
+  get data() {
+    return {
+      id: this.id,
+      type: VariableTypeEnum.CONSTANTS,
+      isValueEditable: this.isValueEditable,
+      name: this.name,
+      alias: this.alias,
+      description: this.description,
+      value: this.value,
+      defaultValue: this.defaultValue,
+      variableName: this.variableName,
+    };
+  }
+}
+
+export class DimensionValueVariableModel extends VariableBase {
+  defaultValue = [];
+  /** 关联指标 */
+  metric: MetricDetailV2 = null;
+  /** 关联维度 */
+  related_tag = '';
+  value = [];
+  constructor(config: IDimensionValueVariableModel) {
+    super(config);
+    this.metric = config.metric;
+    this.related_tag = config.related_tag || '';
+    this.defaultValue = config.defaultValue || [];
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
+    }
+  }
+
+  get data() {
+    return {
+      id: this.id,
+      type: VariableTypeEnum.TAG_VALUES,
+      isValueEditable: this.isValueEditable,
+      name: this.name,
+      alias: this.alias,
+      description: this.description,
+      metric: this.metric,
+      value: this.value,
+      defaultValue: this.defaultValue,
+      variableName: this.variableName,
+      related_tag: this.related_tag,
+    };
+  }
+}
+
+export class DimensionVariableModel extends VariableBase {
+  defaultValue = [];
+  metric: MetricDetailV2 = null;
+  /** 可选维度 */
+  options = [];
+  value = [];
+
+  constructor(config: IDimensionVariableModel) {
+    super(config);
+    this.metric = config.metric;
+    this.options = config.options || ['all'];
+    if (config.defaultValue) {
+      this.defaultValue = config.defaultValue || [];
+    } else {
+      this.defaultValue = this.isAllDimensionOptions ? [this.dimensionList[0].id] : [this.options[0]];
+    }
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
+    }
+  }
+
+  get data() {
+    return {
+      id: this.id,
+      type: VariableTypeEnum.GROUP_BY,
+      isValueEditable: this.isValueEditable,
+      name: this.name,
+      alias: this.alias,
+      description: this.description,
+      metric: this.metric,
+      options: this.options,
+      value: this.value,
+      defaultValue: this.defaultValue,
+      variableName: this.variableName,
+    };
+  }
+
+  /** 维度列表 */
+  get dimensionList() {
+    return this.metric.dimensions;
+  }
+
+  /** 可选维度列表映射 */
+  get dimensionOptionsMap() {
+    return this.isAllDimensionOptions
+      ? this.dimensionList
+      : this.dimensionList.filter(item => this.options.includes(item.id));
+  }
+
+  get isAllDimensionOptions() {
+    return this.options.includes('all');
+  }
+}
+
+export class FunctionVariableModel extends VariableBase {
+  defaultValue: AggFunction[] = [];
+  value: AggFunction[] = [];
+  constructor(config: IFunctionVariableModel) {
+    super(config);
+    this.defaultValue = config.defaultValue || [];
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
+    }
+  }
+
+  get data() {
+    return {
+      id: this.id,
+      type: VariableTypeEnum.FUNCTIONS,
+      isValueEditable: this.isValueEditable,
+      name: this.name,
+      alias: this.alias,
+      description: this.description,
+      value: this.value,
+      defaultValue: this.defaultValue,
+      variableName: this.variableName,
+    };
+  }
+}
+
+export class MethodVariableModel extends VariableBase {
+  defaultValue = '';
+  metric: MetricDetailV2 = null;
+  value = '';
+  constructor(config: IMethodVariableModel) {
+    super(config);
+    this.defaultValue = config.defaultValue || 'AVG';
+    this.metric = config.metric;
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
+    }
+  }
+
+  get data() {
+    return {
+      id: this.id,
+      type: VariableTypeEnum.METHOD,
+      isValueEditable: this.isValueEditable,
+      name: this.name,
+      alias: this.alias,
+      metric: this.metric,
+      description: this.description,
+      value: this.value,
+      defaultValue: this.defaultValue,
+      variableName: this.variableName,
+    };
+  }
+}
+
+/** 获取创建变量所需参数结构 */
+export function getCreateVariableParams(params, metrics: MetricDetailV2[]): IVariableModel {
+  const {
+    type,
+    name,
+    alias,
+    description,
+    config: { default: defaultValue, related_metrics, related_tag, options },
+  } = params;
+
+  let metric = null;
+  if (related_metrics) {
+    const [{ metric_id }] = related_metrics;
+    metric = metrics.find(item => item.metric_id === metric_id);
+  }
+
+  return {
+    name: `\${${name}}`,
+    type,
+    alias,
+    description,
+    defaultValue,
+    metric,
+    related_tag,
+    options: options ? (options.length ? options : ['all']) : [],
+  };
+}
+
+export function getVariableModel(config: IVariableModel): VariableModelType {
+  switch (config.type) {
+    case VariableTypeEnum.METHOD:
+      return new MethodVariableModel(config);
+    case VariableTypeEnum.GROUP_BY:
+      return new DimensionVariableModel(config);
+    case VariableTypeEnum.TAG_VALUES:
+      return new DimensionValueVariableModel(config);
+    case VariableTypeEnum.FUNCTIONS:
+      return new FunctionVariableModel(config);
+    case VariableTypeEnum.CONDITIONS:
+      return new ConditionVariableModel(config);
+    case VariableTypeEnum.CONSTANTS:
+      return new ConstantVariableModel(config);
+  }
+}
+
+/** 获取变量接口提交参数结构 */
+export function getVariableSubmitParams(variable: VariableModelType) {
+  const { type, variableName, alias, description, defaultValue } = variable.data;
+  let otherConfig = {};
+  if (type === VariableTypeEnum.TAG_VALUES) {
+    const { related_tag, metric } = variable.data;
+    otherConfig = {
+      related_metrics: [
+        {
+          metric_id: metric.metric_id,
+          metric_field: metric.metric_field,
+        },
+      ],
+      related_tag: related_tag,
+      options: [],
+    };
+  }
+  if (type === VariableTypeEnum.CONDITIONS || type === VariableTypeEnum.GROUP_BY) {
+    const { metric } = variable.data;
+    otherConfig = {
+      related_metrics: [
+        {
+          metric_id: metric.metric_id,
+          metric_field: metric.metric_field,
+        },
+      ],
+      options: (variable as ConditionVariableModel | DimensionVariableModel).isAllDimensionOptions
+        ? []
+        : (variable as ConditionVariableModel | DimensionVariableModel).options,
+    };
+  }
+  return {
+    type,
+    name: variableName,
+    alias,
+    description: description,
+    config: {
+      default: defaultValue,
+      ...otherConfig,
+    },
+  };
+}

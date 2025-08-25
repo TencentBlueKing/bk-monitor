@@ -1,0 +1,68 @@
+.config-panel {
+  display: flex;
+  flex-direction: column;
+  row-gap: 24px;
+  padding: 16px 40px;
+  %panel-header-title {
+    /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
+    font-family: MicrosoftYaHei-Bold;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 22px;
+    color: #313238;
+  }
+
+  .base-info {
+    .info-header {
+      display: flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 8px;
+      background: #f5f7fa;
+      border-radius: 2px;
+
+      @extend %panel-header-title;
+    }
+
+    .info-main {
+      display: flex;
+      flex-direction: column;
+      row-gap: 12px;
+      padding: 16px 8px 0;
+
+      .info-item {
+        display: flex;
+        line-height: 20px;
+
+        .info-item-label {
+          flex-shrink: 0;
+          width: 60px;
+          color: #757880;
+        }
+
+        .info-item-value {
+          color: #313238;
+        }
+      }
+    }
+  }
+
+  .collapse-panel {
+    .explore-collapse-header {
+      background: #f5f7fa;
+      border-radius: 2px;
+
+      .explore-collapse-header-trigger {
+        width: 100%;
+        padding: 0 4px;
+
+        @extend %panel-header-title;
+      }
+    }
+
+    .explore-collapse-content {
+      row-gap: 8px;
+      padding-top: 8px;
+    }
+  }
+}

@@ -369,6 +369,20 @@ export default {
   用户指令: 'User Instruction',
   '请输入指标/PromQL语句': 'Please enter the metric/PromQL statement',
   请输入用户指令: 'Please enter the user instruction',
-  '调试数据范围取当前时间窗口前1000条数据': 'The debugging data range takes the previous 1000 entries from the current time window',
-  只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators'
+  调试数据范围取当前时间窗口前1000条数据:
+    'The debugging data range takes the previous 1000 entries from the current time window',
+  只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
+
+  // 查询模板
+  '当前仍然有关联的消费场景，无法编辑':
+    'Currently there are still associated consumption scenarios and cannot be edited',
+  '当前仍然有关联的消费场景，无法删除':
+    'Currently there are still associated consumption scenarios and cannot be deleted',
+  '输入框：直接输入 {0} 即可新建变量': 'Input box: Enter {0} directly to create a new variable',
+  '选择框：在选项中选择 {0} 然后输入变量名': 'Select box: Select {0} in the options and then enter the variable name',
+  '新建后，右侧会出现 {0}': 'After creating, {0} will appear on the right side',
+  '可以定义 {0} {1}': 'You can define {0} {1}',
+  '在各消费场景，选择 {0} 后，可填入 {1}': 'In various consumption scenarios, after selecting {0}, you can fill in {1}',
+  '仪表盘 Panel 级别的定位，需要一定的时间同步，如有需要请点击':
+    'The positioning at the panel level of the dashboard requires a certain amount of time to synchronize. If necessary, please click',
 };

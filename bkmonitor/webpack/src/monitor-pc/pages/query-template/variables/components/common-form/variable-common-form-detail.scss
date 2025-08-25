@@ -1,0 +1,31 @@
+.variable-common-form-detail {
+  display: table;
+  table-layout: fixed;
+
+  .form-item {
+    display: table-row;
+    height: 28px;
+    font-size: 12px;
+    line-height: 28px;
+
+    .form-item-label {
+      display: table-cell;
+      min-width: 76px;
+      vertical-align: middle;
+      color: #757880;
+      text-align: right;
+    }
+
+    .form-item-value {
+      display: table-cell;
+      vertical-align: middle;
+      color: #313238;
+    }
+
+    &.name {
+      .form-item-value {
+        color: #e54488;
+      }
+    }
+  }
+}

@@ -248,6 +248,8 @@ export default {
   '搜索套餐名称 / 类型 / 修改人': 'Search Solution /  Type / Modifier',
   '搜索 ID / 名称': 'Search ID / Name ',
   '搜索 索引 / 索引集名称': 'Support Index/Indices name',
+  '搜索 模板名称、模板说明、创建人、更新人': 'Search template name, template description, creator, updater',
+  '搜索 消费场景': 'Search consumption scenario',
 
   你可以将该搜索内容直接自定义为指标选项: 'You can directly customize the search content as a metric option',
 
@@ -335,4 +337,6 @@ export default {
   翻译: 'Translation',
   '高度自适应，宽度最大值为': 'Adaptive height, maximum width of',
   数值: 'Number',
+  '搜索 变量': 'Search Variable',
+  点击添加指标: 'Click to add metrics',
 };
