@@ -242,7 +242,7 @@ def get_space_table_id_data_id(
 
 
 def get_measurement_type_by_table_id(
-    bk_tenant_id: str, table_ids: set, table_list: list, table_id_data_id: dict
+    bk_tenant_id: str, table_ids: set | list, table_list: list, table_id_data_id: dict
 ) -> dict:
     """通过结果表 ID, 获取节点表对应的 option 配置
     通过 option 转到到 measurement 类型

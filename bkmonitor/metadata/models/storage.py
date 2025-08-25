@@ -1563,7 +1563,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
             table_list.append({"table_id": table_id, "schema_type": table_info["schema_type"]})
 
         return get_measurement_type_by_table_id(
-            bk_tenant_id=DEFAULT_TENANT_ID, table_ids=table_id_list, table_list=table_list
+            bk_tenant_id=DEFAULT_TENANT_ID, table_ids=table_id_list, table_list=table_list, table_id_data_id={}
         )
 
 
