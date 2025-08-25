@@ -22,7 +22,7 @@ from constants.query_template import GLOBAL_BIZ_ID
 
 class BaseQueryTemplateRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
-    is_mock = serializers.BooleanField(label="是否为 Mock 数据", default=True)
+    is_mock = serializers.BooleanField(label="是否为 Mock 数据", default=False)
 
 
 class QueryTemplateDetailRequestSerializer(BaseQueryTemplateRequestSerializer):
