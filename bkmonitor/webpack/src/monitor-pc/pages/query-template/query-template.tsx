@@ -27,7 +27,7 @@
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils';
+import { Debounce, random } from 'monitor-common/utils';
 
 import { type DeleteConfirmEvent } from './components/query-template-table/components/delete-confirm';
 import QueryTemplateTable from './components/query-template-table/query-template-table';
@@ -48,6 +48,8 @@ export default class MetricTemplate extends tsc<object> {
   searchKeyword = '';
   tableLoading = false;
   tableData: QueryTemplateListItem[] = [];
+  /** 数据请求中止控制器 */
+  abortController: AbortController = null;
 
   get requestParam() {
     const param = {
@@ -67,17 +69,69 @@ export default class MetricTemplate extends tsc<object> {
     return param as unknown as QueryListRequestParams;
   }
 
-  beforeMount() {
+  created() {
+    this.getRouterParams();
+  }
+  mounted() {
     this.getQueryTemplateList();
   }
+  beforeDestroy() {
+    this.abortRequest();
+  }
 
+  @Debounce(300)
   @Watch('requestParam')
   async getQueryTemplateList() {
+    this.abortRequest();
     this.tableLoading = true;
-    const { total, templateList } = await fetchQueryTemplateList(this.requestParam);
+    this.abortController = new AbortController();
+    const { total, templateList, isAborted } = await fetchQueryTemplateList(this.requestParam, {
+      signal: this.abortController.signal,
+    });
+    if (isAborted) {
+      return;
+    }
     this.total = total;
     this.tableData = templateList;
     this.tableLoading = false;
+  }
+
+  /**
+   * @description 中止数据请求
+   */
+  abortRequest() {
+    if (!this.abortController) return;
+    this.abortController.abort();
+    this.abortController = null;
+  }
+
+  /**
+   * @description 获取路由参数
+   */
+  getRouterParams() {
+    const { sort, searchKeyword } = this.$route.query;
+    this.sort = (sort as string) || '-update_time';
+    this.searchKeyword = searchKeyword as string;
+  }
+
+  /**
+   * @description 缓存条件参数知路由
+   */
+  setRouterParam() {
+    const query = {
+      ...this.$route.query,
+      sort: this.sort,
+      searchKeyword: this.searchKeyword,
+    };
+    const targetRoute = this.$router.resolve({
+      query,
+    });
+    /** 防止出现跳转当前地址导致报错 */
+    if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
+      this.$router.replace({
+        query,
+      });
+    }
   }
 
   /**
@@ -103,7 +157,9 @@ export default class MetricTemplate extends tsc<object> {
   }
 
   handleSortChange(sort: `-${string}` | string) {
+    if (sort === this.sort) return;
     this.sort = sort;
+    this.setRouterParam();
   }
 
   handleCurrentPageChange(currentPage: number) {
@@ -113,8 +169,11 @@ export default class MetricTemplate extends tsc<object> {
     this.pageSize = pageSize;
   }
 
+  @Debounce(300)
   handleSearchChange(keyword: string) {
+    if (keyword === this.searchKeyword) return;
     this.searchKeyword = keyword;
+    this.setRouterParam();
   }
 
   /**
