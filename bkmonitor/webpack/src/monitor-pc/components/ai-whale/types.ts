@@ -41,6 +41,7 @@ export type AIBluekingShortcuts = AIBluekingShortcut[];
 export interface ComponentConfig {
   default?: string;
   fillBack: boolean;
+  hide?: boolean;
   key: string;
   name: string | TranslateResult; // 兼容 i18n 翻译结果
   options?: ComponentOption[];
@@ -74,6 +75,7 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         key: 'content',
         name: window.i18n.t('内容'),
         fillBack: true,
+        required: true,
         placeholder: window.i18n.t('请输入需要解读的内容'),
       },
     ],
@@ -127,29 +129,30 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
       },
     ],
   },
-  // {
-  //   id: AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS,
-  //   name: window.i18n.t('Trace 助手'),
-  //   // icon: 'icon-monitor icon-mc-help-fill',
-  //   components: [
-  //     {
-  //       type: 'textarea',
-  //       key: 'trace_id',
-  //       fillBack: true,
-  //       required: true,
-  //       name: window.i18n.t('Trace ID'),
-  //       placeholder: window.i18n.t('请输入Trace ID'),
-  //     },
-  //     {
-  //       type: 'textarea',
-  //       key: 'app_name',
-  //       fillBack: false,
-  //       required: true,
-  //       name: window.i18n.t('应用名称'),
-  //       placeholder: window.i18n.t('请输入应用名称'),
-  //     },
-  //   ],
-  // },
+  {
+    id: AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS,
+    name: window.i18n.t('Trace 助手'),
+    // icon: 'icon-monitor icon-mc-help-fill',
+    components: [
+      {
+        type: 'textarea',
+        key: 'trace_id',
+        fillBack: true,
+        required: false,
+        name: window.i18n.t('Trace ID'),
+        placeholder: window.i18n.t('请输入Trace ID'),
+      },
+      {
+        type: 'textarea',
+        key: 'app_name',
+        fillBack: false,
+        required: false,
+        hide: true,
+        name: window.i18n.t('应用名称'),
+        placeholder: window.i18n.t('请输入应用名称'),
+      },
+    ],
+  },
   // {
   //   id: AI_BLUEKING_SHORTCUTS_ID.METADATA_DIAGNOSIS,
   //   name: window.i18n.t('链路排障'),
