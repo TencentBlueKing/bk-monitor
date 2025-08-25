@@ -732,22 +732,23 @@ class TraceDataSource(ApmDataSourceConfigBase):
     @classmethod
     def _filter_and_sort_valid_index_names(cls, app_name, index_names):
         date_index_pairs = []
-        pattern = re.compile(rf".*_bkapm_trace_{re.escape(app_name)}_(\d{{8}})_\d+$")
+        pattern = re.compile(rf".*_bkapm_trace_{re.escape(app_name)}_(\d{{8}})_(\d+)$")
 
         for name in index_names:
             match = pattern.search(name)
             if match:
                 date_str = match.group(1)
+                num = int(match.group(2))
                 # 检查 app_name 之后的格式是否是日期类型
                 try:
                     date = datetime.datetime.strptime(date_str, "%Y%m%d")
-                    date_index_pairs.append((date, name))
+                    date_index_pairs.append((date, num, name))
                 except ValueError:
                     logger.warning(f"[FilterValidIndexName] filter invalid indexName: {name} with wrong dateString")
                     continue
 
         # 按照时间排序 便于快捷获取最新的索引
-        date_index_pairs.sort(reverse=True, key=lambda x: x[0])
+        date_index_pairs.sort(reverse=True, key=lambda x: (x[0], x[1]))
 
         return [i[-1] for i in date_index_pairs]
 

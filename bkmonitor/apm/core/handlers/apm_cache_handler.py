@@ -1,15 +1,18 @@
-# -*- coding: utf-8 -*-
 import json
 import logging
 
 from django.conf import settings
 
-from apm.constants import APM_TOPO_INSTANCE, DEFAULT_TOPO_INSTANCE_EXPIRE
+from apm.constants import (
+    APM_ENDPOINT,
+    APM_TOPO_INSTANCE,
+    DEFAULT_APM_CACHE_EXPIRE,
+)
 
 logger = logging.getLogger("apm_topo")
 
 
-class InstanceHandler:
+class ApmCacheHandler:
     def __init__(self):
         self.redis_client = self.get_redis_client()
 
@@ -35,14 +38,16 @@ class InstanceHandler:
         """
         return APM_TOPO_INSTANCE.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
 
-    def refresh_data(self, name: str, update_map: dict):
+    @staticmethod
+    def get_endpoint_cache_key(bk_biz_id, app_name):
+        return APM_ENDPOINT.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
+
+    def refresh_data(self, name: str, update_map: dict, ex: int = DEFAULT_APM_CACHE_EXPIRE):
         """
         更新、删除数据
         """
         if not update_map:
             return
 
-        # 连续7天无数据, key 过期
-        self.redis_client.set(name, json.dumps(update_map), ex=DEFAULT_TOPO_INSTANCE_EXPIRE)
+        self.redis_client.set(name, json.dumps(update_map), ex=ex)
         logger.info(f"[InstanceDiscover] {name} update {len(update_map)}")
-
