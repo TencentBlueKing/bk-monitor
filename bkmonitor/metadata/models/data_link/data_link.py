@@ -146,6 +146,12 @@ class DataLink(models.Model):
         }
         return switcher[self.data_link_strategy](*args, **kwargs)
 
+    def compose_log_configs(self, *args, **kwargs):
+        """
+        生成日志链路配置
+        """
+        return []
+
     def compose_system_proc_configs(
         self,
         data_link_strategy: str,
