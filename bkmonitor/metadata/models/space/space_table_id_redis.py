@@ -958,7 +958,7 @@ class SpaceTableIDRedis:
                 cluster_info[res["cluster_id"]] = [{"bcs_cluster_id": res["cluster_id"], "namespace": None}]
         cluster_id_list = list(cluster_info.keys())
         # 获取集群下对应的数据源
-        data_id_cluster_id = get_cluster_data_ids(cluster_id_list)
+        data_id_cluster_id = get_cluster_data_ids(bk_tenant_id=DEFAULT_TENANT_ID, cluster_id_list=cluster_id_list)
         if not data_id_cluster_id:
             logger.error("space: %s__%s not found cluster", space_type, space_id)
             return default_values
@@ -1115,7 +1115,9 @@ class SpaceTableIDRedis:
                 cluster_info[res["cluster_id"]] = [{"bcs_cluster_id": res["cluster_id"], "namespace": None}]
         cluster_id_list = list(cluster_info.keys())
         # 获取集群下对应的数据源
-        data_id_cluster_id = get_cluster_data_ids(cluster_id_list, table_id_list)
+        data_id_cluster_id = get_cluster_data_ids(
+            bk_tenant_id=bk_tenant_id, cluster_id_list=cluster_id_list, table_id_list=table_id_list
+        )
         if not data_id_cluster_id:
             logger.error("space: %s__%s not found cluster", space_type, space_id)
             return default_values

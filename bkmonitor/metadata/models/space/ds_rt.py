@@ -14,7 +14,6 @@ import logging
 from django.conf import settings
 from django.db.models import Q
 
-from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.space.constants import EtlConfigs, MeasurementType, SpaceTypes
 from metadata.utils.db import filter_model_by_in_page
@@ -320,9 +319,7 @@ def get_measurement_type(
     return MeasurementType.BK_TRADITIONAL.value
 
 
-def get_cluster_data_ids(
-    cluster_id_list: list, table_id_list: list | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID
-) -> dict:
+def get_cluster_data_ids(bk_tenant_id: str, cluster_id_list: list, table_id_list: list | None = None) -> dict:
     """获取集群及数据源"""
     # 如果指定结果表, 则仅过滤结果表对应的数据源
     data_id_list = []
@@ -377,7 +374,7 @@ def get_cluster_data_ids(
     return data_id_cluster_id
 
 
-def get_table_id_cluster_id(table_id_list: list | set, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> dict[str, str]:
+def get_table_id_cluster_id(table_id_list: list | set, bk_tenant_id: str) -> dict[str, str]:
     """获取结果表对应的集群 ID"""
 
     if settings.ENABLE_MULTI_TENANT_MODE:
