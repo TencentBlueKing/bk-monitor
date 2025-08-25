@@ -22,7 +22,6 @@ from elasticsearch5 import Elasticsearch as Elasticsearch5
 from elasticsearch6 import Elasticsearch as Elasticsearch6
 
 from bkmonitor.utils.db.fields import JsonField
-from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.models.result_table import ResultTableField, ResultTableOption
 from metadata.models.storage import ClusterInfo, ESStorage
@@ -130,7 +129,7 @@ class EventGroup(CustomGroupBase):
     DEFAULT_STORAGE_CONFIG = STORAGE_ES_CONFIG
 
     @staticmethod
-    def make_table_id(bk_biz_id, bk_data_id, table_name=None, bk_tenant_id=DEFAULT_TENANT_ID):
+    def make_table_id(bk_biz_id, bk_data_id, bk_tenant_id: str, table_name=None):
         """
         生成结果表table_id
         涉及破坏性改造,通过是否开启多租户开关控制
@@ -292,10 +291,10 @@ class EventGroup(CustomGroupBase):
         event_group_name,
         label,
         operator,
+        bk_tenant_id: str,
         event_info_list=None,
         table_id=None,
         data_label: str | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         """
         创建一个新的自定义分组记录

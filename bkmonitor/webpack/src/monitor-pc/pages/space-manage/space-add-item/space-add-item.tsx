@@ -52,24 +52,30 @@ export default class SpaceAddItem extends tsc<IProps, IEvents> {
     return !this.checked;
   }
 
+  handleClick() {
+    if (!this.disabled) {
+      this.handleChecked();
+    }
+  }
+
   render() {
     return (
       <div class={['space-add-item-wrap', { checked: this.checked, disabled: this.disabled }]}>
         <div
-          class={['spance-add-header', { checked: this.checked, disabled: this.disabled }]}
-          onClick={this.handleChecked}
+          class='spance-add-header'
+          onClick={this.handleClick}
         >
           <div class='title-wrap'>
             <i class={['title-icon', 'icon-monitor', this.data.icon]} />
             <div class='title-text'>{this.data.name}</div>
           </div>
           <div class='header-desc'>{this.data.desc}</div>
-          <div class={['item-radio', { checked: this.checked }]}>
+          <div class='item-radio'>
             {this.checked && <i class='icon-monitor icon-mc-check-fill' />}
           </div>
         </div>
         {this.checked && !this.disabled && (
-          <div class={['spance-add-content', { checked: this.checked }]}>
+          <div class='spance-add-content'>
             <div class='spance-add-content-mian'>{this.$slots.default}</div>
           </div>
         )}

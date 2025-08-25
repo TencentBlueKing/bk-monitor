@@ -1,13 +1,8 @@
-# -*- coding: utf-8 -*-
-from typing import Dict, List, Union
-
-from django.conf import settings
-
 from constants.data_source import DataSourceLabel
 
 
 class DashboardExporter:
-    def __init__(self, data_source_metas: List[Dict]):
+    def __init__(self, data_source_metas: list[dict]):
         self.name_data_sources = {}
         self.uid_data_sources = {}
         self.type_data_sources = {}
@@ -20,7 +15,7 @@ class DashboardExporter:
         self.requires = {}
         self.inputs = {}
 
-    def templateize_datasource(self, config: Dict, fallback=None, datasource_mapping=None) -> None:
+    def templateize_datasource(self, config: dict, fallback=None, datasource_mapping=None) -> None:
         """
         数据源模板化
         """
@@ -31,7 +26,7 @@ class DashboardExporter:
             else:
                 return
 
-        data_source: Union[str, Dict] = config["datasource"]
+        data_source: str | dict = config["datasource"]
         if isinstance(data_source, str):
             name = data_source
             if name.startswith("$"):
@@ -73,7 +68,7 @@ class DashboardExporter:
         if datasource_mapping:
             datasource_mapping[ref_name] = data_source_meta["uid"]
 
-    def replace_table_id_with_data_label(self, query_config: Dict):
+    def replace_table_id_with_data_label(self, query_config: dict):
         """
         将结果表ID的值替换为 data_label 的值
         """
@@ -90,7 +85,7 @@ class DashboardExporter:
 
         query_config["result_table_id"] = data_label
 
-    def make_exportable(self, dashboard: Dict, datasource_mapping: Dict = None):
+    def make_exportable(self, dashboard: dict, datasource_mapping: dict = None):
         """
         仪表盘导出处理
         """
@@ -113,16 +108,12 @@ class DashboardExporter:
                 for target in panel.get("targets") or []:
                     self.templateize_datasource(target, panel.get("datasource"), datasource_mapping=datasource_mapping)
 
-                    if not settings.ENABLE_DATA_LABEL_EXPORT:
-                        continue
                     for query_config in target.get("query_configs") or {}:
                         self.replace_table_id_with_data_label(query_config)
 
             for target in row.get("targets") or []:
                 self.templateize_datasource(target, row.get("datasource"), datasource_mapping=datasource_mapping)
 
-                if not settings.ENABLE_DATA_LABEL_EXPORT:
-                    continue
                 for query_config in target.get("query_configs") or {}:
                     self.replace_table_id_with_data_label(query_config)
 

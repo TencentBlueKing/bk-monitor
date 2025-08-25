@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import datetime
 import itertools
 import logging
+from typing import Any
 
 from curator import utils
 from django.db import models
@@ -185,7 +186,7 @@ class EsSnapshot(models.Model):
     def to_json(self):
         from metadata.models import ESStorage
 
-        all_snapshots = []
+        all_snapshots: list[dict[str, Any]] = []
         es_storage = ESStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         try:
             all_snapshots = es_storage.es_client.snapshot.get(
@@ -198,11 +199,13 @@ class EsSnapshot(models.Model):
 
         return [
             {
-                "snapshot_name": snapshot.get("snapshot"),
+                "snapshot_name": snapshot.get("snapshot", ""),
                 "state": snapshot.get("state"),
                 "table_id": self.table_id,
-                "expired_time": es_storage.expired_date_timestamp(snapshot.get("snapshot")),
-                "indices": EsSnapshotIndice.batch_to_json(self.table_id, snapshot.get("snapshot")),
+                "expired_time": es_storage.expired_date_timestamp(snapshot.get("snapshot", "")),
+                "indices": EsSnapshotIndice.batch_to_json(
+                    bk_tenant_id=self.bk_tenant_id, table_id=self.table_id, snapshot_name=snapshot.get("snapshot", "")
+                ),
             }
             for snapshot in all_snapshots
         ]
@@ -328,7 +331,7 @@ class EsSnapshotIndice(models.Model):
         verbose_name_plural = "快照物理索引记录"
 
     @classmethod
-    def batch_to_json(cls, table_id, snapshot_name, bk_tenant_id=DEFAULT_TENANT_ID):
+    def batch_to_json(cls, bk_tenant_id: str, table_id: str, snapshot_name: str):
         batch_obj = cls.objects.filter(table_id=table_id, snapshot_name=snapshot_name, bk_tenant_id=bk_tenant_id)
         return [obj.to_json() for obj in batch_obj]
 
