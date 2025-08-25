@@ -64,6 +64,7 @@ export default class FieldFilterComp extends tsc<object> {
   };
   dragVisibleFields = [];
   expandedNodes = {}; // 用于存储展开节点的 key
+  levels = {};
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
   builtInInitHiddenList = builtInInitHiddenList;
 
@@ -444,12 +445,22 @@ export default class FieldFilterComp extends tsc<object> {
   // 记录bigTree展开节点
   expandChange(TreeNode, ref) {
     this.expandedNodes[ref] = this.expandedNodes[ref] || [];
+    this.levels[ref] = this.levels[ref] || {};
     if (TreeNode.expanded) {
       if (!this.expandedNodes[ref].includes(TreeNode.id)) {
         this.expandedNodes[ref].push(TreeNode.id);
       }
+      this.levels[ref][TreeNode.id] = TreeNode.level
     } else {
+      if(TreeNode.level === 0){
+        this.levels[ref] = [];
+      }else{
+        this.levels[ref][TreeNode.id] =  0;
+      }
       this.expandedNodes[ref] = this.expandedNodes[ref].filter(id => id !== TreeNode.id);
+    }
+    if(this.$refs[ref]){
+      this.$refs[ref].$el.style.setProperty('--level', this.getMaxValue(this.levels[ref]) );
     }
   }
   bigTreeRender(field, index) {
@@ -478,6 +489,7 @@ export default class FieldFilterComp extends tsc<object> {
         ref={`bigTreeRef-${index}`}
         class='big-tree'
         data={[field]}
+        ext-cls={'multi-level-tree'}
         default-expanded-nodes={defaultExpandedNodes}
         expand-on-click={true}
         filter-method={(keyword, node) => this.filterMethod(keyword, node)}
@@ -486,6 +498,12 @@ export default class FieldFilterComp extends tsc<object> {
         on-expand-change={node => this.expandChange(node, `bigTreeRef-${index}`)}
       ></bk-big-tree>
     );
+  }
+  getMaxValue(obj) {
+    const values:number[] = Object.values(obj);
+    if (values.length === 0) return 0;
+    const maxValue = Math.max(...values);
+    return maxValue >= 2 ? maxValue : 0;
   }
   render() {
     return (
