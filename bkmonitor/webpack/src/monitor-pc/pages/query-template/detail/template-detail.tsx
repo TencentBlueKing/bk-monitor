@@ -26,14 +26,14 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 import DeleteConfirm, { type DeleteConfirmEvent } from '../components/query-template-table/components/delete-confirm';
 import { TemplateDetailTabEnum } from '../constants';
 import { fetchQueryTemplateDetail, fetchQueryTemplateRelation } from '../service';
-import { type QueryTemplateListItem } from '../typings';
 import ConfigPanel from './components/config-panel';
 import ConsumePanel from './components/consume-panel';
-import MonitorTab from '@/components/monitor-tab/monitor-tab';
 
+import type { QueryTemplateListItem } from '../typings';
 import type { TemplateDetailTabEnumType } from '../typings/constants';
 
 import './template-detail.scss';

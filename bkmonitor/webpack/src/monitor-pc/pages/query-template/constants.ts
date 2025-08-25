@@ -31,6 +31,7 @@ export const TABLE_FIXED_DISPLAY_FIELDS = ['name', 'operator'];
 /** 查询模板列表-表格默认展示字段 */
 export const TABLE_DEFAULT_DISPLAY_FIELDS = [
   'name',
+  'alias',
   'description',
   'create_time',
   'update_user',
