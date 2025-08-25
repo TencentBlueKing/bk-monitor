@@ -198,6 +198,10 @@ export default defineComponent({
                     value={row.pattern}
                     rules={regexRules}
                     disabled={row.disabled}
+                    v-bk-tooltips={{
+                      disabled: !row.disabled,
+                      content: t('聚类正则已生效，请前往聚类配置修改'),
+                    }}
                     on-input={value => (row.pattern = value.trim())}
                   />
                 </div>
@@ -209,6 +213,10 @@ export default defineComponent({
                     value={row.occupy}
                     rules={occupyRules}
                     disabled={row.disabled}
+                    v-bk-tooltips={{
+                      disabled: !row.disabled,
+                      content: t('聚类正则已生效，请前往聚类配置修改'),
+                    }}
                     on-input={value => (row.occupy = value.trim())}
                   />
                 </div>

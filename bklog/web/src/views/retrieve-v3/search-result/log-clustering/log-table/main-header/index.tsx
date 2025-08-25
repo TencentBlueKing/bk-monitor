@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import _ from 'lodash';
-import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import SortOperate from './sort-operate';
 import FilterOperate from './filter-operate';
@@ -53,11 +53,16 @@ export default defineComponent({
       type: String,
       require: true,
     },
+    displayMode: {
+      type: String,
+      default: 'group',
+    },
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
 
+    const renderKey = ref(0);
     const tableHeaderWraperRef = ref(null);
     const columnsRef = Array.from({ length: 10 }).map(() => ref(null));
     const ownerList = ref([]);
@@ -71,7 +76,7 @@ export default defineComponent({
     };
 
     const showYOY = computed(() => props.requestData.year_on_year_hour >= 1);
-    const showGroupBy = computed(() => props.requestData.group_by.length > 0);
+    const showGroupBy = computed(() => props.requestData.group_by.length > 0 && props.displayMode === 'group');
     const isAiAssistanceActive = computed(() => store.getters.isAiAssistantActive);
 
     const isExternal = window.IS_EXTERNAL === 'true';
@@ -151,6 +156,13 @@ export default defineComponent({
       emit('resize-column', tableHeaderWraperRef.value.scrollWidth);
     };
 
+    const initHeader = () => {
+      renderKey.value += 1;
+      setTimeout(() => {
+        handleResizeColumn();
+      });
+    };
+
     getUserList();
 
     expose({
@@ -162,6 +174,11 @@ export default defineComponent({
       setTimeout(() => {
         handleResizeColumn();
       }, 1000);
+      window.addEventListener('resize', initHeader);
+    });
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', initHeader);
     });
 
     return () => (
@@ -169,13 +186,16 @@ export default defineComponent({
         class='log-table-header-main-wraper'
         ref={tableHeaderWraperRef}
       >
-        <table class='log-table-header-main'>
+        <table
+          class='log-table-header-main'
+          key={renderKey.value}
+        >
           <thead>
             <tr>
               {showGroupBy.value && <th style='width: 12px'></th>}
               <HeadColumn
                 ref={columnsRef[0]}
-                width={75}
+                width={125}
                 on-resize-width={handleResizeColumn}
               >
                 {t('数据指纹')}
@@ -184,6 +204,7 @@ export default defineComponent({
                 ref={columnsRef[1]}
                 width={props.tableColumnWidth.number}
                 on-resize-width={handleResizeColumn}
+                on-click-column={() => sortColumnRefs.count.value?.update()}
               >
                 <div class='sort-column'>
                   {t('数量')}
@@ -197,6 +218,7 @@ export default defineComponent({
                 ref={columnsRef[2]}
                 width={props.tableColumnWidth.percentage}
                 on-resize-width={handleResizeColumn}
+                on-click-column={() => sortColumnRefs.percentage.value?.update()}
               >
                 <div class='sort-column'>
                   {t('占比')}
@@ -211,6 +233,7 @@ export default defineComponent({
                   ref={columnsRef[3]}
                   width={props.tableColumnWidth.year_on_year_count}
                   on-resize-width={handleResizeColumn}
+                  on-click-column={() => sortColumnRefs.year_on_year_count.value?.update()}
                 >
                   <div class='sort-column'>
                     {t('同比数量')}
@@ -226,6 +249,7 @@ export default defineComponent({
                   ref={columnsRef[4]}
                   width={props.tableColumnWidth.year_on_year_percentage}
                   on-resize-width={handleResizeColumn}
+                  on-click-column={() => sortColumnRefs.year_on_year_percentage.value?.update()}
                 >
                   <div class='sort-column'>
                     {t('同比变化')}

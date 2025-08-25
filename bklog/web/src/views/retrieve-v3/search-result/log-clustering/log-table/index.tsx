@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import _ from 'lodash';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
 import MainHeader from './main-header';
@@ -98,8 +99,9 @@ export default defineComponent({
     const tablesInfoList = ref<TableInfo[]>([]);
     const widthList = ref<string[]>([]);
     const filterSortMap = ref(initFilterSortMap());
+    const displayType = ref('group');
 
-    const showGroupBy = computed(() => props.requestData.group_by.length > 0);
+    const showGroupBy = computed(() => props.requestData.group_by.length > 0 && displayType.value === 'group');
     const smallLoaderWidthList = computed(() => {
       return props.requestData.year_on_year_hour > 0 ? loadingWidthList.compared : loadingWidthList.notCompared;
     });
@@ -125,6 +127,9 @@ export default defineComponent({
       year_on_year_count: '101',
       year_on_year_percentage: '101',
     };
+
+    let localTotalList: LogPattern[] = [];
+    let localTablesInfoList: TableInfo[] = [];
 
     watch(
       () => props.requestData,
@@ -185,6 +190,7 @@ export default defineComponent({
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
         .then(res => {
+          localTotalList = res.data;
           const keyValueSetList: Array<Set<string>> = [];
           props.requestData.group_by.forEach((_, index) => {
             keyValueSetList[index] = new Set();
@@ -230,6 +236,8 @@ export default defineComponent({
           if (!tablesInfoList.value.length) {
             tablesInfoList.value.push({ group: [], dataList: res.data });
           }
+
+          localTablesInfoList = _.cloneDeep(tablesInfoList.value);
         })
         .finally(() => {
           tableLoading.value = false;
@@ -289,9 +297,18 @@ export default defineComponent({
       }
 
       if (e.deltaY < 0) {
-        logTableRef.value.scrollTop -= 10;
+        logTableRef.value.scrollTop -= 20;
       } else {
-        logTableRef.value.scrollTop += 10;
+        logTableRef.value.scrollTop += 20;
+      }
+    };
+
+    const handleDisplayTypeChange = (value: string) => {
+      displayType.value = value;
+      if (value === 'flatten') {
+        tablesInfoList.value = [{ group: [], dataList: localTotalList }];
+      } else {
+        tablesInfoList.value = localTablesInfoList;
       }
     };
 
@@ -314,11 +331,22 @@ export default defineComponent({
           height: showGroupBy.value ? 'calc(100% - 90px)' : 'calc(100% - 60px)',
         }}
       >
+        {props.requestData.group_by.length > 0 && (
+          <bk-radio-group
+            class='display-type-main'
+            value={displayType.value}
+            on-change={handleDisplayTypeChange}
+          >
+            <bk-radio value='flatten'>{t('平铺模式')}</bk-radio>
+            <bk-radio value='group'>{t('分组模式')}</bk-radio>
+          </bk-radio-group>
+        )}
         <main-header
           ref={mainHeaderRef}
           requestData={props.requestData}
           tableColumnWidth={tableColumnWidth.value}
           indexId={props.indexId}
+          displayMode={displayType.value}
           on-column-filter={handleColumnFilter}
           on-column-sort={handleColumnSort}
           on-resize-column={handleHeaderResizeColumn}
@@ -326,7 +354,7 @@ export default defineComponent({
         <div
           ref={logTableRef}
           class='table-list-content'
-          style={{ padding: props.requestData.group_by.length > 0 ? '0 12px' : '0px' }}
+          style={{ padding: showGroupBy.value ? '0 12px' : '0px' }}
           v-bkloading={{ isLoading: tableLoading.value }}
         >
           {tableLoading.value ? (
@@ -340,6 +368,7 @@ export default defineComponent({
                 ref={setTableItemRef(index)}
                 tableInfo={info}
                 widthList={widthList.value}
+                displayMode={displayType.value}
                 index={index}
                 filterSortMap={filterSortMap.value}
                 requestData={props.requestData}

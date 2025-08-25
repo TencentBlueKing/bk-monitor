@@ -91,6 +91,31 @@ export default defineComponent({
       id: 0,
       type: '',
     };
+    let highlightColorIndex = 0;
+
+    const defaultHighlightColorList = [
+      'rgb(255, 235, 204)',
+      'rgb(206, 235, 222)',
+      'rgb(215, 235, 245)',
+      'rgb(224, 229, 255)',
+      'rgb(249, 219, 255)',
+      'rgb(255, 224, 230)',
+      'rgb(226, 240, 211)',
+      'rgb(235, 221, 192)',
+      'rgb(188, 214, 206)',
+      'rgb(187, 207, 227)',
+      'rgb(193, 193, 239)',
+      'rgb(224, 195, 224)',
+      'rgb(239, 193, 193)',
+      'rgb(199, 215, 190)',
+      'rgb(247, 208, 148)',
+      'rgb(155, 223, 191)',
+      'rgb(177, 225, 249)',
+      'rgb(172, 177, 255)',
+      'rgb(242, 174, 255)',
+      'rgb(255, 171, 185)',
+      'rgb(192, 240, 137)',
+    ];
 
     watch(
       () => props.value,
@@ -187,7 +212,7 @@ export default defineComponent({
         const range = selection.getRangeAt(0);
         const wrapper = document.createElement('span');
         wrapper.classList.add('choosed-wrapper');
-        currentChoosedTextBackgroundColor = getRandomColor();
+        currentChoosedTextBackgroundColor = getHighlightColor();
         wrapper.style.background = currentChoosedTextBackgroundColor;
         wrapper.appendChild(range.extractContents());
         range.insertNode(wrapper);
@@ -221,6 +246,14 @@ export default defineComponent({
       const g = Math.floor(Math.random() * 256);
       const b = Math.floor(Math.random() * 256);
       return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+
+    const getHighlightColor = () => {
+      if (highlightColorIndex >= defaultHighlightColorList.length) {
+        return getRandomColor();
+      }
+
+      return defaultHighlightColorList[highlightColorIndex++];
     };
 
     const handleSubmitOccupy = (inputValue: string) => {
@@ -287,11 +320,6 @@ export default defineComponent({
       regexPreviewPopoverInstance?.hide();
     };
 
-    const handleDialogAfterLeave = () => {
-      destroyOccupyPopover();
-      handleCloseRegexPreview();
-    };
-
     const handleRegexTableChange = (list: RowData[]) => {
       regexList.value = list;
       isConfigChanged.value = true;
@@ -302,7 +330,10 @@ export default defineComponent({
       if (isShow) {
         requestCluster();
       } else {
-        regexPreviewPopoverInstance?.hide();
+        highlightColorIndex = 0;
+        destroyOccupyPopover();
+        handleCloseRegexPreview();
+        handleCancel();
       }
     };
 
@@ -414,7 +445,6 @@ export default defineComponent({
           ext-cls='regex-match-dialog-main'
           value={isShowRuleDialog.value}
           header-position='left'
-          on-after-leave={handleDialogAfterLeave}
           on-value-change={handleDialogChangeShow}
           title={t('正则匹配')}
         >

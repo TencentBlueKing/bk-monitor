@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, onMounted, watch, PropType } from 'vue';
+import { defineComponent, ref, computed, onMounted, watch, PropType, nextTick } from 'vue';
 import { useRouter } from 'vue-router/composables';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -83,6 +83,7 @@ export default defineComponent({
     const isSameTemplateId = computed(() => props.defaultValue.regex_template_id === templateRuleId.value);
     /** 快速导入的dom */
     let inputDocument: HTMLInputElement;
+    let localRuleType = 'template';
 
     const handleRuleTypeChange = (value: string, onlyState = false) => {
       ruleType.value = value;
@@ -104,6 +105,18 @@ export default defineComponent({
         templateRuleId.value = templateList.value[0].id;
         handleSelectTemplate(templateRuleId.value);
       }
+    };
+
+    const handleBeforeRuleTypeChange = (value: string) => {
+      ruleType.value = value;
+      localRuleType = value;
+      nextTick(() => {
+        ruleType.value = value === 'customize' ? 'template' : 'customize';
+      });
+    };
+
+    const handleRuleTypeChangeConfirm = () => {
+      handleRuleTypeChange(localRuleType);
     };
 
     const initDefaultConfig = (updateType = true) => {
@@ -283,14 +296,24 @@ export default defineComponent({
 
     return () => (
       <div class='rule-operate-main'>
-        <bk-radio-group
-          class='type-choose-main'
-          value={ruleType.value}
-          on-change={handleRuleTypeChange}
+        <bk-popconfirm
+          title={t('确认切换配置模式？')}
+          content={t('切换后，已有的相关配置将会丢失，请确认。')}
+          width='288'
+          confirm-text={t('确认切换')}
+          trigger='click'
+          placement='bottom'
+          on-confirm={handleRuleTypeChangeConfirm}
         >
-          <bk-radio value='customize'>{t('自定义')}</bk-radio>
-          <bk-radio value='template'>{t('模板')}</bk-radio>
-        </bk-radio-group>
+          <bk-radio-group
+            class='type-choose-main'
+            value={ruleType.value}
+            on-change={handleBeforeRuleTypeChange}
+          >
+            <bk-radio value='customize'>{t('自定义')}</bk-radio>
+            <bk-radio value='template'>{t('模板')}</bk-radio>
+          </bk-radio-group>
+        </bk-popconfirm>
         <div class='right-oprate-main'>
           {isCustomize.value ? (
             <div class='custom-operate-main'>

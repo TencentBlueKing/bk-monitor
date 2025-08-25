@@ -85,6 +85,10 @@ export default defineComponent({
       type: Array<string>,
       default: () => [],
     },
+    displayMode: {
+      type: String,
+      default: 'group',
+    },
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
@@ -104,7 +108,7 @@ export default defineComponent({
     const isLimitExpandView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
     /** 获取当前编辑操作的数据 */
     const currentRowValue = computed(() => tableData.value.find(item => item.id === currentRowId.value));
-    const showGounpBy = computed(() => props.requestData.group_by.length > 0);
+    const showGounpBy = computed(() => props.requestData.group_by.length > 0 && props.displayMode === 'group');
     const groupValueList = computed(() => {
       if (props.requestData?.group_by.length && props.tableInfo?.group.length) {
         return props.requestData.group_by.map((item, index) => `${item}=${props.tableInfo.group[index]}`);
@@ -278,6 +282,7 @@ export default defineComponent({
 
     // 设置负责人
     const handleChangePrincipal = (val: string[], row: LogPattern) => {
+      currentRowId.value = row.id;
       // 当创建告警策略开启时，不允许删掉最后一个责任人
       if (row.strategy_enabled && !val.length) {
         bkMessage({
@@ -311,6 +316,7 @@ export default defineComponent({
     };
 
     const changeStrategy = (enabled: boolean, row: LogPattern) => {
+      currentRowId.value = row.id;
       $http
         .request('/logClustering/updatePatternStrategy', {
           params: {
@@ -337,6 +343,7 @@ export default defineComponent({
     };
 
     const handleStrategyInfoClick = row => {
+      currentRowId.value = row.id;
       window.open(
         `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
         '_blank',
@@ -355,7 +362,8 @@ export default defineComponent({
       popoverInstance?.hide();
     };
 
-    const handleHoverRemarkIcon = (e: any) => {
+    const handleHoverRemarkIcon = (e: any, row: LogPattern) => {
+      currentRowId.value = row.id;
       if (!popoverInstance) {
         popoverInstance = tippy(e.target, {
           appendTo: () => document.body,
@@ -365,7 +373,8 @@ export default defineComponent({
           theme: 'light remark-edit-tip-popover',
           sticky: true,
           maxWidth: 340,
-          duration: [275, 0],
+          duration: [500, 0],
+          offset: [0, 5],
           interactive: true,
           placement: 'top',
           onHidden: () => {
@@ -453,7 +462,7 @@ export default defineComponent({
           <table class='log-content-table'>
             <thead class='hide-header'>
               <tr>
-                <th style={{ width: columnWidthList.value[0] || '75px' }}>数据指纹</th>
+                <th style={{ width: columnWidthList.value[0] || '125px' }}>数据指纹</th>
                 <th style={{ width: columnWidthList.value[1] || props.tableColumnWidth.number + 'px' }}>数量</th>
                 <th style={{ width: columnWidthList.value[2] || props.tableColumnWidth.percentage + 'px' }}>占比</th>
                 {showYOY.value && (
@@ -477,7 +486,7 @@ export default defineComponent({
             </thead>
             <tbody>
               {tableData.value.map((row, rowIndex) => (
-                <tr on-mouseover={() => (currentRowId.value = row.id)}>
+                <tr>
                   <td>
                     <div class='signature-box'>
                       <div
@@ -603,6 +612,7 @@ export default defineComponent({
                           value={row.owners}
                           placeholder='--'
                           multiple
+                          on-blur={() => console.log('blur')}
                           on-change={val => handleChangePrincipal(val, row)}
                         />
                       ) : (
@@ -652,7 +662,7 @@ export default defineComponent({
                   <td style='padding-right: 8px;'>
                     <div
                       class='remark-column'
-                      on-mouseenter={handleHoverRemarkIcon}
+                      on-mouseenter={e => handleHoverRemarkIcon(e, row)}
                     >
                       {remarkContent(row.remark)}
                     </div>
@@ -678,7 +688,7 @@ export default defineComponent({
             </tbody>
           </table>
         </div>
-        <remark-edit-tip
+        <RemarkEditTip
           ref={remarkTipsRef}
           rowData={currentRowValue.value}
           indexId={props.indexId}

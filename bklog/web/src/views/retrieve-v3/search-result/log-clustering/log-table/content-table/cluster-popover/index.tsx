@@ -158,7 +158,7 @@ export default defineComponent({
             <div class='event-box'>
               <span
                 class='event-btn'
-                onClick={() => handleClick()}
+                onClick={() => handleClick(true)}
               >
                 <log-icon
                   type='audit'
