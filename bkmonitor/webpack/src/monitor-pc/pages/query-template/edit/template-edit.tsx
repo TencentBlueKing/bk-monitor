@@ -56,8 +56,12 @@ export default class TemplateEdit extends TemplateCreate {
       this.expressionConfig = new Expression({
         expression: data.expression,
         functions: data.functions.map(f => {
-          if (isVariableName(f.id)) {
-            return f.id;
+          if (typeof f === 'string') {
+            return {
+              id: f,
+              name: f,
+              params: [],
+            };
           }
           return f;
         }),
