@@ -328,7 +328,7 @@ class Command(BaseCommand):
         # 推送数据
         client = SpaceTableIDRedis()
         client.push_space_table_ids(space_type, space_id, is_publish=True)
-        client.push_data_label_table_ids(table_id_list=table_id_list)
+        client.push_data_label_table_ids(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_id_list)
         client.push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_id_list)
 
         self.stdout.write("refresh router redis config success")

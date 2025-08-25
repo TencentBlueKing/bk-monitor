@@ -14,6 +14,7 @@ from unittest.mock import patch
 import pytest
 from django.utils import timezone
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.tests.common_utils import consul_client
@@ -92,7 +93,7 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
     enable_timestamp_12 = int(
         models.StorageClusterRecord.objects.get(cluster_id=12, table_id="1001_bklog.stdout").enable_time.timestamp()
     )
-    data = client._compose_es_table_id_detail(table_id_list=["1001_bklog.stdout"])
+    data = client._compose_es_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=["1001_bklog.stdout"])
     # 构建 expected
     expected_json = {
         "storage_id": 11,
@@ -112,7 +113,9 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
     expected = {"1001_bklog.stdout": expected_json}
     assert data == expected
 
-    event_detail = client._compose_es_table_id_detail(table_id_list=["test_system_event"])
+    event_detail = client._compose_es_table_id_detail(
+        bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=["test_system_event"]
+    )
     expected_json = {
         "storage_id": 11,
         "db": None,
@@ -136,7 +139,11 @@ def test_push_es_table_id_details(create_or_delete_records):
 
             table_id = "1001_bklog.stdout"
 
-            client.push_es_table_id_detail(table_id_list=["1001_bklog.stdout", "test_system_event"], is_publish=True)
+            client.push_es_table_id_detail(
+                bk_tenant_id=DEFAULT_TENANT_ID,
+                table_id_list=["1001_bklog.stdout", "test_system_event"],
+                is_publish=True,
+            )
 
             expected = {
                 "1001_bklog.stdout": '{"storage_id":11,"db":null,"measurement":"__default__",'

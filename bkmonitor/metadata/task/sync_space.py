@@ -731,7 +731,9 @@ def push_and_publish_space_router(
                 table_id_list.extend(tid_ds.keys())
 
         space_client = SpaceTableIDRedis()
-        space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
+        space_client.push_data_label_table_ids(
+            table_id_list=table_id_list, is_publish=is_publish, bk_tenant_id=DEFAULT_TENANT_ID
+        )
         space_client.push_table_id_detail(
             table_id_list=table_id_list,
             is_publish=is_publish,

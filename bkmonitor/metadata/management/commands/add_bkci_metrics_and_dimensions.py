@@ -126,6 +126,7 @@ class Command(BaseCommand):
                     "is_sync_db": False,
                     "bk_biz_id": 0,
                     "create_storage": False,
+                    "bk_tenant_id": DEFAULT_TENANT_ID,
                 }
                 models.ResultTable.create_result_table(**params)
             except Exception as e:

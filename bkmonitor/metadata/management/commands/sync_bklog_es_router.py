@@ -234,7 +234,9 @@ class Command(BaseCommand):
                     self.stderr.write(f"failed to push space table ids, err: {e}, space: {space_type, space_id}")
         # 推送标签
         if update_data_label_set:
-            client.push_data_label_table_ids(list(update_data_label_set), is_publish=True)
+            client.push_data_label_table_ids(
+                bk_tenant_id=DEFAULT_TENANT_ID, data_label_list=list(update_data_label_set), is_publish=True
+            )
         # 推送详情
         if update_rt_set:
             client.push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, is_publish=True, include_es_table_ids=True)

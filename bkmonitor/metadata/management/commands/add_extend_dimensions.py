@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,10 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Dict, List, Optional
-
 from django.core.management import BaseCommand
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 
 
@@ -175,6 +173,7 @@ class Command(BaseCommand):
                 "include_cmdb_level": True,
                 "label": "os",
                 "option": option,
+                "bk_tenant_id": DEFAULT_TENANT_ID,
                 "default_storage_config": {
                     "storage_cluster_id": proxy_cluster_id,
                     "source_duration_time": duration_time,
@@ -201,7 +200,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("create dbm data link success!"))
 
-    def _get_influxdb_proxy_cluster(self, proxy_cluster_id: Optional[int] = None) -> int:
+    def _get_influxdb_proxy_cluster(self, proxy_cluster_id: int | None = None) -> int:
         """获取默认 influxdb proxy 集群 ID"""
         if proxy_cluster_id:
             return proxy_cluster_id
@@ -213,7 +212,7 @@ class Command(BaseCommand):
             raise ValueError("not found default influxdb proxy cluster, please check metadata ClusterInfo")
         return proxy_cluster_obj.cluster_id
 
-    def _get_influxdb_instance_cluster(self, cluster_name: Optional[str] = None) -> str:
+    def _get_influxdb_instance_cluster(self, cluster_name: str | None = None) -> str:
         """获取 influxdb 实例集群"""
         if cluster_name:
             return cluster_name
@@ -221,7 +220,7 @@ class Command(BaseCommand):
         # 如果没有传递值，则使用默认 default 集群
         return models.InfluxDBClusterInfo.DEFAULT_CLUSTER_NAME
 
-    def _get_table_fields(self, table_ids: List[str]) -> Dict:
+    def _get_table_fields(self, table_ids: list[str]) -> dict:
         # 获取结果表对应的字段
         table_field_map = {}
         # 过滤数据
@@ -244,7 +243,7 @@ class Command(BaseCommand):
             }
         return table_field_map
 
-    def _get_table_field_option(self, table_ids: List[str]) -> Dict:
+    def _get_table_field_option(self, table_ids: list[str]) -> dict:
         # 获取字段对应的option
         table_field_option_map = {}
         # 过滤数据
@@ -259,7 +258,7 @@ class Command(BaseCommand):
                 table_field_option_map[key] = item
         return table_field_option_map
 
-    def _get_table_option(self, table_ids: List[str]) -> Dict:
+    def _get_table_option(self, table_ids: list[str]) -> dict:
         # 获取结果表关联的option
         table_option_map = {}
         # 过滤数据
