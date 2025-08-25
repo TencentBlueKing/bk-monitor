@@ -24,7 +24,6 @@ from alarm_backends.service.report.render.dashboard import (
 )
 from alarm_backends.service.scheduler.app import app
 from alarm_backends.service.selfmonitor.collect.redis import RedisMetricCollectReport
-from alarm_backends.service.selfmonitor.collect.transfer import TransferMetricHelper
 from bkmonitor.browser import get_or_create_eventloop
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import (
@@ -258,13 +257,6 @@ def render_mails(
         item_id=report_item.id, status=metrics.StatusEnum.from_exc(exc), exception=exc
     ).inc()
     metrics.report_all()
-
-
-def report_transfer_operation_data():
-    """上报 transfer 运营数据"""
-    h = TransferMetricHelper()
-    h.fetch()
-    h.report()
 
 
 # 采集周期（小于1min）
