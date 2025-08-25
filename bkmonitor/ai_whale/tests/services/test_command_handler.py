@@ -18,6 +18,7 @@ from ai_whale.resources.resources import (
 )
 from ai_whale.utils import generate_uuid
 from ai_agent.services.local_command_handler import LocalCommandProcessor
+from ai_whale.local_command_handlers import *  # noqa
 
 command_processor = LocalCommandProcessor()  # noqa
 
@@ -67,11 +68,11 @@ def test_tracing_analysis_command():
         "content": "Tracing分析",
         "property": {
             "extra": {
-                "command": "tracing_analysis",
+                "command": "tracing-analysis",
                 "context": [
-                    {"__key": "app_name", "__value": "SRE", "content": "SRE", "context_type": "textarea"},
+                    {"__key": "appName", "__value": "SRE", "content": "SRE", "context_type": "textarea"},
                     {
-                        "__key": "trace_id",
+                        "__key": "traceId",
                         "__value": mock_trace_id,
                         "trace_id": mock_trace_id,
                         "context_type": "textarea",
@@ -86,10 +87,10 @@ def test_tracing_analysis_command():
     command_data = property_data.get("extra")
 
     with patch(
-        "ai_whale.services.command_handler.api.apm_api.query_trace_detail",
+        "ai_whale.local_command_handlers.api.apm_api.query_trace_detail",
         return_value=mock_trace_data,
     ):
-        with patch("ai_whale.services.command_handler.get_request", return_value=mock_req):
+        with patch("ai_whale.local_command_handlers.get_request", return_value=mock_req):
             processed_content = command_processor.process_command(command_data)
 
     expected = (
