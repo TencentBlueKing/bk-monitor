@@ -181,3 +181,5 @@ class QueryTemplateSerializer(serializers.Serializer):
                     _("变量名 {variable_name} 重复").format(variable_name=variable["name"])
                 )
             variable_names.add(variable["name"])
+
+        return variables
