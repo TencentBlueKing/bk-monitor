@@ -86,10 +86,10 @@ def test_tracing_analysis_command():
     command_data = property_data.get("extra")
 
     with patch(
-        "ai_whale.services.command_handler.api.apm_api.query_trace_detail",
+        "ai_whale.local_command_handlers.api.apm_api.query_trace_detail",
         return_value=mock_trace_data,
     ):
-        with patch("ai_whale.services.command_handler.get_request", return_value=mock_req):
+        with patch("ai_whale.local_command_handlers.get_request", return_value=mock_req):
             processed_content = command_processor.process_command(command_data)
 
     expected = (
