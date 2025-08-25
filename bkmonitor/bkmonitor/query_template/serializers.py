@@ -81,16 +81,36 @@ class VariableSerializer(serializers.Serializer):
 
 
 class QueryConfigSerializer(serializers.Serializer):
-    table = serializers.CharField(label=_("结果表"))
+    table = serializers.CharField(label=_("结果表"), allow_blank=True)
     data_label = serializers.CharField(label=_("数据标签"), required=False, allow_blank=True, default="")
     data_type_label = serializers.CharField(label=_("数据类型标签"))
     data_source_label = serializers.CharField(label=_("数据源标签"))
     interval = serializers.IntegerField(label=_("汇聚周期（秒）"), required=False)
+    metric_id = serializers.CharField(label=_("指标 ID"), required=False)
     promql = serializers.CharField(label=_("PromQL 查询语句"), required=False, allow_blank=True, default="")
     metrics = serializers.ListField(label=_("指标"), required=False, default=[], child=MetricSerializer())
     where = MixedTypeListField(label=_("过滤条件"), required=False, default=[], allowed_types=[dict, str])
     functions = MixedTypeListField(label=_("函数"), required=False, default=[], allowed_types=[dict, str])
     group_by = serializers.ListField(label=_("聚合字段"), required=False, default=[], child=serializers.CharField())
+
+    def validate(self, attrs):
+        metric_field: str = ""
+        try:
+            metric_field = attrs["metrics"][0]["field"]
+        except (KeyError, IndexError):
+            pass
+
+        # TODO get_metric_id 下沉到 datasource 模块
+        from bkmonitor.strategy.new_strategy import get_metric_id
+
+        attrs["metric_id"] = get_metric_id(
+            attrs["data_source_label"],
+            attrs["data_type_label"],
+            metric_field=metric_field,
+            result_table_id=attrs["table"],
+            promql=attrs.get("promql", ""),
+        )
+        return attrs
 
 
 class QueryTemplateSerializer(serializers.Serializer):

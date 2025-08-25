@@ -93,7 +93,10 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
             "config": {
                 "default": ["service_name", "callee_method"],
                 "related_metrics": [
-                    {"metric_id": "custom:APM:rpc_server_handled_total", "metric_field": "rpc_server_handled_total"}
+                    {
+                        "metric_field": "rpc_server_handled_total",
+                        "metric_id": "custom.APM.__default__.rpc_server_handled_total",
+                    }
                 ],
             },
             "description": "监控维度是指在监控数据中对数据进行分组的依据。",
@@ -104,9 +107,12 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
             "type": constants.VariableType.CONDITIONS.value,
             "config": {
                 "options": ["callee_service", "callee_method"],
-                "default": [{"key": "rpc_system", "method": "eq", "value": ""}],
+                "default": [{"key": "rpc_system", "method": "eq", "value": [""]}],
                 "related_metrics": [
-                    {"metric_id": "custom:APM:rpc_server_handled_total", "metric_field": "rpc_server_handled_total"},
+                    {
+                        "metric_field": "rpc_server_handled_total",
+                        "metric_id": "custom.APM.__default__.rpc_server_handled_total",
+                    },
                 ],
             },
             "description": "维度过滤是指在监控数据中对数据进行筛选的条件。",
@@ -139,10 +145,11 @@ CALLEE_SUCCESS_RATE_QUERY_INSTANCE: dict[str, Any] = {
             "data_source_label": "custom",
             "interval": 60,
             "promql": "",
+            "metric_id": "custom.APM.__default__.rpc_server_handled_total",
             "metrics": [{"field": "rpc_server_handled_total", "method": "SUM", "alias": "a"}],
             "where": [
                 {"key": "code_type", "value": ["success"], "method": "eq"},
-                {"key": "rpc_system", "method": "eq", "value": ""},
+                {"key": "rpc_system", "method": "eq", "value": [""]},
             ],
             "functions": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}],
             "group_by": ["service_name", "callee_method"],
@@ -154,8 +161,9 @@ CALLEE_SUCCESS_RATE_QUERY_INSTANCE: dict[str, Any] = {
             "data_source_label": "custom",
             "interval": 60,
             "promql": "",
+            "metric_id": "custom.APM.__default__.rpc_server_handled_total",
             "metrics": [{"field": "rpc_server_handled_total", "method": "SUM", "alias": "b"}],
-            "where": [{"key": "rpc_system", "method": "eq", "value": ""}],
+            "where": [{"key": "rpc_system", "method": "eq", "value": [""]}],
             "functions": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}],
             "group_by": ["service_name", "callee_method"],
         },
@@ -195,7 +203,7 @@ CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
             "alias": "维度过滤",
             "type": constants.VariableType.CONDITIONS.value,
             "config": {
-                "default": [{"key": "rpc_system", "method": "eq", "value": ""}],
+                "default": [{"key": "rpc_system", "method": "eq", "value": [""]}],
                 "related_metrics": [
                     {
                         "metric_field": "rpc_server_handled_total",
