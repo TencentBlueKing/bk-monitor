@@ -70,6 +70,7 @@ export default class TemplateCreate extends tsc<object> {
   basicInfoData: BasicInfoData = {
     name: '',
     description: '',
+    alias: '',
     space_scope: [this.$store.getters.bizId],
   };
 
@@ -111,6 +112,7 @@ export default class TemplateCreate extends tsc<object> {
   async handleSubmit() {
     const params = {
       name: this.basicInfoData.name,
+      alias: this.basicInfoData.alias,
       description: this.basicInfoData.description,
       space_scope: this.basicInfoData.space_scope,
       variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
@@ -155,6 +157,7 @@ export default class TemplateCreate extends tsc<object> {
     this.basicInfoData = {
       name: '',
       description: '',
+      alias: '',
       space_scope: [this.$store.getters.bizId],
     };
     this.metricsList = [];

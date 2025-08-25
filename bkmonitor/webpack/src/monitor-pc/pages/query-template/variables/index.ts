@@ -113,9 +113,13 @@ export class ConditionVariableModel extends VariableBase {
   constructor(config: IConditionVariableModel) {
     super(config);
     this.metric = config.metric;
-    this.value = config.value || [];
-    this.defaultValue = config.defaultValue || [];
     this.options = config.options || ['all'];
+    this.defaultValue = config.defaultValue || [];
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
+    }
   }
 
   get data() {
@@ -153,8 +157,12 @@ export class ConstantVariableModel extends VariableBase {
   value = '';
   constructor(config: IConstantVariableModel) {
     super(config);
-    this.value = config.value || '';
     this.defaultValue = config.defaultValue || '';
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
+    }
   }
 
   get data() {
@@ -183,8 +191,12 @@ export class DimensionValueVariableModel extends VariableBase {
     super(config);
     this.metric = config.metric;
     this.related_tag = config.related_tag || '';
-    this.value = config.value || [];
     this.defaultValue = config.defaultValue || [];
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
+    }
   }
 
   get data() {
@@ -215,11 +227,15 @@ export class DimensionVariableModel extends VariableBase {
     super(config);
     this.metric = config.metric;
     this.options = config.options || ['all'];
-    this.value = config.value || [];
     if (config.defaultValue) {
       this.defaultValue = config.defaultValue || [];
     } else {
       this.defaultValue = this.isAllDimensionOptions ? [this.dimensionList[0].id] : [this.options[0]];
+    }
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
     }
   }
 
@@ -261,8 +277,12 @@ export class FunctionVariableModel extends VariableBase {
   value: AggFunction[] = [];
   constructor(config: IFunctionVariableModel) {
     super(config);
-    this.value = config.value || [];
     this.defaultValue = config.defaultValue || [];
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
+    }
   }
 
   get data() {
@@ -286,9 +306,13 @@ export class MethodVariableModel extends VariableBase {
   value = '';
   constructor(config: IMethodVariableModel) {
     super(config);
-    this.value = config.value || '';
     this.defaultValue = config.defaultValue || 'AVG';
     this.metric = config.metric;
+    if (config.value) {
+      this.value = config.value;
+    } else {
+      this.value = this.defaultValue;
+    }
   }
 
   get data() {
@@ -324,14 +348,14 @@ export function getCreateVariableParams(params, metrics: MetricDetailV2[]): IVar
   }
 
   return {
-    name: '${' + name + '}',
+    name: `\${${name}}`,
     type,
     alias,
     description,
     defaultValue,
     metric,
     related_tag,
-    options,
+    options: options ? (options.length ? options : ['all']) : [],
   };
 }
 
