@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref, type PropType } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref, type PropType, type ExtractPropTypes } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import { debounce } from 'lodash';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 import AddIndexSet from '../common-comp/add-index-set';
 
 import './list-item.scss';
-import 'tippy.js/dist/tippy.css';
 
 interface ListItemData {
   key: string;
@@ -63,6 +63,9 @@ export default defineComponent({
     const delPanelRef = ref<HTMLDivElement>();
     const addIndexSetRef = ref<any>();
     const isHover = ref(false);
+    const isProcessing = ref(false); // 防止重复操作
+    const clickTimer = ref<NodeJS.Timeout | null>(null); // 点击防抖定时器
+
     const popoverOptions = {
       arrow: false,
       trigger: 'click',
@@ -82,8 +85,34 @@ export default defineComponent({
     let editGroupInstance: Instance | null = null;
     let delInstance: Instance | null = null;
 
+    // 清理所有弹窗实例
+    const cleanupAllPopovers = () => {
+      if (tippyInstance) {
+        tippyInstance.hide();
+        tippyInstance.destroy();
+        tippyInstance = null;
+      }
+      if (editGroupInstance) {
+        editGroupInstance.hide();
+        editGroupInstance.destroy();
+        editGroupInstance = null;
+      }
+      if (delInstance) {
+        delInstance.hide();
+        delInstance.destroy();
+        delInstance = null;
+      }
+      isHover.value = false;
+    };
+
     const initActionPop = () => {
       if (!isEnableGroupAction.value) return;
+
+      // 清理已存在的实例
+      if (tippyInstance) {
+        tippyInstance.destroy();
+      }
+
       tippyInstance = tippy(rootRef.value as SingleTarget, {
         ...popoverOptions,
         content: panelRef.value as any,
@@ -100,11 +129,21 @@ export default defineComponent({
 
     /** 渲染相关操作 */
     const initManagePop = (kind: 'delete' | 'edit') => {
-      if (!isEnableGroupAction.value) return;
+      if (!isEnableGroupAction.value || isProcessing.value) return;
+
+      isProcessing.value = true;
       isHover.value = true;
+
       const isEdit = kind === 'edit';
       const content = isEdit ? (groupNameEditPanelRef.value as any) : (delPanelRef.value as any);
       const theme = isEdit ? 'light group-item-edit-panel' : 'light group-item-del-panel';
+
+      // 清理已存在的实例
+      if (isEdit && editGroupInstance) {
+        editGroupInstance.destroy();
+      } else if (!isEdit && delInstance) {
+        delInstance.destroy();
+      }
 
       const instance = tippy(rootRef.value as SingleTarget, {
         ...popoverOptions,
@@ -112,22 +151,23 @@ export default defineComponent({
         arrow: true,
         placement: 'bottom',
         theme,
-        // offset: [1, -5],
         onShow: () => {
           tippyInstance?.hide();
           if (isEdit) {
             addIndexSetRef.value?.autoFocus?.();
           }
-          // if (isEdit) editFormRef.value?.clearError?.();
         },
         onHide: () => {
           setTimeout(() => {
             if (isEdit) {
               editGroupInstance?.destroy();
+              editGroupInstance = null;
             } else {
               delInstance?.destroy();
+              delInstance = null;
             }
-          }, 0);
+            isProcessing.value = false;
+          }, 100);
           isHover.value = false;
         },
       });
@@ -145,36 +185,50 @@ export default defineComponent({
     const initEditGroupPop = () => initManagePop('edit');
     /** 删除索引集 */
     const initDelPop = () => initManagePop('delete');
+
     /** 选中具体某个操作 */
     const handleMenuClick = (type: string) => {
+      if (isProcessing.value) return;
+
       tippyInstance?.hide();
       if (type === 'edit') initEditGroupPop();
       else if (type === 'delete') initDelPop();
     };
 
-    const handleEditGroupCancel = () => editGroupInstance?.hide();
-    const handleDelCancel = () => delInstance?.hide();
+    const handleEditGroupCancel = () => {
+      editGroupInstance?.hide();
+      isProcessing.value = false;
+    };
+
+    const handleDelCancel = () => {
+      delInstance?.hide();
+      isProcessing.value = false;
+    };
+
     /** 确认重命名 */
     const handleEditGroupSubmit = () => {
       handleEditGroupCancel();
     };
+
     /** 确认删除 */
     const handleDelSubmit = () => {
       handleDelCancel();
     };
 
+    // 防抖处理的项目点击
+    const handleItem = debounce(() => {
+      if (isProcessing.value) return;
+      emit('choose', props.data);
+    }, 100);
+
     onMounted(initActionPop);
 
     onBeforeUnmount(() => {
-      tippyInstance?.hide();
-      tippyInstance?.destroy();
-      editGroupInstance?.hide();
-      editGroupInstance?.destroy();
-      delInstance?.hide();
-      delInstance?.destroy();
+      if (clickTimer.value) {
+        clearTimeout(clickTimer.value);
+      }
+      cleanupAllPopovers();
     });
-
-    const handleItem = () => emit('choose', props.data);
 
     // 渲染操作项
     const renderOperations = () => (
@@ -189,7 +243,7 @@ export default defineComponent({
               key={menu.key}
               class={{
                 'operation-item': true,
-                disabled: isCanDel,
+                disabled: isCanDel || isProcessing.value,
               }}
               v-bk-tooltips={{
                 content: t('当前索引集在 仪表盘/告警策略 中有使用无法删除'),
@@ -197,7 +251,7 @@ export default defineComponent({
                 width: 240,
                 disabled: !isCanDel,
               }}
-              onClick={() => !isCanDel && handleMenuClick(menu.key)}
+              onClick={() => !isCanDel && !isProcessing.value && handleMenuClick(menu.key)}
             >
               {menu.label}
             </span>

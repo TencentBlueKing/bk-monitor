@@ -45,9 +45,9 @@
     }
     .more-btn {
       display: inline-block;
-      width: 16px;
-      height: 16px;
-      line-height: 16px;
+      width: 18px;
+      height: 18px;
+      line-height: 18px;
       font-size: 14px;
       font-weight: bold;
       border-radius: 50%;
@@ -56,11 +56,18 @@
       &:hover {
         background: #fff;
       }
+      &.is-hover {
+        background: #e1ecff;
+        color: #3a84ff;
+      }
     }
-    .v2-log-collection-table {
+    .collection-table-box {
       margin-top: 6px;
       width: calc(100% - 1px);
       border: none;
+      .cell {
+        display: flex;
+      }
       &::before,
       &::after {
         background-color: transparent;
@@ -68,15 +75,6 @@
       .table-operation {
         display: flex;
         align-items: center;
-      }
-      .table-tag {
-        display: inline-block;
-        background: #f0f1f5;
-        border-radius: 2px;
-        padding: 2px 5px;
-        color: #4d4f56;
-        font-size: 12px;
-        margin-right: 4px;
       }
       .table-status {
         display: inline-block;
@@ -123,6 +121,32 @@
         &.running {
           // animation: button-icon-loading 1s linear infinite;
         }
+      }
+    }
+  }
+}
+.tippy-tooltip.light-theme.bk-table-setting-popover-content-theme {
+  padding: 10px 0 0;
+}
+.tippy-tooltip.light-theme.bk-search-select-theme-theme {
+  .bk-search-list {
+    margin: -0.3rem 0;
+  }
+}
+.tippy-box[data-theme~='table-menu-popover'] {
+  .tippy-content {
+    padding: 0;
+  }
+  .row-menu-content {
+    padding: 4px 0;
+    .menu-item {
+      display: block;
+      color: #4d4f56;
+      font-size: 12px;
+      padding: 6px 14px;
+      cursor: pointer;
+      &:hover {
+        background: #f5f7fa;
       }
     }
   }

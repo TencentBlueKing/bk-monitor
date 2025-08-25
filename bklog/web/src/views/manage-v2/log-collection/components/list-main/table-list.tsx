@@ -24,13 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, getCurrentInstance } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import ItemSkeleton from '@/skeleton/item-skeleton';
+import tippy, { type Instance } from 'tippy.js';
+import { useRouter, useRoute } from 'vue-router/composables';
 
-import { utcFormatDate } from '../../../../../common/util';
-import { STATUS_ENUM } from '../../utils';
-import { mockList } from './data.ts';
+import { useCollectList } from '../../hook/useCollectList';
+import { STATUS_ENUM, SETTING_FIELDS, MENU_LIST } from '../../utils';
+import TagMore from '../common-comp/tag-more';
 
 import './table-list.scss';
 
@@ -41,82 +45,38 @@ export default defineComponent({
       type: Object,
       default: () => ({}),
     },
+    data: {
+      type: Array,
+      default: () => [],
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: ['width-change'],
 
-  setup(props, { emit }) {
+  setup(props) {
     const { t } = useLocale();
-    /** 列表数据 */
-    const data = mockList;
+    const router = useRouter();
+    const store = useStore();
+    // 使用自定义 hook 管理状态
+    const {
+      authGlobalInfo,
+      operateHandler,
+
+      checkCreateAuth,
+    } = useCollectList();
+
+    let tippyInstances: Instance[] = [];
+
     const pagination = {
       current: 1,
-      count: 500,
-      limit: 20,
+      count: props.data.length,
+      limit: 10,
     };
-    const settingFields = [
-      // 数据ID
-      {
-        id: 'bk_data_id',
-        label: t('数据ID'),
-      },
-      // 采集配置名称
-      {
-        id: 'collector_config_name',
-        label: t('名称'),
-        disabled: true,
-      },
-      // 用量展示
-      {
-        id: 'storage_usage',
-        label: t('日用量/总用量'),
-        disabled: true,
-      },
-      // 存储名
-      {
-        id: 'table_id',
-        label: t('存储名'),
-      },
-      // 日志类型
-      {
-        id: 'collector_scenario_name',
-        label: t('日志类型'),
-      },
-      // 过期时间
-      {
-        id: 'retention',
-        label: t('过期时间'),
-      },
-      {
-        id: 'label',
-        label: t('标签'),
-      },
-      // 采集状态
-      {
-        id: 'es_host_state',
-        label: t('采集状态'),
-      },
-      // 更新人
-      {
-        id: 'updated_by',
-        label: t('更新人'),
-      },
-      // 更新时间
-      {
-        id: 'updated_at',
-        label: t('更新时间'),
-      },
-      // 存储集群
-      {
-        id: 'storage_cluster_name',
-        label: t('存储集群'),
-      },
-      // 数据类型
-      {
-        id: 'category_name',
-        label: t('数据类型'),
-      },
-    ];
+    const settingFields = SETTING_FIELDS;
     const data2 = [
       {
         name: '实例状态',
@@ -169,8 +129,8 @@ export default defineComponent({
     ];
     /** 状态渲染 */
     const renderStatus = (key: string) => {
-      const info = STATUS_ENUM.find(item => item.key === key);
-      return info ? <span class={`table-status ${info.key}`}>{info.label}</span> : '--';
+      const info = STATUS_ENUM.find(item => item.value === key);
+      return info ? <span class={`table-status ${info.value}`}>{info.text}</span> : '--';
     };
 
     const columns = ref([
@@ -186,13 +146,13 @@ export default defineComponent({
         label: t('日用量'),
         prop: 'daily_usage',
         sortable: true,
-        'min-width': 80,
+        'min-width': 100,
       },
       {
         label: t('总用量'),
         prop: 'total_usage',
         sortable: true,
-        'min-width': 80,
+        'min-width': 100,
       },
       {
         label: t('存储名'),
@@ -201,18 +161,36 @@ export default defineComponent({
       },
       {
         label: t('所属索引集'),
-        prop: 'collector_config_name',
-        'min-width': 140,
+        prop: 'index_set_name',
+        width: 200,
+        renderFn: (row: any) => (
+          <TagMore
+            tags={row.index_set_name}
+            title={t('所属索引集')}
+          />
+        ),
+        filters: [
+          { text: 'bk_apm_trace', value: 'bk_apm_trace' },
+          { text: 'bk_aiops', value: 'bk_aiops' },
+        ],
       },
       {
         label: t('接入类型'),
         prop: 'category_name',
         width: 100,
+        filters: [
+          { text: '日志采集', value: 'log' },
+          { text: 'BCS', value: 'BCS' },
+        ],
       },
       {
         label: t('日志类型'),
         prop: 'collector_scenario_name',
         width: 100,
+        filters: [
+          { text: '行日志', value: 'row' },
+          { text: '段日志', value: 'segment' },
+        ],
       },
       {
         label: t('集群名'),
@@ -232,30 +210,30 @@ export default defineComponent({
       {
         label: t('标签'),
         prop: 'tags',
+        showTips: false,
         renderFn: (row: any) => (
-          <span>
-            {row.tags.map(item => (
-              <span
-                key={item.id}
-                class='table-tag'
-              >
-                {item.name}
-              </span>
-            ))}
-          </span>
+          <TagMore
+            tags={row.tags}
+            title={t('标签')}
+          />
         ),
-        'min-width': 100,
+        width: 200,
       },
       {
         label: t('采集状态'),
         prop: 'status',
         width: 100,
         renderFn: (row: any) => renderStatus(row.status),
+        filters: STATUS_ENUM,
       },
       {
         label: t('创建人'),
         prop: 'created_by',
         width: 100,
+        filters: [
+          { text: 'hello', value: 'hello' },
+          { text: 'test', value: 'test' },
+        ],
       },
       {
         label: t('创建时间'),
@@ -267,6 +245,10 @@ export default defineComponent({
         label: t('更新人'),
         width: 100,
         prop: 'updated_by',
+        filters: [
+          { text: 'hello', value: 'hello' },
+          { text: 'test', value: 'test' },
+        ],
       },
       {
         label: t('更新时间'),
@@ -275,6 +257,90 @@ export default defineComponent({
         width: 180,
       },
     ]);
+
+    /** 销毁所有tippy */
+    const destroyTippyInstances = () => {
+      tippyInstances.forEach(i => {
+        try {
+          i.hide();
+          i.destroy();
+        } catch (_) {}
+      });
+      tippyInstances = [];
+    };
+
+    /** 渲染操作下拉列表 */
+    const initMenuPop = () => {
+      // 销毁旧实例，避免重复绑定
+      destroyTippyInstances();
+
+      const targets = document.querySelectorAll(
+        '.v2-log-collection-table .bk-table-fixed-body-wrapper .table-more-btn',
+      );
+      if (!targets.length) return;
+
+      const instances = tippy(targets as unknown as HTMLElement[], {
+        trigger: 'click',
+        placement: 'bottom-end',
+        theme: 'light table-menu-popover',
+        interactive: true,
+        hideOnClick: true,
+        arrow: false,
+        offset: [0, 4],
+        appendTo: () => document.body,
+        onShow(instance) {
+          (instance.reference as HTMLElement).classList.add('is-hover');
+        },
+        onHide(instance) {
+          (instance.reference as HTMLElement).classList.remove('is-hover');
+        },
+        content(reference) {
+          const btn = reference as HTMLElement;
+          // 约定：内容紧跟在按钮后的兄弟元素中
+          const container = btn.nextElementSibling as HTMLElement | null;
+          const contentNode = container?.querySelector('.row-menu-content') as HTMLElement | null;
+          return (contentNode ?? container ?? document.createElement('div')) as unknown as Element;
+        },
+      });
+
+      // tippy 返回单个或数组，这里统一转为数组
+      tippyInstances = Array.isArray(instances) ? instances : [instances];
+    };
+
+    onMounted(() => {
+      nextTick().then(() => {
+        initMenuPop();
+        !authGlobalInfo.value && checkCreateAuth();
+      });
+    });
+
+    onBeforeUnmount(() => {
+      destroyTippyInstances();
+    });
+
+    const handleMenuClick = (key: string, row: any) => {
+      // 关闭 tippy
+      tippyInstances.forEach(i => i?.hide());
+      // 业务处理
+      console.log(key, row);
+    };
+    const handlePageChange = (page: number) => {
+      console.log(page);
+    };
+    const handlePageLimitChange = (limit: number) => {
+      console.log(limit);
+    };
+    /** 新增采集项 */
+    const handleCreateOperation = () => {
+      operateHandler({}, 'add');
+    };
+    /** 表格过滤 */
+    const handleFilterMethod = (value, row, column) => {
+      const property = column.property;
+      // console.log(value, row, column, 'handleFilterMethod', property);
+      return row[property] === value;
+    };
+
     return () => (
       <div class='v2-log-collection-table'>
         <div class='v2-log-collection-table-header'>
@@ -286,6 +352,7 @@ export default defineComponent({
             <bk-button
               icon='plus'
               theme='primary'
+              onClick={handleCreateOperation}
             >
               {t('采集项')}
             </bk-button>
@@ -303,58 +370,93 @@ export default defineComponent({
           ></bk-search-select>
         </div>
         <div class='v2-log-collection-table-main'>
-          <bk-table
-            ext-cls='v2-log-collection-table'
-            data={data}
-            pagination={pagination}
-            // @row-mouse-enter="handleRowMouseEnter"
-            // @row-mouse-leave="handleRowMouseLeave"
-            // @page-change="handlePageChange"
-            // @page-limit-change="handlePageLimitChange"
-            // @selection-change="handleSelectionChange"
-          >
-            {columns.value.map((item, ind) => (
+          {props.loading ? (
+            <ItemSkeleton
+              style={{ padding: '0 16px' }}
+              columns={5}
+              gap={'14px'}
+              rowHeight={'28px'}
+              rows={6}
+              widths={['25%', '25%', '20%', '20%', '10%']}
+            />
+          ) : (
+            <bk-table
+              ext-cls='collection-table-box'
+              data={props.data}
+              pagination={pagination}
+              on-page-change={handlePageChange}
+              on-page-limit-change={handlePageLimitChange}
+              // @selection-change="handleSelectionChange"
+            >
+              {columns.value.map((item, ind) => (
+                <bk-table-column
+                  key={`${item.prop}_${ind}`}
+                  width={item.width}
+                  scopedSlots={{
+                    default: ({ row }) => {
+                      /** 自定义 */
+                      if (item?.renderFn) {
+                        return (item as any)?.renderFn(row);
+                      }
+                      return row[item.prop] ?? '--';
+                    },
+                  }}
+                  filter-method={handleFilterMethod}
+                  filters={item?.filters}
+                  fixed={!!item.fixed}
+                  label={item.label}
+                  min-width={item['min-width']}
+                  prop={item.prop}
+                  show-overflow-tooltip={!!item.showTips}
+                  sortable={!!item?.sortable}
+                />
+              ))}
               <bk-table-column
-                key={`${item.prop}_${ind}`}
-                width={item.width}
+                width={70}
+                class='table-operation'
                 scopedSlots={{
                   default: ({ row }) => {
-                    /** 自定义 */
-                    if (item?.renderFn) {
-                      return item?.renderFn(row);
-                    }
-                    return row[item.prop] === undefined || row[item.prop] === null ? '--' : row[item.prop];
+                    return (
+                      <div>
+                        <span class='link mr-6'>{t('检索')}</span>
+                        <span class='link'>{t('编辑')}</span>
+                        <span class='bk-icon icon-more more-btn table-more-btn'></span>
+                        {/* 每行独立的弹层内容容器，默认隐藏，由 tippy 读取 */}
+                        <div
+                          style={{ display: 'none' }}
+                          class='row-menu-popover'
+                        >
+                          <div class='row-menu-content'>
+                            {MENU_LIST.map(item => (
+                              <span
+                                key={item.key}
+                                class='menu-item'
+                                onClick={(e: MouseEvent) => handleMenuClick(item.key, row, e)}
+                              >
+                                {item.label}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
                   },
                 }}
-                fixed={!!item.fixed}
-                label={item.label}
-                min-width={item['min-width']}
-                prop={item.prop}
-                show-overflow-tooltip={true}
-                sortable={!!item?.sortable}
-              />
-            ))}
-            <bk-table-column
-              width={70}
-              class='table-operation'
-              fixed={'right'}
-              label={t('操作')}
-            >
-              <span class='link mr-6'>{t('检索')}</span>
-              <span class='link'>{t('编辑')}</span>
-              <span class='bk-icon icon-more more-btn'></span>
-            </bk-table-column>
-            <bk-table-column
-              tippy-options={{ zIndex: 3000 }}
-              type='setting'
-            >
-              <bk-table-setting-content
-                fields={settingFields}
-                // :selected="setting.selectedFields"
-                // @setting-change="handleSettingChange"
-              ></bk-table-setting-content>
-            </bk-table-column>
-          </bk-table>
+                fixed={'right'}
+                label={t('操作')}
+              ></bk-table-column>
+              <bk-table-column
+                tippy-options={{ zIndex: 3000 }}
+                type='setting'
+              >
+                <bk-table-setting-content
+                  fields={settingFields}
+                  // :selected="setting.selectedFields"
+                  // @setting-change="handleSettingChange"
+                ></bk-table-setting-content>
+              </bk-table-column>
+            </bk-table>
+          )}
         </div>
       </div>
     );

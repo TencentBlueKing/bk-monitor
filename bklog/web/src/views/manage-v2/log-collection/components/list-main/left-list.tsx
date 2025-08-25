@@ -34,7 +34,7 @@ import AddIndexSet from '../common-comp/add-index-set';
 import ListItem from './list-item';
 
 import './left-list.scss';
-import 'tippy.js/dist/tippy.css';
+import 'tippy.js/themes/light.css';
 
 export default defineComponent({
   name: 'LeftList',

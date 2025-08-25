@@ -76,7 +76,31 @@ export const mockList = [
     table_id_prefix: '100605_bklog_',
     custom_name: '容器日志上报',
     is_search: true,
-    tags: [],
+    index_set_name: [
+      {
+        name: 'bk_apm_trace',
+      },
+      {
+        name: 'bk_aiops',
+      },
+    ],
+    tags: [
+      {
+        name: '数据指纹',
+        color: 'green',
+        tag_id: 9,
+      },
+      {
+        name: 'tagtag',
+        color: 'green',
+        tag_id: 9,
+      },
+      {
+        name: 'i am suoyinji name placeholder',
+        color: 'green',
+        tag_id: 9,
+      },
+    ],
     permission: {
       search_log_v2: true,
       view_collection_v2: true,
@@ -157,7 +181,26 @@ export const mockList = [
     table_id_prefix: '100605_bklog_',
     custom_name: '容器日志上报',
     is_search: false,
-    tags: [],
+    index_set_name: [
+      {
+        name: 'bk_apm_trace',
+      },
+      {
+        name: 'bk_aiops',
+      },
+    ],
+    tags: [
+      {
+        name: 'ab',
+        color: 'green',
+        tag_id: 9,
+      },
+      {
+        name: 'cd',
+        color: 'green',
+        tag_id: 19,
+      },
+    ],
     permission: {
       search_log_v2: true,
       view_collection_v2: true,
@@ -237,7 +280,26 @@ export const mockList = [
     retention: 0,
     custom_name: '容器日志上报',
     is_search: false,
-    tags: [],
+    index_set_name: [
+      {
+        name: 'bk_apm_trace',
+      },
+      {
+        name: '容器日志采集示例',
+      },
+    ],
+    tags: [
+      {
+        name: 'place',
+        color: 'green',
+        tag_id: 9,
+      },
+      {
+        name: 'hello',
+        color: 'green',
+        tag_id: 19,
+      },
+    ],
     permission: {
       view_collection_v2: true,
       manage_collection_v2: true,
@@ -317,7 +379,26 @@ export const mockList = [
     table_id_prefix: '100605_bklog_',
     custom_name: '容器日志上报',
     is_search: false,
-    tags: [],
+    index_set_name: [
+      {
+        name: 'bk_apm_trace',
+      },
+      {
+        name: '容器日志采集示例',
+      },
+    ],
+    tags: [
+      {
+        name: 'i am suoyinji name placeholder',
+        color: 'green',
+        tag_id: 9,
+      },
+      {
+        name: 'hello_world',
+        color: 'green',
+        tag_id: 19,
+      },
+    ],
     permission: {
       view_collection_v2: true,
       manage_collection_v2: true,
@@ -409,9 +490,27 @@ export const mockList = [
     table_id_prefix: '100605_bklog_',
     custom_name: '容器日志上报',
     is_search: true,
+    index_set_name: [
+      {
+        name: 'bk_apm_trace',
+      },
+      {
+        name: '容器日志采集示例',
+      },
+    ],
     tags: [
       {
         name: '数据指纹',
+        color: 'green',
+        tag_id: 9,
+      },
+      {
+        name: 'i am suoyinji name placeholder',
+        color: 'green',
+        tag_id: 9,
+      },
+      {
+        name: 'tagtag',
         color: 'green',
         tag_id: 9,
       },
@@ -500,6 +599,14 @@ export const mockList = [
     table_id_prefix: '100605_bklog_',
     custom_name: '容器日志上报',
     is_search: true,
+    index_set_name: [
+      {
+        name: '默认索引集',
+      },
+      {
+        name: '容器日志采集示例',
+      },
+    ],
     tags: [
       {
         name: '无数据',
