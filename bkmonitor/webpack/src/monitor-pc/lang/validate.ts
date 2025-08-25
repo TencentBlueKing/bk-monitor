@@ -285,9 +285,11 @@ export default {
   当前未配置URI信息: 'Currently unconfigured URI information',
   添加方式必填: 'Addition method is required',
   模版名称必填: 'Template name is required',
+  模版别名必填: 'Template alias is required',
   生效范围必填: 'Effective range is required',
   变量名必填: 'Variable name is required',
   变量名不能重复: 'Variable name cannot be duplicated',
   可选维度值必选: 'Optional dimension value must be selected',
   变量名不能包含非法字符: 'Variable name cannot contain illegal characters',
+  '1-50个字符，且仅支持小写字母、数字、_': '1-50 characters, and only lowercase letters, numbers, and _ are supported',
 };
