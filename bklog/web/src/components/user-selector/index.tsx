@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import _ from 'lodash';
 import { computed, defineComponent, ref, watch } from 'vue';
-// import BkUserSelector from '@blueking/user-selector';
-import BkUserSelector from '@blueking/bk-user-selector/vue2';
+
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+// import BkUserSelector from '@blueking/user-selector';
+import BkUserSelector from '@blueking/bk-user-selector/vue2';
+import _ from 'lodash';
 
 import './index.scss';
 
@@ -79,8 +80,7 @@ export default defineComponent({
 
     const tenantId = computed(() => store.state.userMeta.bk_tenant_id);
 
-    const apiBaseUrl =
-      process.env.NODE_ENV === 'development' ? '' : window.BK_LOGIN_URL;
+    const apiBaseUrl = process.env.NODE_ENV === 'development' ? '' : window.BK_LOGIN_URL;
 
     watch(
       () => props.value,
@@ -112,14 +112,14 @@ export default defineComponent({
         <BkUserSelector
           style={props.customStyle}
           class={isError.value ? 'is-error' : ''}
-          api={props.api}
+          api-base-url={apiBaseUrl}
           disabled={props.disabled}
           empty-text={t('无匹配人员')}
-          placeholder={props.placeholder}
-          multiple={props.multiple}
-          tenant-id={tenantId.value}
-          api-base-url={apiBaseUrl}
+          enableMultiTenantMode={!!tenantId.value}
           modelValue={localValue.value}
+          multiple={props.multiple}
+          placeholder={props.placeholder}
+          tenant-id={tenantId.value}
           onBlur={handleBlur}
           onChange={handleChange}
         />
