@@ -36,7 +36,7 @@ import { getRetrieveQueryTemplateQueryConfigs } from './metric';
  * @param {QueryTemplateListItem['id']} templateId 查询模板ID
  */
 export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem['id']) => {
-  const detail = await retrieveQueryTemplate(templateId).catch(() => ({
+  const detail = await retrieveQueryTemplate(templateId, { is_mock: false }).catch(() => ({
     query_configs: [],
     variables: [],
   }));
@@ -54,10 +54,13 @@ export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem
     )
   );
   const metricFunctions = await getFunctions().catch(() => []);
-  console.log('================ variables ================', variables);
   return {
     name: detail.name,
     description: detail.description,
+    can_edit: detail.can_edit,
+    can_delete: detail.can_delete,
+    alias: detail.alias,
+    space_scope: detail.space_scope,
     queryConfigs,
     variables,
     metricFunctions,
@@ -70,6 +73,6 @@ export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem
  * @param {QueryTemplateListItem['id']} templateId 查询模板ID
  */
 export const fetchQueryTemplateRelation = async (templateId: QueryTemplateListItem['id']) => {
-  const relationList = await relationQueryTemplate(templateId).catch(() => []);
+  const relationList = await relationQueryTemplate(templateId, { is_mock: false }).catch(() => []);
   return relationList;
 };

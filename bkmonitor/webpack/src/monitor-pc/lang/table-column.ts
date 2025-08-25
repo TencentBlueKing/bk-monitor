@@ -175,6 +175,7 @@ export default {
 
   // 查询模板
   模板名称: 'Template Name',
+  模板别名: 'Template Alias',
   模板说明: 'Template Description',
   消费场景: 'Consumption Scenario',
 };
