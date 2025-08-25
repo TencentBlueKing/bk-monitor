@@ -327,6 +327,7 @@ class ListResultTableResource(Resource):
     """查询返回结果表"""
 
     class RequestSerializer(PageSerializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         datasource_type = serializers.CharField(required=False, label="过滤的结果表类型", default=None)
         bk_biz_id = serializers.IntegerField(required=False, label="获取指定业务下的结果表信息", default=None)
         with_option = serializers.BooleanField(required=False, label="是否包含option字段信息", default=True)
@@ -336,22 +337,8 @@ class ListResultTableResource(Resource):
         )
 
     def perform_request(self, request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("ListResultTableResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        request_data["bk_tenant_id"] = bk_tenant_id
-
         # 获取bcs相关的dataid
-        # TODO：理论上业务ID已经决定了租户ID，无需再次指定租户ID
-        data_ids, data_id_cluster_map = get_bcs_dataids()
+        data_ids, _ = get_bcs_dataids()
 
         # 使用datasource排除掉dataid,得到table_id列表
         table_ids = [
@@ -408,13 +395,17 @@ class ListResultTableResource(Resource):
                 result_table_queryset.values_list("table_id", flat=True)[offset : offset + limit]
             )
             result_list = models.ResultTable.batch_to_json(
-                result_table_id_list=result_table_id_list, with_option=request_data["with_option"]
+                bk_tenant_id=request_data["bk_tenant_id"],
+                result_table_id_list=result_table_id_list,
+                with_option=request_data["with_option"],
             )
             return {"count": count, "info": result_list}
 
         result_table_id_list = list(result_table_queryset.values_list("table_id", flat=True))
         result_list = models.ResultTable.batch_to_json(
-            result_table_id_list=result_table_id_list, with_option=request_data["with_option"]
+            bk_tenant_id=request_data["bk_tenant_id"],
+            result_table_id_list=result_table_id_list,
+            with_option=request_data["with_option"],
         )
 
         if record_rule_metrics:
@@ -576,7 +567,6 @@ class ModifyResultTableResource(Resource):
                 )
             except RetryError as e:
                 logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__)
-                raise e.__cause__ if e.__cause__ else e
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
@@ -1340,6 +1330,7 @@ class QueryEventGroupResource(Resource):
 
 class CreateEventGroupResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_data_id = serializers.CharField(required=True, label="数据源ID")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
         event_group_name = serializers.CharField(required=True, label="事件分组名")
@@ -1349,19 +1340,6 @@ class CreateEventGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default="")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("CreateEventGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
-
         # 默认都是返回已经删除的内容
         event_group = models.EventGroup.create_event_group(**validated_request_data)
         return event_group.to_json()
@@ -1526,6 +1504,7 @@ class CreateLogGroupResource(LogGroupBaseResource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_data_id = serializers.CharField(required=True, label="数据源ID")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
         log_group_name = serializers.CharField(required=True, label="日志分组名")
@@ -1534,18 +1513,6 @@ class CreateLogGroupResource(LogGroupBaseResource):
         max_rate = serializers.IntegerField(required=False, label="最大上报速率", default=-1)
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("CreateLogGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         log_group = models.LogGroup.create_log_group(**validated_request_data)
         return log_group.to_json(with_token=True)
 
@@ -1598,6 +1565,7 @@ class DeleteLogGroupResource(LogGroupBaseResource):
 
 class CreateTimeSeriesGroupResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_data_id = serializers.CharField(required=True, label="数据源ID")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
         time_series_group_name = serializers.CharField(required=True, label="自定义时序分组名")
@@ -1611,18 +1579,6 @@ class CreateTimeSeriesGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default="")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("CreateTimeSeriesGroupResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         # 默认都是返回已经删除的内容
         time_series_group = models.TimeSeriesGroup.create_time_series_group(**validated_request_data)
         return time_series_group.to_json()
@@ -1977,6 +1933,7 @@ class RegisterBCSClusterResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务id")
         cluster_id = serializers.CharField(required=True, label="bcs集群id")
         project_id = serializers.CharField(required=True, label="bcs项目id")
@@ -1990,19 +1947,6 @@ class RegisterBCSClusterResource(Resource):
         bk_env = serializers.CharField(required=False, default="", label="配置来源标签")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("RegisterBCSClusterResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
-
         # 注册集群
         cluster = BCSClusterInfo.register_cluster(**validated_request_data)
         cluster.init_resource()
@@ -2585,7 +2529,7 @@ class KafkaTailResource(Resource):
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
             datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
             try:
-                table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+                table_id = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).first().table_id
                 result_table = models.ResultTable.objects.get(table_id=table_id)
             except models.DataSourceResultTable.DoesNotExist:
                 logger.error("KafkaTailResource: bk_data_id->[%s] not found table_id,try to tail kafka", bk_data_id)
@@ -2605,7 +2549,7 @@ class KafkaTailResource(Resource):
         # 是否是V4数据链路
         elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
             # 若开启特性开关且存在RT且非日志数据，则V4链路使用BkBase侧的Kafka采样接口拉取数据
-            if settings.ENABLE_BKDATA_KAFKA_TAIL_API and result_table and datasource.etl_config != "bk_flat_batch":
+            if result_table and datasource.etl_config != "bk_flat_batch":
                 logger.info("KafkaTailResource: using bkdata kafka tail api,bk_data_id->[%s]", datasource.bk_data_id)
                 # TODO: 获取计算平台数据名称,待数据一致性实现后,统一通过BkBaseResultTable获取,不再进行复杂转换
                 vm_record = models.AccessVMRecord.objects.get(

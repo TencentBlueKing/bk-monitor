@@ -255,6 +255,7 @@ class UpdateEsRouter(BaseLogRouter):
         # 因为可以重复执行，这里可以不设置事务
         # 更新结果表别名
         need_refresh_data_label = False
+        old_data_label = result_table.data_label
         if data.get("data_label") and data["data_label"] != result_table.data_label:
             result_table.data_label = data["data_label"]
             result_table.save(update_fields=["data_label"])
@@ -285,10 +286,16 @@ class UpdateEsRouter(BaseLogRouter):
                 table_id,
                 data["data_label"],
             )
+
+            push_data_labels = [data["data_label"]]
+            if old_data_label:
+                push_data_labels.append(old_data_label)
             client.push_data_label_table_ids(
-                data_label_list=[data["data_label"]], bk_tenant_id=bk_tenant_id, is_publish=True
+                data_label_list=push_data_labels, bk_tenant_id=bk_tenant_id, is_publish=True
             )
             push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=data["data_label"])
+            if old_data_label:
+                push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=old_data_label)
         logger.info("UpdateEsRouter: try to push es detail router for table_id->[%s]", table_id)
         client.push_es_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
 
@@ -317,6 +324,7 @@ class UpdateDorisRouter(BaseLogRouter):
 
         update_doris_fields = []
         need_refresh_data_label = False
+        old_data_label = result_table.data_label
 
         try:
             # data_label
@@ -358,8 +366,12 @@ class UpdateDorisRouter(BaseLogRouter):
                 table_id,
                 data["data_label"],
             )
+
+            push_data_labels = [data["data_label"]]
+            if old_data_label:
+                push_data_labels.append(old_data_label)
             client.push_data_label_table_ids(
-                data_label_list=[data["data_label"]], bk_tenant_id=bk_tenant_id, is_publish=True
+                data_label_list=push_data_labels, bk_tenant_id=bk_tenant_id, is_publish=True
             )
 
         logger.info("UpdateDorisRouter:push doris router for table_id->[%s] successfully", table_id)
