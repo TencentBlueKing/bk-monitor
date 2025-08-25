@@ -46,9 +46,7 @@ export default class IntervalCreator extends tsc<IProps> {
 
   @Watch('value', { immediate: true })
   handleValueChange(val: number | string) {
-    if (val) {
-      this.interval = val;
-    }
+    this.interval = val;
   }
 
   handleIntervalChange(val) {
