@@ -118,6 +118,21 @@ class UpdateChatSessionResource(Resource):
         return aidev_interface.update_chat_session(session_code=session_code, params=validated_request_data)
 
 
+class RenameChatSessionResource(Resource):
+    """
+    AI智能总结会话标题
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        session_code = serializers.CharField(label="会话代码", required=True)
+
+    @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
+    def perform_request(self, validated_request_data):
+        session_code = validated_request_data.get("session_code")
+        logger.info("RenameChatSessionResource: try to rename session->[%s]", session_code)
+        return aidev_interface.rename_chat_session(session_code=session_code)
+
+
 # -------------------- 会话内容管理 -------------------- #
 class CreateChatSessionContentResource(Resource):
     """
