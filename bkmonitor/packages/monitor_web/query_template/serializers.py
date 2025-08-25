@@ -83,6 +83,18 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         model = QueryTemplate
         fields = "__all__"
 
+    def __init__(self, *args, **kwargs):
+        fields = kwargs.pop("fields", None)
+        super().__init__(*args, **kwargs)
+
+        # 动态生成字段
+        print(list(self.fields.keys()))
+        if fields is not None:
+            allowed = set(fields)
+            existing = set(self.fields.keys())
+            for field_name in existing - allowed:
+                self.fields.pop(field_name)
+
     @staticmethod
     def _is_allowed_by_bk_biz_ids(bk_biz_ids: Iterable[int]):
         permission = Permission()
@@ -93,14 +105,20 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
                 _("您没有业务 ID 为 {bk_biz_id} 的指标探索权限").format(bk_biz_id=bk_biz_id)
             )
 
+    @classmethod
     def _base_create_validate(cls, validated_data):
         cls._is_allowed_by_bk_biz_ids([validated_data["space_scope"]])
         # 校验同一业务下查询模板名称不能重复
-        if QueryTemplate.objects.filter(bk_biz_id=validated_data["bk_biz_id"], name=validated_data["name"]).exists():
+        if QueryTemplate.origin_objects.filter(
+            bk_biz_id=validated_data["bk_biz_id"], name=validated_data["name"]
+        ).exists():
             raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
 
     @classmethod
     def _base_update_validate(cls, instance, validated_data):
+        if not cls.get_can_edit(instance):
+            raise serializers.ValidationError(_("当前模板不可编辑"))
+
         existing_space_scopes = set(instance.space_scope)
         modified_space_scopes = set(validated_data.get("space_scope", []))
         # 移除的 scopes
@@ -110,7 +128,7 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         cls._is_allowed_by_bk_biz_ids(removed_scopes | added_scopes)
         # 校验除了自身外，同一业务下查询模板名称不能重复
         if (
-            QueryTemplate.objects.filter(bk_biz_id=validated_data["bk_biz_id"], name=validated_data["name"])
+            QueryTemplate.origin_objects.filter(bk_biz_id=validated_data["bk_biz_id"], name=validated_data["name"])
             .exclude(id=instance.id)
             .exists()
         ):
@@ -147,14 +165,12 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         return bk_biz_id == GLOBAL_BIZ_ID
 
     def is_read_only(self, obj):
-        if get_request().user.is_superuser:
-            return False
-
         if self.is_global_template(obj.bk_biz_id):
-            return True
-
-        if obj.bk_biz_id != self._request_bk_biz_id:
-            return True
+            if get_request().user.is_superuser:
+                return False
+        elif obj.bk_biz_id == self._request_bk_biz_id:
+            return False
+        return True
 
     def get_can_edit(self, obj):
         return not self.is_read_only(obj)

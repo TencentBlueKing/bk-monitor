@@ -131,7 +131,26 @@ class QueryTemplateViewSet(GenericViewSet):
             queryset = self._search_filter_by_conditions(queryset, validated_data.get("conditions", []))
             total = queryset.count()
             queryset = self._search_page(queryset, validated_data.get("page", 1), validated_data.get("page_size", 50))
-            response_data = {"total": total, "list": self.serializer_class(queryset, many=True).data}
+            response_data = {
+                "total": total,
+                "list": self.serializer_class(
+                    queryset,
+                    many=True,
+                    fields=[
+                        "id",
+                        "can_edit",
+                        "can_delete",
+                        "is_enabled",
+                        "create_user",
+                        "create_time",
+                        "update_user",
+                        "update_time",
+                        "name",
+                        "bk_biz_id",
+                        "space_scope",
+                    ],
+                ).data,
+            }
 
         return Response(response_data)
 
