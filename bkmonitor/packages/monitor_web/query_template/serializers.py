@@ -88,7 +88,6 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
 
         # 动态生成字段
-        print(list(self.fields.keys()))
         if fields is not None:
             allowed = set(fields)
             existing = set(self.fields.keys())
@@ -114,9 +113,8 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         ).exists():
             raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
 
-    @classmethod
-    def _base_update_validate(cls, instance, validated_data):
-        if not cls.get_can_edit(instance):
+    def _base_update_validate(self, instance, validated_data):
+        if not self.get_can_edit(instance):
             raise serializers.ValidationError(_("当前模板不可编辑"))
 
         existing_space_scopes = set(instance.space_scope)
@@ -125,7 +123,7 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         removed_scopes = existing_space_scopes - modified_space_scopes
         # 新增的 scopes
         added_scopes = modified_space_scopes - existing_space_scopes
-        cls._is_allowed_by_bk_biz_ids(removed_scopes | added_scopes)
+        self._is_allowed_by_bk_biz_ids(removed_scopes | added_scopes)
         # 校验除了自身外，同一业务下查询模板名称不能重复
         if (
             QueryTemplate.origin_objects.filter(bk_biz_id=validated_data["bk_biz_id"], name=validated_data["name"])
