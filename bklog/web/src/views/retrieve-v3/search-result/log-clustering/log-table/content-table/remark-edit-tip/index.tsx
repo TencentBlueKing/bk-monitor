@@ -111,13 +111,14 @@ export default defineComponent({
         };
         updateRemark(type);
         return;
-      }
-      if (type === 'update') {
+      } else if (type === 'update') {
         verifyData.value.textInputStr = remarkItem.remark;
         catchOperatorVal = {
           old_remark: remarkItem.remark,
           create_time: remarkItem.create_time,
         };
+      } else {
+        verifyData.value.textInputStr = '';
       }
       isShowEditRemarkDialog.value = true;
     };
@@ -289,7 +290,7 @@ export default defineComponent({
             >
               <bk-input
                 value={verifyData.value.textInputStr}
-                maxlength={100}
+                // maxlength={100}
                 placeholder={t('请输入')}
                 rows={5}
                 type='textarea'

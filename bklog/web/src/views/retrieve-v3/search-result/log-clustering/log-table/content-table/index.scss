@@ -216,7 +216,7 @@
               .user-selector-container {
                 background: transparent !important;
                 border: none !important;
-                min-height: 26px;
+                padding: 0;
 
                 &.focus {
                   border: 1px solid #3a84ff !important;

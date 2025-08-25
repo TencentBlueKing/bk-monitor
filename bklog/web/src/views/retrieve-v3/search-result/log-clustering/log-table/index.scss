@@ -4,6 +4,19 @@
   font-size: 12px;
   position: relative;
 
+  .display-type-main {
+    font-size: 12px;
+    display: flex;
+    gap: 14px;
+    margin: 0 0 8px 12px;
+
+    .bk-form-radio {
+      color: #4d4f56;
+      font-family: MicrosoftYaHei;
+      font-weight: normal;
+    }
+  }
+
   .table-list-content {
     flex: 1;
     overflow-y: auto;

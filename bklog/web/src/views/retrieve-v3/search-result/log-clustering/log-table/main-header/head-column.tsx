@@ -150,6 +150,7 @@ export default defineComponent({
       <th
         ref={refRoot}
         style={{ ...cellStyle.value, ...props.customStyle }}
+        on-click={() => emit('click-column')}
       >
         {slots.default?.()}
       </th>
