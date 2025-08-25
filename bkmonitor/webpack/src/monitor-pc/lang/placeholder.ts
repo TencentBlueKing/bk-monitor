@@ -338,4 +338,5 @@ export default {
   '高度自适应，宽度最大值为': 'Adaptive height, maximum width of',
   数值: 'Number',
   '搜索 变量': 'Search Variable',
+  点击添加指标: 'Click to add metrics',
 };

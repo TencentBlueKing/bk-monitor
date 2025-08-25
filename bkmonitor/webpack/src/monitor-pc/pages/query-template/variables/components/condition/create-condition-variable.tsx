@@ -46,22 +46,31 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
   @Prop({ type: Object, required: true }) variable!: ConditionVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
 
+  /** 可选维度 */
+  options: string[] = [];
+
   checkboxDisabled(dimensionId: string) {
-    const isAllDisabled =
-      dimensionId === 'all' && this.variable.options.length && !this.variable.options.includes('all');
-    const isOtherDisabled = dimensionId !== 'all' && this.variable.options.includes('all');
+    const isSelectAll = this.options.includes('all');
+    const isAllDisabled = dimensionId === 'all' && this.options.length && !isSelectAll;
+    const isOtherDisabled = dimensionId !== 'all' && isSelectAll;
     return isAllDisabled || isOtherDisabled;
   }
 
   handleDimensionChange(options: string[]) {
     let defaultValue = this.variable.data.defaultValue || [];
-    if (!options.includes('all')) {
+    const isAll = options.includes('all');
+    const selectList = isAll ? this.variable.dimensionList.map(item => item.id) : options;
+    if (!isAll) {
       defaultValue = defaultValue.filter(item => options.includes(item.key));
     }
 
     let value = this.variable.value || [];
+    /** 如果没有编辑过值，直接使用默认值 */
     if (!this.variable.isValueEditable) {
       value = defaultValue;
+    } else {
+      /** 判断编辑值是否在维度列表中 */
+      value = value.filter(item => selectList.includes(item.key));
     }
 
     this.handleDataChange({
@@ -70,6 +79,36 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
       defaultValue,
       value,
     });
+  }
+
+  /** 弹窗关闭的时候在进行传值 */
+  handleOptionsToggle(show: boolean) {
+    if (show) {
+      this.options = this.variable.options;
+    } else {
+      let defaultValue = this.variable.data.defaultValue || [];
+      const isAll = this.options.includes('all');
+      const selectList = isAll ? this.variable.dimensionList.map(item => item.id) : this.options;
+      if (!isAll) {
+        defaultValue = defaultValue.filter(item => selectList.includes(item.key));
+      }
+
+      let value = this.variable.value || [];
+      /** 如果没有编辑过值，直接使用默认值 */
+      if (!this.variable.isValueEditable) {
+        value = defaultValue;
+      } else if (selectList.length) {
+        /** 判断编辑值是否在维度列表中 */
+        value = value.filter(item => selectList.includes(item.key));
+      }
+
+      this.handleDataChange({
+        ...this.variable.data,
+        options: this.options,
+        defaultValue,
+        value,
+      });
+    }
   }
 
   handleValueChange(defaultValue: AggCondition[]) {
@@ -97,6 +136,10 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
     return this.variableCommonForm.validateForm();
   }
 
+  mounted() {
+    this.options = this.variable.options;
+  }
+
   render() {
     return (
       <div class='condition-variable'>
@@ -116,11 +159,11 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
             property='options'
           >
             <bk-select
+              v-model={this.options}
               clearable={false}
               selected-style='checkbox'
-              value={this.variable.options}
               multiple
-              onChange={this.handleDimensionChange}
+              onToggle={this.handleOptionsToggle}
             >
               <bk-option
                 id='all'

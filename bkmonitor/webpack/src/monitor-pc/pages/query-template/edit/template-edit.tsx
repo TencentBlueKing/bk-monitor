@@ -69,6 +69,7 @@ export default class TemplateEdit extends TemplateCreate {
       this.basicInfoData = {
         name: data.name,
         description: data.description,
+        alias: data.alias,
         space_scope: data.space_scope.length ? data.space_scope : ['all'],
       };
       this.variablesList = data.variables.map(item =>
