@@ -44,7 +44,7 @@ export default class IntervalCreator extends tsc<IProps> {
   @Prop({ default: 60 }) value: number | string;
   interval: number | string = 60;
 
-  @Watch('value')
+  @Watch('value', { immediate: true })
   handleValueChange(val: number | string) {
     this.interval = val;
   }
