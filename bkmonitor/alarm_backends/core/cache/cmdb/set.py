@@ -8,43 +8,44 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
+import json
+from typing import cast
+
 from api.cmdb.define import Set
-from core.drf_resource import api
+
+from .base import CMDBCacheManager
 
 
-class SetManager(RefreshByBizMixin, CMDBCacheManager):
+class SetManager(CMDBCacheManager):
     """
     CMDB 集群缓存
     """
 
-    ObjectClass = Set
-    type = "set"
-    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.set"
+    cache_type = "set"
 
     @classmethod
-    def key_to_internal_value(cls, bk_set_id):
-        return str(bk_set_id)
+    def mget(cls, *, bk_tenant_id: str, bk_set_ids: list[int]) -> dict[int, Set]:
+        """
+        批量获取集群
+        :param bk_tenant_id: 租户ID
+        :param bk_set_ids: 集群ID列表
+        """
+        if not bk_set_ids:
+            return {}
+
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        result: list[str | None] = cast(
+            list[str | None], cls.cache.hmget(cache_key, [str(bk_set_id) for bk_set_id in bk_set_ids])
+        )
+        return {bk_set_id: Set(**json.loads(r)) for bk_set_id, r in zip(bk_set_ids, result) if r}
 
     @classmethod
-    def key_to_representation(cls, origin_key):
+    def get(cls, *, bk_tenant_id: str, bk_set_id: int, **kwargs) -> Set | None:
         """
-        取出key时进行转化
-        """
-        return int(origin_key)
-
-    @classmethod
-    def get(cls, bk_set_id):
-        """
+        获取单个集群
+        :param bk_tenant_id: 租户ID
         :param bk_set_id: 集群ID
-        :rtype: Set
         """
-        return super().get(bk_set_id)
-
-    @classmethod
-    def refresh_by_biz(cls, bk_biz_id):
-        """
-        按业务ID刷新缓存
-        """
-        biz_sets = api.cmdb.get_set(bk_biz_id=bk_biz_id)  # type: list[Set]
-        return {cls.key_to_internal_value(biz_set.bk_set_id): biz_set for biz_set in biz_sets}
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        result = cast(str | None, cls.cache.hget(cache_key, str(bk_set_id)))
+        return Set(**json.loads(result)) if result else None
