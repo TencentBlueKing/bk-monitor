@@ -48,7 +48,7 @@ def test_get_or_create_agent_event_data_id_resource(mocker):
     # mock两个方法
     mocker.patch("core.drf_resource.api.bkdata.apply_data_link", return_value=None)
     mocker.patch("core.drf_resource.api.bkdata.get_data_link", return_value=expected)
-    settings.ENABLE_V2_BKDATA_GSE_RESOURCE = True
+    settings.ENABLE_V2_VM_DATA_LINK = True
 
     data = GetOrCreateAgentEventDataIdResource().request(bk_biz_id=7)
 

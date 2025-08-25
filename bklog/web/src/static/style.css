@@ -56,6 +56,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-eye-slash:before {
 	content: "\e198";
 }
+.bklog-dimens:before {
+	content: "\e21c";
+}
 .bklog-email-shape:before {
 	content: "\e164";
 }
@@ -377,6 +380,12 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-jump:before {
 	content: "\e1da";
 }
+.bklog-organization:before {
+	content: "\e21b";
+}
+.bklog-overview-table:before {
+	content: "\e216";
+}
 .bklog-overview1:before {
 	content: "\e1de";
 }
@@ -697,4 +706,58 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-share-link:before {
 	content: "\e211";
+}
+.bklog-zhengze:before {
+	content: "\e213";
+}
+.bklog-jiebang:before {
+	content: "\e215";
+}
+.bklog---2:before {
+	content: "\e218";
+}
+.bklog-down-4:before {
+	content: "\e219";
+}
+.bklog-up-2:before {
+	content: "\e217";
+}
+.bklog-fllatend:before {
+	content: "\e21a";
+}
+.bklog-tuzenggaojing:before {
+	content: "\e21d";
+}
+.bklog-xinleigaojing:before {
+	content: "\e21e";
+}
+.bklog-enter-2:before {
+	content: "\e220";
+}
+.bklog-fengefu:before {
+	content: "\e223";
+}
+.bklog-json-fanxuliehua:before {
+	content: "\e221";
+}
+.bklog-zhengzetiqu:before {
+	content: "\e222";
+}
+.bklog-weiguishu:before {
+	content: "\e224";
+}
+.bklog-all2:before {
+	content: "\e225";
+}
+.bklog-sousuo-:before {
+	content: "\e226";
+}
+.bklog-sousuo-:before {
+	content: "\e227";
+}
+.bklog-rizhituomin:before {
+	content: "\e232";
+}
+.bklog-group:before {
+	content: "\e233";
 }

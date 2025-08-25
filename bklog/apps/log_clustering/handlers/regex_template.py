@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from collections import defaultdict
 
 from django.utils.translation import gettext as _
@@ -36,7 +36,7 @@ from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_search.models import LogIndexSet
 
 
-class RegexTemplateHandler(object):
+class RegexTemplateHandler:
     def list_templates(self, space_uid):
         # 空间是否有模板
         templates = RegexTemplate.objects.filter(space_uid=space_uid)
@@ -94,11 +94,11 @@ class RegexTemplateHandler(object):
             ]
         return list(data)
 
-    def create_template(self, space_uid, template_name):
+    def create_template(self, space_uid, template_name, predefined_varibles=None):
         instance, created = RegexTemplate.objects.get_or_create(space_uid=space_uid, template_name=template_name)
         if not created:
             raise DuplicateNameException(DuplicateNameException.MESSAGE.format(name=template_name))
-        instance.predefined_varibles = OnlineTaskTrainingArgs.PREDEFINED_VARIBLES
+        instance.predefined_varibles = predefined_varibles or OnlineTaskTrainingArgs.PREDEFINED_VARIBLES
         instance.save()
         return {
             "id": instance.id,
@@ -108,7 +108,7 @@ class RegexTemplateHandler(object):
             "related_index_set_list": [],
         }
 
-    def update_template(self, template_id, template_name):
+    def update_template(self, template_id, template_name, predefined_varibles):
         instance = RegexTemplate.objects.filter(id=template_id).first()
         if not instance:
             raise RegexTemplateNotExistException(
@@ -119,9 +119,26 @@ class RegexTemplateHandler(object):
         )
         if duplicate_name_template.exists():
             raise DuplicateNameException(DuplicateNameException.MESSAGE.format(name=template_name))
-        instance.template_name = template_name
+        pipeline_ids = []
+        # 模板改变
+        if predefined_varibles and instance.predefined_varibles != predefined_varibles:
+            from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+
+            instance.predefined_varibles = predefined_varibles
+            configs = ClusteringConfig.objects.filter(regex_template_id=template_id, signature_enable=True)
+            update_params = {"predefined_varibles": predefined_varibles}
+            for c in configs:
+                if pipeline_id := ClusteringConfigHandler(index_set_id=c.index_set_id).update(update_params):
+                    pipeline_ids.append(pipeline_id)
+        if template_name:
+            instance.template_name = template_name
         instance.save()
-        return {"id": instance.id, "space_uid": instance.space_uid, "template_name": instance.template_name}
+        return {
+            "id": instance.id,
+            "space_uid": instance.space_uid,
+            "template_name": instance.template_name,
+            "pipeline_ids": pipeline_ids,
+        }
 
     def delete_template(self, template_id):
         instance = RegexTemplate.objects.filter(id=template_id).first()

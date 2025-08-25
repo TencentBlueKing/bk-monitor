@@ -378,25 +378,26 @@ class IndexSetHandler(APIModel):
     @classmethod
     @transaction.atomic()
     def create(
-            cls,
-            index_set_name,
-            space_uid,
-            scenario_id,
-            view_roles,
-            indexes,
-            storage_cluster_id=None,
-            category_id=None,
-            collector_config_id=None,
-            is_trace_log=False,
-            time_field=None,
-            time_field_type=None,
-            time_field_unit=None,
-            bk_app_code=None,
-            username="",
-            bcs_project_id="",
-            is_editable=True,
-            target_fields=None,
-            sort_fields=None,
+        cls,
+        index_set_name,
+        space_uid,
+        scenario_id,
+        view_roles,
+        indexes,
+        storage_cluster_id=None,
+        category_id=None,
+        collector_config_id=None,
+        is_trace_log=False,
+        time_field=None,
+        time_field_type=None,
+        time_field_unit=None,
+        bk_app_code=None,
+        username="",
+        bcs_project_id="",
+        is_editable=True,
+        target_fields=None,
+        sort_fields=None,
+        bcs_cluster_id=None,
     ):
         # 创建索引
         index_set_handler = cls.get_index_set_handler(scenario_id)
@@ -421,6 +422,7 @@ class IndexSetHandler(APIModel):
             is_editable=is_editable,
             target_fields=target_fields,
             sort_fields=sort_fields,
+            bcs_cluster_id=bcs_cluster_id,
         ).create_index_set()
 
         # add user_operation_record
@@ -455,20 +457,21 @@ class IndexSetHandler(APIModel):
         return index_set
 
     def update(
-            self,
-            index_set_name,
-            view_roles,
-            indexes,
-            category_id=None,
-            is_trace_log=False,
-            storage_cluster_id=None,
-            time_field=None,
-            time_field_type=None,
-            time_field_unit=None,
-            bk_app_code=None,
-            username="",
-            target_fields=None,
-            sort_fields=None,
+        self,
+        index_set_name,
+        view_roles,
+        indexes,
+        category_id=None,
+        is_trace_log=False,
+        storage_cluster_id=None,
+        time_field=None,
+        time_field_type=None,
+        time_field_unit=None,
+        bk_app_code=None,
+        username="",
+        target_fields=None,
+        sort_fields=None,
+        bcs_cluster_id=None,
     ):
         index_set_handler = self.get_index_set_handler(self.scenario_id)
         view_roles = []
@@ -487,6 +490,7 @@ class IndexSetHandler(APIModel):
             username=username,
             target_fields=target_fields,
             sort_fields=sort_fields,
+            bcs_cluster_id=bcs_cluster_id,
         ).update_index_set(self.data)
 
         # add user_operation_record
@@ -562,15 +566,15 @@ class IndexSetHandler(APIModel):
         index_set.save()
 
     def add_index(
-            self,
-            bk_biz_id,
-            time_field,
-            result_table_id,
-            scenario_id,
-            storage_cluster_id,
-            result_table_name=None,
-            time_field_type=None,
-            time_field_unit=None,
+        self,
+        bk_biz_id,
+        time_field,
+        result_table_id,
+        scenario_id,
+        storage_cluster_id,
+        result_table_name=None,
+        time_field_type=None,
+        time_field_unit=None,
     ):
         """
         添加索引到索引集内
@@ -578,7 +582,7 @@ class IndexSetHandler(APIModel):
         # 判断索引集是否已加入此索引
         logger.info(f"[index_set_data][{self.index_set_id}]add_index => {result_table_id}")
         if LogIndexSetData.objects.filter(
-                bk_biz_id=bk_biz_id or None, result_table_id=result_table_id, index_set_id=self.index_set_id
+            bk_biz_id=bk_biz_id or None, result_table_id=result_table_id, index_set_id=self.index_set_id
         ):
             raise ResultTableIdDuplicateException(
                 ResultTableIdDuplicateException.MESSAGE.format(result_table_id=result_table_id)
@@ -614,8 +618,8 @@ class IndexSetHandler(APIModel):
         # 返回业务列表
         space_uids = (
             LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
-                .exclude(bk_biz_id=None)
-                .values_list("space_uid", flat=True)
+            .exclude(bk_biz_id=None)
+            .values_list("space_uid", flat=True)
         )
 
         if not space_uids:
@@ -635,6 +639,7 @@ class IndexSetHandler(APIModel):
         if scenario_id == Scenario.ES:
             multi_execute_func = MultiExecuteFunc()
             for index in index_list:
+
                 def get_indices(i):
                     return EsRoute(
                         scenario_id=scenario_id, storage_cluster_id=storage_cluster_id, indices=i
@@ -921,9 +926,9 @@ class IndexSetHandler(APIModel):
                     state = DesensitizeRuleStateEnum.DELETE.value
                     new_rule = {}
                 elif (
-                        _rule["operator"] != desensitize_rule_info[rule_id]["operator"]
-                        or _rule["match_pattern"] != desensitize_rule_info[rule_id]["match_pattern"]
-                        or sorted(_rule["params"].items()) != sorted(desensitize_rule_info[rule_id]["params"].items())
+                    _rule["operator"] != desensitize_rule_info[rule_id]["operator"]
+                    or _rule["match_pattern"] != desensitize_rule_info[rule_id]["match_pattern"]
+                    or sorted(_rule["params"].items()) != sorted(desensitize_rule_info[rule_id]["params"].items())
                 ):
                     state = DesensitizeRuleStateEnum.UPDATE.value
                     new_rule = {
@@ -1014,8 +1019,8 @@ class IndexSetHandler(APIModel):
         """
         # 名称校验
         if (
-                params["name"] in list(InnerTag.get_dict_choices().values())
-                or IndexSetTag.objects.filter(name=params["name"]).exists()
+            params["name"] in list(InnerTag.get_dict_choices().values())
+            or IndexSetTag.objects.filter(name=params["name"]).exists()
         ):
             raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
 
@@ -1163,22 +1168,22 @@ class IndexSetHandler(APIModel):
 
     @classmethod
     def replace(
-            cls,
-            index_set_name,
-            scenario_id,
-            view_roles,
-            indexes,
-            bk_app_code,
-            space_uid=None,
-            storage_cluster_id=None,
-            category_id=None,
-            collector_config_id=None,
-            is_trace_log=False,
-            time_field=None,
-            time_field_type=None,
-            time_field_unit=None,
-            target_fields=None,
-            sort_fields=None,
+        cls,
+        index_set_name,
+        scenario_id,
+        view_roles,
+        indexes,
+        bk_app_code,
+        space_uid=None,
+        storage_cluster_id=None,
+        category_id=None,
+        collector_config_id=None,
+        is_trace_log=False,
+        time_field=None,
+        time_field_type=None,
+        time_field_unit=None,
+        target_fields=None,
+        sort_fields=None,
     ):
         # 检查索引集是否存在
         index_set_obj = LogIndexSet.objects.filter(index_set_name=index_set_name).first()
@@ -1406,6 +1411,25 @@ class IndexSetHandler(APIModel):
                     "data_label": BaseIndexSetHandler.get_data_label(self.index_set_id),
                 },
             )
+
+        if doris_table_id := self.data.doris_table_id:
+            doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
+            # Doris接入
+            multi_execute_func.append(
+                result_key=self.data.index_set_id,
+                func=TransferApi.create_or_update_log_router,
+                params={
+                    "query_alias_settings": query_alias_settings,
+                    "space_type": self.data.space_uid.split("__")[0],
+                    "space_id": self.data.space_uid.split("__")[-1],
+                    "storage_type": "doris",
+                    "source_type": "bkdata",
+                    "bkbase_table_id": doris_result_table,
+                    "data_label": f"bklog_index_set_{self.index_set_id}_analysis",
+                    "table_id": f"bklog_index_set_{self.index_set_id}_{doris_result_table}.__analysis__",
+                    "need_create_index": False,
+                },
+            )
         multi_result = multi_execute_func.run(return_exception=True)
         for ret in multi_result.values():
             if isinstance(ret, Exception):
@@ -1423,25 +1447,26 @@ class BaseIndexSetHandler:
     scenario_id = None
 
     def __init__(
-            self,
-            index_set_name,
-            space_uid,
-            storage_cluster_id,
-            view_roles,
-            indexes=None,
-            category_id=None,
-            collector_config_id=None,
-            is_trace_log=None,
-            time_field=None,
-            time_field_type=None,
-            time_field_unit=None,
-            action=None,
-            bk_app_code=None,
-            username="",
-            bcs_project_id=0,
-            is_editable=True,
-            target_fields=None,
-            sort_fields=None,
+        self,
+        index_set_name,
+        space_uid,
+        storage_cluster_id,
+        view_roles,
+        indexes=None,
+        category_id=None,
+        collector_config_id=None,
+        is_trace_log=None,
+        time_field=None,
+        time_field_type=None,
+        time_field_unit=None,
+        action=None,
+        bk_app_code=None,
+        username="",
+        bcs_project_id=0,
+        is_editable=True,
+        target_fields=None,
+        sort_fields=None,
+        bcs_cluster_id=None,
     ):
         super().__init__()
 
@@ -1463,6 +1488,7 @@ class BaseIndexSetHandler:
         self.username = username
         self.bcs_project_id = bcs_project_id
         self.is_editable = is_editable
+        self.bcs_cluster_id = bcs_cluster_id
 
         # time_field
         self.time_field, self.time_field_type, self.time_field_unit = self.init_time_field(
@@ -1549,6 +1575,12 @@ class BaseIndexSetHandler:
             self.is_trace_log_pre_check()
 
     def create(self):
+        tag_ids = []
+        if self.bcs_cluster_id:
+            # 为k8s容器添加默认标签
+            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id)
+            tag_ids.append(str(tag_id))
+
         # 创建索引集
         self.index_set_obj = LogIndexSet.objects.create(
             index_set_name=self.index_set_name,
@@ -1568,6 +1600,7 @@ class BaseIndexSetHandler:
             is_editable=self.is_editable,
             target_fields=self.target_fields,
             sort_fields=self.sort_fields,
+            tag_ids=tag_ids if tag_ids else "",
         )
         logger.info(
             f"[create_index_set][{self.index_set_obj.index_set_id}]index_set_name => {self.index_set_name}, indexes => {len(self.indexes)}"
@@ -1659,6 +1692,23 @@ class BaseIndexSetHandler:
                     func=TransferApi.create_or_update_log_router,
                     params=request_params,
                 )
+            if doris_table_id := index_set.doris_table_id:
+                doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
+                # Doris接入
+                multi_execute_func.append(
+                    result_key=index_set.index_set_id,
+                    func=TransferApi.create_or_update_log_router,
+                    params={
+                        "space_type": index_set.space_uid.split("__")[0],
+                        "space_id": index_set.space_uid.split("__")[-1],
+                        "storage_type": "doris",
+                        "bkbase_table_id": doris_result_table,
+                        "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
+                        "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
+                        "need_create_index": False,
+                        "source_type": "bkdata",
+                    },
+                )
             multi_execute_func.run()
         except Exception as e:
             logger.exception("create or update index set(%s) es router failed：%s", index_set.index_set_id, e)
@@ -1695,6 +1745,14 @@ class BaseIndexSetHandler:
             self.index_set_obj.target_fields = self.target_fields_raw
         if self.sort_fields_raw is not None:
             self.index_set_obj.sort_fields = self.sort_fields_raw
+
+        # 标签
+        if self.bcs_cluster_id:
+            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id)
+            tag_ids = list(self.index_set_obj.tag_ids)
+            if str(tag_id) not in tag_ids:
+                tag_ids.append(str(tag_id))
+                self.index_set_obj.tag_ids = tag_ids
 
         self.index_set_obj.save()
 
@@ -1847,18 +1905,18 @@ class LogIndexSetHandler(BaseIndexSetHandler):
 
 class LogIndexSetDataHandler:
     def __init__(
-            self,
-            index_set_data,
-            bk_biz_id,
-            time_field,
-            result_table_id,
-            result_table_name=None,
-            storage_cluster_id=None,
-            scenario_id=None,
-            time_field_type=None,
-            time_field_unit=None,
-            apply_status=LogIndexSetData.Status.NORMAL,
-            bk_username=None,
+        self,
+        index_set_data,
+        bk_biz_id,
+        time_field,
+        result_table_id,
+        result_table_name=None,
+        storage_cluster_id=None,
+        scenario_id=None,
+        time_field_type=None,
+        time_field_unit=None,
+        apply_status=LogIndexSetData.Status.NORMAL,
+        bk_username=None,
     ):
         self.index_set_data = index_set_data
         self.bk_biz_id = bk_biz_id
@@ -1910,12 +1968,12 @@ class IndexSetFieldsConfigHandler:
     data: IndexSetFieldsConfig | None = None
 
     def __init__(
-            self,
-            config_id: int = None,
-            index_set_id: int = None,
-            scope: str = SearchScopeEnum.DEFAULT.value,
-            index_set_ids: list = None,
-            index_set_type: str = IndexSetType.SINGLE.value,
+        self,
+        config_id: int = None,
+        index_set_id: int = None,
+        scope: str = SearchScopeEnum.DEFAULT.value,
+        index_set_ids: list = None,
+        index_set_type: str = IndexSetType.SINGLE.value,
     ):
         self.config_id = config_id
         self.index_set_id = index_set_id
@@ -1952,12 +2010,12 @@ class IndexSetFieldsConfigHandler:
         if self.data and self.data.name != name or not self.data:
             if self.index_set_type == IndexSetType.UNION.value:
                 if IndexSetFieldsConfig.objects.filter(
-                        name=name, index_set_ids_hash=self.index_set_ids_hash, source_app_code=self.source_app_code
+                    name=name, index_set_ids_hash=self.index_set_ids_hash, source_app_code=self.source_app_code
                 ).exists():
                     raise IndexSetFieldsConfigAlreadyExistException()
             else:
                 if IndexSetFieldsConfig.objects.filter(
-                        name=name, index_set_id=self.index_set_id, source_app_code=self.source_app_code
+                    name=name, index_set_id=self.index_set_id, source_app_code=self.source_app_code
                 ).exists():
                     raise IndexSetFieldsConfigAlreadyExistException()
 
@@ -2024,10 +2082,10 @@ class IndexSetFieldsConfigHandler:
 
 class UserIndexSetConfigHandler:
     def __init__(
-            self,
-            index_set_id: int = None,
-            index_set_ids: list[int] = None,
-            index_set_type: str = IndexSetType.SINGLE.value,
+        self,
+        index_set_id: int = None,
+        index_set_ids: list[int] = None,
+        index_set_type: str = IndexSetType.SINGLE.value,
     ):
         self.index_set_id = index_set_id
         self.index_set_ids = index_set_ids
@@ -2077,10 +2135,10 @@ class UserIndexSetConfigHandler:
 
 class IndexSetCustomConfigHandler:
     def __init__(
-            self,
-            index_set_id: int = None,
-            index_set_ids: list[int] = None,
-            index_set_type: str = IndexSetType.SINGLE.value,
+        self,
+        index_set_id: int = None,
+        index_set_ids: list[int] = None,
+        index_set_type: str = IndexSetType.SINGLE.value,
     ):
         self.index_set_id = index_set_id
         self.index_set_ids = index_set_ids

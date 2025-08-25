@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { VIEW_BUSINESS } from './common/authority-map';
 import { BK_LOG_STORAGE } from './store/store.type';
 
 /** 外部版根据空间授权权限显示菜单 */
@@ -73,8 +74,8 @@ export default ({
       space = (spaceList ?? []).find(item => item.bk_biz_id === bkBizId);
     }
 
-    if (!space) {
-      space = spaceList?.[0];
+    if (!space?.permission?.[VIEW_BUSINESS]) {
+      space = spaceList?.find(item => item?.permission?.[VIEW_BUSINESS]) ?? spaceList?.[0];
     }
 
     store.commit('updateSpace', space?.space_uid);

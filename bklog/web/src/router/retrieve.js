@@ -24,24 +24,45 @@
  * IN THE SOFTWARE.
  */
 
+const RetrieveView = {
+  name: 'RetrieveView',
+  template: '<router-view></router-view>',
+};
+
 // 检索模块各组件异步声明（用于路由懒加载）
 const Retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-hub');
 const ExternalAuth = () => import(/* webpackChunkName: 'externalAuth' */ '@/views/authorization/authorization-list');
 const Playground = () => import('@/views/playground');
 const ShareLink = () => import(/* webpackChunkName: 'share-link' */ '@/views/share/index.tsx');
 const DataIdUrl = () => import(/* webpackChunkName: 'data-id-url' */ '@/views/data-id-url/index.tsx');
+const TemplateManage = () => import('@/views/retrieve-v3/search-result/template-manage/index.tsx');
 
 // 检索模块路由配置生成函数
 const getRetrieveRoutes = () => [
   // 检索主页面
   {
-    path: '/retrieve/:indexId?',
+    path: '/retrieve',
     name: 'retrieve',
-    component: Retrieve,
-    meta: {
-      title: '检索',
-      navId: 'retrieve',
+    redirect: {
+      name: 'retrieve-index',
     },
+    component: RetrieveView,
+    children: [
+      {
+        path: 'index/:indexId?',
+        name: 'retrieve-index',
+        component: Retrieve,
+        meta: {
+          title: '检索',
+          navId: 'retrieve',
+        },
+      },
+      {
+        path: 'template-manage',
+        name: 'templateManage',
+        component: TemplateManage,
+      },
+    ],
   },
   // 授权列表
   {

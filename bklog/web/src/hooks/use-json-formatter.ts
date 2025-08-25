@@ -36,6 +36,7 @@ import {
 } from './hooks-helper';
 import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
+import RetrieveHelper from '@/views/retrieve-helper';
 
 export type FormatterConfig = {
   target: Ref<HTMLElement | null>;
@@ -119,6 +120,10 @@ export default class UseJsonFormatter {
   }
 
   handleSegmentClick(e: MouseEvent, value) {
+    // 如果是点击划选文本，则不进行处理
+    if (RetrieveHelper.isClickOnSelection(e)) {
+      return;
+    }
     if (!value.toString() || value === '--') return;
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
     const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;

@@ -1,0 +1,22 @@
+.template-list-main {
+  width: 240px;
+  height: 100%;
+  background: #f5f7fa;
+  display: flex;
+  flex-direction: column;
+
+  .search-main {
+    display: flex;
+    gap: 8px;
+    padding: 16px 16px 12px;
+  }
+
+  .template-list {
+    flex: 1;
+    overflow-y: auto;
+
+    .empty-main {
+      margin-top: 80px;
+    }
+  }
+}
