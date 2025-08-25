@@ -115,6 +115,11 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       minWidth: 180,
       formatter: this.clickShowSlicerColRenderer,
     },
+    alias: {
+      id: 'alias',
+      label: this.$t('模板别名'),
+      minWidth: 180,
+    },
     description: {
       id: 'description',
       label: this.$t('模板说明'),
@@ -147,7 +152,6 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
     relation_config_count: {
       id: 'relation_config_count',
       label: this.$t('消费场景'),
-      sortable: true,
       align: 'right',
       width: 120,
       formatter: this.relationCountColRenderer,
@@ -442,6 +446,10 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
     );
   }
 
+  defaultRenderer(row, column) {
+    return row[column.columnKey] || '--';
+  }
+
   transformColumn(column) {
     return (
       <bk-table-column
@@ -451,7 +459,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
         class-name={`${column.align ?? 'left'}-align-cell`}
         column-key={column.id}
         fixed={column.fixed}
-        formatter={column.formatter}
+        formatter={column.formatter || this.defaultRenderer}
         label={column.label}
         min-width={column.minWidth}
         prop={column.id}

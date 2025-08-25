@@ -41,6 +41,17 @@ interface ConfigPanelProps {
 export default class ConfigPanel extends tsc<ConfigPanelProps> {
   @Prop({ type: Object, default: () => ({}) }) templateInfo: any;
 
+  getSpaceScopeName() {
+    if (!this.templateInfo?.space_scope?.length) {
+      return this.$t('全业务可见');
+    }
+    const bizIdMap = this.$store.getters.bizIdMap;
+    this.templateInfo?.space_scope
+      ?.map(bizId => bizIdMap.get(bizId)?.name)
+      ?.filter(Boolean)
+      ?.join(',');
+  }
+
   render() {
     return (
       <div class='config-panel'>
@@ -52,6 +63,14 @@ export default class ConfigPanel extends tsc<ConfigPanelProps> {
             <div class='info-item'>
               <span class='info-item-label'>{`${this.$t('模板名称')}:`}</span>
               <span class='info-item-value'>{this.templateInfo?.name || '--'}</span>
+            </div>
+            <div class='info-item'>
+              <span class='info-item-label'>{`${this.$t('模板别名')}:`}</span>
+              <span class='info-item-value'>{this.templateInfo?.alias || '--'}</span>
+            </div>
+            <div class='info-item'>
+              <span class='info-item-label'>{`${this.$t('生效范围')}:`}</span>
+              <span class='info-item-value'>{this.getSpaceScopeName() || '--'}</span>
             </div>
             <div class='info-item'>
               <span class='info-item-label'>{`${this.$t('模板说明')}:`}</span>
@@ -69,6 +88,7 @@ export default class ConfigPanel extends tsc<ConfigPanelProps> {
           <QueryConfigViewer
             expressionConfig={this.templateInfo?.expressionConfig}
             queryConfigs={this.templateInfo?.queryConfigs}
+            variablesList={this.templateInfo?.variables}
           />
         </ExploreCollapseWrapper>
         <ExploreCollapseWrapper
