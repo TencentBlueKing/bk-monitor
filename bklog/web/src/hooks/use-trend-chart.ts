@@ -30,7 +30,7 @@ import useStore from '@/hooks/use-store';
 import { useRoute, useRouter } from 'vue-router/composables';
 import dayjs from 'dayjs';
 import * as Echarts from 'echarts';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import { addListener, removeListener } from 'resize-detector';
 import { formatNumberWithRegex } from '@/common/util';
 

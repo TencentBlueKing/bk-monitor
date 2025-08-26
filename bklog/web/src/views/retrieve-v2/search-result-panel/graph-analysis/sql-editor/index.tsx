@@ -31,7 +31,7 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import screenfull from 'screenfull';
 import { transactsql, formatDialect } from 'sql-formatter';
 

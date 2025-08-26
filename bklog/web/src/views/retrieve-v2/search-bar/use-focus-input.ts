@@ -28,7 +28,7 @@ import { ref, watch, onMounted, getCurrentInstance, onUnmounted } from 'vue';
 
 // @ts-ignore
 import { getCharLength } from '@/common/util';
-import { isElement } from 'lodash';
+import { isElement } from 'lodash-es';
 import PopInstanceUtil from '../../../global/pop-instance-util';
 
 export default (

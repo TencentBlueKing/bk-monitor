@@ -5,7 +5,7 @@
   import useFieldNameHook from '@/hooks/use-field-name';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { cloneDeep } from 'lodash';
+  import { cloneDeep } from 'lodash-es';
 
   import {
     getInputQueryDefaultItem,

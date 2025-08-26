@@ -27,7 +27,7 @@ import { onMounted, Ref } from 'vue';
 
 import { formatDate } from '@/common/util';
 import * as Echarts from 'echarts';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { lineOrBarOptions, pieOptions } from './chart-config-def';
 export default ({ target, type }: { target: Ref<any>; type: string }) => {

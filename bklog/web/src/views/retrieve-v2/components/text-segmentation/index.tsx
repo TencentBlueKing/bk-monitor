@@ -32,7 +32,7 @@ import useResizeObserve from '@/hooks/use-resize-observe';
 import UseTextSegmentation from '@/hooks/use-text-segmentation';
 import { WordListItem } from '@/hooks/use-text-segmentation';
 import RetrieveHelper from '@/views/retrieve-helper';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 import './index.scss';
 

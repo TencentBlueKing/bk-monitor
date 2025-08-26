@@ -32,7 +32,7 @@ import VueVirtualScroller from 'vue-virtual-scroller';
 import LogButton from '@/components/log-button';
 import i18n from '@/language/i18n';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 import App from './App';
 import http from './api';

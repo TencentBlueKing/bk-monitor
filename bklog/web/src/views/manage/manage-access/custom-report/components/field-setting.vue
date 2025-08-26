@@ -86,7 +86,7 @@
   import { ref, watch, defineProps, defineEmits } from 'vue';
   import VueDraggable from 'vuedraggable';
   import $http from '../../../../../api';
-  import { cloneDeep } from 'lodash';
+  import { cloneDeep } from 'lodash-es';
 
   const props = defineProps({
     value: {

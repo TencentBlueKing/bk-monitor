@@ -65,7 +65,7 @@
     "json-bigint": "^1.0.0",
     "json-bignumber": "1.1.1",
     "konva": "9.3.18",
-    "lodash": "4.17.21",
+    "lodash-es": "^4.17.21",
     "mark.js": "^8.11.1",
     "markdown-it": "14.1.0",
     "markdown-it-code-copy": "0.2.1",

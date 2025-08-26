@@ -87,7 +87,7 @@
 
 <script>
   import { deepClone } from '@/components/monitor-echarts/utils';
-  import { debounce } from 'lodash';
+  import { debounce } from 'lodash-es';
 
   import SettingMoreMenu from './setting-more-menu';
 

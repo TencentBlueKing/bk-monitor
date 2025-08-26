@@ -28,7 +28,7 @@ import { Component, Prop, Emit, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { blobDownload } from '@/common/util';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import AggChart from './agg-chart';
