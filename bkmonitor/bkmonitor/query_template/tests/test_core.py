@@ -41,8 +41,11 @@ class TestQueryTemplateWrapper:
             [
                 mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE,
                 {
-                    "name": "被调成功率（%）",
                     "bk_biz_id": 0,
+                    "alias": "被调成功率（%）",
+                    "name": "apm_rpc_callee_success_rate",
+                    "namespace": "default",
+                    "description": "",
                     "query_configs": [
                         {
                             "table": "APM.__default__",
@@ -86,9 +89,12 @@ class TestQueryTemplateWrapper:
                 mock_data.CALLEE_P99_QUERY_TEMPLATE,
                 {
                     "bk_biz_id": 0,
+                    "alias": "被调 P99 耗时（ms）",
+                    "name": "apm_rpc_callee_p99",
+                    "namespace": "default",
+                    "description": "",
                     "expression": "(b > bool 0) * a * 1000",
                     "functions": [],
-                    "name": "被调 P99 耗时（ms）",
                     "query_configs": [
                         {
                             "data_label": "APM",

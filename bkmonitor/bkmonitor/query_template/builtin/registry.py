@@ -47,24 +47,21 @@ def register_builtin_templates() -> None:
     remote_templ_names: set[str] = set(remote_templ_name_id_map.keys())
     for builtin in BUILTIN_QUERY_TEMPLATES:
         for template in builtin.QUERY_TEMPLATES:
+            template["namespace"] = builtin.NAMESPACE
             try:
                 qtw: QueryTemplateWrapper = QueryTemplateWrapper.from_dict(template)
             except ValidationError as e:
                 logger.error("[register_builtin_templates] invalid template: %s, error: %s", template["name"], e)
                 return
 
-            obj: QueryTemplate = QueryTemplate(
-                is_deleted=False,
-                namespace=builtin.NAMESPACE,
-                description=template.get("description") or "",
-                **qtw.to_dict(),
-            )
+            obj: QueryTemplate = QueryTemplate(is_deleted=False, **qtw.to_dict())
             if qtw.name in remote_templ_names:
                 obj.update_time = timezone.now()
                 obj.update_user = get_backend_username()
                 obj.id = remote_templ_name_id_map[qtw.name]
                 to_be_updated.append(obj)
             else:
+                obj.create_user = obj.update_user = get_backend_username()
                 to_be_created.append(obj)
 
             local_templ_names.add(qtw.name)
@@ -73,6 +70,7 @@ def register_builtin_templates() -> None:
     QueryTemplate.origin_objects.bulk_update(
         to_be_updated,
         fields=[
+            "alias",
             "description",
             "expression",
             "functions",
