@@ -101,7 +101,7 @@ class DataDogPluginManager(PluginManager):
 
         for sys_name, sys_dir in list(OS_TYPE_TO_DIRNAME.items()):
             # 获取不同操作系统下的文件名
-            tmp_sys_plugin_path = os.path.join(self.plugin.plugin_id, sys_dir, self.plugin.plugin_id)
+            tmp_sys_plugin_path = os.path.join(sys_dir, self.plugin.plugin_id)
             if not any([tmp_sys_plugin_path in str(i) for i in self.filename_list]):
                 continue
 
