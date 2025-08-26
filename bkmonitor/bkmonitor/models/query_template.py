@@ -18,6 +18,7 @@ from constants.query_template import DEFAULT_NAMESPACE, GLOBAL_BIZ_ID
 
 class QueryTemplate(AbstractRecordModel):
     name = models.CharField(verbose_name=_("模板名称"), max_length=128, db_index=True)
+    alias = models.CharField(verbose_name=_("模板别名"), max_length=256, default="", blank=True)
     bk_biz_id = models.IntegerField(verbose_name=_("业务 ID"), default=GLOBAL_BIZ_ID, db_index=True)
     space_scope = models.JSONField(verbose_name=_("生效范围"), default=list)
     namespace = models.CharField(verbose_name=_("命名空间"), max_length=128, default=DEFAULT_NAMESPACE, db_index=True)
