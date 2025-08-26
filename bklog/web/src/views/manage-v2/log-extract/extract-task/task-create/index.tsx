@@ -67,6 +67,7 @@ export default defineComponent({
     const link_id = ref<number | null>(null);
     const ipSelectorOriginalValue = ref<any>(null); // 编辑态ip选择器初始值
     const ipSelectNewNameList = ref<any[]>([]); // 生成新的展示所用的预览地址列表
+    const isSubmitLoading = ref(false); // 提交按钮loading状态
 
     // 组件引用
     const textFilterRef = ref<any>(null);
@@ -227,6 +228,7 @@ export default defineComponent({
     // 处理提交下载任务
     const handleSubmit = () => {
       emit('loading', true);
+      isSubmitLoading.value = true;
       // 根据预览地址选择的文件提交下载任务
       const requestData = {
         bk_biz_id: store.state.bkBizId,
@@ -248,11 +250,13 @@ export default defineComponent({
           data: requestData
         })
         .then(() => {
+          isSubmitLoading.value = false;
           goToHome();
         })
         .catch(err => {
           console.warn(err);
           emit('loading', false);
+          isSubmitLoading.value = false;
         });
     };
 
@@ -422,6 +426,7 @@ export default defineComponent({
             data-test-id='addNewExtraction_button_submitConfigure'
             theme='primary'
             onClick={handleSubmit}
+            loading={isSubmitLoading.value}
           >
             {t('提交下载任务')}
           </bk-button>

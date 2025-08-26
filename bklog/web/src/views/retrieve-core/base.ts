@@ -85,7 +85,7 @@ export default class {
 
   isSearching = false;
 
-  constructor({}) {
+  constructor() {
     this.randomTrendGraphClassName = `random-${random(12)}`;
     this.events = new Map();
     this.logRowsContainerId = `result_container_key_${random(12)}`;
@@ -157,6 +157,17 @@ export default class {
       return;
     }
     this.events.delete(eventName);
+  }
+
+  /**
+   * 批量移除事件
+   * @param eventNames
+   * @param fn
+   */
+  batchOff(eventNames: RetrieveEvent[], fn?: (...args) => void) {
+    eventNames.forEach(eventName => {
+      this.off(eventName, fn);
+    });
   }
 
   runEvent(event: RetrieveEvent, ...args) {
