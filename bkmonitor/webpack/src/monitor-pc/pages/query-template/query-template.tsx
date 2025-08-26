@@ -29,10 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce, random } from 'monitor-common/utils';
 
-import { type DeleteConfirmEvent } from './components/query-template-table/components/delete-confirm';
 import QueryTemplateTable from './components/query-template-table/query-template-table';
 import { destroyQueryTemplateById, fetchQueryTemplateList } from './service/table';
 
+import type { DeleteConfirmEvent } from './components/query-template-table/components/delete-confirm';
 import type { QueryListRequestParams, QueryTemplateListItem } from './typings';
 
 import './query-template.scss';
