@@ -157,6 +157,14 @@ class QueryConfigSerializer(serializers.Serializer):
 class QueryTemplateSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
     name = serializers.CharField(label=_("查询模板名称"), max_length=128)
+    alias = serializers.CharField(label=_("查询模板别名"), max_length=128, required=False, allow_blank=True, default="")
+    namespace = serializers.ChoiceField(
+        label=_("命名空间"),
+        required=False,
+        choices=constants.Namespace.choices(),
+        default=constants.Namespace.DEFAULT.value,
+    )
+    description = serializers.CharField(label=_("查询模板描述"), required=False, allow_blank=True, default="")
     space_scope = serializers.ListField(
         label=_("生效范围"), required=False, default=[], child=serializers.IntegerField(label=_("空间 ID"))
     )

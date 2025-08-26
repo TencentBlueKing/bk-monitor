@@ -174,6 +174,7 @@ class QueryTemplateListModelSerializer(QueryTemplateBaseModelSerializer):
         fields = [
             "id",
             "name",
+            "alias",
             "description",
             "bk_biz_id",
             "can_edit",
