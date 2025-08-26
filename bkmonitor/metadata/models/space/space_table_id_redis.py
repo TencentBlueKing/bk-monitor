@@ -1484,7 +1484,9 @@ class SpaceTableIDRedis:
         # 过滤写入 influxdb 的结果表
         influxdb_table_ids = models.InfluxDBStorage.objects.values_list("table_id", flat=True)
 
-        other_filter = {"bk_tenant_id": bk_tenant_id}
+        other_filter = None
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            other_filter = {"bk_tenant_id": bk_tenant_id}
         if table_id_list:
             influxdb_table_ids = filter_query_set_by_in_page(
                 query_set=influxdb_table_ids,
