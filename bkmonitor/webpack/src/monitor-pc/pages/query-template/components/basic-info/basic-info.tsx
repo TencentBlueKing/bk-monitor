@@ -66,14 +66,7 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
       },
       {
         validator: val => /^[a-z0-9_]{1,50}$/.test(val),
-        message: window.i18n.t('1-50个字符，且仅支持小写字母、数字、_'),
-        trigger: 'blur',
-      },
-    ],
-    alias: [
-      {
-        required: true,
-        message: window.i18n.t('模版别名必填'),
+        message: window.i18n.t('1～50 字符，仅支持 英文小写、数字、下划线'),
         trigger: 'blur',
       },
     ],
@@ -163,6 +156,7 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
           >
             <bk-input
               maxlength={50}
+              placeholder={this.$t('1～50 字符，仅支持 英文小写、数字、下划线')}
               value={this.formData.name}
               onChange={this.handleNameChange}
             />
@@ -171,8 +165,6 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
             class='w50'
             error-display-type='normal'
             label={this.$t('模版别名')}
-            property='alias'
-            required
           >
             <bk-input
               value={this.formData.alias}

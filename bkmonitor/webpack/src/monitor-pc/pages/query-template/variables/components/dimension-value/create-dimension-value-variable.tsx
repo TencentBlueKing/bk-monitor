@@ -32,6 +32,8 @@ import VariableCommonForm from '../common-form/variable-common-form';
 
 import type { IDimensionValueVariableModel } from '../../../typings/variables';
 
+import './dimension-value.scss';
+
 interface DimensionValueVariableEvents {
   onDataChange: (data: DimensionValueVariableModel) => void;
 }
@@ -83,6 +85,7 @@ export default class CreateDimensionValueVariable extends tsc<
   }
 
   async getValueList() {
+    if (!this.variable.metric) return;
     this.loading = true;
     const data = await fetchMetricDimensionValueList(this.variable.related_tag, {
       data_source_label: this.variable.metric.data_source_label,
@@ -91,12 +94,21 @@ export default class CreateDimensionValueVariable extends tsc<
       metric_field: this.variable.metric.metric_field,
     }).catch(() => []);
     this.valueList = data;
+    for (const item of this.variable.defaultValue) {
+      if (!this.valueList.find(v => v.value === item)) {
+        this.valueList.push({
+          label: item,
+          value: item,
+          customCreate: true,
+        });
+      }
+    }
     this.loading = false;
   }
 
   render() {
     return (
-      <div class='dimension-value-variable'>
+      <div class='dimension-value-variable dimension-value'>
         <VariableCommonForm
           ref='variableCommonForm'
           data={this.variable.data}
@@ -125,6 +137,7 @@ export default class CreateDimensionValueVariable extends tsc<
               clearable={false}
               loading={this.loading}
               value={this.variable.defaultValue}
+              allow-create
               collapse-tag
               display-tag
               multiple
@@ -134,6 +147,7 @@ export default class CreateDimensionValueVariable extends tsc<
                 <bk-option
                   id={item.value}
                   key={item.value}
+                  style={{ display: item.customCreate ? 'none' : 'block' }}
                   name={item.label}
                 />
               ))}

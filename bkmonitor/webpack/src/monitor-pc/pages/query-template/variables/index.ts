@@ -139,7 +139,7 @@ export class ConditionVariableModel extends VariableBase {
   }
   /** 维度列表 */
   get dimensionList() {
-    return this.metric.dimensions;
+    return this.metric?.dimensions || [];
   }
   /** 可选维度列表映射 */
   get dimensionOptionsMap() {
@@ -257,7 +257,7 @@ export class DimensionVariableModel extends VariableBase {
 
   /** 维度列表 */
   get dimensionList() {
-    return this.metric.dimensions;
+    return this.metric?.dimensions || [];
   }
 
   /** 可选维度列表映射 */
@@ -302,12 +302,10 @@ export class FunctionVariableModel extends VariableBase {
 
 export class MethodVariableModel extends VariableBase {
   defaultValue = '';
-  metric: MetricDetailV2 = null;
   value = '';
   constructor(config: IMethodVariableModel) {
     super(config);
     this.defaultValue = config.defaultValue || 'AVG';
-    this.metric = config.metric;
     if (config.value) {
       this.value = config.value;
     } else {
@@ -322,7 +320,6 @@ export class MethodVariableModel extends VariableBase {
       isValueEditable: this.isValueEditable,
       name: this.name,
       alias: this.alias,
-      metric: this.metric,
       description: this.description,
       value: this.value,
       defaultValue: this.defaultValue,
