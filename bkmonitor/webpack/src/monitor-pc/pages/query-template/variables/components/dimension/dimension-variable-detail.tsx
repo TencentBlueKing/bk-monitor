@@ -63,7 +63,9 @@ export default class DimensionVariableDetail extends tsc<DimensionDetailProps> {
   @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
 
   get defaultValueMap() {
-    return this.variable.data.defaultValue.map(item => this.variable.dimensionOptionsMap.find(i => i.id === item));
+    return this.variable.data.defaultValue.map(
+      item => this.variable.dimensionOptionsMap.find(i => i.id === item) || { id: item, name: item }
+    );
   }
 
   render() {
