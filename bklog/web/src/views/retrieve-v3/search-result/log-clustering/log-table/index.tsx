@@ -72,7 +72,7 @@ export default defineComponent({
       require: true,
     },
   },
-  setup(props, { expose }) {
+  setup(props, { expose, emit }) {
     const store = useStore();
     const { t } = useLocale();
 
@@ -102,6 +102,7 @@ export default defineComponent({
     const displayType = ref('group');
 
     const showGroupBy = computed(() => props.requestData.group_by.length > 0 && displayType.value === 'group');
+    const isFlattenMode = computed(() => props.requestData.group_by.length > 0 && displayType.value !== 'group');
     const smallLoaderWidthList = computed(() => {
       return props.requestData.year_on_year_hour > 0 ? loadingWidthList.compared : loadingWidthList.notCompared;
     });
@@ -328,7 +329,7 @@ export default defineComponent({
       <div
         class='log-table-main'
         style={{
-          height: showGroupBy.value ? 'calc(100% - 90px)' : 'calc(100% - 60px)',
+          height: showGroupBy.value || isFlattenMode.value ? 'calc(100% - 90px)' : 'calc(100% - 60px)',
         }}
       >
         {props.requestData.group_by.length > 0 && (
@@ -375,6 +376,7 @@ export default defineComponent({
                 tableColumnWidth={tableColumnWidth.value}
                 indexId={props.indexId}
                 on-open-ai={handleOpenAi}
+                on-open-cluster-config={() => emit('open-cluster-config')}
               />
             ))
           ) : (

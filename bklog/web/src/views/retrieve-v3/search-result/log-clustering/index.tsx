@@ -68,6 +68,7 @@ export default defineComponent({
     const route = useRoute();
     const router = useRouter();
 
+    const topOperationRef = ref(null);
     const logTableRef = ref(null);
     const stepRef = ref(null);
     const isFieldInit = ref(false);
@@ -298,7 +299,7 @@ export default defineComponent({
           isShowClusterStep.value = !res.data.access_finished;
           return res.data.access_finished;
         }
-      } catch (error) {
+      } catch {
         // 报错就证明没开日志聚类
         isShowClusterStep.value = false;
         stopPolling();
@@ -317,7 +318,7 @@ export default defineComponent({
 
     const handleCloseGroupTag = () => {
       Object.assign(fingerOperateData.value, { selectGroupList: [] });
-      handleFingerOperate('requestData', { group_by: [] }, true);
+      handleFingerOperate('requestData', { group_by: fingerOperateData.value.dimensionList }, true);
     };
     const handleCloseYearTag = () => {
       Object.assign(fingerOperateData.value, { yearSwitch: false });
@@ -328,6 +329,10 @@ export default defineComponent({
       isShowClusterStep.value = true;
       startPolling();
       clusterPolling();
+    };
+
+    const handleOpenClusterConfig = () => {
+      topOperationRef.value.openClusterConfig();
     };
 
     // 特殊情况，watch必须放这里
@@ -381,6 +386,7 @@ export default defineComponent({
             {isShowTopNav.value && (
               // 顶部工具栏
               <TopOperation
+                ref={topOperationRef}
                 indexId={indexSetId.value}
                 isShowClusterStep={isShowClusterStep.value}
                 cluster-switch={clusterSwitch.value}
@@ -425,6 +431,7 @@ export default defineComponent({
                       request-data={requestData.value}
                       total-fields={totalFields.value}
                       retrieveParams={props.retrieveParams}
+                      on-open-cluster-config={handleOpenClusterConfig}
                     />
                   );
                 }

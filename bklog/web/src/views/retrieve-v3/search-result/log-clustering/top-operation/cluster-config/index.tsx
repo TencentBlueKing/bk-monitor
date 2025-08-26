@@ -44,7 +44,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  setup(props) {
+  setup(props, { expose }) {
     const { t } = useLocale();
 
     const showEditConfig = ref(false);
@@ -58,6 +58,10 @@ export default defineComponent({
         showEditConfig.value = false;
       });
     };
+
+    expose({
+      show: handleShowEditConfig,
+    });
 
     return () => (
       <div
