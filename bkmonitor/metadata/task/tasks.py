@@ -184,7 +184,7 @@ def update_time_series_metrics(time_series_metrics):
         from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
         space_client = SpaceTableIDRedis()
-        space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
+        space_client.push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_id_list, is_publish=True)
         logger.info("metric updated of table_id: %s", json.dumps(table_id_list))
 
 
@@ -450,7 +450,9 @@ def push_and_publish_space_router(
 
     # 获取空间下的结果表，如果不存在，则获取空间下的所有
     if not table_id_list:
-        table_id_list = list(get_space_table_id_data_id(space_type, space_id).keys())
+        table_id_list = list(
+            get_space_table_id_data_id(space_type=space_type, space_id=space_id, bk_tenant_id=DEFAULT_TENANT_ID).keys()
+        )
 
     space_client = SpaceTableIDRedis()
     # 更新空间下的结果表相关数据
@@ -473,8 +475,8 @@ def push_and_publish_space_router(
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
     # 更新数据
-    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=True)
-    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
+    space_client.push_data_label_table_ids(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_id_list, is_publish=True)
+    space_client.push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_id_list, is_publish=True)
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
 

@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata.models.space import ds_rt
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
@@ -51,7 +52,7 @@ def test_get_table_info_for_influxdb_and_vm(create_and_delete_record):
 
 def test_compose_es_table_id_detail(create_and_delete_record):
     client = SpaceTableIDRedis()
-    data = client._compose_es_table_id_detail()
+    data = client._compose_es_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID)
 
     log_data = data[DEFAULT_LOG_ES_TABLE_ID]
     assert log_data["db"] == DEFAULT_LOG_ES_TABLE_ID.split(".")[0]
