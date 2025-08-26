@@ -28,17 +28,19 @@ import { computed, defineComponent } from 'vue';
 
 import useStore from '@/hooks/use-store';
 
+import { BK_LOG_STORAGE } from '../../store/store.type';
 import V3Container from './container';
 import V3Collection from './favorite';
 import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
 import useAppInit from './use-app-init';
-import { BK_LOG_STORAGE } from '../../store/store.type';
 
-import './index.scss';
 import './global-en.scss';
-import './media.scss'
+import './index.scss';
+import './media.scss';
+import './segment-pop.scss';
+
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {
@@ -69,12 +71,12 @@ export default defineComponent({
     return () => (
       <div
         style={stickyStyle.value}
-        v-bkloading={{ isLoading: !isPreApiLoaded.value }}
         class={[
           'v3-bklog-root',
           { 'is-start-text-ellipsis': isStartTextEllipsis.value },
           { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value },
         ]}
+        v-bkloading={{ isLoading: !isPreApiLoaded.value }}
       >
         <V3Collection></V3Collection>
         <div
