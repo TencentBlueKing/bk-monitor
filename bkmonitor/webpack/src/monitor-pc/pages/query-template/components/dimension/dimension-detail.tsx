@@ -37,8 +37,8 @@ import type { VariableModelType } from '../../variables';
 import './dimension-detail.scss';
 
 interface DimensionProps {
-  /* 所有聚合维度信息列表数组 */
-  options: DimensionField[];
+  /* 聚合维度信息 id-聚合维度对象 映射表 */
+  allDimensionMap: Record<string, DimensionField>;
   /* 已选聚合维度id数组 */
   value: string[];
   /* 变量 variableName-变量对象 映射表 */
@@ -49,20 +49,10 @@ interface DimensionProps {
 export default class DimensionDetail extends tsc<DimensionProps> {
   /* 已选聚合维度id数组 */
   @Prop({ type: Array }) value: string[];
-  /* 所有聚合维度信息列表数组 */
-  @Prop({ default: () => [] }) options: DimensionField[];
+  /* 聚合维度信息 id-聚合维度对象 映射表 */
+  @Prop({ default: () => [] }) allDimensionMap: Record<string, DimensionField>;
   /* 变量 variableName-变量对象 映射表 */
   @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
-
-  get allDimensionMap() {
-    if (!this.options?.length) {
-      return {};
-    }
-    return this.options?.reduce?.((prev, curr) => {
-      prev[curr.id] = curr;
-      return prev;
-    }, {});
-  }
 
   /** 将已选聚合维度id 源数据数组 转换为渲染所需的 QueryVariablesTransformResult 结构数组 */
   get dimensionToVariableModel(): QueryVariablesTransformResult[] {

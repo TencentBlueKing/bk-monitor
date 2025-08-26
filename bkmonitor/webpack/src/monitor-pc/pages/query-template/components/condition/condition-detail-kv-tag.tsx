@@ -31,15 +31,18 @@ import { getTemplateSrv } from '../../variables/template/template-srv';
 import { getQueryVariablesTool } from '../utils/query-variable-tool';
 import VariableSpan from '../utils/variable-span';
 
-import type { AggCondition, ConditionDetailTagItem } from '../../typings';
+import type { AggCondition, ConditionDetailTagItem, DimensionField } from '../../typings';
 
 import './condition-detail-kv-tag.scss';
 
 interface IProps {
+  /* 聚合维度信息 id-聚合维度对象 映射表 */
+  allDimensionMap: Record<string, DimensionField>;
   /** 是否是条件变量渲染 */
   isConditionVariable?: boolean;
   /** 条件对象 */
   value: AggCondition;
+  /* 变量 variableName-变量对象 映射表 */
   variableMap?: Record<string, any>;
   /** 条件变量名称 */
   variableName?: string;
@@ -56,7 +59,10 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) isConditionVariable: boolean;
   /** 条件变量名称 */
   @Prop({ type: String, default: '' }) variableName: string;
+  /* 变量 variableName-变量对象 映射表 */
   @Prop({ type: Object, default: () => {} }) variableMap: Record<string, any>;
+  /* 聚合维度信息 id-聚合维度对象 映射表 */
+  @Prop({ default: () => [] }) allDimensionMap: Record<string, DimensionField>;
 
   hideCount = 0;
 
@@ -194,7 +200,9 @@ export default class ConditionDetailKvTag extends tsc<IProps> {
           }}
         >
           <div class='key-wrap'>
-            <this.DomTag class='key-name'>{this.value.dimension_name || this.value.key}</this.DomTag>
+            <this.DomTag class='key-name'>
+              {this.value.dimension_name || this.allDimensionMap?.[this.value?.key]?.name || this.value.key}
+            </this.DomTag>
             <this.DomTag class={['key-method', this.value.method]}>
               {ConditionMethodAliasMap[this.value.method]}
             </this.DomTag>
