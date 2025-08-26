@@ -889,7 +889,6 @@
         return value && value !== ' ' ? isNaN(value) : true;
       },
       getData() {
-        // const data = JSON.parse(JSON.stringify(this.formData.tableList.filter(row => !row.is_delete)))
         const data = deepClone(this.formData.tableList);
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {

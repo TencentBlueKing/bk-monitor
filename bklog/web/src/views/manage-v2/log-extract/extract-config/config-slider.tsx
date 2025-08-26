@@ -78,7 +78,7 @@ export default defineComponent({
 
     const isChangeOperatorLoading = ref(false); // 修改执行人加载状态
     const showSelectDialog = ref(false); // 是否显示选择对话框
-    const manageStrategyData = ref(JSON.parse(JSON.stringify(props.strategyData))); // 管理策略数据
+    const manageStrategyData = ref(structuredClone(props.strategyData)); // 管理策略数据
     const isError = ref(false);
 
     // 初始化数据，避免后台造的数据为空数组
@@ -107,7 +107,7 @@ export default defineComponent({
     watch(
       () => props.strategyData,
       newVal => {
-        Object.assign(manageStrategyData.value, JSON.parse(JSON.stringify(newVal)));
+        Object.assign(manageStrategyData.value, structuredClone(newVal));
         if (!manageStrategyData.value.visible_dir?.length) {
           manageStrategyData.value.visible_dir = [''];
         }
