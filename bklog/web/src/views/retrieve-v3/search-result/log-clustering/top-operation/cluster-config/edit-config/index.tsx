@@ -148,7 +148,7 @@ export default defineComponent({
           regex_template_id,
         } = res.data;
         const newFilterRules = filterRules.map(item => {
-          const sameFieldItem: Object =
+          const sameFieldItem: any =
             props.totalFields.find((tItem: any) => tItem.field_name === item.fields_name) || {};
           return {
             ...sameFieldItem,
@@ -353,7 +353,7 @@ export default defineComponent({
           </bk-form>
         </div>
 
-        <rule-config-operate
+        <RuleConfigOperate
           ref={ruleConfigOperateRef}
           ruleList={ruleList.value}
           max_log_length={formData.value.max_log_length}

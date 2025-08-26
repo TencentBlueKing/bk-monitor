@@ -62,9 +62,9 @@ export default defineComponent({
     const { t } = useLocale();
     const store = useStore();
 
+    const headRowRef = ref(null);
     const renderKey = ref(0);
     const tableHeaderWraperRef = ref(null);
-    const columnsRef = Array.from({ length: 10 }).map(() => ref(null));
     const ownerList = ref([]);
     const sortColumnRefs = {
       count: ref(null),
@@ -77,6 +77,7 @@ export default defineComponent({
 
     const showYOY = computed(() => props.requestData.year_on_year_hour >= 1);
     const showGroupBy = computed(() => props.requestData.group_by.length > 0 && props.displayMode === 'group');
+    const isFlattenMode = computed(() => props.requestData.group_by.length > 0 && props.displayMode !== 'group');
     const isAiAssistanceActive = computed(() => store.getters.isAiAssistantActive);
 
     const isExternal = window.IS_EXTERNAL === 'true';
@@ -111,11 +112,15 @@ export default defineComponent({
     );
 
     watch(
-      () => [showGroupBy.value, showYOY.value, isAiAssistanceActive.value],
+      () => [showGroupBy.value, showYOY.value, isAiAssistanceActive.value, props.displayMode],
       () => {
         setTimeout(() => {
-          handleResizeColumn();
+          initHeader();
         });
+      },
+      {
+        immediate: true,
+        deep: true,
       },
     );
 
@@ -167,7 +172,10 @@ export default defineComponent({
 
     expose({
       scroll: (scrollLeft: number) => (tableHeaderWraperRef.value.scrollLeft = scrollLeft),
-      getColumnWidthList: () => columnsRef.map(item => item.value?.getWidth()),
+      getColumnWidthList: () =>
+        Array.from(headRowRef.value.querySelectorAll('th')).map((item: any) =>
+          item.style.width ? item.style.width : item.getBoundingClientRect().width,
+        ),
     });
 
     onMounted(() => {
@@ -191,17 +199,15 @@ export default defineComponent({
           key={renderKey.value}
         >
           <thead>
-            <tr>
+            <tr ref={headRowRef}>
               {showGroupBy.value && <th style='width: 12px'></th>}
               <HeadColumn
-                ref={columnsRef[0]}
                 width={125}
                 on-resize-width={handleResizeColumn}
               >
                 {t('数据指纹')}
               </HeadColumn>
               <HeadColumn
-                ref={columnsRef[1]}
                 width={props.tableColumnWidth.number}
                 on-resize-width={handleResizeColumn}
                 on-click-column={() => sortColumnRefs.count.value?.update()}
@@ -215,7 +221,6 @@ export default defineComponent({
                 </div>
               </HeadColumn>
               <HeadColumn
-                ref={columnsRef[2]}
                 width={props.tableColumnWidth.percentage}
                 on-resize-width={handleResizeColumn}
                 on-click-column={() => sortColumnRefs.percentage.value?.update()}
@@ -230,7 +235,6 @@ export default defineComponent({
               </HeadColumn>
               {showYOY.value && (
                 <HeadColumn
-                  ref={columnsRef[3]}
                   width={props.tableColumnWidth.year_on_year_count}
                   on-resize-width={handleResizeColumn}
                   on-click-column={() => sortColumnRefs.year_on_year_count.value?.update()}
@@ -246,7 +250,6 @@ export default defineComponent({
               )}
               {showYOY.value && (
                 <HeadColumn
-                  ref={columnsRef[4]}
                   width={props.tableColumnWidth.year_on_year_percentage}
                   on-resize-width={handleResizeColumn}
                   on-click-column={() => sortColumnRefs.year_on_year_percentage.value?.update()}
@@ -260,15 +263,22 @@ export default defineComponent({
                   </div>
                 </HeadColumn>
               )}
+              {isFlattenMode.value &&
+                props.requestData.group_by.map(item => (
+                  <HeadColumn
+                    width={100}
+                    on-resize-width={handleResizeColumn}
+                  >
+                    {item}
+                  </HeadColumn>
+                ))}
               <HeadColumn
-                ref={columnsRef[5]}
                 minWidth={350}
                 on-resize-width={handleResizeColumn}
               >
                 Pattern
               </HeadColumn>
               <HeadColumn
-                ref={columnsRef[6]}
                 width={200}
                 customStyle={{ paddingLeft: '10px' }}
                 on-resize-width={handleResizeColumn}
@@ -284,7 +294,6 @@ export default defineComponent({
               </HeadColumn>
               {!isExternal && (
                 <HeadColumn
-                  ref={columnsRef[7]}
                   width={200}
                   on-resize-width={handleResizeColumn}
                 >
@@ -305,7 +314,6 @@ export default defineComponent({
                 </HeadColumn>
               )}
               <HeadColumn
-                ref={columnsRef[8]}
                 width={200}
                 on-resize-width={handleResizeColumn}
               >
@@ -322,7 +330,6 @@ export default defineComponent({
               </HeadColumn>
               {isAiAssistanceActive.value && (
                 <HeadColumn
-                  ref={columnsRef[9]}
                   width={60}
                   on-resize-width={handleResizeColumn}
                 ></HeadColumn>

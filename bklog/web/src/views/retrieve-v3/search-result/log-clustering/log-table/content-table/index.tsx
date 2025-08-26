@@ -96,19 +96,20 @@ export default defineComponent({
     const route = useRoute();
     const router = useRouter();
 
+    const headRowRef = ref(null);
     const remarkTipsRef = ref(null);
     const tableWraperRef = ref(null);
     const currentRowId = ref(0);
     const cacheExpandStr = ref([]); // 展示pattern按钮数组
     const isOpen = ref(true); // 是否展开
     const tableData = ref<LogPattern[]>([]);
-    const columnWidthList = ref<string[]>(Array.from({ length: 10 }));
 
     const showYOY = computed(() => props.requestData.year_on_year_hour >= 1);
     const isLimitExpandView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
     /** 获取当前编辑操作的数据 */
     const currentRowValue = computed(() => tableData.value.find(item => item.id === currentRowId.value));
     const showGounpBy = computed(() => props.requestData.group_by.length > 0 && props.displayMode === 'group');
+    const isFlattenMode = computed(() => props.requestData.group_by.length > 0 && props.displayMode !== 'group');
     const groupValueList = computed(() => {
       if (props.requestData?.group_by.length && props.tableInfo?.group.length) {
         return props.requestData.group_by.map((item, index) => `${item}=${props.tableInfo.group[index]}`);
@@ -119,6 +120,7 @@ export default defineComponent({
 
     let localTableData: LogPattern[] = [];
     let popoverInstance = null;
+    let remarkPopoverTimer: NodeJS.Timeout;
 
     const isExternal = window.IS_EXTERNAL === 'true';
 
@@ -126,7 +128,18 @@ export default defineComponent({
       () => props.widthList,
       () => {
         if (props.widthList.length) {
-          columnWidthList.value = props.widthList;
+          let widthList = [];
+          if (!props.requestData.group_by.length || isFlattenMode.value) {
+            widthList = props.widthList;
+          } else {
+            widthList = props.widthList.slice(1, props.widthList.length - 1);
+          }
+          const columns = Array.from(headRowRef.value?.querySelectorAll('th') || []);
+          if (columns.length) {
+            columns.forEach((item: any, index) => {
+              item.style.width = widthList[index];
+            });
+          }
         }
       },
       {
@@ -364,26 +377,29 @@ export default defineComponent({
 
     const handleHoverRemarkIcon = (e: any, row: LogPattern) => {
       currentRowId.value = row.id;
-      if (!popoverInstance) {
-        popoverInstance = tippy(e.target, {
-          appendTo: () => document.body,
-          content: remarkTipsRef.value.tipRef,
-          allowHTML: true,
-          arrow: true,
-          theme: 'light remark-edit-tip-popover',
-          sticky: true,
-          maxWidth: 340,
-          duration: [500, 0],
-          offset: [0, 5],
-          interactive: true,
-          placement: 'top',
-          onHidden: () => {
-            popoverInstance?.destroy();
-            popoverInstance = null;
-          },
-        });
-      }
-      popoverInstance.show();
+      clearTimeout(remarkPopoverTimer);
+      remarkPopoverTimer = setTimeout(() => {
+        if (!popoverInstance) {
+          popoverInstance = tippy(e.target, {
+            appendTo: () => document.body,
+            content: remarkTipsRef.value.tipRef,
+            allowHTML: true,
+            arrow: true,
+            theme: 'light remark-edit-tip-popover',
+            sticky: true,
+            maxWidth: 340,
+            // duration: [500, 0],
+            offset: [0, 5],
+            interactive: true,
+            placement: 'top',
+            onHidden: () => {
+              popoverInstance?.destroy();
+              popoverInstance = null;
+            },
+          });
+        }
+        popoverInstance.show();
+      }, 500);
     };
 
     const handleUpdateRemark = (remark: LogPattern['remark']) => {
@@ -461,27 +477,21 @@ export default defineComponent({
         >
           <table class='log-content-table'>
             <thead class='hide-header'>
-              <tr>
-                <th style={{ width: columnWidthList.value[0] || '125px' }}>数据指纹</th>
-                <th style={{ width: columnWidthList.value[1] || props.tableColumnWidth.number + 'px' }}>数量</th>
-                <th style={{ width: columnWidthList.value[2] || props.tableColumnWidth.percentage + 'px' }}>占比</th>
+              <tr ref={headRowRef}>
+                <th style={{ width: '125px' }}>数据指纹</th>
+                <th style={{ width: props.tableColumnWidth.number + 'px' }}>数量</th>
+                <th style={{ width: props.tableColumnWidth.percentage + 'px' }}>占比</th>
+                {showYOY.value && <th style={{ width: props.tableColumnWidth.year_on_year_count + 'px' }}>同比数量</th>}
                 {showYOY.value && (
-                  <th style={{ width: columnWidthList.value[3] || props.tableColumnWidth.year_on_year_count + 'px' }}>
-                    同比数量
-                  </th>
+                  <th style={{ width: props.tableColumnWidth.year_on_year_percentage + 'px' }}>同比变化</th>
                 )}
-                {showYOY.value && (
-                  <th
-                    style={{ width: columnWidthList.value[4] || props.tableColumnWidth.year_on_year_percentage + 'px' }}
-                  >
-                    同比变化
-                  </th>
-                )}
-                <th style={{ minWidth: '350px', width: columnWidthList.value[5] }}>Pattern</th>
-                <th style={{ width: columnWidthList.value[6] || '200px' }}>责任人</th>
-                {!isExternal && <th style={{ width: columnWidthList.value[7] || '200px' }}>创建告警策略</th>}
-                <th style={{ width: columnWidthList.value[8] || '200px' }}>备注</th>
-                {isAiAssistanceActive.value && <th style={{ width: columnWidthList.value[9] || '60px' }}>ai</th>}
+                {isFlattenMode.value &&
+                  props.requestData.group_by.map(item => <th style={{ width: '100px' }}>{item}</th>)}
+                <th style={{ minWidth: '350px' }}>Pattern</th>
+                <th style={{ width: '200px' }}>责任人</th>
+                {!isExternal && <th style={{ width: '200px' }}>创建告警策略</th>}
+                <th style={{ width: '200px' }}>备注</th>
+                {isAiAssistanceActive.value && <th style={{ width: '60px' }}>ai</th>}
               </tr>
             </thead>
             <tbody>
@@ -558,12 +568,24 @@ export default defineComponent({
                       </div>
                     </td>
                   )}
+                  {isFlattenMode.value &&
+                    row.group.map(item => (
+                      <td>
+                        <div
+                          class='dynamic-column'
+                          v-bk-overflow-tips
+                        >
+                          {item}
+                        </div>
+                      </td>
+                    ))}
                   <td>
                     <div class={['pattern-content', { 'is-limit': getLimitState(rowIndex) }]}>
                       <ClusterEventPopover
                         rowData={row}
                         indexId={props.indexId}
                         on-event-click={isLink => handleMenuClick(row, isLink)}
+                        on-open-cluster-config={() => emit('open-cluster-config')}
                       >
                         <text-highlight
                           style=''
@@ -663,6 +685,7 @@ export default defineComponent({
                     <div
                       class='remark-column'
                       on-mouseenter={e => handleHoverRemarkIcon(e, row)}
+                      on-mouseleave={() => clearTimeout(remarkPopoverTimer)}
                     >
                       {remarkContent(row.remark)}
                     </div>

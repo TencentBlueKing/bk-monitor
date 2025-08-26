@@ -79,7 +79,7 @@ export default defineComponent({
               if (res.data) {
                 return res.data;
               }
-            } catch (error) {
+            } catch {
               return false;
             }
           },
@@ -233,7 +233,7 @@ export default defineComponent({
             />
             <div>
               {t('样例')}
-              {`：\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`}
+              {`：\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}`}
             </div>
           </bk-form-item>
           <bk-form-item

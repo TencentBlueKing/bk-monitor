@@ -47,7 +47,7 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  setup(props, { slots, emit, expose }) {
+  setup(props, { slots, emit }) {
     const refRoot = ref();
 
     const cellStyle = computed(() => {
@@ -141,9 +141,6 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       interactjsInstance?.unset();
-    });
-    expose({
-      getWidth: () => refRoot.value?.style.width,
     });
 
     return () => (

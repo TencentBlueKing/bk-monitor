@@ -71,9 +71,10 @@ export default defineComponent({
       require: true,
     },
   },
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
 
+    const clusterConfigRef = ref(null);
     /** 是否创建过策略 */
     const strategyHaveSubmit = ref(false);
 
@@ -113,6 +114,10 @@ export default defineComponent({
       emit('handle-finger-operate', operateType, val, isQuery);
     };
 
+    expose({
+      openClusterConfig: () => clusterConfigRef.value?.show(),
+    });
+
     return () => (
       <div class='clustering-nav'>
         <div class='operations-main'>
@@ -138,7 +143,8 @@ export default defineComponent({
               indexId={props.indexId}
               isClusterActive={props.isClusterActive}
             />
-            <cluster-config
+            <ClusterConfig
+              ref={clusterConfigRef}
               indexId={props.indexId}
               total-fields={props.totalFields}
             />
