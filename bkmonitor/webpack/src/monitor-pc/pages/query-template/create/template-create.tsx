@@ -129,10 +129,14 @@ export default class TemplateCreate extends tsc<object> {
     const data = await createQueryTemplate(params).catch(() => false);
     this.submitLoading = false;
     this.needCheck = false;
+    if (!data) return;
+    this.$bkMessage({
+      theme: 'success',
+      message: this.$t('创建指标模板成功'),
+    });
     this.$router.push({
       name: 'query-template',
     });
-    console.log(params, data);
   }
 
   handleCancel() {
