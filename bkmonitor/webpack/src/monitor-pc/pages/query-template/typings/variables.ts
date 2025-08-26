@@ -74,7 +74,6 @@ export type IFunctionVariableModel = ICommonVariableModel<typeof VariableTypeEnu
 
 export type IMethodVariableModel = ICommonVariableModel<typeof VariableTypeEnum.METHOD> & {
   defaultValue?: string;
-  metric: MetricDetailV2;
   value?: string;
 };
 

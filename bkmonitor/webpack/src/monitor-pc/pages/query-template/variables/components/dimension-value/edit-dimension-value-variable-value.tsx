@@ -31,6 +31,8 @@ import { fetchMetricDimensionValueList } from '../../../service';
 import { DimensionValueVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
 
+import './dimension-value.scss';
+
 interface DimensionValueValueEvents {
   onBlur: () => void;
   onChange: (variable: DimensionValueVariableModel) => void;
@@ -71,6 +73,7 @@ export default class EditDimensionValueVariableValue extends tsc<DimensionValueV
   }
 
   async getValueList() {
+    if (!this.variable.metric) return;
     this.loading = true;
     const data = await fetchMetricDimensionValueList(this.variable.related_tag, {
       data_source_label: this.variable.metric.data_source_label,
@@ -79,16 +82,29 @@ export default class EditDimensionValueVariableValue extends tsc<DimensionValueV
       metric_field: this.variable.metric.metric_field,
     }).catch(() => []);
     this.valueList = data;
+    for (const item of this.variable.value) {
+      if (!this.valueList.find(v => v.value === item)) {
+        this.valueList.push({
+          label: item,
+          value: item,
+          customCreate: true,
+        });
+      }
+    }
     this.loading = false;
   }
 
   render() {
     return (
-      <EditVariableValue data={this.variable.data}>
+      <EditVariableValue
+        class='dimension-value'
+        data={this.variable.data}
+      >
         <bk-select
           clearable={false}
           loading={this.loading}
           value={this.variable.data.value}
+          allow-create
           collapse-tag
           display-tag
           multiple
@@ -99,6 +115,7 @@ export default class EditDimensionValueVariableValue extends tsc<DimensionValueV
             <bk-option
               id={item.value}
               key={item.value}
+              style={{ display: item.customCreate ? 'none' : 'block' }}
               name={item.label}
             />
           ))}

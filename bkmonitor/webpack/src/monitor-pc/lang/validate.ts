@@ -291,5 +291,6 @@ export default {
   变量名不能重复: 'Variable name cannot be duplicated',
   可选维度值必选: 'Optional dimension value must be selected',
   变量名不能包含非法字符: 'Variable name cannot contain illegal characters',
-  '1-50个字符，且仅支持小写字母、数字、_': '1-50 characters, and only lowercase letters, numbers, and _ are supported',
+  '1～50 字符，仅支持 英文小写、数字、下划线':
+    '1-50 characters, and only lowercase letters, numbers, and _ are supported',
 };

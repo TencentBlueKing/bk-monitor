@@ -55,6 +55,9 @@ import VariableCommonFormDetail from '../common-form/variable-common-form-detail
 import { fetchMetricDimensionValueList } from '@/pages/query-template/service';
 
 import type { DimensionValueVariableModel } from '../../index';
+
+import './dimension-value.scss';
+
 interface DimensionValueDetailProps {
   variable: DimensionValueVariableModel;
 }
@@ -66,7 +69,9 @@ export default class DimensionValueVariableDetail extends tsc<DimensionValueDeta
   valueList = [];
 
   get defaultValueMap() {
-    return this.variable.data.defaultValue.map(item => this.valueList.find(i => i.value === item));
+    return this.variable.data.defaultValue.map(
+      item => this.valueList.find(i => i.value === item) || { value: item, label: item }
+    );
   }
 
   mounted() {
@@ -74,6 +79,7 @@ export default class DimensionValueVariableDetail extends tsc<DimensionValueDeta
   }
 
   async getValueList() {
+    if (!this.variable.metric) return;
     const data = await fetchMetricDimensionValueList(this.variable.related_tag, {
       data_source_label: this.variable.metric.data_source_label,
       data_type_label: this.variable.metric.data_type_label,
@@ -85,8 +91,11 @@ export default class DimensionValueVariableDetail extends tsc<DimensionValueDeta
 
   render() {
     return (
-      <div class='dimensionValue-detail'>
-        <VariableCommonFormDetail data={this.variable.data}>
+      <div class='dimension-value-detail'>
+        <VariableCommonFormDetail
+          class='dimension-value'
+          data={this.variable.data}
+        >
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('关联维度')}：</div>
             <div class='form-item-value'>{this.variable.related_tag || '--'}</div>
@@ -97,10 +106,10 @@ export default class DimensionValueVariableDetail extends tsc<DimensionValueDeta
               <div class='tag-list'>
                 {this.defaultValueMap.map(item => (
                   <div
-                    key={item.id}
+                    key={item.value}
                     class='tag-item'
                   >
-                    {item.name}
+                    {item.label}
                   </div>
                 ))}
               </div>
