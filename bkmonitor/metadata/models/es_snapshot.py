@@ -22,7 +22,6 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.time_tools import biz2utc_str
-from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.utils.db import array_group
 from metadata.utils.es_tools import (
@@ -61,9 +60,7 @@ class EsSnapshot(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def create_snapshot(
-        cls, table_id, target_snapshot_repository_name, snapshot_days, operator, bk_tenant_id=DEFAULT_TENANT_ID
-    ):
+    def create_snapshot(cls, table_id, target_snapshot_repository_name, snapshot_days, operator, bk_tenant_id: str):
         from metadata.models import ESStorage
 
         es_storage = ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
@@ -93,9 +90,7 @@ class EsSnapshot(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def modify_snapshot(
-        cls, table_id, snapshot_days, operator, status: str | None = None, bk_tenant_id=DEFAULT_TENANT_ID
-    ):
+    def modify_snapshot(cls, table_id, snapshot_days, operator, bk_tenant_id: str, status: str | None = None):
         try:
             obj = cls.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
         except cls.DoesNotExist:
@@ -111,7 +106,7 @@ class EsSnapshot(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def delete_snapshot(cls, table_id, is_sync: bool | None = False, bk_tenant_id=DEFAULT_TENANT_ID):
+    def delete_snapshot(cls, table_id, bk_tenant_id: str, is_sync: bool | None = False):
         """
         当快照产生当比较多当会产生很多的es调用 比较重 移到后台去执行实际的快照清理
         """
@@ -140,7 +135,7 @@ class EsSnapshot(models.Model):
         snapshot.delete()
 
     @classmethod
-    def batch_get_state(cls, table_ids: list, bk_tenant_id=DEFAULT_TENANT_ID):
+    def batch_get_state(cls, table_ids: list, bk_tenant_id: str):
         from metadata.models import ESStorage
 
         es_storages = ESStorage.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
@@ -260,14 +255,14 @@ class EsSnapshotRepository(models.Model):
         return new_rep
 
     @classmethod
-    def modify_repository(cls, cluster_id, snapshot_repository_name, alias, operator, bk_tenant_id=DEFAULT_TENANT_ID):
+    def modify_repository(cls, cluster_id, snapshot_repository_name, alias, operator, bk_tenant_id: str):
         cls.objects.filter(cluster_id=cluster_id, repository_name=snapshot_repository_name).update(
             alias=alias, last_modify_user=operator, bk_tenant_id=bk_tenant_id
         )
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def delete_repository(cls, cluster_id, snapshot_repository_name, operator, bk_tenant_id=DEFAULT_TENANT_ID):
+    def delete_repository(cls, cluster_id, snapshot_repository_name, operator, bk_tenant_id: str):
         if EsSnapshotIndice.objects.filter(
             cluster_id=cluster_id, repository_name=snapshot_repository_name, bk_tenant_id=bk_tenant_id
         ).exists():
@@ -280,7 +275,7 @@ class EsSnapshotRepository(models.Model):
         )
 
     @classmethod
-    def verify_repository(cls, cluster_id, snapshot_repository_name, bk_tenant_id=DEFAULT_TENANT_ID):
+    def verify_repository(cls, cluster_id, snapshot_repository_name, bk_tenant_id: str):
         if not cls.objects.filter(
             cluster_id=cluster_id, repository_name=snapshot_repository_name, is_deleted=False, bk_tenant_id=bk_tenant_id
         ).exists():
@@ -336,7 +331,7 @@ class EsSnapshotIndice(models.Model):
         return [obj.to_json() for obj in batch_obj]
 
     @classmethod
-    def all_doc_count_and_store_size(cls, table_ids, bk_tenant_id=DEFAULT_TENANT_ID):
+    def all_doc_count_and_store_size(cls, table_ids, bk_tenant_id: str):
         agg_result = (
             cls.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
             .values("table_id")
@@ -410,8 +405,8 @@ class EsSnapshotRestore(models.Model):
         end_time,
         expired_time,
         operator,
+        bk_tenant_id: str,
         is_sync: bool | None = False,
-        bk_tenant_id=DEFAULT_TENANT_ID,
     ):
         from metadata.models import ESStorage
 
@@ -572,7 +567,7 @@ class EsSnapshotRestore(models.Model):
         ]
 
     @classmethod
-    def is_restored_index(cls, index, now, restore_id=None, bk_tenant_id=DEFAULT_TENANT_ID):
+    def is_restored_index(cls, bk_tenant_id: str, index, now, restore_id=None):
         """
         判断索引是否已经被回溯
         """

@@ -2094,20 +2094,13 @@ class ModifyEsSnapshotRepositoryResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         cluster_id = serializers.IntegerField(required=True, label="ES存储集群ID")
         snapshot_repository_name = serializers.CharField(required=True, label="快照仓库名称")
         alias = serializers.CharField(required=True, label="别名")
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("ModifyEsSnapshotRepositoryResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         models.EsSnapshotRepository.modify_repository(**validated_request_data)
         return validated_request_data
 
@@ -2118,19 +2111,12 @@ class DeleteEsSnapshotRepositoryResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         cluster_id = serializers.IntegerField(required=True, label="ES存储集群ID")
         snapshot_repository_name = serializers.CharField(required=True, label="快照仓库名称")
         operator = serializers.CharField(required=True, label="操作者")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("DeleteEsSnapshotRepositoryResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         models.EsSnapshotRepository.delete_repository(**validated_request_data)
         return validated_request_data
 
@@ -2141,18 +2127,11 @@ class VerifyEsSnapshotRepositoryResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         cluster_id = serializers.IntegerField(required=True, label="ES存储集群ID")
         snapshot_repository_name = serializers.CharField(required=True, label="快照仓库名称")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("VerifyEsSnapshotRepositoryResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         return models.EsSnapshotRepository.verify_repository(**validated_request_data)
 
 
@@ -2204,6 +2183,7 @@ class CreateResultTableSnapshotResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         target_snapshot_repository_name = serializers.CharField(required=True, label="目标es集群快照仓库")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
@@ -2211,13 +2191,6 @@ class CreateResultTableSnapshotResource(Resource):
 
     def perform_request(self, validated_request_data):
         # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("CreateResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         return models.EsSnapshot.create_snapshot(**validated_request_data).to_json()
 
 
@@ -2227,20 +2200,13 @@ class ModifyResultTableSnapshotResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
         status = serializers.CharField(required=False, label="操作者")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("ModifyResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         models.EsSnapshot.modify_snapshot(**validated_request_data)
         return validated_request_data
 
@@ -2251,18 +2217,11 @@ class DeleteResultTableSnapshotResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("DeleteResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         models.EsSnapshot.delete_snapshot(**validated_request_data)
         return validated_request_data
 
@@ -2273,16 +2232,11 @@ class ListResultTableSnapshotResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=False, label="结果表IDs")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("ListResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_ids = validated_request_data.get("table_ids")
         result_queryset = models.EsSnapshot.objects
         if table_ids:
@@ -2333,17 +2287,11 @@ class GetResultTableSnapshotStateResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=True, label="结果表ids")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info(
-                "GetResultTableSnapshotStateResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
-            )
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
         return models.EsSnapshot.batch_get_state(
             table_ids=validated_request_data["table_ids"], bk_tenant_id=bk_tenant_id
         )
@@ -2355,6 +2303,7 @@ class RestoreResultTableSnapshotResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         start_time = serializers.DateTimeField(required=True, label="数据开始时间", format="%Y-%m-%d %H:%M:%S")
         end_time = serializers.DateTimeField(required=True, label="数据结束时间", format="%Y-%m-%d %H:%M:%S")
@@ -2363,14 +2312,6 @@ class RestoreResultTableSnapshotResource(Resource):
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("RestoreResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         return models.EsSnapshotRestore.create_restore(**validated_request_data)
 
 
