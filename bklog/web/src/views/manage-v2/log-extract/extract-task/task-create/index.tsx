@@ -228,23 +228,24 @@ export default defineComponent({
     const handleSubmit = () => {
       emit('loading', true);
       // 根据预览地址选择的文件提交下载任务
+      const requestData = {
+        bk_biz_id: store.state.bkBizId,
+        ip_list: ipList.value, // 下载目标
+        preview_directory: fileOrPath.value, // 目录
+        preview_ip_list: previewRef.value?.getFindIpList(), // 预览地址
+        preview_time_range: previewRef.value?.timeRange, // 文件日期
+        preview_start_time: previewRef.value?.timeStringValue[0], // 文件日期
+        preview_end_time: previewRef.value?.timeStringValue[1], // 文件日期
+        preview_is_search_child: previewRef.value?.isSearchChild, // 是否搜索子目录
+        file_path: downloadFiles.value, // 下载文件
+        filter_type: textFilterRef.value.filterType, // 过滤类型
+        filter_content: textFilterRef.value.filterContent, // 过滤内容
+        remark: remark.value, // 备注
+        link_id: link_id.value,
+      }
       http
         .request('extract/createDownloadTask', {
-          data: {
-            bk_biz_id: store.state.bkBizId,
-            ip_list: ipList.value, // 下载目标
-            preview_directory: fileOrPath.value, // 目录
-            preview_ip_list: previewRef.value?.getFindIpList(), // 预览地址
-            preview_time_range: previewRef.value?.timeRange, // 文件日期
-            preview_start_time: previewRef.value?.timeStringValue[0], // 文件日期
-            preview_end_time: previewRef.value?.timeStringValue[1], // 文件日期
-            preview_is_search_child: previewRef.value?.isSearchChild, // 是否搜索子目录
-            file_path: downloadFiles.value, // 下载文件
-            filter_type: textFilterRef.value?.filterType, // 过滤类型
-            filter_content: textFilterRef.value?.filterContent, // 过滤内容
-            remark: remark.value, // 备注
-            link_id: link_id.value,
-          },
+          data: requestData
         })
         .then(() => {
           goToHome();
