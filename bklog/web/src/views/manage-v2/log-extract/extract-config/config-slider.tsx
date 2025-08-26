@@ -26,13 +26,13 @@
 
 import { defineComponent, ref, nextTick } from 'vue';
 
+import ValidateUserSelector from '@/components/user-selector';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
 import ModuleSelect from './module-select.tsx';
 import ValidateInput from './validate-input.tsx';
 import http from '@/api';
-import ValidateUserSelector from '@/components/user-selector';
 
 import './config-slider.scss';
 
@@ -288,7 +288,7 @@ export default defineComponent({
             <div class='content'>
               <ValidateUserSelector
                 value={manageStrategyData.value.user_list}
-                onChange={(val: any[]) => {
+                onChange={(val: string[]) => {
                   manageStrategyData.value.user_list = val;
                   isValidatedComputed();
                 }}
@@ -379,7 +379,7 @@ export default defineComponent({
                 /> */}
                 <bk-user-display-name
                   class='execute-people'
-                  user-id={manageStrategyData.value.operator}
+                  user-id={manageStrategyData.value?.operator}
                 ></bk-user-display-name>
                 <bk-button
                   loading={isChangeOperatorLoading.value}
