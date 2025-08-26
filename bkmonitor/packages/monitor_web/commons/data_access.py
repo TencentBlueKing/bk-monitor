@@ -153,6 +153,7 @@ class DataAccessor:
 
     def __init__(
         self,
+        bk_tenant_id: str,
         bk_biz_id,
         db_name,
         tables,
@@ -162,7 +163,6 @@ class DataAccessor:
         source_label,
         label,
         data_label: str | None = None,
-        bk_tenant_id: str | None = None,
     ):
         """
         :param bk_biz_id: 业务ID
@@ -630,7 +630,7 @@ class PluginDataAccessor(DataAccessor):
 class EventDataAccessor:
     def __init__(self, current_version, operator):
         self.bk_biz_id = current_version.plugin.bk_biz_id
-        self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        self.bk_tenant_id = current_version.plugin.bk_tenant_id
         self.name = f"{current_version.plugin.plugin_type}_{current_version.plugin_id}"
         self.label = current_version.plugin.label
         self.operator = operator
