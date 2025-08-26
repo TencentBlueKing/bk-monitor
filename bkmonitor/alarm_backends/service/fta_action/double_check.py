@@ -94,7 +94,6 @@ class DoubleCheckHandler:
     def tags(self) -> dict:
         return {t["key"]: t["value"] for t in getattr(self.alert.event, "tags", [])}
 
-    @classmethod
     def is_point_missing(self, alert=None) -> bool:
         """判断告警是否疑似数据缺失"""
         if alert is not None:

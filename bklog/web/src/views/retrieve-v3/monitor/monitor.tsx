@@ -69,8 +69,14 @@ export default defineComponent({
   setup(props) {
     const store = useStore();
     provide('handleChartDataZoom', props.handleChartDataZoom);
-    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, isPreApiLoaded, getIndexSetList,setDefaultRouteUrl } =
-      useMonitorAppInit(props.indexSetApi);
+    const {
+      isSearchContextStickyTop,
+      isSearchResultStickyTop,
+      stickyStyle,
+      isPreApiLoaded,
+      getIndexSetList,
+      setDefaultRouteUrl,
+    } = useMonitorAppInit(props.indexSetApi);
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
     const init = () => {
       const result = handleTransformToTimestamp(props.timeRange as TimeRangeType, store.getters.retrieveParams.format);
@@ -79,7 +85,7 @@ export default defineComponent({
         end_time: result[1],
         datePickerValue: props.timeRange,
       });
-      setDefaultRouteUrl()
+      setDefaultRouteUrl();
     };
     init();
 
@@ -145,7 +151,11 @@ export default defineComponent({
         class={[
           'v3-bklog-root',
           { 'is-start-text-ellipsis': isStartTextEllipsis.value },
-          { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value, 'is-trace': isMonitorTraceComponent },
+          {
+            'is-sticky-top': isSearchContextStickyTop.value,
+            'is-sticky-top-result': isSearchResultStickyTop.value,
+            'is-trace': isMonitorTraceComponent,
+          },
         ]}
         v-bkloading={{ isLoading: !isPreApiLoaded.value }}
       >

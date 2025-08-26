@@ -623,7 +623,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
     def _replace_variable(cls, view_config, target, value):
         """替换模版中的变量"""
         content = json.dumps(view_config)
-        return json.loads(content.replace(target, str(value)))
+        return json.loads(content.replace(target, json.dumps(str(value))[1:-1]))
 
     @classmethod
     def _add_functions(cls, view_config: dict[str, Any], functions: list[dict[str, Any]]):

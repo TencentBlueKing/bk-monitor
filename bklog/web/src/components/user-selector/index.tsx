@@ -69,7 +69,8 @@ export default defineComponent({
     },
     onChange: { type: Function },
   },
-  emits: ['change'],
+  emits: ['change', 'update'],
+
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
@@ -99,6 +100,7 @@ export default defineComponent({
       localValue.value = realVal;
       isError.value = !realVal.length;
       emit('change', realVal);
+      emit('update', realVal);
     };
 
     // 失焦时校验

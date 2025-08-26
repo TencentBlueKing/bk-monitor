@@ -47,7 +47,7 @@ export default (
     addInputListener = true,
     handleWrapperClick = undefined,
     onInputFocus = undefined,
-    afterShowKeyEnter = undefined
+    afterShowKeyEnter = undefined,
   },
 ) => {
   const modelValue = ref([]);
@@ -229,8 +229,10 @@ export default (
         setIsInputTextFocus(false);
         popInstanceUtil.hide(100);
       }
-    })
+    });
   };
+
+  const getTippyUtil = () => popInstanceUtil;
 
   onMounted(() => {
     instance = getCurrentInstance();
@@ -272,5 +274,6 @@ export default (
     handleInputBlur,
     delayShowInstance,
     isInstanceShown,
+    getTippyUtil
   };
 };

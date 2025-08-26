@@ -318,7 +318,9 @@ export default defineComponent({
         };
         dataType.value = data_type;
         aggMethod.value = agg_method;
-        handleAppServiceChange(app_name, service_name);
+        if(app_name && service_name) {
+          handleAppServiceChange(app_name, service_name);
+        }
       }
     }
     getUrlParams();

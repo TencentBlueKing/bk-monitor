@@ -273,7 +273,7 @@ export default () => {
           const respIndexSetList = resp[1];
           const defIndexItem =
             respIndexSetList.find(
-              item => item.permission?.[VIEW_BUSINESS] && !item.tags.some(tag => tag.tag_id === 4),
+              item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
             ) ?? respIndexSetList[0];
           const defaultId = [defIndexItem?.index_set_id].filter(Boolean);
 
@@ -294,7 +294,7 @@ export default () => {
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
-          const type = indexId ?? route.params.indexId ? 'single' : 'union';
+          const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
           if (indexId && type === 'single') {
             store.commit('updateIndexId', indexId);
             store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });

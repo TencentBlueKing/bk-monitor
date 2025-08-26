@@ -17,6 +17,7 @@
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
   const unionIndexList = computed(() => store.getters.unionIndexList);
   const retrieveParams = computed(() => store.getters.retrieveParams);
+  const requestAddition = computed(() => store.getters.requestAddition);
   const isLoading = computed(() => store.state.indexFieldInfo.is_loading);
   const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
 
@@ -104,7 +105,7 @@
       const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
       const queryData = {
         ...retrieveParams.value,
-        addition: [...retrieveParams.value.addition, ...getCommonFilterAdditionWithValues(store.state)],
+        addition: [...requestAddition.value, ...getCommonFilterAdditionWithValues(store.state)],
         time_range: 'customized',
         interval: runningInterval,
         // 每次轮循的起始时间

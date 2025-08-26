@@ -474,48 +474,13 @@ class SpaceIntroduceResource(CacheResource):
             return {_tag: self.get_introduce(_tag, bk_biz_id) for _tag in tags}
 
 
-class ListDataPipelineResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.list_data_pipeline(validated_request_data)
-
-
-class ListDataSourceByDataPipelineResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.list_data_source_by_data_pipeline(validated_request_data)
-
-
-class CreateDataPipelineResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.create_data_pipeline(validated_request_data)
-
-
-class UpdateDataPipelineResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.update_data_pipeline(validated_request_data)
-
-
-class GetClusterInfoResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        cluster_id = serializers.IntegerField(required=False, label="集群 ID", allow_null=True)
-        cluster_type = serializers.CharField(required=False, label="集群类型", allow_null=True, allow_blank=True)
-
-    def perform_request(self, validated_request_data):
-        return api.metadata.get_storage_cluster_info(validated_request_data)
-
-
-class GetEtlConfigResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.get_etl_config(validated_request_data)
-
-
-class GetTransferListResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.get_transfer_list(validated_request_data)
-
-
 class CheckClusterHealthResource(Resource):
+    """
+    检测集群连通性（废弃，默认返回成功）
+    """
+
     def perform_request(self, validated_request_data):
-        return api.metadata.check_cluster_health(validated_request_data)
+        return True
 
 
 class ListClustersResource(Resource):
