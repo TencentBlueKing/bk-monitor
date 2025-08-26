@@ -203,7 +203,7 @@ class ScriptPluginManager(PluginManager):
         collector_json = {}
         for os_name, file_info in list(meta_dict["scripts"].items()):
             script_path = os.path.join(
-                self.plugin.plugin_id, OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"]
+                OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"]
             )
 
             script_content = self._decode_file(self.plugin_configs[Path(script_path)])

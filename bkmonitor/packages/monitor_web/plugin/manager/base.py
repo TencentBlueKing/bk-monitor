@@ -439,17 +439,20 @@ class PluginManager(BasePluginManager):
     # 插件数据校验类
     serializer_class = None
 
-    def __init__(self, plugin, operator, tmp_path=None):
+    def __init__(self, plugin, operator, tmp_path=None, plugin_configs=None):
         """
         :param plugin: CollectorPluginMeta Instance
         """
         super().__init__(plugin, operator, tmp_path)
 
         self.tmp_path: str = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4())) if not tmp_path else tmp_path
-        self.filename_list = []
-        for dir_path, _, filename_list in os.walk(self.tmp_path):
-            for filename in filename_list:
-                self.filename_list.append(os.path.join(dir_path, filename))
+        self.plugin_configs = plugin_configs
+        if plugin_configs:
+            self.filename_list = list(self.plugin_configs.keys())
+        else:
+            for dir_path, _, filename_list in os.walk(self.tmp_path):
+                for filename in filename_list:
+                    self.filename_list.append(os.path.join(dir_path, filename))
 
     def _render_config(self, config_version, config_name, context):
         """
@@ -745,18 +748,16 @@ class PluginManager(BasePluginManager):
             plugin_params = info_path
         else:
             read_filename_list = []
-            for dir_path, dirname, filename_list in os.walk(self.tmp_path):
-                if dir_path.endswith(os.path.join(self.plugin.plugin_id, "info")) and len(dirname) == 0:
-                    plugin_info_path = dir_path
-                    read_filename_list = [os.path.join(plugin_info_path, filename) for filename in filename_list]
-                    break
+            for filename in self.filename_list:
+                if str(filename.parent).endswith("info"):
+                    read_filename_list.append(filename)
 
             if not read_filename_list:
                 raise PluginParseError({"msg": gettext("不存在info文件夹，无法解析插件包")})
 
             plugin_params = {}
             for file_instance in read_filename_list:
-                plugin_params[os.path.basename(file_instance)] = self._read_file(file_instance)
+                plugin_params[os.path.basename(file_instance)] = self.plugin_configs[file_instance]
 
         self._get_meta_info(plugin_params)
         self._get_config_mes(plugin_params)
@@ -906,6 +907,7 @@ class PluginManager(BasePluginManager):
         self.version = PluginVersionHistory(
             bk_tenant_id=self.plugin.bk_tenant_id, plugin_id=self.plugin.plugin_id, config=config, info=info
         )
+        self.version.tmp_plugin = self.plugin
         self._parse_info_path(info_path)
         self.version.update_diff_fields()
 
