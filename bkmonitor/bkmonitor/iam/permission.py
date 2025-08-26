@@ -93,15 +93,15 @@ class Permission:
         else:
             request = request or get_request(peaceful=True)
             # web请求
-            try:
+            if request:
                 self.username = request.user.username
                 self.bk_tenant_id = request.user.tenant_id
-            except Exception:
+            else:
                 logger.warning("IAM Permission init with local username, use default bk_tenant_id")
                 # 后台设置
                 from bkmonitor.utils.user import get_local_username
-                if self.username is None:
-                    self.username = get_local_username() or "admin"
+
+                self.username = get_local_username()
                 if self.username is None:
                     raise ValueError("must provide `username` or `request` param to init")
                 self.bk_tenant_id = DEFAULT_TENANT_ID
