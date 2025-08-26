@@ -166,7 +166,7 @@ export default class TemplateCreate extends tsc<object> {
     this.needCheck = true;
   }
 
-  async activated() {
+  async created() {
     this.init();
     this.handleGetMetricFunctions();
   }
@@ -202,7 +202,18 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleSelectMetric(index: number, metric: MetricDetailV2) {
-    this.queryConfigs.splice(index, 1, new QueryConfig(new MetricDetailV2(metric), { alias: LETTERS[index] }));
+    // 切换指标无需清空已填数据
+    const queryConfig = this.queryConfigs[index];
+    const oldData = {
+      agg_condition: queryConfig.agg_condition,
+      agg_dimension: queryConfig.agg_dimension,
+      agg_interval: queryConfig.agg_interval,
+      agg_method: queryConfig.agg_method,
+      functions: queryConfig.functions,
+      alias: LETTERS[index],
+      metric_id: metric.metric_id,
+    };
+    this.queryConfigs.splice(index, 1, new QueryConfig(new MetricDetailV2(metric), oldData));
   }
 
   handleChangeMethod(val: { index: number; value: string }) {
