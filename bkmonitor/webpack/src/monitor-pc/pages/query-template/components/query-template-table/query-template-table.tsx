@@ -414,6 +414,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
    * @description: 表格 操作 列渲染
    */
   operatorColRenderer(row) {
+    const canDelete = row?.can_delete && row?.relation_config_count === 0;
     return (
       <div class='operator-col'>
         <span
@@ -434,12 +435,12 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
         <span
           v-bk-tooltips={{
             content: this.$t('当前仍然有关联的消费场景，无法删除'),
-            disabled: row?.can_delete,
+            disabled: canDelete,
             placement: 'right',
           }}
         >
           <bk-button
-            disabled={!row?.can_delete}
+            disabled={!canDelete}
             text={true}
             onClick={(e: MouseEvent) => this.handleDeletePopoverShow(e, row)}
           >
