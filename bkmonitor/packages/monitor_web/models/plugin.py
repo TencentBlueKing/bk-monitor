@@ -717,8 +717,8 @@ class CollectorPluginConfig(OperateRecordModelBase):
     采集器插件功能信息
     """
 
-    config_json = JsonField("参数配置", default=None)
-    collector_json = JsonField("采集器配置", default=None)
+    config_json = JsonField("参数配置", default=[])
+    collector_json = JsonField("采集器配置", default={})
     is_support_remote = models.BooleanField("是否支持远程采集", default=False)
 
     def __str__(self):

@@ -83,7 +83,7 @@ class JMXPluginManager(PluginManager):
         file_name = "config.yaml.tpl"
         config_yaml_path = ""
         for filename in self.filename_list:
-            if os.path.basename(filename) == file_name:
+            if os.path.basename(str(filename)) == file_name:
                 config_yaml_path = filename
                 break
         if not config_yaml_path:
