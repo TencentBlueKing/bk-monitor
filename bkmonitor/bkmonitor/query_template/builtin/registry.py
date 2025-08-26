@@ -31,7 +31,7 @@ def register_builtin_templates() -> None:
     """注册内置查询模版"""
 
     namespaces: list[str] = [builtin.NAMESPACE for builtin in BUILTIN_QUERY_TEMPLATES]
-    if constants.Namespace.DEFAULT in namespaces:
+    if constants.Namespace.DEFAULT.value in namespaces:
         raise ValueError("不允许使用 DEFAULT 作为内置查询模板的命名空间")
 
     remote_templ_name_id_map: dict[str, int] = {

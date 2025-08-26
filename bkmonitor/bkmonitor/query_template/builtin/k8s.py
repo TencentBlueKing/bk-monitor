@@ -106,7 +106,7 @@ def _cpu_usage_templ(usage_type: str) -> dict[str, Any]:
         "bk_biz_id": GLOBAL_BIZ_ID,
         "name": f"k8s_cpu_{usage_type}_usage",
         "alias": f"[容器] CPU {usage_type} 使用率（%）",
-        "description": "CPU {usage_type} 使用率表示容器实际使用的 CPU 与分配的 CPU 资源（{usage_type}）的比值。如果无数据，则表示容器未设置 CPU {usage_type}。",
+        "description": f"CPU {usage_type} 使用率表示容器实际使用的 CPU 与分配的 CPU 资源（{usage_type}）的比值。如果无数据，则表示容器未设置 CPU {usage_type}。",
         **_qs_to_query_params(
             UnifyQuerySet()
             .add_query(
