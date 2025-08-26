@@ -23,15 +23,5 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import type { AggCondition } from '.';
-import type { QueryVariablesTransformResult } from '../components/utils/query-variable-tool';
-
-export type ConditionDetailTagItem = Omit<AggCondition, 'value'> & { value: QueryVariablesTransformResult<string>[] };
-export interface IDetailEvents {
-  onClose: () => void;
-}
-
-export interface IDetailProps {
-  visible: boolean;
-}
+export const MANAGE_AUTH = 'explore_metric_v2'; // 数据检索查询查看
+export const VIEW_AUTH = 'explore_metric_v2'; // 数据检索查询查看
