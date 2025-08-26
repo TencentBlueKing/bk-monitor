@@ -96,7 +96,7 @@ export default defineComponent({
 
       const sortList = store.state.indexFieldInfo[activeSortField.value].map(item => [item[0], timeSort]);
       store.commit('updateIndexFieldInfo', { default_sort_list: sortList });
-      store.dispatch('requestIndexSetQuery', { defaultSortList: timeSort ? sortList : [] });
+      store.dispatch('requestIndexSetQuery', { defaultSortList: sortList });
     };
 
     return () => (

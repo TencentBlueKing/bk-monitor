@@ -72,6 +72,7 @@ export interface IAppInfo {
   is_enabled_profiling: boolean;
   is_enabled_trace: boolean;
   log_data_status: TDataStatus;
+  is_enabled_tail_sampling: boolean;
   // 类型状态
   metric_data_status: TDataStatus;
   no_data_period: number;

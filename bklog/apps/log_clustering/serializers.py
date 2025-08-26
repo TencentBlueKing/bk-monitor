@@ -95,7 +95,7 @@ class FilerRuleSerializer(serializers.Serializer):
 
 class ClusteringConfigSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField()
-    clustering_fields = serializers.CharField()
+    clustering_fields = serializers.CharField(required=False)
     filter_rules = serializers.ListField(child=FilerRuleSerializer(), required=False)
     min_members = serializers.IntegerField(required=False)
     predefined_varibles = serializers.CharField(required=False, allow_blank=True)
@@ -275,5 +275,13 @@ class CreateRegexTemplateSerializer(serializers.Serializer):
 
 
 class UpdateRegexTemplateSerializer(serializers.Serializer):
-    template_name = serializers.CharField(required=True)
-    predefined_varibles = serializers.CharField()
+    template_name = serializers.CharField(required=False)
+    predefined_varibles = serializers.CharField(required=False)
+
+    def validate(self, data):
+        # 检查 template_name 和 predefined_varibles 是否均为空
+        template_name = data.get("template_name")
+        predefined_varibles = data.get("predefined_varibles")
+        if not template_name and not predefined_varibles:
+            raise serializers.ValidationError("Either template_name or predefined_varibles must be provided.")
+        return data

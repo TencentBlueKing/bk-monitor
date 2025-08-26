@@ -68,7 +68,6 @@ interface INavToolsProps {
       import(/* webpackChunkName: 'MigrateDashboard' */ '../pages/migrate-dashboard/migrate-dashboard.vue') as any,
     ResourceRegister: () =>
       import(/* webpackChunkName: 'ResourceRegister' */ '../pages/resource-register/resource-register') as any,
-    DataPipeline: () => import(/* webpackChunkName: 'DataPipeline' */ '../pages/data-pipeline/data-pipeline') as any,
     SpaceManage: () => import(/* webpackChunkName: 'SpaceManage' */ './space-manage/space-manage') as any,
     GlobalCalendar: () => import(/* webpackChunkName: 'calendar' */ './calendar/calendar') as any,
     MyApply: () => import(/* webpackChunkName: 'MyApply' */ './my-apply/my-apply') as any,
@@ -288,9 +287,6 @@ class NavTools extends DocumentLinkMixin {
     }
     if (this.activeSetting === 'resource-register') {
       return <resource-register />;
-    }
-    if (this.activeSetting === 'data-pipeline') {
-      return <data-pipeline />;
     }
     return <health-z />;
   }

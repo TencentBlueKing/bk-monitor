@@ -286,6 +286,7 @@ export default defineComponent({
         process,
         source,
         stage_duration,
+        resource: spanResource,
       } = props.spanDetails as any | Span;
       // 服务、应用 名在日志 tab 里能用到
       serviceNameProvider.value = serviceName;
@@ -477,24 +478,23 @@ export default defineComponent({
           },
         });
       }
+      const processTags = spanResource || process?.tags || [];
       /** process信息 */
-      if (process?.tags?.length) {
+      if (processTags.length) {
         info.list.push({
           type: EListItemType.tags,
           isExpan: true,
           title: 'Resource',
           [EListItemType.tags]: {
             list:
-              process?.tags.map(
-                (item: { key: any; query_key: string; query_value: any; type: string; value: any }) => ({
-                  label: item.key,
-                  content: item.value || '--',
-                  type: item.type,
-                  isFormat: false,
-                  query_key: item.query_key,
-                  query_value: item.query_value,
-                })
-              ) || [],
+              processTags.map((item: { key: any; query_key: string; query_value: any; type: string; value: any }) => ({
+                label: item.key,
+                content: item.value || '--',
+                type: item.type,
+                isFormat: false,
+                query_key: item.query_key,
+                query_value: item.query_value,
+              })) || [],
           },
         });
       }

@@ -1,0 +1,71 @@
+.create-task-container {
+  min-width: 1260px;
+  padding: 20px 24px;
+  margin-top: 20px;
+  color: #63656e;
+  background-color: #fff;
+  border: 1px solid #dcdee5;
+
+  .row-container {
+    display: flex;
+    min-height: 40px;
+    margin: 20px 0 24px;
+
+    .title {
+      width: 128px;
+      margin-right: 16px;
+      font-size: 12px;
+      line-height: 40px;
+      text-align: right;
+
+      .required {
+        margin-left: 3px;
+        font-size: 16px;
+        color: #ea3636;
+      }
+
+      .bklog-info-fill {
+        color: #979ba5;
+        cursor: pointer;
+      }
+    }
+
+    .content {
+      display: flex;
+      flex-flow: column;
+      justify-content: center;
+      min-height: 40px;
+      font-size: 12px;
+
+      .flex-box {
+        display: flex;
+        align-items: center;
+
+        .select-text {
+          margin-left: 12px;
+          font-size: 12px;
+          line-height: 16px;
+
+          .primary {
+            color: #3a84ff;
+          }
+
+          .error {
+            color: #ea3636;
+          }
+        }
+      }
+    }
+  }
+
+  .button-container {
+    margin: 32px 0 0 144px;
+  }
+}
+
+.en-title {
+  .row-container .title {
+    /* stylelint-disable-next-line declaration-no-important */
+    width: 180px !important;
+  }
+}

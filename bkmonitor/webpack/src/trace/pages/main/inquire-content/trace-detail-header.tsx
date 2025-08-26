@@ -28,6 +28,7 @@ import { defineComponent } from 'vue';
 import { Message, Popover } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
+// import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
 import { useI18n } from 'vue-i18n';
 
 import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';

@@ -115,7 +115,7 @@ class ClusteringConfigHandler:
         collector_config_id = log_index_set.collector_config_id
         log_index_set_data, *_ = log_index_set.indexes
 
-        clustering_fields = params["clustering_fields"]
+        clustering_fields = params.get("clustering_fields", DEFAULT_CLUSTERING_FIELDS)
 
         conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
         default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT)

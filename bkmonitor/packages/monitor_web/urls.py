@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 from django.urls import include, re_path
 
@@ -21,7 +19,6 @@ urlpatterns = [
     re_path(r"^commons/", include("monitor_web.commons.urls")),
     re_path(r"^overview/", include("monitor_web.overview.urls")),
     re_path(r"^performance/", include("monitor_web.performance.urls")),
-    re_path(r"^ai_assistant/", include("monitor_web.ai_assistant.urls")),
     re_path(r"^", include("monitor_web.notice_group.urls")),
     re_path(r"^", include("monitor_web.user_group.urls")),
     re_path(r"^", include("monitor_web.strategies.urls")),

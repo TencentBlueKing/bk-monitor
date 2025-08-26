@@ -204,7 +204,7 @@ class RetrieveHelper extends RetrieveBase {
           text: keyword,
           className: `highlight-${index}`,
           backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
-          textReg: this.getRegExp(`^${keyword}$`, caseSensitive ? '' : 'i'),
+          textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', true),
         };
       }),
       reset,
@@ -438,6 +438,14 @@ class RetrieveHelper extends RetrieveBase {
    */
   setIndexConfigOpen(show: boolean) {
     this.runEvent(RetrieveEvent.INDEX_CONFIG_OPEN, show);
+  }
+
+  /**
+   * 打开别名配置
+   * @param show
+   */
+  setAliasConfigOpen(show: boolean) {
+    this.runEvent(RetrieveEvent.ALIAS_CONFIG_OPEN, show);
   }
 
   getScrollSelector() {
