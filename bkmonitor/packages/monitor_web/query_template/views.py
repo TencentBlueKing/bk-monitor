@@ -133,7 +133,7 @@ class QueryTemplateViewSet(GenericViewSet):
             queryset = self._search_page(queryset, validated_data.get("page", 1), validated_data.get("page_size", 50))
             response_data = {
                 "total": total,
-                "list": self.serializer_class(queryset, many=True).data,
+                "list": serializers.QueryTemplateListModelSerializer(queryset, many=True).data,
             }
 
         return Response(response_data)
