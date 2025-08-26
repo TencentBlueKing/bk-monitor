@@ -103,8 +103,12 @@ export default defineComponent({
       }
     };
 
-    // 暴露方法
-    expose({ handleClone });
+    // 暴露方法和属性
+    expose({
+      handleClone,
+      filterType,
+      filterContent,
+    });
 
     // 主渲染函数
     return () => (
