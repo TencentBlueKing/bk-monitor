@@ -122,33 +122,46 @@ export const getRetrieveQueryTemplateQueryConfigs = async (query_configs: any[])
   for (const item of query_configs) {
     const metricId = item.metric_id || getMetricId(item);
     const metricDetail = metricList.find(metric => metric.metric_id === metricId);
-    const queryConfig = new QueryConfig(metricDetail || null, {
-      agg_condition: item.where.map(w => {
-        if (typeof w === 'string') {
-          return {
-            key: w,
-            value: [],
-            method: 'eq',
-          };
-        }
-        return w;
-      }),
-      agg_dimension: item.group_by,
-      functions: item.functions.map(f => {
-        if (typeof f === 'string') {
-          return {
-            id: f,
-            name: '',
-            params: [],
-          };
-        }
-        return f;
-      }),
-      metric_id: metricId,
-      agg_interval: item.interval,
-      alias: item.metrics?.[0]?.alias || 'a',
-      agg_method: item.metrics?.[0]?.method || 'AVG',
-    });
+    const queryConfig = new QueryConfig(
+      metricDetail ||
+        new MetricDetailV2({
+          data_source_label: item.data_source_label,
+          data_type_label: item.data_type_label,
+          metric_field: item.metrics?.[0]?.field,
+          metric_id: metricId,
+          result_table_id: item.table,
+          data_label: item.data_label,
+          metric_field_name: item.metrics?.[0]?.field,
+          dimensions: [],
+        }),
+      {
+        agg_condition: item.where.map(w => {
+          if (typeof w === 'string') {
+            return {
+              key: w,
+              value: [],
+              method: 'eq',
+            };
+          }
+          return w;
+        }),
+        agg_dimension: item.group_by,
+        functions: item.functions.map(f => {
+          if (typeof f === 'string') {
+            return {
+              id: f,
+              name: '',
+              params: [],
+            };
+          }
+          return f;
+        }),
+        metric_id: metricId,
+        agg_interval: item.interval,
+        alias: item.metrics?.[0]?.alias || 'a',
+        agg_method: item.metrics?.[0]?.method || 'AVG',
+      }
+    );
     queryConfigs.push(queryConfig);
   }
   return queryConfigs;
