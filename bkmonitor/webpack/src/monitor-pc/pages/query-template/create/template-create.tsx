@@ -304,7 +304,7 @@ export default class TemplateCreate extends tsc<object> {
               chartTitle={this.basicInfoData.name}
               expressionConfig={this.expressionConfig}
               metricFunctions={this.metricFunctions}
-              queryConfigs={this.queryConfigs}
+              queryConfigs={this.queryConfigs.filter(item => !!item.metricDetail)}
               submitLoading={this.submitLoading}
               variablesList={this.variablesList}
               onCancel={this.handleBackGotoPage}
