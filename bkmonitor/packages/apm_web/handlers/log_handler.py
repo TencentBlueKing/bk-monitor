@@ -61,7 +61,10 @@ class ServiceLogHandler:
         relations = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name)
         for i in relations:
             if i.log_type == ServiceRelationLogTypeChoices.BK_LOG:
-                service_mapping[i.service_name] = {"bk_biz_id": i.related_bk_biz_id, "index_set_id": i.value}
+                service_mapping[i.service_name] = {
+                    "bk_biz_id": i.related_bk_biz_id,
+                    "index_set_ids": set([int(value) for value in i.value_list] + [int(i.value)])
+                }
 
         # Step2: 查询业务的所有索引集 (避免每个 relation 都单独查询)
         pool = ThreadPool()
@@ -73,7 +76,7 @@ class ServiceLogHandler:
         # Step3: 根据 index_set_id 进行匹配
         res = {}
         for service_name, info in service_mapping.items():
-            index_info = next((i for i in index_set if i.get("index_set_id") == int(info["index_set_id"])), None)
+            index_info = next((i for i in index_set if i.get("index_set_id") in info["index_set_ids"]), None)
             if index_info:
                 # tag_id == 4 为无数据 (bk_log 固定值)
                 if all(i.get("tag_id") != 4 for i in index_info.get("tags", [])):

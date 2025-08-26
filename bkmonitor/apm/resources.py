@@ -1473,7 +1473,10 @@ class QueryLogRelationByIndexSetIdResource(Resource):
 
         # Step: 从服务关联中找
         log_relation = (
-            LogServiceRelation.objects.filter(log_type=ServiceRelationLogTypeChoices.BK_LOG, value=data["index_set_id"])
+            LogServiceRelation.objects.filter(
+                Q(log_type=ServiceRelationLogTypeChoices.BK_LOG) & 
+                (Q(value=data["index_set_id"]) | Q(value_list__icontains=data["index_set_id"]))
+            )
             .order_by("created_at")
             .first()
         )

@@ -100,6 +100,7 @@ class LogServiceRelation(ServiceBase):
     log_type = models.CharField("日志类型", max_length=50, choices=ServiceRelationLogTypeChoices.choices())
     related_bk_biz_id = models.IntegerField("关联的业务id", null=True)
     value = models.CharField("日志值", max_length=512)
+    value_list = models.JSONField("日志值列表", default=list)
 
 
 class AppServiceRelation(ServiceBase):

@@ -17,6 +17,7 @@ import re
 from multiprocessing.pool import ApplyResult
 from typing import Any
 from datetime import timedelta
+from django.db.models import Q
 
 import arrow
 from django.utils.translation import gettext as _
@@ -133,6 +134,11 @@ class ServiceInfoResource(Resource):
         return {}
 
     @classmethod
+    def get_log_relation_info_list(cls, bk_biz_id, app_name, service_name):
+        relations = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
+        return LogServiceRelationOutputSerializer(instance=relations, many=True).data
+    
+    @classmethod
     def get_app_relation_info(cls, bk_biz_id, app_name, service_name):
         query = AppServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
         if query.exists():
@@ -221,7 +227,9 @@ class ServiceInfoResource(Resource):
         )
         instance_res = pool.apply_async(RelationMetricHandler.list_instances, kwds=query_instance_param)
         app_relation = pool.apply_async(self.get_app_relation_info, args=(bk_biz_id, app_name, service_name))
-        log_relation = pool.apply_async(self.get_log_relation_info, args=(bk_biz_id, app_name, service_name))
+        # 2025.8.26 如果不再需要返回这个 log_relation 数据可以删除相关代码从而精简接口
+        log_relation = pool.apply_async(self.get_log_relation_info, args=(bk_biz_id, app_name, service_name)) 
+        log_relation_list = pool.apply_async(self.get_log_relation_info_list, args=(bk_biz_id, app_name, service_name))
         cmdb_relation = pool.apply_async(self.get_cmdb_relation_info, args=(bk_biz_id, app_name, service_name))
         event_relation = pool.apply_async(self.get_event_relation_info, args=(bk_biz_id, app_name, service_name))
         uri_relation = pool.apply_async(self.get_uri_relation_info, args=(bk_biz_id, app_name, service_name))
@@ -245,6 +253,7 @@ class ServiceInfoResource(Resource):
 
         app_relation_info = app_relation.get()
         log_relation_info = log_relation.get()
+        log_relation_info_list = log_relation_list.get()
         cmdb_relation_info = cmdb_relation.get()
         event_relation_info = event_relation.get()
         uri_relation_info = uri_relation.get()
@@ -254,7 +263,7 @@ class ServiceInfoResource(Resource):
             [
                 apdex_info,
                 app_relation_info,
-                log_relation_info,
+                log_relation_info, # log_relation_info_list 和 log_relation_info 是一样的操作记录
                 cmdb_relation_info,
                 *event_relation_info,
                 *uri_relation_info,
@@ -268,6 +277,7 @@ class ServiceInfoResource(Resource):
         service_info["relation"] = {
             "app_relation": app_relation_info,
             "log_relation": log_relation_info,
+            "log_relation_list": log_relation_info_list,
             "cmdb_relation": cmdb_relation_info,
             "event_relation": event_relation_info,
             "uri_relation": uri_relation_info,
@@ -438,7 +448,9 @@ class ServiceConfigResource(Resource):
         update_relation = functools.partial(self.update, bk_biz_id, app_name, service_name)
 
         update_relation(validated_request_data.get("cmdb_relation"), CMDBServiceRelation)
+        # 2025.8.26 如果不再需要返回这个 log_relation 数据可以删除相关代码从而精简接口
         update_relation(validated_request_data.get("log_relation"), LogServiceRelation)
+        update_relation(validated_request_data.get("log_relation_list"), LogServiceRelation)
         update_relation(validated_request_data.get("app_relation"), AppServiceRelation)
 
         if validated_request_data.get("apdex_relation"):
@@ -607,7 +619,8 @@ class AppQueryByIndexSetResource(Resource):
 
     def perform_request(self, data):
         relations = LogServiceRelation.objects.filter(
-            log_type=ServiceRelationLogTypeChoices.BK_LOG, value=data["index_set_id"]
+            Q(log_type=ServiceRelationLogTypeChoices.BK_LOG) &
+            (Q(value=data["index_set_id"]) | Q(value_list__icontains=data["index_set_id"]))
         )
         res = []
         for relation in relations:
