@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 
 import './index.scss';
@@ -61,6 +61,16 @@ export default defineComponent({
 
     const groupList = computed(() =>
       props.fingerOperateData.groupList.filter(item => !props.fingerOperateData.dimensionList.includes(item.id)),
+    );
+
+    watch(
+      () => props.fingerOperateData,
+      () => {
+        initLocalValue();
+      },
+      {
+        deep: true,
+      },
     );
 
     const closePopover = () => {

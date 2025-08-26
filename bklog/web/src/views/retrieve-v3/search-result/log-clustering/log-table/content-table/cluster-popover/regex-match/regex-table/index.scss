@@ -66,10 +66,14 @@
           }
         }
 
-        .regex-column {
-        }
+        .input-column {
+          .bk-tooltip {
+            width: 100%;
 
-        .occupy-column {
+            .bk-tooltip-ref {
+              width: 100%;
+            }
+          }
         }
 
         .action-column {

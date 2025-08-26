@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, computed, PropType } from 'vue';
+import useLocale from '@/hooks/use-locale';
 
 import './index.scss';
 
@@ -47,7 +48,16 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
+    const { t } = useLocale();
+
     const displayValueList = computed(() => props.data.values.slice(0, 3));
+
+    const opMap = {
+      '=': '=',
+      '!=': '!=',
+      contains: t('包含'),
+      'not contains': t('不包含'),
+    };
 
     const handleClickTrigger = () => {
       emit('click');
@@ -74,7 +84,7 @@ export default defineComponent({
                 {props.data.field_alias}({props.data.field_name})
               </span>
               <span class={{ 'opt-sign': true, 'is-negtive': ['!=', 'not contains'].includes(props.data.op) }}>
-                {props.data.op}
+                {opMap[props.data.op]}
               </span>
               <div
                 class='close-main'

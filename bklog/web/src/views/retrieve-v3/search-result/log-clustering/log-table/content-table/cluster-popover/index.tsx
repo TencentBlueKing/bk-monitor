@@ -194,6 +194,7 @@ export default defineComponent({
           indexId={props.indexId}
           value={isShowRuleDialog.value}
           on-change={value => (isShowRuleDialog.value = value)}
+          on-open-cluster-config={() => emit('open-cluster-config')}
         />
       </div>
     );

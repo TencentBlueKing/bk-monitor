@@ -474,6 +474,7 @@ export default defineComponent({
               ref={tableRef}
               on-delete={handleDeleteRow}
               on-change={handleRegexTableChange}
+              on-open-cluster-config={() => emit('open-cluster-config')}
             />
           </div>
           <div

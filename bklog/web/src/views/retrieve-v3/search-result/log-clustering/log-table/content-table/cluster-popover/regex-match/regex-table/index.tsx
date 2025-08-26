@@ -130,6 +130,10 @@ export default defineComponent({
       });
     };
 
+    const handleOpenClusterConfig = () => {
+      emit('open-cluster-config');
+    };
+
     expose({
       setDataList: (list: RowData[]) => {
         tableData.value = list.map(item => ({ ...item, rowKey: random() }));
@@ -192,33 +196,61 @@ export default defineComponent({
                 </div>
               </td>
               <td>
-                <div class='regex-column'>
-                  <ValidateInput
-                    ref={setItemRef('regex', index)}
-                    value={row.pattern}
-                    rules={regexRules}
-                    disabled={row.disabled}
-                    v-bk-tooltips={{
-                      disabled: !row.disabled,
-                      content: t('聚类正则已生效，请前往聚类配置修改'),
-                    }}
-                    on-input={value => (row.pattern = value.trim())}
-                  />
+                <div class='input-column'>
+                  <bk-popover
+                    placement='top'
+                    disabled={!row.disabled}
+                  >
+                    <ValidateInput
+                      ref={setItemRef('regex', index)}
+                      value={row.pattern}
+                      rules={regexRules}
+                      disabled={row.disabled}
+                      on-input={value => (row.pattern = value.trim())}
+                    />
+                    <span slot='content'>
+                      <i18n path='聚类正则已生效，请前往 {0} 修改'>
+                        <bk-button
+                          text
+                          theme='primary'
+                          size='small'
+                          style='padding:0;color:#699DF4'
+                          on-click={handleOpenClusterConfig}
+                        >
+                          {t('聚类设置')}
+                        </bk-button>
+                      </i18n>
+                    </span>
+                  </bk-popover>
                 </div>
               </td>
               <td>
-                <div class='occupy-column'>
-                  <ValidateInput
-                    ref={setItemRef('occupy', index)}
-                    value={row.occupy}
-                    rules={occupyRules}
-                    disabled={row.disabled}
-                    v-bk-tooltips={{
-                      disabled: !row.disabled,
-                      content: t('聚类正则已生效，请前往聚类配置修改'),
-                    }}
-                    on-input={value => (row.occupy = value.trim())}
-                  />
+                <div class='input-column'>
+                  <bk-popover
+                    placement='top'
+                    disabled={!row.disabled}
+                  >
+                    <ValidateInput
+                      ref={setItemRef('occupy', index)}
+                      value={row.occupy}
+                      rules={occupyRules}
+                      disabled={row.disabled}
+                      on-input={value => (row.occupy = value.trim())}
+                    />
+                    <span slot='content'>
+                      <i18n path='聚类正则已生效，请前往 {0} 修改'>
+                        <bk-button
+                          text
+                          theme='primary'
+                          size='small'
+                          style='padding:0;color:#699DF4'
+                          on-click={handleOpenClusterConfig}
+                        >
+                          {t('聚类设置')}
+                        </bk-button>
+                      </i18n>
+                    </span>
+                  </bk-popover>
                 </div>
               </td>
               <td>
