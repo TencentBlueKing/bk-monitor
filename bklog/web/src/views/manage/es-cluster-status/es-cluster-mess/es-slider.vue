@@ -861,12 +861,12 @@
           if (val !== 'multi_biz') {
             this.visibleList = [];
           } else {
-            this.visibleList = (this.cacheVisibleList);
+            this.visibleList = structuredClone(this.cacheVisibleList);
           }
           if (val !== 'biz_attr') {
             this.bkBizLabelsList = [];
           } else {
-            this.bkBizLabelsList = (this.cacheBkBizLabelsList);
+            this.bkBizLabelsList = structuredClone(this.cacheBkBizLabelsList);
           }
         },
       },
