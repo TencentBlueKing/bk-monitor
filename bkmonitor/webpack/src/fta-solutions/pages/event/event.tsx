@@ -1114,6 +1114,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         this.topNOverviewData.fieldList = fieldList;
         this.topNOverviewData.count = count;
       }
+      // valueMap由接口返回数据和前端静态数据组成，needSearch字段用来判断数据列表是否需要搜索
       const valueMap: any = {};
       const list = [];
       // biome-ignore lint/complexity/noForEach: <explanation>
@@ -1121,9 +1122,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         valueMap[item.field] =
           item.buckets.map(set => {
             if (tagList.some(tag => tag.id === item.field)) {
-              return { id: set.id, name: `"${set.name}"` };
+              return { id: set.id, name: `"${set.name}"`, needSearch: true };
             }
-            return { id: set.id, name: item.field === 'strategy_id' ? set.id : `"${set.name}"` };
+            return { id: set.id, name: item.field === 'strategy_id' ? set.id : `"${set.name}"`, needSearch: true };
           }) || [];
         if (topNFieldList.includes(item.field)) {
           list.push({
@@ -1142,10 +1143,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         valueMap.assignee.unshift({
           id: '""',
           name: this.$t('- 空 -'),
+          needSearch: true,
         });
       }
       if (tagList?.length) {
-        valueMap.tags = tagList.map(item => ({ id: item.name, name: item.name }));
+        valueMap.tags = tagList.map(item => ({ id: item.name, name: item.name, needSearch: true }));
       }
       const mergeFieldMap = this.searchType === 'alert' ? commonAlertFieldMap : commonActionFieldMap;
       this.valueMap = Object.assign(valueMap, this.searchType === 'incident' ? commonIncidentFieldMap : mergeFieldMap);
@@ -1650,7 +1652,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         query: {
           activeTab,
           from: this.timeRange[0],
-          to: this.timeRange[1] ,
+          to: this.timeRange[1],
         },
       });
     } else {

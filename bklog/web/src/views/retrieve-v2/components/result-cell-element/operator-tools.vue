@@ -34,6 +34,7 @@
         <span
           :class="`icon bklog-icon bklog-shishirizhi ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
+          @mouseup.stop
         >
         </span>
       </span>
@@ -44,6 +45,7 @@
         <span
           :class="`icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('contextLog', isActiveLog)"
+          @mouseup.stop
         >
         </span>
       </span>
@@ -55,6 +57,7 @@
         <span
           :class="`icon bklog-icon bklog-consola ${!isCanClickWebConsole && 'is-disable'}`"
           @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
+          @mouseup.stop
         ></span>
       </span>
       <div v-show="false">
@@ -111,6 +114,7 @@
         <span
           :class="`icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}` "
           @click.stop="handleCheckClick('contextLog', isActiveLog)"
+          @mouseup.stop
         >
         </span>
       </span>
@@ -130,6 +134,7 @@
       <span
         class="handle-card ai-assistant bklog-row-ai"
         @click.stop="e => handleCheckClick('ai', true, e)"
+        @mouseup.stop
       >
         <span class="bklog-icon bklog-ai-mofabang"></span>
         <img :src="aiImageUrl" />

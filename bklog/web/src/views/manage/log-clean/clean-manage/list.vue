@@ -195,7 +195,7 @@
 </template>
 
 <script>
-  import { clearTableFilter } from '@/common/util';
+  import { clearTableFilter, updateLastSelectedIndexId } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import { mapGetters } from 'vuex';
 
@@ -422,6 +422,7 @@
           query.editName = row.collector_config_name;
           params.collectorId = row.collector_config_id;
         } else if (operateType === 'search') {
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
           routeName = 'retrieve';
           params.indexId = row.index_set_id;
         }

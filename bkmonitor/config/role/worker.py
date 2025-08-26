@@ -57,7 +57,7 @@ INSTALLED_APPS += (  # noqa: F405
     "apm",
     "apm_ebpf",
     "core.drf_resource",
-    "ai_agents",
+    "ai_whale",
 )
 
 # 系统名称
@@ -235,10 +235,6 @@ DEFAULT_CRONTAB += [
     # 检查V4数据源是否存在对应的Consul配置，若存在则删除
     ("metadata.task.config_refresh.check_and_delete_ds_consul_config", "*/5 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),
-    # 刷新metadata降精度配置，10分钟一次
-    ("metadata.task.downsampled.refresh_influxdb_downsampled", "*/10 * * * *", "global"),
-    # 降精度计算，5分钟一次检测一次
-    ("metadata.task.downsampled.access_and_calc_for_downsample", "*/5 * * * *", "global"),
     # 刷新回溯配置
     ("metadata.task.config_refresh.refresh_es_restore", "* * * * *", "global"),
     # 上报自采集指标--每分钟一次
@@ -248,7 +244,7 @@ DEFAULT_CRONTAB += [
     ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
     ("metadata.task.bcs.discover_bcs_clusters", "*/5 * * * *", "global"),
     # BkBase信息同步,一小时一次
-    ("metadata.task.bkbase.sync_bkbase_cluster_info", "0 */1 * * *", "global"),
+    ("metadata.task.bkbase.sync_all_bkbase_cluster_info", "0 */1 * * *", "global"),
     # 检查并执行接入vm命令, 每5分钟执行一次
     ("metadata.task.vm.check_access_vm_task", "*/5 * * * *", "global"),
     # 同步空间信息
