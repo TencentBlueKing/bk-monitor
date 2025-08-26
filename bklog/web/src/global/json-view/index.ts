@@ -232,6 +232,11 @@ export default class JsonView {
     this.rootElClick?.(e);
   }
 
+  private handleMouseUp(e: MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+
   public setValue(val: any) {
     this.options.jsonValue = val;
     this.setJsonViewSchema(val);
@@ -240,6 +245,7 @@ export default class JsonView {
   public initClickEvent(fn?: (...args) => void) {
     this.rootElClick = fn;
     this.targetEl.addEventListener('click', this.handleTargetElementClick.bind(this));
+    this.targetEl.addEventListener('mouseup', this.handleMouseUp.bind(this));
   }
 
   public expand(depth: number) {
@@ -263,6 +269,7 @@ export default class JsonView {
     if (this.targetEl.querySelector('.bklog-json-view-node')) {
       this.targetEl.innerHTML = '';
       this.targetEl.removeEventListener('click', this.handleTargetElementClick.bind(this));
+      this.targetEl.removeEventListener('mouseup', this.handleMouseUp.bind(this));
     }
   }
 }
