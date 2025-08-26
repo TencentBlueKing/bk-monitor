@@ -237,7 +237,7 @@ class ExporterPluginManager(PluginManager):
             if any([collector_path in str(i) for i in self.filename_list]):
                 # 读取文件内容
                 collector_file[sys_name] = self.CollectorFile(
-                    data=self._decode_file(self.plugin_configs[Path(self.plugin.plugin_id, collector_path)]),
+                    data=self._decode_file(self.plugin_configs[Path(collector_path)]),
                     name=collector_name,
                 )
 

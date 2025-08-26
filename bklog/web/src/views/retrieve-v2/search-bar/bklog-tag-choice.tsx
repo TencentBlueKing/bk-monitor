@@ -29,7 +29,8 @@ import { getCharLength } from '../../../common/util';
 import PopInstanceUtil from '../../../global/pop-instance-util';
 import useLocale from '../../../hooks/use-locale';
 import useResizeObserve from '../../../hooks/use-resize-observe';
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import { RetrieveEvent } from '../../retrieve-helper';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import './bklog-tag-choice.scss';
 
@@ -713,7 +714,8 @@ export default defineComponent({
         },
       });
 
-      RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, () => {
+      const { addEvent } = useRetrieveEvent();
+      addEvent(RetrieveEvent.GLOBAL_SCROLL, () => {
         if (isInputFocused.value) {
           if (fixedInstance.isShown()) {
             fixedInstance.hide();

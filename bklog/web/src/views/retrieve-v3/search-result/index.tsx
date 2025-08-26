@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, type ComputedRef, defineComponent, onUnmounted } from 'vue';
+import { computed, type ComputedRef, defineComponent } from 'vue';
+
 import { debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -45,6 +46,7 @@ import Grep from '../grep';
 import { MSearchResultTab } from '../type';
 import useStore from '@/hooks/use-store';
 import LogClustering from './log-clustering';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import './index.scss';
 
@@ -84,11 +86,8 @@ export default defineComponent({
       debounceUpdateTabValue(item.favorite_type === 'chart' ? 'graphAnalysis' : 'origin');
     };
 
-    RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
-
-    onUnmounted(() => {
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
-    });
+    const { addEvent } = useRetrieveEvent();
+    addEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
 
     const renderTabContent = () => {
       if (activeTab.value === MSearchResultTab.GRAPH_ANALYSIS) {

@@ -60,6 +60,7 @@
   import { debounce, isEmpty } from 'lodash';
   import JSONBig from 'json-bigint';
   import useLocale from '@/hooks/use-locale';
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -326,7 +327,8 @@
     },
   );
 
-  RetrieveHelper.on(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
 
   onMounted(() => {
     setIsOverflowY();
@@ -334,7 +336,6 @@
 
   onBeforeUnmount(() => {
     destroy();
-    RetrieveHelper.off(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
   });
 </script>
 <style lang="scss">
