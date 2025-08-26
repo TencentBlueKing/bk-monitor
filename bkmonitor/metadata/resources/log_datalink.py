@@ -376,7 +376,7 @@ class UpdateDorisRouter(BaseLogRouter):
 
 
 class CreateOrUpdateLogRouter(Resource):
-    """更新或者创建es路由信息"""
+    """更新或者创建log路由信息"""
 
     class RequestSerializer(ParamsSerializer):
         space_type = serializers.CharField(required=False, label="空间类型")
@@ -456,7 +456,7 @@ class CreateOrUpdateLogRouter(Resource):
             raise ValueError(f"Unsupported storage type: {validated_request_data['storage_type']}")
 
 
-class CreateOrUpdateLogDataLink(BaseLogRouter):
+class BulkCreateOrUpdateLogRouter(BaseLogRouter):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         space_type = serializers.CharField(label="空间类型")

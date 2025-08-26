@@ -458,6 +458,10 @@ class CreateOrUpdateLogRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateLogRouter)]
 
 
+class BulkCreateOrUpdateLogRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.BulkCreateOrUpdateLogRouter)]
+
+
 class ModifyDataIdSourceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyDataIdSource)]
 
