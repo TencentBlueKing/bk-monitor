@@ -350,6 +350,7 @@ class TestDataSource:
             operator=self.operator,
             type_label=self.data_type_label,
             source_label=self.data_source_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             option={models.DataSourceOption.OPTION_ALLOW_USE_ALIAS_NAME: True},
         )
 
@@ -751,6 +752,7 @@ class TestDataSource:
                 operator=self.operator,
                 source_label=self.data_source_label,
                 type_label=self.data_type_label,
+                bk_tenant_id=DEFAULT_TENANT_ID,
             )
 
     def test_create_data_source_no_cluster(self, mocker):
@@ -770,6 +772,7 @@ class TestDataSource:
                 operator=self.operator,
                 type_label=self.data_type_label,
                 source_label=self.data_source_label,
+                bk_tenant_id=DEFAULT_TENANT_ID,
             )
 
     def test_standard_fields_discover(self, mocker, mock_outer_ralay, create_and_delete_record, patch_redis_tools):
@@ -781,6 +784,7 @@ class TestDataSource:
             operator=self.operator,
             source_label=self.data_source_label,
             type_label=self.data_type_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 创建一个对应的结果表
@@ -1065,6 +1069,7 @@ class TestDataSource:
             operator=self.operator,
             source_label=self.data_source_label,
             type_label=self.data_type_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 将所有的创建操作mock为成功
@@ -1225,6 +1230,7 @@ class TestDataSource:
             operator=self.operator,
             source_label=self.data_source_label,
             type_label=self.data_type_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 此时由于是全业务的注册，index名需要去掉业务ID
@@ -1263,6 +1269,7 @@ class TestDataSource:
             operator=self.operator,
             source_label=self.data_source_label,
             type_label=self.data_type_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 创建事件分组
@@ -1310,6 +1317,7 @@ class TestDataSource:
             operator=self.operator,
             source_label=self.data_source_label,
             type_label=self.data_type_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
         new_group = models.TimeSeriesGroup.create_custom_group(
             bk_data_id=new_data_source.bk_data_id,

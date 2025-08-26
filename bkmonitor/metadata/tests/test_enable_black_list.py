@@ -63,6 +63,7 @@ class TestBlackList:
             operator=self.operator,
             type_label=self.data_type_label,
             source_label=self.data_source_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             option={
                 models.DataSourceOption.OPTION_ALLOW_USE_ALIAS_NAME: True,
                 models.DataSourceOption.OPTION_IS_SPLIT_MEASUREMENT: True,

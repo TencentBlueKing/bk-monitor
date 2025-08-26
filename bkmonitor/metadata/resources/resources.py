@@ -99,7 +99,7 @@ class CreateDataIDResource(Resource):
     """创建数据源ID"""
 
     class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = serializers.CharField(required=False, label="租户ID")
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         data_name = serializers.CharField(required=True, label="数据源名称")
         etl_config = serializers.CharField(required=True, label="清洗模板配置")
@@ -124,13 +124,6 @@ class CreateDataIDResource(Resource):
             if settings.ENABLE_MULTI_TENANT_MODE:
                 if not attrs.get("bk_biz_id"):
                     raise ValueError(_("多租户下，必须指定dataid所属业务ID"))
-
-                bk_tenant_id = attrs.get("bk_tenant_id") or get_request_tenant_id()
-                if not bk_tenant_id:
-                    raise ValueError(_("多租户下，必须指定dataid所属租户ID"))
-                attrs["bk_tenant_id"] = bk_tenant_id
-            else:
-                attrs["bk_tenant_id"] = DEFAULT_TENANT_ID
             return attrs
 
     def perform_request(self, validated_request_data):
@@ -207,6 +200,7 @@ class GetOrCreateAgentEventDataIdResource(Resource):
             type_label="event",
             space_uid=space_uid,
             bk_biz_id=bk_biz_id,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         return {"bk_data_id": new_data_source.bk_data_id}

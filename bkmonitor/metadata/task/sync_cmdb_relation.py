@@ -132,6 +132,7 @@ def sync_relation_redis_data():
                         space_type_id=space_type,
                         space_uid=key,
                         bk_biz_id=biz_id,
+                        bk_tenant_id=DEFAULT_TENANT_ID,
                     )
                     new_rt = TimeSeriesGroup.create_time_series_group(
                         bk_data_id=ds.bk_data_id,

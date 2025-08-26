@@ -73,6 +73,7 @@ class Command(BaseCommand):
         # 否则，创建之
         models.DataSource.create_data_source(
             operator=SYSTEM_USERNAME,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             bk_data_id=bk_data_id,
             data_name="bkci.pipeline",
             data_description="bkci pipeline data source",
