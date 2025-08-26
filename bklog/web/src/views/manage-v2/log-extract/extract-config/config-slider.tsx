@@ -78,7 +78,7 @@ export default defineComponent({
 
     const isChangeOperatorLoading = ref(false); // 修改执行人加载状态
     const showSelectDialog = ref(false); // 是否显示选择对话框
-    const manageStrategyData = ref(JSON.parse(JSON.stringify(props.strategyData))); // 管理策略数据
+    const manageStrategyData = ref(structuredClone(props.strategyData)); // 管理策略数据
     const isError = ref(false);
 
     // 初始化数据，避免后台造的数据为空数组
@@ -90,8 +90,9 @@ export default defineComponent({
     }
 
     // 是否验证通过
-    const isValidated = computed(() => {
-      return (
+    const isValidated = ref(false)
+    const isValidatedComputed = () => {
+      isValidated.value = (
         manageStrategyData.value.strategy_name &&
         manageStrategyData.value.user_list.length &&
         manageStrategyData.value.visible_dir.every((item: string) => Boolean(validateVisibleDir(item))) &&
@@ -99,24 +100,9 @@ export default defineComponent({
         manageStrategyData.value.modules.length &&
         manageStrategyData.value.operator
       );
-    });
+    }
 
     const isExternal = computed(() => store.state.isExternal);
-
-    // 监听 props 变化，更新本地数据
-    watch(
-      () => props.strategyData,
-      newVal => {
-        Object.assign(manageStrategyData.value, JSON.parse(JSON.stringify(newVal)));
-        if (!manageStrategyData.value.visible_dir?.length) {
-          manageStrategyData.value.visible_dir = [''];
-        }
-        if (!manageStrategyData.value.file_type?.length) {
-          manageStrategyData.value.file_type = [''];
-        }
-      },
-      { deep: true },
-    );
 
     // 校验授权目录
     const validateVisibleDir = (val: string) => {
@@ -161,6 +147,7 @@ export default defineComponent({
       // 更新管理策略数据
       manageStrategyData.value.select_type = selectType;
       manageStrategyData.value.modules = modules;
+      isValidatedComputed();
     };
 
     // 监听选择对话框的显示状态
@@ -210,6 +197,7 @@ export default defineComponent({
             value={item}
             on-change={(val: string) => {
               manageStrategyData.value.visible_dir[index] = val;
+              isValidatedComputed();
             }}
             validator={validateVisibleDir}
           />
@@ -238,6 +226,7 @@ export default defineComponent({
             value={item}
             onChange={(val: string) => {
               manageStrategyData.value.file_type[index] = val;
+              isValidatedComputed();
             }}
             validator={validateFileExtension}
           />
@@ -261,6 +250,7 @@ export default defineComponent({
     const handleChangePrincipal = (val) => {
       isError.value = !val.length;
       manageStrategyData.value.user_list = val;
+      isValidatedComputed();
     }
 
     // 主渲染函数
@@ -286,6 +276,7 @@ export default defineComponent({
                 value={manageStrategyData.value.strategy_name}
                 onChange={(val: string) => {
                   manageStrategyData.value.strategy_name = val;
+                  isValidatedComputed();
                 }}
               />
             </div>
