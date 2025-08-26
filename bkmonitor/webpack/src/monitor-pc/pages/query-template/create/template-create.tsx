@@ -130,6 +130,10 @@ export default class TemplateCreate extends tsc<object> {
     this.submitLoading = false;
     this.needCheck = false;
     if (!data) return;
+    this.$bkMessage({
+      theme: 'success',
+      message: this.$t('创建指标模板成功'),
+    });
     this.$router.push({
       name: 'query-template',
     });

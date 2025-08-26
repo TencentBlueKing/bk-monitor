@@ -109,6 +109,10 @@ export default class TemplateEdit extends TemplateCreate {
     this.submitLoading = false;
     this.needCheck = false;
     if (!data) return;
+    this.$bkMessage({
+      theme: 'success',
+      message: this.$t('编辑指标模板成功'),
+    });
     this.$router.push({
       name: 'query-template',
     });
