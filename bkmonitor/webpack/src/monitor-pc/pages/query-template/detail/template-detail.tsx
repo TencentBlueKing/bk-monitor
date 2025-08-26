@@ -219,7 +219,7 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
         width='60vw'
         ext-cls='template-detail'
         is-show={this.sliderShow}
-        quick-close={false}
+        quick-close={true}
         show-mask={true}
         transfer={true}
         {...{ on: { 'update:isShow': this.handleSliderShowChange } }}
