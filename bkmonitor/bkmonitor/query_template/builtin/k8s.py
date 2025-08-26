@@ -104,9 +104,9 @@ _COMMON_BUILDER: QueryConfigBuilder = (
 def _cpu_usage_templ(usage_type: str) -> dict[str, Any]:
     return {
         "bk_biz_id": GLOBAL_BIZ_ID,
-        "name": f"[容器] CPU {usage_type} 使用率（%）",
-        "description": f"CPU {usage_type} 使用率表示容器实际使用的 CPU 与分配的 CPU 资源（{usage_type}）的比值。"
-        f"如果无数据，则表示容器未设置 CPU {usage_type}。",
+        "name": f"k8s_cpu_{usage_type}_usage",
+        "alias": f"[容器] CPU {usage_type} 使用率（%）",
+        "description": f"CPU {usage_type} 使用率表示容器实际使用的 CPU 与分配的 CPU 资源（{usage_type}）的比值。如果无数据，则表示容器未设置 CPU {usage_type}。",
         **_qs_to_query_params(
             UnifyQuerySet()
             .add_query(
@@ -133,9 +133,9 @@ def _cpu_usage_templ(usage_type: str) -> dict[str, Any]:
 def _memory_usage_templ(usage_type: str) -> dict[str, Any]:
     return {
         "bk_biz_id": GLOBAL_BIZ_ID,
-        "name": f"[容器] 内存 {usage_type} 使用率（%）",
-        "description": f"内存 {usage_type} 使用率表示容器实际内存占用与分配的内存资源（{usage_type}）的比值。"
-        f"如果无数据，则表示容器未设置内存 {usage_type}。",
+        "name": f"k8s_memory_{usage_type}_usage",
+        "alias": f"[容器] 内存 {usage_type} 使用率（%）",
+        "description": f"内存 {usage_type} 使用率表示容器实际内存占用与分配的内存资源（{usage_type}）的比值。如果无数据，则表示容器未设置内存 {usage_type}。",
         **_qs_to_query_params(
             UnifyQuerySet()
             .add_query(
@@ -169,7 +169,8 @@ MEMORY_REQUEST_USAGE: dict[str, Any] = _memory_usage_templ("request")
 
 CPU_USAGE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[容器] CPU 使用量",
+    "name": "k8s_cpu_usage",
+    "alias": "[容器] CPU 使用量",
     "description": "CPU 使用量表示容器实际使用的 CPU 资源，单位为核。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -205,7 +206,8 @@ CPU_USAGE: dict[str, Any] = {
 
 MEMORY_USAGE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[容器] 内存使用量",
+    "name": "k8s_memory_usage",
+    "alias": "[容器] 内存使用量",
     "description": "内存使用量表示容器实际使用的内存资源，单位为字节。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -241,7 +243,8 @@ MEMORY_USAGE: dict[str, Any] = {
 
 TERMINATE_REASON: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[容器] 异常终止数",
+    "alias": "[容器] 异常终止数",
+    "name": "k8s_terminate_reason",
     "description": "异常终止数表示容器因异常原因（如 OOMKilled）终止的次数。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -267,7 +270,8 @@ TERMINATE_REASON: dict[str, Any] = {
 
 ABNORMAL_RESTART: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[容器] 异常重启数",
+    "alias": "[容器] 异常重启数",
+    "name": "k8s_abnormal_restart",
     "description": "异常重启数表示容器在非正常状态下的重启次数。",
     **_qs_to_query_params(
         UnifyQuerySet()

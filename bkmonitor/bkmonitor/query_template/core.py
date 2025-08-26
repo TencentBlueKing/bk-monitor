@@ -24,13 +24,19 @@ class BaseQuery:
         name: str,
         bk_biz_id: int,
         query_configs: list[dict[str, Any]],
-        expression: str = None,
-        space_scope: list[str] = None,
-        functions: list[dict[str, Any] | str] = None,
+        alias: str | None = None,
+        namespace: str | None = None,
+        description: str | None = None,
+        expression: str | None = None,
+        space_scope: list[str] | None = None,
+        functions: list[dict[str, Any] | str] | None = None,
         **kwargs,
     ):
         self.name: str = name
         self.bk_biz_id: int = bk_biz_id
+        self.alias: str = alias or ""
+        self.namespace: str = namespace or constants.Namespace.DEFAULT.value
+        self.description: str = description or ""
         self.query_configs: list[dict[str, Any]] = query_configs
         self.expression: str = expression or ""
         self.space_scope: list[str] = space_scope or []
@@ -38,8 +44,11 @@ class BaseQuery:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "name": self.name,
             "bk_biz_id": self.bk_biz_id,
+            "name": self.name,
+            "alias": self.alias,
+            "namespace": self.namespace,
+            "description": self.description,
             "query_configs": self.query_configs,
             "expression": self.expression,
             "space_scope": self.space_scope,
@@ -220,10 +229,13 @@ class QueryTemplateWrapper(BaseQuery):
         name: str,
         bk_biz_id: int,
         query_configs: list[dict[str, Any]],
-        expression: str = None,
-        space_scope: list[str] = None,
-        functions: list[dict[str, Any] | str] = None,
-        variables: list[dict[str, Any]] = None,
+        alias: str | None = None,
+        namespace: str | None = None,
+        description: str | None = None,
+        expression: str | None = None,
+        space_scope: list[str] | None = None,
+        functions: list[dict[str, Any] | str] | None = None,
+        variables: list[dict[str, Any]] | None = None,
         **kwargs,
     ):
         self.variables: list[dict[str, Any]] = variables or []
@@ -235,6 +247,9 @@ class QueryTemplateWrapper(BaseQuery):
             name=name,
             bk_biz_id=bk_biz_id,
             query_configs=query_configs,
+            alias=alias,
+            namespace=namespace,
+            description=description,
             expression=expression,
             space_scope=space_scope,
             functions=functions,
@@ -268,8 +283,11 @@ class QueryTemplateWrapper(BaseQuery):
         # 序列化器承担版本兼容转换的职责，故模型对象统一走 from_dict，以确保数据格式正确。
         return cls.from_dict(
             {
-                "name": obj.name,
                 "bk_biz_id": obj.bk_biz_id,
+                "name": obj.name,
+                "alias": obj.alias,
+                "namespace": obj.namespace,
+                "description": obj.description,
                 "query_configs": obj.query_configs,
                 "expression": obj.expression,
                 "space_scope": obj.space_scope,
