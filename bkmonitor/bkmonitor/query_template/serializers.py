@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
+
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -19,7 +21,7 @@ class MixedTypeListField(serializers.ListField):
         self.allowed_types = kwargs.pop("allowed_types", [])
         super().__init__(**kwargs)
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any):
         if not isinstance(data, list):
             raise serializers.ValidationError(_("输入必须是一个列表。"))
 
@@ -64,7 +66,7 @@ class VariableSerializer(serializers.Serializer):
     config = VariableConfigSerializer(label=_("变量配置"), default={})
     description = serializers.CharField(label=_("变量描述"), required=False, allow_blank=True, default="")
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]):
         variable_type: constants.VariableType = constants.VariableType.from_value(attrs["type"])
 
         if variable_type.is_required_related_tag() and not attrs["config"].get("related_tag"):
@@ -78,52 +80,45 @@ class VariableSerializer(serializers.Serializer):
             )
 
         # 校验变量默认值的类型
-        if attrs["config"].get("default") is not None:
-            getattr(self, f"_validate_{variable_type.value.lower()}")(attrs["config"]["default"])
+        default_value: Any = attrs["config"].get("default")
+        if default_value is None:
+            return attrs
+
+        error_message: str = _("变量类型为 {variable_type} 时，默认值类型必须为 {value_type}。")
+        if variable_type in {constants.VariableType.GROUP_BY, constants.VariableType.TAG_VALUES}:
+            error_message = error_message.format(variable_type=variable_type, value_type="list[str]")
+            self._validate_string_list(default_value, error_message)
+        elif variable_type in {constants.VariableType.CONDITIONS, constants.VariableType.FUNCTIONS}:
+            error_message = error_message.format(variable_type=variable_type, value_type="list[dict]")
+            self._validate_dict_list(default_value, error_message)
+        elif variable_type in {constants.VariableType.METHOD, constants.VariableType.CONSTANTS}:
+            error_message = error_message.format(variable_type=variable_type, value_type="str")
+            self._validate_string(default_value, error_message)
 
         return attrs
 
-    @staticmethod
-    def _validate_method(default_value):
-        if not isinstance(default_value, str):
-            raise serializers.ValidationError(_("变量类型为汇聚变量时，默认值类型必须为 str。"))
-
-    @staticmethod
-    def _validate_group_by(default_value):
-        if not isinstance(default_value, list):
-            raise serializers.ValidationError(_("变量类型为维度变量时，默认值类型必须为 list。"))
+    @classmethod
+    def _validate_string_list(cls, default_value: Any, error_message: str):
+        cls._validate_list(default_value, error_message)
         for v in default_value:
-            if not isinstance(v, str):
-                raise serializers.ValidationError(_("变量类型为维度变量时，默认值类型必须为 list[str]。"))
+            cls._validate_string(v, error_message)
 
-    @staticmethod
-    def _validate_tag_values(default_value):
-        if not isinstance(default_value, list):
-            raise serializers.ValidationError(_("变量类型为维度值变量时，默认值类型必须为 list。"))
-        for v in default_value:
-            if not isinstance(v, str):
-                raise serializers.ValidationError(_("变量类型为维度值变量时，默认值类型必须为 list[str]。"))
-
-    @staticmethod
-    def _validate_conditions(default_value):
-        if not isinstance(default_value, list):
-            raise serializers.ValidationError(_("变量类型为条件变量时，默认值类型必须为 list。"))
+    @classmethod
+    def _validate_dict_list(cls, default_value: Any, error_message: str):
+        cls._validate_list(default_value, error_message)
         for v in default_value:
             if not isinstance(v, dict):
-                raise serializers.ValidationError(_("变量类型为条件变量时，默认值类型必须为 list[dict]。"))
+                raise serializers.ValidationError(error_message)
 
     @staticmethod
-    def _validate_functions(default_value):
-        if not isinstance(default_value, list):
-            raise serializers.ValidationError(_("变量类型为函数变量时，默认值类型必须为 list。"))
-        for v in default_value:
-            if not isinstance(v, dict):
-                raise serializers.ValidationError(_("变量类型为函数变量时，默认值类型必须为 list[dict]。"))
-
-    @staticmethod
-    def _validate_constants(default_value):
+    def _validate_string(default_value: Any, error_message: str):
         if not isinstance(default_value, str):
-            raise serializers.ValidationError(_("变量类型为常规变量时，默认值类型必须为 str。"))
+            raise serializers.ValidationError(error_message)
+
+    @staticmethod
+    def _validate_list(default_value: Any, error_message: str):
+        if not isinstance(default_value, list):
+            raise serializers.ValidationError(error_message)
 
 
 class QueryConfigSerializer(serializers.Serializer):
@@ -139,7 +134,7 @@ class QueryConfigSerializer(serializers.Serializer):
     functions = MixedTypeListField(label=_("函数"), required=False, default=[], allowed_types=[dict, str])
     group_by = serializers.ListField(label=_("聚合字段"), required=False, default=[], child=serializers.CharField())
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]):
         metric_field: str = ""
         try:
             metric_field = attrs["metrics"][0]["field"]
@@ -172,14 +167,14 @@ class QueryTemplateSerializer(serializers.Serializer):
     functions = MixedTypeListField(label=_("函数"), required=False, default=[], allowed_types=[dict, str])
     variables = serializers.ListField(label=_("查询模板变量"), required=False, default=[], child=VariableSerializer())
 
-    def validate_variables(self, variables):
+    @staticmethod
+    def validate_variables(variables: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # 变量名称唯一性校验
-        variable_names = set()
+        variable_names: set[str] = set()
         for variable in variables:
             if variable["name"] in variable_names:
                 raise serializers.ValidationError(
                     _("变量名 {variable_name} 重复").format(variable_name=variable["name"])
                 )
             variable_names.add(variable["name"])
-
         return variables
