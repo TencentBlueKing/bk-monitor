@@ -46,7 +46,7 @@ export default class ConfigPanel extends tsc<ConfigPanelProps> {
       return this.$t('全业务可见');
     }
     const bizIdMap = this.$store.getters.bizIdMap;
-    this.templateInfo?.space_scope
+    return this.templateInfo?.space_scope
       ?.map(bizId => bizIdMap.get(bizId)?.name)
       ?.filter(Boolean)
       ?.join(',');
