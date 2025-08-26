@@ -77,6 +77,15 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
   deletePopoverDelayTimer = null;
   /** 是否出于请求删除接口中状态 */
   isDeleteActive = false;
+  /** 模板基础信息loading */
+  baseLoading = false;
+  /** 查询模板消费场景列表 loading */
+  relationLoading = false;
+
+  /** 删除按钮是否可以使用 */
+  get canDelete() {
+    return this.templateBaseInfo?.can_delete && this.relationInfo?.total === 0;
+  }
 
   @Watch('sliderShow')
   sliderShowChange() {
@@ -101,7 +110,7 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
 
   @Emit('edit')
   handleEdit() {
-    this.handleSliderShowChange(false);
+    // this.handleSliderShowChange(false);
     return this.templateId;
   }
 
@@ -189,7 +198,9 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
    */
   async getTemplateDetail() {
     if (!this.sliderShow || !this.templateId || this.templateBaseInfo) return;
+    this.baseLoading = true;
     this.templateBaseInfo = await fetchQueryTemplateDetail(this.templateId);
+    this.baseLoading = false;
   }
 
   /**
@@ -197,7 +208,9 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
    */
   async getRelationInfoList(config?: { forceRefresh: boolean }) {
     if (!config?.forceRefresh && (!this.sliderShow || !this.templateId || this.relationInfo)) return;
+    this.relationLoading = true;
     this.relationInfo = await fetchQueryTemplateRelation(this.templateId);
+    this.relationLoading = false;
   }
 
   /**
@@ -257,12 +270,12 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
             <span
               v-bk-tooltips={{
                 content: this.$t('当前仍然有关联的消费场景，无法删除'),
-                disabled: this.templateBaseInfo?.can_delete,
+                disabled: this.canDelete,
                 placement: 'right',
               }}
             >
               <bk-button
-                disabled={!this.templateBaseInfo?.can_delete}
+                disabled={!this.canDelete}
                 title={this.$t('删除')}
                 onClick={this.handleDeletePopoverShow}
               >
@@ -286,7 +299,10 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
               name={TemplateDetailTabEnum.CONFIG}
               renderDirective='if'
             >
-              <ConfigPanel templateInfo={this.templateBaseInfo} />
+              <ConfigPanel
+                v-bkloading={{ isLoading: this.baseLoading }}
+                templateInfo={this.templateBaseInfo}
+              />
             </bk-tab-panel>
             <bk-tab-panel
               label={`${this.$t('消费场景')} (${this.relationInfo?.total || 0})`}
@@ -294,6 +310,7 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
               renderDirective='if'
             >
               <ConsumePanel
+                v-bkloading={{ isLoading: this.relationLoading }}
                 relationInfo={this.relationInfo}
                 onRefresh={() => this.getRelationInfoList({ forceRefresh: true })}
               />

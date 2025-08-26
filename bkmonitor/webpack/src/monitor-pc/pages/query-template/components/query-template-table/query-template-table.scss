@@ -32,7 +32,41 @@
 
     /* stylelint-disable-next-line no-descending-specificity */
     .bk-table-pagination-wrapper {
+      color: #4d4f56;
       border-top: 0;
+
+      .bk-page-total-count {
+        color: #4d4f56;
+
+        .stress {
+          color: #4d4f56;
+        }
+      }
+
+      .bk-page-count {
+        .bk-select {
+          margin: 0 8px;
+          background: #f0f1f5;
+          border: 0;
+        }
+      }
+
+      .bk-page-list-wrapper {
+        .bk-page-list {
+          .page-item {
+            .page-button {
+              background-color: transparent;
+              border: 0;
+            }
+
+            &.cur-page {
+              .page-button {
+                background-color: #e1ecff;
+              }
+            }
+          }
+        }
+      }
     }
 
     .click-show-slicer-col {

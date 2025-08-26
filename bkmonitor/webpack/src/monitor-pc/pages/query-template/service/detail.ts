@@ -36,7 +36,7 @@ import { getRetrieveQueryTemplateQueryConfigs } from './metric';
  * @param {QueryTemplateListItem['id']} templateId 查询模板ID
  */
 export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem['id']) => {
-  const detail = await retrieveQueryTemplate(templateId, { is_mock: false }).catch(() => ({
+  const detail = await retrieveQueryTemplate(templateId).catch(() => ({
     query_configs: [],
     variables: [],
   }));
@@ -73,6 +73,6 @@ export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem
  * @param {QueryTemplateListItem['id']} templateId 查询模板ID
  */
 export const fetchQueryTemplateRelation = async (templateId: QueryTemplateListItem['id']) => {
-  const relationList = await relationQueryTemplate(templateId, { is_mock: false }).catch(() => []);
+  const relationList = await relationQueryTemplate(templateId).catch(() => []);
   return relationList;
 };
