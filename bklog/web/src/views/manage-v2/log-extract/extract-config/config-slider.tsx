@@ -100,7 +100,6 @@ export default defineComponent({
         manageStrategyData.value.modules.length &&
         manageStrategyData.value.operator
       );
-      console.log('isValidated', isValidated.value);
     }
 
     const isExternal = computed(() => store.state.isExternal);
