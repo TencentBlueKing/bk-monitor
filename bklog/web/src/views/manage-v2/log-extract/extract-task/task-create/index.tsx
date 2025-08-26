@@ -67,6 +67,7 @@ export default defineComponent({
     const link_id = ref<number | null>(null);
     const ipSelectorOriginalValue = ref<any>(null); // 编辑态ip选择器初始值
     const ipSelectNewNameList = ref<any[]>([]); // 生成新的展示所用的预览地址列表
+    const isSubmitLoading = ref(false); // 提交按钮loading状态
 
     // 组件引用
     const textFilterRef = ref<any>(null);
@@ -227,31 +228,35 @@ export default defineComponent({
     // 处理提交下载任务
     const handleSubmit = () => {
       emit('loading', true);
+      isSubmitLoading.value = true;
       // 根据预览地址选择的文件提交下载任务
+      const requestData = {
+        bk_biz_id: store.state.bkBizId,
+        ip_list: ipList.value, // 下载目标
+        preview_directory: fileOrPath.value, // 目录
+        preview_ip_list: previewRef.value?.getFindIpList(), // 预览地址
+        preview_time_range: previewRef.value?.timeRange, // 文件日期
+        preview_start_time: previewRef.value?.timeStringValue[0], // 文件日期
+        preview_end_time: previewRef.value?.timeStringValue[1], // 文件日期
+        preview_is_search_child: previewRef.value?.isSearchChild, // 是否搜索子目录
+        file_path: downloadFiles.value, // 下载文件
+        filter_type: textFilterRef.value.filterType, // 过滤类型
+        filter_content: textFilterRef.value.filterContent, // 过滤内容
+        remark: remark.value, // 备注
+        link_id: link_id.value,
+      }
       http
         .request('extract/createDownloadTask', {
-          data: {
-            bk_biz_id: store.state.bkBizId,
-            ip_list: ipList.value, // 下载目标
-            preview_directory: fileOrPath.value, // 目录
-            preview_ip_list: previewRef.value?.getFindIpList(), // 预览地址
-            preview_time_range: previewRef.value?.timeRange, // 文件日期
-            preview_start_time: previewRef.value?.timeStringValue[0], // 文件日期
-            preview_end_time: previewRef.value?.timeStringValue[1], // 文件日期
-            preview_is_search_child: previewRef.value?.isSearchChild, // 是否搜索子目录
-            file_path: downloadFiles.value, // 下载文件
-            filter_type: textFilterRef.value?.filterType, // 过滤类型
-            filter_content: textFilterRef.value?.filterContent, // 过滤内容
-            remark: remark.value, // 备注
-            link_id: link_id.value,
-          },
+          data: requestData
         })
         .then(() => {
+          isSubmitLoading.value = false;
           goToHome();
         })
         .catch(err => {
           console.warn(err);
           emit('loading', false);
+          isSubmitLoading.value = false;
         });
     };
 
@@ -421,6 +426,7 @@ export default defineComponent({
             data-test-id='addNewExtraction_button_submitConfigure'
             theme='primary'
             onClick={handleSubmit}
+            loading={isSubmitLoading.value}
           >
             {t('提交下载任务')}
           </bk-button>

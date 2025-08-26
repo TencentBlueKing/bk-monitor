@@ -141,7 +141,16 @@ export enum K8sTableColumnKeysEnum {
    */
   NETWORK_TRANSMIT_BYTES = 'container_network_transmit_bytes_total',
 }
-
+export const K8SToEventWhereKeyMap = {
+  [K8sTableColumnKeysEnum.CLUSTER]: '"bcs_cluster_id"',
+  [K8sTableColumnKeysEnum.NAMESPACE]: 'namespace',
+  [K8sTableColumnKeysEnum.POD]: 'pod',
+  [K8sTableColumnKeysEnum.WORKLOAD]: 'name',
+  [K8sTableColumnKeysEnum.WORKLOAD_KIND]: 'kind',
+  [K8sTableColumnKeysEnum.INGRESS]: 'ingress',
+  [K8sTableColumnKeysEnum.SERVICE]: 'service',
+  [K8sTableColumnKeysEnum.NODE]: 'node',
+} as const;
 export enum SceneEnum {
   /** 性能 */
   Performance = 'performance',

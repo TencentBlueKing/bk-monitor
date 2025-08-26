@@ -31,6 +31,7 @@ import http from '@/api';
 import ModuleSelect from './module-select.tsx';
 import ValidateInput from './validate-input.tsx';
 import ValidateUserSelector from './validate-user-selector.tsx';
+import BkUserSelector from '@blueking/user-selector';
 
 import './config-slider.scss';
 
@@ -40,6 +41,7 @@ export default defineComponent({
     ModuleSelect,
     ValidateInput,
     ValidateUserSelector,
+    BkUserSelector
   },
   props: {
     // 策略数据
@@ -76,7 +78,8 @@ export default defineComponent({
 
     const isChangeOperatorLoading = ref(false); // 修改执行人加载状态
     const showSelectDialog = ref(false); // 是否显示选择对话框
-    const manageStrategyData = ref(JSON.parse(JSON.stringify(props.strategyData))); // 管理策略数据
+    const manageStrategyData = ref(structuredClone(props.strategyData)); // 管理策略数据
+    const isError = ref(false);
 
     // 初始化数据，避免后台造的数据为空数组
     if (!manageStrategyData.value.visible_dir?.length) {
@@ -87,8 +90,9 @@ export default defineComponent({
     }
 
     // 是否验证通过
-    const isValidated = computed(() => {
-      return (
+    const isValidated = ref(false)
+    const isValidatedComputed = () => {
+      isValidated.value = (
         manageStrategyData.value.strategy_name &&
         manageStrategyData.value.user_list.length &&
         manageStrategyData.value.visible_dir.every((item: string) => Boolean(validateVisibleDir(item))) &&
@@ -96,22 +100,9 @@ export default defineComponent({
         manageStrategyData.value.modules.length &&
         manageStrategyData.value.operator
       );
-    });
+    }
 
-    // 监听 props 变化，更新本地数据
-    watch(
-      () => props.strategyData,
-      newVal => {
-        Object.assign(manageStrategyData.value, JSON.parse(JSON.stringify(newVal)));
-        if (!manageStrategyData.value.visible_dir?.length) {
-          manageStrategyData.value.visible_dir = [''];
-        }
-        if (!manageStrategyData.value.file_type?.length) {
-          manageStrategyData.value.file_type = [''];
-        }
-      },
-      { deep: true },
-    );
+    const isExternal = computed(() => store.state.isExternal);
 
     // 校验授权目录
     const validateVisibleDir = (val: string) => {
@@ -156,6 +147,7 @@ export default defineComponent({
       // 更新管理策略数据
       manageStrategyData.value.select_type = selectType;
       manageStrategyData.value.modules = modules;
+      isValidatedComputed();
     };
 
     // 监听选择对话框的显示状态
@@ -205,6 +197,7 @@ export default defineComponent({
             value={item}
             on-change={(val: string) => {
               manageStrategyData.value.visible_dir[index] = val;
+              isValidatedComputed();
             }}
             validator={validateVisibleDir}
           />
@@ -233,6 +226,7 @@ export default defineComponent({
             value={item}
             onChange={(val: string) => {
               manageStrategyData.value.file_type[index] = val;
+              isValidatedComputed();
             }}
             validator={validateFileExtension}
           />
@@ -248,6 +242,16 @@ export default defineComponent({
         </div>
       ));
     };
+
+    const handleBlur = () => {
+      isError.value = !manageStrategyData.value.user_list.length;
+    }
+
+    const handleChangePrincipal = (val) => {
+      isError.value = !val.length;
+      manageStrategyData.value.user_list = val;
+      isValidatedComputed();
+    }
 
     // 主渲染函数
     return () => (
@@ -272,6 +276,7 @@ export default defineComponent({
                 value={manageStrategyData.value.strategy_name}
                 onChange={(val: string) => {
                   manageStrategyData.value.strategy_name = val;
+                  isValidatedComputed();
                 }}
               />
             </div>
@@ -280,7 +285,7 @@ export default defineComponent({
           {/* 用户列表 */}
           <div class='row-container'>
             <div class='title'>
-              {t('用户列表')}
+              {t('用户列表')} 
               <span class='required'> * </span>
               <span
                 class='bklog-icon bklog-info-fill'
@@ -293,7 +298,7 @@ export default defineComponent({
               />
             </div>
             <div class='content'>
-              <ValidateUserSelector
+              {/* <ValidateUserSelector
                 value={manageStrategyData.value.user_list}
                 onChange={(val: any[]) => {
                   manageStrategyData.value.user_list = val;
@@ -301,7 +306,19 @@ export default defineComponent({
                 // allowCreate={props.allowCreate}
                 api={props.userApi}
                 // placeholder={props.allowCreate ? t('请输入QQ并按Enter结束（可多次添加）') : ''}
-              />
+              /> */}
+              <BkUserSelector
+                style='width: 400px'
+                class={isError.value ? 'is-error' : ''}
+                placeholder={t('请选择群成员')}
+                disabled={isExternal.value}
+                api={props.userApi}
+                empty-text={t('无匹配人员')}
+                value={manageStrategyData.value.user_list}
+                on-blur={handleBlur}
+                on-change={val => handleChangePrincipal(val)}
+              >
+              </BkUserSelector>
             </div>
           </div>
 

@@ -273,7 +273,7 @@ export default () => {
           const respIndexSetList = resp[1];
           const defIndexItem =
             respIndexSetList.find(
-              item => item.permission?.[VIEW_BUSINESS] && !item.tags.some(tag => tag.tag_id === 4),
+              item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
             ) ?? respIndexSetList[0];
           const defaultId = [defIndexItem?.index_set_id].filter(Boolean);
 
