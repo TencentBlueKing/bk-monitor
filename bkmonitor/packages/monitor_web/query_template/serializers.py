@@ -75,7 +75,7 @@ class QueryTemplateRelationRequestSerializer(BaseQueryTemplateRequestSerializer)
     pass
 
 
-class QueryTemplateModelSerializer(serializers.ModelSerializer):
+class QueryTemplateBaseModelSerializer(serializers.ModelSerializer):
     can_edit = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
 
@@ -83,17 +83,31 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         model = QueryTemplate
         fields = "__all__"
 
-    def __init__(self, *args, **kwargs):
-        fields = kwargs.pop("fields", None)
-        super().__init__(*args, **kwargs)
+    @staticmethod
+    def _get_request_bk_biz_id():
+        return int(get_request().biz_id)
 
-        # 动态生成字段
-        if fields is not None:
-            allowed = set(fields)
-            existing = set(self.fields.keys())
-            for field_name in existing - allowed:
-                self.fields.pop(field_name)
+    @staticmethod
+    def is_global_template(bk_biz_id):
+        return bk_biz_id == GLOBAL_BIZ_ID
 
+    @classmethod
+    def is_read_only(cls, obj):
+        if cls.is_global_template(obj.bk_biz_id):
+            if get_request().user.is_superuser:
+                return False
+        elif obj.bk_biz_id == cls._get_request_bk_biz_id():
+            return False
+        return True
+
+    def get_can_edit(self, obj):
+        return not self.is_read_only(obj)
+
+    def get_can_delete(self, obj):
+        return not self.is_read_only(obj)
+
+
+class QueryTemplateModelSerializer(QueryTemplateBaseModelSerializer):
     @staticmethod
     def _is_allowed_by_bk_biz_ids(bk_biz_ids: Iterable[int]):
         permission = Permission()
@@ -106,11 +120,15 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
 
     @classmethod
     def _base_create_validate(cls, validated_data):
+        bk_biz_id = validated_data["bk_biz_id"]
+
+        if cls.is_global_template(bk_biz_id):
+            raise serializers.ValidationError(_("全局模板不允许在页面创建"))
+
+        # 校验该用户是否有业务范围的权限
         cls._is_allowed_by_bk_biz_ids([validated_data["space_scope"]])
-        # 校验同一业务下查询模板名称不能重复
-        if QueryTemplate.origin_objects.filter(
-            bk_biz_id=validated_data["bk_biz_id"], name=validated_data["name"]
-        ).exists():
+
+        if QueryTemplate.origin_objects.filter(bk_biz_id=bk_biz_id, name=validated_data["name"]).exists():
             raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
 
     def _base_update_validate(self, instance, validated_data):
@@ -135,13 +153,8 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
     @classmethod
     def _base_validate(cls, validated_data):
         bk_biz_id = validated_data["bk_biz_id"]
-
-        # 只有超级管理员允许在页面对全局模板进行操作
-        if cls.is_global_template(bk_biz_id):
-            if not get_request().user.is_superuser:
-                raise serializers.ValidationError(_("全局模板只允许超级管理员在页面进行操作"))
         # 非全局模板，生效范围必须包含本业务 ID
-        elif bk_biz_id not in validated_data["space_scope"]:
+        if not cls.is_global_template(bk_biz_id) and bk_biz_id not in validated_data["space_scope"]:
             raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
 
     def create(self, validated_data):
@@ -154,24 +167,21 @@ class QueryTemplateModelSerializer(serializers.ModelSerializer):
         self._base_update_validate(instance, validated_data)
         return super().update(instance, validated_data)
 
-    @property
-    def _request_bk_biz_id(self):
-        return int(get_request().biz_id)
 
-    @staticmethod
-    def is_global_template(bk_biz_id):
-        return bk_biz_id == GLOBAL_BIZ_ID
-
-    def is_read_only(self, obj):
-        if self.is_global_template(obj.bk_biz_id):
-            if get_request().user.is_superuser:
-                return False
-        elif obj.bk_biz_id == self._request_bk_biz_id:
-            return False
-        return True
-
-    def get_can_edit(self, obj):
-        return not self.is_read_only(obj)
-
-    def get_can_delete(self, obj):
-        return not self.is_read_only(obj)
+class QueryTemplateListModelSerializer(QueryTemplateBaseModelSerializer):
+    class Meta:
+        model = QueryTemplate
+        fields = [
+            "id",
+            "name",
+            "description",
+            "bk_biz_id",
+            "can_edit",
+            "can_delete",
+            "is_enabled",
+            "create_user",
+            "create_time",
+            "update_user",
+            "update_time",
+            "space_scope",
+        ]
