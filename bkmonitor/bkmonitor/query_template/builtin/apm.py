@@ -87,7 +87,8 @@ _COMMON_BUILDER: QueryConfigBuilder = (
 
 RPC_CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[调用分析] 被调成功率（%）",
+    "name": "apm_rpc_callee_success_rate",
+    "alias": "[调用分析] 被调成功率（%）",
     "description": "被调成功率是指当前服务作为「服务提供方」，被其他服务调用时，请求成功数占总请求数的比例。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -107,7 +108,8 @@ RPC_CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
 
 RPC_CALLEE_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[调用分析] 被调平均耗时 (ms）",
+    "name": "rpc_callee_avg_time",
+    "alias": "[调用分析] 被调平均耗时 (ms）",
     "description": "被调平均耗时是指当前服务作为「服务提供方」，被其他服务调用时，从收到请求到返回结果的平均响应时间，单位为毫秒（ms）。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -124,7 +126,8 @@ RPC_CALLEE_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
 
 RPC_CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[调用分析] 被调 P99 耗时 (ms）",
+    "name": "apm_rpc_callee_p99",
+    "alias": "[调用分析] 被调 P99 耗时 (ms）",
     "description": "被调 P99 耗时是指当前服务作为「服务提供方」，被其他服务调用时，99% 的请求响应时间小于指标输出值，单位为毫秒（ms）。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -145,7 +148,8 @@ RPC_CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
 
 RPC_CALLEE_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[调用分析] 被调错误数",
+    "name": "apm_rpc_callee_error_code",
+    "alias": "[调用分析] 被调错误数",
     "description": "被调错误数是指当前服务作为「服务提供方」，被其他服务调用时，请求出现错误的数量，默认按返回码（code）聚合。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -164,7 +168,8 @@ RPC_CALLEE_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
 
 RPC_CALLER_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[调用分析] 主调成功率（%）",
+    "name": "apm_rpc_caller_success_rate",
+    "alias": "[调用分析] 主调成功率（%）",
     "description": "主调成功率是指当前服务作为「调用方」，调用其他服务时，请求成功数占总请求数的比例。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -184,7 +189,8 @@ RPC_CALLER_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
 
 RPC_CALLER_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[调用分析] 主调平均耗时 (ms）",
+    "name": "apm_rpc_caller_avg_time",
+    "alias": "[调用分析] 主调平均耗时 (ms）",
     "description": "主调平均耗时是指当前服务作为「调用方」，调用其他服务时，从发起请求到接收结果的平均响应时间，单位为毫秒（ms）。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -200,7 +206,8 @@ RPC_CALLER_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
 
 RPC_CALLER_P99_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[调用分析] 主调 P99 耗时 (ms）",
+    "name": "apm_rpc_caller_p99",
+    "alias": "[调用分析] 主调 P99 耗时 (ms）",
     "description": "主调 P99 耗时是指当前服务作为「调用方」，调用其他服务时，99% 的请求响应时间小于指标输出值，单位为毫秒（ms）。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -222,7 +229,8 @@ RPC_CALLER_P99_QUERY_TEMPLATE: dict[str, Any] = {
 
 RPC_CALLER_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[调用分析] 主调错误数",
+    "name": "apm_rpc_caller_error_code",
+    "alias": "[调用分析] 主调错误数",
     "description": "主调错误数是指当前服务作为「调用方」，调用其他服务时，请求出现错误的数量，默认按返回码（code）聚合。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -241,12 +249,13 @@ RPC_CALLER_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
 
 CUSTOM_METRIC_PANIC_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "[自定义指标] 服务 Panic 次数",
+    "name": "apm_custom_metric_panic",
+    "alias": "[自定义指标] 服务 Panic 次数",
     "description": "服务 Panic 次数是指当前服务在运行过程中发生的 Panic 错误次数。",
     **_qs_to_query_params(
         UnifyQuerySet()
         .add_query(_COMMON_BUILDER.alias("a").metric(field="trpc_PanicNum", method="SUM", alias="a"))
-        .expression("(a")
+        .expression("a")
     ),
     "variables": _get_common_variables(
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.ENV_NAME, RPCMetricTag.NAMESPACE, RPCMetricTag.INSTANCE],

@@ -83,7 +83,8 @@ def callee_p99_query_params() -> dict[str, Any]:
 
 CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": 0,
-    "name": "被调成功率（%）",
+    "alias": "被调成功率（%）",
+    "name": "apm_rpc_callee_success_rate",
     **callee_success_rate_query_params(),
     "variables": [
         {
@@ -135,8 +136,11 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
 
 
 CALLEE_SUCCESS_RATE_QUERY_INSTANCE: dict[str, Any] = {
-    "name": "被调成功率（%）",
     "bk_biz_id": 0,
+    "alias": "被调成功率（%）",
+    "name": "apm_rpc_callee_success_rate",
+    "description": "",
+    "namespace": "default",
     "query_configs": [
         {
             "table": "APM.__default__",
@@ -176,7 +180,8 @@ CALLEE_SUCCESS_RATE_QUERY_INSTANCE: dict[str, Any] = {
 
 CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": 0,
-    "name": "被调 P99 耗时（ms）",
+    "name": "apm_rpc_callee_p99",
+    "alias": "被调 P99 耗时（ms）",
     **callee_p99_query_params(),
     "variables": [
         {
