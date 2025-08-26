@@ -17,6 +17,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_request_username
 from core.drf_resource import Resource
 from metadata import config, models
@@ -457,6 +458,7 @@ class CreateOrUpdateLogRouter(Resource):
 
 class CreateOrUpdateLogDataLink(BaseLogRouter):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         space_type = serializers.CharField(label="空间类型")
         space_id = serializers.CharField(label="空间ID")
         data_label = serializers.CharField(allow_blank=True, label="数据标签")
@@ -483,19 +485,16 @@ class CreateOrUpdateLogDataLink(BaseLogRouter):
                 required=False, label="查询别名设置", default=None, many=True
             )
 
-        table_info = serializers.ListField(child=TableInfoSerializer(), required=True, label="结果表信息列表")
+        table_info = serializers.ListField(child=TableInfoSerializer(), label="结果表信息列表", min_length=1)
 
     def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
         space_type = validated_request_data["space_type"]
         space_id = validated_request_data["space_id"]
         data_label = validated_request_data.get("data_label", "")
         table_info_list = validated_request_data["table_info"]
 
-        space = models.Space.objects.get(
-            space_type_id=space_type, space_id=space_id, bk_tenant_id=get_request_tenant_id()
-        )
-        bk_tenant_id = space.bk_tenant_id
-
+        space = models.Space.objects.get(space_type_id=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
         logger.info(
             "CreateOrUpdateLogDataLink: processing %d table(s) for space [%s:%s] with data_label [%s]",
             len(table_info_list),
@@ -511,16 +510,20 @@ class CreateOrUpdateLogDataLink(BaseLogRouter):
         need_refresh_data_label = False
 
         with atomic(config.DATABASE_CONNECTION_NAME):
+            table_mapping = {
+                table.table_id: table
+                for table in models.ResultTable.objects.filter(
+                    bk_tenant_id=bk_tenant_id, table_id__in=[info["table_id"] for info in table_info_list]
+                )
+            }
+
             for table_info in table_info_list:
                 table_id = table_info["table_id"]
                 storage_type = table_info.get("storage_type", models.ClusterInfo.TYPE_ES)
 
                 try:
                     # 检查结果表是否存在
-                    result_table = models.ResultTable.objects.filter(
-                        bk_tenant_id=bk_tenant_id, table_id=table_id
-                    ).first()
-
+                    result_table = table_mapping.get(table_id)
                     if result_table:
                         # 更新现有表
                         self._update_existing_table(bk_tenant_id, table_id, table_info, data_label, result_table)
