@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { MethodVariableModel } from '../../index';
 import VariableCommonForm from '../common-form/variable-common-form';
+import { CP_METHOD_LIST, METHOD_LIST } from '@/constant/constant';
 
 import type { IMethodVariableModel } from '../../../typings';
 
@@ -42,6 +43,10 @@ interface MethodVariableProps {
 export default class CreateMethodVariable extends tsc<MethodVariableProps, MethodVariableEvents> {
   @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
+
+  get methodList() {
+    return [...METHOD_LIST, ...CP_METHOD_LIST];
+  }
 
   handleValueChange(defaultValue: string) {
     let value = this.variable.value || '';
@@ -81,7 +86,7 @@ export default class CreateMethodVariable extends tsc<MethodVariableProps, Metho
               value={this.variable.defaultValue}
               onChange={this.handleValueChange}
             >
-              {this.variable.metric?.methodList.map(item => (
+              {this.methodList.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}

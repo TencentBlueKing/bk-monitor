@@ -139,7 +139,7 @@ export default class CreateDimensionVariable extends tsc<DimensionVariableProps,
         >
           <bk-form-item label={this.$t('关联指标')}>
             <bk-input
-              value={this.variable.metric.metric_id}
+              value={this.variable.metric?.metric_id}
               readonly
             />
           </bk-form-item>

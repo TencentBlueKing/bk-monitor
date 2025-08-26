@@ -95,19 +95,21 @@ export const createQueryTemplateQueryConfigsParams = (queryConfigs: QueryConfig[
       },
     ],
     group_by: item.agg_dimension,
-    where: item.agg_condition.map(w => {
-      if (isVariableName(w.key)) {
-        return w.key;
-      }
-      return w;
-    }),
+    where:
+      item.agg_condition?.map(w => {
+        if (isVariableName(w.key)) {
+          return w.key;
+        }
+        return w;
+      }) || [],
     interval: item.agg_interval,
-    functions: item.functions.map(f => {
-      if (isVariableName(f.id)) {
-        return f.id;
-      }
-      return f;
-    }),
+    functions:
+      item.functions?.map(f => {
+        if (isVariableName(f.id)) {
+          return f.id;
+        }
+        return f;
+      }) || [],
   }));
 };
 

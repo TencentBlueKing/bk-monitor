@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { MethodVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
+import { CP_METHOD_LIST, METHOD_LIST } from '@/constant/constant';
 interface MethodValueEvents {
   onBlur: () => void;
   onChange: (variable: MethodVariableModel) => void;
@@ -42,6 +43,10 @@ interface MethodValueProps {
 @Component
 export default class EditMethodVariableValue extends tsc<MethodValueProps, MethodValueEvents> {
   @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
+
+  get methodList() {
+    return [...METHOD_LIST, ...CP_METHOD_LIST];
+  }
 
   @Emit('change')
   handleValueChange(value: string) {
@@ -65,7 +70,7 @@ export default class EditMethodVariableValue extends tsc<MethodValueProps, Metho
           onChange={this.handleValueChange}
           onToggle={this.handleSelectToggle}
         >
-          {this.variable.metric?.methodList.map(item => (
+          {this.methodList.map(item => (
             <bk-option
               id={item.id}
               key={item.id}
