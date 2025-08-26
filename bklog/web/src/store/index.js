@@ -33,12 +33,12 @@
 import Vue, { set } from 'vue';
 
 import {
-  unifyObjectStyle,
-  getOperatorKey,
-  readBlobRespToJson,
-  parseBigNumberList,
-  setDefaultTableWidth,
   formatDate,
+  getOperatorKey,
+  parseBigNumberList,
+  readBlobRespToJson,
+  setDefaultTableWidth,
+  unifyObjectStyle,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
@@ -50,22 +50,21 @@ import { menuArr } from '../components/nav/complete-menu';
 import collect from './collect';
 import { ConditionOperator } from './condition-operator';
 import {
-  IndexSetQueryResult,
+  BkLogGlobalStorageKey,
   IndexFieldInfo,
   IndexItem,
-  indexSetClusteringData,
+  IndexSetQueryResult,
+  URL_ARGS,
   getDefaultRetrieveParams,
   getStorageOptions,
-  BkLogGlobalStorageKey,
-  URL_ARGS,
+  indexSetClusteringData,
 } from './default-values.ts';
 import globals from './globals';
-import { isAiAssistantActive, getCommonFilterAdditionWithValues } from './helper';
+import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
-import { axiosInstance } from '@/api';
-import http from '@/api';
+import http, { axiosInstance } from '@/api';
 Vue.use(Vuex);
 
 export const SET_APP_STATE = 'SET_APP_STATE';
@@ -329,7 +328,9 @@ const store = new Vuex.Store({
       return getters.originAddition.reduce((output, current) => {
         const { field, operator, value, hidden_values = [], disabled } = current;
         if (!disabled && field !== '_ip-select_') {
-          const filterValue = value.filter(v => !hidden_values.includes(v));
+          const filterFn = v => !hidden_values.includes(v);
+
+          const filterValue = Array.isArray(value) ? value.filter(filterFn) : [value].filter(filterFn);
           if (filterValue.length > 0) {
             output.push({
               field,
@@ -1165,6 +1166,7 @@ const store = new Vuex.Store({
         });
       }
 
+      dateFieldSortList = undefined;
       return http
         .request(
           urlStr,
@@ -1277,7 +1279,9 @@ const store = new Vuex.Store({
       // 如果是第一次请求
       // 分页请求后面请求{ start_time, end_time }要保证和初始值一致
       if (!payload?.isPagination) {
-        dateFieldSortList = payload?.defaultSortList?.filter(([fieldName, sort]) => fieldName && sort);
+        if (payload?.defaultSortList) {
+          dateFieldSortList = payload?.defaultSortList?.filter(([fieldName, sort]) => fieldName && sort);
+        }
 
         // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
         // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
@@ -1687,6 +1691,8 @@ const store = new Vuex.Store({
           // is is not 值映射
           is: val => `${field}: "${formatValue(val)}"`,
           'is not': val => `NOT ${field}: "${formatValue(val)}"`,
+          '=': val => `${field}: "${formatValue(val)}"`,
+          '!=': val => `NOT ${field}: "${formatValue(val)}"`,
         };
 
         return mappingKey[operator] ?? operator; // is is not 值映射

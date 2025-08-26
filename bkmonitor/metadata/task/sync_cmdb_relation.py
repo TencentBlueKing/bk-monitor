@@ -17,6 +17,7 @@ from django.db import transaction
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.utils.cipher import transform_data_id_to_token
+from constants.common import DEFAULT_TENANT_ID
 from core.prometheus import metrics
 from metadata.models import (
     ClusterInfo,
@@ -143,6 +144,7 @@ def sync_relation_redis_data():
                         default_storage_config={
                             ClusterInfo.TYPE_INFLUXDB,
                         },
+                        bk_tenant_id=DEFAULT_TENANT_ID,
                     )
                     generated_token = transform_data_id_to_token(
                         metric_data_id=ds.bk_data_id,

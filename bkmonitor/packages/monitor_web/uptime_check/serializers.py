@@ -337,7 +337,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         common_nodes = [node for node in node_objects if node.is_common]
 
         # 如果存在公共节点，检查用户是否有权限使用
-        if common_nodes:
+        if common_nodes and settings.ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH:
             Permission().is_allowed(ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
 
         with transaction.atomic():

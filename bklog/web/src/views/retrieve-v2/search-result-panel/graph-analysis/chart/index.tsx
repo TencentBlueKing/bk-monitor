@@ -25,8 +25,9 @@
  */
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { formatDateTimeField, getRegExp } from '@/common/util';
+import { formatDateTimeField, getRegExp, blobDownload } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
 import { debounce } from 'lodash';
 
@@ -52,6 +53,7 @@ export default defineComponent({
     const refRootContent = ref();
     const searchValue = ref('');
     const { $t } = useLocale();
+    const store = useStore();
 
     const { setChartOptions, destroyInstance, getChartInstance } = useChartRender({
       target: refRootElement,
@@ -111,7 +113,9 @@ export default defineComponent({
     const setTableData = () => {
       if (showTable.value || showNumber.value) {
         if (props.chartOptions.category === 'table') {
-          tableData.value.splice(0, tableData.value.length, ...(formatListData.value?.list ?? []));
+          tableData.value.length = 0;
+          tableData.value = [];
+          (formatListData.value?.list ?? []).forEach(t => tableData.value.push(t));
           return;
         }
 
@@ -205,27 +209,9 @@ export default defineComponent({
       return tableData.value.filter(data => columns.value.some(col => reg.test(data[col]))).slice(startIndex, endIndex);
     });
 
-    // const formatTableData = computed(() => {
-    //   return filterTableData.value.map(row => {
-    //     return columns.value.reduce((acc, cur) => {
-    //       return Object.assign({}, acc, { [cur]: getDateTimeFormatValue(row, cur) });
-    //     }, {});
-    //   });
-    // });
-
     const handleChartRootResize = debounce(() => {
       getChartInstance()?.resize();
     });
-
-    // const getDateTimeFormatValue = (row, col) => {
-    //   let value = row[col];
-    //   if (!/data|time/i.test(col)) {
-    //     return value;
-    //   }
-    //   const timestamp = /^\d+$/.test(value) ? Number(value) : value;
-    //   const timeValue = formatDate(timestamp, /^\d+$/.test(value), true);
-    //   return timeValue || value;
-    // };
 
     const handleSearchClick = value => {
       searchValue.value = value;
@@ -237,7 +223,8 @@ export default defineComponent({
     };
 
     const handleDownloadData = () => {
-      const filename = `bklog-${dayjs(new Date()).format('YYYY-MM-DD-HH-MM-SS')}.csv`;
+      const filename = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
+
       // 如果数据是一个对象数组并且需要提取表头
       if (tableData.value.length === 0) {
         console.error('No data to export');
@@ -253,18 +240,7 @@ export default defineComponent({
         ...tableData.value.map(row => headers.map(header => JSON.stringify(row[header], replacer)).join(',')), // 数据行
       ].join('\n');
 
-      // 创建 Blob 对象
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-
-      // 创建链接并启动下载
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      blobDownload(csvContent, filename);
     };
 
     const rendChildNode = () => {

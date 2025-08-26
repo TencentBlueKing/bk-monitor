@@ -48,9 +48,7 @@ export default defineComponent({
       isRender.value = false;
       setTimeout(() => {
         isRender.value = true;
-        if (route.query.create) {
-          isLoading.value = false;
-        }
+        isLoading.value = false;
       }, 400);
     });
 

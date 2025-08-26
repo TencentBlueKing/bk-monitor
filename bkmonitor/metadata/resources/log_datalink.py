@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from collections import OrderedDict
 from typing import Any
 
 from django.db.transaction import atomic
@@ -22,16 +21,9 @@ from bkmonitor.utils.user import get_request_username
 from core.drf_resource import Resource
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
-from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-from metadata.service.space_redis import (
-    push_and_publish_es_aliases,
-)
+from metadata.service.space_redis import SpaceTableIDRedis, push_and_publish_es_aliases
 
 logger = logging.getLogger(__name__)
-
-# TODO：LogDataLink整体接口 多租户验证
-
-client = SpaceTableIDRedis()
 
 
 class ParamsSerializer(serializers.Serializer):
@@ -43,6 +35,7 @@ class ParamsSerializer(serializers.Serializer):
         value_type = serializers.CharField(required=False, label="值类型", default="dict")
         creator = serializers.CharField(required=False, label="创建者", default="system")
 
+    bk_tenant_id = TenantIdField(label="租户ID")
     options = serializers.ListField(required=False, child=RtOption(), default=list)
 
 
@@ -102,56 +95,66 @@ class CreateEsRouter(BaseLogRouter):
         need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
         origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
 
-    def perform_request(self, data: OrderedDict):
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
         space = models.Space.objects.get(
-            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
+            space_type_id=validated_request_data["space_type"],
+            space_id=validated_request_data["space_id"],
+            bk_tenant_id=bk_tenant_id,
         )
-        bk_tenant_id = space.bk_tenant_id
 
         # 创建结果表和ES存储记录
-        need_create_index = data.get("need_create_index", True)
+        need_create_index = validated_request_data.get("need_create_index", True)
         # 创建结果表
         with atomic(config.DATABASE_CONNECTION_NAME):
             models.ResultTable.objects.create(
                 bk_tenant_id=bk_tenant_id,
-                table_id=data["table_id"],
-                table_name_zh=data["table_id"],
+                table_id=validated_request_data["table_id"],
+                table_name_zh=validated_request_data["table_id"],
                 is_custom_table=True,
                 default_storage=models.ClusterInfo.TYPE_ES,
                 creator="system",
                 bk_biz_id=space.get_bk_biz_id(),
-                data_label=data.get("data_label") or "",
+                data_label=validated_request_data.get("data_label") or "",
             )
             # 创建结果表 option
-            if data["options"]:
+            if validated_request_data["options"]:
                 self.create_or_update_options(
-                    bk_tenant_id=bk_tenant_id, table_id=data["table_id"], options=data["options"]
+                    bk_tenant_id=bk_tenant_id,
+                    table_id=validated_request_data["table_id"],
+                    options=validated_request_data["options"],
                 )
             # 创建es存储记录
             models.ESStorage.create_table(
                 bk_tenant_id=bk_tenant_id,
-                table_id=data["table_id"],
+                table_id=validated_request_data["table_id"],
                 is_sync_db=False,
-                cluster_id=data.get("cluster_id"),
+                cluster_id=validated_request_data.get("cluster_id"),
                 enable_create_index=False,
-                source_type=data.get("source_type") or "",
-                index_set=data.get("index_set") or "",
+                source_type=validated_request_data.get("source_type") or "",
+                index_set=validated_request_data.get("index_set") or "",
                 need_create_index=need_create_index,
-                origin_table_id=data.get("origin_table_id", ""),
+                origin_table_id=validated_request_data.get("origin_table_id", ""),
             )
         # 推送空间数据
-        logger.info("CreateEsRouter: try to push route for table_id->[%s]", data["table_id"])
-        client.push_space_table_ids(space_type=data["space_type"], space_id=data["space_id"], is_publish=True)
-        client.push_es_table_id_detail(table_id_list=[data["table_id"]], is_publish=True, bk_tenant_id=bk_tenant_id)
+        logger.info("CreateEsRouter: try to push route for table_id->[%s]", validated_request_data["table_id"])
+        SpaceTableIDRedis().push_space_table_ids(
+            space_type=validated_request_data["space_type"],
+            space_id=validated_request_data["space_id"],
+            is_publish=True,
+        )
+        SpaceTableIDRedis().push_es_table_id_detail(
+            table_id_list=[validated_request_data["table_id"]], is_publish=True, bk_tenant_id=bk_tenant_id
+        )
 
-        if data.get("data_label", None):
+        if validated_request_data.get("data_label", None):
             logger.info(
                 "CreateEsRouter: try to push data label route for table_id->[%s], data_label->[%s]",
-                data["table_id"],
-                data["data_label"],
+                validated_request_data["table_id"],
+                validated_request_data["data_label"],
             )
-            client.push_data_label_table_ids(
-                data_label_list=[data.get("data_label")], bk_tenant_id=bk_tenant_id, is_publish=True
+            SpaceTableIDRedis().push_data_label_table_ids(
+                data_label_list=[validated_request_data.get("data_label")], bk_tenant_id=bk_tenant_id, is_publish=True
             )
 
 
@@ -168,17 +171,19 @@ class CreateDorisRouter(BaseLogRouter):
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
 
-    def perform_request(self, data: dict):
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
         space = models.Space.objects.get(
-            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
+            space_type_id=validated_request_data["space_type"],
+            space_id=validated_request_data["space_id"],
+            bk_tenant_id=bk_tenant_id,
         )
-        bk_tenant_id = space.bk_tenant_id
 
         # 创建结果表和存储记录
         logger.info(
             "CreateDorisRouter: try to create doris router,table_id->[%s],bkbase_table_id->[%s],bk_biz_id->[%s]",
-            data["table_id"],
-            data.get("bkbase_table_id"),
+            validated_request_data["table_id"],
+            validated_request_data.get("bkbase_table_id"),
             space.get_bk_biz_id(),
         )
 
@@ -186,43 +191,51 @@ class CreateDorisRouter(BaseLogRouter):
         with atomic(config.DATABASE_CONNECTION_NAME):
             models.ResultTable.objects.create(
                 bk_tenant_id=bk_tenant_id,
-                table_id=data["table_id"],
-                table_name_zh=data["table_id"],
+                table_id=validated_request_data["table_id"],
+                table_name_zh=validated_request_data["table_id"],
                 is_custom_table=True,
                 default_storage=models.ClusterInfo.TYPE_DORIS,
                 creator="system",
                 bk_biz_id=space.get_bk_biz_id(),
-                data_label=data.get("data_label", ""),
+                data_label=validated_request_data.get("data_label", ""),
             )
             # 创建结果表 option
-            if data["options"]:
+            if validated_request_data["options"]:
                 self.create_or_update_options(
-                    bk_tenant_id=bk_tenant_id, table_id=data["table_id"], options=data["options"]
+                    bk_tenant_id=bk_tenant_id,
+                    table_id=validated_request_data["table_id"],
+                    options=validated_request_data["options"],
                 )
 
             # 创建doris存储记录
             models.DorisStorage.create_table(
                 bk_tenant_id=bk_tenant_id,
-                table_id=data["table_id"],
+                table_id=validated_request_data["table_id"],
                 is_sync_db=False,
-                source_type=data.get("source_type", ""),
-                bkbase_table_id=data.get("bkbase_table_id"),
-                index_set=data.get("index_set"),
-                storage_cluster_id=data.get("cluster_id"),
+                source_type=validated_request_data.get("source_type", ""),
+                bkbase_table_id=validated_request_data.get("bkbase_table_id"),
+                index_set=validated_request_data.get("index_set"),
+                storage_cluster_id=validated_request_data.get("cluster_id"),
             )
 
         logger.info("CreateDorisRouter: create doris datalink related records successfully,now try to push router")
         # 推送路由 空间路由+结果表详情路由
-        client.push_doris_table_id_detail(table_id_list=[data["table_id"]], is_publish=True, bk_tenant_id=bk_tenant_id)
-        client.push_space_table_ids(space_type=data["space_type"], space_id=data["space_id"], is_publish=True)
-        if data.get("data_label", None):
+        SpaceTableIDRedis().push_doris_table_id_detail(
+            table_id_list=[validated_request_data["table_id"]], is_publish=True, bk_tenant_id=bk_tenant_id
+        )
+        SpaceTableIDRedis().push_space_table_ids(
+            space_type=validated_request_data["space_type"],
+            space_id=validated_request_data["space_id"],
+            is_publish=True,
+        )
+        if validated_request_data.get("data_label", None):
             logger.info(
                 "CreateDorisRouter: try to push data label router for table_id->[%s],data_label->[%s]",
-                data["table_id"],
-                data["data_label"],
+                validated_request_data["table_id"],
+                validated_request_data["data_label"],
             )
-            client.push_data_label_table_ids(
-                data_label_list=[data["data_label"]], bk_tenant_id=bk_tenant_id, is_publish=True
+            SpaceTableIDRedis().push_data_label_table_ids(
+                data_label_list=[validated_request_data["data_label"]], bk_tenant_id=bk_tenant_id, is_publish=True
             )
 
         logger.info("CreateDorisRouter: push doris datalink router success")
@@ -241,7 +254,7 @@ class UpdateEsRouter(BaseLogRouter):
         origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
 
     def perform_request(self, validated_request_data: dict[str, Any]):
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
 
         # 查询结果表存在
         table_id = validated_request_data["table_id"]
@@ -257,6 +270,7 @@ class UpdateEsRouter(BaseLogRouter):
         # 因为可以重复执行，这里可以不设置事务
         # 更新结果表别名
         need_refresh_data_label = False
+        old_data_label = result_table.data_label
         if validated_request_data.get("data_label") and validated_request_data["data_label"] != result_table.data_label:
             result_table.data_label = validated_request_data["data_label"]
             result_table.save(update_fields=["data_label"])
@@ -295,18 +309,24 @@ class UpdateEsRouter(BaseLogRouter):
                 table_id,
                 validated_request_data["data_label"],
             )
-            client.push_data_label_table_ids(
-                data_label_list=[validated_request_data["data_label"]], bk_tenant_id=bk_tenant_id, is_publish=True
+
+            push_data_labels = [validated_request_data["data_label"]]
+            if old_data_label:
+                push_data_labels.append(old_data_label)
+            SpaceTableIDRedis().push_data_label_table_ids(
+                data_label_list=push_data_labels, bk_tenant_id=bk_tenant_id, is_publish=True
             )
             push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=validated_request_data["data_label"])
+            if old_data_label:
+                push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=old_data_label)
         logger.info("UpdateEsRouter: try to push es detail router for table_id->[%s]", table_id)
-        client.push_es_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
+        SpaceTableIDRedis().push_es_table_id_detail(
+            table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True
+        )
 
 
 class UpdateDorisRouter(BaseLogRouter):
     class RequestSerializer(ParamsSerializer):
-        space_type = serializers.CharField(required=True, label="空间类型")
-        space_id = serializers.CharField(required=True, label="空间ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
         data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
@@ -314,37 +334,46 @@ class UpdateDorisRouter(BaseLogRouter):
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
 
-    def perform_request(self, data: OrderedDict):
-        space = models.Space.objects.get(
-            space_type_id=data["space_type"], space_id=data["space_id"], bk_tenant_id=get_request_tenant_id()
-        )
-        bk_tenant_id = space.bk_tenant_id
-
-        table_id = data["table_id"]
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
+        table_id = validated_request_data["table_id"]
         doris_storage = models.DorisStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
         result_table = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
         logger.info("UpdateDorisRouter: try to update doris router for table_id->[%s]", table_id)
 
         update_doris_fields = []
         need_refresh_data_label = False
+        old_data_label = result_table.data_label
 
         try:
             # data_label
-            if data.get("data_label") and data["data_label"] != result_table.data_label:
-                result_table.data_label = data["data_label"]
+            if (
+                validated_request_data.get("data_label")
+                and validated_request_data["data_label"] != result_table.data_label
+            ):
+                result_table.data_label = validated_request_data["data_label"]
                 result_table.save(update_fields=["data_label"])
                 need_refresh_data_label = True
             # index_set
-            if data.get("index_set") and data["index_set"] != doris_storage.index_set:
-                doris_storage.index_set = data["index_set"]
+            if (
+                validated_request_data.get("index_set")
+                and validated_request_data["index_set"] != doris_storage.index_set
+            ):
+                doris_storage.index_set = validated_request_data["index_set"]
                 update_doris_fields.append("index_set")
             # bkbase_table_id
-            if data.get("bkbase_table_id") and data["bkbase_table_id"] != doris_storage.bkbase_table_id:
-                doris_storage.bkbase_table_id = data["bkbase_table_id"]
+            if (
+                validated_request_data.get("bkbase_table_id")
+                and validated_request_data["bkbase_table_id"] != doris_storage.bkbase_table_id
+            ):
+                doris_storage.bkbase_table_id = validated_request_data["bkbase_table_id"]
                 update_doris_fields.append("bkbase_table_id")
             # storage_cluster_id
-            if data.get("cluster_id") and data["cluster_id"] != doris_storage.storage_cluster_id:
-                doris_storage.storage_cluster_id = data["cluster_id"]
+            if (
+                validated_request_data.get("cluster_id")
+                and validated_request_data["cluster_id"] != doris_storage.storage_cluster_id
+            ):
+                doris_storage.storage_cluster_id = validated_request_data["cluster_id"]
                 update_doris_fields.append("storage_cluster_id")
             if update_doris_fields:
                 doris_storage.save(update_fields=update_doris_fields)
@@ -353,23 +382,31 @@ class UpdateDorisRouter(BaseLogRouter):
             raise e
 
         # 更新options
-        if data.get("options"):
-            self.create_or_update_options(bk_tenant_id=bk_tenant_id, table_id=table_id, options=data["options"])
+        if validated_request_data.get("options"):
+            self.create_or_update_options(
+                bk_tenant_id=bk_tenant_id, table_id=table_id, options=validated_request_data["options"]
+            )
 
         logger.info(
             "UpdateDorisRouter:update doris router for table_id->[%s] successfully,now try to push router", table_id
         )
 
-        client.push_doris_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
+        SpaceTableIDRedis().push_doris_table_id_detail(
+            table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True
+        )
 
         if need_refresh_data_label:
             logger.info(
                 "UpdateDorisRouter: try to push data label router for table_id->[%s], data_label->[%s]",
                 table_id,
-                data["data_label"],
+                validated_request_data["data_label"],
             )
-            client.push_data_label_table_ids(
-                data_label_list=[data["data_label"]], bk_tenant_id=bk_tenant_id, is_publish=True
+
+            push_data_labels = [validated_request_data["data_label"]]
+            if old_data_label:
+                push_data_labels.append(old_data_label)
+            SpaceTableIDRedis().push_data_label_table_ids(
+                data_label_list=push_data_labels, bk_tenant_id=bk_tenant_id, is_publish=True
             )
 
         logger.info("UpdateDorisRouter:push doris router for table_id->[%s] successfully", table_id)
@@ -698,22 +735,28 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
         logger.info("CreateOrUpdateLogDataLink: pushing routes for space [%s:%s]", space_type, space_id)
 
         # 推送空间路由
-        client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
+        SpaceTableIDRedis().push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
 
         # 批量推送ES表详情路由
         if es_table_ids:
             logger.info("CreateOrUpdateLogDataLink: pushing ES routes for %d tables", len(es_table_ids))
-            client.push_es_table_id_detail(table_id_list=es_table_ids, is_publish=True, bk_tenant_id=bk_tenant_id)
+            SpaceTableIDRedis().push_es_table_id_detail(
+                table_id_list=es_table_ids, is_publish=True, bk_tenant_id=bk_tenant_id
+            )
 
         # 批量推送Doris表详情路由
         if doris_table_ids:
             logger.info("CreateOrUpdateLogDataLink: pushing Doris routes for %d tables", len(doris_table_ids))
-            client.push_doris_table_id_detail(table_id_list=doris_table_ids, is_publish=True, bk_tenant_id=bk_tenant_id)
+            SpaceTableIDRedis().push_doris_table_id_detail(
+                table_id_list=doris_table_ids, is_publish=True, bk_tenant_id=bk_tenant_id
+            )
 
         # 推送data_label路由并处理别名
         if need_refresh_data_label and data_label:
             logger.info("CreateOrUpdateLogDataLink: pushing data_label route for [%s]", data_label)
-            client.push_data_label_table_ids(data_label_list=[data_label], bk_tenant_id=bk_tenant_id, is_publish=True)
+            SpaceTableIDRedis().push_data_label_table_ids(
+                data_label_list=[data_label], bk_tenant_id=bk_tenant_id, is_publish=True
+            )
             push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=data_label)
 
     def _cleanup_excess_data_label_config(self, bk_tenant_id: str, data_label: str, processed_table_ids: list):

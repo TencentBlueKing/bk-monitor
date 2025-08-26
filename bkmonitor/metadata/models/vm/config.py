@@ -118,7 +118,7 @@ class BkDataClean:
         raw_data_name: str,
         result_table_name: str,
         bk_biz_id: int,
-        timestamp_len: int | None = TimestampLen.MILLISECOND_LEN.value,
+        timestamp_len: int = TimestampLen.MILLISECOND_LEN.value,
     ):
         self.raw_data_name = raw_data_name
         self.result_table_name = result_table_name
