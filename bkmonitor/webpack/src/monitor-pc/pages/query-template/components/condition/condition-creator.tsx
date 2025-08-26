@@ -168,7 +168,7 @@ export default class ConditionCreator extends tsc<IProps> {
       const searchValue = params?.where?.[0]?.value?.[0];
       const dimensionKey = params.fields[0];
       const list = this.cacheDimensionValues.get(dimensionKey);
-      if (list?.length) {
+      if (Array.isArray(list)) {
         const allOptions = [
           ...this.dimensionValueVariables.map(item => ({ name: item.name, id: item.name, isVariable: true })),
           ...list,
