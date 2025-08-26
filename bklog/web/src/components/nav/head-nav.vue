@@ -200,7 +200,7 @@
               v-if="username"
               class="username"
             >
-              {{ username }}
+              <bk-user-display-name :user-id="username"></bk-user-display-name>
               <i class="bk-icon icon-down-shape"></i>
             </span>
           </div>
@@ -259,7 +259,7 @@
 
   import { menuArr } from './complete-menu';
   import LogVersion from './log-version';
-  import BizMenuSelect from '@/global/bk-space-choice/index'
+  import BizMenuSelect from '@/global/bk-space-choice/index';
 
   export default {
     name: 'HeaderNav',
@@ -370,11 +370,11 @@
         t: $t,
         bkInfo: window.$bkInfo,
         http: window.$http,
-        emit: window.$emit
+        emit: window.$emit,
       });
 
       this.navMenu.requestMySpaceList();
-      
+
       this.getGlobalsData();
       this.getUserInfo();
       window.bus.$on('showGlobalDialog', this.handleGoToMyReport);

@@ -30,6 +30,7 @@ declare global {
     mainComponent: any;
     timezone: string;
     MONITOR_URL: string;
+    BK_LOGIN_URL: string;
     BK_SHARED_RES_URL: string;
     VERSION: string;
     AJAX_URL_PREFIX: string;

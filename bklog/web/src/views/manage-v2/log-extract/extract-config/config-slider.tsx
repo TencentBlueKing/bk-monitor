@@ -25,13 +25,14 @@
  */
 
 import { defineComponent, ref, computed, watch, nextTick } from 'vue';
-import useStore from '@/hooks/use-store';
+
 import useLocale from '@/hooks/use-locale';
-import http from '@/api';
+import useStore from '@/hooks/use-store';
+
 import ModuleSelect from './module-select.tsx';
 import ValidateInput from './validate-input.tsx';
-import ValidateUserSelector from './validate-user-selector.tsx';
 import BkUserSelector from '@blueking/user-selector';
+import http from '@/api';
 
 import './config-slider.scss';
 
@@ -40,8 +41,7 @@ export default defineComponent({
   components: {
     ModuleSelect,
     ValidateInput,
-    ValidateUserSelector,
-    BkUserSelector
+    BkUserSelector,
   },
   props: {
     // 策略数据
@@ -90,17 +90,16 @@ export default defineComponent({
     }
 
     // 是否验证通过
-    const isValidated = ref(false)
+    const isValidated = ref(false);
     const isValidatedComputed = () => {
-      isValidated.value = (
+      isValidated.value =
         manageStrategyData.value.strategy_name &&
         manageStrategyData.value.user_list.length &&
         manageStrategyData.value.visible_dir.every((item: string) => Boolean(validateVisibleDir(item))) &&
         manageStrategyData.value.file_type.every((item: string) => Boolean(validateFileExtension(item))) &&
         manageStrategyData.value.modules.length &&
-        manageStrategyData.value.operator
-      );
-    }
+        manageStrategyData.value?.operator;
+    };
 
     const isExternal = computed(() => store.state.isExternal);
 
@@ -153,7 +152,7 @@ export default defineComponent({
     // 监听选择对话框的显示状态
     const handleValueChange = (val: any) => {
       showSelectDialog.value = val;
-    }; 
+    };
 
     // 修改执行人
     const changeOperator = async () => {
@@ -189,25 +188,25 @@ export default defineComponent({
     const renderVisibleDirList = () => {
       return manageStrategyData.value.visible_dir.map((item: string, index: number) => (
         <div
-          class='flex-box add-minus-component visible-dir'
           key={index}
+          class='flex-box add-minus-component visible-dir'
         >
           <ValidateInput
             style='width: 256px; margin-right: 4px'
+            validator={validateVisibleDir}
             value={item}
             on-change={(val: string) => {
               manageStrategyData.value.visible_dir[index] = val;
               isValidatedComputed();
             }}
-            validator={validateVisibleDir}
           />
           <span
             class='bk-icon icon-plus-circle'
             onClick={handleAddVisibleDir}
           />
           <span
-            class='bk-icon icon-minus-circle'
             style={{ display: manageStrategyData.value.visible_dir.length > 1 ? 'inline' : 'none' }}
+            class='bk-icon icon-minus-circle'
             onClick={() => manageStrategyData.value.visible_dir.splice(index, 1)}
           />
         </div>
@@ -218,25 +217,25 @@ export default defineComponent({
     const renderFileTypeList = () => {
       return manageStrategyData.value.file_type.map((item: string, index: number) => (
         <div
-          class='flex-box add-minus-component file-type'
           key={index}
+          class='flex-box add-minus-component file-type'
         >
           <ValidateInput
             style='width: 256px; margin-right: 4px'
+            validator={validateFileExtension}
             value={item}
             onChange={(val: string) => {
               manageStrategyData.value.file_type[index] = val;
               isValidatedComputed();
             }}
-            validator={validateFileExtension}
           />
           <span
             class='bk-icon icon-plus-circle'
             onClick={handleAddFileType}
           />
           <span
-            class='bk-icon icon-minus-circle'
             style={{ display: manageStrategyData.value.file_type.length > 1 ? 'inline' : 'none' }}
+            class='bk-icon icon-minus-circle'
             onClick={() => manageStrategyData.value.file_type.splice(index, 1)}
           />
         </div>
@@ -245,13 +244,13 @@ export default defineComponent({
 
     const handleBlur = () => {
       isError.value = !manageStrategyData.value.user_list.length;
-    }
+    };
 
-    const handleChangePrincipal = (val) => {
+    const handleChangePrincipal = val => {
       isError.value = !val.length;
       manageStrategyData.value.user_list = val;
       isValidatedComputed();
-    }
+    };
 
     // 主渲染函数
     return () => (
@@ -285,7 +284,7 @@ export default defineComponent({
           {/* 用户列表 */}
           <div class='row-container'>
             <div class='title'>
-              {t('用户列表')} 
+              {t('用户列表')}
               <span class='required'> * </span>
               <span
                 class='bklog-icon bklog-info-fill'
@@ -308,7 +307,6 @@ export default defineComponent({
                 // placeholder={props.allowCreate ? t('请输入QQ并按Enter结束（可多次添加）') : ''}
               /> */}
               <BkUserSelector
-                style='width: 400px'
                 class={isError.value ? 'is-error' : ''}
                 placeholder={t('请选择群成员')}
                 disabled={isExternal.value}
@@ -317,8 +315,7 @@ export default defineComponent({
                 value={manageStrategyData.value.user_list}
                 on-blur={handleBlur}
                 on-change={val => handleChangePrincipal(val)}
-              >
-              </BkUserSelector>
+              />
             </div>
           </div>
 
@@ -397,12 +394,16 @@ export default defineComponent({
             </div>
             <div class='content'>
               <div class='flex-box'>
-                <bk-input
+                {/* <bk-input
                   style='width: 256px; margin-right: 10px'
                   class={!manageStrategyData.value.operator && 'is-input-error'}
                   value={manageStrategyData.value.operator}
                   readonly
-                />
+                /> */}
+                <bk-user-display-name
+                  class='execute-people'
+                  user-id={manageStrategyData.value?.operator}
+                ></bk-user-display-name>
                 <bk-button
                   loading={isChangeOperatorLoading.value}
                   size='small'
