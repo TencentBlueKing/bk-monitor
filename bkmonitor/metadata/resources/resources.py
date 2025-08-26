@@ -99,7 +99,7 @@ class CreateDataIDResource(Resource):
     """创建数据源ID"""
 
     class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = serializers.CharField(required=False, label="租户ID")
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         data_name = serializers.CharField(required=True, label="数据源名称")
         etl_config = serializers.CharField(required=True, label="清洗模板配置")
@@ -124,13 +124,6 @@ class CreateDataIDResource(Resource):
             if settings.ENABLE_MULTI_TENANT_MODE:
                 if not attrs.get("bk_biz_id"):
                     raise ValueError(_("多租户下，必须指定dataid所属业务ID"))
-
-                bk_tenant_id = attrs.get("bk_tenant_id") or get_request_tenant_id()
-                if not bk_tenant_id:
-                    raise ValueError(_("多租户下，必须指定dataid所属租户ID"))
-                attrs["bk_tenant_id"] = bk_tenant_id
-            else:
-                attrs["bk_tenant_id"] = DEFAULT_TENANT_ID
             return attrs
 
     def perform_request(self, validated_request_data):
@@ -207,6 +200,7 @@ class GetOrCreateAgentEventDataIdResource(Resource):
             type_label="event",
             space_uid=space_uid,
             bk_biz_id=bk_biz_id,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         return {"bk_data_id": new_data_source.bk_data_id}
@@ -240,6 +234,7 @@ class CreateResultTableResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         # 豁免space_uid 注入
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_data_id = serializers.IntegerField(required=True, label="数据源ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         table_name_zh = serializers.CharField(required=True, label="结果表中文名")
@@ -267,19 +262,7 @@ class CreateResultTableResource(Resource):
         query_alias_settings = request_data.pop("query_alias_settings", [])
         table_id = request_data.get("table_id", None)
         operator = request_data.get("operator", None)
-
-        # 若开启多租户模式，需要获取租户ID
-        try:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                bk_tenant_id = get_request_tenant_id()
-                logger.info("CreateResultTableResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-            else:
-                bk_tenant_id = DEFAULT_TENANT_ID
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to get bk_tenant_id from request,error->[%s],will use default", e)
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        request_data["bk_tenant_id"] = bk_tenant_id
+        bk_tenant_id = request_data["bk_tenant_id"]
 
         if query_alias_settings:
             try:
@@ -418,6 +401,7 @@ class ModifyResultTableResource(Resource):
     """修改结果表"""
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         operator = serializers.CharField(required=True, label="操作者")
         bk_biz_id_alias = serializers.CharField(required=False, label="过滤条件业务ID别名")
@@ -442,7 +426,7 @@ class ModifyResultTableResource(Resource):
         table_id = validated_request_data.pop("table_id")
         query_alias_settings = validated_request_data.pop("query_alias_settings", None)
         operator = validated_request_data.get("operator", None)
-        bk_tenant_id = cast(str, get_request_tenant_id())
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
 
         # 处理查询别名设置
         self._handle_query_alias_settings(table_id, query_alias_settings, operator, bk_tenant_id)

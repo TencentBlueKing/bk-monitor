@@ -20,6 +20,7 @@ from django.utils.timezone import now as tz_now
 from bkmonitor.dataflow.auth import batch_add_permission
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.time_format import parse_duration
+from constants.common import DEFAULT_TENANT_ID
 from constants.dataflow import ConsumingMode
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -103,7 +104,9 @@ class RecordRule(BaseModelWithTime):
             TimeSeriesMetric,
         )
 
-        tid_data_ids = get_space_table_id_data_id(space_type=space_type, space_id=space_id)
+        tid_data_ids = get_space_table_id_data_id(
+            space_type=space_type, space_id=space_id, bk_tenant_id=DEFAULT_TENANT_ID
+        )
         # 过滤指标
         # 项目下可用结果表不会太多
         table_ids = set(

@@ -135,10 +135,10 @@ class SpaceTableIDRedis:
 
     def push_data_label_table_ids(
         self,
+        bk_tenant_id: str,
         data_label_list: list | None = None,
         table_id_list: list | None = None,
         is_publish: bool | None = False,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         """推送 data_label 及对应的结果表"""
         logger.info(
@@ -200,9 +200,9 @@ class SpaceTableIDRedis:
 
     def push_es_table_id_detail(
         self,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
         is_publish: bool | None = True,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         """
         推送ES结果表的详情信息至RESULT_TABLE_DETAIL路由
@@ -512,10 +512,10 @@ class SpaceTableIDRedis:
 
     def push_table_id_detail(
         self,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
         is_publish: bool | None = False,
         include_es_table_ids: bool | None = False,
-        bk_tenant_id: str = DEFAULT_TENANT_ID,
     ):
         """推送结果表的详细信息"""
         logger.info(
@@ -569,7 +569,10 @@ class SpaceTableIDRedis:
 
         # 获取结果表对应的类型
         measurement_type_dict = get_measurement_type_by_table_id(
-            table_ids, _table_list, table_id_data_id, bk_tenant_id=bk_tenant_id
+            bk_tenant_id=bk_tenant_id,
+            table_ids=table_ids,
+            table_list=_table_list,
+            table_id_data_id=table_id_data_id,
         )
 
         table_id_cluster_id = get_table_id_cluster_id(table_id_list=table_ids, bk_tenant_id=bk_tenant_id)
@@ -652,7 +655,7 @@ class SpaceTableIDRedis:
 
         return _table_id_detail
 
-    def _get_field_alias_map(self, table_id_list: list[str], bk_tenant_id: str | None = DEFAULT_TENANT_ID):
+    def _get_field_alias_map(self, table_id_list: list[str], bk_tenant_id: str):
         """
         构建字段别名映射map
         @param table_id_list: 结果表列表
@@ -698,7 +701,9 @@ class SpaceTableIDRedis:
             return {}
 
     def _compose_es_table_id_detail(
-        self, table_id_list: list[str] | None = None, bk_tenant_id: str = DEFAULT_TENANT_ID
+        self,
+        bk_tenant_id: str,
+        table_id_list: list[str] | None = None,
     ) -> dict[str, dict]:
         """组装 es 结果表的详细信息"""
         logger.info("start to compose es table_id detail data")
@@ -811,7 +816,7 @@ class SpaceTableIDRedis:
         )
 
         # 追加ES结果表
-        _values.update(self._compose_es_table_ids(space_type, space_id))
+        _values.update(self._compose_es_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id))
         # 追加Doris结果表
         _values.update(self._compose_doris_table_ids(space_type, space_id))
         _values.update(self._compose_es_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id))
@@ -899,7 +904,7 @@ class SpaceTableIDRedis:
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
         return _values
 
-    def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
+    def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str) -> dict:
         """推送 bcs 类型关联业务的数据，现阶段包含主机及部分插件信息"""
         logger.info("start to push cluster of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 首先获取关联业务的数据
@@ -955,12 +960,14 @@ class SpaceTableIDRedis:
                 cluster_info[res["cluster_id"]] = [{"bcs_cluster_id": res["cluster_id"], "namespace": None}]
         cluster_id_list = list(cluster_info.keys())
         # 获取集群下对应的数据源
-        data_id_cluster_id = get_cluster_data_ids(cluster_id_list)
+        data_id_cluster_id = get_cluster_data_ids(bk_tenant_id=DEFAULT_TENANT_ID, cluster_id_list=cluster_id_list)
         if not data_id_cluster_id:
             logger.error("space: %s__%s not found cluster", space_type, space_id)
             return default_values
         # 获取结果表及数据源
-        table_id_data_id = get_result_tables_by_data_ids(list(data_id_cluster_id.keys()))
+        table_id_data_id = get_result_tables_by_data_ids(
+            bk_tenant_id=DEFAULT_TENANT_ID, data_id_list=list(data_id_cluster_id.keys())
+        )
         # 组装 filter
         _values = {}
         for tid, data_id in table_id_data_id.items():
@@ -972,22 +979,22 @@ class SpaceTableIDRedis:
 
         return _values
 
-    def _compose_bkci_level_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
+    def _compose_bkci_level_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str) -> dict:
         """组装 bkci 全局下的结果表"""
         logger.info("start to push bkci level table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 过滤空间级的数据源
         data_ids = get_platform_data_ids(space_type=space_type, bk_tenant_id=bk_tenant_id)
         # 一个空间下 data_id 不会太多
-        table_is_list = list(
+        table_id_list = list(
             models.DataSourceResultTable.objects.filter(bk_data_id__in=data_ids.keys()).values_list(
                 "table_id", flat=True
             )
         )
         _values = {}
-        if not table_is_list:
+        if not table_id_list:
             return _values
         # 过滤仅写入influxdb和vm的数据
-        table_ids = self._refine_table_ids(table_is_list, bk_tenant_id=bk_tenant_id)
+        table_ids = self._refine_table_ids(table_id_list=table_id_list, bk_tenant_id=bk_tenant_id)
         # 组装数据
         for tid in table_ids:
             if tid in settings.SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST:
@@ -1003,12 +1010,13 @@ class SpaceTableIDRedis:
 
         return _values
 
-    def _compose_bkci_other_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
+    def _compose_bkci_other_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str) -> dict:
         logger.info("start to push bkci space other table_id, space_type: %s, space_id: %s", space_type, space_id)
         exclude_data_id_list = utils.cached_cluster_data_id_list()
         table_id_data_id = get_space_table_id_data_id(
-            space_type,
-            space_id,
+            space_type=space_type,
+            space_id=space_id,
+            bk_tenant_id=bk_tenant_id,
             exclude_data_id_list=exclude_data_id_list,
             include_platform_data_id=False,
             from_authorization=False,
@@ -1075,10 +1083,10 @@ class SpaceTableIDRedis:
 
     def _compose_bksaas_space_cluster_table_ids(
         self,
+        bk_tenant_id: str,
         space_type: str,
         space_id: str,
         table_id_list: list | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         logger.info(
             "start to push cluster of bksaas space table_id, space_type: %s, space_id: %s", space_type, space_id
@@ -1109,13 +1117,15 @@ class SpaceTableIDRedis:
                 cluster_info[res["cluster_id"]] = [{"bcs_cluster_id": res["cluster_id"], "namespace": None}]
         cluster_id_list = list(cluster_info.keys())
         # 获取集群下对应的数据源
-        data_id_cluster_id = get_cluster_data_ids(cluster_id_list, table_id_list)
+        data_id_cluster_id = get_cluster_data_ids(
+            bk_tenant_id=bk_tenant_id, cluster_id_list=cluster_id_list, table_id_list=table_id_list
+        )
         if not data_id_cluster_id:
             logger.error("space: %s__%s not found cluster", space_type, space_id)
             return default_values
         # 获取结果表及数据源
         table_id_data_id = get_result_tables_by_data_ids(
-            data_id_list=list(data_id_cluster_id.keys()), table_id_list=table_id_list
+            bk_tenant_id=bk_tenant_id, data_id_list=list(data_id_cluster_id.keys()), table_id_list=table_id_list
         )
         # 组装 filter
         _values = {}
@@ -1132,8 +1142,8 @@ class SpaceTableIDRedis:
         self,
         space_type: str,
         space_id: str,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         """组装蓝鲸应用非集群数据
         TODO: 暂时不考虑全局的数据源信息
@@ -1142,8 +1152,8 @@ class SpaceTableIDRedis:
         exclude_data_id_list = utils.cached_cluster_data_id_list()
         # 过滤到对应的结果表
         table_id_data_id = get_space_table_id_data_id(
-            space_type,
-            space_id,
+            space_type=space_type,
+            space_id=space_id,
             table_id_list=table_id_list,
             exclude_data_id_list=exclude_data_id_list,
             include_platform_data_id=False,
@@ -1155,7 +1165,7 @@ class SpaceTableIDRedis:
             logger.error("space_type: %s, space_id:%s not found table_id and data_id", space_type, space_id)
             return default_values
         # 提取仅包含写入 influxdb 和 vm 的结果表
-        table_ids = self._refine_table_ids(list(table_id_data_id.keys()))
+        table_ids = self._refine_table_ids(table_id_list=list(table_id_data_id.keys()), bk_tenant_id=DEFAULT_TENANT_ID)
         # 组装数据
         _values = {}
         # 针对非集群的数据，不限制过滤条件
@@ -1168,11 +1178,11 @@ class SpaceTableIDRedis:
         self,
         space_type: str,
         space_id: str,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
         include_platform_data_id: bool | None = True,
         from_authorization: bool | None = None,
         default_filters: list | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ) -> dict:
         logger.info(
             "_push_bkcc_space_table_ids,start to _compose_data for space_type: %s, space_id: %s,bk_tenant_id: %s",
@@ -1182,8 +1192,8 @@ class SpaceTableIDRedis:
         )
         # 过滤到对应的结果表
         table_id_data_id = get_space_table_id_data_id(
-            space_type,
-            space_id,
+            space_type=space_type,
+            space_id=space_id,
             table_id_list=table_id_list,
             include_platform_data_id=include_platform_data_id,
             from_authorization=from_authorization,
@@ -1196,7 +1206,7 @@ class SpaceTableIDRedis:
             return _values
 
         # 提取仅包含写入 influxdb 和 vm 的结果表
-        table_ids = self._refine_table_ids(list(table_id_data_id.keys()), bk_tenant_id=bk_tenant_id)
+        table_ids = self._refine_table_ids(table_id_list=list(table_id_data_id.keys()), bk_tenant_id=bk_tenant_id)
         # 再一次过滤，过滤到有链路的结果表，并且写入 influxdb 或 vm 的数据
         table_id_data_id = {tid: table_id_data_id.get(tid) for tid in table_ids}
 
@@ -1295,7 +1305,7 @@ class SpaceTableIDRedis:
 
         return _values
 
-    def _compose_record_rule_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
+    def _compose_record_rule_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str):
         """组装预计算的结果表"""
         from metadata.models.record_rule.rules import RecordRule
 
@@ -1308,7 +1318,7 @@ class SpaceTableIDRedis:
         objs = RecordRule.objects.filter(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
         return {obj.table_id: {"filters": []} for obj in objs}
 
-    def _compose_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
+    def _compose_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str):
         """组装es的结果表"""
         biz_id = models.Space.objects.get_biz_id_by_space(space_type, space_id)
         tids = models.ResultTable.objects.filter(
@@ -1330,7 +1340,7 @@ class SpaceTableIDRedis:
         ).values_list("table_id", flat=True)
         return {tid: {"filters": []} for tid in tids}
 
-    def _compose_related_bkci_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
+    def _compose_related_bkci_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str):
         """
         组装关联的BKCI类型的ES结果表
         """
@@ -1415,9 +1425,9 @@ class SpaceTableIDRedis:
 
     def _refine_available_data_label(
         self,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
         data_label_list: list | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ) -> list:
         """获取可以使用的结果表"""
         logger.info(
@@ -1469,7 +1479,7 @@ class SpaceTableIDRedis:
 
         return list(set(data_labels))
 
-    def _refine_table_ids(self, table_id_list: list | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> set:
+    def _refine_table_ids(self, bk_tenant_id: str, table_id_list: list | None = None) -> set:
         """提取写入到influxdb或vm的结果表数据"""
         # 过滤写入 influxdb 的结果表
         influxdb_table_ids = models.InfluxDBStorage.objects.values_list("table_id", flat=True)
@@ -1540,7 +1550,7 @@ class SpaceTableIDRedis:
 
         return {"table_id_ts_group_id": table_id_ts_group_id, "group_id_field_map": group_id_field_map}
 
-    def _compose_table_id_fields(self, table_ids: set | None = None, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict:
+    def _compose_table_id_fields(self, bk_tenant_id: str, table_ids: set | None = None) -> dict:
         """组装结果表对应的指标数据"""
         logger.info(
             "_compose_table_id_fields: try to compose table id fields,table_ids->[%s],bk_tenant_id->[%s]",

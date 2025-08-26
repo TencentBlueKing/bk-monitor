@@ -350,6 +350,7 @@ class TestDataSource:
             operator=self.operator,
             type_label=self.data_type_label,
             source_label=self.data_source_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             option={models.DataSourceOption.OPTION_ALLOW_USE_ALIAS_NAME: True},
         )
 
@@ -397,6 +398,7 @@ class TestDataSource:
         settings.INFLUXDB_DEFAULT_PROXY_CLUSTER_NAME = self.influxdb_cluster_name
         new_table = models.ResultTable.create_result_table(
             bk_data_id=new_data_source.bk_data_id,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             table_id=new_data_source.data_name,
             table_name_zh=new_data_source.data_name,
             is_custom_table=False,
@@ -717,6 +719,7 @@ class TestDataSource:
         default_storage_table_id = f"{new_data_source.data_name}_kafka_defaul_storage"
         new_table = models.ResultTable.create_result_table(
             bk_data_id=new_data_source.bk_data_id,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             table_id=default_storage_table_id,
             table_name_zh=new_data_source.data_name,
             is_custom_table=False,
@@ -749,6 +752,7 @@ class TestDataSource:
                 operator=self.operator,
                 source_label=self.data_source_label,
                 type_label=self.data_type_label,
+                bk_tenant_id=DEFAULT_TENANT_ID,
             )
 
     def test_create_data_source_no_cluster(self, mocker):
@@ -768,6 +772,7 @@ class TestDataSource:
                 operator=self.operator,
                 type_label=self.data_type_label,
                 source_label=self.data_source_label,
+                bk_tenant_id=DEFAULT_TENANT_ID,
             )
 
     def test_standard_fields_discover(self, mocker, mock_outer_ralay, create_and_delete_record, patch_redis_tools):
@@ -779,11 +784,13 @@ class TestDataSource:
             operator=self.operator,
             source_label=self.data_source_label,
             type_label=self.data_type_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 创建一个对应的结果表
         new_table = models.ResultTable.create_result_table(
             bk_data_id=new_data_source.bk_data_id,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             table_id=new_data_source.data_name,
             table_name_zh=new_data_source.data_name,
             is_custom_table=False,
@@ -1062,6 +1069,7 @@ class TestDataSource:
             operator=self.operator,
             source_label=self.data_source_label,
             type_label=self.data_type_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 将所有的创建操作mock为成功
@@ -1222,6 +1230,7 @@ class TestDataSource:
             operator=self.operator,
             source_label=self.data_source_label,
             type_label=self.data_type_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 此时由于是全业务的注册，index名需要去掉业务ID
@@ -1260,6 +1269,7 @@ class TestDataSource:
             operator=self.operator,
             source_label=self.data_source_label,
             type_label=self.data_type_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 创建事件分组
@@ -1307,6 +1317,7 @@ class TestDataSource:
             operator=self.operator,
             source_label=self.data_source_label,
             type_label=self.data_type_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
         new_group = models.TimeSeriesGroup.create_custom_group(
             bk_data_id=new_data_source.bk_data_id,

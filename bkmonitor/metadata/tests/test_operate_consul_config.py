@@ -15,6 +15,7 @@ import pytest
 from django.core.management import call_command
 
 from bkmonitor.utils import consul
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.utils import consul_tools
 
@@ -113,6 +114,7 @@ class TestOperateConsulConfig:
             operator=operator,
             source_label=data_source_label,
             type_label=data_type_label,
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
         # 检查consul数据，确认配置成功处理
         result = consul_client.kv.get(new_data_source.consul_config_path)
