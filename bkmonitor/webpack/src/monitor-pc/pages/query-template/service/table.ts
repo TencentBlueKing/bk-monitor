@@ -84,7 +84,7 @@ export const fetchQueryTemplateList = async (param: QueryListRequestParams, requ
   const config = { needMessage: false, ...requestConfig };
   let isAborted = false;
   const { total, list: templateList } = await searchQueryTemplate<{ list: QueryTemplateListItem[]; total: number }>(
-    { ...param, is_mock: false },
+    param,
     config
   ).catch(err => {
     isAborted = requestErrorMessage(err);
@@ -118,10 +118,7 @@ export const fetchQueryTemplateRelationsCount = async (
 ) => {
   const config = { needMessage: false, ...requestConfig };
   let isAborted = false;
-  const relationList = await relationsQueryTemplate<QueryTemplateRelationItem[]>(
-    { ...param, is_mock: false },
-    config
-  ).catch(err => {
+  const relationList = await relationsQueryTemplate<QueryTemplateRelationItem[]>(param, config).catch(err => {
     isAborted = requestErrorMessage(err);
     return [] as QueryTemplateRelationItem[];
   });
