@@ -82,35 +82,37 @@ const getMetricId = queryConfig => {
 };
 
 export const createQueryTemplateQueryConfigsParams = (queryConfigs: QueryConfig[]) => {
-  return queryConfigs.map(item => ({
-    data_source_label: item.data_source_label,
-    data_type_label: item.data_type_label,
-    metric_id: item.metricDetail.metric_id,
-    table: item.metricDetail.result_table_id,
-    metrics: [
-      {
-        field: item.metricDetail.metric_field,
-        method: item.agg_method,
-        alias: item.alias || 'a',
-      },
-    ],
-    group_by: item.agg_dimension,
-    where:
-      item.agg_condition?.map(w => {
-        if (isVariableName(w.key)) {
-          return w.key;
-        }
-        return w;
-      }) || [],
-    interval: item.agg_interval,
-    functions:
-      item.functions?.map(f => {
-        if (isVariableName(f.id)) {
-          return f.id;
-        }
-        return f;
-      }) || [],
-  }));
+  return queryConfigs
+    .filter(item => !!item.metricDetail)
+    .map(item => ({
+      data_source_label: item.data_source_label,
+      data_type_label: item.data_type_label,
+      metric_id: item.metricDetail.metric_id,
+      table: item.metricDetail.result_table_id,
+      metrics: [
+        {
+          field: item.metricDetail.metric_field,
+          method: item.agg_method,
+          alias: item.alias || 'a',
+        },
+      ],
+      group_by: item.agg_dimension,
+      where:
+        item.agg_condition?.map(w => {
+          if (isVariableName(w.key)) {
+            return w.key;
+          }
+          return w;
+        }) || [],
+      interval: item.agg_interval,
+      functions:
+        item.functions?.map(f => {
+          if (isVariableName(f.id)) {
+            return f.id;
+          }
+          return f;
+        }) || [],
+    }));
 };
 
 export const getRetrieveQueryTemplateQueryConfigs = async (query_configs: any[]): Promise<QueryConfig[]> => {
