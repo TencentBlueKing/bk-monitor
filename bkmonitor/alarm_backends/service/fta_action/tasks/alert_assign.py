@@ -178,6 +178,12 @@ class AlertAssigneeManager:
 
         # 获取该业务下所有订阅用户
         usernames = SubscribeCacheManager.get_users_by_biz(bk_biz_id)
+        logger.info(
+            "[subscription] alert(%s) matching: bk_biz_id(%s), users(%d)",
+            self.alert.id,
+            bk_biz_id,
+            len(usernames),
+        )
 
         for username in usernames:
             # 获取用户的订阅规则
@@ -212,6 +218,29 @@ class AlertAssigneeManager:
                 # 将用户添加到所有匹配的通知渠道中
                 for notice_way in matched_notice_ways:
                     target_notify_info[notice_way].append(username)
+                logger.info(
+                    "[subscription] alert(%s) user(%s) matched: type(%s), ways(%s)",
+                    self.alert.id,
+                    username,
+                    matched_user_type,
+                    ",".join(sorted(matched_notice_ways)) or "-",
+                )
+            else:
+                logger.info(
+                    "[subscription] alert(%s) user(%s) no rule matched",
+                    self.alert.id,
+                    username,
+                )
+
+        # 汇总日志
+        total_main = sum(len(users) for way, users in notify_info.items())
+        total_follower = sum(len(users) for way, users in follow_notify_info.items())
+        logger.info(
+            "[subscription] alert(%s) summary: main_users(%d) follower_users(%d)",
+            self.alert.id,
+            total_main,
+            total_follower,
+        )
 
         return notify_info, follow_notify_info
 
