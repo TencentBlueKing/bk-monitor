@@ -349,7 +349,7 @@
 </template>
 
 <script>
-  import { projectManages } from '@/common/util';
+  import { projectManages, updateLastSelectedIndexId } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import IndexSetLabelSelect from '@/components/index-set-label-select';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
@@ -457,6 +457,7 @@
         };
 
         if (operateType === 'search') {
+         updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
           if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
           params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
         }

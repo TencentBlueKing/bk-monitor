@@ -398,6 +398,7 @@
     if (item.hidden_values.includes(child)) {
       const index = item.hidden_values.indexOf(child);
       item.hidden_values.splice(index, 1);
+      item.disabled = false;
     } else {
       item.hidden_values.push(child);
     }
@@ -409,6 +410,7 @@
   const onlyOptionShow =  (item, child, parentIndex, childIndex)=>{
    item.hidden_values.length = 0;
    item.hidden_values = [];
+   item.disabled = false;
 
    item.value.forEach(v => {
     if (v !== child) {
@@ -682,20 +684,24 @@
       text-decoration: line-through;
     }
   }
+
   .match-value-content{
     display: flex;
     flex-direction: column;
+
     .bk-tooltip-ref{
       width: 100%;
       cursor: pointer;
     }
+
     .match-value-child{
       font-size: 12px;
       line-height: 32px;
     }
   }
+
   .match-value-popover{
     // eslint-disable-next-line
-    left: 15px !important;
+    left: 15px;
   }
 </style>

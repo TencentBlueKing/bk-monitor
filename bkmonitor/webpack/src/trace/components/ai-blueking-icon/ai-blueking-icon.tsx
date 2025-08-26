@@ -38,7 +38,7 @@ export default defineComponent({
   props: {
     shortcutId: {
       type: String as PropType<AIBluekingShortcutId>,
-      default: AI_BLUEKING_SHORTCUTS_ID.TRAFFIC_ASSISTANT,
+      default: AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS,
     },
     fillBackFieldMap: {
       type: Object as PropType<Record<string, string>>,
