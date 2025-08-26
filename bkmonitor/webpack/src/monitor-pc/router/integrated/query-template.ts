@@ -34,21 +34,24 @@ const MetricTemplateCreate = () =>
 
 const MetricTemplateEdit = () =>
   import(/* webpackChunkName: 'MetricTemplateEdit' */ '../../pages/query-template/edit/template-edit');
+import * as queryTemplateAuth from '../../pages/query-template/authority-map';
 
 export default [
   {
     path: '/query-template',
     name: 'query-template',
-    component: MetricTemplate,
+    components: {
+      noCache: MetricTemplate,
+    },
     meta: {
       title: '查询模板',
       navId: 'query-template',
-      // authority: {
-      //   map: customAuth,
-      //   page: customAuth.VIEW_CUSTOM_EVENT,
-      // },
       route: {
         parent: 'integrated',
+      },
+      authority: {
+        map: queryTemplateAuth,
+        page: queryTemplateAuth.VIEW_AUTH,
       },
       noNavBar: false,
     },
@@ -56,16 +59,18 @@ export default [
   {
     path: '/query-template/create',
     name: 'query-template-create',
-    component: MetricTemplateCreate,
+    components: {
+      noCache: MetricTemplateCreate,
+    },
     meta: {
       title: '创建指标模板',
       navId: 'query-template',
-      // authority: {
-      //   map: customAuth,
-      //   page: customAuth.VIEW_CUSTOM_EVENT,
-      // },
       route: {
         parent: 'integrated',
+      },
+      authority: {
+        map: queryTemplateAuth,
+        page: queryTemplateAuth.MANAGE_AUTH,
       },
       noNavBar: true,
     },
@@ -73,14 +78,16 @@ export default [
   {
     path: '/query-template/edit/:id',
     name: 'query-template-edit',
-    component: MetricTemplateEdit,
+    components: {
+      noCache: MetricTemplateEdit,
+    },
     meta: {
       title: '编辑指标模板',
       navId: 'query-template',
-      // authority: {
-      //   map: customAuth,
-      //   page: customAuth.VIEW_CUSTOM_EVENT,
-      // },
+      authority: {
+        map: queryTemplateAuth,
+        page: queryTemplateAuth.MANAGE_AUTH,
+      },
       route: {
         parent: 'integrated',
       },
