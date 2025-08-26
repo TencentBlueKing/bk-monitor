@@ -172,7 +172,7 @@ class DataAccessor:
         :param operator: 操作人
         """
         self.bk_biz_id = bk_biz_id
-        self.bk_tenant_id = bk_tenant_id or bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        self.bk_tenant_id = bk_tenant_id
         self.db_name = db_name.lower()
         self.data_label = data_label.lower() if data_label else self.db_name
         self.tables = tables
