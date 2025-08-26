@@ -34,7 +34,7 @@ import IntervalDetail from '../interval/interval-detail';
 import MethodDetail from '../method/method-detail';
 import MetricDetail from '../metric/metric-detail';
 
-import type { QueryConfig } from '../../typings';
+import type { DimensionField, QueryConfig } from '../../typings';
 import type { VariableModelType } from '../../variables';
 
 import './query-config-detail.scss';
@@ -59,8 +59,15 @@ export default class QueryConfigDetail extends tsc<IProps> {
     }, {});
   }
 
-  get getDimensionList() {
-    return this.queryConfig.metricDetail?.dimensionList || [];
+  get getAllDimensionMap(): Record<string, DimensionField> {
+    const options = this.queryConfig.metricDetail?.dimensionList || [];
+    if (!options?.length) {
+      return {};
+    }
+    return options?.reduce?.((prev, curr) => {
+      prev[curr.id] = curr;
+      return prev;
+    }, {});
   }
 
   render() {
@@ -77,12 +84,12 @@ export default class QueryConfigDetail extends tsc<IProps> {
           />
           <IntervalDetail value={this.queryConfig?.agg_interval} />
           <DimensionDetail
-            options={this.getDimensionList}
+            allDimensionMap={this.getAllDimensionMap}
             value={this.queryConfig?.agg_dimension}
             variableMap={this.variableMap}
           />
           <ConditionDetail
-            options={this.getDimensionList}
+            allDimensionMap={this.getAllDimensionMap}
             value={this.queryConfig.agg_condition}
             variableMap={this.variableMap}
           />
