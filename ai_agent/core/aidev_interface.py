@@ -52,6 +52,10 @@ class AIDevInterface:
         """更新会话"""
         return self.api_client.api.update_chat_session(path_params={"session_code": session_code}, json=params)
 
+    def rename_chat_session(self, session_code):
+        """AI 智能总结会话标题"""
+        return self.api_client.api.rename_chat_session(path_params={"session_code": session_code})
+
     # ==================== 会话内容管理 ====================
     def create_chat_session_content(self, params):
         """创建会话内容"""

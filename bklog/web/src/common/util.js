@@ -34,7 +34,8 @@ import { set } from 'vue';
 import dayjs from 'dayjs';
 import DOMPurify from 'dompurify';
 import JSONBigNumber from 'json-bignumber';
-
+import { BK_LOG_STORAGE } from '@/store/store.type';
+  
 import store from '../store';
 /**
  * 函数柯里化
@@ -1294,4 +1295,17 @@ export const getOs = () => {
  */
 export const getOsCommandLabel = () => {
   return getOs() === 'macos' ? 'Cmd' : 'Ctrl';
+};
+
+/**
+ * 更新最后选择索引ID
+ */
+export const updateLastSelectedIndexId = (spaceUid,index_set_id) => {
+  const storage = {
+    [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
+      ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
+      [spaceUid]: index_set_id,
+    },
+  };
+  store.commit('updateStorage', storage);
 };
