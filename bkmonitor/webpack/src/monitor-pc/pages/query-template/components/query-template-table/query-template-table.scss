@@ -22,6 +22,12 @@
           padding-right: calc(15px + 20px);
         }
       }
+
+      .cell {
+        &:has(.click-show-slicer-col) {
+          color: #3a84ff;
+        }
+      }
     }
 
     /* stylelint-disable-next-line no-descending-specificity */

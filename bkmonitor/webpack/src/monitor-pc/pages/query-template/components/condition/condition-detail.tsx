@@ -38,8 +38,8 @@ import type { VariableModelType } from '../../variables';
 import './condition-detail.scss';
 
 interface IProps {
-  /* 所有聚合维度信息列表数组 */
-  options?: DimensionField[];
+  /* 聚合维度信息 id-聚合维度对象 映射表 */
+  allDimensionMap: Record<string, DimensionField>;
   /* 已选过滤条件 */
   value: AggCondition[];
   /* 变量 variableName-变量对象 映射表 */
@@ -52,18 +52,8 @@ export default class ConditionDetail extends tsc<IProps> {
   @Prop({ default: () => [] }) variableMap?: Record<string, VariableModelType>;
   /* 已选过滤条件 */
   @Prop({ default: () => [] }) value: AggCondition[];
-  /* 所有聚合维度信息列表数组 */
-  @Prop({ default: () => [] }) options: DimensionField[];
-
-  get allDimensionMap() {
-    if (!this.options?.length) {
-      return {};
-    }
-    return this.options?.reduce?.((prev, curr) => {
-      prev[curr.id] = curr;
-      return prev;
-    }, {});
-  }
+  /* 聚合维度信息 id-聚合维度对象 映射表 */
+  @Prop({ default: () => [] }) allDimensionMap: Record<string, DimensionField>;
 
   get conditionToVariableModel() {
     if (!this.value?.length) {
@@ -86,6 +76,7 @@ export default class ConditionDetail extends tsc<IProps> {
   conditionVariableTagItemRenderer(item) {
     return (
       <ConditionDetailKvTag
+        allDimensionMap={this.allDimensionMap}
         isConditionVariable={item.isVariable ?? false}
         value={item.value}
         variableMap={this.variableMap}

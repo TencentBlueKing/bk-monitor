@@ -373,6 +373,10 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
         </div>
       );
     }
+
+    if (!row.relation_config_count) {
+      return row.relation_config_count;
+    }
     return this.clickShowSlicerColRenderer(row, column);
   }
 
@@ -501,7 +505,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
         </bk-table>
         <TableSkeleton
           class={`query-template-table-skeleton ${this.tableLoadingActiveClassConfig}`}
-          type={5}
+          type={2}
         />
         <div style='display: none'>
           <DeleteConfirm
