@@ -443,9 +443,8 @@ class PluginImportResource(Resource):
         file_data = serializers.FileField(required=True)
 
     def un_tar_gz_file(self, tar_obj):
-        # 解压文件到临时目录
+        # 免解压读取文件内容到内存
         with tarfile.open(fileobj=tar_obj) as package_file:
-            # package_file.extractall(self.tmp_path,filter="data")
             for member in package_file.getmembers():
                 # 取代 tarfile.extractall 的 filter="data"
                 if not member.isreg():
