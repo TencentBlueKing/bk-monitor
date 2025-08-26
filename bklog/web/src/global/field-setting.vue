@@ -251,7 +251,8 @@
   import * as authorityMap from '../common/authority-map';
   import settingTable from './setting-table.vue';
   import http from '@/api';
-  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper'
+  import { RetrieveEvent } from '@/views/retrieve-helper'
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
   const { t } = useLocale();
   const store = useStore();
@@ -421,13 +422,16 @@
     // 获取table表格编辑的数据 新增新的字段对象
     tableField.value.splice(0, fields.length, ...[...indexfieldTable.value.getData(), newBaseFieldObj]);
   };
-  RetrieveHelper.on(RetrieveEvent.INDEX_CONFIG_OPEN, val => {
+
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.INDEX_CONFIG_OPEN, () => {
     hideSingleConfigInput();
     handleOpenSidebar();
     nextTick(() => {
       handleEdit()
     });
   });
+  
   function formLableFormatter(label) {
     return `${label} :`;
   }

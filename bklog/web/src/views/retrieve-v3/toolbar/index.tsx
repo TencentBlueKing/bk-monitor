@@ -24,32 +24,29 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import SubBar from '../../retrieve-v2/sub-bar/index.vue';
-
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import './index.scss';
 
 export default defineComponent({
   name: 'V3Toolbar',
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setup(_, {}) {
+  setup() {
     const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
     const onFavoriteShowChange = (val: boolean) => {
       isFavoriteShown.value = val;
     };
 
-    RetrieveHelper.on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, onFavoriteShowChange);
+    const { addEvent } = useRetrieveEvent();
+    addEvent(RetrieveEvent.FAVORITE_SHOWN_CHANGE, onFavoriteShowChange);
 
     const handleCollectionShowChange = () => {
       isFavoriteShown.value = !isFavoriteShown.value;
       RetrieveHelper.setFavoriteShown(isFavoriteShown.value);
     };
-
-    onBeforeUnmount(() => {
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_SHOWN_CHANGE, onFavoriteShowChange);
-    });
 
     return () => (
       <div class='v3-bklog-toolbar'>
