@@ -27,7 +27,7 @@
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce, random } from 'monitor-common/utils';
+import { commonPageSizeGet, commonPageSizeSet, Debounce, random } from 'monitor-common/utils';
 
 import QueryTemplateTable from './components/query-template-table/query-template-table';
 import { destroyQueryTemplateById, fetchQueryTemplateList } from './service/table';
@@ -71,6 +71,7 @@ export default class MetricTemplate extends tsc<object> {
 
   created() {
     this.getRouterParams();
+    this.pageSize = commonPageSizeGet();
   }
   mounted() {
     this.getQueryTemplateList();
@@ -142,10 +143,18 @@ export default class MetricTemplate extends tsc<object> {
     destroyQueryTemplateById(templateId)
       .then(() => {
         confirmEvent.successCallback();
+        this.$bkMessage({
+          message: this.$t('删除成功'),
+          theme: 'success',
+        });
         this.handleRefresh();
       })
       .catch(() => {
         confirmEvent.errorCallback();
+        this.$bkMessage({
+          message: this.$t('删除失败'),
+          theme: 'error',
+        });
       });
   }
 
@@ -167,6 +176,7 @@ export default class MetricTemplate extends tsc<object> {
   }
   handlePageSizeChange(pageSize: number) {
     this.pageSize = pageSize;
+    commonPageSizeSet(this.pageSize);
   }
 
   @Debounce(300)
@@ -202,9 +212,11 @@ export default class MetricTemplate extends tsc<object> {
           <div class='query-template-header-search'>
             <bk-input
               class='search-input'
+              clearable={true}
               placeholder={this.$t('搜索 模板名称、模板说明、创建人、更新人')}
               right-icon='bk-icon icon-search'
               value={this.searchKeyword}
+              on-right-icon-click={this.handleRefresh}
               onChange={this.handleSearchChange}
             />
           </div>
