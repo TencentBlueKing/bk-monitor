@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import os
-from pathlib import Path
 
 from django.utils.translation import gettext as _
 
@@ -89,7 +88,7 @@ class JMXPluginManager(PluginManager):
         if not config_yaml_path:
             raise PluginParseError({"msg": _("无法获取JMX对应的配置文件")})
 
-        content = self._decode_file(self.plugin_configs[Path(config_yaml_path)])
+        content = self._decode_file(self.plugin_configs[config_yaml_path])
         jmx_collector_json = {
             "config_yaml": content,
         }

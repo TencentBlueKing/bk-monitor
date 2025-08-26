@@ -523,13 +523,16 @@ class PluginImportResource(Resource):
         conflict_ids = []
 
         def handle_collector_json(config_value):
-            for config in list(config_value.get("collector_json", {}).values()):
-                if isinstance(config, dict):
-                    # 避免导入包和原插件内容一致，文件名不同
-                    config.pop("file_name", None)
-                    config.pop("file_id", None)
-                    if config.get("script_content_base64") and isinstance(config["script_content_base64"], bytes):
-                        config["script_content_base64"] = str(config["script_content_base64"], encoding="utf-8")
+            # for config in list(config_value.get("collector_json", {}).values()):
+            collector_json = config_value.get("collector_json", {})
+            if collector_json is not None:
+                for config in list(collector_json.values()):
+                    if isinstance(config, dict):
+                        # 避免导入包和原插件内容一致，文件名不同
+                        config.pop("file_name", None)
+                        config.pop("file_id", None)
+                        if config.get("script_content_base64") and isinstance(config["script_content_base64"], bytes):
+                            config["script_content_base64"] = str(config["script_content_base64"], encoding="utf-8")
             return config_value
 
         self.create_params["conflict_title"] = ""
@@ -603,7 +606,7 @@ class PluginImportResource(Resource):
                 plugin=self.plugin_id,
                 plugin_type=self.plugin_type,
                 tmp_path=self.tmp_path,
-                plugin_configs=self.filename_dict
+                plugin_configs=self.filename_dict,
             )
             self.tmp_version = import_manager.get_tmp_version()
             self.check_duplicate()
