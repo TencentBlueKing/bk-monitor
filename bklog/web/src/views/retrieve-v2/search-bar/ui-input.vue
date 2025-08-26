@@ -63,15 +63,10 @@
     if (typeof item?.value === 'string') {
       item.value = item.value.split(',');
     }
+
     item.showAll = item?.value?.length < 3;
     if (!item?.relation) item.relation = 'OR';
-    if (item?.showList?.length && item?.showList?.length !== item.value?.length) {
-      item.showList = Array.from(
-        { length: item.value.length },
-        (_, i) => (i < (item.showList?.length || 0) ? item.showList[i] : false)
-      );
-    }
-    return { disabled: false, ...(item ?? {}) };
+    return { disabled: item.disabled ?? false, ...(item ?? {}) };
   };
 
   const handleHeightChange = height => {
@@ -157,6 +152,7 @@
     delayShowInstance,
     repositionTippyInstance,
     hideTippyInstance,
+    getTippyUtil
   } = useFocusInput(props, {
     refContent: refPopInstance,
     refTarget: refHiddenFocus,
@@ -179,6 +175,9 @@
       queryItem.value = '';
       activeIndex.value = null;
     },
+    tippyOptions: {
+      hideOnClick: true
+    }
   });
 
   const debounceShowInstance = () => {
@@ -247,7 +246,11 @@
 
   const handleDisabledTagItem = item => {
     set(item, 'disabled', !item.disabled);
-    set(item, 'showList', new Array(item.value.length).fill(item.disabled))
+    set(item, 'hidden_values', []);
+    if (item.disabled) {
+      set(item, 'hidden_values', [...item.value]);
+    }
+
     emitChange(modelValue.value);
   };
 
@@ -387,32 +390,64 @@
     const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
     popover?.showHandler()
   }
-  const changeOptionShow = (parentIndex,childIndex,item,show)=>{
-    if(!item.showList){
-      set(item, 'showList', new Array(item.value.length).fill(false))
+  const changeOptionShow = (item, child, parentIndex, childIndex)=>{
+    if (!item.hidden_values) {
+      item.hidden_values = [];
     }
-    set(item.showList, childIndex, show)
-    if (item.showList.every(f => f === false)) {
-      set(item, 'disabled', false);
-    }else if (item.showList.every(f => f === true)) {
-      set(item, 'disabled', true);
+
+    if (item.hidden_values.includes(child)) {
+      const index = item.hidden_values.indexOf(child);
+      item.hidden_values.splice(index, 1);
+      item.disabled = false;
+    } else {
+      item.hidden_values.push(child);
     }
 
     emitChange(cloneDeep(modelValue.value));
     const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
     popover?.hideHandler()
   }
-  const onlyOptionShow =  (parentIndex,childIndex,item)=>{
-    if(!item.showList || item.showList.length !== item.value.length){
-      set(item, 'showList', new Array(item.value.length).fill(true))
+  const onlyOptionShow =  (item, child, parentIndex, childIndex)=>{
+   item.hidden_values.length = 0;
+   item.hidden_values = [];
+   item.disabled = false;
+
+   item.value.forEach(v => {
+    if (v !== child) {
+      item.hidden_values.push(v);
     }
-    item.showList = item.showList.map((_, index) => index !== childIndex);
+   });
+
     emitChange(cloneDeep(modelValue.value));
     const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
     popover?.hideHandler()
   }
   const moreOption = (index) => {
     morePopoverRefs.value[index].showHandler()
+  }
+
+  /**
+   * 根据 hidden_values 动态获取当前展示文本
+   * @param item 
+   * @param child 
+   */
+  const getItemActionShowText = (item, child) => {
+    if (item.hidden_values?.includes(child)) {
+      return '恢复这个选项';
+    }
+
+    return '隐藏这个选项';
+  }
+
+  /**
+   * 批量添加分词弹出事件
+   * @param isShow 
+   */
+  const handleBatchInputChange = isShow => {
+    const instance = getTippyUtil();
+    if (instance) {
+      instance.setProps({ hideOnClick: !isShow });
+    }
   }
 </script>
 
@@ -467,15 +502,14 @@
               >
                 <span
                   v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
-                  :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 },{'delete-line':item.showList?.[childIndex]}]"
+                  :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 },{'delete-line': item.hidden_values?.includes(child)}]"
                   @click.stop="() => handlePopoverShow(index,childIndex)"
                 >
                   {{ formatDateTimeField(child, item.field_type) }}
                 </span>
                 <div slot="content">
-                  <div class="match-value-select" v-if="!item.showList?.[childIndex]" @click="changeOptionShow(index,childIndex,item,true)">隐藏这个选项</div>
-                  <div class="match-value-select" v-else @click="changeOptionShow(index,childIndex,item,false)">恢复这个选项</div>
-                  <div class="match-value-select" @click="onlyOptionShow(index,childIndex,item)">只看这个选项</div>
+                  <div class="match-value-select" @click="changeOptionShow(item, child, index, childIndex)">{{ getItemActionShowText(item, child) }}</div>
+                  <div class="match-value-select" @click="onlyOptionShow(item, child, index, childIndex)">只看这个选项</div>
                 </div>
               </bk-popover>
               <span
@@ -511,11 +545,10 @@
                 trigger="click"
                 extCls="match-value-popover"
               >
-                <div class="match-value-child"  :class="[{'delete-line':item.showList?.[childIndex+3]}]">{{ child }}</div>
+                <div class="match-value-child"  :class="[{'delete-line':item.hidden_values?.includes(child) }]">{{ child }}</div>
                 <div slot="content">
-                  <div class="match-value-select" v-if="!item.showList?.[childIndex+3]" @click="changeOptionShow(index,childIndex+3,item,true)">隐藏这个选项</div>
-                  <div class="match-value-select" v-else @click="changeOptionShow(index,childIndex+3,item,false)">恢复这个选项</div>
-                  <div class="match-value-select" @click="onlyOptionShow(index,childIndex+3,item)">只看这个选项</div>
+                  <div class="match-value-select" @click="changeOptionShow(item, child, index, childIndex)">{{ getItemActionShowText(item, child) }}</div>
+                  <div class="match-value-select" @click="onlyOptionShow(item, child, index, childIndex)">只看这个选项</div>
                 </div>
               </bk-popover>
             </div>
@@ -566,6 +599,7 @@
         :value="queryItem"
         @cancel="handleCancelClick"
         @save="handleGlobalSaveQueryClick"
+        @batch-input-change="handleBatchInputChange"
       ></UiInputOptions>
     </div>
   </ul>
@@ -650,20 +684,24 @@
       text-decoration: line-through;
     }
   }
+
   .match-value-content{
     display: flex;
     flex-direction: column;
+
     .bk-tooltip-ref{
       width: 100%;
       cursor: pointer;
     }
+
     .match-value-child{
       font-size: 12px;
       line-height: 32px;
     }
   }
+
   .match-value-popover{
     // eslint-disable-next-line
-    left: 15px !important;
+    left: 15px;
   }
 </style>

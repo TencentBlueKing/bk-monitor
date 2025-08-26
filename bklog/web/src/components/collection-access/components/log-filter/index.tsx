@@ -228,7 +228,7 @@ export default class LogFilter extends tsc<object> {
         return;
       }
       let isCanSubmit = true;
-      
+
       for (const fIndex in this.filterData) {
         const container = this.$refs[`filterTableRef-${fIndex}`] as any;
         for (const iIndex in this.filterData[fIndex]) {

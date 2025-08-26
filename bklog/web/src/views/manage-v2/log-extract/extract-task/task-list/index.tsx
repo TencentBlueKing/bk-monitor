@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue';
+import { defineComponent, ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
 import useRouter from '@/hooks/use-router';
@@ -57,7 +57,7 @@ export default defineComponent({
     const searchKeyword = ref(''); // 搜索关键词
     const isLoading = ref(false); // 加载状态
     const taskList = ref<any[]>([]); // 任务列表
-    const pagination = reactive({
+    const pagination = ref({
       // 分页配置
       count: 0,
       current: 1,
@@ -90,15 +90,15 @@ export default defineComponent({
         const payload: any = {
           query: {
             bk_biz_id: store.state.bkBizId,
-            page: pagination.current,
-            pagesize: pagination.limit,
+            page: pagination.value.current,
+            pagesize: pagination.value.limit,
           },
         };
         if (searchKeyword.value) {
           payload.query.keyword = searchKeyword.value;
         }
         const res = await http.request('extract/getTaskList', payload);
-        pagination.count = res.data.total;
+        pagination.value.count = res.data.total;
         // 获取请求displayName的 ipList参数列表
         const allIpList = res.data.list.reduce((pre: any[], cur: any) => {
           if (!cur.enable_clone) return pre;
@@ -192,7 +192,7 @@ export default defineComponent({
 
     // 处理搜索
     const handleSearch = () => {
-      pagination.current = 1;
+      pagination.value.current = 1;
       initTaskList();
     };
 
@@ -217,16 +217,16 @@ export default defineComponent({
 
     // 处理分页变化
     const handlePageChange = (page: number) => {
-      if (pagination.current !== page) {
-        pagination.current = page;
+      if (pagination.value.current !== page) {
+        pagination.value.current = page;
         initTaskList();
       }
     };
 
     // 处理每页数量变化
     const handlePageLimitChange = (limit: number) => {
-      pagination.limit = limit;
-      pagination.current = 1;
+      pagination.value.limit = limit;
+      pagination.value.current = 1;
       initTaskList();
     };
 
@@ -316,14 +316,14 @@ export default defineComponent({
     const handleOperation = (type: string) => {
       if (type === 'clear-filter') {
         searchKeyword.value = '';
-        pagination.current = 1;
+        pagination.value.current = 1;
         initTaskList();
         return;
       }
 
       if (type === 'refresh') {
         emptyType.value = 'empty';
-        pagination.current = 1;
+        pagination.value.current = 1;
         initTaskList();
         return;
       }
@@ -378,7 +378,7 @@ export default defineComponent({
         <bk-table
           class='king-table'
           data={taskList.value}
-          pagination={pagination}
+          pagination={pagination.value}
           data-test-id='fromBox_table_tableBox'
           onPage-change={handlePageChange}
           onPage-limit-change={handlePageLimitChange}

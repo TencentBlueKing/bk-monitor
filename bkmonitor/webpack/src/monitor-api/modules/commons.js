@@ -8,13 +8,6 @@ export const stickSpace = request('POST', 'rest/v2/commons/space/stick/');
 export const createSpace = request('POST', 'rest/v2/commons/space/new/');
 export const listDevopsSpaces = request('GET', 'rest/v2/commons/space/devops_list/');
 export const spaceIntroduce = request('GET', 'rest/v2/commons/space_introduce/');
-export const listDataPipeline = request('GET', 'rest/v2/commons/list_data_pipeline/');
-export const listDataSourceByDataPipeline = request('GET', 'rest/v2/commons/list_data_source_by_data_pipeline/');
-export const createDataPipeline = request('POST', 'rest/v2/commons/create_data_pipeline/');
-export const updateDataPipeline = request('POST', 'rest/v2/commons/update_data_pipeline/');
-export const getClusterInfo = request('GET', 'rest/v2/commons/get_cluster_info/');
-export const getEtlConfig = request('GET', 'rest/v2/commons/get_etl_config/');
-export const getTransferList = request('GET', 'rest/v2/commons/get_transfer_list/');
 export const checkClusterHealth = request('GET', 'rest/v2/commons/check_cluster_health/');
 export const listClusters = request('GET', 'rest/v2/commons/list_clusters/');
 export const getStorageClusterDetail = request('GET', 'rest/v2/commons/get_storage_cluster_detail/');
@@ -55,13 +48,6 @@ export default {
   createSpace,
   listDevopsSpaces,
   spaceIntroduce,
-  listDataPipeline,
-  listDataSourceByDataPipeline,
-  createDataPipeline,
-  updateDataPipeline,
-  getClusterInfo,
-  getEtlConfig,
-  getTransferList,
   checkClusterHealth,
   listClusters,
   getStorageClusterDetail,

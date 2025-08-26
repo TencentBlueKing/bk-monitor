@@ -80,6 +80,10 @@
         }
       }
     }
+
+    .is-error .user-selector-container {
+      border-color: #ff5656;
+    }
   }
 
   .button-container {

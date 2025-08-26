@@ -242,7 +242,6 @@ export default defineComponent({
       duration,
       hasChildren: isParent,
       operationName,
-      process: { serviceName },
       kind,
       is_virtual: isVirtual,
       source,
@@ -268,7 +267,11 @@ export default defineComponent({
     const isOddRow = (bgColorIndex as number) % 2 !== 0;
 
     const displayServiceName =
-      source === 'ebpf' ? (ebpfKind === 'ebpf_system' ? ebpfThreadName : ebpfTapSide) : serviceName;
+      source === 'ebpf'
+        ? ebpfKind === 'ebpf_system'
+          ? ebpfThreadName
+          : ebpfTapSide
+        : span.service_name || span.process?.serviceName;
 
     const displayOperationName =
       source === 'ebpf' ? (ebpfKind === 'ebpf_system' ? operationName : ebpfTapPortName) : operationName;

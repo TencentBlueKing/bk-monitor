@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-// 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位） 
+// 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位）
 const LogCollectionView = { name: 'LogCollection', template: '<router-view></router-view>' };
 const CollectionItemView = { name: 'CollectionItemView', template: '<router-view></router-view>' };
 const IndexSetView = { name: 'IndexSet', template: '<router-view :key="Date.now()"></router-view>' };
@@ -35,25 +35,40 @@ const LogCleanTempView = { name: 'LogCleanTempView', template: '<router-view></r
 const LogDesensitizeView = { name: 'LogDesensitizeView', template: '<router-view></router-view>' };
 
 // 管理模块各组件异步声明（用于路由懒加载）
-const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage'); 
-const CollectionItem = () => import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
-const ManageCollection = () => import(/* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection');
+const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
+const CollectionItem = () =>
+  import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
+const ManageCollection = () =>
+  import(
+    /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
+  );
 const AccessSteps = () => import(/* webpackChunkName: 'access-steps' */ '@/components/collection-access');
-const IndexList = () => import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
-const ManageIndex = () => import(/* webpackChunkName: 'mange-index' */ '@/views/manage/manage-access/components/index-set/manage');
-const CreateIndex = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/components/index-set/create');
-const CustomReportList = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/list');
-const CustomReportCreate = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/create');
-const CustomReportDetail = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/detail');
-const CollectionTrack = () => import(/* webpackChunkName: 'collection-track' */ '@/views/manage/trace-track/collection-track');
+const IndexList = () =>
+  import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
+const ManageIndex = () =>
+  import(/* webpackChunkName: 'mange-index' */ '@/views/manage/manage-access/components/index-set/manage');
+const CreateIndex = () =>
+  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/components/index-set/create');
+const CustomReportList = () =>
+  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/list');
+const CustomReportCreate = () =>
+  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/create');
+const CustomReportDetail = () =>
+  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/detail');
+const CollectionTrack = () =>
+  import(/* webpackChunkName: 'collection-track' */ '@/views/manage/trace-track/collection-track');
 const SdkTrack = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/trace-track/sdk-track');
 const cleanList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-manage/list');
 const cleanCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-manage/create');
-const cleanTempCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/create');
+const cleanTempCreate = () =>
+  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/create');
 const cleanTemplate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/list');
-const ArchiveRepository = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-repository/index.tsx');
-const ArchiveList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-list/index.tsx');
-const ArchiveRestore = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-restore/index.tsx');
+const ArchiveRepository = () =>
+  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-repository/index.tsx');
+const ArchiveList = () =>
+  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-list/index.tsx');
+const ArchiveRestore = () =>
+  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-restore/index.tsx');
 const ReportManage = () => import(/* webpackChunkName: 'report-manage' */ '@/views/manage/report-management');
 const ExtractConfig = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage-v2/log-extract/extract-config/index.tsx');
 const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/manage-v2/log-extract/extract-task/index.tsx');
@@ -61,6 +76,12 @@ const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views
 const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/manage-v2/log-extract/extract-task/task-create/index.tsx');
 const ExtractLinkList = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-list.tsx');
 const ExtractLinkCreate = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-create.tsx');
+// const ExtractConfig = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage/manage-extract/manage-extract-permission/index');
+// const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/extract/index');
+// const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views/extract/home');
+// const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/extract/create');
+// const ExtractLinkList = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage/manage-extract/extract-link-manage/extract-link-list');
+// const ExtractLinkCreate = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage/manage-extract/extract-link-manage/extract-link-create');
 const ClusterMess = () => import(/* webpackChunkName: 'es-cluster-mess' */ '@/views/manage/es-cluster-status/es-cluster-mess');
 const DataLinkConf = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/manage-data-link/manage-data-link-conf');
 const MaskingEdit = () => import(/* webpackChunkName: 'field-masking-separate' */ '@/views/manage/field-masking-separate');
@@ -214,7 +235,7 @@ const getManageRoutes = () => [
                 },
                 component: AccessSteps,
               },
-            ]
+            ],
           },
           // 索引集
           {
@@ -830,9 +851,9 @@ const getManageRoutes = () => [
       {
         path: 'collect',
         redirect: '/manage/log-collection/collection-item',
-      }
-    ]
-  }
+      },
+    ],
+  },
 ];
 
 export default getManageRoutes;
