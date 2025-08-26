@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, reactive, computed, watch, nextTick } from 'vue';
-import useStore from '@/hooks/use-store';
+import { defineComponent, ref, computed, watch, nextTick, reactive } from 'vue';
+
+import ValidateUserSelector from '@/components/user-selector';
 import useLocale from '@/hooks/use-locale';
-import http from '@/api';
+import useStore from '@/hooks/use-store';
+
 import ModuleSelect from './module-select.tsx';
 import ValidateInput from './validate-input.tsx';
-import ValidateUserSelector from '@/components/user-selector';
+import http from '@/api';
 
 import './config-slider.scss';
 
@@ -94,7 +96,7 @@ export default defineComponent({
         manageStrategyData.visible_dir.every((item: string) => Boolean(validateVisibleDir(item))) &&
         manageStrategyData.file_type.every((item: string) => Boolean(validateFileExtension(item))) &&
         manageStrategyData.modules.length &&
-        manageStrategyData.operator
+        manageStrategyData?.operator
       );
     });
 
@@ -197,24 +199,24 @@ export default defineComponent({
     const renderVisibleDirList = () => {
       return manageStrategyData.visible_dir.map((item: string, index: number) => (
         <div
-          class='flex-box add-minus-component visible-dir'
           key={index}
+          class='flex-box add-minus-component visible-dir'
         >
           <ValidateInput
             style='width: 256px; margin-right: 4px'
+            validator={validateVisibleDir}
             value={item}
             onChange={(val: string) => {
               manageStrategyData.visible_dir[index] = val;
             }}
-            validator={validateVisibleDir}
           />
           <span
             class='bk-icon icon-plus-circle'
             onClick={handleAddVisibleDir}
           />
           <span
-            class='bk-icon icon-minus-circle'
             style={{ display: manageStrategyData.visible_dir.length > 1 ? 'inline' : 'none' }}
+            class='bk-icon icon-minus-circle'
             onClick={() => manageStrategyData.visible_dir.splice(index, 1)}
           />
         </div>
@@ -225,24 +227,24 @@ export default defineComponent({
     const renderFileTypeList = () => {
       return manageStrategyData.file_type.map((item: string, index: number) => (
         <div
-          class='flex-box add-minus-component file-type'
           key={index}
+          class='flex-box add-minus-component file-type'
         >
           <ValidateInput
             style='width: 256px; margin-right: 4px'
+            validator={validateFileExtension}
             value={item}
             onChange={(val: string) => {
               manageStrategyData.file_type[index] = val;
             }}
-            validator={validateFileExtension}
           />
           <span
             class='bk-icon icon-plus-circle'
             onClick={handleAddFileType}
           />
           <span
-            class='bk-icon icon-minus-circle'
             style={{ display: manageStrategyData.file_type.length > 1 ? 'inline' : 'none' }}
+            class='bk-icon icon-minus-circle'
             onClick={() => manageStrategyData.file_type.splice(index, 1)}
           />
         </div>
@@ -385,7 +387,7 @@ export default defineComponent({
                 /> */}
                 <bk-user-display-name
                   class='execute-people'
-                  user-id={manageStrategyData.value.operator}
+                  user-id={manageStrategyData?.operator}
                 ></bk-user-display-name>
                 <bk-button
                   loading={isChangeOperatorLoading.value}
