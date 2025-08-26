@@ -30,9 +30,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 
+import { EMode } from '../../../../components/retrieval-filter/utils';
 import { DimensionSceneMap, K8sGroupDimension, SceneAliasMap } from '../../k8s-dimension';
 import { K8sTableColumnKeysEnum, K8SToEventWhereKeyMap, SceneEnum } from '../../typings/k8s-new';
-import { EMode } from '@/components/retrieval-filter/utils';
 
 import type { DrillDownEvent, K8sTableColumnResourceKey, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
 
