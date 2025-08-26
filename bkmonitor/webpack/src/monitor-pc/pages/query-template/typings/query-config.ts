@@ -50,9 +50,9 @@ export interface AggFunction {
 
 export class QueryConfig {
   /** 聚合条件 */
-  agg_condition: AggCondition[];
+  agg_condition: AggCondition[] = [];
   /** 聚合维度 */
-  agg_dimension: string[];
+  agg_dimension: string[] = [];
   /** 聚合间隔 */
   agg_interval: number | string;
   /** 聚合方法 */
