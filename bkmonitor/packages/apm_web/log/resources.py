@@ -49,14 +49,14 @@ def process_service_relation(bk_biz_id, app_name, service_name, indexes_mapping,
             indexes_mapping[relation.related_bk_biz_id] = relation_full_indexes
             index_info = next(
                 (i for i in relation_full_indexes 
-                 if str(i["index_set_id"]) == relation.value or str(i["index_set_id"]) in relation.value_list
+                 if str(i["index_set_id"]) == relation.value or i["index_set_id"] in relation.value_list
                  ),
                 None,
             )
         else:
             index_info = next(
                 (i for i in indexes_mapping.get(bk_biz_id, []) 
-                 if str(i["index_set_id"]) == relation.value or str(i["index_set_id"]) in relation.value_list
+                 if str(i["index_set_id"]) == relation.value or i["index_set_id"] in relation.value_list
                  ),
                 None,
             )

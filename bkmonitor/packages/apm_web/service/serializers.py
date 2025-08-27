@@ -36,6 +36,8 @@ class EventServiceRelationSerializer(serializers.ModelSerializer):
 
 
 class LogServiceRelationSerializer(serializers.ModelSerializer):
+    value = serializers.CharField(required=False, allow_null=True)
+
     class Meta:
         model = LogServiceRelation
         fields = ["log_type", "related_bk_biz_id", "value", "value_list", "updated_at", "updated_by"]
@@ -76,8 +78,7 @@ class ServiceConfigSerializer(serializers.Serializer):
 
     app_relation = AppServiceRelationSerializer(required=False, allow_null=True)
     cmdb_relation = CMDBServiceRelationSerializer(required=False, allow_null=True)
-    log_relation = LogServiceRelationSerializer(required=False, allow_null=True)
-    log_relation_list = serializers.ListSerializer(required=False, allow_null=True, child=LogServiceRelationSerializer())
+    log_relation_list = serializers.ListSerializer(required=False, default=[], child=LogServiceRelationSerializer())
     apdex_relation = ServiceApdexConfigSerializer(required=False, allow_null=True)
     uri_relation = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
     event_relation = serializers.ListSerializer(required=False, default=[], child=EventServiceRelationSerializer())
@@ -117,7 +118,7 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
         index_set = api.log_search.search_index_set(bk_biz_id=instance.bk_biz_id)
         value_list = []
         for index in index_set:
-            if str(index["index_set_id"]) in instance.value_list:
+            if index["index_set_id"] in instance.value_list:
                 value_list.append({
                     "value": index["index_set_id"],
                     "value_alias": index["index_set_name"]

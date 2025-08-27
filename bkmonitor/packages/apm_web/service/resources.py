@@ -448,9 +448,7 @@ class ServiceConfigResource(Resource):
         update_relation = functools.partial(self.update, bk_biz_id, app_name, service_name)
 
         update_relation(validated_request_data.get("cmdb_relation"), CMDBServiceRelation)
-        # 2025.8.26 如果不再需要返回这个 log_relation 数据可以删除相关代码从而精简接口
-        update_relation(validated_request_data.get("log_relation"), LogServiceRelation)
-        update_relation(validated_request_data.get("log_relation_list"), LogServiceRelation)
+        self.update_log_relations(bk_biz_id, app_name, service_name, validated_request_data.get("log_relation_list"))
         update_relation(validated_request_data.get("app_relation"), AppServiceRelation)
 
         if validated_request_data.get("apdex_relation"):
@@ -494,6 +492,27 @@ class ServiceConfigResource(Resource):
                 UriServiceRelation.objects.create(uri=item, rank=index, **filter_params)
 
         UriServiceRelation.objects.filter(id__in=itertools.chain(*[ids for _, ids in delete_uris.items()])).delete()
+
+    @classmethod
+    def update_log_relations(cls, bk_biz_id: int, app_name: str, service_name: str, log_relation_list: list):
+        if not log_relation_list:
+            LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name).delete()
+        else:
+            username = get_request_username()
+            related_bk_biz_ids = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name).values_list("related_bk_biz_id", flat=True)
+                
+            for request_relation in log_relation_list:
+                if request_relation.get("related_bk_biz_id") in related_bk_biz_ids:
+                    LogServiceRelation.objects.update(updated_by=username, updated_at=arrow.now().datetime, **request_relation)
+                else:
+                    LogServiceRelation.objects.create(
+                        bk_biz_id=bk_biz_id,
+                        app_name=app_name,
+                        service_name=service_name,
+                        updated_by=username,
+                        created_by=username,
+                        **request_relation,
+                    )
 
     @classmethod
     def update_event_relations(
