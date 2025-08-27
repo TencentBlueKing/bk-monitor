@@ -264,8 +264,8 @@ class ChartHandler:
         start_date = st.format("YYYYMMDD")
         end_date = et.format("YYYYMMDD")
 
-        start_datetime = st.floor("hour").format("YYYY-MM-DD HH:mm:ss")
-        end_datetime = et.shift(hours=1).floor("hour").format("YYYY-MM-DD HH:mm:ss")
+        start_datetime = st.format("YYYY-MM-DD HH:mm:ss")
+        end_datetime = et.shift(seconds=1).format("YYYY-MM-DD HH:mm:ss")
 
         additional_where_clause = (
             f"thedate >= {start_date} AND thedate <= {end_date} AND "
