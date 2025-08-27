@@ -79,7 +79,7 @@ SQL_RESULT = [
 WHERE_CLAUSE = [
     (
         "WHERE thedate >= 20241122 AND thedate <= 20241129 "
-        "AND "
+        "AND dtEventTime >= '2024-11-22 04:00:00' AND dtEventTime <= '2024-11-29 04:00:00' AND "
         "dtEventTimeStamp >= 1732220441 "
         "AND "
         "dtEventTimeStamp <= 1732820443"
@@ -90,7 +90,7 @@ WHERE_CLAUSE = [
     ),
     (
         "WHERE thedate >= 20241122 AND thedate <= 20241129 "
-        "AND "
+        "AND dtEventTime >= '2024-11-22 04:00:00' AND dtEventTime <= '2024-11-29 04:00:00' AND "
         "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
         " AND "
         "title1 = \"Pyth?n\" OR title1 REGEXP '[Pp]ython.*'"
@@ -151,7 +151,7 @@ WHERE_CLAUSE = [
     ),
     (
         "WHERE thedate >= 20241122 AND thedate <= 20241129"
-        " AND "
+        " AND dtEventTime >= '2024-11-22 04:00:00' AND dtEventTime <= '2024-11-29 04:00:00' AND "
         "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
         " AND "
         "LOWER(log) LIKE LOWER('%') AND year BETWEEN 2020 AND 2023 AND log MATCH_PHRASE \"abc\" AND LOWER(log) LIKE LOWER('%def%')"
@@ -160,7 +160,7 @@ WHERE_CLAUSE = [
     ),
     (
         "WHERE thedate >= 20241122 AND thedate <= 20241129"
-        " AND "
+        " AND dtEventTime >= '2024-11-22 04:00:00' AND dtEventTime <= '2024-11-29 04:00:00' AND "
         "dtEventTimeStamp >= 1732220441 AND dtEventTimeStamp <= 1732820443"
         " AND "
         "title1 = \"Python Programming\" AND (LOWER(author) LIKE LOWER('%John%') AND LOWER(author) LIKE LOWER('%6%') OR author = \"7\")"
