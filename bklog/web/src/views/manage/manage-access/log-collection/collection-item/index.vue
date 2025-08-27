@@ -608,6 +608,7 @@
     getDefaultSettingSelectFiled,
     setDefaultSettingSelectFiled,
     deepClone,
+    updateLastSelectedIndexId
   } from '@/common/util';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
   import { mapGetters } from 'vuex';
@@ -974,6 +975,7 @@
           query.type = 'collectionStatus';
         }
         if (operateType === 'search') {
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
           if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
           params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
         }

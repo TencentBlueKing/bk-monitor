@@ -31,6 +31,9 @@ import useStore from "@/hooks/use-store";
 import { useRoute } from "vue-router/composables";
 import $http from "@/api";
 import { deepClone } from "@/common/util";
+import { RetrieveEvent } from '@/views/retrieve-helper';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+
 const store = useStore();
 const route = useRoute();
 const { t } = useLocale();
@@ -46,6 +49,13 @@ const handleOpenSidebar = async () => {
   emit("handle-popover-hide");
   addObject();
 };
+
+const { addEvent } =  useRetrieveEvent();
+addEvent(RetrieveEvent.ALIAS_CONFIG_OPEN, () => {
+   if (val) {
+      handleOpenSidebar();
+    }
+});
 // 提交
 const submit = async () => {
   try {

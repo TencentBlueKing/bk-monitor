@@ -57,6 +57,7 @@ import RowRender from './row-render';
 import ScrollXBar from './scroll-x-bar';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import './log-rows.scss';
 
@@ -86,6 +87,7 @@ export default defineComponent({
     const refResultRowBox: Ref<HTMLElement> = ref();
     const refSegmentContent: Ref<HTMLElement> = ref();
     const { handleOperation } = useTextAction(emit, 'origin');
+
     let savedSelection: Range = null;
 
     const popInstanceUtil = new PopInstanceUtil({
@@ -101,7 +103,7 @@ export default defineComponent({
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
       stopPropagation: true,
-      onclick: (e, ...args) => {
+      onclick: (_, ...args) => {
         const [type] = args;
         handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
         popInstanceUtil.hide();
@@ -142,6 +144,10 @@ export default defineComponent({
     const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
+
+    // 检索第一页数据时，loading状态
+    const isFirstPageLoading = computed(() => isLoading.value && !isRequesting.value);
+
     const hasMoreList = computed(() => {
       return indexSetQueryResult.value.total > tableDataSize.value;
     });
@@ -160,9 +166,10 @@ export default defineComponent({
       isPageLoading.value = isSearching;
     };
 
-    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+    const { addEvent } = useRetrieveEvent();
+    addEvent(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
 
-    const setRenderList = (length?) => {
+    const setRenderList = (length?: number) => {
       const arr = [];
       const endIndex = length ?? tableDataSize.value;
       const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
@@ -250,7 +257,7 @@ export default defineComponent({
           );
         },
         renderHeaderCell: () => {
-          const sortable = field.es_doc_values && field.tag !== 'union-source';
+          const sortable = field.es_doc_values && field.tag !== 'union-source' && field.field_type !== 'flattened';
           return renderHead(field, order => {
             if (sortable) {
               const sortList = order ? [[field.field_name, order]] : [];
@@ -607,7 +614,7 @@ export default defineComponent({
 
     watch(
       () => [tableDataSize.value],
-      (val, oldVal) => {
+      (_, oldVal) => {
         resetRowListState(oldVal?.[0]);
       },
       {
@@ -615,7 +622,16 @@ export default defineComponent({
       },
     );
 
-    RetrieveHelper.on(
+    useResizeObserve(
+      () => refResultRowBox.value,
+      () => {
+        handleResultBoxResize();
+        RetrieveHelper.fire(RetrieveEvent.RESULT_ROW_BOX_RESIZE);
+      },
+      60,
+    );
+
+    addEvent(
       [
         RetrieveEvent.FAVORITE_WIDTH_CHANGE,
         RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
@@ -691,6 +707,8 @@ export default defineComponent({
             if (resp?.size === 50) {
               pageIndex.value++;
             }
+
+            handleResultBoxResize();
           })
           .finally(() => {
             debounceSetLoading(0);
@@ -810,6 +828,10 @@ export default defineComponent({
     });
 
     const renderHeadVNode = () => {
+      if (isFirstPageLoading.value) {
+        return null;
+      }
+
       const columnLength = allColumns.value.length;
       let hasFullWidth = false;
 
@@ -946,6 +968,10 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
+      if (isFirstPageLoading.value) {
+        return null;
+      }
+
       return renderList.map((row, rowIndex) => {
         const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
 
@@ -1053,7 +1079,7 @@ export default defineComponent({
     });
 
     const exceptionType = computed(() => {
-      if (tableDataSize.value === 0) {
+      if (tableDataSize.value === 0 || indexFieldInfo.value.is_loading) {
         if (isRequesting.value || isLoading.value || isPageLoading.value) {
           return 'loading';
         }
@@ -1092,15 +1118,6 @@ export default defineComponent({
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
-      RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
-      [
-        RetrieveEvent.FAVORITE_WIDTH_CHANGE,
-        RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
-        RetrieveEvent.FAVORITE_SHOWN_CHANGE,
-        RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
-      ].forEach(event => {
-        RetrieveHelper.off(event, handleResultBoxResize);
-      });
     });
 
     return {

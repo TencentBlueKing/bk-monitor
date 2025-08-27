@@ -207,7 +207,7 @@ def push_and_publish_doris_table_id_detail(
 
     # 若开启多租户模式,则在table_id前拼接bk_tenant_id
     if settings.ENABLE_MULTI_TENANT_MODE:
-        redis_value = {f"{bk_tenant_id}|{table_id}": json.dumps(values)}
+        redis_value = {f"{table_id}|{bk_tenant_id}": json.dumps(values)}
     else:
         redis_value = {table_id: json.dumps(values)}
 

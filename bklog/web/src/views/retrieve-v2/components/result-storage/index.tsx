@@ -46,20 +46,22 @@ export default defineComponent({
     const isShowSourceField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const isFormatDate = computed(() => store.state.isFormatDate);
-    const currentSortField = computed(() => store.state.indexItem.sort_list?.[0] || []);
-    const isSortShow = computed(() => {
-      return requiredFields.includes(currentSortField.value[0]);
-    });
+
+    const activeSortField = computed(() =>
+      store.state.indexFieldInfo.default_sort_list?.length > 0 ? 'default_sort_list' : 'sort_list',
+    );
+
+    const sortField = computed(() => store.state.indexFieldInfo[activeSortField.value]?.[0] || []);
+    const isSortShow = computed(() => store.state.indexFieldInfo[activeSortField.value]?.length > 0);
     const ascShow = computed(() => {
-      const isAsc = currentSortField.value[1] === 'asc';
+      const isAsc = sortField.value[1] === 'asc';
       return isSortShow.value && isAsc;
     });
     const descShow = computed(() => {
-      const isDesc = currentSortField.value[1] === 'desc';
+      const isDesc = sortField.value[1] === 'desc';
       return isSortShow.value && isDesc;
     });
 
-    const requiredFields = ['dtEventTimeStamp', 'iterationIndex', 'gseIndex'];
     const handleStorageChange = (val, key) => {
       store.commit('updateStorage', { [key]: val });
     };
@@ -80,39 +82,26 @@ export default defineComponent({
         descending: 'desc',
       };
       const getNextSortOrder = current => {
-        switch (current) {
-          case 'asc':
-            return 'desc';
-          case 'desc':
-            return undefined;
-          default:
-            return 'asc';
-        }
+        const sortOrderSequence = ['asc', 'desc', undefined];
+        const currentIndex = sortOrderSequence.indexOf(current);
+        const nextIndex = (currentIndex + 1) % sortOrderSequence.length;
+        return sortOrderSequence[nextIndex];
       };
-      let timeSort = sort === 'next' ? getNextSortOrder(currentSortField.value[1]) : sortMap[sort];
+
+      let timeSort = sort === 'next' ? getNextSortOrder(sortField.value[1]) : sortMap[sort];
       if (target.classList.contains('active') && sort !== 'next') {
         target.classList.remove('active');
         timeSort = null;
       }
-      const sortList = timeSort ? [['dtEventTimeStamp', timeSort]] : [];
-      const updatedSortList = store.state.indexFieldInfo.sort_list.map(item => {
-        if (sortList.length > 0 && item[0] === 'dtEventTimeStamp') {
-          return sortList[0];
-        } else if (sortList.length === 0 && item[0] === 'dtEventTimeStamp') {
-          return ['dtEventTimeStamp', 'desc'];
-        }
-        return item;
-      });
-      const temporarySortList = timeSort ? requiredFields.map(item => [item, timeSort]) : [];
-      store.commit('updateLocalSort', true);
-      store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
-      store.commit('updateIndexItemParams', { sort_list: temporarySortList });
-      store.dispatch('requestIndexSetQuery');
+
+      const sortList = store.state.indexFieldInfo[activeSortField.value].map(item => [item[0], timeSort]);
+      store.commit('updateIndexFieldInfo', { default_sort_list: sortList });
+      store.dispatch('requestIndexSetQuery', { defaultSortList: sortList });
     };
 
     return () => (
       <div class='bklog-v3-storage'>
-        {/* <div class='switch-label log-sort'>
+        <div class='switch-label log-sort'>
           <span
             class='bklog-option-item'
             on-click={event => handleShowLogTimeChange(event, 'next')}
@@ -131,7 +120,7 @@ export default defineComponent({
               on-click={event => handleShowLogTimeChange(event, 'descending')}
             ></i>
           </span>
-        </div> */}
+        </div>
         <bk-checkbox
           style='margin: 0 12px 0 12px'
           class='bklog-option-item'

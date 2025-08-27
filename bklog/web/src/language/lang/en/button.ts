@@ -222,4 +222,5 @@ export default {
   默认配置: 'Default Configuration',
   批量编辑别名: 'Batch Edit Aliases',
   批量编辑变量别名: 'Batch edit variable alias mappings',
+  查看全部: 'View All',
 };

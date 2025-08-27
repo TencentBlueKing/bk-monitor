@@ -19,18 +19,30 @@
   const emit = defineEmits(['input']);
 
   const indexSetId = computed(() => store.state.indexId);
+  const bkBizId = computed(() => store.state.bkBizId);
 
   const indexSetItem = computed(() =>
     store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
   );
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
+  const requestAddition = computed(() => store.getters.requestAddition);
 
   const isAiopsToggle = computed(() => {
-    return (
-      (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
+      // 日志聚类总开关
+      const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
+      const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
+      const isLocalToggle = (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
       indexSetItem.value?.scenario_id === 'bkdata'
-    );
+
+      switch (bkdataAiopsToggle) {
+        case 'on':
+          return isLocalToggle;
+        case 'off':
+          return false;
+        default:
+          return aiopsBizList ? aiopsBizList.some(item => item.toString() === bkBizId.value) : isLocalToggle;
+      }
   });
 
   const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
@@ -75,10 +87,10 @@
       params.scenarioId = indexSet.category_id;
     }
 
-    if (retrieveParams.value.addition.length) {
+    if (requestAddition.value.length) {
       const resp = await $http.request('retrieve/generateQueryString', {
         data: {
-          addition: retrieveParams.value.addition,
+          addition: requestAddition.value,
         },
       });
 

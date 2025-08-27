@@ -25,6 +25,7 @@
  */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
+import { VIEW_BUSINESS } from '@/common/authority-map';
 import useStore from '@/hooks/use-store';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -34,6 +35,7 @@ import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '../../store/store.
 import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
 import $http from '@/api';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 export default () => {
   const store = useStore();
@@ -46,7 +48,10 @@ export default () => {
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
   const trendGraphHeight = ref(0);
 
-  const leftFieldSettingWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
+  const leftFieldSettingWidth = computed(() => {
+    const { width, show } = store.state.storage[BK_LOG_STORAGE.FIELD_SETTING];
+    return show ? width : 0;
+  });
 
   /**
    * 解析地址栏参数
@@ -97,10 +102,11 @@ export default () => {
     trendGraphHeight.value = height;
   };
 
-  RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, handleSearchBarHeightChange)
-    .on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, handleFavoriteWidthChange)
-    .on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, hanldeFavoriteShown)
-    .on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, handleGraphHeightChange);
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, handleSearchBarHeightChange);
+  addEvent(RetrieveEvent.FAVORITE_WIDTH_CHANGE, handleFavoriteWidthChange);
+  addEvent(RetrieveEvent.FAVORITE_SHOWN_CHANGE, hanldeFavoriteShown);
+  addEvent(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, handleGraphHeightChange);
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
@@ -209,7 +215,7 @@ export default () => {
           }
         }
 
-        // 如果当前地址参数没有indexSetId，则默认取第一个索引集
+        // 如果当前地址参数没有indexSetId，则默认取缓存中的索引信息
         // 同时，更新索引信息到store中
         if (!indexSetIdList.value.length) {
           const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
@@ -264,12 +270,18 @@ export default () => {
           }
         }
 
+        // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
         if (!indexSetIdList.value.length) {
-          const defaultId = [resp[1][0]?.index_set_id];
+          const respIndexSetList = resp[1];
+          const defIndexItem =
+            respIndexSetList.find(
+              item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
+            ) ?? respIndexSetList[0];
+          const defaultId = [defIndexItem?.index_set_id].filter(Boolean);
 
           if (defaultId) {
             const strId = `${defaultId}`;
-            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateIndexItem', { ids: [strId], items: [defIndexItem].filter(Boolean) });
             store.commit('updateIndexId', strId);
           }
         }
@@ -284,7 +296,7 @@ export default () => {
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
-          const type = indexId ?? route.params.indexId ? 'single' : 'union';
+          const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
           if (indexId && type === 'single') {
             store.commit('updateIndexId', indexId);
             store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
@@ -395,7 +407,6 @@ export default () => {
     if (routeQuery.spaceUid !== spaceUid.value) {
       const resolver = new RouteUrlResolver({ route });
 
-      const {} = store.state.indexItem;
       router.replace({
         params: {
           indexId: undefined,
@@ -424,7 +435,7 @@ export default () => {
   // 滚动时，检索结果距离顶部高度
   const searchResultTop = ref(0);
 
-  RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
+  addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 

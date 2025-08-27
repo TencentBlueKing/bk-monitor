@@ -38,7 +38,8 @@
     <template v-if="showMoreTextAction && hasScrollY">
       <span
         class="btn-more-action"
-        @click="handleClickMore"
+        @mouseup="handleMouseUp"
+        @mousedown="handleMouseDown"
       >
         {{ btnText }}
       </span>
@@ -54,11 +55,12 @@
 
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
-  import RetrieveHelper from '../views/retrieve-helper';
+  import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
   import { BK_LOG_STORAGE } from '../store/store.type';
-  import { debounce } from 'lodash';
+  import { debounce, isEmpty } from 'lodash';
   import JSONBig from 'json-bigint';
   import useLocale from '@/hooks/use-locale';
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -153,11 +155,22 @@
     return ` ...${$t('更多')}`;
   });
 
-  const handleClickMore = e => {
+  let mousedownItem = null;
+  const handleMouseDown = e => {
+    mousedownItem = e.target;
+  }
+
+
+  const handleMouseUp = e => {
     e.stopPropagation();
     e.preventDefault();
-    showAllText.value = !showAllText.value;
-  };
+    e.stopImmediatePropagation();
+    if (mousedownItem === e.target) {
+      showAllText.value = !showAllText.value;
+    }
+
+    mousedownItem = null;
+  }
 
   const onSegmentClick = args => {
     emit('menu-click', args);
@@ -230,13 +243,21 @@
     return val;
   };
 
+  const formatEmptyObject = (val: unknown) => {
+    if (typeof val === 'object') {
+      return isEmpty(val) ? '--' : val;
+    }
+
+    return val;
+  }
+
   const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
     const strVal = getDateFieldValue(field, getCellRender(val), formatDate);
     return {
       ref: ref(),
       isJson: typeof objValue === 'object' && objValue !== undefined,
-      value: getDateFieldValue(field, objValue, formatDate),
+      value: formatEmptyObject(getDateFieldValue(field, objValue, formatDate)),
       stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
       field,
     };
@@ -259,7 +280,7 @@
 
   const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
   const debounceUpdate = debounce(() => {
-    updateRootFieldOperator(rootList.value, depth.value);
+    updateRootFieldOperator(rootList.value as any, depth.value);
     setEditor(depth.value);
     isResolved.value = true;
     setTimeout(() => {
@@ -305,6 +326,9 @@
       setExpand(depth.value);
     },
   );
+
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
 
   onMounted(() => {
     setIsOverflowY();

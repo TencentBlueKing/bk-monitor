@@ -38,6 +38,7 @@ from apps.log_databus.constants import (
     PARSE_FAILURE_FIELD,
     EtlConfig,
     MetadataTypeEnum,
+    MIN_FLATTENED_SUPPORT_VERSION,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -45,7 +46,7 @@ from apps.log_databus.exceptions import (
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.models import CollectorConfig, CollectorPlugin
-from apps.log_databus.utils.es_config import get_es_config
+from apps.log_databus.utils.es_config import get_es_config, is_version_less_than
 from apps.log_search.constants import (
     FieldBuiltInEnum,
     FieldDataTypeEnum,
@@ -343,6 +344,11 @@ class EtlStorage:
 
             if not is_match_variate(target_field):
                 raise ValidationError(_("字段名不符合变量规则"))
+
+            if field["field_type"] == FieldDataTypeEnum.FLATTENED.value and is_version_less_than(
+                es_version, MIN_FLATTENED_SUPPORT_VERSION
+            ):
+                raise ValidationError(_(f"ES版本{es_version}不支持 flattened 字段类型"))
 
             # option, 非时间字段的option里的time_zone和time_format都为"", 不需要入库
             field_option = {

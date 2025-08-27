@@ -26,6 +26,8 @@
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import { getCommonFilterAddition, clearStorageCommonFilterAddition } from '../../../store/helper';
   import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
+  import { handleTransformToTimestamp } from '@/components/time-range/utils';
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
   const props = defineProps({
     // activeFavorite: {
@@ -95,6 +97,14 @@
   });
 
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
+
+  const computedIconClass = computed(() => {
+    const iconClass = {
+        0: "bklog-icon bklog-ui1 mode-icon",
+        1: "bklog-icon bklog-yuju1 mode-icon"
+      };
+      return iconClass[activeIndex.value] || "";
+  });
 
   watch(
     () => isIndexFieldLoading.value,
@@ -195,6 +205,11 @@
 
   const handleBtnQueryClick = () => {
     if (!isInputLoading.value) {
+      const { datePickerValue, format } = store.state.indexItem;
+      const result = handleTransformToTimestamp(datePickerValue, format);
+      
+      store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue });
+
       if (searchMode.value === 'sql') {
         beforeQueryBtnClick().then(() => {
           getBtnQueryResult();
@@ -293,7 +308,8 @@
     }
   };
 
-  RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
     activeFavorite.value = val;
     const type = queryParams.findIndex(idx => idx === activeFavorite.value.search_mode) ?? 0;
 
@@ -500,6 +516,10 @@
         @click="handleQueryTypeChange"
       >
         <span class="mode-text">{{ queryText }}</span>
+        <span 
+          v-bk-tooltips.top="queryText" 
+          :class="computedIconClass"
+        ></span>
         <span class="bklog-icon bklog-qiehuan-2" />
       </div>
       <div
