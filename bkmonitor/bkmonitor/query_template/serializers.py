@@ -156,7 +156,7 @@ class QueryConfigSerializer(serializers.Serializer):
 
 class QueryTemplateSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
-    name = serializers.CharField(label=_("查询模板名称"), max_length=128)
+    name = serializers.RegexField(label=_("查询模板名称"), max_length=50, regex=r"^[a-z0-9_]+$")
     alias = serializers.CharField(label=_("查询模板别名"), max_length=128, required=False, allow_blank=True, default="")
     namespace = serializers.ChoiceField(
         label=_("命名空间"),
