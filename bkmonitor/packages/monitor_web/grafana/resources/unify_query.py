@@ -222,13 +222,17 @@ class AddNullDataProcessor:
             if end_time < params["end_time"] * 1000:
                 end_time += interval
 
-            # 背景：在 interval 较大的情况下，不同存储时区对齐存在一些差异，例如 ES 在 interval=3h 时对齐到 8:00、11:00、14:00 等，
-            # 而 SaaS 统一对齐到 0:00、3:00、6:00 等，导致查询结果数据点和对齐后的时间范围不相交，进而导致补点逻辑将所有点都补成空点。
+        if not time_alignment and data:
+            # 背景：在 interval 较大的情况下，不同存储时区对齐存在一些差异，例如 ES 在 interval=3h 时
+            # 时序对齐到 8:00、11:00、14:00 ...，SaaS 则统一对齐到 0:00、3:00、6:00...，
+            # 上述行为导致查询结果数据点和对齐后的时间范围不相交，进而导致补点逻辑将所有点都补成空点。
             # 如果和查询结果数据点不相交，以查询结果为准，不做降采样和补点。
-            if data:
-                timestamps: set[int] = {p[1] for p in data[0]["datapoints"]}
-                if not timestamps & set(range(start_time, end_time, interval)):
-                    return data
+
+            # 取出数据点最多的时序，避免无数据误判。
+            longest_datapoints = max(data, key=lambda r: len(r.get("datapoints") or [])).get("datapoints") or []
+            timestamps: set[int] = {p[1] for p in longest_datapoints}
+            if not timestamps & set(range(start_time, end_time, interval)):
+                return data
 
         for row in data:
             time_to_value = defaultdict(lambda: None)
