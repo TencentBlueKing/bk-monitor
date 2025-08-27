@@ -179,19 +179,21 @@ class AlertAssigneeManager:
         # 获取该业务下所有订阅用户
         usernames = SubscribeCacheManager.get_users_by_biz(bk_biz_id)
         logger.info(
-            "[subscription] alert(%s) matching: bk_biz_id(%s), users(%d)",
+            "[subscription] alert(%s) matching: bk_biz_id(%s), users(%d), usernames(%s)",
             self.alert.id,
             bk_biz_id,
             len(usernames),
+            ",".join(map(str, usernames)) or "-",
         )
 
         for username in usernames:
             # 获取用户的订阅规则
             user_rules = SubscribeCacheManager.get_rules_by_user(bk_biz_id, username)
 
-            # 收集该用户所有匹配规则的通知方式
+            # 收集该用户所有匹配规则的通知方式与命中规则ID（规则ID用于日志输出）
             matched_notice_ways = set()
             matched_user_type = "follower"  # 默认为follower
+            matched_rule_ids = set()
 
             for rule in user_rules:
                 # 支持动态分组：将 dynamic_group 转换为 bk_host_id 列表
@@ -209,6 +211,8 @@ class AlertAssigneeManager:
                         matched_user_type = "main"
 
                     matched_notice_ways.update(notice_ways)
+                    if rule.get("id") is not None:
+                        matched_rule_ids.add(str(rule.get("id")))
 
             # 如果有匹配的规则，添加用户到通知列表
             if matched_notice_ways:
@@ -219,14 +223,15 @@ class AlertAssigneeManager:
                 for notice_way in matched_notice_ways:
                     target_notify_info[notice_way].append(username)
                 logger.info(
-                    "[subscription] alert(%s) user(%s) matched: type(%s), ways(%s)",
+                    "[subscription] alert(%s) user(%s) matched: type(%s), ways(%s), rule_ids(%s)",
                     self.alert.id,
                     username,
                     matched_user_type,
                     ",".join(sorted(matched_notice_ways)) or "-",
+                    ",".join(sorted(matched_rule_ids)) or "-",
                 )
             else:
-                logger.info(
+                logger.debug(
                     "[subscription] alert(%s) user(%s) no rule matched",
                     self.alert.id,
                     username,
