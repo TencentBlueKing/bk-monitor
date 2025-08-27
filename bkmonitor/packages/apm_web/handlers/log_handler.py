@@ -63,7 +63,7 @@ class ServiceLogHandler:
             if i.log_type == ServiceRelationLogTypeChoices.BK_LOG:
                 service_mapping[i.service_name] = {
                     "bk_biz_id": i.related_bk_biz_id,
-                    "index_set_ids": set(i.value_list + [int(i.value)])
+                    "index_set_ids": set([int(val) for val in (i.value_list + [i.value]) if val])
                 }
 
         # Step2: 查询业务的所有索引集 (避免每个 relation 都单独查询)
