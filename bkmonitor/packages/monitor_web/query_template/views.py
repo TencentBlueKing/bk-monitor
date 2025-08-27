@@ -8,8 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.db.models import Q
+from typing import Any
+
+from blueapps.utils.request_provider import get_request
+from django.db.models import Q, QuerySet
+from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
@@ -19,7 +24,7 @@ from bkmonitor.models.query_template import QueryTemplate
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.query_template import GLOBAL_BIZ_ID
 
-from . import mock_data, serializers
+from . import serializers
 
 
 class QueryTemplateViewSet(GenericViewSet):
@@ -42,63 +47,41 @@ class QueryTemplateViewSet(GenericViewSet):
         }
         return action_serializer_map.get(self.action) or self.serializer_class
 
-    def filter_queryset(self, queryset):
-        bk_biz_id = self.request.query_params.get("bk_biz_id") or self.request.data.get("bk_biz_id")
-        if isinstance(bk_biz_id, str) and bk_biz_id.isdigit():
-            bk_biz_id = int(bk_biz_id)
+    def filter_queryset(self, queryset: QuerySet[QueryTemplate]) -> QuerySet[QueryTemplate]:
+        bk_biz_id = int(get_request().biz_id)
         return queryset.filter(Q(bk_biz_id=bk_biz_id) | Q(space_scope__contains=bk_biz_id) | Q(bk_biz_id=GLOBAL_BIZ_ID))
 
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, request: Request, *args, **kwargs) -> Response:
         serializer = self.get_serializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-        query_template_id = int(kwargs[self.lookup_field])
-        if validated_data.get("is_mock"):
-            if query_template_id == 1:
-                response_data = mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_DETAIL
-            elif query_template_id == 2:
-                response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
-        else:
-            instance = self.get_object()
-            response_data = self.serializer_class(instance).data
-        return Response(response_data)
+        return Response(self.serializer_class(self.get_object()).data)
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request: Request, *args, **kwargs) -> Response:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         instance = self.get_object()
-        if self.serializer_class().get_can_delete(instance):
-            instance.delete()
-            return Response({})
-        raise Exception("权限不足，无法删除当前模板")
+        if not self.serializer_class().get_can_delete(instance):
+            raise Exception(_("权限不足，无法删除当前模板"))
+        instance.delete()
+        return Response({})
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args, **kwargs) -> Response:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-        if validated_data.get("is_mock"):
-            response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
-        else:
-            validated_data.pop("is_mock", None)
-            instance = self.serializer_class().create(validated_data)
-            response_data = self.serializer_class(instance).data
-        return Response(response_data)
+        instance = self.serializer_class().create(serializer.validated_data)
+        return Response(self.serializer_class(instance).data)
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Request, *args, **kwargs) -> Response:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-        if validated_data.get("is_mock"):
-            response_data = mock_data.CALLEE_P99_QUERY_TEMPLATE_DETAIL
-        else:
-            instance = self.get_object()
-            instance = self.serializer_class().update(instance, validated_data)
-            response_data = self.serializer_class(instance).data
-        return Response(response_data)
+        instance = self.serializer_class().update(self.get_object(), serializer.validated_data)
+        return Response(self.serializer_class(instance).data)
 
     @staticmethod
-    def _search_filter_by_conditions(queryset, conditions):
-        fuzzy_match_fields = ["name", "description", "create_user", "update_user"]
+    def _search_filter_by_conditions(
+        queryset: QuerySet[QueryTemplate], conditions: list[dict[str, Any]]
+    ) -> QuerySet[QueryTemplate]:
+        fuzzy_match_fields = ["name", "alias", "description", "create_user", "update_user"]
         for cond in conditions:
             q = Q()
             if cond["key"] == "query":
@@ -112,69 +95,55 @@ class QueryTemplateViewSet(GenericViewSet):
         return queryset
 
     @staticmethod
-    def _search_page(queryset, page, page_size):
+    def _search_page(queryset: QuerySet[QueryTemplate], page: int, page_size: int) -> QuerySet[QueryTemplate]:
         start_index = (page - 1) * page_size
         end_index = start_index + page_size
         return queryset[start_index:end_index]
 
     @action(methods=["POST"], detail=False)
-    def search(self, request, *args, **kwargs):
+    def search(self, request: Request, *args, **kwargs) -> Response:
         """查询模板列表"""
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        if validated_data.get("is_mock"):
-            response_data = {"total": 2, "list": mock_data.QUERY_TEMPLATE_LIST}
-        else:
-            queryset = self.filter_queryset(self.get_queryset()).order_by(*validated_data.get("order_by", []))
-            queryset = self._search_filter_by_conditions(queryset, validated_data.get("conditions", []))
-            total = queryset.count()
-            queryset = self._search_page(queryset, validated_data.get("page", 1), validated_data.get("page_size", 50))
-            response_data = {
+        queryset = self.filter_queryset(self.get_queryset()).order_by(*validated_data["order_by"])
+        queryset = self._search_filter_by_conditions(queryset, validated_data["conditions"])
+        total = queryset.count()
+        queryset = self._search_page(queryset, validated_data["page"], validated_data["page_size"])
+        return Response(
+            {
                 "total": total,
                 "list": serializers.QueryTemplateListModelSerializer(queryset, many=True).data,
             }
-
-        return Response(response_data)
+        )
 
     @action(methods=["POST"], detail=False)
-    def preview(self, request, *args, **kwargs):
+    def preview(self, request: Request, *args, **kwargs) -> Response:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        if validated_data.get("is_mock"):
-            response_data = mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE_PREVIEW
-        else:
-            response_data = QueryTemplateWrapper.from_dict(validated_data["query_template"]).render(
-                validated_data["context"]
-            )
-        return Response(response_data)
+        return Response(
+            QueryTemplateWrapper.from_dict(validated_data["query_template"]).render(validated_data["context"])
+        )
 
     @action(methods=["POST"], detail=True)
-    def relation(self, request, *args, **kwargs):
+    def relation(self, request: Request, *args, **kwargs) -> Response:
         """获取单个模板关联资源列表"""
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-        if validated_data.get("is_mock"):
-            response_data = {"total": 2, "list": mock_data.CALLEE_P99_QUERY_TEMPLATE_RELATION}
-        else:
-            response_data = {"total": 0, "list": []}
-
-        return Response(response_data)
+        return Response({"total": 0, "list": []})
 
     @action(methods=["POST"], detail=False)
-    def relations(self, request, *args, **kwargs):
+    def relations(self, request: Request, *args, **kwargs) -> Response:
         """获取列表关联资源数量"""
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-        response_data = []
-        if validated_data.get("is_mock"):
-            response_data = mock_data.QUERY_TEMPLATE_RELATIONS
-        else:
-            for query_template_id in validated_data.get("query_template_ids", []):
-                response_data.append({"query_template_id": query_template_id, "relation_count": 0})
-        return Response(response_data)
+        return Response(
+            [
+                {"query_template_id": query_template_id, "relation_count": 0}
+                for query_template_id in serializer.validated_data["query_template_ids"]
+            ]
+        )
