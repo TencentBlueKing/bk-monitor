@@ -125,6 +125,8 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   showCancelDrill = false;
   groupList = [];
 
+  bizId = this.$store.getters.bizId;
+
   cacheFilterBy: Record<string, string[]> = {};
   cacheGroupBy = [];
 
@@ -293,12 +295,15 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   async created() {
     /** URL没有参数且存在缓存查询条件，使用缓存查询条件 */
     if (!Object.keys(this.$route.query).length) {
-      const data = await this.handleGetUserConfig<Record<string, string | string[]>>(CACHE_SEARCH_QUERY);
-      data && this.getRouteParams(await data);
+      await this.getClusterList();
+      const data = await this.handleGetUserConfig<Record<string, string | string[]>>(
+        `${CACHE_SEARCH_QUERY}_${this.bizId}_${this.cluster}`
+      );
+      data && this.getRouteParams(data);
     } else {
       this.getRouteParams(this.$route.query);
+      this.getClusterList();
     }
-    this.getClusterList();
     this.getScenarioMetricList();
     this.getHideMetrics();
   }
@@ -323,7 +328,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
 
   beforeRouteLeave(to, from, next) {
     // 离开时缓存当前查询条件，方便下次进入时使用
-    this.handleSetUserConfig(CACHE_SEARCH_QUERY, JSON.stringify(from.query));
+    this.handleSetUserConfig(`${CACHE_SEARCH_QUERY}_${this.bizId}_${this.cluster}`, JSON.stringify(from.query));
     next();
   }
 
@@ -622,12 +627,10 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         this.eventFilterMode = EMode.ui;
       }
     } else {
-      this.activeTab = activeTab as K8sNewTabEnum;
       this.initGroupBy();
-      if (groupBy) {
-        this.groupInstance.setGroupFilters(tryURLDecodeParse(groupBy as string, []));
-      }
       this.initFilterBy();
+      this.activeTab = activeTab as K8sNewTabEnum;
+      this.groupInstance.setGroupFilters(tryURLDecodeParse(groupBy as string, []));
       this.filterBy = { ...this.filterBy, ...tryURLDecodeParse(filterBy as string, {}) };
     }
   }
