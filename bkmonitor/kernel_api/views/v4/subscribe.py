@@ -8,13 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from monitor_web.strategies.resources import (
-    SaveStrategySubscribeResource,
-    DeleteStrategySubscribeResource,
-    ListStrategySubscribeResource,
-    DetailStrategySubscribeResource,
-)
 
 
 class SubscribeViewSet(ResourceViewSet):
@@ -23,8 +18,8 @@ class SubscribeViewSet(ResourceViewSet):
     """
 
     resource_routes = [
-        ResourceRoute("GET", ListStrategySubscribeResource, endpoint="search"),
-        ResourceRoute("GET", DetailStrategySubscribeResource, endpoint="detail"),
-        ResourceRoute("POST", SaveStrategySubscribeResource, endpoint="save"),
-        ResourceRoute("POST", DeleteStrategySubscribeResource, endpoint="delete"),
+        ResourceRoute("GET", resource.strategies.list_strategy_subscribe, endpoint="search"),
+        ResourceRoute("GET", resource.strategies.detail_strategy_subscribe, endpoint="detail"),
+        ResourceRoute("POST", resource.strategies.save_strategy_subscribe, endpoint="save"),
+        ResourceRoute("POST", resource.strategies.delete_strategy_subscribe, endpoint="delete"),
     ]
