@@ -124,6 +124,7 @@
   import ResultStorage from '../../components/result-storage/index';
   import BkLogPopover from '../../../../components/bklog-popover/index';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
   let logResultResizeObserver;
   let logResultResizeObserverFn;
@@ -230,7 +231,9 @@
     mounted() {
       this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
       RetrieveHelper.setMarkInstance();
-      RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
+
+      const { addEvent } = useRetrieveEvent();
+      addEvent(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
         if (event === 'mark' && !this.highlightValue.includes(value)) {
           this.highlightValue.push(...value.split(/\s+/));
           RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));

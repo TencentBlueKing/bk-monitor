@@ -480,6 +480,7 @@ def push_and_publish_space_router(
 
 
 def _access_bkdata_vm(
+    bk_tenant_id: str,
     bk_biz_id: int,
     table_id: str,
     data_id: int,
@@ -493,14 +494,15 @@ def _access_bkdata_vm(
     # NOTE：只有当allow_access_v2_data_link为True，即单指标单表时序指标数据时，才允许接入V4链路
     if settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link:
         logger.info("_access_bkdata_vm: start to access v2 bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
-        access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
+        access_v2_bkdata_vm(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
     else:
         logger.info("_access_bkdata_vm: start to access bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
-        access_bkdata(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
+        access_bkdata(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def access_bkdata_vm(
+    bk_tenant_id: str,
     bk_biz_id: int,
     table_id: str,
     data_id: int,
@@ -512,6 +514,7 @@ def access_bkdata_vm(
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
     try:
         _access_bkdata_vm(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
             table_id=table_id,
             data_id=data_id,

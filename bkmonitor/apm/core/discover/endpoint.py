@@ -33,6 +33,7 @@ class EndpointDiscover(DiscoverBase):
 
     def list_exists(self):
         res = {}
+        instance_data = []
         endpoints = Endpoint.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         for e in endpoints:
             res.setdefault(
@@ -47,7 +48,16 @@ class EndpointDiscover(DiscoverBase):
                 dict(),
             ).update({"id": e.id, "service_name": e.service_name, "endpoint_name": e.endpoint_name})
 
-        return res
+            instance_data.append(
+                {
+                    "id": e.id,
+                    "service_name": e.service_name,
+                    "endpoint_name": e.endpoint_name,
+                    "updated_at": e.updated_at,
+                }
+            )
+
+        return res, instance_data
 
     @classmethod
     def to_instance_key(cls, object_pk_id, readable_name):
@@ -108,16 +118,9 @@ class EndpointDiscover(DiscoverBase):
                 remain_instance_data.append(instance)
         return expired_delete_data, remain_instance_data
 
-    def query_cache_and_instance_data(self):
+    def query_cache_data(self):
         cache_name = ApmCacheHandler.get_endpoint_cache_key(self.bk_biz_id, self.app_name)
-        cache_data = ApmCacheHandler().get_cache_data(cache_name)
-
-        filter_params = {"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}
-        instance_data = list(
-            Endpoint.objects.filter(**filter_params).values("id", "service_name", "endpoint_name", "updated_at")
-        )
-
-        return cache_data, instance_data
+        return ApmCacheHandler().get_cache_data(cache_name)
 
     def clear_data(self, cache_data, instance_data) -> set:
         """
@@ -155,7 +158,7 @@ class EndpointDiscover(DiscoverBase):
         """
         rules, other_rule = self.get_rules()
 
-        exists_endpoints = self.list_exists()
+        exists_endpoints, instance_data = self.list_exists()
 
         need_update_instances = list()
         need_create_instances = set()
@@ -221,7 +224,7 @@ class EndpointDiscover(DiscoverBase):
             ]
         )
 
-        cache_data, instance_data = self.query_cache_and_instance_data()
+        cache_data = self.query_cache_data()
         delete_instance_keys = self.clear_data(cache_data, instance_data)
 
         create_instance_keys = set(

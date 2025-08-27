@@ -33,12 +33,32 @@ declare global {
     BK_SHARED_RES_URL: string;
     VERSION: string;
     AJAX_URL_PREFIX: string;
-    FEATURE_TOGGLE_WHITE_LIST: Record<string, (string | number)[]>;
-    FEATURE_TOGGLE: Record<string, 'on' | 'debug'>;
+    FEATURE_TOGGLE_WHITE_LIST: Record<string, (number | string)[]>;
+    FEATURE_TOGGLE: Record<string, 'debug' | 'on'>;
     __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
     __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
     __IS_MONITOR_APM__?: boolean; // 是否是监控APM组件
     $t: (key: string, params?: Record<string, any>) => string;
+    scheduler?: Scheduler;
+  }
+
+  interface Scheduler {
+    postTask(callback: () => void, options?: SchedulerPostTaskOptions): SchedulerTask;
+  }
+
+  interface SchedulerPostTaskOptions {
+    priority?: 'background' | 'user-blocking' | 'user-visible';
+    delay?: number;
+    signal?: AbortSignal;
+  }
+
+  interface SchedulerTask {
+    readonly priority: 'background' | 'user-blocking' | 'user-visible';
+    abort(): void;
+  }
+
+  interface WorkerGlobalScope {
+    scheduler?: Scheduler;
   }
 }
 

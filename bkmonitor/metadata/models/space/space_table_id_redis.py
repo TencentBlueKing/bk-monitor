@@ -200,9 +200,9 @@ class SpaceTableIDRedis:
 
     def push_es_table_id_detail(
         self,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
-        is_publish: bool | None = True,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
+        is_publish: bool = True,
     ):
         """
         推送ES结果表的详情信息至RESULT_TABLE_DETAIL路由
@@ -281,9 +281,7 @@ class SpaceTableIDRedis:
             return
         logger.info("push_es_table_id_detail: push es_table_detail for table_id_list->[%s] successfully", table_id_list)
 
-    def _compose_doris_table_id_detail(
-        self, bk_tenant_id: str, table_id_list: list[str] | None = None
-    ) -> dict[str, dict]:
+    def _compose_doris_table_id_detail(self, bk_tenant_id: str, table_id_list: list[str]) -> dict[str, dict]:
         """组装doris结果表的详情"""
         logger.info(
             "_compose_doris_table_id_detail:start to compose doris table_id detail data,table_id_list->[%s]",
@@ -322,9 +320,7 @@ class SpaceTableIDRedis:
             }
         return data
 
-    def push_doris_table_id_detail(
-        self, bk_tenant_id: str, table_id_list: list | None = None, is_publish: bool | None = True
-    ):
+    def push_doris_table_id_detail(self, bk_tenant_id: str, table_id_list: list, is_publish: bool | None = True):
         """
         推送Doris结果表详情路由
         @param bk_tenant_id: 租户ID
