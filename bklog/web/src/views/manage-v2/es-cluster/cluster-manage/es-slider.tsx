@@ -55,7 +55,7 @@ export default defineComponent({
     editClusterId: {
       type: Number,
       default: null,
-    },
+    }, 
     onHandleCancelSlider: { type: Function },
     onHandleUpdatedTable: { type: Function },
   },
@@ -538,8 +538,11 @@ export default defineComponent({
     };
 
     // 关闭侧边栏
-    const handleCancel = () => {
-      emit('handleCancelSlider');
+    const handleCancel = async () => {
+      const canClose = await handleCloseSidebar();
+      if(canClose){
+        emit('handleCancelSlider');
+      }
     };
 
     // 更新“过期时间”选择列表（含默认禁用态）
@@ -802,7 +805,7 @@ export default defineComponent({
           transfer
           before-close={handleCloseSidebar}
           onShown={handleShowSlider}
-          onAnimation-end={handleCancel}
+          onAnimation-end={() => emit('handleCancelSlider')}
         >
           <template slot='content'>
             <div
@@ -1406,7 +1409,7 @@ export default defineComponent({
                 </bk-button>
                 <bk-button
                   data-test-id='esAccessFromBox_button_cancel'
-                  onClick={() => emit('handleCancelSlider')}
+                  onClick={handleCancel}
                 >
                   {t('取消')}
                 </bk-button>
