@@ -113,6 +113,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       id: 'name',
       label: this.$t('模板名称'),
       minWidth: 180,
+      fixed: 'left',
       formatter: this.clickShowSlicerColRenderer,
     },
     alias: {
