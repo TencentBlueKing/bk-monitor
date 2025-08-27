@@ -255,7 +255,7 @@ class IndexSetTagNameExistException(BaseIndexSetException):
 
 class IndexSetAliasSettingsException(BaseIndexSetException):
     ERROR_CODE = "330"
-    MESSAGE = _("别名 [{name}] 冲突")
+    MESSAGE = _("别名冲突: {conflict_info}")
 
 
 # =================================================
