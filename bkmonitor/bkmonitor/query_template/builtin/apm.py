@@ -108,7 +108,7 @@ RPC_CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
 
 RPC_CALLEE_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "rpc_callee_avg_time",
+    "name": "apm_rpc_callee_avg_time",
     "alias": "[调用分析] 被调平均耗时 (ms）",
     "description": "被调平均耗时是指当前服务作为「服务提供方」，被其他服务调用时，从收到请求到返回结果的平均响应时间，单位为毫秒（ms）。",
     **_qs_to_query_params(
@@ -119,7 +119,7 @@ RPC_CALLEE_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
     ),
     "variables": _get_common_variables(
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLER_SERVICE, RPCMetricTag.CALLEE_METHOD],
-        related_metric_fields=["rpc_server_handled_total"],
+        related_metric_fields=["rpc_server_handled_count"],
     ),
 }
 
@@ -200,7 +200,7 @@ RPC_CALLER_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
     ),
     "variables": _get_common_variables(
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLEE_SERVICE, RPCMetricTag.CALLEE_METHOD],
-        related_metric_fields=["rpc_client_handled_total"],
+        related_metric_fields=["rpc_client_handled_count"],
     ),
 }
 
