@@ -90,7 +90,9 @@ def mysetting(request):
         "DEMO_BIZ_ID": str(settings.DEMO_BIZ_ID),
         "ES_STORAGE_CAPACITY": str(settings.ES_STORAGE_CAPACITY),
         "TAM_AEGIS_KEY": settings.TAM_AEGIS_KEY,
-        "BK_LOGIN_URL": "{}/api/c/compapi/v2/usermanage/fs_list_users/".format(bk_login_url_prefix),
+        "BK_LOGIN_URL": f"{settings.PAAS_API_HOST}/api/bk-user-web/prod"
+        if settings.ENABLE_MULTI_TENANT_MODE
+        else "{}/api/c/compapi/v2/usermanage/fs_list_users/".format(bk_login_url_prefix),
         "MENU_LOGO_URL": f"{settings.STATIC_URL}{settings.MENU_LOGO_URL}",
         "BK_DOC_DATA_URL": settings.BK_DOC_DATA_URL,
         "BK_ARCHIVE_DOC_URL": settings.BK_ARCHIVE_DOC_URL,

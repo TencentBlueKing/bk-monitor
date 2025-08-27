@@ -333,7 +333,16 @@ class DataAPI:
         # 请求前的参数清洗处理
         origin_params = params.copy()
         if self.before_request is not None:
-            params = self.before_request(params)
+            # 将bk_tenant_id传到before_request进行处理（添加管理员账号）
+            _bk_tenant_id = bk_tenant_id or self.bk_tenant_id
+            if not origin_params.get("bk_tenant_id") and _bk_tenant_id:
+                if callable(_bk_tenant_id):
+                    _bk_tenant_id = _bk_tenant_id(params)
+                params["bk_tenant_id"] = _bk_tenant_id
+                params = self.before_request(params)
+                del params["bk_tenant_id"]
+            else:
+                params = self.before_request(params)
 
         # 缓存
         with ignored(Exception):
@@ -477,7 +486,9 @@ class DataAPI:
         :return:
         """
         # 缓存
-        cache_str = f"url_{self.build_actual_url(params)}__params_{json.dumps(origin_params or params, cls=LazyEncoder)}"
+        cache_str = (
+            f"url_{self.build_actual_url(params)}__params_{json.dumps(origin_params or params, cls=LazyEncoder)}"
+        )
         hash_md5 = hashlib.new("md5")
         hash_md5.update(cache_str.encode("utf-8"))
         cache_key = hash_md5.hexdigest()

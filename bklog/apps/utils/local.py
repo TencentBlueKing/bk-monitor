@@ -25,7 +25,7 @@ the project delivered to anyone in the future.
 import sys  # noqa
 import uuid  # noqa
 
-from apps.api import BKLoginApi # noqa
+from apps.api import BKLoginApi  # noqa
 
 from threading import local  # noqa
 
@@ -188,12 +188,10 @@ def get_admin_username(bk_tenant_id: str) -> str | None:
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return getattr(settings, "COMMON_USERNAME", None)
 
-    result = BKLoginApi.batch_lookup_virtual_user({
-        "bk_tenant_id": bk_tenant_id,
-        "lookup_field": "login_name",
-        "lookups": "bk_admin",
-        "bk_username": "admin"
-    })
+    result = BKLoginApi.batch_lookup_virtual_user(
+        {"bk_tenant_id": bk_tenant_id, "lookup_field": "login_name", "lookups": "bk_admin", "bk_username": "admin"},
+        bk_tenant_id=bk_tenant_id,
+    )
     if result:
         return result[0].get("bk_username")
     else:
@@ -224,9 +222,9 @@ def get_global_user(peaceful=True, bk_tenant_id: str = ""):
     # 1.3 系统配置的后台用户
 
     username = (
-            get_request_username()
-            or get_local_username()
-            or get_backend_username(peaceful=peaceful, bk_tenant_id=bk_tenant_id)
+        get_request_username()
+        or get_local_username()
+        or get_backend_username(peaceful=peaceful, bk_tenant_id=bk_tenant_id)
     )
 
     if username:

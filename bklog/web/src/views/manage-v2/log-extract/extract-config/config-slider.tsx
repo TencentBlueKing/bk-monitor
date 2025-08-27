@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, reactive, computed, watch, nextTick } from 'vue';
-import useStore from '@/hooks/use-store';
+import { defineComponent, ref, computed, watch, nextTick } from 'vue';
+
+import ValidateUserSelector from '@/components/user-selector';
 import useLocale from '@/hooks/use-locale';
-import http from '@/api';
+import useStore from '@/hooks/use-store';
+
 import ModuleSelect from './module-select.tsx';
 import ValidateInput from './validate-input.tsx';
-import ValidateUserSelector from './validate-user-selector.tsx';
+import http from '@/api';
 
 import './config-slider.scss';
 
@@ -76,42 +78,31 @@ export default defineComponent({
 
     const isChangeOperatorLoading = ref(false); // 修改执行人加载状态
     const showSelectDialog = ref(false); // 是否显示选择对话框
-    const manageStrategyData = reactive(JSON.parse(JSON.stringify(props.strategyData))); // 管理策略数据
+    const manageStrategyData = ref(structuredClone(props.strategyData)); // 管理策略数据
+    const isError = ref(false);
 
     // 初始化数据，避免后台造的数据为空数组
-    if (!manageStrategyData.visible_dir?.length) {
-      manageStrategyData.visible_dir = [''];
+    if (!manageStrategyData.value.visible_dir?.length) {
+      manageStrategyData.value.visible_dir = [''];
     }
-    if (!manageStrategyData.file_type?.length) {
-      manageStrategyData.file_type = [''];
+    if (!manageStrategyData.value.file_type?.length) {
+      manageStrategyData.value.file_type = [''];
     }
 
     // 是否验证通过
-    const isValidated = computed(() => {
-      return (
-        manageStrategyData.strategy_name &&
-        manageStrategyData.user_list.length &&
-        manageStrategyData.visible_dir.every((item: string) => Boolean(validateVisibleDir(item))) &&
-        manageStrategyData.file_type.every((item: string) => Boolean(validateFileExtension(item))) &&
-        manageStrategyData.modules.length &&
-        manageStrategyData.operator
-      );
-    });
+    const isValidated = ref(false);
+    const isValidatedComputed = () => {
+      isValidated.value =
+        manageStrategyData.value.strategy_name &&
+        manageStrategyData.value.user_list.length &&
+        manageStrategyData.value.visible_dir.every((item: string) => Boolean(validateVisibleDir(item))) &&
+        manageStrategyData.value.file_type.every((item: string) => Boolean(validateFileExtension(item))) &&
+        manageStrategyData.value.modules.length &&
+        manageStrategyData.value?.operator;
+      console.log('isValidated = ', manageStrategyData.value);
+    };
 
-    // 监听 props 变化，更新本地数据
-    watch(
-      () => props.strategyData,
-      newVal => {
-        Object.assign(manageStrategyData, JSON.parse(JSON.stringify(newVal)));
-        if (!manageStrategyData.visible_dir?.length) {
-          manageStrategyData.visible_dir = [''];
-        }
-        if (!manageStrategyData.file_type?.length) {
-          manageStrategyData.file_type = [''];
-        }
-      },
-      { deep: true },
-    );
+    const isExternal = computed(() => store.state.isExternal);
 
     // 校验授权目录
     const validateVisibleDir = (val: string) => {
@@ -129,7 +120,7 @@ export default defineComponent({
 
     // 添加授权目录
     const handleAddVisibleDir = () => {
-      manageStrategyData.visible_dir.push('');
+      manageStrategyData.value.visible_dir.push('');
       nextTick(() => {
         const inputList = document.querySelectorAll('.visible-dir input');
         if (inputList.length > 0) {
@@ -140,7 +131,7 @@ export default defineComponent({
 
     // 添加文件类型
     const handleAddFileType = () => {
-      manageStrategyData.file_type.push('');
+      manageStrategyData.value.file_type.push('');
       nextTick(() => {
         const inputList = document.querySelectorAll('.file-type input');
         if (inputList.length > 0) {
@@ -154,20 +145,21 @@ export default defineComponent({
       // 关闭选择对话框
       showSelectDialog.value = false;
       // 更新管理策略数据
-      manageStrategyData.select_type = selectType;
-      manageStrategyData.modules = modules;
+      manageStrategyData.value.select_type = selectType;
+      manageStrategyData.value.modules = modules;
+      isValidatedComputed();
     };
 
     // 监听选择对话框的显示状态
     const handleValueChange = (val: any) => {
       showSelectDialog.value = val;
-    }; 
+    };
 
     // 修改执行人
     const changeOperator = async () => {
       const { operator } = store.state.userMeta;
       if (operator) {
-        manageStrategyData.operator = operator;
+        manageStrategyData.value.operator = operator;
         return;
       }
 
@@ -175,7 +167,7 @@ export default defineComponent({
         isChangeOperatorLoading.value = true;
         const res = await http.request('userInfo/getUsername');
         store.commit('updateUserMeta', res.data);
-        manageStrategyData.operator = res.data.operator;
+        manageStrategyData.value.operator = res.data.operator;
       } catch (e) {
         console.warn(e);
       } finally {
@@ -190,32 +182,33 @@ export default defineComponent({
 
     // 处理确认
     const handleConfirm = () => {
-      emit('handleUpdatedTable', manageStrategyData);
+      emit('handleUpdatedTable', manageStrategyData.value);
     };
 
     // 渲染授权目录列表
     const renderVisibleDirList = () => {
-      return manageStrategyData.visible_dir.map((item: string, index: number) => (
+      return manageStrategyData.value.visible_dir.map((item: string, index: number) => (
         <div
-          class='flex-box add-minus-component visible-dir'
           key={index}
+          class='flex-box add-minus-component visible-dir'
         >
           <ValidateInput
             style='width: 256px; margin-right: 4px'
-            value={item}
-            onChange={(val: string) => {
-              manageStrategyData.visible_dir[index] = val;
-            }}
             validator={validateVisibleDir}
+            value={item}
+            on-change={(val: string) => {
+              manageStrategyData.value.visible_dir[index] = val;
+              isValidatedComputed();
+            }}
           />
           <span
             class='bk-icon icon-plus-circle'
             onClick={handleAddVisibleDir}
           />
           <span
+            style={{ display: manageStrategyData.value.visible_dir.length > 1 ? 'inline' : 'none' }}
             class='bk-icon icon-minus-circle'
-            style={{ display: manageStrategyData.visible_dir.length > 1 ? 'inline' : 'none' }}
-            onClick={() => manageStrategyData.visible_dir.splice(index, 1)}
+            onClick={() => manageStrategyData.value.visible_dir.splice(index, 1)}
           />
         </div>
       ));
@@ -223,30 +216,41 @@ export default defineComponent({
 
     // 渲染文件后缀列表
     const renderFileTypeList = () => {
-      return manageStrategyData.file_type.map((item: string, index: number) => (
+      return manageStrategyData.value.file_type.map((item: string, index: number) => (
         <div
-          class='flex-box add-minus-component file-type'
           key={index}
+          class='flex-box add-minus-component file-type'
         >
           <ValidateInput
             style='width: 256px; margin-right: 4px'
+            validator={validateFileExtension}
             value={item}
             onChange={(val: string) => {
-              manageStrategyData.file_type[index] = val;
+              manageStrategyData.value.file_type[index] = val;
+              isValidatedComputed();
             }}
-            validator={validateFileExtension}
           />
           <span
             class='bk-icon icon-plus-circle'
             onClick={handleAddFileType}
           />
           <span
+            style={{ display: manageStrategyData.value.file_type.length > 1 ? 'inline' : 'none' }}
             class='bk-icon icon-minus-circle'
-            style={{ display: manageStrategyData.file_type.length > 1 ? 'inline' : 'none' }}
-            onClick={() => manageStrategyData.file_type.splice(index, 1)}
+            onClick={() => manageStrategyData.value.file_type.splice(index, 1)}
           />
         </div>
       ));
+    };
+
+    const handleBlur = () => {
+      isError.value = !manageStrategyData.value.user_list.length;
+    };
+
+    const handleChangePrincipal = val => {
+      isError.value = !val.length;
+      manageStrategyData.value.user_list = val;
+      isValidatedComputed();
     };
 
     // 主渲染函数
@@ -269,9 +273,10 @@ export default defineComponent({
             <div class='content'>
               <ValidateInput
                 style='width: 400px'
-                value={manageStrategyData.strategy_name}
+                value={manageStrategyData.value.strategy_name}
                 onChange={(val: string) => {
-                  manageStrategyData.strategy_name = val;
+                  manageStrategyData.value.strategy_name = val;
+                  isValidatedComputed();
                 }}
               />
             </div>
@@ -294,13 +299,11 @@ export default defineComponent({
             </div>
             <div class='content'>
               <ValidateUserSelector
-                value={manageStrategyData.user_list}
+                value={manageStrategyData.value.user_list}
                 onChange={(val: any[]) => {
-                  manageStrategyData.user_list = val;
+                  manageStrategyData.value.user_list = val;
+                  isValidatedComputed();
                 }}
-                // allowCreate={props.allowCreate}
-                api={props.userApi}
-                // placeholder={props.allowCreate ? t('请输入QQ并按Enter结束（可多次添加）') : ''}
               />
             </div>
           </div>
@@ -349,15 +352,15 @@ export default defineComponent({
                 </bk-button>
                 <div class='select-text'>
                   <i18n path='已选择{0}个节点'>
-                    <span class={manageStrategyData.modules.length ? 'primary' : 'error'}>
-                      {` ${manageStrategyData.modules.length} `}
+                    <span class={manageStrategyData.value.modules.length ? 'primary' : 'error'}>
+                      {` ${manageStrategyData.value.modules.length} `}
                     </span>
                   </i18n>
                 </div>
               </div>
               <ModuleSelect
-                selectedModules={manageStrategyData.modules}
-                selectedType={manageStrategyData.select_type}
+                selectedModules={manageStrategyData.value.modules}
+                selectedType={manageStrategyData.value.select_type}
                 showSelectDialog={showSelectDialog.value}
                 onHandleConfirm={handleConfirmSelect}
                 onHandleValueChange={handleValueChange}
@@ -380,12 +383,16 @@ export default defineComponent({
             </div>
             <div class='content'>
               <div class='flex-box'>
-                <bk-input
+                {/* <bk-input
                   style='width: 256px; margin-right: 10px'
-                  class={!manageStrategyData.operator && 'is-input-error'}
-                  value={manageStrategyData.operator}
+                  class={!manageStrategyData.value.operator && 'is-input-error'}
+                  value={manageStrategyData.value.operator}
                   readonly
-                />
+                /> */}
+                <bk-user-display-name
+                  class='execute-people'
+                  user-id={manageStrategyData.value?.operator}
+                ></bk-user-display-name>
                 <bk-button
                   loading={isChangeOperatorLoading.value}
                   size='small'

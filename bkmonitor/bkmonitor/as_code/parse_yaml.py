@@ -14,7 +14,6 @@ import re
 from abc import abstractmethod
 from copy import deepcopy
 
-from django.conf import settings
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.action.serializers import DutyRuleDetailSlz
@@ -689,13 +688,9 @@ class StrategyConfigParser(BaseConfigParser):
             code_query_config = {"metric": get_metric_id(data_source, data_type, query_config)}
             # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID部分替换为 data_label
             data_label = query_config.get("data_label", None)
-            if (
-                settings.ENABLE_DATA_LABEL_EXPORT
-                and data_label
-                and (
-                    query_config.get("data_source_label", None)
-                    in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
-                )
+            if data_label and (
+                query_config.get("data_source_label", None)
+                in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
             ):
                 code_query_config["metric"] = re.sub(
                     rf"\b{query_config['result_table_id']}\b", data_label, code_query_config["metric"]

@@ -38,19 +38,7 @@ from .data_link import (  # noqa
     VMResultTableConfig,
     VMStorageBindingConfig,
 )
-from .data_pipeline import (
-    DataPipeline,
-    DataPipelineDataSource,
-    DataPipelineEtlConfig,
-    DataPipelineSpace,
-)
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
-from .downsampled import (
-    DownsampleByDateFlow,
-    DownsampledContinuousQueries,
-    DownsampledDatabase,
-    DownsampledRetentionPolicies,
-)
 from .es_snapshot import (
     EsSnapshot,
     EsSnapshotIndice,
@@ -127,10 +115,6 @@ __all__ = [
     "ESStorage",
     "DorisStorage",
     "BkDataStorage",
-    "DownsampledRetentionPolicies",
-    "DownsampledDatabase",
-    "DownsampledContinuousQueries",
-    "DownsampleByDateFlow",
     "ArgusStorage",
     "StorageClusterRecord",
     # custom_report
@@ -165,11 +149,6 @@ __all__ = [
     "SpaceStickyInfo",
     "BkAppSpaceRecord",
     "SpaceTypeToResultTableFilterAlias",
-    # data pipeline
-    "DataPipeline",
-    "DataPipelineSpace",
-    "DataPipelineEtlConfig",
-    "DataPipelineDataSource",
     "AccessVMRecord",
     "SpaceVMInfo",
     "SpaceRelatedStorageInfo",

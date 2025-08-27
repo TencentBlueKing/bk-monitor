@@ -118,12 +118,6 @@ class SettingModal extends Mixins(authorityMixinCreate(ruleAuth, 'created')) {
           <NoPermission actionIds={this.authorityMap.VIEW_GLOBAL_AUTH} />
         );
       case 'resource-register':
-      case 'data-pipeline':
-        return this.authorityMap.VIEW_GLOBAL_AUTH ? (
-          this.$slots.default
-        ) : (
-          <NoPermission actionIds={this.authorityMap.VIEW_GLOBAL_AUTH} />
-        );
       default:
         return this.$slots.default;
     }
