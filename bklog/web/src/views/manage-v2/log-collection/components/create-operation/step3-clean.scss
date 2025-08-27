@@ -1,0 +1,157 @@
+.operation-step3-clean {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  .template-btn {
+    margin: 0 24px;
+    color: #3a84ff;
+    border-color: #3a84ff;
+  }
+  .mr-5 {
+    margin-right: 5px;
+  }
+  .status-box {
+    width: 148px;
+    height: 40px;
+    background: #3d6099;
+    box-shadow: 0 2px 4px 0 #46495c3d;
+    border-radius: 25px;
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    z-index: 1;
+    .status-icon-box {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #3a84ff;
+      margin-right: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .status-txt {
+      color: #fff;
+      font-size: 14px;
+      text-align: center;
+    }
+    &.success {
+      background: #3d9399;
+      .status-icon-box {
+        background: #fff;
+        .status-icon {
+          font-size: 33px;
+          color: #00b38f;
+        }
+      }
+    }
+    &.failed {
+      background: #b34747;
+      .status-icon-box {
+        background: #fff;
+        .status-icon {
+          font-size: 38px;
+          color: #ea3636;
+        }
+      }
+    }
+  }
+  .select-group {
+    width: 80%;
+    display: flex;
+    margin-top: 12px;
+    gap: 12px;
+    .select-item {
+      width: 33%;
+      display: flex;
+      align-items: center;
+      color: #4d4f56;
+      font-size: 12px;
+    }
+    .select-title {
+      display: inline-block;
+      background: #fafbfd;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px 0 0 2px;
+      color: #4d4f56;
+      font-size: 12px;
+      padding: 0 8px;
+      line-height: 30px;
+    }
+    .select-box {
+      flex: 1;
+      border-left: none;
+      border-radius: 0 2px 2px 0;
+    }
+  }
+  .clean-setting {
+    width: 100%;
+    .clean-alert {
+      border: 1px solid #a3c5fd;
+      background: #f0f5ff;
+      color: #4d4f56;
+      margin-top: 12px;
+      margin-bottom: 20px;
+      .bk-icon {
+        color: #3a84ff;
+      }
+    }
+    .example-box {
+      margin-bottom: 8px;
+      .link-icon {
+        font-size: 14px;
+      }
+    }
+    .bk-button-group {
+      .bk-button {
+        width: 120px;
+      }
+    }
+    .clean-btn {
+      display: block;
+      width: 80px;
+      margin-top: 16px;
+      border: 1px solid #3a84ff;
+      color: #3a84ff;
+    }
+    .checkbox-box {
+      display: flex;
+      align-items: center;
+    }
+    .tab-box {
+      font-size: 12px;
+      color: #4d4f56;
+      display: flex;
+      .tab-list {
+        background: #f0f1f5;
+        border-radius: 2px;
+        padding: 4px;
+        height: 32px;
+        margin-right: 12px;
+        .tab-item {
+          display: inline-block;
+          padding: 4px 12px;
+          cursor: pointer;
+        }
+        .is-selected {
+          background: #ffffff;
+          border-radius: 2px;
+          color: #3a84ff;
+        }
+      }
+    }
+    .add-btn {
+      font-size: 20px !important;
+      top: -3px !important;
+    }
+    .fields-table {
+      margin: 12px 0;
+    }
+  }
+  .advanced-setting {
+    width: 100%;
+  }
+}

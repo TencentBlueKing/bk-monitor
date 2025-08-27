@@ -40,7 +40,6 @@ export interface TagMoreProps {
   gap?: number; // tag之间的间距，默认8px
   maxTagWidth?: number; // 每个tag的最大宽度，默认128px
   showTooltip?: boolean; // 是否显示tooltip，默认true
-  tagHeight?: number; // 标签高度，默认32px
   tags: TagItem[];
   tooltipPlacement?: 'bottom' | 'left' | 'right' | 'top'; // tooltip位置
 }

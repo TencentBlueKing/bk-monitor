@@ -41,7 +41,8 @@ const AccessSteps = () =>
   import(
     /* webpackChunkName: 'access-steps' */ '@/views/manage-v2/log-collection/components/create-operation/index.tsx'
   );
-// const CollectionItem = () => import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
+// const CollectionItem = () =>
+//   import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
 const ManageCollection = () =>
   import(
     /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'

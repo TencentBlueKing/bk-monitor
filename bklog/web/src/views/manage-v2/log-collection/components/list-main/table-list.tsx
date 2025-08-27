@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, getCurrentInstance } from 'vue';
+import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -268,6 +268,17 @@ export default defineComponent({
       });
       tippyInstances = [];
     };
+    watch(
+      () => props.loading,
+      val => {
+        if (!val) {
+          nextTick(() => {
+            initMenuPop();
+          });
+        }
+      },
+      { immediate: true },
+    );
 
     /** 渲染操作下拉列表 */
     const initMenuPop = () => {
@@ -308,8 +319,7 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      nextTick().then(() => {
-        initMenuPop();
+      nextTick(() => {
         !authGlobalInfo.value && checkCreateAuth();
       });
     });

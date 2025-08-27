@@ -58,6 +58,7 @@ export const useCollectList = () => {
 
   /** 是否有创建权限 */
   const checkCreateAuth = async () => {
+    console.log(store.getters, 'store');
     try {
       const res = await store.dispatch('checkAllowed', {
         action_ids: [authorityMap.CREATE_COLLECTION_AUTH],

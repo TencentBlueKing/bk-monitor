@@ -24,59 +24,31 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType } from 'vue';
+/**
+ * 采集列表的自定义 Hook
+ */
+export type CardItem = {
+  key: number | string;
+  title: string;
+  renderFn: () => any;
+};
 
-import './classify-card.scss';
-
-// 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
-const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
-
-export default defineComponent({
-  name: 'ClassifyCard',
-  props: {
-    data: {
-      type: Object as PropType<{ icon?: string; name?: string }>,
-      default: () => ({}),
-    },
-    activeKey: {
-      type: String,
-      default: '',
-    },
-  },
-  emits: ['choose'],
-
-  setup(props, { emit }) {
-    const resolveIconUrl = (iconName?: string) => {
-      if (!iconName) return '';
-      try {
-        return iconsContext(`./${iconName}.png`);
-      } catch (e) {
-        return '';
-      }
-    };
-    /** 选中 */
-    const handleChoose = () => {
-      emit('choose', props.data);
-    };
-
-    return () => (
-      <div
-        class={{
-          'classify-card-main': true,
-          active: props.activeKey === props.data?.value,
-        }}
-        onClick={handleChoose}
-      >
+export const useOperation = () => {
+  const cardRender = (cardConfig: CardItem[]) => (
+    <div class='classify-main-box'>
+      {cardConfig.map(item => (
         <div
-          style={{
-            background: `url(${resolveIconUrl(props.data?.icon)})`,
-            'background-size': '100% 100%',
-          }}
-          class='card-icon'
-        ></div>
-        <div class='card-txt'>{props.data?.name}</div>
-        <i class='bklog-icon bklog-correct icon-correct' />
-      </div>
-    );
-  },
-});
+          key={item.key}
+          class='info-card'
+        >
+          <div class='card-title'>{item.title}</div>
+          {item.renderFn()}
+        </div>
+      ))}
+    </div>
+  );
+
+  return {
+    cardRender,
+  };
+};

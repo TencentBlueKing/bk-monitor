@@ -27,6 +27,7 @@
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+
 import ClassifyCard from '../common-comp/classify-card';
 
 import './step1-classify.scss';
@@ -34,11 +35,11 @@ import './step1-classify.scss';
 export default defineComponent({
   name: 'StepClassify',
 
-  emits: ['width-change'],
+  emits: ['next'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const activeKey = ref('');
+    const activeKey = ref('host_log');
     const list = [
       {
         name: '主机采集',
@@ -128,6 +129,9 @@ export default defineComponent({
           <bk-button
             class='mr-8 width-88'
             theme='primary'
+            on-click={() => {
+              emit('next');
+            }}
           >
             {t('下一步')}
           </bk-button>
