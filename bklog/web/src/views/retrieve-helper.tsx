@@ -48,7 +48,7 @@ class RetrieveHelper extends RetrieveBase {
   mousedownEvent = null;
 
   constructor({ isFavoriteShow = false, isViewCurrentIndex = true, favoriteWidth = 0 }) {
-    super({});
+    super();
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
     this.isViewCurrentIndex = isViewCurrentIndex;

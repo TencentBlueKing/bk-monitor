@@ -130,6 +130,7 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
     ("alarm_backends.core.cache.assign", "* * * * *", "global"),
     ("alarm_backends.core.cache.calendar", "* * * * *", "global"),
+    ("alarm_backends.core.cache.subscribe", "* * * * *", "global"),
     # api cache
     ("alarm_backends.core.cache.result_table", "*/10 * * * *", "global"),
     # delay queue

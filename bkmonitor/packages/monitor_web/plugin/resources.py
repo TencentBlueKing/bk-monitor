@@ -15,7 +15,6 @@ import hashlib
 import json
 import logging
 import os
-import pathlib
 import re
 import shutil
 import subprocess
@@ -92,6 +91,7 @@ from monitor_web.plugin.serializers import (
     SNMPTrapSerializer,
 )
 from monitor_web.plugin.signature import Signature
+from pathlib import Path
 from utils import count_md5
 
 logger = logging.getLogger(__name__)
@@ -426,7 +426,7 @@ class PluginImportResource(Resource):
         super().__init__()
         self.tmp_path = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4()))
         self.plugin_id = None
-        self.filename_list = {}
+        self.filename_dict = {}
         self.current_version = None
         self.tmp_version = None
         self.plugin_type = None
@@ -443,20 +443,20 @@ class PluginImportResource(Resource):
         file_data = serializers.FileField(required=True)
 
     def un_tar_gz_file(self, tar_obj):
-        # 解压文件到临时目录
+        # 免解压读取文件内容到内存
         with tarfile.open(fileobj=tar_obj) as package_file:
             for member in package_file.getmembers():
                 # 取代 tarfile.extractall 的 filter="data"
                 if not member.isreg():
                     continue
                 with package_file.extractfile(member) as f:
-                    self.filename_list[member.name] = f.read()
+                    self.filename_dict[Path(member.name)] = f.read()
 
     def get_plugin(self):
         meta_yaml_path = ""
         # 获取plugin_id,meta.yaml必要信息
-        for filename in self.filename_list.keys():
-            path = filename.split("/")
+        for filename in self.filename_dict.keys():
+            path = filename.parts
             if (
                 len(path) >= 4
                 and path[-1] == "meta.yaml"
@@ -471,7 +471,7 @@ class PluginImportResource(Resource):
             raise PluginParseError({"msg": _("无法解析plugin_id")})
 
         try:
-            meta_content = self.filename_list[meta_yaml_path]
+            meta_content = self.filename_dict[meta_yaml_path]
         except OSError:
             raise PluginParseError({"msg": _("meta.yaml不存在，无法解析")})
 
@@ -522,13 +522,16 @@ class PluginImportResource(Resource):
         conflict_ids = []
 
         def handle_collector_json(config_value):
-            for config in list(config_value.get("collector_json", {}).values()):
-                if isinstance(config, dict):
-                    # 避免导入包和原插件内容一致，文件名不同
-                    config.pop("file_name", None)
-                    config.pop("file_id", None)
-                    if config.get("script_content_base64") and isinstance(config["script_content_base64"], bytes):
-                        config["script_content_base64"] = str(config["script_content_base64"], encoding="utf-8")
+            # for config in list(config_value.get("collector_json", {}).values()):
+            collector_json = config_value.get("collector_json", {})
+            if collector_json is not None:
+                for config in list(collector_json.values()):
+                    if isinstance(config, dict):
+                        # 避免导入包和原插件内容一致，文件名不同
+                        config.pop("file_name", None)
+                        config.pop("file_id", None)
+                        if config.get("script_content_base64") and isinstance(config["script_content_base64"], bytes):
+                            config["script_content_base64"] = str(config["script_content_base64"], encoding="utf-8")
             return config_value
 
         self.create_params["conflict_title"] = ""
@@ -602,6 +605,7 @@ class PluginImportResource(Resource):
                 plugin=self.plugin_id,
                 plugin_type=self.plugin_type,
                 tmp_path=self.tmp_path,
+                plugin_configs=self.filename_dict,
             )
             self.tmp_version = import_manager.get_tmp_version()
             self.check_duplicate()
@@ -947,7 +951,7 @@ class ProcessCollectorDebugResource(Resource):
                     raise RegexParseError({"msg": f"对应字字段为 {field_name}"})
 
         # 获取当前目录
-        current_dir = pathlib.Path(__file__).parent
+        current_dir = Path(__file__).parent
         cmd_path = current_dir / "process_matcher" / "bin" / "process_matcher"
 
         # 提取参数

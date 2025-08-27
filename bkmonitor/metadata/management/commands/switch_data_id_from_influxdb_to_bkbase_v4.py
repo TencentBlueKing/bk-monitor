@@ -78,7 +78,9 @@ class Command(BaseCommand):
         self.stdout.write(
             f"use bk_data_id->{bk_data_id},bk_biz_id->{bk_biz_id},table_id->{table_id} to access bkbase v4"
         )
-        access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=bk_data_id)
+        access_v2_bkdata_vm(
+            bk_tenant_id=datasource.bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=bk_data_id
+        )
 
         # Step6. 验证此前接入的资源是否畅通
         self.stdout.write(f"bk_data_id->{bk_data_id}, bkbase component config->{data_id_ins.component_config}")

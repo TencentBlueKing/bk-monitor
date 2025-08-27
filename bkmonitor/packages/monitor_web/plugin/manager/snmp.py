@@ -132,7 +132,7 @@ class SNMPPluginManager(PluginManager):
 
         # 获取 config.yaml.tpl 的文件路径
         for filename in self.filename_list:
-            if os.path.basename(filename) == file_name:
+            if os.path.basename(str(filename)) == file_name:
                 config_yaml_path = filename
                 break
         if not config_yaml_path:
