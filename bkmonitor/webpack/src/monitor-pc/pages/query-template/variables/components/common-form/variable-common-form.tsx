@@ -26,8 +26,9 @@
 import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { type VariableModelType, variableNameReg } from '../../index';
+
 import type { IVariableData } from '../../../typings/variables';
-import type { VariableModelType } from '../../index';
 
 import './variable-common-form.scss';
 interface VariableCommonFormEvents {
@@ -68,9 +69,9 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
         { validator: this.handleCheckName, message: this.$t('变量名不能重复'), trigger: 'blur' },
         {
           validator: () => {
-            return /^[\u4e00-\u9fa5a-zA-Z0-9_.:]+$/.test(this.localName);
+            return variableNameReg.test(this.localName);
           },
-          message: window.i18n.tc('变量名不能包含非法字符'),
+          message: this.$t('1～50 字符，仅支持 大小写字母、数字、下划线、点'),
           trigger: 'blur',
         },
       ],
@@ -89,12 +90,10 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
 
   handleNameChange(value: string) {
     this.localName = value;
-    // if (!/^[\u4e00-\u9fa5a-zA-Z0-9_.:]+$/.test(value)) return;
-    // this.$emit('nameChange', value ? `\${${value}}` : value)
   }
 
   emitNameChange(value: string) {
-    if (!/^[\u4e00-\u9fa5a-zA-Z0-9_.:]+$/.test(value)) return;
+    if (!variableNameReg.test(value)) return;
     this.$emit('nameChange', value ? `\${${value}}` : value);
   }
 
@@ -132,6 +131,7 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
         >
           <bk-input
             class='variable-name-input'
+            placeholder={this.$t('1～50 字符，仅支持 大小写字母、数字、下划线、点')}
             value={this.data.variableName}
             onBlur={this.emitNameChange}
             onChange={this.handleNameChange}

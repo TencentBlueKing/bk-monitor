@@ -56,6 +56,8 @@ export type VariableModelType =
   | FunctionVariableModel
   | MethodVariableModel;
 
+export const variableNameReg = /^[1-9a-zA-Z._]{1,50}$/;
+
 const isEmptyValue = (value: any) => {
   if (Array.isArray(value)) {
     return value.length === 0;
