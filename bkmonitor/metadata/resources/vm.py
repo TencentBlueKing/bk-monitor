@@ -19,6 +19,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.serializers import TenantIdField
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import Resource
 from metadata import config, models
@@ -249,11 +250,12 @@ class ModifyClusterByVmrts(Resource):
     class RequestSerializer(serializers.Serializer):
         vmrts = serializers.ListField(required=True, label="VM结果表ID列表")
         cluster_name = serializers.CharField(required=True, label="集群名称")
+        bk_tenant_id = TenantIdField(label="租户ID")
 
     def perform_request(self, validated_request_data):
-        bk_tenant_id = get_request_tenant_id()
-        vmrts = validated_request_data.get("vmrts")
-        cluster_name = validated_request_data.get("cluster_name")
+        vmrts = validated_request_data["vmrts"]
+        cluster_name = validated_request_data["cluster_name"]
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
 
         logger.info("ModifyClusterByVmrts: vmrts->[%s] will change to cluster->[%s]", vmrts, cluster_name)
 
