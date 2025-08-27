@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections.abc import Iterable
+from typing import Any
 
 from blueapps.utils.request_provider import get_request
 from django.utils.translation import gettext_lazy as _
@@ -22,7 +23,6 @@ from constants.query_template import GLOBAL_BIZ_ID
 
 class BaseQueryTemplateRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
-    is_mock = serializers.BooleanField(label="是否为 Mock 数据", default=False)
 
 
 class QueryTemplateDetailRequestSerializer(BaseQueryTemplateRequestSerializer):
@@ -32,7 +32,7 @@ class QueryTemplateDetailRequestSerializer(BaseQueryTemplateRequestSerializer):
 class QueryTemplateListRequestSerializer(BaseQueryTemplateRequestSerializer):
     class ConditionSerializer(serializers.Serializer):
         key = serializers.ChoiceField(
-            label="查询条件", choices=["query", "name", "description", "create_user", "update_user"]
+            label="查询条件", choices=["query", "name", "alias", "description", "create_user", "update_user"]
         )
         value = serializers.ListField(label="查询条件值", child=serializers.CharField())
 
@@ -84,15 +84,15 @@ class QueryTemplateBaseModelSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     @staticmethod
-    def _get_request_bk_biz_id():
+    def _get_request_bk_biz_id() -> int:
         return int(get_request().biz_id)
 
     @staticmethod
-    def is_global_template(bk_biz_id):
+    def is_global_template(bk_biz_id: int) -> bool:
         return bk_biz_id == GLOBAL_BIZ_ID
 
     @classmethod
-    def is_read_only(cls, obj):
+    def is_read_only(cls, obj: QueryTemplate) -> bool:
         if cls.is_global_template(obj.bk_biz_id):
             if get_request().user.is_superuser:
                 return False
@@ -100,10 +100,10 @@ class QueryTemplateBaseModelSerializer(serializers.ModelSerializer):
             return False
         return True
 
-    def get_can_edit(self, obj):
+    def get_can_edit(self, obj: QueryTemplate) -> bool:
         return not self.is_read_only(obj)
 
-    def get_can_delete(self, obj):
+    def get_can_delete(self, obj: QueryTemplate) -> bool:
         return not self.is_read_only(obj)
 
 
@@ -119,7 +119,7 @@ class QueryTemplateModelSerializer(QueryTemplateBaseModelSerializer):
             )
 
     @classmethod
-    def _base_create_validate(cls, validated_data):
+    def _base_create_validate(cls, validated_data: dict[str, Any]):
         bk_biz_id = validated_data["bk_biz_id"]
 
         if cls.is_global_template(bk_biz_id):
@@ -131,12 +131,12 @@ class QueryTemplateModelSerializer(QueryTemplateBaseModelSerializer):
         if QueryTemplate.origin_objects.filter(bk_biz_id=bk_biz_id, name=validated_data["name"]).exists():
             raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
 
-    def _base_update_validate(self, instance, validated_data):
+    def _base_update_validate(self, instance: QueryTemplate, validated_data: dict[str, Any]):
         if not self.get_can_edit(instance):
             raise serializers.ValidationError(_("当前模板不可编辑"))
 
-        existing_space_scopes = set(instance.space_scope)
-        modified_space_scopes = set(validated_data.get("space_scope", []))
+        existing_space_scopes: set[int] = set(instance.space_scope)
+        modified_space_scopes: set[int] = set(validated_data.get("space_scope", []))
         # 移除的 scopes
         removed_scopes = existing_space_scopes - modified_space_scopes
         # 新增的 scopes
@@ -151,18 +151,18 @@ class QueryTemplateModelSerializer(QueryTemplateBaseModelSerializer):
             raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
 
     @classmethod
-    def _base_validate(cls, validated_data):
+    def _base_validate(cls, validated_data: dict[str, Any]):
         bk_biz_id = validated_data["bk_biz_id"]
         # 非全局模板，生效范围必须包含本业务 ID
         if not cls.is_global_template(bk_biz_id) and bk_biz_id not in validated_data["space_scope"]:
             raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
 
-    def create(self, validated_data):
+    def create(self, validated_data: dict[str, Any]) -> QueryTemplate:
         self._base_validate(validated_data)
         self._base_create_validate(validated_data)
         return super().create(validated_data)
 
-    def update(self, instance, validated_data):
+    def update(self, instance: QueryTemplate, validated_data: dict[str, Any]) -> QueryTemplate:
         self._base_validate(validated_data)
         self._base_update_validate(instance, validated_data)
         return super().update(instance, validated_data)
