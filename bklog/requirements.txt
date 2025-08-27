@@ -29,7 +29,7 @@ mistune==3.0.2
 python-consul==1.1.0
 PyYAML==6.0.2
 dataclasses==0.6
-typing_extensions==3.7.4.3
+typing_extensions==4.5.0
 Markdown==3.3
 wrapt==1.15.0
 pyinstrument==3.4.2
