@@ -62,8 +62,12 @@ interface QueryConfigSetEvents {
   onDeleteQueryConfig: (index: number) => void;
   onSelectMetric: (index: number, metric: MetricDetailV2) => void;
   onStepChange: (step: number) => void;
-
-  onVariablesChange: (variablesList: VariableModelType[]) => void;
+  onVariableAliasChange: (val: string, index: number) => void;
+  onVariableDefaultValueChange: (val: any, index: number) => void;
+  onVariableDescChange: (val: string, index: number) => void;
+  onVariableNameChange: (val: string, index: number) => void;
+  onVariableOptionsChange: (val: string[], index: number) => void;
+  onVariableValueChange: (val: any, index: number) => void;
 }
 
 interface QueryConfigSetProps {
@@ -123,11 +127,6 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
     return variable;
   }
 
-  @Emit('variablesChange')
-  handleVariablesChange(variablesList: VariableModelType[]) {
-    return variablesList;
-  }
-
   handleSelectMetric(index: number, metric: MetricDetailV2) {
     this.$emit('selectMetric', index, metric);
   }
@@ -152,6 +151,30 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
   }
   handleChangeCondition(val: AggCondition[], index: number) {
     this.$emit('changeCondition', { value: val, index });
+  }
+
+  handleVariableNameChange(val: string, index: number) {
+    this.$emit('variableNameChange', val, index);
+  }
+
+  handleVariableAliasChange(val: string, index: number) {
+    this.$emit('variableAliasChange', val, index);
+  }
+
+  handleVariableDescChange(val: string, index: number) {
+    this.$emit('variableDescChange', val, index);
+  }
+
+  handleVariableOptionsChange(val: string[], index: number) {
+    this.$emit('variableOptionsChange', val, index);
+  }
+
+  handleVariableDefaultValueChange(val: any, index: number) {
+    this.$emit('variableDefaultValueChange', val, index);
+  }
+
+  handleVariableValueChange(val: any, index: number) {
+    this.$emit('variableValueChange', val, index);
   }
 
   handleNextStep() {
@@ -257,7 +280,12 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
           scene='create'
           useVariables={this.useVariables}
           variablesList={this.variablesList}
-          onChange={this.handleVariablesChange}
+          onAliasChange={this.handleVariableAliasChange}
+          onDefaultValueChange={this.handleVariableDefaultValueChange}
+          onDescChange={this.handleVariableDescChange}
+          onNameChange={this.handleVariableNameChange}
+          onOptionsChange={this.handleVariableOptionsChange}
+          onValueChange={this.handleVariableValueChange}
         />
       </div>
     );

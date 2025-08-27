@@ -26,8 +26,6 @@
 import { Component, Prop, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from 'monitor-common/utils';
-
 import { VariableTypeEnum, VariableTypeMap } from '../../../constants';
 import ConditionVariableDetail from '../condition/condition-variable-detail';
 import CreateConditionVariable from '../condition/create-condition-variable';
@@ -48,6 +46,7 @@ import CreateMethodVariable from '../method/create-method-variable';
 import EditMethodVariableValue from '../method/edit-method-variable-value';
 import MethodVariableDetail from '../method/method-variable-detail';
 
+import type { IVariableFormEvents } from '../../../typings/variables';
 import type {
   ConditionVariableModel,
   ConstantVariableModel,
@@ -60,8 +59,7 @@ import type {
 
 import './variable-panel.scss';
 
-interface VariablePanelEvents {
-  onDataChange: (variable: VariableModelType) => void;
+interface VariablePanelEvents extends IVariableFormEvents {
   onDelete: () => void;
 }
 
@@ -91,9 +89,28 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
     return VariableTypeMap[this.variable.type];
   }
 
-  @Debounce(200)
-  handleDataChange(value: VariableModelType) {
-    this.$emit('dataChange', value);
+  handleNameChange(value: string) {
+    this.$emit('nameChange', value);
+  }
+
+  handleAliasChange(value: string) {
+    this.$emit('aliasChange', value);
+  }
+
+  handleDescChange(value: string) {
+    this.$emit('descChange', value);
+  }
+
+  handleDefaultValueChange(value: any) {
+    this.$emit('defaultValueChange', value);
+  }
+
+  handleValueChange(value: any) {
+    this.$emit('valueChange', value);
+  }
+
+  handleOptionsChange(value: string[]) {
+    this.$emit('optionsChange', value);
   }
 
   handleDelete() {
@@ -132,7 +149,11 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           <CreateMethodVariable
             ref='variableForm'
             variable={this.variable as MethodVariableModel}
-            onDataChange={this.handleDataChange}
+            onAliasChange={this.handleAliasChange}
+            onDefaultValueChange={this.handleDefaultValueChange}
+            onDescChange={this.handleDescChange}
+            onNameChange={this.handleNameChange}
+            onValueChange={this.handleValueChange}
           />
         );
       case VariableTypeEnum.GROUP_BY:
@@ -140,7 +161,12 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           <CreateDimensionVariable
             ref='variableForm'
             variable={this.variable as DimensionVariableModel}
-            onDataChange={this.handleDataChange}
+            onAliasChange={this.handleAliasChange}
+            onDefaultValueChange={this.handleDefaultValueChange}
+            onDescChange={this.handleDescChange}
+            onNameChange={this.handleNameChange}
+            onOptionsChange={this.handleOptionsChange}
+            onValueChange={this.handleValueChange}
           />
         );
       case VariableTypeEnum.TAG_VALUES:
@@ -148,7 +174,11 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           <CreateDimensionValueVariable
             ref='variableForm'
             variable={this.variable as DimensionValueVariableModel}
-            onDataChange={this.handleDataChange}
+            onAliasChange={this.handleAliasChange}
+            onDefaultValueChange={this.handleDefaultValueChange}
+            onDescChange={this.handleDescChange}
+            onNameChange={this.handleNameChange}
+            onValueChange={this.handleValueChange}
           />
         );
       case VariableTypeEnum.FUNCTIONS:
@@ -157,7 +187,11 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
             ref='variableForm'
             metricFunctions={this.metricFunctions}
             variable={this.variable as FunctionVariableModel}
-            onDataChange={this.handleDataChange}
+            onAliasChange={this.handleAliasChange}
+            onDefaultValueChange={this.handleDefaultValueChange}
+            onDescChange={this.handleDescChange}
+            onNameChange={this.handleNameChange}
+            onValueChange={this.handleValueChange}
           />
         );
       case VariableTypeEnum.CONDITIONS:
@@ -165,7 +199,12 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           <CreateConditionVariable
             ref='variableForm'
             variable={this.variable as ConditionVariableModel}
-            onDataChange={this.handleDataChange}
+            onAliasChange={this.handleAliasChange}
+            onDefaultValueChange={this.handleDefaultValueChange}
+            onDescChange={this.handleDescChange}
+            onNameChange={this.handleNameChange}
+            onOptionsChange={this.handleOptionsChange}
+            onValueChange={this.handleValueChange}
           />
         );
       default:
@@ -173,7 +212,11 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           <CreateConstantVariable
             ref='variableForm'
             variable={this.variable as ConstantVariableModel}
-            onDataChange={this.handleDataChange}
+            onAliasChange={this.handleAliasChange}
+            onDefaultValueChange={this.handleDefaultValueChange}
+            onDescChange={this.handleDescChange}
+            onNameChange={this.handleNameChange}
+            onValueChange={this.handleValueChange}
           />
         );
     }
@@ -186,8 +229,8 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           <EditMethodVariableValue
             variable={this.variable as MethodVariableModel}
             onBlur={this.handleEditValueBlur}
-            onChange={this.handleDataChange}
             onFocus={this.handleEditValueFocus}
+            onValueChange={this.handleValueChange}
           />
         );
       case VariableTypeEnum.GROUP_BY:
@@ -195,8 +238,8 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           <EditDimensionVariableValue
             variable={this.variable as DimensionVariableModel}
             onBlur={this.handleEditValueBlur}
-            onChange={this.handleDataChange}
             onFocus={this.handleEditValueFocus}
+            onValueChange={this.handleValueChange}
           />
         );
       case VariableTypeEnum.TAG_VALUES:
@@ -204,8 +247,8 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           <EditDimensionValueVariableValue
             variable={this.variable as DimensionValueVariableModel}
             onBlur={this.handleEditValueBlur}
-            onChange={this.handleDataChange}
             onFocus={this.handleEditValueFocus}
+            onValueChange={this.handleValueChange}
           />
         );
       case VariableTypeEnum.FUNCTIONS:
@@ -214,8 +257,8 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
             metricFunctions={this.metricFunctions}
             variable={this.variable as FunctionVariableModel}
             onBlur={this.handleEditValueBlur}
-            onChange={this.handleDataChange}
             onFocus={this.handleEditValueFocus}
+            onValueChange={this.handleValueChange}
           />
         );
       case VariableTypeEnum.CONDITIONS:
@@ -223,8 +266,8 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           <EditConditionVariableValue
             variable={this.variable as ConditionVariableModel}
             onBlur={this.handleEditValueBlur}
-            onChange={this.handleDataChange}
             onFocus={this.handleEditValueFocus}
+            onValueChange={this.handleValueChange}
           />
         );
       default:
@@ -232,8 +275,8 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           <EditConstantVariableValue
             variable={this.variable as ConstantVariableModel}
             onBlur={this.handleEditValueBlur}
-            onChange={this.handleDataChange}
             onFocus={this.handleEditValueFocus}
+            onValueChange={this.handleValueChange}
           />
         );
     }

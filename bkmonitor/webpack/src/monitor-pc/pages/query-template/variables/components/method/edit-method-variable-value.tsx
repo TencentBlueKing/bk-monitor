@@ -27,13 +27,14 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { MethodVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
 import { CP_METHOD_LIST, METHOD_LIST } from '@/constant/constant';
+
+import type { MethodVariableModel } from '../../index';
 interface MethodValueEvents {
   onBlur: () => void;
-  onChange: (variable: MethodVariableModel) => void;
   onFocus: () => void;
+  onValueChange: (value: string) => void;
 }
 
 interface MethodValueProps {
@@ -48,9 +49,9 @@ export default class EditMethodVariableValue extends tsc<MethodValueProps, Metho
     return [...METHOD_LIST, ...CP_METHOD_LIST];
   }
 
-  @Emit('change')
+  @Emit('valueChange')
   handleValueChange(value: string) {
-    return new MethodVariableModel({ ...this.variable.data, value, isValueEditable: true });
+    return value;
   }
 
   handleSelectToggle(value: boolean) {

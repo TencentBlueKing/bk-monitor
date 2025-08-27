@@ -23,16 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
+import * as tsx from 'vue-tsx-support';
 
 import FunctionCreator from '../../../components/function/function-creator';
-import { FunctionVariableModel } from '../../index';
+import VariableFormMixin from '../../mixins/VariableFormMixin';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { AggFunction, IFunctionVariableModel } from '../../../typings';
-interface FunctionVariableEvents {
-  onDataChange: (variable: FunctionVariableModel) => void;
+import type { AggFunction, IVariableFormEvents } from '../../../typings';
+import type { FunctionVariableModel } from '../../index';
+interface FunctionVariableEvents extends IVariableFormEvents {
+  onDefaultValueChange: (val: AggFunction[]) => void;
+  onValueChange: (val: AggFunction[]) => void;
 }
 interface FunctionVariableProps {
   metricFunctions: any[];
@@ -40,26 +42,18 @@ interface FunctionVariableProps {
 }
 
 @Component
-export default class CreateFunctionVariable extends tsc<FunctionVariableProps, FunctionVariableEvents> {
+class CreateFunctionVariable extends Mixins(VariableFormMixin) {
   @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
   @Prop({ default: () => [] }) metricFunctions!: any[];
   @Ref() variableCommonForm!: VariableCommonForm;
 
-  handleValueChange(defaultValue: AggFunction[]) {
+  defaultValueChange(defaultValue: AggFunction[]) {
     let value = this.variable.value || [];
     if (!this.variable.isValueEditable) {
       value = defaultValue;
     }
-
-    this.handleDataChange({
-      ...this.variable.data,
-      defaultValue,
-      value,
-    });
-  }
-
-  handleDataChange(data: IFunctionVariableModel) {
-    this.$emit('dataChange', new FunctionVariableModel({ ...data }));
+    this.handleDefaultValueChange(defaultValue);
+    this.handleValueChange(value);
   }
 
   validateForm() {
@@ -72,7 +66,9 @@ export default class CreateFunctionVariable extends tsc<FunctionVariableProps, F
         <VariableCommonForm
           ref='variableCommonForm'
           data={this.variable.data}
-          onDataChange={this.handleDataChange}
+          onAliasChange={this.handleAliasChange}
+          onDescChange={this.handleDescChange}
+          onNameChange={this.handleNameChange}
         >
           <bk-form-item
             label={this.$t('默认值')}
@@ -84,7 +80,7 @@ export default class CreateFunctionVariable extends tsc<FunctionVariableProps, F
               showLabel={false}
               showVariables={false}
               value={this.variable.defaultValue}
-              onChange={this.handleValueChange}
+              onChange={this.defaultValueChange}
             />
           </bk-form-item>
         </VariableCommonForm>
@@ -92,3 +88,5 @@ export default class CreateFunctionVariable extends tsc<FunctionVariableProps, F
     );
   }
 }
+
+export default tsx.ofType<FunctionVariableProps, FunctionVariableEvents>().convert(CreateFunctionVariable);

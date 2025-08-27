@@ -28,6 +28,7 @@
 import { random } from 'monitor-common/utils';
 
 import { VariableTypeEnum } from '../constants';
+import { fetchMetricDetailList } from '../service';
 import { getTemplateSrv } from './template/template-srv';
 import { getVariableNameInput, isVariableName } from './template/utils';
 
@@ -42,6 +43,7 @@ import type {
   IMethodVariableModel,
   IVariableData,
   IVariableModel,
+  IVariableSubmitParams,
   VariableTypeEnumType,
 } from '../typings/variables';
 import type { ScopedVars } from './template/types';
@@ -217,11 +219,11 @@ export class DimensionValueVariableModel extends VariableBase {
 }
 
 export class DimensionVariableModel extends VariableBase {
-  defaultValue = [];
+  defaultValue: string[] = [];
   metric: MetricDetailV2 = null;
   /** 可选维度 */
   options = [];
-  value = [];
+  value: string[] = [];
 
   constructor(config: IDimensionVariableModel) {
     super(config);
@@ -329,31 +331,48 @@ export class MethodVariableModel extends VariableBase {
 }
 
 /** 获取创建变量所需参数结构 */
-export function getCreateVariableParams(params, metrics: MetricDetailV2[]): IVariableModel {
-  const {
-    type,
-    name,
-    alias,
-    description,
-    config: { default: defaultValue, related_metrics, related_tag, options },
-  } = params;
-
-  let metric = null;
-  if (related_metrics) {
-    const [{ metric_id }] = related_metrics;
-    metric = metrics.find(item => item.metric_id === metric_id);
+export async function getCreateVariableParams(params: IVariableSubmitParams[]): Promise<IVariableModel[]> {
+  const metricIds = [];
+  for (const variable of params) {
+    const { related_metrics } = variable.config;
+    if (related_metrics) {
+      for (const metric of related_metrics) {
+        if (!metricIds.find(item => item.metric_id === metric.metric_id)) {
+          metricIds.push(metric);
+        }
+      }
+    }
   }
 
-  return {
-    name: `\${${name}}`,
-    type,
-    alias,
-    description,
-    defaultValue,
-    metric,
-    related_tag,
-    options: options ? (options.length ? options : ['all']) : [],
-  };
+  const metrics = await fetchMetricDetailList(metricIds);
+
+  return params.map(item => {
+    const {
+      type,
+      name,
+      alias,
+      description,
+      config: { default: defaultValue, related_metrics, related_tag, options },
+    } = item;
+
+    let metric = null;
+    if (related_metrics) {
+      const [{ metric_id }] = related_metrics;
+      metric = metrics.find(item => item.metric_id === metric_id);
+      console.log(metric, metric_id, metrics);
+    }
+
+    return {
+      name: `\${${name}}`,
+      type,
+      alias,
+      description,
+      defaultValue,
+      metric,
+      related_tag,
+      options: options ? (options.length ? options : ['all']) : [],
+    };
+  });
 }
 
 export function getVariableModel(config: IVariableModel): VariableModelType {
@@ -374,7 +393,7 @@ export function getVariableModel(config: IVariableModel): VariableModelType {
 }
 
 /** 获取变量接口提交参数结构 */
-export function getVariableSubmitParams(variable: VariableModelType) {
+export function getVariableSubmitParams(variable: VariableModelType): IVariableSubmitParams {
   const { type, variableName, alias, description, defaultValue } = variable.data;
   let otherConfig = {};
   if (type === VariableTypeEnum.TAG_VALUES) {
