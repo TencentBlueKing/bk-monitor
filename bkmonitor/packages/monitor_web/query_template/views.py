@@ -12,6 +12,7 @@ from typing import Any
 
 from blueapps.utils.request_provider import get_request
 from django.db.models import Q, QuerySet
+from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -60,7 +61,7 @@ class QueryTemplateViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
         instance = self.get_object()
         if not self.serializer_class().get_can_delete(instance):
-            raise Exception("权限不足，无法删除当前模板")
+            raise Exception(_("权限不足，无法删除当前模板"))
         instance.delete()
         return Response({})
 
@@ -106,10 +107,10 @@ class QueryTemplateViewSet(GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        queryset = self.filter_queryset(self.get_queryset()).order_by(*validated_data.get("order_by", []))
-        queryset = self._search_filter_by_conditions(queryset, validated_data.get("conditions", []))
+        queryset = self.filter_queryset(self.get_queryset()).order_by(*validated_data["order_by"])
+        queryset = self._search_filter_by_conditions(queryset, validated_data["conditions"])
         total = queryset.count()
-        queryset = self._search_page(queryset, validated_data.get("page", 1), validated_data.get("page_size", 50))
+        queryset = self._search_page(queryset, validated_data["page"], validated_data["page_size"])
         return Response(
             {
                 "total": total,
@@ -143,6 +144,6 @@ class QueryTemplateViewSet(GenericViewSet):
         return Response(
             [
                 {"query_template_id": query_template_id, "relation_count": 0}
-                for query_template_id in serializer.validated_data.get("query_template_ids", [])
+                for query_template_id in serializer.validated_data["query_template_ids"]
             ]
         )

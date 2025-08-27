@@ -136,7 +136,7 @@ class QueryTemplateModelSerializer(QueryTemplateBaseModelSerializer):
             raise serializers.ValidationError(_("当前模板不可编辑"))
 
         existing_space_scopes: set[int] = set(instance.space_scope)
-        modified_space_scopes: set[int] = set(validated_data.get("space_scope", []))
+        modified_space_scopes: set[int] = set(validated_data["space_scope"])
         # 移除的 scopes
         removed_scopes = existing_space_scopes - modified_space_scopes
         # 新增的 scopes
