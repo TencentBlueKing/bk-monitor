@@ -9,13 +9,18 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from ai_agent.services.local_command_handler import local_command_handler, CommandHandler
+
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+from ai_agent.services.local_command_handler import (
+    CommandHandler,
+    local_command_handler,
+)
+from ai_whale.utils import get_nested_value
+from apm_web.profile.diagrams.dotgraph import DOTDiagrammer
 from bkmonitor.utils.request import get_request
 from core.drf_resource import api
 from core.errors.api import BKAPIError
-from ai_whale.utils import get_nested_value
-from apm_web.profile.diagrams.dotgraph import DOTDiagrammer
 
 logger = logging.getLogger("ai_agents")
 

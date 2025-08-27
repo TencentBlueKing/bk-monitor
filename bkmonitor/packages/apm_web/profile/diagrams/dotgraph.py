@@ -1,6 +1,7 @@
-from apm_web.profile.diagrams.tree_converter import TreeConverter
 from collections import namedtuple
 from heapq import heapify, nlargest
+
+from apm_web.profile.diagrams.tree_converter import TreeConverter
 
 
 class NodeIdToMark(dict):

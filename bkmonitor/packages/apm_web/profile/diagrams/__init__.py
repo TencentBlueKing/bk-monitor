@@ -13,12 +13,12 @@ from typing import Any
 from typing_extensions import Protocol
 
 from apm_web.profile.diagrams.callgraph import CallGraphDiagrammer
+from apm_web.profile.diagrams.dotgraph import DOTDiagrammer
 from apm_web.profile.diagrams.flamegraph import FlamegraphDiagrammer
 from apm_web.profile.diagrams.grafana_flame import GrafanaFlameDiagrammer
 from apm_web.profile.diagrams.table import TableDiagrammer
 from apm_web.profile.diagrams.tendency import TendencyDiagrammer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
-from apm_web.profile.diagrams.dotgraph import DOTDiagrammer
 
 
 class Diagrammer(Protocol):
