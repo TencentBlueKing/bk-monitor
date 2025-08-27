@@ -44,6 +44,7 @@ import {
 import { dragMixin } from '@/mixins/drag-mixin.ts';
 
 import './index.scss';
+import { set } from 'vue/types/umd';
 
 export default defineComponent({
   name: 'EsClusterMess',
@@ -216,19 +217,25 @@ export default defineComponent({
 
     // 页面变化处理
     const handlePageChange = page => {
-      if (pagination.value.current !== page) {
-        pagination.value.current = page;
+      if(pagination.value.current === page) return;
+      tableLoading.value = true;
+      pagination.value.current = page;
+      setTimeout(() => {
         computePageData();
-      }
+        tableLoading.value = false;
+      }, 300);
     };
 
     // 每页条数变化处理
     const handleLimitChange = limit => {
-      if (pagination.value.limit !== limit) {
-        pagination.value.current = 1;
-        pagination.value.limit = limit;
+      if(pagination.value.limit === limit) return;
+      tableLoading.value = true;
+      pagination.value.current = 1;
+      pagination.value.limit = limit;
+      setTimeout(() => {
         computePageData();
-      }
+        tableLoading.value = false;
+      }, 300);
     };
 
     // 搜索处理
