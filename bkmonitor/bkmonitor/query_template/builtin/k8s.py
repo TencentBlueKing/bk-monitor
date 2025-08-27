@@ -21,7 +21,7 @@ from .. import constants
 
 def _get_related_metrics(related_metric_fields: list[str]) -> list[dict[str, str]]:
     return [
-        {"metric_field": metric_field, "metric_id": f"bkmonitor.{_TABLE}.{metric_field}"}
+        {"metric_field": metric_field, "metric_id": f"{DataSourceLabel.BK_MONITOR_COLLECTOR}.{_TABLE}.{metric_field}"}
         for metric_field in related_metric_fields
     ]
 
@@ -93,7 +93,7 @@ def _qs_to_query_params(qs: UnifyQuerySet) -> dict[str, Any]:
 _TABLE: str = ""
 
 _COMMON_BUILDER: QueryConfigBuilder = (
-    QueryConfigBuilder((DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM))
+    QueryConfigBuilder((DataTypeLabel.TIME_SERIES, DataSourceLabel.BK_MONITOR_COLLECTOR))
     .data_label(DEFAULT_DATA_LABEL)
     .table(_TABLE)
     .interval(60)
@@ -106,7 +106,8 @@ def _cpu_usage_templ(usage_type: str) -> dict[str, Any]:
         "bk_biz_id": GLOBAL_BIZ_ID,
         "name": f"k8s_cpu_{usage_type}_usage",
         "alias": f"[容器] CPU {usage_type} 使用率（%）",
-        "description": f"CPU {usage_type} 使用率表示容器实际使用的 CPU 与分配的 CPU 资源（{usage_type}）的比值。如果无数据，则表示容器未设置 CPU {usage_type}。",
+        "description": f"CPU {usage_type} 使用率表示容器实际使用的 CPU 与分配的 CPU 资源（{usage_type}）的比值。"
+        f"如果无数据，则表示容器未设置 CPU {usage_type}。",
         **_qs_to_query_params(
             UnifyQuerySet()
             .add_query(
