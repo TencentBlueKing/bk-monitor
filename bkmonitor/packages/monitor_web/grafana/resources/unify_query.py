@@ -230,7 +230,7 @@ class AddNullDataProcessor:
 
             # 取出数据点最多的时序，避免无数据误判。
             longest_datapoints = max(data, key=lambda r: len(r.get("datapoints") or [])).get("datapoints") or []
-            timestamps: set[int] = {p[1] for p in longest_datapoints}
+            timestamps: set[int] = {timestamp for __, timestamp in longest_datapoints}
             if not timestamps & set(range(start_time, end_time, interval)):
                 return data
 
