@@ -1432,12 +1432,12 @@ class IndexSetHandler(APIModel):
                     {
                         "field_name": field_name,
                         "query_alias": query_alias,
-                        "result_table": result_table_mappings.get(field_name, []),
+                        "result_tables": result_table_mappings.get(field_name, []),
                     },
                     {
                         "field_name": conflict_field_name,
                         "query_alias": query_alias,
-                        "result_table": result_table_mappings.get(conflict_field_name, []),
+                        "result_tables": result_table_mappings.get(conflict_field_name, []),
                     },
                 ]
                 raise IndexSetAliasSettingsException(
