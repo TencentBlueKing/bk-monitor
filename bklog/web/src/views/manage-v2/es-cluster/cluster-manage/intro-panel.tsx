@@ -79,7 +79,7 @@ export default defineComponent({
       isShowDialog.value = true;
       chatName.value = adminList.chat_name;
       formDataAdmin.value = adminList.users.concat([userMeta.value.username]);
-      baseAdmin.value = JSON.parse(JSON.stringify(formDataAdmin.value));
+      baseAdmin.value = structuredClone(formDataAdmin.value);
     };
 
     const handleSubmitQWGroup = async () => {
