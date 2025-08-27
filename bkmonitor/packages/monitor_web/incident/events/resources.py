@@ -54,9 +54,6 @@ class BaseIncidentEventsResource(Resource, abc.ABC):
         try:
             return self._perform_request(validated_request_data)
         except Exception as exc:
-            import traceback
-
-            traceback.print_exc()
             span = trace.get_current_span()
             span.set_attribute("user.username", get_request_username())
             span.set_status(

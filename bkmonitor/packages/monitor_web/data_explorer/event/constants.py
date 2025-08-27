@@ -102,13 +102,14 @@ class EventType(CachedEnum):
     Normal = "Normal"
     Warning = "Warning"
     Default = "Default"
+    EMPTY_DEFAULT = ""
 
     @classmethod
     def choices(cls):
         return [
             (cls.Normal.value, cls.Normal.value),
             (cls.Warning.value, cls.Warning.value),
-            (cls.Default.value, cls.Default.value),
+            (cls.EMPTY_DEFAULT.value, cls.EMPTY_DEFAULT.value),
         ]
 
     @cached_property
@@ -117,7 +118,7 @@ class EventType(CachedEnum):
             {
                 self.Normal: self.Normal.value,
                 self.Warning: self.Warning.value,
-                self.Default: self.Default.value,
+                self.EMPTY_DEFAULT: self.Default.value,
             }.get(self, self.value)
         )
 

@@ -23,13 +23,13 @@ class TestIncidentMetric(TestCase):
         测试指标搜索接口(IncidentMetricsSearchResource)
         """
         data = {
-            "bk_biz_id": 2,
+            "bk_biz_id": 1,
             "bk_data_id": 1,
             "metric_type": "node",
             "index_info": {
                 "index_type": "entity",
                 "entity_type": "BcsPod",
-                "entity_name": "bkbase-datahubapi-676596b8b-ft2fk",
+                "entity_name": "test",
                 "is_anomaly": True,
             },
             "start_time": 1718035200,
@@ -46,14 +46,14 @@ class TestIncidentMetric(TestCase):
         测试指标搜索接口(IncidentMetricsSearchResource)
         """
         data = {
-            "bk_biz_id": 2,
+            "bk_biz_id": 1,
             "metric_type": "ebpf_call",
             "index_info": {
                 "index_type": "edge",  # 节点类型，需要带节点类型和节点name
                 "source_type": "BcsPod",
-                "source_name": "bkbase-datahubapi-676596b8b-ft2fk",
+                "source_name": "test",
                 "target_type": "APMService",
-                "target_name": "bkbase:bkbase-datahubapi",
+                "target_name": "test",
                 "is_anomaly": False,
             },
             "start_time": 1749124917,
@@ -77,12 +77,12 @@ class TestIncidentEvent(TestCase):
         测试事件搜索接口(IncidentEventsSearchResource)
         """
         data = {
-            "bk_biz_id": 2,
+            "bk_biz_id": 1,
             "metric_name": "apm.error_count",
             "index_info": {
                 "index_type": "entity",
                 "entity_type": "BcsPod",
-                "entity_name": "bkbase-datahubapi-676596b8b-ft2fk",
+                "entity_name": "test",
                 "is_anomaly": True,
             },
             "start_time": 1749124917,
@@ -96,14 +96,14 @@ class TestIncidentEvent(TestCase):
 
     def test_incident_event_search_by_edge(self):
         data = {
-            "bk_biz_id": 2,
+            "bk_biz_id": 1,
             "metric_name": "ebpf_call",
             "index_info": {
                 "index_type": "edge",
                 "source_type": "BcsPod",
-                "source_name": "bkbase-datahubapi-676596b8b-ft2fk",
+                "source_name": "test",
                 "target_type": "APMService",
-                "target_name": "bkbase:bkbase-datahubapi",
+                "target_name": "test",
                 "is_anomaly": False,
             },
             "start_time": 1749124917,
