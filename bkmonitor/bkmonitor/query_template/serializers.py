@@ -60,7 +60,7 @@ class VariableConfigSerializer(serializers.Serializer):
 
 
 class VariableSerializer(serializers.Serializer):
-    name = serializers.CharField(label=_("变量名"), max_length=128)
+    name = serializers.RegexField(label=_("变量名"), max_length=50, regex=r"^[a-zA-Z._]+$")
     alias = serializers.CharField(label=_("变量别名"), max_length=128, default="", allow_blank=True)
     type = serializers.ChoiceField(label=_("变量类型"), choices=constants.VariableType.choices())
     config = VariableConfigSerializer(label=_("变量配置"), default={})
