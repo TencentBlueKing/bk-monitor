@@ -546,10 +546,8 @@ export default class EventExplore extends tsc<
         filter_dict: {},
         functions: [],
         group_by: ['type'], // 参考事件检索图表 维度固定传的type
-        index_set_id: '',
         interval: this.eventExploreViewRef.chartInterval === 'auto' ? 60 : this.eventExploreViewRef.chartInterval,
         // table,
-        item: '',
         where, // 产品确认将普通筛选和常驻筛选一并带入告警策略
         query_string,
         metrics: [{ alias: 'a', field, method: 'COUNT' }],
