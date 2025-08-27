@@ -659,7 +659,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         return;
       }
     }
-    const metricFields = ['metric_field', 'data_label', 'result_table_id', 'data_source_label', 'data_type_label'];
+    const metricFields = ['metric_field', 'data_label', 'result_table_id', 'data_source_label', 'data_type_label', 'metric_id'];
     if (metric.query_configs?.length) {
       this.metricData = (
         await Promise.all(
@@ -683,7 +683,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               bk_biz_id: this.bizId,
               // page: 1,
               // page_size: 1,
-              conditions: metricFields
+              conditions: item.metric_id ? [{
+                key: 'metric_id',
+                value: item.metric_id || '',
+              }] : metricFields
                 .map(field => {
                   if (field === 'data_source_label') {
                     return {

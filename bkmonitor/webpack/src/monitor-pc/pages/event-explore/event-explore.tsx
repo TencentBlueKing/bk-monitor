@@ -545,14 +545,15 @@ export default class EventExplore extends tsc<
         data_type_label,
         filter_dict: {},
         functions: [],
-        group_by: [],
+        group_by: ['type'], // 参考事件检索图表 维度固定传的type
         index_set_id: '',
         interval: this.eventExploreViewRef.chartInterval === 'auto' ? 60 : this.eventExploreViewRef.chartInterval,
-        table,
+        // table,
         item: '',
         where, // 产品确认将普通筛选和常驻筛选一并带入告警策略
         query_string,
         metrics: [{ alias: 'a', field, method: 'COUNT' }],
+        metric_id: `custom.event.${table}.__INDEX__`, // 主机事件暂不支持该方式跳转
       },
     ];
     const queryData = {
