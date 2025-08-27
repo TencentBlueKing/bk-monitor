@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch, nextTick, reactive } from 'vue';
+import { defineComponent, ref, computed, watch, nextTick } from 'vue';
 
-import BkUserSelector from '@/components/user-selector';
+import ValidateUserSelector from '@/components/user-selector';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
@@ -41,7 +41,7 @@ export default defineComponent({
   components: {
     ModuleSelect,
     ValidateInput,
-    BkUserSelector,
+    ValidateUserSelector,
   },
   props: {
     // 策略数据
@@ -98,7 +98,8 @@ export default defineComponent({
         manageStrategyData.value.visible_dir.every((item: string) => Boolean(validateVisibleDir(item))) &&
         manageStrategyData.value.file_type.every((item: string) => Boolean(validateFileExtension(item))) &&
         manageStrategyData.value.modules.length &&
-        manageStrategyData.value.operator;
+        manageStrategyData.value?.operator;
+      console.log('isValidated = ', manageStrategyData.value);
     };
 
     const isExternal = computed(() => store.state.isExternal);
@@ -205,8 +206,8 @@ export default defineComponent({
             onClick={handleAddVisibleDir}
           />
           <span
-            class='bk-icon icon-minus-circle'
             style={{ display: manageStrategyData.value.visible_dir.length > 1 ? 'inline' : 'none' }}
+            class='bk-icon icon-minus-circle'
             onClick={() => manageStrategyData.value.visible_dir.splice(index, 1)}
           />
         </div>
@@ -234,8 +235,8 @@ export default defineComponent({
             onClick={handleAddFileType}
           />
           <span
-            class='bk-icon icon-minus-circle'
             style={{ display: manageStrategyData.value.file_type.length > 1 ? 'inline' : 'none' }}
+            class='bk-icon icon-minus-circle'
             onClick={() => manageStrategyData.value.file_type.splice(index, 1)}
           />
         </div>
@@ -297,25 +298,12 @@ export default defineComponent({
               />
             </div>
             <div class='content'>
-              {/* <ValidateUserSelector
+              <ValidateUserSelector
                 value={manageStrategyData.value.user_list}
                 onChange={(val: any[]) => {
                   manageStrategyData.value.user_list = val;
+                  isValidatedComputed();
                 }}
-              />
-                // allowCreate={props.allowCreate}
-                api={props.userApi}
-                // placeholder={props.allowCreate ? t('请输入QQ并按Enter结束（可多次添加）') : ''}
-              /> */}
-              <BkUserSelector
-                class={isError.value ? 'is-error' : ''}
-                placeholder={t('请选择群成员')}
-                disabled={isExternal.value}
-                api={props.userApi}
-                empty-text={t('无匹配人员')}
-                value={manageStrategyData.value.user_list}
-                on-blur={handleBlur}
-                on-change={val => handleChangePrincipal(val)}
               />
             </div>
           </div>

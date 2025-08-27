@@ -23,13 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import _ from 'lodash';
 import { computed, defineComponent, ref, watch } from 'vue';
-
+import BkUserSelector from '@blueking/bk-user-selector/vue2';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-// import BkUserSelector from '@blueking/user-selector';
-import BkUserSelector from '@blueking/bk-user-selector/vue2';
-import _ from 'lodash';
 
 import './index.scss';
 
