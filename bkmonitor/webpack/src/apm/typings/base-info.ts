@@ -146,6 +146,15 @@ export interface ILogRelation {
   value_alias?: string;
 }
 
+export interface ILogRelationListItem {
+  log_type: string;
+  log_type_alias: string;
+  related_bk_biz_id?: number;
+  related_bk_biz_name?: string;
+  value_alias?: string;
+  value_list: { value: number; value_alias?: string }[];
+}
+
 export interface ILogsInfoList {
   editValue: string;
   id?: number;
@@ -182,6 +191,7 @@ export interface IServiceRelation {
   app_relation?: IAppRelation;
   cmdb_relation?: ICmdbRelation;
   log_relation?: ILogRelation;
+  log_relation_list?: ILogRelationListItem[];
   uri_relation?: IUriRelation[];
   event_relation?: {
     options: {
