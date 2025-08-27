@@ -5,7 +5,7 @@
   "name": "错误",
   "variables": [
     {
-      "title": "服务实例",
+      "title": "_(服务实例)",
       "type": "list",
       "targets": [
         {
@@ -25,7 +25,7 @@
   "overview_panels": [
     {
       "id": 1,
-      "title": "错误详情",
+      "title": "_(错误详情)",
       "type": "api_message",
       "targets": [
         {
@@ -57,14 +57,14 @@
     },
     {
       "id": 2,
-      "title": "错误趋势",
+      "title": "_(错误趋势)",
       "type": "graph",
       "targets": [
         {
           "data_type": "time_series",
           "api": "apm_meta.queryExceptionTypeGraph",
           "datasource": "time_series",
-          "alias": "出现次数",
+          "alias": "_(出现次数)",
           "data": {
             "app_name": "${app_name}",
             "bk_biz_id": "${bk_biz_id}",
@@ -89,7 +89,7 @@
     },
     {
       "id": 3,
-      "title": "服务+接口",
+      "title": "_(服务+接口)",
       "type": "ratio-ring",
       "targets": [
         {
@@ -117,7 +117,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "错误详情",
+      "title": "_(错误详情)",
       "type": "api_message",
       "targets": [
         {
@@ -152,14 +152,14 @@
     },
     {
       "id": 2,
-      "title": "错误趋势",
+      "title": "_(错误趋势)",
       "type": "graph",
       "targets": [
         {
           "data_type": "time_series",
           "api": "apm_meta.queryExceptionTypeGraph",
           "datasource": "time_series",
-          "alias": "出现次数",
+          "alias": "_(出现次数)",
           "data": {
             "app_name": "${app_name}",
             "bk_biz_id": "${bk_biz_id}",
@@ -187,7 +187,7 @@
     },
     {
       "id": 3,
-      "title": "服务+接口",
+      "title": "_(服务+接口)",
       "type": "ratio-ring",
       "targets": [
         {
@@ -226,7 +226,7 @@
       "split_switcher": false
     },
     "selector_panel": {
-      "title": "错误",
+      "title": "_(错误)",
       "type": "table",
       "options": {
         "selector_list": {

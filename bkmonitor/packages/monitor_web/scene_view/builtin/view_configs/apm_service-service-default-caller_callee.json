@@ -20,7 +20,7 @@
       "extra_panels": [
         {
           "id": "request_total",
-          "title": "请求量",
+          "title": "_(请求量)",
           "type": "caller-line-chart",
           "gridPos": {
             "x": 0,
@@ -33,7 +33,7 @@
               "data_type": "time_series",
               "api": "apm_metric.dynamicUnifyQuery",
               "datasource": "time_series",
-              "alias": "请求量",
+              "alias": "_(请求量)",
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
@@ -175,7 +175,7 @@
         },
         {
           "id": "success_rate",
-          "title": "成功率",
+          "title": "_(成功率)",
           "type": "caller-line-chart",
           "gridPos": {
             "x": 8,
@@ -188,7 +188,7 @@
               "data_type": "time_series",
               "api": "apm_metric.dynamicUnifyQuery",
               "datasource": "time_series",
-              "alias": "成功率",
+              "alias": "_(成功率)",
               "data": {
                 "app_name": "${app_name}",
                 "expression": "(a or b < bool  0) /  b * 100",
@@ -433,7 +433,7 @@
         },
         {
           "id": "timeout_rate",
-          "title": "超时率",
+          "title": "_(超时率)",
           "type": "caller-line-chart",
           "gridPos": {
             "x": 16,
@@ -446,7 +446,7 @@
               "data_type": "time_series",
               "api": "apm_metric.dynamicUnifyQuery",
               "datasource": "time_series",
-              "alias": "超时率",
+              "alias": "_(超时率)",
               "data": {
                 "app_name": "${app_name}",
                 "expression": "(a or b < bool  0) /  b * 100",
@@ -688,7 +688,7 @@
             "child_panels_selector_variables": [
               {
                 "id": "exception_rate",
-                "title": "异常率",
+                "title": "_(异常率)",
                 "variables": {
                   "code_field": "code_type",
                   "code_method": "eq",
@@ -700,7 +700,7 @@
               },
               {
                 "id": "timeout_rate",
-                "title": "超时率",
+                "title": "_(超时率)",
                 "variables": {
                   "code_field": "code_type",
                   "code_method": "eq",
@@ -717,7 +717,7 @@
         },
         {
           "id": "avg_duration",
-          "title": "平均耗时",
+          "title": "_(平均耗时)",
           "type": "caller-line-chart",
           "gridPos": {
             "x": 0,
@@ -730,7 +730,7 @@
               "data_type": "time_series",
               "api": "apm_metric.dynamicUnifyQuery",
               "datasource": "time_series",
-              "alias": "平均耗时",
+              "alias": "_(平均耗时)",
               "data": {
                 "app_name": "${app_name}",
                 "expression": "a / b",
@@ -950,7 +950,7 @@
         },
         {
           "id": "pxx_duration",
-          "title": "耗时分布",
+          "title": "_(耗时分布)",
           "type": "caller-line-chart",
           "gridPos": {
             "x": 8,
@@ -1411,7 +1411,7 @@
         },
         {
           "id": "duration_heatmap",
-          "title": "耗时热力图",
+          "title": "_(耗时热力图)",
           "type": "apm_heatmap",
           "gridPos": {
             "x": 16,
@@ -1524,7 +1524,7 @@
       "dimension_panels": [
         {
           "id": "dimension_pie",
-          "title": "维度值分布",
+          "title": "_(维度值分布)",
           "type": "caller-pie-chart",
           "gridPos": {
             "x": 0,
@@ -1566,7 +1566,7 @@
         },
         {
           "id": "dimension_bar",
-          "title": "维度值分布",
+          "title": "_(维度值分布)",
           "type": "caller-bar-chart",
           "gridPos": {
             "x": 0,
@@ -1614,20 +1614,20 @@
         "common": {
           "drawer": {
             "total": {
-              "title": "请求量",
+              "title": "_(请求量)",
               "panels": [
                 "request_total"
               ]
             },
             "rate": {
-              "title": "成功异常超时率",
+              "title": "_(成功异常超时率)",
               "panels": [
                 "success_rate",
                 "timeout_rate"
               ]
             },
             "duration": {
-              "title": "耗时",
+              "title": "_(耗时)",
               "panels": [
                 "avg_duration",
                 "pxx_duration"

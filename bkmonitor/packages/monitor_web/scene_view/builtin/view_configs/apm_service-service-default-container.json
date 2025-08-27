@@ -19,7 +19,7 @@
     "enable_group": true,
     "alert_filterable": true,
     "selector_panel": {
-      "title": "容器列表",
+      "title": "_(容器列表)",
       "type": "target_list",
       "targets": [
         {
