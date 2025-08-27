@@ -217,7 +217,7 @@ class AlertAssigneeManager:
                 for notice_way in matched_notice_ways:
                     target_notify_info[notice_way].append(username)
                 logger.info(
-                    "[alert_subscription(%s)] alert(%s) user(%s) matched: type(%s), ways(%s), rule_ids(%s)",
+                    "[alert_subscription] strategy(%s) alert(%s) user(%s) matched: type(%s), ways(%s), rule_ids(%s)",
                     strategy_id,
                     self.alert.id,
                     username,
@@ -227,7 +227,7 @@ class AlertAssigneeManager:
                 )
             else:
                 logger.debug(
-                    "[alert_subscription(%s)] alert(%s) user(%s) no rule matched",
+                    "[alert_subscription] strategy(%s) alert(%s) user(%s) no rule matched",
                     strategy_id,
                     self.alert.id,
                     username,
@@ -237,7 +237,7 @@ class AlertAssigneeManager:
         total_main = sum(len(users) for way, users in notify_info.items())
         total_follower = sum(len(users) for way, users in follow_notify_info.items())
         logger.info(
-            "[alert_subscription(%s)] alert(%s) summary: main_users(%d) follower_users(%d)",
+            "[alert_subscription] strategy(%s) alert(%s) summary: main_users(%d) follower_users(%d)",
             strategy_id,
             self.alert.id,
             total_main,
