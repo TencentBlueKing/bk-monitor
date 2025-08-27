@@ -10,10 +10,12 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from ai_agent.services.local_command_handler import local_command_handler, CommandHandler
+from pydantic import BaseModel, Field, field_validator, model_validator
 from bkmonitor.utils.request import get_request
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from ai_whale.utils import get_nested_value
+from apm_web.profile.diagrams.dotgraph import DOTDiagrammer
 
 logger = logging.getLogger("ai_agents")
 
@@ -60,7 +62,55 @@ class TracingAnalysisCommandHandler(CommandHandler):
 
     def get_template(self):
         return """
-        请帮助我分析Tracing数据: {{ trace_data }}.
+        请帮助我分析 Tracing 数据: {{ trace_data }}.
+        应用名称: {{ app_name }}
+        结果要求: 确保分析准确无误，无需冗余回答内容
+        """
+
+
+@local_command_handler("profiling_analysis")
+class ProfilingAnalysisCommandHandler(CommandHandler):
+    class QueryProfilingParameter(BaseModel):
+        # sample_type: str = Field(alias='data_type')
+        data_type: str
+        start_time: int = Field(..., description="seconds")
+        end_time: int = Field(..., description="seconds")
+        service_name: str
+        bk_biz_id: int
+        app_name: str
+        agg_method: str
+        filter_labels: dict[str, str] = Field(default_factory=dict)
+
+        @field_validator("filter_labels", mode="before")
+        def default_on_error(cls, v):
+            if not isinstance(v, dict):
+                return {}
+            return v
+
+        @model_validator(mode="after")
+        def check_timestamp_range(cls, m):
+            if m.start_time > m.end_time:
+                raise ValueError("start_time must be less than end_time")
+            return m
+
+    def process_content(self, context: list[dict]) -> str:
+        from apm_web.profile.views import ProfileQueryViewSet
+
+        template = self.get_template()
+        variables = self.extract_context_vars(context)
+        variables = self.QueryProfilingParameter.model_validate(variables)
+
+        # 获取 profiling 数据构成的 'FunctionTree'
+        validate_data, essentials, extra_params = ProfileQueryViewSet.get_query_params(variables.model_dump())
+        tree_converter = ProfileQueryViewSet.converter_query(essentials, validate_data, extra_params)
+
+        dot_graph = DOTDiagrammer().draw(tree_converter)["dot_graph"]
+
+        return self.jinja_env.render(template, {"profiling_data": dot_graph, "app_name": variables.app_name})
+
+    def get_template(self) -> str:
+        return """
+        请帮助我分析 Profiling 数据(DOT 描述): {{ profiling_data }}.
         应用名称: {{ app_name }}
         结果要求: 确保分析准确无误，无需冗余回答内容
         """
