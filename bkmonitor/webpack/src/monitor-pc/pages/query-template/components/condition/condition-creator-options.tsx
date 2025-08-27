@@ -371,6 +371,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
     if (item) {
       if (item.name === '*') {
         if (!this.keyword) this.allInputRef?.focus();
+      } else if (item.type === EFieldType.variable) {
+        this.handleSelectVariable(item);
       } else {
         this.queryString = '';
         this.handleCheck(item, '', [], false, isFocus);
