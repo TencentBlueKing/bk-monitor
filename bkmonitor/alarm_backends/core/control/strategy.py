@@ -188,7 +188,7 @@ class Strategy:
             return False, _("当前时刻不在策略生效时间范围: {}").format(", ".join(time_ranges))
 
         # 检查生效日历和不生效日历
-        active_calendar_ids = uptime.get("active_calendar") or []
+        active_calendar_ids = uptime.get("active_calendars") or []
         calendar_ids = uptime.get("calendars") or []
 
         # 获取生效日历事项

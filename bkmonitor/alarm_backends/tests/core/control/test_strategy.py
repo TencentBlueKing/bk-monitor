@@ -27,7 +27,7 @@ STRATEGY = {
                         {"start": "23:00", "end": "04:00"},
                     ],
                     "calendars": [1, 2, 3],
-                    "active_calendar": [],
+                    "active_calendars": [],
                 },
             },
         },
@@ -109,7 +109,7 @@ class TestStrategy(TestCase):
     def test_in_alarm_time__with_active_calendar_only(self, CalendarCacheManager):
         """测试只配置生效日历的情况"""
         strategy_config = copy.deepcopy(STRATEGY)
-        strategy_config["detects"][0]["trigger_config"]["uptime"]["active_calendar"] = [4, 5]
+        strategy_config["detects"][0]["trigger_config"]["uptime"]["active_calendars"] = [4, 5]
         strategy_config["detects"][0]["trigger_config"]["uptime"]["calendars"] = []
         strategy = Strategy(1, strategy_config)
 
@@ -224,7 +224,7 @@ class TestStrategy(TestCase):
     def test_in_alarm_time__active_calendar_miss_inactive_calendar_hit(self, CalendarCacheManager):
         """测试生效日历未命中，不生效日历命中的情况"""
         strategy_config = copy.deepcopy(STRATEGY)
-        strategy_config["detects"][0]["trigger_config"]["uptime"]["active_calendar"] = [4]
+        strategy_config["detects"][0]["trigger_config"]["uptime"]["active_calendars"] = [4]
         strategy_config["detects"][0]["trigger_config"]["uptime"]["calendars"] = [1]
         strategy = Strategy(1, strategy_config)
 
@@ -268,7 +268,7 @@ class TestStrategy(TestCase):
     def test_in_alarm_time__active_calendar_configured_but_no_hit(self, CalendarCacheManager):
         """测试配置了生效日历但未命中任何事项的情况"""
         strategy_config = copy.deepcopy(STRATEGY)
-        strategy_config["detects"][0]["trigger_config"]["uptime"]["active_calendar"] = [4]
+        strategy_config["detects"][0]["trigger_config"]["uptime"]["active_calendars"] = [4]
         strategy_config["detects"][0]["trigger_config"]["uptime"]["calendars"] = []
         strategy = Strategy(1, strategy_config)
 
