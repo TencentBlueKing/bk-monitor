@@ -85,7 +85,6 @@ class CreateEsRouter(BaseLogRouter):
     """同步es路由信息"""
 
     class RequestSerializer(ParamsSerializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
         space_type = serializers.CharField(required=True, label="空间类型")
         space_id = serializers.CharField(required=True, label="空间ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
@@ -163,7 +162,6 @@ class CreateDorisRouter(BaseLogRouter):
     """同步doris路由信息"""
 
     class RequestSerializer(ParamsSerializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
         space_type = serializers.CharField(required=True, label="空间类型")
         space_id = serializers.CharField(required=True, label="空间ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
@@ -247,7 +245,6 @@ class UpdateEsRouter(BaseLogRouter):
     """更新es路由信息"""
 
     class RequestSerializer(ParamsSerializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         data_label = serializers.CharField(required=False, label="数据标签")
         cluster_id = serializers.IntegerField(required=False, allow_null=True, label="集群ID")
@@ -330,7 +327,6 @@ class UpdateEsRouter(BaseLogRouter):
 
 class UpdateDorisRouter(BaseLogRouter):
     class RequestSerializer(ParamsSerializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
         data_label = serializers.CharField(required=False, allow_blank=True, label="数据标签")
