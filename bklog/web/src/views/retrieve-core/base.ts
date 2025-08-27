@@ -25,6 +25,7 @@
  */
 import { formatDate, formatDateNanos, random } from '../../common/util';
 import { getRGBAColors } from './colors';
+import JsonFormatter from './json-formatter';
 import OptimizedHighlighter from './optimized-highlighter';
 import RetrieveEvent from './retrieve-events';
 import StaticUtil from './static.util';
@@ -69,6 +70,9 @@ export default class {
 
   markInstance: OptimizedHighlighter = undefined;
 
+  // JSON格式化辅助
+  jsonFormatter: JsonFormatter;
+
   // 正则表达式提取日志级别
   logLevelRegex = {
     level_1: '(?<FATAL>\\b(?:FATAL|CRITICAL|EMERGENCY)\\b)',
@@ -90,6 +94,7 @@ export default class {
     this.events = new Map();
     this.logRowsContainerId = `result_container_key_${random(12)}`;
     this.RGBA_LIST = getRGBAColors(0.3);
+    this.jsonFormatter = new JsonFormatter();
   }
 
   formatDateValue(data: string, field_type: string) {

@@ -187,27 +187,56 @@ class Strategy:
             # 一个时间范围都没匹配上，这个策略就不生效
             return False, _("当前时刻不在策略生效时间范围: {}").format(", ".join(time_ranges))
 
-        # 再看看日历，是不是处于休息日
+        # 检查生效日历和不生效日历
+        active_calendar_ids = uptime.get("active_calendar") or []
         calendar_ids = uptime.get("calendars") or []
-        if calendar_ids:
-            calendars = CalendarCacheManager.mget(
-                calendar_ids=calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
-            )
-        else:
-            calendars = []
 
-        item_messages = []
+        # 获取生效日历事项
+        active_item_messages = self._get_calendar_item_messages(active_calendar_ids)
+
+        # 获取不生效日历事项
+        inactive_item_messages = self._get_calendar_item_messages(calendar_ids)
+
+        # 处理日历冲突逻辑
+        # 优先级：生效日历 > 不生效日历
+        if active_item_messages and inactive_item_messages:
+            # 同时命中生效日历和不生效日历，生效日历优先
+            return True, _("当前时刻同时命中告警日历和休息日历，告警日历优先生效: 告警日历[{}], 休息日历[{}]").format(
+                ", ".join(active_item_messages), ", ".join(inactive_item_messages)
+            )
+        elif active_item_messages:
+            # 只命中生效日历
+            return True, _("当前时刻命中告警日历事项: {}").format(", ".join(active_item_messages))
+        elif inactive_item_messages:
+            # 只命中不生效日历
+            return False, _("当前时刻命中日历休息事项: {}").format(", ".join(inactive_item_messages))
+        elif active_calendar_ids:
+            # 配置了生效日历但未命中任何事项
+            return False, _("当前时刻未命中告警日历事项")
+
+        return True, ""
+
+    def _get_calendar_item_messages(self, calendar_ids: list[int]) -> list[str]:
+        """
+        获取日历事项消息列表
+
+        :param calendar_ids: 日历ID列表（整数列表）
+        :return: 日历事项消息列表，格式为 "日历名称(事项名称)"
+        """
+        item_messages: list[str] = []
+        if not calendar_ids:
+            return item_messages
+
+        calendars: list[list[dict]] = CalendarCacheManager.mget(
+            calendar_ids=calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
+        )
         for items in calendars:
-            # 只要命中了任意一个节假日，则这个告警就不生效
             for item in items:
-                item_list = item.get("list", [])
+                item_list: list[dict] = item.get("list", [])
                 for _item in item_list:
                     item_messages.append(f"{_item['calendar_name']}({_item['name']})")
 
-        if item_messages:
-            return False, _("当前时刻命中日历休息事项: {}").format(", ".join(item_messages))
-
-        return True, ""
+        return item_messages
 
     def gen_strategy_snapshot(self):
         """

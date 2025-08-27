@@ -29,6 +29,7 @@ import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR,
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
@@ -57,7 +58,6 @@ import RowRender from './row-render';
 import ScrollXBar from './scroll-x-bar';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import './log-rows.scss';
 
@@ -103,8 +103,8 @@ export default defineComponent({
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
       stopPropagation: true,
-      onclick: (_, ...args) => {
-        const [type] = args;
+      onclick: (...args) => {
+        const type = args[1];
         handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
         popInstanceUtil.hide();
 
@@ -586,8 +586,11 @@ export default defineComponent({
     );
 
     const handleResultBoxResize = () => {
-      scrollXOffsetLeft = 0;
-      refScrollXBar.value?.scrollLeft(0);
+      if (!RetrieveHelper.jsonFormatter.isExpandNodeClick) {
+        scrollXOffsetLeft = 0;
+        refScrollXBar.value?.scrollLeft(0);
+      }
+
       computeRect(refResultRowBox.value);
     };
 
