@@ -169,6 +169,7 @@ class AlertAssigneeManager:
         follow_notify_info = defaultdict(list)
 
         bk_biz_id = self.alert.event.bk_biz_id
+        strategy_id = str(self.alert.strategy["id"]) if self.alert.strategy else "-"
 
         # 复用分派的维度构建逻辑
         if not self.match_manager:
@@ -178,13 +179,6 @@ class AlertAssigneeManager:
 
         # 获取该业务下所有订阅用户
         usernames = SubscribeCacheManager.get_users_by_biz(bk_biz_id)
-        logger.info(
-            "[subscription] alert(%s) matching: bk_biz_id(%s), users(%d), usernames(%s)",
-            self.alert.id,
-            bk_biz_id,
-            len(usernames),
-            ",".join(map(str, usernames)) or "-",
-        )
 
         for username in usernames:
             # 获取用户的订阅规则
@@ -223,7 +217,8 @@ class AlertAssigneeManager:
                 for notice_way in matched_notice_ways:
                     target_notify_info[notice_way].append(username)
                 logger.info(
-                    "[subscription] alert(%s) user(%s) matched: type(%s), ways(%s), rule_ids(%s)",
+                    "[alert_subscription(%s)] alert(%s) user(%s) matched: type(%s), ways(%s), rule_ids(%s)",
+                    strategy_id,
                     self.alert.id,
                     username,
                     matched_user_type,
@@ -232,7 +227,8 @@ class AlertAssigneeManager:
                 )
             else:
                 logger.debug(
-                    "[subscription] alert(%s) user(%s) no rule matched",
+                    "[alert_subscription(%s)] alert(%s) user(%s) no rule matched",
+                    strategy_id,
                     self.alert.id,
                     username,
                 )
@@ -241,7 +237,8 @@ class AlertAssigneeManager:
         total_main = sum(len(users) for way, users in notify_info.items())
         total_follower = sum(len(users) for way, users in follow_notify_info.items())
         logger.info(
-            "[subscription] alert(%s) summary: main_users(%d) follower_users(%d)",
+            "[alert_subscription(%s)] alert(%s) summary: main_users(%d) follower_users(%d)",
+            strategy_id,
             self.alert.id,
             total_main,
             total_follower,
