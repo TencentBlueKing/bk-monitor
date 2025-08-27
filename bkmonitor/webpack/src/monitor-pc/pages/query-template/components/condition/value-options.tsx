@@ -249,7 +249,7 @@ export default class ValueOptions extends tsc<IProps> {
     }
     if (this.fieldInfo?.isEnableOptions) {
       const limit = this.pageSize * this.page;
-      await this.delay(100);
+      // await this.delay(100);
       const data = await this.getValueFn({
         search: this.search,
         limit,
