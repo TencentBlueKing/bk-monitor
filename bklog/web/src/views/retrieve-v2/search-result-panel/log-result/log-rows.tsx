@@ -105,7 +105,6 @@ export default defineComponent({
       stopPropagation: true,
       onclick: (...args) => {
         const type = args[1];
-        console.log(type, args);
         handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
         popInstanceUtil.hide();
 
