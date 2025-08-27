@@ -30,12 +30,13 @@ import { random } from 'monitor-common/utils';
 import QueryTemplateGraph from 'monitor-ui/chart-plugins/plugins/quey-template-graph/query-template-graph';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
+import ChartSkeleton from '../components/skeletons/chart-skeleton';
 import { hasVariable } from '../variables/template/utils';
 import TimeRange, { type TimeRangeType } from '@/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from '@/components/time-range/utils';
 
 import type { Expression } from '../typings/expression';
-import type { AggCondition, QueryConfig } from '../typings/query-config';
+import type { AggCondition, AggFunction, QueryConfig } from '../typings/query-config';
 import type { VariableModelType } from '../variables';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
@@ -62,6 +63,7 @@ export default class QueryChart extends tsc<{
   panel: PanelModel = null;
   limit = 10;
   timezone = window.timezone;
+  isLoading = false;
   get hasMetricSet() {
     return !!this.queryConfigs?.some?.(item => item.metricDetail?.metric_id);
   }
@@ -118,7 +120,16 @@ export default class QueryChart extends tsc<{
               data_type_label: item.data_type_label,
               interval: item.agg_interval,
               alias: item.alias || 'a',
-              functions: item.functions,
+              functions: item.functions?.reduce((acc, item) => {
+                if (hasVariable(item.id)) {
+                  this.getVariableValue<AggFunction>(item.id, v => {
+                    Array.isArray(v) ? acc.push(...v) : acc.push(v);
+                  });
+                } else {
+                  acc.push(item);
+                }
+                return acc;
+              }, [] as AggFunction[]),
               group_by: this.getVariableValues(item.agg_dimension || []), // 维度变量解析
               filter_dict: {},
               metrics: [
@@ -161,6 +172,12 @@ export default class QueryChart extends tsc<{
   handleTimezoneChange(v: string) {
     this.timezone = v;
   }
+  handleRefresh() {
+    this.createPanel();
+  }
+  handleLoadingChange(v: boolean) {
+    this.isLoading = v;
+  }
   render() {
     return (
       <div class='query-chart'>
@@ -194,11 +211,18 @@ export default class QueryChart extends tsc<{
             onChange={this.handleTimeRangeChange}
             onTimezoneChange={this.handleTimezoneChange}
           />
+          <span
+            class='icon-monitor icon-shuaxin refresh-btn'
+            v-bk-tooltips={{ content: this.$t('刷新') }}
+            onClick={this.handleRefresh}
+          />
         </div>
+        {this.isLoading && <ChartSkeleton class='query-chart-skeleton' />}
         {this.hasMetricSet && this.panel ? (
           <QueryTemplateGraph
             class='query-chart-content'
             panel={this.panel}
+            onLoading={this.handleLoadingChange}
           />
         ) : (
           <div class='query-chart-content'>{this.$t('暂无数据')}</div>

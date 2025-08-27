@@ -23,16 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// trace 应用 中英文对照
-export default {
-  '快捷键 / ，可直接输入': 'Press / to input',
-  返回新版: 'Back to new version',
-  最小耗时: 'Min Duration',
-  容器: 'Container',
-  调用次数: 'Call Count',
-  跨应用追踪: 'Cross-application tracing',
-  最大耗时: 'Max Duration',
-  已读: 'Read',
-  'Trace 助手': 'Trace Helper',
-  请输入应用名称: 'Please enter the application name',
-};
+
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import './chart-skeleton.scss';
+
+@Component
+export default class ChartSkeleton extends tsc<object> {
+  render() {
+    return (
+      <div class='chart-skeleton'>
+        <div class='w-45 h-30 skeleton-element' />
+        <div class='w-90 h-30 skeleton-element mt-26' />
+        <div class='w-90 h-30 skeleton-element mt-18' />
+        <div class='w-90 h-30 skeleton-element mt-18' />
+        <div class='w-90 h-30 skeleton-element mt-18' />
+        <div class='w-90 h-30 skeleton-element mt-18' />
+        <div class='w-90 h-30 skeleton-element mt-18' />
+        <div class='w-90 h-30 skeleton-element mt-18' />
+      </div>
+    );
+  }
+}

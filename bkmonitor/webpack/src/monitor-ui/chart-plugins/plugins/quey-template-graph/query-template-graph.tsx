@@ -168,7 +168,7 @@ class QueryTemplateGraph extends CommonSimpleChart {
     if (!this.$el?.clientWidth) return;
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
-    if (this.initialized) this.handleLoadingChange(true);
+    this.handleLoadingChange(true);
     this.emptyText = window.i18n.t('加载中...');
     if (
       this.panel.targets.some(item =>
@@ -177,6 +177,7 @@ class QueryTemplateGraph extends CommonSimpleChart {
     ) {
       this.empty = true;
       this.emptyText = window.i18n.t('暂无数据');
+      this.handleLoadingChange(false);
     } else {
       try {
         this.unregisterObserver();
