@@ -26,6 +26,7 @@
  */
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
+import type { K8sTableColumnResourceKey } from '../components/k8s-table-new/k8s-table-new';
 
 export enum EDimensionKey {
   container = 'container',
@@ -140,11 +141,29 @@ export enum K8sTableColumnKeysEnum {
    */
   NETWORK_TRANSMIT_BYTES = 'container_network_transmit_bytes_total',
 }
-
+export const K8SToEventWhereKeyMap = {
+  [K8sTableColumnKeysEnum.CLUSTER]: '"bcs_cluster_id"',
+  [K8sTableColumnKeysEnum.NAMESPACE]: 'namespace',
+  [K8sTableColumnKeysEnum.POD]: 'pod',
+  [K8sTableColumnKeysEnum.WORKLOAD]: 'name',
+  [K8sTableColumnKeysEnum.WORKLOAD_KIND]: 'kind',
+  [K8sTableColumnKeysEnum.INGRESS]: 'ingress',
+  [K8sTableColumnKeysEnum.SERVICE]: 'service',
+  [K8sTableColumnKeysEnum.NODE]: 'node',
+} as const;
 export enum SceneEnum {
+  /** 性能 */
   Performance = 'performance',
+  /** 网络 */
   Network = 'network',
+  /** 容量 */
   Capacity = 'capacity',
+  /** 事件 */
+  Event = 'event',
+  /** 存储 */
+  Storage = 'storage',
+  /** 成本 */
+  Cost = 'cost',
 }
 
 export interface GroupListItem<T = string> {
@@ -163,13 +182,23 @@ export interface ICommonParams {
   timeRange: TimeRangeType;
 }
 
+export interface IFilterCommonParams extends ITableCommonParams {
+  resource_type: K8sTableColumnResourceKey;
+  with_history: boolean;
+}
+
 export interface IK8SMetricItem {
   children: IK8SMetricItem[];
   count?: number;
   id: string;
   name: string;
+  show_chart?: boolean;
   unit?: string;
   unsupported_resource?: string[];
+}
+
+export interface ITableCommonParams extends ICommonParams {
+  filter_dict: Record<string, string[]>;
 }
 
 export interface K8sDimensionParams extends ICommonParams {

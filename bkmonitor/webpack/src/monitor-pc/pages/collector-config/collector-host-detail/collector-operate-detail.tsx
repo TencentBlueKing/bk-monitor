@@ -44,7 +44,7 @@ export default class CollectorOperateDetail extends authorityMixinCreate(collect
 
   id = '';
 
-  data = null;
+  data: Array<any>;
   updateKey = random(8);
 
   loading = false;
@@ -60,6 +60,8 @@ export default class CollectorOperateDetail extends authorityMixinCreate(collect
     window.clearTimeout(this.timer);
   }
   getHosts(count) {
+    this.loading = true;
+
     return collectingTargetStatus({ collect_config_id: this.id })
       .then(data => {
         if (count !== this.pollingCount) return;
@@ -72,7 +74,10 @@ export default class CollectorOperateDetail extends authorityMixinCreate(collect
         }
         this.updateKey = random(8);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        this.loading = false;
+      });
   }
   handlePolling(v = true) {
     if (v) {
@@ -103,9 +108,12 @@ export default class CollectorOperateDetail extends authorityMixinCreate(collect
       <div class='collector-operate-detail-page'>
         <CollectorStatusDetails
           data={this.data}
+          tableLoading={this.loading}
           updateKey={this.updateKey}
           onCanPolling={this.handlePolling}
-          onRefresh={this.handleRefreshData}
+          onRefresh={() => {
+            this.handleRefreshData();
+          }}
         />
       </div>
     );

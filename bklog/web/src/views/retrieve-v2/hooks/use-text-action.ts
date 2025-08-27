@@ -5,8 +5,9 @@ import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import useFieldNameHook from '@/hooks/use-field-name';
 import { copyMessage, formatDate } from '@/common/util';
 import { getConditionRouterParams } from '../search-result-panel/panel-util';
+import { bkMessage } from 'bk-magic-vue';
 
-export default function useTextAction(emit?: Function, from?: string) {
+export default (emit?: Function, from?: string) => {
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
@@ -80,9 +81,9 @@ export default function useTextAction(emit?: Function, from?: string) {
       const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
       window.open(url, '_blank');
     } else {
-      store.state.bkMessage({
+      bkMessage({
         theme: 'warning',
-        message: store.state.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+        message: window.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
       });
     }
   };
@@ -168,4 +169,4 @@ export default function useTextAction(emit?: Function, from?: string) {
     setRouteParams,
     handleTraceIdClick,
   };
-}
+};

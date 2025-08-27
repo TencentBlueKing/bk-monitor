@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,10 +9,10 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from typing import Dict, List, Optional
 
 from django.db.transaction import atomic
 
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from constants.dataflow import ConsumingMode
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
@@ -33,12 +32,14 @@ class RecordRuleService:
         space_type: str,
         space_id: str,
         record_name: str,
-        rule_type: Optional[str] = DEFAULT_RULE_TYPE,
-        rule_config: Optional[dict] = "",
-        count_freq: Optional[int] = 60,
+        rule_type: str | None = DEFAULT_RULE_TYPE,
+        rule_config: str = "",
+        count_freq: int = 60,
+        bk_tenant_id: str | None = None,
     ) -> None:
         self.space_type = space_type
         self.space_id = space_id
+        self.bk_tenant_id = bk_tenant_id or space_uid_to_bk_tenant_id(space_uid=f"{space_type}__{space_id}")
         self.record_name = record_name
         self.rule_type = rule_type
         self.rule_config = rule_config
@@ -65,10 +66,12 @@ class RecordRuleService:
         self._create_vm_storage(table_id, dst_rt)
 
     def _create_record_rule_record(
-        self, table_id: str, bksql: List, rule_metrics: Dict, src_table_ids: List, dst_rt: str, count_freq: int
+        self, table_id: str, bksql: list, rule_metrics: dict, src_table_ids: list, dst_rt: str, count_freq: int
     ):
         """创建预计算记录"""
-        vm_info = vm_utils.get_vm_cluster_id_name(space_type=self.space_type, space_id=self.space_id)
+        vm_info = vm_utils.get_vm_cluster_id_name(
+            bk_tenant_id=self.bk_tenant_id, space_type=self.space_type, space_id=self.space_id
+        )
         record = {
             "space_type": self.space_type,
             "space_id": self.space_id,
@@ -83,6 +86,7 @@ class RecordRuleService:
             "dst_vm_table_id": dst_rt,
             "status": RecordRuleStatus.CREATED.value,
             "count_freq": count_freq,
+            "bk_tenant_id": self.bk_tenant_id,
         }
         # 创建记录
         try:
@@ -101,22 +105,22 @@ class RecordRuleService:
             default_storage=models.ClusterInfo.TYPE_VM,
             creator="system",
             bk_biz_id=biz_id,
+            bk_tenant_id=self.bk_tenant_id,
         )
 
-    def _create_table_id_fields(self, table_id: str, metrics: List):
+    def _create_table_id_fields(self, table_id: str, metrics: list):
         """创建rt的字段"""
         objs = []
         for metric in metrics:
             objs.append(
                 models.ResultTableField(
-                    **{
-                        "table_id": table_id,
-                        "field_name": metric,
-                        "field_type": models.ResultTableField.FIELD_TYPE_STRING,
-                        "description": metric,
-                        "tag": models.ResultTableField.FIELD_TAG_METRIC,
-                        "is_config_by_user": True,
-                    }
+                    bk_tenant_id=self.bk_tenant_id,
+                    table_id=table_id,
+                    field_name=metric,
+                    field_type=models.ResultTableField.FIELD_TYPE_STRING,
+                    description=metric,
+                    tag=models.ResultTableField.FIELD_TAG_METRIC,
+                    is_config_by_user=True,
                 )
             )
         models.ResultTableField.objects.bulk_create(objs, batch_size=BULK_CREATE_BATCH_SIZE)
@@ -124,6 +128,7 @@ class RecordRuleService:
     def _create_vm_storage(self, table_id: str, vm_table_id: str):
         """创建 vm 存储"""
         models.AccessVMRecord.objects.create(
+            bk_tenant_id=self.bk_tenant_id,
             result_table_id=table_id,
             bk_base_data_id=0,  # 没有具体的计算平台ID，设置为 0
             vm_result_table_id=vm_table_id,
@@ -135,12 +140,14 @@ class BkDataFlow:
         self.space_type = space_type
         self.space_id = space_id
         self.table_id = table_id
+        self.bk_tenant_id = space_uid_to_bk_tenant_id(space_uid=f"{space_type}__{space_id}")
 
-    def start_flow(self, check_status: bool = True, consuming_mode: Optional[str] = ConsumingMode.Tail) -> bool:
+    def start_flow(self, check_status: bool = True, consuming_mode: str | None = ConsumingMode.Tail) -> bool:
         """启动数据流"""
         # 如果flow已经启动，则不需要再次启动
         if (
             RecordRule.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
                 space_type=self.space_type,
                 space_id=self.space_id,
                 table_id=self.table_id,
@@ -151,12 +158,12 @@ class BkDataFlow:
             logger.error("table_id: %s flow already started", self.table_id)
             return False
         # 创建 flow
-        if not ResultTableFlow.create_flow(self.table_id):
+        if not ResultTableFlow.create_flow(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id):
             return False
         logger.info("create flow success: %s", self.table_id)
 
         try:
-            obj = ResultTableFlow.objects.get(table_id=self.table_id)
+            obj = ResultTableFlow.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         except ResultTableFlow.DoesNotExist:
             logger.error("ResultTableFlow does not exist: %s", self.table_id)
             return False
@@ -164,12 +171,14 @@ class BkDataFlow:
         # 启动 flow
         flow_id = obj.flow_id
         # 初次启动，设置数据处理模式为尾部处理
-        if not ResultTableFlow.start_flow(flow_id, consuming_mode):
+        if not ResultTableFlow.start_flow(
+            bk_tenant_id=self.bk_tenant_id, flow_id=flow_id, consuming_mode=consuming_mode
+        ):
             return False
         # 设置预计算状态为running
-        RecordRule.objects.filter(space_type=self.space_type, space_id=self.space_id, table_id=self.table_id).update(
-            status=RecordRuleStatus.RUNNING.value
-        )
+        RecordRule.objects.filter(
+            bk_tenant_id=self.bk_tenant_id, space_type=self.space_type, space_id=self.space_id, table_id=self.table_id
+        ).update(status=RecordRuleStatus.RUNNING.value)
 
         logger.info("create start flow task success, table_id: %s, flow_id: %s", self.table_id, flow_id)
         return True
@@ -179,17 +188,17 @@ class BkDataFlow:
         NOTE: 针对预计算场景，当变动节点时，除了最后的存储节点外，其它节点都需要更新，因此，采用删除flow，重新创建flow的方式处理
         """
         try:
-            obj = ResultTableFlow.objects.get(table_id=self.table_id)
+            obj = ResultTableFlow.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         except ResultTableFlow.DoesNotExist:
             logger.error("ResultTableFlow does not exist: %s", self.table_id)
             return False
         flow_id = obj.flow_id
         # 停止flow
-        if not ResultTableFlow.stop_flow(flow_id):
+        if not ResultTableFlow.stop_flow(bk_tenant_id=self.bk_tenant_id, flow_id=flow_id):
             return False
         # NOTE: 等待20s, 待 flow 结束，删除 flow
         # 删除flow
-        if not ResultTableFlow.delete_flow(flow_id):
+        if not ResultTableFlow.delete_flow(bk_tenant_id=self.bk_tenant_id, flow_id=flow_id):
             return False
         # 重新创建flow
         self.start_flow(check_status=False, consuming_mode=ConsumingMode.Current)

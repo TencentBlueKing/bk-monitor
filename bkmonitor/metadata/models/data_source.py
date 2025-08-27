@@ -23,16 +23,17 @@ from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils import consul
+from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
 from metadata.models.space.constants import (
+    LOG_EVENT_ETL_CONFIGS,
     SPACE_UID_HYPHEN,
     SYSTEM_BASE_DATA_ETL_CONFIGS,
     SpaceTypes,
-    LOG_EVENT_ETL_CONFIGS,
 )
 from metadata.utils import consul_tools, hash_util
 from metadata.utils.basic import get_space_uid_and_bk_biz_id_by_bk_data_id
@@ -159,8 +160,8 @@ class DataSource(models.Model):
     def mq_cluster(self):
         """返回数据源的消息队列类型"""
         # 这个配置应该是很少变化的，所以考虑增加缓存
-        if getattr(self, "_mq_cluster", None) is None:
-            self._mq_cluster = ClusterInfo.objects.get(cluster_id=self.mq_cluster_id)
+        if self._mq_cluster is None:
+            self._mq_cluster = ClusterInfo.objects.get(bk_tenant_id=self.bk_tenant_id, cluster_id=self.mq_cluster_id)
 
         return self._mq_cluster
 
@@ -186,7 +187,7 @@ class DataSource(models.Model):
     @property
     def mq_config(self):
         """获取data_id对应消息队列的配置信息"""
-        if getattr(self, "_mq_config", None) is None:
+        if self._mq_config is None:
             self._mq_config = KafkaTopicInfo.objects.get(bk_data_id=self.bk_data_id)
 
         return self._mq_config
@@ -252,7 +253,7 @@ class DataSource(models.Model):
         # 添加集群信息
         mq_config.update(self.mq_cluster.consul_config)
         mq_config["cluster_config"].pop("last_modify_time")
-        bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(self.bk_data_id)
+        bk_biz_id, space_uid = get_space_uid_and_bk_biz_id_by_bk_data_id(self.bk_tenant_id, self.bk_data_id)
         result_config = {
             "bk_data_id": self.bk_data_id,
             "data_id": self.bk_data_id,
@@ -348,7 +349,7 @@ class DataSource(models.Model):
     # TODO：多租户,需要等待BkBase接口协议,理论上需要补充租户ID,不再有默认接入者概念
     @classmethod
     def apply_for_data_id_from_bkdata(
-        cls, data_name: str, bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID, is_base: bool = False, event_type="metric"
+        cls, data_name: str, bk_biz_id: int, is_base: bool = False, event_type="metric"
     ) -> int:
         """
         从计算平台申请data_id
@@ -360,14 +361,7 @@ class DataSource(models.Model):
         """
         # 下发配置
         from metadata.models.data_link.constants import DataLinkResourceStatus
-        from metadata.models.data_link.service import (
-            apply_data_id_v2,
-            get_data_id_v2,
-        )
-
-        if not bk_biz_id:
-            logger.info("apply_for_data_id_from_bkdata:data_name->[%s], bk_biz_id is None,will use default", data_name)
-            bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
+        from metadata.models.data_link.service import apply_data_id_v2, get_data_id_v2
 
         try:
             apply_data_id_v2(data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type)
@@ -380,7 +374,7 @@ class DataSource(models.Model):
             # 等待 3s 后查询一次，减少请求次数
             time.sleep(3)
             try:
-                data = get_data_id_v2(data_name=data_name, is_base=is_base)
+                data = get_data_id_v2(data_name=data_name, is_base=is_base, bk_biz_id=bk_biz_id)
             except BKAPIError as e:
                 logger.error("get data id from bkdata error: %s", e)
                 continue
@@ -394,14 +388,14 @@ class DataSource(models.Model):
         raise BKAPIError("apply data id from bkdata timeout")
 
     @classmethod
-    def apply_for_data_id_from_gse(cls, operator):
+    def apply_for_data_id_from_gse(cls, bk_tenant_id: str, operator: str):
         # 从GSE接口分配dataid
         try:
-            params = {
-                "metadata": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-                "operation": {"operator_name": operator},
-            }
-            result = api.gse.add_route(**params)
+            result = api.gse.add_route(
+                bk_tenant_id=bk_tenant_id,
+                metadata={"plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
+                operation={"operator_name": operator},
+            )
             return result["channel_id"]
         except BKAPIError:
             logger.exception("从GSE申请ChannelID出错")
@@ -459,7 +453,7 @@ class DataSource(models.Model):
     def create_data_source(
         cls,
         data_name,
-        etl_config,
+        etl_config: str,
         operator,
         source_label,
         type_label,
@@ -480,7 +474,7 @@ class DataSource(models.Model):
         authorized_spaces=None,
         space_uid=None,
         created_from=DataIdCreatedFromSystem.BKGSE.value,
-        bk_biz_id=None,
+        bk_biz_id: int | None = None,
         bcs_cluster_id=None,
     ):
         """
@@ -546,9 +540,11 @@ class DataSource(models.Model):
         try:
             # 如果集群信息无提供，则使用默认的MQ集群信息
             if mq_cluster is None:
-                mq_cluster = ClusterInfo.objects.get(cluster_type=cls.DEFAULT_MQ_TYPE, is_default_cluster=True)
+                mq_cluster = ClusterInfo.objects.get(
+                    bk_tenant_id=bk_tenant_id, cluster_type=cls.DEFAULT_MQ_TYPE, is_default_cluster=True
+                )
             else:
-                mq_cluster = ClusterInfo.objects.get(cluster_id=mq_cluster)
+                mq_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=mq_cluster)
         except ClusterInfo.DoesNotExist:
             # 此时，用户无提供新的数据源配置的集群信息，而也没有配置默认的集群信息，新的数据源无法配置集群信息
             # 需要抛出异常
@@ -563,9 +559,9 @@ class DataSource(models.Model):
             # 添加过滤条件，只接入单指标单表时序数据到V4链路
             from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
 
-            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
+            # 开启V4链路后，特定etl_config的data_id均从计算平台获取
+            if settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
                 logger.info(f"apply for data id from bkdata,type_label->{type_label},etl_config->{etl_config}")
-                # TODO: 多租户 等待BkBase多租户协议,传递租户ID
                 is_base = False
 
                 # 根据清洗类型判断是否是系统基础数据
@@ -577,12 +573,14 @@ class DataSource(models.Model):
                 else:
                     event_type = "metric"
 
+                # 如果没有指定业务ID，则使用默认业务ID
+                bk_biz_id = get_tenant_datalink_biz_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).label_biz_id
                 bk_data_id = cls.apply_for_data_id_from_bkdata(
                     data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type
                 )
                 created_from = DataIdCreatedFromSystem.BKDATA.value
             else:
-                bk_data_id = cls.apply_for_data_id_from_gse(operator)
+                bk_data_id = cls.apply_for_data_id_from_gse(bk_tenant_id, operator)
 
         # TODO: 通过空间及类型获取默认管道
         space_type_id = space_type_id if space_type_id else SpaceTypes.ALL.value
@@ -801,7 +799,7 @@ class DataSource(models.Model):
         # 2.2 mq_cluster_id集群修改
         if mq_cluster_id is not None:
             # 是否存在，集群配置是否合理
-            if not ClusterInfo.objects.filter(cluster_id=mq_cluster_id).exists():
+            if not ClusterInfo.objects.filter(bk_tenant_id=self.bk_tenant_id, cluster_id=mq_cluster_id).exists():
                 logger.error(f"cluster_id->[{mq_cluster_id}] is not exists, nothing will update.")
                 raise ValueError(_("集群配置不存在，请确认"))
 
@@ -831,7 +829,11 @@ class DataSource(models.Model):
             # 更新option配置
             for option_name, option_value in list(option.items()):
                 DataSourceOption.create_or_update(
-                    bk_data_id=self.bk_data_id, name=option_name, value=option_value, creator=operator
+                    bk_data_id=self.bk_data_id,
+                    name=option_name,
+                    value=option_value,
+                    creator=operator,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
                 logger.info(
                     f"bk_data_id->[{self.bk_data_id}] now has option->[{option_name}] with value->[{option_value}]"
@@ -891,7 +893,7 @@ class DataSource(models.Model):
 
         if authorized_spaces is not None:
             # 写入 空间与数据源的关系表
-            space_info = self.get_spaces_by_data_id(self.bk_data_id)
+            space_info = self.get_spaces_by_data_id(self.bk_data_id, self.bk_tenant_id)
             if space_info:
                 try:
                     self._save_space_datasource(

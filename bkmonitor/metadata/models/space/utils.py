@@ -112,6 +112,7 @@ def reformat_table_id(table_id: str) -> str:
 
 
 def list_spaces(
+    bk_tenant_id: str,
     space_type_id: str | None = None,
     space_id: str | None = None,
     space_name: str | None = None,
@@ -124,7 +125,7 @@ def list_spaces(
     include_resource_id: bool | None = False,
 ) -> dict:
     """查询空间实例信息
-
+    :param bk_tenant_id: 租户ID
     :param space_type_id: 空间类型ID
     :param space_id: 空间ID
     :param space_name: 空间中文名称
@@ -140,6 +141,7 @@ def list_spaces(
     # 获取空间类型 ID 和 空间类型名称
     space_type_id_name = {obj["type_id"]: obj["type_name"] for obj in SpaceType.objects.values("type_id", "type_name")}
     space_info = Space.objects.list_all_spaces(
+        bk_tenant_id,
         space_type_id,
         space_id,
         space_name,
@@ -297,16 +299,15 @@ def get_dimension_values(space_type_id: str, space_id: str, resource_type: str |
     return dimension_list
 
 
-# TODO: 多租户改造联调验证
 @atomic(config.DATABASE_CONNECTION_NAME)
 def create_space(
+    bk_tenant_id: str,
     creator: str,
     space_id: str,
     space_type_id: str,
     space_name: str,
     resources: list | None = None,
     space_code: str | None = "",
-    bk_tenant_id: str = DEFAULT_TENANT_ID,
 ) -> dict:
     """创建空间
 
@@ -785,14 +786,20 @@ def get_project_clusters(bk_tenant_id: str, project_id: str) -> list:
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
-def create_bkcc_spaces(biz_list: list) -> bool:
+def create_bkcc_spaces(biz_list: list[dict]) -> bool:
     """创建业务对应的空间信息
 
     NOTE: 业务类型，不需要关联资源
 
-    :param biz_list: 需要创建的业务列表，需要包含业务ID、业务中文名称
+    :param biz_list: 需要创建的业务列表，需要包含业务ID、业务中文名称、租户ID
     :return: 返回 True 或异常
     """
+    from metadata.task.tasks import (
+        create_base_event_datalink_for_bkcc,
+        create_basereport_datalink_for_bkcc,
+        create_system_proc_datalink_for_bkcc,
+    )
+
     space_data = []
     for biz in biz_list:
         space_data.append(
@@ -802,10 +809,19 @@ def create_bkcc_spaces(biz_list: list) -> bool:
                 space_type_id=SpaceTypes.BKCC.value,
                 space_id=str(biz["bk_biz_id"]),
                 space_name=biz["bk_biz_name"],
+                bk_tenant_id=biz["bk_tenant_id"],
             )
         )
 
     Space.objects.bulk_create(space_data)
+
+    # 初始化空间内置数据链路
+    if settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK:
+        for biz in biz_list:
+            create_basereport_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=biz["bk_biz_id"])
+            create_base_event_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=biz["bk_biz_id"])
+            create_system_proc_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=biz["bk_biz_id"])
+
     logger.info("bulk create bkcc space successfully, space: %s", json.dumps(biz_list))
 
     return True

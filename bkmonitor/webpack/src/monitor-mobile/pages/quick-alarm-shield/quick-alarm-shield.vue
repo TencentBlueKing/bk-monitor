@@ -447,15 +447,16 @@ export default class AlarmDetail extends Vue {
           duration: 2000,
           position: 'bottom',
         });
-        const { batchAction, ...rest } = this.$route.params || {};
+        const params = new URLSearchParams(window.location.search);
+        const batchAction = params.get('batchAction');
         if (!batchAction) {
           this.$router.back();
           return;
         }
-        this.$router.push({
-          name: 'alarm-info',
-          params: { ...rest },
-        });
+        const url = new URL(window.location.href);
+        url.searchParams.delete('batchAction');
+        url.hash = '#/alarm-info';
+        location.href = url.toString();
       })
       .catch(e => {
         Toast({

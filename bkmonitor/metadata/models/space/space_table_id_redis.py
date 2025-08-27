@@ -200,9 +200,9 @@ class SpaceTableIDRedis:
 
     def push_es_table_id_detail(
         self,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
-        is_publish: bool | None = True,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
+        is_publish: bool = True,
     ):
         """
         推送ES结果表的详情信息至RESULT_TABLE_DETAIL路由
@@ -211,7 +211,7 @@ class SpaceTableIDRedis:
         @param bk_tenant_id: 租户ID
         """
         logger.info(
-            "push_es_table_id_detail： start to push table_id detail data, table_id_list: %sis_publish->[%s],"
+            "push_es_table_id_detail： start to push table_id detail data, table_id_list->[%s],is_publish->[%s],"
             "bk_tenant_id->[%s]",
             json.dumps(table_id_list),
             is_publish,
@@ -281,9 +281,7 @@ class SpaceTableIDRedis:
             return
         logger.info("push_es_table_id_detail: push es_table_detail for table_id_list->[%s] successfully", table_id_list)
 
-    def _compose_doris_table_id_detail(
-        self, bk_tenant_id: str, table_id_list: list[str] | None = None
-    ) -> dict[str, dict]:
+    def _compose_doris_table_id_detail(self, bk_tenant_id: str, table_id_list: list[str]) -> dict[str, dict]:
         """组装doris结果表的详情"""
         logger.info(
             "_compose_doris_table_id_detail:start to compose doris table_id detail data,table_id_list->[%s]",
@@ -322,9 +320,7 @@ class SpaceTableIDRedis:
             }
         return data
 
-    def push_doris_table_id_detail(
-        self, bk_tenant_id: str, table_id_list: list | None = None, is_publish: bool | None = True
-    ):
+    def push_doris_table_id_detail(self, bk_tenant_id: str, table_id_list: list, is_publish: bool | None = True):
         """
         推送Doris结果表详情路由
         @param bk_tenant_id: 租户ID
@@ -628,9 +624,9 @@ class SpaceTableIDRedis:
         )
         vm_cluster_id_name = {
             cluster["cluster_id"]: cluster["cluster_name"]
-            for cluster in models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM).values(
-                "cluster_id", "cluster_name"
-            )
+            for cluster in models.ClusterInfo.objects.filter(
+                bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM
+            ).values("cluster_id", "cluster_name")
         }
         _table_id_detail: dict[str, dict] = {}
         for obj in record_rule_objs:

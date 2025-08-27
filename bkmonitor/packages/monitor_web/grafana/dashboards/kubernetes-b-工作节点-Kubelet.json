@@ -1393,7 +1393,7 @@
           "promqlAlias":"",
           "query_configs":[
             {
-              "alias":"$metric_id",
+              "alias":"$metric_metric_field_name",
               "data_source_label":"bk_monitor",
               "data_type_label":"time_series",
               "display":true,
@@ -1476,7 +1476,7 @@
           "promqlAlias":"",
           "query_configs":[
             {
-              "alias":"$metric_id",
+              "alias":"$metric_metric_field_name",
               "data_source_label":"bk_monitor",
               "data_type_label":"time_series",
               "display":true,

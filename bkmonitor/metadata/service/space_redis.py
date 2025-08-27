@@ -145,6 +145,10 @@ def push_and_publish_es_table_id(
 
     values["storage_cluster_records"] = storage_record
 
+    space_client = SpaceTableIDRedis()
+    field_alias_map = space_client._get_field_alias_map(table_id_list=[table_id], bk_tenant_id=bk_tenant_id)
+    values["field_alias"] = (field_alias_map.get(table_id, {}),)  # 字段查询别名
+
     logger.info("push_and_publish_es_table_id: table_id->[%s] try to hmset to redis with value->[%s]", table_id, values)
 
     # 若开启多租户模式,则在table_id前拼接bk_tenant_id
@@ -203,7 +207,7 @@ def push_and_publish_doris_table_id_detail(
 
     # 若开启多租户模式,则在table_id前拼接bk_tenant_id
     if settings.ENABLE_MULTI_TENANT_MODE:
-        redis_value = {f"{bk_tenant_id}|{table_id}": json.dumps(values)}
+        redis_value = {f"{table_id}|{bk_tenant_id}": json.dumps(values)}
     else:
         redis_value = {table_id: json.dumps(values)}
 

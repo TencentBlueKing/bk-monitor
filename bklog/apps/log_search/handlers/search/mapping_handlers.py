@@ -350,7 +350,7 @@ class MappingHandlers:
         ):
             default_sort_tag = True
         sort_list = self.get_default_sort_list(
-            index_set_id=self.index_set_id, scenario_id=self.scenario_id, scope=scope, default_sort_tag=default_sort_tag
+            index_set_id=self.index_set_id, scenario_id=self.scenario_id, default_sort_tag=default_sort_tag
         )
         obj, created = IndexSetFieldsConfig.objects.get_or_create(
             index_set_id=self.index_set_id,
@@ -376,7 +376,6 @@ class MappingHandlers:
         self,
         index_set_id: int = None,
         scenario_id: str = None,
-        scope: str = SearchScopeEnum.DEFAULT.value,
         default_sort_tag: bool = False,
     ):
         """默认字段排序规则"""
@@ -822,9 +821,11 @@ class MappingHandlers:
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
-        alias_dict = {
-            _field["origin_field"]: _field["field_name"] for _field in fields_list if _field.get("origin_field")
-        }
+        alias_dict = {}
+        if query_alias_settings := self.index_set.query_alias_settings:
+            for item in query_alias_settings:
+                alias_dict[item["field_name"]] = item["query_alias"]
+
         remove_field_list = list()
         # 增加description别名字段
         for _field in fields_list:

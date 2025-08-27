@@ -50,6 +50,7 @@ import 'monitor-pc/static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
 import '@blueking/tdesign-ui/vue3/index.css';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
+import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
@@ -84,6 +85,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       window.cc_biz_id = +window.bk_biz_id;
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
       setGlobalBizId();
+      userDisplayNameConfigure();
       const app = createApp(App);
       setVue(app as VueInstance);
       app.use(store).use(router).use(i18n).use(directives).mount('#app');

@@ -26,6 +26,8 @@ from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.ip import exploded_ip, is_v6
+from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.cmdb import TargetNodeType
 from core.drf_resource import CacheResource, api
@@ -108,7 +110,7 @@ def sort_topo_tree_by_pinyin(topo_trees):
     """
     if not topo_trees:
         return topo_trees
-    topo_trees.sort(key=lambda topo: lazy_pinyin(topo["bk_inst_name"])[0])
+    topo_trees.sort(key=lambda topo: lazy_pinyin(topo["bk_inst_name"])[0] if topo["bk_inst_name"] else "")
     for topo_tree in topo_trees:
         sort_topo_tree_by_pinyin(topo_tree["child"])
 
@@ -123,11 +125,12 @@ def _get_topo_tree(bk_biz_id):
     :return: 拓扑树
     :rtype: Dict
     """
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
     response_data = client.search_biz_inst_topo(bk_biz_id=bk_biz_id)
     if response_data:
         response_data = response_data[0]
     else:
-        response_biz_data = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
+        response_biz_data = api.cmdb.get_business(bk_tenant_id=bk_tenant_id, bk_biz_ids=[bk_biz_id])
         if response_biz_data:
             biz_data = response_biz_data[0]
             bk_inst_name = biz_data.bk_biz_name
@@ -147,9 +150,7 @@ def _get_topo_tree(bk_biz_id):
         }
 
     # 添加空闲集群/模块
-    internal_module = client.get_biz_internal_module(
-        bk_biz_id=bk_biz_id, bk_supplier_account=settings.BK_SUPPLIER_ACCOUNT
-    )
+    internal_module = client.get_biz_internal_module(bk_biz_id=bk_biz_id)
     if internal_module:
         # 仅支持cmdb空间获取该信息
         if not internal_module["module"]:
@@ -415,6 +416,7 @@ class GetBusiness(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID", required=False)
         bk_biz_ids = serializers.ListField(
             label="业务ID列表", child=serializers.IntegerField(), required=False, default=[]
         )
@@ -429,15 +431,22 @@ class GetBusiness(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
+        # 获取租户ID
+        bk_tenant_id = validated_request_data.get("bk_tenant_id")
+        if not bk_tenant_id:
+            bk_tenant_id = get_request_tenant_id()
+
         # 查询全部业务
         if validated_request_data["is_archived"]:
-            response_data = client.search_business(condition={"bk_data_status": "disabled"})["info"]
+            response_data = client.search_business(bk_tenant_id=bk_tenant_id, condition={"bk_data_status": "disabled"})[
+                "info"
+            ]
         else:
-            response_data = client.search_business()["info"]
+            response_data = client.search_business(bk_tenant_id=bk_tenant_id)["info"]
 
         if validated_request_data["all"]:
             # 额外空间列表
-            space_list = SpaceApi.list_spaces_dict()
+            space_list = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
             others = [s for s in space_list if s["bk_biz_id"] < 0]
             response_data += others
         # 按业务ID过滤出需要的业务信息
@@ -449,7 +458,7 @@ class GetBusiness(Resource):
         # 查出业务中的用户字段，转换为列表
         member_fields = {
             attr["bk_property_id"]
-            for attr in client.search_object_attribute(bk_obj_id="biz")
+            for attr in client.search_object_attribute(bk_tenant_id=bk_tenant_id, bk_obj_id="biz")
             if attr["bk_property_type"] == "objuser"
         }
 
@@ -658,32 +667,6 @@ class GetObjectAttribute(Resource):
         return client.search_object_attribute(params)
 
 
-class GetBluekingBiz(Resource):
-    """
-    查询对象属性
-    """
-
-    def perform_request(self, validated_request_data):
-        try:
-            bk_biz_name = getattr(settings, "BLUEKING_NAME", "蓝鲸") or "蓝鲸"
-            result = client.search_business(
-                dict(
-                    fields=["bk_biz_id", "bk_biz_name"],
-                    condition={"bk_biz_name": bk_biz_name},
-                )  # noqa
-            )
-        except BKAPIError as e:
-            logger.info("GetBluekingBiz failed: {}", e.message)
-            return 2
-
-        if result["info"]:
-            for biz_info in result["info"]:
-                if biz_info["bk_biz_name"] == bk_biz_name:
-                    return biz_info["bk_biz_id"]
-
-        return 2
-
-
 class SearchServiceCategory(Resource):
     """
     查询服务分类列表
@@ -882,6 +865,7 @@ def full_host_topo_inst(bk_biz_id, host_list):
 
 class GetHostWithoutBiz(Resource):
     class RequestSerializer(HostRequestSerializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         ips = serializers.ListField(label="IP组", required=False)
         bk_host_ids = serializers.ListField(label="主机ID组", required=False)
         ip = serializers.CharField(label="IP关键字", required=False)
@@ -899,6 +883,7 @@ class GetHostWithoutBiz(Resource):
             return {"count": 0, "hosts": []}
 
         request_params = {
+            "bk_tenant_id": params["bk_tenant_id"],
             "page": {"start": 0, "limit": params["limit"]},
             "fields": params["fields"],
         }
@@ -944,7 +929,8 @@ class GetHostWithoutBiz(Resource):
             search_result = client.list_hosts_without_biz(request_params)
             if search_result["info"]:
                 relations = client.find_host_biz_relation(
-                    bk_host_id=[host["bk_host_id"] for host in search_result["info"]]
+                    bk_tenant_id=params["bk_tenant_id"],
+                    bk_host_id=[host["bk_host_id"] for host in search_result["info"]],
                 )
             else:
                 relations = []

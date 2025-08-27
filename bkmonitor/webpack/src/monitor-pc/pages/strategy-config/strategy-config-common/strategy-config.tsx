@@ -224,6 +224,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   isShowStrategy = false;
   isShowTableFilter = false;
   strategyId = 0;
+  strategyName = '';
   backDisplayMap: any = {};
   targetSet = {
     show: false,
@@ -1770,6 +1771,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   handleShowStrategy() {
     this.isShowStrategy = true;
     this.strategyId = this.popover.data.id;
+    this.strategyName = this.popover.data.strategyName;
   }
   /**
    * @description: 屏蔽
@@ -2758,7 +2760,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                   : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
               }
             >
-              {this.$t('快捷屏蔽')}
+              {this.$t('策略屏蔽')}
             </li>
           ) : (
             <li
@@ -2826,6 +2828,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           },
         }}
         strategy-id={this.strategyId}
+        strategy-name={this.strategyName}
       />,
       <TableFilter
         key={4}

@@ -19,6 +19,7 @@ from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
+from bkmonitor.utils.user import get_user_display_name
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor.models import NODE_IP_TYPE_DICT
@@ -76,7 +77,7 @@ class GetUptimeCheckTaskInfo(ApiAuthResource):
         result.extend(
             [
                 {"name": _("状态"), "type": "string", "value": task.get_status_display()},
-                {"name": _("创建人"), "type": "string", "value": task.create_user},
+                {"name": _("创建人"), "type": "string", "value": get_user_display_name(task.create_user)},
                 {"name": _("创建时间"), "type": "string", "value": strftime_local(task.create_time)},
             ]
         )
@@ -257,11 +258,11 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         hostid_to_ip = {}
         if is_ipv6_biz(params["bk_biz_id"]):
             ips = [node.ip for node in nodes if node.ip]
-            node_hosts = api.cmdb.get_host_without_biz(ips=ips)["hosts"]
+            node_hosts = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, ips=ips)["hosts"]
             ip_to_hostid = {(h.ip, h.bk_cloud_id): h.bk_host_id for h in node_hosts}
         else:
             bk_host_ids = [node.bk_host_id for node in nodes if node.bk_host_id]
-            node_hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
+            node_hosts = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, bk_host_ids=bk_host_ids)["hosts"]
             hostid_to_ip = {h.bk_host_id: (h.ip, h.bk_cloud_id) for h in node_hosts}
 
         for node in nodes:

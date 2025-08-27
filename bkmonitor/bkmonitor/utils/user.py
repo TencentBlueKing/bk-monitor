@@ -9,12 +9,14 @@ specific language governing permissions and limitations under the License.
 """
 
 from functools import lru_cache
+
 from django.conf import settings
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.common import DEFAULT_TENANT_ID
+from core.errors.api import BKAPIError
 from core.errors.common import UserInfoMissing
 
 
@@ -106,3 +108,23 @@ def make_userinfo(bk_tenant_id: str = DEFAULT_TENANT_ID):
         return {"bk_username": username}
 
     raise ValueError(_("make_userinfo: 获取用户信息失败"))
+
+
+def get_user_display_name(username: str):
+    """
+    获取用户展示名
+    """
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return username
+
+    from core.drf_resource import api
+
+    try:
+        user_display_info = api.bk_login.batch_query_user_display_info(bk_usernames=[username])
+    except BKAPIError:
+        user_display_info = None
+
+    if user_display_info:
+        username = user_display_info[0]["display_name"]
+
+    return username

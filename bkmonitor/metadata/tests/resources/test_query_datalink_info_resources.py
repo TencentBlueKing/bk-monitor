@@ -137,7 +137,7 @@ def test_query_data_ids_by_biz_id(create_or_delete_records):
     """
     测试查询业务关联的数据源信息
     """
-    actual_data = QueryDataIdsByBizIdResource().request(bk_biz_id=1001)
+    actual_data = QueryDataIdsByBizIdResource().request(bk_tenant_id="system", bk_biz_id=1001)
     expected_data = [
         {
             "bk_data_id": 50010,

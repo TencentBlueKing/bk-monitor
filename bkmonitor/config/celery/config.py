@@ -114,4 +114,9 @@ class Config:
             "schedule": crontab(minute="*/15"),
             "enabled": True,
         },
+        "monitor_web.tasks.soft_delete_expired_shields": {
+            "task": "monitor_web.tasks.soft_delete_expired_shields",
+            "schedule": crontab(minute=0, hour=2),  # 每天凌晨2点执行
+            "enabled": True,
+        },
     }

@@ -212,7 +212,7 @@
             <div
               class="p20 detail-content"
               v-bkloading="{ isLoading: detail.loading }"
-              v-html="detail.content"
+              v-html="$xss(detail.content)"
             ></div>
           </template>
         </bk-sideslider>
