@@ -27,8 +27,7 @@
 import { defineComponent, ref } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
-import http from '@/api';
-import Tippy from 'bk-magic-vue/lib/utils/tippy';
+import { copyMessage } from '@/common/util';
 
 export default defineComponent({
   name: 'DownloadUrl',
@@ -48,41 +47,15 @@ export default defineComponent({
     // 处理点击事件
     const handleClick = async () => {
       try {
-        loading.value = true;
-        const res = await http.request('extract/getDownloadUrl', {
-          query: {
-            bk_biz_id: store.state.bkBizId,
-            task_id: props.taskId,
-            is_url: true,
-          },
-        });
+          let urlPrefix = window.AJAX_URL_PREFIX;
+          if (!urlPrefix.endsWith('/')) urlPrefix += '/';
+          const { bkBizId } = store.state;
 
-        // 复制到剪贴板
-        const input = document.createElement('input');
-        input.setAttribute('value', res.data);
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-
-        // 显示成功提示
-        const el = buttonRef.value?.$el;
-        if (!el._tippy) {
-          el._tippy = Tippy(el, {
-            content: t('已复制到剪切板'),
-            placement: 'top',
-            trigger: 'manual',
-            arrow: true,
-            size: 'small',
-            extCls: 'copy-successfully-tippy',
-          });
+          const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${props.taskId}&bk_biz_id=${bkBizId}`;
+          copyMessage(new URL(downloadUrl, window.location.origin).href, t('已复制到剪切板'));
+        } catch (e) {
+          console.warn(e);
         }
-        el._tippy.show();
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        loading.value = false;
-      }
     };
 
     return () => (

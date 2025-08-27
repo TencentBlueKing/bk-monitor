@@ -575,6 +575,7 @@ class TimeSeriesGroup(CustomGroupBase):
         time_series_group_name,
         label,
         operator,
+        bk_tenant_id: str,
         metric_info_list=None,
         table_id=None,
         is_split_measurement=True,
@@ -582,7 +583,6 @@ class TimeSeriesGroup(CustomGroupBase):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         """
         创建一个新的自定义分组记录

@@ -76,6 +76,12 @@ const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views
 const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/manage-v2/log-extract/extract-task/task-create/index.tsx');
 const ExtractLinkList = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-list.tsx');
 const ExtractLinkCreate = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-create.tsx');
+// const ExtractConfig = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage/manage-extract/manage-extract-permission/index');
+// const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/extract/index');
+// const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views/extract/home');
+// const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/extract/create');
+// const ExtractLinkList = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage/manage-extract/extract-link-manage/extract-link-list');
+// const ExtractLinkCreate = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage/manage-extract/extract-link-manage/extract-link-create');
 const ClusterMess = () => import(/* webpackChunkName: 'es-cluster-mess' */ '@/views/manage/es-cluster-status/es-cluster-mess');
 const DataLinkConf = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/manage-data-link/manage-data-link-conf');
 const MaskingEdit = () => import(/* webpackChunkName: 'field-masking-separate' */ '@/views/manage/field-masking-separate');
