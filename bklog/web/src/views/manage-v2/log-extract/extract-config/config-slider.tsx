@@ -97,7 +97,8 @@ export default defineComponent({
         manageStrategyData.value.visible_dir.every((item: string) => Boolean(validateVisibleDir(item))) &&
         manageStrategyData.value.file_type.every((item: string) => Boolean(validateFileExtension(item))) &&
         manageStrategyData.value.modules.length &&
-        manageStrategyData.value.operator;
+        manageStrategyData.value?.operator;
+      console.log('isValidated = ', manageStrategyData.value);
     };
 
     // 校验授权目录
