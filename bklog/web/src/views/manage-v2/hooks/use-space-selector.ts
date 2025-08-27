@@ -28,7 +28,7 @@ import { ref } from 'vue';
 import { SPACE_TYPE_MAP } from '@/store/constant';
 import useLocale from '@/hooks/use-locale';
 
-export function spaceSelectorMixin(visibleBkBizInit: number[] = []) {
+export function useSpaceSelector(visibleBkBizInit: number[] = []) {
   const { t } = useLocale();
   const spaceMultiple = ref(true);  // 空间多选
   const isUseMark = ref(true);  // 是否展示正在使用的标记

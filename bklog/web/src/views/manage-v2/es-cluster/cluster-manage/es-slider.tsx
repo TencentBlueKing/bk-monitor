@@ -29,8 +29,8 @@ import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
 import BkUserSelector from '@blueking/user-selector';
 import http from '@/api';
-import { sidebarDiffMixin } from '@/mixins/sidebar-diff-mixin-new.ts';
-import { spaceSelectorMixin } from '@/mixins/space-selector-mixin-new.ts';
+import { useSidebarDiff } from '../../hooks/use-sidebar-diff';
+import { useSpaceSelector } from '../../hooks/use-space-selector';
 import ManageHelper from '../../manage-helper.ts';
 import { Message } from 'bk-magic-vue';
 import { messageError } from '@/common/bkmagic';
@@ -199,8 +199,8 @@ export default defineComponent({
     // 侧边栏需要对比的formData
     const watchFormData = computed(() => ({ formData: formData.value, basicFormData: basicFormData.value }));
 
-    const { initSidebarFormData, handleCloseSidebar } = sidebarDiffMixin(watchFormData.value);
-    const { virtualscrollSpaceList } = spaceSelectorMixin(visibleBkBiz.value);
+    const { initSidebarFormData, handleCloseSidebar } = useSidebarDiff(watchFormData.value);
+    const { virtualscrollSpaceList } = useSpaceSelector(visibleBkBiz.value);
 
     const handleShowSlider = () => {
       selectZIndex.value = (window as any).__bk_zIndex_manager.nextZIndex();

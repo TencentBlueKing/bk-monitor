@@ -27,7 +27,7 @@
 import { ref } from 'vue';
 import useStore from '@/hooks/use-store';
 
-export function dragMixin() {
+export function useDrag() {
   const store = useStore();
 
   const minIntroWidth = ref(300); // 最小宽度

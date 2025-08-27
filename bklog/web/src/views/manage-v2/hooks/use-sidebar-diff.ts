@@ -27,9 +27,9 @@
 import { ref, computed, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import { InfoBox } from 'bk-magic-vue';
-import { deepClone, deepEqual } from '../common/util';
+import { deepClone, deepEqual } from '@/common/util';
 
-export function sidebarDiffMixin(formData: Record<string, any>) {
+export function useSidebarDiff(formData: Record<string, any>) {
   const { t } = useLocale();
   const initCloneData = ref<Record<string, any> | null>(null); // 初始化时的formData
   const isChange = ref(false);

@@ -41,10 +41,9 @@ import {
   getDefaultSettingSelectFiled,
   setDefaultSettingSelectFiled,
 } from '@/common/util';
-import { dragMixin } from '@/mixins/drag-mixin.ts';
+import { useDrag } from '../../hooks/use-drag';
 
 import './index.scss';
-import { set } from 'vue/types/umd';
 
 export default defineComponent({
   name: 'EsClusterMess',
@@ -58,7 +57,7 @@ export default defineComponent({
     const router = useRouter();
     const { t } = useLocale();
 
-    const { maxIntroWidth, introWidth, isDraging, dragBegin } = dragMixin();
+    const { maxIntroWidth, introWidth, isDraging, dragBegin } = useDrag();
 
     const tableLoading = ref(true); // 表格加载状态
     const tableDataOrigin = ref([]); // 原始数据
