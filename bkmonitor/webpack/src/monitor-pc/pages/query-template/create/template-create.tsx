@@ -209,14 +209,19 @@ export default class TemplateCreate extends tsc<object> {
     // 切换指标无需清空已填数据
     const queryConfig = this.queryConfigs[index];
     const oldData = {
-      agg_condition: queryConfig.agg_condition,
-      agg_dimension: queryConfig.agg_dimension,
-      agg_interval: queryConfig.agg_interval,
-      agg_method: queryConfig.agg_method,
-      functions: queryConfig.functions,
+      ...(queryConfig.metricDetail
+        ? {
+            agg_condition: queryConfig.agg_condition,
+            agg_dimension: queryConfig.agg_dimension,
+            agg_interval: queryConfig.agg_interval,
+            agg_method: queryConfig.agg_method,
+            functions: queryConfig.functions,
+          }
+        : {}),
       alias: LETTERS[index],
       metric_id: metric.metric_id,
     };
+
     this.queryConfigs.splice(index, 1, new QueryConfig(new MetricDetailV2(metric), oldData));
   }
 
