@@ -192,13 +192,13 @@ class ServiceLogHandler:
         return []
 
     @classmethod
-    def get_log_relation(cls, bk_biz_id, app_name, service_name):
+    def get_log_relations(cls, bk_biz_id, app_name, service_name):
         return LogServiceRelation.objects.filter(
             bk_biz_id=bk_biz_id,
             app_name=app_name,
             service_name=service_name,
             log_type=ServiceRelationLogTypeChoices.BK_LOG,
-        ).first()
+        )
 
     @classmethod
     def list_indexes_by_relation(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
