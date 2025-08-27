@@ -30,6 +30,7 @@ import { random, tryURLDecodeParse } from 'monitor-common/utils';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
+import { EMode } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import NewUserConfigMixin from '../../mixins/newUserStoreConfig';
@@ -55,7 +56,6 @@ import {
   K8sNewTabEnum,
   SceneEnum,
 } from './typings/k8s-new';
-import { EMode } from '@/components/retrieval-filter/utils';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IWhere } from './typings';

@@ -561,6 +561,7 @@ class ResultTable(models.Model):
                     from metadata.task.tasks import access_bkdata_vm
 
                     access_bkdata_vm.delay(
+                        bk_tenant_id,
                         int(target_bk_biz_id),
                         table_id,
                         datasource.bk_data_id,

@@ -315,7 +315,7 @@ export default class FieldItem extends tsc<object> {
             ref='operationRef'
             class={['operation-text', { 'analysis-active': this.analysisActive }]}
           >
-            {this.isShowFieldsAnalysis && (
+            {(this.isShowFieldsAnalysis && !this.isUnionSearch && !this.isFrontStatistics)&& (
               <div
                 class='operation-icon-box'
                 v-bk-tooltips={{ content: this.$t('图表分析') }}
