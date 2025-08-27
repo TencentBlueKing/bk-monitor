@@ -1888,7 +1888,7 @@ paths:
           resourcePermissionRequired: true
         descriptionEn: get or create agent event data id
   /app/metadata/modify_cluster_by_vmrts/:
-    get:
+    post:
       operationId: metadata_modify_cluster_by_vmrts
       description: 根据VMRT列表修改VM集群
       tags:
