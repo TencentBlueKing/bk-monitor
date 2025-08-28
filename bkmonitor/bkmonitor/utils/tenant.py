@@ -54,7 +54,7 @@ def bk_biz_id_to_bk_tenant_id(bk_biz_id: int) -> str:
     Raises:
         ValueError: convert bk_biz_id to bk_tenant_id failed
     """
-    space: Space | None = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+    space: Space | None = SpaceApi.get_space_detail(bk_biz_id=int(bk_biz_id))
     if not space:
         raise ValueError("convert bk_biz_id to bk_tenant_id failed, bk_biz_id: %s", bk_biz_id)
     return space.bk_tenant_id
