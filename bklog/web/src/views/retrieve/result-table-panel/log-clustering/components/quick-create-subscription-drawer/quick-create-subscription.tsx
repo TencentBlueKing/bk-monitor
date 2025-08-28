@@ -27,7 +27,6 @@
 import { Component, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 
-import { deepClone } from '../../../../../../components/monitor-echarts/utils';
 import CreateSubscriptionForm from './create-subscription-form';
 import { TestSendingTarget } from './types';
 
@@ -73,7 +72,7 @@ class QuickCreateSubscription extends tsc<IProps> {
   async testSending(to: TestSendingTarget) {
     const tempFormData = await (this.$refs.refOfCreateSubscriptionForm as any)?.validateAllForms?.();
     if (!tempFormData) return;
-    const formData = deepClone(tempFormData);
+    const formData = structuredClone(tempFormData);
     if (to === 'self') {
       const selfChannels = [
         {

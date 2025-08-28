@@ -47,7 +47,6 @@ import {
 } from 'bk-magic-vue';
 
 import $http from '../../api';
-import { deepClone } from '../monitor-echarts/utils';
 
 import './masking-add-rule.scss';
 
@@ -123,7 +122,20 @@ export default class MaskingAddRule extends tsc<IProps> {
   /** 表单是否正在加载 */
   formLoading = false;
   /** 基础表单数据 */
-  baseFromData = {};
+  baseFromData = {
+    space_uid: '',
+    rule_name: '',
+    match_fields: [],
+    match_pattern: '',
+    operator: 'text_replace', // mask_shield, text_replace
+    params: {
+      preserve_head: 0,
+      preserve_tail: 0,
+      replace_mark: '*',
+      template_string: '',
+    },
+    is_public: false,
+  };
   /** 提交的值 */
   submitVal = null;
   /** 场景路由映射 */
@@ -210,7 +222,7 @@ export default class MaskingAddRule extends tsc<IProps> {
 
   @Emit('change')
   hiddenSlider() {
-    this.formData = deepClone(this.baseFromData);
+    this.formData = structuredClone(this.baseFromData);
     this.emitSubmitRule();
     this.debugLog = '';
     this.logOriginal = '';
@@ -223,7 +235,7 @@ export default class MaskingAddRule extends tsc<IProps> {
 
   /** 打开侧边栏 */
   showSlider() {
-    this.baseFromData = deepClone(this.formData);
+    this.baseFromData = structuredClone(this.formData);
     if (this.addRuleFieldValue.field) this.initFiledValue();
     if (this.isEdit) this.initFormState();
     this.activeCollapse = ['1'];

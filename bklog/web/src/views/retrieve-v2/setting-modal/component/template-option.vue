@@ -79,7 +79,6 @@
 </template>
 
 <script>
-  import { deepClone } from '@/components/monitor-echarts/utils';
 
   export default {
     props: {
@@ -129,7 +128,7 @@
           this.isInputError = true;
           return;
         }
-        const submitData = deepClone(this.configItem);
+        const submitData = structuredClone(this.configItem);
         submitData.editStr = this.nameStr;
         this.$emit('operate-change', type, submitData);
       },

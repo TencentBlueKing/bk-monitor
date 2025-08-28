@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Input, Popover, Button, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
 
 import $http from '../../../api';
-import { copyMessage, deepClone } from '../../../common/util';
+import { copyMessage } from '../../../common/util';
 import AddCollectDialog from './add-collect-dialog';
 import CollectContainer from './collect-container';
 import ManageGroupDialog from './manage-group-dialog';
@@ -440,7 +440,7 @@ export default class CollectIndex extends tsc<IProps> {
     if (this.collectList.length === 2 && !this.collectList[1].favorites.length) {
       this.collectList = [this.collectList[0]];
     }
-    this.filterCollectList = deepClone(this.collectList);
+    this.filterCollectList = structuredClone(this.collectList);
     if (this.activeFavoriteID >= 0) {
       // 获取列表后 判断当前是否有点击的活跃收藏 如果有 则进行数据更新
       let isFind = false;

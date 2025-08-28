@@ -32,7 +32,7 @@ import { Alert, Button, Input, Table, TableColumn, Tag, Switcher, TableSettingCo
 
 import $http from '../../api';
 import * as authorityMap from '../../common/authority-map';
-import { deepClone, utcFormatDate } from '../../common/util';
+import {  utcFormatDate } from '../../common/util';
 import i18n from '../../language/i18n';
 import EmptyStatus from '../empty-status/index.vue';
 import MaskingAddRule from './masking-add-rule';
@@ -299,7 +299,7 @@ export default class MaskingSetting extends tsc<IProps> {
         })
         .sort((a, b) => (b.isPublic ? 1 : -1));
       this.tableStrList = this.tableList.map(item => item.ruleName);
-      this.tableSearchList = deepClone(this.tableList);
+      this.tableSearchList = structuredClone(this.tableList);
       this.tableShowList = this.tableSearchList.slice(0, this.pagination.limit);
       this.changePagination({
         current: 1,
@@ -487,7 +487,7 @@ export default class MaskingSetting extends tsc<IProps> {
   handleSearchChange(val) {
     if (val === '' && !this.tableLoading) {
       this.emptyType = 'empty';
-      this.tableSearchList = deepClone(this.tableList);
+      this.tableSearchList = structuredClone(this.tableList);
       this.pageLimitChange(10);
     }
   }
