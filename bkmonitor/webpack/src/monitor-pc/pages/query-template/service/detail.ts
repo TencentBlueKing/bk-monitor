@@ -55,6 +55,7 @@ export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem
     can_delete: detail.can_delete,
     alias: detail.alias,
     space_scope: detail.space_scope,
+    bk_biz_id: detail.bk_biz_id,
     queryConfigs,
     variables,
     metricFunctions,
@@ -67,6 +68,6 @@ export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem
  * @param {QueryTemplateListItem['id']} templateId 查询模板ID
  */
 export const fetchQueryTemplateRelation = async (templateId: QueryTemplateListItem['id']) => {
-  const relationList = await relationQueryTemplate(templateId).catch(() => []);
-  return relationList;
+  const relationInfo = await relationQueryTemplate(templateId).catch(() => ({ total: 0, list: [] }));
+  return relationInfo;
 };

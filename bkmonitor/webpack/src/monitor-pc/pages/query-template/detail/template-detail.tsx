@@ -226,6 +226,70 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
     this.getTemplateDetail();
   }
 
+  /**
+   * @description: 当删除按钮不可操作时，获取删除提示文案
+   */
+  getDeleteTip() {
+    if (this.relationInfo?.total > 0) {
+      return this.$t('当前仍然有关联的消费场景，无法删除') as string;
+    }
+    if (this.templateBaseInfo?.bk_biz_id === 0) {
+      return this.$t('全局模板无法删除') as string;
+    }
+    if (this.templateBaseInfo?.bk_biz_id !== this.$store.getters.bizId) {
+      const bizId = this.templateBaseInfo?.bk_biz_id;
+      const bizName = this.$store.getters.bizIdMap.get(bizId)?.name;
+      const url = `${location.origin}${location.pathname}?bizId=${bizId}${location.hash}`;
+      return (
+        <i18n
+          class='text'
+          path='模板属于业务 {0}，无法删除'
+        >
+          <a
+            style='color: #3a84ff'
+            href={url}
+            rel='noreferrer'
+            target='_blank'
+          >
+            {bizName}
+          </a>
+        </i18n>
+      );
+    }
+    return this.$t('无法删除');
+  }
+
+  /**
+   * @description: 当编辑按钮不可操作时，获取编辑提示文案
+   */
+  getEditTip() {
+    if (this.templateBaseInfo?.bk_biz_id === 0) {
+      return this.$t('全局模板无法编辑') as string;
+    }
+    if (this.templateBaseInfo?.bk_biz_id !== this.$store.getters.bizId) {
+      const bizId = this.templateBaseInfo?.bk_biz_id;
+      const bizName = this.$store.getters.bizIdMap.get(bizId)?.name;
+      const url = `${location.origin}${location.pathname}?bizId=${bizId}${location.hash}`;
+
+      return (
+        <i18n
+          class='text'
+          path='模板属于业务 {0}，无法编辑'
+        >
+          <a
+            style='color: #3a84ff'
+            href={url}
+            rel='noreferrer'
+            target='_blank'
+          >
+            {bizName}
+          </a>
+        </i18n>
+      );
+    }
+    return this.$t('无法编辑');
+  }
+
   render() {
     return (
       <bk-sideslider
@@ -251,12 +315,9 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
             </div>
           </div>
           <div class='header-operations'>
-            <span
-              v-bk-tooltips={{
-                content: this.$t('当前仍然有关联的消费场景，无法编辑'),
-                disabled: this.templateBaseInfo?.can_edit,
-                placement: 'right',
-              }}
+            <bk-popover
+              disabled={this.templateBaseInfo?.can_edit}
+              placement='right'
             >
               <bk-button
                 disabled={!this.templateBaseInfo?.can_edit}
@@ -266,13 +327,12 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
               >
                 {this.$t('编辑')}
               </bk-button>
-            </span>
-            <span
-              v-bk-tooltips={{
-                content: this.$t('当前仍然有关联的消费场景，无法删除'),
-                disabled: this.canDelete,
-                placement: 'right',
-              }}
+              <span slot='content'>{this.getEditTip()}</span>
+            </bk-popover>
+
+            <bk-popover
+              disabled={this.canDelete}
+              placement='right'
             >
               <bk-button
                 disabled={!this.canDelete}
@@ -281,7 +341,8 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
               >
                 {this.$t('删除')}
               </bk-button>
-            </span>
+              <span slot='content'>{this.getDeleteTip()}</span>
+            </bk-popover>
           </div>
         </div>
         <div
