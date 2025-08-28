@@ -126,6 +126,8 @@ class CreateConditionVariable extends Mixins(VariableFormMixin) {
               v-model={this.options}
               clearable={false}
               selected-style='checkbox'
+              collapse-tag
+              display-tag
               multiple
               onToggle={this.handleOptionsToggle}
             >

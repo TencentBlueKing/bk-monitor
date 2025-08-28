@@ -76,11 +76,8 @@ class CreateDimensionVariable extends Mixins(VariableFormMixin) {
        * 全部维度：使用默认值
        * 非全部维度：过滤掉不在维度列表中的默认值
        */
-      if (isAll) {
-        defaultValue = defaultValue.length ? defaultValue : [selectList[0]];
-      } else {
+      if (!isAll) {
         defaultValue = defaultValue.filter(item => selectList.includes(item));
-        defaultValue = defaultValue.length ? defaultValue : selectList.length ? [selectList[0]] : [];
       }
 
       let value = this.variable.value || [];
@@ -142,6 +139,8 @@ class CreateDimensionVariable extends Mixins(VariableFormMixin) {
               v-model={this.options}
               clearable={false}
               selected-style='checkbox'
+              collapse-tag
+              display-tag
               multiple
               onToggle={this.handleOptionsToggle}
             >
