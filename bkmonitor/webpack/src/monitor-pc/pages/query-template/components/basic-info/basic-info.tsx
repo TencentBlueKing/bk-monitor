@@ -51,8 +51,12 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
     return this.$store.getters.bizId;
   }
 
+  get isGlobalTemplate() {
+    return this.formData.space_scope.includes('all');
+  }
+
   get bizList() {
-    if (this.scene === 'create') return [...this.$store.getters.bizList];
+    if (this.scene === 'create' || !this.isGlobalTemplate) return [...this.$store.getters.bizList];
     // 全局模板是全业务可见，目前全局模板只有编辑功能
     return [{ bk_biz_id: 'all', name: this.$t('全业务可见') }, ...this.$store.getters.bizList];
   }
@@ -180,7 +184,7 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
           >
             <bk-tag-input
               clearable={false}
-              disabled={this.formData.space_scope.includes('all')}
+              disabled={this.isGlobalTemplate}
               list={this.bizList}
               save-key='bk_biz_id'
               tag-tpl={this.tagTpl}

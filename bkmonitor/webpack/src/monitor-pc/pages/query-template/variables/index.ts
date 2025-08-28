@@ -357,7 +357,6 @@ export async function getCreateVariableParams(params: IVariableSubmitParams[]): 
     if (related_metrics) {
       const [{ metric_id }] = related_metrics;
       metric = metrics.find(item => item.metric_id === metric_id);
-      console.log(metric, metric_id, metrics);
     }
 
     return {
