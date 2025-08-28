@@ -61,5 +61,5 @@ class DOTDiagrammer:
 
         return {"dot_graph": dot_graph}
 
-    def diff(self, base_tree_c: TreeConverter, comp_tree_c: TreeConverter, **options) -> dict:
-        raise NotImplementedError()
+    def diff(self, base_tree_c: TreeConverter, comp_tree_c: TreeConverter, **options):
+        pass
