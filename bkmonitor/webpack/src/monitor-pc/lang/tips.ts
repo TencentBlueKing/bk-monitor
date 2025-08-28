@@ -391,10 +391,16 @@ export default {
   只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
 
   // 查询模板
+  无法删除: 'Cannot delete',
+  无法编辑: 'Cannot edit',
   '当前仍然有关联的消费场景，无法编辑':
     'Currently there are still associated consumption scenarios and cannot be edited',
   '当前仍然有关联的消费场景，无法删除':
     'Currently there are still associated consumption scenarios and cannot be deleted',
+  全局模板无法删除: 'Global template cannot be deleted',
+  全局模板无法编辑: 'Global template cannot be edited',
+  '模板属于业务 {0}，无法删除': 'The template belongs to the business {0} and cannot be deleted',
+  '模板属于业务 {0}，无法编辑': 'The template belongs to the business {0} and cannot be edited',
   '输入框：直接输入 {0} 即可新建变量': 'Input box: Enter {0} directly to create a new variable',
   '选择框：在选项中选择 {0} 然后输入变量名': 'Select box: Select {0} in the options and then enter the variable name',
   '新建后，右侧会出现 {0}': 'After creating, {0} will appear on the right side',
