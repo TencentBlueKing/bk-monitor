@@ -49,7 +49,8 @@ export const getVariableNameInput = (val: string) => {
 };
 
 export const isVariableName = (val: string) => {
-  return !!val && /^\$\{([\w\u4e00-\u9fa5]+)(?:\.([^:^}]+))?(?::([^}]+))?}$/.test(val);
+  // return !!val && /^\$\{([\w\u4e00-\u9fa5]+)(?:\.([^:^}]+))?(?::([^}]+))?}$/.test(val);
+  return !!val && /^\$\{([\w.]+)}$/.test(val);
 };
 
 export const validateVariableNameInput = (str: string): string => {
