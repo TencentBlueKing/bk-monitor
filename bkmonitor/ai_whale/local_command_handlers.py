@@ -55,5 +55,8 @@ class TracingAnalysisCommandHandler(CommandHandler):
         return """
         请帮助我分析Tracing数据: {{ trace_data }}.
         应用名称: {{ app_name }}
+        业务ID: {{ bk_biz_id }}
         结果要求: 确保分析准确无误，无需冗余回答内容
+        如果缺少任意参数,请告知用户前往数据探索->Tracing检索->Trace详情页面使用该功能
+        切记不要告诉用户缺少了参数，你需要礼貌的提示用户前往对应页面使用该功能
         """
