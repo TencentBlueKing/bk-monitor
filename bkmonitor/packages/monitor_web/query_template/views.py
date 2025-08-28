@@ -143,7 +143,7 @@ class QueryTemplateViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
         return Response(
             [
-                {"query_template_id": query_template_id, "relation_count": 0}
+                {"query_template_id": query_template_id, "relation_config_count": 0}
                 for query_template_id in serializer.validated_data["query_template_ids"]
             ]
         )

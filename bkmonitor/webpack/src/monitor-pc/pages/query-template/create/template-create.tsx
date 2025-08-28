@@ -178,6 +178,7 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleCreateVariable(val: IVariableModel) {
+    console.log(val);
     if (this.variablesList.find(item => item.name === val.name)) {
       return;
     }

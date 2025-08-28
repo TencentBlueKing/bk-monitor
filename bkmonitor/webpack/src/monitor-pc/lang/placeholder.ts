@@ -340,4 +340,6 @@ export default {
   数值: 'Number',
   '搜索 变量': 'Search Variable',
   点击添加指标: 'Click to add metrics',
+  '大小写字符、数字、下划线、点（.），50个字符以内':
+    'Case-sensitive characters, numbers, underscores, and dots (.), up to 50 characters',
 };

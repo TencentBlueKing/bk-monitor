@@ -49,15 +49,19 @@ export const getVariableNameInput = (val: string) => {
 };
 
 export const isVariableName = (val: string) => {
-  return !!val && /^\$\{([\w\u4e00-\u9fa5]+)(?:\.([^:^}]+))?(?::([^}]+))?}$/.test(val);
+  // return !!val && /^\$\{([\w\u4e00-\u9fa5]+)(?:\.([^:^}]+))?(?::([^}]+))?}$/.test(val);
+  return !!val && /^\$\{([\w.]+)}$/.test(val);
 };
 
 export const validateVariableNameInput = (str: string): string => {
   if (!str) {
     return window.i18n.t('变量名不能为空') as string;
   }
-  if (!/^[\u4e00-\u9fa5a-zA-Z0-9_.:]+$/.test(str)) {
+  if (!/^[\w.]+$/.test(str)) {
     return window.i18n.t('变量名不能包含非法字符') as string;
+  }
+  if (str.length > 50) {
+    return window.i18n.t('变量名不能超过50个字符') as string;
   }
   return '';
 };

@@ -77,6 +77,7 @@ export default class VariableNameInput extends tsc<IProps> {
           ref='input'
           class='variable-name-input'
           v-model={this.localValue}
+          placeholder={this.$t('大小写字符、数字、下划线、点（.），50个字符以内')}
           onChange={this.handleChange}
         />
         <div class='label-right'>{'}'}</div>
