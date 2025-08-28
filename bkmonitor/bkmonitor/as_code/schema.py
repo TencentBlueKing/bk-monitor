@@ -102,7 +102,7 @@ StrategySchema = Schema(
         ),
         Optional("priority", default=None): Or(And(int, lambda p: 10000 >= p >= 0), None),
         Optional("active_calendars", default=lambda: []): [int],  # deprecated
-        Optional("calendars", default=lambda: {"active": [int], "not_active": [int]}): dict,
+        Optional("calendars", default=lambda: {"active": [], "not_active": []}): dict,
         "query": QuerySchema({}),
         "detect": {
             "algorithm": {
