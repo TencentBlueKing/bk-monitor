@@ -284,6 +284,7 @@ export default defineComponent({
               placeholder={t('请输入名称')}
               onChange={val => (keyword.value = val)}
               onEnter={search}
+              on-right-icon-click={search}
             />
           </div>
         </section>

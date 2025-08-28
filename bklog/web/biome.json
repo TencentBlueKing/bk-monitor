@@ -1,11 +1,12 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["ultracite"],
   "vcs": {
     "enabled": true,
     "clientKind": "git"
   },
   "files": {
-    "includes": ["**", "!node_modules"]
+    "includes": ["./src/**/*.{js,jsx,ts,tsx}"]
   },
   "formatter": {
     "enabled": true,
@@ -23,7 +24,19 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "suspicious": {
+        "useIsArray": "off",
+        "noExplicitAny": "off",
+        "noConsole": "off"
+      },
+      "a11y": {
+        "useKeyWithClickEvents": "off",
+        "noStaticElementInteractions": "off"
+      },
+      "style": {
+        "useTemplate": "off"
+      }
     }
   },
   "javascript": {
@@ -41,8 +54,8 @@
     "enabled": true,
     "actions": {
       "source": {
-        "organizeImports": "on",
-        "useSortedProperties": "on"
+        "organizeImports": "off",
+        "useSortedProperties": "off"
       }
     }
   }

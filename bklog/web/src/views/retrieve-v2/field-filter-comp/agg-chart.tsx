@@ -168,6 +168,13 @@ export default class AggChart extends tsc<object> {
     };
   }
 
+  getPercentValue(count: number) {
+    if (!this.showTotalCount) return '0%';
+    // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
+    const percentage = (count / this.showTotalCount) * 100;
+    return `${percentage}%`;
+  }
+
   // 优化百分比计算
   computePercent(count: number) {
     if (!this.showTotalCount) return '0%';
@@ -326,6 +333,7 @@ export default class AggChart extends tsc<object> {
             {this.showFiveList.map((item, index) => {
               const [value, count] = item;
               const percent = this.computePercent(count);
+              const percentValue = this.getPercentValue(count);
               const isFiltered = this.filterIsExist('is', value, this.fieldName);
               const isNotFiltered = this.filterIsExist('is not', value, this.fieldName);
 
@@ -365,7 +373,7 @@ export default class AggChart extends tsc<object> {
                     </div>
                     <div class='percent-bar-container'>
                       <div
-                        style={{ width: percent }}
+                        style={{ width: percentValue }}
                         class='percent-bar'
                       ></div>
                     </div>

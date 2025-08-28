@@ -25,6 +25,7 @@
  * IN THE SOFTWARE.
  */
 import { copyMessage, xssFilter } from '@/common/util';
+import RetrieveHelper from '@/views/retrieve-helper';
 import JSONBig from 'json-bigint';
 
 export type JsonViewConfig = {
@@ -208,6 +209,7 @@ export default class JsonView {
     ) {
       const storeNode = targetNode.closest('.bklog-json-view-object') as HTMLElement;
       if (this.jsonNodeMap.get(storeNode)) {
+        RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
         const { isExpand, target } = this.jsonNodeMap.get(storeNode) ?? {};
         this.jsonNodeMap.get(storeNode).isExpand = !isExpand;
         this.setNodeExpand(storeNode, !isExpand, target);
