@@ -5,6 +5,7 @@ from django.conf import settings
 from mockredis.redis import mock_redis_client
 
 from bkmonitor.utils import consul
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.tests.test_models import TestDataSource
 
@@ -88,6 +89,7 @@ class TestBlackList:
                 "enable_field_black_list": True,
                 "enable_default_value": False,
             },
+            "bk_tenant_id": DEFAULT_TENANT_ID,
         }
         mocker.patch("metadata.task.tasks.refresh_custom_report_config.delay", return_value=True)
         mocker.patch(

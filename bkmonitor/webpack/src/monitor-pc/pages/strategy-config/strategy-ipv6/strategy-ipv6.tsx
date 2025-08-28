@@ -37,7 +37,7 @@ import {
 } from '../../../components/monitor-ip-selector/utils';
 
 import type {
-  CoutIntanceName,
+  CountInstanceName,
   IIpV6Value,
   INodeType,
   TargetObjectType,
@@ -85,7 +85,7 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
   loading = false;
   initialized = false;
   originValue: IIpV6Value = undefined;
-  countInstanceType: CoutIntanceName = 'host';
+  countInstanceType: CountInstanceName = 'host';
   get hasStrategy() {
     return this.strategyIds?.length > 0;
   }
@@ -123,7 +123,9 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
       }
       this.countInstanceType = this.ipObjectType === 'SERVICE' ? 'service_instance' : 'host';
       this.panelList = getPanelListByObjectType(this.ipObjectType);
-      setTimeout(() => (this.initialized = true), 100);
+      setTimeout(() => {
+        this.initialized = true;
+      }, 100);
     }
   }
   @Emit('closeDialog')
@@ -194,7 +196,9 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
             value={this.ipCheckValue}
             onChange={this.handleIpChange}
             onCloseDialog={this.closeDialog}
-            onTargetTypeChange={v => (this.ipNodeType = v)}
+            onTargetTypeChange={v => {
+              this.ipNodeType = v;
+            }}
           />
         )}
       </div>

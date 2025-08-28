@@ -59,7 +59,7 @@ INSTALLED_APPS += (
     "django_celery_results",
     "audit",
     "apigw_manager",
-    "ai_agents",
+    "ai_whale",
 )
 
 LOGGER_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")

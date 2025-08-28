@@ -59,7 +59,7 @@
           <!-- eslint-disable vue/no-v-html -->
           <div
             class="detail-container"
-            v-html="currentLog.detail"
+            v-html="$xss(currentLog.detail)"
           ></div>
           <!--eslint-enable-->
         </div>

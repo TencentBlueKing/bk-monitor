@@ -159,12 +159,12 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
               onChange={this.handleGroupByChange}
             />
           )}
-          {this.filterConfig.group_by.length > 0 && (
-            <LimitFunction
-              value={this.filterConfig.limit}
-              onChange={this.handleLimitChange}
-            />
-          )}
+          {/* {this.filterConfig.group_by.length > 0 && ( */}
+          <LimitFunction
+            value={this.filterConfig.limit}
+            onChange={this.handleLimitChange}
+          />
+          {/* )} */}
           <CompareType
             exclude={['metric']}
             value={this.filterConfig.compare}

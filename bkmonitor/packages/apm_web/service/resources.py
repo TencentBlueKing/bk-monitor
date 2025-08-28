@@ -175,8 +175,11 @@ class ServiceInfoResource(Resource):
         res = {"application_id": app.application_id, "is_enabled_profiling": app.is_enabled_profiling}
         if app.is_enabled_profiling:
             # 获取此服务是否有 Profiling 数据
-            count = QueryTemplate(bk_biz_id, app_name).get_service_count(start_time, end_time, service_name)
-            res["is_profiling_data_normal"] = bool(count)
+            try:
+                count = QueryTemplate(bk_biz_id, app_name).get_service_count(start_time, end_time, service_name)
+                res["is_profiling_data_normal"] = bool(count)
+            except Exception:  # pylint: disable=broad-except
+                res["is_profiling_data_normal"] = False
         else:
             res["is_profiling_data_normal"] = False
 
@@ -450,10 +453,12 @@ class ServiceConfigResource(Resource):
             self.update_labels(bk_biz_id, app_name, service_name, validated_request_data["labels"])
 
         # 下发修改后的配置
-        application_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().application_id
+        application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
         from apm_web.tasks import update_application_config
 
-        update_application_config.delay(application_id)
+        update_application_config.delay(
+            application.bk_biz_id, application.app_name, {"service_configs": application.get_service_transfer_config()}
+        )
 
     def update_uri(self, bk_biz_id, app_name, service_name, uri_relations):
         if len(set(uri_relations)) != len(uri_relations):

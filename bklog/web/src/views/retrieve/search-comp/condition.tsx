@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { Select, Option, DropdownMenu, TagInput, Button, Checkbox } from 'bk-magic-vue';
 
-import { Debounce } from '../../../common/util';
+import { Debounce, xssFilter } from '../../../common/util';
 
 import './condition.scss';
 
@@ -440,7 +440,7 @@ export default class Condition extends tsc<object> {
       >
         <span
           class={textClass}
-          domPropsInnerHTML={innerHtml}
+          domPropsInnerHTML={xssFilter(innerHtml)}
         ></span>
       </div>
     );

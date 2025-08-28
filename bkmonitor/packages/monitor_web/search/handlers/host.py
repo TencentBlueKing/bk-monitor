@@ -1,12 +1,11 @@
-# -*- coding: utf-8 -*-
 import time
 import uuid
-from typing import List, Optional
 
 from django.conf import settings
 from django.utils.translation import gettext as _
 
 from api.cmdb.define import Host
+from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource import api, resource
 from monitor_web.search.handlers.base import (
     BaseSearchHandler,
@@ -22,7 +21,7 @@ class HostSearchHandler(BaseSearchHandler):
     DASHBOARD_ID = "host"
     TOKEN_TYPE = "host"  # token鉴权类型
 
-    def get_token_by_create(self, host: Host) -> Optional[str]:
+    def get_token_by_create(self, host: Host) -> str | None:
         start_time = int(time.time())
         token_create_params = {
             "bk_biz_id": host.bk_biz_id,
@@ -62,7 +61,7 @@ class HostSearchHandler(BaseSearchHandler):
         enabled_token = return_datas.get("token") if int(time.time()) < return_datas.get("expire_time") else None
         return enabled_token
 
-    def get_token_by_fetch(self, host: Host) -> Optional[str]:
+    def get_token_by_fetch(self, host: Host) -> str | None:
         token_fetch_params = {
             "bk_biz_id": host.bk_biz_id,
             "type": self.TOKEN_TYPE,
@@ -84,14 +83,15 @@ class HostSearchHandler(BaseSearchHandler):
         )
         return token
 
-    def get_enabled_token(self, host: Host) -> Optional[str]:
+    def get_enabled_token(self, host: Host) -> str | None:
         enabled_token = self.get_token_by_fetch(host)
         if enabled_token is None:
             enabled_token = self.get_token_by_create(host)
         return enabled_token
 
-    def search(self, query: str, limit: int = 10) -> List[SearchResultItem]:
+    def search(self, query: str, limit: int = 10) -> list[SearchResultItem]:
         params = {
+            "bk_tenant_id": get_request_tenant_id(),
             # 使用CMDB搜索时，需要将 . 替换为 \. 否则会被识别为通配符
             "ip": query.replace(".", "\\.").replace("*", ".*"),
             "limit": 500,
@@ -110,7 +110,7 @@ class HostSearchHandler(BaseSearchHandler):
             search_results.append(
                 SearchResultItem(
                     bk_biz_id=host.bk_biz_id,
-                    title="{bk_cloud_id}:{ip}".format(bk_cloud_id=host.bk_cloud_id, ip=host.ip),
+                    title=f"{host.bk_cloud_id}:{host.ip}",
                     view="performance-detail",
                     view_args={"params": {"id": f"{host.ip}-{host.bk_cloud_id}"}},
                     temp_share_url=f"{settings.BK_MONITOR_HOST}?bizId={host.bk_biz_id}/#/share/{enabled_token}"

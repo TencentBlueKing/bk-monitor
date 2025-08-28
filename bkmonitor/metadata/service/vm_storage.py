@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def disable_influxdb_router_for_vm_table(
     table_ids: list, switched_storage_id: int | None = 0, can_deleted: bool | None = False
-) -> bool:
+) -> None:
     """禁用接入 vm 的结果表的写入 influxdb 的路由
     :param table_ids: 结果表 id
     :param switched_storage_id: 要切换到的关联关系 ID
@@ -48,15 +48,15 @@ def disable_influxdb_router_for_vm_table(
             ).exists():
                 raise ValueError("storage cluster id: %s not vm type", switched_storage_id)
         else:
-            vm_qs = models.AccessVMRecord.objects.filter(result_table_id__in=table_ids)
-            if not vm_qs.exists():
+            vm = models.AccessVMRecord.objects.filter(result_table_id__in=table_ids).first()
+            if not vm:
                 raise ValueError("table_id: %s not access to vm", json.dumps(table_ids))
-            switched_storage_id = vm_qs.first().vm_cluster_id
+            switched_storage_id = vm.vm_cluster_id
 
-        proxy_storage_qs = models.InfluxDBProxyStorage.objects.filter(proxy_cluster_id=switched_storage_id)
-        if not proxy_storage_qs.exists():
+        proxy_storage = models.InfluxDBProxyStorage.objects.filter(proxy_cluster_id=switched_storage_id).first()
+        if not proxy_storage:
             raise ValueError("storage cluster id: %s not register InfluxDBProxyStorage", switched_storage_id)
-        proxy_storage_id = proxy_storage_qs.first().id
+        proxy_storage_id = proxy_storage.pk
         qs.update(storage_cluster_id=switched_storage_id, influxdb_proxy_storage_id=proxy_storage_id)
 
     # 更新数据源的consul, 并且刷新路由配置

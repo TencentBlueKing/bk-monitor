@@ -99,6 +99,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   collectConfigData = null;
 
   alarmGroupListLoading = false;
+  targetDetailLoading = false;
 
   public beforeRouteEnter(to: Route, from: Route, next: NavigationGuardNext) {
     const { params } = to;
@@ -251,6 +252,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   }
 
   getHosts(count) {
+    this.targetDetailLoading = true;
     return collectingTargetStatus({ collect_config_id: this.collectId })
       .then(data => {
         if (count !== this.allData[TabEnum.TargetDetail].pollingCount) return;
@@ -265,7 +267,10 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
         }
         this.allData[TabEnum.TargetDetail].updateKey = random(8);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        this.targetDetailLoading = false;
+      });
   }
   handlePolling(v = true) {
     if (v) {
@@ -363,14 +368,19 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
                 onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
               />
             )}
-            {!!this.allData[TabEnum.TargetDetail].data && (
+            {
               <CollectorStatusDetails
-                data={this.allData[TabEnum.TargetDetail].data}
+                data={
+                  this.allData[TabEnum.TargetDetail]?.data || {
+                    contents: [],
+                  }
+                }
+                tableLoading={this.targetDetailLoading}
                 updateKey={this.allData[TabEnum.TargetDetail].updateKey}
                 onCanPolling={this.handlePolling}
                 onRefresh={this.handleRefreshData}
               />
-            )}
+            }
           </bk-tab-panel>
           <bk-tab-panel
             label={this.$t('链路状态')}

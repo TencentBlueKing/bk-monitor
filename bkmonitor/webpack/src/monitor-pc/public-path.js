@@ -29,3 +29,4 @@ __webpack_public_path__ =
   process.env.NODE_ENV === 'production'
     ? `${window.static_url}${process.env.APP === 'external' ? 'external' : 'monitor'}/`
     : '/';
+window.__VUE_PROD_HYDRATION_MISMATCH_DETAILS__ = false;

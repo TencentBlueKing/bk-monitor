@@ -43,7 +43,7 @@ import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { APIType, getEventViewConfig, RetrievalFilterCandidateValue } from './api-utils';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import EventExploreView from './components/event-explore-view';
-import EventRetrievalLayout from './components/event-retrieval-layout';
+import EventRetrievalLayout, { type EventRetrievalLayoutProps } from './components/event-retrieval-layout';
 import EventSourceSelect from './components/event-source-select';
 import {
   type ConditionChangeEvent,
@@ -97,6 +97,7 @@ export default class EventExplore extends tsc<
   IEvent,
   {
     favorite?: string;
+    filterPrepend?: string;
     header?: string;
   }
 > {
@@ -125,6 +126,10 @@ export default class EventExplore extends tsc<
   @Prop({ default: () => [], type: Array }) favoriteList: IFavList.favGroupList[];
   @Prop({ default: null, type: Object }) currentFavorite: IFavList.favList;
   @Prop({ default: false, type: Boolean }) defaultShowResidentBtn: boolean;
+  /** 拖拽布局默认配置 */
+  @Prop({ default: () => ({}) }) defaultLayoutConfig: EventRetrievalLayoutProps;
+  /* 是否为容器监控事件场景 */
+  @Prop({ default: false, type: Boolean }) isK8sEvent: boolean;
 
   // 数据时间间隔
   @InjectReactive('timeRange') timeRange: TimeRangeType;
@@ -241,6 +246,44 @@ export default class EventExplore extends tsc<
       }
       prev.push(map);
       return prev;
+    }, []);
+  }
+
+  // 检索栏是否使用默认常驻设置 如果选择了收藏则使用收藏的常驻设置
+  get isDefaultResidentSetting() {
+    if (this.currentFavorite?.config?.queryConfig?.result_table_id === this.dataId) {
+      return false;
+    }
+    return true;
+  }
+
+  // 当前选中的收藏项（检索栏使用）
+  get selectFavoriteWhere() {
+    if (!this.currentFavorite) {
+      return null;
+    }
+    return {
+      where: this.currentFavorite?.config?.queryConfig?.where || [],
+      commonWhere: this.currentFavorite?.config?.queryConfig?.commonWhere || [],
+    };
+  }
+
+  // 收藏列表数据（检索栏使用）
+  get retrievalFilterFavoriteList() {
+    return this.favoriteList.reduce((pre, cur) => {
+      pre.push(
+        ...(cur?.favorites?.map(f => ({
+          id: f.id,
+          name: f.name,
+          groupName: cur.name,
+          config: {
+            queryString: f.config?.queryConfig?.query_string || '',
+            where: f.config?.queryConfig?.where || [],
+            commonWhere: f.config?.queryConfig?.commonWhere || [],
+          },
+        })) || [])
+      );
+      return pre;
     }, []);
   }
 
@@ -570,35 +613,42 @@ export default class EventExplore extends tsc<
             {this.loading ? (
               <div class='skeleton-element filter-skeleton' />
             ) : (
-              <RetrievalFilter
-                commonWhere={this.commonWhere}
-                dataId={this.dataId}
-                defaultShowResidentBtn={this.defaultShowResidentBtn}
-                favoriteList={this.favoriteList as any}
-                fields={this.fieldList}
-                filterMode={this.filterMode}
-                getValueFn={this.getRetrievalFilterValueData}
-                isShowFavorite={!this.hideFeatures.includes('favorite') && this.source === APIType.MONITOR}
-                queryString={this.queryString}
-                residentSettingOnlyId={this.residentSettingOnlyId}
-                selectFavorite={this.currentFavorite}
-                source={this.source}
-                where={this.where}
-                onCommonWhereChange={this.handleCommonWhereChange}
-                onCopyWhere={this.handleCopyWhere}
-                onFavorite={this.handleFavorite}
-                onModeChange={this.handleModeChange}
-                onQueryStringChange={this.handleQueryStringChange}
-                onQueryStringInputChange={this.handleQueryStringInputChange}
-                onSearch={this.updateQueryConfig}
-                onShowResidentBtnChange={this.handleShowResidentBtnChange}
-                onWhereChange={this.handleWhereChange}
-              />
+              <div class='retrieval-filter-container'>
+                {this.$scopedSlots.filterPrepend?.('')}
+                <RetrievalFilter
+                  isShowFavorite={
+                    !this.hideFeatures.includes('favorite') && this.source === APIType.MONITOR && !this.isK8sEvent
+                  }
+                  commonWhere={this.commonWhere}
+                  defaultShowResidentBtn={this.defaultShowResidentBtn}
+                  favoriteList={this.retrievalFilterFavoriteList}
+                  fields={this.fieldList}
+                  filterMode={this.filterMode}
+                  getValueFn={this.getRetrievalFilterValueData}
+                  isDefaultResidentSetting={this.isDefaultResidentSetting}
+                  isShowCopy={!this.isK8sEvent}
+                  isShowResident={!this.isK8sEvent}
+                  queryString={this.queryString}
+                  residentSettingOnlyId={this.residentSettingOnlyId}
+                  selectFavorite={this.selectFavoriteWhere}
+                  where={this.where}
+                  onCommonWhereChange={this.handleCommonWhereChange}
+                  onCopyWhere={this.handleCopyWhere}
+                  onFavorite={this.handleFavorite}
+                  onModeChange={this.handleModeChange}
+                  onQueryStringChange={this.handleQueryStringChange}
+                  onQueryStringInputChange={this.handleQueryStringInputChange}
+                  onSearch={this.updateQueryConfig}
+                  onShowResidentBtnChange={this.handleShowResidentBtnChange}
+                  onWhereChange={this.handleWhereChange}
+                />
+              </div>
             )}
 
             <EventRetrievalLayout
               ref='eventRetrievalLayout'
               class='content-container'
+              {...{ props: this.defaultLayoutConfig }}
             >
               <div
                 class='dimension-filter-panel'

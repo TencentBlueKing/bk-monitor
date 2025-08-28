@@ -38,6 +38,7 @@ from apps.log_databus.constants import (
     PARSE_FAILURE_FIELD,
     EtlConfig,
     MetadataTypeEnum,
+    MIN_FLATTENED_SUPPORT_VERSION,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -45,7 +46,7 @@ from apps.log_databus.exceptions import (
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.models import CollectorConfig, CollectorPlugin
-from apps.log_databus.utils.es_config import get_es_config
+from apps.log_databus.utils.es_config import get_es_config, is_version_less_than
 from apps.log_search.constants import (
     FieldBuiltInEnum,
     FieldDataTypeEnum,
@@ -344,6 +345,11 @@ class EtlStorage:
             if not is_match_variate(target_field):
                 raise ValidationError(_("字段名不符合变量规则"))
 
+            if field["field_type"] == FieldDataTypeEnum.FLATTENED.value and is_version_less_than(
+                es_version, MIN_FLATTENED_SUPPORT_VERSION
+            ):
+                raise ValidationError(_(f"ES版本{es_version}不支持 flattened 字段类型"))
+
             # option, 非时间字段的option里的time_zone和time_format都为"", 不需要入库
             field_option = {
                 k: v for k, v in field.get("option", {}).items() if k not in ["time_zone", "time_format", "es_format"]
@@ -432,7 +438,6 @@ class EtlStorage:
         index_settings: dict = None,
         sort_fields: list = None,
         target_fields: list = None,
-        alias_settings: list = None,
         total_shards_per_node: int = None,
     ):
         """
@@ -451,7 +456,6 @@ class EtlStorage:
         :param index_settings: 索引配置
         :param sort_fields: 排序字段
         :param target_fields: 定位字段
-        :param alias_settings: 别名配置
         :param total_shards_per_node: 每个节点的分片总数
         """
         from apps.log_databus.handlers.collector import CollectorHandler
@@ -580,18 +584,6 @@ class EtlStorage:
             # 移除计分
             if "es_type" in field.get("option", {}) and field["option"]["es_type"] in ["text"]:
                 field["option"]["es_norms"] = False
-
-        # 别名配置
-        if alias_settings is not None:
-            query_alias_settings = []
-            for item in alias_settings:
-                field_alias = {
-                    "field_name": item["field_name"],
-                    "query_alias": item["query_alias"],
-                    "path_type": item["path_type"],
-                }
-                query_alias_settings.append(field_alias)
-            params.update({"query_alias_settings": query_alias_settings})
 
         # 时间默认为维度
         if "time_option" in params and "es_doc_values" in params["time_option"]:

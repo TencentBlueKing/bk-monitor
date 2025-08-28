@@ -268,7 +268,7 @@ export const detectOS = (): 'Mac' | 'Unknown' | 'Windows' => {
  * @param {number} [precision=2] - 普通情况下小数点后保留的位数（默认2位）
  * @param {number} [sigFigCnt=2] - 当数值极小时，保留的有效数字位数（默认2位）
  * @param {number} [readablePrecision=6] - 当数值极小时，返回可读的最小值（默认1e-6）
- * @returns {number} 格式化后的数值
+ * @returns number格式化后的数值
  */
 export function formatPercent(value, precision = 2, sigFigCnt = 2, readablePrecision = 6) {
   let percent = value;

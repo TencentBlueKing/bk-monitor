@@ -34,6 +34,7 @@ import useResizeObserve from '../../../hooks/use-resize-observe';
 import { getDefaultRetrieveParams, update_URL_ARGS } from '../../../store/default-values';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 export default indexSetApi => {
   const store = useStore();
@@ -48,18 +49,19 @@ export default indexSetApi => {
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
-  RetrieveHelper.on(RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE, isShown => {
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE, (isShown: boolean) => {
     leftFieldSettingShown.value = isShown;
-  })
-    .on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
-      searchBarHeight.value = height;
-    })
-    .on(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width => {
-      leftFieldSettingWidth.value = width;
-    })
-    .on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, height => {
-      trendGraphHeight.value = height;
-    });
+  });
+  addEvent(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, (height: number) => {
+    searchBarHeight.value = height;
+  });
+  addEvent(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, (width: number) => {
+    leftFieldSettingWidth.value = width;
+  });
+  addEvent(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, (height: number) => {
+    trendGraphHeight.value = height;
+  });
 
   const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
   const fromMonitor = computed(() => route.query.from === 'monitor');
@@ -193,7 +195,7 @@ export default indexSetApi => {
 
       const { addition, keyword, items } = store.state.indexItem;
       // 初始化时，判断当前单选索引集是否有默认条件
-      if(items.length === 1 && !addition.length && !keyword) {
+      if (items.length === 1 && !addition.length && !keyword) {
         let searchMode = 'ui';
         let defaultKeyword = '';
         let defaultAddition = [];
@@ -205,10 +207,19 @@ export default indexSetApi => {
           searchMode = 'ui';
         }
         store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(searchMode ?? 'ui') });
-        store.commit('updateIndexItem', { addition: defaultAddition, keyword: defaultKeyword, search_mode: searchMode });
+        store.commit('updateIndexItem', {
+          addition: defaultAddition,
+          keyword: defaultKeyword,
+          search_mode: searchMode,
+        });
         router.replace({
-          query: { ...route.query, addition: JSON.stringify(defaultAddition), keyword: defaultKeyword, search_mode: searchMode}
-        })
+          query: {
+            ...route.query,
+            addition: JSON.stringify(defaultAddition),
+            keyword: defaultKeyword,
+            search_mode: searchMode,
+          },
+        });
       }
 
       if (emptyIndexSetList.length === 0) {
@@ -258,7 +269,7 @@ export default indexSetApi => {
   // 滚动时，检索结果距离顶部高度
   const searchResultTop = ref(0);
 
-  RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
+  addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 

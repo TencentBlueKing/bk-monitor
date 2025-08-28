@@ -121,7 +121,7 @@ axiosInstance.interceptors.response.use(
       }
 
       return Promise.reject(new Error(`${e}`));
-    }
+    };
     if (error?.response?.data instanceof Blob) {
       return readBlobRespToJson(error.response.data).then(resp => {
         return handleReject(
@@ -130,7 +130,7 @@ axiosInstance.interceptors.response.use(
             response: resp,
           },
           { globalError: true, catchIsShowMessage: true, ...error.config },
-          reject
+          reject,
         );
       });
     }

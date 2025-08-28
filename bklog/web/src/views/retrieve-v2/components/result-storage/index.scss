@@ -7,4 +7,82 @@
     line-height: 20px;
     color: #63656e;
   }
+
+  .bklog-option-more{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 21px;
+    height: 21px;
+    margin-top: 2px;
+    cursor: pointer;
+    background-color: #F0F1F5;
+    border-radius: 50%;
+  }
+
+  .log-sort{
+    position: relative;
+    display: flex;
+    margin: 1px 12px 0px 12px;
+    cursor: pointer;
+
+    .bk-table-caret-wrapper {
+      position: relative;
+      display: inline-flex;
+      flex: 20px 0 0;
+      flex-direction: column;
+      align-items: center;
+      height: 20px;
+      
+      .bk-table-sort-caret {
+        position: absolute;
+        width: 0;
+        height: 0;
+        cursor: pointer;
+        border: 5px solid transparent;
+
+        &.ascending {
+          top: -1px;
+          border-bottom-color: #c0c4cc;
+  
+          &.active {
+            border-bottom-color: #3a84ff;
+          }
+        }
+  
+        &.descending {
+          bottom: -1px;
+          border-top-color: #c0c4cc;
+  
+          &.active {
+            border-top-color: #3a84ff;
+          }
+        }
+      }
+    }
+  }
+  
+}
+
+.storage-more-popover{
+  .bklog-option-list{
+    display: flex;
+    flex-direction: column;
+
+    .bklog-option-json-format{
+      display: flex;
+      align-items: center;
+    }
+
+    .bklog-option-item {
+      margin: 8px 0;
+      line-height: 20px;
+      color: #63656e;
+
+      .switch-label{
+        font-size: 12px;
+        
+      }
+    }
+  }
 }

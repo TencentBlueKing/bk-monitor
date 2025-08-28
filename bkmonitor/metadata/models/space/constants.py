@@ -108,6 +108,11 @@ class EtlConfigs(Enum):
 
     # 多租户基础Agent事件
     BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG = "bk_multi_tenancy_agent_event"
+
+    # 多租户下的系统进程数据采集
+    BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG = "bk_multi_tenancy_system_proc_perf"
+    BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG = "bk_multi_tenancy_system_proc_port"
+
     # 固定指标单表(metric_name)
     BK_EXPORTER = "bk_exporter"
     BK_STANDARD = "bk_standard"
@@ -125,6 +130,8 @@ class EtlConfigs(Enum):
         (BK_STANDARD, "bk_standard"),
         (BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG, "bk_multi_tenancy_agent_event"),
         (BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG, "bk_multi_tenancy_basereport"),
+        (BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG, "bk_multi_tenancy_system_proc_perf"),
+        (BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG, "bk_multi_tenancy_system_proc_port"),
     )
 
 
@@ -136,14 +143,28 @@ ENABLE_V4_DATALINK_ETL_CONFIGS = [
     EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
     EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
     EtlConfigs.BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG.value,
+    EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG.value,
+    EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG.value,
 ]
+
+if (
+    settings.ENABLE_PLUGIN_ACCESS_V4_DATA_LINK
+):  # 若启用插件接入V4数据链路，则将BK_EXPORTER和BK_STANDARD也加入到V4数据链路
+    ENABLE_V4_DATALINK_ETL_CONFIGS.append(EtlConfigs.BK_EXPORTER.value)
+    ENABLE_V4_DATALINK_ETL_CONFIGS.append(EtlConfigs.BK_STANDARD.value)
+
 
 # 系统内置数据-清洗类型列表
 SYSTEM_BASE_DATA_ETL_CONFIGS = [
     EtlConfigs.BK_SYSTEM_BASEREPORT.value,
     EtlConfigs.BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG.value,
     EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
+    EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG.value,
+    EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG.value,
 ]
+
+# 日志/事件 类清洗类型
+LOG_EVENT_ETL_CONFIGS = [EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value]
 
 # bkcc 存在全业务的空间，空间 ID 为 "0"
 EXCLUDED_SPACE_TYPE_ID = SpaceTypes.BKCC.value

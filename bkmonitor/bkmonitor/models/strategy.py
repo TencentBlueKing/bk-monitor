@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from datetime import datetime
 
 import pytz
@@ -22,7 +22,7 @@ from bkmonitor.utils import time_tools
 from bkmonitor.utils.model_manager import AbstractRecordModel
 from bkmonitor.utils.range.period import TimeMatchByDay
 from bkmonitor.utils.request import get_source_app
-from constants.action import NoticeWay
+from constants.action import NoticeWay, UserGroupType
 from constants.common import DutyGroupType, SourceApp
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
@@ -53,6 +53,7 @@ __all__ = [
     "DefaultStrategyBizAccessModel",
     "AlgorithmChoiceConfig",
     "AlgorithmChoiceConfigAdmin",
+    "NoticeSubscribe",
 ]
 
 
@@ -127,7 +128,9 @@ class DetectModel(Model):
     expression = models.TextField("计算公式", default="")
     trigger_config = models.JSONField("触发条件配置", default=dict)
     recovery_config = models.JSONField("恢复条件配置", default=dict)
-    connector = models.CharField("同级别算法连接符", choices=(("and", "AND"), ("or", "OR")), max_length=4, default="and")
+    connector = models.CharField(
+        "同级别算法连接符", choices=(("and", "AND"), ("or", "OR")), max_length=4, default="and"
+    )
 
     class Meta:
         verbose_name = "检测配置V2"
@@ -153,8 +156,9 @@ class AlgorithmModel(Model):
         2. 基于算法类型
     """
 
-    class AlgorithmChoices(object):
+    class AlgorithmChoices:
         Threshold = "Threshold"
+        NewSeries = "NewSeries"
         SimpleRingRatio = "SimpleRingRatio"
         AdvancedRingRatio = "AdvancedRingRatio"
         SimpleYearRound = "SimpleYearRound"
@@ -187,6 +191,7 @@ class AlgorithmModel(Model):
 
     ALGORITHM_CHOICES = (
         (AlgorithmChoices.Threshold, _lazy("静态阈值算法")),
+        (AlgorithmChoices.NewSeries, _lazy("新序列算法")),
         (AlgorithmChoices.SimpleRingRatio, _lazy("简易环比算法")),
         (AlgorithmChoices.AdvancedRingRatio, _lazy("高级环比算法")),
         (AlgorithmChoices.SimpleYearRound, _lazy("简易同比算法")),
@@ -510,7 +515,7 @@ class UserGroup(AbstractRecordModel):
         valid_plans = []
         for plan in DutyPlan.objects.filter(user_group_id=self.id, is_effective=1).order_by("id"):
             valid_work_times = [
-                work_time for work_time in plan.work_times if f'{work_time["start_time"]}:00' < plan.finished_time
+                work_time for work_time in plan.work_times if f"{work_time['start_time']}:00" < plan.finished_time
             ]
             if valid_work_times:
                 plan.work_times = valid_work_times
@@ -863,8 +868,8 @@ class DutyPlan(Model):
             return False
 
         for work_time in self.work_times:
-            start_time = f'{work_time["start_time"]}:00'
-            end_time = f'{work_time["end_time"]}:59'
+            start_time = f"{work_time['start_time']}:00"
+            end_time = f"{work_time['end_time']}:59"
             if start_time <= data_time <= end_time:
                 # 当满足区间条件的时候
                 return True
@@ -892,8 +897,8 @@ class DutyPlan(Model):
                 # 处于排除时间段内，直接去掉
                 exclude_date = exclude_setting["date"]
                 work_time = exclude_setting["work_time"]
-                begin_time = "{} 00:00:00".format(exclude_date)
-                end_time = "{} 23:59:59".format(exclude_date)
+                begin_time = f"{exclude_date} 00:00:00"
+                end_time = f"{exclude_date} 23:59:59"
                 if self.is_time_match(work_time, begin_time, end_time, data_time):
                     # 在排除时间段内，直接排除
                     break
@@ -934,9 +939,10 @@ class AlgorithmChoiceConfigAdmin(admin.ModelAdmin):
     """
     算法类型配置表展示
     """
+
     list_display = ("id", "alias", "name", "algorithm", "ts_freq", "is_default", "document", "instruction")
-    search_fields = ("alias", 'name', 'algorithm')
-    list_filter = ("alias", 'algorithm')
+    search_fields = ("alias", "name", "algorithm")
+    list_filter = ("alias", "algorithm")
 
 
 class AlgorithmChoiceConfig(Model):
@@ -944,6 +950,7 @@ class AlgorithmChoiceConfig(Model):
     算法类型配置表
     algorithm：AlgorithmChoices和算法类型配置表是一对多关系
     """
+
     id = models.BigAutoField("id", primary_key=True)
     alias = models.CharField("中文名称", max_length=64)
     name = models.CharField("名称", max_length=64)
@@ -954,10 +961,33 @@ class AlgorithmChoiceConfig(Model):
     version_no = models.CharField(max_length=10, null=False, blank=True)
     instruction = models.TextField("方案描述", null=True, blank=True)
     variable_info = models.JSONField("参数变量", blank=True, null=True, default=dict)
-    ts_freq = models.IntegerField("数据频率",default=0)
+    ts_freq = models.IntegerField("数据频率", default=0)
     algorithm = models.CharField("算法类型", max_length=64, choices=AlgorithmModel.ALGORITHM_CHOICES, db_index=True)
     config = models.JSONField("其他配置信息", blank=False, null=False, default=dict)
+
     class Meta:
         verbose_name = "算法类型配置"
         verbose_name_plural = "算法类型配置"
         db_table = "algorithm_choice_config"
+
+
+class NoticeSubscribe(Model):
+    """
+    告警策略订阅表
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    username = models.CharField("用户名", max_length=64, db_index=True)
+    bk_biz_id = models.IntegerField("业务ID", db_index=True)
+    conditions = models.JSONField("条件组", default=list)
+    notice_ways = models.JSONField("通知方式", default=list)
+    user_type = models.CharField(
+        "人员类型", default=UserGroupType.FOLLOWER, choices=UserGroupType.CHOICE, max_length=32
+    )
+    is_enable = models.BooleanField("是否启用", default=True)
+    priority = models.IntegerField("优先级", default=-1)
+
+    class Meta:
+        verbose_name = "告警策略订阅"
+        verbose_name_plural = "告警策略订阅"
+        db_table = "notice_subscribe"

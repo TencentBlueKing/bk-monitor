@@ -25,18 +25,22 @@
  */
 
 import { defineComponent, ref, computed, nextTick, onMounted, watch, onBeforeUnmount, inject } from 'vue';
-import useStore from '@/hooks/use-store';
-import { useRoute, useRouter } from 'vue-router/composables';
-import useLocale from '@/hooks/use-locale';
+
 import { formatNumberWithRegex } from '@/common/util';
 import BklogPopover from '@/components/bklog-popover';
 import GradeOption from '@/components/monitor-echarts/components/grade-option';
-import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
-import http from '@/api';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import useTrendChart from '@/hooks/use-trend-chart';
 import { getCommonFilterAddition } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { throttle } from 'lodash';
+import { useRoute, useRouter } from 'vue-router/composables';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+
+import http from '@/api';
+
 import './index.scss';
 
 export default defineComponent({
@@ -66,6 +70,7 @@ export default defineComponent({
     const dynamicHeight = ref(130);
 
     const retrieveParams = computed(() => store.getters.retrieveParams);
+    const requestAddition = computed(() => store.getters.requestAddition ?? []);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const unionIndexList = computed(() => store.getters.unionIndexList);
     const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
@@ -75,7 +80,7 @@ export default defineComponent({
     let runningInterval = 'auto'; // 当前实际使用的 interval
 
     let logChartCancel: any = null; // 取消请求的方法
-    let isInit = true; // 是否为首次请求
+    // let isInit = true; // 是否为首次请求
     let runningTimer: any = null; // 定时器
 
     // 初始化、设置、重绘图表
@@ -187,9 +192,9 @@ export default defineComponent({
     const handleRequestSplit = (startTime, endTime) => {
       // if(chartInterval.value === 'auto') return 0; // 若需要auto模式下不分段请求，取消注释
       const duration = (endTime - startTime) / 3600000; // 计算时间间隔,单位:小时
-      if (duration <= 6) return 0;  // 0-6小时不分段请求
-      if (duration <= 48) return 21600 * 1000;  // 6-48小时, 每6小时1段
-      return (86400 * 1000) / 2;  // 超过48小时, 每12小时1段
+      if (duration <= 6) return 0; // 0-6小时不分段请求
+      if (duration <= 48) return 21600 * 1000; // 6-48小时, 每6小时1段
+      return (86400 * 1000) / 2; // 超过48小时, 每12小时1段
     };
 
     // 趋势图数据请求主函数
@@ -203,7 +208,7 @@ export default defineComponent({
 
         isStart.value = true; // 开始请求，设置状态
 
-        let result: IteratorResult<{ urlStr: string; indexId: string | string[]; queryData: any; isInit: boolean}>;
+        let result: IteratorResult<{ urlStr: string; indexId: string | string[]; queryData: any; isInit: boolean }>;
         result = gen.next();
         while (!result.done) {
           const { urlStr, indexId, queryData, isInit: currentIsInit } = result.value;
@@ -213,7 +218,7 @@ export default defineComponent({
 
             if (!res?.result || requestInterval === 0) break;
           } catch {
-            setChartData(null, null, true);  // 清空图表数据
+            setChartData(null, null, true); // 清空图表数据
             break;
           }
           result = gen.next();
@@ -240,7 +245,7 @@ export default defineComponent({
         const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
         const queryData = {
           ...retrieveParams.value,
-          addition: [...retrieveParams.value.addition, ...getCommonFilterAddition(store.state)],
+          addition: [...requestAddition.value, ...getCommonFilterAddition(store.state)],
           time_range: 'customized',
           interval: runningInterval,
           start_time: start_time,
@@ -329,9 +334,9 @@ export default defineComponent({
       // 开始拉取新一轮趋势数据
       runningTimer = setTimeout(async () => {
         finishPolling.value = false;
-        isInit = true;
+        // isInit = true;
         // 若未选择索引集（无索引集或索引集为空数组），则直接关闭loading 并终止后续流程
-        if (!store.state.indexItem.ids || !store.state.indexItem.ids.length) {
+        if (!store.state.indexItem.ids?.length) {
           isStart.value = false;
           store.commit('retrieve/updateTrendDataLoading', false);
           return;
@@ -345,9 +350,18 @@ export default defineComponent({
           return;
         }
         // 3. 有数据才请求趋势图
-        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time).catch(e => console.log(e));
       });
     };
+
+    const { addEvent } = useRetrieveEvent();
+    addEvent([
+      RetrieveEvent.SEARCH_VALUE_CHANGE,
+      RetrieveEvent.SEARCH_TIME_CHANGE,
+      RetrieveEvent.TREND_GRAPH_SEARCH,
+      RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+      RetrieveEvent.INDEX_SET_ID_CHANGE,
+    ], loadTrendData);
 
     onMounted(() => {
       // 初始化折叠状态
@@ -357,29 +371,12 @@ export default defineComponent({
       });
 
       loadTrendData();
-
-      // 监听检索相关事件，自动刷新趋势图
-      RetrieveHelper.on(
-        [
-          RetrieveEvent.SEARCH_VALUE_CHANGE,
-          RetrieveEvent.SEARCH_TIME_CHANGE,
-          RetrieveEvent.TREND_GRAPH_SEARCH,
-          RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
-          RetrieveEvent.INDEX_SET_ID_CHANGE,
-        ],
-        loadTrendData,
-      );
     });
 
     onBeforeUnmount(() => {
       // 组件卸载时清理定时器和事件监听
       runningTimer && clearTimeout(runningTimer);
       logChartCancel?.();
-      RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_SEARCH, loadTrendData);
-      RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, loadTrendData);
-      RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, loadTrendData);
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, loadTrendData);
-      RetrieveHelper.off(RetrieveEvent.INDEX_SET_ID_CHANGE, loadTrendData);
     });
 
     // 渲染标题内容
@@ -415,8 +412,8 @@ export default defineComponent({
                     onClick={throttledBackToPreChart}
                   >
                     <span
-                      class='bk-icon icon-angle-left-line'
                       style={{ marginRight: '2px' }}
+                      class='bk-icon icon-angle-left-line'
                     ></span>
                     {t('回退')}
                   </span>
@@ -424,12 +421,12 @@ export default defineComponent({
                 <span>{t('汇聚周期')} : </span>
                 <bk-select
                   ext-cls='select-custom'
-                  value={chartInterval.value}
-                  clearable={false}
-                  popover-width={70}
                   behavior='simplicity'
+                  clearable={false}
                   data-test-id='generalTrendEcharts_div_selectCycle'
+                  popover-width={70}
                   size='small'
+                  value={chartInterval.value}
                   onChange={handleChangeInterval}
                 >
                   {intervalArr.map(option => (
@@ -441,16 +438,16 @@ export default defineComponent({
                   ))}
                 </bk-select>
                 <BklogPopover
-                  content-class='bklog-v3-grade-setting'
                   ref={refGradePopover}
-                  options={tippyOptions as any}
-                  beforeHide={beforePopoverHide}
                   content={() => (
                     <GradeOption
                       ref={refGradeOption}
                       on-Change={handleGradeOptionChange}
                     />
                   )}
+                  beforeHide={beforePopoverHide}
+                  content-class='bklog-v3-grade-setting'
+                  options={tippyOptions as any}
                 >
                   <span class='bklog-icon bklog-shezhi'></span>
                 </BklogPopover>
@@ -467,11 +464,11 @@ export default defineComponent({
     return () => (
       <div
         ref={chartContainer}
-        class={['monitor-echarts-container', { 'is-fold': isFold.value }]}
+        class={['bklog-v2-echarts-container', { 'is-fold': isFold.value }]}
         data-test-id='retrieve_div_generalTrendEcharts'
       >
         {/* 标题部分 */}
-        <div class='title-wrapper-new'>
+        <div class='title-wrapper'>
           {/* 1. 标题内容 */}
           {chartTitleContent()}
           {/* 2. 加载中动画 */}
@@ -479,9 +476,9 @@ export default defineComponent({
         </div>
         {/* 图表部分 */}
         <div
+          class='echart-wrapper'
+          v-bkloading={{ isLoading: !isStart.value && loading.value, size: 'mini' }}
           v-show={!isFold.value}
-          class='monitor-echart-wrap'
-          v-bkloading={{ isLoading: !isStart.value && loading.value, zIndex: 10, size: 'mini' }}
         >
           <div
             ref={trendChartCanvas}

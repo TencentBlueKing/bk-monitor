@@ -28,15 +28,20 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { isHttpUrl } from 'monitor-common/regex/url';
-import { copyText } from 'monitor-common/utils';
 
-import { ECondition, EMethod, EMode } from '../../../components/retrieval-filter/utils';
 import { APIType } from '../api-utils';
+import {
+  type ConditionChangeEvent,
+  type DimensionType,
+  type ExploreEntitiesItem,
+  type IExploreSceneUrlItem,
+  type KVSplitItem,
+  KVSplitEnum,
+} from '../typing';
 import { type ExploreSubject, ExploreObserver } from '../utils';
+import ExploreConditionMenu from './explore-condition-menu';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
-
-import type { ConditionChangeEvent, DimensionType, ExploreEntitiesItem, KVSplitItem } from '../typing';
 
 import './explore-kv-list.scss';
 
@@ -49,6 +54,8 @@ export interface KVFieldList {
   entities: KVEntities[];
   /** kv 面板中的 key */
   name: string;
+  /** kv 点击 value 打开的 menu popover 中 查看该对象的其他场景 项中可选场景数据（空数组则不渲染） */
+  sceneUrls?: IExploreSceneUrlItem[];
   /** 部分字段目前显示的 name 是经过拼接处理后的值，sourceName 则是最原始未处理前的 name */
   sourceName: string;
   /** 字段的类型 */
@@ -56,6 +63,7 @@ export interface KVFieldList {
   /** kv 面板中的 value */
   value: KVSplitItem[] | string;
 }
+
 interface IExploreKvListEvents {
   onConditionChange(e: ConditionChangeEvent): void;
 }
@@ -76,39 +84,11 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   /** 来源 */
   @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
 
-  @Ref('menu') menuRef: HTMLUListElement;
+  @Ref('menuRef') menuRef: InstanceType<typeof ExploreConditionMenu>;
   @Ref('statisticsList') statisticsListRef!: InstanceType<typeof StatisticsList>;
 
-  menuList = [
-    {
-      id: 'copy',
-      name: this.$t('复制'),
-      icon: 'icon-mc-copy',
-      onClick: this.handleCopy,
-    },
-    {
-      id: 'add',
-      name: this.$t('添加到本次检索'),
-      icon: 'icon-a-sousuo',
-      suffixRender: this.menuItemSuffixRender({ method: EMethod.eq }),
-      onClick: () => this.handleConditionChange(EMethod.eq),
-    },
-    {
-      id: 'delete',
-      name: this.$t('从本次检索中排除'),
-      icon: 'icon-sousuo-',
-      suffixRender: this.menuItemSuffixRender({ method: EMethod.ne }),
-      onClick: () => this.handleConditionChange(EMethod.ne),
-    },
-    {
-      id: 'new-page',
-      name: this.$t('新建检索'),
-      icon: 'icon-mc-search',
-      suffixRender: this.menuItemSuffixRender({ hasClick: false }),
-      onClick: this.handleNewExplorePage,
-    },
-  ];
   showStatisticsPopover = false;
+  /** 一级 popover 实例(条件菜单/维度统计面板) */
   popoverInstance = null;
   fieldTarget: KVFieldList = null;
   /** 当前激活触发弹出 popover 的列或者激活的分词下标 */
@@ -141,9 +121,13 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     }
   }
 
+  /**
+   * @description 一级 popover 显示
+   *
+   */
   async handlePopoverShow(e: MouseEvent) {
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
-      content: this.menuRef,
+      content: this.menuRef.$el,
       trigger: 'click',
       placement: 'bottom',
       theme: 'light common-monitor',
@@ -154,17 +138,19 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       distance: 4,
       offset: '-2, 0',
       onHidden: () => {
-        this.popoverInstance?.destroy?.();
-        this.popoverInstance = null;
-        this.fieldTarget = null;
-        this.activeColumnOrIndex = null;
+        this.handlePopoverHide();
       },
     });
     await this.$nextTick();
     this.popoverInstance?.show(100);
   }
 
+  /**
+   * @description 一级 popover 隐藏
+   *
+   */
   handlePopoverHide(resetFieldTarget = true) {
+    this.menuRef?.handleScenePopoverHide?.();
     this.popoverInstance?.hide?.();
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
@@ -181,12 +167,29 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
    */
   handleValueTextClick(e: MouseEvent, item: KVFieldList, activeIndex?: number) {
     const currentName = this.fieldTarget?.name;
+    const currentColumnOrIndex = this.activeColumnOrIndex;
     if (this.popoverInstance) {
       this.handlePopoverHide();
     }
-    if (!item.canClick || currentName === item.name) {
+    if (!item.canClick) {
       return;
     }
+    // 判断当前触发节点是否是分词中的分词符号，如果是则不触发打开menu操作
+    if ((item?.value?.[activeIndex] as KVSplitItem)?.type === KVSplitEnum.SEGMENTS) {
+      return;
+    }
+    // 判断是否是同一个 key 触发
+    if (currentName === item.name) {
+      // 判断 value 是分词还是字符串，字符串则本次点击为接关闭popover menu菜单操作
+      if (!Array.isArray(item?.value)) {
+        return;
+      }
+      // 为分词则判断触发索引是否和之前一样，一样则本次点击为接关闭popover menu菜单操作
+      if (activeIndex === currentColumnOrIndex) {
+        return;
+      }
+    }
+
     this.fieldTarget = item;
     this.activeColumnOrIndex = activeIndex ?? 'value';
 
@@ -221,126 +224,14 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       theme: 'light event-retrieval-dimension-filter',
       arrow: true,
       onHidden: () => {
-        this.popoverInstance?.destroy?.();
-        this.popoverInstance = null;
+        this.handlePopoverHide(!this.statisticsSliderShow);
         this.showStatisticsPopover = false;
-        if (!this.statisticsSliderShow) {
-          this.fieldTarget = null;
-          this.activeColumnOrIndex = null;
-        }
       },
       interactive: true,
     });
     await this.$nextTick();
     this.popoverInstance?.show(100);
     this.showStatisticsPopover = true;
-  }
-
-  /**
-   * @description 获取当前激活menu 弹窗popover的 value
-   * 由于存在分词，所以 fieldTarget 的 value 并不一定是最终激活的 value
-   */
-  getActiveValue() {
-    const { value } = this.fieldTarget;
-    if (!Array.isArray(value)) {
-      return value;
-    }
-    return value?.[this.activeColumnOrIndex]?.value;
-  }
-
-  /**
-   * @description 处理复制事件
-   *
-   */
-  handleCopy() {
-    copyText(this.getActiveValue() || '--', msg => {
-      this.$bkMessage({
-        message: msg,
-        theme: 'error',
-      });
-      return;
-    });
-    this.$bkMessage({
-      message: this.$t('复制成功'),
-      theme: 'success',
-    });
-    this.handlePopoverHide();
-  }
-
-  /**
-   * @description 新建检索 回调
-   * @param {MouseEvent} event 点击事件
-   * @param {EMethod} method 条件类型（eq等于 / ne不等于） 如果为空未传则走新建检索逻辑
-   *
-   */
-  handleNewExplorePage(event, method?: EMethod) {
-    event.stopPropagation();
-    if (!this.fieldTarget?.value) {
-      return;
-    }
-    const { targets, ...rest } = this.$route.query;
-    const targetsList = targets ? JSON.parse(decodeURIComponent(targets as string)) : [];
-    const sourceTarget = targetsList?.[0] || {};
-    const queryConfig = sourceTarget?.data?.query_configs?.[0] || {};
-    const { name, sourceName } = this.fieldTarget;
-    const value = this.getActiveValue();
-    let queryString = '';
-    const where = [];
-    const actualMethod = method || EMethod.eq;
-
-    if (method) {
-      where.push(...(queryConfig?.where || []));
-      queryString = queryConfig?.query_string || '';
-    }
-    if (rest.filterMode === EMode.queryString) {
-      let endStr = `${name} : "${value || ''}"`;
-      actualMethod === EMethod.ne && (endStr = `NOT ${endStr}`);
-      queryString = queryString ? `${queryString} AND ${endStr}` : `${endStr}`;
-    } else {
-      where.push({
-        condition: ECondition.and,
-        key: sourceName,
-        method: actualMethod,
-        value: [value || '""'],
-      });
-    }
-    const query = {
-      ...rest,
-      targets: JSON.stringify([
-        {
-          ...sourceTarget,
-          data: {
-            query_configs: [
-              {
-                ...queryConfig,
-                where,
-                query_string: queryString,
-              },
-            ],
-          },
-        },
-      ]),
-    };
-    const targetRoute = this.$router.resolve({
-      query,
-    });
-    this.handlePopoverHide();
-    window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
-  }
-
-  /**
-   * @description 添加/删除 检索 回调
-   */
-  handleConditionChange(method: EMethod) {
-    if (!this.fieldTarget?.value) {
-      return;
-    }
-    this.conditionChange({
-      key: this.fieldTarget?.sourceName,
-      method: method,
-      value: this.getActiveValue(),
-    });
-    this.handlePopoverHide();
   }
 
   /**
@@ -358,7 +249,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
    */
   handleStatisticsConditionChange(condition) {
     this.conditionChange(condition);
-    this.handlePopoverHide(false);
+    this.handlePopoverHide();
   }
 
   /**
@@ -438,74 +329,6 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     ));
   }
 
-  /**
-   * @description kv 值点击弹出菜单popover 自定义后缀icon渲染
-   * @param {EMethod} config.method 条件类型（eq等于 / ne不等于） 如果为空未传则走新建检索逻辑
-   * @param {boolean} config.hasClick 是否有点击事件及 hover新开标签页 tooltip 提示
-   *
-   */
-  menuItemSuffixRender(config: { hasClick?: boolean; method?: EMethod }) {
-    const { method, hasClick = true } = config;
-    return () => (
-      <i
-        class={`icon-monitor icon-mc-goto ${hasClick ? 'hover-blue' : ''}`}
-        v-bk-tooltips={{ content: this.$t('新开标签页'), disabled: !hasClick }}
-        onClick={e => this.handleNewExplorePage(e, method)}
-      />
-    );
-  }
-
-  /**
-   * @description kv 值点击弹出菜单popover渲染
-   *
-   */
-  menuPopoverRender() {
-    return (
-      <div style='display: none'>
-        <ul
-          ref='menu'
-          class='explore-kv-list-menu'
-        >
-          {this.menuList.map(item => (
-            <li
-              key={item.id}
-              class='menu-item'
-              onClick={item.onClick}
-            >
-              <i class={`icon-monitor ${item.icon}`} />
-              <span>{item.name}</span>
-              <div class='item-suffix'>{item?.suffixRender?.()}</div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  }
-
-  /**
-   * @description 统计数据 popover面板渲染
-   *
-   */
-  statisticsPopoverRender() {
-    return (
-      <div style={{ display: 'none' }}>
-        <StatisticsList
-          ref='statisticsList'
-          fieldType={this.fieldTarget?.type}
-          isDimensions={this.fieldTarget?.name.startsWith('dimensions')}
-          isShow={this.showStatisticsPopover}
-          isShowChart={false}
-          popoverInstance={this.popoverInstance}
-          selectField={this.fieldTarget?.sourceName}
-          source={this.source}
-          onConditionChange={this.handleStatisticsConditionChange}
-          onShowMore={() => this.handlePopoverHide(false)}
-          onSliderShowChange={this.handleStatisticsSliderShow}
-        />
-      </div>
-    );
-  }
-
   render() {
     return (
       <div class='explore-kv-list'>
@@ -540,8 +363,30 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
             </div>
           </div>
         ))}
-        {this.menuPopoverRender()}
-        {this.statisticsPopoverRender()}
+        <div style={{ display: 'none' }}>
+          {/* kv 值点击弹出菜单popover渲染 */}
+          <ExploreConditionMenu
+            ref='menuRef'
+            activeColumnOrIndex={this.activeColumnOrIndex}
+            fieldTarget={this.fieldTarget}
+            onConditionChange={this.conditionChange}
+            onMenuClick={this.handlePopoverHide}
+          />
+          {/* 统计数据 popover面板渲染 */}
+          <StatisticsList
+            ref='statisticsList'
+            fieldType={this.fieldTarget?.type}
+            isDimensions={this.fieldTarget?.name.startsWith('dimensions')}
+            isShow={this.showStatisticsPopover}
+            isShowChart={false}
+            popoverInstance={this.popoverInstance}
+            selectField={this.fieldTarget?.sourceName}
+            source={this.source}
+            onConditionChange={this.handleStatisticsConditionChange}
+            onShowMore={() => this.handlePopoverHide(false)}
+            onSliderShowChange={this.handleStatisticsSliderShow}
+          />
+        </div>
       </div>
     );
   }

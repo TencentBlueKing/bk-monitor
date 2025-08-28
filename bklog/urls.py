@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -58,18 +57,19 @@ urlpatterns = [
     re_path(r"^api/v1/", include("apps.log_clustering.urls")),
     re_path(r"^api/v1/", include("apps.log_desensitize.urls")),
     re_path(r"^api/v1/", include("apps.ai_assistant.urls")),
+    re_path(r"^api/v1/", include("apps.log_unifyquery.urls")),
     re_path(r"^", include("apps.grafana.urls")),
     re_path(r"^", include("log_adapter.urls")),
     # 前端页面
     re_path(r"^", include("home_application.urls")),
     # celery flower
     re_path(r"^flower/", include("flower_proxy.urls")),
-    re_path(r"^{}".format(config.ENTRANCE_URL), include("version_log.urls")),
+    re_path(rf"^{config.ENTRANCE_URL}", include("version_log.urls")),
     re_path(r"^api/v1/log_extract/", include("apps.log_extract.urls")),
     re_path(r"^api/v1/", include("apps.log_measure.urls")),
     re_path(r"^api/v1/ipchooser/", include("bkm_ipchooser.urls")),
     re_path(r"^api/v1/search_module/", include("bkm_search_module.urls")),
-    re_path(r'^{}'.format(notice_config.ENTRANCE_URL), include(('bk_notice_sdk.urls', 'notice'), namespace='notice')),
+    re_path(rf"^{notice_config.ENTRANCE_URL}", include(("bk_notice_sdk.urls", "notice"), namespace="notice")),
 ]
 
 if settings.IS_K8S_DEPLOY_MODE:

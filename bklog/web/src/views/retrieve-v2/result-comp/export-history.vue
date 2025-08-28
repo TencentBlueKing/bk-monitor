@@ -97,7 +97,7 @@
               <template #content>
                 <div>
                   <!-- eslint-disable-next-line vue/no-v-html -->
-                  <div v-html="getSearchDictHtml(row.search_dict)"></div>
+                  <div v-html="$xss(getSearchDictHtml(row.search_dict))"></div>
                 </div>
               </template>
               <div class="parameter-search">

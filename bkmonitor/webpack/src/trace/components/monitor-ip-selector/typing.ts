@@ -25,8 +25,8 @@
  */
 import type { PropType, VNode } from 'vue';
 
-export type CommomParams = Record<string, any>;
-export type CoutIntanceName = 'host' | 'service_instance';
+export type CommonParams = Record<string, any>;
+export type CountInstanceName = 'host' | 'service_instance';
 export interface ICloudArea {
   id: number;
   name: string;
@@ -98,7 +98,7 @@ export type INodeType =
 export type IObjectType = 'HOST' | 'SERVICE';
 
 export type IpSelectorConfig = {
-  hostMemuExtends?: IpSelectorHostMemuExtend[];
+  hostMemuExtends?: IpSelectorHostMenuExtend[];
   // 自定义主机列表列
   hostTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
   // 主机列表显示列（默认值：['ip', 'ipv6', 'alive', 'osName']），按配置顺序显示列
@@ -117,7 +117,7 @@ export type IpSelectorConfig = {
   // 面板选项的值是否唯一
   unqiuePanelValue?: boolean;
 };
-export type IpSelectorHostMemuExtend = {
+export type IpSelectorHostMenuExtend = {
   action?: () => void;
   name?: string;
 };
@@ -133,30 +133,30 @@ export type IpSelectorHostTableCustomColumn = {
 export type IpSelectorMode = 'dialog' | 'section';
 export type IpSelectorNameStyle = 'camelCase' | 'kebabCase';
 export type IpSelectorService = {
-  fetchConfig?: (params: CommomParams) => Promise<any>;
-  fetchCustomSettings?: (params: CommomParams) => Promise<any>;
-  fetchDynamicGroups?: (params: CommomParams) => Promise<any>;
-  fetchHostAgentStatisticsDynamicGroups?: (params: CommomParams) => Promise<any>;
-  fetchHostAgentStatisticsNodes?: (params: CommomParams) => Promise<any>;
-  fetchHostAgentStatisticsServiceTemplate?: (params: CommomParams) => Promise<any>;
-  fetchHostAgentStatisticsSetTemplate?: (params: CommomParams) => Promise<any>;
-  fetchHostCheck?: (params: CommomParams) => Promise<any>;
-  fetchHostsDetails?: (params: CommomParams) => Promise<any>;
-  fetchHostsDynamicGroup?: (params: CommomParams) => Promise<any>;
-  fetchHostServiceTemplate?: (params: CommomParams) => Promise<any>;
-  fetchHostSetTemplate?: (params: CommomParams) => Promise<any>;
-  fetchNodesQueryPath?: (params: CommomParams) => Promise<any>;
-  fetchNodesServiceTemplate?: (params: CommomParams) => Promise<any>;
-  fetchNodesSetTemplate?: (params: CommomParams) => Promise<any>;
-  fetchSeriviceInstanceDetails?: (params: CommomParams) => Promise<any>;
-  fetchSeriviceInstanceList?: (params: CommomParams) => Promise<any>;
-  fetchServiceTemplates?: (params: CommomParams) => Promise<any>;
-  fetchSetTemplates?: (params: CommomParams) => Promise<any>;
-  fetchTopologyHostCount?: (params: CommomParams) => Promise<any>;
-  fetchTopologyHostIdsNodes?: (params: CommomParams) => Promise<any>;
-  fetchTopologyHostsNodes?: (params: CommomParams) => Promise<any>;
-  fetchTopologyServiceInstance?: (params: CommomParams) => Promise<any>;
-  updateCustomSettings?: (params: CommomParams) => Promise<any>;
+  fetchConfig?: (params: CommonParams) => Promise<any>;
+  fetchCustomSettings?: (params: CommonParams) => Promise<any>;
+  fetchDynamicGroups?: (params: CommonParams) => Promise<any>;
+  fetchHostAgentStatisticsDynamicGroups?: (params: CommonParams) => Promise<any>;
+  fetchHostAgentStatisticsNodes?: (params: CommonParams) => Promise<any>;
+  fetchHostAgentStatisticsServiceTemplate?: (params: CommonParams) => Promise<any>;
+  fetchHostAgentStatisticsSetTemplate?: (params: CommonParams) => Promise<any>;
+  fetchHostCheck?: (params: CommonParams) => Promise<any>;
+  fetchHostsDetails?: (params: CommonParams) => Promise<any>;
+  fetchHostsDynamicGroup?: (params: CommonParams) => Promise<any>;
+  fetchHostServiceTemplate?: (params: CommonParams) => Promise<any>;
+  fetchHostSetTemplate?: (params: CommonParams) => Promise<any>;
+  fetchNodesQueryPath?: (params: CommonParams) => Promise<any>;
+  fetchNodesServiceTemplate?: (params: CommonParams) => Promise<any>;
+  fetchNodesSetTemplate?: (params: CommonParams) => Promise<any>;
+  fetchSeriviceInstanceDetails?: (params: CommonParams) => Promise<any>;
+  fetchSeriviceInstanceList?: (params: CommonParams) => Promise<any>;
+  fetchServiceTemplates?: (params: CommonParams) => Promise<any>;
+  fetchSetTemplates?: (params: CommonParams) => Promise<any>;
+  fetchTopologyHostCount?: (params: CommonParams) => Promise<any>;
+  fetchTopologyHostIdsNodes?: (params: CommonParams) => Promise<any>;
+  fetchTopologyHostsNodes?: (params: CommonParams) => Promise<any>;
+  fetchTopologyServiceInstance?: (params: CommonParams) => Promise<any>;
+  updateCustomSettings?: (params: CommonParams) => Promise<any>;
 };
 export interface IQuery {
   // 以上 IP-selector标准参数
@@ -177,7 +177,7 @@ export interface IScope {
   node_type: INodeType;
   nodes: ITarget[];
 }
-export interface IScopeItme {
+export interface IScopeItem {
   scope_id: string;
   scope_type: string;
 }
@@ -263,7 +263,7 @@ export const componentProps = {
     type: Array as PropType<IpSelectorHostTableCustomColumn[]>,
   },
   // 自定义menu
-  hostMemuExtends: { type: Array as PropType<IpSelectorHostMemuExtend[]> },
+  hostMemuExtends: { type: Array as PropType<IpSelectorHostMenuExtend[]> },
   // 主机列表显示列（默认值：['ip', 'ipv6', 'alive', 'osName']），按配置顺序显示列
   // 内置所有列的 key ['ip', 'ipv6', 'cloudArea', 'alive', 'hostName', 'osName', 'coludVerdor', 'osType', 'hostId', 'agentId']
   hostTableRenderColumnList: { type: Array as PropType<string[]> },

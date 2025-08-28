@@ -137,7 +137,7 @@
           <template #default="{ row }">
             <div
               class="state-container"
-              v-html="getStateText(row.cluster_config.cluster_id)"
+              v-html="$xss(getStateText(row.cluster_config.cluster_id))"
             ></div>
           </template>
         </bk-table-column>

@@ -33,7 +33,6 @@
         :key="index"
       >
         <div
-          :style="`max-width: ${getMaxWidth}px; width: ${getMaxWidth}px;`"
           class="field-label"
         >
           <span
@@ -70,13 +69,13 @@
           <span class="field-text">{{ getFieldName(field) }}</span>
         </div>
         <div class="field-value">
-          <template v-if="isJsonFormat(formatterStr(data, field.field_name))">
+          <!-- <template v-if="isJsonFormat(formatterStr(data, field.field_name))">
             <JsonFormatter
               :fields="getFieldItem(field.field_name)"
               :json-value="formatterStr(data, field.field_name)"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
-          </template>
+          </template> -->
 
           <span
             v-if="getRelationMonitorField(field.field_name)"
@@ -86,15 +85,11 @@
             <span>{{ getRelationMonitorField(field.field_name) }}</span>
             <i class="bklog-icon bklog-jump"></i>
           </span>
-          <template v-if="!isJsonFormat(formatterStr(data, field.field_name))">
-            <text-segmentation
-              :auto-width="true"
-              :content="formatterStr(data, field.field_name)"
-              :field="getFieldItem(field.field_name)"
-              :force-all="true"
-              @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
-            />
-          </template>
+          <JsonFormatter
+            :fields="getFieldItem(field.field_name)"
+            :json-value="formatterStr(data, field.field_name)"
+            @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
+          ></JsonFormatter>
         </div>
       </div>
     </div>
@@ -102,19 +97,19 @@
 </template>
 
 <script>
-  import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
+  // import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
   import JsonFormatter from '@/global/json-formatter.vue';
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import _escape from 'lodash/escape';
   import { mapGetters, mapState } from 'vuex';
 
-  import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
+  // import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
   import { BK_LOG_STORAGE } from '@/store/store.type';
 
   export default {
     components: {
-      TextSegmentation,
+      // TextSegmentation,
       JsonFormatter,
     },
     mixins: [tableRowDeepViewMixin],
@@ -208,12 +203,7 @@
           .filter(item => this.kvShowFieldsList.includes(item.field_name))
           .map(el => el.field_name);
       },
-      /** 获取字段里最大的字段宽度 */
-      getMaxWidth() {
-        // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
-        const fieldWidthList = this.fieldKeyMap.map(item => getTextPxWidth(item, '13px', TABLE_FOUNT_FAMILY));
-        return Math.max(...fieldWidthList) + 22; // 22是icon的宽度
-      },
+
       hiddenFields() {
         return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
       },
@@ -259,7 +249,7 @@
         const fieldType = this.getFieldType(field);
         // const rowData = fieldType === '__virtual__' ? this.listData : row;
         const rowData = this.listData;
-        return this.tableRowDeepView(rowData, field, fieldType);
+        return this.tableRowDeepView(rowData, field, fieldType) ?? '--';
       },
       getFieldType(field) {
         const target = this.fieldList.find(item => item.field_name === field);
@@ -442,6 +432,10 @@
       padding-left: 8px;
 
       .field-value {
+        display: flex;
+        align-items: flex-start;
+        color: #16171a;
+        word-break: break-all;
         :deep(.valid-text) {
           &:hover {
             text-decoration: underline; /* 悬停时添加下划线 */
@@ -459,6 +453,7 @@
         margin: 5px 0;
         margin-right: 18px;
         align-self: flex-start;
+        width: 300px;
 
         .field-eye-icon {
           display: inline-flex;
@@ -503,13 +498,6 @@
           height: 22px;
           transform: translateX(-3px) scale(0.7);
         }
-      }
-
-      .field-value {
-        display: flex;
-        align-items: flex-start;
-        color: #16171a;
-        word-break: break-all;
       }
     }
 

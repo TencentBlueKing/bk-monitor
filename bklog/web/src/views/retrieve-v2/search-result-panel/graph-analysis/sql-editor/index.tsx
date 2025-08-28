@@ -29,11 +29,12 @@ import $http from '@/api/index.js';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
 import { debounce } from 'lodash';
 import screenfull from 'screenfull';
-import { format } from 'sql-formatter';
+import { transactsql, formatDialect } from 'sql-formatter';
 
 import { getCommonFilterAdditionWithValues } from '../../../../../store/helper';
 import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
@@ -77,6 +78,7 @@ export default defineComponent({
 
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
+    const requestAddition = computed(() => store.getters.requestAddition);
     const filter_addition = computed(() => getCommonFilterAdditionWithValues(store.state));
 
     const requestId = 'graphAnalysis_searchSQL';
@@ -92,7 +94,7 @@ export default defineComponent({
       RequestPool.execCanceToken(requestId);
       const requestCancelToken = RequestPool.getCancelToken(requestId);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
-      const { start_time, end_time, keyword, addition } = retrieveParams.value;
+      const { start_time, end_time, keyword } = retrieveParams.value;
       const params = {
         method: 'post',
         url: `/search/index_set/${indexSetId.value}/chart/`,
@@ -105,7 +107,7 @@ export default defineComponent({
           end_time,
           query_mode: 'sql',
           keyword,
-          addition,
+          addition: requestAddition.value,
           sql, // 使用获取到的内容
           alias_settings: alias_settings.value,
         },
@@ -138,8 +140,40 @@ export default defineComponent({
       isRequesting.value = false;
     };
 
+    // 创建类型安全的自定义方言
+    const createExtendedTSQL = () =>
+      ({
+        ...transactsql,
+        name: 'extended-transactsql',
+        tokenizerOptions: {
+          ...transactsql.tokenizerOptions,
+          // 添加反引号标识符支持，同时保留原有的双引号和方括号支持
+          identTypes: [
+            ...transactsql.tokenizerOptions.identTypes,
+            '``', // 添加反引号支持
+          ],
+          // 允许标识符以数字开头，这是 MySQL 反引号标识符的特性
+          identChars: {
+            ...transactsql.tokenizerOptions.identChars,
+            allowFirstCharNumber: true,
+          },
+        },
+      }) as const;
+
+    // 使用示例
+    const extendedTsql = createExtendedTSQL();
+
+    const getFormatValue = sql => {
+      try {
+        return formatDialect(sql, { dialect: extendedTsql });
+      } catch (err) {
+        console.error(err);
+        return sql;
+      }
+    };
+
     const handleSyncAdditionToSQL = (callback?) => {
-      const { addition, start_time, end_time, keyword } = retrieveParams.value;
+      const { start_time, end_time, keyword } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
       return $http
         .request('graphAnalysis/generateSql', {
@@ -147,7 +181,7 @@ export default defineComponent({
             index_set_id: indexSetId.value,
           },
           data: {
-            addition: [...addition, ...(filter_addition.value ?? []).filter(a => a.value?.length)],
+            addition: [...requestAddition.value, ...(filter_addition.value ?? []).filter(a => a.value?.length)],
             start_time,
             end_time,
             keyword,
@@ -163,7 +197,7 @@ export default defineComponent({
             formatMonacoSqlCode();
           });
 
-          previewSqlContent.value = format(resp.data.additional_where_clause, { language: 'mysql' });
+          previewSqlContent.value = getFormatValue(resp.data.additional_where_clause);
           isPreviewSqlShow.value = true;
           callback?.();
         })
@@ -185,7 +219,7 @@ export default defineComponent({
     };
 
     const formatMonacoSqlCode = (value?: string) => {
-      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'mysql' });
+      const val = getFormatValue(value ?? editorInstance.value?.getValue() ?? '');
       editorInstance.value?.setValue([val].join('\n'));
     };
 
@@ -215,7 +249,7 @@ export default defineComponent({
           <BookmarkPop
             class='bklog-sqleditor-bookmark'
             v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
-            addition={retrieveParams.value.addition ?? []}
+            addition={requestAddition.value ?? []}
             extendParams={props.extendParams}
             search-mode='sqlChart'
             sql={retrieveParams.value.keyword}
@@ -288,7 +322,7 @@ export default defineComponent({
     /**
      * 监听关联数据变化
      */
-    const onRefereceChange = async args => {
+    const onRefereceChange = args => {
       // 这里表示数据来自图表分析收藏点击回填数据
       if (args?.params?.chart_params?.sql?.length) {
         const old = editorInstance.value?.getValue();
@@ -303,15 +337,14 @@ export default defineComponent({
       debounceSyncAdditionToSQL(handleQueryBtnClick);
     };
 
-    // @ts-ignore
-    RetrieveHelper.on(
+    const { addEvent } = useRetrieveEvent();
+    addEvent(
       [
         RetrieveEvent.SEARCH_VALUE_CHANGE,
         RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
         RetrieveEvent.SEARCH_TIME_CHANGE,
         RetrieveEvent.LEFT_FIELD_INFO_UPDATE,
       ],
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       onRefereceChange,
     );
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);

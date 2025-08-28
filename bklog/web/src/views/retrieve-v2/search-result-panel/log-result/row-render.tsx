@@ -36,8 +36,8 @@ export default defineComponent({
       default: 0,
     },
   },
-  emits: ['row-click', 'row-visible'],
-  setup(props, { slots }) {
+  emits: ['row-click', 'row-visible', 'row-mousedown', 'row-mouseup'],
+  setup(props, { slots, emit }) {
     const refRootContainer: Ref<HTMLElement> = ref();
     const refRowNodeRoot: Ref<HTMLElement> = ref();
     const isRowIntersecting = ref(false);
@@ -53,11 +53,26 @@ export default defineComponent({
       },
     );
 
+    const handleRowClick = (e: MouseEvent) => {
+      emit('row-click', e);
+    };
+
+    const handleRowMousedown = (e: MouseEvent) => {
+      emit('row-mousedown', e);
+    };
+
+    const handleRowMouseup = (e: MouseEvent) => {
+      emit('row-mouseup', e);
+    };
+
     const renderRowVNode = () => {
       return (
         <div
           ref={refRootContainer}
           data-row-index={props.rowIndex}
+          on-click={handleRowClick}
+          on-mousedown={handleRowMousedown}
+          on-mouseup={handleRowMouseup}
         >
           <div
             ref={refRowNodeRoot}

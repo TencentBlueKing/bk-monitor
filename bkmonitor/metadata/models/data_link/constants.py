@@ -103,6 +103,8 @@ BASEREPORT_USAGES = [
 ]
 
 BASEREPORT_DATABUS_FORMAT = "bkmonitor_basereport_v1"
+SYSTEM_PROC_PERF_DATABUS_FORMAT = "bkmonitor_proc_perf"
+SYSTEM_PROC_PORT_DATABUS_FORMAT = "bkmonitor_proc_port"
 
 
 # 基础采集数据链路来源 -- 主机系统、DBM、DEVX、Perforce
@@ -115,6 +117,10 @@ BASEREPORT_SOURCE_PERFORCE = "perforce"
 DEFAULT_METRIC_TRANSFORMER_KIND = "PreDefinedLogic"
 DEFAULT_METRIC_TRANSFORMER = "log_to_metric"
 DEFAULT_METRIC_TRANSFORMER_FORMAT = "bkmonitor_standard_v2"
+
+# 采集插件对应的 TRANSFORM FORMAT
+BK_STANDARD_TRANSFORMER_FORMAT = "bkmonitor_standard"
+BK_EXPORTER_TRANSFORMER_FORMAT = "bkmonitor_exporter_v1"
 
 # 针对数据源名称需要替换的正则
 MATCH_DATA_NAME_PATTERN = r"[\u4e00-\u9fa5\.\!\:\*\+\?\^\$\{\}\[\]\(\)\|\\]"

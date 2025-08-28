@@ -18,6 +18,7 @@ from django.db.models import Q
 from django.db.transaction import atomic
 
 from alarm_backends.core.lock.service_lock import share_lock
+from api.cmdb.define import Business
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -76,9 +77,11 @@ def sync_bkcc_space(allow_deleted=False):
     sync_archived_bkcc_space()
 
     bkcc_type_id = SpaceTypes.BKCC.value
-    biz_list = []
+    biz_list: list[Business] = []
     for tenant in api.bk_login.list_tenant():
-        temp = api.cmdb.get_business(bk_tenant_id=tenant["id"])
+        temp: list[Business] = api.cmdb.get_business(bk_tenant_id=tenant["id"])
+        for b in temp:
+            setattr(b, "bk_tenant_id", tenant["id"])
         biz_list.extend(temp)
 
     # NOTE: 为防止出现接口变动的情况，导致误删操作；如果为空，则忽略数据处理
@@ -86,7 +89,7 @@ def sync_bkcc_space(allow_deleted=False):
         logger.info("query cmdb api resp is null")
         return
 
-    biz_id_name_dict = {str(b.bk_biz_id): b.bk_biz_name for b in biz_list}
+    biz_id_name_dict = {str(b.bk_biz_id): (b.bk_biz_name, b.bk_tenant_id) for b in biz_list}
     # 过滤已经创建空间的业务
     space_id_list = Space.objects.filter(space_type_id=bkcc_type_id).values_list("space_id", flat=True)
     diff = set(biz_id_name_dict.keys()) - set(space_id_list)
@@ -115,7 +118,14 @@ def sync_bkcc_space(allow_deleted=False):
 
     if diff:
         # 针对添加的业务
-        diff_biz_list = [{"bk_biz_id": biz_id, "bk_biz_name": biz_id_name_dict[biz_id]} for biz_id in diff]
+        diff_biz_list = [
+            {
+                "bk_biz_id": biz_id,
+                "bk_biz_name": biz_id_name_dict[biz_id][0],
+                "bk_tenant_id": biz_id_name_dict[biz_id][1],
+            }
+            for biz_id in diff
+        ]
 
         # 创建空间
         try:
@@ -145,7 +155,9 @@ def sync_archived_bkcc_space():
     logger.info("start sync archived bkcc space task")
     bkcc_type_id = SpaceTypes.BKCC.value
     # 获取已归档的业务
-    archived_biz_list = api.cmdb.get_business(is_archived=True)
+    archived_biz_list: list[Business] = []
+    for tenant in api.bk_login.list_tenant():
+        archived_biz_list.extend(api.cmdb.get_business(bk_tenant_id=tenant["id"], is_archived=True))
     archived_biz_id_list = [str(b.bk_biz_id) for b in archived_biz_list]
     # 归档的业务，变更空间名称为 {当前名称}(已归档_20240619)
     name_suffix = f"(已归档_{datetime.now().strftime('%Y%m%d')})"
@@ -179,9 +191,13 @@ def refresh_bkcc_space_name():
     """
     logger.info("start sync bkcc space name task")
     bkcc_type_id = SpaceTypes.BKCC.value
-    biz_list = api.cmdb.get_business()
-    biz_id_name_dict = {str(b.bk_biz_id): b.bk_biz_name for b in biz_list}
-    space_id_name_map = {space.space_id: space.space_name for space in Space.objects.filter(space_type_id=bkcc_type_id)}
+    biz_list: list[Business] = []
+    for tenant in api.bk_login.list_tenant():
+        biz_list.extend(api.cmdb.get_business(bk_tenant_id=tenant["id"]))
+    biz_id_name_dict: dict[str, str] = {str(b.bk_biz_id): b.bk_biz_name for b in biz_list}
+    space_id_name_map: dict[str, str] = {
+        space.space_id: space.space_name for space in Space.objects.filter(space_type_id=bkcc_type_id)
+    }
     # 比对名称是否有变动，如果变动，则进行更新
     diff = dict(set(biz_id_name_dict.items()) - set(space_id_name_map.items()))
     # 过滤数据，然后进行更新
@@ -672,7 +688,7 @@ def push_and_publish_space_router(
         space_uid_list = []
         for space in spaces:
             if settings.ENABLE_MULTI_TENANT_MODE:
-                space_uid_list.append(f"{space['bk_tenant_id']}|{space['space_type_id']}__{space['space_id']}")
+                space_uid_list.append(f"{space['space_type_id']}__{space['space_id']}|{space['bk_tenant_id']}")
             else:
                 space_uid_list.append(f"{space['space_type_id']}__{space['space_id']}")
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, space_uid_list)
@@ -896,7 +912,7 @@ def refresh_bksaas_space_resouce():
     push_redis_keys = []
     for space in spaces:
         if settings.ENABLE_MULTI_TENANT_MODE:
-            push_redis_keys.append(f"{space.bk_tenant_id}|{space.space_type_id}__{space.space_id}")
+            push_redis_keys.append(f"{space.space_type_id}__{space.space_id}|{space.bk_tenant_id}")
         else:
             push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
     RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)

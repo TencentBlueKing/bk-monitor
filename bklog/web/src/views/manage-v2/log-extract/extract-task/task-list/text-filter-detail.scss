@@ -1,0 +1,33 @@
+.text-filter-detail {
+  padding: 14px 20px 10px;
+  font-size: 15px;
+  line-height: 40px;
+  color: #63656e;
+
+  .title {
+    display: flex;
+    align-items: center;
+
+    .bk-icon {
+      margin-right: 6px;
+      font-size: 14px;
+    }
+
+    .text {
+      padding: 10px 0;
+      margin: 0;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 20px;
+      color: #313238;
+    }
+  }
+
+  .content {
+    border-top: 1px solid #dcdee5;
+
+    .match {
+      color: #2dcb56;
+    }
+  }
+}

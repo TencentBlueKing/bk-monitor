@@ -47,10 +47,10 @@ export const CONDITIONS = [
 ];
 
 export const METHODS = [
-  { id: 'eq', name: '=' },
-  { id: 'neq', name: '!=' },
-  { id: 'include', name: 'include' },
-  { id: 'exclude', name: 'exclude' },
+  { id: 'eq', name: 'in' },
+  { id: 'neq', name: 'not in' },
+  { id: 'include', name: 'like' },
+  { id: 'exclude', name: 'not like' },
   { id: 'reg', name: 'regex' },
   { id: 'nreg', name: 'nregex' },
 ];

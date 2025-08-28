@@ -248,6 +248,7 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
         source_type="bkdata",
         bkbase_table_id="2_bklog_pure_es,2_bklog_es_log",
         storage_type="elasticsearch",
+        origin_table_id=non_exist_es_table_id,
     )
 
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
@@ -298,6 +299,7 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
             assert es_storage_ins.index_set == "2_bklog_pure_es,2_bklog_es_log"
             assert es_storage_ins.storage_cluster_id == 3
             assert es_storage_ins.source_type == "bkdata"
+            assert es_storage_ins.origin_table_id == non_exist_es_table_id
 
             result_table_ins = models.ResultTable.objects.get(table_id=non_exist_es_table_id)
             assert result_table_ins.data_label == "bkdata_index_set_6788"
