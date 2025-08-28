@@ -359,6 +359,70 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   }
 
   /**
+   * @description: 当删除按钮不可操作时，获取删除提示文案
+   */
+  getDeleteTip(row) {
+    if (row?.relation_config_count > 0) {
+      return this.$t('当前仍然有关联的消费场景，无法删除') as string;
+    }
+    if (row?.bk_biz_id === 0) {
+      return this.$t('全局模板无法删除') as string;
+    }
+    if (row?.bk_biz_id !== this.$store.getters.bizId) {
+      const bizId = row?.bk_biz_id;
+      const bizName = this.$store.getters.bizIdMap.get(bizId)?.name;
+      const url = `${location.origin}${location.pathname}?bizId=${bizId}${location.hash}`;
+      return (
+        <i18n
+          class='text'
+          path='模板属于业务 {0}，无法删除'
+        >
+          <a
+            style='color: #3a84ff'
+            href={url}
+            rel='noreferrer'
+            target='_blank'
+          >
+            {bizName}
+          </a>
+        </i18n>
+      );
+    }
+    return this.$t('无法删除');
+  }
+
+  /**
+   * @description: 当编辑按钮不可操作时，获取编辑提示文案
+   */
+  getEditTip(row) {
+    if (row?.bk_biz_id === 0) {
+      return this.$t('全局模板无法编辑') as string;
+    }
+    if (row?.bk_biz_id !== this.$store.getters.bizId) {
+      const bizId = row?.bk_biz_id;
+      const bizName = this.$store.getters.bizIdMap.get(bizId)?.name;
+      const url = `${location.origin}${location.pathname}?bizId=${bizId}${location.hash}`;
+
+      return (
+        <i18n
+          class='text'
+          path='模板属于业务 {0}，无法编辑'
+        >
+          <a
+            style='color: #3a84ff'
+            href={url}
+            rel='noreferrer'
+            target='_blank'
+          >
+            {bizName}
+          </a>
+        </i18n>
+      );
+    }
+    return this.$t('无法编辑');
+  }
+
+  /**
    * @description: 消费场景 列渲染
    * 由于消费场景列是异步请求，所以需要使用增加 loading 状态交互过渡
    */
@@ -416,14 +480,12 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
    */
   operatorColRenderer(row) {
     const canDelete = row?.can_delete && row?.relation_config_count === 0;
+
     return (
       <div class='operator-col'>
-        <span
-          v-bk-tooltips={{
-            content: this.$t('当前仍然有关联的消费场景，无法编辑'),
-            disabled: row?.can_delete,
-            placement: 'right',
-          }}
+        <bk-popover
+          disabled={row?.can_edit}
+          placement='right'
         >
           <bk-button
             disabled={!row?.can_edit}
@@ -432,13 +494,11 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
           >
             {this.$t('编辑')}
           </bk-button>
-        </span>
-        <span
-          v-bk-tooltips={{
-            content: this.$t('当前仍然有关联的消费场景，无法删除'),
-            disabled: canDelete,
-            placement: 'right',
-          }}
+          <span slot='content'>{this.getEditTip(row)}</span>
+        </bk-popover>
+        <bk-popover
+          disabled={canDelete}
+          placement='right'
         >
           <bk-button
             disabled={!canDelete}
@@ -447,7 +507,8 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
           >
             {this.$t('删除')}
           </bk-button>
-        </span>
+          <span slot='content'>{this.getDeleteTip(row)}</span>
+        </bk-popover>
       </div>
     );
   }
