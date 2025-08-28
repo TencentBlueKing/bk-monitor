@@ -23,13 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import Vue from 'vue';
 export {};
 
 declare global {
   interface Window {
     mainComponent: any;
+    bus: Vue;
     timezone: string;
     MONITOR_URL: string;
+    BK_LOGIN_URL: string;
     BK_SHARED_RES_URL: string;
     VERSION: string;
     AJAX_URL_PREFIX: string;
@@ -38,6 +42,9 @@ declare global {
     __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
     __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
     __IS_MONITOR_APM__?: boolean; // 是否是监控APM组件
+    IS_EXTERNAL: string; // 'true' | 'false'
+    bk_log_search_url: string;
+    BKDATA_URL: string;
     $t: (key: string, params?: Record<string, any>) => string;
     scheduler?: Scheduler;
   }
