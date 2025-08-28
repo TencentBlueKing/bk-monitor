@@ -497,22 +497,67 @@ class ServiceConfigResource(Resource):
     def update_log_relations(cls, bk_biz_id: int, app_name: str, service_name: str, log_relation_list: list):
         if not log_relation_list:
             LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name).delete()
-        else:
-            username = get_request_username()
-            related_bk_biz_ids = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name).values_list("related_bk_biz_id", flat=True)
-                
-            for request_relation in log_relation_list:
-                if request_relation.get("related_bk_biz_id") in related_bk_biz_ids:
-                    LogServiceRelation.objects.update(updated_by=username, updated_at=arrow.now().datetime, **request_relation)
-                else:
-                    LogServiceRelation.objects.create(
-                        bk_biz_id=bk_biz_id,
-                        app_name=app_name,
-                        service_name=service_name,
+            return
+
+        # 检查是否有重复的related_bk_biz_id
+        related_bk_biz_ids = set()
+        for request_relation in log_relation_list:
+            related_bk_biz_id = request_relation.get("related_bk_biz_id")
+            if related_bk_biz_id in related_bk_biz_ids:
+                raise ValueError(_lazy("related_bk_biz_id 不能重复"))
+            related_bk_biz_ids.add(related_bk_biz_id)
+
+        # 获取现有记录的主键映射
+        existing_relations = LogServiceRelation.objects.filter(
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+            service_name=service_name
+        ).values_list("related_bk_biz_id", "id")
+
+        existing_id_map = {related_bk_biz_id: id for related_bk_biz_id, id in existing_relations}
+
+        to_update = []
+        to_create = []
+        to_delete = [id for _, id in existing_relations]
+        username = get_request_username()
+        update_time = arrow.now().datetime
+
+        for request_relation in log_relation_list:
+            related_bk_biz_id = request_relation.get("related_bk_biz_id")
+            if related_bk_biz_id in existing_id_map:
+                if request_relation.get("value_list"):
+                    # 否则更新记录
+                    instance = LogServiceRelation(
+                        id=existing_id_map[related_bk_biz_id],
                         updated_by=username,
-                        created_by=username,
-                        **request_relation,
+                        updated_at=update_time,
+                        **request_relation
                     )
+                    to_update.append(instance)
+                    # 如果记录不需要更新或者 value_list 为空，则需要删除记录
+                    to_delete.remove(existing_id_map[related_bk_biz_id])
+            else:
+                # 创建记录
+                instance = LogServiceRelation(
+                    bk_biz_id=bk_biz_id,
+                    app_name=app_name,
+                    service_name=service_name,
+                    updated_by=username,
+                    created_by=username,
+                    **request_relation
+                )
+                to_create.append(instance)
+
+        if to_update:
+            LogServiceRelation.objects.bulk_update(
+                to_update,
+                fields=["updated_by", "updated_at", "value_list"],
+                batch_size=100
+            )
+        if to_create:
+            LogServiceRelation.objects.bulk_create(to_create, batch_size=100)
+        if to_delete:
+            LogServiceRelation.objects.filter(id__in=to_delete).delete()
 
     @classmethod
     def update_event_relations(
