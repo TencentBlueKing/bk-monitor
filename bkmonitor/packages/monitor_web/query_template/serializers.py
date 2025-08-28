@@ -124,6 +124,8 @@ class QueryTemplateModelSerializer(QueryTemplateBaseModelSerializer):
 
         if cls.is_global_template(bk_biz_id):
             raise serializers.ValidationError(_("全局模板不允许在页面创建"))
+        elif bk_biz_id not in validated_data["space_scope"]:
+            raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
 
         # 校验该用户是否有业务范围的权限
         cls._is_allowed_by_bk_biz_ids([validated_data["space_scope"]])
@@ -135,6 +137,13 @@ class QueryTemplateModelSerializer(QueryTemplateBaseModelSerializer):
         if not self.get_can_edit(instance):
             raise serializers.ValidationError(_("当前模板不可编辑"))
 
+        # 如果这是一个全局模板，则将 bk_biz_id 设置为 0
+        bk_biz_id = validated_data["bk_biz_id"]
+        if self.is_global_template(instance.bk_biz_id):
+            validated_data["bk_biz_id"] = bk_biz_id = 0
+        elif bk_biz_id not in validated_data["space_scope"]:
+            raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
+
         existing_space_scopes: set[int] = set(instance.space_scope)
         modified_space_scopes: set[int] = set(validated_data["space_scope"])
         # 移除的 scopes
@@ -144,26 +153,17 @@ class QueryTemplateModelSerializer(QueryTemplateBaseModelSerializer):
         self._is_allowed_by_bk_biz_ids(removed_scopes | added_scopes)
         # 校验除了自身外，同一业务下查询模板名称不能重复
         if (
-            QueryTemplate.origin_objects.filter(bk_biz_id=validated_data["bk_biz_id"], name=validated_data["name"])
+            QueryTemplate.origin_objects.filter(bk_biz_id=bk_biz_id, name=validated_data["name"])
             .exclude(id=instance.id)
             .exists()
         ):
             raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))
 
-    @classmethod
-    def _base_validate(cls, validated_data: dict[str, Any]):
-        bk_biz_id = validated_data["bk_biz_id"]
-        # 非全局模板，生效范围必须包含本业务 ID
-        if not cls.is_global_template(bk_biz_id) and bk_biz_id not in validated_data["space_scope"]:
-            raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
-
     def create(self, validated_data: dict[str, Any]) -> QueryTemplate:
-        self._base_validate(validated_data)
         self._base_create_validate(validated_data)
         return super().create(validated_data)
 
     def update(self, instance: QueryTemplate, validated_data: dict[str, Any]) -> QueryTemplate:
-        self._base_validate(validated_data)
         self._base_update_validate(instance, validated_data)
         return super().update(instance, validated_data)
 
