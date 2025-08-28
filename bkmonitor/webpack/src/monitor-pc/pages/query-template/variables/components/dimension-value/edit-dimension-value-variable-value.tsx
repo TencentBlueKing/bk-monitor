@@ -28,15 +28,16 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchMetricDimensionValueList } from '../../../service';
-import { DimensionValueVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
+
+import type { DimensionValueVariableModel } from '../../index';
 
 import './dimension-value.scss';
 
 interface DimensionValueValueEvents {
   onBlur: () => void;
-  onChange: (variable: DimensionValueVariableModel) => void;
   onFocus: () => void;
+  onValueChange: (value: string[]) => void;
 }
 
 interface DimensionValueValueProps {
@@ -51,13 +52,9 @@ export default class EditDimensionValueVariableValue extends tsc<DimensionValueV
 
   valueList = [];
 
-  @Emit('change')
+  @Emit('valueChange')
   handleValueChange(value: string[]) {
-    return new DimensionValueVariableModel({
-      ...this.variable.data,
-      value,
-      isValueEditable: true,
-    });
+    return value;
   }
 
   handleSelectToggle(value: boolean) {

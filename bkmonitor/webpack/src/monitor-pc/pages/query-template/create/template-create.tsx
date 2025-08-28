@@ -31,6 +31,7 @@ import { createQueryTemplate } from 'monitor-api/modules/model';
 
 import QueryTemplateSet from '../components/query-template-set/query-template-set';
 import QueryTemplateView from '../components/query-template-view/query-template-view';
+import { VariableTypeEnum } from '../constants';
 import { createQueryTemplateQueryConfigsParams } from '../service/metric';
 import {
   type AggCondition,
@@ -41,7 +42,12 @@ import {
   MetricDetailV2,
   QueryConfig,
 } from '../typings';
-import { type VariableModelType, getVariableModel, getVariableSubmitParams } from '../variables';
+import {
+  type ConditionVariableModel,
+  type VariableModelType,
+  getVariableModel,
+  getVariableSubmitParams,
+} from '../variables';
 import { isVariableName } from '../variables/template/utils';
 import { LETTERS } from '@/common/constant';
 
@@ -99,10 +105,6 @@ export default class TemplateCreate extends tsc<object> {
 
   handleBasicInfoChange(basicInfo) {
     this.basicInfoData = basicInfo;
-  }
-
-  handleVariablesChange(variablesList: VariableModelType[]) {
-    this.variablesList = variablesList;
   }
 
   handleStepChange(step: number) {
@@ -176,7 +178,6 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleCreateVariable(val: IVariableModel) {
-    console.log(val);
     if (this.variablesList.find(item => item.name === val.name)) {
       return;
     }
@@ -254,6 +255,66 @@ export default class TemplateCreate extends tsc<object> {
     this.expressionConfig.functions = val;
   }
 
+  handleVariableNameChange(val: string, index: number) {
+    const currVariable = this.variablesList[index];
+    const oldName = currVariable.name;
+    currVariable.name = val;
+    if (currVariable.type === VariableTypeEnum.CONSTANTS) {
+      this.expressionConfig.expression = this.expressionConfig.expression.replaceAll(oldName, val);
+    } else if (currVariable.type === VariableTypeEnum.FUNCTIONS) {
+      for (const queryConfig of this.queryConfigs) {
+        queryConfig.functions = JSON.parse(JSON.stringify(queryConfig.functions).replaceAll(oldName, val));
+      }
+      this.expressionConfig.functions = JSON.parse(
+        JSON.stringify(this.expressionConfig.functions).replaceAll(oldName, val)
+      );
+    } else {
+      for (const queryConfig of this.queryConfigs) {
+        switch (currVariable.type) {
+          case VariableTypeEnum.METHOD: {
+            queryConfig.agg_method = queryConfig.agg_method.replace(oldName, val);
+            break;
+          }
+          case VariableTypeEnum.GROUP_BY: {
+            queryConfig.agg_dimension = JSON.parse(JSON.stringify(queryConfig.agg_dimension).replace(oldName, val));
+            break;
+          }
+          case VariableTypeEnum.CONDITIONS: {
+            queryConfig.agg_condition = JSON.parse(JSON.stringify(queryConfig.agg_condition).replaceAll(oldName, val));
+            break;
+          }
+          case VariableTypeEnum.TAG_VALUES: {
+            queryConfig.agg_condition = JSON.parse(JSON.stringify(queryConfig.agg_condition).replaceAll(oldName, val));
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  handleVariableAliasChange(val: string, index: number) {
+    this.variablesList[index].alias = val;
+  }
+
+  handleVariableDescChange(val: string, index: number) {
+    this.variablesList[index].description = val;
+  }
+
+  handleVariableOptionsChange(val: string[], index: number) {
+    (this.variablesList[index] as ConditionVariableModel).options = val;
+  }
+
+  handleVariableDefaultValueChange(val: any, index: number) {
+    this.variablesList[index].defaultValue = val;
+  }
+
+  handleVariableValueChange(val: any, index: number, isValueEditable?: boolean) {
+    this.variablesList[index].value = val;
+    if (isValueEditable) {
+      this.variablesList[index].isValueEditable = true;
+    }
+  }
+
   render() {
     return (
       <div class='template-create'>
@@ -297,7 +358,14 @@ export default class TemplateCreate extends tsc<object> {
               onDeleteQueryConfig={this.handleDelete}
               onSelectMetric={this.handleSelectMetric}
               onStepChange={this.handleStepChange}
-              onVariablesChange={this.handleVariablesChange}
+              onVariableAliasChange={this.handleVariableAliasChange}
+              onVariableDefaultValueChange={this.handleVariableDefaultValueChange}
+              onVariableDescChange={this.handleVariableDescChange}
+              onVariableNameChange={this.handleVariableNameChange}
+              onVariableOptionsChange={this.handleVariableOptionsChange}
+              onVariableValueChange={(val, index) => {
+                this.handleVariableValueChange(val, index);
+              }}
             />
           ) : (
             <QueryTemplateView
@@ -310,7 +378,9 @@ export default class TemplateCreate extends tsc<object> {
               onCancel={this.handleBackGotoPage}
               onStepChange={this.handleStepChange}
               onSubmit={this.handleSubmit}
-              onVariablesChange={this.handleVariablesChange}
+              onVariableValueChange={(val, index) => {
+                this.handleVariableValueChange(val, index, true);
+              }}
             />
           )}
         </div>

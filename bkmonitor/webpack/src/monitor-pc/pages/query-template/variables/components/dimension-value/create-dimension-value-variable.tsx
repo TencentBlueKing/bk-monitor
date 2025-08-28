@@ -23,29 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
+import * as tsx from 'vue-tsx-support';
 
 import { fetchMetricDimensionValueList } from '../../../service';
-import { DimensionValueVariableModel } from '../../index';
+import VariableFormMixin from '../../mixins/VariableFormMixin';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { IDimensionValueVariableModel } from '../../../typings/variables';
+import type { IVariableFormEvents } from '../../../typings/variables';
+import type { DimensionValueVariableModel } from '../../index';
 
 import './dimension-value.scss';
 
-interface DimensionValueVariableEvents {
-  onDataChange: (data: DimensionValueVariableModel) => void;
+interface DimensionValueVariableEvents extends IVariableFormEvents {
+  onDefaultValueChange: (val: string[]) => void;
+  onValueChange: (val: string[]) => void;
 }
 interface DimensionValueVariableProps {
   variable: DimensionValueVariableModel;
 }
 
 @Component
-export default class CreateDimensionValueVariable extends tsc<
-  DimensionValueVariableProps,
-  DimensionValueVariableEvents
-> {
+class CreateDimensionValueVariable extends Mixins(VariableFormMixin) {
   @Prop({ type: Object, required: true }) variable!: DimensionValueVariableModel;
 
   @Ref() variableCommonForm!: VariableCommonForm;
@@ -54,26 +53,13 @@ export default class CreateDimensionValueVariable extends tsc<
 
   valueList = [];
 
-  handleValueChange(defaultValue: string[]) {
+  defaultValueChange(defaultValue: string[]) {
     let value = this.variable.value || [];
     if (!this.variable.isValueEditable) {
       value = defaultValue;
     }
-
-    this.handleDataChange({
-      ...this.variable.data,
-      defaultValue,
-      value,
-    });
-  }
-
-  handleDataChange(data: IDimensionValueVariableModel) {
-    this.$emit(
-      'dataChange',
-      new DimensionValueVariableModel({
-        ...data,
-      })
-    );
+    this.handleDefaultValueChange(defaultValue);
+    this.handleValueChange(value);
   }
 
   validateForm() {
@@ -112,7 +98,9 @@ export default class CreateDimensionValueVariable extends tsc<
         <VariableCommonForm
           ref='variableCommonForm'
           data={this.variable.data}
-          onDataChange={this.handleDataChange}
+          onAliasChange={this.handleAliasChange}
+          onDescChange={this.handleDescChange}
+          onNameChange={this.handleNameChange}
         >
           <bk-form-item label={this.$t('关联指标')}>
             <bk-input
@@ -141,7 +129,7 @@ export default class CreateDimensionValueVariable extends tsc<
               collapse-tag
               display-tag
               multiple
-              onChange={this.handleValueChange}
+              onChange={this.defaultValueChange}
             >
               {this.valueList.map(item => (
                 <bk-option
@@ -158,3 +146,7 @@ export default class CreateDimensionValueVariable extends tsc<
     );
   }
 }
+
+export default tsx
+  .ofType<DimensionValueVariableProps, DimensionValueVariableEvents>()
+  .convert(CreateDimensionValueVariable);

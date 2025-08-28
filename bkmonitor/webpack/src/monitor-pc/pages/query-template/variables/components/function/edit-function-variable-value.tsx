@@ -28,15 +28,15 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import FunctionCreator from '../../../components/function/function-creator';
-import { FunctionVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
 
 import type { AggFunction } from '../../../../query-template/typings';
+import type { FunctionVariableModel } from '../../index';
 
 interface FunctionValueEvents {
   onBlur: () => void;
-  onChange: (data: FunctionVariableModel) => void;
   onFocus: () => void;
+  onValueChange: (value: AggFunction[]) => void;
 }
 
 interface FunctionValueProps {
@@ -49,13 +49,9 @@ export default class EditFunctionVariableValue extends tsc<FunctionValueProps, F
   @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
   @Prop({ default: () => [] }) metricFunctions!: any[];
 
-  @Emit('change')
+  @Emit('valueChange')
   handleValueChange(value: AggFunction[]) {
-    return new FunctionVariableModel({
-      ...this.variable.data,
-      value,
-      isValueEditable: true,
-    });
+    return value;
   }
 
   handleSelectToggle(value: boolean) {

@@ -28,17 +28,17 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import ConditionCreator from '../../../components/condition/condition-creator';
-import { ConditionVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
 
 import type { IConditionOptionsItem } from '../../../components/type/query-config';
-import type { IConditionVariableModel } from '../../../typings';
+import type { AggCondition, IConditionVariableModel } from '../../../typings';
+import type { ConditionVariableModel } from '../../index';
 
 import './edit-condition-variable-value.scss';
 interface ConditionValueEvents {
   onBlur: () => void;
-  onChange: (variable: ConditionVariableModel) => void;
   onFocus: () => void;
+  onValueChange: (value: AggCondition[]) => void;
 }
 
 interface ConditionValueProps {
@@ -49,13 +49,9 @@ interface ConditionValueProps {
 export default class EditConditionVariableValue extends tsc<ConditionValueProps, ConditionValueEvents> {
   @Prop({ type: Object, required: true }) variable!: ConditionVariableModel;
 
-  @Emit('change')
+  @Emit('valueChange')
   handleValueChange(value: IConditionVariableModel['value']) {
-    return new ConditionVariableModel({
-      ...this.variable.data,
-      value,
-      isValueEditable: true,
-    });
+    return value;
   }
 
   handleSelectToggle(value: boolean) {

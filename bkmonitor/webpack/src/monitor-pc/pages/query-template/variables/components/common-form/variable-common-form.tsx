@@ -26,12 +26,15 @@
 import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IVariableData, IVariableModel } from '../../../typings/variables';
-import type { VariableModelType } from '../../index';
+import { type VariableModelType, variableNameReg } from '../../index';
+
+import type { IVariableData } from '../../../typings/variables';
 
 import './variable-common-form.scss';
 interface VariableCommonFormEvents {
-  onDataChange: (data: IVariableModel) => void;
+  onAliasChange: (alias: string) => void;
+  onDescChange: (desc: string) => void;
+  onNameChange: (name: string) => void;
 }
 
 interface VariableCommonFormProps {
@@ -66,9 +69,9 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
         { validator: this.handleCheckName, message: this.$t('变量名不能重复'), trigger: 'blur' },
         {
           validator: () => {
-            return /^[\u4e00-\u9fa5a-zA-Z0-9_.:]+$/.test(this.localName);
+            return variableNameReg.test(this.localName);
           },
-          message: window.i18n.tc('变量名不能包含非法字符'),
+          message: this.$t('1～50 字符，仅支持 大小写字母、数字、下划线、点'),
           trigger: 'blur',
         },
       ],
@@ -87,16 +90,19 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
 
   handleNameChange(value: string) {
     this.localName = value;
-    if (!/^[\u4e00-\u9fa5a-zA-Z0-9_.:]+$/.test(value)) return;
-    this.handleDataChange({ ...this.data, name: value ? `\${${value}}` : value });
+  }
+
+  emitNameChange(value: string) {
+    if (!variableNameReg.test(value)) return;
+    this.$emit('nameChange', value ? `\${${value}}` : value);
   }
 
   handleAliasChange(value: string) {
-    this.handleDataChange({ ...this.data, alias: value });
+    this.$emit('aliasChange', value);
   }
 
   handleDescChange(value: string) {
-    this.handleDataChange({ ...this.data, description: value });
+    this.$emit('descChange', value);
   }
 
   handleDataChange(value: IVariableData) {
@@ -125,8 +131,11 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
         >
           <bk-input
             class='variable-name-input'
+            placeholder={this.$t('1～50 字符，仅支持 大小写字母、数字、下划线、点')}
             value={this.data.variableName}
+            onBlur={this.emitNameChange}
             onChange={this.handleNameChange}
+            onEnter={this.emitNameChange}
           >
             <template slot='prepend'>
               <div class='group-text'>{'${'}</div>
@@ -148,7 +157,8 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
         >
           <bk-input
             value={this.data.alias}
-            onChange={this.handleAliasChange}
+            onBlur={this.handleAliasChange}
+            onEnter={this.handleAliasChange}
           />
         </bk-form-item>
         <bk-form-item
@@ -163,7 +173,8 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
             maxlength={100}
             type='textarea'
             value={this.data.description}
-            onChange={this.handleDescChange}
+            onBlur={this.handleDescChange}
+            onEnter={this.handleDescChange}
           />
         </bk-form-item>
         {this.$slots.default}
