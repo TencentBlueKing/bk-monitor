@@ -1682,6 +1682,7 @@ class BaseIndexSetHandler:
                                 "value": json.dumps(obj.scenario_id != Scenario.ES),
                             },
                         ],
+                        "query_alias_settings": index_set.query_alias_settings
                     }
                 )
 
@@ -1707,6 +1708,7 @@ class BaseIndexSetHandler:
                         "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
                         "need_create_index": False,
                         "source_type": "bkdata",
+                        "query_alias_settings": index_set.query_alias_settings
                     },
                 )
             multi_execute_func.run()
