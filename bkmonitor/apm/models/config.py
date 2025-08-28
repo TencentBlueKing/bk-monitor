@@ -13,6 +13,7 @@ import logging
 import operator
 
 from django.conf import settings
+from django.core.cache import caches
 from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -29,6 +30,7 @@ from bkmonitor.utils.db import JsonField
 from constants.apm import OtlpKey, SpanKindKey, TrpcAttributes
 
 logger = logging.getLogger("apm")
+mem_cache = caches["locmem"]
 
 
 class ApmTopoDiscoverRule(models.Model):
@@ -230,13 +232,23 @@ class ApmTopoDiscoverRule(models.Model):
 
     @classmethod
     def get_application_rule(cls, bk_biz_id, app_name, _type=DiscoverRuleType.CATEGORY.value):
+        # 增加一层内存缓存，避免频繁请求DB
+        cache_key = f"ApmTopoDiscoverRule::{bk_biz_id}::{app_name}::{_type}"
+        rules = mem_cache.get(cache_key)
+        if rules is not None:
+            return rules
+
         filter_args = {}
         if _type != "all":
             filter_args["type"] = _type
 
         app_rules = cls.objects.filter(Q(bk_biz_id=bk_biz_id) & Q(app_name=app_name), **filter_args).order_by("sort")
         global_rules = cls.objects.filter(Q(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID), **filter_args).order_by("sort")
-        return list(app_rules) + list(global_rules)
+        rules = list(app_rules) + list(global_rules)
+
+        # 内存缓存可一直保留，直到进程退出，估这里保留默认的 timeout 过期即可
+        mem_cache.set(cache_key, rules)
+        return rules
 
     @classmethod
     def init_builtin_config(cls):
