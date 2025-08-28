@@ -48,7 +48,7 @@ export interface ComponentConfig {
   placeholder: string | TranslateResult; // 兼容 i18n 翻译结果
   required?: boolean;
   selectedText?: string;
-  type: 'select' | 'textarea';
+  type: 'input' | 'select' | 'textarea';
 }
 
 // 组件选项类型
@@ -135,7 +135,7 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
     // icon: 'icon-monitor icon-mc-help-fill',
     components: [
       {
-        type: 'textarea',
+        type: 'input',
         key: 'trace_id',
         fillBack: true,
         required: false,
@@ -143,13 +143,22 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         placeholder: window.i18n.t('请输入Trace ID'),
       },
       {
-        type: 'textarea',
+        type: 'input',
         key: 'app_name',
         fillBack: false,
         required: false,
         hide: true,
         name: window.i18n.t('应用名称'),
         placeholder: window.i18n.t('请输入应用名称'),
+      },
+      {
+        type: 'input',
+        key: 'bk_biz_id',
+        fillBack: false,
+        required: false,
+        hide: true,
+        name: window.i18n.t('业务ID'),
+        placeholder: window.i18n.t('请输入业务ID'),
       },
     ],
   },
