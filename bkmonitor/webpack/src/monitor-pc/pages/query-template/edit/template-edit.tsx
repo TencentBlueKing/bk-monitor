@@ -25,12 +25,11 @@
  */
 import { Component } from 'vue-property-decorator';
 
-import { retrieveQueryTemplate, updateQueryTemplate } from 'monitor-api/modules/model';
+import { updateQueryTemplate } from 'monitor-api/modules/model';
 
 import TemplateCreate from '../create/template-create';
-import { createQueryTemplateQueryConfigsParams, getRetrieveQueryTemplateQueryConfigs } from '../service';
-import { Expression } from '../typings';
-import { getCreateVariableParams, getVariableModel, getVariableSubmitParams } from '../variables';
+import { createQueryTemplateQueryConfigsParams, fetchQueryTemplateDetail } from '../service';
+import { getVariableSubmitParams } from '../variables';
 import { isVariableName } from '../variables/template/utils';
 
 import './template-edit.scss';
@@ -50,37 +49,17 @@ export default class TemplateEdit extends TemplateCreate {
    */
   async getQueryTemplateDetail() {
     this.loading = true;
-    const data = await retrieveQueryTemplate(this.editId).catch(() => null);
-    if (data) {
-      this.queryConfigs = await getRetrieveQueryTemplateQueryConfigs(data.query_configs);
-      this.expressionConfig = new Expression({
-        expression: data.expression,
-        functions: data.functions.map(f => {
-          if (typeof f === 'string') {
-            return {
-              id: f,
-              name: f,
-              params: [],
-            };
-          }
-          return f;
-        }),
-      });
-      this.basicInfoData = {
-        name: data.name,
-        description: data.description,
-        alias: data.alias,
-        space_scope: data.space_scope.length ? data.space_scope : ['all'],
-      };
-      this.variablesList = data.variables.map(item =>
-        getVariableModel(
-          getCreateVariableParams(
-            item,
-            this.queryConfigs.map(queryConfig => queryConfig.metricDetail)
-          )
-        )
-      );
-    }
+    const { expressionConfig, queryConfigs, name, alias, description, space_scope, variables } =
+      await fetchQueryTemplateDetail(this.editId);
+    this.queryConfigs = queryConfigs;
+    this.expressionConfig = expressionConfig;
+    this.basicInfoData = {
+      name,
+      description,
+      alias,
+      space_scope: space_scope.length ? space_scope : ['all'],
+    };
+    this.variablesList = variables;
     this.loading = false;
   }
 
@@ -92,6 +71,7 @@ export default class TemplateEdit extends TemplateCreate {
   async handleSubmit() {
     const params = {
       name: this.basicInfoData.name,
+      alias: this.basicInfoData.alias,
       description: this.basicInfoData.description,
       space_scope: this.basicInfoData.space_scope,
       variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),

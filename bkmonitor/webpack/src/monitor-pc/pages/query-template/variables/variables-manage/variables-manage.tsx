@@ -34,7 +34,12 @@ import type { VariableModelType } from '../index';
 import './variables-manage.scss';
 
 interface VariablesManageEvents {
-  onChange: (value: VariableModelType[]) => void;
+  onAliasChange: (val: string, index: number) => void;
+  onDefaultValueChange: (val: any, index: number) => void;
+  onDescChange: (val: string, index: number) => void;
+  onNameChange: (val: string, index: number) => void;
+  onOptionsChange: (val: string[], index: number) => void;
+  onValueChange: (val: any, index: number) => void;
 }
 
 interface VariablesManageProps {
@@ -61,6 +66,30 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
 
   handleClear() {
     this.searchValue = '';
+  }
+
+  handleNameChange(value: string, index: number) {
+    this.$emit('nameChange', value, index);
+  }
+
+  handleAliasChange(value: string, index: number) {
+    this.$emit('aliasChange', value, index);
+  }
+
+  handleDescChange(value: string, index: number) {
+    this.$emit('descChange', value, index);
+  }
+
+  handleDefaultValueChange(value: any, index: number) {
+    this.$emit('defaultValueChange', value, index);
+  }
+
+  handleValueChange(value: any, index: number) {
+    this.$emit('valueChange', value, index);
+  }
+
+  handleOptionsChange(value: string[], index: number) {
+    this.$emit('optionsChange', value, index);
   }
 
   handleDataChange(value: VariableModelType, index: number) {
@@ -110,11 +139,26 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
               scene={this.scene}
               variable={item}
               variableList={this.variablesList}
-              onDataChange={value => {
-                this.handleDataChange(value, index);
+              onAliasChange={value => {
+                this.handleAliasChange(value, index);
+              }}
+              onDefaultValueChange={value => {
+                this.handleDefaultValueChange(value, index);
               }}
               onDelete={() => {
                 this.handleDelete(index);
+              }}
+              onDescChange={value => {
+                this.handleDescChange(value, index);
+              }}
+              onNameChange={value => {
+                this.handleNameChange(value, index);
+              }}
+              onOptionsChange={value => {
+                this.handleOptionsChange(value, index);
+              }}
+              onValueChange={value => {
+                this.handleValueChange(value, index);
               }}
             />,
           ])}

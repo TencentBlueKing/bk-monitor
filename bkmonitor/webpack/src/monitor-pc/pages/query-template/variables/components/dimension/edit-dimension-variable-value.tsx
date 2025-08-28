@@ -27,13 +27,14 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { DimensionVariableModel } from '../../index';
 import EditVariableValue from '../common-form/edit-variable-value';
+
+import type { DimensionVariableModel } from '../../index';
 
 interface DimensionValueEvents {
   onBlur: () => void;
-  onChange: (data: DimensionVariableModel) => void;
   onFocus: () => void;
+  onValueChange: (value: string[]) => void;
 }
 
 interface DimensionValueProps {
@@ -44,13 +45,9 @@ interface DimensionValueProps {
 export default class EditDimensionVariableValue extends tsc<DimensionValueProps, DimensionValueEvents> {
   @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
 
-  @Emit('change')
+  @Emit('valueChange')
   handleValueChange(value: string[]) {
-    return new DimensionVariableModel({
-      ...this.variable.data,
-      value,
-      isValueEditable: true,
-    });
+    return value;
   }
 
   handleSelectToggle(value: boolean) {

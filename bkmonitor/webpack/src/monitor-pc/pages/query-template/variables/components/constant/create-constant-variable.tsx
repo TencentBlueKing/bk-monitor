@@ -23,39 +23,35 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
+import * as tsx from 'vue-tsx-support';
 
-import { ConstantVariableModel } from '../../index';
+import VariableFormMixin from '../../mixins/VariableFormMixin';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { IConstantVariableModel } from '../../../typings';
-interface ConstantVariableEvents {
-  onDataChange: (variable: ConstantVariableModel) => void;
+import type { IVariableFormEvents } from '../../../typings';
+import type { ConstantVariableModel } from '../../index';
+interface ConstantVariableEvents extends IVariableFormEvents {
+  onDefaultValueChange: (val: string) => void;
+  onValueChange: (val: string) => void;
 }
+
 interface ConstantVariableProps {
   variable: ConstantVariableModel;
 }
 
 @Component
-export default class CreateConstantVariable extends tsc<ConstantVariableProps, ConstantVariableEvents> {
+class CreateConstantVariable extends Mixins(VariableFormMixin) {
   @Prop({ type: Object, required: true }) variable!: ConstantVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
 
-  handleValueChange(defaultValue: string) {
+  defaultValueChange(defaultValue: string) {
     let value = this.variable.value || '';
     if (!this.variable.isValueEditable) {
       value = defaultValue;
     }
-    this.handleDataChange({
-      ...this.variable.data,
-      defaultValue,
-      value,
-    });
-  }
-
-  handleDataChange(data: IConstantVariableModel) {
-    this.$emit('dataChange', new ConstantVariableModel({ ...data }));
+    this.handleDefaultValueChange(defaultValue);
+    this.handleValueChange(value);
   }
 
   validateForm() {
@@ -68,7 +64,9 @@ export default class CreateConstantVariable extends tsc<ConstantVariableProps, C
         <VariableCommonForm
           ref='variableCommonForm'
           data={this.variable.data}
-          onDataChange={this.handleDataChange}
+          onAliasChange={this.handleAliasChange}
+          onDescChange={this.handleDescChange}
+          onNameChange={this.handleNameChange}
         >
           <bk-form-item
             label={this.$t('默认值')}
@@ -76,8 +74,8 @@ export default class CreateConstantVariable extends tsc<ConstantVariableProps, C
           >
             <bk-input
               value={this.variable.data.defaultValue}
-              onBlur={this.handleValueChange}
-              onEnter={this.handleValueChange}
+              onBlur={this.defaultValueChange}
+              onEnter={this.defaultValueChange}
             />
           </bk-form-item>
         </VariableCommonForm>
@@ -85,3 +83,5 @@ export default class CreateConstantVariable extends tsc<ConstantVariableProps, C
     );
   }
 }
+
+export default tsx.ofType<ConstantVariableProps, ConstantVariableEvents>().convert(CreateConstantVariable);
