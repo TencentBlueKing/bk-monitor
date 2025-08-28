@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from ai_agent.services.local_command_handler import local_command_handler, CommandHandler
-from bkmonitor.utils.request import get_request
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from ai_whale.utils import get_nested_value
@@ -30,16 +29,10 @@ class TracingAnalysisCommandHandler(CommandHandler):
     def process_content(self, context: list[dict]) -> str:
         template = self.get_template()
         variables = self.extract_context_vars(context)
-
-        req = get_request()
-        if not req:
-            raise ValueError("TracingAnalysisCommandHandler requires 'local request'")
-
         try:
-            biz_id = req.session["bk_biz_id"]
             resp = api.apm_api.query_trace_detail(
                 {
-                    "bk_biz_id": biz_id,
+                    "bk_biz_id": variables["bk_biz_id"],
                     "app_name": variables["app_name"],
                     "trace_id": variables["trace_id"],
                 }
