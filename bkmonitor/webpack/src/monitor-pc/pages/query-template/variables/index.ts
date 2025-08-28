@@ -231,11 +231,7 @@ export class DimensionVariableModel extends VariableBase {
     super(config);
     this.metric = config.metric;
     this.options = config.options || ['all'];
-    if (config.defaultValue) {
-      this.defaultValue = config.defaultValue || [];
-    } else {
-      this.defaultValue = this.isAllDimensionOptions ? [this.dimensionList[0].id] : [this.options[0]];
-    }
+    this.defaultValue = config.defaultValue || [];
     if (config.value) {
       this.value = config.value;
     } else {
