@@ -29,6 +29,7 @@ const Retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/ret
 const ExternalAuth = () => import(/* webpackChunkName: 'externalAuth' */ '@/views/authorization/authorization-list');
 const ShareLink = () => import(/* webpackChunkName: 'share-link' */ '@/views/share/index.tsx');
 const DataIdUrl = () => import(/* webpackChunkName: 'data-id-url' */ '@/views/data-id-url/index.tsx');
+const TemplateManage = () => import('@/views/retrieve-v3/search-result/template-manage/index.tsx');
 
 // 检索模块路由配置生成函数
 const getRetrieveRoutes = () => [
@@ -41,6 +42,12 @@ const getRetrieveRoutes = () => [
       title: '检索',
       navId: 'retrieve',
     },
+  },
+  // 模版管理
+  {
+    path: '/template-manage',
+    name: 'templateManage',
+    component: TemplateManage,
   },
   // 授权列表
   {

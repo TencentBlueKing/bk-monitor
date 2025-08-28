@@ -43,7 +43,9 @@
     }
   });
 
-  const settingMenuList = ref([{ id: 'clustering', name: $t('日志聚类') }]);
+  const settingMenuList = ref([
+    // { id: 'clustering', name: $t('日志聚类') }
+  ]);
   const detailJumpRouteKey = ref('log');
   /** 日志脱敏路由跳转key */
   const maskingRouteKey = ref('log');

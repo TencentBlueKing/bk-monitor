@@ -1,0 +1,211 @@
+.edge-wrap {
+  height: calc(100% - 40px);
+
+  .edge-info {
+    .edge-item-source {
+      font-size: 28px;
+    }
+
+    .edge-item-source.icon-fuwumokuai {
+      font-size: 24px;
+    }
+
+    .node-source-wrap:first-child {
+      margin-bottom: 24px;
+    }
+
+    .node-source-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      padding: 0 20px;
+
+      .node-source {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 46px;
+        color: #fff;
+        background: #303133;
+        border: 1px solid #979ba5;
+        border-radius: 23px;
+
+        .node-item {
+          display: flex;
+          flex: 0 0 40px;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          margin-right: 8px;
+          margin-left: 2px;
+          background-color: rgba(197, 197, 197, 0.2);
+          border: 1px solid rgba(151, 155, 165, 1);
+          border-radius: 50%;
+        }
+
+        .node-name-start {
+          display: inline-block;
+          white-space: nowrap;
+          color: #eaebf0;
+        }
+
+        .node-name {
+          max-width: 90px;
+          margin: 0 3px;
+          color: #c4c6cc;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .node-link-name {
+          color: rgba(105, 157, 244, 1);
+          cursor: pointer;
+        }
+      }
+    }
+
+    .node-root-icon {
+      position: absolute;
+      bottom: -5px;
+      left: 10px;
+      display: inline-block;
+      width: 24px;
+      height: 15px;
+      font-size: 10px;
+      line-height: 13px;
+      color: #fff;
+      text-align: center;
+      background: #f55555;
+      border: 1px solid #f55555;
+      border-radius: 8px;
+    }
+
+    .node-root-feedback-icon {
+      background: #ff9c01;
+      border: 1px solid #ff9c01;
+    }
+
+    .edge-info-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 16px 12px;
+
+      @keyframes dash {
+        0% {
+          stroke-dashoffset: 10;
+        }
+      }
+
+      .node-source-anomaly {
+        border: 1px solid #f55555;
+
+        .node-item {
+          background-color: rgba(255, 102, 102, 0.4);
+          border: 1px solid #f55555;
+
+          .item-anomaly {
+            color: #ffdddd !important;
+          }
+        }
+      }
+
+      .alert-wrap {
+        position: absolute;
+        top: -3px;
+        right: -6px;
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        text-align: center;
+        background: #6c6f78;
+        border-radius: 100%;
+      }
+
+      .node-source-alert-recorved {
+        .node-item {
+          position: relative;
+        }
+      }
+
+      .node-source-alert {
+        .node-item {
+          position: relative;
+        }
+
+        .alert-wrap {
+          background: #f55555;
+        }
+      }
+
+      .flowing-dash {
+        animation: dash 0.35s linear infinite;
+      }
+
+      .edpf-link-arrow {
+        &::before {
+          position: absolute;
+          right: var(--arrowRight);
+          bottom: -7px;
+          width: 0;
+          height: 0;
+          content: '';
+          border-top: 12px solid var(--arrowColor);
+          border-right: 6px solid transparent;
+          border-left: 6px solid transparent;
+          transform: translate(0px, -50%);
+        }
+      }
+
+      .node-link {
+        position: absolute;
+        top: 102px;
+        height: 24px;
+      }
+
+      .node-link-normal {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1px;
+        margin: auto;
+        line-height: 16px;
+        background-color: #63656e;
+      }
+
+      .reverse-node-link {
+        svg {
+          transform: rotate(180deg);
+        }
+      }
+    }
+  }
+
+  .edge-metrics {
+    height: calc(100% - 144px);
+    background-color: #1d2024;
+    margin: 0 12px;
+
+    &_title {
+      height: 35px;
+      line-height: 35px;
+      color: #ffffff;
+      font-size: 13px;
+      padding-left: 12px;
+      border-bottom: 1px solid #34383c;
+    }
+
+    &_main {
+      height: calc(100% - 35px);
+      overflow: auto;
+
+      .metric-wrap {
+        margin-top: -5px;
+      }
+    }
+  }
+}

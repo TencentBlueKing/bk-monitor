@@ -27,7 +27,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Form } from 'bk-magic-vue';
 
 import $http from '../../../../api';
-import { deepClone, Debounce } from '../../../../common/util';
+import { Debounce } from '../../../../common/util';
 import {
   btnType,
   ISelectItem,
@@ -72,8 +72,8 @@ export default class LogFilter extends tsc<object> {
   ];
   /** 切换数据类型缓存的过滤数据 */
   catchFilterData = {
-    match: deepClone(this.filterData),
-    separator: deepClone(this.filterData),
+    match: structuredClone(this.filterData),
+    separator: structuredClone(this.filterData),
   };
   originalFilterItemSelect: Array<ISelectItem> = [];
   /** 分隔符原始日志 */
@@ -100,7 +100,7 @@ export default class LogFilter extends tsc<object> {
   }
 
   get operatorShowSelectList() {
-    const showSelect = deepClone(operatorSelectList);
+    const showSelect = structuredClone(operatorSelectList);
     showSelect.forEach(el => {
       if (this.isMatchType && el.id === 'include') el.id = '=';
       if (!this.isMatchType && el.id === 'eq') el.id = '=';

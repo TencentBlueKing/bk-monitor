@@ -1,0 +1,72 @@
+.cluster-access-slider-main {
+  .bk-sideslider-content {
+    padding: 20px 40px 30px 40px;
+
+    .cluster-access-main {
+      max-height: calc(100vh - 160px);
+      overflow-y: auto;
+    }
+  }
+
+  .bk-alert-info {
+    margin-bottom: 10px;
+  }
+
+  .setting-item {
+    display: flex;
+    align-items: center;
+
+    .field-tip-main {
+      margin-left: 10px;
+
+      .icon-info {
+        font-size: 14px;
+        color: #c4c6cc;
+        margin-right: 5px;
+      }
+
+      .tip {
+        font-size: 12px;
+        color: #979ba5;
+      }
+    }
+  }
+
+  .cluster-set {
+    height: 26px;
+
+    .bk-form-checkbox {
+      margin-right: 24px;
+    }
+
+    .icon-help {
+      margin-left: 6px;
+      font-size: 14px;
+      color: #999da6;
+    }
+  }
+
+  .alert-tips {
+    font-size: 12px;
+
+    .icon-info {
+      margin-right: 8px;
+      font-size: 16px;
+      color: #979ba5;
+    }
+  }
+
+  .preview-wraper-main {
+    margin-top: 32px;
+  }
+
+  .bottom-operate {
+    padding-top: 24px;
+    display: flex;
+    gap: 8px;
+
+    .bk-button {
+      width: 88px;
+    }
+  }
+}

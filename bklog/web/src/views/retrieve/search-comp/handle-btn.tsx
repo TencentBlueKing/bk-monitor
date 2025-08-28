@@ -32,7 +32,6 @@ import { Button } from 'bk-magic-vue';
 import $http from '../../../api';
 import { deepEqual, Debounce } from '../../../common/util';
 
-// import { deepClone } from '../../../components/monitor-echarts/utils';
 import './handle-btn.scss';
 
 const searchMap = {
