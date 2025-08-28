@@ -140,7 +140,7 @@ class QueryTemplateModelSerializer(QueryTemplateBaseModelSerializer):
         # 如果这是一个全局模板，则将 bk_biz_id 设置为 0
         bk_biz_id = validated_data["bk_biz_id"]
         if self.is_global_template(instance.bk_biz_id):
-            validated_data["bk_biz_id"] = bk_biz_id = 0
+            validated_data["bk_biz_id"] = bk_biz_id = GLOBAL_BIZ_ID
         elif bk_biz_id not in validated_data["space_scope"]:
             raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
 
