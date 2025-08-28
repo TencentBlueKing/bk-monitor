@@ -37,6 +37,7 @@ import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { throttle } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import http from '@/api';
 
@@ -353,6 +354,15 @@ export default defineComponent({
       });
     };
 
+    const { addEvent } = useRetrieveEvent();
+    addEvent([
+      RetrieveEvent.SEARCH_VALUE_CHANGE,
+      RetrieveEvent.SEARCH_TIME_CHANGE,
+      RetrieveEvent.TREND_GRAPH_SEARCH,
+      RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+      RetrieveEvent.INDEX_SET_ID_CHANGE,
+    ], loadTrendData);
+
     onMounted(() => {
       // 初始化折叠状态
       isFold.value = store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] || false;
@@ -361,29 +371,12 @@ export default defineComponent({
       });
 
       loadTrendData();
-
-      // 监听检索相关事件，自动刷新趋势图
-      RetrieveHelper.on(
-        [
-          RetrieveEvent.SEARCH_VALUE_CHANGE,
-          RetrieveEvent.SEARCH_TIME_CHANGE,
-          RetrieveEvent.TREND_GRAPH_SEARCH,
-          RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
-          RetrieveEvent.INDEX_SET_ID_CHANGE,
-        ],
-        loadTrendData,
-      );
     });
 
     onBeforeUnmount(() => {
       // 组件卸载时清理定时器和事件监听
       runningTimer && clearTimeout(runningTimer);
       logChartCancel?.();
-      RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_SEARCH, loadTrendData);
-      RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, loadTrendData);
-      RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, loadTrendData);
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, loadTrendData);
-      RetrieveHelper.off(RetrieveEvent.INDEX_SET_ID_CHANGE, loadTrendData);
     });
 
     // 渲染标题内容

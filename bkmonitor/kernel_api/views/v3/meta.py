@@ -426,6 +426,10 @@ class QueryMetaInfoByVmrtViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryMetaInfoByVmrt)]
 
 
+class ModifyClusterByVmrtsViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.ModifyClusterByVmrts)]
+
+
 class QueryVmRtBySpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryVmRtBySpace)]
 
@@ -456,6 +460,10 @@ class CreateOrUpdateEsRouterViewSet(MetaViewSet):
 
 class CreateOrUpdateLogRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateLogRouter)]
+
+
+class BulkCreateOrUpdateLogRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.BulkCreateOrUpdateLogRouter)]
 
 
 class ModifyDataIdSourceViewSet(MetaViewSet):

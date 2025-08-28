@@ -27,7 +27,7 @@
   import { getCommonFilterAddition, clearStorageCommonFilterAddition } from '../../../store/helper';
   import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
   import { handleTransformToTimestamp } from '@/components/time-range/utils';
-
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
   const props = defineProps({
     // activeFavorite: {
@@ -308,7 +308,8 @@
     }
   };
 
-  RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
     activeFavorite.value = val;
     const type = queryParams.findIndex(idx => idx === activeFavorite.value.search_mode) ?? 0;
 

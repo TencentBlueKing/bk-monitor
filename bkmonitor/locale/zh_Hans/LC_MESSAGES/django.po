@@ -12445,3 +12445,91 @@ msgstr "JSON解析错误：{msg}"
 
 #~ msgid "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
 #~ msgstr "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
+
+# Incident metrics config translations
+msgid "总数"
+msgstr "总数"
+
+msgid "主调"
+msgstr "主调"
+
+msgid "被调"
+msgstr "被调"
+
+# Incident metrics constants translations
+msgid "请求数"
+msgstr "请求数"
+
+msgid "请求总数"
+msgstr "请求总数"
+
+msgid "主调请求数"
+msgstr "主调请求数"
+
+msgid "被调请求数"
+msgstr "被调请求数"
+
+msgid "错误请求数"
+msgstr "错误请求数"
+
+msgid "错误率"
+msgstr "错误率"
+
+msgid "耗时"
+msgstr "耗时"
+
+msgid "平均耗时"
+msgstr "平均耗时"
+
+msgid "99% 耗时"
+msgstr "99% 耗时"
+
+msgid "95% 耗时"
+msgstr "95% 耗时"
+
+msgid "50% 耗时"
+msgstr "50% 耗时"
+
+msgid "CPU使用量"
+msgstr "CPU使用量"
+
+msgid "CPU request使用率"
+msgstr "CPU request使用率"
+
+msgid "CPU limit使用率"
+msgstr "CPU limit使用率"
+
+msgid "内存使用量"
+msgstr "内存使用量"
+
+msgid "内存 request使用率"
+msgstr "内存 request使用率"
+
+msgid "内存 limit使用率"
+msgstr "内存 limit使用率"
+
+msgid "网络入带宽"
+msgstr "网络入带宽"
+
+msgid "网络出带宽"
+msgstr "网络出带宽"
+
+msgid "CPU使用率"
+msgstr "CPU使用率"
+
+msgid "CPU五分钟平均负载"
+msgstr "CPU五分钟平均负载"
+
+msgid "物理内存空闲量"
+msgstr "物理内存空闲量"
+
+msgid "网卡入流量比特速率"
+msgstr "网卡入流量比特速率"
+
+msgid "网卡出流量比特速率"
+msgstr "网卡出流量比特速率"
+
+msgid "磁盘空间使用率"
+msgstr "磁盘空间使用率"
+
+

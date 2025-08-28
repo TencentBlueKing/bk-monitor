@@ -77,7 +77,7 @@ def refine_bkdata_kafka_info(bk_tenant_id: str):
     return {"cluster_id": cluster_id, "host": host}
 
 
-def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
+def access_bkdata(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_id: int):
     """根据类型接入计算平台
 
     1. 仅针对接入 influxdb 类型
@@ -87,8 +87,6 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access vm", bk_biz_id, table_id, data_id)
 
     from metadata.models import AccessVMRecord, KafkaStorage, Space, SpaceVMInfo
-
-    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
 
     # NOTE: 0 业务没有空间信息，不需要查询或者创建空间及空间关联的 vm
     space_data = {}
@@ -156,6 +154,7 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
     try:
         if not vm_data.get("kafka_storage_exist"):
             KafkaStorage.create_table(
+                bk_tenant_id=bk_tenant_id,
                 table_id=table_id,
                 is_sync_db=True,
                 storage_cluster_id=vm_data["cluster_id"],
@@ -485,7 +484,7 @@ def get_data_source(data_id):
     return DataSource.objects.get(bk_data_id=data_id)
 
 
-def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
+def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_id: int):
     """
     接入计算平台V4链路
     @param bk_biz_id: 业务ID

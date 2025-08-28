@@ -155,6 +155,10 @@ export default {
   URI信息: 'URI Info',
   URI配置: 'URI Configuration',
   例如: 'For example',
+  请求数: 'Request Count',
+  CPU使用率: 'CPU Usage',
+  响应耗时: 'Response Time',
+
   // 调用分析
   维度值分布: 'Dimension value distribution',
   K8S对象: 'K8s object',
@@ -191,4 +195,5 @@ export default {
     'After association, related observation data will be automatically obtained, including events, etc. Note: After the pipeline is selected, the startup parameters must be synchronized to configure.',
   新增流水线: 'Add Pipeline',
   批量编辑通知对象: 'Batch edit notification object',
+  事件分析: 'Event Analysis',
 };

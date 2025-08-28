@@ -23,7 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const prettierConfig = require('@blueking/bkui-lint/prettier');
-module.exports = {
-  ...prettierConfig,
+import { incidentEventsDetail } from 'monitor-api/modules/incident';
+
+export const getIncidentEventTagDetails = async (params: Record<string, any>) => {
+  const data = await incidentEventsDetail({
+    ...params,
+  }).catch(() => ({}));
+  return data;
 };
