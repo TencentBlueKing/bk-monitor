@@ -12141,6 +12141,9 @@ msgstr "JSON Parsing Error"
 msgid "JSON解析错误：{msg}"
 msgstr "JSON Parsing Error: {msg}"
 
+msgid "related_bk_biz_id 不能重复"
+msgstr "related_bk_biz_id can not repeat"
+
 #~ msgid "{} 匹配到第{}个uri配置: {}"
 #~ msgstr "{} Match to No. 1 {} a URI configuration: {}"
 
@@ -12152,6 +12155,3 @@ msgstr "JSON Parsing Error: {msg}"
 
 #~ msgid "存在非法的策略ID, {}"
 #~ msgstr "There is an illegal strategy ID, {}"
-
-msgid "related_bk_biz_id 不能重复"
-msgstr "related_bk_biz_id can not repeat"

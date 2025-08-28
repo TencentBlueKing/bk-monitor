@@ -12220,6 +12220,8 @@ msgstr "JSON解析错误"
 msgid "JSON解析错误：{msg}"
 msgstr "JSON解析错误：{msg}"
 
+msgid "related_bk_biz_id 不能重复"
+msgstr "related_bk_biz_id 不能重复"
 
 #~ msgid "{} 匹配到第{}个uri配置: {}"
 #~ msgstr "{} 匹配到第{}个uri配置: {}"
@@ -12445,6 +12447,3 @@ msgstr "JSON解析错误：{msg}"
 
 #~ msgid "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
 #~ msgstr "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
-
-msgid "related_bk_biz_id 不能重复"
-msgstr "related_bk_biz_id 不能重复"
