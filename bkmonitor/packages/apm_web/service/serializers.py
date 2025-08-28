@@ -94,7 +94,7 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
     def get_value_alias(self, instance):
         if instance.log_type == ServiceRelationLogTypeChoices.BK_LOG:
             # 关联了日志平台 -> 获取索引集名称
-            index_set = api.log_search.search_index_set(bk_biz_id=instance.bk_biz_id)
+            index_set = api.log_search.search_index_set(bk_biz_id=instance.related_bk_biz_id)
             for index in index_set:
                 if str(index["index_set_id"]) == instance.value:
                     return index["index_set_name"]
@@ -115,7 +115,7 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
             return None
 
         # 关联了日志平台 -> 获取索引集名称
-        index_set = api.log_search.search_index_set(bk_biz_id=instance.bk_biz_id)
+        index_set = api.log_search.search_index_set(bk_biz_id=instance.related_bk_biz_id)
         value_list = []
         for index in index_set:
             if index["index_set_id"] in instance.value_list:
