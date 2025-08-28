@@ -12,6 +12,9 @@ from django.utils.translation import gettext as _
 from django.db import models
 from rest_framework import serializers
 import logging
+from django.conf import settings
+from kubernetes import client as k8s_client
+from urllib.parse import urljoin
 
 from core.drf_resource.base import Resource
 from core.drf_resource import api
@@ -28,6 +31,7 @@ __all__ = [
     "CloudMonitoringTaskStatusResource",
     "CloudMonitoringTaskDetailResource",
     "CloudMonitoringUpdateConfigResource",
+    "CloudMonitoringTaskLogResource",
 ]
 
 
@@ -786,7 +790,7 @@ class CloudMonitoringTaskListResource(Resource):
             task_id: 任务ID
 
         Returns:
-            list: 地域代码列表，如果没有地域配置则返回空列表
+            list: 地域信息列表，格式为 [{"id": "...", "region": "..."}]
         """
         from monitor_web.models.qcloud import CloudMonitoringTaskRegion
 
@@ -796,11 +800,11 @@ class CloudMonitoringTaskListResource(Resource):
                 "region_id"
             )
 
-            # 返回地域代码列表
-            if region_configs:
-                return [region.region_code for region in region_configs]
-
-            return []
+            # 构建地域信息列表
+            regions_list = []
+            for region in region_configs:
+                regions_list.append({"id": region.region_id, "region": region.region_code})
+            return regions_list
 
         except Exception as e:
             logger.warning(f"获取任务{task_id}地域信息失败: {str(e)}")
@@ -1213,3 +1217,125 @@ class CloudMonitoringUpdateConfigResource(Resource):
             except CloudMonitoringTask.DoesNotExist:
                 logger.error(f"未找到任务: task_id={task_id}")
             raise
+
+
+class CloudMonitoringTaskLogResource(Resource):
+    """
+    获取腾讯云监控任务采集日志接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        task_id = serializers.CharField(required=True, help_text=_("任务ID"))
+        region = serializers.CharField(required=True, help_text=_("地域代码, e.g., ap-guangzhou"))
+        id = serializers.CharField(required=True, help_text=_("地域配置的唯一ID"))
+
+    class ResponseSerializer(serializers.Serializer):
+        log_content = serializers.CharField(help_text=_("日志内容"))
+
+    def _get_k8s_config(self, cluster_id: str) -> k8s_client.Configuration:
+        # 构建并返回用于访问 K8S API 的配置
+        if not all(
+            [
+                settings.BCS_API_GATEWAY_SCHEMA,
+                settings.BCS_API_GATEWAY_HOST,
+                settings.BCS_API_GATEWAY_PORT,
+                settings.BCS_API_GATEWAY_TOKEN,
+            ]
+        ):
+            # 如果网关配置不全，抛出中文错误提示
+            raise ValueError("BCS API 网关配置不完整，请联系管理员")
+
+        host = urljoin(
+            f"{settings.BCS_API_GATEWAY_SCHEMA}://{settings.BCS_API_GATEWAY_HOST}:{settings.BCS_API_GATEWAY_PORT}",
+            f"/clusters/{cluster_id}",
+        )
+        config = k8s_client.Configuration(
+            host=host,
+            api_key={"authorization": settings.BCS_API_GATEWAY_TOKEN},
+            api_key_prefix={"authorization": "Bearer"},
+        )
+        return config
+
+    def _get_default_cluster(self) -> tuple[str, str]:
+        # 获取默认的集群ID和命名空间 (从配置项读取，格式为 cluster_id:namespace)
+        if not settings.K8S_PLUGIN_COLLECT_CLUSTER_ID:
+            raise ValueError("需要配置 K8S_PLUGIN_COLLECT_CLUSTER_ID，请联系管理员")
+
+        try:
+            cluster_id, namespace = settings.K8S_PLUGIN_COLLECT_CLUSTER_ID.split(":")
+            return cluster_id, namespace
+        except ValueError:
+            raise ValueError(
+                f"K8S_PLUGIN_COLLECT_CLUSTER_ID 格式不正确: {settings.K8S_PLUGIN_COLLECT_CLUSTER_ID}，期望格式为 'cluster_id:namespace'"
+            )
+
+    def perform_request(self, validated_request_data):
+        """
+        获取腾讯云监控任务采集日志
+        """
+        task_id = validated_request_data["task_id"]
+        region_code = validated_request_data["region"]
+
+        # 构建部署资源名称，遵循之前的命名约定
+        resource_name = f"qcloud-{task_id}-{region_code}".lower().replace("_", "-")
+
+        try:
+            # 获取默认集群和命名空间
+            cluster_id, namespace = self._get_default_cluster()
+
+            # 使用 K8S API 客户端读取 Deployment -> Pod -> 日志
+            with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
+                core_v1 = k8s_client.CoreV1Api(api_client)
+                apps_v1 = k8s_client.AppsV1Api(api_client)
+
+                try:
+                    # 读取 Deployment，获取 label selector 用于查找 Pod
+                    deployment = apps_v1.read_namespaced_deployment(name=resource_name, namespace=namespace)
+                    selector = deployment.spec.selector.match_labels
+                    label_selector_str = ",".join([f"{k}={v}" for k, v in selector.items()])
+                except k8s_client.exceptions.ApiException as e:
+                    # Deployment 未找到或其他错误，均返回中文友好提示
+                    if e.status == 404:
+                        logger.warning(
+                            f"在命名空间 '{namespace}' 中未找到 Deployment '{resource_name}'，无法获取日志。"
+                        )
+                        return {"log_content": _("采集任务的部署资源未找到，可能尚未创建或已被删除。")}
+                    logger.error(f"读取 Deployment '{resource_name}' 时发生错误: {e}")
+                    raise RuntimeError(f"获取采集部署信息失败: {e.reason}")
+
+                # 列出符合 selector 的 Pod
+                pod_list = core_v1.list_namespaced_pod(namespace=namespace, label_selector=label_selector_str)
+
+                if not pod_list.items:
+                    # 没有找到 Pod 实例
+                    return {"log_content": _("未找到采集任务运行的Pod实例。")}
+
+                log_content = ""
+                # 尝试找到正在运行的 Pod 并读取日志
+                for pod in pod_list.items:
+                    if pod.status.phase == "Running":
+                        pod_name = pod.metadata.name
+                        try:
+                            # 读取最近的 500 行日志
+                            log_content = core_v1.read_namespaced_pod_log(
+                                name=pod_name, namespace=namespace, tail_lines=500
+                            )
+                            break
+                        except k8s_client.exceptions.ApiException as e:
+                            # 无法读取某个 Pod 的日志，记录警告并继续尝试其他 Pod
+                            logger.warning(f"无法读取 Pod {pod_name} 的日志: {e}")
+                            log_content = _("无法读取Pod ({pod_name}) 的日志: {error}").format(
+                                pod_name=pod_name, error=e.reason
+                            )
+
+                if not log_content:
+                    log_content = _("未找到正在运行的Pod实例来获取日志。")
+
+                return {"log_content": log_content}
+
+        except k8s_client.exceptions.ApiException as e:
+            logger.error(f"从 Kubernetes 获取任务 {task_id}（地域 {region_code}）的日志失败: {e}")
+            return {"log_content": _("从Kubernetes获取日志失败: {error}").format(error=e.body)}
+        except Exception as e:
+            logger.error(f"获取任务 {task_id}（地域 {region_code}）日志时发生错误: {e}")
+            raise RuntimeError(_("获取日志失败: {error}").format(error=str(e)))
