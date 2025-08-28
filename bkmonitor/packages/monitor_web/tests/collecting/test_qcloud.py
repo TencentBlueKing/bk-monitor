@@ -15,9 +15,9 @@ from packages.monitor_web.collecting.resources.qcloud import (
     CloudProductMappingResource,
     CloudProductInstanceQueryResource,
     CloudProductConfigResource,
+    CloudMonitoringConfigResource,
     CloudMonitoringTaskListResource,
     CloudMonitoringTaskDetailResource,
-    CloudMonitoringUpdateConfigResource,
 )
 
 
@@ -1117,14 +1117,16 @@ class TestCloudMonitoringTaskListResource:
         assert task1["task_id"] == "task1"
         assert task1["collect_name"] == "CVM监控"
         assert task1["product_name"] == "云服务器 CVM"
-        assert task1["regions"] == ["ap-beijing", "ap-shanghai"]
+        assert len(task1["regions"]) == 2
+        assert [{"id": 0, "region": "ap-beijing"}, {"id": 1, "region": "ap-shanghai"}] == task1["regions"]
         assert task1["latest_datapoint"] is not None
 
         task2 = result["tasks"][1]
         assert task2["task_id"] == "task2"
         assert task2["collect_name"] == "CDB监控"
         assert task2["product_name"] == "云数据库 MySQL"
-        assert task2["regions"] == ["ap-guangzhou"]
+        assert len(task2["regions"]) == 1
+        assert [{"id": 0, "region": "ap-guangzhou"}] == task2["regions"]
         assert task2["latest_datapoint"] is None
 
     @patch("monitor_web.models.qcloud.CloudMonitoringTaskRegion")
@@ -1766,9 +1768,9 @@ class TestCloudMonitoringTaskDetailResource:
             assert "必须提供task_id参数" in str(e), f"期望错误消息包含'必须提供task_id参数'，实际为: {str(e)}"
 
 
-class TestCloudMonitoringUpdateConfigResource:
+class TestCloudMonitoringConfigResource:
     """
-    Test suite for CloudMonitoringUpdateConfigResource.
+    Test suite for CloudMonitoringConfigResource.
     Focuses on verifying the task update functionality.
     """
 
@@ -1811,11 +1813,10 @@ class TestCloudMonitoringUpdateConfigResource:
         mock_region.delete = Mock()
         return mock_region
 
-    @patch(
-        "packages.monitor_web.collecting.resources.qcloud.CloudMonitoringUpdateConfigResource._update_region_configs"
-    )
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringConfigResource._deploy_monitoring_task")
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringConfigResource._update_region_configs")
     @patch("monitor_web.models.qcloud.CloudMonitoringTask")
-    def test_update_collect_name_success(self, mock_task_model, mock_update_regions):
+    def test_update_collect_name_success(self, mock_task_model, mock_update_regions, mock_deploy):
         """
         Test successful update of collect_name.
         """
@@ -1834,7 +1835,7 @@ class TestCloudMonitoringUpdateConfigResource:
         mock_task_model.DoesNotExist = Exception
 
         # 2. Action: Update only collect_name
-        resource = CloudMonitoringUpdateConfigResource()
+        resource = CloudMonitoringConfigResource()
         request_data = {"bk_biz_id": 1, "task_id": "test_task_123", "collect_name": "New Name"}
         result = resource.perform_request(request_data)
 
@@ -1843,13 +1844,13 @@ class TestCloudMonitoringUpdateConfigResource:
         assert "collect_name" in result["message"]
         assert mock_task.collect_name == "New Name"
         assert mock_task.save.called
+        assert mock_deploy.called
         assert not mock_update_regions.called  # No region updates
 
-    @patch(
-        "packages.monitor_web.collecting.resources.qcloud.CloudMonitoringUpdateConfigResource._update_region_configs"
-    )
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringConfigResource._deploy_monitoring_task")
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringConfigResource._update_region_configs")
     @patch("monitor_web.models.qcloud.CloudMonitoringTask")
-    def test_update_collect_interval_and_timeout_success(self, mock_task_model, mock_update_regions):
+    def test_update_collect_interval_and_timeout_success(self, mock_task_model, mock_update_regions, mock_deploy):
         """
         Test successful update of collect_interval and collect_timeout.
         """
@@ -1868,7 +1869,7 @@ class TestCloudMonitoringUpdateConfigResource:
         mock_task_model.DoesNotExist = Exception
 
         # 2. Action: Update interval and timeout
-        resource = CloudMonitoringUpdateConfigResource()
+        resource = CloudMonitoringConfigResource()
         request_data = {"bk_biz_id": 1, "task_id": "test_task_123", "collect_interval": "5m", "collect_timeout": "60s"}
         result = resource.perform_request(request_data)
 
@@ -1879,14 +1880,16 @@ class TestCloudMonitoringUpdateConfigResource:
         assert mock_task.collect_interval == "5m"
         assert mock_task.collect_timeout == "60s"
         assert mock_task.save.called
+        assert mock_deploy.called
         assert not mock_update_regions.called  # No region updates
 
-    @patch(
-        "packages.monitor_web.collecting.resources.qcloud.CloudMonitoringUpdateConfigResource._update_region_configs"
-    )
-    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringUpdateConfigResource._validate_credentials")
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringConfigResource._deploy_monitoring_task")
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringConfigResource._update_region_configs")
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringConfigResource._validate_credentials")
     @patch("monitor_web.models.qcloud.CloudMonitoringTask")
-    def test_update_credentials_success(self, mock_task_model, mock_validate_credentials, mock_update_regions):
+    def test_update_credentials_success(
+        self, mock_task_model, mock_validate_credentials, mock_update_regions, mock_deploy
+    ):
         """
         Test successful update of credentials.
         """
@@ -1905,7 +1908,7 @@ class TestCloudMonitoringUpdateConfigResource:
         mock_task_model.DoesNotExist = Exception
 
         # 2. Action: Update credentials
-        resource = CloudMonitoringUpdateConfigResource()
+        resource = CloudMonitoringConfigResource()
         request_data = {
             "bk_biz_id": 1,
             "task_id": "test_task_123",
@@ -1921,12 +1924,14 @@ class TestCloudMonitoringUpdateConfigResource:
         assert mock_task.secret_key == "new_secret_key"
         assert mock_validate_credentials.called
         assert mock_task.save.called
+        assert mock_deploy.called
         assert not mock_update_regions.called  # No region updates
 
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringConfigResource._deploy_monitoring_task")
     @patch("monitor_web.models.qcloud.CloudMonitoringTaskRegion")
-    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringUpdateConfigResource._validate_regions")
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringConfigResource._validate_regions")
     @patch("monitor_web.models.qcloud.CloudMonitoringTask")
-    def test_update_regions_success(self, mock_task_model, mock_validate_regions, mock_region_model):
+    def test_update_regions_success(self, mock_task_model, mock_validate_regions, mock_region_model, mock_deploy):
         """
         Test successful update of regions configuration.
         """
@@ -1972,7 +1977,7 @@ class TestCloudMonitoringUpdateConfigResource:
         mock_region_model.objects.create = Mock(return_value=Mock())
 
         # 2. Action: Update regions
-        resource = CloudMonitoringUpdateConfigResource()
+        resource = CloudMonitoringConfigResource()
 
         # Apply mock to _update_region_configs method to use real implementation
         real_update_regions = resource._update_region_configs
@@ -2013,6 +2018,7 @@ class TestCloudMonitoringUpdateConfigResource:
         assert "监控采集任务更新成功" in result["message"]
         assert "regions" in result["message"]
         assert mock_validate_regions.called
+        assert mock_deploy.called
 
         # Check that existing region is updated and new region is created
         assert mock_task.save.called
@@ -2024,20 +2030,25 @@ class TestCloudMonitoringUpdateConfigResource:
         Test error handling when updating a non-existent task.
         """
         # 1. Setup: Mock task model to raise DoesNotExist
-        mock_task_model.objects.get.side_effect = Exception("DoesNotExist")
-        mock_task_model.DoesNotExist = Exception
+        from django.core.exceptions import ObjectDoesNotExist
 
-        # 2. Action: Attempt to update a non-existent task
-        resource = CloudMonitoringUpdateConfigResource()
+        mock_task_model.DoesNotExist = ObjectDoesNotExist
+        mock_task_model.objects.get.side_effect = ObjectDoesNotExist("Task does not exist")
+
+        # 2. Action & Assertions: Expect exception to be raised
+        resource = CloudMonitoringConfigResource()
         request_data = {"bk_biz_id": 1, "task_id": "nonexistent_task", "collect_name": "New Name"}
-        result = resource.perform_request(request_data)
 
-        # 3. Assertions
-        assert "更新配置失败" in result["message"]
-        assert "nonexistent_task" in result["task_id"]
+        try:
+            resource.perform_request(request_data)
+            assert False, "Should raise exception for non-existent task"
+        except Exception as e:
+            # The exception should be re-raised by the resource
+            assert "Task does not exist" in str(e) or "任务不存在" in str(e)
 
+    @patch("packages.monitor_web.collecting.resources.qcloud.CloudMonitoringConfigResource._deploy_monitoring_task")
     @patch("monitor_web.models.qcloud.CloudMonitoringTask")
-    def test_no_fields_to_update(self, mock_task_model):
+    def test_no_fields_to_update(self, mock_task_model, mock_deploy):
         """
         Test when no fields need to be updated.
         """
@@ -2056,7 +2067,7 @@ class TestCloudMonitoringUpdateConfigResource:
         mock_task_model.DoesNotExist = Exception
 
         # 2. Action: Update with same values
-        resource = CloudMonitoringUpdateConfigResource()
+        resource = CloudMonitoringConfigResource()
         request_data = {
             "bk_biz_id": 1,
             "task_id": "test_task_123",
@@ -2068,3 +2079,4 @@ class TestCloudMonitoringUpdateConfigResource:
         # 3. Assertions
         assert "没有需要更新的字段" in result["message"]
         assert not mock_task.save.called  # Should not save if no changes
+        assert not mock_deploy.called  # Should not deploy if no changes

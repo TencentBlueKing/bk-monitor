@@ -419,6 +419,40 @@ class QCloudMonitoringTaskDeployer:
 
             raise
 
+    def undeploy(self):
+        """
+        卸载腾讯云监控采集任务
+        删除与任务关联的所有 K8S 资源
+        """
+        try:
+            cluster_id, namespace = self._get_default_cluster()
+
+            with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
+                dynamic_client = k8s_dynamic.DynamicClient(api_client)
+                resource_client = dynamic_client.resources.get(
+                    api_version=QCLOUD_MONITOR_API_VERSION, kind=QCLOUD_MONITOR_KIND
+                )
+
+                for region in self.regions:
+                    resource_name = f"qcloud-{self.task_id}-{region.region_code}".lower().replace("_", "-")
+                    try:
+                        resource_client.delete(namespace=namespace, name=resource_name)
+                        logger.info(f"成功删除 QCloudMonitor 资源: {resource_name}")
+                    except k8s_client.exceptions.ApiException as e:
+                        if e.status == 404:
+                            logger.warning(f"QCloudMonitor 资源不存在，无需删除: {resource_name}")
+                        else:
+                            logger.error(f"删除 QCloudMonitor 资源失败: {resource_name}, error: {str(e)}")
+                            # 即使部分失败也继续尝试删除其他资源
+                            continue
+
+            logger.info(f"腾讯云监控任务卸载完成: task_id={self.task_id}")
+
+        except Exception as e:
+            logger.error(f"腾讯云监控任务卸载失败: task_id={self.task_id}, error={str(e)}")
+            # 根据场景决定是否需要抛出异常
+            raise
+
     @staticmethod
     def _compare_md5(current_config: dict[str, Any], exists_config: dict[str, Any]) -> tuple[bool, str]:
         """

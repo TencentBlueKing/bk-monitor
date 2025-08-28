@@ -184,10 +184,10 @@ class CloudMonitoringTask(AbstractRecordModel):
     """
 
     # 任务状态选择
-    STATUS_CONNECTING = "connecting"
-    STATUS_SUCCESS = "success"
-    STATUS_FAILED = "failed"
-    STATUS_STOPPED = "stopped"
+    STATUS_CONNECTING = "CONNECTING"
+    STATUS_SUCCESS = "SUCCESS"
+    STATUS_FAILED = "FAILED"
+    STATUS_STOPPED = "STOPPED"
 
     STATUS_CHOICES = [
         (STATUS_CONNECTING, _lazy("接入中")),
@@ -266,10 +266,10 @@ class CloudMonitoringTaskRegion(AbstractRecordModel):
     """
 
     # 地域状态选择
-    STATUS_CONNECTING = "connecting"
-    STATUS_SUCCESS = "success"
-    STATUS_FAILED = "failed"
-    STATUS_STOPPED = "stopped"
+    STATUS_CONNECTING = "CONNECTING"
+    STATUS_SUCCESS = "SUCCESS"
+    STATUS_FAILED = "FAILED"
+    STATUS_STOPPED = "STOPPED"
 
     STATUS_CHOICES = [
         (STATUS_CONNECTING, _lazy("接入中")),

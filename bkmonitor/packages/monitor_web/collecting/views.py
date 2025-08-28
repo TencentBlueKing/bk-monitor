@@ -110,8 +110,8 @@ class QcloudCollectingViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.collecting.cloud_product_instance_query, endpoint="instances_query"),
         # 腾讯云产品标签和过滤器配置接口 - 对应 GET /cloud-products/config
         ResourceRoute("GET", resource.collecting.cloud_product_config, endpoint="config"),
-        # 保存配置并下发采集接口 - 对应 POST /cloud-products/monitoring/save_config
-        ResourceRoute("POST", resource.collecting.cloud_monitoring_save_config, endpoint="monitoring/save_config"),
+        # 保存或更新配置并下发采集接口 - 对应 POST /cloud-products/monitoring/config
+        ResourceRoute("POST", resource.collecting.cloud_monitoring_config, endpoint="monitoring/config"),
         # 获取采集配置列表接口 - 对应 GET /cloud-products/monitoring/tasks
         ResourceRoute("GET", resource.collecting.cloud_monitoring_task_list, endpoint="monitoring/tasks"),
         # 异步获取任务状态接口 - 对应 GET /cloud-products/monitoring/tasks/status
@@ -120,8 +120,14 @@ class QcloudCollectingViewSet(ResourceViewSet):
         ResourceRoute(
             "GET", resource.collecting.cloud_monitoring_task_detail, endpoint="monitoring/tasks/<str:task_id>"
         ),
-        # 更新采集配置接口 - 对应 PUT /cloud-products/monitoring/tasks/{task_id}
+        # 停用采集任务接口 - 对应 POST /cloud-products/monitoring/tasks/{task_id}/stop
         ResourceRoute(
-            "PUT", resource.collecting.cloud_monitoring_update_config, endpoint="monitoring/tasks/<str:task_id>"
+            "POST", resource.collecting.cloud_monitoring_stop_task, endpoint="monitoring/tasks/<str:task_id>/stop"
         ),
+        # 删除采集任务接口 - 对应 DELETE /cloud-products/monitoring/tasks/{task_id}
+        ResourceRoute(
+            "DELETE", resource.collecting.cloud_monitoring_delete_task, endpoint="monitoring/tasks/<str:task_id>"
+        ),
+        # 获取腾讯云监控任务采集日志接口 - 对应 GET /cloud-products/monitoring/tasks/logs
+        ResourceRoute("GET", resource.collecting.cloud_monitoring_task_logs, endpoint="monitoring/tasks/logs"),
     ]
