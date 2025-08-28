@@ -35,6 +35,7 @@ import { random } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 
+import { useZoomKeyboard } from '../../hooks';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../view-legend/view-legend';
 import { defaultConfig } from './mermaid';
@@ -46,6 +47,13 @@ const boxStartId = 'box_';
 const MaxNoteTextLength = 88;
 const MaxImgWidth = 240;
 const MaxImgHeight = 240;
+// 最小缩放比例
+const MIN_SCALE = 10;
+// 最大缩放比例
+const MAX_SCALE = 200;
+// 缩放步长
+const SCALE_STEP = 10;
+
 mermaid.initialize(defaultConfig);
 export default defineComponent({
   name: 'SequenceGraph',
@@ -90,6 +98,15 @@ export default defineComponent({
     });
     const graphScale = ref(100); // 缩放比例
     const rawSvgRect = ref({ width: 0, height: 0 }); // 原始svg尺寸
+
+    // 键盘缩放缩略图 hook
+    useZoomKeyboard(graphScale, {
+      minScale: MIN_SCALE,
+      maxScale: MAX_SCALE,
+      step: SCALE_STEP,
+      onScaleChange: handleScaleChange,
+    });
+
     function addId(data: Record<string, any>[]) {
       // 为数据添加id
       return data?.map(item => ({ ...item, id: random(10) })) || [];
@@ -596,6 +613,7 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
       toggleDataIdActive(undefined);
       emit('update:loading', false);
     });
+
     return {
       graphDefinition,
       svgString,
@@ -668,8 +686,9 @@ ${connectionsStr.replace(/^par\nend\n^/gm, '')}
                   <GraphTools
                     class='sequence-graph-tools'
                     legendActive={this.showLegend}
-                    minScale={10}
-                    scaleStep={10}
+                    maxScale={MAX_SCALE}
+                    minScale={MIN_SCALE}
+                    scaleStep={SCALE_STEP}
                     scaleValue={this.graphScale}
                     thumbnailActive={this.showThumbnail}
                     onScaleChange={this.handleScaleChange}
