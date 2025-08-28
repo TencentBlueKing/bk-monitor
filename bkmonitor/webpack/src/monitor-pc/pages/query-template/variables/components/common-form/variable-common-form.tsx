@@ -54,11 +54,19 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
   })
   variableList: VariableModelType[];
 
+  /** 本地数据，因为变量名不规范的情况不把值传递给上层 */
   localName = '';
+
+  get formData() {
+    return {
+      ...this.data,
+      localName: this.localName,
+    };
+  }
 
   get formRules() {
     return {
-      variableName: [
+      localName: [
         {
           validator: () => {
             return !!this.localName;
@@ -94,7 +102,7 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
 
   emitNameChange(value: string) {
     if (!variableNameReg.test(value)) return;
-    this.$emit('nameChange', value ? `\${${value}}` : value);
+    this.$emit('nameChange', value ? `\${${value}}` : '');
   }
 
   handleAliasChange(value: string) {
@@ -103,11 +111,6 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
 
   handleDescChange(value: string) {
     this.$emit('descChange', value);
-  }
-
-  handleDataChange(value: IVariableData) {
-    delete value.variableName;
-    this.$emit('dataChange', value);
   }
 
   validateForm() {
@@ -119,20 +122,20 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
       <bk-form
         ref='form'
         class='variable-common-form'
-        {...{ props: { model: this.data, rules: this.formRules } }}
+        {...{ props: { model: this.formData, rules: this.formRules } }}
         label-width={76}
       >
         <bk-form-item
           class='variable-name-form-item'
           error-display-type='normal'
           label={this.$t('变量名')}
-          property='variableName'
+          property='localName'
           required
         >
           <bk-input
             class='variable-name-input'
             placeholder={this.$t('1～50 字符，仅支持 大小写字母、数字、下划线、点')}
-            value={this.data.variableName}
+            value={this.localName}
             onBlur={this.emitNameChange}
             onChange={this.handleNameChange}
             onEnter={this.emitNameChange}
@@ -146,7 +149,7 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
           </bk-input>
         </bk-form-item>
         <bk-form-item
-          description={{
+          desc={{
             content: `${this.$t('消费场景优先显示“变量别名”')}<br />${this.$t('变量别名留空，则显示“变量名”')}`,
             width: 200,
             allowHTML: true,
@@ -156,13 +159,13 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
           property='alias'
         >
           <bk-input
-            value={this.data.alias}
+            value={this.formData.alias}
             onBlur={this.handleAliasChange}
             onEnter={this.handleAliasChange}
           />
         </bk-form-item>
         <bk-form-item
-          description={{
+          desc={{
             content: this.$t('消费场景，hover 变量名 / 别名的 label，可以显示“变量描述”'),
             width: 200,
           }}
@@ -172,7 +175,7 @@ export default class VariableCommonForm extends tsc<VariableCommonFormProps, Var
           <bk-input
             maxlength={100}
             type='textarea'
-            value={this.data.description}
+            value={this.formData.description}
             onBlur={this.handleDescChange}
             onEnter={this.handleDescChange}
           />
