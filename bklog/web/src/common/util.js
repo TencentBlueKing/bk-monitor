@@ -1305,7 +1305,7 @@ export const updateLastSelectedIndexId = (spaceUid, index_set_id) => {
   const storage = {
     [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
       ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
-      [spaceUid]: index_set_id,
+      [spaceUid]: [String(index_set_id)],
     },
   };
   store.commit('updateStorage', storage);
