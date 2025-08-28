@@ -88,7 +88,6 @@ export default class ConfigPanel extends tsc<ConfigPanelProps> {
           <QueryConfigViewer
             expressionConfig={this.templateInfo?.expressionConfig}
             queryConfigs={this.templateInfo?.queryConfigs}
-            variablesList={this.templateInfo?.variables.map(e => ({ ...(e?.data || {}), value: [] }))}
           />
         </ExploreCollapseWrapper>
         <ExploreCollapseWrapper
