@@ -295,6 +295,7 @@ export default defineComponent({
               placeholder={t('请输入仓库名称')}
               onChange={val => (params.keyword = val)}
               onEnter={handleSearch}
+              on-right-icon-click={handleSearch}
             />
           </div>
         </section>
