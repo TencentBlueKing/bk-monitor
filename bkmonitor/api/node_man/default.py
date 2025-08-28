@@ -31,13 +31,13 @@ class NodeManAPIGWResource(APIResource, metaclass=abc.ABCMeta):
 
     @property
     def base_url(self):
-        if self.use_apigw:
+        if settings.BKNODEMAN_API_BASE_URL:
             return settings.BKNODEMAN_API_BASE_URL
 
-        if settings.ENABLE_MULTI_TENANT_MODE:
+        if self.use_apigw:
             return f"{settings.BK_COMPONENT_API_URL}/api/bk-nodeman/prod/"
-
-        return f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/nodeman/"
+        else:
+            return f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/nodeman/"
 
     @property
     def use_apigw(self):
