@@ -111,7 +111,7 @@
 
 <script>
   import { mapGetters, mapState } from 'vuex';
-  import { debounce } from 'lodash';
+  import { debounce } from 'lodash-es';
   // MONITOR_APP !== 'trace'
   import ExportLog from '../../result-comp/export-log.vue';
   // #else

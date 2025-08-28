@@ -43,11 +43,17 @@ import {
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
 import DOMPurify from 'dompurify';
+import * as pinyin from 'tiny-pinyin';
+import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
 import Vuex from 'vuex';
 
 import { menuArr } from '../components/nav/complete-menu';
 import collect from './collect';
 import { ConditionOperator } from './condition-operator';
+if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
+  pinyin.patchDict(patcher56L);
+}
+
 import {
   BkLogGlobalStorageKey,
   IndexFieldInfo,
@@ -607,7 +613,7 @@ const store = new Vuex.Store({
         return {
           ...item,
           name: item.space_name.replace(/\[.*?\]/, ''),
-          py_text: Vue.prototype.$bkToPinyin(item.space_name, true),
+          py_text: pinyin.convertToPinyin(item.space_name, true),
           tags:
             item.space_type_id === 'bkci' && item.space_code
               ? [defaultTag, { id: 'bcs', name: window.mainComponent.$t('容器项目'), type: 'bcs' }]

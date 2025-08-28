@@ -31,7 +31,7 @@ import ItemSkeleton from '@/skeleton/item-skeleton';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import DOMPurify from 'dompurify';
-import { escape as _escape } from 'lodash';
+import { escape as _escape } from 'lodash-es';
 
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import $http from '@/api';

@@ -25,7 +25,7 @@
  */
 import { onMounted, onBeforeUnmount } from 'vue';
 
-import { throttle } from 'lodash';
+import { throttle } from 'lodash-es';
 
 import { getTargetElement } from './hooks-helper';
 

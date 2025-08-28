@@ -25,7 +25,7 @@
  */
 import { Ref } from 'vue';
 
-import { isElement, debounce } from 'lodash';
+import { isElement, debounce } from 'lodash-es';
 
 function deepQueryShadowSelector(selector) {
   // 搜索当前根下的元素

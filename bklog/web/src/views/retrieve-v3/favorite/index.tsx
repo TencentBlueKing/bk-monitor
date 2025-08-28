@@ -26,7 +26,7 @@
 
 import { computed, defineComponent, onMounted, ref } from 'vue';
 
-import { throttle } from 'lodash';
+import { throttle } from 'lodash-es';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import CollectMain from './collect-main';

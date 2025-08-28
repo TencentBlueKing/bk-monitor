@@ -57,7 +57,7 @@
   import useStore from '../hooks/use-store';
   import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
   import { BK_LOG_STORAGE } from '../store/store.type';
-  import { debounce, isEmpty } from 'lodash';
+  import { debounce, isEmpty } from 'lodash-es';
   import JSONBig from 'json-bigint';
   import useLocale from '@/hooks/use-locale';
   import useRetrieveEvent from '@/hooks/use-retrieve-event';

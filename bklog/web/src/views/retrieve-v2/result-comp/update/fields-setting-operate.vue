@@ -86,7 +86,7 @@
 </template>
 
 <script>
-  import { debounce } from 'lodash';
+  import { debounce } from 'lodash-es';
 
   import SettingMoreMenu from './setting-more-menu';
 

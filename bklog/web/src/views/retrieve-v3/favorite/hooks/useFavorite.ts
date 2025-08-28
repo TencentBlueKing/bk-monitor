@@ -27,7 +27,7 @@
 import { computed, ref } from 'vue';
 
 import useStore from '@/hooks/use-store';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import { useRouter, useRoute } from 'vue-router/composables';
 
 import { copyMessage } from '../../../../common/util';

@@ -26,7 +26,7 @@
 
 import { computed, type ComputedRef, defineComponent } from 'vue';
 
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'

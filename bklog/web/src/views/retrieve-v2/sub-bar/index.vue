@@ -5,7 +5,7 @@
   import { ConditionOperator } from '@/store/condition-operator';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import { bkMessage } from 'bk-magic-vue';
-  import { isEqual } from 'lodash';
+  import { isEqual } from 'lodash-es';
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import IndexSetChoice from '../components/index-set-choice/index';

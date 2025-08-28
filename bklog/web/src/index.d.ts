@@ -38,7 +38,7 @@ declare global {
     VERSION: string;
     AJAX_URL_PREFIX: string;
     FEATURE_TOGGLE_WHITE_LIST: Record<string, (number | string)[]>;
-    FEATURE_TOGGLE: Record<string, 'debug' | 'on'>;
+    FEATURE_TOGGLE: Record<string, 'debug' | 'off' | 'on'>;
     __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
     __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
     __IS_MONITOR_APM__?: boolean; // 是否是监控APM组件
@@ -47,6 +47,8 @@ declare global {
     BKDATA_URL: string;
     $t: (key: string, params?: Record<string, any>) => string;
     scheduler?: Scheduler;
+    RUN_VER: string;
+    IS_EXTERNAL: boolean | string;
   }
 
   interface Scheduler {

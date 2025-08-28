@@ -33,7 +33,7 @@
   import { updateTimezone } from '@/language/dayjs';
   import { ConditionOperator } from '@/store/condition-operator';
   import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
-  import { isEqual } from 'lodash';
+  import { isEqual } from 'lodash-es';
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import useResizeObserve from '../../../hooks/use-resize-observe';
