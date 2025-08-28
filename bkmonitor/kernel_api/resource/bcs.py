@@ -70,6 +70,7 @@ class RegisterClusterResource(Resource):
                 cluster_id=cluster_id,
                 project_id=project_id,
                 creator=validated_request_data["username"],
+                bk_tenant_id=bk_tenant_id,
             )
             cluster.init_resource()
             return f"[cluster]{cluster_id} success!"

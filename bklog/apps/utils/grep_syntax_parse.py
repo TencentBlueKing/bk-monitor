@@ -26,19 +26,20 @@ def t_ARG(t):  # noqa: F841
 def t_DOUBLE_QUOTED_STRING(t):  # noqa: F841
     r'\"(?:\\["\\tnr]|\\[^"]|[^"\\])*\"'
     # 去掉引号
-    t.value = t.value[1:-1]
+    t.value = t.value[1:-1].replace('\\"', '"')
     return t
 
 
 def t_SINGLE_QUOTED_STRING(t):  # noqa: F841
     r"""'(?:\\["\\tnr?]|\\[^"]|[^"\\])*'"""
     # 去掉引号
-    t.value = t.value[1:-1]
+    t.value = t.value[1:-1].replace("\\'", "'")
     return t
 
 
 def t_RAW_PATTERN(t):  # noqa: F841
     r"""(?:\\[|"'\s\+\?\.\*\{\}\(\)\^\$]|[^\s|"'\\-])+"""
+    t.value = t.value.replace("\\ ", " ")
     return t
 
 
@@ -67,41 +68,11 @@ def p_command(p):  # noqa: F841
     """command : cmd_prefix args_pattern"""
     cmd, args = p[1]
     _, pattern = p[2]
-    result = []
-    i = 0
     # args中存在E时, 使用egrep命令
     args = args or []
     for arg in args:
         if "E" in arg:
             cmd = "egrep"
-    # 对pattern中的转义字符进行处理
-    while i < len(pattern):
-        if pattern[i] == '\\' and i + 1 < len(pattern):
-            if cmd != "egrep" and pattern[i + 1] in ["+", "?", "{", "}"]:
-                # 直接取转义后的字符
-                result.append(pattern[i + 1])
-                i += 2
-            elif cmd == "egrep":
-                # grep命令下需要在这些字符前加上反斜杠
-                result.append(pattern[i])
-                i += 1
-            elif pattern[i + 1] in [".", "*", "^", "$"]:
-                result.append(pattern[i])
-                i += 1
-            else:
-                # 直接取转义后的字符
-                result.append(pattern[i + 1])
-                i += 2
-        else:
-            if cmd != "egrep" and pattern[i] in ["+", "?", "{", "}"]:
-                # grep命令下需要在这些字符前加上反斜杠
-                result.append(f"\\{pattern[i]}")
-                i += 1
-            else:
-                result.append(pattern[i])
-                i += 1
-
-    pattern = "".join(result)
     # 默认命令是grep
     p[0] = {"command": cmd or "grep", "args": args, "pattern": pattern}
 

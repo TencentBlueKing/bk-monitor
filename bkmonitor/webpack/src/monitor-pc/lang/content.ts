@@ -299,6 +299,8 @@ export default {
   '点击前往：主机详情页': 'Click to go to: Host details page/Host details page',
   '点击前往：服务详情页': 'Click to go to: Host details page/Service details page',
   '点击前往：pod详情页': 'Click to go to: Host details page/Pod details page',
+  '点击前往：容器场景页': 'Click to go to: Container scene page',
+  '共 {0} 个事件，展示 {1}': '{0} events in total, display {1}',
   '共 {0} 个事件，展示 Top{1}': '{0} events in total, display Top{1}',
   '共 {0} 个事件，已按事件名汇总': '{0} events in total, aggregated by event name',
   某一值: 'A certain value',
