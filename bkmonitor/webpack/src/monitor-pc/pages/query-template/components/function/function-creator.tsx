@@ -135,6 +135,7 @@ export default class FunctionCreator extends tsc<IProps> {
       this.curTags.push(item);
       this.handleChange();
     }
+    this.showSelect = false;
   }
 
   handleSelectVar(item: IFunctionOptionsItem) {
@@ -145,6 +146,7 @@ export default class FunctionCreator extends tsc<IProps> {
       });
       this.handleChange();
     }
+    this.showSelect = false;
   }
 
   handleDelTag(index: number) {

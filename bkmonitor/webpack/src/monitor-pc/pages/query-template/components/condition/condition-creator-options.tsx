@@ -371,6 +371,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
     if (item) {
       if (item.name === '*') {
         if (!this.keyword) this.allInputRef?.focus();
+      } else if (item.type === EFieldType.variable) {
+        this.handleSelectVariable(item);
       } else {
         this.queryString = '';
         this.handleCheck(item, '', [], false, isFocus);
@@ -579,7 +581,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               {this.hasVariableOperate && (
                 <div
                   key={'variable-operate'}
-                  class={['option']}
+                  class={['option', { checked: this.isCreateVariable }]}
                   onClick={this.handleClickCreateVariable}
                 >
                   <span class='option-name-title'>
@@ -595,7 +597,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                       key={`${index}_variable_${item.name}`}
                       class={[
                         'option',
-                        { checked: this.checkedItem?.name === item.name },
+                        { checked: this.checkedItem?.name === item.name && !this.isCreateVariable },
                         { cursor: index === this.cursorIndex },
                       ]}
                       onClick={() => this.handleSelectVariable(item)}
@@ -610,7 +612,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                     key={item.name}
                     class={[
                       'option',
-                      { checked: this.checkedItem?.name === item.name },
+                      { checked: this.checkedItem?.name === item.name && !this.isCreateVariable },
                       { cursor: index === this.cursorIndex },
                     ]}
                     onClick={() => {
