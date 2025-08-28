@@ -79,6 +79,15 @@ export type IMethodVariableModel = ICommonVariableModel<typeof VariableTypeEnum.
 
 export type IVariableData = Required<IVariableModel & { variableName: string }>;
 
+export interface IVariableFormEvents {
+  onAliasChange: (val: string) => void;
+  onDefaultValueChange: (val: any) => void;
+  onDescChange: (val: string) => void;
+  onNameChange: (val: string) => void;
+  onOptionsChange: (val: string[]) => void;
+  onValueChange: (val: any) => void;
+}
+
 export type IVariableModel =
   | IConditionVariableModel
   | IConstantVariableModel
@@ -86,5 +95,22 @@ export type IVariableModel =
   | IDimensionVariableModel
   | IFunctionVariableModel
   | IMethodVariableModel;
+
+/** 变量提交参数结构 */
+export type IVariableSubmitParams = {
+  alias: string;
+  config: {
+    default: any;
+    options?: string[];
+    related_metrics?: {
+      metric_field: string;
+      metric_id: string;
+    }[];
+    related_tag?: string;
+  };
+  description: string;
+  name: string;
+  type: VariableTypeEnumType;
+};
 
 export type VariableTypeEnumType = GetEnumTypeTool<typeof VariableTypeEnum>;

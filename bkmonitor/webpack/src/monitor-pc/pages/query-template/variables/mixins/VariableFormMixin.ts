@@ -24,52 +24,32 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import EditVariableValue from '../common-form/edit-variable-value';
-
-import type { ConstantVariableModel } from '../../index';
-
-interface ConstantValueEvents {
-  onBlur: () => void;
-  onFocus: () => void;
-  onValueChange: (value: string) => void;
-}
-
-interface ConstantValueProps {
-  variable: ConstantVariableModel;
-}
+import { Component, Emit, Vue } from 'vue-property-decorator';
 
 @Component
-export default class EditConstantVariableValue extends tsc<ConstantValueProps, ConstantValueEvents> {
-  @Prop({ type: Object, required: true }) variable!: ConstantVariableModel;
-
+export default class VariableFormMixin extends Vue {
+  @Emit('aliasChange')
+  handleAliasChange(val: string) {
+    return val;
+  }
+  @Emit('defaultValueChange')
+  handleDefaultValueChange(val: any) {
+    return val;
+  }
+  @Emit('descChange')
+  handleDescChange(val: string) {
+    return val;
+  }
+  @Emit('nameChange')
+  handleNameChange(val: string) {
+    return val;
+  }
+  @Emit('optionsChange')
+  handleOptionsChange(val: string[]) {
+    return val;
+  }
   @Emit('valueChange')
-  handleValueChange(value: string) {
-    return value;
-  }
-
-  handleInputFocus() {
-    this.$emit('focus');
-  }
-
-  handleInputBlur(val: string) {
-    this.handleValueChange(val);
-    this.$emit('blur');
-  }
-
-  render() {
-    return (
-      <EditVariableValue data={this.variable.data}>
-        <bk-input
-          clearable={false}
-          value={this.variable.data.value}
-          onBlur={this.handleInputBlur}
-          onEnter={this.handleValueChange}
-          onFocus={this.handleInputFocus}
-        />
-      </EditVariableValue>
-    );
+  handleValueChange(val: any) {
+    return val;
   }
 }

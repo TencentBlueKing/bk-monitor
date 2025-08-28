@@ -105,35 +105,37 @@ export default class ConditionVariableDetail extends tsc<ConditionDetailProps> {
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
             <div class='form-item-value'>
-              {this.transformDefaultValue.map(item => (
-                <div
-                  key={item.name}
-                  class='condition-tag'
-                >
-                  <div class='key-wrap'>
-                    <span class='key-name'>{item.name}</span>
-                    <span class={['key-method', item.operation?.id]}>{item.operation.name}</span>
-                  </div>
-                  <div class='value-wrap'>
-                    {item.value.map((item, index) => [
-                      index > 0 && (
-                        <span
-                          key={`${index}_condition`}
-                          class='value-condition'
-                        >
-                          OR
-                        </span>
-                      ),
-                      <span
-                        key={`${index}_key`}
-                        class='value-name'
-                      >
-                        {item || '""'}
-                      </span>,
-                    ])}
-                  </div>
-                </div>
-              ))}
+              {this.transformDefaultValue.length
+                ? this.transformDefaultValue.map(item => (
+                    <div
+                      key={item.name}
+                      class='condition-tag'
+                    >
+                      <div class='key-wrap'>
+                        <span class='key-name'>{item.name}</span>
+                        <span class={['key-method', item.operation?.id]}>{item.operation.name}</span>
+                      </div>
+                      <div class='value-wrap'>
+                        {item.value.map((item, index) => [
+                          index > 0 && (
+                            <span
+                              key={`${index}_condition`}
+                              class='value-condition'
+                            >
+                              OR
+                            </span>
+                          ),
+                          <span
+                            key={`${index}_key`}
+                            class='value-name'
+                          >
+                            {item || '""'}
+                          </span>,
+                        ])}
+                      </div>
+                    </div>
+                  ))
+                : '--'}
             </div>
           </div>
         </VariableCommonFormDetail>

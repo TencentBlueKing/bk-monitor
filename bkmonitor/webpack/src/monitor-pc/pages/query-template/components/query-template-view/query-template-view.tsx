@@ -40,7 +40,7 @@ interface QueryTemplateViewEvents {
   onCancel: () => void;
   onStepChange: (index: number) => void;
   onSubmit: () => void;
-  onVariablesChange: (variablesList: VariableModelType[]) => void;
+  onVariableValueChange: (val: any, index: number) => void;
 }
 
 interface QueryTemplateViewProps {
@@ -61,10 +61,8 @@ export default class QueryTemplateView extends tsc<QueryTemplateViewProps, Query
   @Prop({ default: () => '' }) chartTitle: string;
   @Prop({ default: false }) submitLoading: boolean;
 
-  @Emit('variablesChange')
-  handleVariablesListChange(variablesList: VariableModelType[]) {
-    console.log('variablesList', variablesList);
-    return variablesList;
+  handleVariableValueChange(val: any, index: number) {
+    this.$emit('variableValueChange', val, index);
   }
 
   @Emit('submit')
@@ -90,7 +88,7 @@ export default class QueryTemplateView extends tsc<QueryTemplateViewProps, Query
                     metricFunctions={this.metricFunctions}
                     scene='edit'
                     variablesList={this.variablesList}
-                    onChange={this.handleVariablesListChange}
+                    onValueChange={this.handleVariableValueChange}
                   />
                 </div>
               )}

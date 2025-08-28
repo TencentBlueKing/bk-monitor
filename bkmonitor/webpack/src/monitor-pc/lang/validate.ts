@@ -293,4 +293,6 @@ export default {
   变量名不能包含非法字符: 'Variable name cannot contain illegal characters',
   '1～50 字符，仅支持 英文小写、数字、下划线':
     '1-50 characters, and only lowercase letters, numbers, and _ are supported',
+  '1～50 字符，仅支持 大小写字母、数字、下划线、点':
+    '1-50 characters, and only uppercase and lowercase letters, numbers, _ and . are supported',
 };
