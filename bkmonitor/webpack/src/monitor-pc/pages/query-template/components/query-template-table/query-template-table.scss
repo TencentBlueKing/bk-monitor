@@ -7,12 +7,14 @@
   .query-template-table {
     &.table-loading-active {
       .bk-table-body-wrapper,
+      .bk-table-fixed,
       .bk-table-fixed-right,
       .bk-table-pagination-wrapper {
         display: none;
       }
     }
 
+    .bk-table-fixed-body-wrapper,
     /* stylelint-disable-next-line no-descending-specificity */
     .bk-table-body-wrapper {
       border-bottom: 1px solid #dfe0e5;
