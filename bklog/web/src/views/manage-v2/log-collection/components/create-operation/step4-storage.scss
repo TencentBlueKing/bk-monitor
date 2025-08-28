@@ -60,9 +60,15 @@
     }
     .form-box {
       width: 25%;
+    }
+    .min-width {
+      min-width: 130px;
+      width: 30%;
       .group-text {
         padding: 0 8px;
-        line-height: 32px;
+        line-height: 30px;
+        background: #fafbfd;
+        color: #4d4f56;
       }
     }
   }

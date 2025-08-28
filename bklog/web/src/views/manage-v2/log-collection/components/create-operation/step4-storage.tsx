@@ -29,7 +29,7 @@ import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import useLocale from '@/hooks/use-locale';
 
 import { useOperation } from '../../hook/useOperation';
-import ClusterTable from '../common-comp/cluster-table';
+import ClusterTable from '../business-comp/cluster-table';
 import { step4Data } from './data';
 
 import './step4-storage.scss';
@@ -44,17 +44,24 @@ export default defineComponent({
     const { cardRender } = useOperation();
     const activeName = ref(['shared', 'exclusive']);
     const data = step4Data;
-    const collapseList = ref([
+    const clusterSelect = ref(null);
+    const collapseList = computed(() => [
       {
         title: t('共享集群'),
         key: 'shared',
+        data: data.filter(item => item.is_platform),
       },
       {
         title: t('业务独享集群'),
         key: 'exclusive',
         tips: t('你可以随时切换所选集群，切换集群后，不会造成数据丢失。原数据将在新集群存储时长到期后自动清除。'),
+        data: data.filter(item => !item.is_platform),
       },
     ]);
+
+    const handleChooseCluster = row => {
+      clusterSelect.value = row.storage_cluster_id;
+    };
 
     /** rCollapseItem的渲染 */
     const renderCollapseItem = item => (
@@ -77,8 +84,10 @@ export default defineComponent({
           slot='content'
         >
           <ClusterTable
-            clusterList={data}
+            clusterList={item.data}
+            clusterSelect={clusterSelect.value}
             showBizCount={item.key === 'shared'}
+            on-choose={handleChooseCluster}
           />
         </div>
       </bk-collapse-item>
@@ -105,7 +114,7 @@ export default defineComponent({
         <div class='link-config label-form-box'>
           <span class='label-title'>{t('过期时间')}</span>
           <bk-input
-            class='form-box'
+            class='min-width'
             type='number'
           >
             <template slot='append'>
@@ -116,14 +125,14 @@ export default defineComponent({
         <div class='link-config label-form-box'>
           <span class='label-title'>{t('副本数')}</span>
           <bk-input
-            class='form-box'
+            class='min-width'
             type='number'
           ></bk-input>
         </div>
         <div class='link-config label-form-box'>
           <span class='label-title'>{t('分片数')}</span>
           <bk-input
-            class='form-box'
+            class='min-width'
             type='number'
           ></bk-input>
         </div>

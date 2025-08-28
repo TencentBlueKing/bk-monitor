@@ -1,20 +1,4 @@
 /*
- * @Author: EmilyMei 447693773@qq.com
- * @Date: 2025-08-22 15:54:37
- * @LastEditors: EmilyMei 447693773@qq.com
- * @LastEditTime: 2025-08-26 16:55:58
- * @FilePath: /web/src/views/manage-v2/log-collection/components/create-operation/index.tsx
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
- */
-/*
- * @Author: EmilyMei 447693773@qq.com
- * @Date: 2025-08-22 15:54:37
- * @LastEditors: EmilyMei 447693773@qq.com
- * @LastEditTime: 2025-08-26 15:53:55
- * @FilePath: /web/src/views/manage-v2/log-collection/components/create-operation/index.tsx
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
- */
-/*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
@@ -45,7 +29,9 @@ import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
 
 import StepClassify from './step1-classify';
+import StepBkDataCollection from './step2-bk-data-collection';
 import StepConfiguration from './step2-configuration';
+import StepCustomReport from './step2-custom-report';
 import StepClean from './step3-clean';
 import StepStorage from './step4-storage';
 
@@ -57,7 +43,7 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const mainRef = ref<HTMLDivElement>();
-    const step = ref(3);
+    const step = ref(4);
 
     const stepDesc = [
       { title: t('索引集分类'), icon: 1, components: StepClassify },

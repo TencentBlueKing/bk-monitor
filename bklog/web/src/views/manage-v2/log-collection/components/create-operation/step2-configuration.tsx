@@ -29,6 +29,7 @@ import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import useLocale from '@/hooks/use-locale';
 
 import { useOperation } from '../../hook/useOperation';
+import InfoTips from '../common-comp/info-tips';
 
 import './step2-configuration.scss';
 
@@ -125,10 +126,7 @@ export default defineComponent({
                       {t('秒')}
                     </div>
                   </bk-input>
-                  <span class='form-box-tips ml-0'>
-                    <i class='bk-icon icon-info-circle tips-icon' />
-                    {t('建议配置 1s, 配置过长时间可能会导致日志积压')}
-                  </span>
+                  <InfoTips tips={t('建议配置 1s, 配置过长时间可能会导致日志积压')} />
                 </div>
               </div>
             </div>
@@ -148,10 +146,7 @@ export default defineComponent({
         <div class='label-form-box'>
           <span class='label-title'>{t('采集路径')}</span>
           <div class='form-box'>
-            <span class='form-box-tips ml-0'>
-              <i class='bk-icon icon-info-circle tips-icon' />
-              {t('日志文件的绝对路径，可使用 通配符')}
-            </span>
+            <InfoTips tips={t('日志文件的绝对路径，可使用 通配符')} />
             <div class='form-box-url'>
               <bk-input></bk-input>
             </div>
@@ -160,10 +155,7 @@ export default defineComponent({
                 <i class='bklog-icon link-icon bklog-expand-small' />
                 {t('路径黑名单')}
               </span>
-              <span class='form-box-tips ml-0'>
-                <i class='bk-icon icon-info-circle tips-icon' />
-                {t('可通过正则语法排除符合条件的匹配项 。如：匹配任意字符：.*')}
-              </span>
+              <InfoTips tips={t('可通过正则语法排除符合条件的匹配项 。如：匹配任意字符：.*')} />
             </div>
           </div>
         </div>
@@ -182,20 +174,20 @@ export default defineComponent({
           <span class='label-title'>{t('日志过滤')}</span>
           <div class='form-box'>
             <bk-switcher size='large'></bk-switcher>
-            <span class='form-box-tips'>
-              <i class='bk-icon icon-info-circle tips-icon' />
-              {t('过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本')}
-            </span>
+            <InfoTips
+              class='ml-12'
+              tips={t('过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本')}
+            />
           </div>
         </div>
         <div class='label-form-box'>
           <span class='label-title'>{t('设备元数据')}</span>
           <div class='form-box'>
             <bk-switcher size='large'></bk-switcher>
-            <span class='form-box-tips'>
-              <i class='bk-icon icon-info-circle tips-icon' />
-              {t('该设置可以将采集设备的元数据信息补充至日志中')}
-            </span>
+            <InfoTips
+              class='ml-12'
+              tips={t('该设置可以将采集设备的元数据信息补充至日志中')}
+            />
           </div>
         </div>
       </div>

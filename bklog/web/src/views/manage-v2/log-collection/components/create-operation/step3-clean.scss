@@ -60,7 +60,7 @@
     }
   }
   .select-group {
-    width: 80%;
+    width: 95%;
     display: flex;
     margin-top: 12px;
     gap: 12px;
@@ -83,6 +83,7 @@
     }
     .select-box {
       flex: 1;
+      min-width: 320px;
       border-left: none;
       border-radius: 0 2px 2px 0;
     }
@@ -105,17 +106,14 @@
         font-size: 14px;
       }
     }
-    .bk-button-group {
-      .bk-button {
-        width: 120px;
-      }
-    }
     .clean-btn {
       display: block;
       width: 80px;
       margin-top: 16px;
       border: 1px solid #3a84ff;
       color: #3a84ff;
+      font-size: 12px;
+      padding: 1px 15px;
     }
     .checkbox-box {
       display: flex;

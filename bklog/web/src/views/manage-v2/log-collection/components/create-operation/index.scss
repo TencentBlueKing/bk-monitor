@@ -2,6 +2,12 @@
   .mr-8 {
     margin-right: 8px;
   }
+  .ml-12 {
+    margin-left: 12px;
+  }
+  .block {
+    display: block;
+  }
   .width-88 {
     width: 88px;
   }
@@ -77,7 +83,7 @@
   }
   .classify-main-box {
     width: 100%;
-    height: calc(100% - 48px);
+    max-height: calc(100% - 48px);
     overflow-y: auto;
     // border: 1px solid red;
     padding: 16px;
@@ -100,6 +106,13 @@
     .label-form-box {
       display: flex;
       margin-bottom: 16px;
+      .bk-button-group {
+        .bk-button {
+          width: 120px;
+          font-size: 12px;
+          padding: 1px 15px;
+        }
+      }
       &:last-child {
         margin-bottom: 0;
       }
@@ -137,7 +150,7 @@
       }
       .form-box {
         flex: 1;
-        padding-top: 6px;
+        // padding-top: 6px;
         .form-box-tips {
           margin-left: 12px;
           font-size: 12px;

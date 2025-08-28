@@ -43,13 +43,16 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    clusterSelect: {
+      type: String,
+      default: '',
+    },
   },
 
   emits: ['choose'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const clusterSelect = ref(null);
     const getPercent = row => {
       return (100 - row.storage_usage) / 100;
     };
@@ -57,10 +60,15 @@ export default defineComponent({
     const handleSelectCluster = row => {
       emit('choose', row);
     };
+    const isSelected = item => props.clusterSelect === item.storage_cluster_id;
+    const isShowDesc = computed(() => props.clusterSelect && props.clusterList.find(item => isSelected(item)));
 
     /** 集群表格 */
     const renderClusterTable = () => (
-      <div class='cluster-content-table'>
+      <div
+        style={{ width: isShowDesc.value ? '58%' : '100%' }}
+        class='cluster-content-table'
+      >
         <bk-table
           class='cluster-table'
           data={props.clusterList}
@@ -69,7 +77,7 @@ export default defineComponent({
           <bk-table-column
             scopedSlots={{
               default: ({ row }) => (
-                <bk-radio checked={clusterSelect.value === row.storage_cluster_id}>
+                <bk-radio checked={isSelected(row)}>
                   <div
                     class='overflow-tips'
                     v-bk-overflow-tips
@@ -147,7 +155,7 @@ export default defineComponent({
     return () => (
       <div class='cluster-table-box'>
         {renderClusterTable()}
-        {renderClusterDesc()}
+        {isShowDesc.value && renderClusterDesc()}
       </div>
     );
   },

@@ -30,7 +30,7 @@ import useLocale from '@/hooks/use-locale';
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
-import AddIndexSet from '../common-comp/add-index-set';
+import AddIndexSet from '../business-comp/add-index-set';
 import ListItem from './list-item';
 
 import './left-list.scss';

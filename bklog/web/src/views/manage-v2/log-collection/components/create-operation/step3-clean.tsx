@@ -29,6 +29,7 @@ import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import useLocale from '@/hooks/use-locale';
 
 import { useOperation } from '../../hook/useOperation';
+import InfoTips from '../common-comp/info-tips';
 
 import './step3-clean.scss';
 
@@ -79,10 +80,10 @@ export default defineComponent({
                 <i class='bklog-icon bklog-refresh2 link-icon' />
                 {t('刷新')}
               </span>
-              <span class='form-box-tips'>
-                <i class='bk-icon icon-info-circle tips-icon' />
-                {t('作为清洗调试的原始数据')}
-              </span>
+              <InfoTips
+                class='ml-12'
+                tips={t('作为清洗调试的原始数据')}
+              />
             </div>
             <bk-input type='textarea' />
           </div>
@@ -104,7 +105,7 @@ export default defineComponent({
               <bk-button class='is-selected'>{t('JSON')}</bk-button>
               <bk-button>{t('分隔符')}</bk-button>
               <bk-button>{t('正则表达式')}</bk-button>
-              <bk-button>{t('高级清洗')}</bk-button>
+              {/* <bk-button>{t('高级清洗')}</bk-button> */}
             </div>
             <bk-button class='clean-btn'>{t('清洗')}</bk-button>
           </div>
@@ -170,10 +171,10 @@ export default defineComponent({
           <span class='label-title no-require'>{t('路径元数据')}</span>
           <div class='form-box'>
             <bk-switcher size='large'></bk-switcher>
-            <span class='form-box-tips'>
-              <i class='bk-icon icon-info-circle tips-icon' />
-              {t('定义元数据并补充至日志中，可通过元数据进行过滤筛选')}
-            </span>
+            <InfoTips
+              class='ml-12'
+              tips={t('定义元数据并补充至日志中，可通过元数据进行过滤筛选')}
+            />
           </div>
         </div>
       </div>
