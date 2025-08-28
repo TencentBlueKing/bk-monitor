@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { commonPageSizeGet, commonPageSizeSet, Debounce, random } from 'monitor-common/utils';
 
+import QueryTemplateSearch from './components/query-template-search/query-template-search';
 import QueryTemplateTable from './components/query-template-table/query-template-table';
 import { destroyQueryTemplateById, fetchQueryTemplateList } from './service/table';
 
@@ -45,7 +46,7 @@ export default class MetricTemplate extends tsc<object> {
   pageSize = 50;
   total = 100;
   sort = '-update_time';
-  searchKeyword = '';
+  searchKeyword: QueryListRequestParams['conditions'] = [];
   tableLoading = false;
   tableData: QueryTemplateListItem[] = [];
   /** 数据请求中止控制器 */
@@ -57,12 +58,7 @@ export default class MetricTemplate extends tsc<object> {
       page: this.current,
       page_size: this.pageSize,
       order_by: this.sort ? [this.sort] : [],
-      conditions: [
-        {
-          key: 'query',
-          value: this.searchKeyword ? [this.searchKeyword] : [],
-        },
-      ],
+      conditions: this.searchKeyword,
     };
 
     delete param.refreshKey;
@@ -111,18 +107,22 @@ export default class MetricTemplate extends tsc<object> {
    */
   getRouterParams() {
     const { sort, searchKeyword } = this.$route.query;
-    this.sort = (sort as string) || '-update_time';
-    this.searchKeyword = searchKeyword as string;
+    try {
+      this.sort = (sort as string) || '-update_time';
+      this.searchKeyword = searchKeyword ? JSON.parse(searchKeyword as string) : [];
+    } catch (error) {
+      console.log('route query:', error);
+    }
   }
 
   /**
    * @description 缓存条件参数知路由
    */
-  setRouterParam() {
+  setRouterParams() {
     const query = {
       ...this.$route.query,
       sort: this.sort,
-      searchKeyword: this.searchKeyword,
+      searchKeyword: JSON.stringify(this.searchKeyword),
     };
     const targetRoute = this.$router.resolve({
       query,
@@ -168,7 +168,7 @@ export default class MetricTemplate extends tsc<object> {
   handleSortChange(sort: `-${string}` | string) {
     if (sort === this.sort) return;
     this.sort = sort;
-    this.setRouterParam();
+    this.setRouterParams();
   }
 
   handleCurrentPageChange(currentPage: number) {
@@ -180,10 +180,9 @@ export default class MetricTemplate extends tsc<object> {
   }
 
   @Debounce(300)
-  handleSearchChange(keyword: string) {
-    if (keyword === this.searchKeyword) return;
+  handleSearchChange(keyword: QueryListRequestParams['conditions']) {
     this.searchKeyword = keyword;
-    this.setRouterParam();
+    this.setRouterParams();
   }
 
   /**
@@ -210,14 +209,11 @@ export default class MetricTemplate extends tsc<object> {
             </bk-button>
           </div>
           <div class='query-template-header-search'>
-            <bk-input
+            <QueryTemplateSearch
               class='search-input'
-              clearable={true}
-              placeholder={this.$t('搜索 模板名称、模板说明、创建人、更新人')}
-              right-icon='bk-icon icon-search'
-              value={this.searchKeyword}
-              on-right-icon-click={this.handleRefresh}
+              searchKeyword={this.searchKeyword}
               onChange={this.handleSearchChange}
+              onSearch={this.handleRefresh}
             />
           </div>
         </div>

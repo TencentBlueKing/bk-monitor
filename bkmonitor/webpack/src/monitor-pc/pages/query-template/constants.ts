@@ -40,6 +40,40 @@ export const TABLE_DEFAULT_DISPLAY_FIELDS = [
   'operator',
 ];
 
+/** 查询模板列表-搜索组件下拉选项 */
+export const SEARCH_SELECT_OPTIONS = [
+  {
+    name: window.i18n.t('全文检索'),
+    key: 'query',
+    multiable: false,
+  },
+  {
+    name: window.i18n.t('模板名称'),
+    key: 'name',
+    multiable: false,
+  },
+  {
+    name: window.i18n.t('模板别名'),
+    key: 'alias',
+    multiable: false,
+  },
+  {
+    name: window.i18n.t('模板说明'),
+    key: 'description',
+    multiable: false,
+  },
+  {
+    name: window.i18n.t('创建人'),
+    key: 'create_user',
+    multiable: false,
+  },
+  {
+    name: window.i18n.t('更新人'),
+    key: 'update_user',
+    multiable: false,
+  },
+];
+
 /** 查询模板 侧弹详情抽屉面板 Tab 枚举 */
 export const TemplateDetailTabEnum = {
   /** 配置信息 */
