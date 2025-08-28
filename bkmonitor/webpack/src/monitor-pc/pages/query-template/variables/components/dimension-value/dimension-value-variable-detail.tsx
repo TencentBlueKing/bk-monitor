@@ -104,14 +104,16 @@ export default class DimensionValueVariableDetail extends tsc<DimensionValueDeta
             <div class='form-item-label'>{this.$t('默认值')}：</div>
             <div class='form-item-value'>
               <div class='tag-list'>
-                {this.defaultValueMap.map(item => (
-                  <div
-                    key={item.value}
-                    class='tag-item'
-                  >
-                    {item.label}
-                  </div>
-                ))}
+                {this.defaultValueMap.length
+                  ? this.defaultValueMap.map(item => (
+                      <div
+                        key={item.value}
+                        class='tag-item'
+                      >
+                        {item.label}
+                      </div>
+                    ))
+                  : '--'}
               </div>
             </div>
           </div>

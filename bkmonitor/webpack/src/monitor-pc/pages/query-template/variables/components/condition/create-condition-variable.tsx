@@ -23,26 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
+import * as tsx from 'vue-tsx-support';
 
 import ConditionCreator from '../../../components/condition/condition-creator';
-import { ConditionVariableModel } from '../../index';
+import VariableFormMixin from '../../mixins/VariableFormMixin';
 import VariableCommonForm from '../common-form/variable-common-form';
 
 import type { IConditionOptionsItem } from '../../../components/type/query-config';
-import type { AggCondition, IConditionVariableModel } from '../../../typings';
+import type { AggCondition, IVariableFormEvents } from '../../../typings';
+import type { ConditionVariableModel } from '../../index';
 
 import './create-condition-variable.scss';
-interface ConditionVariableEvents {
-  onDataChange: (variable: ConditionVariableModel) => void;
+interface ConditionVariableEvents extends IVariableFormEvents {
+  onDefaultValueChange: (val: AggCondition[]) => void;
+  onValueChange: (val: AggCondition[]) => void;
 }
 interface ConditionVariableProps {
   variable: ConditionVariableModel;
 }
 
 @Component
-export default class CreateConditionVariable extends tsc<ConditionVariableProps, ConditionVariableEvents> {
+class CreateConditionVariable extends Mixins(VariableFormMixin) {
   @Prop({ type: Object, required: true }) variable!: ConditionVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
 
@@ -54,31 +56,6 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
     const isAllDisabled = dimensionId === 'all' && this.options.length && !isSelectAll;
     const isOtherDisabled = dimensionId !== 'all' && isSelectAll;
     return isAllDisabled || isOtherDisabled;
-  }
-
-  handleDimensionChange(options: string[]) {
-    let defaultValue = this.variable.data.defaultValue || [];
-    const isAll = options.includes('all');
-    const selectList = isAll ? this.variable.dimensionList.map(item => item.id) : options;
-    if (!isAll) {
-      defaultValue = defaultValue.filter(item => options.includes(item.key));
-    }
-
-    let value = this.variable.value || [];
-    /** 如果没有编辑过值，直接使用默认值 */
-    if (!this.variable.isValueEditable) {
-      value = defaultValue;
-    } else {
-      /** 判断编辑值是否在维度列表中 */
-      value = value.filter(item => selectList.includes(item.key));
-    }
-
-    this.handleDataChange({
-      ...this.variable.data,
-      options,
-      defaultValue,
-      value,
-    });
   }
 
   /** 弹窗关闭的时候在进行传值 */
@@ -102,34 +79,19 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
         value = value.filter(item => selectList.includes(item.key));
       }
 
-      this.handleDataChange({
-        ...this.variable.data,
-        options: this.options,
-        defaultValue,
-        value,
-      });
+      this.handleOptionsChange(this.options);
+      this.handleDefaultValueChange(defaultValue);
+      this.handleValueChange(value);
     }
   }
 
-  handleValueChange(defaultValue: AggCondition[]) {
+  defaultValueChange(defaultValue: AggCondition[]) {
     let value = this.variable.value || [];
     if (!this.variable.isValueEditable) {
       value = defaultValue;
     }
-    this.handleDataChange({
-      ...this.variable.data,
-      defaultValue,
-      value,
-    });
-  }
-
-  handleDataChange(data: IConditionVariableModel) {
-    this.$emit(
-      'dataChange',
-      new ConditionVariableModel({
-        ...data,
-      })
-    );
+    this.handleDefaultValueChange(defaultValue);
+    this.handleValueChange(value);
   }
 
   validateForm() {
@@ -146,7 +108,9 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
         <VariableCommonForm
           ref='variableCommonForm'
           data={this.variable.data}
-          onDataChange={this.handleDataChange}
+          onAliasChange={this.handleAliasChange}
+          onDescChange={this.handleDescChange}
+          onNameChange={this.handleNameChange}
         >
           <bk-form-item label={this.$t('关联指标')}>
             <bk-input
@@ -191,7 +155,7 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
               options={this.variable.dimensionOptionsMap as IConditionOptionsItem[]}
               showLabel={false}
               value={this.variable.data.defaultValue}
-              onChange={this.handleValueChange}
+              onChange={this.defaultValueChange}
             />
           </bk-form-item>
         </VariableCommonForm>
@@ -199,3 +163,5 @@ export default class CreateConditionVariable extends tsc<ConditionVariableProps,
     );
   }
 }
+
+export default tsx.ofType<ConditionVariableProps, ConditionVariableEvents>().convert(CreateConditionVariable);

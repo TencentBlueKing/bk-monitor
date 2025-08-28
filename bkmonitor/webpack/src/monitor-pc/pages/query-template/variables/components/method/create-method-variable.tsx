@@ -23,24 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
+import * as tsx from 'vue-tsx-support';
 
-import { MethodVariableModel } from '../../index';
+import VariableFormMixin from '../../mixins/VariableFormMixin';
 import VariableCommonForm from '../common-form/variable-common-form';
 import { CP_METHOD_LIST, METHOD_LIST } from '@/constant/constant';
 
-import type { IMethodVariableModel } from '../../../typings';
+import type { IVariableFormEvents } from '../../../typings';
+import type { MethodVariableModel } from '../../index';
 
-interface MethodVariableEvents {
-  onDataChange: (variable: MethodVariableModel) => void;
+interface MethodVariableEvents extends IVariableFormEvents {
+  onDefaultValueChange: (val: string) => void;
+  onValueChange: (val: string) => void;
 }
 interface MethodVariableProps {
   variable: MethodVariableModel;
 }
 
 @Component
-export default class CreateMethodVariable extends tsc<MethodVariableProps, MethodVariableEvents> {
+class CreateMethodVariable extends Mixins(VariableFormMixin) {
   @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
   @Ref() variableCommonForm!: VariableCommonForm;
 
@@ -48,21 +50,14 @@ export default class CreateMethodVariable extends tsc<MethodVariableProps, Metho
     return [...METHOD_LIST, ...CP_METHOD_LIST];
   }
 
-  handleValueChange(defaultValue: string) {
+  defaultValueChange(defaultValue: string) {
     let value = this.variable.value || '';
     if (!this.variable.isValueEditable) {
       value = defaultValue;
     }
 
-    this.handleDataChange({
-      ...this.variable.data,
-      defaultValue,
-      value,
-    });
-  }
-
-  handleDataChange(data: IMethodVariableModel) {
-    this.$emit('dataChange', new MethodVariableModel({ ...data }));
+    this.handleDefaultValueChange(defaultValue);
+    this.handleValueChange(value);
   }
 
   validateForm() {
@@ -75,7 +70,9 @@ export default class CreateMethodVariable extends tsc<MethodVariableProps, Metho
         <VariableCommonForm
           ref='variableCommonForm'
           data={this.variable.data}
-          onDataChange={this.handleDataChange}
+          onAliasChange={this.handleAliasChange}
+          onDescChange={this.handleDescChange}
+          onNameChange={this.handleNameChange}
         >
           <bk-form-item
             label={this.$t('默认值')}
@@ -84,7 +81,7 @@ export default class CreateMethodVariable extends tsc<MethodVariableProps, Metho
             <bk-select
               clearable={false}
               value={this.variable.defaultValue}
-              onChange={this.handleValueChange}
+              onChange={this.defaultValueChange}
             >
               {this.methodList.map(item => (
                 <bk-option
@@ -100,3 +97,5 @@ export default class CreateMethodVariable extends tsc<MethodVariableProps, Metho
     );
   }
 }
+
+export default tsx.ofType<MethodVariableProps, MethodVariableEvents>().convert(CreateMethodVariable);

@@ -75,13 +75,15 @@ export default class FunctionVariableDetail extends tsc<FunctionDetailProps> {
           <div class='form-item default-value-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
             <div class='form-item-value'>
-              {this.variable.defaultValue.map(item => (
-                <FunctionTag
-                  key={item.id}
-                  data={item}
-                  metricFunctions={this.metricFunctions}
-                />
-              ))}
+              {this.variable.defaultValue.length
+                ? this.variable.defaultValue.map(item => (
+                    <FunctionTag
+                      key={item.id}
+                      data={item}
+                      metricFunctions={this.metricFunctions}
+                    />
+                  ))
+                : '--'}
             </div>
           </div>
         </VariableCommonFormDetail>
