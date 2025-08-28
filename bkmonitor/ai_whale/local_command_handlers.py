@@ -76,7 +76,6 @@ class TracingAnalysisCommandHandler(CommandHandler):
 @local_command_handler("profiling_analysis")
 class ProfilingAnalysisCommandHandler(CommandHandler):
     class QueryProfilingParameter(BaseModel):
-        # sample_type: str = Field(alias='data_type')
         data_type: str
         start_time: int = Field(..., description="seconds")
         end_time: int = Field(..., description="seconds")

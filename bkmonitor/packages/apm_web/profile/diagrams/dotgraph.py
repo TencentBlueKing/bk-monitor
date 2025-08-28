@@ -53,7 +53,7 @@ class DOTDiagrammer:
                 f'N{mark} [label="{node.system_name} \\n {node.self_time:.2f} ({node.self_time / total_cost:.2%})"]'
             )
 
-        # 拼接 DOT 格式的字符串
+        # 拼接 DOT 格式的字符串, chr(10) 为 '\n'(换行符)
         dot_graph = f"""digraph "type=[{c.sample_type.get("type")}/{c.sample_type.get("unit")}]" {{
 {chr(10).join(node_marks)}
 {chr(10).join(edge_lines)}
