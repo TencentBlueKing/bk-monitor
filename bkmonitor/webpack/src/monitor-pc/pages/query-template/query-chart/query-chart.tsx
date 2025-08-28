@@ -26,7 +26,7 @@
 import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils';
+import { Debounce, random } from 'monitor-common/utils';
 import QueryTemplateGraph from 'monitor-ui/chart-plugins/plugins/quey-template-graph/query-template-graph';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
@@ -67,13 +67,28 @@ export default class QueryChart extends tsc<{
   get hasMetricSet() {
     return !!this.queryConfigs?.some?.(item => item.metricDetail?.metric_id);
   }
+
+  get variablesValue() {
+    return this.variablesList.reduce((acc, item) => {
+      acc[item.variableName] = item.value;
+      return acc;
+    }, {});
+  }
+
   created() {
     this.updateViewOptions();
   }
+
+  @Watch('variablesValue')
+  handleVariablesValueChange() {
+    this.createPanel();
+  }
+
   @Watch('queryConfigs', { immediate: true })
   handleQueryConfigsChange() {
     this.createPanel();
   }
+
   updateViewOptions() {
     this.viewOptions = {
       interval: 'auto',
@@ -103,6 +118,8 @@ export default class QueryChart extends tsc<{
       return acc;
     }, [] as T[]);
   }
+
+  @Debounce(300)
   createPanel() {
     this.panel = new PanelModel({
       id: random(10),

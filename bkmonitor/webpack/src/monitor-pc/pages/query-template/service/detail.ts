@@ -50,6 +50,7 @@ export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem
   const metricFunctions = await getFunctions().catch(() => []);
   return {
     name: detail.name,
+    bk_biz_id: detail.bk_biz_id,
     description: detail.description,
     can_edit: detail.can_edit,
     can_delete: detail.can_delete,

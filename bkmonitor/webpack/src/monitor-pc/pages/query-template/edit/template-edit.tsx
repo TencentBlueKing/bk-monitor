@@ -40,6 +40,8 @@ export default class TemplateEdit extends TemplateCreate {
 
   scene: 'create' | 'edit' = 'edit';
 
+  templateBizId = 0;
+
   get editId() {
     return this.$route.params.id;
   }
@@ -49,15 +51,16 @@ export default class TemplateEdit extends TemplateCreate {
    */
   async getQueryTemplateDetail() {
     this.loading = true;
-    const { expressionConfig, queryConfigs, name, alias, description, space_scope, variables } =
+    const { expressionConfig, queryConfigs, name, alias, description, space_scope, variables, bk_biz_id } =
       await fetchQueryTemplateDetail(this.editId);
+    this.templateBizId = bk_biz_id;
     this.queryConfigs = queryConfigs;
     this.expressionConfig = expressionConfig;
     this.basicInfoData = {
       name,
       description,
       alias,
-      space_scope: space_scope.length ? space_scope : ['all'],
+      space_scope: bk_biz_id === 0 ? ['all'] : space_scope,
     };
     this.variablesList = variables;
     this.loading = false;
@@ -73,7 +76,8 @@ export default class TemplateEdit extends TemplateCreate {
       name: this.basicInfoData.name,
       alias: this.basicInfoData.alias,
       description: this.basicInfoData.description,
-      space_scope: this.basicInfoData.space_scope.includes('all') ? [] : this.basicInfoData.space_scope,
+      bk_biz_id: this.templateBizId,
+      space_scope: this.templateBizId === 0 ? [] : this.basicInfoData.space_scope,
       variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
       query_configs: createQueryTemplateQueryConfigsParams(this.queryConfigs),
       expression: this.expressionConfig.expression,
