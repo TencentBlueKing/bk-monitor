@@ -30,7 +30,7 @@ import useStore from '@/hooks/use-store';
 import { debounce } from 'lodash';
 import { useRouter, useRoute } from 'vue-router/composables';
 
-import { deepClone, copyMessage } from '../../../../common/util';
+import { copyMessage } from '../../../../common/util';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../../store/store.type';
 import RetrieveHelper from '../../../retrieve-helper';
 import { IFavoriteItem, IGroupItem, SearchMode } from '../types';
@@ -224,8 +224,8 @@ export const useFavorite = () => {
       return;
     }
 
-    const cloneValue = deepClone(item);
-    activeFavorite.value = deepClone(item);
+    const cloneValue = structuredClone(item);
+    activeFavorite.value = structuredClone(item);
 
     const isUnionIndex = cloneValue.index_set_ids?.length > 0;
     const keyword = cloneValue.params?.keyword || '';

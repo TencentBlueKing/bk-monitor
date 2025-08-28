@@ -17,7 +17,7 @@
   import { bkMessage } from 'bk-magic-vue';
 
   import $http from '../../../api';
-  import { deepClone, copyMessage } from '../../../common/util';
+  import { copyMessage } from '../../../common/util';
   import useResizeObserve from '../../../hooks/use-resize-observe';
   import CommonFilterSelect from './common-filter-select.vue';
   import { withoutValueConditionList } from './const.common';
@@ -302,7 +302,7 @@
   const sourceUISQLAddition = ref([]);
   const initSourceSQLStr = (params, search_mode) => {
     if (search_mode === 'ui') {
-      sourceUISQLAddition.value = formatAddition(deepClone(params.addition));
+      sourceUISQLAddition.value = formatAddition(structuredClone(params.addition));
     } else {
       sourceSQLStr.value = params?.keyword ?? '';
     }

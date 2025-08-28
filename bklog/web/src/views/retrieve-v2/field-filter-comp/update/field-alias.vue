@@ -30,7 +30,6 @@ import useLocale from "@/hooks/use-locale";
 import useStore from "@/hooks/use-store";
 import { useRoute } from "vue-router/composables";
 import $http from "@/api";
-import { deepClone } from "@/common/util";
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 const store = useStore();
 const route = useRoute();
@@ -125,7 +124,7 @@ const aliasShow = (row) => {
   return !row.alias_name;
 };
 const addObject = () => {
-  const deepFields = deepClone(
+  const deepFields = structuredClone(
     fields.value
       .filter((fields) => fields.field_type !== "object")
       .map((item) => {

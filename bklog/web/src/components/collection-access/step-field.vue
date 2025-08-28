@@ -925,7 +925,7 @@
   import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
   import { mapGetters, mapState } from 'vuex';
   import * as authorityMap from '../../common/authority-map';
-  import { deepClone, deepEqual } from '../../common/util';
+  import { deepEqual } from '../../common/util';
   import fieldTable from './field-table';
 
   export default {
@@ -1569,7 +1569,7 @@
           data.etl_fields = fieldTableData;
           // 添加内置字段
           if (!this.builtFieldShow) {
-            const copyBuiltField = deepClone(this.copyBuiltField);
+            const copyBuiltField = structuredClone(this.copyBuiltField);
             copyBuiltField.forEach(field => {
               if (field.hasOwnProperty('expand')) {
                 if (field.expand === false) {
@@ -2472,7 +2472,7 @@
       },
       /** json格式新增字段 */
       addNewField() {
-        const fields = deepClone(this.formData.fields);
+        const fields = structuredClone(this.formData.fields);
         const newBaseFieldObj = {
           ...this.baseFieldObj,
           field_index: this.formData.fields.length,

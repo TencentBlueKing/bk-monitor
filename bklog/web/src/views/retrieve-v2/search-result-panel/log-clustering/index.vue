@@ -181,7 +181,6 @@
   import QuickOpenCluster from './components/quick-open-cluster-step/quick-open-cluster';
   import QuickClusterStep from './components/quick-open-cluster-step/quick-cluster-step';
   import Strategy from './components/strategy';
-  import { deepClone } from '../../../../common/util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import useFieldNameHook from '@/hooks/use-field-name';
 
@@ -429,7 +428,7 @@
         };
         // 通过路由返回的值 初始化数据指纹的操作参数 url是否有缓存的值
         if (this.isInitPage && !!this.clusterParams) {
-          const paramData = deepClone(this.clusterParams);
+          const paramData = structuredClone(this.clusterParams);
           const findIndex = clusterLevel.findIndex(item => item === String(paramData.pattern_level));
           if (findIndex >= 0) patternLevel = findIndex + 1;
           Object.assign(queryRequestData, paramData, {
