@@ -51,6 +51,7 @@ import {
   type ExploreFieldMap,
   type HideFeatures,
   type IFormData,
+  type IDataIdItem,
   ExploreSourceTypeEnum,
 } from './typing';
 
@@ -78,6 +79,7 @@ interface IProps {
   commonWhere?: IWhereItem[];
   currentFavorite?: IFavList.favList;
   dataId?: string;
+  dataIdList?: IDataIdItem[];
   dataSourceLabel?: string;
   dataTypeLabel?: string;
   defaultShowResidentBtn?: boolean;
@@ -107,6 +109,7 @@ export default class EventExplore extends tsc<
 
   /** 数据Id */
   @Prop({ default: '' }) dataId;
+  @Prop({ default: () => [] }) dataIdList: IDataIdItem[];
   @Prop({ default: EMode.ui }) filterMode: EMode;
   /** 查询语句 */
   @Prop({ default: '' }) queryString;
@@ -143,6 +146,7 @@ export default class EventExplore extends tsc<
   @InjectReactive('viewOptions') viewOptions: IViewOptions;
 
   @Ref('eventRetrievalLayout') eventRetrievalLayoutRef: EventRetrievalLayout;
+  @Ref('eventExploreView') eventExploreViewRef: EventExploreView;
   @Ref('eventSourceList') eventSourceListRef: EventSourceSelect;
 
   loading = false;
@@ -531,6 +535,38 @@ export default class EventExplore extends tsc<
     this.handleWhereChange([]);
   }
 
+  /** 跳转添加告警策略 */
+  handleAddAlertPolicy() {
+    const { data_source_label, data_type_label, table, where, query_string } = this.queryConfig;
+    const field = this.dataIdList.find(item => item.id === this.dataId)?.metrics[0]?.id || '';
+    const queryConfigs = [
+      {
+        data_source_label,
+        data_type_label,
+        filter_dict: {},
+        functions: [],
+        group_by: ['type'], // 参考事件检索图表 维度固定传的type
+        interval: this.eventExploreViewRef.chartInterval === 'auto' ? 60 : this.eventExploreViewRef.chartInterval,
+        // table,
+        where, // 产品确认将普通筛选和常驻筛选一并带入告警策略
+        query_string,
+        metrics: [{ alias: 'a', field, method: 'COUNT' }],
+        metric_id: `custom.event.${table}.__INDEX__`, // 主机事件暂不支持该方式跳转
+      },
+    ];
+    const queryData = {
+      expression: 'a',
+      query_configs: queryConfigs,
+    };
+    const { href } = this.$router.resolve({
+      name: 'strategy-config-add',
+      query: {
+        data: JSON.stringify(queryData),
+      }
+    });
+    window.open(href, '_blank');
+  }
+
   /** 更新queryConfig */
   @Debounce(100)
   updateQueryConfig() {
@@ -645,6 +681,15 @@ export default class EventExplore extends tsc<
               </div>
             )}
 
+            {this.source === APIType.MONITOR && (
+              <div class='btn-alert-policy__wrap'>
+              <div class='btn-alert-policy' onClick={this.handleAddAlertPolicy}>
+                <i class='icon-monitor icon-a-celve' />
+                <span class='btn-alert-policy-text'>{this.$t('添加告警策略')}</span>
+              </div>
+            </div>
+            )}
+
             <EventRetrievalLayout
               ref='eventRetrievalLayout'
               class='content-container'
@@ -669,6 +714,7 @@ export default class EventExplore extends tsc<
               </div>
               <div class='result-content-panel'>
                 <EventExploreView
+                  ref='eventExploreView'
                   entitiesMapList={this.entitiesMapByField}
                   eventSourceType={this.eventSourceType}
                   fieldMap={this.fieldMapByField}
