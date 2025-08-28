@@ -165,9 +165,11 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         search_dict.update({"order_by": ["-_value"], "metric_merge": " or ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
         series = data["series"]
-        return sorted(
-            [[s["group_values"][0], s["values"][0][1]] for s in series[:limit]], key=lambda x: x[1], reverse=True
-        )
+        return [[s["group_values"][0], s["values"][0][1]] for s in sorted(
+            series,
+            key=lambda x: x["values"][0][1],
+            reverse=True
+        )[:limit]]
 
     def get_value_list(self, limit: int = 10):
         """
