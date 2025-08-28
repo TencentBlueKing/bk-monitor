@@ -25,7 +25,7 @@
  */
 /** biome-ignore-all lint/suspicious/noExplicitAny: 忽略any类型 */
 
-import { Component, Inject, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -83,11 +83,13 @@ const SpecialSeriesColorMap = {
   },
 };
 interface IProps {
+  limit?: number;
   panel: PanelModel;
 }
 
 @Component
 class QueryTemplateGraph extends CommonSimpleChart {
+  @Prop({ type: Number, default: 1 }) limit: number;
   // 当前粒度
   @InjectReactive('downSampleRange') readonly downSampleRange: number | string;
   // yAxis是否需要展示单位
@@ -232,9 +234,9 @@ class QueryTemplateGraph extends CommonSimpleChart {
               })
               .then(res => {
                 res.metrics && metrics.push(...res.metrics);
-                // if (res.series?.length > 1) {
-                //   res.series = res.series.slice(0, 1);
-                // }
+                if (res.series?.length > 1 && this.limit > 0) {
+                  res.series = res.series.slice(0, this.limit || 1);
+                }
                 res.series &&
                   series.push(
                     ...res.series.map(set => {

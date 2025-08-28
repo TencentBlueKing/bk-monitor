@@ -221,6 +221,7 @@ export default class QueryChart extends tsc<{
         {this.hasMetricSet && this.panel ? (
           <QueryTemplateGraph
             class='query-chart-content'
+            limit={this.limit}
             panel={this.panel}
             onLoading={this.handleLoadingChange}
           />
