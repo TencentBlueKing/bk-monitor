@@ -76,7 +76,6 @@ export default class TemplateEdit extends TemplateCreate {
       name: this.basicInfoData.name,
       alias: this.basicInfoData.alias,
       description: this.basicInfoData.description,
-      bk_biz_id: this.templateBizId,
       space_scope: this.templateBizId === 0 ? [] : this.basicInfoData.space_scope,
       variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
       query_configs: createQueryTemplateQueryConfigsParams(this.queryConfigs),
