@@ -323,6 +323,8 @@ def discover_bcs_clusters():
                     f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} init resource success"
                 )
             else:
+                cluster.status = BCSClusterInfo.CLUSTER_STATUS_INIT_FAILED
+                cluster.save(update_fields=["status"])
                 logger.error(
                     f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} init resource failed, error:{err}"
                 )
