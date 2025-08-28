@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,74 +24,60 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, type Ref, defineComponent, inject, ref, watch } from 'vue';
+import { defineComponent, type PropType } from 'vue';
 
-import './failure-menu.scss';
+import type { IEdge } from '../types';
 
-interface ITabItem {
-  label: string;
-  name: string;
-}
+import './aggregated-edges-list.scss';
 
 export default defineComponent({
-  name: 'FailureMenu',
   props: {
-    active: {
-      type: String,
-      default: '',
+    edge: {
+      type: Object as PropType<IEdge>,
+      required: true,
     },
-    tabList: {
-      type: Array as PropType<Array<ITabItem>>,
-      default: () => [],
-    },
-    width: {
+    edgeType: {
       type: String,
-      default: '100%',
+      required: true,
+    },
+    onClick: {
+      type: Function as PropType<(edge: IEdge) => void>,
+      required: true,
     },
   },
-  emits: ['change'],
-  setup(props, { emit }) {
-    const activeName = ref<string>(props.active);
-    const playLoading = inject<Ref<boolean>>('playLoading');
-    watch(
-      () => props.active,
-      (val: string) => {
-        activeName.value = val;
-      }
-    );
-    const handleActive = (name: string) => {
-      if (activeName.value === name) {
-        return;
-      }
-      activeName.value = name;
-      emit('change', name);
-    };
-    return {
-      activeName,
-      handleActive,
-      playLoading,
-    };
-  },
-  render() {
-    return (
-      <div class='failure-menu'>
-        {this.playLoading && (
-          <div
-            style={{ width: this.$props.width }}
-            class='loading-mask'
-          />
-        )}
-        <ul class='detail-tab-content'>
-          {this.tabList.map(item => (
-            <li
-              class={{ active: this.activeName === item.name }}
-              onClick={this.handleActive.bind(this, item.name)}
-            >
-              {item.label}
-            </li>
-          ))}
-        </ul>
-      </div>
+  setup(props) {
+    return () => (
+      <li
+        class='edge-list-item'
+        onClick={() => props.onClick(props.edge)}
+      >
+        <span
+          key={`${props.edge.id}-edge`}
+          class='edge-line-icon'
+        >
+          <span
+            class={['line', props.edgeType === 'ebpf_call' && 'call-edge', props.edge.is_anomaly && 'anomaly-edge']}
+          ></span>
+        </span>
+        <span class='list-item-name-wrap'>
+          <span
+            key={`${props.edge.id}-edge-text-source`}
+            class='list-item-name-wrap__name'
+          >
+            {`${props.edge.source_type} (`}
+            <span>{props.edge.source_name}</span>
+            {')'}
+          </span>
+          <span
+            key={`${props.edge.id}-edge-text-target`}
+            class='list-item-name-wrap__name'
+          >
+            {`${props.edge.target_type} (`}
+            <span>{props.edge.target_name}</span>
+            {')'}
+          </span>
+        </span>
+      </li>
     );
   },
 });

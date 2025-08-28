@@ -200,7 +200,7 @@ export interface ICustomEventDetail {
   time?: number;
   total?: number;
   list?: {
-    [key: string]: { alias: string; url?: string; value: string };
+    [key: string]: Record<string, any>;
     'event.content': {
       alias: string;
       detail: {
@@ -217,6 +217,7 @@ export interface ICustomEventDetail {
     event_name: ILabelItem;
     proportions: number;
     source: ILabelItem;
+    target_info: ITargetInfo;
   }[];
 }
 export interface ICustomEventTagsItem {
@@ -227,6 +228,16 @@ export interface ICustomEventTagsItem {
     source: string;
     statistics: Partial<Record<StatisticsEventType, number>>;
   }[];
+}
+
+export interface ITargetInfo {
+  dimensions?: Record<string, any>;
+  entity_name?: string;
+  entity_type?: string;
+  event_name?: string;
+  start_time?: number;
+  table: string;
+  target_type?: string;
 }
 interface ILabelItem {
   alias?: string;
