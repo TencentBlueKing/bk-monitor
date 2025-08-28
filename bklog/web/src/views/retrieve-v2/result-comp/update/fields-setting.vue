@@ -338,16 +338,16 @@
         if (!this.isTemplateConfig) {
           this.initShadowFields(this.localVisibleFields);
           // 在数据初始化后缓存，使用深拷贝
-          this.cachedVisibleFields = JSON.parse(JSON.stringify(this.shadowVisible));
-          this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
+          this.cachedVisibleFields = structuredClone(this.shadowVisible);
+          this.cachedSortFields = structuredClone(this.shadowSort);
           return;
         }
         await this.getFiledConfigList();
         this.initShadowFields();
         // 在数据初始化后缓存，使用深拷贝
-        this.cachedVisibleFields = JSON.parse(JSON.stringify(this.shadowVisible));
-        this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
-      },
+        this.cachedVisibleFields = structuredClone(this.shadowVisible);
+        this.cachedSortFields = structuredClone(this.shadowSort);
+     },
       /** 保存或应用 */
       async confirmModifyFields() {
         const currentSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
@@ -417,9 +417,9 @@
         // 取消时恢复缓存数据，使用深拷贝
         if (!this.isTemplateConfig) {
           // 只更新父组件的数据，子组件会通过 props 自动更新
-          this.shadowVisible = JSON.parse(JSON.stringify(this.cachedVisibleFields));
-          // this.shadowSort = JSON.parse(JSON.stringify(this.cachedSortFields));
-          this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
+          this.shadowVisible = structuredClone(this.cachedVisibleFields);
+          // this.shadowSort = structuredClone(this.cachedSortFields);
+          this.cachedSortFields = structuredClone(this.shadowSort);
         }
         this.$emit('cancel');
         this.isSortFieldChanged = false;

@@ -29,7 +29,7 @@ import { Component as tsc, ofType } from 'vue-tsx-support';
 import BkUserSelector from '@blueking/user-selector';
 import dayjs from 'dayjs';
 
-import { copyText, deepClone, transformDataKey } from '../../../../../../components/monitor-echarts/utils';
+import { copyText, transformDataKey } from '../../../../../../components/monitor-echarts/utils';
 import { FrequencyType, Report } from './types';
 
 import './create-subscription-form.scss';
@@ -456,7 +456,7 @@ class QuickCreateSubscription extends tsc<IProps> {
 
   /** 任务有效期 调整时间格式 */
   handleTimeRangeChange(v) {
-    this.formData.timerange = deepClone(v);
+    this.formData.timerange = structuredClone(v);
     const result = v.map(date => {
       // 结束时间可能是空串（代表 无期限），这里用 undefined 代替，即不需要提交。
       return date ? dayjs(date).unix() : undefined;
@@ -479,7 +479,7 @@ class QuickCreateSubscription extends tsc<IProps> {
       this.refOfSendingConfigurationForm?.validate?.(),
     ])
       .then(() => {
-        const cloneFormData: Report = deepClone(this.formData);
+        const cloneFormData: Report = structuredClone(this.formData);
         // scenario_config__log_display_count content_config__title
         delete cloneFormData.scenario_config__log_display_count;
         delete cloneFormData.content_config__title;

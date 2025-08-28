@@ -261,7 +261,7 @@
       visible(val) {
         if (val) {
           this.dialogTitle = this.type === 'create' ? this.$t('新建链路配置') : this.$t('编辑链路配置');
-          this.formData = JSON.parse(JSON.stringify(this.dataSource));
+          this.formData = structuredClone(this.dataSource);
           this.$refs.form.clearError();
         }
       },
