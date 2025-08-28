@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, onMounted, ref, shallowRef } from 'vue';
+import { type PropType, defineComponent, onMounted, ref, shallowRef, watch } from 'vue';
 
 import { incidentTopologyMenu } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils';
@@ -88,8 +88,24 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
+    showResource: {
+      type: Boolean,
+      default: false,
+    },
+    showService: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['update:AggregationConfig', 'changeRefleshTime', 'timelineChange', 'play'],
+  emits: [
+    'update:AggregationConfig',
+    'changeRefleshTime',
+    'timelineChange',
+    'play',
+    'showService',
+    'update:showResource',
+    'update:showService',
+  ],
   setup(props, { emit }) {
     const treeData = shallowRef([]);
     const checkedIds = ref([]);
@@ -251,6 +267,40 @@ export default defineComponent({
     onMounted(() => {
       fullscreenHelper.onFullscreenChange(exitFullscreen);
     });
+
+    const isResourceHover = ref(false);
+    const isServiceHover = ref(false);
+    const isResourceSelected = ref(props.showResource);
+    const isServiceSelected = ref(props.showService);
+
+    watch(
+      () => props.showResource,
+      newVal => {
+        isResourceSelected.value = newVal;
+      }
+    );
+
+    watch(
+      () => props.showService,
+      newVal => {
+        isServiceSelected.value = newVal;
+      }
+    );
+
+    const handleToggle = (type: 'resource' | 'service') => {
+      if (type === 'resource') {
+        isResourceSelected.value = !isResourceSelected.value;
+        emit('update:showResource', isResourceSelected.value);
+      } else {
+        isServiceSelected.value = !isServiceSelected.value;
+        emit('update:showService', isServiceSelected.value);
+
+        if (isServiceSelected.value) {
+          emit('showService');
+        }
+      }
+    };
+
     return {
       isFullscreen,
       autoAggregateIdText,
@@ -258,6 +308,10 @@ export default defineComponent({
       timeLine,
       checkedIds,
       autoAggregate,
+      isResourceHover,
+      isResourceSelected,
+      isServiceHover,
+      isServiceSelected,
       handleFullscreen,
       handleChangeTimeLine,
       handleUpdateAutoAggregate,
@@ -267,6 +321,7 @@ export default defineComponent({
       handleTimelineChange,
       handlePlay,
       t,
+      handleToggle,
     };
   },
   render() {
@@ -289,6 +344,30 @@ export default defineComponent({
           onPlay={this.handlePlay}
           onTimelineChange={this.handleTimelineChange}
         />
+        <div class='topo-sidebar-toggle-wrap'>
+          <div class='topo-sidebar-toggle'>
+            <span
+              class={['resource-wrap', { selected: this.isResourceSelected }]}
+              v-bk-tooltips={{ content: this.isResourceSelected ? this.t('收起资源拓扑') : this.t('展开资源拓扑') }}
+              onClick={() => this.handleToggle('resource')}
+              onMouseenter={() => (this.isResourceHover = true)}
+              onMouseleave={() => (this.isResourceHover = false)}
+            >
+              <i class='icon-monitor icon-ziyuan' />
+            </span>
+            <span
+              class={['service-wrap', { selected: this.isServiceSelected }]}
+              v-bk-tooltips={{
+                content: this.isServiceSelected ? this.t('收起节点/边概览') : this.t('展开节点/边概览'),
+              }}
+              onClick={() => this.handleToggle('service')}
+              onMouseenter={() => (this.isServiceHover = true)}
+              onMouseleave={() => (this.isServiceHover = false)}
+            >
+              <i class='icon-monitor icon-mc-overview' />
+            </span>
+          </div>
+        </div>
         <div
           class='topo-tools-list'
           v-bk-tooltips={{ content: this.t('全屏'), disabled: this.isFullscreen }}

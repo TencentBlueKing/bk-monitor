@@ -108,7 +108,6 @@
 
 <script setup>
 import { ref, watch, computed } from "vue";
-import JsonFormatWrapper from "@/global/json-format-wrapper.vue";
 import $http from "@/api";
 import useLocale from "@/hooks/use-locale";
 const { $t } = useLocale();
@@ -263,12 +262,13 @@ watch(
   padding: 14px 16px;
 
   .header-title {
+    display: flex;
+    justify-content: space-between;
     margin-bottom: 12px;
     font-size: 16px;
     line-height: 24px;
     color: #313238;
-    display: flex;
-    justify-content: space-between;
+
     .bklog-close{
       cursor: pointer;
     }
@@ -343,7 +343,7 @@ watch(
             overflow-y: auto;
 
             .vjs-tree {
-              font-size: 12px !important;
+              font-size: 12px;
 
               .vjs-value-string {
                 tab-size: 3;

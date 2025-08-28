@@ -29,6 +29,7 @@ import $http from '@/api/index.js';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
 import { debounce } from 'lodash';
@@ -321,7 +322,7 @@ export default defineComponent({
     /**
      * 监听关联数据变化
      */
-    const onRefereceChange = async args => {
+    const onRefereceChange = args => {
       // 这里表示数据来自图表分析收藏点击回填数据
       if (args?.params?.chart_params?.sql?.length) {
         const old = editorInstance.value?.getValue();
@@ -336,15 +337,14 @@ export default defineComponent({
       debounceSyncAdditionToSQL(handleQueryBtnClick);
     };
 
-    // @ts-ignore
-    RetrieveHelper.on(
+    const { addEvent } = useRetrieveEvent();
+    addEvent(
       [
         RetrieveEvent.SEARCH_VALUE_CHANGE,
         RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
         RetrieveEvent.SEARCH_TIME_CHANGE,
         RetrieveEvent.LEFT_FIELD_INFO_UPDATE,
       ],
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       onRefereceChange,
     );
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);

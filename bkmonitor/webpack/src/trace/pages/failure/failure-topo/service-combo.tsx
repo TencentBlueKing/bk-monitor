@@ -142,7 +142,7 @@ export default {
         name: 'service-node-text',
       });
     }
-    // “反馈新根因”标识
+    // "反馈新根因"标识
     if (!entity?.is_root) {
       const labelBBox = labelShape.getBBox();
       const feedbackImg = group.addShape('image', {

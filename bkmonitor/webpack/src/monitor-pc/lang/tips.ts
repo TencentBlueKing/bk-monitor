@@ -264,9 +264,14 @@ export default {
   标签图例: 'Tag Legend',
   反馈的根因: 'Feedback Root',
   边图例: 'Edge Legend',
+  状态: 'Status',
+  标签: 'Tag',
   从属关系: 'Subordinate',
   调用关系: 'Call',
   故障传播: 'Incident Spread',
+  无故障传播: 'No Incident Spread',
+  指向性: 'Directional',
+  线型: 'Line Type',
   显示图例: 'Show Legend',
   显示小地图: 'Show Mini Map',
   重置比例: 'Reset Scale',
@@ -284,9 +289,15 @@ export default {
   反馈新根因: 'New Feedback',
   所属业务: 'Business',
   '已恢复 / 已解决 / 已失效告警': 'Recovered / Resolved / Expired Alerts',
+  '已恢复...告警': 'Recovered...Alerts',
   包含告警: 'Alarm',
   '等共 {slot0} 个同类告警': 'And {slot0} Same Alerts',
+  '等共 {0} 个同类告警': 'And {0} Same Alerts',
   异常信息: 'Exception Message',
+  展开资源拓扑: 'Expand resource topology',
+  收起资源拓扑: 'Collapse resource topology',
+  '展开节点/边概览': 'Expand node/edge overview',
+  '收起节点/边概览': 'Collapse node/edge overview',
 
   // 故障
   搜索数据为空: 'No search results',
@@ -369,6 +380,9 @@ export default {
   用户指令: 'User Instruction',
   '请输入指标/PromQL语句': 'Please enter the metric/PromQL statement',
   请输入用户指令: 'Please enter the user instruction',
-  '调试数据范围取当前时间窗口前1000条数据': 'The debugging data range takes the previous 1000 entries from the current time window',
-  只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators'
+  调试数据范围取当前时间窗口前1000条数据:
+    'The debugging data range takes the previous 1000 entries from the current time window',
+  只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
+  请先打开事件分析: 'Please open event analysis first',
+  暂无关联的事件数据: 'No related event data',
 };
