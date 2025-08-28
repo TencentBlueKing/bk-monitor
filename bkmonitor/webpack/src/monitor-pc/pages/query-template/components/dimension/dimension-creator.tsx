@@ -178,11 +178,15 @@ export default class DimensionCreator extends tsc<IProps> {
 
   handleInputEnter() {
     if (this.inputValue) {
+      const isVariable = this.showVariables && isVariableName(this.inputValue);
       this.handleSelect({
         id: this.inputValue,
         name: this.inputValue,
-        isVariable: this.showVariables && isVariableName(this.inputValue),
+        isVariable: isVariable,
       });
+      if (isVariable) {
+        this.$emit('createVariable', this.inputValue);
+      }
       this.inputValue = '';
     }
   }

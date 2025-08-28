@@ -47,6 +47,10 @@
           border: 1px solid #C4C6CC !important;
 
         }
+
+        &::placeholder {
+          font-weight: 400;
+        }
       }
     }
   }
