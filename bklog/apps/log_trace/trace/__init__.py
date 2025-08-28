@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,11 +18,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 import os
 import socket
 import threading
-from typing import Collection
+from collections.abc import Collection
 
 import MySQLdb
 from celery.signals import worker_process_init
@@ -46,6 +46,7 @@ from opentelemetry.trace import Span, Status, StatusCode
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_trace.trace.elastic import BkElasticsearchInstrumentor
 from apps.utils import get_local_ip
+from apps.utils.local import get_request_username
 
 
 def requests_callback(span: Span, response):
@@ -64,9 +65,9 @@ def requests_callback(span: Span, response):
 
     # NOTE: esb got a result, but apigateway  /iam backend / search-engine got not result
     code = json_result.get("code", 0)
-    span.set_attribute("result_code", code)
-    span.set_attribute("result_message", json_result.get("message", ""))
-    span.set_attribute("result_errors", str(json_result.get("errors", "")))
+    span.set_attribute("http.response.code", code)
+    span.set_attribute("http.response.message", json_result.get("message", ""))
+    span.set_attribute("http.response.errors", str(json_result.get("errors", "")))
     try:
         request_id = (
             # new esb and apigateway
@@ -97,19 +98,24 @@ def django_response_hook(span, request, response):
             return
     if not isinstance(result, dict):
         return
-    span.set_attribute("result_code", result.get("code", 0))
-    span.set_attribute("result_message", result.get("message", ""))
-    span.set_attribute("result_errors", result.get("errors", ""))
+
     result = result.get("result", True)
+    span.set_attribute("user.username", get_request_username())
+    span.set_attribute("http.response.code", result.get("code", 0))
+    span.set_attribute("http.response.message", result.get("message", ""))
+    span.set_attribute("http.response.errors", str(result.get("errors", "")))
+    span.set_attribute("http.response.result", str(result))
+
     if result:
         span.set_status(Status(StatusCode.OK))
         return
     span.set_status(Status(StatusCode.ERROR))
+    span.record_exception(exception=Exception(result.get("message")))
 
 
 class LazyBatchSpanProcessor(BatchSpanProcessor):
     def __init__(self, *args, **kwargs):
-        super(LazyBatchSpanProcessor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # 停止默认线程
         self.done = True
         with self.condition:
@@ -122,7 +128,7 @@ class LazyBatchSpanProcessor(BatchSpanProcessor):
         if self.worker_thread is None:
             self.worker_thread = threading.Thread(target=self.worker, daemon=True)
             self.worker_thread.start()
-        super(LazyBatchSpanProcessor, self).on_end(span)
+        super().on_end(span)
 
     def shutdown(self) -> None:
         # signal the worker thread to finish and then wait for it
