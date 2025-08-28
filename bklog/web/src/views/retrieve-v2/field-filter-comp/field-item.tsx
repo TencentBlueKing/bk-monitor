@@ -28,7 +28,7 @@ import { Component, Prop, Emit, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { blobDownload } from '@/common/util';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import AggChart from './agg-chart';
@@ -315,7 +315,7 @@ export default class FieldItem extends tsc<object> {
             ref='operationRef'
             class={['operation-text', { 'analysis-active': this.analysisActive }]}
           >
-            {this.isShowFieldsAnalysis && (
+            {(this.isShowFieldsAnalysis && !this.isUnionSearch && !this.isFrontStatistics)&& (
               <div
                 class='operation-icon-box'
                 v-bk-tooltips={{ content: this.$t('图表分析') }}

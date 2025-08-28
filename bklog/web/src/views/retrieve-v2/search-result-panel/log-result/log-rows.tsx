@@ -29,6 +29,7 @@ import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR,
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
@@ -57,6 +58,7 @@ import RowRender from './row-render';
 import ScrollXBar from './scroll-x-bar';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import './log-rows.scss';
 
@@ -102,7 +104,7 @@ export default defineComponent({
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
       stopPropagation: true,
-      onclick: (e, ...args) => {
+      onclick: (_, ...args) => {
         const [type] = args;
         handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
         popInstanceUtil.hide();
@@ -165,9 +167,10 @@ export default defineComponent({
       isPageLoading.value = isSearching;
     };
 
-    RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+    const { addEvent } = useRetrieveEvent();
+    addEvent(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
 
-    const setRenderList = (length?) => {
+    const setRenderList = (length?: number) => {
       const arr = [];
       const endIndex = length ?? tableDataSize.value;
       const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
@@ -584,8 +587,11 @@ export default defineComponent({
     );
 
     const handleResultBoxResize = () => {
-      scrollXOffsetLeft = 0;
-      refScrollXBar.value?.scrollLeft(0);
+      if (!RetrieveHelper.jsonFormatter.isExpandNodeClick) {
+        scrollXOffsetLeft = 0;
+        refScrollXBar.value?.scrollLeft(0);
+      }
+
       computeRect(refResultRowBox.value);
     };
 
@@ -629,7 +635,7 @@ export default defineComponent({
       60,
     );
 
-    RetrieveHelper.on(
+    addEvent(
       [
         RetrieveEvent.FAVORITE_WIDTH_CHANGE,
         RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
@@ -1116,15 +1122,6 @@ export default defineComponent({
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
-      RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
-      [
-        RetrieveEvent.FAVORITE_WIDTH_CHANGE,
-        RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
-        RetrieveEvent.FAVORITE_SHOWN_CHANGE,
-        RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
-      ].forEach(event => {
-        RetrieveHelper.off(event, handleResultBoxResize);
-      });
     });
 
     return {

@@ -27,10 +27,12 @@ import { defineComponent } from 'vue';
 
 import { Message, Popover } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
+import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
 // import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
 import { useI18n } from 'vue-i18n';
 
-// import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
+import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
+
 import './trace-detail-header.scss';
 
 const traceHeaderProps = {
@@ -124,14 +126,15 @@ export default defineComponent({
               onClick={() => this.handleCopy('link')}
             />
           </Popover>
-          {/* <AiBluekingIcon
+          <AiBluekingIcon
             style={{ marginLeft: '12px' }}
             fillBackFieldMap={{
               trace_id: this.traceId,
               app_name: this.appName,
+              bk_biz_id: (window.bk_biz_id || window.cc_biz_id) as string,
             }}
             shortcutId={AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS}
-          /> */}
+          />
         </div>
 
         <div class='header-tool'>

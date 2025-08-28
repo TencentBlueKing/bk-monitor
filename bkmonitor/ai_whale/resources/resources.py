@@ -58,7 +58,8 @@ class CreateChatSessionResource(Resource):
             session_code,
             session_name,
         )
-        return aidev_interface.create_chat_session(params=validated_request_data, username=username)
+        session_res = aidev_interface.create_chat_session(params=validated_request_data, username=username)
+        return session_res
 
 
 class RetrieveChatSessionResource(Resource):
@@ -118,6 +119,21 @@ class UpdateChatSessionResource(Resource):
         return aidev_interface.update_chat_session(session_code=session_code, params=validated_request_data)
 
 
+class RenameChatSessionResource(Resource):
+    """
+    AI智能总结会话标题
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        session_code = serializers.CharField(label="会话代码", required=True)
+
+    @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
+    def perform_request(self, validated_request_data):
+        session_code = validated_request_data.get("session_code")
+        logger.info("RenameChatSessionResource: try to rename session->[%s]", session_code)
+        return aidev_interface.rename_chat_session(session_code=session_code)
+
+
 # -------------------- 会话内容管理 -------------------- #
 class CreateChatSessionContentResource(Resource):
     """
@@ -134,6 +150,14 @@ class CreateChatSessionContentResource(Resource):
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         property_data = validated_request_data.get("property", {})
+
+        role = validated_request_data.get("role")
+        if role == "hidden-role":  # TODO: 避免前端二次插入,临时逻辑
+            logger.info(
+                "CreateChatSessionContentResource: trying to add system prompt,nothing will do,session_code->[%s]",
+                session_code,
+            )
+            return True
 
         logger.info(
             "CreateChatSessionContentResource: try to create content with session_code->[%s],property->[%s]",
@@ -253,5 +277,9 @@ class CreateChatCompletionResource(Resource):
             agent_code,
         )
         return aidev_interface.create_chat_completion(
-            session_code=session_code, execute_kwargs=execute_kwargs, agent_code=agent_code, username=username
+            session_code=session_code,
+            execute_kwargs=execute_kwargs,
+            agent_code=agent_code,
+            username=username,
+            temperature=settings.AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE,
         )

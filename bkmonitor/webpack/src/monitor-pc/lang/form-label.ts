@@ -895,6 +895,7 @@ export default {
   从本次检索中排除: 'Exclude from this search',
   新建检索: 'New Explore',
   事件来源: 'Event source',
+  事件等级: 'Event level',
 
   注意: 'Note',
   目录: 'Directory',
@@ -1929,6 +1930,13 @@ export default {
   告警历史: 'Alarm history',
   上报配置: 'Upload configuration',
   '需先填写「服务名」，生成上报示例': 'Please fill in the service name first, and generate the reporting example',
+  节点概览: 'Node overview',
+  边概览: 'Edge overview',
+  从属关系: 'Belonging Relationship',
+  '跳转至 {0} 查看': 'Go to {0} for details',
+  容器场景页: 'Container scene page',
+  复制节点名: 'Copy node name',
+  关联边: 'Associated edges',
 
   // K8s 容器场景
   图表: 'Chart',

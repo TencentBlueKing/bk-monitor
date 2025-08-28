@@ -26,7 +26,7 @@
 import { computed, onMounted, Ref, ref } from 'vue';
 
 // import useResizeObserve from '@/hooks/use-resize-observe';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 import useIntersectionObserver from '../../../../hooks/use-intersection-observer';
 import RetrieveHelper from '../../../retrieve-helper';

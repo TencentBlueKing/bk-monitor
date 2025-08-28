@@ -31,6 +31,7 @@
 
 import { set } from 'vue';
 
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import dayjs from 'dayjs';
 import DOMPurify from 'dompurify';
 import JSONBigNumber from 'json-bignumber';
@@ -601,7 +602,7 @@ export function parseBigNumberList(lsit) {
  * @param {Number} n
  * @param str,默认26位字母及数字
  */
-export const random = (n, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
+export const random = (n = 8, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
   // 生成n位长度的字符串
   // const str = 'abcdefghijklmnopqrstuvwxyz0123456789' // 可以作为常量放到random外面
   let result = '';
@@ -981,8 +982,8 @@ export const calculateTableColsWidth = (field, list) => {
   // 通过排序获取最大的字段值
   firstLoadList.sort((a, b) => {
     return (
-      parseTableRowData(b, field.field_name, field.field_type).length -
-      parseTableRowData(a, field.field_name, field.field_type).length
+      (parseTableRowData(b, field.field_name, field.field_type)?.length ?? 0) -
+      (parseTableRowData(a, field.field_name, field.field_type)?.length ?? 0)
     );
   });
 
@@ -1126,6 +1127,7 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
 
     return true;
   } catch (error) {
+    console.error(error);
     return false;
   }
 };
@@ -1294,4 +1296,17 @@ export const getOs = () => {
  */
 export const getOsCommandLabel = () => {
   return getOs() === 'macos' ? 'Cmd' : 'Ctrl';
+};
+
+/**
+ * 更新最后选择索引ID
+ */
+export const updateLastSelectedIndexId = (spaceUid, index_set_id) => {
+  const storage = {
+    [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
+      ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
+      [spaceUid]: [String(index_set_id)],
+    },
+  };
+  store.commit('updateStorage', storage);
 };

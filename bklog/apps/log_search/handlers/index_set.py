@@ -1687,6 +1687,8 @@ class BaseIndexSetHandler:
 
                 if request_params["source_type"] == Scenario.LOG:
                     request_params["origin_table_id"] = obj.result_table_id
+                if index_set.query_alias_settings:
+                    request_params["query_alias_settings"] = index_set.query_alias_settings
                 multi_execute_func.append(
                     result_key=obj.result_table_id,
                     func=TransferApi.create_or_update_log_router,
@@ -1694,11 +1696,7 @@ class BaseIndexSetHandler:
                 )
             if doris_table_id := index_set.doris_table_id:
                 doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
-                # Doris接入
-                multi_execute_func.append(
-                    result_key=index_set.index_set_id,
-                    func=TransferApi.create_or_update_log_router,
-                    params={
+                doris_params = {
                         "space_type": index_set.space_uid.split("__")[0],
                         "space_id": index_set.space_uid.split("__")[-1],
                         "storage_type": "doris",
@@ -1706,8 +1704,15 @@ class BaseIndexSetHandler:
                         "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
                         "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
                         "need_create_index": False,
-                        "source_type": "bkdata",
-                    },
+                        "source_type": "bkdata"
+                    }
+                if index_set.query_alias_settings:
+                    doris_params["query_alias_settings"] = index_set.query_alias_settings
+                # Doris接入
+                multi_execute_func.append(
+                    result_key=index_set.index_set_id,
+                    func=TransferApi.create_or_update_log_router,
+                    params= doris_params
                 )
             multi_execute_func.run()
         except Exception as e:

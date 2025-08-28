@@ -25,130 +25,180 @@
 -->
 
 <template>
-  <div class="manage-container">
-    <div v-if="!pageLoading" class="manage-main">
-      <sub-nav></sub-nav>
-      <router-view class="manage-content"></router-view>
+  <bk-navigation class="bk-log-navigation" :theme-color="navThemeColor" head-height="0" header-title=""
+    navigation-type="left-right" default-open @toggle="handleToggle">
+    <template #menu>
+      <bk-navigation-menu :default-active="activeManageNav.id" :item-default-bg-color="navThemeColor">
+        <template v-for="groupItem in menuList">
+          <bk-navigation-menu-group v-if="groupItem.children.length"
+            :group-name="isExpand ? groupItem.name : groupItem.keyword" :key="groupItem.id">
+            <template>
+              <a v-for="navItem in getGroupChildren(groupItem.children)" class="nav-item"
+                :href="getRouteHref(navItem.id)" :key="navItem.id">
+                <bk-navigation-menu-item :data-test-id="`navBox_nav_${navItem.id}`" :icon="getMenuIcon(navItem)"
+                  :id="navItem.id" @click="handleClickNavItem(navItem.id)">
+                  <span>{{ isExpand ? navItem.name : '' }}</span>
+                </bk-navigation-menu-item>
+              </a>
+            </template>
+          </bk-navigation-menu-group>
+        </template>
+      </bk-navigation-menu>
+    </template>
+    <div class="navigation-content">
+      <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
+      <div class="manage-container">
+        <div v-if="!pageLoading" class="manage-main">
+          <sub-nav></sub-nav>
+          <router-view class="manage-content"></router-view>
+        </div>
+      </div>
     </div>
-  </div>
+  </bk-navigation>
+
 </template>
 
 <script>
-import SubNav from '@/components/nav/manage-nav';
-import { mapState, mapGetters } from 'vuex';
+  import SubNav from '@/components/nav/manage-nav';
+  import { mapState, mapGetters } from 'vuex';
 
-export default {
-  name: 'ManageIndex',
-  components: {
-    SubNav,
-  },
-  data() {
-    return {
-      navThemeColor: '#2c354d',
-      isExpand: true,
-    };
-  },
-
-  computed: {
-    ...mapState(['topMenu', 'activeManageNav', 'spaceUid', 'bkBizId']),
-    ...mapState('globals', ['globalsData']),
-    ...mapGetters({
-      pageLoading: 'pageLoading',
-    }),
-    manageNavList() {
-      return this.topMenu.find(item => item.id === 'manage')?.children || [];
+  export default {
+    name: 'ManageIndex',
+    components: {
+      SubNav,
     },
-  },
-  watch: {
-    '$route.query.spaceUid'(newSpaceUid, oldSpaceUid) {
-      if (newSpaceUid !== oldSpaceUid) {
-        // 获取最外层路径
-        const topLevelRoute = this.getTopLevelRoute();
+    data() {
+      return {
+        navThemeColor: '#2c354d',
+        isExpand: true,
+      };
+    },
 
-        this.$router.replace({
-          name: topLevelRoute,
+    computed: {
+      ...mapState(['topMenu', 'activeManageNav', 'spaceUid', 'bkBizId']),
+      ...mapState('globals', ['globalsData'], 'isExternal'),
+      ...mapGetters({
+        pageLoading: 'pageLoading',
+        authPageInfo: 'globals/authContainerInfo',
+      }),
+      manageNavList() {
+        return this.topMenu.find(item => item.id === 'manage')?.children || [];
+      },
+      menuList() {
+        const list = this.topMenu.find(item => item.id === 'manage')?.children;
+        if (this.isExternal) {
+          // 外部版只保留【日志提取】菜单
+          return list.filter(menu => menu.id === 'manage-extract-strategy');
+        }
+        return list;
+      },
+    },
+    watch: {
+      '$route.query.spaceUid'(newSpaceUid, oldSpaceUid) {
+        if (newSpaceUid !== oldSpaceUid) {
+          // 获取最外层路径
+          const topLevelRoute = this.getTopLevelRoute();
+
+          this.$router.replace({
+            name: topLevelRoute,
+            query: {
+              ...this.$route.query,
+              spaceUid: this.spaceUid,
+              bizId: this.bkBizId,
+            },
+          });
+        }
+      },
+    },
+    methods: {
+      getMenuIcon(item) {
+        if (item.icon) {
+          return `bklog-icon bklog-${item.icon}`;
+        }
+        return 'bk-icon icon-home-shape';
+      },
+      handleClickNavItem(id) {
+        this.$router.push({
+          name: id,
           query: {
-            ...this.$route.query,
-            spaceUid: this.spaceUid,
-            bizId: this.bkBizId,
+            spaceUid: this.$store.state.spaceUid,
           },
         });
+      },
+      handleToggle(data) {
+        this.isExpand = data;
+      },
+      // 获取当前路由的最外层路径，用于切换业务时跳转到菜单栏目录项
+      getTopLevelRoute() {
+        const currentPath = this.$route.path;
+        const match = currentPath.match(/^\/manage\/([^\/]+)/);  // 匹配 /manage/xxx 的模式
+
+        if (match) return match[1]; // 返回紧跟 /manage 的路径段
+
+        return 'manage';
+      },
+      getGroupChildren(list) {
+        if (this.isExternal) {
+          // 外部版只保留【日志提取任务】
+          return list.filter(menu => menu.id === 'log-extract-task');
+        }
+        return list;
+      },
+      getRouteHref(pageName) {
+        const newUrl = this.$router.resolve({
+          name: pageName,
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
+        return newUrl.href;
       }
     },
-  },
-  methods: {
-    getMenuIcon(item) {
-      if (item.icon) {
-        return `bklog-icon bklog-${item.icon}`;
-      }
-      return 'bk-icon icon-home-shape';
-    },
-    handleClickNavItem(id) {
-      this.$router.push({
-        name: id,
+    mounted() {
+      const bkBizId = this.$store.state.bkBizId;
+      const spaceUid = this.$store.state.spaceUid;
+
+      this.$router.replace({
         query: {
-          spaceUid: this.$store.state.spaceUid,
+          bizId: bkBizId,
+          spaceUid: spaceUid,
+          ...this.$route.query,
         },
       });
     },
-    handleToggle(data) {
-      this.isExpand = data;
-    },
-    // 获取当前路由的最外层路径，用于切换业务时跳转到菜单栏目录项
-    getTopLevelRoute() {
-      const currentPath = this.$route.path;
-      const match = currentPath.match(/^\/manage\/([^\/]+)/);  // 匹配 /manage/xxx 的模式
-
-      if(match) return match[1]; // 返回紧跟 /manage 的路径段
-
-      return 'manage';
-    },
-  },
-  mounted() {
-    const bkBizId = this.$store.state.bkBizId;
-    const spaceUid = this.$store.state.spaceUid;
-
-    this.$router.replace({
-      query: {
-        bizId: bkBizId,
-        spaceUid: spaceUid,
-        ...this.$route.query,
-      },
-    });
-  },
-};
+  };
 </script>
 
 <style lang="scss" scoped>
-@import '../../scss/mixins/scroller.scss';
+  @import '../../scss/mixins/scroller.scss';
 
-.manage-container {
-  height: 100%;
-
-  .manage-content {
-    // height: 100%;
-    position: relative;
-    top: 48px;
-    height: calc(100% - 52px);
-    overflow: auto;
-
-    @include scroller($backgroundColor: #c4c6cc, $width: 4px);
-  }
-
-  .manage-main {
+  .manage-container {
     height: 100%;
-  }
 
-  :deep(.bk-table) {
-    background: #fff;
+    .manage-content {
+      // height: 100%;
+      position: relative;
+      top: 48px;
+      height: calc(100% - 52px);
+      overflow: auto;
 
-    .cell {
-      display: block;
+      @include scroller($backgroundColor: #c4c6cc, $width: 4px);
     }
 
-    .bk-table-pagination-wrapper {
-      background: #fafbfd;
+    .manage-main {
+      height: 100%;
+    }
+
+    :deep(.bk-table) {
+      background: #fff;
+
+      .cell {
+        display: block;
+      }
+
+      .bk-table-pagination-wrapper {
+        background: #fafbfd;
+      }
     }
   }
-}
 </style>

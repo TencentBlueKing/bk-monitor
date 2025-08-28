@@ -32,7 +32,7 @@
 import Vue from 'vue';
 
 // 按需引入
-import './demand-import';
+// import './demand-import';
 
 const Message = Vue.prototype.$bkMessage;
 

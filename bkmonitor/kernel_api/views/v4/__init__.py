@@ -32,3 +32,4 @@ from .strategy import *  # noqa
 from .strategy_v2 import *  # noqa
 from .strategy_v3 import *  # noqa
 from .event_v2 import *  # noqa
+from .subscribe import *  # noqa

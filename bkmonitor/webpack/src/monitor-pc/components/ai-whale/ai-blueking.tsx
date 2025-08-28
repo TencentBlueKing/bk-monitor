@@ -75,7 +75,8 @@ export default class AiBluekingWrapper extends tsc<object> {
   handleCustomFallbackShortcutChange(shortcut: AIBluekingShortcut) {
     if (shortcut?.id) {
       this.aiBluekingRef.handleShow();
-      this.aiBluekingRef.handleShortcutClick?.({ shortcut });
+      console.log('shortcut', shortcut);
+      this.aiBluekingRef.handleShortcutClick?.({ shortcut, source: 'popup' });
     }
   }
   render() {
