@@ -23,7 +23,35 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const prettierConfig = require('@blueking/bkui-lint/prettier');
-module.exports = {
-  ...prettierConfig,
+
+import http from '@/api';
+
+const linkMap = {
+  logExtract: 'UserGuide/ProductFeatures/log-analysis/customize-analyzer.md', // 日志清洗
+  docCenter: 'UserGuide/Intro/README.md', // 产品文档
+  logArchive: 'UserGuide/ProductFeatures/tools/log_archive.md', // 日志归档
+  logCollection: 'UserGuide/ProductFeatures/integrations-logs/logs_overview.md', // 日志采集接入
+  bkBase: 'BK-Base/UserGuide/Introduction/intro.md', // 基础计算平台
+  queryString: 'UserGuide/ProductFeatures/data-visualization/query_string.md', // 查询语句语法
 };
+
+class ManageHelper {
+
+  handleGotoLink(id: string) {
+    const link = linkMap[id];
+    if (link) {
+      http
+        .request('docs/getDocLink', {
+          query: {
+            md_path: link,
+          },
+        })
+        .then(res => {
+          window.open(res.data, '_blank');
+        })
+        .catch(() => false);
+    }
+  }
+}
+
+export default new ManageHelper();
