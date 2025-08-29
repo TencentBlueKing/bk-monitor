@@ -36,9 +36,11 @@ class EventServiceRelationSerializer(serializers.ModelSerializer):
 
 
 class LogServiceRelationSerializer(serializers.ModelSerializer):
+    value = serializers.CharField(required=False, allow_null=True)
+
     class Meta:
         model = LogServiceRelation
-        fields = ["log_type", "related_bk_biz_id", "value", "updated_at", "updated_by"]
+        fields = ["log_type", "related_bk_biz_id", "value", "value_list", "updated_at", "updated_by"]
 
     def validate(self, attrs):
         if attrs["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
@@ -76,7 +78,7 @@ class ServiceConfigSerializer(serializers.Serializer):
 
     app_relation = AppServiceRelationSerializer(required=False, allow_null=True)
     cmdb_relation = CMDBServiceRelationSerializer(required=False, allow_null=True)
-    log_relation = LogServiceRelationSerializer(required=False, allow_null=True)
+    log_relation_list = serializers.ListSerializer(required=False, default=[], child=LogServiceRelationSerializer())
     apdex_relation = ServiceApdexConfigSerializer(required=False, allow_null=True)
     uri_relation = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
     event_relation = serializers.ListSerializer(required=False, default=[], child=EventServiceRelationSerializer())
@@ -87,11 +89,12 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
     log_type_alias = serializers.CharField(source="get_log_type_display")
     related_bk_biz_name = serializers.SerializerMethodField()
     value_alias = serializers.SerializerMethodField()
+    value_list = serializers.SerializerMethodField()
 
     def get_value_alias(self, instance):
         if instance.log_type == ServiceRelationLogTypeChoices.BK_LOG:
             # 关联了日志平台 -> 获取索引集名称
-            index_set = api.log_search.search_index_set(bk_biz_id=instance.bk_biz_id)
+            index_set = api.log_search.search_index_set(bk_biz_id=instance.related_bk_biz_id)
             for index in index_set:
                 if str(index["index_set_id"]) == instance.value:
                     return index["index_set_name"]
@@ -107,6 +110,18 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
 
         return None
 
+    def get_value_list(self, instance):
+        if instance.log_type != ServiceRelationLogTypeChoices.BK_LOG:
+            return None
+
+        # 关联了日志平台 -> 获取索引集名称
+        index_set = api.log_search.search_index_set(bk_biz_id=instance.related_bk_biz_id)
+        value_list = []
+        for index in index_set:
+            if index["index_set_id"] in instance.value_list:
+                value_list.append({"value": index["index_set_id"], "value_alias": index["index_set_name"]})
+        return value_list
+
     class Meta:
         model = LogServiceRelation
         fields = [
@@ -114,6 +129,7 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
             "related_bk_biz_id",
             "related_bk_biz_name",
             "value",
+            "value_list",
             "value_alias",
             "log_type_alias",
             "updated_at",
