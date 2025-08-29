@@ -462,6 +462,13 @@ class _TransferApi:
             description=_("创建或更新metadata路由"),
             before_request=add_esb_info_before_request,
         )
+        self.bulk_create_or_update_log_router = DataAPI(
+            method="POST",
+            url=self._build_url("bulk_create_or_update_log_router/", "metadata_bulk_create_or_update_log_router/"),
+            module=self.MODULE,
+            description=_("批量创建或更新metadata路由"),
+            before_request=add_esb_info_before_request,
+        )
         self.list_kafka_tail = DataAPI(
             method="GET",
             url=self._build_url("kafka_tail/", "metadata_kafka_tail/"),
