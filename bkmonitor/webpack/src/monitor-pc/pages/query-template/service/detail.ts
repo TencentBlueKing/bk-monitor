@@ -40,7 +40,19 @@ export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem
     query_configs: [],
     variables: [],
   }));
-  const expressionConfig = new Expression({ expression: detail.expression, functions: detail.functions });
+  const expressionConfig = new Expression({
+    expression: detail.expression,
+    functions: detail.functions.map(f => {
+      if (typeof f === 'string') {
+        return {
+          id: f,
+          name: '',
+          params: [],
+        };
+      }
+      return f;
+    }),
+  });
   let queryConfigs = [];
   if (detail.query_configs?.length) {
     queryConfigs = await getRetrieveQueryTemplateQueryConfigs(detail.query_configs);

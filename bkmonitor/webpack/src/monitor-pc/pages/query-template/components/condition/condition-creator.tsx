@@ -27,21 +27,18 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../../constant/constant';
 import { isEn } from '../../../../i18n/lang';
 import { fetchMetricDimensionValueList } from '../../service/dimension';
 import { isVariableName } from '../../variables/template/utils';
 import ConditionCreatorSelector from './condition-creator-selector';
-import {
-  type IFilterField,
-  type IFilterItem,
-  type IGetValueFnParams,
-  EFieldType,
-} from '@/components/retrieval-filter/utils';
-import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '@/constant/constant';
+import { EFieldType } from './typing';
 
+import type { IFilterItem, IGetValueFnParams } from '../../../../components/retrieval-filter/utils';
 import type { MetricDetailV2 } from '../../typings/metric';
 import type { AggCondition } from '../../typings/query-config';
 import type { IConditionOptionsItem, IVariablesItem } from '../type/query-config';
+import type { IFilterField } from './typing';
 
 import './condition-creator.scss';
 
@@ -109,6 +106,17 @@ export default class ConditionCreator extends tsc<IProps> {
 
   get fields() {
     return [
+      ...(this.hasVariableOperate
+        ? [
+            {
+              alias: '',
+              name: '创建变量 ${}',
+              type: EFieldType.custom_operator,
+              is_option_enabled: false,
+              supported_operations: [],
+            },
+          ]
+        : []),
       ...this.variables.map(item => ({
         alias: item.name,
         name: item.name,
