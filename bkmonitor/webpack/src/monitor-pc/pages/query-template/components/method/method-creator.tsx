@@ -69,25 +69,30 @@ export default class MethodCreator extends tsc<IProps> {
 
   curValue: IMethodOptionsItem = null;
 
-  @Watch('options', { immediate: true })
+  isCreated = false;
+
+  @Watch('options')
   handleWatchOptions() {
     this.getAllOptions();
   }
 
-  @Watch('variables', { immediate: true })
+  @Watch('variables')
   handleWatchVariables() {
     this.getAllOptions();
   }
 
   @Watch('value', { immediate: true })
   handleWatchValue(val) {
+    if (!this.isCreated) {
+      this.getAllOptions();
+      this.isCreated = true;
+    }
     if (val) {
       this.curValue = this.allOptions.find(item => item.id === this.value) || {
         id: this.value,
         name: this.value,
-        isVariable: isVariableName(this.value),
+        isVariable: this.showVariables && isVariableName(this.value),
       };
-      this.getAllOptions();
     }
   }
 
@@ -99,7 +104,7 @@ export default class MethodCreator extends tsc<IProps> {
         isVariable: true,
       })),
       ...this.options,
-    ].filter(item => this.value !== item.id);
+    ];
   }
 
   handleOpenChange(val: boolean) {
@@ -112,6 +117,10 @@ export default class MethodCreator extends tsc<IProps> {
 
   handleSelect(item: IMethodOptionsItem) {
     if (!this.popClickHide) {
+      return;
+    }
+    if (this.curValue.id === item.id) {
+      this.showSelect = false;
       return;
     }
     this.curValue = item;
@@ -160,7 +169,7 @@ export default class MethodCreator extends tsc<IProps> {
             {this.allOptions.map((item, index) => (
               <div
                 key={index}
-                class='options-item'
+                class={['options-item', { checked: item.id === this.value }]}
                 onClick={() => this.handleSelect(item)}
               >
                 {item.isVariable ? (
