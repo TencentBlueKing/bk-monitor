@@ -29,7 +29,7 @@ import { BK_LOG_STORAGE } from './store/store.type';
 
 /** 外部版根据空间授权权限显示菜单 */
 export const getExternalMenuListBySpace = space => {
-  const list = [];
+  const list: string[] = [];
   (space.external_permission || []).forEach(permission => {
     if (permission === 'log_search') {
       list.push('retrieve');
@@ -64,7 +64,7 @@ export default ({
 
     const space_uid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
-    let space = null;
+    let space: { [key: string]: any } | null = null;
 
     if (space_uid) {
       space = (spaceList ?? []).find(item => item.space_uid === space_uid);

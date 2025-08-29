@@ -102,7 +102,6 @@ export default defineComponent({
       owners: [],
     });
 
-    console.log('store >>>', store);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetFieldConfig = computed(() => store.state.indexSetFieldConfig);
     const totalFields = computed(() => (indexFieldInfo.value.fields || []) as Array<any>);
