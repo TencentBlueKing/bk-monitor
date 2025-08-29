@@ -907,6 +907,10 @@ class CloudMonitoringTaskStatusResource(K8sOperationsMixin, Resource):
             task = CloudMonitoringTask.objects.get(task_id=task_id, bk_biz_id=bk_biz_id)
             if task.status == CloudMonitoringTask.STATUS_STOPPED:
                 regions = CloudMonitoringTaskRegion.objects.filter(task_id=task_id, is_deleted=False)
+                for region in regions:
+                    if region.status != "SUCCESS":
+                        region.status = "SUCCESS"
+                        region.save(update_fields=["status"])
                 return [
                     {
                         "region": region.region_code,
@@ -925,6 +929,10 @@ class CloudMonitoringTaskStatusResource(K8sOperationsMixin, Resource):
         region_configs = CloudMonitoringTaskRegion.objects.filter(task_id=task_id, is_deleted=False)
 
         if not region_configs:
+            # No regions configured for this task. We can consider it successful.
+            if task.status != "SUCCESS":
+                task.status = "SUCCESS"
+                task.save(update_fields=["status"])
             return []
 
         with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
@@ -979,7 +987,25 @@ class CloudMonitoringTaskStatusResource(K8sOperationsMixin, Resource):
                     status = "FAILED"
                     log = _("发生未知错误: {error}").format(error=str(e))
 
+                # 保存地域状态
+                if region.status != status:
+                    region.status = status
+                    region.save(update_fields=["status"])
                 results.append({"region": region.region_code, "id": region.region_id, "status": status, "log": log})
+
+        region_statuses = [r["status"] for r in results]
+        overall_status = "UNKNOWN"
+        if region_statuses:
+            if all(s == "SUCCESS" for s in region_statuses):
+                overall_status = "SUCCESS"
+            elif any(s == "FAILED" for s in region_statuses):
+                overall_status = "FAILED"
+            elif any(s == "RUNNING" for s in region_statuses):
+                overall_status = "RUNNING"
+
+        if task.status != overall_status:
+            task.status = overall_status
+            task.save(update_fields=["status"])
 
         return results
 
