@@ -27,7 +27,6 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
-  type IFilterField,
   type IFilterItem,
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
@@ -37,6 +36,8 @@ import {
 import VariableName from '../utils/variable-name';
 import ConditionCreatorOptions from './condition-creator-options';
 import KvTag from './kv-tag';
+
+import type { IFilterField } from './typing';
 
 import './condition-creator-selector.scss';
 
@@ -276,7 +277,7 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
             <ConditionCreatorOptions
               allVariables={this.allVariables}
               dimensionValueVariables={this.dimensionValueVariables}
-              fields={[...this.fields]}
+              fields={this.fields}
               getValueFn={this.getValueFn}
               hasVariableOperate={this.hasVariableOperate}
               isEnterSelect={true}
