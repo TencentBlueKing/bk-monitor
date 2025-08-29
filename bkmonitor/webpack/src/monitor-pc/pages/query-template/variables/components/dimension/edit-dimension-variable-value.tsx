@@ -67,6 +67,7 @@ export default class EditDimensionVariableValue extends tsc<DimensionValueProps,
           collapse-tag
           display-tag
           multiple
+          searchable
           onChange={this.handleValueChange}
           onToggle={this.handleSelectToggle}
         >
