@@ -63,4 +63,16 @@
       }
     }
   }
+  .cluster-content-empty {
+    height: 200px;
+    margin-top: 12px;
+    .part-text {
+      font-size: 12px;
+    }
+    .text-wrap {
+      margin-top: 10px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
 }

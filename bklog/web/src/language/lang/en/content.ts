@@ -1102,4 +1102,6 @@ export default {
   '确认解散该分组？': 'Confirm to dissolve this group?',
   '删除后，无法恢复，请谨慎操作。': 'After deletion, it cannot be recovered. Please operate carefully.',
   '确认删除该收藏项？': 'Confirm to delete this favorite item?',
+  '最大 {num} 个': 'Up to {num}',
+  '最大 {num} 天': 'Up to {num} days',
 };

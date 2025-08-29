@@ -86,6 +86,7 @@ export default defineComponent({
           <ClusterTable
             clusterList={item.data}
             clusterSelect={clusterSelect.value}
+            name={item.title}
             showBizCount={item.key === 'shared'}
             on-choose={handleChooseCluster}
           />

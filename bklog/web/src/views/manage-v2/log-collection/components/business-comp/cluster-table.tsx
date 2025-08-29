@@ -28,6 +28,8 @@ import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { formatFileSize } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import { useRouter } from 'vue-router/composables';
 
 import './cluster-table.scss';
 
@@ -44,6 +46,9 @@ export default defineComponent({
       default: true,
     },
     clusterSelect: {
+      type: Number,
+    },
+    name: {
       type: String,
       default: '',
     },
@@ -53,16 +58,57 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
+    const router = useRouter();
+    const store = useStore();
     const getPercent = row => {
       return (100 - row.storage_usage) / 100;
     };
+    const currentRow = ref(null);
+    const setupConfig = ref(null);
     /** 选中集群 */
     const handleSelectCluster = row => {
+      setupConfig.value = row.setup_config;
+      currentRow.value = row;
       emit('choose', row);
     };
     const isSelected = item => props.clusterSelect === item.storage_cluster_id;
     const isShowDesc = computed(() => props.clusterSelect && props.clusterList.find(item => isSelected(item)));
 
+    const clusterDesc = computed(() => {
+      const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = setupConfig.value;
+      const { description, hotWarm, archive } = currentRow.value;
+      return [
+        {
+          label: t('副本数量'),
+          value: t('最大 {num} 个', { num: replicasMax }),
+        },
+        {
+          label: t('过期时间'),
+          value: t('最大 {num} 天', { num: daysMax }),
+        },
+        {
+          label: t('冷热数据'),
+          value: hotWarm ? t('支持') : t('不支持'),
+        },
+        {
+          label: t('日志归档'),
+          value: archive ? t('支持') : t('不支持'),
+        },
+        {
+          label: t('集群备注'),
+          value: description || '--',
+        },
+      ];
+    });
+    const handleCreateCluster = () => {
+      const newUrl = router.resolve({
+        name: 'es-cluster-manage',
+        query: {
+          spaceUid: store.state.spaceUid,
+        },
+      });
+      window.open(newUrl.href, '_blank');
+    };
     /** 集群表格 */
     const renderClusterTable = () => (
       <div
@@ -129,33 +175,44 @@ export default defineComponent({
       </div>
     );
 
+    const renderEmpty = () => (
+      <bk-exception
+        class='cluster-content-empty'
+        scene='part'
+        type='empty'
+      >
+        <span>
+          {t('暂无')}
+          {t(props.name)}
+        </span>
+        <div
+          class='text-wrap text-part'
+          on-click={handleCreateCluster}
+        >
+          <span class='text-btn'>{t('创建集群')}</span>
+        </div>
+      </bk-exception>
+    );
+
     /** 集群说明 */
     const renderClusterDesc = () => (
       <div class='cluster-content-desc'>
         <div class='desc-title'>{t('集群说明')}</div>
         <div class='desc-content'>
-          <div class='desc-content-item'>
-            <span class='item-title'>{t('副本数量')}：</span>
-            <span class='item-desc'>最大 0 个</span>
-          </div>
-          <div class='desc-content-item'>
-            <span class='item-title'>{t('过期时间')}：</span>
-            <span class='item-desc'>最大 14 天</span>
-          </div>
-          <div class='desc-content-item'>
-            <span class='item-title'>{t('集群备注')}：</span>
-            <span class='item-desc'>
-              该集群用于接入日志量不大的业务日志场景 对于日志量大的业务，请申请独立 ES，避免影响公共 ES 限制：1.
-              30台以下免审批 2. 副本数为 0 ，没有数据冗余 3. 无法使用日志归档功能
-            </span>
-          </div>
+          {clusterDesc.value.map(item => (
+            <div class='desc-content-item'>
+              <span class='item-title'>{item.label}：</span>
+              <span class='item-desc'>{item.value}</span>
+            </div>
+          ))}
         </div>
       </div>
     );
     return () => (
       <div class='cluster-table-box'>
-        {renderClusterTable()}
-        {isShowDesc.value && renderClusterDesc()}
+        {(props.clusterList || []).length === 0
+          ? renderEmpty()
+          : [renderClusterTable(), isShowDesc.value && renderClusterDesc()]}
       </div>
     );
   },
