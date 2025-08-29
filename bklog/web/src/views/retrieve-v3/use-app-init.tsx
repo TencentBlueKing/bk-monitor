@@ -35,6 +35,7 @@ import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '../../store/store.
 import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
 import $http from '@/api';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 export default () => {
   const store = useStore();
@@ -101,10 +102,11 @@ export default () => {
     trendGraphHeight.value = height;
   };
 
-  RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, handleSearchBarHeightChange)
-    .on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, handleFavoriteWidthChange)
-    .on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, hanldeFavoriteShown)
-    .on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, handleGraphHeightChange);
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, handleSearchBarHeightChange);
+  addEvent(RetrieveEvent.FAVORITE_WIDTH_CHANGE, handleFavoriteWidthChange);
+  addEvent(RetrieveEvent.FAVORITE_SHOWN_CHANGE, hanldeFavoriteShown);
+  addEvent(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, handleGraphHeightChange);
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
@@ -273,7 +275,7 @@ export default () => {
           const respIndexSetList = resp[1];
           const defIndexItem =
             respIndexSetList.find(
-              item => item.permission?.[VIEW_BUSINESS] && !item.tags.some(tag => tag.tag_id === 4),
+              item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
             ) ?? respIndexSetList[0];
           const defaultId = [defIndexItem?.index_set_id].filter(Boolean);
 
@@ -294,7 +296,7 @@ export default () => {
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
-          const type = indexId ?? route.params.indexId ? 'single' : 'union';
+          const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
           if (indexId && type === 'single') {
             store.commit('updateIndexId', indexId);
             store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
@@ -405,7 +407,6 @@ export default () => {
     if (routeQuery.spaceUid !== spaceUid.value) {
       const resolver = new RouteUrlResolver({ route });
 
-      const {} = store.state.indexItem;
       router.replace({
         params: {
           indexId: undefined,
@@ -434,7 +435,7 @@ export default () => {
   // 滚动时，检索结果距离顶部高度
   const searchResultTop = ref(0);
 
-  RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
+  addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 

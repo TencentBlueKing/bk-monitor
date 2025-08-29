@@ -53,6 +53,8 @@ from fta_web.alert.resources import BaseTopNResource
 from fta_web.alert.serializers import AlertSearchSerializer
 from fta_web.models.alert import SearchHistory, SearchType
 from monitor_web.incident.serializers import IncidentSearchSerializer
+from monitor_web.incident.metrics.resources import IncidentMetricsSearchResource  # noqa
+from monitor_web.incident.events.resources import IncidentEventsSearchResource, IncidentEventsDetailResource  # noqa
 
 
 class IncidentBaseResource(Resource):
@@ -1555,4 +1557,13 @@ class IncidentDiagnosisResource(IncidentBaseResource):
                 content.append(content_item)
         else:
             content = raw_content
-        return {"sub_panel": display_panel, "contents": content}
+        diagnosis_result = {"sub_panel": display_panel, "contents": content}
+        display_content = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("display")
+        individual_summary_content = (
+            raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("individual_summary")
+        )
+        if display_content:
+            diagnosis_result.update({"display": display_content})
+        if individual_summary_content:
+            diagnosis_result.update({"individual_summary": individual_summary_content})
+        return diagnosis_result

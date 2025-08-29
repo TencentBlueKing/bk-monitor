@@ -48,7 +48,7 @@ class RetrieveHelper extends RetrieveBase {
   mousedownEvent = null;
 
   constructor({ isFavoriteShow = false, isViewCurrentIndex = true, favoriteWidth = 0 }) {
-    super({});
+    super();
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
     this.isViewCurrentIndex = isViewCurrentIndex;
@@ -438,6 +438,14 @@ class RetrieveHelper extends RetrieveBase {
    */
   setIndexConfigOpen(show: boolean) {
     this.runEvent(RetrieveEvent.INDEX_CONFIG_OPEN, show);
+  }
+
+  /**
+   * 打开别名配置
+   * @param show
+   */
+  setAliasConfigOpen(show: boolean) {
+    this.runEvent(RetrieveEvent.ALIAS_CONFIG_OPEN, show);
   }
 
   getScrollSelector() {

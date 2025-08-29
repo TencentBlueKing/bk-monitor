@@ -1,0 +1,68 @@
+.control-operate-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding-right: 24px;
+  padding-left: 8px;
+  background: #fafbfd;
+  box-shadow: 0 -1px 0 0 #dcdee5;
+
+  .shortcut-key {
+    display: flex;
+    align-items: center;
+
+    .shortcut-item {
+      display: inline-flex;
+      align-items: center;
+      margin-right: 24px;
+      font-size: 12px;
+      line-height: 16px;
+
+      .label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 16px;
+        padding: 0 4px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #a3b1cc;
+        background-color: #a3b1cc29;
+        border: 1px solid #a3b1cc4d;
+        border-radius: 2px;
+
+        &.bklog-arrow-down-filled {
+          padding: 0;
+          font-size: 14px;
+        }
+
+        &.up {
+          margin-right: 2px;
+          transform: rotate(-180deg);
+        }
+      }
+
+      .value {
+        margin-left: 4px;
+        color: #7a8599;
+      }
+    }
+  }
+
+  .btn-opts {
+    .save-btn {
+      min-width: 142px;
+      margin-right: 8px;
+      min-width: 64px;
+      font-size: 14px;
+      padding: 0 4px;
+      margin-right: 8px;
+    }
+    .cancel-btn {
+      width: 64px;
+      min-width: 64px;
+      font-size: 14px;
+    }
+  }
+}

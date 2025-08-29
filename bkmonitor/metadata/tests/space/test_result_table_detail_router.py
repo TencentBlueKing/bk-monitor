@@ -14,10 +14,6 @@ from django.conf import settings
 import pytest
 
 from metadata import models
-from metadata.models.space.ds_rt import (
-    compose_monitor_table_detail_for_bkbase_type,
-    get_table_info_for_influxdb_and_vm,
-)
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.tests.common_utils import consul_client
 
@@ -168,39 +164,6 @@ def create_or_delete_records(mocker):
     models.ResultTableField.objects.all().delete()
     models.AccessVMRecord.objects.all().delete()
     models.ESFieldQueryAliasOption.objects.all().delete()
-
-
-@pytest.mark.django_db(databases="__all__")
-def test_compose_monitor_table_detail_for_bkbase_type(create_or_delete_records):
-    """
-    测试新版BkBaseResultTable路由是否能够如期组装
-    """
-
-    # 旧版方式
-    old_way_table_id_detail_res = get_table_info_for_influxdb_and_vm(
-        bk_tenant_id="riot", table_id_list=["1001_bkmonitor_time_series_50010.__default__"]
-    )
-
-    # 新版方式
-    new_way_table_id_detail_res = compose_monitor_table_detail_for_bkbase_type(
-        table_id_list=["1001_bkmonitor_time_series_50010.__default__"]
-    )
-
-    expected = {
-        "1001_bkmonitor_time_series_50010.__default__": {
-            "vm_rt": "bkm_1001_bkmonitor_time_series_50010",
-            "storage_id": 100111,
-            "cmdb_level_vm_rt": "bkm_1001_bkmonitor_time_series_50010_cmdb",
-            "cluster_name": "",
-            "storage_name": "vm-plat",
-            "db": "",
-            "measurement": "bk_split_measurement",
-            "tags_key": [],
-            "storage_type": "victoria_metrics",
-        }
-    }
-    assert old_way_table_id_detail_res == new_way_table_id_detail_res
-    assert new_way_table_id_detail_res == expected
 
 
 @pytest.mark.django_db(databases="__all__")

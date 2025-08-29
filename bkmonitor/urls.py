@@ -75,7 +75,7 @@ urlpatterns = [
     re_path(r"^metrics/$", metrics),
     # env: `BK_API_URL_TMPL` must be set
     re_path(r"^notice/", include(("bk_notice_sdk.urls", "notice"), namespace="notice")),
-    re_path(r"^ai_agents/", include("ai_agents.urls")),
+    re_path(r"^ai_whale/", include("ai_whale.urls")),
 ]
 
 # 添加API访问子路径

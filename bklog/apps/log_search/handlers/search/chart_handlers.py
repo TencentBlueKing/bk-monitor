@@ -257,12 +257,19 @@ class ChartHandler:
         """
         alias_mappings = alias_mappings or {}
 
+        st = arrow.get(start_time).to("Asia/Shanghai")
+        et = arrow.get(end_time).to("Asia/Shanghai")
+
         # 根据 bkbase 的规范，thedate 固定按东八区转换
-        start_date = arrow.get(start_time).to("Asia/Shanghai").format("YYYYMMDD")
-        end_date = arrow.get(end_time).to("Asia/Shanghai").format("YYYYMMDD")
+        start_date = st.format("YYYYMMDD")
+        end_date = et.format("YYYYMMDD")
+
+        start_datetime = st.format("YYYY-MM-DD HH:mm:ss")
+        end_datetime = et.shift(seconds=1).format("YYYY-MM-DD HH:mm:ss")
 
         additional_where_clause = (
             f"thedate >= {start_date} AND thedate <= {end_date} AND "
+            f"dtEventTime >= '{start_datetime}' AND dtEventTime <= '{end_datetime}' AND "
             f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
         )
 
@@ -359,7 +366,6 @@ class ChartHandler:
 
         for cmd in commands:
             args = cmd["args"]
-            pattern = f"'{cmd['pattern']}'"
             use_not = False
             ignore_case = False
             for arg in args:
@@ -368,10 +374,20 @@ class ChartHandler:
                 if "i" in arg:
                     ignore_case = True
 
-            # 构建正则表达式条件
-            regex_op = "REGEXP"
+            if cmd["command"] == "egrep":
+                op = "REGEXP"
+                pattern = cmd["pattern"].replace("\\", "\\\\")
+            else:
+                op = "LIKE"
+                pattern = cmd["pattern"].replace("%", "\\%").replace("_", "\\_")
+                pattern = f"%{pattern}%"
+
+            # 作为 SQL 的 value，要对 pattern 进行转义，然后用单引号包裹
+            pattern = pattern.replace("'", "''")
+            pattern = f"'{pattern}'"
+
             if use_not:
-                regex_op = f"NOT {regex_op}"
+                op = f"NOT {op}"
 
             field_name = grep_field
             if ignore_case:
@@ -379,7 +395,7 @@ class ChartHandler:
                 pattern = f"LOWER({pattern})"
 
             # 构建条件表达式
-            condition = f"{field_name} {regex_op} {pattern}"
+            condition = f"{field_name} {op} {pattern}"
             conditions.append(condition)
 
         # 返回所有组合条件
@@ -421,38 +437,19 @@ class ChartHandler:
         return order_by_clause
 
     @classmethod
-    def get_grep_condition(cls, grep_query, grep_field, alias_mappings):
+    def get_grep_condition(cls, grep_nodes, grep_field, alias_mappings):
         """
         获取grep查询条件
-        :param grep_query: 查询语句
+        :param grep_nodes: 解析后的grep查询节点
         :param grep_field: 查询字段
         :param alias_mappings: 别名
         """
-        pattern = ""
-        grep_where_clause = ""
-        ignore_case = False
-        if grep_query and grep_field:
-            # 使用别名作为查询条件
-            grep_field = alias_mappings.get(grep_field, grep_field)
-            # 加上 grep 查询条件
-            grep_syntax_list = grep_parser(grep_query)
-            # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
-            _grep_field = cls.convert_object_field(grep_field)
-            grep_where_clause = cls.convert_to_where_clause(_grep_field, grep_syntax_list)
-            if grep_where_clause:
-                use_not = False
-                ignore_case = False
-                for arg in grep_syntax_list[-1]["args"]:
-                    if "v" in arg:
-                        use_not = True
-                    if "i" in arg:
-                        ignore_case = True
-                if not use_not:
-                    pattern = grep_where_clause.rsplit("REGEXP ", maxsplit=1)[-1]
-                    if ignore_case:
-                        pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
-                    pattern = pattern.strip("'")
-        return {"grep_where_clause": grep_where_clause, "pattern": pattern, "ignore_case": ignore_case}
+        # 使用别名作为查询条件
+        grep_field = alias_mappings.get(grep_field, grep_field)
+        # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
+        origin_grep_field = cls.convert_object_field(grep_field)
+        grep_where_clause = cls.convert_to_where_clause(origin_grep_field, grep_nodes)
+        return grep_where_clause
 
     def add_doris_query_trace(self, sql=None, total_records=None, time_taken=None):
         """
@@ -613,16 +610,18 @@ class SQLChartHandler(ChartHandler):
         alias_mappings = params["alias_mappings"]
 
         grep_field = params.get("grep_field")
-        grep_condition_dict = self.get_grep_condition(
-            grep_field=grep_field,
-            grep_query=params.get("grep_query"),
-            alias_mappings=alias_mappings,
-        )
-        grep_where_clause = grep_condition_dict["grep_where_clause"]
-        # where_clause_flag用于判断是否有where条件生成
-        where_clause_flag = grep_where_clause
-        pattern = grep_condition_dict["pattern"]
-        ignore_case = grep_condition_dict["ignore_case"]
+        grep_query = params.get("grep_query")
+        grep_nodes = []
+        grep_where_clause = ""
+
+        if grep_query and grep_field:
+            grep_nodes = grep_parser(grep_query)
+            grep_where_clause = self.get_grep_condition(
+                grep_nodes=grep_nodes,
+                grep_field=grep_field,
+                alias_mappings=alias_mappings,
+            )
+
         order_by_clause = self.get_order_by_clause(
             index_set_id=self.index_set_id,
             sort_list=params.get("sort_list", []),
@@ -637,7 +636,7 @@ class SQLChartHandler(ChartHandler):
             if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
                 params["index_set_ids"] = [self.index_set_id]
                 params["bk_biz_id"] = bk_biz_id
-                if where_clause_flag:
+                if grep_nodes:
                     sql = f"SELECT * WHERE {grep_where_clause}"
                 else:
                     sql = f"SELECT * {grep_where_clause}"
@@ -656,7 +655,7 @@ class SQLChartHandler(ChartHandler):
                     action=SQLGenerateMode.WHERE_CLAUSE.value,
                     alias_mappings=alias_mappings,
                 )
-                if where_clause_flag:
+                if grep_nodes:
                     where_clause += f" AND {grep_where_clause}"
                 else:
                     where_clause += f" {grep_where_clause}"
@@ -671,7 +670,6 @@ class SQLChartHandler(ChartHandler):
         log_list = add_highlight_mark(
             data_list=result["list"],
             match_field=alias_mappings.get(grep_field, grep_field),
-            pattern=pattern,
-            ignore_case=ignore_case,
+            grep_nodes=grep_nodes,
         )
         return {"list": log_list, "total": result["total_records"], "took": result["time_taken"]}

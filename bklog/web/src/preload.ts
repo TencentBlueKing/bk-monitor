@@ -29,7 +29,7 @@ import { BK_LOG_STORAGE } from './store/store.type';
 
 /** 外部版根据空间授权权限显示菜单 */
 export const getExternalMenuListBySpace = space => {
-  const list = [];
+  const list: string[] = [];
   (space.external_permission || []).forEach(permission => {
     if (permission === 'log_search') {
       list.push('retrieve');
@@ -64,7 +64,7 @@ export default ({
 
     const space_uid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
-    let space = null;
+    let space: { [key: string]: any } | null = null;
 
     if (space_uid) {
       space = (spaceList ?? []).find(item => item.space_uid === space_uid);
@@ -74,7 +74,7 @@ export default ({
       space = (spaceList ?? []).find(item => item.bk_biz_id === bkBizId);
     }
 
-    if (!space) {
+    if (!space?.permission?.[VIEW_BUSINESS]) {
       space = spaceList?.find(item => item?.permission?.[VIEW_BUSINESS]) ?? spaceList?.[0];
     }
 
@@ -100,5 +100,13 @@ export default ({
     return res.data;
   });
 
-  return Promise.all([spaceRequest, userInfoRequest, globalsRequest]);
+  /**
+   * 获取用户引导数据
+   */
+  const getUserGuideRequest = http.request('meta/getUserGuide').then(res => {
+    store.commit('setUserGuideData', res.data);
+    return res.data;
+  });
+
+  return Promise.allSettled([spaceRequest, userInfoRequest, globalsRequest, getUserGuideRequest]);
 };

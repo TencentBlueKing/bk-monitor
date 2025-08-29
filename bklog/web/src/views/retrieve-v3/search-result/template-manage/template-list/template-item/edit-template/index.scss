@@ -1,0 +1,10 @@
+.edit-template-main {
+  width: 320px;
+  padding: 16px;
+  .operate-btns {
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+}

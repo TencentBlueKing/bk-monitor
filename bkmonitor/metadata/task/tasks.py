@@ -17,12 +17,10 @@ from typing import Any
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
 from django.utils.translation import gettext as _
 from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
-from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from constants.common import DEFAULT_TENANT_ID
 from core.prometheus import metrics
 from metadata import models
@@ -37,7 +35,6 @@ from metadata.models.constants import (
 )
 from metadata.models.data_link.constants import BASEREPORT_SOURCE_SYSTEM, BASEREPORT_USAGES, DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
-from metadata.models.data_link.utils import compose_bkdata_table_id
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
 from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
@@ -470,7 +467,7 @@ def push_and_publish_space_router(
         push_redis_keys = []
         for space in spaces:
             if settings.ENABLE_MULTI_TENANT_MODE:
-                push_redis_keys.append(f"{space.bk_tenant_id}|{space.space_type_id}__{space.space_id}")
+                push_redis_keys.append(f"{space.space_type_id}__{space.space_id}|{space.bk_tenant_id}")
             else:
                 push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
@@ -483,10 +480,10 @@ def push_and_publish_space_router(
 
 
 def _access_bkdata_vm(
+    bk_tenant_id: str,
     bk_biz_id: int,
     table_id: str,
     data_id: int,
-    bcs_cluster_id: str | None = None,
     allow_access_v2_data_link: bool | None = False,
 ):
     """接入计算平台 VM 任务
@@ -495,40 +492,32 @@ def _access_bkdata_vm(
     from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
 
     # NOTE：只有当allow_access_v2_data_link为True，即单指标单表时序指标数据时，才允许接入V4链路
-    if (settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link) or (
-        bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST
-    ):
+    if settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link:
         logger.info("_access_bkdata_vm: start to access v2 bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
-        access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
+        access_v2_bkdata_vm(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
     else:
         logger.info("_access_bkdata_vm: start to access bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
-        access_bkdata(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
+        access_bkdata(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def access_bkdata_vm(
+    bk_tenant_id: str,
     bk_biz_id: int,
     table_id: str,
     data_id: int,
     space_type: str | None = None,
     space_id: str | None = None,
-    allow_access_v2_data_link: bool | None = False,
+    allow_access_v2_data_link: bool = False,
 ):
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
     try:
-        from metadata.models import BCSClusterInfo
-
-        # 查询`data_id`所在的集群 ID 在启用新链路的白名单中
-        fq = Q(K8sMetricDataID=data_id) | Q(CustomMetricDataID=data_id) | Q(K8sEventDataID=data_id)
-        obj = BCSClusterInfo.objects.filter(fq).first()
-        bcs_cluster_id = obj.cluster_id if obj else None
-
         _access_bkdata_vm(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
             table_id=table_id,
             data_id=data_id,
-            bcs_cluster_id=bcs_cluster_id,
             allow_access_v2_data_link=allow_access_v2_data_link,
         )
     except RetryError as e:
@@ -555,10 +544,7 @@ def access_bkdata_vm(
     # 更新数据源依赖的 consul
     try:
         # 保证有 backend，才进行更新
-        if (
-            settings.ENABLE_V2_VM_DATA_LINK
-            or (bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST)
-        ) and models.DataSourceResultTable.objects.filter(bk_data_id=data_id).exists():
+        if settings.ENABLE_V2_VM_DATA_LINK and models.DataSourceResultTable.objects.filter(bk_data_id=data_id).exists():
             data_source = models.DataSource.objects.get(bk_data_id=data_id, is_enable=True)
             data_source.refresh_consul_config()
     except models.DataSource.DoesNotExist:
@@ -859,9 +845,15 @@ def bulk_create_fed_data_link(sub_clusters):
         logger.info("bulk_create_fed_data_link: sub_cluster_id->[%s],start to create fed datalink", sub_cluster_id)
         try:
             sub_cluster = models.BCSClusterInfo.objects.get(cluster_id=sub_cluster_id)
-            ds = DataSource.objects.get(bk_data_id=sub_cluster.K8sMetricDataID)
-            table_id = DataSourceResultTable.objects.get(bk_data_id=sub_cluster.K8sMetricDataID).table_id
-            vm_cluster = get_vm_cluster_id_name(space_type=SpaceTypes.BKCC.value, space_id=str(sub_cluster.bk_biz_id))
+            ds = DataSource.objects.get(bk_tenant_id=sub_cluster.bk_tenant_id, bk_data_id=sub_cluster.K8sMetricDataID)
+            table_id = DataSourceResultTable.objects.get(
+                bk_tenant_id=sub_cluster.bk_tenant_id, bk_data_id=sub_cluster.K8sMetricDataID
+            ).table_id
+            vm_cluster = get_vm_cluster_id_name(
+                bk_tenant_id=sub_cluster.bk_tenant_id,
+                space_type=SpaceTypes.BKCC.value,
+                space_id=str(sub_cluster.bk_biz_id),
+            )
 
             logger.info(
                 "bulk_create_fed_data_link: sub_cluster_id->[%s],data_id->[%s],table_id->[%s]",
@@ -871,6 +863,7 @@ def bulk_create_fed_data_link(sub_clusters):
             )
 
             create_fed_bkbase_data_link(
+                bk_biz_id=sub_cluster.bk_biz_id,
                 monitor_table_id=table_id,
                 data_source=ds,
                 storage_cluster_name=vm_cluster.get("cluster_name"),
@@ -882,7 +875,7 @@ def bulk_create_fed_data_link(sub_clusters):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def sync_bkbase_v4_metadata(key):
+def sync_bkbase_v4_metadata(key, skip_types: list[str] | None = None):
     """
     同步计算平台元数据信息至Metadata
     Redis中的数据格式
@@ -891,6 +884,7 @@ def sync_bkbase_v4_metadata(key):
         vm: {rt1:{},rt2:{},rt3:{}}
         es: {rt1:[],rt2:[],rt3:[]}
     @param key: 计算平台对应的DataBusKey
+    @param skip_types: 跳过同步的类型,默认跳过es类型
     """
     logger.info("sync_bkbase_v4_metadata: try to sync bkbase metadata,key->[%s]", key)
     start_time = time.time()
@@ -898,7 +892,14 @@ def sync_bkbase_v4_metadata(key):
         task_name="sync_bkbase_v4_metadata", status=TASK_STARTED, process_target=None
     ).inc()
 
+    # 默认跳过es类型
+    if skip_types is None:
+        skip_types = []
+
     bkbase_redis = bkbase_redis_client()
+    if not bkbase_redis:
+        logger.warning("sync_bkbase_v4_metadata: bkbase redis config is not set.")
+        return
 
     bk_base_data_id = key.split(":")[-1]  # 提取 bk_base_data_id
 
@@ -923,6 +924,7 @@ def sync_bkbase_v4_metadata(key):
     try:
         ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
         table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+        bk_tenant_id: str = ds.bk_tenant_id
     except models.DataSource.DoesNotExist:
         logger.error("sync_bkbase_v4_metadata: DataSource->[%s] does not exist", bk_data_id)
         return
@@ -936,19 +938,19 @@ def sync_bkbase_v4_metadata(key):
 
     # 处理 Kafka 信息
     kafka_info = bkbase_metadata_dict.get("kafka")
-    if kafka_info:
+    if kafka_info and "kafka" not in skip_types:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got kafka_info->[%s],bk_data_id->[%s],try to sync kafka info",
                 kafka_info,
                 bk_data_id,
             )
-            sync_kafka_metadata(kafka_info=kafka_info, ds=ds, bk_data_id=bk_data_id)
+            sync_kafka_metadata(bk_tenant_id=bk_tenant_id, kafka_info=kafka_info, ds=ds, bk_data_id=bk_data_id)
             logger.info("sync_bkbase_v4_metadata: sync kafka info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 ES 信息
     es_info = bkbase_metadata_dict.get("es")
-    if es_info:
+    if es_info and "es" not in skip_types:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got es_info->[%s],bk_data_id->[%s],try to sync es info", es_info, bk_data_id
@@ -956,17 +958,17 @@ def sync_bkbase_v4_metadata(key):
             # TODO: 这里需要特别注意,新版协议中，es_info中的数据结构是 {key:[info1,info2]},这里的key对应计算平台侧的RT,在监控平台这边不可读
             # TODO：考虑到目前日志链路中，不存在1个DataId关联多个ES结果表的场景，因此这里默认只选取第一条元素的value
             es_info_value = next(iter(es_info.values()))
-            sync_es_metadata(es_info_value, table_id)
+            sync_es_metadata(bk_tenant_id=bk_tenant_id, es_info=es_info_value, table_id=table_id)
             logger.info("sync_bkbase_v4_metadata: sync es info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 VM 信息
     vm_info = bkbase_metadata_dict.get("vm")
-    if vm_info:
+    if vm_info and "vm" not in skip_types:
         with transaction.atomic():  # 单独事务
             logger.info(
                 "sync_bkbase_v4_metadata: got vm_info->[%s],bk_data_id->[%s],try to sync vm info", vm_info, bk_data_id
             )
-            sync_vm_metadata(vm_info)
+            sync_vm_metadata(bk_tenant_id=bk_tenant_id, vm_info=vm_info)
             logger.info("sync_bkbase_v4_metadata: sync vm info for bk_data_id->[%s] successfully", bk_data_id)
 
     cost_time = time.time() - start_time
@@ -984,10 +986,12 @@ def sync_bkbase_v4_metadata(key):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
+def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, storage_cluster_name: str | None = None):
     """
     为单个业务创建基础采集数据链路
+    @param bk_tenant_id: 租户ID
     @param bk_biz_id: 业务ID
+    @param storage_cluster_name: 存储集群名称(VM)
     """
 
     logger.info(
@@ -998,16 +1002,15 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
         logger.error("create_basereport_datalink_for_bkcc: multi tenant mode is not enabled,return!")
         return
 
-    try:
-        if not storage_cluster_name:
-            storage_cluster_name = (
-                models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True)
-                .last()
-                .cluster_name
-            )
-    except Exception as e:  # pylint: disable=broad-except
-        logger.error("create_basereport_datalink_for_bkcc: get default vm cluster failed,error->[%s]", e)
-        return
+    # 获取默认VM集群
+    if not storage_cluster_name:
+        cluster_info = models.ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True
+        ).last()
+        if not cluster_info:
+            logger.error("create_basereport_datalink_for_bkcc: get default vm cluster failed,return!")
+            return
+        storage_cluster_name = cluster_info.cluster_name
 
     space_ins = models.Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id=bk_biz_id)
     bk_tenant_id = space_ins.bk_tenant_id
@@ -1227,9 +1230,10 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
+def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, storage_cluster_name: str | None = None):
     """
     创建Agent基础事件数据链路
+    @param bk_tenant_id: 租户ID
     @param bk_biz_id: 业务ID
     @param storage_cluster_name: 存储集群名称(ES)
     """
@@ -1241,19 +1245,19 @@ def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
         return
 
     if storage_cluster_name:
-        storage_cluster_id = models.ClusterInfo.objects.get(cluster_name=storage_cluster_name).cluster_id
-
-    try:
+        storage_cluster_id = models.ClusterInfo.objects.get(
+            bk_tenant_id=bk_tenant_id, cluster_name=storage_cluster_name
+        ).cluster_id
+    else:
         # TODO 这里需要区分ES集群是否在计算平台有注册
-        if not storage_cluster_name:
-            default_es_cluster = models.ClusterInfo.objects.filter(
-                cluster_type=models.ClusterInfo.TYPE_ES, is_default_cluster=True
-            ).last()
-            storage_cluster_name = default_es_cluster.cluster_name
-            storage_cluster_id = default_es_cluster.cluster_id
-    except Exception as e:  # pylint: disable=broad-except
-        logger.error("create_base_event_datalink_for_bkcc: get default es cluster failed,error->[%s]", e)
-        return
+        default_es_cluster = models.ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_ES, is_default_cluster=True
+        ).last()
+        if not default_es_cluster:
+            logger.error("create_base_event_datalink_for_bkcc: get default es cluster failed,return!")
+            return
+        storage_cluster_name = default_es_cluster.cluster_name
+        storage_cluster_id = default_es_cluster.cluster_id
 
     space_ins = models.Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id=bk_biz_id)
     bk_tenant_id = space_ins.bk_tenant_id
@@ -1510,14 +1514,14 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
     # 如果未指定存储集群，则使用默认的VM集群
     if not storage_cluster_name:
         cluster = models.ClusterInfo.objects.filter(
-            cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True
+            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True
         ).last()
         if not cluster:
             logger.error("create_system_proc_datalink_for_bkcc: get default vm cluster failed,return!")
             return
         storage_cluster_name = cluster.cluster_name
     else:
-        cluster = models.ClusterInfo.objects.get(cluster_name=storage_cluster_name)
+        cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=storage_cluster_name)
 
     data_name_to_etl_config = {
         "perf": EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG.value,
@@ -1528,8 +1532,6 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
         "perf": models.DataLink.SYSTEM_PROC_PERF,
         "port": models.DataLink.SYSTEM_PROC_PORT,
     }
-
-    data_link_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
     # 创建数据源和结果表
     for data_link_type, data_link_config in SYSTEM_PROC_DATA_LINK_CONFIGS.items():
@@ -1588,9 +1590,7 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
             )
 
         # 创建AccessVMRecord
-        vm_rt = compose_bkdata_table_id(
-            f"{data_link_biz_ids.data_biz_id}_base_{bk_biz_id}_{data_name_to_data_link_strategy[data_link_type]}"
-        )
+        vm_rt = f"{bk_biz_id}_base_{bk_biz_id}_{data_name_to_data_link_strategy[data_link_type]}"
         AccessVMRecord.objects.update_or_create(
             bk_tenant_id=bk_tenant_id,
             result_table_id=table_id,

@@ -34,12 +34,25 @@ import type { ISpanClassifyItem, ITraceData, ITraceTree } from '../../../typings
  * @returns { ITraceTree }
  */
 export const mergeTraceTree = (originTree: ITraceTree, newTree: ITraceTree) => {
+  let i = 1;
   const result = Object.keys(originTree).reduce((pre: any, cur: string) => {
     if (typeTools.isString(originTree[cur])) {
       pre[cur] = originTree[cur];
     } else if (typeTools.isArray(originTree[cur])) {
       pre[cur] = [...originTree[cur], ...(newTree as ITraceTree)[cur]];
     } else if (typeTools.isObject(originTree[cur])) {
+      if (
+        cur === 'processes' &&
+        (newTree as ITraceTree).processes?.p1?.serviceName !== originTree.processes?.p1?.serviceName
+      ) {
+        // 跨应用合并时 需要将 p1 的 serviceName 作为 key 进行合并 否则会覆盖原来应用的 serviceName
+        i += 1;
+        pre.processes = originTree.processes || {};
+        pre.processes[`p${i}`] = {
+          ...(newTree as ITraceTree).processes,
+        };
+        return pre;
+      }
       pre[cur] = { ...originTree[cur], ...(newTree as ITraceTree)[cur] };
     }
     return pre;

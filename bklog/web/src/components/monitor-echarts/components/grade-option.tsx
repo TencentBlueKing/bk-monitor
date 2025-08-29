@@ -175,7 +175,7 @@ export default defineComponent({
             if (resp.result) {
               emit('change', { event: e, isSave, data: gradeOptionForm.value });
               store.commit('updateIndexSetCustomConfig', {
-                grade_options: JSON.parse(JSON.stringify(gradeOptionForm.value)),
+                grade_options: structuredClone(gradeOptionForm.value),
               });
               return;
             }
@@ -193,7 +193,7 @@ export default defineComponent({
 
     const updateOptions = (cfg?) => {
       const target = cfg ?? getDefaultGradeOption();
-      Object.assign(gradeOptionForm.value, JSON.parse(JSON.stringify(target)));
+      Object.assign(gradeOptionForm.value, structuredClone(target));
     };
 
     const handleTypeChange = type => {

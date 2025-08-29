@@ -251,7 +251,9 @@ class IncidentSnapshot:
         self.incident_graph_edges = {}
         self.alert_entity_mapping = {}
         self.bk_biz_id = None
+        # 以source为key，将对应的targets聚合在一起
         self.entity_targets = defaultdict(lambda: defaultdict(set))
+        # 以target为key，将对应的sources聚合在一起
         self.entity_sources = defaultdict(lambda: defaultdict(set))
 
         if prepare:
@@ -344,7 +346,7 @@ class IncidentSnapshot:
 
         :param entity_id: 实体ID
         :param types: 按照指定的类型列表过滤
-        :return: 实体父节点
+        :return: 实体父节点 (子(source) -> 父(target))
         """
         if len(self.entity_targets[entity_id][IncidentGraphEdgeType.DEPENDENCY]) == 0:
             return []

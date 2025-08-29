@@ -25,6 +25,7 @@
  * IN THE SOFTWARE.
  */
 import { copyMessage, xssFilter } from '@/common/util';
+import RetrieveHelper from '@/views/retrieve-helper';
 import JSONBig from 'json-bigint';
 
 export type JsonViewConfig = {
@@ -208,6 +209,7 @@ export default class JsonView {
     ) {
       const storeNode = targetNode.closest('.bklog-json-view-object') as HTMLElement;
       if (this.jsonNodeMap.get(storeNode)) {
+        RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
         const { isExpand, target } = this.jsonNodeMap.get(storeNode) ?? {};
         this.jsonNodeMap.get(storeNode).isExpand = !isExpand;
         this.setNodeExpand(storeNode, !isExpand, target);
@@ -232,6 +234,11 @@ export default class JsonView {
     this.rootElClick?.(e);
   }
 
+  private handleMouseUp(e: MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+
   public setValue(val: any) {
     this.options.jsonValue = val;
     this.setJsonViewSchema(val);
@@ -240,6 +247,7 @@ export default class JsonView {
   public initClickEvent(fn?: (...args) => void) {
     this.rootElClick = fn;
     this.targetEl.addEventListener('click', this.handleTargetElementClick.bind(this));
+    this.targetEl.addEventListener('mouseup', this.handleMouseUp.bind(this));
   }
 
   public expand(depth: number) {
@@ -263,6 +271,7 @@ export default class JsonView {
     if (this.targetEl.querySelector('.bklog-json-view-node')) {
       this.targetEl.innerHTML = '';
       this.targetEl.removeEventListener('click', this.handleTargetElementClick.bind(this));
+      this.targetEl.removeEventListener('mouseup', this.handleMouseUp.bind(this));
     }
   }
 }

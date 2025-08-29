@@ -55,11 +55,6 @@ export const GLOBAL_FEATURE_LIST = [
   //   name: '资源注册',
   //   icon: 'icon-monitor icon-mc-migrate-tool'
   // }
-  // {
-  //   id: 'data-pipeline',
-  //   name: '链路管理',
-  //   icon: 'icon-monitor icon-mc-migrate-tool'
-  // }
 ];
 // route config
 // route item

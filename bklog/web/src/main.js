@@ -30,13 +30,15 @@ import Vue from 'vue';
 import VueVirtualScroller from 'vue-virtual-scroller';
 
 import LogButton from '@/components/log-button';
+import LogIcon from '@/components/log-icon';
 import i18n from '@/language/i18n';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
-import App from './App';
 import http from './api';
+import App from './app.tsx';
 import { bus } from './common/bus';
+import './common/preload-import.ts';
 import { renderHeader, xssFilter } from './common/util';
 import './directives/index';
 import JsonFormatWrapper from './global/json-format-wrapper.vue';
@@ -68,6 +70,7 @@ const setRouterErrorHandle = router => {
 
 Vue.component('JsonFormatWrapper', JsonFormatWrapper);
 Vue.component('LogButton', LogButton);
+Vue.component('LogIcon', LogIcon);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 Vue.use(VueVirtualScroller);

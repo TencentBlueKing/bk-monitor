@@ -24,7 +24,6 @@ from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
 
-from ai_agent.conf.default import *  # noqa
 from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
@@ -262,7 +261,7 @@ DISK_FILTER_CONDITION_LIST_V1 = [
 ]
 
 # SQL最大查询条数
-SQL_MAX_LIMIT = 200000
+SQL_MAX_LIMIT = 500000
 
 FILE_SYSTEM_TYPE_RT_ID = "system.disk"
 FILE_SYSTEM_TYPE_FIELD_NAME = "device_type"
@@ -326,7 +325,6 @@ ACTIVE_VIEWS = {
         "datalink": "monitor_web.datalink.views",
         "new_report": "monitor_web.new_report.views",
         "incident": "monitor_web.incident.views",
-        "ai_assistant": "monitor_web.ai_assistant.views",
         "k8s": "monitor_web.k8s.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
@@ -786,7 +784,7 @@ DATABASES = {
             "MAX_OVERFLOW": -1,
             "RECYCLE": 600,
         },
-        "OPTIONS": {"charset": "utf8mb4"},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",
@@ -795,7 +793,7 @@ DATABASES = {
         "PASSWORD": BACKEND_MYSQL_PASSWORD,
         "HOST": BACKEND_MYSQL_HOST,
         "PORT": BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4"},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
     },
     "bk_dataview": {
         "ENGINE": "django.db.backends.mysql",
@@ -804,7 +802,7 @@ DATABASES = {
         "PASSWORD": GRAFANA_MYSQL_PASSWORD or BACKEND_MYSQL_PASSWORD,
         "HOST": GRAFANA_MYSQL_HOST or BACKEND_MYSQL_HOST,
         "PORT": GRAFANA_MYSQL_PORT or BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4"},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
     },
 }
 
@@ -1127,6 +1125,8 @@ CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
 CMSI_API_BASE_URL = os.getenv("BKAPP_CMSI_API_BASE_URL", "")
 JOB_USE_APIGW = os.getenv("BKAPP_JOB_USE_APIGW", "false").lower() == "true"
 JOB_API_BASE_URL = os.getenv("BKAPP_JOB_API_BASE_URL", "")
+# bcs api base url
+BCS_APIGW_BASE_URL = os.getenv("BKAPP_BCS_APIGW_BASE_URL", "")
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
@@ -1389,17 +1389,11 @@ ENVIRONMENT_CODE = os.getenv("BKAPP_ENVIRONMENT_CODE") or "bk_monitor"
 # `dbm_` 开头的结果表，仅特定的业务可以查看，并且不需要添加过滤条件
 ACCESS_DBM_RT_SPACE_UID = []
 
-# BCS APIGW 地址
-BCS_APIGW_BASE_URL = os.getenv("BKAPP_BCS_APIGW_BASE_URL", "")
-
 # 获取指标的间隔时间，默认为 2 hour
 FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
 
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
-
-# 是否启用 influxdb 写入，默认 True
-ENABLE_INFLUXDB_STORAGE = True
 
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
@@ -1447,17 +1441,18 @@ BK_MONITOR_API_HOST = os.getenv("BKAPP_BK_MONITOR_API_HOST", "http://monitor.bkm
 # 网关管理员
 APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split(','))}]"
 
-# 是否启用新版的数据链路
-# 是否启用通过计算平台获取GSE data_id 资源，默认不启用
-ENABLE_V2_BKDATA_GSE_RESOURCE = False
-# 是否启用新版的 vm 链路，默认不启用
-ENABLE_V2_VM_DATA_LINK = False
-ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
-# 插件数据是否启用接入V4链路
-ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "false").lower() == "true"
+# 是否启用新版的数据链路，默认开启
+ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == "true"
+# 插件数据是否启用接入V4链路，默认开启
+ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
+# 是否启用influxdb，默认关闭
+ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
+# 是否开启空间内置数据链路初始化
+ENABLE_SPACE_BUILTIN_DATA_LINK = os.getenv("ENABLE_SPACE_BUILTIN_DATA_LINK", "false").lower() == "true"
 
-# 是否启用计算平台Kafka采样接口
-ENABLE_BKDATA_KAFKA_TAIL_API = False
+# 创建 vm 链路资源所属的命名空间
+DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
+
 # Kafka采样接口重试次数
 KAFKA_TAIL_API_RETRY_TIMES = 3
 # Kafka Consumer超时时间(秒)
@@ -1513,16 +1508,7 @@ SYNC_BKBASE_META_BIZ_BATCH_SIZE = 10
 # 同步计算平台RT元信息时支持的存储类型
 SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES = ["mysql", "tspider", "hdfs"]
 
-# 创建 vm 链路资源所属的命名空间
-DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
-# grafana和策略导出是否支持data_label转换
-ENABLE_DATA_LABEL_EXPORT = True
-
-# 是否启用多租户版本的BKBASE V4链路
-ENABLE_BKBASE_V4_MULTI_TENANT = False
-
-# 是否启用access数据批量处理
-ENABLED_ACCESS_DATA_BATCH_PROCESS = False
+# access数据批量处理
 ACCESS_DATA_BATCH_PROCESS_SIZE = 50000
 ACCESS_DATA_BATCH_PROCESS_THRESHOLD = 0
 
@@ -1544,9 +1530,6 @@ ENABLE_UPTIMECHECK_TEST = True
 
 # 检测结果缓存 TTL(小时)
 CHECK_RESULT_TTL_HOURS = 1
-
-# LLM 接口地址
-BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
 # 支持来源 APIGW 列表
 FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor")
@@ -1642,3 +1625,6 @@ BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_UR
 
 # 进程采集独立数据源模式业务ID列表
 PROCESS_INDEPENDENT_DATAID_BIZ_IDS = []
+
+# 是否开启公共拨测节点鉴权
+ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH = False

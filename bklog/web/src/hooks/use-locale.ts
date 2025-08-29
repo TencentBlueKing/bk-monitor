@@ -28,7 +28,7 @@ import i18n from '../language/i18n';
 export const t = i18n.t.bind(i18n);
 
 export default () => {
-  const t = i18n.t.bind(i18n);
+  const t = i18n.t.bind(i18n) as (...args: any[]) => string;
   return {
     t,
     $t: t,

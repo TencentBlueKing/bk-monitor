@@ -533,6 +533,11 @@ class TooManyBucketsException(BaseSearchException):
     MESSAGE = _("日志检索失败，维度组合数量过多，请减少维度字段数量或缩短查询时间范围后重试")
 
 
+class ParseDateFieldException(BaseSearchException):
+    ERROR_CODE = "456"
+    MESSAGE = _("日志检索失败，解析日期字段失败，请检查日期字段格式")
+
+
 # =================================================
 # 导出
 # =================================================
@@ -561,6 +566,11 @@ class PreCheckAsyncExportException(BaseException):
 class BKBaseExportException(BaseException):
     ERROR_CODE = "505"
     MESSAGE = _("计算平台索引集暂不支持快速下载")
+
+
+class DuplicateUnifyQueryExportException(BaseException):
+    ERROR_CODE = "506"
+    MESSAGE = _("已有相同检索参数正在下载中，请勿重复下载")
 
 
 # =================================================

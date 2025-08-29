@@ -26,3 +26,4 @@
 export const VIEW_AUTH = 'view_synthetic_v2'; // 拨测查看
 export const MANAGE_AUTH = 'manage_synthetic_v2'; // 拨测管理
 export const MANAGE_NODE_AUTH = 'manage_public_synthetic_location'; // 拨测公共节点管理
+export const USE_PUBLIC_NODE_AUTH = 'use_public_synthetic_location'; // 拨测公共节点使用

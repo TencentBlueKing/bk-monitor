@@ -29,8 +29,6 @@ import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
-import TimeFormatterSwitcher from '../../components/result-cell-element/time-formatter-switcher';
-
 export default () => {
   const store = useStore();
   const { $t } = useLocale();
@@ -42,20 +40,20 @@ export default () => {
   const visibleFields = computed(() => store.state.visibleFields);
   const isNotVisibleFieldsShow = computed(() => store.state.isNotVisibleFieldsShow);
   const activeSortField = computed(() => store.state.indexItem.sort_list);
-  const sortShow = (field_name,currentSortField) => {
-    const requiredFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
+  const sortShow = (field_name, currentSortField) => {
+    const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
     if (requiredFields.includes(field_name) && requiredFields.includes(currentSortField)) {
       return true;
     }
-    return currentSortField === field_name
-  }
+    return currentSortField === field_name;
+  };
   const renderHead = (field, onClickFn) => {
     const currentSort = activeSortField.value?.[0] || null;
     const currentSortField = currentSort ? currentSort[0] : null;
-    const isSortShow = sortShow(field.field_name,currentSortField)
+    const isSortShow = sortShow(field.field_name, currentSortField);
     const isDesc = currentSort ? currentSort[1] === 'desc' : false;
     const isAsc = currentSort ? currentSort[1] === 'asc' : false;
-    const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
+
     if (field) {
       const fieldName = getFieldNameByField(field);
       const fieldType = field.field_type;
@@ -77,7 +75,11 @@ export default () => {
         }
       }
       const isLackIndexFields = !!unionContent && isUnionSearch.value;
-      const sortable = field.es_doc_values && field.tag !== 'union-source' && field.field_type !== 'flattened';
+      const sortable =
+        !['dtEventTimeStamp'].includes(field.field_name) &&
+        field.es_doc_values &&
+        field.tag !== 'union-source' &&
+        field.field_type !== 'flattened';
 
       return h(
         'div',
@@ -139,19 +141,14 @@ export default () => {
             },
             [fieldName],
           ),
-          // h(TimeFormatterSwitcher, {
-          //   class: 'timer-formatter',
-          //   style: {
-          //     display: isShowSwitcher ? 'inline-block' : 'none',
-          //   },
-          // }),
+
           sortable
             ? h('span', { class: 'bk-table-caret-wrapper' }, [
                 h('i', {
-                  class: `bk-table-sort-caret ascending ${ isSortShow && isAsc ? 'active' : ''}`,
+                  class: `bk-table-sort-caret ascending ${isSortShow && isAsc ? 'active' : ''}`,
                 }),
                 h('i', {
-                  class: `bk-table-sort-caret descending ${ isSortShow && isDesc ? 'active' : ''}`,
+                  class: `bk-table-sort-caret descending ${isSortShow && isDesc ? 'active' : ''}`,
                 }),
               ])
             : '',
