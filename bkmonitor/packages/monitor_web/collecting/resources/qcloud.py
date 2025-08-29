@@ -848,44 +848,140 @@ class CloudMonitoringTaskListResource(Resource):
             return []
 
 
-class CloudMonitoringTaskStatusResource(Resource):
+class K8sOperationsMixin:
+    def _get_k8s_config(self, cluster_id: str) -> k8s_client.Configuration:
+        # 构建并返回用于访问 K8S API 的配置
+        if not all(
+            [
+                settings.BCS_API_GATEWAY_SCHEMA,
+                settings.BCS_API_GATEWAY_HOST,
+                settings.BCS_API_GATEWAY_PORT,
+                settings.BCS_API_GATEWAY_TOKEN,
+            ]
+        ):
+            # 如果网关配置不全，抛出中文错误提示
+            raise ValueError("BCS API 网关配置不完整，请联系管理员")
+
+        host = urljoin(
+            f"{settings.BCS_API_GATEWAY_SCHEMA}://{settings.BCS_API_GATEWAY_HOST}:{settings.BCS_API_GATEWAY_PORT}",
+            f"/clusters/{cluster_id}",
+        )
+        config = k8s_client.Configuration(
+            host=host,
+            api_key={"authorization": settings.BCS_API_GATEWAY_TOKEN},
+            api_key_prefix={"authorization": "Bearer"},
+        )
+        return config
+
+    def _get_default_cluster(self) -> tuple[str, str]:
+        # 获取默认的集群ID和命名空间 (从配置项读取，格式为 cluster_id:namespace)
+        if not settings.K8S_PLUGIN_COLLECT_CLUSTER_ID:
+            raise ValueError("需要配置 K8S_PLUGIN_COLLECT_CLUSTER_ID，请联系管理员")
+
+        try:
+            cluster_id, namespace = settings.K8S_PLUGIN_COLLECT_CLUSTER_ID.split(":")
+            return cluster_id, namespace
+        except ValueError:
+            raise ValueError(
+                f"K8S_PLUGIN_COLLECT_CLUSTER_ID 格式不正确: {settings.K8S_PLUGIN_COLLECT_CLUSTER_ID}，期望格式为 'cluster_id:namespace'"
+            )
+
+
+class CloudMonitoringTaskStatusResource(K8sOperationsMixin, Resource):
     """
-    异步获取任务状态接口
-    查询指定任务的当前状态
+    查询云监控任务状态
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, help_text=_("业务ID"))
-        task_id = serializers.CharField(required=True, help_text=_("任务ID"))
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        task_id = serializers.CharField(required=True, label="任务ID")
 
-    class ResponseSerializer(serializers.Serializer):
-        task_id = serializers.CharField(help_text=_("任务ID"))
-        status = serializers.CharField(help_text=_("任务状态"))
+    def perform_request(self, validated_data):
+        from monitor_web.models.qcloud import CloudMonitoringTask, CloudMonitoringTaskRegion
 
-    def perform_request(self, validated_request_data):
-        """
-        查询任务状态
-        """
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        task_id = validated_request_data["task_id"]
+        task_id = validated_data["task_id"]
+        bk_biz_id = validated_data["bk_biz_id"]
 
+        # 1. 检查任务是否在数据库中标记为“已停用”
         try:
-            from monitor_web.models.qcloud import CloudMonitoringTask
-
-            # 查询任务
-            task = CloudMonitoringTask.objects.get(task_id=task_id, bk_biz_id=bk_biz_id, is_deleted=False)
-
-            return {
-                "task_id": task.task_id,
-                "status": task.status,
-            }
-
+            task = CloudMonitoringTask.objects.get(task_id=task_id, bk_biz_id=bk_biz_id)
+            if task.status == CloudMonitoringTask.STATUS_STOPPED:
+                regions = CloudMonitoringTaskRegion.objects.filter(task_id=task_id, is_deleted=False)
+                return [
+                    {
+                        "region": region.region_code,
+                        "id": region.region_id,
+                        "status": "SUCCESS",
+                        "log": _("任务已停用"),
+                    }
+                    for region in regions
+                ]
         except CloudMonitoringTask.DoesNotExist:
-            logger.error(f"任务不存在: task_id={task_id}, bk_biz_id={bk_biz_id}")
             raise ValueError(f"任务不存在: {task_id}")
-        except Exception as e:
-            logger.error(f"查询任务状态失败: {str(e)}")
-            raise RuntimeError(f"查询任务状态失败: {str(e)}")
+
+        # 2. 准备 K8s 客户端
+        cluster_id, namespace = self._get_default_cluster()
+        results = []
+        region_configs = CloudMonitoringTaskRegion.objects.filter(task_id=task_id, is_deleted=False)
+
+        if not region_configs:
+            return []
+
+        with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
+            apps_v1 = k8s_client.AppsV1Api(api_client)
+
+            # 3. 遍历每个地域并检查其 Deployment 状态
+            for region in region_configs:
+                resource_name = f"qcloud-{task_id}-{region.region_code}".lower().replace("_", "-")
+                status = "UNKNOWN"
+                log = ""
+
+                try:
+                    # 4. 查询 Deployment
+                    deployment = apps_v1.read_namespaced_deployment(name=resource_name, namespace=namespace)
+
+                    # 5. 检查 Deployment 状态
+                    dep_status = deployment.status
+                    spec_replicas = deployment.spec.replicas
+                    ready_replicas = dep_status.ready_replicas or 0
+
+                    if spec_replicas is None or spec_replicas == 0:
+                        status = "SUCCESS"
+                        log = _("采集任务的副本数设置为0，视作已停止")
+                    elif ready_replicas >= spec_replicas:
+                        status = "SUCCESS"
+                        log = _("采集任务运行正常 ({ready_replicas}/{spec_replicas})").format(
+                            ready_replicas=ready_replicas, spec_replicas=spec_replicas
+                        )
+                    else:
+                        # 检查是否有部署失败的迹象
+                        if dep_status.conditions:
+                            for condition in dep_status.conditions:
+                                if condition.type == "Progressing" and condition.status == "False":
+                                    status = "FAILED"
+                                    log = condition.message or _("部署失败，请检查配置或查看日志")
+                                    break
+                        if status != "FAILED":
+                            status = "RUNNING"
+                            log = _("采集任务部署中 ({ready_replicas}/{spec_replicas} 就绪)").format(
+                                ready_replicas=ready_replicas, spec_replicas=spec_replicas
+                            )
+
+                except k8s_client.exceptions.ApiException as e:
+                    if e.status == 404:
+                        status = "FAILED"
+                        log = _("采集任务的部署资源 ({resource_name}) 未找到").format(resource_name=resource_name)
+                    else:
+                        status = "FAILED"
+                        log = _("查询部署状态失败: {reason}").format(reason=e.reason)
+
+                except Exception as e:
+                    status = "FAILED"
+                    log = _("发生未知错误: {error}").format(error=str(e))
+
+                results.append({"region": region.region_code, "id": region.region_id, "status": status, "log": log})
+
+        return results
 
 
 class CloudMonitoringTaskDetailResource(Resource):
@@ -1081,7 +1177,7 @@ class CloudMonitoringDeleteTaskResource(Resource):
             raise RuntimeError(f"删除任务失败: {str(e)}")
 
 
-class CloudMonitoringTaskLogResource(Resource):
+class CloudMonitoringTaskLogResource(K8sOperationsMixin, Resource):
     """
     获取腾讯云监控任务采集日志接口
     """
@@ -1093,43 +1189,6 @@ class CloudMonitoringTaskLogResource(Resource):
 
     class ResponseSerializer(serializers.Serializer):
         log_content = serializers.CharField(help_text=_("日志内容"))
-
-    def _get_k8s_config(self, cluster_id: str) -> k8s_client.Configuration:
-        # 构建并返回用于访问 K8S API 的配置
-        if not all(
-            [
-                settings.BCS_API_GATEWAY_SCHEMA,
-                settings.BCS_API_GATEWAY_HOST,
-                settings.BCS_API_GATEWAY_PORT,
-                settings.BCS_API_GATEWAY_TOKEN,
-            ]
-        ):
-            # 如果网关配置不全，抛出中文错误提示
-            raise ValueError("BCS API 网关配置不完整，请联系管理员")
-
-        host = urljoin(
-            f"{settings.BCS_API_GATEWAY_SCHEMA}://{settings.BCS_API_GATEWAY_HOST}:{settings.BCS_API_GATEWAY_PORT}",
-            f"/clusters/{cluster_id}",
-        )
-        config = k8s_client.Configuration(
-            host=host,
-            api_key={"authorization": settings.BCS_API_GATEWAY_TOKEN},
-            api_key_prefix={"authorization": "Bearer"},
-        )
-        return config
-
-    def _get_default_cluster(self) -> tuple[str, str]:
-        # 获取默认的集群ID和命名空间 (从配置项读取，格式为 cluster_id:namespace)
-        if not settings.K8S_PLUGIN_COLLECT_CLUSTER_ID:
-            raise ValueError("需要配置 K8S_PLUGIN_COLLECT_CLUSTER_ID，请联系管理员")
-
-        try:
-            cluster_id, namespace = settings.K8S_PLUGIN_COLLECT_CLUSTER_ID.split(":")
-            return cluster_id, namespace
-        except ValueError:
-            raise ValueError(
-                f"K8S_PLUGIN_COLLECT_CLUSTER_ID 格式不正确: {settings.K8S_PLUGIN_COLLECT_CLUSTER_ID}，期望格式为 'cluster_id:namespace'"
-            )
 
     def perform_request(self, validated_request_data):
         """
