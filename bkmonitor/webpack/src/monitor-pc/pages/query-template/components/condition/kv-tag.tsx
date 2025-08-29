@@ -26,6 +26,8 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { xssFilter } from 'monitor-common/utils';
+
 import { isVariableName } from '../../variables/template/utils';
 import VariableName from '../utils/variable-name';
 
@@ -60,7 +62,7 @@ export default class KvTag extends tsc<IProps> {
   }
 
   get tipContent() {
-    return `<div style="max-width: 600px;">${this.value.key.id} ${this.value.method.name} ${this.value.value.map(v => v.id).join(' OR ')}<div>`;
+    return `<div style="max-width: 600px;">${this.value.key.id} ${this.value.method.id} ${xssFilter(this.value.value.map(v => v.id).join(' OR '))}<div>`;
   }
 
   @Watch('value', { immediate: true })

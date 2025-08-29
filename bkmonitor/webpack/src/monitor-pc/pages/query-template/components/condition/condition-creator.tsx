@@ -27,6 +27,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { isEn } from '../../../../i18n/lang';
 import { fetchMetricDimensionValueList } from '../../service/dimension';
 import { isVariableName } from '../../variables/template/utils';
 import ConditionCreatorSelector from './condition-creator-selector';
@@ -43,6 +44,13 @@ import type { AggCondition } from '../../typings/query-config';
 import type { IConditionOptionsItem, IVariablesItem } from '../type/query-config';
 
 import './condition-creator.scss';
+
+const methodNameMap = {
+  include: '包含',
+  exclude: '不包含',
+  reg: '正则等于',
+  nreg: '正则不等于',
+};
 
 interface IProps {
   allVariables?: { name: string }[];
@@ -114,7 +122,7 @@ export default class ConditionCreator extends tsc<IProps> {
         type: EFieldType.text,
         is_option_enabled: true,
         supported_operations: this.handleGetMethodList(item?.dimensionType || 'string').map(item => ({
-          alias: item.name,
+          alias: isEn ? item.name : methodNameMap?.[item.id] || item.name,
           value: item.id,
         })),
       })),
