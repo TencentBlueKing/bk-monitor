@@ -1,0 +1,47 @@
+.strategy-container {
+  display: flex;
+  gap: 8px;
+}
+
+.strategy-dialog {
+  .select-group {
+    width: 100%;
+    margin: 16px 0 12px 0;
+
+    .bk-button {
+      width: 50%;
+    }
+  }
+
+  .increase-group {
+    margin-bottom: 4px;
+  }
+
+  .info-btn {
+    margin-left: 4px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
+
+.strategy-popover {
+  .operator {
+    margin-left: 6px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
+
+.strategy-create-groups {
+  cursor: pointer;
+
+  .groups-btn {
+    display: flex;
+    align-items: center;
+
+    .icon-plus-circle {
+      margin-right: 6px;
+      font-size: 16px;
+    }
+  }
+}

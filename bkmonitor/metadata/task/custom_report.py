@@ -97,7 +97,9 @@ def check_event_update():
     )
     storage_cluster_table_ids: dict[tuple[str, int], list[str]] = {}
     for storage in (
-        models.ESStorage.objects.filter(table_id__in=table_ids).values("storage_cluster_id", "table_id").iterator()
+        models.ESStorage.objects.filter(table_id__in=table_ids)
+        .values("storage_cluster_id", "table_id", "bk_tenant_id")
+        .iterator()
     ):
         storage_cluster_table_ids.setdefault((storage["bk_tenant_id"], storage["storage_cluster_id"]), []).append(
             storage["table_id"]

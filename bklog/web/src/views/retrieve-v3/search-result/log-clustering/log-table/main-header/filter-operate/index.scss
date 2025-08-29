@@ -1,0 +1,61 @@
+.filter-main {
+  .filter-select {
+    border: none;
+    outline: none;
+    box-shadow: none;
+  }
+
+  .funnel-icon {
+    font-size: 13px;
+    color: #c4c6cc;
+    margin-left: 4px;
+    cursor: pointer;
+
+    &.is-funnel-active {
+      color: rgb(58, 132, 255);
+    }
+  }
+}
+
+.filter-select-ext-popover {
+  .is-selected {
+    background: #fff !important;
+  }
+
+  .bk-options {
+    padding-top: 10px;
+  }
+
+  .bk-option {
+    margin: 0px !important;
+
+    .bk-option-content {
+      height: 16px;
+      padding: 0 10px !important;
+      margin-bottom: 10px;
+      background: #fff !important;
+      display: flex;
+      align-items: center;
+
+      .option-name {
+        color: #63656e;
+        margin-left: 6px;
+      }
+    }
+  }
+
+  .bk-select-extension {
+    background: #fff;
+    &:hover {
+      background: #fff;
+    }
+
+    .operate-btns {
+      width: 100%;
+      height: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  }
+}

@@ -43,12 +43,17 @@ import {
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
 import DOMPurify from 'dompurify';
+import * as pinyin from 'tiny-pinyin';
+import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
 import Vuex from 'vuex';
 
-import { deepClone } from '../components/monitor-echarts/utils';
 import { menuArr } from '../components/nav/complete-menu';
 import collect from './collect';
 import { ConditionOperator } from './condition-operator';
+if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
+  pinyin.patchDict(patcher56L);
+}
+
 import {
   BkLogGlobalStorageKey,
   IndexFieldInfo,
@@ -194,7 +199,7 @@ const store = new Vuex.Store({
     globals,
   },
   // 公共 store
-  state: deepClone(stateTpl),
+  state: structuredClone(stateTpl),
   // 公共 getters
   getters: {
     runVersion: state => state.runVersion,
@@ -328,7 +333,9 @@ const store = new Vuex.Store({
       return getters.originAddition.reduce((output, current) => {
         const { field, operator, value, hidden_values = [], disabled } = current;
         if (!disabled && field !== '_ip-select_') {
-          const filterValue = value.filter(v => !hidden_values.includes(v));
+          const filterFn = v => !hidden_values.includes(v);
+
+          const filterValue = Array.isArray(value) ? value.filter(filterFn) : [value].filter(filterFn);
           if (filterValue.length > 0) {
             output.push({
               field,
@@ -439,7 +446,7 @@ const store = new Vuex.Store({
 
       state.indexItem.isUnionIndex = false;
       state.unionIndexList.splice(0, state.unionIndexList.length);
-      state.indexItem.chart_params = deepClone(IndexItem.chart_params);
+      state.indexItem.chart_params = structuredClone(IndexItem.chart_params);
 
       if (payload?.addition?.length >= 0) {
         state.indexItem.addition.splice(
@@ -606,7 +613,7 @@ const store = new Vuex.Store({
         return {
           ...item,
           name: item.space_name.replace(/\[.*?\]/, ''),
-          py_text: Vue.prototype.$bkToPinyin(item.space_name, true),
+          py_text: pinyin.convertToPinyin(item.space_name, true),
           tags:
             item.space_type_id === 'bkci' && item.space_code
               ? [defaultTag, { id: 'bcs', name: window.mainComponent.$t('容器项目'), type: 'bcs' }]
@@ -944,7 +951,7 @@ const store = new Vuex.Store({
       Object.assign(state, payload);
     },
     resetState(state) {
-      Object.assign(state, deepClone(stateTpl));
+      Object.assign(state, structuredClone(stateTpl));
     },
     updateLocalSort(state, payload) {
       state.localSort = payload;
@@ -1164,6 +1171,7 @@ const store = new Vuex.Store({
         });
       }
 
+      dateFieldSortList = undefined;
       return http
         .request(
           urlStr,
@@ -1276,7 +1284,9 @@ const store = new Vuex.Store({
       // 如果是第一次请求
       // 分页请求后面请求{ start_time, end_time }要保证和初始值一致
       if (!payload?.isPagination) {
-        dateFieldSortList = payload?.defaultSortList?.filter(([fieldName, sort]) => fieldName && sort);
+        if (payload?.defaultSortList) {
+          dateFieldSortList = payload?.defaultSortList?.filter(([fieldName, sort]) => fieldName && sort);
+        }
 
         // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
         // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致

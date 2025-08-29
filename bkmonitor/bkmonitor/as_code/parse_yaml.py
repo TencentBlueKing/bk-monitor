@@ -13,6 +13,7 @@ import datetime
 import re
 from abc import abstractmethod
 from copy import deepcopy
+from typing import Any
 
 from rest_framework.exceptions import ValidationError
 
@@ -169,7 +170,7 @@ class StrategyConfigParser(BaseConfigParser):
 
         return time_ranges
 
-    def get_query_configs_n_name(self, config: dict, detect: dict) -> tuple[list, str, str]:
+    def get_query_configs_n_name(self, config: dict[str, Any], detect: dict) -> tuple[list, str, str]:
         # 查询配置
         query_configs = []
 
@@ -274,7 +275,12 @@ class StrategyConfigParser(BaseConfigParser):
         trigger_config = {
             "check_window": trigger_window,
             "count": trigger_count,
-            "uptime": {"calendars": config["active_calendars"], "time_ranges": time_ranges},
+            "uptime": {
+                # 向前兼容旧的active_calendars旧配置
+                "calendars": config["calendars"].get("not_active", []) or config["active_calendars"],
+                "active_calendars": config["calendars"].get("active", []),
+                "time_ranges": time_ranges,
+            },
         }
         detect = {
             "connector": config["detect"]["algorithm"]["operator"],
@@ -490,7 +496,10 @@ class StrategyConfigParser(BaseConfigParser):
         return strategy
 
     @staticmethod
-    def update_active_time(config: dict, code_config: dict):
+    def update_active_time(config: dict[str, Any], code_config: dict[str, Any]):
+        """
+        更新活跃时间配置
+        """
         uptime = config["detects"][0]["trigger_config"].get("uptime")
         if uptime:
             active_times = []
@@ -500,9 +509,16 @@ class StrategyConfigParser(BaseConfigParser):
             if active_time and active_time != "00:00 -- 23:59":
                 code_config["active_time"] = active_time
 
-            calendars = uptime.get("calendars", [])
+            # 日历配置
+            not_active_calendars: list[int] = uptime.get("calendars", [])
+            active_calendars: list[int] = uptime.get("active_calendars", [])
+            calendars: dict[str, list[int]] = {}
+            if active_calendars:
+                calendars["active"] = active_calendars
+            if not_active_calendars:
+                calendars["not_active"] = not_active_calendars
             if calendars:
-                code_config["active_calendar"] = calendars
+                code_config["calendars"] = calendars
 
     @staticmethod
     def update_algorithm_config(data_source: str, data_type: str, config: dict, item: dict, detect: dict):
@@ -567,6 +583,8 @@ class StrategyConfigParser(BaseConfigParser):
                     if dynamic_group_id not in self.reverse_dynamic_groups:
                         continue
                     nodes.append(self.reverse_dynamic_groups[dynamic_group_id])
+            else:
+                raise ValueError(f"Unknown target field: {target['field']}")
 
             if nodes:
                 query["target"] = {"type": target_type, "nodes": nodes}
@@ -574,7 +592,7 @@ class StrategyConfigParser(BaseConfigParser):
     def update_notice_config(self, config: dict, code_config: dict):
         # 通知配置
         notice_config = config["notice"]
-        notice = {
+        notice: dict[str, Any] = {
             "user_groups": [],
             "signal": [signal for signal in notice_config["signal"] if signal != "no_data"],
         }

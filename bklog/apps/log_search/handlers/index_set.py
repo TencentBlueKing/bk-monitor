@@ -1658,7 +1658,6 @@ class BaseIndexSetHandler:
                     "source_type": obj.scenario_id,
                     "cluster_id": obj.storage_cluster_id,
                 }
-
                 if table_info["source_type"] == Scenario.LOG:
                     table_info["origin_table_id"] = obj.result_table_id
                 request_params["table_info"].append(table_info)

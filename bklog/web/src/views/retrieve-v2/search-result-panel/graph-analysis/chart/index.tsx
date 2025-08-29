@@ -28,7 +28,8 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import { formatDateTimeField, getRegExp, blobDownload } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { debounce } from 'lodash';
+import dayjs from 'dayjs';
+import { debounce } from 'lodash-es';
 
 import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';
@@ -222,12 +223,7 @@ export default defineComponent({
     };
 
     const handleDownloadData = () => {
-      const lightName = store.state.retrieve.indexSetList.find(
-        item => `${item.index_set_id}` === `${store.state.indexId}`,
-      )?.lightenName;
-      const filename = lightName
-        ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.csv`
-        : 'bk_log_search.csv';
+      const filename = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
 
       // 如果数据是一个对象数组并且需要提取表头
       if (tableData.value.length === 0) {

@@ -33,7 +33,6 @@ import $http from '../../api';
 import * as authorityMap from '../../common/authority-map';
 import fingerSelectColumn from '../../views/retrieve/result-table-panel/log-clustering/components/finger-select-column.vue';
 import EmptyStatus from '../empty-status/index.vue';
-import { deepClone } from '../monitor-echarts/utils';
 import MaskingAddRule from './masking-add-rule';
 
 import './masking-select-rule-table.scss';
@@ -254,7 +253,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         this.tableList = this.tableList.filter(tItem => !this.defaultSelectRuleList.includes(tItem.id));
       }
       this.tableStrList = this.tableList.map(item => item.rule_name);
-      this.tableSearchList = deepClone(this.tableList);
+      this.tableSearchList = structuredClone(this.tableList);
       this.tableShowList = this.tableSearchList.slice(0, this.pagination.limit);
       this.changePagination({
         current: 1,
@@ -308,7 +307,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   handleSearchChange(val) {
     if (val === '' && !this.tableLoading) {
       this.emptyType = 'empty';
-      this.tableSearchList = deepClone(this.tableList);
+      this.tableSearchList = structuredClone(this.tableList);
       this.pageLimitChange(this.pagination.limit);
       this.changeCheckValue(this.selectList.length);
     }

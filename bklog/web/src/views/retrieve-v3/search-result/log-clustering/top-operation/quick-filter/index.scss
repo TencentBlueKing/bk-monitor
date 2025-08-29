@@ -1,0 +1,61 @@
+.fingerprint-setting {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  flex-shrink: 0;
+  height: 32px;
+  font-size: 12px;
+  line-height: 24px;
+
+  .new-class-checkbox {
+    height: 28px;
+    line-height: 28px;
+  }
+
+  .bk-checkbox-text {
+    color: #4d4f56;
+  }
+
+  .split-line {
+    margin: 0 6px 0 16px;
+    width: 1px;
+    height: 16px;
+    background: #dcdee5;
+  }
+}
+
+.quick-filter-trigger-main {
+  width: 84px;
+  height: 28px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  color: #4d4f56;
+
+  &:hover {
+    background: #f0f1f5;
+    border-radius: 2px;
+  }
+
+  .trigger-icon {
+    font-size: 14px;
+    margin-right: 5px;
+  }
+}
+
+.quick-filter-selected-ext {
+  .bk-option {
+    .bk-checkbox-text {
+      font-size: 12px;
+    }
+
+    &.is-selected {
+      background: none !important;
+    }
+  }
+
+  .bk-option:hover {
+    background: #f4f6fa;
+  }
+}

@@ -133,7 +133,7 @@
   import useStore from '@/hooks/use-store';
   import VueDraggable from 'vuedraggable';
 
-  import { deepClone, random } from '../../../../common/util';
+  import { random } from '../../../../common/util';
   import { BK_LOG_STORAGE } from '../../../../store/store.type';
   const props = defineProps({
     initData: {
@@ -212,7 +212,7 @@
     ([newInitData, newShouldRefresh]) => {
       // 当有初始数据时，直接更新
       if (Array.isArray(newInitData) && newInitData.length) {
-        sortList.value = deepClone(newInitData).map(sorts => ({ key: random(8), sorts }));
+        sortList.value = structuredClone(newInitData).map(sorts => ({ key: random(8), sorts })) as { key: string; sorts: string[] }[]
       } else {
         sortList.value = [];
       }

@@ -35,7 +35,6 @@ import $http from '../../api';
 import { getFlatObjValues, xssFilter } from '../../common/util';
 import { fieldTypeMap } from '../../store/constant';
 import EmptyStatus from '../empty-status/index.vue';
-import { deepClone } from '../monitor-echarts/utils';
 import MaskingFieldInput from './masking-field-input';
 import MaskingSelectRuleTable from './masking-select-rule-table';
 
@@ -331,7 +330,7 @@ export default class MaskingField extends tsc<IProps> {
         // 未保存过脱敏规则 用输入框的json数组生成脱敏列表
         await this.matchMaskingRule();
         this.tableList = this.initTableList(this.fieldTypeList, 'allClear');
-        this.tableShowList = deepClone(this.tableList);
+        this.tableShowList = structuredClone(this.tableList);
       }
     } catch (err) {
     } finally {
@@ -354,7 +353,7 @@ export default class MaskingField extends tsc<IProps> {
   }
 
   async handleMoveEnd(fieldItem: IFieldItem, fieldItemRules: Array<IRuleItem>) {
-    this.tableValueChange(fieldItem, (fItem: IFieldItem) => (fItem.rules = deepClone(fieldItemRules)));
+    this.tableValueChange(fieldItem, (fItem: IFieldItem) => (fItem.rules = structuredClone(fieldItemRules)));
     await this.updatePreview(fieldItem); // 更新脱敏预览
   }
 
@@ -425,7 +424,7 @@ export default class MaskingField extends tsc<IProps> {
       const mergedFieldsList = this.getMergeTableValue(tableOriginFieldsList, newOriginTableList, ruleChange);
       // 更新表格 更新检索表格
       this.tableList = this.initTableList(mergedFieldsList, ruleChange);
-      this.tableShowList = deepClone(this.tableList);
+      this.tableShowList = structuredClone(this.tableList);
       // 更新所有预览
       this.updatePreview();
     } catch (err) {
@@ -596,7 +595,7 @@ export default class MaskingField extends tsc<IProps> {
     if (syncIndex === -1) syncIndex = this.currentOperateRuleIndex;
 
     this.tableValueChange(syncField as IFieldItem, async (fItem: IFieldItem) => {
-      const currentRule = deepClone(fItem.rules[syncIndex]);
+      const currentRule = structuredClone(fItem.rules[syncIndex]);
 
       if (currentRule.state === 'delete') {
         // 删除状态 直接删除当前规则
@@ -708,7 +707,7 @@ export default class MaskingField extends tsc<IProps> {
         });
       });
     });
-    this.tableShowList = deepClone(this.tableList);
+    this.tableShowList = structuredClone(this.tableList);
     if (syncID === -1) this.isAllSync = true;
     // this.emitSyncRule();
     this.updatePreview();
@@ -716,7 +715,7 @@ export default class MaskingField extends tsc<IProps> {
 
   /** 检索字段 */
   searchField() {
-    const tableShowList = deepClone(this.tableList);
+    const tableShowList = structuredClone(this.tableList);
     this.tableShowList = tableShowList
       .map(fItem => ({
         ...fItem,
@@ -731,7 +730,7 @@ export default class MaskingField extends tsc<IProps> {
   handleSearchChange(val) {
     if (val === '' && !this.tableLoading) {
       this.emptyType = 'empty';
-      this.tableShowList = deepClone(this.tableList);
+      this.tableShowList = structuredClone(this.tableList);
     }
   }
 

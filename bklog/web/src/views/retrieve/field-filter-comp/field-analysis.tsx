@@ -30,7 +30,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 
 import $http from '../../../api';
-import { deepClone, formatNumberWithRegex } from '../../../common/util';
+import { formatNumberWithRegex } from '../../../common/util';
 import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
 import { lineColor } from '../../../store/constant';
 import store from '@/store';
@@ -229,7 +229,7 @@ export default class FieldAnalysis extends Vue {
           return `${item[0]} - ${resData[index + 1][0]}`;
         });
         const pillarInterval = Math.round(xAxisData.length / 2) - 1;
-        this.pillarOption = deepClone(pillarChartOption);
+        this.pillarOption = structuredClone(pillarChartOption);
         // 柱状图初始化
         Object.assign(this.pillarOption, {
           tooltip: {
@@ -310,7 +310,7 @@ export default class FieldAnalysis extends Vue {
         const {
           xAxis: { minInterval, splitNumber, ...resetxAxis },
         } = lineOrBarOptions;
-        this.lineOptions = deepClone(lineOrBarOptions);
+        this.lineOptions = structuredClone(lineOrBarOptions);
         Object.assign(this.lineOptions, {
           useUTC: false,
           tooltip: {

@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, type ComputedRef, defineComponent, onUnmounted } from 'vue';
+import { computed, type ComputedRef, defineComponent } from 'vue';
 
-import useStore from '@/hooks/use-store';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
@@ -45,6 +44,9 @@ import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import Grep from '../grep';
 import { MSearchResultTab } from '../type';
+import useStore from '@/hooks/use-store';
+import LogClustering from './log-clustering';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import './index.scss';
 
@@ -66,7 +68,7 @@ export default defineComponent({
         },
       });
     }, 60);
-
+    const retrieveParams = computed(() => store.getters.retrieveParams);
     const activeTab = computed(() => route.query.tab ?? 'origin') as ComputedRef<string>;
 
     const handleTabChange = (tab: string, triggerTrend = false) => {
@@ -84,11 +86,8 @@ export default defineComponent({
       debounceUpdateTabValue(item.favorite_type === 'chart' ? 'graphAnalysis' : 'origin');
     };
 
-    RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
-
-    onUnmounted(() => {
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
-    });
+    const { addEvent } = useRetrieveEvent();
+    addEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
 
     const renderTabContent = () => {
       if (activeTab.value === MSearchResultTab.GRAPH_ANALYSIS) {
@@ -97,6 +96,10 @@ export default defineComponent({
 
       if (activeTab.value === MSearchResultTab.GREP) {
         return <Grep></Grep>;
+      }
+
+      if (activeTab.value === MSearchResultTab.CLUSTERING) {
+        return <LogClustering retrieveParams={retrieveParams.value} />;
       }
 
       return (

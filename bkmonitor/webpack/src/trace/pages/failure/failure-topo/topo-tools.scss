@@ -22,10 +22,50 @@
     justify-content: center;
     width: 40px;
     height: 40px;
-    margin-left: 15px;
     font-size: 14px;
     color: #c4c6cc;
     cursor: pointer;
     border-left: 1px solid #14161a;
+  }
+
+  .topo-sidebar-toggle-wrap {
+    height: 100%;
+    padding: 4px 12px;
+    margin-left: 15px;
+    border-left: 1px solid #14161a;
+
+    .topo-sidebar-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      background-color: #14161a;
+      padding: 3px;
+      height: 32px;
+      border-radius: 2px;
+
+      .resource-wrap,
+      .service-wrap {
+        transition: background-color 0.2s ease;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 1px;
+        i {
+          font-size: 18px;
+        }
+      }
+
+      .resource-wrap:hover:not(.selected),
+      .service-wrap:hover:not(.selected) {
+        background-color: #344b73;
+      }
+      .resource-wrap.selected,
+      .service-wrap.selected {
+        background-color: #3a84ff;
+      }
+      .resource-wrap.selected:hover,
+      .service-wrap.selected:hover {
+        background-color: #1768ef;
+      }
+    }
   }
 }
