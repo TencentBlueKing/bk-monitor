@@ -23,3 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+const NeedLowerCaseMethodSet = new Set(
+  ['sum_without_time', 'max_without_time', 'min_without_time', 'count_without_time', 'avg_without_time'].map(e =>
+    e.toUpperCase()
+  )
+);
+/**
+ * @description 获取正确的 汇聚方法 id（大小写处理）
+ */
+export const getMethodIdForLowerCase = (method: string) => {
+  if (NeedLowerCaseMethodSet.has(method)) {
+    return method.toLowerCase();
+  }
+  return method;
+};

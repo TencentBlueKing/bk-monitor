@@ -27,8 +27,10 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { AggMethodMap } from '../../constants';
 import { getTemplateSrv } from '../../variables/template/template-srv';
 import { type QueryVariablesTransformResult, getQueryVariablesTool } from '../utils/query-variable-tool';
+import { getMethodIdForLowerCase } from '../utils/utils';
 import VariableSpan from '../utils/variable-span';
 
 import type { VariableModelType } from '../../variables';
@@ -54,6 +56,18 @@ export default class MethodDetail extends tsc<MethodProps> {
     return getQueryVariablesTool().transformVariables(this.value);
   }
 
+  getMethodContent() {
+    const result = getTemplateSrv().replace(this.methodToVariableModel.value as string, this.variableMap);
+    if (!result) {
+      return getQueryVariablesTool().getVariableAlias(this.methodToVariableModel?.value as string, this.variableMap);
+    }
+    return this.getMethodName(result) || result;
+  }
+
+  getMethodName(methodId: string) {
+    return AggMethodMap[getMethodIdForLowerCase(methodId)];
+  }
+
   render() {
     return (
       <div class='template-method-detail-component'>
@@ -64,11 +78,10 @@ export default class MethodDetail extends tsc<MethodProps> {
             id={this.methodToVariableModel.variableName}
             class='method-name'
           >
-            {getTemplateSrv().replace(this.methodToVariableModel.value as string, this.variableMap) ||
-              getQueryVariablesTool().getVariableAlias(this.methodToVariableModel?.value as string, this.variableMap)}
+            {this.getMethodContent()}
           </VariableSpan>
         ) : (
-          <span class='method-name'>{this.methodToVariableModel?.value || '--'}</span>
+          <span class='method-name'>{this.getMethodName(this.methodToVariableModel?.value as string) || '--'}</span>
         )}
       </div>
     );

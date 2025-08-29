@@ -164,6 +164,7 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
             required
           >
             <bk-input
+              disabled={this.scene === 'edit'}
               maxlength={50}
               placeholder={this.$t('1～50 字符，仅支持 英文小写、数字、下划线')}
               value={this.formData.name}
