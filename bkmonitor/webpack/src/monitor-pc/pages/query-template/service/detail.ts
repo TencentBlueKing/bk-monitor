@@ -56,7 +56,6 @@ export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem
     can_delete: detail.can_delete,
     alias: detail.alias,
     space_scope: detail.space_scope,
-    bk_biz_id: detail.bk_biz_id,
     queryConfigs,
     variables,
     metricFunctions,
