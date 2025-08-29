@@ -296,7 +296,7 @@ export default class ValueOptions extends tsc<IProps> {
               }
             : {}
         }
-        class='retrieval-filter__value-options-select-component'
+        class='template-config__value-options-select-component'
       >
         {this.loading ? (
           <div
