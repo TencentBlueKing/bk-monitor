@@ -385,4 +385,6 @@ export default {
   只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
   请先打开事件分析: 'Please open event analysis first',
   暂无关联的事件数据: 'No related event data',
+  '应安全需求，公共拨测节点需经过审核方可使用': 'The public testing nodes must undergo a review process before they can be used, in accordance with security requirements',
+  点击申请业务权限: 'Click to apply for business privileges',
 };

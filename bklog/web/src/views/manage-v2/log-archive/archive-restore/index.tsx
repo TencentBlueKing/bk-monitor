@@ -372,6 +372,7 @@ export default defineComponent({
               data-test-id='restoreContainer_input_searchRestoreItem'
               onChange={val => (keyword.value = val)}
               onEnter={search}
+              on-right-icon-click={search}
             />
           </div>
         </section>

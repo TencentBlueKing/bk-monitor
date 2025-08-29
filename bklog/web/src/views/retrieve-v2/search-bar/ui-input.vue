@@ -5,7 +5,6 @@
   import useFieldNameHook from '@/hooks/use-field-name';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { cloneDeep } from 'lodash';
 
   import {
     getInputQueryDefaultItem,
@@ -231,7 +230,7 @@
       return;
     }
     const { changeFieldName } = useFieldNameHook({ store });
-    const itemCopy = cloneDeep(item);
+    const itemCopy = structuredClone(item);
     itemCopy.field = changeFieldName(itemCopy.field);
     queryItem.value = {};
     setIsInputTextFocus(false);
@@ -403,7 +402,7 @@
       item.hidden_values.push(child);
     }
 
-    emitChange(cloneDeep(modelValue.value));
+    emitChange(structuredClone(modelValue.value));
     const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
     popover?.hideHandler()
   }
@@ -418,7 +417,7 @@
     }
    });
 
-    emitChange(cloneDeep(modelValue.value));
+    emitChange(structuredClone(modelValue.value));
     const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
     popover?.hideHandler()
   }

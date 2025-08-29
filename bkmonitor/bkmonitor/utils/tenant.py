@@ -63,7 +63,7 @@ def bk_biz_id_to_bk_tenant_id(bk_biz_id: int) -> str:
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return DEFAULT_TENANT_ID
 
-    space: Space | None = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+    space: Space | None = SpaceApi.get_space_detail(bk_biz_id=int(bk_biz_id))
     if not space:
         raise ValueError(f"convert bk_biz_id to bk_tenant_id failed, bk_biz_id: {bk_biz_id}")
     return space.bk_tenant_id

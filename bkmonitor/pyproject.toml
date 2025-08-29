@@ -5,7 +5,7 @@ description = "bkmonitor"
 readme = "README.md"
 requires-python = "==3.11.*"
 dependencies = [
-    "aidev-agent==1.0.0b28",
+    "aidev-agent==1.0.0b31",
     "apigw-manager==4.0.4",
     "arrow==0.6.0",
     "babel==2.14.0",
@@ -92,7 +92,7 @@ dependencies = [
     "six==1.17.0",
     "sqlparse==0.5.3",
     "supervisor==4.2.5",
-    "typing-extensions==4.12.2",
+    "typing-extensions==4.14.0",
     "ujson==5.7.0",
     "whitenoise==6.5.0",
     "xxhash==3.5.0",

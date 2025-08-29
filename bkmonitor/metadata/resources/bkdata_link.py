@@ -216,7 +216,7 @@ class QueryDataLinkInfoResource(Resource):
                         bk_tenant_id=bk_tenant_id, space_type_id=SpaceTypes.BKCC.value, space_id=rt.bk_biz_id
                     )
                 elif rt.bk_biz_id < 0:
-                    space = models.Space.objects.get(bk_tenant_id=bk_tenant_id, space_id=abs(rt.bk_biz_id))
+                    space = models.Space.objects.get(bk_tenant_id=bk_tenant_id, id=abs(rt.bk_biz_id))
                 else:
                     space = None
 

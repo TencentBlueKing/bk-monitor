@@ -27,7 +27,7 @@ import { defineComponent, ref, computed } from 'vue';
 
 import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import { useRoute } from 'vue-router/composables';
 
 import useStore from '../../../hooks/use-store';

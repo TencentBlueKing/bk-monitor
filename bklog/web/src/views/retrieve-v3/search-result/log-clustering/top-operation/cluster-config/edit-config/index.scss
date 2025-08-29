@@ -1,0 +1,42 @@
+.setting-log-cluster {
+  position: relative;
+  height: calc(-52px + 100vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  .setting-form-main {
+    flex: 1;
+    overflow-y: auto;
+
+    .setting-form {
+      padding: 20px 40px 0;
+    }
+
+    .rule-container {
+      margin-top: 16px;
+    }
+
+    .setting-item {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      margin-bottom: 25px;
+
+      .set-tip-main {
+        margin-left: 8px;
+
+        .bk-icon {
+          font-size: 14px;
+          color: #c4c6cc;
+        }
+
+        .tip {
+          margin-left: 4px;
+          font-size: 12px;
+          color: #979ba5;
+        }
+      }
+    }
+  }
+}

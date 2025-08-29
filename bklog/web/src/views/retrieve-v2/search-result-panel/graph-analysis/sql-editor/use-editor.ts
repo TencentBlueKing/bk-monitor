@@ -26,7 +26,7 @@
 import { computed, onMounted, ref } from 'vue';
 
 import useStore from '@/hooks/use-store';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import * as monaco from 'monaco-editor';
 
 import { setDorisFields } from './lang';
