@@ -12,6 +12,7 @@ from collections import defaultdict
 from django.core.management.base import BaseCommand, CommandParser
 from datetime import datetime, timedelta
 import json
+import os
 import logging
 from django.core.cache import cache
 import tempfile
@@ -34,6 +35,11 @@ class Command(BaseCommand):
             "--last_date",
             type=str,
             help="Specify the last date in YYYYMMDD format.",
+        )
+        parser.add_argument(
+            "--output_file",
+            type=str,
+            help="Specify the output file path. If not provided, a temporary file will be used.",
         )
 
     def handle(self, *args, **options):
@@ -118,8 +124,14 @@ class Command(BaseCommand):
 
         logger.info("[WEEK_OVER_WEEK_ANALYSIS] command finished")
 
-        # 创建临时文件并写入结果
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
-            temp_file.write(json.dumps(biz_map))
-            temp_file_path = temp_file.name
-        self.stdout.write(f"Analysis result saved to temporary file: {temp_file_path}")
+        # 创建文件并写入结果
+        if options.get("output_file"):
+            output_path = os.path.abspath(options["output_file"])
+            with open(output_path, 'w') as output_file:
+                output_file.write(json.dumps(biz_map))
+            self.stdout.write(f"Analysis result saved to: {output_path}")
+        else:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+                temp_file.write(json.dumps(biz_map))
+                temp_file_path = temp_file.name
+            self.stdout.write(f"Analysis result saved to temporary file: {temp_file_path}")
