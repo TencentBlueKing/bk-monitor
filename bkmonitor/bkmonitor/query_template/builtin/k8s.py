@@ -68,7 +68,7 @@ def _get_common_variables(
             "name": "METHOD",
             "alias": "汇聚",
             "type": constants.VariableType.METHOD.value,
-            "config": {"default": method_default or "SUM_WITHOUT_TIME"},
+            "config": {"default": method_default or "sum_without_time"},
             "description": "汇聚是指在单个聚合周期内，对监控数据采取的聚合方式，例如 SUM（求和）、MAX（单个聚合周期内的最大值）等。",
         },
         _get_group_by_variable(related_metrics, default=group_by_default, options=group_by_options),
@@ -116,9 +116,9 @@ def _cpu_usage_templ(usage_type: str) -> dict[str, Any]:
                 .metric(field="container_cpu_usage_seconds_total", method="${METHOD}", alias="a")
             )
             .add_query(
-                _COMMON_BUILDER.alias("b")
-                .func(_id="rate", params=[{"id": "window", "value": "1m"}])
-                .metric(field=f"kube_pod_container_resource_{usage_type}s_cpu_cores", method="${METHOD}", alias="b")
+                _COMMON_BUILDER.alias("b").metric(
+                    field=f"kube_pod_container_resource_{usage_type}s_cpu_cores", method="${METHOD}", alias="b"
+                )
             )
             .expression("(a / b) * 100")
         ),
@@ -145,9 +145,9 @@ def _memory_usage_templ(usage_type: str) -> dict[str, Any]:
                 .metric(field="container_memory_working_set_bytes", method="${METHOD}", alias="a")
             )
             .add_query(
-                _COMMON_BUILDER.alias("b")
-                .func(_id="rate", params=[{"id": "window", "value": "1m"}])
-                .metric(field=f"kube_pod_container_resource_{usage_type}s_memory_bytes", method="${METHOD}", alias="b")
+                _COMMON_BUILDER.alias("b").metric(
+                    field=f"kube_pod_container_resource_{usage_type}s_memory_bytes", method="${METHOD}", alias="b"
+                )
             )
             .expression("(a / b) * 100")
         ),
