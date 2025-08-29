@@ -75,14 +75,14 @@ def check_skip_debug(need_debug):
 
 
 class BasePluginManager:
-    def __init__(self, plugin: CollectorPluginMeta, operator: str, tmp_path=None):
+    def __init__(self, plugin: CollectorPluginMeta, operator: str, tmp_path=None, plugin_configs=None):
         self.plugin = plugin
         self.operator = operator
         self.tmp_path = tmp_path
         self.version: PluginVersionHistory | None = PluginVersionHistory.objects.filter(
             bk_tenant_id=self.plugin.bk_tenant_id, plugin_id=self.plugin.plugin_id
         ).last()
-        self.plugin_configs: dict[str, bytes] | None = None
+        self.plugin_configs: dict[str, bytes] | None = plugin_configs
 
     def _update_version_params(
         self, data, version: PluginVersionHistory, current_version: PluginVersionHistory, stag=None
