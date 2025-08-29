@@ -180,6 +180,7 @@ def init_tenant(bk_tenant_id: str):
     # 标记已初始化的租户
     if bk_tenant_id not in settings.INITIALIZED_TENANT_LIST:
         logger.info(f"tenant({bk_tenant_id}) is initialized.")
-        settings.INITIALIZED_TENANT_LIST.append(bk_tenant_id)
+        settings.INITIALIZED_TENANT_LIST = settings.INITIALIZED_TENANT_LIST + [bk_tenant_id]
+
     else:
         logger.info(f"tenant({bk_tenant_id}) is already initialized")
