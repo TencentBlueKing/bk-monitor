@@ -7,15 +7,17 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from collections import defaultdict
 
-from django.core.management.base import BaseCommand, CommandParser
-from datetime import datetime, timedelta
 import json
-import os
 import logging
-from django.core.cache import cache
+import os
 import tempfile
+from collections import defaultdict
+from datetime import datetime, timedelta
+
+from django.core.cache import cache
+from django.core.management.base import BaseCommand, CommandParser
+
 from apm_web.constants import ApmCacheKey
 from constants.apm import TelemetryDataType
 
@@ -100,10 +102,12 @@ class Command(BaseCommand):
             last_status = last_week_data.get(app_id, {})
 
             # 对比四种数据的状态
-            data_types = [TelemetryDataType.TRACE.value,
-                          TelemetryDataType.METRIC.value,
-                          TelemetryDataType.LOG.value,
-                          TelemetryDataType.PROFILING.value]
+            data_types = [
+                TelemetryDataType.TRACE.value,
+                TelemetryDataType.METRIC.value,
+                TelemetryDataType.LOG.value,
+                TelemetryDataType.PROFILING.value,
+            ]
             status_comparison = {}
             for data_type in data_types:
                 current_data_status = current_status.get(data_type)
@@ -119,7 +123,7 @@ class Command(BaseCommand):
                 biz_map[bk_biz_id][app_id] = {
                     "app_name": current_status.get("app_name"),
                     "app_alias": current_status.get("app_alias"),
-                    **status_comparison
+                    **status_comparison,
                 }
 
         logger.info("[WEEK_OVER_WEEK_ANALYSIS] command finished")
@@ -127,11 +131,11 @@ class Command(BaseCommand):
         # 创建文件并写入结果
         if options.get("output_file"):
             output_path = os.path.abspath(options["output_file"])
-            with open(output_path, 'w') as output_file:
+            with open(output_path, "w") as output_file:
                 output_file.write(json.dumps(biz_map))
             self.stdout.write(f"Analysis result saved to: {output_path}")
         else:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as temp_file:
                 temp_file.write(json.dumps(biz_map))
                 temp_file_path = temp_file.name
             self.stdout.write(f"Analysis result saved to temporary file: {temp_file_path}")

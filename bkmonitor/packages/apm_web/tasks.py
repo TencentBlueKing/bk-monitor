@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import time
 from datetime import datetime, timedelta
@@ -266,14 +267,14 @@ def cache_application_scope_name():
 def refresh_apm_app_state_snapshot():
     all_data_status = {}
     for application in Application.objects.filter(is_enabled=True).values(
-            "application_id",
-            "bk_biz_id",
-            "app_name",
-            "app_alias",
-            "trace_data_status",
-            "metric_data_status",
-            "log_data_status",
-            "profiling_data_status"
+        "application_id",
+        "bk_biz_id",
+        "app_name",
+        "app_alias",
+        "trace_data_status",
+        "metric_data_status",
+        "log_data_status",
+        "profiling_data_status",
     ):
         data_status = {
             "bk_biz_id": application["bk_biz_id"],
@@ -282,7 +283,7 @@ def refresh_apm_app_state_snapshot():
             TelemetryDataType.TRACE.value: application["trace_data_status"],
             TelemetryDataType.METRIC.value: application["metric_data_status"],
             TelemetryDataType.LOG.value: application["log_data_status"],
-            TelemetryDataType.PROFILING.value: application["profiling_data_status"]
+            TelemetryDataType.PROFILING.value: application["profiling_data_status"],
         }
         all_data_status[application["application_id"]] = data_status
     key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=(datetime.now() - timedelta(days=1)).strftime("%Y%m%d"))
