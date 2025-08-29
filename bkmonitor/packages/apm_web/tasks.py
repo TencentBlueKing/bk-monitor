@@ -263,18 +263,27 @@ def cache_application_scope_name():
 
 
 @shared_task(ignore_result=True)
-def refresh_application_data_status():
+def refresh_apm_app_state_snapshot():
     all_data_status = {}
-    for application in Application.objects.filter(is_enabled=True):
+    for application in Application.objects.filter(is_enabled=True).values(
+            "application_id",
+            "bk_biz_id",
+            "app_name",
+            "app_alias",
+            "trace_data_status",
+            "metric_data_status",
+            "log_data_status",
+            "profiling_data_status"
+    ):
         data_status = {
-            "bk_biz_id": application.bk_biz_id,
-            "app_name": application.app_name,
-            "app_alias": application.app_alias,
-            TelemetryDataType.TRACE.value: application.trace_data_status,
-            TelemetryDataType.METRIC.value: application.metric_data_status,
-            TelemetryDataType.LOG.value: application.log_data_status,
-            TelemetryDataType.PROFILING.value: application.profiling_data_status
+            "bk_biz_id": application["bk_biz_id"],
+            "app_name": application["app_name"],
+            "app_alias": application["app_alias"],
+            TelemetryDataType.TRACE.value: application["trace_data_status"],
+            TelemetryDataType.METRIC.value: application["metric_data_status"],
+            TelemetryDataType.LOG.value: application["log_data_status"],
+            TelemetryDataType.PROFILING.value: application["profiling_data_status"]
         }
-        all_data_status[application.application_id] = data_status
+        all_data_status[application["application_id"]] = data_status
     key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=datetime.now().strftime("%Y%m%d"))
     cache.set(key, json.dumps(all_data_status), 7 * 24 * 60 * 60)

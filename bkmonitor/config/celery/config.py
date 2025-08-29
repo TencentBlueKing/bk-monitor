@@ -67,8 +67,8 @@ class Config:
             "schedule": crontab(minute=27, hour=2),
             "enabled": True,
         },
-        "apm_web.tasks.refresh_application_data_status": {
-            "task": "apm_web.tasks.refresh_application_data_status",
+        "apm_web.tasks.refresh_apm_app_state_snapshot": {
+            "task": "apm_web.tasks.refresh_apm_app_state_snapshot",
             "schedule": crontab(hour=0, minute=0), # 每天凌晨0点执行
             "enabled": True,
         },

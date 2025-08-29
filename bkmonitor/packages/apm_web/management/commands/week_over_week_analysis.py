@@ -35,7 +35,8 @@ class Command(BaseCommand):
         current_week_data = cache.get(current_week_key)
         if not current_week_data:
             logger.warning("[WEEK_OVER_WEEK_ANALYSIS] current week data not found")
-            current_week_data = "{}"
+            self.stdout.write("Warning: Current week data not found.")
+            return
     
         # 获取上一周的数据
         last_week_date = (datetime.now() - timedelta(days=7)).strftime("%Y%m%d")
@@ -43,7 +44,8 @@ class Command(BaseCommand):
         last_week_data = cache.get(last_week_key)
         if not last_week_data:
             logger.warning("[WEEK_OVER_WEEK_ANALYSIS] last week data not found")
-            last_week_data = "{}"
+            self.stdout.write("Warning: Last week data not found.")
+            return
     
         current_week_data = json.loads(current_week_data)
         last_week_data = json.loads(last_week_data)
