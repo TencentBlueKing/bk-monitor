@@ -8,6 +8,7 @@ from core.drf_resource import api
 from metadata.models import ClusterInfo
 from metadata.task.bkbase import sync_bkbase_cluster_info
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
+from metadata.task.sync_space import sync_bkcc_space
 
 logger = logging.getLogger(__name__)
 
@@ -162,9 +163,18 @@ def init_tenant(bk_tenant_id: str):
     logger.info(f"start init tenant({bk_tenant_id})")
 
     logger.info(f"init cluster for tenant({bk_tenant_id})")
+
+    logger.info(f"start init kafka cluster for tenant({bk_tenant_id})")
     _init_kafka_cluster(bk_tenant_id)
+
+    logger.info(f"start init es cluster for tenant({bk_tenant_id})")
     _init_es_cluster(bk_tenant_id)
+
+    logger.info(f"start init bkbase cluster for tenant({bk_tenant_id})")
     _init_bkbase_cluster(bk_tenant_id)
+
+    logger.info(f"start sync bkcc space for tenant({bk_tenant_id})")
+    sync_bkcc_space(bk_tenant_id=bk_tenant_id)
     logger.info(f"init cluster for tenant({bk_tenant_id}) done.")
 
     # 标记已初始化的租户
