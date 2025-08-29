@@ -2,12 +2,6 @@
 
 from django.db import migrations, models
 
-def migrate_value_to_value_list(apps, schema_editor):
-    LogServiceRelation = apps.get_model('apm_web', 'LogServiceRelation')
-    for record in LogServiceRelation.objects.filter(log_type='bk_log'):
-        if record.value and record.value not in record.value_list:
-            record.value_list.append(record.value)
-            record.save()
 
 class Migration(migrations.Migration):
 
@@ -21,5 +15,4 @@ class Migration(migrations.Migration):
             name='value_list',
             field=models.JSONField(default=list, verbose_name='日志值列表'),
         ),
-        migrations.RunPython(migrate_value_to_value_list),
     ]
