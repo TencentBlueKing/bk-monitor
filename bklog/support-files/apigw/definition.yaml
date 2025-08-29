@@ -74,18 +74,18 @@ grant_permissions:
   - bk_app_code: bk_bkmonitorv3
     grant_dimension: "gateway"
 
-  - bk_app_code: bk_apigateway
-    grant_dimension: resource
+  - bk_app_code: "bk_apigateway"
+    grant_dimension: "resource"
     resource_names:
       - esquery_dsl
 
-  - bk_app_code: bk_bkdata
-    grant_dimension: resource
+  - bk_app_code: "bk_bkdata"
+    grant_dimension: "resource"
     resource_names:
       - esquery_search
 
-  - bk_app_code: bk_bcs_app
-    grant_dimension: resource
+  - bk_app_code: "bk_bcs_app"
+    grant_dimension: "resource"
     resource_names:
       - list_bcs_collector
       - list_bcs_collector_without_rule
