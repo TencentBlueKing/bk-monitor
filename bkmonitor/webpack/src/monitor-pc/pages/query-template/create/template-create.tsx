@@ -310,6 +310,10 @@ export default class TemplateCreate extends tsc<object> {
     (this.variablesList[index] as ConditionVariableModel).options = val;
   }
 
+  handleDeleteVariable(index: number) {
+    this.variablesList.splice(index, 1);
+  }
+
   handleVariableDefaultValueChange(val: any, index: number) {
     this.variablesList[index].defaultValue = val;
   }
@@ -362,6 +366,7 @@ export default class TemplateCreate extends tsc<object> {
               onChangeMethod={this.handleChangeMethod}
               onCreateVariable={this.handleCreateVariable}
               onDeleteQueryConfig={this.handleDelete}
+              onDeleteVariable={this.handleDeleteVariable}
               onSelectMetric={this.handleSelectMetric}
               onStepChange={this.handleStepChange}
               onVariableAliasChange={this.handleVariableAliasChange}
