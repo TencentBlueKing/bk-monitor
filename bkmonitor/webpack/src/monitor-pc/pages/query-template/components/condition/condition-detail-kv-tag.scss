@@ -23,6 +23,13 @@
       .key-method {
         margin-left: 2px;
         color: #979ba5;
+
+        &.exclude,
+        &.ne,
+        &.neq,
+        &.nreg {
+          color: #ea3636;
+        }
       }
     }
 

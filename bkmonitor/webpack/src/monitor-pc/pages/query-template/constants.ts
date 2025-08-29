@@ -25,6 +25,7 @@
  */
 
 import { CP_METHOD_LIST, METHOD_LIST, NUMBER_CONDITION_METHOD_LIST } from '../../constant/constant';
+import { isEn } from '../../i18n/lang';
 
 /** 查询模板列表-表格固定展示字段 */
 export const TABLE_FIXED_DISPLAY_FIELDS = ['name', 'operator'];
@@ -101,9 +102,17 @@ export const VariableTypeMap = {
   [VariableTypeEnum.CONSTANTS]: window.i18n.tc('常规变量'),
 };
 
+const ConditionMethodNameMap = {
+  include: '包含',
+  exclude: '不包含',
+  reg: '正则等于',
+  nreg: '正则不等于',
+};
+
 /** 条件方法别名映射 */
 export const ConditionMethodAliasMap = NUMBER_CONDITION_METHOD_LIST.reduce((acc, cur) => {
-  acc[cur.id] = cur.name;
+  const name = isEn ? cur.name : ConditionMethodNameMap[cur.name] || cur.name;
+  acc[cur.id] = name;
   return acc;
 }, {});
 
