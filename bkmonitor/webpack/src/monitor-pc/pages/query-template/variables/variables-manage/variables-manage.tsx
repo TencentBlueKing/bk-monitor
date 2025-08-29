@@ -36,6 +36,7 @@ import './variables-manage.scss';
 interface VariablesManageEvents {
   onAliasChange: (val: string, index: number) => void;
   onDefaultValueChange: (val: any, index: number) => void;
+  onDelete: (index: number) => void;
   onDescChange: (val: string, index: number) => void;
   onNameChange: (val: string, index: number) => void;
   onOptionsChange: (val: string[], index: number) => void;
@@ -92,17 +93,8 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
     this.$emit('optionsChange', value, index);
   }
 
-  handleDataChange(value: VariableModelType, index: number) {
-    const list = [...this.variablesList];
-    list[index] = value;
-    this.$emit('change', [...list]);
-    this.validateVariable();
-  }
-
   handleDelete(index: number) {
-    const list = [...this.variablesList];
-    list.splice(index, 1);
-    this.$emit('change', [...list]);
+    this.$emit('delete', index);
   }
 
   validateVariable() {

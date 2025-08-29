@@ -119,6 +119,19 @@ export default class QueryChart extends tsc<{
     }, [] as T[]);
   }
 
+  getFunctionsVariableValues(functions: AggFunction[]) {
+    return functions.reduce((acc, item) => {
+      if (hasVariable(item.id)) {
+        this.getVariableValue<AggFunction>(item.id, v => {
+          Array.isArray(v) ? acc.push(...v) : acc.push(v);
+        });
+      } else {
+        acc.push(item);
+      }
+      return acc;
+    }, [] as AggFunction[]);
+  }
+
   @Debounce(300)
   createPanel() {
     this.panel = new PanelModel({
@@ -137,16 +150,7 @@ export default class QueryChart extends tsc<{
               data_type_label: item.data_type_label,
               interval: item.agg_interval,
               alias: item.alias || 'a',
-              functions: item.functions?.reduce((acc, item) => {
-                if (hasVariable(item.id)) {
-                  this.getVariableValue<AggFunction>(item.id, v => {
-                    Array.isArray(v) ? acc.push(...v) : acc.push(v);
-                  });
-                } else {
-                  acc.push(item);
-                }
-                return acc;
-              }, [] as AggFunction[]),
+              functions: this.getFunctionsVariableValues(item.functions || []), // 函数变量解析
               group_by: this.getVariableValues(item.agg_dimension || []), // 维度变量解析
               filter_dict: {},
               metrics: [
@@ -172,6 +176,7 @@ export default class QueryChart extends tsc<{
                 return acc;
               }, [] as AggCondition[]),
             })),
+            functions: this.getFunctionsVariableValues(this.expressionConfig.functions || []),
           },
           datasource: 'time_series',
           api: 'grafana.graphUnifyQuery',

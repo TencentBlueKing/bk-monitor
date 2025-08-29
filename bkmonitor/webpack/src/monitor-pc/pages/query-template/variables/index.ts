@@ -324,20 +324,33 @@ export class MethodVariableModel extends VariableBase {
 }
 
 /** 获取创建变量所需参数结构 */
-export async function getCreateVariableParams(params: IVariableSubmitParams[]): Promise<IVariableModel[]> {
+export async function getCreateVariableParams(
+  params: IVariableSubmitParams[],
+  metricsDetail: MetricDetailV2[] = []
+): Promise<IVariableModel[]> {
+  /** 需要获取详情的指标id列表 */
   const metricIds = [];
   for (const variable of params) {
     const { related_metrics } = variable.config;
     if (related_metrics) {
       for (const metric of related_metrics) {
-        if (!metricIds.find(item => item.metric_id === metric.metric_id)) {
+        /** 去重且已有指标详情列表中不含有该指标 */
+        if (
+          !metricIds.find(item => item.metric_id === metric.metric_id) &&
+          !metricsDetail.find(item => item.metric_id === metric.metric_id)
+        ) {
           metricIds.push(metric);
         }
       }
     }
   }
 
-  const metrics = await fetchMetricDetailList(metricIds);
+  /** 指标详情 */
+  let metrics = metricsDetail;
+  if (metricIds.length) {
+    const details = await fetchMetricDetailList(metricIds);
+    metrics = metrics.concat(details);
+  }
 
   return params.map(item => {
     const {
