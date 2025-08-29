@@ -45,32 +45,32 @@ export const TABLE_DEFAULT_DISPLAY_FIELDS = [
 export const SEARCH_SELECT_OPTIONS = [
   {
     name: window.i18n.t('全文检索'),
-    key: 'query',
+    id: 'query',
     multiable: false,
   },
   {
     name: window.i18n.t('模板名称'),
-    key: 'name',
+    id: 'name',
     multiable: false,
   },
   {
     name: window.i18n.t('模板别名'),
-    key: 'alias',
+    id: 'alias',
     multiable: false,
   },
   {
     name: window.i18n.t('模板说明'),
-    key: 'description',
+    id: 'description',
     multiable: false,
   },
   {
     name: window.i18n.t('创建人'),
-    key: 'create_user',
+    id: 'create_user',
     multiable: false,
   },
   {
     name: window.i18n.t('更新人'),
-    key: 'update_user',
+    id: 'update_user',
     multiable: false,
   },
 ];

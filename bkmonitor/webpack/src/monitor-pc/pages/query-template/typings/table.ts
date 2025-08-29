@@ -86,7 +86,8 @@ export interface QueryTemplateRelationsRequestParams {
 }
 
 export interface SearchSelectItem {
-  key: string;
+  id: string;
   name: string;
-  values?: Omit<SearchSelectItem, 'values'>[];
+  type?: 'text';
+  values?: Omit<SearchSelectItem, 'type' | 'values'>[];
 }
