@@ -7,11 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Any, Dict, Optional, Type, Union
+
+from typing import Any
 
 from typing_extensions import Protocol
 
 from apm_web.profile.diagrams.callgraph import CallGraphDiagrammer
+from apm_web.profile.diagrams.dotgraph import DOTDiagrammer
 from apm_web.profile.diagrams.flamegraph import FlamegraphDiagrammer
 from apm_web.profile.diagrams.grafana_flame import GrafanaFlameDiagrammer
 from apm_web.profile.diagrams.table import TableDiagrammer
@@ -28,27 +30,27 @@ class Diagrammer(Protocol):
     2. Dict 适用于: 趋势图
     """
 
-    def draw(self, c: Union[TreeConverter, dict], **options) -> Any:
+    def draw(self, c: TreeConverter | dict, **options) -> Any:
         raise NotImplementedError
 
     def diff(
         self,
-        base_doris_converter: Union[TreeConverter, dict],
-        diff_doris_converter: Union[TreeConverter, dict],
+        base_doris_converter: TreeConverter | dict,
+        diff_doris_converter: TreeConverter | dict,
         **options,
     ) -> Any:
         raise NotImplementedError
 
 
-_diagrammer_cls_map: Dict[str, Type[Diagrammer]] = {}
+_diagrammer_cls_map: dict[str, type[Diagrammer]] = {}
 
 
-def get_diagrammer(diagram_type: str, extra_init_options: Optional[dict] = None) -> Diagrammer:
+def get_diagrammer(diagram_type: str, extra_init_options: dict | None = None) -> Diagrammer:
     extra_init_options = extra_init_options or {}
     return _diagrammer_cls_map[diagram_type].__call__(**extra_init_options)
 
 
-def register_diagrammer_cls(diagram_type: str, diagrammer_cls: Type[Diagrammer]):
+def register_diagrammer_cls(diagram_type: str, diagrammer_cls: type[Diagrammer]):
     _diagrammer_cls_map[diagram_type] = diagrammer_cls
 
 
@@ -57,3 +59,4 @@ register_diagrammer_cls("callgraph", CallGraphDiagrammer)
 register_diagrammer_cls("table", TableDiagrammer)
 register_diagrammer_cls("tendency", TendencyDiagrammer)
 register_diagrammer_cls("grafana_flame", GrafanaFlameDiagrammer)
+register_diagrammer_cls("dotgraph", DOTDiagrammer)

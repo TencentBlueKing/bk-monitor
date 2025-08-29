@@ -120,6 +120,7 @@ class TreeConverter:
                             name=pure_line["function"]["name"],
                             system_name=pure_line["function"]["systemName"],
                             filename=pure_line["function"]["fileName"],
+                            parent=parent,
                             values=[value],
                         )
                         parent.add_child(node)
@@ -133,6 +134,7 @@ class TreeConverter:
                             system_name=pure_line["function"]["systemName"],
                             filename=pure_line["function"]["fileName"],
                             values=[value],
+                            parent=map_parent,
                         )
                         tree.function_node_map[node_id] = map_node
                         map_parent.add_child(map_node)
