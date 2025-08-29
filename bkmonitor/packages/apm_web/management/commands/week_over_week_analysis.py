@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 from collections import defaultdict
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from datetime import datetime, timedelta
 import json
 import logging
@@ -24,37 +24,75 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = "Compare current week's data with last week's data and generate analysis results."
 
+    def add_arguments(self, parser: CommandParser):
+        parser.add_argument(
+            "--current_date",
+            type=str,
+            help="Specify the current date in YYYYMMDD format.",
+        )
+        parser.add_argument(
+            "--last_date",
+            type=str,
+            help="Specify the last date in YYYYMMDD format.",
+        )
+
     def handle(self, *args, **options):
         """
         比较当前周与上一周的数据变化
         """
         logger.info("[WEEK_OVER_WEEK_ANALYSIS] command start")
-    
-        # 获取当前周的数据
-        current_week_key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=datetime.now().strftime("%Y%m%d"))
+
+        # 获取用户输入的日期
+        current_date_str = options.get("current_date")
+        last_date_str = options.get("last_date")
+
+        # 验证日期格式和范围
+        try:
+            current_date = datetime.strptime(current_date_str, "%Y%m%d").date() if current_date_str else None
+            last_date = datetime.strptime(last_date_str, "%Y%m%d").date() if last_date_str else None
+        except ValueError:
+            self.stdout.write("Error: Invalid date format. Please use YYYYMMDD format.")
+            return
+
+        # 定义有效日期范围（前七天）
+        today = datetime.now().date()
+        valid_dates = [(today - timedelta(days=i)).strftime("%Y%m%d") for i in range(1, 8)]
+
+        if current_date and current_date_str not in valid_dates:
+            self.stdout.write(f"Error: Current date must be one of {valid_dates}.")
+            return
+
+        if last_date and last_date_str not in valid_dates:
+            self.stdout.write(f"Error: Last date must be one of {valid_dates}.")
+            return
+
+        # 使用用户输入的日期或默认值（前一天和上一周）
+        current_week_key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(
+            date=current_date_str if current_date_str else (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+        )
+        last_week_key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(
+            date=last_date_str if last_date_str else (datetime.now() - timedelta(days=7)).strftime("%Y%m%d")
+        )
+
         current_week_data = cache.get(current_week_key)
         if not current_week_data:
             logger.warning("[WEEK_OVER_WEEK_ANALYSIS] current week data not found")
             self.stdout.write("Warning: Current week data not found.")
             return
-    
-        # 获取上一周的数据
-        last_week_date = (datetime.now() - timedelta(days=7)).strftime("%Y%m%d")
-        last_week_key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=last_week_date)
+
         last_week_data = cache.get(last_week_key)
         if not last_week_data:
             logger.warning("[WEEK_OVER_WEEK_ANALYSIS] last week data not found")
             self.stdout.write("Warning: Last week data not found.")
             return
-    
+
         current_week_data = json.loads(current_week_data)
         last_week_data = json.loads(last_week_data)
 
         biz_map = defaultdict(dict)
         for app_id, current_status in current_week_data.items():
-
             last_status = last_week_data.get(app_id, {})
-    
+
             # 对比四种数据的状态
             data_types = [TelemetryDataType.TRACE.value,
                           TelemetryDataType.METRIC.value,
@@ -79,7 +117,7 @@ class Command(BaseCommand):
                 }
 
         logger.info("[WEEK_OVER_WEEK_ANALYSIS] command finished")
-        
+
         # 创建临时文件并写入结果
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
             temp_file.write(json.dumps(biz_map))
