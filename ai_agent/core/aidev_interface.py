@@ -34,7 +34,19 @@ class AIDevInterface:
 
     def create_chat_session(self, params, username):
         """创建会话"""
-        return self.api_client.api.create_chat_session(json=params, headers={"X-BKAIDEV-USER": username})
+        session_code = params["session_code"]
+        session_res = self.api_client.api.create_chat_session(json=params, headers={"X-BKAIDEV-USER": username})
+
+        # TODO：监控&日志 场景下，目前只存在单Prompt场景，后续需要规范Prompt的插入时机和行为
+        self.create_chat_session_content(
+            params={
+                "session_code": session_code,
+                "role":"hidden-role",
+                "content":session_res["data"]["role_info"]["role_content"][0]["content"]
+            }
+        )
+        logger.info("create_chat_session: create session and add system prompt successfully,session_code->[%s]", session_code)
+        return session_res
 
     def retrieve_chat_session(self, session_code):
         """获取单个会话"""
@@ -95,7 +107,7 @@ class AIDevInterface:
         return self.api_client.api.update_chat_session_content(path_params={"id": id}, json=params)
 
     # ==================== 发起对话 ====================
-    def create_chat_completion(self, session_code, execute_kwargs, agent_code, username):
+    def create_chat_completion(self, session_code, execute_kwargs, agent_code, username,temperature=0.3):
         """发起流式/非流式会话"""
         callbacks = [get_langfuse_callback()]  # 添加Langfuse回调
         agent_instance = AgentInstanceFactory.build_agent(
@@ -103,6 +115,7 @@ class AIDevInterface:
             session_code=session_code,
             resource_manager=self.api_client,
             callbacks=callbacks,
+            temperature=temperature,
         )  # 工厂方法构建Agent实例
         if execute_kwargs.get("stream", False):
             # 使用增强的流式处理函数

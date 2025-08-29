@@ -11,7 +11,7 @@
 
   const { $t } = useLocale();
   const router = useRouter();
-  const route = useRoute()
+  const route = useRoute();
   const store = useStore();
 
   const refTrigger = ref();
@@ -22,12 +22,12 @@
     store.state.retrieve.indexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
   );
   const isPopoverShow = ref(false);
-  const spaceUid = computed(()=>{
+  const spaceUid = computed(() => {
     const indexSetList = store.state.retrieve.indexSetList;
     const indexSetId = route.params?.indexId;
     const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
-    return currentIndexSet?.space_uid
-  })
+    return currentIndexSet?.space_uid;
+  });
   const isUnionSearch = computed(() => store.isUnionSearch);
   const isShowRetrieveSetting = computed(() => !isExternal.value && !isUnionSearch.value);
   const isShowMaskingTemplate = computed(() => store.getters.isShowMaskingTemplate);

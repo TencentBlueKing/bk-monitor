@@ -130,7 +130,7 @@ class HttpRequst {
   }
 
   __formatService(service, option) {
-    const _service = JSON.parse(JSON.stringify(service));
+    const _service = structuredClone(service);
     const { url } = _service;
     _service.url = this.__formatUrl(url, option);
     return _service;

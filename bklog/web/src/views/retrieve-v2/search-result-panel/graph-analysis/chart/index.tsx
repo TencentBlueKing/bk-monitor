@@ -29,7 +29,7 @@ import { formatDateTimeField, getRegExp, blobDownload } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';

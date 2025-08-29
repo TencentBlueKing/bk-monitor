@@ -1,0 +1,20 @@
+.cluster-config-operate-main {
+  width: 84px;
+  height: 28px;
+  background: #f0f1f5;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #eaebf0;
+  }
+
+  .icon {
+    font-size: 14px;
+    margin-right: 5px;
+  }
+}

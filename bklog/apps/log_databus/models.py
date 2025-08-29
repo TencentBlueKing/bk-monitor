@@ -207,7 +207,7 @@ class CollectorConfig(CollectorBase):
         multi_execute_func.append(
             "result_table_config",
             TransferApi.get_result_table,
-            params={"table_id": self.table_id, "no_request": True},
+            params={"table_id": self.table_id},
             use_request=False,
         )
         multi_execute_func.append(

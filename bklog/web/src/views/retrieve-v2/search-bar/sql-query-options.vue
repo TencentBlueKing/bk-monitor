@@ -9,7 +9,7 @@
 
   import jsCookie from 'js-cookie';
   // @ts-ignore
-  import { debounce } from 'lodash';
+  import { debounce } from 'lodash-es';
 
   import { excludesFields } from './const.common'; // @ts-ignore
   import FavoriteList from './favorite-list';

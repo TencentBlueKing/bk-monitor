@@ -364,7 +364,6 @@
 <script>
   import { mapGetters } from 'vuex';
 
-  import { deepClone } from '../../../monitor-echarts/utils';
   import LogFilter from '../log-filter';
   import MultilineRegDialog from './multiline-reg-dialog';
   import DeviceMetadata from './device-metadata.vue';
@@ -561,7 +560,7 @@
         // wineventlog日志类型时进行params属性修改
         const winParams = {};
         const { selectLogSpeciesList, otherSpeciesList, eventSettingList } = this;
-        const cloneSpeciesList = deepClone(selectLogSpeciesList);
+        const cloneSpeciesList = structuredClone(selectLogSpeciesList);
         if (cloneSpeciesList.includes('Other')) {
           cloneSpeciesList.splice(cloneSpeciesList.indexOf('Other'), 1);
         }

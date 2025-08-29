@@ -66,7 +66,7 @@
       v-show="usernameRequested"
     >
       <!-- 全局设置 -->
-      <bk-dropdown-menu
+      <bkDropdownMenu
         v-if="isShowGlobalSetIcon"
         align="center"
         @hide="isShowGlobalDropdown = false"
@@ -98,9 +98,9 @@
             </li>
           </ul>
         </template>
-      </bk-dropdown-menu>
+      </bkDropdownMenu>
       <!-- 语言 -->
-      <bk-dropdown-menu
+      <bkDropdownMenu
         align="center"
         @hide="isShowLanguageDropdown = false"
         @show="isShowLanguageDropdown = true"
@@ -138,9 +138,9 @@
             </li>
           </ul>
         </template>
-      </bk-dropdown-menu>
+      </bkDropdownMenu>
       <!-- 版本日志和产品文档 -->
-      <bk-dropdown-menu
+      <bkDropdownMenu
         ref="dropdownHelp"
         align="center"
         @hide="isShowHelpDropdown = false"
@@ -184,9 +184,9 @@
             </li>
           </ul>
         </template>
-      </bk-dropdown-menu>
+      </bkDropdownMenu>
       <log-version :dialog-show.sync="showLogVersion" />
-      <bk-dropdown-menu
+      <bkDropdownMenu
         align="center"
         @hide="isShowLogoutDropdown = false"
         @show="isShowLogoutDropdown = true"
@@ -233,7 +233,7 @@
             </li>
           </ul>
         </template>
-      </bk-dropdown-menu>
+      </bkDropdownMenu>
     </div>
 
     <GlobalDialog
@@ -259,7 +259,8 @@
 
   import { menuArr } from './complete-menu';
   import LogVersion from './log-version';
-  import BizMenuSelect from '@/global/bk-space-choice/index'
+  import BizMenuSelect from '@/global/bk-space-choice/index';
+  import { bkDropdownMenu } from 'bk-magic-vue';
 
   export default {
     name: 'HeaderNav',
@@ -267,6 +268,7 @@
       LogVersion,
       GlobalDialog,
       BizMenuSelect,
+      bkDropdownMenu
     },
     props: {
       welcomeData: {
