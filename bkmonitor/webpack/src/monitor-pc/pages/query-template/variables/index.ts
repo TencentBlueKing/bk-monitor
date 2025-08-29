@@ -58,12 +58,6 @@ export type VariableModelType =
 
 export const variableNameReg = /^[\w.]{1,50}$/;
 
-const isEmptyValue = (value: any) => {
-  if (Array.isArray(value)) {
-    return value.length === 0;
-  }
-  return value === '' || value === null || value === undefined;
-};
 abstract class VariableBase {
   alias = '';
   /** 默认值 */
@@ -91,7 +85,7 @@ abstract class VariableBase {
   get scopedVars(): ScopedVars {
     return {
       [this.variableName]: {
-        value: isEmptyValue(this.value) ? this.defaultValue : this.value,
+        value: this.value,
       },
     };
   }
