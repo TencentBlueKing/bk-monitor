@@ -185,8 +185,14 @@ export const partialUpdateDutyRule = request('PATCH', 'rest/v2/duty_rules/{pk}/'
 export const retrieveDutyRule = request('GET', 'rest/v2/duty_rules/{pk}/');
 export const switchDutyRule = request('POST', 'rest/v2/duty_rules/switch/');
 export const updateDutyRule = request('PUT', 'rest/v2/duty_rules/{pk}/');
-export const chatChat = request('POST', 'rest/v2/ai_assistant/chat/chat/');
-export const chatChatV2 = request('POST', 'rest/v2/ai_assistant/chat/chat_v2/');
+export const createQueryTemplate = request('POST', 'rest/v2/query_template/');
+export const destroyQueryTemplate = request('DELETE', 'rest/v2/query_template/{pk}/');
+export const previewQueryTemplate = request('POST', 'rest/v2/query_template/preview/');
+export const relationQueryTemplate = request('POST', 'rest/v2/query_template/{pk}/relation/');
+export const relationsQueryTemplate = request('POST', 'rest/v2/query_template/relations/');
+export const retrieveQueryTemplate = request('GET', 'rest/v2/query_template/{pk}/');
+export const searchQueryTemplate = request('POST', 'rest/v2/query_template/search/');
+export const updateQueryTemplate = request('PUT', 'rest/v2/query_template/{pk}/');
 export const createActionConfig = request('POST', 'fta/action/config/');
 export const destroyActionConfig = request('DELETE', 'fta/action/config/{pk}/');
 export const listActionConfig = request('GET', 'fta/action/config/');
@@ -352,8 +358,14 @@ export default {
   retrieveDutyRule,
   switchDutyRule,
   updateDutyRule,
-  chatChat,
-  chatChatV2,
+  createQueryTemplate,
+  destroyQueryTemplate,
+  previewQueryTemplate,
+  relationQueryTemplate,
+  relationsQueryTemplate,
+  retrieveQueryTemplate,
+  searchQueryTemplate,
+  updateQueryTemplate,
   createActionConfig,
   destroyActionConfig,
   listActionConfig,

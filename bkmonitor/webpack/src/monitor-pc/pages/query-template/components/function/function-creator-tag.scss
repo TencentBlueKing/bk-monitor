@@ -1,0 +1,100 @@
+.template-function-creator-component-tag {
+  display: flex;
+  align-items: center;
+
+  .func-name {
+    display: inline-block;
+    height: 100%;
+  }
+
+  .params-item {
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+
+    .params-text {
+      display: inline-block;
+      min-width: 8px;
+      height: 100%;
+    }
+  }
+
+  .params-input {
+    height: 100%;
+    outline: none;
+    border: 0;
+  }
+
+  .is-edit {
+    width: 50px;
+  }
+
+
+  &:hover {
+    cursor: pointer;
+
+    .is-hover {
+      color: #3a84ff;
+    }
+  }
+}
+
+.template-function-creator-component-tag-select-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 70px;
+  max-height: 240px;
+  color: #63656e;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 3px;
+  box-shadow: 0 2px 6px 0 rgb(0 0 0 / 10%);
+
+  .select-list {
+    flex: 1;
+    overflow: auto;
+
+    &-item {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding: 0 6px 0 10px;
+
+      &:hover,
+      &.item-active {
+        color: #3a84ff;
+        cursor: pointer;
+        background-color: #f4f6fa;
+      }
+    }
+  }
+
+  .select-btn {
+    display: flex;
+    flex: 0 0 38px;
+    align-items: center;
+    justify-content: center;
+    background: #fafbfd;
+    border-radius: 1px;
+
+    .btn-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      margin-right: 5px;
+      font-size: 16px;
+      color: #979ba5;
+    }
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+
+      .btn-icon {
+        color: #3a84ff;
+      }
+    }
+  }
+}

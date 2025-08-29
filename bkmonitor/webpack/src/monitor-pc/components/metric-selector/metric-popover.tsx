@@ -98,6 +98,10 @@ export default class MetricPopover extends tsc<MetricPopoverProps, MetricPopover
     this.popoverInstance = null;
   }
 
+  beforeDestroy() {
+    this.destroyPopoverInstance();
+  }
+
   /**
    * @description: 隐藏添加条件弹层
    */

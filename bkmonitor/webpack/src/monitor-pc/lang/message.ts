@@ -407,6 +407,7 @@ export default {
   '是否删除{name}?': 'Delete {name}?',
   '是否删除当前规则?': 'Delete the current rule?',
   '是否删除该分组?': 'Do you want to delete this group?',
+  '确认删除该查询模板？': 'Delete this query template?',
 
   '你确认要启用？': 'Are you sure you want to enable ?',
   '你确认要停用？': 'Are you sure you want to disable ?',
@@ -529,4 +530,6 @@ export default {
   '维度：': 'Dimension:',
   快速定位: 'Quick location',
   操作失败: 'Operation failed',
+  创建查询模板成功: 'Created metric template successfully',
+  编辑查询模板成功: 'Edited metric template successfully',
 };

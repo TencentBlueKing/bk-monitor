@@ -328,4 +328,9 @@ export default {
     'New version event search has not fully covered the old version features yet. If needed, you can switch to the old version to view them',
   布尔: 'Boolean',
   请先勾选告警组: 'Please check the alarm group first',
+  '消费场景优先显示“变量别名”': 'Consumption scenarios prefer to display "Variable Alias"',
+  '变量别名留空，则显示“变量名”': 'If the variable alias is left blank, the "Variable Name" will be displayed',
+  '消费场景，hover 变量名 / 别名的 label，可以显示“变量描述”':
+    'In consumption scenarios, hover over the label of the variable name / alias to display "Variable Description"',
+  '该变量有被使用，暂不可删除': 'This variable is being used and cannot be deleted temporarily',
 };

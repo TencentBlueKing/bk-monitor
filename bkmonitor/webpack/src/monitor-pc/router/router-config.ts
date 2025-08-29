@@ -413,6 +413,21 @@ export const getRouteConfig = () => {
           ],
         },
         {
+          name: '指标管理',
+          shortName: '指标',
+          id: 'metric-manage',
+          children: [
+            {
+              name: '查询模板',
+              icon: 'icon-monitor icon-shujucaiji menu-icon',
+              id: 'query-template',
+              path: '/query-template',
+              href: '#/query-template',
+              canStore: true,
+            },
+          ],
+        },
+        {
           name: '共享',
           shortName: '共享',
           id: 'share',
@@ -549,8 +564,9 @@ export function getLocalStoreRoute() {
   if (!str?.length) return undefined;
   try {
     return JSON.parse(str);
-  } catch {}
-  return undefined;
+  } catch {
+    return undefined;
+  }
 }
 /**
  * @param id 路由id

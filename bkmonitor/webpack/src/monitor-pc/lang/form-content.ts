@@ -174,4 +174,6 @@ export default {
   '故障关联的告警，统计出最异常的维度（组合）：':
     'Alarms related to the fault, statistics are the most abnormal dimension (combination):',
   '来源于以下 {0} 个策略': 'From the following  {0} strategies',
+
+  全业务可见: 'Visible to all businesses',
 };

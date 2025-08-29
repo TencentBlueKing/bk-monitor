@@ -30,6 +30,7 @@ import CustomMetric from './custom-metric';
 import ExportImportRoutes from './export-import';
 import Fta from './fta';
 import PluginRoutes from './plugin-manager';
+import QueryTemplateRoutes from './query-template';
 
 import type { RouteConfig } from 'vue-router';
 
@@ -41,4 +42,5 @@ export default [
   ...CustomEvent,
   ...CustomMetric,
   ...Fta,
+  ...QueryTemplateRoutes,
 ] as RouteConfig[];
