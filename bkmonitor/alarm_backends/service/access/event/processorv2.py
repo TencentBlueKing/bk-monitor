@@ -128,12 +128,24 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
         self.check_qos()
         self.push_to_check_result()
 
-        # 优先级检查
-        PriorityChecker.check_records(self.record_list)
+        # 按维度(md5_dimension)分组，防止self.record_list中存在多个事件
+        dimension_groups = {}
+        for e in self.record_list:
+            dimension_groups.setdefault(e.md5_dimension, []).append(e)
+
+        # 每组只保留优先级最高的记录
+        filtered_records = []
+        for dimension, records in dimension_groups.items():
+            # 按策略优先级排序，取最高优先级的记录
+            records.sort(key=lambda record: max(item.strategy.priority or 0 for item in record.items), reverse=True)
+            filtered_records.append(records[0])
+
+        # 进行优先级检查
+        PriorityChecker.check_records(filtered_records)
 
         # 1. split by strategy_id
         pending_to_push = {}
-        for e in self.record_list:
+        for e in filtered_records:
             data_str = e.to_str()
             for item in e.items:
                 strategy_id = item.strategy.id
