@@ -33,7 +33,8 @@ import { isVariableName } from '../../variables/template/utils';
 import VariableName from '../utils/variable-name';
 import ValueOptions from './value-options';
 
-import type { IFieldItem, TGetValueFn } from '../../../../components/retrieval-filter/value-selector-typing';
+import type { TGetValueFn } from '../../../../components/retrieval-filter/value-selector-typing';
+import type { IFieldItem } from './typing';
 
 import './value-tag-selector.scss';
 

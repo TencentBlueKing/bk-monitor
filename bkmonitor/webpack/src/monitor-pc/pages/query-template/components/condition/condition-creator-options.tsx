@@ -31,20 +31,18 @@ import { Debounce, random } from 'monitor-common/utils';
 import { detectOperatingSystem } from 'monitor-common/utils/navigator';
 
 import {
-  type IFilterField,
-  type IFilterItem,
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
   ECondition,
-  EFieldType,
   getTitleAndSubtitle,
   isNumeric,
 } from '../../../../components/retrieval-filter/utils';
+import { type IFieldItem, type IFilterField, type IFilterItem, EFieldType } from './typing';
 import ValueTagSelector, { type IValue } from './value-tag-selector';
 import AddVariableWrap from '@/pages/query-template/components/utils/add-variable-wrap';
 import VariableName from '@/pages/query-template/components/utils/variable-name';
 
-import type { IFieldItem, TGetValueFn } from '../../../../components/retrieval-filter/value-selector-typing';
+import type { TGetValueFn } from '../../../../components/retrieval-filter/value-selector-typing';
 
 import './condition-creator-options.scss';
 
@@ -180,7 +178,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
           }
         }
       } else {
-        const item = this.fields.filter(f => f.type !== EFieldType.variable)?.[0];
+        const item = this.fields.filter(f => ![EFieldType.custom_operator, EFieldType.variable].includes(f.type))?.[0];
         if (item) {
           this.handleCheck(item);
         }
@@ -371,6 +369,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
     if (item) {
       if (item.name === '*') {
         if (!this.keyword) this.allInputRef?.focus();
+      } else if (item.type === EFieldType.custom_operator) {
+        this.handleClickCreateVariable();
       } else if (item.type === EFieldType.variable) {
         this.handleSelectVariable(item);
       } else {
@@ -450,6 +450,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
 
   handleClickCreateVariable() {
     this.isCreateVariable = true;
+    this.cursorIndex = 0;
   }
 
   handleVariableNameChange(val) {
@@ -578,19 +579,21 @@ export default class UiSelectorOptions extends tsc<IProps> {
               />
             </div>
             <div class='options-wrap'>
-              {this.hasVariableOperate && (
-                <div
-                  key={'variable-operate'}
-                  class={['option', { checked: this.isCreateVariable }]}
-                  onClick={this.handleClickCreateVariable}
-                >
-                  <span class='option-name-title'>
-                    {this.$t('创建变量')}
-                    {'${}'}
-                  </span>
-                </div>
-              )}
               {this.searchLocalFields.map((item, index) => {
+                if (item.type === EFieldType.custom_operator) {
+                  return (
+                    <div
+                      key={'variable-operate'}
+                      class={['option', { checked: this.isCreateVariable }, { cursor: index === this.cursorIndex }]}
+                      onClick={this.handleClickCreateVariable}
+                    >
+                      <span class='option-name-title'>
+                        {this.$t('创建变量')}
+                        {'${}'}
+                      </span>
+                    </div>
+                  );
+                }
                 if (item.type === EFieldType.variable) {
                   return (
                     <div

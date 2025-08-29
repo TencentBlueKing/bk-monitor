@@ -34,6 +34,7 @@ interface IProps {
   show?: boolean;
   value: string;
   onChange?: (val: string) => void;
+  onEnter?: () => void;
 }
 
 @Component
@@ -69,6 +70,10 @@ export default class VariableNameInput extends tsc<IProps> {
     }
   }
 
+  handleEnter() {
+    this.$emit('enter');
+  }
+
   render() {
     return (
       <div class={['template-config-variable-name-input', { 'is-err': this.isErr }]}>
@@ -79,6 +84,7 @@ export default class VariableNameInput extends tsc<IProps> {
           v-model={this.localValue}
           placeholder={this.$t('大小写字符、数字、下划线、点（.），50个字符以内')}
           onChange={this.handleChange}
+          onEnter={this.handleEnter}
         />
         <div class='label-right'>{'}'}</div>
       </div>

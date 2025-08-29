@@ -79,6 +79,10 @@ export default class AddVariableWrap extends tsc<IProps> {
     this.$emit('cancel');
   }
 
+  handleEnter() {
+    this.handleAdd();
+  }
+
   render() {
     return (
       <div
@@ -95,6 +99,7 @@ export default class AddVariableWrap extends tsc<IProps> {
           show={this.show}
           value={this.value}
           onChange={this.handleChange}
+          onEnter={this.handleEnter}
         />
         {!!this.errMsg && <div class='error-tip'>{this.errMsg}</div>}
         {this.hasOperate && (
