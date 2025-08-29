@@ -94,7 +94,7 @@ export default class TemplateEdit extends TemplateCreate {
     if (!data) return;
     this.$bkMessage({
       theme: 'success',
-      message: this.$t('编辑指标模板成功'),
+      message: this.$t('编辑查询模板成功'),
     });
     this.$router.push({
       name: 'query-template',

@@ -142,6 +142,7 @@ class CreateDimensionVariable extends Mixins(VariableFormMixin) {
               collapse-tag
               display-tag
               multiple
+              searchable
               onToggle={this.handleOptionsToggle}
             >
               <bk-option
@@ -169,6 +170,7 @@ class CreateDimensionVariable extends Mixins(VariableFormMixin) {
               collapse-tag
               display-tag
               multiple
+              searchable
               onChange={this.defaultValueChange}
             >
               {this.variable.dimensionOptionsMap.map(item => (
