@@ -44,6 +44,13 @@ import type { IConditionOptionsItem, IVariablesItem } from '../type/query-config
 
 import './condition-creator.scss';
 
+const methodNameMap = {
+  include: window.i18n.t('包含'),
+  exclude: window.i18n.t('不包含'),
+  reg: window.i18n.t('正则等于'),
+  nreg: window.i18n.t('正则不等于'),
+};
+
 interface IProps {
   allVariables?: { name: string }[];
   dimensionValueVariables?: { name: string }[];
@@ -114,7 +121,7 @@ export default class ConditionCreator extends tsc<IProps> {
         type: EFieldType.text,
         is_option_enabled: true,
         supported_operations: this.handleGetMethodList(item?.dimensionType || 'string').map(item => ({
-          alias: item.name,
+          alias: methodNameMap?.[item.id] || item.name,
           value: item.id,
         })),
       })),
