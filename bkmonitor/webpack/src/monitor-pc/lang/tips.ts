@@ -264,8 +264,6 @@ export default {
   标签图例: 'Tag Legend',
   反馈的根因: 'Feedback Root',
   边图例: 'Edge Legend',
-  状态: 'Status',
-  标签: 'Tag',
   从属关系: 'Subordinate',
   调用关系: 'Call',
   故障传播: 'Incident Spread',
@@ -385,8 +383,6 @@ export default {
   只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
   请先打开事件分析: 'Please open event analysis first',
   暂无关联的事件数据: 'No related event data',
-  '调试数据范围取当前时间窗口前1000条数据': 'The debugging data range takes the previous 1000 entries from the current time window',
-  只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
 
   // 查询模板
   无法删除: 'Cannot delete',

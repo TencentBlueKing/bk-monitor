@@ -530,6 +530,6 @@ export default {
   '维度：': 'Dimension:',
   快速定位: 'Quick location',
   操作失败: 'Operation failed',
-  创建指标模板成功: 'Created metric template successfully',
-  编辑指标模板成功: 'Edited metric template successfully',
+  创建查询模板成功: 'Created metric template successfully',
+  编辑查询模板成功: 'Edited metric template successfully',
 };

@@ -51,6 +51,7 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
     return this.$store.getters.bizId;
   }
 
+  /** 是否是全局模板 */
   get isGlobalTemplate() {
     return this.formData.space_scope.includes('all');
   }
@@ -65,7 +66,7 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
     name: [
       {
         required: true,
-        message: window.i18n.t('模版名称必填'),
+        message: window.i18n.t('模板名称必填'),
         trigger: 'blur',
       },
       {
@@ -118,9 +119,13 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
   }
 
   handleEffectChange(value: (number | string)[]) {
+    const space_scope = value;
+    if (!value.includes(this.bizId)) {
+      space_scope.unshift(this.bizId);
+    }
     this.$emit('change', {
       ...this.formData,
-      space_scope: value,
+      space_scope,
     });
   }
 
@@ -154,7 +159,7 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
           <bk-form-item
             class='w50'
             error-display-type='normal'
-            label={this.$t('模版名称')}
+            label={this.$t('模板名称')}
             property='name'
             required
           >
@@ -168,7 +173,7 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
           <bk-form-item
             class='w50'
             error-display-type='normal'
-            label={this.$t('模版别名')}
+            label={this.$t('模板别名')}
           >
             <bk-input
               value={this.formData.alias}

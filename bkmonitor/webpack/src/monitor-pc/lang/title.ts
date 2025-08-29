@@ -155,8 +155,6 @@ export default {
   URI信息: 'URI Info',
   URI配置: 'URI Configuration',
   例如: 'For example',
-  请求数: 'Request Count',
-  CPU使用率: 'CPU Usage',
   响应耗时: 'Response Time',
 
   // 调用分析

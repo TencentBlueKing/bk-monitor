@@ -418,7 +418,7 @@ export const getRouteConfig = () => {
           id: 'metric-manage',
           children: [
             {
-              name: '指标模板',
+              name: '查询模板',
               icon: 'icon-monitor icon-shujucaiji menu-icon',
               id: 'query-template',
               path: '/query-template',

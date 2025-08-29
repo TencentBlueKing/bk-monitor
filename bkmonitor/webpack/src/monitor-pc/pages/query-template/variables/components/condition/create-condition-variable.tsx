@@ -129,6 +129,7 @@ class CreateConditionVariable extends Mixins(VariableFormMixin) {
               collapse-tag
               display-tag
               multiple
+              searchable
               onToggle={this.handleOptionsToggle}
             >
               <bk-option
