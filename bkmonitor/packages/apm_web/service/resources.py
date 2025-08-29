@@ -495,13 +495,20 @@ class ServiceConfigResource(Resource):
             LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name).delete()
             return
 
-        # 检查是否有重复的related_bk_biz_id
-        related_bk_biz_ids = set()
+        # 检查是否有重复的related_bk_biz_id，并合并value_list
+        unique_relations = {}
         for request_relation in log_relation_list:
             related_bk_biz_id = request_relation.get("related_bk_biz_id")
-            if related_bk_biz_id in related_bk_biz_ids:
-                raise ValueError(_lazy("related_bk_biz_id 不能重复"))
-            related_bk_biz_ids.add(related_bk_biz_id)
+            if related_bk_biz_id in unique_relations:
+                # 合并value_list
+                existing_value_list = unique_relations[related_bk_biz_id].get("value_list", [])
+                new_value_list = request_relation.get("value_list", [])
+                unique_relations[related_bk_biz_id]["value_list"] = existing_value_list + new_value_list
+            else:
+                unique_relations[related_bk_biz_id] = request_relation
+
+        # 将合并后的结果转换为列表
+        log_relation_list = list(unique_relations.values())
 
         # 获取现有记录的主键映射
         existing_relations = LogServiceRelation.objects.filter(
