@@ -176,10 +176,10 @@ export default class MetricTemplate extends tsc<object> {
   }
   handlePageSizeChange(pageSize: number) {
     this.pageSize = pageSize;
+    this.handleCurrentPageChange(1);
     commonPageSizeSet(this.pageSize);
   }
 
-  @Debounce(300)
   handleSearchChange(keyword: QueryListRequestParams['conditions']) {
     this.searchKeyword = keyword;
     this.setRouterParams();
@@ -213,7 +213,6 @@ export default class MetricTemplate extends tsc<object> {
               class='search-input'
               searchKeyword={this.searchKeyword}
               onChange={this.handleSearchChange}
-              onSearch={this.handleRefresh}
             />
           </div>
         </div>

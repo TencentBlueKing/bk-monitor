@@ -26,13 +26,16 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import SearchSelect from '@blueking/search-select-v3/vue2';
+
 import { SEARCH_SELECT_OPTIONS } from '../../constants';
 
 import type { QueryListRequestParams, SearchSelectItem } from '../../typings';
 
+import '@blueking/search-select-v3/vue2/vue2.css';
+
 interface QueryTemplateSearchEmits {
   onChange: (list: QueryListRequestParams['conditions']) => void;
-  onSearch: () => void;
 }
 type QueryTemplateSearchProps = {
   searchKeyword: QueryListRequestParams['conditions'];
@@ -45,7 +48,7 @@ export default class QueryTemplateSearch extends tsc<QueryTemplateSearchProps, Q
   /** 所有可搜索项信息映射表 */
   get allSearchSelectOptionMap() {
     return SEARCH_SELECT_OPTIONS.reduce((acc, cur) => {
-      acc[cur.key] = cur;
+      acc[cur.id] = cur;
       return acc;
     }, {});
   }
@@ -57,14 +60,9 @@ export default class QueryTemplateSearch extends tsc<QueryTemplateSearchProps, Q
     }
     return this.searchKeyword?.map(e => ({
       name: this.allSearchSelectOptionMap[e.key]?.name,
-      key: e.key,
-      values: e.value.map(v => ({ key: v, name: v })),
+      id: e.key,
+      values: e.value.map(v => ({ id: v, name: v })),
     }));
-  }
-
-  @Emit('search')
-  handleRefresh() {
-    return;
   }
 
   @Emit('change')
@@ -74,12 +72,12 @@ export default class QueryTemplateSearch extends tsc<QueryTemplateSearchProps, Q
     }
     const map = new Map(
       list.map(item => {
-        let key = item.key;
+        let key = item.id;
         let val = item;
-        if (!Object.hasOwn(item, 'values')) {
+        if (item?.type === 'text') {
           key = 'query';
           val = {
-            key: 'query',
+            id: 'query',
             name: this.$i18n.t('全文检索') as unknown as string,
             values: [item],
           };
@@ -95,8 +93,8 @@ export default class QueryTemplateSearch extends tsc<QueryTemplateSearchProps, Q
         continue;
       }
       search.push({
-        key: item.key,
-        value: item.values.map(v => v.key),
+        key: item.id,
+        value: item.values.map(v => v.id),
       });
     }
     return search;
@@ -104,17 +102,13 @@ export default class QueryTemplateSearch extends tsc<QueryTemplateSearchProps, Q
 
   render() {
     return (
-      <bk-search-select
+      <SearchSelect
         class='query-template-search'
         clearable={true}
         data={SEARCH_SELECT_OPTIONS}
+        modelValue={this.searchSelectValue}
         placeholder={this.$t('搜索 模板名称、模板别名、模板说明、创建人、更新人')}
-        primary-key='key'
-        show-condition={false}
-        values={this.searchSelectValue}
         onChange={this.handleSearchChange}
-        onClear={() => this.handleSearchChange([])}
-        onSearch={this.handleRefresh}
       />
     );
   }
