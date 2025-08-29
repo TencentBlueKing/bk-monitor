@@ -29,7 +29,7 @@ import { readBlobRespToJson } from '@/common/util';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 

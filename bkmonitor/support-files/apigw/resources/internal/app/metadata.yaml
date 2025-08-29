@@ -1887,3 +1887,23 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: get or create agent event data id
+  /app/metadata/modify_cluster_by_vmrts/:
+    post:
+      operationId: metadata_modify_cluster_by_vmrts
+      description: 根据VMRT列表修改VM集群
+      tags:
+        - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v3/meta/modify_cluster_by_vmrts/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: modify cluster by vmrts

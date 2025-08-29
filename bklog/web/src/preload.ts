@@ -100,5 +100,13 @@ export default ({
     return res.data;
   });
 
-  return Promise.all([spaceRequest, userInfoRequest, globalsRequest]);
+  /**
+   * 获取用户引导数据
+   */
+  const getUserGuideRequest = http.request('meta/getUserGuide').then(res => {
+    store.commit('setUserGuideData', res.data);
+    return res.data;
+  });
+
+  return Promise.allSettled([spaceRequest, userInfoRequest, globalsRequest, getUserGuideRequest]);
 };

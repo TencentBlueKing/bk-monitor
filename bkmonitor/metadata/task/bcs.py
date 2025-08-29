@@ -181,6 +181,17 @@ def discover_bcs_clusters():
     """
     BCS集群同步周期任务,调用BCS侧API全量拉取集群信息（包含联邦集群）,并进行同步逻辑
     """
+
+    def _init_bcs_cluster_resource(cluster: BCSClusterInfo, is_fed_cluster: bool) -> tuple[bool, Exception | None]:
+        """
+        初始化 BCS 集群资源
+        """
+        try:
+            init_result = cluster.init_resource(is_fed_cluster=is_fed_cluster)
+            return init_result, None
+        except Exception as e:  # pylint: disable=broad-except
+            return False, e
+
     # 统计&上报 任务状态指标
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="discover_bcs_clusters", status=TASK_STARTED, process_target=None
@@ -225,21 +236,37 @@ def discover_bcs_clusters():
                 # 更新集群信息，兼容集群迁移场景
                 # 场景1:集群迁移业务，项目ID不变，只会变业务ID
                 # 场景2:集群迁移项目，项目ID和业务ID都可能变化
-                update_fields = []
-                # NOTE: 现阶段完全以 BCS 的集群状态为准，
-                if cluster_raw_status != cluster.status:
+                update_fields: set[str] = set()
+
+                # 如果集群状态为初始化失败，则重试
+                if cluster.status == BCSClusterInfo.CLUSTER_STATUS_INIT_FAILED:
+                    init_result, err = _init_bcs_cluster_resource(cluster, is_fed_cluster=is_fed_cluster)
+                    if init_result:
+                        logger.info(
+                            f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} retry init resource success"
+                        )
+                        update_fields.add("status")
+                        cluster.status = BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING
+                    else:
+                        logger.error(
+                            f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} retry init resource failed, error:{err}"
+                        )
+
+                # NOTE: 现阶段完全以 BCS 的集群状态为准，如果集群初始化状态为失败，则不更新
+                if cluster_raw_status != cluster.status and cluster.status != BCSClusterInfo.CLUSTER_STATUS_INIT_FAILED:
                     cluster.status = cluster_raw_status
-                    update_fields.append("status")
+                    update_fields.add("status")
+
                 # 如果 BCS Token 变了需要刷新
                 if cluster.api_key_content != settings.BCS_API_GATEWAY_TOKEN:
                     cluster.api_key_content = settings.BCS_API_GATEWAY_TOKEN
-                    update_fields.append("api_key_content")
+                    update_fields.add("api_key_content")
 
                 if int(bk_biz_id) != cluster.bk_biz_id:
                     # 记录旧业务ID，更新新业务ID
                     old_bk_biz_id = cluster.bk_biz_id
                     cluster.bk_biz_id = int(bk_biz_id)
-                    update_fields.append("bk_biz_id")
+                    update_fields.add("bk_biz_id")
 
                     # 若业务ID变更，其RT对应的业务ID也应一并变更
                     logger.info(
@@ -257,11 +284,11 @@ def discover_bcs_clusters():
                 # 如果project_id改动，需要更新集群信息
                 if project_id != cluster.project_id:
                     cluster.project_id = project_id
-                    update_fields.append("project_id")
+                    update_fields.add("project_id")
 
                 if update_fields:
-                    update_fields.append("last_modify_time")
-                    cluster.save(update_fields=update_fields)
+                    update_fields.add("last_modify_time")
+                    cluster.save(update_fields=list(update_fields))
 
                 if cluster.bk_cloud_id is None:
                     # 更新云区域ID
@@ -289,14 +316,17 @@ def discover_bcs_clusters():
                 f"discover_bcs_clusters: cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} registered"
             )
 
-            try:
+            # 初始化集群资源
+            init_result, err = _init_bcs_cluster_resource(cluster, is_fed_cluster=is_fed_cluster)
+            if init_result:
                 logger.info(
-                    f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} start to init resource"
+                    f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} init resource success"
                 )
-                cluster.init_resource(is_fed_cluster=is_fed_cluster)
-            except Exception as e:  # pylint: disable=broad-except
+            else:
+                cluster.status = BCSClusterInfo.CLUSTER_STATUS_INIT_FAILED
+                cluster.save(update_fields=["status"])
                 logger.error(
-                    f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} init resource failed, error:{e}"
+                    f"cluster_id:{cluster.cluster_id},project_id:{cluster.project_id},bk_biz_id:{cluster.bk_biz_id} init resource failed, error:{err}"
                 )
                 continue
 

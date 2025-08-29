@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { random } from '@/common/util';
-import { throttle } from 'lodash';
+import { throttle } from 'lodash-es';
 
 import type { VueConstructor } from 'vue';
 import type { DirectiveBinding, DirectiveOptions } from 'vue/types/options';

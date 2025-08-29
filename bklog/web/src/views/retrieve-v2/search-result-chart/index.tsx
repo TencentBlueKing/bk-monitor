@@ -35,7 +35,7 @@ import useTrendChart from '@/hooks/use-trend-chart';
 import { getCommonFilterAddition } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
-import { throttle } from 'lodash';
+import { throttle } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 

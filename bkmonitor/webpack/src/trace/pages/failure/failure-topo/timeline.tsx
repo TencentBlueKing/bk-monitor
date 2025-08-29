@@ -42,10 +42,6 @@ const refreshList = [
     id: -1,
   },
   {
-    name: '1m',
-    id: 60 * 1000,
-  },
-  {
     name: '5m',
     id: 5 * 60 * 1000,
   },
@@ -92,7 +88,7 @@ export default defineComponent({
     });
     const timelinePosition = ref(0); // 时间轴位置
     const time = ref(new Date());
-    const refreshTime = ref('1m'); // 自动刷新时间
+    const refreshTime = ref('5m'); // 自动刷新时间
     const isShow = ref(false);
     const isPlay = ref(false);
     /** 拖动轴变化 */

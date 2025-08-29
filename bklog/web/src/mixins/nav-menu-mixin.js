@@ -48,7 +48,7 @@ export default {
   },
   watch: {
     '$route.query'(val) {
-      const queryObj = JSON.parse(JSON.stringify(val));
+      const queryObj = structuredClone(val);
       if (queryObj.from) {
         this.$store.commit('updateAsIframe', queryObj.from);
         this.$store.commit('updateIframeQuery', queryObj);
@@ -59,7 +59,7 @@ export default {
     async requestMySpaceList() {
       try {
         // const res = await this.$http.request('space/getMySpaceList');
-        const queryObj = JSON.parse(JSON.stringify(this.$route.query));
+        const queryObj = structuredClone(this.$route.query);
         if (queryObj.from) {
           this.$store.commit('updateAsIframe', queryObj.from);
           this.$store.commit('updateIframeQuery', queryObj);

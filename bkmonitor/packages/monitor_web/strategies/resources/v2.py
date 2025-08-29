@@ -3629,22 +3629,17 @@ class SaveStrategySubscribeResource(Resource):
 
     def perform_request(self, params):
         sub_id = params.get("id")
+        bk_biz_id = params["bk_biz_id"]
         if sub_id:
             try:
-                instance = NoticeSubscribe.objects.get(id=sub_id)
+                instance = NoticeSubscribe.objects.get(id=sub_id, bk_biz_id=bk_biz_id)
+                for k, v in params.items():
+                    setattr(instance, k, v)
+                instance.save()
             except NoticeSubscribe.DoesNotExist:
-                raise ValidationError(_("订阅ID：{}不存在".format(sub_id)))
+                raise ValidationError(_(f"订阅ID：{sub_id} 在业务[{bk_biz_id}] 下不存在"))
         else:
-            instance = None
-
-        data = params
-
-        if instance:
-            for k, v in data.items():
-                setattr(instance, k, v)
-            instance.save()
-        else:
-            instance = NoticeSubscribe.objects.create(**data)
+            instance = NoticeSubscribe.objects.create(**params)
 
         return {
             "id": instance.id,
@@ -3665,9 +3660,10 @@ class DeleteStrategySubscribeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True)
+        bk_biz_id = serializers.IntegerField(required=True)
 
     def perform_request(self, params):
-        qs = NoticeSubscribe.objects.filter(id=params["id"])
+        qs = NoticeSubscribe.objects.filter(id=params["id"], bk_biz_id=params["bk_biz_id"])
 
         deleted = qs.delete()[0]
         if deleted == 0:
@@ -3710,11 +3706,13 @@ class DetailStrategySubscribeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True)
+        bk_biz_id = serializers.IntegerField(required=True)
 
     def perform_request(self, params):
-        obj = NoticeSubscribe.objects.filter(id=params["id"]).first()
+        bk_biz_id = params["bk_biz_id"]
+        obj = NoticeSubscribe.objects.filter(id=params["id"], bk_biz_id=bk_biz_id).first()
         if not obj:
-            raise ValidationError(_("未找到符合条件的订阅"))
+            raise ValidationError(_(f"[{bk_biz_id}]下未找到符合条件的订阅"))
         return {
             "id": obj.id,
             "username": obj.username,

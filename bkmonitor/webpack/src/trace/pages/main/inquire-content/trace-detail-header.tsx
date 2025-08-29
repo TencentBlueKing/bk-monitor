@@ -131,6 +131,7 @@ export default defineComponent({
             fillBackFieldMap={{
               trace_id: this.traceId,
               app_name: this.appName,
+              bk_biz_id: (window.bk_biz_id || window.cc_biz_id) as string,
             }}
             shortcutId={AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS}
           />

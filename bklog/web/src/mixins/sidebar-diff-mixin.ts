@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { deepClone, deepEqual } from '../common/util';
+import { deepEqual } from '../common/util';
 
 export default {
   data() {
@@ -90,7 +90,7 @@ export default {
     initSidebarFormData(): void {
       // 从计算属性中获取所需要对比的key列表
       this._initCloneData_ = Object.keys(this._watchFormData_).reduce((pre: object, cur: string) => {
-        pre[cur] = deepClone(this[cur]);
+        pre[cur] = structuredClone(this[cur]);
         return pre;
       }, {});
       this._isDataInit_ = true;

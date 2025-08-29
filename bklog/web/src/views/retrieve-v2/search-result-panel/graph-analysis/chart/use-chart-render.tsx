@@ -27,7 +27,6 @@ import { onMounted, Ref } from 'vue';
 
 import { formatDate } from '@/common/util';
 import * as Echarts from 'echarts';
-import { cloneDeep } from 'lodash';
 
 import { lineOrBarOptions, pieOptions } from './chart-config-def';
 export default ({ target, type }: { target: Ref<any>; type: string }) => {
@@ -241,14 +240,14 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   };
 
   const getLineBarChartOption = () => {
-    const option = cloneDeep(lineOrBarOptions);
+    const option = structuredClone(lineOrBarOptions);
     Object.assign(option.tooltip, getTooltipFormatter());
 
     return option;
   };
 
   const getPieChartOption = () => {
-    return cloneDeep(pieOptions);
+    return structuredClone(pieOptions);
   };
 
   const getLineDefaultOption = () => {
