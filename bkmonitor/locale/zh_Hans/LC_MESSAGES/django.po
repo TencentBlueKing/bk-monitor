@@ -12220,8 +12220,6 @@ msgstr "JSON解析错误"
 msgid "JSON解析错误：{msg}"
 msgstr "JSON解析错误：{msg}"
 
-msgid "related_bk_biz_id 不能重复"
-msgstr "related_bk_biz_id 不能重复"
 
 #~ msgid "{} 匹配到第{}个uri配置: {}"
 #~ msgstr "{} 匹配到第{}个uri配置: {}"

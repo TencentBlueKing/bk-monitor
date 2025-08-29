@@ -682,10 +682,7 @@ class AppQueryByIndexSetResource(Resource):
         index_set_id = serializers.IntegerField()
 
     def perform_request(self, data):
-        relations = LogServiceRelation.objects.filter(
-            Q(log_type=ServiceRelationLogTypeChoices.BK_LOG) &
-            (Q(value=data["index_set_id"]) | Q(value_list__icontains=data["index_set_id"]))
-        )
+        relations = LogServiceRelation.filter_by_index_set_id(data["index_set_id"])
         res = []
         for relation in relations:
             res.append({"bk_biz_id": relation.bk_biz_id, "app_name": relation.app_name})
