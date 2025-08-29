@@ -264,8 +264,6 @@ export default {
   标签图例: 'Tag Legend',
   反馈的根因: 'Feedback Root',
   边图例: 'Edge Legend',
-  状态: 'Status',
-  标签: 'Tag',
   从属关系: 'Subordinate',
   调用关系: 'Call',
   故障传播: 'Incident Spread',

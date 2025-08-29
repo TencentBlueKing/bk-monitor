@@ -63,7 +63,7 @@ export default [
       noCache: MetricTemplateCreate,
     },
     meta: {
-      title: '创建指标模板',
+      title: '创建查询模板',
       navId: 'query-template',
       route: {
         parent: 'integrated',
@@ -82,7 +82,7 @@ export default [
       noCache: MetricTemplateEdit,
     },
     meta: {
-      title: '编辑指标模板',
+      title: '编辑查询模板',
       navId: 'query-template',
       authority: {
         map: queryTemplateAuth,

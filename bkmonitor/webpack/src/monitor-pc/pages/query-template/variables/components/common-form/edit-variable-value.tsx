@@ -51,7 +51,7 @@ export default class EditVariableValue extends tsc<EditVariableValueProps> {
       <div class='edit-variable-value'>
         <div class='variable-value'>
           <bk-popover
-            width={188}
+            width={320}
             placement='top'
           >
             <div class='variable-value-label'>
