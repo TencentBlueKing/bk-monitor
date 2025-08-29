@@ -2,17 +2,18 @@
 
 from django.db import migrations
 
+
 def migrate_value_to_value_list(apps, schema_editor):
-    LogServiceRelation = apps.get_model('apm_web', 'LogServiceRelation')
-    for record in LogServiceRelation.objects.filter(log_type='bk_log'):
+    LogServiceRelation = apps.get_model("apm_web", "LogServiceRelation")
+    for record in LogServiceRelation.objects.filter(log_type="bk_log"):
         if record.value and int(record.value) not in record.value_list:
             record.value_list.append(int(record.value))
             record.save()
 
-class Migration(migrations.Migration):
 
+class Migration(migrations.Migration):
     dependencies = [
-        ('apm_web', '0030_logservicerelation_value_list'),
+        ("apm_web", "0030_logservicerelation_value_list"),
     ]
 
     operations = [migrations.RunPython(migrate_value_to_value_list)]

@@ -119,10 +119,7 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
         value_list = []
         for index in index_set:
             if index["index_set_id"] in instance.value_list:
-                value_list.append({
-                    "value": index["index_set_id"],
-                    "value_alias": index["index_set_name"]
-                })
+                value_list.append({"value": index["index_set_id"], "value_alias": index["index_set_name"]})
         return value_list
 
     class Meta:

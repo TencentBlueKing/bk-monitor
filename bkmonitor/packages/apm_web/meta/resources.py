@@ -1190,7 +1190,7 @@ class ServiceDetailResource(Resource):
             ]
 
         # 暂时用不上，并需注意方法体逻辑已过时
-        # self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info) 
+        # self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
 
         return [
             {

@@ -17,7 +17,6 @@ import re
 from multiprocessing.pool import ApplyResult
 from typing import Any
 from datetime import timedelta
-from django.db.models import Q
 
 import arrow
 from django.utils.translation import gettext as _
@@ -137,7 +136,7 @@ class ServiceInfoResource(Resource):
     def get_log_relation_info_list(cls, bk_biz_id, app_name, service_name):
         relations = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
         return LogServiceRelationOutputSerializer(instance=relations, many=True).data
-    
+
     @classmethod
     def get_app_relation_info(cls, bk_biz_id, app_name, service_name):
         query = AppServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
@@ -492,7 +491,9 @@ class ServiceConfigResource(Resource):
     @classmethod
     def update_log_relations(cls, bk_biz_id: int, app_name: str, service_name: str, log_relation_list: list):
         if not log_relation_list:
-            LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name).delete()
+            LogServiceRelation.objects.filter(
+                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+            ).delete()
             return
 
         # 检查是否有重复的related_bk_biz_id，并合并value_list
@@ -512,9 +513,7 @@ class ServiceConfigResource(Resource):
 
         # 获取现有记录的主键映射
         existing_relations = LogServiceRelation.objects.filter(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            service_name=service_name
+            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
         ).values_list("related_bk_biz_id", "id")
 
         existing_id_map = {related_bk_biz_id: id for related_bk_biz_id, id in existing_relations}
@@ -534,7 +533,7 @@ class ServiceConfigResource(Resource):
                         id=existing_id_map[related_bk_biz_id],
                         updated_by=username,
                         updated_at=update_time,
-                        **request_relation
+                        **request_relation,
                     )
                     to_update.append(instance)
                     # 如果记录不需要更新或者 value_list 为空，则需要删除记录
@@ -547,15 +546,13 @@ class ServiceConfigResource(Resource):
                     service_name=service_name,
                     updated_by=username,
                     created_by=username,
-                    **request_relation
+                    **request_relation,
                 )
                 to_create.append(instance)
 
         if to_update:
             LogServiceRelation.objects.bulk_update(
-                to_update,
-                fields=["updated_by", "updated_at", "value_list"],
-                batch_size=100
+                to_update, fields=["updated_by", "updated_at", "value_list"], batch_size=100
             )
         if to_create:
             LogServiceRelation.objects.bulk_create(to_create, batch_size=100)

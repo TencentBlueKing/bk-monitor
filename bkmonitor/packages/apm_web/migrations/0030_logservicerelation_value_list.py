@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('apm_web', '0029_auto_20250418_1123'),
+        ("apm_web", "0029_auto_20250418_1123"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='logservicerelation',
-            name='value_list',
-            field=models.JSONField(default=list, verbose_name='日志值列表'),
+            model_name="logservicerelation",
+            name="value_list",
+            field=models.JSONField(default=list, verbose_name="日志值列表"),
         ),
     ]

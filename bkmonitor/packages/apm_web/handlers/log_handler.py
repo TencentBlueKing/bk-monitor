@@ -61,7 +61,9 @@ class ServiceLogHandler:
         relations = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name)
         for i in relations:
             if i.log_type == ServiceRelationLogTypeChoices.BK_LOG:
-                service_mapping[i.service_name][i.related_bk_biz_id] = {int(val) for val in (i.value_list + [i.value]) if val}
+                service_mapping[i.service_name][i.related_bk_biz_id] = {
+                    int(val) for val in (i.value_list + [i.value]) if val
+                }
 
         # Step2: 查询业务的所有索引集 (避免每个 relation 都单独查询)
         pool = ThreadPool()
