@@ -60,6 +60,7 @@ interface QueryConfigSetEvents {
   onChangeMethod?: (val: { index: number; value: string }) => void;
   onCreateVariable: (variable: IVariableModel) => void;
   onDeleteQueryConfig: (index: number) => void;
+  onDeleteVariable: (index: number) => void;
   onSelectMetric: (index: number, metric: MetricDetailV2) => void;
   onStepChange: (step: number) => void;
   onVariableAliasChange: (val: string, index: number) => void;
@@ -177,6 +178,10 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
     this.$emit('variableValueChange', val, index);
   }
 
+  handleDeleteVariable(index: number) {
+    this.$emit('deleteVariable', index);
+  }
+
   handleNextStep() {
     Promise.all([this.variablesManageRef.validateVariable(), this.basicInfoRef.validate()]).then(() => {
       this.$emit('stepChange', 2);
@@ -282,6 +287,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
           variablesList={this.variablesList}
           onAliasChange={this.handleVariableAliasChange}
           onDefaultValueChange={this.handleVariableDefaultValueChange}
+          onDelete={this.handleDeleteVariable}
           onDescChange={this.handleVariableDescChange}
           onNameChange={this.handleVariableNameChange}
           onOptionsChange={this.handleVariableOptionsChange}

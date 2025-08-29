@@ -57,7 +57,10 @@ export const fetchQueryTemplateDetail = async (templateId: QueryTemplateListItem
   if (detail.query_configs?.length) {
     queryConfigs = await getRetrieveQueryTemplateQueryConfigs(detail.query_configs);
   }
-  const createVariableParams = await getCreateVariableParams(detail.variables);
+  const createVariableParams = await getCreateVariableParams(
+    detail.variables,
+    queryConfigs.map(item => item.metricDetail)
+  );
   const variables = createVariableParams.map(item => getVariableModel(item));
   const metricFunctions = await getFunctions().catch(() => []);
   return {
