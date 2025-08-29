@@ -27,6 +27,7 @@
 
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 
+import { getMethodIdForLowerCase } from '../components/utils/utils';
 import { MetricDetailV2, QueryConfig } from '../typings';
 import { isVariableName } from '../variables/template/utils';
 
@@ -163,7 +164,7 @@ export const getRetrieveQueryTemplateQueryConfigs = async (query_configs: any[])
         metric_id: metricId,
         agg_interval: item.interval,
         alias: item.metrics?.[0]?.alias || 'a',
-        agg_method: item.metrics?.[0]?.method || 'AVG',
+        agg_method: getMethodIdForLowerCase(item.metrics?.[0]?.method) || 'AVG',
       }
     );
     queryConfigs.push(queryConfig);

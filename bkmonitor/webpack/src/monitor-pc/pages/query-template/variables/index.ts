@@ -27,6 +27,7 @@
 
 import { random } from 'monitor-common/utils';
 
+import { getMethodIdForLowerCase } from '../components/utils/utils';
 import { VariableTypeEnum } from '../constants';
 import { fetchMetricDetailList } from '../service';
 import { getTemplateSrv } from './template/template-srv';
@@ -299,7 +300,7 @@ export class MethodVariableModel extends VariableBase {
   value = '';
   constructor(config: IMethodVariableModel) {
     super(config);
-    this.defaultValue = config.defaultValue || 'AVG';
+    this.defaultValue = getMethodIdForLowerCase(config.defaultValue) || 'AVG';
     if (config.value) {
       this.value = config.value;
     } else {

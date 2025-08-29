@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { NUMBER_CONDITION_METHOD_LIST } from '../../constant/constant';
+import { CP_METHOD_LIST, METHOD_LIST, NUMBER_CONDITION_METHOD_LIST } from '../../constant/constant';
 
 /** 查询模板列表-表格固定展示字段 */
 export const TABLE_FIXED_DISPLAY_FIELDS = ['name', 'operator'];
@@ -105,4 +105,10 @@ export const VariableTypeMap = {
 export const ConditionMethodAliasMap = NUMBER_CONDITION_METHOD_LIST.reduce((acc, cur) => {
   acc[cur.id] = cur.name;
   return acc;
+}, {});
+
+/** 汇聚方法别名映射表 */
+export const AggMethodMap = [...METHOD_LIST, ...CP_METHOD_LIST].reduce((prev, curr) => {
+  prev[curr.id] = curr.name;
+  return prev;
 }, {});
