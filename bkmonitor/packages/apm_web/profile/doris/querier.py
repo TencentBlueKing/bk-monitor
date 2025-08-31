@@ -7,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from django.utils.translation import gettext_lazy as _
 from opentelemetry import trace
@@ -36,13 +36,15 @@ class APIType(Enum):
     SELECT_COUNT = "select_aggregate"
 
 
-class ConverterType:
+class ConverterType(Enum):
     """Bkbase 原始 profile 可以转换的数据类型"""
 
     # Profile 类型使用 DorisConverter 转换
     Profile = "profile"
     # Tree 类型使用 TreeConverter
     Tree = "tree"
+    # DOT 类型使用 DOTConverter
+    DOT = "dot"
 
 
 @dataclass
@@ -50,18 +52,18 @@ class APIParams:
     biz_id: str
     app: str
 
-    service_name: Optional[str] = None
+    service_name: str | None = None
     start: int = None
     end: int = None
-    type: Optional[str] = None
-    label_key: Optional[str] = None
-    label_filter: Optional[dict] = None
+    type: str | None = None
+    label_key: str | None = None
+    label_filter: dict | None = None
     limit: dict = None
     order: dict = None
     # dimension_fields: 仅在 select_count / query_sample_by_json 接口生效
     dimension_fields: str = None
     # general_filters:  仅在 select_count / query_sample_by_json 接口生效
-    general_filters: Optional[dict] = None
+    general_filters: dict | None = None
     # metric_fields:  仅在 select_count / query_sample_by_json 接口生效
     metric_fields: str = None
 
@@ -111,7 +113,7 @@ class Query:
         }
         return r
 
-    def execute(self, retry_if_empty_handler=None) -> Optional[dict]:
+    def execute(self, retry_if_empty_handler=None) -> dict | None:
         res = self._execute()
 
         if (not res or not res.get("list")) and retry_if_empty_handler:
