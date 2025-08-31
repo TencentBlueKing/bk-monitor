@@ -146,6 +146,21 @@ RPC_CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
     ),
 }
 
+RPC_CALLEE_REQ_TOTAL_TEMPLATE: dict[str, Any] = {
+    "bk_biz_id": GLOBAL_BIZ_ID,
+    "name": "apm_rpc_callee_req_total",
+    "alias": "[调用分析] 被调请求总数",
+    "description": "被调请求总数是指当前服务作为「服务提供方」，被其他服务调用的请求总数量。",
+    **_qs_to_query_params(
+        UnifyQuerySet()
+        .add_query(_COMMON_BUILDER.alias("a").metric(field="rpc_server_handled_total", method="SUM", alias="a"))
+        .expression("(a > bool ${ALARM_THRESHOLD_VALUE}) * a")
+    ),
+    "variables": _get_common_variables(
+        group_by=[RPCMetricTag.SERVICE_NAME], related_metric_fields=["rpc_server_handled_total"]
+    ),
+}
+
 RPC_CALLEE_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
     "name": "apm_rpc_callee_error_code",
@@ -226,6 +241,20 @@ RPC_CALLER_P99_QUERY_TEMPLATE: dict[str, Any] = {
     ),
 }
 
+RPC_CALLER_REQ_TOTAL_TEMPLATE: dict[str, Any] = {
+    "bk_biz_id": GLOBAL_BIZ_ID,
+    "name": "apm_rpc_caller_req_total",
+    "alias": "[调用分析] 主调请求总数",
+    "description": "主调请求总数是指当前服务作为「调用方」，调用其他服务的请求总数量。",
+    **_qs_to_query_params(
+        UnifyQuerySet()
+        .add_query(_COMMON_BUILDER.alias("a").metric(field="rpc_client_handled_total", method="SUM", alias="a"))
+        .expression("(a > bool ${ALARM_THRESHOLD_VALUE}) * a")
+    ),
+    "variables": _get_common_variables(
+        group_by=[RPCMetricTag.SERVICE_NAME], related_metric_fields=["rpc_client_handled_total"]
+    ),
+}
 
 RPC_CALLER_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
@@ -274,10 +303,12 @@ class APMQueryTemplateSet(QueryTemplateSet):
         RPC_CALLEE_SUCCESS_RATE_QUERY_TEMPLATE,
         RPC_CALLEE_AVG_TIME_QUERY_TEMPLATE,
         RPC_CALLEE_P99_QUERY_TEMPLATE,
+        RPC_CALLEE_REQ_TOTAL_TEMPLATE,
         RPC_CALLEE_ERROR_CODE_QUERY_TEMPLATE,
         RPC_CALLER_SUCCESS_RATE_QUERY_TEMPLATE,
         RPC_CALLER_AVG_TIME_QUERY_TEMPLATE,
         RPC_CALLER_P99_QUERY_TEMPLATE,
+        RPC_CALLER_REQ_TOTAL_TEMPLATE,
         RPC_CALLER_ERROR_CODE_QUERY_TEMPLATE,
         CUSTOM_METRIC_PANIC_QUERY_TEMPLATE,
     ]
