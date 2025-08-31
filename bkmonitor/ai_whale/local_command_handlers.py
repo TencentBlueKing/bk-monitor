@@ -149,8 +149,8 @@ class ProfilingAnalysisCommandHandler(CommandHandler):
 
     def get_template(self) -> str:
         return """
-        请帮助我分析 Profiling 数据(DOT 描述): {{ profiling_data }}.
         应用名称: {{ app_name }}
         业务ID: {{ bk_biz_id }}
+        请帮助我分析 Profiling 数据(DOT 描述): {{ profiling_data }}.
         结果要求: 确保分析准确无误，无需冗余回答内容
         """
