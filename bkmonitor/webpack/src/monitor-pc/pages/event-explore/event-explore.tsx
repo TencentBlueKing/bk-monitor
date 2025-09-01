@@ -551,7 +551,7 @@ export default class EventExplore extends tsc<
         where, // 产品确认将普通筛选和常驻筛选一并带入告警策略
         query_string,
         metrics: [{ alias: 'a', field, method: 'COUNT' }],
-        metric_id: `custom.event.${table}.__INDEX__`, // 主机事件暂不支持该方式跳转
+        metric_id: `${data_source_label}.${data_type_label}.${table}.${field}`,
       },
     ];
     const queryData = {
