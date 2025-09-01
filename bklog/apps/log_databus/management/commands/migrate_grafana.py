@@ -3,6 +3,8 @@ import re
 import time
 
 from django.core.management.base import BaseCommand
+from django.conf import settings
+from apps.iam import Permission
 
 import bk_dataview.grafana.client as grafana_client
 from apps.iam.handlers import ActionEnum
@@ -39,7 +41,7 @@ class Command(BaseCommand):
         # 获取命令行参数
         grafana_url = options["grafana_url"]
         selected_biz = options["selected_biz"]
-        app_code = options["app_code"]
+        # app_code = options["app_code"]
 
         # 从 bk_log 获取 grafana 配置数据
         grafana_data, extract_failed_biz = self.get_grafana_config(grafana_client, selected_biz)
@@ -48,14 +50,14 @@ class Command(BaseCommand):
         # 写入配置数据到新 Grafana,由用户进行指定
         write_failed_biz = self.write_config_to_grafana(grafana_url, grafana_data, biz_to_org_mapping)
 
-        # 迁移权限
-        self.migrate_permissions(app_code)
+        # 迁移权限 - 先不迁移权限
+        # self.migrate_permissions(app_code)
 
         # 集中展示错误信息
         self.show_error_info(extract_failed_biz, convert_failed_biz, write_failed_biz)
 
         end_time = time.time()
-        self.stdout.write("[migrate_grafana] #### END ####, Cost: %d s" % (end_time - start_time))
+        self.stdout.write(f"[migrate_grafana] #### END ####, Cost: {end_time - start_time} s")
 
     # 通用函数
     @staticmethod
@@ -74,22 +76,22 @@ class Command(BaseCommand):
     # 数据获取
     def get_grafana_config(self, bklog_grafana_client, selected_biz):
         """获取 bk-log grafana 配置数据"""
-        self.stdout.write(f"START get config from bk_log")
+        self.stdout.write("START get config from bk_log")
         orgs_resp = bklog_grafana_client.get_all_organization()
         if orgs_resp.status_code != 200:
             self.show_error(f"failed: get config from bk_log: {orgs_resp.json()}")
-            raise ValueError(f"Failed to get orgs from bk_log")
+            raise ValueError("Failed to get orgs from bk_log")
 
         orgs = self.filter_orgs_by_biz(selected_biz, orgs_resp.json())
         all_data, failed_biz = self.extract_grafana_config(orgs)
 
-        self.stdout.write(f"END get config from bk_log")
+        self.stdout.write("END get config from bk_log")
         return all_data, failed_biz
 
     def filter_orgs_by_biz(self, selected_biz, orgs):
         """根据命令行参数,选择需要迁移的业务"""
         if selected_biz == "all":
-            self.stdout.write(f"selected_biz is 'all': get all biz from bk_log")
+            self.stdout.write("selected_biz is 'all': get all biz from bk_log")
             return orgs
         self.stdout.write(f"get selected biz from bk_log: {selected_biz}")
         selected_biz_ids = selected_biz.split(",")
@@ -152,7 +154,7 @@ class Command(BaseCommand):
             panel_info = dashboard_detail["dashboard"]["panels"]
 
             dashboard_data = {
-                "dashboard_title": dashboard['title'],
+                "dashboard_title": dashboard["title"],
                 "panels": panel_info,
                 "refresh": dashboard_detail.get("dashboard", {}).get("refresh", ""),
                 "tags": dashboard_detail.get("dashboard", {}).get("tags", []),
@@ -241,26 +243,34 @@ class Command(BaseCommand):
 
     def update_panel_datasource(self, panel, bk_log_datasource_uid):
         """为单一面板更新数据源信息"""
-        if "collapsed" in panel:
+        if "collapsed" in panel and "panels" in panel:
             for collapsed_panel in panel["panels"]:
-                if "datasource" in collapsed_panel:
-                    collapsed_panel["datasource"] = {
-                        "type": "bk_log_datasource",
-                        "uid": bk_log_datasource_uid,
-                    }
-        if "datasource" in panel:
-            panel["datasource"] = {
-                "type": "bk_log_datasource",
-                "uid": bk_log_datasource_uid,
-            }
-        else:
-            self.show_error(f"panel {panel['title']} has no datasource")
+                self.update_panel_datasource(collapsed_panel, bk_log_datasource_uid)
 
-    # 数据写入
+        datasource_config = {
+            "type": "bk_log_datasource",
+            "uid": bk_log_datasource_uid,
+        }
+
+        if "datasource" in panel:
+            panel["datasource"] = datasource_config
+
+        has_target_datasource = False
+        for target in panel.get("targets", []) or []:
+            # 处理两种旧结构：datasource 或 datasourceId
+            if "datasource" in target or "datasourceId" in target:
+                if "datasourceId" in target:
+                    target.pop("datasourceId", None)
+                target["datasource"] = datasource_config
+                has_target_datasource = True
+
+        if "datasource" not in panel and not has_target_datasource:
+            self.show_error(f"panel {panel.get('title', 'unknown')} has no datasource")
+
     def write_config_to_grafana(self, grafana_url, grafana_data, biz_to_org_mapping):
         """写入配置数据到 Grafana"""
         failed_biz = {}
-        self.stdout.write(f"START write config to grafana")
+        self.stdout.write("START write config to grafana")
         for data in grafana_data:
             biz_id = data["biz_id"]
             org_id = biz_to_org_mapping.get(biz_id, None)
@@ -273,7 +283,7 @@ class Command(BaseCommand):
             self.process_folders_and_dashboards(grafana_url, biz_id, org_id, data, failed_biz)
             self.stdout.write(f"end write config to org {org_id} biz {biz_id}")
 
-        self.stdout.write(f"END write config to grafana")
+        self.stdout.write("END write config to grafana")
 
         return failed_biz
 
@@ -353,8 +363,7 @@ class Command(BaseCommand):
         resp = grafana_client.create_dashboard(org_id, dashboard_info, dashboard["panels"], folder_uid, grafana_url)
         if resp.status_code == 200:
             self.stdout.write(
-                f"create dashboard success {dashboard_info['title']} in org {org_id} "
-                f"with folder_title {folder_title}"
+                f"create dashboard success {dashboard_info['title']} in org {org_id} with folder_title {folder_title}"
             )
         else:
             self.show_error(
@@ -366,9 +375,9 @@ class Command(BaseCommand):
     # 权限迁移
     def migrate_permissions(self, app_code):
         """迁移权限信息"""
-        self.stdout.write(f"START migrate permissions")
+        self.stdout.write("START migrate permissions")
         migrate_command = IamMigrateCommand()
-
+        migrate_command.iam_client = Permission.get_iam_client(settings.DEFAULT_TENANT_ID)
         policies_by_actions = {}
         for action in ACTIONS_TO_MIGRATE:
             polices = migrate_command.query_polices(action.id)
@@ -377,7 +386,7 @@ class Command(BaseCommand):
         for action in ACTIONS_TO_MIGRATE:
             polices = policies_by_actions[action.id]
             total = len(polices)
-            self.stdout.write("start migrate action: %s, policy count: %d" % (action.id, total))
+            self.stdout.write(f"start migrate action: {action.id}, policy count: {total}")
 
             progress = 0
             resources = []
@@ -391,7 +400,7 @@ class Command(BaseCommand):
                 resp = migrate_command.grant_resource(resource)
                 if resp is not None:
                     progress += 1
-            self.stdout.write("migrate action: %s, progress: %d/%d" % (action.id, progress, total))
+            self.stdout.write(f"migrate action: {action.id}, progress: {progress}/{total}")
 
         self.stdout.write("END migrate permissions")
 
@@ -399,19 +408,19 @@ class Command(BaseCommand):
     def show_error_info(self, extract_failed_biz, convert_failed_biz, write_failed_biz):
         """集中展示错误信息"""
         if extract_failed_biz:
-            self.stdout.write(f"------------ FAILED INFO: get config ------------")
+            self.stdout.write("------------ FAILED INFO: get config ------------")
             for biz in extract_failed_biz:
                 self.stdout.write(f"get grafana config failed for biz_id {biz}: {extract_failed_biz[biz]}")
-            self.stdout.write(f"---------------------------------------------------")
+            self.stdout.write("---------------------------------------------------")
 
         if convert_failed_biz:
-            self.stdout.write(f"------------ FAILED INFO: convert config ------------")
+            self.stdout.write("------------ FAILED INFO: convert config ------------")
             for biz in convert_failed_biz:
                 self.stdout.write(f"convert grafana config failed for biz_id {biz}: {convert_failed_biz[biz]}")
-            self.stdout.write(f"---------------------------------------------------")
+            self.stdout.write("---------------------------------------------------")
 
         if write_failed_biz:
-            self.stdout.write(f"------------ FAILED INFO: write config ------------")
+            self.stdout.write("------------ FAILED INFO: write config ------------")
             for biz in write_failed_biz:
                 self.stdout.write(f"write grafana config failed for biz_id {biz}: {write_failed_biz[biz]}")
-            self.stdout.write(f"---------------------------------------------------")
+            self.stdout.write("---------------------------------------------------")
