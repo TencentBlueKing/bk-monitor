@@ -30,7 +30,7 @@ from iam.auth.models import ApiBatchAuthRequest as OldApiBatchAuthRequest
 from iam.auth.models import ApiBatchAuthResourceWithPath, Subject
 from iam.contrib.iam_migration.migrator import IAMMigrator
 
-from apps.api.modules.iam import IAMApi
+from apps.api import IAMApi
 from apps.api import TransferApi
 from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
