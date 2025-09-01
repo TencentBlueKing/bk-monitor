@@ -27,6 +27,10 @@
     padding: 0;
   }
 
+  &.border-1-theme {
+    border: 1px solid #dcdee5;
+  }
+
   &.common-monitor-theme {
     min-width: 68px;
     padding: 0 !important;

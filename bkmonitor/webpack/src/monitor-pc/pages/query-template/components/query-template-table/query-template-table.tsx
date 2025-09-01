@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
+import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { TABLE_DEFAULT_DISPLAY_FIELDS, TABLE_FIXED_DISPLAY_FIELDS, TemplateDetailTabEnum } from '../../constants';
 import TemplateDetail from '../../detail/template-detail';
@@ -46,6 +47,8 @@ import type { TemplateDetailTabEnumType } from '../../typings/constants';
 import './query-template-table.scss';
 
 interface QueryTemplateTableEmits {
+  /** 清空筛选条件 */
+  onClearSearch: () => void;
   /** 表格当前页码变化时的回调 */
   onCurrentPageChange: (currentPage: number) => void;
   /** 删除查询模板事件回调 */
@@ -59,6 +62,8 @@ interface QueryTemplateTableEmits {
 interface QueryTemplateTableProps {
   /** 页码 */
   current: number;
+  /** 空数据类型 */
+  emptyType: 'empty' | 'search-empty';
   /** 表格加载状态 */
   loading: boolean;
   /** 每页条数 */
@@ -88,6 +93,8 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   @Prop({ type: Array, default: () => [] }) tableData: QueryTemplateListItem[];
   /** 总数 */
   @Prop({ type: Number }) total: number;
+  /** 空数据类型 */
+  @Prop({ type: String, default: 'empty' }) emptyType: 'empty' | 'search-empty';
 
   /** 模板详情 - id */
   detailId = '';
@@ -232,6 +239,14 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
     return pageSize;
   }
 
+  /**
+   * @description: 清空筛选条件
+   */
+  @Emit('clearSearch')
+  clearSearch() {
+    return;
+  }
+
   mounted() {
     this.tableRef?.$el.addEventListener('wheel', this.handlePopoverHide);
   }
@@ -257,7 +272,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       arrow: true,
       boundary: 'window',
       interactive: true,
-      theme: 'light padding-0',
+      theme: 'light padding-0 border-1',
       onHide: () => {
         return !this.isDeleteActive;
       },
@@ -565,6 +580,14 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
               on-setting-change={this.handleSettingChange}
             />
           </bk-table-column>
+          <EmptyStatus
+            slot='empty'
+            textMap={{
+              empty: this.$t('暂无数据'),
+            }}
+            type={this.emptyType}
+            onOperation={this.clearSearch}
+          />
         </bk-table>
         <TableSkeleton
           class={`query-template-table-skeleton ${this.tableLoadingActiveClassConfig}`}
