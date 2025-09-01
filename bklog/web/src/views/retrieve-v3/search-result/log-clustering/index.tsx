@@ -23,26 +23,34 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import _ from 'lodash';
-import { computed, defineComponent, ref, nextTick, watch, onMounted, onBeforeUnmount } from 'vue';
-import ClusteringLoader from '@/skeleton/clustering-loader.vue';
-import useStore from '@/hooks/use-store';
-import useFieldNameHook from '@/hooks/use-field-name';
-import { useRoute, useRouter } from 'vue-router/composables';
-import $http from '@/api';
-import { RetrieveUrlResolver } from '@/store/url-resolver';
-import TopOperation from './top-operation';
-import QuickOpenCluster from './quick-open-cluster';
-import ClusterStartFail from './cluster-start-fail';
-import { type IResponseData } from '@/services/type';
-import { type ClusteringConfigStatus } from '@/services/retrieve';
-import EmptyCluster from './empty-cluster';
-import LogTable from './log-table';
+import { cloneDeep } from "lodash-es";
+import {
+  computed,
+  defineComponent,
+  ref,
+  nextTick,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+} from "vue";
+import ClusteringLoader from "@/skeleton/clustering-loader.vue";
+import useStore from "@/hooks/use-store";
+import useFieldNameHook from "@/hooks/use-field-name";
+import { useRoute, useRouter } from "vue-router/composables";
+import $http from "@/api";
+import { RetrieveUrlResolver } from "@/store/url-resolver";
+import TopOperation from "./top-operation";
+import QuickOpenCluster from "./quick-open-cluster";
+import ClusterStartFail from "./cluster-start-fail";
+import { type IResponseData } from "@/services/type";
+import { type ClusteringConfigStatus } from "@/services/retrieve";
+import EmptyCluster from "./empty-cluster";
+import LogTable from "./log-table";
 
-import './index.scss';
+import "./index.scss";
 
 export default defineComponent({
-  name: 'LogClustering',
+  name: "LogClustering",
   components: {
     ClusteringLoader,
     QuickOpenCluster,
@@ -57,20 +65,20 @@ export default defineComponent({
     },
   },
   setup(props) {
-    let statusTimer = null;
+    let statusTimer: NodeJS.Timeout | null;
     const loadingWidthList = {
-      global: [''],
-      notCompared: [150, 90, 90, ''],
-      compared: [150, 90, 90, 100, 100, ''],
+      global: [""],
+      notCompared: [150, 90, 90, ""],
+      compared: [150, 90, 90, 100, 100, ""],
     };
 
     const store = useStore();
     const route = useRoute();
     const router = useRouter();
 
-    const topOperationRef = ref(null);
-    const logTableRef = ref(null);
-    const stepRef = ref(null);
+    const topOperationRef = ref<any>(null);
+    const logTableRef = ref<any>(null);
+    const stepRef = ref<any>(null);
     const isFieldInit = ref(false);
     const isClusterActive = ref(true);
     const isShowClusterStep = ref(true);
@@ -87,35 +95,54 @@ export default defineComponent({
       selectGroupList: [], // 选中的字段分组列表
       yearSwitch: false, // 同比开关
       yearOnYearHour: 0, // 同比的值
-      groupList: [], // 所有的字段分组列表
+      groupList: [] as {
+        id: string;
+        name: string;
+      }[], // 所有的字段分组列表
       alarmObj: {}, // 是否需要告警对象
     });
     const requestData = ref({
       // 数据请求
-      pattern_level: '05',
+      pattern_level: "05",
       year_on_year_hour: 0,
       show_new_pattern: false,
       group_by: [],
       size: 10000,
-      remark_config: 'all',
-      owner_config: 'all',
+      remark_config: "all",
+      owner_config: "all",
       owners: [],
     });
 
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetFieldConfig = computed(() => store.state.indexSetFieldConfig);
-    const totalFields = computed(() => (indexFieldInfo.value.fields || []) as Array<any>);
-    const globalLoading = computed(() => indexFieldInfo.value.is_loading || isFieldInit.value);
-    const clusteringConfig = computed(() => indexSetFieldConfig.value.clustering_config);
-    const clusterSwitch = computed(() => clusteringConfig.value?.is_active || false);
+    const totalFields = computed(
+      () => (indexFieldInfo.value.fields || []) as Array<any>
+    );
+    const globalLoading = computed(
+      () => indexFieldInfo.value.is_loading || isFieldInit.value
+    );
+    const clusteringConfig = computed(
+      () => indexSetFieldConfig.value.clustering_config
+    );
+    const clusterSwitch = computed(
+      () => clusteringConfig.value?.is_active || false
+    );
     // 无字段提取或者聚类开关没开时直接不显示聚类nav和table，来源如果是数据平台并且日志聚类开关有打开则进入text判断，有text则提示去开启日志聚类, 无则显示跳转计算平台
-    const exhibitAll = computed(() => totalFields.value.some(el => el.field_type === 'text'));
-    const isShowTopNav = computed(() => exhibitAll.value && clusterSwitch.value && !isShowClusterStep.value);
+    const exhibitAll = computed(() =>
+      totalFields.value.some((el) => el.field_type === "text")
+    );
+    const isShowTopNav = computed(
+      () => exhibitAll.value && clusterSwitch.value && !isShowClusterStep.value
+    );
     const indexSetId = computed(() =>
-      window.__IS_MONITOR_COMPONENT__ ? (route.query.indexId as string) : route.params.indexId,
+      window.__IS_MONITOR_COMPONENT__
+        ? (route.query.indexId as string)
+        : route.params.indexId
     );
     const clusterParams = computed(() => store.state.clusterParams);
-    const collectorConfigId = computed(() => indexSetFieldConfig.value.clean_config.extra?.collector_config_id);
+    const collectorConfigId = computed(
+      () => indexSetFieldConfig.value.clean_config.extra?.collector_config_id
+    );
 
     watch(indexSetId, () => {
       isShowClusterStep.value = true;
@@ -123,7 +150,7 @@ export default defineComponent({
     });
 
     watch(isShowClusterStep, () => {
-      store.commit('updateStoreIsShowClusterStep', isShowClusterStep.value);
+      store.commit("updateStoreIsShowClusterStep", isShowClusterStep.value);
     });
     const stopPolling = () => {
       // 清除定时器
@@ -149,7 +176,7 @@ export default defineComponent({
 
     const getClusterConfigStatus = () => {
       return $http.request(
-        'retrieve/getClusteringConfigStatus',
+        "retrieve/getClusteringConfigStatus",
         {
           params: {
             index_set_id: indexSetId.value,
@@ -157,7 +184,7 @@ export default defineComponent({
         },
         {
           catchIsShowMessage: false,
-        },
+        }
       ) as Promise<IResponseData<ClusteringConfigStatus>>;
     };
 
@@ -167,7 +194,10 @@ export default defineComponent({
         if (clusterSwitch.value) {
           const params = { index_set_id: indexSetId.value };
           const data = { collector_config_id: collectorConfigId.value };
-          const res = await $http.request('/logClustering/getConfig', { params, data });
+          const res = await $http.request("/logClustering/getConfig", {
+            params,
+            data,
+          });
           return res.data.group_fields;
         }
         return [];
@@ -178,8 +208,10 @@ export default defineComponent({
     };
 
     const initTableOperator = async () => {
-      const { log_clustering_level_year_on_year: yearOnYearList, log_clustering_level: clusterLevel } =
-        store.state.globals.globalsData;
+      const {
+        log_clustering_level_year_on_year: yearOnYearList,
+        log_clustering_level: clusterLevel,
+      } = store.state.globals.globalsData;
       let patternLevel;
       if (clusterLevel && clusterLevel.length > 0) {
         // 判断奇偶数来取pattern中间值
@@ -192,20 +224,24 @@ export default defineComponent({
       const patternList = clusterLevel.sort((a, b) => Number(b) - Number(a));
       // clusterLevel[patternLevel - 1]
       const queryRequestData = {
-        pattern_level: '05',
+        pattern_level: "05",
         group_by: [],
-        remark_config: 'all',
-        owner_config: 'all',
+        remark_config: "all",
+        owner_config: "all",
         owners: [],
         year_on_year_hour: 0,
       };
       // 通过路由返回的值 初始化数据指纹的操作参数 url是否有缓存的值
       if (isInitPage.value && !!clusterParams.value) {
-        const paramData = _.cloneDeep(clusterParams.value);
-        const findIndex = clusterLevel.findIndex(item => item === String(paramData.pattern_level));
+        const paramData = cloneDeep(clusterParams.value);
+        const findIndex = clusterLevel.findIndex(
+          (item) => item === String(paramData.pattern_level)
+        );
         if (findIndex >= 0) patternLevel = findIndex + 1;
         Object.assign(queryRequestData, paramData, {
-          pattern_level: paramData.pattern_level ? paramData.pattern_level : clusterLevel[patternLevel - 1],
+          pattern_level: paramData.pattern_level
+            ? paramData.pattern_level
+            : clusterLevel[patternLevel - 1],
         });
       }
       const { year_on_year_hour: yearOnYearHour } = queryRequestData;
@@ -213,7 +249,7 @@ export default defineComponent({
         patternSize: patternLevel - 1,
         sliderMaxVal: clusterLevel.length - 1,
         patternList,
-        comparedList: yearOnYearList.filter(item => item.id !== 0),
+        comparedList: yearOnYearList.filter((item) => item.id !== 0),
         yearOnYearHour: yearOnYearHour > 0 ? yearOnYearHour : 1,
         yearSwitch: yearOnYearHour > 0,
         dimensionList: [],
@@ -222,16 +258,20 @@ export default defineComponent({
       // 这里判断是否有保存过所有人都显示一样的分组 如果有则直接显示相应的分组
       const groupFields = await getInitGroupFields();
       if (groupFields?.length) {
-        const selectGroupList = fingerOperateData.value.selectGroupList.filter(item => !groupFields.includes(item));
+        const selectGroupList = fingerOperateData.value.selectGroupList.filter(
+          (item) => !groupFields.includes(item)
+        );
         // 如果初始化时有默认维度的字段 将维度和分组分开来处理
-        Object.assign(queryRequestData, { group_by: [...groupFields, ...selectGroupList] });
+        Object.assign(queryRequestData, {
+          group_by: [...groupFields, ...selectGroupList],
+        });
         Object.assign(fingerOperateData.value, {
           dimensionList: groupFields,
           selectGroupList,
         });
       }
       Object.assign(requestData.value, queryRequestData);
-      store.commit('updateClusterParams', requestData.value);
+      store.commit("updateClusterParams", requestData.value);
       setRouteParams();
       isInitPage.value = false;
     };
@@ -246,15 +286,19 @@ export default defineComponent({
     };
 
     // 数据指纹操作
-    const handleFingerOperate = (operateType: string, val: any = {}, isQuery = false) => {
+    const handleFingerOperate = (
+      operateType: string,
+      val: any = {},
+      isQuery = false
+    ) => {
       switch (operateType) {
-        case 'requestData': // 数据指纹的请求参数
+        case "requestData": // 数据指纹的请求参数
           Object.assign(requestData.value, val);
           // 数据指纹对请求参数修改过的操作将数据回填到url上
-          store.commit('updateClusterParams', requestData.value);
+          store.commit("updateClusterParams", requestData.value);
           setRouteParams();
           break;
-        case 'fingerOperateData': // 数据指纹操作的参数
+        case "fingerOperateData": // 数据指纹操作的参数
           Object.assign(fingerOperateData.value, val);
           break;
         default:
@@ -269,8 +313,8 @@ export default defineComponent({
     const filterGroupList = () => {
       const { getConcatenatedFieldName } = useFieldNameHook({ store });
       const filterList = totalFields.value
-        .filter(el => el.es_doc_values && !/^__dist_/.test(el.field_name)) // 过滤__dist字段
-        .map(item => {
+        .filter((el) => el.es_doc_values && !/^__dist_/.test(el.field_name)) // 过滤__dist字段
+        .map((item) => {
           return getConcatenatedFieldName(item);
         });
       fingerOperateData.value.groupList = filterList;
@@ -317,11 +361,15 @@ export default defineComponent({
 
     const handleCloseGroupTag = () => {
       Object.assign(fingerOperateData.value, { selectGroupList: [] });
-      handleFingerOperate('requestData', { group_by: fingerOperateData.value.dimensionList }, true);
+      handleFingerOperate(
+        "requestData",
+        { group_by: fingerOperateData.value.dimensionList },
+        true
+      );
     };
     const handleCloseYearTag = () => {
       Object.assign(fingerOperateData.value, { yearSwitch: false });
-      handleFingerOperate('requestData', { year_on_year_hour: 0 }, true);
+      handleFingerOperate("requestData", { year_on_year_hour: 0 }, true);
     };
 
     const handleClusterCreate = () => {
@@ -347,7 +395,7 @@ export default defineComponent({
       {
         immediate: true,
         deep: true,
-      },
+      }
     );
 
     onMounted(async () => {
@@ -358,7 +406,7 @@ export default defineComponent({
         //   requestFinger();
         // }
         if (!isInitPage.value) {
-          store.commit('updateClusterParams', requestData.value);
+          store.commit("updateClusterParams", requestData.value);
           setRouteParams();
         }
       }
@@ -367,21 +415,18 @@ export default defineComponent({
     onBeforeUnmount(() => {
       if (isClusterActive.value) {
         isClusterActive.value = false;
-        store.commit('updateClusterParams', null);
+        store.commit("updateClusterParams", null);
         setRouteParams();
         stopPolling(); // 停止状态轮询
       }
     });
 
     return () => (
-      <div class='log-cluster-table-container-main'>
+      <div class="log-cluster-table-container-main">
         {globalLoading.value ? (
-          <clustering-loader
-            width-list={loadingWidthList.global}
-            is-loading
-          />
+          <clustering-loader width-list={loadingWidthList.global} is-loading />
         ) : (
-          <div class='log-cluster-table-container'>
+          <div class="log-cluster-table-container">
             {isShowTopNav.value && (
               // 顶部工具栏
               <TopOperation
@@ -411,10 +456,9 @@ export default defineComponent({
                 } else if (!clusterSwitch.value) {
                   // 快速开启日志聚类
                   return (
-                    <quick-open-cluster
+                    <QuickOpenCluster
                       indexSetId={indexSetId.value}
-                      retrieve-params={props.retrieveParams}
-                      total-fields={totalFields.value}
+                      totalFields={totalFields.value}
                       on-create-cluster={handleClusterCreate}
                     />
                   );

@@ -24,23 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch, onMounted } from 'vue';
-import $http from '@/api';
-import _ from 'lodash';
-import useStore from '@/hooks/use-store';
-import { type ClusteringInfo } from '@/services/retrieve';
-import { type IResponseData } from '@/services/type';
-import ConfigItem from './config-item';
+import { defineComponent, ref, computed, watch, onMounted } from "vue";
+import $http from "@/api";
+import { cloneDeep } from "lodash-es";
+import useStore from "@/hooks/use-store";
+import { type ClusteringInfo } from "@/services/retrieve";
+import { type IResponseData } from "@/services/type";
+import ConfigItem from "./config-item";
 
-import './index.scss';
+import "./index.scss";
 
 export const enum StrategyType {
-  NEW_CLASS = 'new_cls_strategy',
-  SUDDEN_INCREASE = 'normal_strategy',
+  NEW_CLASS = "new_cls_strategy",
+  SUDDEN_INCREASE = "normal_strategy",
 }
 
 export default defineComponent({
-  name: 'Strategy',
+  name: "Strategy",
   components: {
     ConfigItem,
   },
@@ -63,8 +63,8 @@ export default defineComponent({
   },
   setup(props, {}) {
     let baseAlarmConfigData = {
-      interval: '30',
-      threshold: '1',
+      interval: "30",
+      threshold: "1",
       level: 2,
       user_groups: [],
       label_name: [],
@@ -80,9 +80,9 @@ export default defineComponent({
 
     const strategyConfigData = ref({
       /** 新类策略初始数据 */
-      [StrategyType.NEW_CLASS]: _.cloneDeep(baseAlarmConfigData),
+      [StrategyType.NEW_CLASS]: cloneDeep(baseAlarmConfigData),
       /** 数据突增策略初始数据 */
-      [StrategyType.SUDDEN_INCREASE]: _.cloneDeep(baseIncreaseConfigData),
+      [StrategyType.SUDDEN_INCREASE]: cloneDeep(baseIncreaseConfigData),
     });
     const labelName = ref([]);
     /** 新类告警策略是否保存过 */
@@ -100,14 +100,18 @@ export default defineComponent({
     const resetStrategyConfigData = (type = StrategyType.NEW_CLASS) => {
       Object.assign(
         strategyConfigData.value[type],
-        type === StrategyType.NEW_CLASS ? baseAlarmConfigData : baseIncreaseConfigData,
+        type === StrategyType.NEW_CLASS
+          ? baseAlarmConfigData
+          : baseIncreaseConfigData
       );
     };
 
     /** 获取信息 */
-    const requestStrategyInfo = async (strategyType: StrategyType = StrategyType.NEW_CLASS) => {
+    const requestStrategyInfo = async (
+      strategyType: StrategyType = StrategyType.NEW_CLASS
+    ) => {
       try {
-        const res = (await $http.request('retrieve/getClusteringInfo', {
+        const res = (await $http.request("retrieve/getClusteringInfo", {
           params: {
             index_set_id: props.indexId,
             strategy_type: strategyType,
@@ -125,8 +129,8 @@ export default defineComponent({
           requestStrategyInfo(StrategyType.NEW_CLASS),
           requestStrategyInfo(StrategyType.SUDDEN_INCREASE),
         ]);
-        values.forEach(vItem => {
-          const isSubmit = Object.keys(vItem.data).length > 0;
+        values.forEach((vItem) => {
+          const isSubmit = Object.keys(vItem.data!).length > 0;
           if (vItem.type === StrategyType.NEW_CLASS) {
             alarmIsSubmit.value = isSubmit;
           } else {
@@ -141,7 +145,13 @@ export default defineComponent({
       } catch (error) {
         resetStrategyConfigData(error.type);
       } finally {
-        labelName.value = [...new Set(...Object.values(strategyConfigData.value).map(item => item.label_name))];
+        labelName.value = [
+          ...new Set(
+            ...Object.values(strategyConfigData.value).map(
+              (item) => item.label_name
+            )
+          ),
+        ];
       }
     };
 
@@ -153,7 +163,7 @@ export default defineComponent({
     });
 
     return () => (
-      <div class='strategy-container'>
+      <div class="strategy-container">
         <config-item
           configData={strategyConfigData.value}
           bkBizId={bkBizId.value}

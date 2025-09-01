@@ -24,16 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch, PropType } from 'vue';
-import useLocale from '@/hooks/use-locale';
-import { bkMessage } from 'bk-magic-vue';
-import $http from '@/api';
-import { type TemplateItem } from '../../../index';
+import { defineComponent, ref, watch, PropType } from "vue";
+import useLocale from "@/hooks/use-locale";
+import { bkMessage } from "bk-magic-vue";
+import $http from "@/api";
+import { type TemplateItem } from "../../../index";
 
-import './index.scss';
+import "./index.scss";
 
 export default defineComponent({
-  name: 'CreateTemplate',
+  name: "CreateTemplate",
   props: {
     data: {
       type: Object as PropType<TemplateItem>,
@@ -47,39 +47,39 @@ export default defineComponent({
   setup(props, { expose, emit }) {
     const { t } = useLocale();
 
-    const formRef = ref(null);
+    const formRef = ref<any>(null);
     const confirmLoading = ref(false);
     const formData = ref({
-      name: '',
+      name: "",
     });
 
     const rules = {
       name: [
         {
           required: true,
-          trigger: 'blur',
+          trigger: "blur",
           validator: (value: string) => !!value,
-          message: t('请输入模板名称'),
+          message: t("请输入模板名称"),
         },
       ],
     };
 
     watch(
       () => props.data.template_name,
-      name => {
+      (name) => {
         formData.value.name = name;
       },
-      { immediate: true },
+      { immediate: true }
     );
 
     const handleCancel = () => {
-      emit('cancel');
+      emit("cancel");
     };
 
     const updateTemplateName = () => {
       confirmLoading.value = true;
       $http
-        .request('logClustering/updateTemplateName', {
+        .request("logClustering/updateTemplateName", {
           params: {
             regex_template_id: props.data.id,
           },
@@ -87,16 +87,16 @@ export default defineComponent({
             template_name: formData.value.name,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             bkMessage({
-              theme: 'success',
-              message: t('操作成功'),
+              theme: "success",
+              message: t("操作成功"),
             });
-            emit('success');
+            emit("success");
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.error(err);
         })
         .finally(() => {
@@ -110,7 +110,7 @@ export default defineComponent({
         .then(() => {
           updateTemplateName();
         })
-        .catch(e => console.error(e));
+        .catch((e) => console.error(e));
     };
 
     expose({
@@ -118,9 +118,9 @@ export default defineComponent({
     });
 
     return () => (
-      <div class='edit-template-main'>
+      <div class="edit-template-main">
         <bk-form
-          class='setting-form'
+          class="setting-form"
           ref={formRef}
           {...{
             props: {
@@ -128,36 +128,32 @@ export default defineComponent({
               rules,
             },
           }}
-          form-type='vertical'
+          form-type="vertical"
         >
           <bk-form-item
-            label={t('模板名称')}
-            property='name'
+            label={t("模板名称")}
+            property="name"
             required
-            error-display-type='normal'
+            error-display-type="normal"
           >
             <bk-input
               value={formData.value.name}
-              on-change={value => (formData.value.name = value)}
+              on-change={(value) => (formData.value.name = value)}
             />
           </bk-form-item>
         </bk-form>
-        <div class='operate-btns'>
+        <div class="operate-btns">
           <bk-button
-            theme='primary'
-            class='confirm-btn'
-            size='small'
+            theme="primary"
+            class="confirm-btn"
+            size="small"
             loading={confirmLoading.value}
             on-click={handleConfirm}
           >
-            {t('确定')}
+            {t("确定")}
           </bk-button>
-          <bk-button
-            size='small'
-            class='cancel-btn'
-            on-click={handleCancel}
-          >
-            {t('取消')}
+          <bk-button size="small" class="cancel-btn" on-click={handleCancel}>
+            {t("取消")}
           </bk-button>
         </div>
       </div>
