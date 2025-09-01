@@ -111,7 +111,7 @@ const ConditionMethodNameMap = {
 
 /** 条件方法别名映射 */
 export const ConditionMethodAliasMap = NUMBER_CONDITION_METHOD_LIST.reduce((acc, cur) => {
-  const name = isEn ? cur.name : ConditionMethodNameMap[cur.name] || cur.name;
+  const name = isEn ? cur.name : ConditionMethodNameMap[cur.id] || cur.name;
   acc[cur.id] = name;
   return acc;
 }, {});

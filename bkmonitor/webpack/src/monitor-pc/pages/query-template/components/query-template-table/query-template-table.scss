@@ -2,9 +2,13 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 0;
 
   .query-template-table {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
     &.table-loading-active {
       .bk-table-body-wrapper,
       .bk-table-fixed,
@@ -17,6 +21,10 @@
     .bk-table-fixed-body-wrapper,
     /* stylelint-disable-next-line no-descending-specificity */
     .bk-table-body-wrapper {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
       border-bottom: 1px solid #dfe0e5;
 
       .right-align-cell {
