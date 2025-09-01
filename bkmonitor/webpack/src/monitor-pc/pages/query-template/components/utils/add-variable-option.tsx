@@ -33,6 +33,7 @@ import './add-variable-option.scss';
 
 interface IProps {
   allVariables?: { name: string }[];
+  popDistance?: number;
   onAdd?: (val: string) => void;
   onOpenChange?: (v: boolean) => void;
 }
@@ -42,6 +43,7 @@ export default class AddVariableOption extends tsc<IProps> {
   @Ref('addVarPopRef') addVarPopRef: HTMLDivElement;
   /* 所有变量，用于校验变量名是否重复 */
   @Prop({ default: () => [] }) allVariables: { name: string }[];
+  @Prop({ default: 7 }) popDistance: number;
 
   inputValue = '';
 
@@ -64,13 +66,13 @@ export default class AddVariableOption extends tsc<IProps> {
     if (!this.popoverInstance) {
       this.popoverInstance = this.$bkPopover(e.currentTarget, {
         content: this.addVarPopRef.$el,
-        arrow: true,
+        arrow: false,
         trigger: 'click',
         placement: 'right-start',
         theme: 'light common-monitor',
         boundary: 'window',
         interactive: true,
-        distance: 20,
+        distance: this.popDistance,
         onHidden: () => {
           this.popoverDestroy();
         },

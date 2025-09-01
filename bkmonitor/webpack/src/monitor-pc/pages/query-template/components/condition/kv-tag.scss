@@ -1,5 +1,7 @@
 /* stylelint-disable selector-class-pattern */
 .template-config__kv-tag-component {
+  overflow: hidden;
+
   .retrieval-filter__kv-tag-component-wrap {
     position: relative;
     display: flex;
@@ -41,6 +43,8 @@
     }
 
     .value-wrap {
+      overflow: hidden;
+      text-overflow: ellipsis;
       font-size: 12px;
       color: #313238;
 

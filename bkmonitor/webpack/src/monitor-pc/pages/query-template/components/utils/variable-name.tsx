@@ -27,8 +27,6 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-// import { isVariableName } from '../../variables/template/utils';
-
 interface IProps {
   name: string;
 }
@@ -37,22 +35,17 @@ interface IProps {
 export default class VariableName extends tsc<IProps> {
   @Prop({ default: '' }) name: string;
 
-  get displayName() {
-    // if (isVariableName(this.name)) {
-    //   return this.name;
-    // }
-    // return `${'${'}${this.name}${'}'}`;
-    return this.name;
-  }
-
   render() {
     return (
       <span
         style={{
           color: '#E54488',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
         }}
       >
-        {this.displayName}
+        {this.name}
       </span>
     );
   }
