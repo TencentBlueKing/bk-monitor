@@ -659,7 +659,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         return;
       }
     }
-    const metricFields = ['metric_field', 'data_label', 'result_table_id', 'data_source_label', 'data_type_label', 'metric_id'];
+    const metricFields = ['metric_field', 'data_label', 'result_table_id', 'data_source_label', 'data_type_label'];
     if (metric.query_configs?.length) {
       this.metricData = (
         await Promise.all(
