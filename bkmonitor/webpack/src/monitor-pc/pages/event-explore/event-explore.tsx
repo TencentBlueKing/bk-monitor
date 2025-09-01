@@ -538,7 +538,7 @@ export default class EventExplore extends tsc<
   /** 跳转添加告警策略 */
   handleAddAlertPolicy() {
     const { data_source_label, data_type_label, group_by, table, where, query_string } = this.queryConfig;
-    const field = this.dataIdList.find(item => item.id === this.dataId)?.metrics[0]?.id || '';
+    // const field = this.dataIdList.find(item => item.id === this.dataId)?.metrics[0]?.id || '';
     const queryConfigs = [
       {
         // data_source_label,
@@ -550,8 +550,8 @@ export default class EventExplore extends tsc<
         // table,
         where, // 产品确认将普通筛选和常驻筛选一并带入告警策略
         query_string,
-        metrics: [{ alias: 'a', field, method: 'COUNT' }],
-        metric_id: `${data_source_label}.${data_type_label}.${table}.__INDEX__}`, // 和后端确认__INDEX__写死
+        metrics: [{ alias: 'a', field: '__INDEX__', method: 'COUNT' }],
+        metric_id: `${data_source_label}.${data_type_label}.${table}.__INDEX__`, // 和后端确认__INDEX__写死
       },
     ];
     const queryData = {
