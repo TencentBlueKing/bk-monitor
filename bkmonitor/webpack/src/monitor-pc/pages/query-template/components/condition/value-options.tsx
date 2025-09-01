@@ -323,6 +323,7 @@ export default class ValueOptions extends tsc<IProps> {
                 >
                   <AddVariableOption
                     allVariables={this.allVariables}
+                    popDistance={13}
                     onAdd={this.handleAddVar}
                     onOpenChange={this.handleAddVariableOpenChange}
                   />
@@ -353,6 +354,8 @@ export default class ValueOptions extends tsc<IProps> {
                 class={['options-item']}
               >
                 <AddVariableOption
+                  allVariables={this.allVariables}
+                  popDistance={13}
                   onAdd={this.handleAddVar}
                   onOpenChange={this.handleAddVariableOpenChange}
                 />
