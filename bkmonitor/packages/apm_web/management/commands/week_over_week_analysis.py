@@ -59,7 +59,7 @@ class Command(BaseCommand):
             current_date = datetime.strptime(current_date_str, "%Y%m%d").date() if current_date_str else None
             last_date = datetime.strptime(last_date_str, "%Y%m%d").date() if last_date_str else None
         except ValueError:
-            self.stdout.write("Error: Invalid date format. Please use YYYYMMDD format.")
+            print("Error: Invalid date format. Please use YYYYMMDD format.")
             return
 
         # 定义有效日期范围（前七天）
@@ -67,11 +67,11 @@ class Command(BaseCommand):
         valid_dates = [(today - timedelta(days=i)).strftime("%Y%m%d") for i in range(1, 8)]
 
         if current_date and current_date_str not in valid_dates:
-            self.stdout.write(f"Error: Current date must be one of {valid_dates}.")
+            print(f"Error: Current date must be one of {valid_dates}.")
             return
 
         if last_date and last_date_str not in valid_dates:
-            self.stdout.write(f"Error: Last date must be one of {valid_dates}.")
+            print(f"Error: Last date must be one of {valid_dates}.")
             return
 
         # 使用用户输入的日期或默认值（前一天和上一周）
@@ -85,13 +85,13 @@ class Command(BaseCommand):
         current_week_data = cache.get(current_week_key)
         if not current_week_data:
             logger.warning("[WEEK_OVER_WEEK_ANALYSIS] current week data not found")
-            self.stdout.write("Warning: Current week data not found.")
+            print("Warning: Current week data not found.")
             return
 
         last_week_data = cache.get(last_week_key)
         if not last_week_data:
             logger.warning("[WEEK_OVER_WEEK_ANALYSIS] last week data not found")
-            self.stdout.write("Warning: Last week data not found.")
+            print("Warning: Last week data not found.")
             return
 
         current_week_data = json.loads(current_week_data)
@@ -133,9 +133,9 @@ class Command(BaseCommand):
             output_path = os.path.abspath(options["output_file"])
             with open(output_path, "w") as output_file:
                 output_file.write(json.dumps(biz_map))
-            self.stdout.write(f"Analysis result saved to: {output_path}")
+            print(f"Analysis result saved to: {output_path}")
         else:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as temp_file:
                 temp_file.write(json.dumps(biz_map))
                 temp_file_path = temp_file.name
-            self.stdout.write(f"Analysis result saved to temporary file: {temp_file_path}")
+            print(f"Analysis result saved to temporary file: {temp_file_path}")
