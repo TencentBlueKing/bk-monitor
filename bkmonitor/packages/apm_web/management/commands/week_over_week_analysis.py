@@ -74,24 +74,24 @@ class Command(BaseCommand):
             print(f"Error: Last date must be one of {valid_dates}.")
             return
 
+        current_date_str = (
+            current_date_str if current_date_str else (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+        )
+        last_date_str = last_date_str if last_date_str else (datetime.now() - timedelta(days=8)).strftime("%Y%m%d")
         # 使用用户输入的日期或默认值（前一天和上一周）
-        current_week_key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(
-            date=current_date_str if current_date_str else (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
-        )
-        last_week_key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(
-            date=last_date_str if last_date_str else (datetime.now() - timedelta(days=7)).strftime("%Y%m%d")
-        )
+        current_week_key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=current_date_str)
+        last_week_key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=last_date_str)
 
         current_week_data = cache.get(current_week_key)
         if not current_week_data:
-            logger.warning("[WEEK_OVER_WEEK_ANALYSIS] current week data not found")
-            print("Warning: Current week data not found.")
+            logger.warning(f"[WEEK_OVER_WEEK_ANALYSIS] current_date: {current_date_str} data not found")
+            print(f"Warning: current_date: {current_date_str} data not found")
             return
 
         last_week_data = cache.get(last_week_key)
         if not last_week_data:
-            logger.warning("[WEEK_OVER_WEEK_ANALYSIS] last week data not found")
-            print("Warning: Last week data not found.")
+            logger.warning(f"[WEEK_OVER_WEEK_ANALYSIS] last_date: {last_date_str} data not found")
+            print(f"Warning: last_date: {last_date_str} data not found")
             return
 
         current_week_data = json.loads(current_week_data)
