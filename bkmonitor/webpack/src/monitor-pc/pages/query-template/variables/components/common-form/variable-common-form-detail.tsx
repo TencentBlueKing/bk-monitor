@@ -47,11 +47,11 @@ export default class VariableCommonFormDetail extends tsc<VariableCommonFormDeta
         </div>
         <div class='form-item'>
           <div class='form-item-label'>{this.$t('变量别名')}：</div>
-          <div class='form-item-value'>{this.data.alias}</div>
+          <div class='form-item-value'>{this.data.alias || '--'}</div>
         </div>
         <div class='form-item'>
           <div class='form-item-label'>{this.$t('变量描述')}：</div>
-          <div class='form-item-value'>{this.data.description}</div>
+          <div class='form-item-value'>{this.data.description || '--'}</div>
         </div>
         {this.$slots.default}
       </div>

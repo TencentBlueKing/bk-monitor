@@ -342,4 +342,6 @@ export default {
   点击添加指标: 'Click to add metrics',
   '大小写字符、数字、下划线、点（.），50个字符以内':
     'Case-sensitive characters, numbers, underscores, and dots (.), up to 50 characters',
+  '1～50 字符，仅支持 英文小写、数字、下划线（保存后不可修改）':
+    '1-50 characters, only support lowercase English, numbers, and underscores (cannot be modified after saving)',
 };
