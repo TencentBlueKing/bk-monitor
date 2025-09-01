@@ -136,7 +136,21 @@ export const decodeString = (str: string, type: EncodingType): string => {
       }
 
       case EncodingType.BASE64:
-        return atob(trimmedStr);
+        // 兼容 Base64URL 与缺省填充：先标准化后再解码
+        try {
+          const s = trimmedStr;
+          const core = s.replace(/=+$/g, '');
+          let normalized = core.replace(/-/g, '+').replace(/_/g, '/');
+          const mod = normalized.length % 4;
+          if (mod !== 0) {
+            normalized = normalized + '='.repeat(4 - mod);
+          } else if (/=+$/.test(s)) {
+            normalized = normalized + (s.match(/=+$/)?.[0] ?? '');
+          }
+          return atob(normalized);
+        } catch {
+          return str;
+        }
 
       case EncodingType.UNICODE:
         return trimmedStr
@@ -317,24 +331,94 @@ const canDecodeAscii = (str: string): boolean => {
  */
 const canDecodeBase64 = (str: string): boolean => {
   try {
-    // Base64 正则表达式
-    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    const s = str.trim();
 
-    // 长度必须是 4 的倍数
-    if (str.length % 4 !== 0) {
+    // 1) 快速排除：长度过短/包含空白/纯数字
+    if (s.length < 4) {
+      return false;
+    }
+    if (/\s/.test(s)) {
+      return false;
+    }
+    if (/^\d+$/.test(s)) {
       return false;
     }
 
-    // 检查字符格式
-    if (!base64Regex.test(str)) {
+    // 2) 填充符校验：'=' 只能出现在末尾，且最多 2 个
+    if (/=/.test(s) && !/=+$/.test(s)) {
+      return false;
+    }
+    const paddingCount = (s.match(/=+$/) || [''])[0].length;
+    if (paddingCount > 2) {
       return false;
     }
 
-    // 尝试解码
-    const decoded = atob(str);
-    // 再次编码验证
+    // 3) 允许 Base64URL 变体（-/_），检查字符集合合法性（忽略末尾 '='）
+    const core = s.replace(/=+$/g, '');
+    if (!/^[A-Za-z0-9+/_-]*$/.test(core)) {
+      return false;
+    }
+
+    // 4) 规范化为标准 Base64：URL 字符替换，并根据长度补齐填充
+    let normalized = core.replace(/-/g, '+').replace(/_/g, '/');
+    const mod = normalized.length % 4;
+    if (mod !== 0) {
+      const add = 4 - mod;
+      if (add > 2) {
+        return false;
+      }
+      normalized = normalized + '='.repeat(add);
+    } else if (paddingCount) {
+      normalized = normalized + '='.repeat(paddingCount);
+    }
+
+    // 5) 严格的 Base64 结构校验（分组与填充位置）
+    const strictBase64Regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$/;
+    if (!strictBase64Regex.test(normalized)) {
+      return false;
+    }
+
+    // 6) 尝试解码并进行等价校验（忽略末尾填充差异）
+    const decoded = atob(normalized);
+    const stripPad = (v: string) => v.replace(/=+$/g, '');
     const reEncoded = btoa(decoded);
-    return reEncoded === str;
+    if (stripPad(reEncoded) !== stripPad(normalized)) {
+      return false;
+    }
+
+    // 7) 启发式：解码结果应主要是可读文本或是有效 UTF-8
+    const total = decoded.length;
+    if (total === 0) {
+      return false;
+    }
+
+    let printable = 0;
+    for (let i = 0; i < total; i++) {
+      const code = decoded.charCodeAt(i);
+      // 允许可打印 ASCII 以及常见空白符
+      if ((code >= 32 && code <= 126) || code === 9 || code === 10 || code === 13) {
+        printable++;
+      }
+    }
+    const printableRatio = printable / total;
+
+    // 尝试严格 UTF-8 校验（若环境支持 TextDecoder）
+    let isUtf8 = false;
+    try {
+      const hasTextDecoder = typeof TextDecoder !== 'undefined';
+      if (hasTextDecoder) {
+        const td = new TextDecoder('utf-8', { fatal: true });
+        const bytes = new Uint8Array(total);
+        for (let i = 0; i < total; i++) bytes[i] = decoded.charCodeAt(i);
+        td.decode(bytes); // 若无效 UTF-8 会抛异常
+        isUtf8 = true;
+      }
+    } catch {
+      isUtf8 = false;
+    }
+
+    // 认为：有效 UTF-8 或者 可读字符占比足够高 才算合理的 Base64 文本
+    return isUtf8 || printableRatio >= 0.7;
   } catch {
     return false;
   }
