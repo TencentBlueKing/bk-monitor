@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { cloneDeep, mergeWith } from "lodash-es";
+import { mergeWith } from "lodash-es";
 import { defineComponent, ref } from "vue";
 import SubscriptionContent from "./subscription-content";
 import EmailConfig from "./email-config";
@@ -69,10 +69,10 @@ export default defineComponent({
       ]);
       const formData = formDataList.reduce(
         (data, item) => mergeWith(data, item),
-        {}
+        {},
       );
 
-      const cloneFormData = cloneDeep(formData);
+      const cloneFormData = structuredClone(formData);
       delete cloneFormData.scenario_config__log_display_count;
       delete cloneFormData.content_config__title;
       delete cloneFormData.timerange;

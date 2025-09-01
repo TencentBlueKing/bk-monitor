@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { cloneDeep } from "lodash-es";
 import { defineComponent, ref } from "vue";
 import useLocale from "@/hooks/use-locale";
 import { bkMessage } from "bk-magic-vue";
@@ -93,7 +92,7 @@ export default defineComponent({
           if (!tempFormData) {
             return;
           }
-          const formData = cloneDeep(tempFormData);
+          const formData = structuredClone(tempFormData);
           if (to === "self") {
             const selfChannels = [
               {

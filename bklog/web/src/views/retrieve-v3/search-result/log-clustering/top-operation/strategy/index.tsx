@@ -26,7 +26,6 @@
 
 import { defineComponent, ref, computed, watch, onMounted } from "vue";
 import $http from "@/api";
-import { cloneDeep } from "lodash-es";
 import useStore from "@/hooks/use-store";
 import { type ClusteringInfo } from "@/services/retrieve";
 import { type IResponseData } from "@/services/type";
@@ -80,9 +79,9 @@ export default defineComponent({
 
     const strategyConfigData = ref({
       /** 新类策略初始数据 */
-      [StrategyType.NEW_CLASS]: cloneDeep(baseAlarmConfigData),
+      [StrategyType.NEW_CLASS]: structuredClone(baseAlarmConfigData),
       /** 数据突增策略初始数据 */
-      [StrategyType.SUDDEN_INCREASE]: cloneDeep(baseIncreaseConfigData),
+      [StrategyType.SUDDEN_INCREASE]: structuredClone(baseIncreaseConfigData),
     });
     const labelName = ref([]);
     /** 新类告警策略是否保存过 */
@@ -102,13 +101,13 @@ export default defineComponent({
         strategyConfigData.value[type],
         type === StrategyType.NEW_CLASS
           ? baseAlarmConfigData
-          : baseIncreaseConfigData
+          : baseIncreaseConfigData,
       );
     };
 
     /** 获取信息 */
     const requestStrategyInfo = async (
-      strategyType: StrategyType = StrategyType.NEW_CLASS
+      strategyType: StrategyType = StrategyType.NEW_CLASS,
     ) => {
       try {
         const res = (await $http.request("retrieve/getClusteringInfo", {
@@ -148,8 +147,8 @@ export default defineComponent({
         labelName.value = [
           ...new Set(
             ...Object.values(strategyConfigData.value).map(
-              (item) => item.label_name
-            )
+              (item) => item.label_name,
+            ),
           ),
         ];
       }

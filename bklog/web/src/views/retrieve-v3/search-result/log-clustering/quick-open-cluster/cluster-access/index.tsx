@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { cloneDeep } from "lodash-es";
 import { computed, defineComponent, ref, watch } from "vue";
 import useLocale from "@/hooks/use-locale";
 import useStore from "@/hooks/use-store";
@@ -80,7 +79,7 @@ export default defineComponent({
     const isPreviewed = ref(false);
     const isConfigChanged = ref(false);
     const isRecordEmpty = ref(false);
-    const formData = ref(cloneDeep(initFormData));
+    const formData = ref(structuredClone(initFormData));
 
     const clusterField = computed(() =>
       props.totalFields
@@ -88,7 +87,7 @@ export default defineComponent({
         .map((el) => {
           const { field_name: id, field_alias: alias } = el;
           return { id, name: alias ? `${id}(${alias})` : id };
-        })
+        }),
     );
 
     watch(
@@ -98,7 +97,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      }
+      },
     );
 
     watch(
@@ -111,7 +110,7 @@ export default defineComponent({
         isConfigChanged.value = true;
         handleSetPreviewWarn();
       },
-      { deep: true }
+      { deep: true },
     );
 
     const handleSetPreviewWarn = () => {
@@ -140,7 +139,7 @@ export default defineComponent({
                 index_set_id: props.indexSetId,
               },
               data,
-            }
+            },
           );
           if (result.code === 0) {
             isShowDialog.value = false;
@@ -160,7 +159,7 @@ export default defineComponent({
           isInit = true;
           formData.value.clustering_fields = clusterField.value[0]?.id || "";
           const targetField = props.totalFields.find(
-            (f) => f.field_name === clusterField.value[0]?.id
+            (f) => f.field_name === clusterField.value[0]?.id,
           );
           formData.value.filter_rules.push({
             ...targetField,
@@ -170,7 +169,7 @@ export default defineComponent({
           });
         }
       } else {
-        formData.value = cloneDeep(initFormData);
+        formData.value = structuredClone(initFormData);
         emit("close");
       }
     };
@@ -201,7 +200,7 @@ export default defineComponent({
             <bk-alert
               type="info"
               title={t(
-                "大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志"
+                "大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志",
               )}
             />
             <bk-form
@@ -236,7 +235,7 @@ export default defineComponent({
                     <log-icon common style="color: #979BA5" type="info" />
                     <span class="tip">
                       {t(
-                        "只能基于 1 个字段进行聚类，并且字段是为 text 的分词类型，默认为 log 字段"
+                        "只能基于 1 个字段进行聚类，并且字段是为 text 的分词类型，默认为 log 字段",
                       )}
                     </span>
                   </span>
@@ -265,8 +264,8 @@ export default defineComponent({
                 content: !isPreviewed.value
                   ? t("请先完成预览，才可提交")
                   : isConfigChanged.value
-                  ? t("配置有更新，请重新预览，才可提交")
-                  : t("预览结果无数据，无法提交"),
+                    ? t("配置有更新，请重新预览，才可提交")
+                    : t("预览结果无数据，无法提交"),
                 disabled:
                   isPreviewed.value &&
                   !isConfigChanged.value &&

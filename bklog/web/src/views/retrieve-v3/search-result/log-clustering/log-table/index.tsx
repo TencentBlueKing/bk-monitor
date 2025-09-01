@@ -31,7 +31,6 @@ import {
   onMounted,
   onBeforeUnmount,
 } from "vue";
-import { cloneDeep } from "lodash-es";
 import useStore from "@/hooks/use-store";
 import useLocale from "@/hooks/use-locale";
 import MainHeader from "./main-header";
@@ -110,11 +109,11 @@ export default defineComponent({
 
     const showGroupBy = computed(
       () =>
-        props.requestData?.group_by.length > 0 && displayType.value === "group"
+        props.requestData?.group_by.length > 0 && displayType.value === "group",
     );
     const isFlattenMode = computed(
       () =>
-        props.requestData?.group_by.length > 0 && displayType.value !== "group"
+        props.requestData?.group_by.length > 0 && displayType.value !== "group",
     );
     const smallLoaderWidthList = computed(() => {
       return props.requestData?.year_on_year_hour > 0
@@ -123,7 +122,7 @@ export default defineComponent({
     });
 
     const tableColumnWidth = computed(() =>
-      store.getters.isEnLanguage ? enTableWidth : cnTableWidth
+      store.getters.isEnLanguage ? enTableWidth : cnTableWidth,
     );
 
     const loadingWidthList = {
@@ -156,7 +155,7 @@ export default defineComponent({
       },
       {
         deep: true,
-      }
+      },
     );
 
     watch(
@@ -164,7 +163,7 @@ export default defineComponent({
       () => {
         refreshTable();
       },
-      { deep: true }
+      { deep: true },
     );
 
     const refreshTable = () => {
@@ -208,7 +207,7 @@ export default defineComponent({
               ...props.requestData,
             },
           },
-          { cancelWhenRouteChange: false }
+          { cancelWhenRouteChange: false },
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
         .then((res) => {
@@ -224,7 +223,7 @@ export default defineComponent({
             });
           });
           const keyValueList = keyValueSetList.map((item) =>
-            Array.from(item).sort()
+            Array.from(item).sort(),
           );
           let valueList: any[] = [];
           keyValueList.forEach((values) => {
@@ -261,7 +260,7 @@ export default defineComponent({
             tablesInfoList.value.push({ group: [], dataList: res.data });
           }
 
-          localTablesInfoList = cloneDeep(tablesInfoList.value);
+          localTablesInfoList = structuredClone(tablesInfoList.value);
         })
         .finally(() => {
           tableLoading.value = false;

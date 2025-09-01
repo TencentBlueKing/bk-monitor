@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { cloneDeep } from "lodash-es";
 import { defineComponent, ref, watch } from "vue";
 import useLocale from "@/hooks/use-locale";
 import $http from "@/api";
@@ -103,7 +102,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      }
+      },
     );
 
     watch(
@@ -112,7 +111,7 @@ export default defineComponent({
         if (!Object.keys(props.data).length) {
           return;
         }
-        const data = cloneDeep(props.data);
+        const data = structuredClone(props.data);
         delete data.__Index__;
         const key = Object.keys(data)[0];
         const value = data[key];
@@ -121,7 +120,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      }
+      },
     );
 
     watch(
@@ -132,7 +131,7 @@ export default defineComponent({
       },
       {
         deep: true,
-      }
+      },
     );
 
     const handleOpenToggle = (isOpen: boolean) => {
