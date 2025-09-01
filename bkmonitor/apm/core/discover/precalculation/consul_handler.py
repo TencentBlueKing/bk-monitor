@@ -94,7 +94,7 @@ class ConsulHandler:
         from apm.core.discover.precalculation.storage import PrecalculateStorage
 
         data_id = trace_datasource.bk_data_id
-        datasource_info = resource.metadata.query_data_source(bk_data_id=data_id)
+        datasource_info = resource.metadata.query_data_source(bk_tenant_id=application.bk_tenant_id, bk_data_id=data_id)
         if not datasource_info.get("result_table_list"):
             return None
 
