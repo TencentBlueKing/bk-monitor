@@ -84,7 +84,7 @@ export default class CollectContainer extends tsc<IProps> {
 
   @Watch('dataList', { deep: true, immediate: true })
   private handleWatchDataList() {
-    this.dragList = JSON.parse(JSON.stringify(this.dataList));
+    this.dragList = structuredClone(this.dataList);
   }
 
   // eslint-disable-next-line @typescript-eslint/member-ordering

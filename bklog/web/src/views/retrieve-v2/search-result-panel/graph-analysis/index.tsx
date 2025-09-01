@@ -27,7 +27,7 @@
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { isElement, debounce, throttle, isEqual } from 'lodash';
+import { isElement, debounce, throttle, isEqual } from 'lodash-es';
 
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/index.tsx';

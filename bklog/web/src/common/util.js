@@ -602,7 +602,7 @@ export function parseBigNumberList(lsit) {
  * @param {Number} n
  * @param str,默认26位字母及数字
  */
-export const random = (n, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
+export const random = (n = 8, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
   // 生成n位长度的字符串
   // const str = 'abcdefghijklmnopqrstuvwxyz0123456789' // 可以作为常量放到random外面
   let result = '';
@@ -1107,6 +1107,11 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
       });
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
+
+      if (!tableElem) {
+        return true;
+      }
+
       // 如果当前表格所有列总和小于表格实际宽度 则对小于800（最大宽度）的列赋值 defalut 使其自适应
       const availableWidth = tableElem.clientWidth - staticWidth;
       if (tableElem && columnsWidth && columnsWidth < availableWidth) {
@@ -1305,7 +1310,7 @@ export const updateLastSelectedIndexId = (spaceUid, index_set_id) => {
   const storage = {
     [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
       ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
-      [spaceUid]: index_set_id,
+      [spaceUid]: [String(index_set_id)],
     },
   };
   store.commit('updateStorage', storage);

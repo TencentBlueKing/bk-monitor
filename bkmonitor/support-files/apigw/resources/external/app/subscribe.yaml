@@ -1,0 +1,75 @@
+paths:
+  /app/subscribe/save/:
+    post:
+      operationId: save_subscribe
+      description: 新增或保存告警订阅
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/subscribe/save/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: save alert subscription
+  /app/subscribe/delete/:
+    post:
+      operationId: delete_subscribe
+      description: 删除/取消告警订阅
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/subscribe/delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete alert subscription
+  /app/subscribe/list/:
+    get:
+      operationId: list_subscribe
+      description: 告警订阅列表
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/subscribe/search/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list alert subscriptions
+  /app/subscribe/detail/:
+    get:
+      operationId: subscribe_detail
+      description: 告警订阅详情
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/subscribe/detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get alert subscription detail
+
+

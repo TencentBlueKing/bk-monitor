@@ -1,0 +1,85 @@
+.strategy-operate-main {
+  width: 180px;
+  height: 28px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  background: #f0f2f7;
+  border-radius: 2px;
+
+  .icon-wraper {
+    width: 28px;
+    height: 28px;
+    background: #a3b1cc;
+    border-radius: 2px 0 0 2px;
+    font-size: 22px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    margin-right: 6px;
+  }
+
+  .type-title {
+    width: 84px;
+    color: #4d4f56;
+  }
+
+  .not-config {
+    color: #8e9bb3;
+  }
+
+  .configed {
+    color: #3a84ff;
+  }
+
+  .more-icon-wraper {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    margin-left: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+
+    &:hover {
+      background-color: #fff;
+    }
+
+    .more-icon {
+      color: #8e9bb3;
+    }
+  }
+
+  .dropdown-list {
+    width: 120px;
+
+    &.is-not-config {
+      width: 94px;
+    }
+
+    .item {
+      display: flex;
+      height: 32px;
+      padding-left: 12px;
+      align-items: center;
+      width: 100%;
+      cursor: pointer;
+      color: #4d4f56;
+
+      &:hover {
+        background-color: #f5f7fa;
+      }
+
+      .item-icon {
+        font-size: 13px;
+      }
+
+      .item-title {
+        margin-left: 6px;
+      }
+    }
+  }
+}

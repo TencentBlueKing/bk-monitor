@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { isRef, ref, Ref } from 'vue';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import tippy, { Props, Placement, Instance } from 'tippy.js';
 
 type PopInstanceUtilType = {

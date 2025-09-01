@@ -1,0 +1,66 @@
+.variables-manage-wrap {
+  &.create {
+    display: flex;
+    flex-direction: column;
+    width: 540px;
+    background: #f3f6fa;
+    box-shadow: -2px 1px 4px 0 #0000000f;
+
+    .variable-manage-header {
+      position: relative;
+      padding: 9px 16px 12px;
+      overflow: hidden;
+      background: #f3f6fa;
+      box-shadow: 0 2px 4px 0 #00000014;
+
+      .manage-title {
+        z-index: 2;
+        height: 21px;
+        font-size: 16px;
+        line-height: 21px;
+        color: #000;
+      }
+
+      .variable-search {
+        z-index: 2;
+        margin-top: 14px;
+      }
+
+      .bg-mask-wrap {
+        position: absolute;
+        top: 0;
+        right: 31px;
+        width: 222.89px;
+        height: 74px;
+        background-image: linear-gradient(180deg, #ebeff5 0%, #f3f6fa 100%);
+        clip-path: polygon(0% 0%, 50% 100%, 100% 0%);
+
+        .bg-mask {
+          position: absolute;
+          top: 0;
+          right: 45px;
+          width: 133.74px;
+          height: 44.4px;
+          background-image: linear-gradient(180deg, #d8dfeb 1%, #e6ecf5 100%);
+          opacity: 0.4;
+          clip-path: polygon(0% 0%, 50% 100%, 100% 0%);
+        }
+      }
+    }
+
+    .variable-manage-content {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      box-shadow: 0 -2px 4px 0 #0000001f;
+    }
+  }
+
+  &.edit {
+    .variable-manage-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+  }
+}

@@ -44,7 +44,7 @@ import {
 import jsCookie from 'js-cookie';
 
 import $http from '../../../api';
-import { deepClone, random, utcFormatDate } from '../../../common/util';
+import { random, utcFormatDate } from '../../../common/util';
 import EmptyStatus from '../../../components/empty-status/index.vue';
 import FingerSelectColumn from '../result-table-panel/log-clustering/components/finger-select-column.vue';
 import ManageInput from './component/manage-input';
@@ -479,7 +479,7 @@ export default class GroupDialog extends tsc<IProps> {
     if (submitIndex >= 0) {
       // 操作已添加到更新列表的值 进行数据对比
       Object.assign(this.submitTableList[submitIndex], row, operateObj);
-      const comparedSubData = deepClone(this.submitTableList[submitIndex]);
+      const comparedSubData = structuredClone(this.submitTableList[submitIndex]);
       this.deleteSubmitData(comparedSubData, this.cannotComparedData); // 前端加的参数 不做对比
       const tableData = this.tableList[operateIndex];
       if (JSON.stringify(tableData) === JSON.stringify(comparedSubData)) {
@@ -487,7 +487,7 @@ export default class GroupDialog extends tsc<IProps> {
       }
     } else {
       // 第一次操作相同的列 添加到提交更新列表
-      const comparedData = deepClone(this.operateTableList[operateIndex]);
+      const comparedData = structuredClone(this.operateTableList[operateIndex]);
       this.deleteSubmitData(comparedData, this.cannotComparedData); // 前端加的参数 不做对比
       const tableData = this.tableList[operateIndex];
       // 判断操作过后的值和表格里的是否相同 不同则添加到提交更新列表

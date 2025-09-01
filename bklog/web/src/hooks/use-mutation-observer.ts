@@ -25,7 +25,7 @@
  */
 import { onMounted, Ref, onBeforeUnmount } from 'vue';
 
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 export default (target: Ref<HTMLElement>, callbackFn, options?) => {
   const debounceCallback = debounce(() => {

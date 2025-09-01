@@ -34,7 +34,6 @@ import './index.scss';
 type FormType = 'alarm' | 'increase';
 type StrategyType = 'new_cls_strategy' | 'normal_strategy';
 import $http from '../../../../../../api';
-import { deepClone } from '../../../../../../common/util';
 
 const { $i18n } = window.mainComponent;
 
@@ -158,8 +157,8 @@ export default class Strategy extends tsc<object> {
 
   mounted() {
     if (!this.clusterSwitch || !this.isClusterActive) return;
-    this.baseAlarmFormData = deepClone(this.alarmFormData);
-    this.baseIncreaseFormData = deepClone(this.increaseFormData);
+    this.baseAlarmFormData = structuredClone(this.alarmFormData);
+    this.baseIncreaseFormData = structuredClone(this.increaseFormData);
     this.initStrategyInfo();
   }
 

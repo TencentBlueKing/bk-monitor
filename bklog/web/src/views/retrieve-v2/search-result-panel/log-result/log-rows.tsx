@@ -29,6 +29,7 @@ import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR,
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
@@ -586,8 +587,11 @@ export default defineComponent({
     );
 
     const handleResultBoxResize = () => {
-      scrollXOffsetLeft = 0;
-      refScrollXBar.value?.scrollLeft(0);
+      if (!RetrieveHelper.jsonFormatter.isExpandNodeClick) {
+        scrollXOffsetLeft = 0;
+        refScrollXBar.value?.scrollLeft(0);
+      }
+
       computeRect(refResultRowBox.value);
     };
 

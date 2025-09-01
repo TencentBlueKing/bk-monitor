@@ -326,6 +326,7 @@ ACTIVE_VIEWS = {
         "new_report": "monitor_web.new_report.views",
         "incident": "monitor_web.incident.views",
         "k8s": "monitor_web.k8s.views",
+        "query_template": "monitor_web.query_template.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -784,7 +785,7 @@ DATABASES = {
             "MAX_OVERFLOW": -1,
             "RECYCLE": 600,
         },
-        "OPTIONS": {"charset": "utf8mb4"},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",
@@ -793,7 +794,7 @@ DATABASES = {
         "PASSWORD": BACKEND_MYSQL_PASSWORD,
         "HOST": BACKEND_MYSQL_HOST,
         "PORT": BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4"},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
     },
     "bk_dataview": {
         "ENGINE": "django.db.backends.mysql",
@@ -802,7 +803,7 @@ DATABASES = {
         "PASSWORD": GRAFANA_MYSQL_PASSWORD or BACKEND_MYSQL_PASSWORD,
         "HOST": GRAFANA_MYSQL_HOST or BACKEND_MYSQL_HOST,
         "PORT": GRAFANA_MYSQL_PORT or BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4"},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
     },
 }
 
