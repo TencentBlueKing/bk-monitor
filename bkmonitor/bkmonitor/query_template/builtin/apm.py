@@ -120,7 +120,7 @@ RPC_CALLEE_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
     ),
     "variables": _get_common_variables(
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLER_SERVICE, RPCMetricTag.CALLEE_METHOD],
-        related_metric_fields=["rpc_server_handled_seconds_sum", "rpc_server_handled_seconds_count"],
+        related_metric_fields=["rpc_server_handled_seconds_count"],
     ),
 }
 
@@ -216,7 +216,7 @@ RPC_CALLER_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
     ),
     "variables": _get_common_variables(
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLEE_SERVICE, RPCMetricTag.CALLEE_METHOD],
-        related_metric_fields=["rpc_client_handled_seconds_sum", "rpc_client_handled_seconds_count"],
+        related_metric_fields=["rpc_client_handled_seconds_count"],
     ),
 }
 
