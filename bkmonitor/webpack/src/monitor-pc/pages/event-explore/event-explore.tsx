@@ -147,7 +147,6 @@ export default class EventExplore extends tsc<
   @InjectReactive('viewOptions') viewOptions: IViewOptions;
 
   @Ref('eventRetrievalLayout') eventRetrievalLayoutRef: EventRetrievalLayout;
-  @Ref('eventExploreView') eventExploreViewRef: EventExploreView;
   @Ref('eventSourceList') eventSourceListRef: EventSourceSelect;
 
   loading = false;
@@ -721,7 +720,6 @@ export default class EventExplore extends tsc<
               </div>
               <div class='result-content-panel'>
                 <EventExploreView
-                  ref='eventExploreView'
                   entitiesMapList={this.entitiesMapByField}
                   eventSourceType={this.eventSourceType}
                   fieldMap={this.fieldMapByField}
