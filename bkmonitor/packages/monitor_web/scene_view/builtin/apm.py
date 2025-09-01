@@ -26,6 +26,7 @@ from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import Application, CodeRedefinedConfigRelation
+from apm_web.utils import check_app_integration_status
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
@@ -267,6 +268,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         app_name = params["app_name"]
         service_name = params["service_name"]
         view_switches = params.get("view_switches", {})
+        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
 
         builtin_view = f"{view.scene_id}-{view.id}"
         view_config = cls.builtin_views[builtin_view]
@@ -342,6 +344,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         if builtin_view == "apm_service-service-default-host":
             if (
                 app_name
+                and check_app_integration_status(app)
                 and service_name
                 and HostHandler.has_hosts_relation(
                     view.bk_biz_id,
@@ -429,6 +432,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         # APM自定义指标
         if builtin_view == "apm_service-service-default-custom_metric" and app_name:
+            if check_app_integration_status(app):
+                cls._generate_non_custom_metric_view_config(view_config)
+                return view_config
             try:
                 application = Application.objects.get(app_name=app_name, bk_biz_id=bk_biz_id)
                 result_table_id = application.fetch_datasource_info(
