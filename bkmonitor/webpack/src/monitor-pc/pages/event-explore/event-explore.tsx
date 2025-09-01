@@ -59,6 +59,7 @@ import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFavList } from '../data-retrieval/typings';
 import type { IViewOptions } from '../monitor-k8s/typings/book-mark';
+import type { IntervalType } from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/explore-custom-graph';
 
 import './event-explore.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
@@ -178,6 +179,8 @@ export default class EventExplore extends tsc<
   eventSourcePopoverInstance = null;
   localEventSourceType = [];
   retrievalFilterCandidateValue: RetrievalFilterCandidateValue = null;
+
+  interval: IntervalType  = 'auto';
 
   /** 常驻筛选唯一ID */
   get residentSettingOnlyId() {
@@ -535,6 +538,10 @@ export default class EventExplore extends tsc<
     this.handleWhereChange([]);
   }
 
+  handleIntervalChange(interval: IntervalType) {
+    this.interval = interval;
+  }
+
   /** 跳转添加告警策略 */
   handleAddAlertPolicy() {
     const { data_source_label, data_type_label, group_by, table, where, query_string } = this.queryConfig;
@@ -546,7 +553,7 @@ export default class EventExplore extends tsc<
         // filter_dict: {},
         // functions: [],
         group_by,
-        interval: this.eventExploreViewRef.chartInterval === 'auto' ? 60 : this.eventExploreViewRef.chartInterval,
+        interval: this.interval,
         // table,
         where, // 产品确认将普通筛选和常驻筛选一并带入告警策略
         query_string,
@@ -727,6 +734,7 @@ export default class EventExplore extends tsc<
                   onSearch={this.updateQueryConfig}
                   onSetRouteParams={this.setRouteParams}
                   onShowEventSourcePopover={this.handleShowEventSourcePopover}
+                  onIntervalChange={this.handleIntervalChange}
                 />
               </div>
             </EventRetrievalLayout>
