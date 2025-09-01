@@ -76,6 +76,7 @@ from apps.log_databus.exceptions import (
     ResultTableNotExistException,
     SubscriptionInfoNotFoundException,
     CollectorIdNotExistException,
+    SubscriptionStatisticException,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -1016,10 +1017,26 @@ class CollectorHandler:
                 subscription_collector_map,
                 subscription_id_list,
             )
+        status_result = []
+        multi_execute_func = MultiExecuteFunc(max_workers=10)
+        for subscription_id in subscription_id_list:
+            multi_execute_func.append(
+                result_key=subscription_id,
+                func=NodeApi.subscription_statistic,
+                params={"subscription_id_list": [subscription_id], "plugin_name": LogPluginInfo.NAME},
+            )
 
-        status_result = NodeApi.subscription_statistic(
-            params={"subscription_id_list": subscription_id_list, "plugin_name": LogPluginInfo.NAME}
-        )
+        multi_result = multi_execute_func.run(return_exception=True)
+        for key, ret in multi_result.items():
+            if isinstance(ret, Exception):
+                # 子查询异常
+                logger.exception("subscription id(%s),subscription statistic failed：%s", key, ret)
+                raise SubscriptionStatisticException(
+                    SubscriptionStatisticException.MESSAGE.format(
+                        reason=f"subscription id({key}),subscription statistic failed：{ret}"
+                    )
+                )
+            status_result.extend(ret)
 
         # 如果没有订阅ID，则直接返回
         if not subscription_id_list:
