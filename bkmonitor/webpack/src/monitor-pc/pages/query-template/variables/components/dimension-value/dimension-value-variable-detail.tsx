@@ -97,6 +97,10 @@ export default class DimensionValueVariableDetail extends tsc<DimensionValueDeta
           data={this.variable.data}
         >
           <div class='form-item'>
+            <div class='form-item-label'>{this.$t('关联指标')}：</div>
+            <div class='form-item-value'>{this.variable.metric?.metric_id || '--'}</div>
+          </div>
+          <div class='form-item'>
             <div class='form-item-label'>{this.$t('关联维度')}：</div>
             <div class='form-item-value'>{this.variable.related_tag || '--'}</div>
           </div>

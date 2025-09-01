@@ -60,7 +60,9 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
   @Prop({ default: () => [] }) useVariables!: string[];
 
   get showVariableList() {
-    return this.variablesList.filter(item => item.name.includes(this.searchValue));
+    return this.variablesList.filter(item =>
+      item.name.toLocaleLowerCase().includes(this.searchValue.trim().toLocaleLowerCase())
+    );
   }
 
   searchValue = '';

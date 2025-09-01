@@ -22,6 +22,12 @@
   }
 
   .bk-tag-input {
+    &.disabled {
+      background-color: #fafbfd;
+      border-color: #dcdee5
+
+    }
+
     .tag {
       display: flex;
       align-items: center;

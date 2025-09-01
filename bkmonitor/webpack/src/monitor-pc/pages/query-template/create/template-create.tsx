@@ -48,7 +48,7 @@ import {
   getVariableModel,
   getVariableSubmitParams,
 } from '../variables';
-import { isVariableName } from '../variables/template/utils';
+import { isVariableName, variableRegex } from '../variables/template/utils';
 import { LETTERS } from '@/common/constant';
 
 import type VariablesManage from '../variables/variables-manage/variables-manage';
@@ -94,6 +94,13 @@ export default class TemplateCreate extends tsc<object> {
 
   needCheck = true;
 
+  /** 获取已使用的变量列表 */
+  get useVariables() {
+    const queryConfigsVariables = JSON.stringify(this.queryConfigs).match(variableRegex) || [];
+    const expressionVariables = JSON.stringify(this.expressionConfig).match(variableRegex) || [];
+    return [...queryConfigsVariables, ...expressionVariables];
+  }
+
   async beforeRouteLeave(to, _from, next) {
     if (this.needCheck) {
       const needNext = await this.handleCancel();
@@ -111,13 +118,36 @@ export default class TemplateCreate extends tsc<object> {
     this.curStep = step;
   }
 
+  /** 是否清除未使用变量 */
+  isClearUnUsedVariable() {
+    const variable = this.variablesList.find(variable => !this.useVariables.includes(variable.name));
+    if (!variable) return false;
+    return new Promise(resolve => {
+      this.$bkInfo({
+        extCls: 'strategy-config-cancel',
+        title: this.$t('有未生效的变量，是否清空？'),
+        okText: this.$t('是'),
+        cancelText: this.$t('否'),
+        confirmFn: () => {
+          resolve(true);
+        },
+        cancelFn: () => resolve(false),
+      });
+    });
+  }
+
   async handleSubmit() {
+    const isClear = await this.isClearUnUsedVariable();
+    const variablesList = isClear
+      ? this.variablesList.filter(variable => this.useVariables.includes(variable.name))
+      : this.variablesList;
+
     const params = {
       name: this.basicInfoData.name,
       alias: this.basicInfoData.alias,
       description: this.basicInfoData.description,
       space_scope: this.basicInfoData.space_scope,
-      variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
+      variables: variablesList.map(variable => getVariableSubmitParams(variable)),
       query_configs: createQueryTemplateQueryConfigsParams(this.queryConfigs),
       expression: this.expressionConfig.expression,
       functions: this.expressionConfig.functions.map(f => {
@@ -353,6 +383,7 @@ export default class TemplateCreate extends tsc<object> {
               metricFunctions={this.metricFunctions}
               queryConfigs={this.queryConfigs}
               scene={this.scene}
+              useVariables={this.useVariables}
               variablesList={this.variablesList}
               onAddQueryConfig={this.handleAdd}
               onBasicInfoChange={this.handleBasicInfoChange}
