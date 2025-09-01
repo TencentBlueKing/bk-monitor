@@ -27,7 +27,6 @@
 import { defineComponent, ref, computed, watch } from "vue";
 import useLocale from "@/hooks/use-locale";
 import $http from "@/api";
-import { cloneDeep } from "lodash-es";
 import useStore from "@/hooks/use-store";
 import { bkMessage } from "bk-magic-vue";
 import { StrategyType } from "../index";
@@ -140,14 +139,14 @@ export default defineComponent({
 
         if (props.configData) {
           formData.value = isAlarmType.value
-            ? cloneDeep(props.configData[StrategyType.NEW_CLASS])
-            : cloneDeep(props.configData[StrategyType.SUDDEN_INCREASE]);
+            ? structuredClone(props.configData[StrategyType.NEW_CLASS])
+            : structuredClone(props.configData[StrategyType.SUDDEN_INCREASE]);
         }
       },
       {
         deep: true,
         immediate: true,
-      }
+      },
     );
 
     watch(
@@ -155,7 +154,7 @@ export default defineComponent({
       () => {
         isShowDialog.value = props.isShow;
       },
-      { immediate: true }
+      { immediate: true },
     );
 
     const handleConfirmSubmit = async () => {
@@ -216,7 +215,7 @@ export default defineComponent({
     const handleCreateUserGroups = () => {
       window.open(
         `${window.MONITOR_URL}/?bizId=${bkBizId.value}#/alarm-group/add`,
-        "_blank"
+        "_blank",
       );
     };
 
@@ -269,7 +268,7 @@ export default defineComponent({
             <bk-input
               value={formData.value.interval}
               placeholder={t(
-                "每隔 n（整数）天数，再次产生的日志模式将视为新类"
+                "每隔 n（整数）天数，再次产生的日志模式将视为新类",
               )}
               show-controls={false}
               type="number"
@@ -277,7 +276,7 @@ export default defineComponent({
             />
             <div class="form-item-tip">
               {t(
-                "表示近一段时间内新增日志模式，可自定义判定的时间区间，如：近 30 天内新增"
+                "表示近一段时间内新增日志模式，可自定义判定的时间区间，如：近 30 天内新增",
               )}
             </div>
           </bk-form-item>
@@ -318,7 +317,7 @@ export default defineComponent({
                   <span style="margin-left:4px">
                     {
                       levelSelectList.find(
-                        (item) => item.id === formData.value.level
+                        (item) => item.id === formData.value.level,
                       )?.name
                     }
                   </span>

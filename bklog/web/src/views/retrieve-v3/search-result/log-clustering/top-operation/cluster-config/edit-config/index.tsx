@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { cloneDeep } from "lodash-es";
 import { defineComponent, onMounted, ref, computed, watch } from "vue";
 import TextHighlight from "vue-text-highlight";
 import useLocale from "@/hooks/use-locale";
@@ -89,11 +88,11 @@ export default defineComponent({
     const ruleList = ref<Record<string, string>[]>([]);
 
     const isRuleTableReadonly = computed(
-      () => currentRuleType.value === "template"
+      () => currentRuleType.value === "template",
     );
     const configId = computed(
       () =>
-        store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id
+        store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id,
     );
     const indexSetItem = computed(() => store.state.indexItem.items[0]);
 
@@ -124,7 +123,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      }
+      },
     );
 
     const handleRuleListChange = (list: Record<string, string>[]) => {
@@ -144,7 +143,7 @@ export default defineComponent({
         const requestUrl = `${baseUrl}${requestBehindUrl}`;
         const res = (await $http.request(
           requestUrl,
-          !isDefault && { params, data }
+          !isDefault && { params, data },
         )) as IResponseData<ConfigInfo>;
         const {
           max_dist_list,
@@ -158,7 +157,7 @@ export default defineComponent({
         const newFilterRules = filterRules.map((item) => {
           const sameFieldItem: any =
             props.totalFields.find(
-              (tItem: any) => tItem.field_name === item.fields_name
+              (tItem: any) => tItem.field_name === item.fields_name,
             ) || {};
           return {
             ...sameFieldItem,
@@ -177,10 +176,10 @@ export default defineComponent({
           regex_template_id,
         };
         Object.assign(formData.value, assignObj);
-        defaultData.value = cloneDeep(assignObj);
+        defaultData.value = structuredClone(assignObj);
         // 当前回填的字段如果在聚类字段列表里找不到则赋值为空需要用户重新赋值
         const isHaveFieldsItem = clusterField.value.find(
-          (item) => item.id === res.data.clustering_fields
+          (item) => item.id === res.data.clustering_fields,
         );
         if (!isHaveFieldsItem) {
           formData.value.clustering_fields = "";
@@ -204,7 +203,7 @@ export default defineComponent({
             (item) => ({
               ...item,
               fields_name: item.field_name,
-            })
+            }),
           );
           const { index_set_id, bk_biz_id } = indexSetItem.value;
           const {
@@ -262,7 +261,9 @@ export default defineComponent({
     const handleReset = () => {
       formData.value.clustering_fields = defaultData.value.clustering_fields;
       formData.value.max_log_length = defaultData.value.max_log_length;
-      formData.value.filter_rules = cloneDeep(defaultData.value.filter_rules);
+      formData.value.filter_rules = structuredClone(
+        defaultData.value.filter_rules,
+      );
       ruleOperateRef.value.reset();
       ruleTableRef.value.init();
     };
@@ -315,7 +316,7 @@ export default defineComponent({
                   <log-icon common type="info" />
                   <span class="tip">
                     {t(
-                      "只能基于 1 个字段进行聚类，并且字段是为text的分词类型，默认为log字段"
+                      "只能基于 1 个字段进行聚类，并且字段是为text的分词类型，默认为log字段",
                     )}
                   </span>
                 </span>
@@ -344,7 +345,7 @@ export default defineComponent({
                     <log-icon common type="info" />
                     <span class="tip">
                       {t(
-                        "聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源"
+                        "聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源",
                       )}
                     </span>
                   </span>

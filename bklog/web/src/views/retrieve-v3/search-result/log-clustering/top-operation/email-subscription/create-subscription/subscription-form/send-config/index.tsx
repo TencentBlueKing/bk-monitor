@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { cloneDeep } from "lodash-es";
 import BkUserSelector from "@blueking/user-selector";
 import { defineComponent, ref, onMounted, nextTick, watch } from "vue";
 import { bkMessage } from "bk-magic-vue";
@@ -162,7 +161,7 @@ export default defineComponent({
           validator: () => {
             if (formData.value.subscriber_type === "self") return true;
             const enabledList = formData.value.channels.filter(
-              (item) => item.is_enabled
+              (item) => item.is_enabled,
             );
             if (enabledList.length === 0) {
               // 提醒用户，三个输入框都没有选中，必须选中一个。
@@ -178,7 +177,7 @@ export default defineComponent({
 
             if (enabledList.length === 0) return false;
             const subscriberList = enabledList.filter(
-              (item) => item.subscribers.length
+              (item) => item.subscribers.length,
             );
 
             let isInvalid = false;
@@ -322,7 +321,7 @@ export default defineComponent({
           })
           .filter((item) => item.id);
         formData.value.channels[1].subscribers = result;
-      }
+      },
     );
 
     watch(
@@ -338,7 +337,7 @@ export default defineComponent({
           })
           .filter((item) => item.id);
         formData.value.channels[2].subscribers = result;
-      }
+      },
     );
 
     watch(
@@ -349,7 +348,7 @@ export default defineComponent({
           formData.value.end_time = null;
           // 点击 仅一次 时刷新一次时间。
           frequency.value.only_once_run_time = dayjs().format(
-            "YYYY-MM-DD HH:mm:ss"
+            "YYYY-MM-DD HH:mm:ss",
           );
         } else {
           // 把丢掉的 start_time 和 end_time 补回去
@@ -357,7 +356,7 @@ export default defineComponent({
           formData.value.start_time = dayjs(startTime).unix();
           formData.value.end_time = dayjs(endTime).unix();
         }
-      }
+      },
     );
 
     /**
@@ -394,7 +393,7 @@ export default defineComponent({
 
     /** 任务有效期 调整时间格式 */
     const handleTimeRangeChange = (range: [string, string]) => {
-      formData.value.timerange = cloneDeep(range);
+      formData.value.timerange = structuredClone(range);
       const result = range.map((date) => {
         // 结束时间可能是空串（代表 无期限），这里用 undefined 代替，即不需要提交。
         return date ? dayjs(date).unix() : undefined;
@@ -408,7 +407,7 @@ export default defineComponent({
     const handleDatePickerOpen = (state: boolean) => {
       if (state) {
         const ele = effectiveEndRef.value.$el.querySelector(
-          ".bk-picker-confirm a:nth-child(2)"
+          ".bk-picker-confirm a:nth-child(2)",
         );
         ele.innerText = t("永久");
         ele.setAttribute("class", "confirm");
@@ -435,7 +434,7 @@ export default defineComponent({
         customHourInput.value = String(inputNumber);
       }
       const isHasDuplicatedNum = hourOption.find(
-        (item) => item.id === inputNumber
+        (item) => item.id === inputNumber,
       );
       if (!isHasDuplicatedNum) {
         hourOption.push({ id: inputNumber, name: t("{0}小时", [inputNumber]) });
@@ -483,7 +482,7 @@ export default defineComponent({
         case FrequencyType.onlyOnce:
           Object.assign(formData.value.frequency, {
             run_time: dayjs(frequency.value.only_once_run_time).format(
-              "YYYY-MM-DD HH:mm:ss"
+              "YYYY-MM-DD HH:mm:ss",
             ),
           });
           break;
@@ -590,7 +589,7 @@ export default defineComponent({
                     on-change={(v) => {
                       subscriberInput.value.user = v;
                       const userChannel = formData.value.channels.find(
-                        (item) => item.channel_name === "user"
+                        (item) => item.channel_name === "user",
                       );
                       userChannel!.subscribers = v.map((username) => {
                         return {
@@ -633,7 +632,7 @@ export default defineComponent({
                   >
                     <div
                       data-is-show-error-msg={String(
-                        errorTips.value.email.isShow
+                        errorTips.value.email.isShow,
                       )}
                     >
                       <bk-input
@@ -658,7 +657,7 @@ export default defineComponent({
                       value={formData.value.channels[1].send_text}
                       disabled={!formData.value.channels[1].is_enabled}
                       placeholder={t(
-                        "请遵守公司规范，切勿泄露敏感信息，后果自负！"
+                        "请遵守公司规范，切勿泄露敏感信息，后果自负！",
                       )}
                       on-change={(value) =>
                         (formData.value.channels[1].send_text = value)
@@ -771,7 +770,7 @@ export default defineComponent({
                     oninput={(value) => {
                       customHourInput.value = value.replace(
                         /^(0+)|[^\d]+/g,
-                        ""
+                        "",
                       );
                     }}
                   ></bk-input>
@@ -859,7 +858,7 @@ export default defineComponent({
             <bk-form-item
               class="no-relative"
               desc={t(
-                "有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。"
+                "有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。",
               )}
               error-display-type="normal"
               label={t("任务有效期")}

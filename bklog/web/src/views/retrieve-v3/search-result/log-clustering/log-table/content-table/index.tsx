@@ -25,7 +25,7 @@
  */
 
 import { computed, defineComponent, ref, nextTick, watch, PropType } from "vue";
-import { orderBy, cloneDeep } from "lodash-es";
+import { orderBy } from "lodash-es";
 import useLocale from "@/hooks/use-locale";
 import tippy from "tippy.js";
 import $http from "@/api";
@@ -106,30 +106,30 @@ export default defineComponent({
 
     const showYOY = computed(() => props.requestData?.year_on_year_hour >= 1);
     const isLimitExpandView = computed(
-      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]
+      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
     );
     /** 获取当前编辑操作的数据 */
     const currentRowValue = computed(() =>
-      tableData.value.find((item) => item.id === currentRowId.value)
+      tableData.value.find((item) => item.id === currentRowId.value),
     );
     const showGounpBy = computed(
       () =>
-        props.requestData?.group_by.length > 0 && props.displayMode === "group"
+        props.requestData?.group_by.length > 0 && props.displayMode === "group",
     );
     const isFlattenMode = computed(
       () =>
-        props.requestData?.group_by.length > 0 && props.displayMode !== "group"
+        props.requestData?.group_by.length > 0 && props.displayMode !== "group",
     );
     const groupValueList = computed(() => {
       if (props.requestData?.group_by.length && props.tableInfo?.group.length) {
         return props.requestData.group_by.map(
-          (item, index) => `${item}=${props.tableInfo.group[index]}`
+          (item, index) => `${item}=${props.tableInfo.group[index]}`,
         );
       }
       return [];
     });
     const isAiAssistanceActive = computed(
-      () => store.getters.isAiAssistantActive
+      () => store.getters.isAiAssistantActive,
     );
 
     let localTableData: LogPattern[] = [];
@@ -149,7 +149,7 @@ export default defineComponent({
             widthList = props.widthList.slice(1, props.widthList.length - 1);
           }
           const columns = Array.from(
-            headRowRef.value?.querySelectorAll("th") || []
+            headRowRef.value?.querySelectorAll("th") || [],
           );
           if (columns.length) {
             columns.forEach((item: any, index) => {
@@ -160,27 +160,27 @@ export default defineComponent({
       },
       {
         immediate: true,
-      }
+      },
     );
 
     watch(
       () => props.tableInfo?.dataList,
       () => {
         tableData.value = props.tableInfo?.dataList;
-        localTableData = cloneDeep(props.tableInfo?.dataList);
+        localTableData = structuredClone(props.tableInfo?.dataList);
       },
       {
         immediate: true,
-      }
+      },
     );
 
     watch(
       () => props.filterSortMap,
       () => {
         const sortObj = Object.entries(props.filterSortMap.sort).find(
-          (item) => !!item[1]
+          (item) => !!item[1],
         );
-        let dataList = cloneDeep(localTableData);
+        let dataList = structuredClone(localTableData);
         if (sortObj) {
           // 排序
           const [field, order] = sortObj;
@@ -196,10 +196,10 @@ export default defineComponent({
           } else {
             const ownersMap = owners.reduce<Record<string, boolean>>(
               (map, item) => Object.assign(map, { [item]: true }),
-              {}
+              {},
             );
             dataList = dataList.filter((item) =>
-              item.owners.some((item) => !!ownersMap[item])
+              item.owners.some((item) => !!ownersMap[item]),
             );
           }
         }
@@ -208,14 +208,14 @@ export default defineComponent({
           // 过滤备注
           const isRemarked = remark[0] === "remarked";
           dataList = dataList.filter((item) =>
-            isRemarked ? item.remark.length > 0 : !item.remark.length
+            isRemarked ? item.remark.length > 0 : !item.remark.length,
           );
         }
         tableData.value = dataList;
       },
       {
         deep: true,
-      }
+      },
     );
 
     const updateTableRowData = (id: number, key: string, value: any) => {
@@ -271,7 +271,7 @@ export default defineComponent({
               newSearchList,
               searchMode,
               isNewSearchPage,
-              { tab: "origin" }
+              { tab: "origin" },
             );
             window.open(openUrl, "_blank");
             // 新开页后当前页面回填聚类参数
@@ -388,7 +388,7 @@ export default defineComponent({
       currentRowId.value = row.id;
       window.open(
         `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
-        "_blank"
+        "_blank",
       );
     };
 
@@ -602,12 +602,12 @@ export default defineComponent({
                             row.year_on_year_percentage < 0
                               ? "#2CAF5E"
                               : row.year_on_year_percentage === 0
-                              ? "#313238"
-                              : "#E71818",
+                                ? "#313238"
+                                : "#E71818",
                         }}
                       >
                         <span>{`${Math.abs(
-                          Number(row.year_on_year_percentage.toFixed(2))
+                          Number(row.year_on_year_percentage.toFixed(2)),
                         )}%`}</span>
                         {row.year_on_year_percentage !== 0 ? (
                           <log-icon
@@ -739,7 +739,7 @@ export default defineComponent({
                             theme="primary"
                             disabled
                             v-bk-tooltips={t(
-                              "暂无配置责任人，无法自动创建告警策略"
+                              "暂无配置责任人，无法自动创建告警策略",
                             )}
                           />
                         )}

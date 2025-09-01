@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { cloneDeep } from "lodash-es";
 import { defineComponent, ref, watch } from "vue";
 import useLocale from "@/hooks/use-locale";
 import EmptyStatus from "@/components/empty-status/index.vue";
@@ -65,8 +64,8 @@ export default defineComponent({
     let localRuleList: any[] = [];
 
     const initTableList = () => {
-      ruleList.value = cloneDeep(props.ruleList);
-      localRuleList = cloneDeep(props.ruleList);
+      ruleList.value = structuredClone(props.ruleList);
+      localRuleList = structuredClone(props.ruleList);
     };
 
     watch(
@@ -84,13 +83,13 @@ export default defineComponent({
         element: any;
       };
     }) => {
-      const tmpList = cloneDeep(ruleList.value);
+      const tmpList = structuredClone(ruleList.value);
       const { oldIndex, newIndex } = data.moved;
       const oldItem = tmpList[oldIndex];
       tmpList.splice(oldIndex, 1);
       tmpList.splice(newIndex, 0, oldItem);
       ruleList.value = tmpList;
-      localRuleList = cloneDeep(ruleList.value);
+      localRuleList = structuredClone(ruleList.value);
       emit("rule-list-change", ruleList.value);
     };
 
@@ -107,19 +106,19 @@ export default defineComponent({
 
     const handleAddRule = (item: any) => {
       ruleList.value.splice(currentRowIndex + 1, 0, item);
-      localRuleList = cloneDeep(ruleList.value);
+      localRuleList = structuredClone(ruleList.value);
       emit("rule-list-change", ruleList.value);
     };
 
     const handleEditRule = (item: any) => {
       ruleList.value[currentRowIndex] = item;
-      localRuleList = cloneDeep(ruleList.value);
+      localRuleList = structuredClone(ruleList.value);
       emit("rule-list-change", ruleList.value);
     };
 
     const handleClickRemoveRule = (index: number) => {
       ruleList.value.splice(index, 1);
-      localRuleList = cloneDeep(ruleList.value);
+      localRuleList = structuredClone(ruleList.value);
       emit("rule-list-change", ruleList.value);
     };
 
@@ -142,7 +141,7 @@ export default defineComponent({
     const handleSearch = (keyword: string) => {
       searchValue.value = keyword;
       if (!keyword) {
-        ruleList.value = cloneDeep(localRuleList);
+        ruleList.value = structuredClone(localRuleList);
         return;
       }
 

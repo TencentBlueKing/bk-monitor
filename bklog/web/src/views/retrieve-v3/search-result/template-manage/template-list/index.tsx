@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { cloneDeep } from "lodash-es";
 import { computed, defineComponent, ref, nextTick, watch } from "vue";
 import useStore from "@/hooks/use-store";
 import useLocale from "@/hooks/use-locale";
@@ -59,7 +58,7 @@ export default defineComponent({
 
     const spaceUid = computed(() => store.state.spaceUid);
     const currentTemplate = computed(
-      () => templateList.value[currentTemplateIndex.value]
+      () => templateList.value[currentTemplateIndex.value],
     );
 
     let localTemplateList: TemplateItemType[] = [];
@@ -76,18 +75,18 @@ export default defineComponent({
       },
       {
         immediate: true,
-      }
+      },
     );
 
     const handleSearch = () => {
       if (!searchValue.value) {
-        templateList.value = cloneDeep(localTemplateList);
+        templateList.value = structuredClone(localTemplateList);
         return;
       }
 
       const searchRegExp = new RegExp(searchValue.value, "i");
       templateList.value = localTemplateList.filter((item) =>
-        searchRegExp.test(item.template_name)
+        searchRegExp.test(item.template_name),
       );
     };
 
@@ -102,11 +101,11 @@ export default defineComponent({
         ...item,
         ruleList: base64ToRuleArr(item.predefined_varibles),
       }));
-      localTemplateList = cloneDeep(templateList.value);
+      localTemplateList = structuredClone(templateList.value);
       if (props.defaultId && !initDefaultSelect) {
         initDefaultSelect = true;
         currentTemplateIndex.value = res.data.findIndex(
-          (item) => item.id === props.defaultId
+          (item) => item.id === props.defaultId,
         );
       }
     };
@@ -118,7 +117,7 @@ export default defineComponent({
     const handleCreateTemplateSuccess = (id: number) => {
       initTemplateList().then(() => {
         currentTemplateIndex.value = templateList.value.findIndex(
-          (item) => item.id === id
+          (item) => item.id === id,
         );
       });
     };

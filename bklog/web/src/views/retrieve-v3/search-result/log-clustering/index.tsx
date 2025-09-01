@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { cloneDeep } from "lodash-es";
 import {
   computed,
   defineComponent,
@@ -116,32 +115,32 @@ export default defineComponent({
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetFieldConfig = computed(() => store.state.indexSetFieldConfig);
     const totalFields = computed(
-      () => (indexFieldInfo.value.fields || []) as Array<any>
+      () => (indexFieldInfo.value.fields || []) as Array<any>,
     );
     const globalLoading = computed(
-      () => indexFieldInfo.value.is_loading || isFieldInit.value
+      () => indexFieldInfo.value.is_loading || isFieldInit.value,
     );
     const clusteringConfig = computed(
-      () => indexSetFieldConfig.value.clustering_config
+      () => indexSetFieldConfig.value.clustering_config,
     );
     const clusterSwitch = computed(
-      () => clusteringConfig.value?.is_active || false
+      () => clusteringConfig.value?.is_active || false,
     );
     // 无字段提取或者聚类开关没开时直接不显示聚类nav和table，来源如果是数据平台并且日志聚类开关有打开则进入text判断，有text则提示去开启日志聚类, 无则显示跳转计算平台
     const exhibitAll = computed(() =>
-      totalFields.value.some((el) => el.field_type === "text")
+      totalFields.value.some((el) => el.field_type === "text"),
     );
     const isShowTopNav = computed(
-      () => exhibitAll.value && clusterSwitch.value && !isShowClusterStep.value
+      () => exhibitAll.value && clusterSwitch.value && !isShowClusterStep.value,
     );
     const indexSetId = computed(() =>
       window.__IS_MONITOR_COMPONENT__
         ? (route.query.indexId as string)
-        : route.params.indexId
+        : route.params.indexId,
     );
     const clusterParams = computed(() => store.state.clusterParams);
     const collectorConfigId = computed(
-      () => indexSetFieldConfig.value.clean_config.extra?.collector_config_id
+      () => indexSetFieldConfig.value.clean_config.extra?.collector_config_id,
     );
 
     watch(indexSetId, () => {
@@ -184,7 +183,7 @@ export default defineComponent({
         },
         {
           catchIsShowMessage: false,
-        }
+        },
       ) as Promise<IResponseData<ClusteringConfigStatus>>;
     };
 
@@ -233,9 +232,9 @@ export default defineComponent({
       };
       // 通过路由返回的值 初始化数据指纹的操作参数 url是否有缓存的值
       if (isInitPage.value && !!clusterParams.value) {
-        const paramData = cloneDeep(clusterParams.value);
+        const paramData = structuredClone(clusterParams.value);
         const findIndex = clusterLevel.findIndex(
-          (item) => item === String(paramData.pattern_level)
+          (item) => item === String(paramData.pattern_level),
         );
         if (findIndex >= 0) patternLevel = findIndex + 1;
         Object.assign(queryRequestData, paramData, {
@@ -259,7 +258,7 @@ export default defineComponent({
       const groupFields = await getInitGroupFields();
       if (groupFields?.length) {
         const selectGroupList = fingerOperateData.value.selectGroupList.filter(
-          (item) => !groupFields.includes(item)
+          (item) => !groupFields.includes(item),
         );
         // 如果初始化时有默认维度的字段 将维度和分组分开来处理
         Object.assign(queryRequestData, {
@@ -289,7 +288,7 @@ export default defineComponent({
     const handleFingerOperate = (
       operateType: string,
       val: any = {},
-      isQuery = false
+      isQuery = false,
     ) => {
       switch (operateType) {
         case "requestData": // 数据指纹的请求参数
@@ -364,7 +363,7 @@ export default defineComponent({
       handleFingerOperate(
         "requestData",
         { group_by: fingerOperateData.value.dimensionList },
-        true
+        true,
       );
     };
     const handleCloseYearTag = () => {
@@ -395,7 +394,7 @@ export default defineComponent({
       {
         immediate: true,
         deep: true,
-      }
+      },
     );
 
     onMounted(async () => {

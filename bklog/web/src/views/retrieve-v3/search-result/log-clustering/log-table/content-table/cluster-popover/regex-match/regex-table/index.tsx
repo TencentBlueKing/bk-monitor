@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { cloneDeep } from "lodash-es";
 import { defineComponent, ref } from "vue";
 import useLocale from "@/hooks/use-locale";
 import { random } from "@/common/util";
@@ -88,7 +87,7 @@ export default defineComponent({
         return;
       }
 
-      const list = cloneDeep(tableData.value);
+      const list = structuredClone(tableData.value);
       const currentItem = list[currentIndex];
       list.splice(currentIndex, 1);
       list.splice(hoverRowIndex, 0, currentItem);
@@ -150,10 +149,10 @@ export default defineComponent({
       },
       getData: async () => {
         await Promise.all(
-          inputColumnsMapRef.value.regex.map((el: any) => el.getValue())
+          inputColumnsMapRef.value.regex.map((el: any) => el.getValue()),
         );
         await Promise.all(
-          inputColumnsMapRef.value.occupy.map((el: any) => el.getValue())
+          inputColumnsMapRef.value.occupy.map((el: any) => el.getValue()),
         );
         return tableData.value;
       },
