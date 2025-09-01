@@ -48,7 +48,7 @@ export default defineComponent({
           class='clean-alert'
           title={t('通过字段清洗，可以格式化日志内容方便检索、告警和分析。')}
           type='info'
-        ></bk-alert>
+        />
         <div class='label-form-box'>
           <span class='label-title'>{t('原始日志')}</span>
           <div class='form-box'>
@@ -59,7 +59,7 @@ export default defineComponent({
             <div class='select-group'>
               <div class='select-item'>
                 <span class='select-title'>{t('分词符')}</span>
-                <bk-select class='select-box'></bk-select>
+                <bk-select class='select-box' />
               </div>
               <div class='select-item'>
                 <bk-checkbox class='mr-5' />
@@ -147,15 +147,15 @@ export default defineComponent({
             <div class='select-group'>
               <div class='select-item'>
                 <span class='select-title'>{t('字段')}</span>
-                <bk-select class='select-box'></bk-select>
+                <bk-select class='select-box' />
               </div>
               <div class='select-item'>
                 <span class='select-title'>{t('时间格式')}</span>
-                <bk-select class='select-box'></bk-select>
+                <bk-select class='select-box' />
               </div>
               <div class='select-item'>
                 <span class='select-title'>{t('时间格式')}</span>
-                <bk-select class='select-box'></bk-select>
+                <bk-select class='select-box' />
               </div>
             </div>
           </div>
@@ -169,8 +169,8 @@ export default defineComponent({
         </div>
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('路径元数据')}</span>
-          <div class='form-box'>
-            <bk-switcher size='large'></bk-switcher>
+          <div class='form-box mt-5'>
+            <bk-switcher size='large' />
             <InfoTips
               class='ml-12'
               tips={t('定义元数据并补充至日志中，可通过元数据进行过滤筛选')}
@@ -211,7 +211,7 @@ export default defineComponent({
             {t('上一步')}
           </bk-button>
           <bk-button
-            class='mr-8 width-88'
+            class='width-88 mr-8'
             theme='primary'
             on-click={() => {
               emit('next');

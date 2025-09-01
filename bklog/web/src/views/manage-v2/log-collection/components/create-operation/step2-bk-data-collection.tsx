@@ -30,6 +30,7 @@ import useLocale from '@/hooks/use-locale';
 
 import { useOperation } from '../../hook/useOperation';
 import InfoTips from '../common-comp/info-tips';
+import BaseInfo from '../business-comp/base-info';
 
 import './step2-bk-data-collection.scss';
 
@@ -41,38 +42,15 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const { cardRender } = useOperation();
-    const formData = ref({ name: '' });
     /** 基本信息 */
-    const renderBaseInfo = () => (
-      <bk-form
-        class='base-info-form'
-        label-width={100}
-        // model={formData.value}
-      >
-        <bk-form-item
-          label={t('采集名')}
-          property='name'
-          required={true}
-        >
-          <bk-input
-            maxlength={50}
-            value={formData.value.name}
-            clearable
-            onInput={val => (formData.value.name = val)}
-          />
-        </bk-form-item>
-        <bk-form-item label={t('所属索引集')}>
-          <bk-select />
-        </bk-form-item>
-      </bk-form>
-    );
+    const renderBaseInfo = () => <BaseInfo typeKey='bk-data' />;
     /** 数据源 */
     const renderDataSource = () => (
       <div class='data-source-box'>
         <div class='label-form-box'>
           <span class='label-title'>{t('数据源')}</span>
           <div class='form-box'>
-            <div></div>
+            <div>1</div>
             <div class='data-source-table'></div>
           </div>
         </div>
@@ -85,7 +63,7 @@ export default defineComponent({
           class='field-setting-alert'
           title={t('未匹配到对应字段，请手动指定字段后提交。')}
           type='warning'
-        ></bk-alert>
+        />
         <div class='label-form-box'>
           <span class='label-title'>{t('目标字段')}</span>
           <div class='form-box'>
@@ -137,7 +115,7 @@ export default defineComponent({
             {t('上一步')}
           </bk-button>
           <bk-button
-            class='mr-8 width-88'
+            class='width-88 mr-8'
             theme='primary'
           >
             {t('提交')}

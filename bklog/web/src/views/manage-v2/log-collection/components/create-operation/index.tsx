@@ -43,7 +43,7 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const mainRef = ref<HTMLDivElement>();
-    const step = ref(4);
+    const step = ref(2);
 
     const stepDesc = [
       { title: t('索引集分类'), icon: 1, components: StepClassify },
@@ -94,7 +94,7 @@ export default defineComponent({
                 cur-step={step.value}
                 line-type={'solid'}
                 steps={stepDesc}
-              ></bk-steps>
+              />
             </div>
             <span class='step-tips'>
               <i class='bklog-icon bklog-help help-icon' />

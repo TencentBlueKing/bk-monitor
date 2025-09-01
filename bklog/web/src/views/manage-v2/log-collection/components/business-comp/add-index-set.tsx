@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, ref, nextTick } from 'vue';
+import { defineComponent, type PropType, ref, nextTick } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
-import { ListItemData } from '../../type';
+import type { ListItemData } from '../../type';
 
 import './add-index-set.scss';
 
@@ -69,10 +69,47 @@ export default defineComponent({
     };
     expose({ autoFocus });
 
+    const renderButtons = () => {
+      /** 按钮模式 */
+      if (props.isFrom) {
+        return (
+          <div class='add-btns'>
+            <bk-button
+              class='mr8'
+              size='small'
+              theme='primary'
+              onClick={handleEditGroupSubmit}
+            >
+              {t('确定')}
+            </bk-button>
+            <bk-button
+              size='small'
+              onClick={handleEditGroupCancel}
+            >
+              {t('取消')}
+            </bk-button>
+          </div>
+        );
+      }
+      /** icon 模式 */
+      return (
+        <span class='icon-btns'>
+          <span
+            class='bk-icon icon-check-line submit-icon'
+            on-Click={handleEditGroupSubmit}
+          />
+          <span
+            class='bk-icon icon-close-line-2 close-icon'
+            on-Click={handleEditGroupCancel}
+          />
+        </span>
+      );
+    };
+
     // 新增/修改索引集名称
     const renderAddIndexSet = (item: ListItemData) => (
-      <div class='popover-add-index-set'>
-        <div class='title'>{props.isAdd ? t('新建索引集') : t('重命名')}</div>
+      <div class={props.isFrom ? 'popover-add-index-set' : 'add-index-set-input-main'}>
+        {props.isFrom && <div class='title'>{props.isAdd ? t('新建索引集') : t('重命名')}</div>}
         <bk-form
           ref={editFormRef}
           class='add-index-set-form'
@@ -85,37 +122,24 @@ export default defineComponent({
           }}
         >
           <bk-form-item
-            label={t('索引集名称')}
+            label={props.isFrom ? t('索引集名称') : ''}
             property='group_name'
             required
           >
             <bk-input
               ref={inputRef}
+              placeholder={props.isFrom ? t('请输入') : t('请输入索引集名称')}
+              size={!props.isFrom && 'small'}
               value={item.label}
               clearable
               onInput={val => (item.label = val)}
             />
           </bk-form-item>
         </bk-form>
-        <div class='add-btns'>
-          <bk-button
-            class='mr8'
-            size='small'
-            theme='primary'
-            onClick={handleEditGroupSubmit}
-          >
-            {t('确定')}
-          </bk-button>
-          <bk-button
-            size='small'
-            onClick={handleEditGroupCancel}
-          >
-            {t('取消')}
-          </bk-button>
-        </div>
+        {renderButtons()}
       </div>
     );
 
-    return () => <div class='add-index-set-box'>{props.isFrom && renderAddIndexSet(props.data)}</div>;
+    return () => <div class='add-index-set-box'>{renderAddIndexSet(props.data)}</div>;
   },
 });

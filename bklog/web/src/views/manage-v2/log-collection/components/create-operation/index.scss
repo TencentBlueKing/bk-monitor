@@ -5,6 +5,9 @@
   .ml-12 {
     margin-left: 12px;
   }
+  .mt-5 {
+    margin-top: 5px;
+  }
   .block {
     display: block;
   }
@@ -129,7 +132,7 @@
         &::after {
           height: 8px;
           line-height: 1;
-          content: '*';
+          content: "*";
           color: #ea3636;
           font-size: 12px;
           position: absolute;
@@ -141,7 +144,7 @@
         }
         &.no-require {
           &::after {
-            content: '';
+            content: "";
           }
         }
       }
@@ -150,7 +153,9 @@
       }
       .form-box {
         flex: 1;
-        // padding-top: 6px;
+        .bk-form-radio {
+          margin-top: 5px;
+        }
         .form-box-tips {
           margin-left: 12px;
           font-size: 12px;

@@ -29,6 +29,7 @@ import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import useLocale from '@/hooks/use-locale';
 
 import { useOperation } from '../../hook/useOperation';
+import BaseInfo from '../business-comp/base-info';
 import InfoTips from '../common-comp/info-tips';
 
 import './step2-configuration.scss';
@@ -41,53 +42,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const { cardRender } = useOperation();
-    const formData = ref({ name: '' });
     /** 基本信息 */
-    const renderBaseInfo = () => (
-      <bk-form
-        class='base-info-form'
-        label-width={100}
-        // model={formData.value}
-      >
-        <bk-form-item
-          label={t('采集名')}
-          property='name'
-          required={true}
-        >
-          <bk-input
-            maxlength={50}
-            value={formData.value.name}
-            clearable
-            onInput={val => (formData.value.name = val)}
-          />
-        </bk-form-item>
-        <bk-form-item
-          label={t('数据名')}
-          required={true}
-        >
-          <bk-input
-            maxlength={50}
-            minlength={5}
-            placeholder={t('用于索引和数据源，仅支持数字、字母、下划线，5～50 字符')}
-            value={formData.value.name}
-            clearable
-            onInput={val => (formData.value.name = val)}
-          />
-        </bk-form-item>
-        <bk-form-item label={t('所属索引集')}>
-          <bk-select />
-        </bk-form-item>
-        <bk-form-item label={t('备注说明')}>
-          <bk-input
-            maxlength={100}
-            type='textarea'
-            value={formData.value.name}
-            clearable
-            onInput={val => (formData.value.name = val)}
-          />
-        </bk-form-item>
-      </bk-form>
-    );
+    const renderBaseInfo = () => <BaseInfo />;
     /** 源日志信息 */
     const renderSourceLogInfo = () => (
       <div class='source-log-info'>
@@ -101,12 +57,12 @@ export default defineComponent({
             <div class='line-rule'>
               <div class='label-title text-left'>{t('行首正则')}</div>
               <div class='rule-reg'>
-                <bk-input class='reg-input'></bk-input>
+                <bk-input class='reg-input' />
                 <span class='form-link debug'>{t('调试')}</span>
               </div>
               <div class='line-rule-box'>
                 <div class='line-rule-box-item'>
-                  <div class='label-title text-left no-require'>{t('最多匹配')}</div>
+                  <div class='label-title no-require text-left'>{t('最多匹配')}</div>
                   <bk-input>
                     <div
                       class='group-text'
@@ -117,7 +73,7 @@ export default defineComponent({
                   </bk-input>
                 </div>
                 <div class='line-rule-box-right'>
-                  <div class='label-title text-left no-require'>{t('最大耗时')}</div>
+                  <div class='label-title no-require text-left'>{t('最大耗时')}</div>
                   <bk-input class='time-box'>
                     <div
                       class='group-text'
@@ -148,7 +104,7 @@ export default defineComponent({
           <div class='form-box'>
             <InfoTips tips={t('日志文件的绝对路径，可使用 通配符')} />
             <div class='form-box-url'>
-              <bk-input></bk-input>
+              <bk-input />
             </div>
             <div>
               <span class='form-link'>
@@ -172,8 +128,8 @@ export default defineComponent({
         </div>
         <div class='label-form-box'>
           <span class='label-title'>{t('日志过滤')}</span>
-          <div class='form-box'>
-            <bk-switcher size='large'></bk-switcher>
+          <div class='form-box mt-5'>
+            <bk-switcher size='large' />
             <InfoTips
               class='ml-12'
               tips={t('过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本')}
@@ -182,8 +138,8 @@ export default defineComponent({
         </div>
         <div class='label-form-box'>
           <span class='label-title'>{t('设备元数据')}</span>
-          <div class='form-box'>
-            <bk-switcher size='large'></bk-switcher>
+          <div class='form-box mt-5'>
+            <bk-switcher size='large' />
             <InfoTips
               class='ml-12'
               tips={t('该设置可以将采集设备的元数据信息补充至日志中')}
@@ -229,7 +185,7 @@ export default defineComponent({
             {t('上一步')}
           </bk-button>
           <bk-button
-            class='mr-8 width-88'
+            class='width-88 mr-8'
             theme='primary'
             on-click={() => {
               emit('next');
