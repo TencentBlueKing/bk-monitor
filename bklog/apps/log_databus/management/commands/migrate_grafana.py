@@ -41,7 +41,7 @@ class Command(BaseCommand):
         # 获取命令行参数
         grafana_url = options["grafana_url"]
         selected_biz = options["selected_biz"]
-        app_code = options["app_code"]
+        # app_code = options["app_code"]
 
         # 从 bk_log 获取 grafana 配置数据
         grafana_data, extract_failed_biz = self.get_grafana_config(grafana_client, selected_biz)
@@ -50,8 +50,8 @@ class Command(BaseCommand):
         # 写入配置数据到新 Grafana,由用户进行指定
         write_failed_biz = self.write_config_to_grafana(grafana_url, grafana_data, biz_to_org_mapping)
 
-        # 迁移权限
-        self.migrate_permissions(app_code)
+        # 迁移权限 - 先不迁移权限
+        # self.migrate_permissions(app_code)
 
         # 集中展示错误信息
         self.show_error_info(extract_failed_biz, convert_failed_biz, write_failed_biz)
