@@ -101,6 +101,7 @@ class LogServiceRelation(ServiceBase):
     related_bk_biz_id = models.IntegerField("关联的业务id", null=True)
     # 已过时，不再使用
     value = models.CharField("日志值", max_length=512)
+    # 需要保证value_list中的值是是 int 类型
     value_list = models.JSONField("日志值列表", default=list)
 
     @classmethod

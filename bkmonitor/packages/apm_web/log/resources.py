@@ -48,20 +48,12 @@ def process_service_relation(bk_biz_id, app_name, service_name, indexes_mapping,
             relation_full_indexes = get_biz_index_sets_with_cache(bk_biz_id=relation.related_bk_biz_id)
             indexes_mapping[relation.related_bk_biz_id] = relation_full_indexes
             index_info = next(
-                (
-                    i
-                    for i in relation_full_indexes
-                    if str(i["index_set_id"]) == relation.value or i["index_set_id"] in relation.value_list
-                ),
+                (i for i in relation_full_indexes if i["index_set_id"] in relation.value_list),
                 None,
             )
         else:
             index_info = next(
-                (
-                    i
-                    for i in indexes_mapping.get(bk_biz_id, [])
-                    if str(i["index_set_id"]) == relation.value or i["index_set_id"] in relation.value_list
-                ),
+                (i for i in indexes_mapping.get(bk_biz_id, []) if i["index_set_id"] in relation.value_list),
                 None,
             )
         if index_info:
