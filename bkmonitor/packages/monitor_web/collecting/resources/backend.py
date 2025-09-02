@@ -484,15 +484,15 @@ class CollectConfigDetailResource(Resource):
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
 
-        # 请求IP选择器接口，获取采集目标
-        if (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.INSTANCE
-        ):
-            if not collect_config_meta.deployment_config.target_nodes:
-                # 如果没有目标节点，直接返回空列表
-                target_result = []
-            else:
+        if not collect_config_meta.deployment_config.target_nodes:
+            # 如果没有目标节点，直接返回空列表
+            target_result = []
+        else:
+            # 请求IP选择器接口，获取采集目标
+            if (
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.INSTANCE
+            ):
                 target_result = resource.commons.get_host_instance_by_ip(
                     {
                         "bk_biz_id": collect_config_meta.bk_biz_id,
@@ -500,14 +500,10 @@ class CollectConfigDetailResource(Resource):
                         "ip_list": collect_config_meta.deployment_config.target_nodes,
                     }
                 )
-        elif (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.TOPO
-        ):
-            if not collect_config_meta.deployment_config.target_nodes:
-                # 如果没有目标节点，直接返回空列表
-                target_result = []
-            else:
+            elif (
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.TOPO
+            ):
                 node_list = []
                 for item in collect_config_meta.deployment_config.target_nodes:
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
@@ -515,17 +511,13 @@ class CollectConfigDetailResource(Resource):
                 target_result = resource.commons.get_host_instance_by_node(
                     {"bk_biz_id": collect_config_meta.bk_biz_id, "node_list": node_list}
                 )
-        elif collect_config_meta.target_object_type in [
-            TargetObjectType.HOST,
-            TargetObjectType.SERVICE,
-        ] and collect_config_meta.deployment_config.target_node_type in [
-            TargetNodeType.SERVICE_TEMPLATE,
-            TargetNodeType.SET_TEMPLATE,
-        ]:
-            if not collect_config_meta.deployment_config.target_nodes:
-                # 如果没有目标节点，直接返回空列表
-                target_result = []
-            else:
+            elif collect_config_meta.target_object_type in [
+                TargetObjectType.HOST,
+                TargetObjectType.SERVICE,
+            ] and collect_config_meta.deployment_config.target_node_type in [
+                TargetNodeType.SERVICE_TEMPLATE,
+                TargetNodeType.SET_TEMPLATE,
+            ]:
                 target_result = []
                 templates = {
                     template["bk_inst_id"]: template["bk_inst_name"]
@@ -541,14 +533,10 @@ class CollectConfigDetailResource(Resource):
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                     item.update({"bk_inst_name": templates.get(item["bk_inst_id"])})
                     target_result.append(item)
-        elif (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.DYNAMIC_GROUP
-        ):
-            if not collect_config_meta.deployment_config.target_nodes:
-                # 如果没有目标节点，直接返回空列表
-                target_result = []
-            else:
+            elif (
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.DYNAMIC_GROUP
+            ):
                 bk_inst_ids = []
                 for item in collect_config_meta.deployment_config.target_nodes:
                     bk_inst_ids.append(item["bk_inst_id"])
@@ -559,10 +547,6 @@ class CollectConfigDetailResource(Resource):
                     with_count=True,
                 )
 
-        else:
-            if not collect_config_meta.deployment_config.target_nodes:
-                # 如果没有目标节点，直接返回空列表
-                target_result = []
             else:
                 node_list = []
                 for item in collect_config_meta.deployment_config.target_nodes:
