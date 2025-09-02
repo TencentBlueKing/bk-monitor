@@ -91,7 +91,7 @@ const updateLocalstorage = (val: any) => {
 };
 
 const getUrlArgs = (_route?) => {
-  let urlResolver: RouteUrlResolver = null;
+  let urlResolver: RouteUrlResolver | null = null;
 
   if (!_route) {
     const router = new VueRouter({
@@ -160,7 +160,7 @@ const update_URL_ARGS = route => {
 export { URL_ARGS, update_URL_ARGS };
 
 export const getDefaultRetrieveParams = (defaultValue?) => {
-  return {
+  return Object.assign({
     keyword: '',
     host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
     ip_chooser: {},
@@ -171,9 +171,10 @@ export const getDefaultRetrieveParams = (defaultValue?) => {
     interval: 'auto',
     timezone: 'Asia/Shanghai',
     search_mode: 'ui',
-    ...(defaultValue ?? {}),
-    ...URL_ARGS,
-  };
+  },
+    defaultValue,
+    URL_ARGS,
+  );
 };
 
 export const getDefaultDatePickerValue = () => {

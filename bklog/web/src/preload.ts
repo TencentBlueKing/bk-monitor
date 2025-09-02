@@ -25,6 +25,7 @@
  */
 
 import { VIEW_BUSINESS } from './common/authority-map';
+import { URL_ARGS } from './store/default-values';
 import { BK_LOG_STORAGE } from './store/store.type';
 
 /** 外部版根据空间授权权限显示菜单 */
@@ -48,6 +49,32 @@ export default ({
   store: any;
   isExternal?: boolean;
 }) => {
+
+  /**
+   * 根据索引ID获取空间信息
+   * 如果当前URL参数中没有spaceUid和bizId，则根据index_id获取空间信息
+   * 如果当前URL参数中没有index_id，则跳过
+   * @returns 
+   */
+  const getSpaceByIndexId = () => {
+    if (URL_ARGS.index_id && (!URL_ARGS.spaceUid && !URL_ARGS.bizId)) {
+      return http.request('indexSet/getSpaceByIndexId', {
+        params: {
+          index_set_id: URL_ARGS.index_id,
+        },
+      }).then(resp => {
+        if (resp.result) {
+          store.commit('updateSpace', resp.data);
+          store.commit('updateStorage', {
+            [BK_LOG_STORAGE.BK_BIZ_ID]: resp.data.bk_biz_id,
+            [BK_LOG_STORAGE.BK_SPACE_UID]: resp.data.space_uid,
+          });
+        }
+      });
+    }
+    return Promise.resolve(true);
+  }
+
   /**
    * 获取空间列表
    * return
@@ -62,32 +89,34 @@ export default ({
 
     store.commit('updateMySpaceList', spaceList);
 
-    const space_uid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
-    const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
-    let space: { [key: string]: any } | null = null;
+    return getSpaceByIndexId().then(() => {
+      const space_uid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+      const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+      let space: { [key: string]: any } | null = null;
 
-    if (space_uid) {
-      space = (spaceList ?? []).find(item => item.space_uid === space_uid);
-    }
+      if (space_uid) {
+        space = (spaceList ?? []).find(item => item.space_uid === space_uid);
+      }
 
-    if (!space && bkBizId) {
-      space = (spaceList ?? []).find(item => item.bk_biz_id === bkBizId);
-    }
+      if (!space && bkBizId) {
+        space = (spaceList ?? []).find(item => item.bk_biz_id === bkBizId);
+      }
 
-    if (!space?.permission?.[VIEW_BUSINESS]) {
-      space = spaceList?.find(item => item?.permission?.[VIEW_BUSINESS]) ?? spaceList?.[0];
-    }
+      if (!space?.permission?.[VIEW_BUSINESS]) {
+        space = spaceList?.find(item => item?.permission?.[VIEW_BUSINESS]) ?? spaceList?.[0];
+      }
 
-    store.commit('updateSpace', space?.space_uid);
+      store.commit('updateSpace', space?.space_uid);
 
-    if (space && (space_uid !== space.space_uid || bkBizId !== space.bk_biz_id)) {
-      store.commit('updateStorage', {
-        [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
-        [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
-      });
-    }
+      if (space && (space_uid !== space.space_uid || bkBizId !== space.bk_biz_id)) {
+        store.commit('updateStorage', {
+          [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
+          [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
+        });
+      }
 
-    return space;
+      return space;
+    });
   });
 
   const userInfoRequest = http.request('userInfo/getUsername').then(resp => {
