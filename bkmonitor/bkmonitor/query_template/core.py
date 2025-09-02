@@ -222,8 +222,8 @@ class ExpressionFunctionsVariableRender(BaseVariableRender):
             if value is None:
                 continue
 
+            result_functions: list[dict[str, Any]] = []
             val_tmpl: str = self.to_template(variable["name"])
-            result_functions = []
             for function in self._query_instance.functions:
                 if function == val_tmpl:
                     result_functions.extend(value)
