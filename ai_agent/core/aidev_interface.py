@@ -27,8 +27,16 @@ class AIDevInterface:
 
     # -------------------- Agent管理 -------------------- #
     def get_agent_info(self, agent_code):
-        """获取Agent配置信息"""
-        return self.api_client.api.retrieve_agent_config(path_params={"agent_code": agent_code})
+        """获取Agent配置信息；去除 data['prompt_setting'] 字段"""
+        res = self.api_client.api.retrieve_agent_config(path_params={"agent_code": agent_code})
+        try:
+            data = res.get("data", {}) if isinstance(res, dict) else None
+            if isinstance(data, dict) and "prompt_setting" in data:
+                # TODO：AIDEV平台改造完成后移除,不返回 prompt_setting，避免提示词泄漏
+                del data["prompt_setting"]
+        except Exception as e:  # 出现异常不应影响主流程
+            logger.warning("get_agent_info: failed to strip prompt_setting: %s", e)
+        return res
 
     # -------------------- 会话管理 -------------------- #
 
@@ -41,11 +49,13 @@ class AIDevInterface:
         self.create_chat_session_content(
             params={
                 "session_code": session_code,
-                "role":"hidden-role",
-                "content":session_res["data"]["role_info"]["role_content"][0]["content"]
+                "role": "hidden-role",
+                "content": session_res["data"]["role_info"]["role_content"][0]["content"],
             }
         )
-        logger.info("create_chat_session: create session and add system prompt successfully,session_code->[%s]", session_code)
+        logger.info(
+            "create_chat_session: create session and add system prompt successfully,session_code->[%s]", session_code
+        )
         return session_res
 
     def retrieve_chat_session(self, session_code):
@@ -107,7 +117,7 @@ class AIDevInterface:
         return self.api_client.api.update_chat_session_content(path_params={"id": id}, json=params)
 
     # ==================== 发起对话 ====================
-    def create_chat_completion(self, session_code, execute_kwargs, agent_code, username,temperature=0.3):
+    def create_chat_completion(self, session_code, execute_kwargs, agent_code, username, temperature=0.3):
         """发起流式/非流式会话"""
         callbacks = [get_langfuse_callback()]  # 添加Langfuse回调
         agent_instance = AgentInstanceFactory.build_agent(
