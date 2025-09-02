@@ -29,7 +29,7 @@
     theme="primary"
     :header-position="'left'"
     :confirm-fn="handleSubmit"
-    :title="$t('快捷屏蔽策略')"
+    :title="`${$t('策略屏蔽')}（${strategyName}）`"
     width="773px"
     @after-leave="handleAfterLeave"
   >
@@ -129,6 +129,7 @@ export default {
       default: false,
     },
     strategyId: Number,
+    strategyName: String,
   },
   data() {
     return {

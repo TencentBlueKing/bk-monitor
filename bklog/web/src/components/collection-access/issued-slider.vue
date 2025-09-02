@@ -166,7 +166,7 @@
                           <!-- eslint-disable-next-line vue/no-v-html -->
                           <p
                             class="fl"
-                            v-html="collaspseHeadInfo(cluster)"
+                            v-html="$xss(collaspseHeadInfo(cluster))"
                           ></p>
                         </div>
                       </template>
@@ -253,7 +253,7 @@
                   </div>
                   <div
                     class="detail-content"
-                    v-html="detail.content"
+                    v-html="$xss(detail.content)"
                   ></div>
                 </div>
               </div>
@@ -470,11 +470,11 @@
         }
         this.curTab = tab.type;
         if (this.curTab === 'all') {
-          this.tableList = JSON.parse(JSON.stringify(this.tableListAll));
+          this.tableList = structuredClone(this.tableListAll);
         } else {
           const child = [];
           this.tableListAll.forEach(item => {
-            const copyItem = JSON.parse(JSON.stringify(item));
+            const copyItem = structuredClone(item);
             copyItem.child = copyItem.child.filter(row => row.status === this.curTab);
             if (copyItem.child.length) {
               child.push(copyItem);

@@ -85,13 +85,22 @@ export default class CheckedboxList extends tsc<CheckedboxListProps, CheckedboxL
                     {group.children.map(
                       item =>
                         item.show && (
-                          <div class='checkedbox-item'>
+                          <div 
+                            class='checkedbox-item'
+                            v-bk-tooltips={{
+                              maxWidth: 480,
+                              content:
+                                this.$t('只有数值类型的字段可作为监控指标'),
+                              disabled: item.id !== 'bk_data',
+                              allowHTML: false,
+                            }}
+                          >
                             <bk-checkbox
                               key={item.id}
                               value={item.id}
                             >
                               <span
-                                class='item-name'
+                                class={`item-name ${item.id === 'bk_data' ? 'border-dashed' : ''}`}
                                 v-bk-overflow-tips={{ placement: 'right' }}
                               >
                                 {item.name}

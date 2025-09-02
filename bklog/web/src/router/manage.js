@@ -36,32 +36,47 @@ const LogDesensitizeView = { name: 'LogDesensitizeView', template: '<router-view
 
 // 管理模块各组件异步声明（用于路由懒加载）
 const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
-const CollectionItem = () => import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
-const ManageCollection = () => import(/* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection');
+const CollectionItem = () =>
+  import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
+const ManageCollection = () =>
+  import(
+    /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
+  );
 const AccessSteps = () => import(/* webpackChunkName: 'access-steps' */ '@/components/collection-access');
-const IndexList = () => import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
-const ManageIndex = () => import(/* webpackChunkName: 'mange-index' */ '@/views/manage/manage-access/components/index-set/manage');
-const CreateIndex = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/components/index-set/create');
-const CustomReportList = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/list');
-const CustomReportCreate = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/create');
-const CustomReportDetail = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/detail');
-const CollectionTrack = () => import(/* webpackChunkName: 'collection-track' */ '@/views/manage/trace-track/collection-track');
+const IndexList = () =>
+  import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
+const ManageIndex = () =>
+  import(/* webpackChunkName: 'mange-index' */ '@/views/manage/manage-access/components/index-set/manage');
+const CreateIndex = () =>
+  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/components/index-set/create');
+const CustomReportList = () =>
+  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/list');
+const CustomReportCreate = () =>
+  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/create');
+const CustomReportDetail = () =>
+  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/detail');
+const CollectionTrack = () =>
+  import(/* webpackChunkName: 'collection-track' */ '@/views/manage/trace-track/collection-track');
 const SdkTrack = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/trace-track/sdk-track');
 const cleanList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-manage/list');
 const cleanCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-manage/create');
-const cleanTempCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/create');
+const cleanTempCreate = () =>
+  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/create');
 const cleanTemplate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/list');
-const ArchiveRepository = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-repository/list');
-const ArchiveList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-list/list');
-const ArchiveRestore = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-restore/list');
+const ArchiveRepository = () =>
+  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-repository/index.tsx');
+const ArchiveList = () =>
+  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-list/index.tsx');
+const ArchiveRestore = () =>
+  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-restore/index.tsx');
 const ReportManage = () => import(/* webpackChunkName: 'report-manage' */ '@/views/manage/report-management');
-const ExtractPermission = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage/manage-extract/manage-extract-permission');
-const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/extract/index');
-const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views/extract/home');
-const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/extract/create');
-const ExtractLinkList = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage/manage-extract/extract-link-manage/extract-link-list');
-const ExtractLinkCreate = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage/manage-extract/extract-link-manage/extract-link-create');
-const ClusterMess = () => import(/* webpackChunkName: 'es-cluster-mess' */ '@/views/manage/es-cluster-status/es-cluster-mess');
+const ExtractConfig = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage-v2/log-extract/extract-config/index.tsx');
+const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/manage-v2/log-extract/extract-task/index.tsx');
+const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views/manage-v2/log-extract/extract-task/task-list/index.tsx');
+const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/manage-v2/log-extract/extract-task/task-create/index.tsx');
+const ExtractLinkList = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-list.tsx');
+const ExtractLinkCreate = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-create.tsx');
+const ClusterMess = () => import(/* webpackChunkName: 'es-cluster-mess' */ '@/views/manage-v2/es-cluster/cluster-manage/index.tsx');
 const DataLinkConf = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/manage-data-link/manage-data-link-conf');
 const MaskingEdit = () => import(/* webpackChunkName: 'field-masking-separate' */ '@/views/manage/field-masking-separate');
 const MaskingList = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/log-clean/clean-masking/list');
@@ -120,7 +135,7 @@ const getManageRoutes = () => [
               },
               // 查看采集项
               {
-                path: 'collection-item/manage/:collectorId',
+                path: 'manage/:collectorId',
                 name: 'manage-collection',
                 meta: {
                   title: '日志采集',
@@ -132,7 +147,7 @@ const getManageRoutes = () => [
               },
               // 新建采集项
               {
-                path: 'collection-item/add',
+                path: 'add',
                 name: 'collectAdd',
                 meta: {
                   title: '日志采集',
@@ -144,7 +159,7 @@ const getManageRoutes = () => [
               },
               // 编辑采集项
               {
-                path: 'collection-item/edit/:collectorId',
+                path: 'edit/:collectorId',
                 name: 'collectEdit',
                 meta: {
                   title: '日志采集',
@@ -156,7 +171,7 @@ const getManageRoutes = () => [
               },
               // 字段清洗
               {
-                path: 'collection-item/field/:collectorId',
+                path: 'field/:collectorId',
                 name: 'collectField',
                 meta: {
                   title: '日志采集',
@@ -168,7 +183,7 @@ const getManageRoutes = () => [
               },
               // 存储配置
               {
-                path: 'collection-item/storage/:collectorId',
+                path: 'storage/:collectorId',
                 name: 'collectStorage',
                 meta: {
                   title: '日志采集',
@@ -180,7 +195,7 @@ const getManageRoutes = () => [
               },
               // 脱敏配置
               {
-                path: 'collection-item/masking/:collectorId',
+                path: 'masking/:collectorId',
                 name: 'collectMasking',
                 meta: {
                   title: '日志采集',
@@ -192,7 +207,7 @@ const getManageRoutes = () => [
               },
               // 启用采集项
               {
-                path: 'collection-item/start/:collectorId',
+                path: 'start/:collectorId',
                 name: 'collectStart',
                 meta: {
                   title: '日志采集',
@@ -204,7 +219,7 @@ const getManageRoutes = () => [
               },
               // 停用采集项
               {
-                path: 'collection-item/stop/:collectorId',
+                path: 'stop/:collectorId',
                 name: 'collectStop',
                 meta: {
                   title: '日志采集',
@@ -214,7 +229,7 @@ const getManageRoutes = () => [
                 },
                 component: AccessSteps,
               },
-            ]
+            ],
           },
           // 索引集
           {
@@ -625,7 +640,7 @@ const getManageRoutes = () => [
       {
         path: 'manage-log-extract',
         name: 'manage-log-extract',
-        component: ExtractPermission,
+        component: ExtractConfig,
         meta: {
           title: '日志提取',
           navId: 'manage-log-extract',
@@ -656,25 +671,25 @@ const getManageRoutes = () => [
           {
             path: 'extract-create',
             name: 'extract-create',
+            component: extractCreate,
             meta: {
               title: '日志提取',
               needBack: true,
               backName: 'log-extract-task',
               navId: 'log-extract-task',
             },
-            component: extractCreate,
           },
           // 克隆提取任务
           {
             path: 'extract-clone',
             name: 'extract-clone',
+            component: extractCreate,
             meta: {
               title: '日志提取',
               needBack: true,
               backName: 'log-extract-task',
               navId: 'log-extract-task',
             },
-            component: extractCreate,
           },
         ],
       },
@@ -830,9 +845,9 @@ const getManageRoutes = () => [
       {
         path: 'collect',
         redirect: '/manage/log-collection/collection-item',
-      }
-    ]
-  }
+      },
+    ],
+  },
 ];
 
 export default getManageRoutes;

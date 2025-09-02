@@ -156,6 +156,8 @@ export default {
   URI信息: 'URI Info',
   URI配置: 'URI Configuration',
   例如: 'For example',
+  响应耗时: 'Response Time',
+
   // 调用分析
   维度值分布: 'Dimension value distribution',
   K8S对象: 'K8s object',
@@ -195,4 +197,22 @@ export default {
   快捷筛选: 'Quick filter',
   告警分析设置: 'Alarm Analysis Settings',
   与我相关: 'Related to me',
+  事件分析: 'Event Analysis',
+  // 指标模版
+  函数变量: 'Function Variable',
+  维度变量: 'Dimension Variable',
+  维度值变量: 'Dimension Value Variable',
+  汇聚变量: 'Aggregation Variable',
+  条件变量: 'Condition Variable',
+  常规变量: 'General Variable',
+  变量管理: 'Variable Management',
+  如何使用变量: 'How to use variables',
+  使用变量: 'Use variable',
+  定义变量: 'Define variable',
+  后续消费: 'Subsequent consumption',
+  创建变量: 'Create variable',
+  变量配置框: 'Variable configuration box',
+  查询模板: 'Query template',
+  变量值: 'Variable value',
+  模板配置预览: 'Template configuration preview',
 };

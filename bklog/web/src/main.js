@@ -27,34 +27,35 @@
 import './public-path';
 
 import Vue from 'vue';
+import VueVirtualScroller from 'vue-virtual-scroller';
 
 import LogButton from '@/components/log-button';
+import LogIcon from '@/components/log-icon';
 import i18n from '@/language/i18n';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
+import { debounce } from 'lodash-es';
 
-import { debounce } from 'lodash';
-
-import App from './App';
 import http from './api';
+import App from './app.tsx';
 import { bus } from './common/bus';
-import { renderHeader } from './common/util';
+import './common/preload-import.ts';
+import { renderHeader, xssFilter } from './common/util';
 import './directives/index';
 import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
+import preload, { getExternalMenuListBySpace } from './preload';
 import getRouter from './router';
 import store from './store';
-import preload, { getExternalMenuListBySpace } from './preload';
-
-import './static/style.css';
-import './static/font-face/index.css';
-import './scss/theme/theme-dark.scss';
-import './scss/theme/theme-light.scss';
 import { BK_LOG_STORAGE } from './store/store.type';
 
-import VueVirtualScroller from 'vue-virtual-scroller'
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+import './scss/theme/theme-dark.scss';
+import './scss/theme/theme-light.scss';
+import './static/font-face/index.css';
+import './static/style.css';
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 Vue.prototype.$renderHeader = renderHeader;
+Vue.prototype.$xss = xssFilter;
 
 const setRouterErrorHandle = router => {
   router.onError(err => {
@@ -69,9 +70,10 @@ const setRouterErrorHandle = router => {
 
 Vue.component('JsonFormatWrapper', JsonFormatWrapper);
 Vue.component('LogButton', LogButton);
+Vue.component('LogIcon', LogIcon);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
-Vue.use(VueVirtualScroller)
+Vue.use(VueVirtualScroller);
 
 const mountedVueInstance = () => {
   window.mainComponent = {
@@ -84,7 +86,7 @@ const mountedVueInstance = () => {
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
 
     let externalMenu = [];
-     if (window.IS_EXTERNAL && space) {
+    if (window.IS_EXTERNAL && space) {
       externalMenu = getExternalMenuListBySpace(space) ?? [];
       store.commit('updateExternalMenu', externalMenu);
     }
@@ -100,6 +102,18 @@ const mountedVueInstance = () => {
       i18n,
       components: {
         App,
+      },
+      mounted() {
+        // 对于手动输入URL，直接刷新页面重置所有参数和状态
+        window.addEventListener('hashchange', this.reset);
+      },
+      beforeUnmount() {
+        window.removeEventListener('hashchange', this.reset);
+      },
+      methods: {
+        reset() {
+          window.location.reload();
+        },
       },
       template: '<App/>',
     });

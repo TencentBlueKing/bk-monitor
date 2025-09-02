@@ -6,7 +6,7 @@
   import { BK_LOG_STORAGE } from '../../../store/store.type';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { debounce } from 'lodash';
+  import { debounce } from 'lodash-es';
 
   const emit = defineEmits(['menu-click']);
 
@@ -187,7 +187,7 @@
       class="field-value"
       ref="refFieldValue"
       :data-field-name="field.field_name"
-      v-html="renderText"
+      v-html="$xss(renderText)"
     ></span>
   </div>
 </template>

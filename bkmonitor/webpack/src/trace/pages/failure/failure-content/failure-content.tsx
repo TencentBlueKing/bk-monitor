@@ -97,8 +97,12 @@ export default defineComponent({
       type: Object as () => IAlertObj,
       default: () => ({}),
     },
+    isCollapsed: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['refresh', 'changeSelectNode'],
+  emits: ['refresh', 'changeSelectNode', 'closeCollapse'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const failureTopo = ref<InstanceType<typeof FailureTopo>>(null);
@@ -224,6 +228,11 @@ export default defineComponent({
         searchValidate.value = await handleValidateQueryString();
       }
     };
+
+    const handleCloseCollapse = (v: boolean) => {
+      emit('closeCollapse', v);
+    };
+
     return {
       tabList,
       active,
@@ -245,13 +254,14 @@ export default defineComponent({
       searchValidate,
       showTabList,
       isShowTab,
+      handleCloseCollapse,
     };
   },
   render() {
     return (
       <div class='failure-content'>
         <FailureMenu
-          width={'calc(100vw - 500px)'}
+          width={this.$props.isCollapsed ? '100vw' : 'calc(100vw - 500px)'}
           active={this.active}
           tabList={this.showTabList}
           onChange={this.handleChangeActive}
@@ -260,8 +270,10 @@ export default defineComponent({
           {this.isShowTab() && this.active === FailureContentTabView.FAILURE_TOPO && (
             <FailureTopo
               ref='failureTopo'
+              isCollapsed={this.$props.isCollapsed}
               selectNode={this.currentNodeData || []}
               onChangeSelectNode={this.handleChangeSelectNode}
+              onCloseCollapse={this.handleCloseCollapse}
               onPlaying={this.playingHandle}
               onRefresh={this.refresh}
               onToDetailTab={this.goAlertDetail}

@@ -12,6 +12,7 @@ from alarm_backends.constants import CONST_SECOND
 from alarm_backends.core.alert import Alert, AlertCache
 from alarm_backends.core.alert.alert import AlertKey
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager
+from alarm_backends.core.cache.subscribe import SubscribeCacheManager
 from alarm_backends.core.cache.assign import AssignCacheManager
 from alarm_backends.core.cache.key import ACTION_POLL_KEY_LOCK
 from alarm_backends.core.cluster import get_cluster_bk_biz_ids
@@ -377,7 +378,23 @@ class CreateActionProcessor:
 
         return count_md5(md5_elements)
 
+    def _merge_notify_info(self, target_notify_info: dict, source_notify_info: dict):
+        """
+        合并两个通知信息字典，去重处理
+        :param target_notify_info: 目标通知信息字典
+        :param source_notify_info: 源通知信息字典
+        """
+        for notice_way, users in source_notify_info.items():
+            if notice_way not in target_notify_info:
+                target_notify_info[notice_way] = []
+
+            # 去重：避免同一用户在同一渠道重复通知
+            for user in users:
+                if user not in target_notify_info[notice_way]:
+                    target_notify_info[notice_way].append(user)
+
     def get_action_relations(self):
+        # 获取对应signal的 处理套餐/告警通知配置
         if self.strategy:
             actions = copy.deepcopy(self.strategy.get("actions", []))
             self.notice = copy.deepcopy(self.strategy.get("notice", {}))
@@ -441,6 +458,10 @@ class CreateActionProcessor:
             desc = _("用户已确认当前告警，系统自动忽略所有的通知和处理套餐的执行")
             current_timestamp = int(time.time())
             if not alert.is_ack:
+                # 如果当前告警处理时延在1min以内，需要执行通知。
+                if alert.begin_time + CONST_SECOND * 60 < current_timestamp:
+                    return True
+
                 desc = _("当前告警状态发生变化，系统自动忽略{}的所有通知和处理套餐的执行").format(
                     ActionSignal.ACTION_SIGNAL_DICT.get(self.signal)
                 )
@@ -560,6 +581,7 @@ class CreateActionProcessor:
             return []
 
         if not actions:
+            # 策略配置的notice 和 action 未命中当前的signal
             logger.info(
                 "[create actions]ignore: empty config for signal(%s), strategy(%s), alerts %s",
                 self.signal,
@@ -568,11 +590,13 @@ class CreateActionProcessor:
             )
             return new_actions
 
+        # ActionConfig
         action_configs = {
             str(action["config_id"]): ActionConfigCacheManager.get_action_config_by_id(action["config_id"])
             for action in actions
         }
-        origin_actions = list(action_configs.keys())
+        # ActionConfig.id
+        origin_actions: list[str] = list(action_configs.keys())
 
         # 插件不会有很多项，直接拉全量的数据即可
         action_plugins = {
@@ -580,9 +604,13 @@ class CreateActionProcessor:
         }
 
         action_instances = []
+        # 告警通知人
         alerts_assignee = {}
+        # 分派负责人
         alerts_appointee = {}
+        # 升级关注人
         alerts_supervisor = {}
+        # 关注人
         alerts_follower = {}
 
         # 根据用户组信息获取人员
@@ -612,6 +640,7 @@ class CreateActionProcessor:
                 # 第三方告警如果没有适配到的规则，直接忽略
                 continue
             if self.notice_type == ActionNoticeType.UPGRADE:
+                # 告警升级
                 supervisors = assignee_manager.get_supervisors()
                 followers = assignee_manager.get_supervisors(user_type=UserGroupType.FOLLOWER)
                 if not supervisors:
@@ -635,7 +664,7 @@ class CreateActionProcessor:
                 # 如果有新的负责人，才进行更新
                 alerts_appointee[alert.id] = assignees
 
-            # 告警知会人
+            # 告警升级知会人
             alerts_supervisor[alert.id] = self.get_alert_related_users(supervisors, alerts_supervisor[alert.id])
 
             # 告警关注人
@@ -648,8 +677,8 @@ class CreateActionProcessor:
                 action_plugin = action_plugins.get(str(action_config["plugin_id"]))
                 skip_delay = int(action["options"].get("skip_delay", 0))
                 current_time = int(time.time())
-                # 如果当前时间距离告警开始时间，大于skip_delay，则不处理改套餐
                 if ActionSignal.ABNORMAL in action["signal"] and current_time - alert["begin_time"] > skip_delay > 0:
+                    # 如果当前时间距离告警开始时间，大于skip_delay，则不处理改套餐
                     description = {
                         "config_id": action["config_id"],
                         "action_name": action_config["name"],
@@ -691,6 +720,8 @@ class CreateActionProcessor:
                 if alert_log:
                     alert_logs.append(AlertLog(**alert_log))
         AssignCacheManager.clear()
+        # 清理订阅缓存
+        SubscribeCacheManager.clear()
         if action_instances:
             ActionInstance.objects.bulk_create(action_instances)
             new_actions.extend(
@@ -810,7 +841,6 @@ class CreateActionProcessor:
             )
             return
 
-        plugin_type = ActionPluginType.MESSAGE_QUEUE
         action_instance = ActionInstance.objects.create(
             alerts=self.alert_ids,
             signal=self.signal,
@@ -818,7 +848,7 @@ class CreateActionProcessor:
             alert_level=self.severity,
             bk_biz_id=self.alerts[0].event.bk_biz_id,
             dimensions=self.dimensions or [],
-            action_plugin={"plugin_type": plugin_type},
+            action_plugin={"plugin_type": ActionPluginType.MESSAGE_QUEUE},
         )
         PushActionProcessor.push_action_to_execute_queue(action_instance, self.alerts)
         new_actions.append(action_instance.id)
@@ -865,6 +895,7 @@ class CreateActionProcessor:
         except ValueError as error:
             logger.error("Get alert level failed: %s, alerts: %s", str(error), alert.alert_name)
         if action_plugin["plugin_type"] == ActionPluginType.NOTICE:
+            # 通知套餐，父 action_instance 创建
             is_parent_action = True
             notify_info = assignee_manager.get_notify_info()
             follow_notify_info = assignee_manager.get_notify_info(user_type=UserGroupType.FOLLOWER)
@@ -872,6 +903,12 @@ class CreateActionProcessor:
                 # 如果没有负责人的通知信息，需要将负责人通知信息带上，默认以当前适配到的通知方式为准
                 notify_configs = {notice_way: [] for notice_way in follow_notify_info.keys()}
                 notify_info = assignee_manager.get_appointee_notify_info(notify_configs)
+
+            # 获取并合并订阅用户信息
+            subscription_notify_info, subscription_follow_notify_info = assignee_manager.get_subscription_notify_info()
+            self._merge_notify_info(notify_info, subscription_notify_info)
+            self._merge_notify_info(follow_notify_info, subscription_follow_notify_info)
+
             # 如果当前用户即是负责人，又是通知人, 需要进行去重, 以通知人为准
             for notice_way, receivers in follow_notify_info.items():
                 valid_receivers = [

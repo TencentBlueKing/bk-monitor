@@ -67,6 +67,11 @@ class Config:
             "schedule": crontab(minute=27, hour=2),
             "enabled": True,
         },
+        "apm_web.tasks.refresh_apm_app_state_snapshot": {
+            "task": "apm_web.tasks.refresh_apm_app_state_snapshot",
+            "schedule": crontab(hour=0, minute=0),  # 每天凌晨0点执行
+            "enabled": True,
+        },
         "apm_web.tasks.refresh_application": {
             "task": "apm_web.tasks.refresh_application",
             "schedule": crontab(minute="*/10"),
@@ -112,6 +117,11 @@ class Config:
         "monitor_web.tasks.update_target_detail": {
             "task": "monitor_web.tasks.update_target_detail",
             "schedule": crontab(minute="*/15"),
+            "enabled": True,
+        },
+        "monitor_web.tasks.soft_delete_expired_shields": {
+            "task": "monitor_web.tasks.soft_delete_expired_shields",
+            "schedule": crontab(minute=0, hour=2),  # 每天凌晨2点执行
             "enabled": True,
         },
     }

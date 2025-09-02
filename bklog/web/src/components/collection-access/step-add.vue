@@ -335,10 +335,10 @@
               :height="670"
               :key="bkBizId"
               :original-value="ipSelectorOriginalValue"
-              :panel-list="ipSelectorPanelList"
               :show-dialog.sync="showIpSelectorDialog"
               :show-view-diff="isUpdate"
               :value="selectorNodes"
+              :panel-list="ipSelectorPanelList"
               mode="dialog"
               allow-host-list-miss-host-id
               @change="handleTargetChange"
@@ -515,7 +515,7 @@
 </template>
 
 <script>
-  import { projectManages, random, deepEqual, deepClone } from '@/common/util';
+  import { projectManages, random, deepEqual } from '@/common/util';
   import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector';
   import ContainerSvg from '@/images/container-icons/Container.svg';
   import LinuxSvg from '@/images/container-icons/Linux.svg';
@@ -745,6 +745,7 @@
           TOPO: '已动态选择{0}个节点',
           SERVICE_TEMPLATE: '已选择{0}个服务模板',
           SET_TEMPLATE: '已选择{0}个集群模板',
+          DYNAMIC_GROUP: '已选择{0}个动态组',
         },
         configBaseObj: {}, // 新增配置项的基础对象
         isYaml: false, // 是否是yaml模式
@@ -786,7 +787,7 @@
         isExtraError: false, // 附加标签是否有出错
         uiconfigToYamlData: {}, // 切换成yaml时当前保存的ui配置
         // ip选择器面板
-        ipSelectorPanelList: ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'],
+        ipSelectorPanelList: ['staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'],
         // 编辑态ip选择器初始值
         ipSelectorOriginalValue: null,
         enLabelWidth: 180,
@@ -909,11 +910,11 @@
     created() {
       this.isClone = this.$route.query?.type === 'clone';
       this.$store.commit('updateRouterLeaveTip', false);
-      this.configBaseObj = deepClone(this.formData.configs[0]); // 生成配置项的基础对象
+      this.configBaseObj = structuredClone(this.formData.configs[0]); // 生成配置项的基础对象
       this.getLinkData();
       // 克隆与编辑均进行数据回填
       if (this.isUpdate || this.isClone) {
-        const cloneCollect = deepClone(this.curCollect);
+        const cloneCollect = structuredClone(this.curCollect);
         this.initFromData(cloneCollect);
         if (!this.isPhysicsEnvironment) {
           const initFormData = this.initContainerFormData(cloneCollect);
@@ -975,7 +976,7 @@
        * @returns { Object } 返回初始化后的Form表单
        */
       initContainerFormData(formData, initType = 'all', isYamlData = false) {
-        const curFormData = deepClone(formData);
+        const curFormData = structuredClone(formData);
         if (!curFormData.extra_labels.length && initType !== 'collect') {
           curFormData.extra_labels = [
             {
@@ -1089,7 +1090,7 @@
        * @returns { Object } 返回初始化后的Form表单
        */
       getInitFormData(formData) {
-        const curFormData = deepClone(formData);
+        const curFormData = structuredClone(formData);
         // win_event类型不需要初始化分隔符的过滤条件
         if (!curFormData.params.conditions?.separator_filters && curFormData.collector_scenario_id !== 'wineventlog') {
           curFormData.params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
@@ -1298,7 +1299,7 @@
        * @returns {Object} 返回提交参数数据
        */
       handleParams() {
-        const formData = deepClone(this.formData);
+        const formData = structuredClone(this.formData);
         const {
           collector_config_name,
           collector_config_name_en,
@@ -1354,7 +1355,7 @@
               item.container.workload_type = '';
               item.container.workload_name = '';
             }
-            const cloneNamespaces = deepClone(item.namespaces);
+            const cloneNamespaces = structuredClone(item.namespaces);
             delete item.namespaces;
             item[namespacesKey] = cloneNamespaces;
             item.label_selector = this.getSelectorQueryParams(item.labelSelector, {
@@ -1413,7 +1414,7 @@
        * @param { Object } passParams
        */
       filterParams(passParams) {
-        let params = deepClone(passParams);
+        let params = structuredClone(passParams);
         if (!this.isWinEventLog) {
           if (!this.hasMultilineReg) {
             // 行首正则未开启
@@ -1492,6 +1493,7 @@
           node_list: nodeList,
           service_template_list: serviceTemplateList,
           set_template_list: setTemplateList,
+          dynamic_group_list: dynamicGroupList,
         } = value;
         let type = '';
         let nodes = [];
@@ -1510,6 +1512,10 @@
         if (setTemplateList?.length) {
           type = 'SET_TEMPLATE';
           nodes = setTemplateList;
+        }
+        if (dynamicGroupList?.length) {
+          type = 'DYNAMIC_GROUP';
+          nodes = dynamicGroupList;
         }
         if (!type) return;
 
@@ -1576,7 +1582,7 @@
       },
       handleAddNewContainerConfig() {
         // 添加配置项
-        const newContainerConfig = deepClone(this.configBaseObj);
+        const newContainerConfig = structuredClone(this.configBaseObj);
         this.publicLetterIndex += 1;
         newContainerConfig.noQuestParams.letterIndex = this.publicLetterIndex;
         this.formData.configs.push(newContainerConfig);
@@ -1701,6 +1707,7 @@
           node_list: type === 'TOPO' ? targetList : [],
           service_template_list: type === 'SERVICE_TEMPLATE' ? targetList : [],
           set_template_list: type === 'SET_TEMPLATE' ? targetList : [],
+          dynamic_group_list: type === 'DYNAMIC_GROUP' ? targetList : [],
         };
       },
       // 获取config里添加范围的列表

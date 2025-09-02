@@ -109,7 +109,7 @@
                   <!-- eslint-disable-next-line vue/no-v-html -->
                   <p
                     class="fl"
-                    v-html="collaspseHeadInfo(cluster)"
+                    v-html="$xss(collaspseHeadInfo(cluster))"
                   ></p>
                   <!-- <span class="success">{{ cluster.success }}</span> 个成功
                 <span v-if="cluster.failed" class="failed">，{{ cluster.failed }}</span> 个失败 -->
@@ -262,7 +262,7 @@
         <div
           class="p20 detail-content"
           v-bkloading="{ isLoading: detail.loading }"
-          v-html="detail.content"
+          v-html="$xss(detail.content)"
         ></div>
       </template>
     </bk-sideslider>
@@ -407,11 +407,11 @@
         }
         this.curTab = tab.type;
         if (this.curTab === 'all') {
-          this.tableList = JSON.parse(JSON.stringify(this.tableListAll));
+          this.tableList = structuredClone(this.tableListAll);
         } else {
           const child = [];
           this.tableListAll.forEach(item => {
-            const copyItem = JSON.parse(JSON.stringify(item));
+            const copyItem = structuredClone(item);
             copyItem.child = copyItem.child.filter(row => row.status === this.curTab);
             if (copyItem.child.length) {
               child.push(copyItem);

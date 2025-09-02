@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import logging
 import itertools
 from collections import defaultdict
 from typing import Any
@@ -38,6 +39,9 @@ from monitor_web.plugin.constant import ParamMode, PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
 
 from .base import BaseInstaller
+
+
+logger = logging.getLogger(__name__)
 
 
 class NodeManInstaller(BaseInstaller):
@@ -110,8 +114,8 @@ class NodeManInstaller(BaseInstaller):
                     # 采集超时时间
                     "timeout": f"{config_params['collector'].get('timeout', 60)}",
                     "max_timeout": f"{config_params['collector'].get('timeout', 60)}",
-                    "dataid": str(plugin_manager.perf_data_id),
-                    "port_dataid": str(plugin_manager.port_data_id),
+                    "dataid": str(plugin_manager.perf_data_id(self.collect_config.bk_biz_id)),
+                    "port_dataid": str(plugin_manager.port_data_id(self.collect_config.bk_biz_id)),
                     "match_pattern": config_params["process"]["match_pattern"],
                     "process_name": config_params["process"].get("process_name", ""),
                     "exclude_pattern": config_params["process"]["exclude_pattern"],
@@ -777,7 +781,12 @@ class NodeManInstaller(BaseInstaller):
         subscription_id = self.collect_config.deployment_config.subscription_id
         if not subscription_id:
             return []
-        result = api.node_man.batch_task_result(subscription_id=subscription_id, need_detail=True)
+        try:
+            result = api.node_man.batch_task_result(subscription_id=subscription_id, need_detail=True)
+        except BKAPIError as e:
+            # 记录警告日志并返回空结果，避免因订阅没有关联任务导致整个接口失败
+            logger.warning(f"获取订阅任务结果失败，订阅ID: {subscription_id}，错误: {e}")
+            result = []
         instance_statuses = self._process_nodeman_task_result(result)
 
         # 差异比对/不比对数据结构

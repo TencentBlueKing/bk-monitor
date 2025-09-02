@@ -637,6 +637,7 @@ export default {
             mode: 'collector',
             type: 'text',
             alias: this.$t('采集URL'),
+            required: true,
             default: '',
             description: '',
             disabled: true,
@@ -1910,8 +1911,8 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         margin: 0 8px 5px 0;
         font-size: 12px;
         line-height: 22px;
-        text-align: center;
         vertical-align: top;
+        text-align: center;
         border: 1px solid #c4c6cc;
         border-radius: 2px;
 

@@ -139,7 +139,7 @@ export default defineComponent({
     });
 
     const lowerCaseKeyword = computed(() => keyword.value.trim().toLocaleLowerCase());
-    
+
     const authorizedList = computed(() =>
       mySpaceList.value.filter(item => {
         let show = false;
@@ -276,7 +276,7 @@ export default defineComponent({
           emit('space-change', space.space_uid);
           return;
         }
-
+        navMenu.isFirstLoad.value = false;
         checkSpaceChange(space.space_uid);
         // 更新常用业务缓存
         if (space.id) {

@@ -79,6 +79,15 @@ class EventSource(CachedEnum):
         )
 
     @classmethod
+    def label_mapping(self):
+        return {
+            self.BKCI.value: str(_("蓝盾")),
+            self.BCS.value: str(_("BCS")),
+            self.HOST.value: str(_("主机")),
+            self.DEFAULT.value: str(_("业务上报")),
+        }
+
+    @classmethod
     def get_default(cls, value):
         default = super().get_default(value)
         default.label = value
@@ -109,10 +118,17 @@ class EventType(CachedEnum):
             {
                 self.Normal: self.Normal.value,
                 self.Warning: self.Warning.value,
-                self.Default: self.Default.value,
                 self.EMPTY_DEFAULT: self.Default.value,
             }.get(self, self.value)
         )
+
+    @classmethod
+    def label_mapping(self):
+        return {
+            self.Normal.value: self.Normal.value,
+            self.Warning.value: self.Warning.value,
+            self.Default.value: self.Default.value,
+        }
 
     @classmethod
     def get_default(cls, value):

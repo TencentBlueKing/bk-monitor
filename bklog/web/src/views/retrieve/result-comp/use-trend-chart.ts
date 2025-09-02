@@ -1,7 +1,5 @@
 export type TrendChartType = {
-  target: HTMLElement
+  target: HTMLElement;
 };
 
-export default ({ target }: TrendChartType) => {
-
-}
+export default ({ target }: TrendChartType) => {};

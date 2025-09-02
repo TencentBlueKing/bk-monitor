@@ -708,7 +708,7 @@ class GetStrategyAndEventCountResource(Resource):
                     return {"strategy_counts": 0, "event_counts": 0}
             if ip:
                 conditions.extend([{"key": "IP", "value": [ip]}, {"key": "bk_cloud_id", "value": [bk_cloud_id]}])
-                query_string = _("目标IP : {} AND 目标云区域ID : {}").format(ip, bk_cloud_id)
+                query_string = _('目标IP : "{}" AND 目标云区域ID : "{}"').format(ip, bk_cloud_id)
 
         elif params["scene_id"] == "uptime_check":
             scenario = ["uptimecheck"]

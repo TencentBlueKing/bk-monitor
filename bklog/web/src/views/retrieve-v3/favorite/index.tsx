@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
 
-import { throttle } from 'lodash';
+import { throttle } from 'lodash-es';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import V2Collection from '../../retrieve-v2/collect/collect-index';
+import CollectMain from './collect-main';
+import DragContainer from './components/drag-container/drag-container';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import './index.scss';
 
@@ -37,24 +39,35 @@ export default defineComponent({
   name: 'V3Collection',
 
   emits: ['width-change'],
+
   setup(_, { emit }) {
     const isShow = ref(RetrieveHelper.isFavoriteShown);
     const collectWidth = ref(240);
 
+    // 使用节流优化性能
     const handleShownChange = throttle((val: boolean) => {
       isShow.value = val;
-    });
+    }, 100);
 
-    RetrieveHelper.on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, handleShownChange);
+    const { addEvent } = useRetrieveEvent();
+    addEvent(RetrieveEvent.FAVORITE_SHOWN_CHANGE, handleShownChange);
 
+    /**
+     * 处理宽度变化
+     */
     const handleWidthChange = (width: number) => {
       collectWidth.value = width;
       RetrieveHelper.setFavoriteWidth(width);
       emit('width-change', width);
     };
 
+    /**
+     * 处理显示状态变化
+     */
     const handleUpdateIsShow = (val: boolean) => {
       RetrieveHelper.setFavoriteShown(val);
+      /** 2025-08-11 当左侧收藏夹收起的时候，清空当前收藏夹选中态  */
+      // RetrieveHelper.setFavoriteActive({});
     };
 
     onMounted(() => {
@@ -62,31 +75,28 @@ export default defineComponent({
       emit('width-change', collectWidth.value);
     });
 
-    onBeforeUnmount(() => {
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_SHOWN_CHANGE, handleShownChange);
-    });
+    const favoriteStyle = computed(() => ({
+      minWidth: `${collectWidth.value}px`,
+    }));
 
-    const favoriteStyle = computed(() => {
-      return {
-        minWidth: `${collectWidth.value}px`,
-      };
-    });
-
-    return () => {
-      return (
-        <keep-alive>
-          <V2Collection
-            style={favoriteStyle.value}
-            width={collectWidth.value}
-            class='v3-bklog-collection'
-            is-show={isShow.value}
-            on={{
-              'update:isShow': handleUpdateIsShow,
-              'update:width': handleWidthChange,
-            }}
-          ></V2Collection>
-        </keep-alive>
-      );
-    };
+    return () => (
+      <keep-alive>
+        <DragContainer
+          style={favoriteStyle.value}
+          width={collectWidth.value}
+          class='v3-bklog-collection'
+          isShow={isShow.value}
+          on={{
+            'update:isShow': handleUpdateIsShow,
+            'update:width': handleWidthChange,
+          }}
+        >
+          <CollectMain
+            isShowCollect={isShow.value}
+            on-show-change={handleUpdateIsShow}
+          />
+        </DragContainer>
+      </keep-alive>
+    );
   },
 });

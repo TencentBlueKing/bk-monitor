@@ -388,6 +388,8 @@ class LogIndexSet(SoftDeleteModel):
     support_doris = models.BooleanField(_("是否支持doris存储类型"), default=False)
     doris_table_id = models.CharField(_("doris表名"), max_length=128, null=True, default=None)
 
+    query_alias_settings = models.JSONField(_("查询别名配置"), null=True, blank=True)
+
     def get_name(self):
         return self.index_set_name
 
@@ -482,6 +484,8 @@ class LogIndexSet(SoftDeleteModel):
                 "source_id": self.source_id,
                 "source_name": source_name,
                 "result_table_id": data.result_table_id,
+                "scenario_id": data.scenario_id,
+                "storage_cluster_id": data.storage_cluster_id,
                 "time_field": data.time_field,
                 "result_table_name": data.result_table_name,
                 "apply_status": data.apply_status,

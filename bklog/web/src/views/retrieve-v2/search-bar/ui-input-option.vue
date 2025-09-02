@@ -16,6 +16,7 @@
   import { translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
   import { BK_LOG_STORAGE } from '../../../store/store.type';
+  import BatchInput from '../components/batch-input';
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -30,7 +31,7 @@
     },
   });
 
-  const emit = defineEmits(['save', 'cancel']);
+  const emit = defineEmits(['save', 'cancel', 'batch-input-change']);
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
@@ -80,7 +81,6 @@
     },
   };
 
-  const filedValueMapping = {};
 
   const getOperatorLable = operator => {
     if (translateKeys.includes(operator)) {
@@ -233,21 +233,48 @@
   });
 
   const filterFieldList = computed(() => {
-    const regExp = getRegExp(searchValue.value.trim());
+    const searchText = searchValue.value.trim().toLowerCase();
+    const regExp = getRegExp(searchText, 'i');
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
-      (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias));
+      regExp.test(`${field.query_alias || ''}${field.field_name}`) 
 
+     
     const mapFn = item =>
-      Object.assign({}, item, {
-        first_name: item.query_alias || item.field_name,
-        last_name: item.field_name,
-      });
-
-    return fieldList.value.filter(filterFn).map(mapFn);
+      {
+        const fullText =`${item.query_alias|| ''}${item.field_name}`.toLowerCase()
+        return Object.assign({}, item, {
+          first_name: item.query_alias || item.field_name,
+          last_name: item.field_name,
+          matchIndex: fullText.indexOf(searchText),
+          matchType: fullText === searchText ? 2 : 1,
+        });
+      }
+     
+      const sortByMatch = (a, b) => {
+        if (a.matchType !== b.matchType) {
+          return b.matchType - a.matchType;
+        }
+        if (a.matchIndex !== b.matchIndex) {
+          return a.matchIndex - b.matchIndex;
+        }
+        return a.matchIndex - b.matchIndex;
+      };
+    
+    return fieldList.value.filter(filterFn).map(mapFn).sort(sortByMatch);
   });
 
+  const handleBatchShowChange = val => {
+    emit('batch-input-change', val);
+  }
+
+  const handleBatchInputChange = (selectData) => {
+    condition.value.value = [...new Set([
+      ...(condition.value.value || []), 
+      ...selectData                    
+    ])];
+  };
   const tagValidateFun = item => {
     // 如果是数值类型， 返回一个检验的函数
     if (['long', 'integer', 'float'].includes(activeFieldItem.value.field_type)) {
@@ -1028,9 +1055,6 @@
       needDeleteItem = true;
     }
   };
-  const getValueLabelShow = fieldName => {
-    return filedValueMapping[fieldName] ?? t('检索内容');
-  };
 
   const handleOptionListMouseEnter = (e, item) => {
     const { offsetWidth, scrollWidth } = e.target.lastElementChild;
@@ -1227,7 +1251,10 @@
             class="ui-value-row"
           >
             <div class="ui-value-label">
-              <span>{{ getValueLabelShow(activeFieldItem.field_name) }}</span>
+              <span>
+                {{ $t('检索内容') }}
+                <BatchInput  v-if="activeFieldItem.field_name !== '*'" @value-change="handleBatchInputChange" @show-change="handleBatchShowChange"/>
+              </span>
               <span v-show="['text', 'string'].includes(activeFieldItem.field_type)">
                 <bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox>
               </span>

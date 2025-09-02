@@ -101,29 +101,14 @@ export default class List extends Mixins(UserConfigMixin, tsc<IProps, IEvents>) 
   handleHide() {}
 
   created() {
-    !store.getters.defaultBizIdApiId && this.getUserConfigId();
-  }
-
-  // 获取当前用户的配置id
-  getUserConfigId() {
-    this.handleGetUserConfig(DEFAULT_BIZ_ID)
-      .then((res: number) => {
-        if (res) {
-          store.commit('app/SET_APP_STATE', {
-            defaultBizIdApiId: this.storeId,
-          });
-        }
-      })
-      .catch(e => {
-        console.log(e);
-      });
+    this.handleGetUserConfig(DEFAULT_BIZ_ID);
   }
 
   // 默认id处理
   async handleDefaultId() {
     this.setDefaultBizIdLoading = true;
     const defaultBizId = this.isSetBizIdDefault ? Number(this.defaultSpace.id) : 'undefined';
-    this.handleSetUserConfig(DEFAULT_BIZ_ID, `${defaultBizId}`, store.getters.defaultBizIdApiId || 0)
+    this.handleSetUserConfig(DEFAULT_BIZ_ID, `${defaultBizId}`)
       .then(result => {
         if (result) {
           store.commit('app/SET_APP_STATE', {

@@ -58,7 +58,7 @@ from apps.log_search.constants import (
     SQL_SUFFIX,
 )
 from apps.log_search.decorators import search_history_record
-from apps.log_search.exceptions import BaseSearchIndexSetException
+from apps.log_search.exceptions import BaseSearchIndexSetException, TokenMissingException
 from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
     IndexSetCustomConfigHandler,
@@ -100,6 +100,8 @@ from apps.log_search.serializers import (
     UnionSearchSearchExportSerializer,
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
+    AliasSettingsSerializer,
+    SearchLogForCodeSerializer,
 )
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.builder.context import build_context_params
@@ -426,7 +428,8 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(OriginalSearchAttrSerializer)
         data["original_search"] = True
         data["is_desensitize"] = False
-        search_handler = SearchHandlerEsquery(index_set_id, data)
+        # TODO: 需要切换为 UnifyQuery 查询
+        search_handler = SearchHandlerEsquery(index_set_id, data, only_for_agg=True)
         return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="context")
@@ -2044,3 +2047,63 @@ class SearchViewSet(APIViewSet):
         instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
         data = instance.fetch_grep_query_data(params)
         return Response(data)
+
+    @detail_route(methods=["POST"], url_path="alias_settings")
+    def alias_settings(self, request, index_set_id):
+        params = self.params_valid(AliasSettingsSerializer)
+        return Response(IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"]))
+
+    @list_route(methods=["POST"], url_path="search_log_for_code")
+    def search_log_for_code(self, request):
+        """
+        @api {post} /search/index_set/search_log_for_code/ CodeCC日志搜索
+        @apiDescription 根据CodeCC token进行日志搜索，需要在请求头中传入 X-BKLOG-TOKEN
+        @apiParam 接口参数参考query_ts_raw
+        @apiParamExample {Json} 请求参数
+        {
+            "query_list": [
+                {
+                    "data_source": "bklog",
+                    "reference_name": "a",
+                    "time_field": "time",
+                    "query_string": "log:error AND path:/var/log/app/*",
+                    "table_id": "",
+                    "conditions": {"field_list": [], "condition_list": []},
+                    "field_name": "dtEventTimeStamp",
+                    "keep_columns": ["log", "path", "serverIp"]
+                }
+            ],
+            "start_time": "1753859263536",
+            "end_time": "1753945663536",
+            "timezone": "UTC",
+            "from_index": 0,
+            "limit": 10000
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+                'result': True,
+                'data': {
+                    'total': 1,
+                    'list': [
+                        {
+                            'log': 'Jul 31 11:53:01 VM-6-xxx-centos systemd: Started Session 170380 of user root.',
+                            'path': '/var/log/xxxx'
+                        }
+                    ],
+                    'done': False,
+                    'trace_id': 'xxxxx',
+                    'result_table_options': {
+                        'bklog_index_set_xxx_bklog_codecc.__default__|http://10.x.x.x:xxxx': {
+                            'search_after': [xxxxxx]
+                        }
+                    }
+                },
+                'code': 0,
+                'message': ''
+            }
+        """
+        data = self.params_valid(SearchLogForCodeSerializer)
+        token = getattr(request, "token")
+        if not token:
+            raise TokenMissingException()
+        return Response(UnifyQueryHandler.search_log_for_code(token, data))

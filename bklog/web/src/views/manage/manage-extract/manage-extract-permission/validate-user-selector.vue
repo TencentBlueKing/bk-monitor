@@ -89,6 +89,7 @@
       },
       handleBlur() {
         this.isError = !this.value.length;
+        this.$emit('change', this.value); // 确保失焦时数据同步
       },
       pasteFn(val) {
         const users = [...this.value];

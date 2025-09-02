@@ -114,7 +114,7 @@
           <span
             style="font-size: 14px; color: #c4c6cc"
             class="bklog-icon bklog-circle-minus-filled"
-            @click="deleteTableItem(index)"
+            @click="deleteTableItem(key)"
           ></span>
         </li>
       </transition-group>
@@ -123,7 +123,7 @@
       style="margin-left: 20px; font-size: 14px; color: #3a84ff"
       class="bklog-icon bklog-log-plus-circle-shape"
       @click="addTableItem()"
-      ><span style="margin-left: 4px; font-size: 12px">{{ $t('添加排序字段') }}</span></span
+      ><span style="margin-left: 4px; font-size: 12px" class="add-sort-field">{{ $t('添加排序字段') }}</span></span
     >
   </div>
 </template>
@@ -133,7 +133,7 @@
   import useStore from '@/hooks/use-store';
   import VueDraggable from 'vuedraggable';
 
-  import { deepClone, random } from '../../../../common/util';
+  import { random } from '../../../../common/util';
   import { BK_LOG_STORAGE } from '../../../../store/store.type';
   const props = defineProps({
     initData: {
@@ -174,7 +174,7 @@
     })
   });
   const selectList = computed(() => {
-    const filterFn = field => field.field_type !== '__virtual__'  && isFieldHidden(field.field_name);
+    const filterFn = field => field.field_type !== '__virtual__' && field.field_type !== 'flattened' && isFieldHidden(field.field_name);
     return fieldList.value.filter(filterFn).map(field => {
       return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
     });
@@ -187,8 +187,9 @@
       }
     }).length;
   })
-  const deleteTableItem = (val: number) => {
-    sortList.value = sortList.value.slice(0, val).concat(sortList.value.slice(val + 1));
+  const deleteTableItem = (val: string) => {
+    sortList.value = sortList.value.filter(item => item.key !== val);
+    // sortList.value = sortList.value.slice(0, val).concat(sortList.value.slice(val + 1));
   };
   const addTableItem = () => {
     sortList.value.push({ key: random(8), sorts: ['', ''] });
@@ -211,7 +212,7 @@
     ([newInitData, newShouldRefresh]) => {
       // 当有初始数据时，直接更新
       if (Array.isArray(newInitData) && newInitData.length) {
-        sortList.value = deepClone(newInitData).map(sorts => ({ key: random(8), sorts }));
+        sortList.value = structuredClone(newInitData).map(sorts => ({ key: random(8), sorts })) as { key: string; sorts: string[] }[]
       } else {
         sortList.value = [];
       }
@@ -275,6 +276,10 @@
   }
 
   .bklog-circle-minus-filled{
+    cursor: pointer;
+  }
+
+  .add-sort-field{
     cursor: pointer;
   }
 </style>

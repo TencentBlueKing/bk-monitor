@@ -436,7 +436,7 @@
 <script>
   import TextHighlight from 'vue-text-highlight';
 
-  import { copyMessage, formatDate, deepClone, deepEqual } from '@/common/util';
+  import { copyMessage, formatDate, deepEqual } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import ClusteringLoader from '@/skeleton/clustering-loader';
   import BkUserSelector from '@blueking/user-selector';
@@ -447,8 +447,7 @@
   import { getConditionRouterParams } from '../panel-util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import { BK_LOG_STORAGE } from '@/store/store.type';
-  import RetrieveHelper from '@/views/retrieve-helper';
-
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
   export default {
     components: {
       ClusterEventPopover,
@@ -712,6 +711,7 @@
           // 触发索引集查询
           this.$nextTick(() => {
             store.dispatch('requestIndexSetQuery');
+            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           });
         });
       },
@@ -1120,7 +1120,7 @@
        */
       getUserList() {
         this.ownerLoading = true;
-        const cloneOwnerBase = deepClone(this.ownerBaseList);
+        const cloneOwnerBase = structuredClone(this.ownerBaseList);
         this.$http
           .request('/logClustering/getOwnerList', {
             params: {

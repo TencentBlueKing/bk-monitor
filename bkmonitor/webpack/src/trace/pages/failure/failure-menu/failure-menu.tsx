@@ -47,10 +47,6 @@ export default defineComponent({
       type: String,
       default: '100%',
     },
-    top: {
-      type: Number,
-      default: -15,
-    },
   },
   emits: ['change'],
   setup(props, { emit }) {
@@ -80,7 +76,7 @@ export default defineComponent({
       <div class='failure-menu'>
         {this.playLoading && (
           <div
-            style={{ width: this.$props.width, top: `${this.$props.top}px` }}
+            style={{ width: this.$props.width }}
             class='loading-mask'
           />
         )}

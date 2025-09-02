@@ -43,26 +43,21 @@ import FilterVarSelectSimple from '../filter-var-select/filter-var-select-simple
 import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
 import TimeCompareSelect from '../panel-tools/time-compare-select';
 
-import type { K8sTableColumnResourceKey, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
+import type { K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
 import './k8s-charts.scss';
 @Component
-export default class K8SCharts extends tsc<
-  {
-    activeMetricId?: string;
-    filterCommonParams: Record<string, any>;
-    groupBy: K8sTableColumnResourceKey[];
-    hideMetrics: string[];
-    isDetailMode?: boolean;
-    metricList: IK8SMetricItem[];
-    resourceListData?: Record<K8sTableColumnKeysEnum, string>[];
-  },
-  {
-    onDrillDown: (item: K8sTableGroupByEvent, needBack: boolean) => void;
-  }
-> {
+export default class K8SCharts extends tsc<{
+  activeMetricId?: string;
+  filterCommonParams: Record<string, any>;
+  groupBy: K8sTableColumnResourceKey[];
+  hideMetrics: string[];
+  isDetailMode?: boolean;
+  metricList: IK8SMetricItem[];
+  resourceListData?: Record<K8sTableColumnKeysEnum, string>[];
+}> {
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   @Prop({ type: Array, default: () => [] }) groupBy: K8sTableColumnResourceKey[];
@@ -148,27 +143,6 @@ export default class K8SCharts extends tsc<
     dom.classList.add('scroll-in');
   }
 
-  @Provide('onDrillDown')
-  handleDrillDown(group: string, field: string) {
-    let name = field;
-    if (this.timeOffset.length) {
-      name = field.split('-')?.slice(1).join('-');
-    }
-    if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
-      const [container] = name.split(':');
-      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: container }, true);
-      return;
-    }
-    if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(this.groupByField)) {
-      const isIngress = this.groupByField === K8sTableColumnKeysEnum.INGRESS;
-      const list = field.split(':');
-      const id = isIngress ? list[0] : list[1];
-      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: id }, true);
-      return;
-    }
-    this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, true);
-  }
-
   @Provide('onShowDetail')
   handleShowDetail(field: string) {
     if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER && this.canGroupByCluster) {
@@ -225,7 +199,7 @@ export default class K8SCharts extends tsc<
         type: 'row',
         collapsed: true,
         panels: item.children
-          ?.filter(panel => !this.hideMetrics.includes(panel.id))
+          ?.filter(panel => !this.hideMetrics.includes(panel.id) && panel.show_chart)
           .map(panel => ({
             id: panel.id,
             type: 'k8s_custom_graph',
@@ -234,6 +208,7 @@ export default class K8SCharts extends tsc<
             externalData: {
               groupByField: this.groupByField,
               metrics: [{ metric_id: panel.id }],
+              filterCommonParams: this.filterCommonParams,
             },
             options: {
               legend: {
@@ -441,6 +416,7 @@ export default class K8SCharts extends tsc<
       // 网络出丢包率
       case 'nw_container_network_transmit_errors_ratio':
       // 网络入丢包率
+      // eslint-disable-next-line no-fallthrough
       case 'nw_container_network_receive_errors_ratio': {
         // const commonFilter = this.createCommonPromqlContent(false, false);
         // const isPod = this.groupByField === K8sTableColumnKeysEnum.POD;

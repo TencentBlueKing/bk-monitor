@@ -2,7 +2,7 @@
   import { ref, nextTick, onMounted, computed, onBeforeUnmount } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
-  import { debounce } from 'lodash';
+  import { debounce } from 'lodash-es';
 
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';

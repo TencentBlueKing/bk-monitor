@@ -31,6 +31,7 @@ import { getCharLength } from './utils';
 import './value-tag-input.scss';
 
 interface IProps {
+  hasEdit?: boolean;
   isOneRow?: boolean;
   value: string;
   onChange?: (v: string) => void;
@@ -42,6 +43,7 @@ interface IProps {
 export default class ValueTagInput extends tsc<IProps> {
   @Prop({ type: String, default: '' }) value: string;
   @Prop({ type: Boolean, default: false }) isOneRow: boolean;
+  @Prop({ type: Boolean, default: true }) hasEdit: boolean;
   @Ref('input') inputRef: HTMLInputElement;
 
   localValue = '';
@@ -55,6 +57,9 @@ export default class ValueTagInput extends tsc<IProps> {
   }
 
   handleClick() {
+    if (!this.hasEdit) {
+      return;
+    }
     this.isEdit = true;
     this.inputFocus();
   }
@@ -86,6 +91,7 @@ export default class ValueTagInput extends tsc<IProps> {
   handleKeyDown(event) {
     const key = event.key || event.keyCode || event.which;
     if (key === 'Enter' || key === 13) {
+      event.stopPropagation();
       event.preventDefault();
     }
   }

@@ -40,6 +40,7 @@ export default {
   输入子标题: 'Enter a subtitle',
   输入参数名: 'Enter parameter name',
   输入参数值: 'Enter parameter value',
+  '（选填）请输入参数值': '（Optional）Enter parameter value',
   输入关键字: 'Enter keywords',
   输入任务名称: 'Enter task name',
   输入合法端口: 'Enter a valid port',
@@ -247,6 +248,9 @@ export default {
   '搜索套餐名称 / 类型 / 修改人': 'Search Solution /  Type / Modifier',
   '搜索 ID / 名称': 'Search ID / Name ',
   '搜索 索引 / 索引集名称': 'Support Index/Indices name',
+  '搜索 模板名称、模板别名、模板说明、创建人、更新人':
+    'Search template name, template alias, template description, creator, updater',
+  '搜索 消费场景': 'Search consumption scenario',
 
   你可以将该搜索内容直接自定义为指标选项: 'You can directly customize the search content as a metric option',
 
@@ -325,12 +329,19 @@ export default {
   '快捷键 / ，请输入...': 'Quick key/, please enter...',
   '快捷键 / ，可直接输入 Trace ID / Span ID 快捷检索': 'Quick key/, can directly enter Trace ID / Span ID to search',
   'ID / 告警组名称 / 轮值规则 / 通知对象': 'ID / Alarm Team Name / Rotation Rule / Notify Target',
-  请输入需要解释的内容: 'Please enter the content to be explained',
+  请输入需要解读的内容: 'Please enter the content to be interpreted',
   请输入需要翻译的内容: 'Please enter the content to be translated',
   请选择语言: 'Please select the language',
   待翻译文本: 'Text to be translated',
   解释: 'Explanation',
+  解读: 'Interpretation',
   翻译: 'Translation',
   '高度自适应，宽度最大值为': 'Adaptive height, maximum width of',
   数值: 'Number',
+  '搜索 变量': 'Search Variable',
+  点击添加指标: 'Click to add metrics',
+  '大小写字符、数字、下划线、点（.），50个字符以内':
+    'Case-sensitive characters, numbers, underscores, and dots (.), up to 50 characters',
+  '1～50 字符，仅支持 英文小写、数字、下划线（保存后不可修改）':
+    '1-50 characters, only support lowercase English, numbers, and underscores (cannot be modified after saving)',
 };

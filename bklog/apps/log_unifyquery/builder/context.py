@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,15 +7,23 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import copy
 
 import arrow
 
 
 def build_context_params(params):
-    time_now = arrow.utcnow()
-    params["end_time"] = int(time_now.timestamp())
-    params["start_time"] = int(time_now.shift(days=-7).timestamp())
+    # 获取当前日志的时间戳，查询时间范围为日志打印时间的前后12h
+    try:
+        ts = int(params.get("dtEventTimeStamp"))
+        log_time = arrow.get(ts)
+    except Exception:  # pylint: disable=broad-except
+        try:
+            # 尝试以字符串格式获取
+            log_time = arrow.get(params.get("dtEventTimeStamp"))
+        except Exception:  # pylint: disable=broad-except
+            log_time = arrow.utcnow()
+    params["end_time"] = int(log_time.shift(hours=12).timestamp())
+    params["start_time"] = int(log_time.shift(hours=-12).timestamp())
     params["index_set_ids"] = [params["index_set_id"]]
     return params
 
@@ -33,15 +40,9 @@ def create_context_conditions(order, sort_fields, sort_fields_value, and_conditi
     if order not in ["-", "+"]:
         return {}
 
-    conditions = {
-        "field_list": [],
-        "condition_list": []
-    }
+    conditions = {"field_list": [], "condition_list": []}
 
-    op_map = {
-        "+": {"range_op": "gt", "term_op": "eq"},
-        "-": {"range_op": "lt", "term_op": "eq"}
-    }
+    op_map = {"+": {"range_op": "gt", "term_op": "eq"}, "-": {"range_op": "lt", "term_op": "eq"}}
 
     # 生成主条件模板
     main_conditions = []
@@ -49,18 +50,12 @@ def create_context_conditions(order, sort_fields, sort_fields_value, and_conditi
         condition_group = []
         # 添加前序字段的精确匹配
         for prev_field, prev_value in zip(sort_fields[:idx], sort_fields_value[:idx]):
-            condition_group.append({
-                "field_name": prev_field,
-                "op": op_map[order]["term_op"],
-                "value": [str(prev_value)]
-            })
+            condition_group.append(
+                {"field_name": prev_field, "op": op_map[order]["term_op"], "value": [str(prev_value)]}
+            )
         # 添加当前字段的范围条件
         current_op = "gte" if (order == "+" and idx == len(sort_fields) - 1) else op_map[order]["range_op"]
-        condition_group.append({
-            "field_name": field,
-            "op": current_op,
-            "value": [str(value)]
-        })
+        condition_group.append({"field_name": field, "op": current_op, "value": [str(value)]})
         main_conditions.append(condition_group)
 
     # 将 AND 条件嵌套到每个主条件分支
@@ -92,7 +87,7 @@ def create_context_conditions(order, sort_fields, sort_fields_value, and_conditi
     return conditions
 
 
-class CreateSearchContextBodyScenarioBkData(object):
+class CreateSearchContextBodyScenarioBkData:
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
@@ -132,58 +127,29 @@ class CreateSearchContextBodyScenarioBkData(object):
         body_data["order_by"] = sort
 
         if bk_host_id:
-            and_conditions.append(
-                {
-                    "field_name": "bk_host_id",
-                    "op": "eq",
-                    "value": [str(bk_host_id)]
-                }
-            )
+            and_conditions.append({"field_name": "bk_host_id", "op": "eq", "value": [str(bk_host_id)]})
 
         if ip != "":
-            and_conditions.append(
-                {
-                    "field_name": "ip",
-                    "op": "eq",
-                    "value": [str(ip)]
-                }
-            )
+            and_conditions.append({"field_name": "ip", "op": "eq", "value": [str(ip)]})
 
         if path != "":
-            and_conditions.append(
-                {
-                    "field_name": "path",
-                    "op": "eq",
-                    "value": [str(path)]
-                }
-            )
+            and_conditions.append({"field_name": "path", "op": "eq", "value": [str(path)]})
 
         if container_id and logfile:  # 这个是容器
-            and_conditions.extend([
-                {
-                    "field_name": "container_id",
-                    "op": "eq",
-                    "value": [str(container_id)]
-                },
-                {
-                    "field_name": "logfile",
-                    "op": "eq",
-                    "value": [str(logfile)]
-                },
-            ])
-
-        if ext_container_id:
-            and_conditions.append(
-                {
-                    "field_name": "__ext.container_id",
-                    "op": "eq",
-                    "value": [str(ext_container_id)]
-                }
+            and_conditions.extend(
+                [
+                    {"field_name": "container_id", "op": "eq", "value": [str(container_id)]},
+                    {"field_name": "logfile", "op": "eq", "value": [str(logfile)]},
+                ]
             )
 
+        if ext_container_id:
+            and_conditions.append({"field_name": "__ext.container_id", "op": "eq", "value": [str(ext_container_id)]})
+
         # 根据排序方式构造查询条件
-        body_data["query_list"][0]["conditions"] = create_context_conditions(order, sort_fields, sort_fields_value,
-                                                                             and_conditions)
+        body_data["query_list"][0]["conditions"] = create_context_conditions(
+            order, sort_fields, sort_fields_value, and_conditions
+        )
 
         body_data["limit"] = size
 
@@ -196,7 +162,7 @@ class CreateSearchContextBodyScenarioBkData(object):
         return self._body
 
 
-class CreateSearchContextBodyScenarioLog(object):
+class CreateSearchContextBodyScenarioLog:
     def __init__(self, **kwargs):
         """
         上下文查询构造请求参数
@@ -232,42 +198,19 @@ class CreateSearchContextBodyScenarioLog(object):
         body_data["order_by"] = sort
 
         if bk_host_id:
-            and_conditions.append(
-                {
-                    "field_name": "bk_host_id",
-                    "op": "eq",
-                    "value": [str(bk_host_id)]
-                }
-            )
-        and_conditions.append(
-            {
-                "field_name": "serverIp",
-                "op": "eq",
-                "value": [str(server_ip)]
-            }
-        )
+            and_conditions.append({"field_name": "bk_host_id", "op": "eq", "value": [str(bk_host_id)]})
+        and_conditions.append({"field_name": "serverIp", "op": "eq", "value": [str(server_ip)]})
 
         if path:
-            and_conditions.append(
-                {
-                    "field_name": "path",
-                    "op": "eq",
-                    "value": [str(path)]
-                }
-            )
+            and_conditions.append({"field_name": "path", "op": "eq", "value": [str(path)]})
 
         if ext_container_id:
-            and_conditions.append(
-                {
-                    "field_name": "__ext.container_id",
-                    "op": "eq",
-                    "value": [str(ext_container_id)]
-                }
-            )
+            and_conditions.append({"field_name": "__ext.container_id", "op": "eq", "value": [str(ext_container_id)]})
 
         # 根据排序方式构造查询条件
-        body_data["query_list"][0]["conditions"] = create_context_conditions(order, sort_fields, sort_fields_value,
-                                                                             and_conditions)
+        body_data["query_list"][0]["conditions"] = create_context_conditions(
+            order, sort_fields, sort_fields_value, and_conditions
+        )
 
         body_data["limit"] = size
 
@@ -323,17 +266,12 @@ class CreateSearchContextBodyCustomField:
         for item in target_fields:
             item_value = params.get(item)
             if item_value:
-                and_conditions.append(
-                    {
-                        "field_name": item,
-                        "op": "eq",
-                        "value": [str(item_value)]
-                    }
-                )
+                and_conditions.append({"field_name": item, "op": "eq", "value": [str(item_value)]})
 
         # 根据排序方式构造查询条件
-        body_data["query_list"][0]["conditions"] = create_context_conditions(order, sort_fields, sort_fields_value,
-                                                                             and_conditions)
+        body_data["query_list"][0]["conditions"] = create_context_conditions(
+            order, sort_fields, sort_fields_value, and_conditions
+        )
 
         body_data["limit"] = size
 

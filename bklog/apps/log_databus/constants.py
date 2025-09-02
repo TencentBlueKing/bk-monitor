@@ -735,3 +735,10 @@ RETRIEVE_CHAIN = [
     "add_container_configs",
     "encode_yaml_config",
 ]
+
+
+# 一次性处理集群用量数量
+BATCH_SYNC_CLUSTER_COUNT = 500
+
+MIN_FLATTENED_SUPPORT_VERSION = "7.3"
+

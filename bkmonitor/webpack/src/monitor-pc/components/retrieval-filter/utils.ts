@@ -33,6 +33,7 @@ export enum EFieldType {
   integer = 'integer',
   keyword = 'keyword',
   text = 'text',
+  variable = 'variable',
 }
 export enum EMethod {
   eq = 'eq',
@@ -112,7 +113,8 @@ export interface IFilterItem {
   method: { id: EMethod; name: string };
   value: { id: string; name: string }[];
   options?: {
-    is_wildcard: boolean;
+    is_wildcard?: boolean;
+    isVariable?: boolean;
   };
 }
 /* 接口where参数格式 */
@@ -143,13 +145,29 @@ export interface IFavoriteListItem {
     name: string;
   }[];
 }
+export interface IFavoriteListItem {
+  groupName: string;
+  id: string;
+  name: string;
+  config: {
+    commonWhere?: IWhereItem[];
+    queryString?: string;
+    where?: IWhereItem[];
+  };
+}
+
 export interface IGetValueFnParams {
   fields?: string[];
   limit?: number;
   queryString?: string;
   where?: IWhereItem[];
 }
-
+export interface IGetValueFnParams {
+  fields?: string[];
+  limit?: number;
+  queryString?: string;
+  where?: IWhereItem[];
+}
 export interface IWhereValueOptionsItem {
   count: number;
   list: {

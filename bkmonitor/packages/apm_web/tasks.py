@@ -8,12 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import time
+from datetime import datetime, timedelta
 from enum import Enum
 
 from celery import shared_task
 from django.conf import settings
-from django.core.cache import caches
+from django.core.cache import caches, cache
 from django.db.models import Q
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
@@ -26,9 +28,11 @@ from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
 from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip, deserialize_and_decompress
 from bkmonitor.utils.custom_report_tools import custom_report_tool
+from bkmonitor.utils.tenant import set_local_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
 from constants.apm import TelemetryDataType
+from core.drf_resource import api
 
 
 class APMEvent(Enum):
@@ -125,8 +129,8 @@ def build_event_body(
 
 
 @shared_task(ignore_result=True)
-def update_application_config(application_id):
-    Application.objects.get(application_id=application_id).refresh_config()
+def update_application_config(bk_biz_id, app_name, config):
+    api.apm_api.release_app_config({"bk_biz_id": bk_biz_id, "app_name": app_name, **config})
 
 
 @shared_task(ignore_result=True)
@@ -134,6 +138,7 @@ def refresh_application():
     logger.info("[REFRESH_APPLICATION] task start")
 
     for application in Application.objects.filter(is_enabled=True):
+        set_local_tenant_id(application.bk_tenant_id)
         try:
             # 刷新数据状态
             application.set_data_status()
@@ -256,3 +261,30 @@ def cache_application_scope_name():
             )
 
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task finished")
+
+
+@shared_task(ignore_result=True)
+def refresh_apm_app_state_snapshot():
+    all_data_status = {}
+    for application in Application.objects.filter(is_enabled=True).values(
+        "application_id",
+        "bk_biz_id",
+        "app_name",
+        "app_alias",
+        "trace_data_status",
+        "metric_data_status",
+        "log_data_status",
+        "profiling_data_status",
+    ):
+        data_status = {
+            "bk_biz_id": application["bk_biz_id"],
+            "app_name": application["app_name"],
+            "app_alias": application["app_alias"],
+            TelemetryDataType.TRACE.value: application["trace_data_status"],
+            TelemetryDataType.METRIC.value: application["metric_data_status"],
+            TelemetryDataType.LOG.value: application["log_data_status"],
+            TelemetryDataType.PROFILING.value: application["profiling_data_status"],
+        }
+        all_data_status[application["application_id"]] = data_status
+    key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=(datetime.now() - timedelta(days=1)).strftime("%Y%m%d"))
+    cache.set(key, json.dumps(all_data_status), 7 * 24 * 60 * 60)

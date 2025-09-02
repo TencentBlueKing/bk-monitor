@@ -201,3 +201,6 @@ bkcodeai.json
 .ruff_cache/
 
 .cursor/
+
+### PreCI ###
+.codecc
