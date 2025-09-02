@@ -30,7 +30,6 @@ import {
   AI_BLUEKING_SHORTCUTS,
   AI_BLUEKING_SHORTCUTS_ID,
 } from 'monitor-pc/components/ai-whale/types';
-import { useI18n } from 'vue-i18n';
 
 import './ai-blueking-icon.scss';
 export default defineComponent({
@@ -42,34 +41,49 @@ export default defineComponent({
     },
     fillBackFieldMap: {
       type: Object as PropType<Record<string, string>>,
-      default: () => ({}),
+    },
+    title: {
+      type: String,
+      default: '',
+    },
+    tips: {
+      type: String,
+      default: window.i18n.t('AI 小鲸'),
+    },
+    onGetFillBackFieldMap: {
+      type: Function as PropType<(fieldMap: Record<string, string>) => Record<string, string>>,
     },
   },
   setup(props) {
-    const { t } = useI18n();
     if (!window.__BK_WEWEB_DATA__?.handleAIBluekingShortcut) {
       return () => null;
     }
     return () => (
       <div
-        class='ai-blueking-icon'
-        v-tippy={t('AI 小鲸')}
+        class='ai-blueking-icon-container'
+        v-tippy={props.tips}
         onClick={() => {
           const shortcut = AI_BLUEKING_SHORTCUTS.find(shortcut => shortcut.id === props.shortcutId);
           if (shortcut) {
-            console.log(shortcut, window.__BK_WEWEB_DATA__?.handleAIBluekingShortcut);
+            let fillBackFieldMap = props.fillBackFieldMap || {};
+            if (typeof props.onGetFillBackFieldMap === 'function') {
+              fillBackFieldMap = props.onGetFillBackFieldMap(props.fillBackFieldMap);
+            }
             window.__BK_WEWEB_DATA__?.handleAIBluekingShortcut?.({
               ...shortcut,
               components: shortcut.components?.map(component => {
                 return {
                   ...component,
-                  default: props.fillBackFieldMap?.[component.key] || '',
+                  default: fillBackFieldMap?.[component.key] || '',
                 };
               }),
             });
           }
         }}
-      />
+      >
+        <div class='ai-blueking-icon' />
+        {props.title && <div class='ai-blueking-title'>{props.title}</div>}
+      </div>
     );
   },
 });
