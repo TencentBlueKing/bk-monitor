@@ -26,10 +26,10 @@
 
 import { computed, shallowRef, watchEffect } from 'vue';
 
-import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useStorage } from '@vueuse/core';
 
-import { AlarmType, MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID, type TableColumnItem } from '../typings';
+import { type TableColumnItem, AlarmType, MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID } from '../typings';
+import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { BkUiSettings } from '@blueking/tdesign-ui';
 /** 业务名称/空间名称 字段 */
@@ -42,7 +42,8 @@ export function useAlarmTableColumns() {
       .filter(item => item.is_default)
       .map(item => item.colKey);
   });
-  const storageColumns = useStorage<string[]>(alarmStore.alarmService.storageKey, defaultTableFields);
+  const storageKey = computed(() => alarmStore.alarmService.storageKey);
+  const storageColumns = useStorage<string[]>(storageKey, defaultTableFields);
 
   /** 必须显示且不可编辑隐藏列 */
   const lockedTableFields = computed(() =>
