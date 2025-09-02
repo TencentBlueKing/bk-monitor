@@ -3,6 +3,7 @@ from typing import NamedTuple
 
 from django.conf import settings
 
+from apm.models import ApmApplication
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkmonitor.utils.local import local
@@ -39,6 +40,32 @@ def space_uid_to_bk_tenant_id(space_uid: str) -> str:
     if not space:
         raise ValueError("convert space_uid to bk_tenant_id failed, space_uid: %s", space_uid)
     return space.bk_tenant_id
+
+
+def bk_biz_id_and_app_name_to_bk_tenant_id(bk_biz_id: int, app_name: str) -> str:
+    """
+    业务ID配合应用名称 转换为 租户ID
+
+    Args:
+        bk_biz_id: 业务ID
+        app_name: 应用名称
+
+    Returns:
+        str: 租户ID
+
+    Raises:
+        ValueError: convert bk_biz_id and app_name to bk_tenant_id failed
+    """
+
+    tenant_data = ApmApplication.objects.filter(app_name=app_name, bk_biz_id=bk_biz_id).values("bk_tenant_id").first()
+
+    # 如果找不到应用记录，抛出异常
+    if not tenant_data:
+        raise ValueError(
+            f"Invalid application: app_name={app_name}, bk_biz_id={bk_biz_id}. No ApmApplication record found."
+        )
+
+    return tenant_data["bk_tenant_id"]
 
 
 def bk_biz_id_to_bk_tenant_id(bk_biz_id: int) -> str:

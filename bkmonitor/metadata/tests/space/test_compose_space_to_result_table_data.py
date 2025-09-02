@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.tests.common_utils import consul_client
@@ -99,7 +100,7 @@ def create_or_delete_records(mocker):
 @pytest.mark.django_db(databases="__all__")
 def test_compose_data_for_space_router(create_or_delete_records):
     self = SpaceTableIDRedis()
-    values_for_creator = self._compose_data("bkcc", "1001")
+    values_for_creator = self._compose_data(space_type="bkcc", space_id="1001", bk_tenant_id=DEFAULT_TENANT_ID)
 
     # 测试全局数据源创建者业务下的空间路由
     expected_for_creator_space = {
@@ -109,7 +110,7 @@ def test_compose_data_for_space_router(create_or_delete_records):
     assert values_for_creator == expected_for_creator_space
 
     # 测试全局数据源在其他业务下的空间路由
-    values_for_others = self._compose_data("bkcc", "1003")
+    values_for_others = self._compose_data(space_type="bkcc", space_id="1003", bk_tenant_id=DEFAULT_TENANT_ID)
     expected_for_other_space = {
         "1001_bkmonitor_time_series_50011.__default__": {"filters": [{"bk_biz_id": "1003"}]},
         "1001_bkmonitor_time_series_50010.__default__": {"filters": [{"appid": "1003"}]},

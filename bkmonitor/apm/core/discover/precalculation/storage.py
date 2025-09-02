@@ -35,6 +35,7 @@ from apm.utils.base import rt_id_to_index
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.user import get_global_user
 from constants.apm import PRECALCULATE_RESULT_TABLE_OPTION, PreCalculateSpecificField, PrecalculateStorageConfig
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from metadata.models import ESStorage
@@ -269,6 +270,7 @@ class PrecalculateStorage:
         resource.metadata.create_result_table(
             {
                 "bk_data_id": bk_data_id,
+                "bk_tenant_id": DEFAULT_TENANT_ID,
                 "table_id": table_name,
                 "operator": get_global_user(),
                 "is_enable": True,
@@ -351,7 +353,9 @@ class PrecalculateStorage:
                     continue
 
                 try:
-                    info = resource.metadata.query_result_table_source(table_id=j["table_name"])
+                    info = resource.metadata.query_result_table_source(
+                        table_id=j["table_name"], bk_tenant_id=instance.bk_tenant_id
+                    )
                     pre_res = cls._exact_unique_data(
                         info["field_list"], cls.RESULT_TABLE_FIELD_MAPPING, key_field="field_name", remove_field="time"
                     )
@@ -399,8 +403,13 @@ class PrecalculateStorage:
     @classmethod
     def update_result_table(cls, table_name, storage_cluster_id):
         """更新所有DataLink的预计算存储配置"""
+        instance = ESStorage.objects.filter(table_id=table_name).first()
+        if not instance:
+            raise ValueError(f"storage {table_name} not found")
+
         params = {
             "table_id": table_name,
+            "bk_tenant_id": instance.bk_tenant_id,
             "operator": get_global_user(),
             "label": "application_check",
             "field_list": PrecalculateStorageConfig.TABLE_SCHEMA,
