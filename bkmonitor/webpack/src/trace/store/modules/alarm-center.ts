@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ref as deepRef, shallowRef, watch } from 'vue';
+import { computed, ref as deepRef, shallowRef, watch, watchEffect } from 'vue';
 import { onScopeDispose } from 'vue';
 import { customRef } from 'vue';
 
@@ -38,7 +38,7 @@ import { AlarmType } from '../../pages/alarm-center/typings';
 import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
 
 import type { AlarmService } from '@/pages/alarm-center/services/base';
-import type { CommonCondition } from '@/pages/alarm-center/typings';
+import type { CommonCondition, QuickFilterItem } from '@/pages/alarm-center/typings';
 const REFRESH_EFFECT_KEY = '__REFRESH_EFFECT_KEY__';
 
 export interface IAlarmCenterState {
@@ -66,6 +66,8 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   const residentCondition = deepRef<CommonCondition[]>([]);
   // 快速过滤条件
   const quickFilterValue = deepRef<CommonCondition[]>([]);
+  /** 维度tag列表 */
+  const dimensionTags = shallowRef<Omit<QuickFilterItem, 'children'>[]>([]);
 
   const queryString = shallowRef('');
   // 检索栏模式
@@ -176,6 +178,12 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     effectRefresh();
   });
 
+  watchEffect(() => {
+    alarmService.value.getAnalysisDimensionFields(commonFilterParams.value).then(res => {
+      dimensionTags.value = res;
+    });
+  });
+
   onScopeDispose(() => {
     alarmService.value = undefined;
     bizIds.value = [+window.bk_biz_id];
@@ -195,6 +203,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     refreshInterval,
     refreshImmediate,
     alarmType,
+    dimensionTags,
     bizIds,
     conditions,
     queryString,

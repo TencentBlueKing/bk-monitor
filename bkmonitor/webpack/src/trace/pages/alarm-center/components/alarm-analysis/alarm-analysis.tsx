@@ -26,16 +26,18 @@
 
 import { defineComponent, onMounted, reactive, shallowRef } from 'vue';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import ChartCollapse from '@/pages/trace-explore/components/explore-chart/chart-collapse';
-import { Message, Progress, Sideslider } from 'bkui-vue';
+import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import useUserConfig from '../../../../hooks/useUserConfig';
 import { useAlarmAnalysis } from '../../composables/use-analysis';
+import AlarmAnalysisDetail from './alarm-analysis-detail';
+import AnalysisList from './analysis-list';
 import SettingDialog from './setting-dialog';
+import ChartCollapse from '@/pages/trace-explore/components/explore-chart/chart-collapse';
 
 import type { AnalysisListItem, AnalysisListItemBucket } from '../../typings';
 
@@ -52,8 +54,8 @@ export default defineComponent({
       analysisFieldTopNData,
       analysisFieldTopNLoading,
       analysisFields,
+      dimensionTags,
       analysisFieldsMap,
-      analysisDimensionFields,
       analysisDimensionTopNData,
       getAnalysisDataByFields,
       analysisSettings,
@@ -87,7 +89,7 @@ export default defineComponent({
     const expand = shallowRef(false);
 
     onMounted(() => {
-      handleGetUserConfig<boolean>('AlarmAnalysisCollapse').then(res => {
+      handleGetUserConfig<boolean>(AlarmAnalysisCollapse).then(res => {
         expand.value = res ?? true;
       });
     });
@@ -117,54 +119,6 @@ export default defineComponent({
         message: t('复制成功'),
         theme: 'success',
       });
-    };
-
-    /** 渲染分析列表 */
-    const renderAnalysisList = (buckets: AnalysisListItemBucket[], field: string) => {
-      if (!buckets.length) return <EmptyStatus type='empty' />;
-      return (
-        <div class='analysis-list'>
-          {buckets.map(item => (
-            <div
-              key={item.id}
-              class='analysis-item'
-            >
-              <div class='analysis-item-info'>
-                <div class='text-wrap'>
-                  <span
-                    class='item-name'
-                    v-overflow-tips
-                  >
-                    {item.name}
-                  </span>
-                  <span class='item-count'>
-                    {item.count}
-                    {t('条')}
-                  </span>
-                  <span class='item-percent'>{item.percent}%</span>
-                </div>
-                <Progress
-                  bg-color='#DCDEE5'
-                  color='#5AB8A8'
-                  percent={item.percent}
-                  show-text={false}
-                  stroke-width={4}
-                />
-              </div>
-              <div class='analysis-item-tools'>
-                <i
-                  class='icon-monitor icon-a-sousuo'
-                  onClick={() => handleConditionChange('equal', item.id, field)}
-                />
-                <i
-                  class='icon-monitor icon-sousuo-'
-                  onClick={() => handleConditionChange('not_equal', item.id, field)}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      );
     };
 
     const handleConditionChange = (type: string, value: string, field: string) => {
@@ -213,7 +167,7 @@ export default defineComponent({
                   <i
                     class='icon-monitor icon-mc-copy'
                     v-bk-tooltips={{ content: '批量复制' }}
-                    onClick={() => handleCopyNames(panel.buckets)}
+                    onClick={() => handleCopyNames(panel.buckets.slice(0, 5))}
                   />
                 </div>
                 {panel.bucket_count > 5 && (
@@ -225,7 +179,12 @@ export default defineComponent({
                   </span>
                 )}
               </div>
-              <div class='panel-item-content'>{renderAnalysisList(panel.buckets.slice(0, 5), panel.field)}</div>
+              <div class='panel-item-content'>
+                <AnalysisList
+                  list={panel.buckets.slice(0, 5)}
+                  onConditionChange={(type, value) => handleConditionChange(type, value, panel.field)}
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -244,8 +203,8 @@ export default defineComponent({
       field: '',
       name: '',
       count: 0,
+      list: [],
     });
-    const sliderAnalysisList = shallowRef([]);
 
     /** 查看全部 */
     const handleViewAll = async (panel: AnalysisListItem) => {
@@ -255,45 +214,8 @@ export default defineComponent({
       detailSliderLoading.value = true;
       const data = await getAnalysisDataByFields([panel.field], true);
       detailSliderLoading.value = false;
-      sliderAnalysisList.value = data.fields[0]?.buckets || [];
+      detailSliderInfo.list = data.fields[0]?.buckets || [];
       detailSliderInfo.count = data.fields[0]?.bucket_count || 0;
-    };
-    const handleSliderShowChange = (value: boolean) => {
-      detailSliderShow.value = value;
-    };
-    const renderAnalysisSlider = () => {
-      return (
-        <Sideslider
-          width='420'
-          ext-cls='alarm-analysis-slider'
-          is-show={detailSliderShow.value}
-          transfer={true}
-          quick-close
-          onUpdate:isShow={handleSliderShowChange}
-        >
-          {{
-            header: () => (
-              <div class='alarm-analysis-slider-header'>
-                <div class='alarm-analysis-title'>
-                  <span
-                    class='field-name'
-                    v-overflow-tips
-                  >
-                    {detailSliderInfo.name}
-                  </span>
-                  <div class='count'>( {detailSliderInfo.count} )</div>
-                  <i
-                    class='icon-monitor icon-mc-copy'
-                    v-bk-tooltips={{ content: '批量复制' }}
-                    onClick={() => handleCopyNames(sliderAnalysisList.value)}
-                  />
-                </div>
-              </div>
-            ),
-            default: () => renderAnalysisList(sliderAnalysisList.value, detailSliderInfo.field),
-          }}
-        </Sideslider>
-      );
     };
 
     return {
@@ -303,19 +225,19 @@ export default defineComponent({
       showAnalysisList,
       analysisFieldTopNLoading,
       analysisFieldList,
+      dimensionTags,
       handleCopyNames,
-      renderAnalysisList,
       analysisFields,
       analysisSettings,
       showSetting,
-      analysisDimensionFields,
       handleSettingsClick,
       detailSliderShow,
+      detailSliderInfo,
+      detailSliderLoading,
       handleViewAll,
-      renderAnalysisSlider,
-      getAnalysisDataByFields,
       handleSelectValueChange,
       renderCollapseContent,
+      handleConditionChange,
     };
   },
   render() {
@@ -342,10 +264,21 @@ export default defineComponent({
           }}
         </ChartCollapse>
 
-        {this.renderAnalysisSlider()}
+        <AlarmAnalysisDetail
+          v-model:show={this.detailSliderShow}
+          count={this.detailSliderInfo.count}
+          list={this.detailSliderInfo.list}
+          loading={this.detailSliderLoading}
+          title={this.detailSliderInfo.name}
+          onConditionChange={(type, value) => {
+            this.handleConditionChange(type, value, this.detailSliderInfo.field);
+          }}
+          onCopyNames={this.handleCopyNames}
+        />
+
         <SettingDialog
           v-model:show={this.showSetting}
-          dimensionList={this.analysisDimensionFields}
+          dimensionList={this.dimensionTags}
           fieldList={this.analysisFieldList}
           selectValue={this.analysisSettings}
           onSelectValueChange={this.handleSelectValueChange}
