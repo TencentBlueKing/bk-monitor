@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onBeforeMount, shallowRef, watchEffect } from 'vue';
+import { computed, defineComponent, onBeforeMount, shallowRef, watchEffect } from 'vue';
 
 import { tryURLDecodeParse } from 'monitor-common/utils';
 import { useRoute, useRouter } from 'vue-router';
@@ -77,6 +77,10 @@ export default defineComponent({
         },
       ]);
     };
+
+    const retrievalFilterFields = computed(() => {
+      return alarmStore.alarmService.filterFields;
+    });
 
     watchEffect(() => {
       setUrlParams();
@@ -160,6 +164,7 @@ export default defineComponent({
       allTableFields,
       lockedTableFields,
       alarmStore,
+      retrievalFilterFields,
       handleFilterValueChange,
       updateIsCollapsed,
       handleConditionChange,
@@ -169,7 +174,10 @@ export default defineComponent({
     return (
       <div class='alarm-center'>
         <AlarmCenterHeader class='alarm-center-header' />
-        <AlarmRetrievalFilter class='alarm-center-filters' />
+        <AlarmRetrievalFilter
+          class='alarm-center-filters'
+          fields={this.retrievalFilterFields}
+        />
         <div class='alarm-center-main'>
           <TraceExploreLayout
             class='alarm-center-layout'

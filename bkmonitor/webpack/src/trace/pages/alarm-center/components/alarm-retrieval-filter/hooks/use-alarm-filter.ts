@@ -60,10 +60,6 @@ export function useAlarmFilter() {
   let axiosController = new AbortController();
   let candidateValueMap: ICandidateValueMap = new Map();
 
-  const fields = computed(() => {
-    return alarmStore.alarmService.filterFields;
-  });
-
   const condition = computed(() => {
     return alarmStore.conditions as ICondition[];
   });
@@ -206,7 +202,6 @@ export function useAlarmFilter() {
   }
 
   return {
-    fields,
     condition,
     queryString,
     residentSettingOnlyId,

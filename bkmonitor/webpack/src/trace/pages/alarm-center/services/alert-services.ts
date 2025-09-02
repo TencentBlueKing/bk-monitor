@@ -220,7 +220,6 @@ const ALERT_TABLE_COLUMNS = [
 ] as const;
 
 export const ALERT_FILTER_FIELDS: IFilterField[] = [
-  // 全字段检索
   {
     name: 'query_string',
     alias: '全字段检索',
@@ -232,91 +231,22 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
       },
     ],
   },
-  // 告警（策略）名称
   {
-    name: 'alert_name',
-    alias: '告警（策略）名称',
-    type: EFieldType.keyword,
+    name: 'id',
+    alias: '告警ID',
     isEnableOptions: true,
+    type: EFieldType.keyword,
     methods: [
       {
-        alias: '等于',
-        value: EMethod.eq,
+        alias: '=',
+        value: 'eq',
       },
       {
-        alias: '包含',
-        value: EMethod.include,
-      },
-      {
-        alias: '不包含',
-        value: EMethod.exclude,
+        alias: '!=',
+        value: 'ne',
       },
     ],
   },
-  // 策略标签
-  {
-    name: 'labels',
-    alias: '策略标签',
-    type: EFieldType.keyword,
-    isEnableOptions: true,
-    methods: [
-      {
-        alias: '等于',
-        value: EMethod.eq,
-      },
-      {
-        alias: '包含',
-        value: EMethod.include,
-      },
-      {
-        alias: '不包含',
-        value: EMethod.exclude,
-      },
-    ],
-  },
-  // 指标（支持ID和名称）
-  {
-    name: 'event.metric',
-    alias: '指标',
-    type: EFieldType.keyword,
-    isEnableOptions: true,
-    methods: [
-      {
-        alias: '包含',
-        value: EMethod.include,
-      },
-      {
-        alias: '不包含',
-        value: EMethod.exclude,
-      },
-      {
-        alias: '等于',
-        value: EMethod.eq,
-      },
-    ],
-  },
-  // 告警目标（🆕，支持include/exclude，具体字段名请补充）
-  {
-    name: 'target', // 具体字段名请根据实际补充
-    alias: '告警目标',
-    type: EFieldType.keyword,
-    isEnableOptions: true,
-    methods: [
-      {
-        alias: '包含',
-        value: EMethod.include,
-      },
-      {
-        alias: '不包含',
-        value: EMethod.exclude,
-      },
-      {
-        alias: '等于',
-        value: EMethod.eq,
-      },
-    ],
-  },
-  // 状态
   {
     name: 'status',
     alias: '状态',
@@ -324,88 +254,190 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     isEnableOptions: true,
     methods: [
       {
-        alias: '等于',
-        value: EMethod.eq,
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
       },
     ],
   },
-  // 告警内容
   {
-    name: 'event.description',
+    name: 'description',
     alias: '告警内容',
     type: EFieldType.text,
-    isEnableOptions: true,
     methods: [
       {
-        alias: '不等于',
-        value: EMethod.ne,
-      },
-      {
-        alias: '等于',
-        value: EMethod.eq,
-      },
-      {
         alias: '包含',
-        value: EMethod.include,
+        value: 'include',
       },
       {
         alias: '不包含',
-        value: EMethod.exclude,
+        value: 'exclude',
       },
     ],
   },
-  // 级别
   {
     name: 'severity',
     alias: '级别',
-    type: EFieldType.integer,
+    type: EFieldType.keyword,
     isEnableOptions: true,
     methods: [
       {
-        alias: '不等于',
-        value: EMethod.ne,
+        alias: '=',
+        value: 'eq',
       },
       {
-        alias: '等于',
-        value: EMethod.eq,
+        alias: '!=',
+        value: 'ne',
       },
     ],
   },
-  // 目标IP
   {
-    name: 'event.ip',
+    name: 'metric',
+    alias: '指标ID',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
+      },
+    ],
+  },
+  {
+    name: 'ip',
     alias: '目标IP',
     type: EFieldType.keyword,
     isEnableOptions: true,
     methods: [
       {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
         alias: '包含',
-        value: EMethod.include,
+        value: 'include',
       },
       {
         alias: '不包含',
-        value: EMethod.exclude,
-      },
-      {
-        alias: '等于',
-        value: EMethod.eq,
+        value: 'exclude',
       },
     ],
   },
-  // 通知人
   {
-    name: 'assignee',
-    alias: '通知人',
+    name: 'ipv6',
+    alias: '目标IPv6',
     type: EFieldType.keyword,
     isEnableOptions: true,
     methods: [
       {
-        alias: '等于',
-        value: EMethod.eq,
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
       },
     ],
   },
-  // 负责人
+  {
+    name: 'bk_host_id',
+    alias: '主机ID',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
+      },
+    ],
+  },
+  {
+    name: 'bk_cloud_id',
+    alias: '目标云区域ID',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
+      },
+    ],
+  },
+  {
+    name: 'bk_service_instance_id',
+    alias: '目标服务实例ID',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
+      },
+    ],
+  },
   {
     name: 'appointee',
     alias: '负责人',
@@ -413,12 +445,47 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     isEnableOptions: true,
     methods: [
       {
-        alias: '等于',
-        value: EMethod.eq,
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
       },
     ],
   },
-  // 关注人
+  {
+    name: 'assignee',
+    alias: '通知人',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
+      },
+    ],
+  },
   {
     name: 'follower',
     alias: '关注人',
@@ -426,88 +493,229 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     isEnableOptions: true,
     methods: [
       {
-        alias: '等于',
-        value: EMethod.eq,
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
       },
     ],
   },
-  // 维度（query_string，单选，复用query_string字段）
   {
-    name: 'tags.apiname',
+    name: 'strategy_name',
+    alias: '策略名称', //
+    type: EFieldType.text,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
+      },
+    ],
+  },
+  {
+    name: 'strategy_id',
+    alias: '策略ID',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
+      },
+    ],
+  },
+  {
+    name: 'labels',
+    alias: '策略标签',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
+      },
+    ],
+  },
+  {
+    name: 'tags',
     alias: '维度',
     type: EFieldType.keyword,
     isEnableOptions: true,
     methods: [
       {
-        alias: '等于',
-        value: EMethod.eq,
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
       },
     ],
   },
-  // 处理套餐
+  // tags 维度查询示例：
+  // {
+  //	"key": "tags.auto_instance_id_0",
+  //  "value":["node-30-167-61-50"],
+  //  "method":"eq",
+  //  "condition":"and"
+  // }
   {
-    name: 'action_name',
-    alias: '处理套餐',
-    type: EFieldType.keyword,
-    isEnableOptions: true,
-    methods: [
-      {
-        alias: '等于',
-        value: EMethod.eq,
-      },
-      {
-        alias: '包含',
-        value: EMethod.include,
-      },
-      {
-        alias: '不包含',
-        value: EMethod.exclude,
-      },
-    ],
-  },
-  // 告警来源
-  {
-    name: 'event.plugin_id',
+    name: 'plugin_id',
     alias: '告警来源',
     type: EFieldType.keyword,
     isEnableOptions: true,
     methods: [
       {
-        alias: '等于',
-        value: EMethod.eq,
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
       },
       {
         alias: '包含',
-        value: EMethod.include,
+        value: 'include',
       },
       {
         alias: '不包含',
-        value: EMethod.exclude,
+        value: 'exclude',
       },
     ],
   },
-  // 目标IPv6
   {
-    name: 'event.ipv6',
-    alias: '目标IPv6',
+    name: 'action_name',
+    alias: '处理套餐名',
     type: EFieldType.keyword,
     isEnableOptions: true,
     methods: [
       {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
         alias: '包含',
-        value: EMethod.include,
+        value: 'include',
       },
       {
         alias: '不包含',
-        value: EMethod.exclude,
-      },
-      {
-        alias: '等于',
-        value: EMethod.eq,
+        value: 'exclude',
       },
     ],
   },
-  // 其它不支持include/exclude的字段可继续补充
+  {
+    name: 'bk_topo_node',
+    alias: 'cmdb集群',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
+      },
+    ],
+  },
+  {
+    name: 'bk_topo_node',
+    alias: 'cmdb模块',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
+      },
+    ],
+  },
+  {
+    name: 'action_id',
+    alias: '处理记录ID',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'ne',
+      },
+    ],
+  },
 ];
 
 export const ALERT_STORAGE_KEY = '__ALERT_EVENT_COLUMN__';

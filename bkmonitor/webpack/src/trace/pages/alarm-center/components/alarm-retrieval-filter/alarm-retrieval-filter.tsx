@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
@@ -36,11 +36,18 @@ import { useAlarmFilter } from './hooks/use-alarm-filter';
 import { useSpaceSelect } from './hooks/use-space-select';
 
 import type { ITriggerSlotOptions } from '../../../../components/space-select/typing';
+import type { IFilterField } from '@/components/retrieval-filter/typing';
 
 import './alarm-retrieval-filter.scss';
 
 export default defineComponent({
   name: 'AlarmRetrievalFilter',
+  props: {
+    fields: {
+      type: Array as PropType<IFilterField[]>,
+      default: () => [],
+    },
+  },
   setup() {
     const { t } = useI18n();
 

@@ -147,39 +147,39 @@ export interface IFilterField {
     // 操作符显示的placeholder TODO(待支持)
     placeholder?: string;
     // 操作符id
-    value: EMethod;
+    value: EMethod | string;
     // 用于进行异步搜索时的默认操作符
     wildcardValue?: string;
   }[];
 }
 
-export interface IFilterField {
-  alias: string;
-  can_displayed?: boolean;
-  // is_option_enabled: boolean;
-  is_dimensions?: boolean;
-  is_searched?: boolean;
-  isEnableOptions?: boolean;
-  name: string;
-  type: EFieldType;
-  supported_operations: {
-    alias: string;
-    label?: string;
-    operator?: string;
-    options?: {
-      children?: {
-        label: string;
-        value: string;
-      }[];
-      default?: boolean | string;
-      label: string;
-      name: string;
-    }[];
-    placeholder?: string;
-    value: EMethod;
-    wildcard_operator?: string;
-  }[]; // 支持的操作
-}
+// export interface IFilterField {
+//   alias: string;
+//   can_displayed?: boolean;
+//   // is_option_enabled: boolean;
+//   is_dimensions?: boolean;
+//   is_searched?: boolean;
+//   isEnableOptions?: boolean;
+//   name: string;
+//   type: EFieldType;
+//   supported_operations: {
+//     alias: string;
+//     label?: string;
+//     operator?: string;
+//     options?: {
+//       children?: {
+//         label: string;
+//         value: string;
+//       }[];
+//       default?: boolean | string;
+//       label: string;
+//       name: string;
+//     }[];
+//     placeholder?: string;
+//     value: EMethod;
+//     wildcard_operator?: string;
+//   }[]; // 支持的操作
+// }
 
 export interface IFilterItem {
   condition: { id: ECondition; name: string };
