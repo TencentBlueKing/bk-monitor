@@ -40,7 +40,6 @@ from .tools.mysql import (
     get_backend_mysql_settings,
     get_grafana_mysql_settings,
     get_saas_mysql_settings,
-    get_backend_alert_mysql_settings,
 )
 from .tools.service import get_service_url
 
@@ -738,7 +737,6 @@ if os.getenv("ENABLE_TABLE_VISIT_COUNT", "false").lower() == "true":
     DATABASE_ROUTERS.append("bkmonitor.db_routers.TableVisitCountRouter")
 
 # 数据库配置
-# 后台DB配置
 (
     BACKEND_MYSQL_NAME,
     BACKEND_MYSQL_HOST,
@@ -746,16 +744,7 @@ if os.getenv("ENABLE_TABLE_VISIT_COUNT", "false").lower() == "true":
     BACKEND_MYSQL_USER,
     BACKEND_MYSQL_PASSWORD,
 ) = get_backend_mysql_settings()
-# SaaS DB配置
 SAAS_MYSQL_NAME, SAAS_MYSQL_HOST, SAAS_MYSQL_PORT, SAAS_MYSQL_USER, SAAS_MYSQL_PASSWORD = get_saas_mysql_settings()
-# 后台DB扩展配置
-(
-    BACKEND_ALERT_MYSQL_NAME,
-    BACKEND_ALERT_MYSQL_HOST,
-    BACKEND_ALERT_MYSQL_PORT,
-    BACKEND_ALERT_MYSQL_USER,
-    BACKEND_ALERT_MYSQL_PASSWORD,
-) = get_backend_alert_mysql_settings()
 
 # 判断前后台DB配置是否相同，如果不同则需要使用路由
 if SAAS_MYSQL_NAME != BACKEND_MYSQL_NAME or SAAS_MYSQL_HOST != BACKEND_MYSQL_HOST:
@@ -766,7 +755,6 @@ else:
     BACKEND_DATABASE_NAME = "default"
     MIGRATE_MONITOR_API = False
 
-# Grafana DB配置
 (
     GRAFANA_MYSQL_NAME,
     GRAFANA_MYSQL_HOST,
@@ -818,20 +806,6 @@ DATABASES = {
         "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
     },
 }
-
-if BACKEND_ALERT_MYSQL_HOST == BACKEND_MYSQL_HOST:
-    DATABASES["backend_alert"] = {}
-    DATABASES["backend_alert"].update(DATABASES["monitor_api"])
-else:
-    DATABASES["backend_alert"] = {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": BACKEND_ALERT_MYSQL_NAME,
-        "USER": BACKEND_ALERT_MYSQL_USER,
-        "PASSWORD": BACKEND_ALERT_MYSQL_PASSWORD,
-        "HOST": BACKEND_ALERT_MYSQL_HOST,
-        "PORT": BACKEND_ALERT_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
-    }
 
 # ES7 config
 ES7_HOST, ES7_REST_PORT, ES7_TRANSPORT_PORT, ES7_USER, ES7_PASSWORD = get_es7_settings(fta=True)

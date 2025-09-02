@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -7,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 import os
 
 from config.tools.environment import PAAS_VERSION
@@ -75,14 +75,4 @@ def get_grafana_mysql_settings():
     password = os.getenv("BKAPP_GRAFANA_DB_PASSWORD")
     host = os.getenv("BKAPP_GRAFANA_DB_HOST")
     port = int(os.getenv("BKAPP_GRAFANA_DB_PORT") or 0)
-    return name, host, port, user, password
-
-
-def get_backend_alert_mysql_settings():
-    name, host, port, user, password = get_backend_mysql_settings()
-    name = os.getenv("BKAPP_BACKEND_ALERT_DB_NAME") or name
-    user = os.getenv("BKAPP_BACKEND_ALERT_DB_USERNAME") or user
-    password = os.getenv("BKAPP_BACKEND_ALERT_DB_PASSWORD") or password
-    host = os.getenv("BKAPP_BACKEND_ALERT_DB_HOST") or host
-    port = int(os.getenv("BKAPP_BACKEND_ALERT_DB_PORT") or 0) or port
     return name, host, port, user, password
