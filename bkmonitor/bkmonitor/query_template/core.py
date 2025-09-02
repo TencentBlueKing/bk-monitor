@@ -224,7 +224,7 @@ class ExpressionFunctionsVariableRender(BaseVariableRender):
 
             val_tmpl: str = self.to_template(variable["name"])
             result_functions = []
-            for i, function in enumerate(self._query_instance.functions):
+            for function in self._query_instance.functions:
                 if function == val_tmpl:
                     result_functions.extend(value)
                 else:
