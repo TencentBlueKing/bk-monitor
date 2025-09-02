@@ -419,7 +419,7 @@ export const getRouteConfig = () => {
           children: [
             {
               name: '查询模板',
-              icon: 'icon-monitor icon-shujucaiji menu-icon',
+              icon: 'icon-monitor icon-query-template menu-icon',
               id: 'query-template',
               path: '/query-template',
               href: '#/query-template',
