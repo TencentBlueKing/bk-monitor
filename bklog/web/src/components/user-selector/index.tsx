@@ -79,6 +79,7 @@ export default defineComponent({
 
     const tenantId = computed(() => store.state.userMeta.bk_tenant_id);
 
+    // 开发环境放自己的本地测试地址即可
     const apiBaseUrl = process.env.NODE_ENV === 'development' ? '' : window.BK_LOGIN_URL;
 
     watch(
