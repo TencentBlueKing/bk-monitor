@@ -30,7 +30,7 @@ import { useStorage } from '@vueuse/core';
 
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
-import type { AnalysisListItem, AnalysisTopNDataResponse, QuickFilterItem } from '../typings';
+import type { AnalysisListItem, AnalysisTopNDataResponse } from '../typings';
 
 export function useAlarmAnalysis() {
   const alarmStore = useAlarmCenterStore();
@@ -41,8 +41,6 @@ export function useAlarmAnalysis() {
   });
   // 告警、故障、处理记录 分析Filed TopN列表loading
   const analysisFieldTopNLoading = shallowRef(false);
-  // 告警、故障、处理记录 dimension Tag 列表
-  const analysisDimensionFields = shallowRef<Omit<QuickFilterItem, 'children'>[]>([]);
   // 告警、故障、处理记录 dimension tags 分析TopN列表
   const analysisDimensionTopNData = shallowRef<AnalysisTopNDataResponse<AnalysisListItem>>({
     doc_count: 0,
@@ -50,6 +48,8 @@ export function useAlarmAnalysis() {
   });
   // 维度分析loading
   const analysisDimensionLoading = shallowRef(false);
+  // 告警、故障、处理记录 dimension Tag 列表
+  const dimensionTags = computed(() => alarmStore.dimensionTags);
   // 告警、故障、处理记录 字段列表
   const analysisFields = computed(() => alarmStore.alarmService.analysisFields);
   // 告警、故障、处理记录 字段名称映射
@@ -60,7 +60,7 @@ export function useAlarmAnalysis() {
 
   const effectFunc = () => {
     analysisFieldTopNLoading.value = true;
-    getAnalysisDimensionFields({ ...alarmStore.commonFilterParams });
+    getAnalysisDimensionFields();
     getAnalysisFieldData(analysisFields.value);
   };
 
@@ -82,9 +82,8 @@ export function useAlarmAnalysis() {
   };
 
   /** 获取告警分析维度Tag列表 */
-  const getAnalysisDimensionFields = async params => {
-    analysisDimensionFields.value = await alarmStore.alarmService.getAnalysisDimensionFields(params);
-    getAnalysisDimensionData(analysisDimensionFields.value.map(item => item.id));
+  const getAnalysisDimensionFields = () => {
+    getAnalysisDimensionData(dimensionTags.value.map(item => item.id));
   };
 
   /** 获取分析 dimension Tag列表对应的TopN数据 */
@@ -95,7 +94,7 @@ export function useAlarmAnalysis() {
       doc_count: data.doc_count,
       fields: data.fields.map(item => ({
         ...item,
-        name: analysisDimensionFields.value.find(tag => tag.id === item.field)?.name || item.field,
+        name: dimensionTags.value.find(tag => tag.id === item.field)?.name || item.field,
       })),
     };
     analysisDimensionLoading.value = false;
@@ -106,7 +105,10 @@ export function useAlarmAnalysis() {
    * @param {string[]} fields 维度分析字段列表
    * @param {boolean} isAll 是否获取全部数据
    */
-  const getAnalysisDataByFields = async (fields: string[], isAll = false) => {
+  const getAnalysisDataByFields = async (
+    fields: string[],
+    isAll = false
+  ): Promise<AnalysisTopNDataResponse<Omit<AnalysisListItem, 'name'>>> => {
     const data = await alarmStore.alarmService.getAnalysisTopNData(
       {
         ...alarmStore.commonFilterParams,
@@ -121,7 +123,7 @@ export function useAlarmAnalysis() {
         ...item,
         buckets: item.buckets.map(bucket => ({
           ...bucket,
-          percent: Number(((bucket.count / data.doc_count) * 100).toFixed(2)),
+          percent: data.doc_count ? Number(((bucket.count / data.doc_count) * 100).toFixed(2)) : 0,
         })),
       })),
     };
@@ -131,10 +133,10 @@ export function useAlarmAnalysis() {
   return {
     analysisFieldTopNData,
     analysisFieldTopNLoading,
-    analysisDimensionFields,
     analysisDimensionTopNData,
     analysisDimensionLoading,
     analysisFields,
+    dimensionTags,
     analysisFieldsMap,
     analysisSettings,
     getAnalysisDataByFields,

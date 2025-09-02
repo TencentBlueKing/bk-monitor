@@ -1,0 +1,30 @@
+.alarm-analysis-slider {
+  .bk-modal-content {
+    padding: 12px 24px 20px 35px;
+  }
+
+  .alarm-analysis-slider-header {
+    .alarm-analysis-title {
+      display: flex;
+      align-items: center;
+
+      .count {
+        margin: 0 4px;
+      }
+
+      .icon-mc-copy {
+        margin-left: 8px;
+        font-size: 16px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
+
+  .skeleton-wrap {
+    .skeleton-element {
+      height: 26px;
+      margin-bottom: 8px;
+    }
+  }
+}
