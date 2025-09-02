@@ -294,6 +294,7 @@ class GetCustomEventGroup(Resource):
         start, end = parse_time_range(time_range)
         data_source = load_data_source(DataSourceLabel.CUSTOM, DataTypeLabel.EVENT)(table=result_table_id)
         q = data_source._get_queryset(
+            bk_tenant_id=get_request_tenant_id(),
             metrics=[
                 {"field": "target", "method": "distinct", "alias": "target_count"},
                 {"field": "time", "method": "max", "alias": "last_change_timestamp"},
