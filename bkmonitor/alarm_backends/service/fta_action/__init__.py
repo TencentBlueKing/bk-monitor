@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import inspect
 import json
@@ -71,7 +71,7 @@ class ActionAlreadyFinishedError(BaseException):
         pass
 
 
-class BaseActionProcessor(object):
+class BaseActionProcessor:
     """
     Action 处理器
     {
@@ -108,7 +108,9 @@ class BaseActionProcessor(object):
             # 当处理套餐被禁用或者删除之后，对于之前已经处理中的任务，用快照来替代
             self.action_config = self.action.action_config
 
-        self.notify_config = self.action.strategy.get("notice")
+        # todo 非策略产生的告警(告警来源非监控) 支持通过告警分派进行通知
+        if self.action.strategy:
+            self.notify_config = self.action.strategy.get("notice")
         self.execute_config = self.action_config.get("execute_config", {})
         self.timeout_setting = self.execute_config.get("timeout")
         self.failed_retry = self.execute_config.get("failed_retry", {})
@@ -209,7 +211,9 @@ class BaseActionProcessor(object):
         try:
             approve_info = CreateFastApprovalTicketResource().request(**ticket_data)
         except BaseException as error:
-            self.set_finished(ActionStatus.FAILURE, message=_("创建异常防御审批单据失败,错误信息：{}").format(str(error)))
+            self.set_finished(
+                ActionStatus.FAILURE, message=_("创建异常防御审批单据失败,错误信息：{}").format(str(error))
+            )
             return
         # 创建快速审批单据并且记录审批信息
         self.update_action_outputs({"approve_info": approve_info})
@@ -235,7 +239,9 @@ class BaseActionProcessor(object):
             approve_result = TicketApproveResultResource().request(**{"sn": [sn]})[0]
         except BaseException as error:
             logger.exception("get approve result error : %s, request sn: %s", error, sn)
-            self.set_finished(ActionStatus.FAILURE, message=_("获取异常防御审批结果出错，错误信息：{}").format(str(error)))
+            self.set_finished(
+                ActionStatus.FAILURE, message=_("获取异常防御审批结果出错，错误信息：{}").format(str(error))
+            )
         else:
             self.approve_callback(**approve_result)
 
@@ -261,7 +267,9 @@ class BaseActionProcessor(object):
                 level=ActionLogLevel.INFO,
             )
             return
-        self.set_finished(ActionStatus.SKIPPED, message=_("审批不通过，忽略执行，审批人{}").format(approve_result["updated_by"]))
+        self.set_finished(
+            ActionStatus.SKIPPED, message=_("审批不通过，忽略执行，审批人{}").format(approve_result["updated_by"])
+        )
 
     def get_action_info(self, callback_module, callback_func, kwargs):
         return {
@@ -305,7 +313,7 @@ class BaseActionProcessor(object):
             description=description,
             time=int(time.time()),
             create_time=int(time.time()),
-            event_id="{}{}".format(int(self.action.create_time.timestamp()), self.action.id),
+            event_id=f"{int(self.action.create_time.timestamp())}{self.action.id}",
         )
         AlertLog.bulk_create([AlertLog(**action_log)])
 
@@ -345,7 +353,7 @@ class BaseActionProcessor(object):
                     "execute_notify_result": execute_notify_result if execute_notify_result else {},
                     "target_info": self.get_target_info_from_ctx(),
                 },
-            }
+            },
         )
 
     def get_target_info_from_ctx(self):
@@ -482,7 +490,7 @@ class BaseActionProcessor(object):
         # 更新任务数据(插入日志)
         level = ActionLogLevel.ERROR if to_status == ActionStatus.FAILURE else ActionLogLevel.INFO
         self.insert_action_log(
-            step_name=_("第%s次任务执行结束" % self.retry_times),
+            step_name=_("第{}次任务执行结束".format(self.retry_times)),
             action_log=_("执行{}: {}").format(ACTION_STATUS_DICT.get(to_status), message),
             level=level,
         )
@@ -567,7 +575,7 @@ class BaseActionProcessor(object):
                 # 如果解析不出来的，表示是以前的通知方式，可以直接忽略
                 channel = ""
                 notice_way = notice_way
-            title_template_path = "notice/fta_action/{notice_way}_title.jinja".format(notice_way=notice_way)
+            title_template_path = f"notice/fta_action/{notice_way}_title.jinja"
             content_template_path = "notice/fta_action/{notice_way}_content.jinja".format(
                 notice_way="markdown" if notice_way in settings.MD_SUPPORTED_NOTICE_WAYS else notice_way
             )
@@ -644,8 +652,15 @@ class BaseActionProcessor(object):
         sn = kwargs.get("sn") or self.action.outputs.get("approve_info", {}).get("sn")
         try:
             TicketRevokeResource().request(
-                {"sn": sn, "operator": "fta-system", "action_message": _("异常防御审批执行时间套餐配置30分钟, 按忽略处理")}
+                {
+                    "sn": sn,
+                    "operator": "fta-system",
+                    "action_message": _("异常防御审批执行时间套餐配置30分钟, 按忽略处理"),
+                }
             )
             self.set_finished(ActionStatus.SKIPPED, message=_("异常防御审批执行时间套餐配置30分钟, 按忽略处理"))
         except BaseException as error:
-            self.set_finished(ActionStatus.FAILURE, message=_("异常防御审批执行时间套餐配置30分钟, 撤回单据失败，错误信息：{}").format(str(error)))
+            self.set_finished(
+                ActionStatus.FAILURE,
+                message=_("异常防御审批执行时间套餐配置30分钟, 撤回单据失败，错误信息：{}").format(str(error)),
+            )
