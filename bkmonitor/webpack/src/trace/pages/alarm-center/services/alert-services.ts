@@ -157,7 +157,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('维度'),
     is_default: false,
     is_locked: false,
-    minWidth: 200,
+    minWidth: 240,
   },
   {
     colKey: 'extend_info',

@@ -48,7 +48,7 @@ import type { CheckboxGroupValue, SelectOptions, SizeEnum, SlotReturnValue, TdAf
 import './common-table.scss';
 
 export default defineComponent({
-  name: 'AlarmTable',
+  name: 'CommonTable',
   props: {
     /** 表格行数据唯一值 key 名 */
     rowKey: {

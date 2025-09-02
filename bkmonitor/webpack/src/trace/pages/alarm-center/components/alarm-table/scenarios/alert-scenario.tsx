@@ -112,7 +112,7 @@ export class AlertScenario extends BaseScenario {
       target_key: {
         renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
         getRenderValue: row => ({
-          prefixIcon: AlertTargetTypeMap[row.target_key]?.prefixIcon,
+          prefixIcon: AlertTargetTypeMap[row.target_type]?.prefixIcon,
           alias: row?.extend_info?.topo_info ? `${row?.extend_info?.topo_info} ${row.target_key}` : row.target_key,
         }),
       },
