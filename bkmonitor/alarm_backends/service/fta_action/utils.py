@@ -123,12 +123,15 @@ class PushActionProcessor:
             converge_info = DimensionCalculator(
                 action_instance, converge_config=converge_config, alerts=alerts
             ).calc_dimension()
-            task_id = run_converge.delay(
-                converge_config,
-                action_instance.id,
-                ConvergeType.ACTION,
-                converge_info["converge_context"],
-                alerts=[alert.to_dict() for alert in alerts],
+            task_id = run_converge.apply_async(
+                args=(
+                    converge_config,
+                    action_instance.id,
+                    ConvergeType.ACTION,
+                    converge_info["converge_context"],
+                    [alert.to_dict() for alert in alerts],
+                ),
+                countdown=3,
             )
             logger.info(
                 "[push_actions_to_converge_queue] push action(%s) to converge queue, converge_config %s,  task id %s",

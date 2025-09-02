@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, type CreateElement } from 'vue';
-import useLocale from '@/hooks/use-locale';
-import EditStrategy from '../edit-strategy';
-import { bkInfoBox, bkMessage } from 'bk-magic-vue';
-import $http from '@/api';
-import { StrategyType } from '../index';
+import { computed, defineComponent, ref, type CreateElement } from "vue";
+import useLocale from "@/hooks/use-locale";
+import EditStrategy from "../edit-strategy";
+import { bkInfoBox, bkMessage } from "bk-magic-vue";
+import $http from "@/api";
+import { StrategyType } from "../index";
 
-import './index.scss';
+import "./index.scss";
 
 export default defineComponent({
-  name: 'ConfigItem',
+  name: "ConfigItem",
   components: {
     EditStrategy,
   },
@@ -53,7 +53,7 @@ export default defineComponent({
     },
     type: {
       type: String,
-      default: 'new_cls_strategy',
+      default: "new_cls_strategy",
     },
     bkBizId: {
       type: String,
@@ -72,7 +72,7 @@ export default defineComponent({
 
     const isNewClass = computed(() => props.type === StrategyType.NEW_CLASS);
 
-    let h: CreateElement = null;
+    let h: CreateElement;
 
     const handleEditStrategy = () => {
       isEdit.value = true;
@@ -81,39 +81,42 @@ export default defineComponent({
 
     const handleDeleteStrategy = () => {
       const strategyMapping = {
-        [StrategyType.NEW_CLASS]: 'new_cls_strategy',
-        [StrategyType.SUDDEN_INCREASE]: 'normal_strategy',
+        [StrategyType.NEW_CLASS]: "new_cls_strategy",
+        [StrategyType.SUDDEN_INCREASE]: "normal_strategy",
       };
       const strategyType = strategyMapping[props.type];
       bkInfoBox({
-        title: t('是否删除该策略？'),
+        title: t("是否删除该策略？"),
         confirmLoading: true,
-        theme: 'danger',
-        okText: t('删除'),
+        theme: "danger",
+        okText: t("删除"),
         subHeader: h(
-          'div',
+          "div",
           {
             style: {
-              display: 'flex',
-              justifyContent: 'center',
+              display: "flex",
+              justifyContent: "center",
             },
           },
           [
             h(
-              'span',
+              "span",
               {
                 style: {
-                  color: '#63656E',
+                  color: "#63656E",
                 },
               },
-              [t('策略：')],
+              [t("策略：")]
             ),
-            h('span', t(isNewClass.value ? '新类告警策略' : '数量突增告警策略')),
-          ],
+            h(
+              "span",
+              t(isNewClass.value ? "新类告警策略" : "数量突增告警策略")
+            ),
+          ]
         ),
         confirmFn: async () => {
           try {
-            const res = await $http.request('retrieve/deleteClusteringInfo', {
+            const res = await $http.request("retrieve/deleteClusteringInfo", {
               params: {
                 index_set_id: props.indexId,
               },
@@ -122,10 +125,10 @@ export default defineComponent({
             if (res.code === 0) {
               isShowDialog.value = false;
               bkMessage({
-                theme: 'success',
-                message: t('操作成功'),
+                theme: "success",
+                message: t("操作成功"),
               });
-              emit('refresh-strategy-info');
+              emit("refresh-strategy-info");
             }
             return true;
           } catch (e) {
@@ -139,25 +142,27 @@ export default defineComponent({
     /** 跳转告警策略列表 */
     const handleViewStrategy = () => {
       window.open(
-        `${window.MONITOR_URL}/?bizId=${props.bkBizId}#/strategy-config?strategyLabels=${JSON.stringify(props.labelName)}`,
-        '_blank',
+        `${window.MONITOR_URL}/?bizId=${
+          props.bkBizId
+        }#/strategy-config?strategyLabels=${JSON.stringify(props.labelName)}`,
+        "_blank"
       );
     };
 
     const operationList = [
       {
-        text: t('编辑策略'),
-        icon: 'edit',
+        text: t("编辑策略"),
+        icon: "edit",
         func: handleEditStrategy,
       },
       {
-        text: t('查看策略'),
-        icon: 'audit',
+        text: t("查看策略"),
+        icon: "audit",
         func: handleViewStrategy,
       },
       {
-        text: t('删除策略'),
-        icon: 'log-delete',
+        text: t("删除策略"),
+        icon: "log-delete",
         func: handleDeleteStrategy,
       },
     ];
@@ -170,51 +175,48 @@ export default defineComponent({
     return (hFunc: CreateElement) => {
       h = hFunc;
       return (
-        <div class='strategy-operate-main'>
-          <div class='icon-wraper'>
-            <log-icon type={isNewClass.value ? 'xinleigaojing' : 'tuzenggaojing'} />
+        <div class="strategy-operate-main">
+          <div class="icon-wraper">
+            <log-icon
+              type={isNewClass.value ? "xinleigaojing" : "tuzenggaojing"}
+            />
           </div>
-          <span class='type-title'>{isNewClass.value ? t('新类告警策略') : t('数量突增策略')}：</span>
+          <span class="type-title">
+            {isNewClass.value ? t("新类告警策略") : t("数量突增策略")}：
+          </span>
           {props.configured ? (
-            <span class='configed'>{t('已配置')}</span>
+            <span class="configed">{t("已配置")}</span>
           ) : (
-            <span class='not-config'>{t('未配置')}</span>
+            <span class="not-config">{t("未配置")}</span>
           )}
-          <bk-dropdown-menu align='right'>
-            <div slot='dropdown-trigger'>
-              <div class='more-icon-wraper'>
-                <log-icon
-                  class='more-icon'
-                  type='more'
-                />
+          <bk-dropdown-menu align="right">
+            <div slot="dropdown-trigger">
+              <div class="more-icon-wraper">
+                <log-icon class="more-icon" type="more" />
               </div>
             </div>
-            <div slot='dropdown-content'>
-              <div class={['dropdown-list', { 'is-not-config': !props.configured }]}>
+            <div slot="dropdown-content">
+              <div
+                class={[
+                  "dropdown-list",
+                  { "is-not-config": !props.configured },
+                ]}
+              >
                 {props.configured ? (
-                  operationList.map(item => (
-                    <div
-                      class='item'
-                      on-click={item.func}
-                    >
-                      <log-icon
-                        type={item.icon}
-                        class='item-icon'
-                      />
-                      <span class='item-title'>{item.text}</span>
+                  operationList.map((item) => (
+                    <div class="item" on-click={item.func}>
+                      <log-icon type={item.icon} class="item-icon" />
+                      <span class="item-title">{item.text}</span>
                     </div>
                   ))
                 ) : (
-                  <div
-                    class='item'
-                    on-click={handleAddNewStrategy}
-                  >
+                  <div class="item" on-click={handleAddNewStrategy}>
                     <log-icon
-                      type='-celve'
-                      style='font-size: 14px'
-                      class='item-icon'
+                      type="-celve"
+                      style="font-size: 14px"
+                      class="item-icon"
                     />
-                    <span class='item-title'>{t('新建策略')}</span>
+                    <span class="item-title">{t("新建策略")}</span>
                   </div>
                 )}
               </div>
@@ -226,10 +228,10 @@ export default defineComponent({
             isEdit={isEdit.value}
             indexId={props.indexId}
             configData={props.configData}
-            on-success={() => emit('refresh-strategy-info')}
+            on-success={() => emit("refresh-strategy-info")}
             {...{
               on: {
-                'update:isShow': (val: boolean) => {
+                "update:isShow": (val: boolean) => {
                   isShowDialog.value = val;
                 },
               },

@@ -39,7 +39,7 @@ export type AIBluekingShortcuts = AIBluekingShortcut[];
 
 // 组件配置类型
 export interface ComponentConfig {
-  default?: string;
+  default?: number | string;
   fillBack: boolean;
   hide?: boolean;
   key: string;

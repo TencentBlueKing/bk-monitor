@@ -1,0 +1,30 @@
+
+.template-query-panel-component-loading {
+  display: flex;
+
+  .left {
+    align-self: stretch;
+    width: 24px;
+    margin-right: 2px;
+  }
+
+  .right {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+
+    .row-1 {
+      height: 32px;
+    }
+
+    .row-2 {
+      height: 32px;
+      margin-top: 2px;
+    }
+
+    .row-3 {
+      height: 48px;
+      margin-top: 2px;
+    }
+  }
+}
