@@ -131,10 +131,11 @@ class ApmDataSourceConfigBase(models.Model):
         )
 
     def create_data_id(self):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         if self.bk_data_id != -1:
             return self.bk_data_id
         try:
-            data_id_info = resource.metadata.query_data_source({"data_name": self.data_name})
+            data_id_info = resource.metadata.query_data_source(bk_tenant_id=bk_tenant_id, data_name=self.data_name)
         except metadata_models.DataSource.DoesNotExist:
             # 临时支持数据链路
             data_link = DataLink.get_data_link(self.bk_biz_id)
@@ -149,9 +150,10 @@ class ApmDataSourceConfigBase(models.Model):
                         data_link_param["transfer_cluster"] = data_link.trace_transfer_cluster_id
             data_id_info = resource.metadata.create_data_id(
                 {
+                    "bk_tenant_id": bk_tenant_id,
                     "bk_biz_id": self.bk_biz_id,
                     "data_name": self.data_name,
-                    "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+                    "operator": get_global_user(bk_tenant_id=bk_tenant_id),
                     "data_description": self.data_name,
                     **self.DATA_ID_PARAM,
                     **data_link_param,
