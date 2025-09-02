@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type VariableModelType } from '../../variables';
+import type { VariableModelType } from '../../variables';
 
 export interface QueryVariablesTransformResult<T = unknown> {
   /** 是否包含变量 */
@@ -36,7 +36,7 @@ export interface QueryVariablesTransformResult<T = unknown> {
 }
 type ScopedVariable = Record<string, VariableModelType>;
 
-export const variableRegex = /\${([\w\u4e00-\u9fa5]+)}/g;
+export const variableRegex = /^\$\{([\w.]{1,50})}$/;
 
 /**
  * @class VariablesTool
