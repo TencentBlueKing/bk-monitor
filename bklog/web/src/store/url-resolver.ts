@@ -78,7 +78,7 @@ class RouteUrlResolver {
    * 需要清理URL参数时，获取默认的参数配置列表
    * @returns
    */
-  public getDefUrlQuery(ignoreList = []) {
+  public getDefUrlQuery(ignoreList: string[] = []) {
     const routeQuery = this.query;
     const appendParamKeys = [...this.resolveFieldList, 'end_time'].filter(f => !(ignoreList ?? []).includes(f));
     const undefinedQuery = appendParamKeys.reduce((out, key) => Object.assign(out, { [key]: undefined }), {});
