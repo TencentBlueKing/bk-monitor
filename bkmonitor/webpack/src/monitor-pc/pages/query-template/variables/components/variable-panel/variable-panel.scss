@@ -1,0 +1,156 @@
+.variable-panel {
+  background: #fff;
+
+  .variable-panel-header {
+    .variable-type-title {
+      display: inline-block;
+      height: 30px;
+      padding: 0 16px;
+      margin-bottom: 2px;
+      font-size: 12px;
+      line-height: 30px;
+      color: #fff;
+      background: #929eb6;
+      border-radius: 2px 0 8px;
+    }
+  }
+
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+
+    .tag-item {
+      height: 22px;
+      padding: 0 4px;
+      margin-top: 2px;
+      font-size: 12px;
+      line-height: 22px;
+      color: #4d4f56;
+      background: #f0f1f5;
+      border-radius: 2px;
+
+      & + .tag-item {
+        margin-left: 2px;
+      }
+    }
+  }
+
+  .condition-tag {
+    display: inline-block;
+    height: 40px;
+    padding: 4px;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    & + .condition-tag {
+      margin-left: 4px;
+    }
+
+    .key-wrap {
+      display: flex;
+      align-items: center;
+      padding-right: 42px;
+      font-size: 12px;
+      line-height: 14px;
+
+      .key-name {
+        color: #757880;
+      }
+
+      .key-method {
+        margin-left: 2px;
+        color: #3a84ff;
+
+        &.exclude,
+        &.ne {
+          color: #ea3636;
+        }
+      }
+    }
+
+    .value-wrap {
+      margin-top: 2px;
+      font-size: 12px;
+      line-height: 16px;
+      color: #313238;
+
+      .value-condition {
+        margin: 0 4px;
+        font-family: RobotoMono-Medium, Menlo, Monaco, Consolas, 'Courier New', monospace;
+        font-weight: 500;
+        color: #f59500;
+      }
+
+      .value-name {
+        font-family: RobotoMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace;
+        font-weight: 400;
+        color: #313238;
+      }
+    }
+  }
+
+  &.create {
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    & + .variable-panel {
+      margin-top: 12px;
+    }
+
+    .variable-panel-header {
+      display: flex;
+      align-items: center;
+
+      .icon-mc-delete-line {
+        display: none;
+        margin-right: 7.5px;
+        margin-left: auto;
+        font-size: 13px;
+        color: #ea3636;
+        cursor: pointer;
+
+        &.disabled {
+          color: #dcdee5;
+          cursor: not-allowed;
+        }
+      }
+    }
+
+    .variable-form {
+      padding: 0 16px;
+    }
+  }
+
+  &.detail {
+    display: flex;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+
+    .variable-panel-header {
+      flex-shrink: 0;
+      transform: translateY(-1px);
+    }
+
+    & + .variable-panel {
+      margin-top: 8px;
+    }
+
+    .variable-type-title {
+      flex-shrink: 0;
+    }
+
+    .variable-form {
+      padding: 6px 0;
+    }
+  }
+
+  &:hover {
+    .variable-panel-header {
+      display: flex;
+
+      .icon-mc-delete-line {
+        display: block;
+      }
+    }
+  }
+}

@@ -24,25 +24,25 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, nextTick, watch } from 'vue';
-import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
-import tippy from 'tippy.js';
-import RegexTable, { type RowData } from './regex-table';
-import { bkMessage } from 'bk-magic-vue';
-import $http from '@/api';
-import OccupyInput from './occupy-input';
-import RegexPreview from './regex-preview';
-import SecondConfirm from './second-confirm';
-import { type ConfigInfo } from '@/services/log-clustering';
-import { type IResponseData } from '@/services/type';
-import { base64Encode } from '@/common/util';
-import { base64ToRuleList } from '@/utils';
+import { computed, defineComponent, ref, nextTick, watch } from "vue";
+import useLocale from "@/hooks/use-locale";
+import useStore from "@/hooks/use-store";
+import tippy from "tippy.js";
+import RegexTable, { type RowData } from "./regex-table";
+import { bkMessage } from "bk-magic-vue";
+import $http from "@/api";
+import OccupyInput from "./occupy-input";
+import RegexPreview from "./regex-preview";
+import SecondConfirm from "./second-confirm";
+import { type ConfigInfo } from "@/services/log-clustering";
+import { type IResponseData } from "@/services/type";
+import { base64Encode } from "@/common/util";
+import { base64ToRuleList } from "@/utils";
 
-import './index.scss';
+import "./index.scss";
 
 export default defineComponent({
-  name: 'RegexMatch',
+  name: "RegexMatch",
   components: {
     RegexTable,
     OccupyInput,
@@ -52,7 +52,7 @@ export default defineComponent({
   props: {
     sampleStr: {
       type: String,
-      default: '',
+      default: "",
     },
     value: {
       type: Boolean,
@@ -67,54 +67,57 @@ export default defineComponent({
     const { t } = useLocale();
     const store = useStore();
 
-    const previewBtnRef = ref(null);
-    const secondConfirmRef = ref(null);
-    const confirmBtnRef = ref(null);
-    const logSampleRef = ref(null);
-    const regexPreviewRef = ref(null);
-    const tableRef = ref(null);
-    const occupyRef = ref(null);
+    const previewBtnRef = ref<HTMLElement>();
+    const secondConfirmRef = ref<any>(null);
+    const confirmBtnRef = ref<HTMLElement>();
+    const logSampleRef = ref<HTMLElement>();
+    const regexPreviewRef = ref<any>(null);
+    const tableRef = ref<any>(null);
+    const occupyRef = ref<any>(null);
     const isShowRuleDialog = ref(false);
     const isConfigChanged = ref(false);
     const isConfirmLoading = ref(false);
     const regexList = ref<RowData[]>([]);
 
     const indexSetItem = computed(() => store.state.indexItem.items[0]);
-    const configId = computed(() => store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id);
+    const configId = computed(
+      () =>
+        store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id
+    );
     // 选中的划词
-    let occupyOriginStr = '';
-    let occupyPopoverInstance = null;
-    let regexPreviewPopoverInstance = null;
-    let secondConfirmPopoverInstance = null;
-    let currentChoosedTextBackgroundColor = '';
+    let occupyOriginStr = "";
+    let occupyPopoverInstance: any = null;
+    let regexPreviewPopoverInstance: any = null;
+    let secondConfirmPopoverInstance: any = null;
+    let currentChoosedTextBackgroundColor = "";
     let logConfigInfo = {
       id: 0,
-      type: '',
+      type: "",
     };
     let highlightColorIndex = 0;
 
     const defaultHighlightColorList = [
-      'rgb(255, 235, 204)',
-      'rgb(206, 235, 222)',
-      'rgb(215, 235, 245)',
-      'rgb(224, 229, 255)',
-      'rgb(249, 219, 255)',
-      'rgb(255, 224, 230)',
-      'rgb(226, 240, 211)',
-      'rgb(235, 221, 192)',
-      'rgb(188, 214, 206)',
-      'rgb(187, 207, 227)',
-      'rgb(193, 193, 239)',
-      'rgb(224, 195, 224)',
-      'rgb(239, 193, 193)',
-      'rgb(199, 215, 190)',
-      'rgb(247, 208, 148)',
-      'rgb(155, 223, 191)',
-      'rgb(177, 225, 249)',
-      'rgb(172, 177, 255)',
-      'rgb(242, 174, 255)',
-      'rgb(255, 171, 185)',
-      'rgb(192, 240, 137)',
+      "rgb(255, 235, 204)",
+      "rgb(206, 235, 222)",
+      "rgb(215, 235, 245)",
+      "rgb(224, 229, 255)",
+      "rgb(249, 219, 255)",
+      "rgb(255, 224, 230)",
+      "rgb(226, 240, 211)",
+      "rgb(235, 221, 192)",
+      "rgb(188, 214, 206)",
+      "rgb(187, 207, 227)",
+      "rgb(193, 193, 239)",
+      "rgb(224, 195, 224)",
+      "rgb(239, 193, 193)",
+      "rgb(199, 215, 190)",
+      "rgb(247, 208, 148)",
+      "rgb(155, 223, 191)",
+      "rgb(177, 225, 249)",
+      "rgb(172, 177, 255)",
+      "rgb(242, 174, 255)",
+      "rgb(255, 171, 185)",
+      "rgb(192, 240, 137)",
     ];
 
     watch(
@@ -123,7 +126,7 @@ export default defineComponent({
         if (props.value) {
           isShowRuleDialog.value = true;
         }
-      },
+      }
     );
 
     // 数据指纹请求
@@ -133,20 +136,24 @@ export default defineComponent({
           index_set_id: props.indexId,
         };
         const data = { collector_config_id: configId.value };
-        const baseUrl = '/logClustering';
-        const requestBehindUrl = isDefault ? '/getDefaultConfig' : '/getConfig';
+        const baseUrl = "/logClustering";
+        const requestBehindUrl = isDefault ? "/getDefaultConfig" : "/getConfig";
         const requestUrl = `${baseUrl}${requestBehindUrl}`;
-        const res = (await $http.request(requestUrl, !isDefault && { params, data })) as IResponseData<ConfigInfo>;
-        const { regex_rule_type, regex_template_id, predefined_varibles } = res.data;
+        const res = (await $http.request(
+          requestUrl,
+          !isDefault && { params, data }
+        )) as IResponseData<ConfigInfo>;
+        const { regex_rule_type, regex_template_id, predefined_varibles } =
+          res.data;
         const ruleList = base64ToRuleList(predefined_varibles);
-        const tableList = ruleList.map(item => {
+        const tableList = ruleList.map((item) => {
           const key = Object.keys(item)[0];
           const value = item[key];
           return {
             pattern: value,
             occupy: key,
-            occupyOriginStr: '',
-            highlight: '#e6e9f0',
+            occupyOriginStr: "",
+            highlight: "#e6e9f0",
             disabled: true,
           };
         });
@@ -164,23 +171,23 @@ export default defineComponent({
 
     const handleCancel = () => {
       isShowRuleDialog.value = false;
-      emit('change', false);
+      emit("change", false);
     };
 
     const handleConfirm = () => {
       tableRef.value
         .getData()
-        .then(data => {
+        .then((data) => {
           isConfirmLoading.value = true;
-          if (logConfigInfo.type === 'template') {
-            secondConfirmPopoverInstance = tippy(confirmBtnRef.value, {
+          if (logConfigInfo.type === "template") {
+            secondConfirmPopoverInstance = tippy(confirmBtnRef.value!, {
               appendTo: () => document.body,
               content: secondConfirmRef.value.getRef(),
               maxWidth: 360,
               arrow: true,
-              trigger: 'manual',
-              theme: 'light second-confirm-popover',
-              placement: 'bottom-start',
+              trigger: "manual",
+              theme: "light second-confirm-popover",
+              placement: "bottom-start",
               hideOnClick: false,
               interactive: true,
               allowHTML: true,
@@ -189,16 +196,16 @@ export default defineComponent({
           } else {
             // 直接调用更新聚类配置接口
             const predefinedVaribles = tableArrToBase64(data);
-            updateLogConfig('customize', predefinedVaribles);
+            updateLogConfig("customize", predefinedVaribles);
           }
         })
-        .catch(e => {
+        .catch((e) => {
           console.error(e);
         });
     };
 
     const destroyOccupyPopover = () => {
-      occupyOriginStr = '';
+      occupyOriginStr = "";
       occupyRef.value.close();
       occupyPopoverInstance?.hide();
       occupyPopoverInstance?.destroy();
@@ -206,20 +213,22 @@ export default defineComponent({
     };
 
     const handleMouseUpSample = () => {
-      const selection = window.getSelection();
+      const selection = window.getSelection()!;
       const selectedText = selection.toString();
       if (selectedText) {
         const range = selection.getRangeAt(0);
-        const wrapper = document.createElement('span');
-        wrapper.classList.add('choosed-wrapper');
+        const wrapper = document.createElement("span");
+        wrapper.classList.add("choosed-wrapper");
         currentChoosedTextBackgroundColor = getHighlightColor();
         wrapper.style.background = currentChoosedTextBackgroundColor;
         wrapper.appendChild(range.extractContents());
         range.insertNode(wrapper);
         selection.removeAllRanges();
         nextTick(() => {
-          wrapper.addEventListener('popoverShowEvent', e => occupyTargetEvent(e, wrapper));
-          wrapper.dispatchEvent(new Event('popoverShowEvent'));
+          wrapper.addEventListener("popoverShowEvent", (e) =>
+            occupyTargetEvent(e, wrapper)
+          );
+          wrapper.dispatchEvent(new Event("popoverShowEvent"));
         });
       }
     };
@@ -230,9 +239,9 @@ export default defineComponent({
         appendTo: () => document.body,
         content: occupyRef.value.getRef(),
         arrow: true,
-        trigger: 'manual',
-        theme: 'light',
-        placement: 'bottom-start',
+        trigger: "manual",
+        theme: "light",
+        placement: "bottom-start",
         hideOnClick: false,
         interactive: true,
         allowHTML: true,
@@ -258,7 +267,7 @@ export default defineComponent({
 
     const handleSubmitOccupy = (inputValue: string) => {
       tableRef.value.addItem({
-        pattern: '',
+        pattern: "",
         occupy: inputValue,
         occupyOriginStr: occupyOriginStr,
         highlight: currentChoosedTextBackgroundColor,
@@ -267,13 +276,15 @@ export default defineComponent({
     };
 
     const getChoosedTextDomList = () => {
-      const doms = logSampleRef.value.querySelectorAll('.choosed-wrapper');
+      const doms = logSampleRef.value!.querySelectorAll(".choosed-wrapper");
       return Array.from(doms) as HTMLElement[];
     };
 
     const handleCancelOccupy = () => {
       const choosedSpanList = getChoosedTextDomList();
-      const removeDom = choosedSpanList.find(node => node.style.background === currentChoosedTextBackgroundColor);
+      const removeDom = choosedSpanList.find(
+        (node) => node.style.background === currentChoosedTextBackgroundColor
+      );
       if (removeDom) {
         const textNode = document.createTextNode(removeDom.innerText);
         removeDom.replaceWith(textNode);
@@ -283,7 +294,9 @@ export default defineComponent({
 
     const handleDeleteRow = (row: RowData) => {
       const choosedSpanList = getChoosedTextDomList();
-      const removeDom = choosedSpanList.find(node => node.style.background === row.highlight);
+      const removeDom = choosedSpanList.find(
+        (node) => node.style.background === row.highlight
+      );
       if (removeDom) {
         const textNode = document.createTextNode(removeDom.innerText);
         removeDom.replaceWith(textNode);
@@ -295,14 +308,14 @@ export default defineComponent({
         .getData()
         .then(() => {
           isConfigChanged.value = false;
-          regexPreviewPopoverInstance = tippy(previewBtnRef.value, {
+          regexPreviewPopoverInstance = tippy(previewBtnRef.value!, {
             appendTo: () => document.body,
             content: regexPreviewRef.value.getRef(),
             maxWidth: 962,
             arrow: true,
-            trigger: 'manual',
-            theme: 'light',
-            placement: 'bottom-start',
+            trigger: "manual",
+            theme: "light",
+            placement: "bottom-start",
             hideOnClick: false,
             interactive: true,
             allowHTML: true,
@@ -311,7 +324,7 @@ export default defineComponent({
           regexPreviewPopoverInstance.show();
           regexPreviewRef.value.onShow();
         })
-        .catch(err => {
+        .catch((err) => {
           console.error(err);
         });
     };
@@ -344,25 +357,25 @@ export default defineComponent({
 
     const tableArrToBase64 = (dataList: RowData[]) => {
       try {
-        const ruleList = dataList.reduce((pre, cur) => {
+        const ruleList = dataList.reduce<string[]>((pre, cur) => {
           const key = cur.occupy;
           const val = cur.pattern;
           const rulesStr = JSON.stringify(`${key}:${val}`);
           pre.push(rulesStr);
           return pre;
         }, []);
-        const ruleArrStr = `[${ruleList.join(' ,')}]`;
+        const ruleArrStr = `[${ruleList.join(" ,")}]`;
         return base64Encode(ruleArrStr);
       } catch (error) {
         console.error(error);
-        return '';
+        return "";
       }
     };
 
     const updateLogConfig = (type: string, predefinedVaribles: string) => {
       const { index_set_id, bk_biz_id } = indexSetItem.value;
       $http
-        .request('retrieve/updateClusteringConfig', {
+        .request("retrieve/updateClusteringConfig", {
           params: {
             index_set_id,
           },
@@ -376,11 +389,11 @@ export default defineComponent({
             bk_biz_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             bkMessage({
-              message: t('更新成功'),
-              theme: 'success',
+              message: t("更新成功"),
+              theme: "success",
             });
             handleConfirmSuccess();
           }
@@ -396,7 +409,7 @@ export default defineComponent({
 
     const updateTemplate = (predefinedVaribles: string) => {
       $http
-        .request('logClustering/updateTemplateName', {
+        .request("logClustering/updateTemplateName", {
           params: {
             regex_template_id: logConfigInfo.id,
           },
@@ -404,16 +417,16 @@ export default defineComponent({
             predefined_varibles: predefinedVaribles,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             bkMessage({
-              message: t('更新成功'),
-              theme: 'success',
+              message: t("更新成功"),
+              theme: "success",
             });
             handleConfirmSuccess();
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.error(err);
         });
     };
@@ -423,15 +436,15 @@ export default defineComponent({
         .getData()
         .then((data: RowData[]) => {
           const predefinedVaribles = tableArrToBase64(data);
-          if (type === 'sync') {
+          if (type === "sync") {
             // 同步更新模板
             updateTemplate(predefinedVaribles);
           } else {
             // 与模板解除绑定
-            updateLogConfig('customize', predefinedVaribles);
+            updateLogConfig("customize", predefinedVaribles);
           }
         })
-        .catch(e => {
+        .catch((e) => {
           console.error(e);
         });
     };
@@ -441,82 +454,72 @@ export default defineComponent({
         <bk-dialog
           width={960}
           mask-close={false}
-          render-directive='if'
-          ext-cls='regex-match-dialog-main'
+          render-directive="if"
+          ext-cls="regex-match-dialog-main"
           value={isShowRuleDialog.value}
-          header-position='left'
+          header-position="left"
           on-value-change={handleDialogChangeShow}
-          title={t('正则匹配')}
+          title={t("正则匹配")}
         >
-          <div class='sample-box'>
-            <div class='title'>{t('日志样例')}</div>
+          <div class="sample-box">
+            <div class="title">{t("日志样例")}</div>
             <bk-alert
-              type='info'
-              title={t('鼠标左键框选字段，可提取并生成正则表达式。')}
+              type="info"
+              title={t("鼠标左键框选字段，可提取并生成正则表达式。")}
             />
             <div
               ref={logSampleRef}
-              class='sample-content'
+              class="sample-content"
               onMouseup={handleMouseUpSample}
             >
               {props.sampleStr}
             </div>
             {regexList.value.length > 0 && (
-              <div
-                class='title'
-                style='margin-top: 20px;'
-              >
-                {t('正则')}
+              <div class="title" style="margin-top: 20px;">
+                {t("正则")}
               </div>
             )}
             <regex-table
-              style={{ display: regexList.value.length > 0 ? 'block' : 'none' }}
+              style={{ display: regexList.value.length > 0 ? "block" : "none" }}
               ref={tableRef}
               on-delete={handleDeleteRow}
               on-change={handleRegexTableChange}
-              on-open-cluster-config={() => emit('open-cluster-config')}
+              on-open-cluster-config={() => emit("open-cluster-config")}
             />
           </div>
-          <div
-            slot='footer'
-            class='bottom-operations'
-          >
+          <div slot="footer" class="bottom-operations">
             {isConfigChanged.value && regexList.value.length > 0 && (
-              <div class='tips-main'>
-                <log-icon
-                  type='circle-alert-filled'
-                  class='tip-icon'
-                />
-                <span class='tips-text'>{t('配置有变更，请重新点击“预览”')}</span>
+              <div class="tips-main">
+                <log-icon type="circle-alert-filled" class="tip-icon" />
+                <span class="tips-text">
+                  {t("配置有变更，请重新点击“预览”")}
+                </span>
               </div>
             )}
             <span ref={previewBtnRef}>
               <bk-button
-                theme='primary'
+                theme="primary"
                 outline
-                size='small'
+                size="small"
                 disabled={!regexList.value.length}
                 on-click={handleClickPreview}
               >
-                {t('预览')}
+                {t("预览")}
               </bk-button>
             </span>
             <span ref={confirmBtnRef}>
               <bk-button
-                theme='primary'
-                size='small'
+                theme="primary"
+                size="small"
                 disabled={!regexList.value.length}
                 loading={isConfirmLoading.value}
                 on-click={handleConfirm}
               >
-                {t('确定')}
+                {t("确定")}
               </bk-button>
             </span>
-            <bk-button
-              size='small'
-              on-click={handleCancel}
-            >
-              {t('取消')}
+            <bk-button size="small" on-click={handleCancel}>
+              {t("取消")}
             </bk-button>
           </div>
         </bk-dialog>

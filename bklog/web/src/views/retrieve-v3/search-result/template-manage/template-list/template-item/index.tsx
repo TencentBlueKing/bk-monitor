@@ -24,22 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted, PropType } from 'vue';
-import tippy, { roundArrow } from 'tippy.js';
-import useLocale from '@/hooks/use-locale';
-import CreateTemplate from '../create-template';
-import EditTemplate from './edit-template';
-import { random } from '@/common/util';
-import DeleteTemplate from './delete-template';
+import { defineComponent, ref, onMounted, PropType } from "vue";
+import tippy, { roundArrow } from "tippy.js";
+import useLocale from "@/hooks/use-locale";
+import CreateTemplate from "../create-template";
+import EditTemplate from "./edit-template";
+import { random } from "@/common/util";
+import DeleteTemplate from "./delete-template";
 
-import { type TemplateItem } from '../../index';
+import { type TemplateItem } from "../../index";
 
-import './index.scss';
-import 'tippy.js/dist/svg-arrow.css';
-import 'tippy.js/themes/light.css';
+import "./index.scss";
+import "tippy.js/dist/svg-arrow.css";
+import "tippy.js/themes/light.css";
 
 export default defineComponent({
-  name: 'TemplateManage',
+  name: "TemplateManage",
   props: {
     data: {
       type: Object as PropType<TemplateItem>,
@@ -58,8 +58,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
 
-    const editTemplateRef = ref(null);
-    const deleteTemplateRef = ref(null);
+    const editTemplateRef = ref<any>(null);
+    const deleteTemplateRef = ref<any>(null);
 
     const triggerId = random(10);
 
@@ -83,12 +83,12 @@ export default defineComponent({
     };
 
     const handleEditTemplateSuccess = () => {
-      emit('refresh');
+      emit("refresh");
       handleEditTemplateCancel();
     };
 
     const handleDeleteTemplateSuccess = () => {
-      emit('refresh');
+      emit("refresh");
       handleDeleteTemplateCancel();
     };
 
@@ -97,27 +97,27 @@ export default defineComponent({
         content: editTemplateRef.value.$el,
         appendTo: () => document.body,
         allowHTML: true,
-        trigger: 'manual',
+        trigger: "manual",
         interactive: true,
-        placement: 'bottom',
+        placement: "bottom",
         arrow: roundArrow,
-        theme: 'light',
+        theme: "light",
       });
 
       deleteTippyInstance = tippy(`#${CSS.escape(triggerId)}`, {
         content: deleteTemplateRef.value.$el,
         appendTo: () => document.body,
         allowHTML: true,
-        trigger: 'manual',
+        trigger: "manual",
         interactive: true,
-        placement: 'bottom',
+        placement: "bottom",
         arrow: roundArrow,
-        theme: 'light',
+        theme: "light",
       });
     };
 
     const handleClickMain = () => {
-      emit('click');
+      emit("click");
     };
 
     onMounted(() => {
@@ -126,50 +126,32 @@ export default defineComponent({
 
     return () => (
       <div
-        class={['template-item-main', { 'is-active': props.isActive }]}
+        class={["template-item-main", { "is-active": props.isActive }]}
         on-click={handleClickMain}
       >
-        <div class='item-title'>{props.data.template_name}</div>
-        <div class='item-count'>{props.data.ruleList.length}</div>
-        <bk-dropdown-menu
-          trigger='click'
-          ref='largeDropdown'
-        >
-          <div slot='dropdown-trigger'>
-            <div
-              class='template-list-more-btn'
-              id={triggerId}
-            >
-              <log-icon
-                type='more'
-                class='more-icon'
-              />
+        <div class="item-title">{props.data.template_name}</div>
+        <div class="item-count">{props.data.ruleList.length}</div>
+        <bk-dropdown-menu trigger="click" ref="largeDropdown">
+          <div slot="dropdown-trigger">
+            <div class="template-list-more-btn" id={triggerId}>
+              <log-icon type="more" class="more-icon" />
             </div>
           </div>
-          <ul
-            class='bk-dropdown-list'
-            slot='dropdown-content'
-          >
+          <ul class="bk-dropdown-list" slot="dropdown-content">
             <li>
-              <a
-                href='javascript:;'
-                on-click={handleClickRename}
-              >
-                {t('重命名')}
+              <a href="javascript:;" on-click={handleClickRename}>
+                {t("重命名")}
               </a>
             </li>
 
             <li>
-              <a
-                href='javascript:;'
-                on-click={handleClickDelete}
-              >
-                {t('删除')}
+              <a href="javascript:;" on-click={handleClickDelete}>
+                {t("删除")}
               </a>
             </li>
           </ul>
         </bk-dropdown-menu>
-        <div style='display: none;'>
+        <div style="display: none;">
           <EditTemplate
             ref={editTemplateRef}
             data={props.data}
@@ -177,7 +159,7 @@ export default defineComponent({
             on-success={handleEditTemplateSuccess}
           />
         </div>
-        <div style='display: none;'>
+        <div style="display: none;">
           <delete-template
             ref={deleteTemplateRef}
             data={props.data}
