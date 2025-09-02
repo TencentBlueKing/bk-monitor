@@ -135,7 +135,7 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
 
         for dimension, records in dimension_groups.items():
             if len(records) > 1:
-                logger.warning(f"the same event has {len(records)} records, records: {records}")
+                logger.warning(f"the same event has {len(records)} records, record: {records[0].raw_data}")
 
         # 进行优先级检查
         PriorityChecker.check_records(self.record_list)
