@@ -33,7 +33,7 @@ class AgentInfoSerializer(serializers.Serializer):
     获取智能体信息
     """
 
-    agent_code = serializers.CharField(label="Agent代码", default=settings.BK_AIDEV_AGENT_APP_CODE)
+    agent_code = serializers.CharField(label=_("Agent代码"), default=settings.BK_AIDEV_AGENT_APP_CODE)
 
 
 class CreateChatSessionSerializer(serializers.Serializer):
@@ -41,9 +41,9 @@ class CreateChatSessionSerializer(serializers.Serializer):
     创建会话
     """
 
-    session_code = serializers.CharField(label="会话代码")
-    session_name = serializers.CharField(label="会话名称")
-    agent_code = serializers.CharField(label="Agent代码", default=settings.BK_AIDEV_AGENT_APP_CODE)
+    session_code = serializers.CharField(label=_("会话代码"))
+    session_name = serializers.CharField(label=_("会话名称"))
+    agent_code = serializers.CharField(label=_("Agent代码"), default=settings.BK_AIDEV_AGENT_APP_CODE)
 
 
 class UpdateChatSessionSerializer(serializers.Serializer):
@@ -51,10 +51,10 @@ class UpdateChatSessionSerializer(serializers.Serializer):
     更新会话
     """
 
-    session_code = serializers.CharField(label="会话代码")
-    session_name = serializers.CharField(label="会话名称", required=False)
-    model = serializers.CharField(label="模型名称", required=False)
-    role_info = serializers.DictField(label="角色信息", required=False)
+    session_code = serializers.CharField(label=_("会话代码"))
+    session_name = serializers.CharField(label=_("会话名称"), required=False)
+    model = serializers.CharField(label=_("模型名称"), required=False)
+    role_info = serializers.DictField(label=_("角色信息"), required=False)
 
 
 class CreateChatSessionContentSerializer(serializers.Serializer):
@@ -62,10 +62,10 @@ class CreateChatSessionContentSerializer(serializers.Serializer):
     创建会话内容
     """
 
-    session_code = serializers.CharField(label="会话代码")
-    role = serializers.CharField(label="角色")
-    content = serializers.CharField(label="内容")
-    property = serializers.DictField(label="属性", required=False)
+    session_code = serializers.CharField(label=_("会话代码"))
+    role = serializers.CharField(label=_("角色"))
+    content = serializers.CharField(label=_("内容"))
+    property = serializers.DictField(label=_("属性"), required=False)
 
 
 class UpdateChatSessionContentSerializer(serializers.Serializer):
@@ -73,12 +73,12 @@ class UpdateChatSessionContentSerializer(serializers.Serializer):
     更新单条会话内容
     """
 
-    session_code = serializers.CharField(label="会话代码")
-    id = serializers.CharField(label="内容ID")
-    role = serializers.CharField(label="角色")
-    content = serializers.CharField(label="内容")
-    status = serializers.CharField(label="状态", default="loading")
-    property = serializers.DictField(label="属性", required=False)
+    session_code = serializers.CharField(label=_("会话代码"))
+    id = serializers.CharField(label=_("内容ID"))
+    role = serializers.CharField(label=_("角色"))
+    content = serializers.CharField(label=_("内容"))
+    status = serializers.CharField(label=_("状态"), default="loading")
+    property = serializers.DictField(label=_("属性"), required=False)
 
 
 class GetChatSessionContentsSerializer(serializers.Serializer):
@@ -86,7 +86,7 @@ class GetChatSessionContentsSerializer(serializers.Serializer):
     获取会话内容
     """
 
-    session_code = serializers.CharField(label="会话代码")
+    session_code = serializers.CharField(label=_("会话代码"))
 
 
 class BatchDeleteSessionContentSerializer(serializers.Serializer):
@@ -94,7 +94,7 @@ class BatchDeleteSessionContentSerializer(serializers.Serializer):
     批量删除会话内容
     """
 
-    ids = serializers.ListField(label="内容ID列表")
+    ids = serializers.ListField(label=_("内容ID列表"))
 
 
 class CreateChatCompletionSerializer(serializers.Serializer):
@@ -102,6 +102,6 @@ class CreateChatCompletionSerializer(serializers.Serializer):
     创建流式会话
     """
 
-    session_code = serializers.CharField(label="会话代码")
-    execute_kwargs = serializers.DictField(label="执行参数")
-    agent_code = serializers.CharField(label="Agent代码", default=settings.BK_AIDEV_AGENT_APP_CODE)
+    session_code = serializers.CharField(label=_("会话代码"))
+    execute_kwargs = serializers.DictField(label=_("执行参数"))
+    agent_code = serializers.CharField(label=_("Agent代码"), default=settings.BK_AIDEV_AGENT_APP_CODE)
