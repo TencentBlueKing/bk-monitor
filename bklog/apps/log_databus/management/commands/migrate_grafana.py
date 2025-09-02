@@ -33,6 +33,11 @@ class Command(BaseCommand):
             help="Comma-separated list of biz_ids for migration. Default is 'all', which includes every biz_id",
         )
         parser.add_argument("--app_code", type=str, default="bk_monitorv3", help="app_code for migrate permission")
+        parser.add_argument(
+            "--stats_only",
+            action="store_true",
+            help="Only get migration statistics without performing actual migration",
+        )
 
     def handle(self, *args, **options):
         start_time = time.time()
@@ -41,10 +46,19 @@ class Command(BaseCommand):
         # 获取命令行参数
         grafana_url = options["grafana_url"]
         selected_biz = options["selected_biz"]
+        stats_only = options["stats_only"]
         # app_code = options["app_code"]
 
         # 从 bk_log 获取 grafana 配置数据
-        grafana_data, extract_failed_biz = self.get_grafana_config(grafana_client, selected_biz)
+        grafana_data, extract_failed_biz, migration_stats = self.get_grafana_config(grafana_client, selected_biz)
+
+        # 如果只是获取统计信息，则显示后退出
+        if stats_only:
+            self.show_migration_stats(migration_stats)
+            end_time = time.time()
+            self.stdout.write(f"[migrate_grafana] #### STATS ONLY MODE END ####, Cost: {end_time - start_time} s")
+            return
+
         # 转换 bk-log grafana 配置数据
         biz_to_org_mapping, convert_failed_biz = self.convert_bklog_grafana_config(grafana_url, grafana_data)
         # 写入配置数据到新 Grafana,由用户进行指定
@@ -54,7 +68,7 @@ class Command(BaseCommand):
         # self.migrate_permissions(app_code)
 
         # 集中展示错误信息
-        self.show_error_info(extract_failed_biz, convert_failed_biz, write_failed_biz)
+        self.show_error_info(extract_failed_biz, convert_failed_biz, write_failed_biz, migration_stats)
 
         end_time = time.time()
         self.stdout.write(f"[migrate_grafana] #### END ####, Cost: {end_time - start_time} s")
@@ -83,10 +97,10 @@ class Command(BaseCommand):
             raise ValueError("Failed to get orgs from bk_log")
 
         orgs = self.filter_orgs_by_biz(selected_biz, orgs_resp.json())
-        all_data, failed_biz = self.extract_grafana_config(orgs)
+        all_data, failed_biz, migration_stats = self.extract_grafana_config(orgs)
 
         self.stdout.write("END get config from bk_log")
-        return all_data, failed_biz
+        return all_data, failed_biz, migration_stats
 
     def filter_orgs_by_biz(self, selected_biz, orgs):
         """根据命令行参数,选择需要迁移的业务"""
@@ -104,6 +118,12 @@ class Command(BaseCommand):
         all_data = []
         # 提取失败的业务及其失败原因
         failed_biz = {}
+        # 统计信息
+        migration_stats = {
+            "total_biz": 0,  # 只统计有仪表盘的业务
+            "total_dashboards": 0,
+            "biz_details": [],
+        }
 
         for org in orgs:
             org_id, org_name = org["id"], org["name"]
@@ -119,10 +139,27 @@ class Command(BaseCommand):
                 continue
 
             org_data = self.process_dashboards(dashboards_resp.json(), org_id, org_name, failed_biz)
-            all_data.append(org_data)
-            self.stdout.write(f"process org_id {org_id} -- org_name(biz_id) {org_name} SUCCESS")
 
-        return all_data, failed_biz
+            # 统计当前业务信息
+            biz_dashboard_count = sum(len(folder["dashboards"]) for folder in org_data["folders"])
+
+            # 只处理有仪表盘的业务
+            if biz_dashboard_count > 0:
+                biz_folder_count = len(org_data["folders"])
+                migration_stats["total_biz"] += 1
+                migration_stats["total_dashboards"] += biz_dashboard_count
+                migration_stats["biz_details"].append(
+                    {"biz_id": org_name, "dashboard_count": biz_dashboard_count, "folder_count": biz_folder_count}
+                )
+
+                all_data.append(org_data)
+                self.stdout.write(
+                    f"process org_id {org_id} -- org_name(biz_id) {org_name} SUCCESS: {biz_dashboard_count} dashboards"
+                )
+            else:
+                self.stdout.write(f"SKIP org_id {org_id} -- org_name(biz_id) {org_name}: no dashboards")
+
+        return all_data, failed_biz, migration_stats
 
     def check_org_name(self, org_id, org_name, failed_biz):
         if not re.match(r"^-?\d+$", org_name):
@@ -237,7 +274,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"create organization success for biz_id {biz_id}")
                 return resp.json()["orgId"]
         else:
-            self.show_error(f"failed create organization for biz_id {biz_id}: {resp.json}")
+            self.show_error(f"failed create organization for biz_id {biz_id}: {resp.json()}")
             self.record_error(failed_biz, biz_id, f"failed create organization: {resp.json()}")
             return None
 
@@ -404,8 +441,37 @@ class Command(BaseCommand):
 
         self.stdout.write("END migrate permissions")
 
+    # 统计展示
+    def show_migration_stats(self, migration_stats):
+        """展示迁移规模统计信息"""
+        if not migration_stats:
+            return
+
+        self.stdout.write("")
+        self.stdout.write("========== MIGRATION SCALE STATISTICS ==========")
+        self.stdout.write(f"📊 Total businesses to migrate: {migration_stats['total_biz']}")
+        self.stdout.write(f"📈 Total dashboards to migrate: {migration_stats['total_dashboards']}")
+        self.stdout.write("")
+        self.stdout.write("📋 Business details:")
+        for detail in migration_stats["biz_details"]:
+            self.stdout.write(
+                f"   • Business {detail['biz_id']}: {detail['dashboard_count']} dashboards, {detail['folder_count']} folders"
+            )
+        self.stdout.write("")
+        self.stdout.write("💡 Migration complexity assessment:")
+        if migration_stats["total_dashboards"] <= 100:
+            self.stdout.write("   - Small scale migration (≤100 dashboards)")
+        elif migration_stats["total_dashboards"] <= 500:
+            self.stdout.write("   - Medium scale migration (101-500 dashboards)")
+        elif migration_stats["total_dashboards"] <= 1000:
+            self.stdout.write("   - Large scale migration (501-1000 dashboards)")
+        else:
+            self.stdout.write("   - Very large scale migration (>1000 dashboards)")
+        self.stdout.write("================================================")
+        self.stdout.write("")
+
     # 错误打印
-    def show_error_info(self, extract_failed_biz, convert_failed_biz, write_failed_biz):
+    def show_error_info(self, extract_failed_biz, convert_failed_biz, write_failed_biz, migration_stats):
         """集中展示错误信息"""
         if extract_failed_biz:
             self.stdout.write("------------ FAILED INFO: get config ------------")
@@ -424,3 +490,6 @@ class Command(BaseCommand):
             for biz in write_failed_biz:
                 self.stdout.write(f"write grafana config failed for biz_id {biz}: {write_failed_biz[biz]}")
             self.stdout.write("---------------------------------------------------")
+
+        # 展示迁移规模统计
+        self.show_migration_stats(migration_stats)
