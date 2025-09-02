@@ -8,15 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
+
 from django.db.models import Q
 
 from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from typing import Any
-from constants.data_source import DataTypeLabel, DataSourceLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel
 
 from . import constants
-
 
 COMMON_BUILDER: QueryConfigBuilder = (
     QueryConfigBuilder((DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM))
@@ -27,7 +27,11 @@ COMMON_BUILDER: QueryConfigBuilder = (
 
 
 def format_query_params(query_params: dict[str, Any]) -> dict[str, Any]:
-    return {"functions": [], "expression": query_params["expression"], "query_configs": query_params["query_configs"]}
+    return {
+        "functions": query_params.get("functions", []),
+        "expression": query_params["expression"],
+        "query_configs": query_params["query_configs"],
+    }
 
 
 def callee_success_rate_query_params() -> dict[str, Any]:
@@ -51,6 +55,9 @@ def callee_success_rate_query_params() -> dict[str, Any]:
     for query_config in query_params["query_configs"]:
         query_config["where"].append("${CONDITIONS}")
         query_config["functions"].append("${FUNCTIONS}")
+
+    query_params.setdefault("functions", [])
+    query_params["functions"].append("${EXPRESSION_FUNCTIONS}")
 
     return format_query_params(query_params)
 
@@ -131,6 +138,12 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
             "config": {"default": "0"},
             "description": "告警起算值是为了避免在请求数较少的情况下，因少量请求的异常导致告警触发，起算值可以根据实际业务情况进行调整。",
         },
+        {
+            "name": "EXPRESSION_FUNCTIONS",
+            "alias": "表达式函数",
+            "type": constants.VariableType.EXPRESSION_FUNCTIONS.value,
+            "config": {"default": [{"id": "abs", "params": []}]},
+        },
     ],
 }
 
@@ -174,7 +187,7 @@ CALLEE_SUCCESS_RATE_QUERY_INSTANCE: dict[str, Any] = {
     ],
     "expression": "(a or b < bool 0) / (b > 0) * 100",
     "space_scope": [],
-    "functions": [],
+    "functions": [{"id": "abs", "params": []}],
 }
 
 

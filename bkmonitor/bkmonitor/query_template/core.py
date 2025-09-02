@@ -13,9 +13,9 @@ import copy
 import json
 from typing import Any
 
-from . import serializers, constants
-
 from bkmonitor.models import query_template as models
+
+from . import constants, serializers
 
 
 class BaseQuery:
@@ -213,6 +213,27 @@ class MethodVariableRender(BaseVariableRender):
         return self._query_instance
 
 
+class ExpressionFunctionsVariableRender(BaseVariableRender):
+    TYPE = constants.VariableType.EXPRESSION_FUNCTIONS.value
+
+    def render(self, context: dict[str, Any] = None) -> QueryInstance:
+        for variable in self._variables:
+            value: list[dict[str, Any]] | None = self.get_value(context, variable)
+            if value is None:
+                continue
+
+            result_functions: list[dict[str, Any]] = []
+            val_tmpl: str = self.to_template(variable["name"])
+            for function in self._query_instance.functions:
+                if function == val_tmpl:
+                    result_functions.extend(value)
+                else:
+                    result_functions.append(function)
+            self._query_instance.functions = result_functions
+
+        return self._query_instance
+
+
 VARIABLE_HANDLERS: dict[str, type[BaseVariableRender]] = {
     constants.VariableType.CONSTANTS.value: ConstantVariableRender,
     constants.VariableType.GROUP_BY.value: GroupByVariableRender,
@@ -220,6 +241,7 @@ VARIABLE_HANDLERS: dict[str, type[BaseVariableRender]] = {
     constants.VariableType.CONDITIONS.value: ConditionsVariableRender,
     constants.VariableType.FUNCTIONS.value: FunctionsVariableRender,
     constants.VariableType.METHOD.value: MethodVariableRender,
+    constants.VariableType.EXPRESSION_FUNCTIONS.value: ExpressionFunctionsVariableRender,
 }
 
 
