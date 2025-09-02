@@ -22,7 +22,7 @@ from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.models import ApmApplication, BkdataFlowConfig
 from bkmonitor.dataflow.auth import check_has_permission
 from bkmonitor.utils.common_utils import count_md5
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, bk_biz_id_and_app_name_to_bk_tenant_id
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
@@ -187,10 +187,12 @@ class ApmFlow:
                 {"is_finished": True, "finished_time": timezone.now(), "status": FlowStatus.SUCCESS.value}
             )
 
-    @classmethod
-    def _query_access_conf(cls, data_id):
+    def _query_access_conf(self, data_id):
         """获取data_id接入配置"""
-        return resource.metadata.query_data_source(bk_data_id=data_id)
+        # 获得租户id
+        bk_tenant_id = bk_biz_id_and_app_name_to_bk_tenant_id(app_name=self.app_name, bk_biz_id=self.bk_biz_id)
+
+        return resource.metadata.query_data_source(bk_data_id=data_id, bk_tenant_id=bk_tenant_id)
 
     @classmethod
     def _is_diff(cls, a, b, exclude_fields=None):
@@ -203,12 +205,11 @@ class ApmFlow:
 
         return count_md5(a_copy) != count_md5(b_copy)
 
-    @classmethod
-    def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None, extra_maintainers=None):
+    def get_deploy_params(self, bk_biz_id, data_id, operator, name, deploy_description=None, extra_maintainers=None):
         """获取数据源API请求参数(接入方式: KAFKA)"""
-        access_conf = cls._query_access_conf(data_id)
+        access_conf = self._query_access_conf(data_id)
         # 数据管理员 = operator + APM默认维护人 + 应用创建者
-        maintainers = ",".join(list(set([operator] + cls.bkbase_maintainer() + extra_maintainers or [])))
+        maintainers = ",".join(list(set([operator] + ApmFlow.bkbase_maintainer() + extra_maintainers or [])))
 
         return {
             "data_scenario": "queue",

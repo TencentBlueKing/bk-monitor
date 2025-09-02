@@ -17,6 +17,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils.timezone import now as tz_now
 
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.constants import DEFAULT_MEASUREMENT
@@ -508,10 +509,10 @@ class SpaceTableIDRedis:
 
     def push_table_id_detail(
         self,
+        bk_tenant_id: str = DEFAULT_TENANT_ID,
         table_id_list: list | None = None,
         is_publish: bool | None = False,
         include_es_table_ids: bool | None = False,
-        bk_tenant_id: str = DEFAULT_TENANT_ID,
     ):
         """推送结果表的详细信息"""
         logger.info(
@@ -950,13 +951,17 @@ class SpaceTableIDRedis:
             elif res["cluster_type"] == BCSClusterTypes.SINGLE.value:
                 cluster_info[res["cluster_id"]] = [{"bcs_cluster_id": res["cluster_id"], "namespace": None}]
         cluster_id_list = list(cluster_info.keys())
+        # 获取当前的租户id
+        bk_tenant_id: str = space_uid_to_bk_tenant_id(space_uid=f"{space_type}__{space_id}")
         # 获取集群下对应的数据源
-        data_id_cluster_id = get_cluster_data_ids(cluster_id_list)
+        data_id_cluster_id = get_cluster_data_ids(cluster_id_list=cluster_id_list, bk_tenant_id=bk_tenant_id)
         if not data_id_cluster_id:
             logger.error("space: %s__%s not found cluster", space_type, space_id)
             return default_values
         # 获取结果表及数据源
-        table_id_data_id = get_result_tables_by_data_ids(list(data_id_cluster_id.keys()))
+        table_id_data_id = get_result_tables_by_data_ids(
+            data_id_list=list(data_id_cluster_id.keys()), bk_tenant_id=bk_tenant_id
+        )
         # 组装 filter
         _values = {}
         for tid, data_id in table_id_data_id.items():
@@ -968,7 +973,7 @@ class SpaceTableIDRedis:
 
         return _values
 
-    def _compose_bkci_level_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
+    def _compose_bkci_level_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str) -> dict:
         """组装 bkci 全局下的结果表"""
         logger.info("start to push bkci level table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 过滤空间级的数据源
@@ -999,12 +1004,13 @@ class SpaceTableIDRedis:
 
         return _values
 
-    def _compose_bkci_other_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
+    def _compose_bkci_other_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str) -> dict:
         logger.info("start to push bkci space other table_id, space_type: %s, space_id: %s", space_type, space_id)
         exclude_data_id_list = utils.cached_cluster_data_id_list()
         table_id_data_id = get_space_table_id_data_id(
-            space_type,
-            space_id,
+            space_type=space_type,
+            space_id=space_id,
+            bk_tenant_id=bk_tenant_id,
             exclude_data_id_list=exclude_data_id_list,
             include_platform_data_id=False,
             from_authorization=False,
@@ -1073,8 +1079,8 @@ class SpaceTableIDRedis:
         self,
         space_type: str,
         space_id: str,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         logger.info(
             "start to push cluster of bksaas space table_id, space_type: %s, space_id: %s", space_type, space_id
@@ -1105,13 +1111,17 @@ class SpaceTableIDRedis:
                 cluster_info[res["cluster_id"]] = [{"bcs_cluster_id": res["cluster_id"], "namespace": None}]
         cluster_id_list = list(cluster_info.keys())
         # 获取集群下对应的数据源
-        data_id_cluster_id = get_cluster_data_ids(cluster_id_list, table_id_list)
+        data_id_cluster_id = get_cluster_data_ids(
+            cluster_id_list=cluster_id_list, table_id_list=table_id_list, bk_tenant_id=bk_tenant_id
+        )
         if not data_id_cluster_id:
             logger.error("space: %s__%s not found cluster", space_type, space_id)
             return default_values
         # 获取结果表及数据源
         table_id_data_id = get_result_tables_by_data_ids(
-            data_id_list=list(data_id_cluster_id.keys()), table_id_list=table_id_list
+            data_id_list=list(data_id_cluster_id.keys()),
+            table_id_list=table_id_list,
+            bk_tenant_id=bk_tenant_id,
         )
         # 组装 filter
         _values = {}
@@ -1128,8 +1138,8 @@ class SpaceTableIDRedis:
         self,
         space_type: str,
         space_id: str,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         """组装蓝鲸应用非集群数据
         TODO: 暂时不考虑全局的数据源信息
@@ -1138,8 +1148,8 @@ class SpaceTableIDRedis:
         exclude_data_id_list = utils.cached_cluster_data_id_list()
         # 过滤到对应的结果表
         table_id_data_id = get_space_table_id_data_id(
-            space_type,
-            space_id,
+            space_type=space_type,
+            space_id=space_id,
             table_id_list=table_id_list,
             exclude_data_id_list=exclude_data_id_list,
             include_platform_data_id=False,
@@ -1164,11 +1174,11 @@ class SpaceTableIDRedis:
         self,
         space_type: str,
         space_id: str,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
         include_platform_data_id: bool | None = True,
         from_authorization: bool | None = None,
         default_filters: list | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ) -> dict:
         logger.info(
             "_push_bkcc_space_table_ids,start to _compose_data for space_type: %s, space_id: %s,bk_tenant_id: %s",
@@ -1178,8 +1188,8 @@ class SpaceTableIDRedis:
         )
         # 过滤到对应的结果表
         table_id_data_id = get_space_table_id_data_id(
-            space_type,
-            space_id,
+            space_type=space_type,
+            space_id=space_id,
             table_id_list=table_id_list,
             include_platform_data_id=include_platform_data_id,
             from_authorization=from_authorization,

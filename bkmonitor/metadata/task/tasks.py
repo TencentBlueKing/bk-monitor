@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
-import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -21,6 +20,7 @@ from django.utils.translation import gettext as _
 from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.prometheus import metrics
 from metadata import models
@@ -150,42 +150,6 @@ def delete_restore_indices(restore_id):
     except models.EsSnapshotRestore.DoesNotExist:
         raise ValueError(_("回溯不存在"))
     restore.delete_restore_indices()
-
-
-def update_time_series_metrics(time_series_metrics):
-    data_id_list, table_id_list = [], []
-    for time_series_group in time_series_metrics:
-        try:
-            is_updated = time_series_group.update_time_series_metrics()
-            logger.info(
-                "bk_data_id->[%s] metric add from redis success, is_updated: %s",
-                time_series_group.bk_data_id,
-                is_updated,
-            )
-            # 记录是否有更新，如果有更新则推送到redis
-            if is_updated:
-                data_id_list.append(time_series_group.bk_data_id)
-                table_id_list.append(time_series_group.table_id)
-        except Exception as e:
-            logger.error(
-                "data_id->[%s], table_id->[%s] try to update ts metrics from redis failed, error->[%s], "
-                "traceback_detail->[%s]",
-                # noqa
-                time_series_group.bk_data_id,
-                time_series_group.table_id,
-                e,
-                traceback.format_exc(),
-            )
-        else:
-            logger.info("time_series_group->[%s] metric update from redis success.", time_series_group.bk_data_id)
-
-    # 仅当指标有变动的结果表存在时，才进行路由配置更新
-    if table_id_list:
-        from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-
-        space_client = SpaceTableIDRedis()
-        space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
-        logger.info("metric updated of table_id: %s", json.dumps(table_id_list))
 
 
 # todo: es 索引管理，迁移至BMW
@@ -448,9 +412,13 @@ def push_and_publish_space_router(
     from metadata.models.space.ds_rt import get_space_table_id_data_id
     from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
+    # 获取租户ID
+    bk_tenant_id: str = space_uid_to_bk_tenant_id(space_uid=f"{space_type}__{space_id}")
     # 获取空间下的结果表，如果不存在，则获取空间下的所有
     if not table_id_list:
-        table_id_list = list(get_space_table_id_data_id(space_type, space_id).keys())
+        table_id_list = list(
+            get_space_table_id_data_id(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id).keys()
+        )
 
     space_client = SpaceTableIDRedis()
     # 更新空间下的结果表相关数据
@@ -474,7 +442,7 @@ def push_and_publish_space_router(
 
     # 更新数据
     space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=True)
-    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
+    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True, bk_tenant_id=bk_tenant_id)
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
 

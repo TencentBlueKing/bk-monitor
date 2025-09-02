@@ -328,6 +328,8 @@ class Command(BaseCommand):
         client = SpaceTableIDRedis()
         client.push_space_table_ids(space_type, space_id, is_publish=True)
         client.push_data_label_table_ids(table_id_list=table_id_list)
-        client.push_table_id_detail(table_id_list=table_id_list)
+        # 获得租户id
+        bk_tenant_id: str = space_uid_to_bk_tenant_id(space_uid=f"{space_type}__{space_id}")
+        client.push_table_id_detail(table_id_list=table_id_list, bk_tenant_id=bk_tenant_id)
 
         self.stdout.write("refresh router redis config success")
