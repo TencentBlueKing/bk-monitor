@@ -947,14 +947,15 @@ class HostCollectorHandler(CollectorHandler):
                 content_obj["bk_obj_name"] = bk_obj_name
                 content_obj["bk_inst_name"] = bk_inst_name
 
+            host_result_set = set(host_result)
             for instance_obj in instance_status:
                 # delete 标签如果任务状态action不为UNINSTALL
                 if is_task and label_name == "delete" and instance_obj["steps"].get(LogPluginInfo.NAME) != "UNINSTALL":
                     continue
                 # 因为instance_obj兼容新版IP选择器的字段名, 所以这里的bk_cloud_id->cloud_id, bk_host_id->host_id
-                if (instance_obj["ip"], instance_obj["cloud_id"]) in host_result or instance_obj[
+                if (instance_obj["ip"], instance_obj["cloud_id"]) in host_result_set or instance_obj[
                     "host_id"
-                ] in host_result:
+                ] in host_result_set:
                     content_obj["child"].append(instance_obj)
             content_data.append(content_obj)
 
@@ -1116,7 +1117,6 @@ class HostCollectorHandler(CollectorHandler):
         )
 
         instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
-
         return {"contents": self._get_status_content(instance_status, is_task=False)}
 
     @staticmethod
