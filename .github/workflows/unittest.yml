@@ -32,6 +32,8 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
+    - name: Create symlink for ai_agent
+      run: ln -s ../ai_agent ./ai_agent
     - name: Setup Python environment
       uses: actions/setup-python@v5
       with:
