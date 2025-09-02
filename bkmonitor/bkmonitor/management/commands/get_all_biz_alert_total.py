@@ -9,10 +9,10 @@ specific language governing permissions and limitations under the License.
 """
 
 """
-统计 { "状态" = "未恢复", "阶段" = "已确认" } 的告警数量
+统计输出所有业务 { "状态" = "未恢复", "阶段" = "已确认" } 的告警数量
 并打印
 
-python manage.py total_alert.py --bk_biz_id=2
+python manage.py get_all_biz_alert_total --display_all=True
 """
 
 from datetime import datetime, timedelta
