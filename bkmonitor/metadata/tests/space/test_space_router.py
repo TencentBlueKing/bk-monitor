@@ -37,7 +37,12 @@ pytestmark = pytest.mark.django_db(databases="__all__")
     ],
 )
 def test_get_result_tables_by_data_ids(create_and_delete_record, data_id_list, table_id_list, expected_data):
-    assert ds_rt.get_result_tables_by_data_ids(data_id_list, table_id_list) == expected_data
+    assert (
+        ds_rt.get_result_tables_by_data_ids(
+            data_id_list=data_id_list, table_id_list=table_id_list, bk_tenant_id=DEFAULT_TABLE_ID
+        )
+        == expected_data
+    )
 
 
 def test_get_table_info_for_influxdb_and_vm(create_and_delete_record):
