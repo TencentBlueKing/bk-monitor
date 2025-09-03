@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onBeforeMount, shallowRef, watchEffect } from 'vue';
+import { computed, defineComponent, onBeforeMount, shallowRef, watch, watchEffect } from 'vue';
 
 import { tryURLDecodeParse } from 'monitor-common/utils';
 import { useRoute, useRouter } from 'vue-router';
 
-import { EMode } from '../../components/retrieval-filter/typing';
+import { EFieldType, EMode } from '../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../components/retrieval-filter/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
@@ -61,6 +61,70 @@ export default defineComponent({
     } = useAlarmTableColumns();
     const isCollapsed = shallowRef(false);
 
+    watch(
+      () => alarmStore.alarmType,
+      async v => {
+        // 获取收藏列表
+        const data = await alarmStore.alarmService.getListSearchFavorite({ search_type: v });
+        alarmStore.favoriteList = data;
+      },
+      { immediate: true }
+    );
+
+    /**
+     * @description 检索栏字段列表
+     */
+    const retrievalFilterFields = computed(() => {
+      const filterFields = [...alarmStore.alarmService.filterFields];
+      const spliceIndex = filterFields.findIndex(item => item.name === 'tags');
+      if (spliceIndex !== -1) {
+        filterFields.splice(
+          spliceIndex,
+          1,
+          ...alarmStore.dimensionTags.map(item => ({
+            name: item.id,
+            alias: item.name,
+            methods: [
+              {
+                alias: '=',
+                value: 'eq',
+              },
+              {
+                alias: '!=',
+                value: 'neq',
+              },
+            ],
+            isEnableOptions: true,
+            type: EFieldType.keyword,
+          }))
+        );
+      }
+      return filterFields;
+    });
+    /**
+     * @description 检索栏收藏列表
+     */
+    const favoriteList = computed(() => {
+      return (
+        alarmStore.favoriteList.map(item => ({
+          groupName: '',
+          id: item.id,
+          name: item.name,
+          config: {
+            queryString: item?.params?.query_string || '',
+            where: [],
+            commonWhere: [],
+          },
+        })) || []
+      );
+    });
+    /**
+     * @description 检索栏常驻设置唯一id
+     */
+    const residentSettingOnlyId = computed(() => {
+      return `ALARM_CENTER_RESIDENT_SETTING__${alarmStore.alarmType}`;
+    });
+
     const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
     };
@@ -69,7 +133,7 @@ export default defineComponent({
       alarmStore.quickFilterValue = filterValue;
     };
 
-    const handleConditionChange = (condition: CommonCondition) => {
+    const handleAddCondition = (condition: CommonCondition) => {
       alarmStore.conditions = mergeWhereList(alarmStore.conditions, [
         {
           ...condition,
@@ -78,9 +142,24 @@ export default defineComponent({
       ]);
     };
 
-    const retrievalFilterFields = computed(() => {
-      return alarmStore.alarmService.filterFields;
-    });
+    function handleConditionChange(condition: CommonCondition[]) {
+      alarmStore.conditions = condition;
+    }
+    function handleQueryStringChange(queryString: string) {
+      alarmStore.queryString = queryString;
+    }
+    function handleFilterModeChange(mode: EMode) {
+      alarmStore.filterMode = mode;
+    }
+    function handleResidentConditionChange(condition: CommonCondition[]) {
+      alarmStore.residentCondition = condition;
+    }
+    function handleQuery() {
+      alarmStore.refreshImmediate += 1;
+    }
+    function handleBizIdsChange(bizIds: (number | string)[]) {
+      alarmStore.bizIds = bizIds;
+    }
 
     watchEffect(() => {
       setUrlParams();
@@ -165,9 +244,17 @@ export default defineComponent({
       lockedTableFields,
       alarmStore,
       retrievalFilterFields,
+      favoriteList,
+      residentSettingOnlyId,
       handleFilterValueChange,
       updateIsCollapsed,
+      handleAddCondition,
       handleConditionChange,
+      handleQueryStringChange,
+      handleFilterModeChange,
+      handleResidentConditionChange,
+      handleQuery,
+      handleBizIdsChange,
     };
   },
   render() {
@@ -176,7 +263,20 @@ export default defineComponent({
         <AlarmCenterHeader class='alarm-center-header' />
         <AlarmRetrievalFilter
           class='alarm-center-filters'
+          bizIds={this.alarmStore.bizIds}
+          conditions={this.alarmStore.conditions}
+          favoriteList={this.favoriteList}
           fields={this.retrievalFilterFields}
+          filterMode={this.alarmStore.filterMode}
+          queryString={this.alarmStore.queryString}
+          residentCondition={this.alarmStore.residentCondition}
+          residentSettingOnlyId={this.residentSettingOnlyId}
+          onBizIdsChange={this.handleBizIdsChange}
+          onConditionChange={this.handleConditionChange}
+          onFilterModeChange={this.handleFilterModeChange}
+          onQuery={this.handleQuery}
+          onQueryStringChange={this.handleQueryStringChange}
+          onResidentConditionChange={this.handleResidentConditionChange}
         />
         <div class='alarm-center-main'>
           <TraceExploreLayout
@@ -202,7 +302,7 @@ export default defineComponent({
                       <AlarmTrendChart />
                     </div>
                     <div class='alarm-analysis'>
-                      <AlarmAnalysis onConditionChange={this.handleConditionChange} />
+                      <AlarmAnalysis onConditionChange={this.handleAddCondition} />
                     </div>
                     <div class='alarm-center-table'>
                       <AlarmTable

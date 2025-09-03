@@ -1,3 +1,5 @@
+import { useAlarmCenterStore } from '../../../../../store/modules/alarm-center';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,15 +25,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { computed, watch } from 'vue';
-
-import { random } from 'monitor-common/utils';
-
-import { type IGetValueFnParams, EMode } from '../../../../..//components/retrieval-filter/typing';
-import { useAlarmCenterStore } from '../../../../../store/modules/alarm-center';
-
-import type { CommonCondition } from '../../../../../pages/alarm-center/typings/services';
+import type { IGetValueFnParams } from '../../../../..//components/retrieval-filter/typing';
 
 type ICandidateValueMap = Map<
   string,
@@ -41,10 +35,6 @@ type ICandidateValueMap = Map<
     values: { id: string; name: string }[];
   }
 >;
-
-interface ICondition extends CommonCondition {
-  condition: any | string;
-}
 
 interface IParams {
   fields: string[];
@@ -59,69 +49,6 @@ export function useAlarmFilter() {
   const alarmStore = useAlarmCenterStore();
   let axiosController = new AbortController();
   let candidateValueMap: ICandidateValueMap = new Map();
-
-  const condition = computed(() => {
-    return alarmStore.conditions as ICondition[];
-  });
-  const residentCondition = computed(() => {
-    return alarmStore.residentCondition as ICondition[];
-  });
-  const queryString = computed(() => {
-    return alarmStore.queryString;
-  });
-  const residentSettingOnlyId = computed(() => {
-    return `ALARM_CENTER_RESIDENT_SETTING__${alarmStore.alarmType}`;
-  });
-  const filterMode = computed(() => {
-    return alarmStore.filterMode;
-  });
-  const showAlarmModule = computed(() => {
-    return filterMode.value === EMode.ui;
-  });
-
-  const favoriteList = computed(() => {
-    return (
-      alarmStore.favoriteList.map(item => ({
-        groupName: '',
-        id: item.id,
-        name: item.name,
-        config: {
-          queryString: item?.params?.query_string || '',
-          where: [],
-          commonWhere: [],
-        },
-      })) || []
-    );
-  });
-
-  watch(
-    () => alarmStore.alarmType,
-    async v => {
-      const data = await alarmStore.alarmService.getListSearchFavorite({ search_type: v });
-      alarmStore.favoriteList = data;
-    },
-    { immediate: true }
-  );
-
-  function handleConditionChange(val) {
-    alarmStore.conditions = val;
-  }
-  function handleQueryStringChange(val: string) {
-    alarmStore.queryString = val;
-  }
-  function handleFilterModeChange(val: EMode) {
-    alarmStore.filterMode = val;
-  }
-
-  function handleResidentConditionChange(val) {
-    alarmStore.residentCondition = val.map(item => ({
-      ...item,
-      condition: 'and',
-    }));
-  }
-  function handleQuery() {
-    alarmStore.refreshImmediate = random(4);
-  }
 
   function getRetrievalFilterValueData(params: IGetValueFnParams) {
     return getFieldsOptionValuesProxy(params);
@@ -202,18 +129,6 @@ export function useAlarmFilter() {
   }
 
   return {
-    condition,
-    queryString,
-    residentSettingOnlyId,
-    filterMode,
-    favoriteList,
-    residentCondition,
-    showAlarmModule,
-    handleQuery,
-    handleConditionChange,
-    handleQueryStringChange,
-    handleFilterModeChange,
     getRetrievalFilterValueData,
-    handleResidentConditionChange,
   };
 }
