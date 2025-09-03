@@ -381,6 +381,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
         if vm_record:
             ret["data_id"] = vm_record.bk_base_data_id
             ret["vm_result_table_id"] = vm_record.vm_result_table_id
+            ret["vm_cluster_id"] = vm_record.vm_cluster_id
         return ret
 
     @cached_property
@@ -404,6 +405,32 @@ class MetricBackendHandler(TelemetryBackendHandler):
         return self.bk_base_data_info.get("vm_result_table_id")
 
     def storage_info(self):
+        vm_cluster_id = self.bk_base_data_info.get("vm_cluster_id")
+        if settings.ENABLE_MULTI_TENANT_MODE and vm_cluster_id:
+            from metadata import models
+
+            cluster_name = ""
+            cluster_obj = models.ClusterInfo.objects.filter(cluster_id=vm_cluster_id).first()
+            if cluster_obj:
+                cluster_name = cluster_obj.cluster_name
+            return [
+                {
+                    "raw_data_id": self.bk_base_data_id,
+                    "bk_biz_id": self.app.bk_biz_id,
+                    "result_table_id": self.bk_vm_result_table_id,
+                    "storage_type": "vm",
+                    "storage_type_alias": "",
+                    "storage_cluster": vm_cluster_id,
+                    "storage_cluster_alias": cluster_name,
+                    "expire_time": "30d",
+                    "expire_time_alias": _("30天"),
+                    "status": "running",
+                    "status_display": _("运行中"),
+                    "created_at": "system",
+                    "created_by": "system",
+                }
+            ]
+
         storage_info = []
         result_table = api.bkdata.get_result_table(result_table_id=self.bk_vm_result_table_id)
         storage = result_table.get("storages", {}).get("vm")
