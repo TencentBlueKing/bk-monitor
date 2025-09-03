@@ -3,10 +3,11 @@ import ipaddress
 import logging
 import re
 import time
-from multiprocessing.pool import IMapIterator
-from typing import Any
 from collections.abc import Generator
 from datetime import timedelta
+from multiprocessing.pool import IMapIterator
+from typing import Any
+
 from django.db.models import Q
 from django.utils.translation import gettext as _
 
@@ -22,11 +23,10 @@ from bkmonitor.iam.drf import filter_data_by_permission
 from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.models import StrategyModel
 from bkmonitor.models.bcs_cluster import BCSCluster
-from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
 from constants.apm import PreCalculateSpecificField
-from constants.data_source import DataTypeLabel, DataSourceLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from core.errors.alert import AlertNotFoundError
 
@@ -54,11 +54,11 @@ class SearchItem(metaclass=abc.ABCMeta):
         return cls._bk_biz_names_cache[bk_biz_id]
 
     @classmethod
-    def _get_allowed_bk_biz_ids(cls, username: str, action: str | ActionMeta) -> list[int]:
+    def _get_allowed_bk_biz_ids(cls, bk_tenant_id: str, username: str, action: str | ActionMeta) -> list[int]:
         """
         Get the allowed bk_biz_ids by username.
         """
-        permission = Permission(username=username, bk_tenant_id=get_request_tenant_id())
+        permission = Permission(username=username, bk_tenant_id=bk_tenant_id)
         spaces = permission.filter_space_list_by_action(action)
 
         # 缓存业务信息
@@ -68,14 +68,14 @@ class SearchItem(metaclass=abc.ABCMeta):
         return [space["bk_biz_id"] for space in spaces]
 
     @classmethod
-    def match(cls, query: str) -> bool:
+    def match(cls, bk_tenant_id: str, query: str) -> bool:
         """
         Match the query with the search item.
         """
         raise NotImplementedError
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the query in the search item.
         数据格式:
@@ -104,16 +104,16 @@ class AlertSearchItem(SearchItem):
     RE_ALERT_ID = re.compile(r"^\d{14,}$")
 
     @classmethod
-    def match(cls, query: str) -> bool:
+    def match(cls, bk_tenant_id: str, query: str) -> bool:
         return bool(cls.RE_ALERT_ID.match(query))
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the alert by alert id
         extended fields: alert_id, start_time, end_time
         """
-        bk_biz_ids = cls._get_allowed_bk_biz_ids(username, ActionEnum.VIEW_EVENT)
+        bk_biz_ids = cls._get_allowed_bk_biz_ids(bk_tenant_id, username, ActionEnum.VIEW_EVENT)
 
         alert_id = int(query)
         try:
@@ -158,19 +158,19 @@ class StrategySearchItem(SearchItem):
     """
 
     @classmethod
-    def match(cls, query: str) -> bool:
+    def match(cls, bk_tenant_id: str, query: str) -> bool:
         """
         排除trace_id和alert_id
         """
-        return not AlertSearchItem.match(query) and not TraceSearchItem.match(query)
+        return not AlertSearchItem.match(bk_tenant_id, query) and not TraceSearchItem.match(bk_tenant_id, query)
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the strategy by strategy id
         extended fields: strategy_id
         """
-        bk_biz_ids = cls._get_allowed_bk_biz_ids(username, ActionEnum.VIEW_RULE)
+        bk_biz_ids = cls._get_allowed_bk_biz_ids(bk_tenant_id, username, ActionEnum.VIEW_RULE)
         if not bk_biz_ids:
             return
 
@@ -217,7 +217,7 @@ class TraceSearchItem(SearchItem):
     RE_TRACE_ID = re.compile(r"^[0-9a-z]{32}$")
 
     @classmethod
-    def match(cls, query: str) -> bool:
+    def match(cls, bk_tenant_id: str, query: str) -> bool:
         return bool(cls.RE_TRACE_ID.match(query))
 
     @classmethod
@@ -243,7 +243,7 @@ class TraceSearchItem(SearchItem):
         return list(qs)
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the trace by trace id
         extended fields: trace_id, app_name, app_alias
@@ -308,18 +308,17 @@ class ApmApplicationSearchItem(SearchItem):
     RE_APP_NAME = re.compile(r"^[a-z0-9_-]{1,50}$")
 
     @classmethod
-    def match(cls, query: str) -> bool:
+    def match(cls, bk_tenant_id: str, query: str) -> bool:
         """
         1-50字符，由小写字母、数字、下划线、中划线组成
         """
         return not AlertSearchItem.RE_ALERT_ID.match(query) and not TraceSearchItem.RE_TRACE_ID.match(query)
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the application by application name
         """
-        bk_tenant_id = get_request_tenant_id()
 
         query_filter = Q(app_alias__icontains=query)
         if cls.RE_APP_NAME.match(query):
@@ -345,6 +344,7 @@ class ApmApplicationSearchItem(SearchItem):
 
         # 过滤无权限的应用
         items = filter_data_by_permission(
+            bk_tenant_id=bk_tenant_id,
             data=items,
             actions=[ActionEnum.VIEW_APM_APPLICATION],
             resource_meta=ResourceEnum.APM_APPLICATION,
@@ -368,14 +368,14 @@ class HostSearchItem(SearchItem):
     RE_IP = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
 
     @classmethod
-    def match(cls, query: str) -> bool:
+    def match(cls, bk_tenant_id: str, query: str) -> bool:
         """
         ipv4或ipv6，不要用正则匹配
         """
         return bool(cls.RE_IP.findall(query)) or ":" in query
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the host by host name
         """
@@ -398,7 +398,7 @@ class HostSearchItem(SearchItem):
         if not ips:
             return
 
-        result = api.cmdb.get_host_without_biz_v2(bk_tenant_id=get_request_tenant_id(), ips=ips)
+        result = api.cmdb.get_host_without_biz_v2(bk_tenant_id=bk_tenant_id, ips=ips)
         hosts: list[dict] = result["hosts"]
 
         items = []
@@ -446,15 +446,19 @@ class BCSClusterSearchItem(SearchItem):
     """
 
     @classmethod
-    def match(cls, query: str) -> bool:
-        return not TraceSearchItem.match(query) and not AlertSearchItem.match(query) and not HostSearchItem.match(query)
+    def match(cls, bk_tenant_id: str, query: str) -> bool:
+        return (
+            not TraceSearchItem.match(bk_tenant_id, query)
+            and not AlertSearchItem.match(bk_tenant_id, query)
+            and not HostSearchItem.match(bk_tenant_id, query)
+        )
 
     @classmethod
-    def search(cls, username: str, query: str, limit: int = 5) -> list[dict] | None:
+    def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
         """
         Search the bcs cluster by cluster name
         """
-        bk_biz_ids = cls._get_allowed_bk_biz_ids(username, ActionEnum.VIEW_BUSINESS)
+        bk_biz_ids = cls._get_allowed_bk_biz_ids(bk_tenant_id, username, ActionEnum.VIEW_BUSINESS)
         if not bk_biz_ids:
             return
 
@@ -512,18 +516,19 @@ class Searcher:
         BCSClusterSearchItem,
     ]
 
-    def __init__(self, username: str):
+    def __init__(self, bk_tenant_id: str, username: str):
+        self.bk_tenant_id = bk_tenant_id
         self.username = username
 
     def search(self, query: str, timeout: int = 30) -> Generator[dict[str, Any], None, None]:
         """
         Search the query in the search items.
         """
-        search_items = [item for item in self.search_items if item.match(query)]
+        search_items = [item for item in self.search_items if item.match(self.bk_tenant_id, query)]
 
         with ThreadPool() as pool:
             results: IMapIterator = pool.imap_unordered(
-                lambda item: item.search(self.username, query, limit=5), search_items
+                lambda item: item.search(self.bk_tenant_id, self.username, query, limit=5), search_items
             )
 
             start_time = time.time()
