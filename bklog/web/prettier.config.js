@@ -23,45 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const oxlintPlugin = require('eslint-plugin-oxlint');
-
-module.exports = [
-  ...require('@blueking/bkui-lint/eslint'),
-  {
-    rules: {
-      'vue/multi-word-component-names': 'off',
-      'vue/no-reserved-component-names': 'off',
-      'vue/no-deprecated-v-bind-sync': 'off',
-      'vue/require-explicit-emits': 'off',
-      '@typescript-eslint/no-require-imports': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-var-requires': 'off',
-      '@typescript-eslint/dot-notation': [
-        'error',
-        {
-          allowKeywords: true,
-        },
-      ],
-      'perfectionist/sort-classes': 'off',
-      'declaration-no-important': 'off',
-    },
-  },
-  {
-    ignores: [
-      '**/node_modules',
-      '**/lib',
-      '**/dist',
-      '/dev',
-      '/docs',
-      '/plugins',
-      '/src/__tests__/demos',
-      'src/**/.config',
-    ],
-  },
-  {
-    rules: {
-      'prettier/prettier': 'off', // 关闭此规则
-    },
-  },
-  ...oxlintPlugin.buildFromOxlintConfigFile('./.oxlintrc.json'),
-];
+const prettierConfig = require('@blueking/bkui-lint/prettier');
+module.exports = {
+  ...prettierConfig,
+};
