@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onBeforeMount, shallowRef, watch, watchEffect } from 'vue';
+import { computed, defineComponent, onBeforeMount, shallowRef, watchEffect } from 'vue';
 
 import { tryURLDecodeParse } from 'monitor-common/utils';
 import { useRoute, useRouter } from 'vue-router';
@@ -60,16 +60,6 @@ export default defineComponent({
       lockedTableFields,
     } = useAlarmTableColumns();
     const isCollapsed = shallowRef(false);
-
-    watch(
-      () => alarmStore.alarmType,
-      async v => {
-        // 获取收藏列表
-        const data = await alarmStore.alarmService.getListSearchFavorite({ search_type: v });
-        alarmStore.favoriteList = data;
-      },
-      { immediate: true }
-    );
 
     /**
      * @description 检索栏字段列表
