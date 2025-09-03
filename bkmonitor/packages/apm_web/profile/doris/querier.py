@@ -36,15 +36,13 @@ class APIType(Enum):
     SELECT_COUNT = "select_aggregate"
 
 
-class ConverterType(Enum):
+class ConverterType:
     """Bkbase 原始 profile 可以转换的数据类型"""
 
     # Profile 类型使用 DorisConverter 转换
     Profile = "profile"
     # Tree 类型使用 TreeConverter
     Tree = "tree"
-    # DOT 类型使用 DOTConverter
-    DOT = "dot"
 
 
 @dataclass
