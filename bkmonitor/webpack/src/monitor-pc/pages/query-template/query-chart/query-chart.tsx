@@ -204,7 +204,7 @@ export default class QueryChart extends tsc<{
     return (
       <div class='query-chart'>
         <div class='query-chart-header'>
-          <div class='query-chart-header-title'>{this.title}</div>
+          <div class='query-chart-header-title'>{this.$slots.title || this.title}</div>
           <div class='query-chart-header-limit'>
             <span style='margin-right: 8px;'>Limit</span>
             <bk-input

@@ -91,6 +91,7 @@ export const VariableTypeEnum = {
   METHOD: 'METHOD',
   CONDITIONS: 'CONDITIONS',
   CONSTANTS: 'CONSTANTS',
+  EXPRESSION_FUNCTIONS: 'EXPRESSION_FUNCTIONS',
 } as const;
 
 export const VariableTypeMap = {
@@ -100,6 +101,7 @@ export const VariableTypeMap = {
   [VariableTypeEnum.METHOD]: window.i18n.tc('汇聚变量'),
   [VariableTypeEnum.CONDITIONS]: window.i18n.tc('条件变量'),
   [VariableTypeEnum.CONSTANTS]: window.i18n.tc('常规变量'),
+  [VariableTypeEnum.EXPRESSION_FUNCTIONS]: window.i18n.tc('表达式函数变量'),
 };
 
 const ConditionMethodNameMap = {

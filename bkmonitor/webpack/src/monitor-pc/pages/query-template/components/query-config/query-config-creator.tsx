@@ -124,7 +124,6 @@ export default class QueryConfigCreator extends tsc<IProps> {
     });
   }
   handleCreateDimensionValueVariable(val) {
-    console.log(val);
     this.$emit('createVariable', {
       name: val.name,
       type: VariableTypeEnum.TAG_VALUES,
