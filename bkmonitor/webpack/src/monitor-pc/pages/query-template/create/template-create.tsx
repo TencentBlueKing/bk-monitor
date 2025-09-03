@@ -208,7 +208,6 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleCreateVariable(val: IVariableModel) {
-    console.log(val);
     if (this.variablesList.find(item => item.name === val.name)) {
       return;
     }
@@ -411,7 +410,7 @@ export default class TemplateCreate extends tsc<object> {
             />
           ) : (
             <QueryTemplateView
-              chartTitle={this.basicInfoData.name}
+              basicInfo={this.basicInfoData}
               expressionConfig={this.expressionConfig}
               metricFunctions={this.metricFunctions}
               queryConfigs={this.queryConfigs.filter(item => !!item.metricDetail)}
