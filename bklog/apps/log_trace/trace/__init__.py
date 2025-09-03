@@ -159,14 +159,14 @@ def django_response_hook(span, request, response):
     if not isinstance(result, dict):
         return
 
-    result = result.get("result", True)
+    is_success = result.get("result", True)
     span.set_attribute("user.username", get_request_username())
     span.set_attribute("http.response.code", result.get("code", 0))
     span.set_attribute("http.response.message", result.get("message", ""))
     span.set_attribute("http.response.errors", str(result.get("errors", "")))
-    span.set_attribute("http.response.result", str(result))
+    span.set_attribute("http.response.result", str(is_success))
 
-    if result:
+    if is_success:
         span.set_status(Status(StatusCode.OK))
         return
     span.set_status(Status(StatusCode.ERROR))
