@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,12 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Any, Dict, List, Optional, Set
+
+from typing import Any
 
 from django.db import models
 
 from apm_web.constants import ServiceRelationLogTypeChoices
-from bkmonitor.utils.db import JsonField
 from monitor_web.data_explorer.event.constants import EventCategory
 
 
@@ -43,7 +42,7 @@ class EventServiceRelation(ServiceBase):
     options = models.JSONField(verbose_name="事件选项", default=dict)
 
     @classmethod
-    def fetch_relations(cls, bk_biz_id: int, app_name: str, service_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_relations(cls, bk_biz_id: int, app_name: str, service_name: str | None = None) -> list[dict[str, Any]]:
         """获取事件关联配置
         [
             {
@@ -75,19 +74,19 @@ class EventServiceRelation(ServiceBase):
             },
         ]
         """
-        filter_kwargs: Dict[str, Any] = {"bk_biz_id": bk_biz_id, "app_name": app_name}
+        filter_kwargs: dict[str, Any] = {"bk_biz_id": bk_biz_id, "app_name": app_name}
         if service_name:
             filter_kwargs["service_name"] = service_name
 
-        table_options_map: Dict[str, Dict[str, Any]] = {}
-        table_relations_map: Dict[str, List[Dict[str, Any]]] = {EventCategory.SYSTEM_EVENT.value: []}
+        table_options_map: dict[str, dict[str, Any]] = {}
+        table_relations_map: dict[str, list[dict[str, Any]]] = {EventCategory.SYSTEM_EVENT.value: []}
         for relation in EventServiceRelation.objects.filter(**filter_kwargs).values("table", "relations", "options"):
             table_options_map[relation["table"]] = relation["options"]
             table_relations_map.setdefault(relation["table"], []).extend(relation["relations"])
 
         # 去重
         for table in table_relations_map:
-            duplicate_relation_tuples: Set[frozenset] = {frozenset(r.items()) for r in table_relations_map[table]}
+            duplicate_relation_tuples: set[frozenset] = {frozenset(r.items()) for r in table_relations_map[table]}
             table_relations_map[table] = [dict(relation_tuple) for relation_tuple in duplicate_relation_tuples]
 
         return [
@@ -120,5 +119,29 @@ class ApdexServiceRelation(ServiceBase):
 
 
 class CodeRedefinedConfigRelation(ServiceBase):
-    ret_code_as_exception = models.BooleanField("非 0 返回码是否当成异常", default=False)
-    rules = JsonField(verbose_name="匹配规则", null=True, blank=True)
+    ret_code_as_exception = models.BooleanField("非 0 返回码是否当成异常", default=False)  # 待新下发实现后旧逻辑移除！
+    # 类型：caller / callee
+    kind = models.CharField("类型", max_length=16, choices=[("caller", "主调"), ("callee", "被调")])
+    # 被调服务（caller 时必填；callee 时必须与 service_name 一致）
+    callee_server = models.CharField("被调服务", max_length=512, blank=True, default="")
+    # 被调 Service
+    callee_service = models.CharField("被调Service", max_length=512, blank=True, default="")
+    # 被调接口（完整名称/路径，精确匹配）
+    callee_method = models.CharField("被调接口", max_length=512, blank=True, default="")
+    # 返回码重定义：原始字段直接落库，三组 code 列表，示例：{"success": "0", "failure": "3001,err_1", "timeout": "408"}
+    code_type_rules = models.JSONField("重定义返回码分组信息", default=dict)
+    # 是否启用
+    enabled = models.BooleanField("是否启用", default=True)
+
+    class Meta:
+        index_together = [
+            [
+                "bk_biz_id",
+                "app_name",
+                "service_name",
+                "kind",
+                "callee_server",
+                "callee_service",
+                "callee_method",
+            ]
+        ]

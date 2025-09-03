@@ -13,6 +13,9 @@ from apm_web.service.resources import (
     ApplicationListResource,
     AppQueryByIndexSetResource,
     CMDBServiceTemplateResource,
+    CodeRedefinedRuleListResource,
+    CodeRedefinedRuleSetResource,
+    CodeRedefinedRuleDeleteResource,
     LogServiceChoiceListResource,
     LogServiceRelationBkLogIndexSet,
     ServiceConfigResource,
@@ -49,6 +52,10 @@ class ServiceViewSet(ResourceViewSet):
         ResourceRoute("POST", ServiceConfigResource, "service_config"),
         # 获取服务配置
         ResourceRoute("POST", ServiceInfoResource, "service_info"),
+        # 返回码重定义：查询/设置/删除
+        ResourceRoute("POST", CodeRedefinedRuleListResource, "code_redefined_rule_list"),
+        ResourceRoute("POST", CodeRedefinedRuleSetResource, "code_redefined_rule_set"),
+        ResourceRoute("POST", CodeRedefinedRuleDeleteResource, "code_redefined_rule_delete"),
         ResourceRoute("POST", CMDBServiceTemplateResource, "cmdb_service_template"),
         ResourceRoute("POST", LogServiceChoiceListResource, "log_service_relation_choices"),
         ResourceRoute("POST", AppQueryByIndexSetResource, "app_query_by_index_set"),

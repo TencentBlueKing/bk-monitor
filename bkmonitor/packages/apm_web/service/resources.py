@@ -22,6 +22,8 @@ import arrow
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from rest_framework import serializers
+from django.db.models import Q
+from django.db.models.functions import Length
 
 from api.cmdb.define import Business
 from apm_web.constants import (
@@ -41,17 +43,26 @@ from apm_web.models import (
     CMDBServiceRelation,
     EventServiceRelation,
     LogServiceRelation,
+    CodeRedefinedConfigRelation,
     UriServiceRelation,
 )
 from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.serializers import ApplicationListSerializer, ServiceApdexConfigSerializer
-from apm_web.service.mock_data import API_PIPELINE_OVERVIEW_RESPONSE, API_LIST_PIPELINE_RESPONSE
+from apm_web.service.mock_data import (
+    API_PIPELINE_OVERVIEW_RESPONSE,
+    API_LIST_PIPELINE_RESPONSE,
+    API_CODE_REDEFINED_RULE_LIST_RESPONSE,
+    API_CODE_REDEFINED_RULE_SET_RESPONSE,
+)
 from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
     ServiceConfigSerializer,
     PipelineOverviewRequestSerializer,
     ListPipelineRequestSerializer,
+    CodeRedefinedRuleListRequestSerializer,
+    CodeRedefinedRuleSetRequestSerializer,
+    CodeRedefinedRuleDeleteRequestSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkm_space.errors import NoRelatedResourceError
@@ -722,3 +733,142 @@ class ListPipelineResource(Resource):
             for pipeline in pipelines["records"]
         ]
         return {"count": pipelines["count"], "items": processed_pipelines}
+
+
+class CodeRedefinedRuleListResource(Resource):
+    RequestSerializer = CodeRedefinedRuleListRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        if validated_request_data.get("is_mock", False):
+            return API_CODE_REDEFINED_RULE_LIST_RESPONSE
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        service_name: str = validated_request_data["service_name"]
+        kind: str = validated_request_data["kind"]
+
+        requested_callee_server: str | None = validated_request_data.get("callee_server")
+        requested_callee_service: str | None = validated_request_data.get("callee_service")
+        requested_callee_method: str | None = validated_request_data.get("callee_method")
+
+        if kind == "callee":
+            if requested_callee_server and requested_callee_server != service_name:
+                raise ValueError(_lazy("callee 场景下 callee_server 必须等于 service_name"))
+            callee_server_value = service_name
+        else:
+            # caller 建议传入；不传则不过滤该维度
+            callee_server_value = requested_callee_server or None
+
+        # 基础精确过滤
+        q = Q(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name, kind=kind)
+
+        # 对传入的维度，匹配该值或空串；未传的不加过滤
+        if callee_server_value is not None:
+            q &= Q(callee_server__in=[callee_server_value, ""])  # type: ignore
+        if requested_callee_service is not None:
+            if requested_callee_service == "":
+                q &= Q(callee_service="")
+            else:
+                q &= Q(callee_service__in=[requested_callee_service, ""])  # type: ignore
+        if requested_callee_method is not None:
+            if requested_callee_method == "":
+                q &= Q(callee_method="")
+            else:
+                q &= Q(callee_method__in=[requested_callee_method, ""])  # type: ignore
+
+        queryset = (
+            CodeRedefinedConfigRelation.objects.filter(q)
+            .annotate(
+                method_len=Length("callee_method"),
+                service_len=Length("callee_service"),
+                server_len=Length("callee_server"),
+            )
+            .order_by("-method_len", "-service_len", "-server_len")
+        )
+        return list(
+            queryset.values(
+                "id",
+                "kind",
+                "service_name",
+                "callee_server",
+                "callee_service",
+                "callee_method",
+                "code_type_rules",
+                "enabled",
+                "updated_at",
+                "updated_by",
+            )
+        )
+
+
+class CodeRedefinedRuleSetResource(Resource):
+    RequestSerializer = CodeRedefinedRuleSetRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        if validated_request_data.get("is_mock", False):
+            return API_CODE_REDEFINED_RULE_SET_RESPONSE
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        service_name: str = validated_request_data["service_name"]
+        kind: str = validated_request_data["kind"]
+        enabled: bool = validated_request_data.get("enabled", True)
+        callee_server: str = validated_request_data["callee_server"]
+        callee_service: str = validated_request_data["callee_service"]
+        callee_method: str = validated_request_data["callee_method"]
+        code_type_rules = validated_request_data["code_type_rules"]
+
+        username = get_request_username()
+
+        updates = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "service_name": service_name,
+            "kind": kind,
+            "callee_server": callee_server,
+            "callee_service": callee_service,
+            "callee_method": callee_method,
+            "code_type_rules": code_type_rules,
+            "enabled": enabled,
+            "updated_by": username,
+        }
+
+        instance_id: int | None = validated_request_data.get("id")
+        if instance_id:
+            affected = CodeRedefinedConfigRelation.objects.filter(id=instance_id).update(**updates)
+            if not affected:
+                raise ValueError(_lazy("规则不存在"))
+            return {"id": instance_id}
+
+        filters = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "service_name": service_name,
+            "kind": kind,
+            "callee_server": callee_server,
+            "callee_service": callee_service,
+            "callee_method": callee_method,
+        }
+        obj, created = CodeRedefinedConfigRelation.objects.update_or_create(defaults=updates, **filters)
+        if created:
+            CodeRedefinedConfigRelation.objects.filter(id=obj.id).update(created_by=username)
+        return {"id": obj.id}
+
+
+class CodeRedefinedRuleDeleteResource(Resource):
+    RequestSerializer = CodeRedefinedRuleDeleteRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        service_name: str = validated_request_data["service_name"]
+        instance_id: int = validated_request_data["id"]
+
+        try:
+            instance = CodeRedefinedConfigRelation.objects.get(
+                id=instance_id, bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+            )
+        except CodeRedefinedConfigRelation.DoesNotExist:
+            # 按需求可以视为已删除
+            return
+
+        instance.delete()
+        return
