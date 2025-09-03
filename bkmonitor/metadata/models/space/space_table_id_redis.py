@@ -136,10 +136,11 @@ class SpaceTableIDRedis:
 
     def push_data_label_table_ids(
         self,
+        # todo 会被command调用， 暂不能完全改造
+        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
         data_label_list: list | None = None,
         table_id_list: list | None = None,
         is_publish: bool | None = False,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         """推送 data_label 及对应的结果表"""
         logger.info(
@@ -509,6 +510,7 @@ class SpaceTableIDRedis:
 
     def push_table_id_detail(
         self,
+        # todo 存在command调用， 其余默认值已经修改
         bk_tenant_id: str = DEFAULT_TENANT_ID,
         table_id_list: list | None = None,
         is_publish: bool | None = False,
@@ -649,6 +651,7 @@ class SpaceTableIDRedis:
 
         return _table_id_detail
 
+    # todo 会被push_table_id_detail 调用， 暂不能完全改造
     def _get_field_alias_map(self, table_id_list: list[str], bk_tenant_id: str | None = DEFAULT_TENANT_ID):
         """
         构建字段别名映射map
@@ -694,8 +697,9 @@ class SpaceTableIDRedis:
             # 发生错误时返回空字典，确保不影响主流程
             return {}
 
+    # todo 会被push_table_id调用， 暂不能完全修改
     def _compose_es_table_id_detail(
-        self, table_id_list: list[str] | None = None, bk_tenant_id: str = DEFAULT_TENANT_ID
+        self, bk_tenant_id: str = DEFAULT_TENANT_ID, table_id_list: list[str] | None = None
     ) -> dict[str, dict]:
         """组装 es 结果表的详细信息"""
         logger.info("start to compose es table_id detail data")
@@ -808,7 +812,7 @@ class SpaceTableIDRedis:
         )
 
         # 追加ES结果表
-        _values.update(self._compose_es_table_ids(space_type, space_id))
+        _values.update(self._compose_es_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id))
         # 追加Doris结果表
         _values.update(self._compose_doris_table_ids(space_type, space_id))
         _values.update(self._compose_es_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id))
@@ -896,7 +900,7 @@ class SpaceTableIDRedis:
         _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
         return _values
 
-    def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
+    def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str) -> dict:
         """推送 bcs 类型关联业务的数据，现阶段包含主机及部分插件信息"""
         logger.info("start to push cluster of bcs space table_id, space_type: %s, space_id: %s", space_type, space_id)
         # 首先获取关联业务的数据
@@ -988,7 +992,7 @@ class SpaceTableIDRedis:
         if not table_is_list:
             return _values
         # 过滤仅写入influxdb和vm的数据
-        table_ids = self._refine_table_ids(table_is_list, bk_tenant_id=bk_tenant_id)
+        table_ids = self._refine_table_ids(table_id_list=table_is_list, bk_tenant_id=bk_tenant_id)
         # 组装数据
         for tid in table_ids:
             if tid in settings.SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST:
@@ -1161,7 +1165,7 @@ class SpaceTableIDRedis:
             logger.error("space_type: %s, space_id:%s not found table_id and data_id", space_type, space_id)
             return default_values
         # 提取仅包含写入 influxdb 和 vm 的结果表
-        table_ids = self._refine_table_ids(list(table_id_data_id.keys()))
+        table_ids = self._refine_table_ids(table_id_list=list(table_id_data_id.keys()), bk_tenant_id=bk_tenant_id)
         # 组装数据
         _values = {}
         # 针对非集群的数据，不限制过滤条件
@@ -1202,7 +1206,7 @@ class SpaceTableIDRedis:
             return _values
 
         # 提取仅包含写入 influxdb 和 vm 的结果表
-        table_ids = self._refine_table_ids(list(table_id_data_id.keys()), bk_tenant_id=bk_tenant_id)
+        table_ids = self._refine_table_ids(table_id_list=list(table_id_data_id.keys()), bk_tenant_id=bk_tenant_id)
         # 再一次过滤，过滤到有链路的结果表，并且写入 influxdb 或 vm 的数据
         table_id_data_id = {tid: table_id_data_id.get(tid) for tid in table_ids}
 
@@ -1301,7 +1305,7 @@ class SpaceTableIDRedis:
 
         return _values
 
-    def _compose_record_rule_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
+    def _compose_record_rule_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str):
         """组装预计算的结果表"""
         from metadata.models.record_rule.rules import RecordRule
 
@@ -1314,7 +1318,7 @@ class SpaceTableIDRedis:
         objs = RecordRule.objects.filter(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
         return {obj.table_id: {"filters": []} for obj in objs}
 
-    def _compose_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
+    def _compose_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str):
         """组装es的结果表"""
         biz_id = models.Space.objects.get_biz_id_by_space(space_type, space_id)
         tids = models.ResultTable.objects.filter(
@@ -1336,7 +1340,7 @@ class SpaceTableIDRedis:
         ).values_list("table_id", flat=True)
         return {tid: {"filters": []} for tid in tids}
 
-    def _compose_related_bkci_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
+    def _compose_related_bkci_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id: str):
         """
         组装关联的BKCI类型的ES结果表
         """
@@ -1419,11 +1423,12 @@ class SpaceTableIDRedis:
         # 3. 此时，必然是自定义时序，且是公共的平台数据源，同时非该当前空间下，ß需要添加过滤条件
         return True
 
+    # todo 会被push_data_label_tables_ids 调用， 暂不能完全改造
     def _refine_available_data_label(
         self,
+        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
         table_id_list: list | None = None,
         data_label_list: list | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ) -> list:
         """获取可以使用的结果表"""
         logger.info(
@@ -1475,7 +1480,7 @@ class SpaceTableIDRedis:
 
         return list(set(data_labels))
 
-    def _refine_table_ids(self, table_id_list: list | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> set:
+    def _refine_table_ids(self, bk_tenant_id: str, table_id_list: list | None = None) -> set:
         """提取写入到influxdb或vm的结果表数据"""
         # 过滤写入 influxdb 的结果表
         influxdb_table_ids = models.InfluxDBStorage.objects.values_list("table_id", flat=True)
@@ -1546,7 +1551,8 @@ class SpaceTableIDRedis:
 
         return {"table_id_ts_group_id": table_id_ts_group_id, "group_id_field_map": group_id_field_map}
 
-    def _compose_table_id_fields(self, table_ids: set | None = None, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict:
+    # todo 会被push_table_id_detail 调用，暂不能完全改造
+    def _compose_table_id_fields(self, bk_tenant_id: str = DEFAULT_TENANT_ID, table_ids: set | None = None) -> dict:
         """组装结果表对应的指标数据"""
         logger.info(
             "_compose_table_id_fields: try to compose table id fields,table_ids->[%s],bk_tenant_id->[%s]",

@@ -441,7 +441,7 @@ def push_and_publish_space_router(
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
     # 更新数据
-    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=True)
+    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=True, bk_tenant_id=bk_tenant_id)
     space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True, bk_tenant_id=bk_tenant_id)
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
