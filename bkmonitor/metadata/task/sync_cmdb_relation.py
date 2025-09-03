@@ -17,6 +17,7 @@ from django.db import transaction
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.utils.cipher import transform_data_id_to_token
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.prometheus import metrics
 from metadata.models import (
@@ -132,6 +133,7 @@ def sync_relation_redis_data():
                         space_type_id=space_type,
                         space_uid=key,
                         bk_biz_id=biz_id,
+                        bk_tenant_id=space_uid_to_bk_tenant_id(key),
                     )
                     new_rt = TimeSeriesGroup.create_time_series_group(
                         bk_data_id=ds.bk_data_id,

@@ -154,10 +154,12 @@ class GetOrCreateAgentEventDataIdResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data.get("bk_biz_id")
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
         space_uid = f"{SpaceTypes.BKCC.value}__{bk_biz_id}"
         etl_config = EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value
         logger.info(
@@ -192,6 +194,7 @@ class GetOrCreateAgentEventDataIdResource(Resource):
             type_label="event",
             space_uid=space_uid,
             bk_biz_id=bk_biz_id,
+            bk_tenant_id=bk_tenant_id,
         )
 
         return {"bk_data_id": new_data_source.bk_data_id}

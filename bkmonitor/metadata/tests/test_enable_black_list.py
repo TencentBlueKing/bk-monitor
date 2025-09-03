@@ -67,6 +67,7 @@ class TestBlackList:
                 models.DataSourceOption.OPTION_ALLOW_USE_ALIAS_NAME: True,
                 models.DataSourceOption.OPTION_IS_SPLIT_MEASUREMENT: True,
             },
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 3. 判断数据是否存在

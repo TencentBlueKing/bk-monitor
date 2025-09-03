@@ -15,6 +15,7 @@ import pytest
 from django.core.management import call_command
 
 from bkmonitor.utils import consul
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.utils import consul_tools
 
@@ -108,6 +109,7 @@ class TestOperateConsulConfig:
         )
         # 新建一个datasource
         new_data_source = models.DataSource.create_data_source(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             data_name=data_name,
             etl_config=etl_config,
             operator=operator,
