@@ -9,18 +9,17 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
-from .apm import APMQueryTemplateSet
-
-from .k8s import K8SQueryTemplateSet
 
 from bkmonitor.models.query_template import QueryTemplate
 from constants.query_template import GLOBAL_BIZ_ID
 
 from .. import constants
 from ..core import QueryTemplateWrapper
-from ...utils.user import get_backend_username
+from .apm import APMQueryTemplateSet
+from .k8s import K8SQueryTemplateSet
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +56,11 @@ def register_builtin_templates() -> None:
             obj: QueryTemplate = QueryTemplate(is_deleted=False, **qtw.to_dict())
             if qtw.name in remote_templ_names:
                 obj.update_time = timezone.now()
-                obj.update_user = get_backend_username()
-                obj.id = remote_templ_name_id_map[qtw.name]
+                obj.update_user = "system"
+                obj.pk = remote_templ_name_id_map[qtw.name]
                 to_be_updated.append(obj)
             else:
-                obj.create_user = obj.update_user = get_backend_username()
+                obj.create_user = obj.update_user = "system"
                 to_be_created.append(obj)
 
             local_templ_names.add(qtw.name)
