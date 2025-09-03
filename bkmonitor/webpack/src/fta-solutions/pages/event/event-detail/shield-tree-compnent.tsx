@@ -36,13 +36,9 @@ interface IProps {
   show?: boolean; 
 }
 
-interface TreeNodeData extends ChildrenTreeNode{
-  root: boolean; // 根节点(集群)
-};
-
-interface ChildrenTreeNode {
+interface TreeNodeData {
   // 子集
-  children?: ChildrenTreeNode[];
+  children?: TreeNodeData[];
   // id
   id: string;
   instId: string;
@@ -120,11 +116,7 @@ export default class ShieldTreeCompnent extends tsc<
       bk_host_id: this.bkHostId,
     })
     .then(res => {
-      const result = res.map(item => ({
-        ...item,
-        root: true,
-      }));
-      this.treeNodeList = this.mapTreeData(result);
+      this.treeNodeList = this.mapTreeData(res);
       
     })
     .catch(()=>{
@@ -141,7 +133,7 @@ export default class ShieldTreeCompnent extends tsc<
       id: `${item.bk_inst_id}_${item.bk_obj_id}`,
       instId: item.bk_inst_id,
       objId: item.bk_obj_id,
-      name: `${item.root ? '集群' : '模块'}(${item.bk_obj_name})`,
+      name: `${item.bk_obj_name}(${item.bk_inst_name})`,
       state: {
         checked: false,
       },
