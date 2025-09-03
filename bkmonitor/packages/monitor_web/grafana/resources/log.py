@@ -19,6 +19,7 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.data_source import load_data_source
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
 
@@ -146,6 +147,7 @@ class LogQueryResource(ApiAuthResource):
         data_source_class = load_data_source(params["data_source_label"], params["data_type_label"])
 
         kwargs = dict(
+            bk_tenant_id=get_request_tenant_id(),
             table=params["result_table_id"],
             index_set_id=params["index_set_id"],
             where=params["where"],
