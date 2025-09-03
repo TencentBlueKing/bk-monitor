@@ -368,7 +368,11 @@ class PrecalculateStorage:
                         count_md5(json.dumps(cur_res, sort_keys=True)) != count_md5(json.dumps(pre_res, sort_keys=True))
                     ) or (instance.storage_cluster_id != j["cluster_id"]):
                         logger.info("[PreCalculateStorage-CHECK_UPDATE] FIELD OR STORAGE UPDATE!")
-                        cls.update_result_table(j["table_name"], j["cluster_id"])
+                        cls.update_result_table(
+                            table_name=j["table_name"],
+                            storage_cluster_id=j["cluster_id"],
+                            bk_tenant_id=instance.bk_tenant_id,
+                        )
                     else:
                         logger.info(
                             f"[PreCalculateStorage-CHECK_UPDATE] "
@@ -401,15 +405,11 @@ class PrecalculateStorage:
         return res
 
     @classmethod
-    def update_result_table(cls, table_name, storage_cluster_id):
+    def update_result_table(cls, table_name, storage_cluster_id, bk_tenant_id: str):
         """更新所有DataLink的预计算存储配置"""
-        instance = ESStorage.objects.filter(table_id=table_name).first()
-        if not instance:
-            raise ValueError(f"storage {table_name} not found")
-
         params = {
             "table_id": table_name,
-            "bk_tenant_id": instance.bk_tenant_id,
+            "bk_tenant_id": bk_tenant_id,
             "operator": get_global_user(),
             "label": "application_check",
             "field_list": PrecalculateStorageConfig.TABLE_SCHEMA,
