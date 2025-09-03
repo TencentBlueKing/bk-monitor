@@ -198,7 +198,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('策略标签'),
     is_default: false,
     is_locked: false,
-    minWidth: 200,
+    minWidth: 240,
   },
   {
     colKey: 'stage_display',

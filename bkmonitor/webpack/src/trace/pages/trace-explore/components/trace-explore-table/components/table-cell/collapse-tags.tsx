@@ -48,35 +48,41 @@ export default defineComponent({
       type: Array as PropType<any[] | string[]>,
       default: () => [],
     },
-    filter: {
-      type: Array,
-      default: () => [],
-    },
-    styleName: {
-      type: String,
-      default: '',
-    },
     /** tag 之间的水平间距（默认为 4px），不建议另外css单独设置，计算tag宽度溢出时需要使用该值进行计算 */
     tagColGap: {
       type: Number,
       default: 4,
     },
+    /** 是否启用标签溢出时省略显示 */
     enableEllipsis: {
       type: Boolean,
       default: true,
     },
+    /** 标签溢出时溢出标签hover显示的提示内容 */
     ellipsisTip: {
       type: Function as PropType<(ellipsisList: any[] | string[]) => SlotReturnValue>,
     },
   },
   setup(props) {
-    let resizeObserver = null;
+    /** 尺寸监听器实例 */
+    let resizeObserverInstance = null;
+    /** 视口监听器实例 */
+    let intersectionObserverInstance = null;
+    /** 标签容器最后一次宽度缓存 */
     let lastTagContainerWidth = 0;
 
+    /** 根元素实例 */
     const tagContainerRef = deepRef(null);
+    /** 标签容器实例 */
     const sectionRef = deepRef(null);
+    /** 标签列表实例 */
     const maxCountCollectTagRef = shallowRef(null);
+    /** 显示最大数量折叠标签实例（主要用于计算不用于展示） */
     const calculateTagCount = shallowRef(props?.data?.length || 0);
+    /** 容器宽度是否发生了改变 */
+    const hasResize = shallowRef(true);
+    /** 标签容器是否在可视区域 */
+    const isInViewport = shallowRef(false);
 
     const cssVars = computed(() => ({
       '--tag-col-gap': `${props.tagColGap}px`,
@@ -87,6 +93,7 @@ export default defineComponent({
      *
      **/
     const calculateOverflow = useDebounceFn(() => {
+      if (!isInViewport.value || !hasResize.value) return;
       calculateTagCount.value = props?.data?.length || 0;
       if (!props.enableEllipsis) {
         return;
@@ -94,6 +101,8 @@ export default defineComponent({
       requestAnimationFrame(() => {
         //
         const tagsList = sectionRef.value?.children || [];
+        // 缓存当前帧中tag元素的宽高信息对象，避免频繁调用getBoundingClientRect影响性能
+        const tagElBoundingClientRectMap = new WeakMap();
         // 获取容器宽度
         const containerWidth = sectionRef.value?.parentNode?.getBoundingClientRect?.().width;
         let totalWidth = 0;
@@ -101,7 +110,9 @@ export default defineComponent({
 
         // 第一轮：计算在不显示折叠标签时能容纳的标签数量
         for (let i = 0; i < tagsList.length; i++) {
-          const tagWidth = tagsList[i]?.getBoundingClientRect?.().width;
+          const elRect = tagsList[i]?.getBoundingClientRect?.();
+          tagElBoundingClientRectMap.set(tagsList[i], elRect);
+          const tagWidth = elRect?.width;
           const newWidth = totalWidth + tagWidth + (i > 0 ? props.tagColGap : 0);
           if (newWidth < containerWidth) {
             totalWidth = newWidth;
@@ -128,7 +139,8 @@ export default defineComponent({
         // 第二轮：走到这里则说明剩余的空间不足以显示折叠标签，所以需要逐个递减至可以容纳折叠标签
         while (visibleCount > 0) {
           visibleCount--;
-          const tagWidth = tagsList[visibleCount]?.getBoundingClientRect?.().width;
+          const elRect = tagElBoundingClientRectMap.get(tagsList[visibleCount]);
+          const tagWidth = elRect?.width;
           totalWidth = totalWidth - tagWidth - props.tagColGap;
           if (totalWidth < containerWidth) break;
         }
@@ -137,22 +149,46 @@ export default defineComponent({
     }, 200);
 
     /**
-     * @description 设置观察器(目前场景只需要监听水平方向)
+     * @description 设置观察器
      *
      **/
     function setupObserver() {
-      if (!resizeObserver) {
-        resizeObserver = new ResizeObserver(entries => {
+      setupResizeObserver();
+      setupIntersectionObserver();
+    }
+
+    /**
+     * @description 设置resize观察器(目前场景只需要监听水平方向)
+     */
+    function setupResizeObserver() {
+      if (!resizeObserverInstance) {
+        resizeObserverInstance = new ResizeObserver(entries => {
           for (const entry of entries) {
             const currentWidth = entry.contentRect.width;
             if (currentWidth === lastTagContainerWidth) {
               return;
             }
             lastTagContainerWidth = currentWidth;
+            hasResize.value = true;
             calculateOverflow();
           }
         });
-        if (tagContainerRef?.value) resizeObserver.observe(tagContainerRef?.value);
+        if (tagContainerRef?.value) resizeObserverInstance.observe(tagContainerRef?.value);
+      }
+    }
+
+    /**
+     * @description 设置IntersectionObserver观察器
+     */
+    function setupIntersectionObserver() {
+      if (!intersectionObserverInstance) {
+        intersectionObserverInstance = new IntersectionObserver(entries => {
+          for (const entry of entries) {
+            isInViewport.value = entry.isIntersecting;
+            calculateOverflow();
+          }
+        });
+        if (tagContainerRef?.value) intersectionObserverInstance.observe(tagContainerRef?.value);
       }
     }
 
@@ -161,9 +197,13 @@ export default defineComponent({
      *
      */
     function cleanupObserver() {
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-        resizeObserver = null;
+      if (resizeObserverInstance) {
+        resizeObserverInstance.disconnect();
+        resizeObserverInstance = null;
+      }
+      if (intersectionObserverInstance) {
+        intersectionObserverInstance.disconnect();
+        intersectionObserverInstance = null;
       }
     }
 
