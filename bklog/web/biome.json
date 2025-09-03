@@ -6,7 +6,12 @@
     "clientKind": "git"
   },
   "files": {
-    "includes": ["./src/**/*.{js,jsx,ts,tsx}"]
+    "includes": [
+      "./src/**/*.{js,jsx,ts,tsx}",
+      "!*.{js,ts}",
+      "!**/*.{json,vue}",
+      "!webpack"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -33,9 +38,6 @@
       "a11y": {
         "useKeyWithClickEvents": "off",
         "noStaticElementInteractions": "off"
-      },
-      "style": {
-        "useTemplate": "off"
       }
     }
   },
@@ -55,7 +57,9 @@
     "actions": {
       "source": {
         "organizeImports": "off",
-        "useSortedProperties": "off"
+        "useSortedProperties": "off",
+        "useSortedAttributes": "off",
+        "useSortedKeys": "off"
       }
     }
   }

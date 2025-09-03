@@ -17,7 +17,7 @@
     "clean": "rimraf ../static/dist/*",
     "analyze": "npm run clean && bkmonitor-cli build -a",
     "stylelint": "stylelint \"./src/**/*.(vue|scss|css)\" --fix",
-    "format": "npx ultracite format",
+    "format": "npx ultracite fix",
     "lint": "npx ultracite lint"
   },
   "dependencies": {
@@ -132,7 +132,7 @@
     "stylelint-order": "6.0.4",
     "stylelint-scss": "6.2.1",
     "typescript": "5.4.2",
-    "ultracite": "5.2.5",
+    "ultracite": "5.3.0",
     "vue-eslint-parser": "9.4.2",
     "vue-tsx-support": "3.1.0",
     "webpackbar": "6.0.1"
@@ -163,7 +163,7 @@
   },
   "lint-staged": {
     "src/**/*.(js|ts|tsx)": [
-      "npx ultracite format",
+      "npx ultracite fix",
       "npx ultracite lint",
       "eslint --cache --fix"
     ],
