@@ -50,6 +50,8 @@ def add_data_after_request(response_data):
 class _UnifyQueryApi:
     MODULE = _("UNIFYQUERY模块")
 
+    HEADER_KEYS = ["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid", "X-Bk-Query-Source"]
+
     def __init__(self):
         self.query_ts = DataAPI(
             method="POST",
@@ -57,7 +59,7 @@ class _UnifyQueryApi:
             module=self.MODULE,
             description="时序型检索",
             after_request=add_data_after_request,
-            header_keys=["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid"],
+            header_keys=self.HEADER_KEYS,
             before_request=add_unify_query_header_before,
             bk_tenant_id=biz_to_tenant_getter(),
         )
@@ -67,7 +69,7 @@ class _UnifyQueryApi:
             module=self.MODULE,
             description="非时序型检索",
             after_request=add_data_after_request,
-            header_keys=["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid"],
+            header_keys=self.HEADER_KEYS,
             before_request=add_unify_query_header_before,
             bk_tenant_id=biz_to_tenant_getter(),
         )
@@ -77,7 +79,7 @@ class _UnifyQueryApi:
             module=self.MODULE,
             description="时序型检索原始日志",
             after_request=add_data_after_request,
-            header_keys=["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid"],
+            header_keys=self.HEADER_KEYS,
             before_request=add_unify_query_header_before,
             bk_tenant_id=biz_to_tenant_getter(),
         )
@@ -87,7 +89,7 @@ class _UnifyQueryApi:
             module=self.MODULE,
             description="滚动检索原始数据",
             after_request=add_data_after_request,
-            header_keys=["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid"],
+            header_keys=self.HEADER_KEYS,
             before_request=add_unify_query_header_before,
             bk_tenant_id=biz_to_tenant_getter(),
         )
