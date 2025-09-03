@@ -57,7 +57,12 @@ export default defineComponent({
       default: true,
     },
   },
-  emits: ['update:show', 'copyNames', 'conditionChange'],
+  emits: {
+    'update:show': (isShow: boolean) => isShow !== undefined,
+    conditionChange: (type: string, value: string) => type && value,
+    copyNames: (list: AnalysisListItemBucket[]) => list.length > 0,
+  },
+
   setup(props, { emit }) {
     const handleSliderShowChange = (isShow: boolean) => {
       emit('update:show', isShow);

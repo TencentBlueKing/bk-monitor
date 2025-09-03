@@ -39,7 +39,7 @@ import AnalysisList from './analysis-list';
 import SettingDialog from './setting-dialog';
 import ChartCollapse from '@/pages/trace-explore/components/explore-chart/chart-collapse';
 
-import type { AnalysisListItem, AnalysisListItemBucket } from '../../typings';
+import type { AnalysisListItem, AnalysisListItemBucket, CommonCondition } from '../../typings';
 
 import './alarm-analysis.scss';
 
@@ -47,7 +47,9 @@ export const AlarmAnalysisCollapse = 'ALARM_ANALYSIS_COLLAPSE';
 
 export default defineComponent({
   name: 'AlarmAnalysis',
-  emits: ['conditionChange'],
+  emits: {
+    conditionChange: (value: CommonCondition) => true,
+  },
   setup(props, { emit }) {
     const { t } = useI18n();
     const {

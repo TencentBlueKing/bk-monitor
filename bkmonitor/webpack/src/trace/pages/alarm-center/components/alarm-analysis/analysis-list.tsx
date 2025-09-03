@@ -42,8 +42,10 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['conditionChange'],
-  setup(props, { emit }) {
+  emits: {
+    conditionChange: (type: string, value: string) => type.length && value.length,
+  },
+  setup(_, { emit }) {
     const { t } = useI18n();
 
     const handleConditionChange = (type: string, value: string) => {
@@ -93,7 +95,7 @@ export default defineComponent({
               />
               <i
                 class='icon-monitor icon-sousuo-'
-                onClick={() => this.handleConditionChange('ne', item.id)}
+                onClick={() => this.handleConditionChange('neq', item.id)}
               />
             </div>
           </div>
