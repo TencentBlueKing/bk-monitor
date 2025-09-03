@@ -1024,6 +1024,8 @@ DEFAULT_SPLIT_SYMBOL = "--"
 class ApmCacheKey:
     """一些 APM 的缓存 Key"""
 
+    # 存放应用数据状态的 key
+    APP_APPLICATION_STATUS_KEY = "apm:application:{date}:all_application_data_status"
     # 存放应用下服务的数据状态
     APP_SERVICE_STATUS_KEY = "apm:application:{application_id}:service_data_status"
     # 存放应用下监控项数据的映射

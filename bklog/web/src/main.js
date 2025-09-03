@@ -81,7 +81,8 @@ const mountedVueInstance = () => {
       return i18n.t(key, params);
     },
   };
-  preload({ http, store }).then(([space]) => {
+  preload({ http, store }).then(([spaceRequest]) => {
+    const space = spaceRequest.value;
     const spaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
 
