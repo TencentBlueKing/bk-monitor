@@ -35,7 +35,6 @@ import { AlarmType } from '../../../typings';
 export function useSpaceSelect() {
   const appStore = useAppStore();
   const alarmStore = useAlarmCenterStore();
-  const localBizIds = shallowRef(alarmStore.bizIds);
   const allowedBizList = shallowRef([]);
   const isMultiple = shallowRef(false);
 
@@ -76,11 +75,6 @@ export function useSpaceSelect() {
     }
   }
 
-  function handleBizIdsChange(v: number[]) {
-    localBizIds.value = v;
-    alarmStore.bizIds = v;
-  }
-
   function handleChangeChoiceType(v: boolean) {
     isMultiple.value = v;
   }
@@ -89,10 +83,8 @@ export function useSpaceSelect() {
     bizId,
     isIncident,
     bizList,
-    localBizIds,
     isMultiple,
     handleCheckAllowedByIds,
-    handleBizIdsChange,
     handleChangeChoiceType,
   };
 }

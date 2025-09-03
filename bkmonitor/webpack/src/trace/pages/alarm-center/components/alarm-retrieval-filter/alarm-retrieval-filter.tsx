@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
+import { type IFavoriteListItem, type IFilterField, EMode } from '../../../../components/retrieval-filter/typing';
 import SpaceSelector from '../../../../components/space-select/space-selector';
 import AlarmModuleSelector from './components/alarm-module-selector';
 import SelectorTrigger from './components/selector-trigger';
@@ -36,7 +37,7 @@ import { useAlarmFilter } from './hooks/use-alarm-filter';
 import { useSpaceSelect } from './hooks/use-space-select';
 
 import type { ITriggerSlotOptions } from '../../../../components/space-select/typing';
-import type { IFilterField } from '@/components/retrieval-filter/typing';
+import type { CommonCondition } from '../../typings/services';
 
 import './alarm-retrieval-filter.scss';
 
@@ -47,12 +48,85 @@ export default defineComponent({
       type: Array as PropType<IFilterField[]>,
       default: () => [],
     },
+    filterMode: {
+      type: String as PropType<EMode>,
+      default: EMode.ui,
+    },
+    conditions: {
+      type: Array as PropType<CommonCondition[]>,
+      default: () => [],
+    },
+    residentCondition: {
+      type: Object as PropType<CommonCondition[]>,
+      default: () => ({}),
+    },
+    queryString: {
+      type: String,
+      default: '',
+    },
+    favoriteList: {
+      type: Array as PropType<IFavoriteListItem[]>,
+      default: () => [],
+    },
+    residentSettingOnlyId: {
+      type: String,
+      default: '',
+    },
+    bizIds: {
+      type: Array as PropType<(number | string)[]>,
+      default: () => [],
+    },
   },
-  setup() {
+  emits: {
+    conditionChange: (_v: CommonCondition[]) => true,
+    queryStringChange: (_v: string) => true,
+    filterModeChange: (_v: EMode) => true,
+    residentConditionChange: (_v: CommonCondition[]) => true,
+    query: () => true,
+    bizIdsChange: (_v: (number | string)[]) => true,
+  },
+  setup(_props, { emit }) {
     const { t } = useI18n();
 
+    const showAlarmModule = computed(() => {
+      // return props.filterMode === EMode.ui;
+      return false;
+    });
+
+    function handleConditionChange(val) {
+      emit('conditionChange', val);
+    }
+    function handleQueryStringChange(val) {
+      emit('queryStringChange', val);
+    }
+    function handleFilterModeChange(val: EMode) {
+      emit('filterModeChange', val);
+    }
+    function handleResidentConditionChange(val) {
+      emit(
+        'residentConditionChange',
+        val.map(item => ({
+          ...item,
+          condition: 'and',
+        }))
+      );
+    }
+    function handleQuery() {
+      emit('query');
+    }
+    function handleBizIdsChange(val: (number | string)[]) {
+      emit('bizIdsChange', val);
+    }
+
     return {
+      showAlarmModule,
       t,
+      handleQuery,
+      handleConditionChange,
+      handleQueryStringChange,
+      handleFilterModeChange,
+      handleResidentConditionChange,
+      handleBizIdsChange,
       ...useAlarmFilter(),
       ...useSpaceSelect(),
     };
@@ -79,7 +153,7 @@ export default defineComponent({
         isShowResident={true}
         queryString={this.queryString}
         residentSettingOnlyId={this.residentSettingOnlyId}
-        where={this.condition}
+        where={this.conditions}
         onCommonWhereChange={this.handleResidentConditionChange}
         onModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
@@ -97,7 +171,7 @@ export default defineComponent({
                 needChangeChoiceType={true}
                 needIncidentOption={this.isIncident}
                 spaceList={this.bizList}
-                value={this.localBizIds}
+                value={this.bizIds}
                 onApplyAuth={this.handleCheckAllowedByIds}
                 onChange={this.handleBizIdsChange}
                 onChangeChoiceType={this.handleChangeChoiceType}
