@@ -1660,6 +1660,8 @@ class BaseIndexSetHandler:
                 }
                 if table_info["source_type"] == Scenario.LOG:
                     table_info["origin_table_id"] = obj.result_table_id
+                if query_alias_settings := index_set.query_alias_settings:
+                    table_info["query_alias_settings"] = query_alias_settings
                 request_params["table_info"].append(table_info)
             multi_execute_func.append(
                 result_key=index_set.index_set_id,
@@ -1668,23 +1670,26 @@ class BaseIndexSetHandler:
             )
             if doris_table_id := index_set.doris_table_id:
                 doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
+                doris_params = {
+                    "space_type": index_set.space_uid.split("__")[0],
+                    "space_id": index_set.space_uid.split("__")[-1],
+                    "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
+                    "table_info": [
+                        {
+                            "storage_type": "doris",
+                            "bkbase_table_id": doris_result_table,
+                            "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
+                            "source_type": "bkdata",
+                        }
+                    ],
+                }
+                if query_alias_settings := index_set.query_alias_settings:
+                    doris_params["table_info"][0]["query_alias_settings"] = query_alias_settings
                 # Doris接入
                 multi_execute_func.append(
                     result_key=index_set.index_set_id,
                     func=TransferApi.bulk_create_or_update_log_router,
-                    params={
-                        "space_type": index_set.space_uid.split("__")[0],
-                        "space_id": index_set.space_uid.split("__")[-1],
-                        "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
-                        "table_info": [
-                            {
-                                "storage_type": "doris",
-                                "bkbase_table_id": doris_result_table,
-                                "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
-                                "source_type": "bkdata",
-                            }
-                        ],
-                    },
+                    params=doris_params,
                 )
             multi_execute_func.run()
         except Exception as e:
