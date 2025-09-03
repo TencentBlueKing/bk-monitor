@@ -128,6 +128,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
       case VariableTypeEnum.TAG_VALUES:
         return <DimensionValueVariableDetail variable={this.variable as DimensionValueVariableModel} />;
       case VariableTypeEnum.FUNCTIONS:
+      case VariableTypeEnum.EXPRESSION_FUNCTIONS:
         return (
           <FunctionVariableDetail
             metricFunctions={this.metricFunctions}
@@ -182,6 +183,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           />
         );
       case VariableTypeEnum.FUNCTIONS:
+      case VariableTypeEnum.EXPRESSION_FUNCTIONS:
         return (
           <CreateFunctionVariable
             ref='variableForm'
@@ -252,6 +254,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
           />
         );
       case VariableTypeEnum.FUNCTIONS:
+      case VariableTypeEnum.EXPRESSION_FUNCTIONS:
         return (
           <EditFunctionVariableValue
             metricFunctions={this.metricFunctions}

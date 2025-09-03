@@ -27,6 +27,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { VariableTypeEnum } from '../../../../query-template/constants';
 import FunctionCreator from '../../../components/function/function-creator';
 import EditVariableValue from '../common-form/edit-variable-value';
 
@@ -49,6 +50,10 @@ export default class EditFunctionVariableValue extends tsc<FunctionValueProps, F
   @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
   @Prop({ default: () => [] }) metricFunctions!: any[];
 
+  get isUseExpression() {
+    return this.variable.type === VariableTypeEnum.EXPRESSION_FUNCTIONS;
+  }
+
   @Emit('valueChange')
   handleValueChange(value: AggFunction[]) {
     return value;
@@ -66,6 +71,7 @@ export default class EditFunctionVariableValue extends tsc<FunctionValueProps, F
     return (
       <EditVariableValue data={this.variable.data}>
         <FunctionCreator
+          isExpSupport={this.isUseExpression}
           needClear={false}
           options={this.metricFunctions}
           showLabel={false}

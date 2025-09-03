@@ -655,7 +655,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             raise ValueError(_("应用({}) 不存在").format(app_name))
 
         try:
-            application_info = api.apm_api.detail_application({"application_id": application_id})
+            application_info = api.apm_api.detail_application({"bk_biz_id": bk_biz_id, "app_name": app_name})
         except Exception:  # pylint: disable=broad-except
             raise ValueError(_("应用({}) 不存在").format(application_id))
 

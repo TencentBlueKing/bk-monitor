@@ -34,9 +34,9 @@ def add_unify_query_header_before(params):
     with ignored(Exception):
         username = get_request().user.username
     if username:
-        params["X-Bk-Query-Source"] = f"username:{username}"
+        params["Bk-Query-Source"] = f"username:{username}"
     else:
-        params["X-Bk-Query-Source"] = "backend"
+        params["Bk-Query-Source"] = "backend"
 
     return params
 
@@ -50,7 +50,7 @@ def add_data_after_request(response_data):
 class _UnifyQueryApi:
     MODULE = _("UNIFYQUERY模块")
 
-    HEADER_KEYS = ["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid", "X-Bk-Query-Source"]
+    HEADER_KEYS = ["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid", "Bk-Query-Source"]
 
     def __init__(self):
         self.query_ts = DataAPI(

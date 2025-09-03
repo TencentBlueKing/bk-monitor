@@ -235,12 +235,14 @@ class MetricDataSource(ApmDataSourceConfigBase):
         if self.result_table_id != "":
             return
 
-        global_user = get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id))
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        global_user = get_global_user(bk_tenant_id=bk_tenant_id)
         params = {
             "operator": global_user,
             "bk_data_id": self.bk_data_id,
             # 平台级接入，ts_group 业务id对应为0
             "bk_biz_id": self.bk_biz_id,
+            "bk_tenant_id": bk_tenant_id,
             "time_series_group_name": self.event_group_name,
             "label": "application_check",
             "table_id": self.table_id,

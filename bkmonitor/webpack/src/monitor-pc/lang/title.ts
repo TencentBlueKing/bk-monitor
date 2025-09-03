@@ -200,6 +200,7 @@ export default {
   维度值变量: 'Dimension Value Variable',
   汇聚变量: 'Aggregation Variable',
   条件变量: 'Condition Variable',
+  表达式函数变量: 'Expression Function Variable',
   常规变量: 'General Variable',
   变量管理: 'Variable Management',
   如何使用变量: 'How to use variables',

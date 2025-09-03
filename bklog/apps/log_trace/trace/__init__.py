@@ -69,7 +69,7 @@ def jsonify(data: Any) -> str:
         return str(data)
 
 
-def requests_callback(span: Span, response):
+def requests_callback(span: Span, request, response):
     """处理蓝鲸格式返回码"""
 
     # 流式请求不统计，避免流式失效
@@ -107,11 +107,10 @@ def requests_callback(span: Span, response):
     else:
         span.set_status(Status(StatusCode.ERROR))
 
-    req = response.request
-    body = req.body
+    body = request.body
 
     try:
-        authorization_header = req.headers.get("x-bkapi-authorization")
+        authorization_header = request.headers.get("x-bkapi-authorization")
         if authorization_header:
             username = json.loads(authorization_header).get("bk_username")
             if username:
@@ -263,7 +262,7 @@ class BluekingInstrumentor(BaseInstrumentor):
         DjangoInstrumentor().instrument(request_hook=django_request_hook, response_hook=django_response_hook)
         RedisInstrumentor().instrument()
         BkElasticsearchInstrumentor().instrument()
-        RequestsInstrumentor().instrument(tracer_provider=tracer_provider, span_callback=requests_callback)
+        RequestsInstrumentor().instrument(tracer_provider=tracer_provider, response_hook=requests_callback)
         CeleryInstrumentor().instrument(tracer_provider=tracer_provider)
         LoggingInstrumentor().instrument()
         dbapi.wrap_connect(
