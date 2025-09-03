@@ -25,7 +25,7 @@
  */
 import { onBeforeUnmount, onMounted, ref, Ref } from 'vue';
 
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 import { getTargetElement } from './hooks-helper';
 

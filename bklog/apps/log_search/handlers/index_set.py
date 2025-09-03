@@ -18,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 import json
 import re
 from collections import defaultdict
@@ -82,8 +81,10 @@ from apps.log_search.exceptions import (
     UnauthorizedResultTableException,
     BaseSearchIndexSetException,
     DataIDNotExistException,
+    IndexSetAliasSettingsException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
+from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import (
     IndexSetCustomConfig,
     IndexSetFieldsConfig,
@@ -610,6 +611,16 @@ class IndexSetHandler(APIModel):
         LogIndexSetDataHandler(
             self.data, bk_biz_id, time_filed, result_table_id, storage_cluster_id=self.storage_cluster_id
         ).delete_index()
+
+    def update_index(self, bk_biz_id, result_table_id, update_params):
+        """
+        更新索引集
+        """
+        LogIndexSetData.objects.filter(
+            index_set_id=self.index_set_id,
+            result_table_id=result_table_id,
+            bk_biz_id=bk_biz_id,
+        ).update(**update_params)
 
     def bizs(self):
         if self.data.scenario_id in [Scenario.ES]:
@@ -1394,18 +1405,66 @@ class IndexSetHandler(APIModel):
         }
 
     @transaction.atomic()
-    def update_alias_settings(self, query_alias_settings):
+    def update_alias_settings(self, alias_settings):
+        search_handler_esquery = SearchHandler(self.index_set_id, {})
+        multi_result = search_handler_esquery.get_all_fields_by_index_id(need_merge=False)
+        result_table_mappings = defaultdict(list)
+        field_name_mappings = {}
+        for result_table_id, (field_result, display_fields) in multi_result.items():
+            field_name_list = []
+            for i in field_result:
+                _filed_name = i["field_name"]
+                field_name_list.append(_filed_name)
+                result_table_mappings[_filed_name].append(result_table_id)
+            field_name_mappings[result_table_id] = field_name_list
+
+        exist_query_alias_dict = {}
+        query_alias_settings = []
+        query_alias_mappings = defaultdict(list)
+        for alias_setting in alias_settings:
+            # 在mappings中的字段名标识
+            alias_setting_flag = False
+            field_name = alias_setting["field_name"]
+            query_alias = alias_setting["query_alias"]
+            # 为result_table_id和alias_setting建立映射关系
+            for _result_table_id, _field_name_list in field_name_mappings.items():
+                if field_name in _field_name_list:
+                    query_alias_mappings[_result_table_id].append(alias_setting)
+                    alias_setting_flag = True
+            if not alias_setting_flag:
+                continue
+            # 补全需要保存到logindexset中的query_alias_settings
+            query_alias_settings.append(alias_setting)
+            if query_alias in exist_query_alias_dict:
+                conflict_field_name = exist_query_alias_dict[query_alias]
+                conflict_info = [
+                    {
+                        "field_name": field_name,
+                        "query_alias": query_alias,
+                        "result_tables": result_table_mappings.get(field_name, []),
+                    },
+                    {
+                        "field_name": conflict_field_name,
+                        "query_alias": query_alias,
+                        "result_tables": result_table_mappings.get(conflict_field_name, []),
+                    },
+                ]
+                raise IndexSetAliasSettingsException(
+                    IndexSetAliasSettingsException.MESSAGE.format(conflict_info=conflict_info)
+                )
+            exist_query_alias_dict[query_alias] = field_name
         self.data.query_alias_settings = query_alias_settings
         self.data.save()
         multi_execute_func = MultiExecuteFunc()
         objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
         for obj in objs:
+            result_table_id = obj.result_table_id
             multi_execute_func.append(
-                result_key=obj.result_table_id,
+                result_key=result_table_id,
                 func=TransferApi.create_or_update_log_router,
                 params={
-                    "table_id": BaseIndexSetHandler.get_rt_id(self.index_set_id, obj.result_table_id.replace(".", "_")),
-                    "query_alias_settings": query_alias_settings,
+                    "table_id": BaseIndexSetHandler.get_rt_id(self.index_set_id, result_table_id.replace(".", "_")),
+                    "query_alias_settings": query_alias_mappings.get(result_table_id, []),
                     "space_type": self.data.space_uid.split("__")[0],
                     "space_id": self.data.space_uid.split("__")[-1],
                     "data_label": BaseIndexSetHandler.get_data_label(self.index_set_id),
@@ -1644,70 +1703,76 @@ class BaseIndexSetHandler:
         )
         # 创建结果表路由信息
         try:
-            base_request_params = {
+            request_params = {
                 "data_label": self.get_data_label(index_set.index_set_id),
                 "space_id": index_set.space_uid.split("__")[-1],
                 "space_type": index_set.space_uid.split("__")[0],
-                "need_create_index": False,
+                "table_info": [],
             }
             multi_execute_func = MultiExecuteFunc()
             objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
             for obj in objs:
                 time_field = obj.time_field or index_set.time_field
                 time_field_type = obj.time_field_type or index_set.time_field_type
-                request_params = base_request_params.copy()
-                request_params.update(
-                    {
-                        "table_id": self.get_rt_id(index_set.index_set_id, obj.result_table_id),
-                        "index_set": obj.result_table_id.replace(".", "_"),
-                        "source_type": obj.scenario_id,
-                        "cluster_id": obj.storage_cluster_id,
-                        "options": [
-                            {
-                                "name": "time_field",
-                                "value_type": "dict",
-                                "value": json.dumps(
-                                    {
-                                        "name": time_field,
-                                        "type": time_field_type,
-                                        "unit": obj.time_field_unit or index_set.time_field_unit
-                                        if time_field_type != TimeFieldTypeEnum.DATE.value
-                                        else TimeFieldUnitEnum.MILLISECOND.value,
-                                    }
-                                ),
-                            },
-                            {
-                                "name": "need_add_time",
-                                "value_type": "bool",
-                                "value": json.dumps(obj.scenario_id != Scenario.ES),
-                            },
-                        ],
-                    }
-                )
-
-                if request_params["source_type"] == Scenario.LOG:
-                    request_params["origin_table_id"] = obj.result_table_id
-                multi_execute_func.append(
-                    result_key=obj.result_table_id,
-                    func=TransferApi.create_or_update_log_router,
-                    params=request_params,
-                )
+                table_info = {
+                    "table_id": self.get_rt_id(index_set.index_set_id, obj.result_table_id),
+                    "index_set": obj.result_table_id.replace(".", "_"),
+                    "source_type": obj.scenario_id,
+                    "cluster_id": obj.storage_cluster_id,
+                    "options": [
+                        {
+                            "name": "time_field",
+                            "value_type": "dict",
+                            "value": json.dumps(
+                                {
+                                    "name": time_field,
+                                    "type": time_field_type,
+                                    "unit": obj.time_field_unit or index_set.time_field_unit
+                                    if time_field_type != TimeFieldTypeEnum.DATE.value
+                                    else TimeFieldUnitEnum.MILLISECOND.value,
+                                }
+                            ),
+                        },
+                        {
+                            "name": "need_add_time",
+                            "value_type": "bool",
+                            "value": json.dumps(obj.scenario_id != Scenario.ES),
+                        },
+                    ],
+                }
+                if table_info["source_type"] == Scenario.LOG:
+                    table_info["origin_table_id"] = obj.result_table_id
+                if query_alias_settings := index_set.query_alias_settings:
+                    table_info["query_alias_settings"] = query_alias_settings
+                request_params["table_info"].append(table_info)
+            multi_execute_func.append(
+                result_key=index_set.index_set_id,
+                func=TransferApi.bulk_create_or_update_log_router,
+                params=request_params,
+            )
             if doris_table_id := index_set.doris_table_id:
                 doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
+                doris_params = {
+                    "space_type": index_set.space_uid.split("__")[0],
+                    "space_id": index_set.space_uid.split("__")[-1],
+                    "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
+                    "table_info": [
+                        {
+                            "storage_type": "doris",
+                            "bkbase_table_id": doris_result_table,
+                            "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
+                            "source_type": "bkdata",
+                            "need_create_index": False,
+                        }
+                    ],
+                }
+                if query_alias_settings := index_set.query_alias_settings:
+                    doris_params["table_info"][0]["query_alias_settings"] = query_alias_settings
                 # Doris接入
                 multi_execute_func.append(
                     result_key=index_set.index_set_id,
-                    func=TransferApi.create_or_update_log_router,
-                    params={
-                        "space_type": index_set.space_uid.split("__")[0],
-                        "space_id": index_set.space_uid.split("__")[-1],
-                        "storage_type": "doris",
-                        "bkbase_table_id": doris_result_table,
-                        "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
-                        "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
-                        "need_create_index": False,
-                        "source_type": "bkdata",
-                    },
+                    func=TransferApi.bulk_create_or_update_log_router,
+                    params=doris_params,
                 )
             multi_execute_func.run()
         except Exception as e:
@@ -1772,6 +1837,26 @@ class BaseIndexSetHandler:
         for index in to_delete_indexes:
             IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).delete_index(
                 index["bk_biz_id"], index.get("time_field"), index["result_table_id"]
+            )
+
+        # 需更新的索引
+        to_update_indexes = [
+            index
+            for index in self.indexes
+            if index["result_table_id"] in [index["result_table_id"] for index in self.index_set_obj.indexes]
+        ]
+        for index in to_update_indexes:
+            update_params = {}
+            if _scenario_id := index.get("scenario_id"):
+                update_params.update({"scenario_id": _scenario_id})
+            if _storage_cluster_id := index.get("storage_cluster_id"):
+                update_params.update({"storage_cluster_id": _storage_cluster_id})
+            if _time_field_type := index.get("time_field_type"):
+                update_params.update({"time_field_type": _time_field_type})
+            if _time_field_unit := index.get("time_field_unit"):
+                update_params.update({"time_field_unit": _time_field_unit})
+            IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).update_index(
+                index["bk_biz_id"], index["result_table_id"], update_params
             )
 
         # 需新增的索引

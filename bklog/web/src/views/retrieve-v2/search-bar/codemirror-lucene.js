@@ -27,7 +27,7 @@ import { sql } from '@codemirror/lang-sql';
 import { EditorState, EditorSelection } from '@codemirror/state';
 import { keymap, EditorView, Decoration } from '@codemirror/view';
 import { minimalSetup } from 'codemirror';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 const notKeywordDecorator = Decoration.mark({
   class: 'cm-not-keyword', // 这将添加一个cm-not-keyword类名

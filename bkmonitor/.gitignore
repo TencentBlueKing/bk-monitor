@@ -237,3 +237,6 @@ ai_agent
 
 # Add .tico directory to ignore list
 .tico/
+
+# ai code editor
+CLAUDE.local.md

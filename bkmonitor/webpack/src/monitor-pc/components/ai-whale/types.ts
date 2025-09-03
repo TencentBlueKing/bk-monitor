@@ -39,7 +39,7 @@ export type AIBluekingShortcuts = AIBluekingShortcut[];
 
 // 组件配置类型
 export interface ComponentConfig {
-  default?: string;
+  default?: number | string;
   fillBack: boolean;
   hide?: boolean;
   key: string;
@@ -119,14 +119,14 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         name: window.i18n.t('指标/PromQL语句'),
         placeholder: window.i18n.t('请输入指标/PromQL语句'),
       },
-      {
-        type: 'textarea',
-        key: 'user-demand',
-        fillBack: false,
-        required: true,
-        name: window.i18n.t('用户指令'),
-        placeholder: window.i18n.t('请输入用户指令'),
-      },
+      // {
+      //   type: 'textarea',
+      //   key: 'user-demand',
+      //   fillBack: false,
+      //   required: true,
+      //   name: window.i18n.t('用户指令'),
+      //   placeholder: window.i18n.t('请输入用户指令'),
+      // },
     ],
   },
   {

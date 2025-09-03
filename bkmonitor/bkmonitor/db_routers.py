@@ -21,12 +21,15 @@ logger = logging.getLogger(__name__)
 
 backend_db_apps = ["monitor_api", "metadata", "bkmonitor", "apm", "calendars"]
 
+backend_alert_models = ["ActionInstance", "ConvergeInstance", "ConvergeRelation"]
+
 
 def is_backend(app_label):
     return app_label in [app for app in backend_db_apps]
 
 
 backend_router = "monitor_api"
+backend_alert_router = "backend_alert"
 
 BK_MONITOR_MODULE = os.getenv("BK_MONITOR_MODULE", "default")
 
@@ -39,22 +42,24 @@ class BackendRouter:
         # 动态路由判断
         if getattr(local, "DB_FOR_READ_OVERRIDE", []):
             return local.DB_FOR_READ_OVERRIDE[-1]
-
+        if model._meta.object_name in backend_alert_models:
+            return backend_alert_router
         if is_backend(model._meta.app_label):
             return backend_router
         if model._meta.app_label == "django_cache":
-            return "monitor_api"
+            return backend_router
         return None
 
     def db_for_write(self, model, **hints):
         # 动态路由判断
         if getattr(local, "DB_FOR_WRITE_OVERRIDE", []):
             return local.DB_FOR_WRITE_OVERRIDE[-1]
-
+        if model._meta.object_name in backend_alert_models:
+            return backend_alert_router
         if is_backend(model._meta.app_label):
             return backend_router
         if model._meta.app_label == "django_cache":
-            return "monitor_api"
+            return backend_router
         return None
 
     def allow_relation(self, obj1, obj2, **hints):
@@ -63,14 +68,28 @@ class BackendRouter:
         return None
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
+        # django_cache 应用总是允许迁移
         if app_label == "django_cache":
             return True
+
+        # 防止后端应用在默认数据库中迁移
         if db == "default" and is_backend(app_label):
             return False
+
+        # 后端告警路由数据库只允许告警相关模型迁移
+        if db == backend_alert_router and model_name in backend_alert_models:
+            return True
+
+        # 后端路由数据库只允许后端应用迁移
         if db == backend_router:
             return is_backend(app_label)
+
+        # 禁止在nodeman数据库中进行迁移
         if db in ["nodeman"]:
             return False
+
+        # 对于其他情况，返回None让Django使用默认行为
+        return None
 
 
 class TableVisitCountRouter:

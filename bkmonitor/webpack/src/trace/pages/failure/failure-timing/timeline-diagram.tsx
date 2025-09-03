@@ -229,8 +229,9 @@ export default defineComponent({
       dialog.value.quickShield.details = [
         {
           severity: v.severity,
-          dimension: v.dimension_message,
+          dimension: v.dimensions,
           trigger: v.description,
+          alertId: v.id,
           strategy: {
             id: v?.strategy_id as unknown as string,
             name: v?.strategy_name,

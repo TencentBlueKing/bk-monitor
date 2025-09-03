@@ -60,7 +60,7 @@ logger = logging.getLogger("metadata")
 
 
 @share_lock(identify="metadata__sync_bkcc_space")
-def sync_bkcc_space(allow_deleted=False):
+def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False):
     """同步 bkcc 的业务，自动创建对应的空间
 
     TODO: 是否由服务方调用接口创建或者服务方可以被 watch
@@ -74,14 +74,19 @@ def sync_bkcc_space(allow_deleted=False):
     start_time = time.time()
 
     # 先同步已归档业务
-    sync_archived_bkcc_space()
+    sync_archived_bkcc_space(bk_tenant_id=bk_tenant_id)
+
+    if bk_tenant_id:
+        bk_tenant_ids = [bk_tenant_id]
+    else:
+        bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
 
     bkcc_type_id = SpaceTypes.BKCC.value
     biz_list: list[Business] = []
-    for tenant in api.bk_login.list_tenant():
-        temp: list[Business] = api.cmdb.get_business(bk_tenant_id=tenant["id"])
+    for tenant_id in bk_tenant_ids:
+        temp: list[Business] = api.cmdb.get_business(bk_tenant_id=tenant_id)
         for b in temp:
-            setattr(b, "bk_tenant_id", tenant["id"])
+            setattr(b, "bk_tenant_id", tenant_id)
         biz_list.extend(temp)
 
     # NOTE: 为防止出现接口变动的情况，导致误删操作；如果为空，则忽略数据处理
@@ -150,14 +155,20 @@ def sync_bkcc_space(allow_deleted=False):
     logger.info("sync bkcc space task cost time: %s", cost_time)
 
 
-def sync_archived_bkcc_space():
+def sync_archived_bkcc_space(bk_tenant_id: str | None = None):
     """同步 bkcc 被归档的业务，停用对应的空间"""
     logger.info("start sync archived bkcc space task")
     bkcc_type_id = SpaceTypes.BKCC.value
     # 获取已归档的业务
     archived_biz_list: list[Business] = []
-    for tenant in api.bk_login.list_tenant():
-        archived_biz_list.extend(api.cmdb.get_business(bk_tenant_id=tenant["id"], is_archived=True))
+
+    if bk_tenant_id:
+        bk_tenant_ids = [bk_tenant_id]
+    else:
+        bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
+
+    for tenant_id in bk_tenant_ids:
+        archived_biz_list.extend(api.cmdb.get_business(bk_tenant_id=tenant_id, is_archived=True))
     archived_biz_id_list = [str(b.bk_biz_id) for b in archived_biz_list]
     # 归档的业务，变更空间名称为 {当前名称}(已归档_20240619)
     name_suffix = f"(已归档_{datetime.now().strftime('%Y%m%d')})"

@@ -262,7 +262,7 @@ export function useNavMenu(options: {
 
   const requestMySpaceList = async () => {
     try {
-      const queryObj = JSON.parse(JSON.stringify(route.query));
+      const queryObj = structuredClone(route.query);
       if (queryObj.from) {
         store.commit('updateAsIframe', queryObj.from);
         store.commit('updateIframeQuery', queryObj);

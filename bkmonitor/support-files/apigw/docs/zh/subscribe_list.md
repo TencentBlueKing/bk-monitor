@@ -54,16 +54,35 @@ GET
   "data": [
     {
       "id": 1,
-      "username": "admin",
+      "username": "xxxxx",
       "bk_biz_id": 2,
-      "conditions": [],
-      "notice_ways": ["rtx", "mail"],
-      "priority": 111,
+      "conditions": [
+        {
+          "field": "alert.strategy_id",
+          "value": [
+            1
+          ],
+          "method": "include",
+          "condition": "and"
+        },
+        {
+          "field": "ip",
+          "value": [
+            "127.0.0.1"
+          ],
+          "method": "eq",
+          "condition": "and"
+        }
+      ],
+      "notice_ways": [
+        "weixin",
+        "mail"
+      ],
+      "priority": -1,
       "user_type": "follower",
       "is_enable": true
     }
-  ],
-  "request_id": "xxxxxxxxxx"
+  ]
 }
 ```
 

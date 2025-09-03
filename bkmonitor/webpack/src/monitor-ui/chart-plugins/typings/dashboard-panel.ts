@@ -446,7 +446,9 @@ export class DataQuery implements IDataQuery {
     const result = localFieldsSort.reduce((total, cur) => {
       const [itemKey, filterDictKey] = cur;
       let value = data?.[itemKey];
-      value === undefined && isExist && (isExist = false);
+      if (value === undefined && isExist) {
+        isExist = false;
+      }
       value =
         this.isMultiple || ['pod_name_list'].includes(itemKey)
           ? Array.isArray(value)
@@ -466,7 +468,9 @@ export class DataQuery implements IDataQuery {
     const result = localFieldsSort.reduce((total, cur) => {
       const [itemKey, filterDictKey] = cur;
       let value = data?.[itemKey];
-      value === undefined && isExist && (isExist = false);
+      if (value === undefined && isExist) {
+        isExist = false;
+      }
       value = isObject(value) ? value.value : value; // 兼容对象结构的value
       total[filterDictKey] = value;
       return total;
@@ -499,7 +503,9 @@ export class DataQuery implements IDataQuery {
     const result = localFieldsSort.reduce((total, cur) => {
       const [itemKey, filterDictKey] = cur;
       let value = data?.[isFilterDict ? filterDictKey : itemKey];
-      value === undefined && isExist && (isExist = false);
+      if (value === undefined && isExist) {
+        isExist = false;
+      }
       value =
         this.isMultiple || ['pod_name_list'].includes(itemKey)
           ? Array.isArray(value)
@@ -522,7 +528,9 @@ export class DataQuery implements IDataQuery {
       const [itemKey, filterDictKey] = set;
       const key = isFilterDict ? filterDictKey : itemKey;
       let value = item[key];
-      value === undefined && isExist && (isExist = false);
+      if (value === undefined && isExist) {
+        isExist = false;
+      }
       value =
         this.isMultiple || ['pod_name_list'].includes(key)
           ? Array.isArray(value)
@@ -545,7 +553,9 @@ class VariableDataQuery extends DataQuery {
     const result = localFieldsSort.reduce((total, cur) => {
       const [itemKey, filterDictKey] = cur;
       let value = data?.[isFilterDict ? filterDictKey : itemKey];
-      value === undefined && isExist && (isExist = false);
+      if (value === undefined && isExist) {
+        isExist = false;
+      }
       value =
         this.isMultiple || ['pod_name_list'].includes(itemKey)
           ? Array.isArray(value)
@@ -770,11 +780,9 @@ export class PanelModel implements IPanelModel {
           const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
           return {
             expression: set.expression || 'A',
-            query_configs: [
-              filterDictConvertedToWhere(
-                Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
-              ),
-            ],
+            query_configs: (Array.isArray(config.query_configs) ? config.query_configs : [config.query_configs]).map(
+              item => filterDictConvertedToWhere(item)
+            ),
           };
         }
         return undefined;
@@ -853,7 +861,9 @@ export class VariableModel implements IVariableModel {
     const resData = this.fieldsSort.reduce((total, item) => {
       const [itemKey, filterDictKey] = item;
       const value = srcData[isFilterDict ? filterDictKey : itemKey];
-      value === undefined && (isExits = false);
+      if (value === undefined && isExits) {
+        isExits = false;
+      }
       typeTools.isObject(value)
         ? total.push(
             ...Object.keys(value)

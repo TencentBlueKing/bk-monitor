@@ -86,8 +86,7 @@
 </template>
 
 <script>
-  import { deepClone } from '@/components/monitor-echarts/utils';
-  import { debounce } from 'lodash';
+  import { debounce } from 'lodash-es';
 
   import SettingMoreMenu from './setting-more-menu';
 
@@ -127,7 +126,7 @@
         if (type === 'edit') {
           this.nameStr = this.configItem.name;
         }
-        const submitData = deepClone(this.configItem);
+        const submitData = structuredClone(this.configItem);
         submitData.editStr = this.nameStr;
         this.$emit('operateChange', type, submitData);
         // 进入编辑态时 focus 聚焦到input框

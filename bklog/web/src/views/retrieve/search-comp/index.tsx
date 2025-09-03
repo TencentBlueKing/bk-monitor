@@ -32,7 +32,6 @@ import { Button, Select, Option } from 'bk-magic-vue';
 import $http from '../../../api';
 import { formatDate } from '../../../common/util';
 import { Debounce } from '../../../common/util';
-import { deepClone } from '../../../components/monitor-echarts/utils';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import RetrieveDetailInput from '../condition-comp/retrieve-detail-input.vue';
 import Condition from './condition';
@@ -306,7 +305,7 @@ export default class SearchComp extends tsc<IProps> {
 
   handleSelectFiled(v) {
     const condition = this.filterFields.find(fItem => fItem.id === v);
-    this.conditionList.push(deepClone(condition));
+    this.conditionList.push(structuredClone(condition));
     this.filedSelectedValue = null;
     this.isShowFilterOption = false;
   }
@@ -512,7 +511,7 @@ export default class SearchComp extends tsc<IProps> {
    */
   handleConditionDelete(index: number, conditionType: string) {
     this.tagFocusInputObj = {}; // 光标如果还在输入框内 应该清空输入框的输入缓存 否则删完条件后又进行失焦回填获取不到输入框的内容而报错
-    const condition = deepClone(this.conditionList[index]);
+    const condition = structuredClone(this.conditionList[index]);
     this.conditionList.splice(index, 1);
     if (conditionType === 'ip-select') {
       this.handleIPSelectorValueChange({}, true);
