@@ -697,7 +697,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           </VerifyItem>
           <span
             class='calendar-title'
-            v-bk-tooltips={this.$t('默认是所有时间都生效，日历中添加的为不生效时间段')}
+            v-bk-tooltips={this.$t('默认所有日期都生效，可关联日历来“包含”或“排除”哪些日期')}
           >
             {this.$t('关联日历')}
           </span>
