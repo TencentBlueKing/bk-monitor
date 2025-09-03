@@ -134,12 +134,19 @@ export default defineComponent({
     };
 
     const handleAddCondition = (condition: CommonCondition) => {
-      alarmStore.conditions = mergeWhereList(alarmStore.conditions, [
-        {
-          ...condition,
-          ...(alarmStore.conditions.length > 1 ? { condition: 'and' } : {}),
-        },
-      ]);
+      if (alarmStore.filterMode === EMode.ui) {
+        alarmStore.conditions = mergeWhereList(alarmStore.conditions, [
+          {
+            key: condition.key,
+            method: condition.method,
+            value: condition.value.map(item => item.slice(1, -1)),
+            ...(alarmStore.conditions.length > 1 ? { condition: 'and' } : {}),
+          },
+        ]);
+      } else {
+        const queryString = `${alarmStore.queryString ? ' AND ' : ''}${condition.method === 'neq' ? '-' : ''}${condition.key}: ${condition.value[0]}`;
+        alarmStore.queryString = queryString;
+      }
     };
 
     function handleConditionChange(condition: CommonCondition[]) {
