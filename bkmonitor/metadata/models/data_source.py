@@ -24,7 +24,6 @@ from django.utils.translation import gettext as _
 
 from bkmonitor.utils import consul
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
-from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -219,7 +218,10 @@ class DataSource(models.Model):
         return conf_list
 
     def get_spaces_by_data_id(
-        self, bk_data_id: int, from_authorization: bool | None = False, bk_tenant_id=DEFAULT_TENANT_ID
+        self,
+        bk_data_id: int,
+        bk_tenant_id: str,
+        from_authorization: bool | None = False,
     ) -> list | dict:
         """通过数据源 ID 查询空间为授权的或者为当前空间"""
         # 返回来源于授权空间信息,{space_type_id}__{space_id}__{bk_tenant_id}
@@ -407,7 +409,7 @@ class DataSource(models.Model):
         space_type_id: str,
         space_id: str,
         bk_data_id: str,
-        bk_tenant_id: str = DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
         authorized_spaces: list | None = None,
     ):
         """保存空间数据源关系表
@@ -457,7 +459,7 @@ class DataSource(models.Model):
         operator,
         source_label,
         type_label,
-        bk_tenant_id=DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
         bk_data_id=None,
         mq_cluster=None,
         mq_config=None,
@@ -678,14 +680,20 @@ class DataSource(models.Model):
             option.update({DataSourceOption.OPTION_DROP_METRICS_ETL_CONFIGS: True})
             for option_name, option_value in list(option.items()):
                 DataSourceOption.create_option(
-                    bk_data_id=data_source.bk_data_id, name=option_name, value=option_value, creator=operator
+                    bk_data_id=data_source.bk_data_id,
+                    name=option_name,
+                    value=option_value,
+                    creator=operator,
+                    bk_tenant_id=bk_tenant_id,
                 )
                 logger.info(
                     f"bk_data_id->[{data_source.bk_data_id}] now has option->[{option_name}] with value->[{option_value}]"
                 )
 
             # 添加时间 option
-            cls._add_time_unit_options(operator, data_source.bk_data_id, etl_config)
+            cls._add_time_unit_options(
+                operator=operator, bk_data_id=data_source.bk_data_id, etl_config=etl_config, bk_tenant_id=bk_tenant_id
+            )
 
         # 写入 空间与数据源的关系表，如果 data id 为全局不需要记录
         try:
@@ -718,13 +726,14 @@ class DataSource(models.Model):
         return data_source
 
     @classmethod
-    def _add_time_unit_options(cls, operator: str, bk_data_id: int, etl_config: str):
+    def _add_time_unit_options(cls, operator: str, bk_data_id: int, etl_config: str, bk_tenant_id: str):
         """添加时间相关 option"""
         # 判断是否NS支持的etl配置，如果是，则需要追加option内容
         # NOTE: 这里实际的时间单位为 ms, 为防止其它未预料问题，其它类型单独添加为毫秒
         if etl_config in cls.NS_TIMESTAMP_ETL_CONFIG:
             DataSourceOption.create_option(
                 bk_data_id=bk_data_id,
+                bk_tenant_id=bk_tenant_id,
                 name=DataSourceOption.OPTION_TIMESTAMP_UNIT,
                 value="ms",
                 creator=operator,
@@ -740,6 +749,7 @@ class DataSource(models.Model):
             # 时间单位统一为毫秒
             DataSourceOption.create_option(
                 bk_data_id=bk_data_id,
+                bk_tenant_id=bk_tenant_id,
                 name=DataSourceOption.OPTION_ALIGN_TIME_UNIT,
                 value="ms",
                 creator=operator,
@@ -893,7 +903,7 @@ class DataSource(models.Model):
 
         if authorized_spaces is not None:
             # 写入 空间与数据源的关系表
-            space_info = self.get_spaces_by_data_id(self.bk_data_id, self.bk_tenant_id)
+            space_info = self.get_spaces_by_data_id(bk_data_id=self.bk_data_id, bk_tenant_id=self.bk_tenant_id)
             if space_info:
                 try:
                     self._save_space_datasource(
@@ -1252,7 +1262,7 @@ class DataSourceOption(OptionBase):
     )
 
     @classmethod
-    def create_option(cls, bk_data_id, name, value, creator, bk_tenant_id=DEFAULT_TENANT_ID):
+    def create_option(cls, bk_data_id, name, value, creator, bk_tenant_id: str):
         """
         创建结果表字段选项
         :param bk_data_id: 结果表ID
@@ -1280,7 +1290,7 @@ class DataSourceOption(OptionBase):
         return record
 
     @classmethod
-    def create_or_update(cls, bk_data_id, name, value, creator, bk_tenant_id=DEFAULT_TENANT_ID):
+    def create_or_update(cls, bk_data_id, name, value, creator, bk_tenant_id: str):
         """
         创建或者更新结果表字段选项
         :param bk_data_id:  数据源ID
@@ -1332,7 +1342,7 @@ class DataSourceResultTable(models.Model):
         return f"<{self.bk_data_id},{self.table_id}>"
 
     @classmethod
-    def modify_table_id_datasource(cls, table_id=None, bk_data_id=None, bk_tenant_id=DEFAULT_TENANT_ID):
+    def modify_table_id_datasource(cls, bk_tenant_id: str, table_id=None, bk_data_id=None):
         if cls.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
             raise ValueError(_("数据源有跟结果表关联"))
 
@@ -1354,24 +1364,4 @@ class DataSourceResultTable(models.Model):
             cls.objects.create(table_id=table_id, bk_data_id=bk_data_id)
 
         for datasource in DataSource.objects.filter(bk_data_id__in=refresh_consul_config_data_ids, is_enable=True):
-            datasource.refresh_consul_config()
-
-    @classmethod
-    def refresh_consul_config_by_table_id(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
-        """
-        通过 table_id 批量更新 consul 配置
-        :param table_id:  数据表id
-        :param bk_tenant_id:  租户id
-        :return: None | raise Exception
-        """
-        data_id_list = list(
-            DataSourceResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
-                "bk_data_id", flat=True
-            )
-        )
-
-        if len(data_id_list) == 0:
-            raise ValueError(f"{table_id} not found")
-
-        for datasource in DataSource.objects.filter(bk_data_id__in=data_id_list, is_enable=True):
             datasource.refresh_consul_config()

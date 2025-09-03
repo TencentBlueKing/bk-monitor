@@ -35,6 +35,7 @@ from apm.utils.base import rt_id_to_index
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.user import get_global_user
 from constants.apm import PRECALCULATE_RESULT_TABLE_OPTION, PreCalculateSpecificField, PrecalculateStorageConfig
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from metadata.models import ESStorage
@@ -269,6 +270,7 @@ class PrecalculateStorage:
         resource.metadata.create_result_table(
             {
                 "bk_data_id": bk_data_id,
+                "bk_tenant_id": DEFAULT_TENANT_ID,
                 "table_id": table_name,
                 "operator": get_global_user(),
                 "is_enable": True,
@@ -351,7 +353,9 @@ class PrecalculateStorage:
                     continue
 
                 try:
-                    info = resource.metadata.query_result_table_source(table_id=j["table_name"])
+                    info = resource.metadata.query_result_table_source(
+                        table_id=j["table_name"], bk_tenant_id=instance.bk_tenant_id
+                    )
                     pre_res = cls._exact_unique_data(
                         info["field_list"], cls.RESULT_TABLE_FIELD_MAPPING, key_field="field_name", remove_field="time"
                     )
@@ -364,7 +368,11 @@ class PrecalculateStorage:
                         count_md5(json.dumps(cur_res, sort_keys=True)) != count_md5(json.dumps(pre_res, sort_keys=True))
                     ) or (instance.storage_cluster_id != j["cluster_id"]):
                         logger.info("[PreCalculateStorage-CHECK_UPDATE] FIELD OR STORAGE UPDATE!")
-                        cls.update_result_table(j["table_name"], j["cluster_id"])
+                        cls.update_result_table(
+                            table_name=j["table_name"],
+                            storage_cluster_id=j["cluster_id"],
+                            bk_tenant_id=instance.bk_tenant_id,
+                        )
                     else:
                         logger.info(
                             f"[PreCalculateStorage-CHECK_UPDATE] "
@@ -397,10 +405,11 @@ class PrecalculateStorage:
         return res
 
     @classmethod
-    def update_result_table(cls, table_name, storage_cluster_id):
+    def update_result_table(cls, table_name, storage_cluster_id, bk_tenant_id: str):
         """更新所有DataLink的预计算存储配置"""
         params = {
             "table_id": table_name,
+            "bk_tenant_id": bk_tenant_id,
             "operator": get_global_user(),
             "label": "application_check",
             "field_list": PrecalculateStorageConfig.TABLE_SCHEMA,

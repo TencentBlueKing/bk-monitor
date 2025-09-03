@@ -345,6 +345,7 @@ class TestDataSource:
 
         # 2. 测试创建
         new_data_source = models.DataSource.create_data_source(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             data_name=self.data_name,
             etl_config=self.etl_config,
             operator=self.operator,
@@ -749,6 +750,7 @@ class TestDataSource:
                 operator=self.operator,
                 source_label=self.data_source_label,
                 type_label=self.data_type_label,
+                bk_tenant_id=DEFAULT_TENANT_ID,
             )
 
     def test_create_data_source_no_cluster(self, mocker):
@@ -768,12 +770,14 @@ class TestDataSource:
                 operator=self.operator,
                 type_label=self.data_type_label,
                 source_label=self.data_source_label,
+                bk_tenant_id=DEFAULT_TENANT_ID,
             )
 
     def test_standard_fields_discover(self, mocker, mock_outer_ralay, create_and_delete_record, patch_redis_tools):
         """测试字段自动发现的逻辑能力"""
         # 1. 准备工作
         new_data_source = models.DataSource.create_data_source(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             data_name=self.data_name,
             etl_config="bk_standard",
             operator=self.operator,
@@ -905,9 +909,9 @@ class TestDataSource:
         assert models.InfluxDBClusterInfo.objects.filter(cluster_name="default").count() == 2
         assert models.InfluxDBHostInfo.objects.all().count() == 2
         ip0 = models.InfluxDBHostInfo.objects.get(host_name="INFLUXDB_IP0")
-        assert ip0.domain_name == "127.0.0.0"
+        assert ip0.domain_name == "127.0.0.0"  # noqa
         ip1 = models.InfluxDBHostInfo.objects.get(host_name="INFLUXDB_IP1")
-        assert ip1.domain_name == "127.0.0.1"
+        assert ip1.domain_name == "127.0.0.1"  # noqa
 
         # 判断cluster集群都存在
         assert (
@@ -1057,6 +1061,7 @@ class TestDataSource:
     def test_event(self, mocker, mock_outer_ralay, create_and_delete_record):
         # 1. 准备工作
         new_data_source = models.DataSource.create_data_source(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             data_name=self.data_name,
             etl_config="bk_standard_v2_event",
             operator=self.operator,
@@ -1217,6 +1222,7 @@ class TestDataSource:
 
         # 检查全业务的事件源table_id是否符合预期
         new_data_source = models.DataSource.create_data_source(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             data_name="new_data_name",
             etl_config="bk_standard_v2_event",
             operator=self.operator,
@@ -1255,6 +1261,7 @@ class TestDataSource:
         # 1. 准备工作
 
         new_data_source = models.DataSource.create_data_source(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             data_name=self.data_name,
             etl_config="bk_standard_v2_time_series",
             operator=self.operator,
@@ -1302,6 +1309,7 @@ class TestDataSource:
             models.ResultTableField.objects.get(field_name="time", tag=models.ResultTableField.FIELD_TAG_TIMESTAMP)
 
         new_data_source = models.DataSource.create_data_source(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             data_name="new_data_name",
             etl_config="bk_standard_v2_time_series",
             operator=self.operator,
