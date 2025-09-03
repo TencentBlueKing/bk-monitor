@@ -29,7 +29,7 @@ import { TimeRangeType } from '@/components/time-range/time-range';
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import { type RouteParams, BK_LOG_STORAGE } from './store.type';
+import { type RouteParams, BK_LOG_STORAGE, FieldInfoItem } from './store.type';
 import RouteUrlResolver from './url-resolver';
 
 const DEFAULT_FIELDS_WIDTH = 200;
@@ -230,6 +230,9 @@ export const IndexFieldInfo = {
     fieldsWidth: {},
     filterAddition: [],
   },
+  // 重复别名扩展字段
+  // 当有多个字段别名一致的时候，自动生成一个单独字段
+  alias_field_list: []
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
@@ -255,6 +258,32 @@ export const IndexItem = {
   ...IndexsetItemParams,
   ...DEFAULT_DATETIME_PARAMS,
 };
+
+/**
+ * 创建字段项
+ */
+export const createFieldItem = (fieldName: string, fieldType = 'object', args: FieldInfoItem = {}) => {
+  return {
+    field_type: fieldType,
+    field_name: fieldName,
+    field_alias: '',
+    is_display: false,
+    is_editable: true,
+    tag: '',
+    origin_field: '',
+    es_doc_values: true,
+    is_analyzed: true,
+    is_virtual_obj_node: true,
+    field_operator: [],
+    is_built_in: true,
+    is_case_sensitive: false,
+    tokenize_on_chars: '',
+    description: '',
+    filterVisible: true,
+    is_virtual_alias_field: false,
+    ...args
+  }
+}
 
 /**
  * 获取缓存配置

@@ -168,11 +168,15 @@ export default class FieldItem extends tsc<object> {
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
+
+    const fieldName = this.fieldItem.field_name;
+    const agg_field = this.retrieveParams.showFieldAlias ? (this.fieldAliasMap[fieldName] ?? fieldName) : fieldName;
+
     this.queryParams = {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
-      agg_field: this.fieldItem.field_name,
+      agg_field,
       statisticalFieldData: this.statisticalFieldData,
       isFrontStatisticsL: this.isFrontStatistics,
     };
