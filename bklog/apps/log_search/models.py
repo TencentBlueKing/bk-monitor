@@ -484,6 +484,8 @@ class LogIndexSet(SoftDeleteModel):
                 "source_id": self.source_id,
                 "source_name": source_name,
                 "result_table_id": data.result_table_id,
+                "scenario_id": data.scenario_id,
+                "storage_cluster_id": data.storage_cluster_id,
                 "time_field": data.time_field,
                 "result_table_name": data.result_table_name,
                 "apply_status": data.apply_status,

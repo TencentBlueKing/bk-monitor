@@ -27,19 +27,17 @@ import { Component, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
+import { getUrlHashValue } from 'monitor-common/utils/url';
 import { random } from 'monitor-common/utils/utils';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
-import { type AIBluekingShortcut, AI_BLUEKING_SHORTCUTS } from './types';
+import { type AIBluekingShortcut, AI_BLUEKING_SHORTCUTS, AI_BLUEKING_SHORTCUTS_ID } from './types';
 
 import '@blueking/ai-blueking/dist/vue2/style.css';
 
 @Component
 export default class AiBluekingWrapper extends tsc<object> {
   @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
-  headers = {
-    Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
-  };
   get apiUrl() {
     return '/ai_whale/chat';
   }
@@ -75,8 +73,26 @@ export default class AiBluekingWrapper extends tsc<object> {
   handleCustomFallbackShortcutChange(shortcut: AIBluekingShortcut) {
     if (shortcut?.id) {
       this.aiBluekingRef.handleShow();
-      console.log('shortcut', shortcut);
       this.aiBluekingRef.handleShortcutClick?.({ shortcut, source: 'popup' });
+    }
+  }
+  handleShortcutFilter(shortcut: AIBluekingShortcut, selectedText: string) {
+    // trace 分析判断
+    if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS) {
+      return !!selectedText?.match(/^[0-9a-f]{32}$/);
+    }
+    return true;
+  }
+  handleShortcutClick(data: { shortcut: AIBluekingShortcut }) {
+    // trace 分析点击后自动带入 url 上的 app_name 和 bizId
+    if (data.shortcut.id === AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS) {
+      for (const component of data.shortcut.components) {
+        if (component.key === 'app_name' && !component.default) {
+          component.default = getUrlHashValue('app_name');
+        } else if (component.key === 'bk_biz_id' && !component.default) {
+          component.default = window.bk_biz_id || window.cc_biz_id;
+        }
+      }
     }
   }
   render() {
@@ -85,16 +101,24 @@ export default class AiBluekingWrapper extends tsc<object> {
         <AIBlueking
           ref='aiBlueking'
           requestOptions={{
-            headers: this.headers,
+            beforeRequest: data => {
+              return {
+                ...data,
+                headers: {
+                  ...(data?.headers || {}),
+                  Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
+                  'Monitor-Route-Name': this.$route.name,
+                },
+              };
+            },
           }}
           enablePopup={true}
           hideNimbus={true}
           prompts={[]}
+          shortcutFilter={this.handleShortcutFilter}
           shortcuts={this.shortcuts}
           url={this.apiUrl}
-          on-send-message={() => {
-            this.headers.Traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
-          }}
+          on-shortcut-click={this.handleShortcutClick}
           onClose={() => {
             aiWhaleStore.setShowAIBlueking(false);
           }}

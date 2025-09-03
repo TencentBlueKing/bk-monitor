@@ -155,8 +155,6 @@ export default {
   URI信息: 'URI Info',
   URI配置: 'URI Configuration',
   例如: 'For example',
-  请求数: 'Request Count',
-  CPU使用率: 'CPU Usage',
   响应耗时: 'Response Time',
 
   // 调用分析
@@ -196,4 +194,21 @@ export default {
   新增流水线: 'Add Pipeline',
   批量编辑通知对象: 'Batch edit notification object',
   事件分析: 'Event Analysis',
+  // 指标模版
+  函数变量: 'Function Variable',
+  维度变量: 'Dimension Variable',
+  维度值变量: 'Dimension Value Variable',
+  汇聚变量: 'Aggregation Variable',
+  条件变量: 'Condition Variable',
+  常规变量: 'General Variable',
+  变量管理: 'Variable Management',
+  如何使用变量: 'How to use variables',
+  使用变量: 'Use variable',
+  定义变量: 'Define variable',
+  后续消费: 'Subsequent consumption',
+  创建变量: 'Create variable',
+  变量配置框: 'Variable configuration box',
+  查询模板: 'Query template',
+  变量值: 'Variable value',
+  模板配置预览: 'Template configuration preview',
 };

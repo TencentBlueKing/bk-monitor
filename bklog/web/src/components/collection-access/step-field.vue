@@ -2051,10 +2051,11 @@
             if (res.data && res.data.fields) {
               const dataFields = res.data.fields;
               const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
-              dataFields.forEach(item => {
+              dataFields.forEach((item, itemIndex) => {
                 if(item.field_name && !validFieldPattern.test(item.field_name)){
                   item.field_name = JSON.stringify(item.field_name)
                 }
+                item.field_index = itemIndex +1;
                 item.verdict = this.judgeNumber(item);
               });
               const fields = this.formData.fields;
@@ -2092,10 +2093,6 @@
                       }, []);
                       list.splice(list.length, 0, ...deletedFileds);
                     }
-
-                    list.forEach((item, itemIndex) => {
-                      item.field_index = itemIndex;
-                    });
                     this.formData.fields.splice(0, fields.length, ...list);
                   }
 
@@ -2129,7 +2126,6 @@
                       }
                     } else {
                       dataFields.reduce((arr, item) => {
-                        item.field_index = arr.length;
                         const field = Object.assign(structuredClone(this.rowTemplate), item);
                         arr.push(field);
                         return arr;
@@ -2475,7 +2471,7 @@
         const fields = structuredClone(this.formData.fields);
         const newBaseFieldObj = {
           ...this.baseFieldObj,
-          field_index: this.formData.fields.length,
+          field_index: this.formData.fields.length + 1,
         };
         // 获取table表格编辑的数据 新增新的字段对象
         this.formData.fields.splice(0, fields.length, ...[...this.$refs.fieldTable.getData(), newBaseFieldObj]);
@@ -2619,6 +2615,9 @@
       },
       deleteField(field) {
         this.formData.fields = this.formData.fields.filter(item => item.field_index !== field.field_index);
+        this.formData.fields.forEach((item, index) => {
+          item.field_index = index + 1;
+        });
       },
       addChildrenToBuiltField(builtFieldList, item, name) {
         const field_name = name.split('.')[0].replace(/^_+|_+$/g, '');

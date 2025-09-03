@@ -1107,6 +1107,11 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
       });
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
+
+      if (!tableElem) {
+        return true;
+      }
+
       // 如果当前表格所有列总和小于表格实际宽度 则对小于800（最大宽度）的列赋值 defalut 使其自适应
       const availableWidth = tableElem.clientWidth - staticWidth;
       if (tableElem && columnsWidth && columnsWidth < availableWidth) {
