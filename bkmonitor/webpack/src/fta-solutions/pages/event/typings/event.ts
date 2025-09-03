@@ -83,6 +83,12 @@ export interface IDimensionItem {
   value: string;
 }
 
+export interface IBkTopoNodeItem {
+  bk_obj_id: string;
+  bk_inst_id: string;
+  node_name?: string;
+}
+
 export interface IEventItem {
   ack_operator?: string;
   alert_count?: number;
@@ -95,6 +101,7 @@ export interface IEventItem {
   bk_biz_id: number;
   bk_biz_name: string;
   bk_cloud_id: number;
+  bk_host_id: number | string;
   bk_service_instance_id: string;
   category: string;
   content: any;
