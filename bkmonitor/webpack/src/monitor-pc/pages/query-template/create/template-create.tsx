@@ -257,36 +257,29 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleChangeMethod(val: { index: number; value: string }) {
-    console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_method = value;
   }
   handleDimensionChange(val: { index: number; value: string[] }) {
-    console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_dimension = value;
   }
   handleChangeFunction(val: { index: number; value: AggFunction[] }) {
-    console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].functions = value;
   }
   handleChangeInterval(val: { index: number; value: number | string }) {
-    console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_interval = value;
   }
   handleChangeCondition(val: { index: number; value: AggCondition[] }) {
-    console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_condition = value;
   }
   handleChangeExpression(val: string) {
-    console.log(val);
     this.expressionConfig.expression = val;
   }
   handleChangeExpressionFunction(val: AggFunction[]) {
-    console.log(val);
     this.expressionConfig.functions = val;
   }
 

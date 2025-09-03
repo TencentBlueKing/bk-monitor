@@ -429,7 +429,6 @@ export function getVariableSubmitParams(variable: VariableModelType): IVariableS
         : (variable as ConditionVariableModel | DimensionVariableModel).options,
     };
   }
-  console.log(variable);
   return {
     type,
     name: variableName,
