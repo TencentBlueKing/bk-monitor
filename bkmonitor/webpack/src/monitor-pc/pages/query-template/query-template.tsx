@@ -76,7 +76,7 @@ export default class MetricTemplate extends tsc<object> {
     this.abortRequest();
   }
 
-  @Debounce(300)
+  @Debounce(200)
   @Watch('requestParam')
   async getQueryTemplateList() {
     this.abortRequest();
@@ -158,22 +158,25 @@ export default class MetricTemplate extends tsc<object> {
       });
   }
 
+  handleCurrentPageChange(currentPage: number) {
+    this.current = currentPage;
+  }
+
   /**
    * @description 刷新表格数据
    */
   handleRefresh() {
     this.refreshKey = random(8);
+    this.handleCurrentPageChange(1);
   }
 
   handleSortChange(sort: `-${string}` | string) {
     if (sort === this.sort) return;
     this.sort = sort;
+    this.handleCurrentPageChange(1);
     this.setRouterParams();
   }
 
-  handleCurrentPageChange(currentPage: number) {
-    this.current = currentPage;
-  }
   handlePageSizeChange(pageSize: number) {
     this.pageSize = pageSize;
     this.handleCurrentPageChange(1);
@@ -182,6 +185,7 @@ export default class MetricTemplate extends tsc<object> {
 
   handleSearchChange(keyword: QueryListRequestParams['conditions']) {
     this.searchKeyword = keyword;
+    this.handleCurrentPageChange(1);
     this.setRouterParams();
   }
 
@@ -219,11 +223,13 @@ export default class MetricTemplate extends tsc<object> {
         <div class='query-template-main'>
           <QueryTemplateTable
             current={this.current}
+            emptyType={this.searchKeyword?.length ? 'search-empty' : 'empty'}
             loading={this.tableLoading}
             pageSize={this.pageSize}
             sort={this.sort}
             tableData={this.tableData}
             total={this.total}
+            onClearSearch={() => this.handleSearchChange([])}
             onCurrentPageChange={this.handleCurrentPageChange}
             onDeleteTemplate={this.deleteTemplateById}
             onPageSizeChange={this.handlePageSizeChange}

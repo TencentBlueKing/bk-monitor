@@ -72,12 +72,16 @@ export default class TemplateEdit extends TemplateCreate {
   }
 
   async handleSubmit() {
+    const isClear = await this.isClearUnUsedVariable();
+    const variablesList = isClear
+      ? this.variablesList.filter(variable => this.useVariables.includes(variable.name))
+      : this.variablesList;
     const params = {
       name: this.basicInfoData.name,
       alias: this.basicInfoData.alias,
       description: this.basicInfoData.description,
       space_scope: this.templateBizId === 0 ? [] : this.basicInfoData.space_scope,
-      variables: this.variablesList.map(variable => getVariableSubmitParams(variable)),
+      variables: variablesList.map(variable => getVariableSubmitParams(variable)),
       query_configs: createQueryTemplateQueryConfigsParams(this.queryConfigs),
       expression: this.expressionConfig.expression,
       functions: this.expressionConfig.functions.map(f => {

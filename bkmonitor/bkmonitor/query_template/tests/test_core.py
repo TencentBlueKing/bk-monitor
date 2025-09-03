@@ -8,10 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import pytest
 import json
-
 from typing import Any
+
+import pytest
 
 from .. import core, mock_data
 
@@ -76,13 +76,14 @@ class TestQueryTemplateWrapper:
                     ],
                     "expression": "(a or b < bool 0) / (b > 10) * 100",
                     "space_scope": [],
-                    "functions": [],
+                    "functions": [{"id": "round", "params": []}],
                 },
                 {
                     "FUNCTIONS": [],
                     "CONDITIONS": [],
                     "GROUP_BY": ["service_name", "callee_service", "callee_method"],
                     "ALARM_THRESHOLD_VALUE": 10,
+                    "EXPRESSION_FUNCTIONS": [{"id": "round", "params": []}],
                 },
             ],
             [

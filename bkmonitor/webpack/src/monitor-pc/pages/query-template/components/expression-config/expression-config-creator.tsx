@@ -60,6 +60,10 @@ export default class ExpressionConfigCreator extends tsc<IProps> {
     return this.variables.filter(item => item.type === VariableTypeEnum.CONSTANTS);
   }
 
+  get allVariables() {
+    return this.variables.map(item => ({ name: item.name }));
+  }
+
   handleCreateFunctionVariable(val) {
     this.$emit('createVariable', {
       name: val,
@@ -97,6 +101,7 @@ export default class ExpressionConfigCreator extends tsc<IProps> {
             onCreateVariable={this.handleCreateExpressionVariable}
           />
           <FunctionCreator
+            allVariables={this.allVariables}
             options={this.metricFunctions}
             showVariables={true}
             value={this.expressionConfig?.functions || []}

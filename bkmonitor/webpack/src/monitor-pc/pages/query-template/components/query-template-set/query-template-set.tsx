@@ -26,7 +26,6 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { variableRegex } from '../../variables/template/utils';
 import VariablesManage from '../../variables/variables-manage/variables-manage';
 import BasicInfo from '../basic-info/basic-info';
 import ExpressionPanel from '../expression-panel/expression-panel';
@@ -78,6 +77,7 @@ interface QueryConfigSetProps {
   metricFunctions: any[];
   queryConfigs: QueryConfig[];
   scene?: 'create' | 'edit';
+  useVariables?: string[];
   variablesList: VariableModelType[];
 }
 
@@ -88,6 +88,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
   @Prop({ default: () => [] }) queryConfigs: QueryConfig[];
   @Prop() expressionConfig: Expression;
   @Prop({ default: () => [] }) metricFunctions: any[];
+  @Prop({ default: () => [] }) useVariables: string[];
   @Prop({ default: () => [] }) variablesList: VariableModelType[];
   @Prop({ default: false }) loading: boolean;
   @Ref('basicInfo') basicInfoRef: BasicInfo;
@@ -99,13 +100,6 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
 
   get getNextStepDisabled() {
     return !this.queryConfigs.some(item => item.metricDetail);
-  }
-
-  /** 获取已使用的变量列表 */
-  get useVariables() {
-    const queryConfigsVariables = JSON.stringify(this.queryConfigs).match(variableRegex) || [];
-    const expressionVariables = JSON.stringify(this.expressionConfig).match(variableRegex) || [];
-    return [...queryConfigsVariables, ...expressionVariables];
   }
 
   @Emit('basicInfoChange')

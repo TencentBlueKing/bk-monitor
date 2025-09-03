@@ -245,7 +245,7 @@ const store = new Vuex.Store({
     custom_sort_list: state => state.retrieve.catchFieldCustomConfig.sortList ?? [],
 
     originAddition: state => {
-      const { addition } = state.indexItem;
+      const { addition = [] } = state.indexItem;
       const filterAddition = addition
         .filter(item => item.field !== '_ip-select_')
         .map(({ field, operator, value, hidden_values, disabled }) => {
@@ -601,7 +601,14 @@ const store = new Vuex.Store({
       Vue.set(state, 'currentMenuItem', item);
     },
     updateSpace(state, spaceUid) {
-      state.space = state.mySpaceList.find(item => item.space_uid === spaceUid) || {};
+      if (typeof spaceUid === 'string') {
+        state.space = state.mySpaceList.find(item => item.space_uid === spaceUid) || {};
+      }
+
+      if (typeof spaceUid === 'object') {
+        state.space = spaceUid;
+      }
+
       state.bkBizId = state.space?.bk_biz_id;
       state.spaceUid = state.space?.space_uid;
       state.isSetDefaultTableColumn = false;

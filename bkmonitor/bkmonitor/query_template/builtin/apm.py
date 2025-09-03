@@ -8,18 +8,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
+
 from django.db.models import Q
 
 from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from typing import Any
-from constants.data_source import DataTypeLabel, DataSourceLabel
 from constants.apm import DEFAULT_DATA_LABEL, RPCMetricTag
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.query_template import GLOBAL_BIZ_ID
 
-from .base import QueryTemplateSet
-from . import utils
 from .. import constants
+from . import utils
+from .base import QueryTemplateSet
 
 
 def _get_common_variables(
@@ -119,7 +120,7 @@ RPC_CALLEE_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
     ),
     "variables": _get_common_variables(
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLER_SERVICE, RPCMetricTag.CALLEE_METHOD],
-        related_metric_fields=["rpc_server_handled_count"],
+        related_metric_fields=["rpc_server_handled_seconds_count"],
     ),
 }
 
@@ -215,7 +216,7 @@ RPC_CALLER_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
     ),
     "variables": _get_common_variables(
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLEE_SERVICE, RPCMetricTag.CALLEE_METHOD],
-        related_metric_fields=["rpc_client_handled_count"],
+        related_metric_fields=["rpc_client_handled_seconds_count"],
     ),
 }
 

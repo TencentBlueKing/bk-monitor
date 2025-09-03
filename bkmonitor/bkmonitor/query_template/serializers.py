@@ -84,15 +84,19 @@ class VariableSerializer(serializers.Serializer):
         if default_value is None:
             return attrs
 
-        error_message: str = _("变量类型为 {variable_type} 时，默认值类型必须为 {value_type}。")
+        error_message: str = _("变量类型为 {name} 时，默认值类型必须为 {value_type}。")
         if variable_type in {constants.VariableType.GROUP_BY, constants.VariableType.TAG_VALUES}:
-            error_message = error_message.format(variable_type=variable_type, value_type="list[str]")
+            error_message = error_message.format(name=variable_type.label, value_type="list[str]")
             self._validate_string_list(default_value, error_message)
-        elif variable_type in {constants.VariableType.CONDITIONS, constants.VariableType.FUNCTIONS}:
-            error_message = error_message.format(variable_type=variable_type, value_type="list[dict]")
+        elif variable_type in {
+            constants.VariableType.CONDITIONS,
+            constants.VariableType.FUNCTIONS,
+            constants.VariableType.EXPRESSION_FUNCTIONS,
+        }:
+            error_message = error_message.format(name=variable_type.label, value_type="list[dict]")
             self._validate_dict_list(default_value, error_message)
         elif variable_type in {constants.VariableType.METHOD, constants.VariableType.CONSTANTS}:
-            error_message = error_message.format(variable_type=variable_type, value_type="str")
+            error_message = error_message.format(name=variable_type.label, value_type="str")
             self._validate_string(default_value, error_message)
 
         return attrs

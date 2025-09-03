@@ -132,7 +132,7 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
       arrow: true,
       boundary: 'window',
       interactive: true,
-      theme: 'light padding-0',
+      theme: 'light padding-0 border-1',
       onHide: () => {
         return !this.isDeleteActive;
       },

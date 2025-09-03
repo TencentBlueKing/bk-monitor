@@ -24,27 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from "vue";
-import "./index.scss";
-
-export default defineComponent({
-  name: "CustomHighlight",
-  props: {
-    text: String,
-    colorMap: {
-      type: Object,
-      default: () => ({}),
-    },
-  },
-  setup(props) {
-    return () => (
-      <span
-        style={{
-          backgroundColor: props.colorMap[props.text!] || "transparent",
-        }}
-      >
-        {props.text}
-      </span>
-    );
-  },
-});
+/**
+ * 获取 url 上的 hash 值
+ * @param key 参数名
+ * @returns 参数值
+ */
+export const getUrlHashValue = (key: string) => {
+  const hashValue = window.location.hash.split('?')?.[1] || '';
+  if (!hashValue) {
+    return '';
+  }
+  const hashValueObj = new URLSearchParams(hashValue);
+  return hashValueObj.get(key);
+};

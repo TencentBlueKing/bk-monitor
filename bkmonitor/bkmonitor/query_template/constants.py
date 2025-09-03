@@ -8,11 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from constants.apm import CachedEnum
-
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
-from django.utils.functional import cached_property
+from constants.apm import CachedEnum
 
 
 class Namespace(CachedEnum):
@@ -46,8 +45,9 @@ class VariableType(CachedEnum):
     GROUP_BY = "GROUP_BY"
     TAG_VALUES = "TAG_VALUES"
     CONDITIONS = "CONDITIONS"
-    FUNCTIONS = "FUNCTIONS"
+    FUNCTIONS = "FUNCTIONS"  # query_configs 中的指标函数
     CONSTANTS = "CONSTANTS"
+    EXPRESSION_FUNCTIONS = "EXPRESSION_FUNCTIONS"
 
     @cached_property
     def require_related_tag(self) -> list[str]:
@@ -76,6 +76,7 @@ class VariableType(CachedEnum):
             (cls.CONDITIONS.value, cls.CONDITIONS.label),
             (cls.FUNCTIONS.value, cls.FUNCTIONS.label),
             (cls.CONSTANTS.value, cls.CONSTANTS.label),
+            (cls.EXPRESSION_FUNCTIONS.value, cls.EXPRESSION_FUNCTIONS.label),
         ]
 
     @cached_property
@@ -88,6 +89,7 @@ class VariableType(CachedEnum):
                 self.CONDITIONS: _("条件"),
                 self.FUNCTIONS: _("函数"),
                 self.CONSTANTS: _("常量"),
+                self.EXPRESSION_FUNCTIONS: _("表达式函数"),
             }.get(self, self.value)
         )
 

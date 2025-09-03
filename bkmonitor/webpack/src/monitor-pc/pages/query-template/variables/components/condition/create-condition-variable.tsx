@@ -51,11 +51,15 @@ class CreateConditionVariable extends Mixins(VariableFormMixin) {
   /** 可选维度 */
   options: string[] = [];
 
-  checkboxDisabled(dimensionId: string) {
-    const isSelectAll = this.options.includes('all');
-    const isAllDisabled = dimensionId === 'all' && this.options.length && !isSelectAll;
-    const isOtherDisabled = dimensionId !== 'all' && isSelectAll;
-    return isAllDisabled || isOtherDisabled;
+  handleOptionsSelect(options: string[]) {
+    const hasAll = this.options.includes('all');
+    if (hasAll) {
+      this.options = options.filter(item => item !== 'all');
+    } else if (options.includes('all')) {
+      this.options = ['all'];
+    } else {
+      this.options = options;
+    }
   }
 
   /** 弹窗关闭的时候在进行传值 */
@@ -123,25 +127,24 @@ class CreateConditionVariable extends Mixins(VariableFormMixin) {
             property='options'
           >
             <bk-select
-              v-model={this.options}
               clearable={false}
               selected-style='checkbox'
+              value={this.options}
               collapse-tag
               display-tag
               multiple
               searchable
+              onSelected={this.handleOptionsSelect}
               onToggle={this.handleOptionsToggle}
             >
               <bk-option
                 id='all'
-                disabled={this.checkboxDisabled('all')}
                 name='- ALL -'
               />
               {this.variable.dimensionList.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}
-                  disabled={this.checkboxDisabled(item.id)}
                   name={item.name}
                 />
               ))}

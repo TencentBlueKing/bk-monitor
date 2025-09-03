@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { xssFilter } from 'monitor-common/utils';
 
+import { isVariableName } from '../../variables/template/utils';
 import { replaceContent } from '@/components/retrieval-filter/query-string-utils';
 
 import type { IVariablesItem } from '../type/query-config';
@@ -82,7 +83,7 @@ export default class ExpressionCreator extends tsc<IProps> {
     const variables = [];
     const str = matches
       .map(item => {
-        if (/^\$\{[\s\S]+\}$/.test(item)) {
+        if (isVariableName(item)) {
           variables.push(item);
           return `<span style="color: #E54488;">${xssFilter(item)}</span>`;
         }
@@ -111,6 +112,21 @@ export default class ExpressionCreator extends tsc<IProps> {
     this.$emit('change', this.inputValue);
   }
 
+  handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // 阻止默认的换行行为
+      // 如果需要执行其他操作（如提交），可以在这里添加
+      this.handleSetInputParse(this.inputValue, true, vars => {
+        this.vars = vars;
+        for (const v of this.vars) {
+          this.$emit('createVariable', v);
+        }
+      });
+      this.$emit('change', this.inputValue);
+      return false;
+    }
+  }
+
   render() {
     return (
       <div class='template-expression-creator-component'>
@@ -130,6 +146,7 @@ export default class ExpressionCreator extends tsc<IProps> {
             // }}
             onFocus={this.handleFocus}
             onInput={this.handleInput}
+            onKeydown={this.handleKeydown}
           />
         </div>
       </div>
