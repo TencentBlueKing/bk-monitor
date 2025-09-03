@@ -613,6 +613,16 @@ class IndexSetHandler(APIModel):
             self.data, bk_biz_id, time_filed, result_table_id, storage_cluster_id=self.storage_cluster_id
         ).delete_index()
 
+    def update_index(self, bk_biz_id, result_table_id, update_params):
+        """
+        更新索引集
+        """
+        LogIndexSetData.objects.filter(
+            index_set_id=self.index_set_id,
+            result_table_id=result_table_id,
+            bk_biz_id=bk_biz_id,
+        ).update(**update_params)
+
     def bizs(self):
         if self.data.scenario_id in [Scenario.ES]:
             return []
@@ -1827,6 +1837,26 @@ class BaseIndexSetHandler:
         for index in to_delete_indexes:
             IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).delete_index(
                 index["bk_biz_id"], index.get("time_field"), index["result_table_id"]
+            )
+
+        # 需更新的索引
+        to_update_indexes = [
+            index
+            for index in self.indexes
+            if index["result_table_id"] in [index["result_table_id"] for index in self.index_set_obj.indexes]
+        ]
+        for index in to_update_indexes:
+            update_params = {}
+            if _scenario_id := index.get("scenario_id"):
+                update_params.update({"scenario_id": _scenario_id})
+            if _storage_cluster_id := index.get("storage_cluster_id"):
+                update_params.update({"storage_cluster_id": _storage_cluster_id})
+            if _time_field_type := index.get("time_field_type"):
+                update_params.update({"time_field_type": _time_field_type})
+            if _time_field_unit := index.get("time_field_unit"):
+                update_params.update({"time_field_unit": _time_field_unit})
+            IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).update_index(
+                index["bk_biz_id"], index["result_table_id"], update_params
             )
 
         # 需新增的索引
