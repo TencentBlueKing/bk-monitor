@@ -54,6 +54,21 @@ from apps.utils.local import get_request_username
 MAX_PARAMS_SIZE = 10000
 
 
+def jsonify(data: Any) -> str:
+    """尝试将数据转为 JSON 字符串"""
+    try:
+        return json.dumps(data)
+    except (TypeError, ValueError):
+        if isinstance(data, dict):
+            return json.dumps({k: v for k, v in data.items() if not v or isinstance(v, str | int | float | bool)})
+        if isinstance(data, bytes):
+            try:
+                return data.decode("utf-8")
+            except UnicodeDecodeError:
+                return str(data)
+        return str(data)
+
+
 def requests_callback(span: Span, response):
     """处理蓝鲸格式返回码"""
 
@@ -111,21 +126,6 @@ def requests_callback(span: Span, response):
                 pass
 
     span.set_attribute("request.body", jsonify(body)[:MAX_PARAMS_SIZE])
-
-
-def jsonify(data: Any) -> str:
-    """尝试将数据转为 JSON 字符串"""
-    try:
-        return json.dumps(data)
-    except (TypeError, ValueError):
-        if isinstance(data, dict):
-            return json.dumps({k: v for k, v in data.items() if not v or isinstance(v, str | int | float | bool)})
-        if isinstance(data, bytes):
-            try:
-                return data.decode("utf-8")
-            except UnicodeDecodeError:
-                return str(data)
-        return str(data)
 
 
 def django_request_hook(span: Span, request: HttpRequest):
