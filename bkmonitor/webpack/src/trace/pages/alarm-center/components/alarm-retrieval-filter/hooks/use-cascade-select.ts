@@ -25,41 +25,18 @@
  */
 
 import { triggerRef } from 'vue';
-
-import type { ICascadeData } from '../typing/typing';
 import type { ShallowRef } from 'vue';
 
-interface IAllOptions {
-  pagination: {
-    page: number;
-    limit: number;
-    isEnd: boolean;
-  };
-  search: string;
-  data: { id: string; name: string }[];
-}
+import type { ICascadeData } from '../typing/typing';
 
-async function mockData(search = '', page = 1, limit = 20) {
-  return new Promise(resolve => {
-    const list = [];
-    let res = [];
-    for (let i = 1; i <= 100; i++) {
-      list.push({
-        id: `${i}`,
-        name: `${i}`,
-      });
-    }
-    if (search) {
-      res = list.filter(item => item.name.includes(search)).slice((page - 1) * limit, page * limit);
-      setTimeout(() => {
-        resolve(res);
-      }, 1000);
-      return;
-    }
-    setTimeout(() => {
-      resolve(list.slice((page - 1) * limit, page * limit));
-    }, 1000);
-  });
+interface IAllOptions {
+  data: { id: string; name: string }[];
+  search: string;
+  pagination: {
+    isEnd: boolean;
+    limit: number;
+    page: number;
+  };
 }
 
 export function useCascadeSelect(localValue: ShallowRef<ICascadeData[]>) {
@@ -199,4 +176,27 @@ export function useCascadeSelect(localValue: ShallowRef<ICascadeData[]>) {
     handleSearch,
     handleOpen,
   };
+}
+
+async function mockData(search = '', page = 1, limit = 20) {
+  return new Promise(resolve => {
+    const list = [];
+    let res = [];
+    for (let i = 1; i <= 100; i++) {
+      list.push({
+        id: `${i}`,
+        name: `${i}`,
+      });
+    }
+    if (search) {
+      res = list.filter(item => item.name.includes(search)).slice((page - 1) * limit, page * limit);
+      setTimeout(() => {
+        resolve(res);
+      }, 1000);
+      return;
+    }
+    setTimeout(() => {
+      resolve(list.slice((page - 1) * limit, page * limit));
+    }, 1000);
+  });
 }

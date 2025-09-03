@@ -1,5 +1,3 @@
-import { useAlarmCenterStore } from '../../../../../store/modules/alarm-center';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,7 +23,9 @@ import { useAlarmCenterStore } from '../../../../../store/modules/alarm-center';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { IGetValueFnParams } from '../../../../..//components/retrieval-filter/typing';
+import { type IGetValueFnParams, EMode } from '../../../../../components/retrieval-filter/typing';
+import { AlarmServiceFactory } from '../../../../../pages/alarm-center/services/factory';
+import { AlarmType } from '../../../../../pages/alarm-center/typings';
 
 type ICandidateValueMap = Map<
   string,
@@ -45,8 +45,7 @@ interface IParams {
   query_string: string;
 }
 
-export function useAlarmFilter() {
-  const alarmStore = useAlarmCenterStore();
+export function useAlarmFilter({ alarmType = AlarmType.ALERT, commonFilterParams = {}, filterMode = EMode.ui }) {
   let axiosController = new AbortController();
   let candidateValueMap: ICandidateValueMap = new Map();
 
@@ -56,7 +55,19 @@ export function useAlarmFilter() {
 
   function getFieldsOptionValuesProxy(params: any) {
     function getMapKey(params: IParams) {
-      return `${alarmStore.alarmType}____${params.fields.join('')}____`;
+      return `${alarmType}____${filterMode}____${params.fields.join('')}____`;
+    }
+    function removeQuotesIfWrapped(str) {
+      // 正则表达式匹配被双引号包裹的字符串
+      const regex = /^"(.*)"$/;
+
+      // 如果匹配成功，则返回去掉一层双引号的内容
+      if (regex.test(str)) {
+        return str.replace(regex, '$1');
+      }
+
+      // 如果不匹配，返回原字符串
+      return str;
     }
     return new Promise(resolve => {
       if (params?.isInit__) {
@@ -86,10 +97,10 @@ export function useAlarmFilter() {
       } else {
         axiosController.abort();
         axiosController = new AbortController();
-        alarmStore.alarmService
+        AlarmServiceFactory(alarmType)
           .getRetrievalFilterValues(
             {
-              ...alarmStore.commonFilterParams,
+              ...commonFilterParams,
               conditions: [],
               fields: params.fields,
               size: params.limit,
@@ -100,7 +111,15 @@ export function useAlarmFilter() {
             }
           )
           .then(res => {
-            const values = res.fields?.find(f => f.field === params?.fields?.[0])?.buckets || [];
+            const values = (res.fields?.find(f => f.field === params?.fields?.[0])?.buckets || []).map(item => {
+              if (filterMode === EMode.ui) {
+                return {
+                  ...item,
+                  id: removeQuotesIfWrapped(item.id),
+                };
+              }
+              return item;
+            });
             const isEnd = values.length < params.limit;
             const newMap = new Map();
             if (!searchValue && isEnd) {

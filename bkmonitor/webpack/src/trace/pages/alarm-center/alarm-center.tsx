@@ -148,7 +148,6 @@ export default defineComponent({
         alarmStore.queryString = queryString;
       }
     };
-
     function handleConditionChange(condition: CommonCondition[]) {
       alarmStore.conditions = condition;
     }
@@ -165,7 +164,7 @@ export default defineComponent({
       alarmStore.refreshImmediate += 1;
     }
     function handleBizIdsChange(bizIds: (number | string)[]) {
-      alarmStore.bizIds = bizIds;
+      alarmStore.bizIds = bizIds as number[];
     }
 
     watchEffect(() => {
@@ -302,7 +301,9 @@ export default defineComponent({
         <AlarmCenterHeader class='alarm-center-header' />
         <AlarmRetrievalFilter
           class='alarm-center-filters'
+          alarmType={this.alarmStore.alarmType}
           bizIds={this.alarmStore.bizIds}
+          commonFilterParams={this.alarmStore.commonFilterParams}
           conditions={this.alarmStore.conditions}
           favoriteList={this.favoriteList}
           fields={this.retrievalFilterFields}
