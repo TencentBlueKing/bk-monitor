@@ -26,11 +26,11 @@
 
 import { defineComponent, useTemplateRef } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useTippy } from 'vue-tippy';
 
 import { useDebounceFn } from '@vueuse/core';
 import { Input } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
+import { useTippy } from 'vue-tippy';
 
 import { useModuleSelect } from '../hooks/use-module-select';
 import ModuleCascadeSelector from './module-cascade-selector';

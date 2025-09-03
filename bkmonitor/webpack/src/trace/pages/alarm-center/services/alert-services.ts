@@ -42,7 +42,7 @@ import {
   AlarmStatusIconMap,
 } from '../typings';
 import { AlarmService } from './base';
-import { type IFilterField, EFieldType, EMethod } from '@/components/retrieval-filter/typing';
+import { type IFilterField, EFieldType } from '@/components/retrieval-filter/typing';
 const ALERT_TABLE_COLUMNS = [
   {
     colKey: 'alert_name',
@@ -226,8 +226,12 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     type: EFieldType.all,
     methods: [
       {
-        alias: '包含',
-        value: EMethod.include,
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
       },
     ],
   },

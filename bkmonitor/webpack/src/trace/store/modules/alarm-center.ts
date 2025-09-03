@@ -165,6 +165,9 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
         queryString.value = '';
         quickFilterValue.value = [];
       }
+      alarmService.value.getListSearchFavorite({ search_type: newVal }).then(data => {
+        favoriteList.value = data;
+      });
     },
     {
       immediate: true,

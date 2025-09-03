@@ -37,6 +37,7 @@ import { useAlarmFilter } from './hooks/use-alarm-filter';
 import { useSpaceSelect } from './hooks/use-space-select';
 
 import type { ITriggerSlotOptions } from '../../../../components/space-select/typing';
+import type { AlarmType } from '../../typings';
 import type { CommonCondition } from '../../typings/services';
 
 import './alarm-retrieval-filter.scss';
@@ -76,6 +77,14 @@ export default defineComponent({
       type: Array as PropType<(number | string)[]>,
       default: () => [],
     },
+    alarmType: {
+      type: String as PropType<AlarmType>,
+      default: '',
+    },
+    commonFilterParams: {
+      type: Object,
+      default: () => ({}),
+    },
   },
   emits: {
     conditionChange: (_v: CommonCondition[]) => true,
@@ -85,12 +94,11 @@ export default defineComponent({
     query: () => true,
     bizIdsChange: (_v: (number | string)[]) => true,
   },
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     const showAlarmModule = computed(() => {
-      // return props.filterMode === EMode.ui;
-      return false;
+      return props.filterMode === EMode.ui;
     });
 
     function handleConditionChange(val) {
@@ -127,8 +135,14 @@ export default defineComponent({
       handleFilterModeChange,
       handleResidentConditionChange,
       handleBizIdsChange,
-      ...useAlarmFilter(),
-      ...useSpaceSelect(),
+      ...useAlarmFilter({
+        alarmType: props.alarmType,
+        commonFilterParams: props.commonFilterParams,
+        filterMode: props.filterMode,
+      }),
+      ...useSpaceSelect({
+        alarmType: props.alarmType,
+      }),
     };
   },
   render() {

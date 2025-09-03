@@ -29,12 +29,11 @@ import { computed, shallowRef } from 'vue';
 import { checkAllowed } from 'monitor-api/modules/iam';
 import { random } from 'monitor-common/utils/utils';
 
-import { useAlarmCenterStore } from '../../../../../store/modules/alarm-center';
 import { useAppStore } from '../../../../../store/modules/app';
 import { AlarmType } from '../../../typings';
-export function useSpaceSelect() {
+export function useSpaceSelect({ alarmType = AlarmType.ALERT }) {
   const appStore = useAppStore();
-  const alarmStore = useAlarmCenterStore();
+
   const allowedBizList = shallowRef([]);
   const isMultiple = shallowRef(false);
 
@@ -42,7 +41,7 @@ export function useSpaceSelect() {
     return appStore.bizId;
   });
   const isIncident = computed(() => {
-    return alarmStore.alarmType === AlarmType.INCIDENT;
+    return alarmType === AlarmType.INCIDENT;
   });
   const bizList = computed(() => {
     return appStore.bizList;

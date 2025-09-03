@@ -26,6 +26,7 @@
 
 import { defineComponent, shallowRef, watch } from 'vue';
 import { triggerRef } from 'vue';
+import type { PropType } from 'vue';
 
 import { Select } from 'bkui-vue';
 
@@ -34,7 +35,6 @@ import { useCascadeSelect } from '../hooks/use-cascade-select';
 import SelectorTrigger from './selector-trigger';
 
 import type { ICascadeData, ICascadeItem, ICascadeValue } from '../typing/typing';
-import type { PropType } from 'vue';
 
 import './module-cascade-selector.scss';
 
