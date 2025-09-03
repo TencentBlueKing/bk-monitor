@@ -68,7 +68,7 @@ class SearchItem(metaclass=abc.ABCMeta):
         return [space["bk_biz_id"] for space in spaces]
 
     @classmethod
-    def match(cls, bk_tenant_id: str, query: str) -> bool:
+    def match(cls, query: str) -> bool:
         """
         Match the query with the search item.
         """
@@ -104,7 +104,7 @@ class AlertSearchItem(SearchItem):
     RE_ALERT_ID = re.compile(r"^\d{14,}$")
 
     @classmethod
-    def match(cls, bk_tenant_id: str, query: str) -> bool:
+    def match(cls, query: str) -> bool:
         return bool(cls.RE_ALERT_ID.match(query))
 
     @classmethod
@@ -158,11 +158,11 @@ class StrategySearchItem(SearchItem):
     """
 
     @classmethod
-    def match(cls, bk_tenant_id: str, query: str) -> bool:
+    def match(cls, query: str) -> bool:
         """
         排除trace_id和alert_id
         """
-        return not AlertSearchItem.match(bk_tenant_id, query) and not TraceSearchItem.match(bk_tenant_id, query)
+        return not AlertSearchItem.match(query) and not TraceSearchItem.match(query)
 
     @classmethod
     def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
@@ -199,7 +199,7 @@ class StrategySearchItem(SearchItem):
                     "bk_biz_id": strategy.bk_biz_id,
                     "bk_biz_name": cls._get_biz_name(strategy.bk_biz_id),
                     "name": strategy.name,
-                    "strategy_id": strategy.id,
+                    "strategy_id": strategy.pk,
                 }
             )
 
@@ -217,7 +217,7 @@ class TraceSearchItem(SearchItem):
     RE_TRACE_ID = re.compile(r"^[0-9a-z]{32}$")
 
     @classmethod
-    def match(cls, bk_tenant_id: str, query: str) -> bool:
+    def match(cls, query: str) -> bool:
         return bool(cls.RE_TRACE_ID.match(query))
 
     @classmethod
@@ -308,7 +308,7 @@ class ApmApplicationSearchItem(SearchItem):
     RE_APP_NAME = re.compile(r"^[a-z0-9_-]{1,50}$")
 
     @classmethod
-    def match(cls, bk_tenant_id: str, query: str) -> bool:
+    def match(cls, query: str) -> bool:
         """
         1-50字符，由小写字母、数字、下划线、中划线组成
         """
@@ -368,7 +368,7 @@ class HostSearchItem(SearchItem):
     RE_IP = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
 
     @classmethod
-    def match(cls, bk_tenant_id: str, query: str) -> bool:
+    def match(cls, query: str) -> bool:
         """
         ipv4或ipv6，不要用正则匹配
         """
@@ -446,12 +446,8 @@ class BCSClusterSearchItem(SearchItem):
     """
 
     @classmethod
-    def match(cls, bk_tenant_id: str, query: str) -> bool:
-        return (
-            not TraceSearchItem.match(bk_tenant_id, query)
-            and not AlertSearchItem.match(bk_tenant_id, query)
-            and not HostSearchItem.match(bk_tenant_id, query)
-        )
+    def match(cls, query: str) -> bool:
+        return not TraceSearchItem.match(query) and not AlertSearchItem.match(query) and not HostSearchItem.match(query)
 
     @classmethod
     def search(cls, bk_tenant_id: str, username: str, query: str, limit: int = 5) -> list[dict] | None:
@@ -507,7 +503,7 @@ class Searcher:
     run the search items in parallel, yield the results.
     """
 
-    search_items = [
+    search_items: list[type[SearchItem]] = [
         AlertSearchItem,
         StrategySearchItem,
         TraceSearchItem,
@@ -524,7 +520,7 @@ class Searcher:
         """
         Search the query in the search items.
         """
-        search_items = [item for item in self.search_items if item.match(self.bk_tenant_id, query)]
+        search_items = [item for item in self.search_items if item.match(query)]
 
         with ThreadPool() as pool:
             results: IMapIterator = pool.imap_unordered(
