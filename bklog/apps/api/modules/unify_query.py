@@ -12,14 +12,13 @@ specific language governing permissions and limitations under the License.
 UNIFYQUERY 模块，调用接口汇总
 """
 
-from apps.utils.function import ignored
-from apps.utils.local import get_request
-from bkm_space.utils import bk_biz_id_to_space_uid
-
 from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter  # noqa
+from apps.utils.function import ignored
+from apps.utils.local import get_request
+from bkm_space.utils import bk_biz_id_to_space_uid
 from config.domains import UNIFYQUERY_APIGATEWAY_ROOT  # noqa
 
 
