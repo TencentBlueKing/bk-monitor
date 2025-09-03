@@ -25,7 +25,10 @@
  */
 
 import { onBeforeUnmount } from 'vue';
+
 import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
+
+import type { Instance, Props as TProps } from 'tippy.js';
 
 export type IUsePopoverTools = ReturnType<typeof usePopover>;
 
@@ -96,6 +99,10 @@ export function usePopover(popoverDefaultOptions: TippyOptions = {}) {
       content: content,
       ...defaultOptions,
       ...customOptions,
+      onHidden: (instance: Instance<TProps>) => {
+        defaultOptions?.onHidden?.(instance);
+        customOptions?.onHidden?.(instance);
+      },
     });
     // 设置实例唯一标识key（非必须）
     popoverInstance.instanceKey = instanceKey || '';

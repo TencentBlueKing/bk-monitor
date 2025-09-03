@@ -60,7 +60,7 @@ export class AlertScenario extends BaseScenario {
 
   constructor(
     private readonly context: {
-      handleAlertContentDetailShow: (e: MouseEvent) => void;
+      handleAlertContentDetailShow: (e: MouseEvent, row: AlertTableItem, colKey: string) => void;
       handleAlertOperationClick: (
         clickType: 'chart' | 'confirm' | 'manual' | 'more',
         row: AlertTableItem,
@@ -213,7 +213,7 @@ export class AlertScenario extends BaseScenario {
         <i class={`prefix-icon ${item?.prefixIcon}`} />
         <div
           class={`${renderCtx.isEnabledCellEllipsis(column)} description-click`}
-          onClick={this.context.handleAlertContentDetailShow}
+          onClick={(e: MouseEvent) => this.context.handleAlertContentDetailShow(e, row, column.colKey)}
         >
           <span>{item.alias || '--'}</span>
         </div>

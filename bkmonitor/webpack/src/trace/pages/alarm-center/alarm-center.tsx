@@ -178,6 +178,8 @@ export default defineComponent({
         filterMode: alarmStore.filterMode,
         alarmType: alarmStore.alarmType,
         bizIds: JSON.stringify(alarmStore.bizIds),
+        currentPage: page.value,
+        sortOrder: ordering.value,
       };
 
       const targetRoute = router.resolve({
@@ -204,6 +206,8 @@ export default defineComponent({
         filterMode,
         bizIds,
         alarmType,
+        sortOrder,
+        currentPage,
       } = route.query;
       try {
         if (from && to) {
@@ -218,9 +222,34 @@ export default defineComponent({
         alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
         alarmStore.bizIds = tryURLDecodeParse(bizIds as string, [-1]);
         alarmStore.alarmType = (alarmType as AlarmType) || AlarmType.ALERT;
+        ordering.value = (sortOrder as string) || '';
+        page.value = Number(currentPage || 1);
       } catch (error) {
         console.log('route query:', error);
       }
+    }
+
+    /**
+     * @description 表格 -- 处理分页变化
+     */
+    function handleCurrentPageChange(currentPage: number) {
+      page.value = currentPage;
+      setUrlParams();
+    }
+    /**
+     * @description 表格 -- 处理分页大小变化
+     */
+    function handlePageSizeChange(size: number) {
+      pageSize.value = size;
+      handleCurrentPageChange(1);
+    }
+    /**
+     * @description 表格 -- 处理排序变化
+     */
+    function handleSortChange(sort: string) {
+      ordering.value = sort;
+      handleCurrentPageChange(1);
+      // setUrlParams();
     }
 
     onBeforeMount(() => {
@@ -255,6 +284,9 @@ export default defineComponent({
       handleResidentConditionChange,
       handleQuery,
       handleBizIdsChange,
+      handleCurrentPageChange,
+      handlePageSizeChange,
+      handleSortChange,
     };
   },
   render() {
@@ -320,18 +352,12 @@ export default defineComponent({
                         data={this.data}
                         loading={this.loading}
                         sort={this.ordering}
-                        onCurrentPageChange={page => {
-                          this.page = page;
-                        }}
+                        onCurrentPageChange={this.handleCurrentPageChange}
                         onDisplayColFieldsChange={displayColFields => {
                           this.storageColumns = displayColFields;
                         }}
-                        onPageSizeChange={pageSize => {
-                          this.pageSize = pageSize;
-                        }}
-                        onSortChange={sort => {
-                          this.ordering = sort as string;
-                        }}
+                        onPageSizeChange={this.handlePageSizeChange}
+                        onSortChange={sort => this.handleSortChange(sort as string)}
                       />
                     </div>
                   </div>

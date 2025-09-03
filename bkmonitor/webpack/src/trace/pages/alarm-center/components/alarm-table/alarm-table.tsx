@@ -220,9 +220,9 @@ export default defineComponent({
     /**
      * @description 打开告警内容详情 popover
      */
-    function handleAlertContentDetailShow(e: MouseEvent) {
+    function handleAlertContentDetailShow(e: MouseEvent, row: AlertTableItem, colKey: string) {
       console.log('================ alertContentDetailRef.value ================', alertContentDetailRef.value);
-      clickPopoverTools.showPopover(e, () => alertContentDetailRef.value.$el);
+      clickPopoverTools.showPopover(e, () => alertContentDetailRef.value.$el, `${row.id}-${colKey}`);
     }
 
     /**
