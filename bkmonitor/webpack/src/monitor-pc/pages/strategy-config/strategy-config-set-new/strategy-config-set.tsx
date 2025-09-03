@@ -722,6 +722,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       ).filter(item => !!item) as MetricDetail[];
       if (!this.metricData.length) return;
       const expList = metric.expressionList || [];
+      if (!expList.length && metric.expression?.length && metric.expression.trim().length > 1) {
+        expList.push({
+          expression: metric.expression,
+          active: true,
+          functions: [],
+        });
+      }
       if (expList.length) {
         const item = expList.find(item => item.active);
         if (item) {
