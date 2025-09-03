@@ -20,7 +20,6 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.serializers import TenantIdField
-from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import Resource
 from metadata import config, models
 from metadata.models.space.constants import SpaceTypes
@@ -123,6 +122,7 @@ class QueryBcsClusterVmTableIds(Resource):
 
 class SwitchKafkaCluster(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=False, allow_blank=True, label="结果表ID")
         bk_base_data_id = serializers.IntegerField(required=False, label="计算平台数据源ID")
         vm_table_id = serializers.CharField(required=False, allow_blank=True, label="VM结果表ID")
@@ -143,12 +143,7 @@ class SwitchKafkaCluster(Resource):
             return data
 
     def perform_request(self, validated_request_data: OrderedDict) -> None:
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("SwitchKafkaCluster: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
 
         try:
             obj = models.KafkaStorage.objects.get(

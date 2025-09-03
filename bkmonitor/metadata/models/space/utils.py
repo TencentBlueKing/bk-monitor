@@ -8,7 +8,6 @@ from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
-from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.bkmonitor.space import SpaceNotFound
 from metadata import config
@@ -1066,7 +1065,7 @@ def get_valid_bcs_projects(bk_tenant_id: str) -> list:
     return valid_project_list
 
 
-def get_space_by_table_id(table_id: str, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> dict[str, Any]:
+def get_space_by_table_id(table_id: str, bk_tenant_id: str) -> dict[str, Any]:
     """通过结果表获取空间信息
 
     @param table_id: 结果表
