@@ -479,7 +479,7 @@ class BCSClusterSearchItem(SearchItem):
                         "name": cluster.name,
                         "cluster_name": cluster.name,
                         "bcs_cluster_id": cluster.bcs_cluster_id,
-                        "project_name": cluster.space_uid.split("__")[1],
+                        "project_name": cluster.space_uid.split("__")[1] if cluster.space_uid else "",
                     }
                 )
 
