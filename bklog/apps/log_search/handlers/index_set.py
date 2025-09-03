@@ -19,7 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import json
 import re
 from collections import defaultdict
 
@@ -1704,75 +1703,53 @@ class BaseIndexSetHandler:
         )
         # 创建结果表路由信息
         try:
-            base_request_params = {
+            request_params = {
                 "data_label": self.get_data_label(index_set.index_set_id),
                 "space_id": index_set.space_uid.split("__")[-1],
                 "space_type": index_set.space_uid.split("__")[0],
-                "need_create_index": False,
+                "table_info": [],
             }
             multi_execute_func = MultiExecuteFunc()
             objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
             for obj in objs:
-                time_field = obj.time_field or index_set.time_field
-                time_field_type = obj.time_field_type or index_set.time_field_type
-                request_params = base_request_params.copy()
-                request_params.update(
-                    {
-                        "table_id": self.get_rt_id(index_set.index_set_id, obj.result_table_id),
-                        "index_set": obj.result_table_id.replace(".", "_"),
-                        "source_type": obj.scenario_id,
-                        "cluster_id": obj.storage_cluster_id,
-                        "options": [
-                            {
-                                "name": "time_field",
-                                "value_type": "dict",
-                                "value": json.dumps(
-                                    {
-                                        "name": time_field,
-                                        "type": time_field_type,
-                                        "unit": obj.time_field_unit or index_set.time_field_unit
-                                        if time_field_type != TimeFieldTypeEnum.DATE.value
-                                        else TimeFieldUnitEnum.MILLISECOND.value,
-                                    }
-                                ),
-                            },
-                            {
-                                "name": "need_add_time",
-                                "value_type": "bool",
-                                "value": json.dumps(obj.scenario_id != Scenario.ES),
-                            },
-                        ],
-                    }
-                )
-
-                if request_params["source_type"] == Scenario.LOG:
-                    request_params["origin_table_id"] = obj.result_table_id
-                if index_set.query_alias_settings:
-                    request_params["query_alias_settings"] = index_set.query_alias_settings
-                multi_execute_func.append(
-                    result_key=obj.result_table_id,
-                    func=TransferApi.create_or_update_log_router,
-                    params=request_params,
-                )
+                table_info = {
+                    "table_id": self.get_rt_id(index_set.index_set_id, obj.result_table_id),
+                    "index_set": obj.result_table_id.replace(".", "_"),
+                    "source_type": obj.scenario_id,
+                    "cluster_id": obj.storage_cluster_id,
+                }
+                if table_info["source_type"] == Scenario.LOG:
+                    table_info["origin_table_id"] = obj.result_table_id
+                if query_alias_settings := index_set.query_alias_settings:
+                    table_info["query_alias_settings"] = query_alias_settings
+                request_params["table_info"].append(table_info)
+            multi_execute_func.append(
+                result_key=index_set.index_set_id,
+                func=TransferApi.bulk_create_or_update_log_router,
+                params=request_params,
+            )
             if doris_table_id := index_set.doris_table_id:
                 doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
                 doris_params = {
-                        "space_type": index_set.space_uid.split("__")[0],
-                        "space_id": index_set.space_uid.split("__")[-1],
-                        "storage_type": "doris",
-                        "bkbase_table_id": doris_result_table,
-                        "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
-                        "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
-                        "need_create_index": False,
-                        "source_type": "bkdata"
-                    }
-                if index_set.query_alias_settings:
-                    doris_params["query_alias_settings"] = index_set.query_alias_settings
+                    "space_type": index_set.space_uid.split("__")[0],
+                    "space_id": index_set.space_uid.split("__")[-1],
+                    "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
+                    "table_info": [
+                        {
+                            "storage_type": "doris",
+                            "bkbase_table_id": doris_result_table,
+                            "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
+                            "source_type": "bkdata",
+                        }
+                    ],
+                }
+                if query_alias_settings := index_set.query_alias_settings:
+                    doris_params["table_info"][0]["query_alias_settings"] = query_alias_settings
                 # Doris接入
                 multi_execute_func.append(
                     result_key=index_set.index_set_id,
-                    func=TransferApi.create_or_update_log_router,
-                    params= doris_params
+                    func=TransferApi.bulk_create_or_update_log_router,
+                    params=doris_params,
                 )
             multi_execute_func.run()
         except Exception as e:
