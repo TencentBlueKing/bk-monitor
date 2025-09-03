@@ -48,7 +48,6 @@ declare global {
     $t: (key: string, params?: Record<string, any>) => string;
     scheduler?: Scheduler;
     RUN_VER: string;
-    IS_EXTERNAL: boolean | string;
   }
 
   interface Scheduler {
