@@ -125,8 +125,8 @@ export default {
     'By default, the host entered into the BlueKing configuration platform will collect metric data and event data related to the operating system and process, so enabling host monitoring requires associated business resources.',
   '默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。':
     'It is enabled by default, and the same content will be aggregated into one and counted by default in the collection cycle. ',
-  '默认是所有时间都生效，日历中添加的为不生效时间段':
-    'By default, all times are effective, and the ones added in the calendar are ineffective time periods.',
+  '默认所有日期都生效，可关联日历来“包含”或“排除”哪些日期':
+    'By default, all dates are active. You can associate a calendar to "include" or "exclude" specific dates.',
   '提示：通过 {0} 未找到对应的索引集。如果要采集日志可以前往日志平台。':
     'Prompt: No corresponding Indices can be found through {0}. If you want to collect logs, you can go to the log platform. ',
   注意在仪表盘和策略中使用了修改前的指标将失效:
