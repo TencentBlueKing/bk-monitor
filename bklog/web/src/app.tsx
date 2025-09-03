@@ -1,29 +1,29 @@
 /*
-* Tencent is pleased to support the open source community by making
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
-*
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-*
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
-*
-* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
-*
-* ---------------------------------------------------
-* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-* the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
-* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-* IN THE SOFTWARE.
-*/
-import { computed, defineComponent, onMounted, ref } from 'vue';
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { computed, defineComponent, onMounted, type Ref, ref } from 'vue';
 
 import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
 import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
@@ -55,9 +55,8 @@ export default defineComponent({
     const { $t } = useLocale();
 
     const noticeComponentHeight = ref(0);
-    const refNoticeComponent = ref(null);
+    const refNoticeComponent: Ref<any | null> = ref(null);
     const welcomePageData = ref(null);
-    const routerKey = ref(0);
 
     const rootClass = computed(() => ({ 'clear-min-height': route.name === 'retrieve' }));
 
@@ -65,8 +64,7 @@ export default defineComponent({
       '--notice-component-height': `${noticeComponentHeight.value}px`,
     }));
 
-    const isAsIframe = computed(() => store.getters.asIframe);
-
+    const isAsIframe = computed(() => route.query.from === 'monitor');
     const showAlert = computed(() => store.state.showAlert);
 
     const isShowGlobalDialog = computed(() => store.state.isShowGlobalDialog);
@@ -136,17 +134,22 @@ export default defineComponent({
     };
 
     /**
+     * 处理欢迎页数据
+     * @param args
+     */
+    const handleWelcome = (args: any) => {
+      welcomePageData.value = args;
+    };
+
+    /**
      * 渲染头部组件
      */
     const renderHeadComponent = () => {
-      if (!isAsIframe.value) {
+      if (!isAsIframe.value && route.path !== '/') {
         return (
           <HeadNav
             welcome-data={welcomePageData.value}
-            on-reload-router={() => {
-              routerKey.value += 1;
-            }}
-            on-welcome={$event => (welcomePageData.value = $event)}
+            on-welcome={handleWelcome}
           />
         );
       }
@@ -167,7 +170,7 @@ export default defineComponent({
      * 渲染路由视图
      */
     const renderRouterView = () => {
-      return <router-view class='manage-content'></router-view>;
+      return <router-view class='manage-content' />;
     };
 
     /**
