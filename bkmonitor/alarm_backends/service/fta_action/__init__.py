@@ -31,6 +31,7 @@ from api.itsm.default import (
     TicketApproveResultResource,
     TicketRevokeResource,
 )
+from bkmonitor.db_routers import backend_alert_router
 from bkmonitor.documents import AlertDocument, AlertLog, EventDocument
 from bkmonitor.models.fta import ActionInstance, ActionInstanceLog
 from bkmonitor.utils.send import ChannelBkchatSender, Sender
@@ -512,7 +513,7 @@ class BaseActionProcessor:
         :param failure_type:失败类型
         :return:
         """
-        with transaction.atomic(using=settings.BACKEND_DATABASE_NAME):
+        with transaction.atomic(using=backend_alert_router):
             try:
                 locked_action = ActionInstance.objects.select_for_update().get(pk=self.action.id)
             except ActionInstance.DoesNotExist:
@@ -522,7 +523,7 @@ class BaseActionProcessor:
             for key, value in kwargs.items():
                 # 其他需要跟新的参数，直接刷新
                 setattr(locked_action, key, value)
-            locked_action.save(using=settings.BACKEND_DATABASE_NAME)
+            locked_action.save(using=backend_alert_router)
             # 刷新当前的事件记录
             self.action = locked_action
 
@@ -536,7 +537,7 @@ class BaseActionProcessor:
             # 没有输出参数列表，直接返回
             return
 
-        with transaction.atomic(using=settings.BACKEND_DATABASE_NAME):
+        with transaction.atomic(using=backend_alert_router):
             try:
                 locked_action = ActionInstance.objects.select_for_update().get(pk=self.action.id)
             except ActionInstance.DoesNotExist:
@@ -546,7 +547,7 @@ class BaseActionProcessor:
             else:
                 locked_action.outputs = outputs
             outputs.update(locked_action.outputs)
-            locked_action.save(using=settings.BACKEND_DATABASE_NAME)
+            locked_action.save(using=backend_alert_router)
             self.action = locked_action
 
     def notify(self, notify_step, need_update_context=False):
