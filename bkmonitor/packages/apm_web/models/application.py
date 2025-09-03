@@ -521,7 +521,7 @@ class Application(AbstractRecordModel):
     def sync_datasource(self):
         """同步数据源到 saas 中"""
 
-        detail = api.apm_api.detail_application(application_id=self.application_id)
+        detail = api.apm_api.detail_application(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
 
         trace_ds_info = detail.get("trace_config")
         metric_ds_info = detail.get("metric_config")
@@ -549,7 +549,7 @@ class Application(AbstractRecordModel):
         if not plugin_config:
             plugin_config = self.plugin_config
 
-        output_param = self.get_output_param(self.application_id)
+        output_param = self.get_output_param(self.bk_biz_id, self.app_name)
         if not output_param.get("host"):
             return
         plugin_config = LogTracePluginConfig().release_log_trace_config(plugin_config, output_param)
@@ -564,8 +564,8 @@ class Application(AbstractRecordModel):
         return plugin_config
 
     @classmethod
-    def get_output_param(cls, application_id):
-        token = api.apm_api.detail_application({"application_id": application_id})["token"]
+    def get_output_param(cls, bk_biz_id, app_name):
+        token = api.apm_api.detail_application({"bk_biz_id": bk_biz_id, "app_name": app_name})["token"]
         # 获取上报地址
         if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
             host = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN[0]
@@ -672,7 +672,7 @@ class Application(AbstractRecordModel):
     def fetch_datasource_info(self, datasource_type: str, attr_name: str):
         if getattr(self, f"{datasource_type}_{attr_name}", None):
             return getattr(self, f"{datasource_type}_{attr_name}")
-        datasource_config = api.apm_api.detail_application({"application_id": self.application_id})
+        datasource_config = api.apm_api.detail_application({"bk_biz_id": self.bk_biz_id, "app_name": self.app_name})
         return datasource_config.get(f"{datasource_type}_config", {}).get(attr_name)
 
     def authorization(self):
@@ -735,7 +735,7 @@ class Application(AbstractRecordModel):
         if not application:
             raise ValueError(_("应用不存在"))
         api.apm_api.apply_datasource({"application_id": application.application_id, **datasource_option})
-        detail = api.apm_api.detail_application(application_id=application.application_id)
+        detail = api.apm_api.detail_application(bk_biz_id=application.bk_biz_id, app_name=application.app_name)
         application.trace_result_table_id = detail["trace_config"]["result_table_id"]
         application.metric_result_table_id = detail["metric_config"]["result_table_id"]
         application.time_series_group_id = detail["metric_config"]["time_series_group_id"]
