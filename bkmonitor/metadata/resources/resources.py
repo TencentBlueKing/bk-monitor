@@ -119,13 +119,6 @@ class CreateDataIDResource(Resource):
         is_platform_data_id = serializers.CharField(required=False, label="是否为平台级 ID", default=False)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=SpaceTypes.ALL.value)
 
-        def validate(self, attrs):
-            # 多租户模式下，必须指定dataid所属业务ID和租户ID
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                if not attrs.get("bk_biz_id"):
-                    raise ValueError(_("多租户下，必须指定dataid所属业务ID"))
-            return attrs
-
     def perform_request(self, validated_request_data):
         space_uid = validated_request_data.pop("space_uid", None)
 
@@ -155,7 +148,6 @@ class CreateDataIDResource(Resource):
         return {"bk_data_id": new_data_source.bk_data_id}
 
 
-# TODO 该接口理论上不需要租户ID
 class GetOrCreateAgentEventDataIdResource(Resource):
     """
     获取/创建 Agent事件 数据ID

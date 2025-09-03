@@ -35,7 +35,7 @@ from apm.models.doris import BkDataDorisProvider
 from apm.utils.es_search import EsSearch
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.db import JsonField
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, bk_biz_id_and_app_name_to_bk_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
@@ -122,7 +122,7 @@ class ApmDataSourceConfigBase(models.Model):
             instance.switch_result_table(False)
 
     def switch_result_table(self, is_enable=True):
-        bk_tenant_id = bk_biz_id_and_app_name_to_bk_tenant_id(app_name=self.app_name, bk_biz_id=self.bk_biz_id)
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id=self.bk_biz_id)
 
         resource.metadata.modify_result_table(
             {
@@ -134,11 +134,9 @@ class ApmDataSourceConfigBase(models.Model):
         )
 
     def create_data_id(self):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         if self.bk_data_id != -1:
             return self.bk_data_id
-        # 获取租户id
-        bk_tenant_id = bk_biz_id_and_app_name_to_bk_tenant_id(app_name=self.app_name, bk_biz_id=self.bk_biz_id)
-
         try:
             data_id_info = resource.metadata.query_data_source(
                 {"data_name": self.data_name, "bk_tenant_id": bk_tenant_id}
@@ -155,14 +153,10 @@ class ApmDataSourceConfigBase(models.Model):
                 if self.DATASOURCE_TYPE == self.TRACE_DATASOURCE:
                     if data_link.trace_transfer_cluster_id:
                         data_link_param["transfer_cluster"] = data_link.trace_transfer_cluster_id
-
-            # 获取租户id
-            bk_tenant_id = bk_biz_id_and_app_name_to_bk_tenant_id(app_name=self.app_name, bk_biz_id=self.bk_biz_id)
-
             data_id_info = resource.metadata.create_data_id(
                 {
-                    "bk_biz_id": self.bk_biz_id,
                     "bk_tenant_id": bk_tenant_id,
+                    "bk_biz_id": self.bk_biz_id,
                     "data_name": self.data_name,
                     "operator": get_global_user(bk_tenant_id=bk_tenant_id),
                     "data_description": self.data_name,

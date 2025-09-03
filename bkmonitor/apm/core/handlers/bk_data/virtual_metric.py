@@ -20,7 +20,6 @@ from apm.core.handlers.bk_data.flow import ApmFlow
 from apm.models import ApmApplication
 from bkmonitor.dataflow.auth import check_has_permission
 from bkmonitor.dataflow.task.apm_metrics import APMVirtualMetricTask
-from bkmonitor.utils.tenant import bk_biz_id_and_app_name_to_bk_tenant_id
 from common.log import logger
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
@@ -119,9 +118,9 @@ class VirtualMetricFlow:
     def _get_metric_datasource(self):
         # 接入的数据源为kafka
         metric_data_id = self.metric_datasource.bk_data_id
-        # 获取租户id
-        bk_tenant_id = bk_biz_id_and_app_name_to_bk_tenant_id(app_name=self.app_name, bk_biz_id=self.bk_biz_id)
-        return resource.metadata.query_data_source(bk_data_id=metric_data_id, bk_tenant_id=bk_tenant_id)
+        return resource.metadata.query_data_source(
+            bk_data_id=metric_data_id, bk_tenant_id=self.application.bk_tenant_id
+        )
 
     def _upsert_and_start_cleans(self, raw_data_id):
         params = {
@@ -197,10 +196,7 @@ class VirtualMetricFlow:
         )
 
     def _create_deploy(self):
-        apm_flow_ins = ApmFlow(
-            bk_biz_id=self.bk_biz_id, app_name=self.app_name, data_id=self.metric_datasource.bk_data_id, config=None
-        )
-        params = apm_flow_ins.get_deploy_params(
+        params = ApmFlow.get_deploy_params(
             self.bk_biz_id,
             self.metric_datasource.bk_data_id,
             self.bkbase_operator,
