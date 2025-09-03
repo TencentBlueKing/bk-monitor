@@ -275,9 +275,42 @@ def sync_bkcc_space_data_source():
     biz_id_list = list(biz_data_id_dict.keys())
     biz_id_list.extend(real_biz_data_id_dict.keys())
 
-    # 组装数据，推送 redis 功能
+    # 组装数据，推送 redis 功能(注意此处biz_id不为0)
+    tenant_space_map = {}
     space_id_list = [str(biz_id) for biz_id in biz_id_list if str(biz_id) != "0"]
-    push_and_publish_space_router(space_type=SpaceTypes.BKCC.value, space_id_list=space_id_list)
+
+    # 批量查询这些业务ID对应的租户ID
+    space_tenant_mapping = {}
+    if space_id_list:
+        spaces = models.Space.objects.filter(space_type_id=SpaceTypes.BKCC.value, space_id__in=space_id_list).values(
+            "space_id", "bk_tenant_id"
+        )
+
+        for space in spaces:
+            space_tenant_mapping[space["space_id"]] = space["bk_tenant_id"]
+
+    # 按租户ID分组空间
+    for space_id in space_id_list:
+        # 获取租户ID，如果找不到则使用默认租户ID
+        tenant_id = space_tenant_mapping.get(space_id, None)
+        # 异常情况不处理
+        if not tenant_id:
+            logger.info(f"space_id: {space_id} not found tenant_id")
+            continue
+        # 处理映射表
+        if tenant_id not in tenant_space_map:
+            tenant_space_map[tenant_id] = []
+        tenant_space_map[tenant_id].append(space_id)
+
+    # 按租户分组调用 push_and_publish_space_router
+    for tenant_id, spaces in tenant_space_map.items():
+        if spaces:
+            logger.info(f"pushing bkcc space router for tenant: {tenant_id} with {spaces}")
+            # 调用时传入租户ID
+            push_and_publish_space_router(
+                space_type=SpaceTypes.BKCC.value, space_id_list=spaces, bk_tenant_id=tenant_id
+            )
+
     cost_time = time.time() - start_time
 
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
@@ -523,6 +556,8 @@ def refresh_cluster_resource():
     }
     # 根据项目查询项目下资源的变化
     changed_space_list, space_id_list, add_resource_list = [], [], []
+    # 按租户ID分组收集需要处理的空间ID
+    tenant_space_map = {}  # {tenant_id: [space_id1, space_id2, ...]}
     space_data_id_map, shared_space_data_id_map = {}, {}
     # 获取存储在metadata中的集群数据
     metadata_clusters = get_metadata_cluster_list()
@@ -575,6 +610,10 @@ def refresh_cluster_resource():
                 )
             )
             space_id_list.append(s_id)
+            # 将对应空间id根据租户id分类收集起来
+            if bk_tenant_id not in tenant_space_map:
+                tenant_space_map[bk_tenant_id] = []
+            tenant_space_map[bk_tenant_id].append(s_id)
             continue
         # 获取现存的，判断是否有变化
         exist_project_cluster, exist_shared_cluster_ns = set(), {}
@@ -591,6 +630,11 @@ def refresh_cluster_resource():
                 space_type_id=space_type, space_id=s_id, resource_type=resource_type, resource_id=s_id
             ).update(dimension_values=dimension_values)
             space_id_list.append(s_id)
+            # 将空间ID添加到对应租户的列表中
+            if bk_tenant_id not in tenant_space_map:
+                tenant_space_map[bk_tenant_id] = []
+            tenant_space_map[bk_tenant_id].append(s_id)
+
     # 创建资源
     if add_resource_list:
         SpaceResource.objects.bulk_create(add_resource_list)
@@ -605,11 +649,14 @@ def refresh_cluster_resource():
 
     logger.info("bulk create space data_id record")
 
-    if space_id_list:
-        # 推送 redis 功能, 包含空间到结果表，数据标签到结果表，结果表详情
-        push_and_publish_space_router(space_type=SpaceTypes.BKCI.value, space_id_list=space_id_list)
-
-        logger.info("push updated bcs space resource to redis successfully, space: %s", json.dumps(space_id_list))
+    # 按租户分组处理空间ID，调用 push_and_publish_space_router 时传递租户ID
+    for tenant_id, space_ids in tenant_space_map.items():
+        if space_ids:
+            logger.info(f"pushing space router for tenant: {tenant_id} with {space_ids}")
+            # 调用时传入租户ID
+            push_and_publish_space_router(
+                space_type=SpaceTypes.BKCI.value, space_id_list=space_ids, bk_tenant_id=tenant_id
+            )
 
     cost_time = time.time() - start_time
 
@@ -658,11 +705,11 @@ def refresh_bkci_space_name():
 
 
 def push_and_publish_space_router(
+    bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     space_type: str | None = None,
     space_id: str | None = None,
     space_id_list: list[str] | None = None,
     is_publish: bool | None = True,
-    bk_tenant_id: str | None = DEFAULT_TENANT_ID,
 ):
     """推送数据和通知"""
     from metadata.models.space.constants import SPACE_TO_RESULT_TABLE_CHANNEL
@@ -710,7 +757,9 @@ def push_and_publish_space_router(
 
     if settings.ENABLE_MULTI_TENANT_MODE:  # 若开启多租户模式，则以空间粒度推送路由
         for space in space_list:
-            tid_ds = get_space_table_id_data_id(space["space_type"], space["space_id"])
+            tid_ds = get_space_table_id_data_id(
+                space_type=space["space_type"], space_id=space["space_id"], bk_tenant_id=space["bk_tenant_id"]
+            )
             space_tid_list = list(tid_ds.keys())
             space_client = SpaceTableIDRedis()
             space_client.push_table_id_detail(
@@ -728,12 +777,21 @@ def push_and_publish_space_router(
         table_id_list = []
         if space_id:
             for space in space_list:
-                tid_ds = get_space_table_id_data_id(space["space_type"], space["space_id"])
+                tid_ds = get_space_table_id_data_id(
+                    space_type=space["space_type"], space_id=space["space_id"], bk_tenant_id=DEFAULT_TENANT_ID
+                )
                 table_id_list.extend(tid_ds.keys())
 
         space_client = SpaceTableIDRedis()
-        space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
-        space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
+        space_client.push_data_label_table_ids(
+            table_id_list=table_id_list, is_publish=is_publish, bk_tenant_id=DEFAULT_TENANT_ID
+        )
+        space_client.push_table_id_detail(
+            table_id_list=table_id_list,
+            is_publish=is_publish,
+            include_es_table_ids=True,
+            bk_tenant_id=DEFAULT_TENANT_ID,
+        )
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)

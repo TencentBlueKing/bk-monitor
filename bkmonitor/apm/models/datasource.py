@@ -122,8 +122,11 @@ class ApmDataSourceConfigBase(models.Model):
             instance.switch_result_table(False)
 
     def switch_result_table(self, is_enable=True):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id=self.bk_biz_id)
+
         resource.metadata.modify_result_table(
             {
+                "bk_tenant_id": bk_tenant_id,
                 "table_id": self.result_table_id,
                 "is_enable": is_enable,
                 "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
@@ -135,7 +138,9 @@ class ApmDataSourceConfigBase(models.Model):
         if self.bk_data_id != -1:
             return self.bk_data_id
         try:
-            data_id_info = resource.metadata.query_data_source(bk_tenant_id=bk_tenant_id, data_name=self.data_name)
+            data_id_info = resource.metadata.query_data_source(
+                {"data_name": self.data_name, "bk_tenant_id": bk_tenant_id}
+            )
         except metadata_models.DataSource.DoesNotExist:
             # 临时支持数据链路
             data_link = DataLink.get_data_link(self.bk_biz_id)
@@ -235,9 +240,11 @@ class MetricDataSource(ApmDataSourceConfigBase):
         if self.result_table_id != "":
             return
 
-        global_user = get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id))
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        global_user = get_global_user(bk_tenant_id=bk_tenant_id)
         params = {
             "operator": global_user,
+            "bk_tenant_id": bk_tenant_id,
             "bk_data_id": self.bk_data_id,
             # 平台级接入，ts_group 业务id对应为0
             "bk_biz_id": self.bk_biz_id,
@@ -570,12 +577,14 @@ class TraceDataSource(ApmDataSourceConfigBase):
         table_id = self.table_id
         if self.result_table_id:
             table_id = self.result_table_id
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
 
         params = {
             "bk_data_id": self.bk_data_id,
             # 必须为 库名.表名
             "table_id": table_id,
-            "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+            "bk_tenant_id": bk_tenant_id,
+            "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             "is_enable": True,
             "table_name_zh": self.app_name,
             "is_custom_table": True,
