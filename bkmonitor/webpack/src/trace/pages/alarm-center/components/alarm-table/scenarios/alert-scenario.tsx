@@ -60,7 +60,7 @@ export class AlertScenario extends BaseScenario {
 
   constructor(
     private readonly context: {
-      handleAlertContentDetailShow: (e: MouseEvent) => void;
+      handleAlertContentDetailShow: (e: MouseEvent, row: AlertTableItem, colKey: string) => void;
       handleAlertOperationClick: (
         clickType: 'chart' | 'confirm' | 'manual' | 'more',
         row: AlertTableItem,
@@ -112,7 +112,7 @@ export class AlertScenario extends BaseScenario {
       target_key: {
         renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
         getRenderValue: row => ({
-          prefixIcon: AlertTargetTypeMap[row.target_key]?.prefixIcon,
+          prefixIcon: AlertTargetTypeMap[row.target_type]?.prefixIcon,
           alias: row?.extend_info?.topo_info ? `${row?.extend_info?.topo_info} ${row.target_key}` : row.target_key,
         }),
       },
@@ -213,7 +213,7 @@ export class AlertScenario extends BaseScenario {
         <i class={`prefix-icon ${item?.prefixIcon}`} />
         <div
           class={`${renderCtx.isEnabledCellEllipsis(column)} description-click`}
-          onClick={this.context.handleAlertContentDetailShow}
+          onClick={(e: MouseEvent) => this.context.handleAlertContentDetailShow(e, row, column.colKey)}
         >
           <span>{item.alias || '--'}</span>
         </div>

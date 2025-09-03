@@ -1,50 +1,17 @@
+/* stylelint-disable selector-class-pattern */
+
+@use './theme/alert-table-theme';
+@use './theme/incident-table-theme';
+@use './theme/action-table-theme';
+
 .alarm-table-container {
   display: flex;
   flex-direction: column;
   height: 100%;
 
-  @mixin text-ellipsis {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  @mixin icon-size($size: 16px, $hasHover: false) {
-    display: flex;
-    flex: 0 0 $size;
-    align-items: center;
-    justify-content: center;
-    font-size: $size;
-
-    @if $hasHover {
-      &:hover {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-    }
-  }
-
   .alarm-table {
     flex-grow: 1;
     flex-basis: auto;
-    &.incident-table {
-      .explore-col {
-        align-items: flex-start;
-        min-height: 40px;
-        &.lever-rect-col {
-          .lever-rect {
-            margin-top: 1px;
-          }
-        }
-      }
-      .common-table-ellipsis:not(.tag-item) {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        white-space: normal;
-        word-break: break-all;
-      }
-    }
 
     .t-table {
       .t-table__content {
@@ -55,25 +22,19 @@
               height: 0;
             }
           }
+
           tr:not(.t-table__row--full) {
             // 保证表格内容不足以撑满表格区域时，行高度不自适应增高
             td.alarm-first-col {
+              height: 0;
               padding-top: 0;
               padding-bottom: 0;
-              height: 0;
             }
+
             &:hover {
               .explore-tags-col {
                 .tag-item {
                   background-color: var(--tag-hover-bg-color);
-                }
-              }
-
-              .alert-status-col {
-                .explore-col {
-                  .operate-panel {
-                    display: flex;
-                  }
                 }
               }
             }
@@ -86,112 +47,31 @@
         }
       }
     }
-
-    .alert-status-col {
-      z-index: 50;
-      height: 0;
-      padding-top: 0;
-      padding-bottom: 0;
-      padding-right: 0;
-
-      .explore-col {
-        position: relative;
-        height: 100%;
-
-        .operate-panel {
-          position: absolute;
-          top: 0;
-          right: -40px;
-          display: none;
-
-          // display: flex;
-          column-gap: 14px;
-          align-items: center;
-          height: 100%;
-          padding: 0 16px;
-          color: #313238;
-          background: #eaebf0;
-
-          &-item {
-            --icon-container-size: 18px;
-
-            width: var(--icon-container-size);
-            height: var(--icon-container-size);
-
-            @include icon-size(18px, true);
-
-            &.icon-we-com {
-              width: var(--icon-container-size);
-              height: var(--icon-container-size);
-
-              @include icon-size(16px, true);
-            }
-
-            &.icon-chuli {
-              width: var(--icon-container-size);
-              height: var(--icon-container-size);
-
-              @include icon-size(16px, true);
-            }
-
-            &.is-disable {
-              color: #c4c6cc;
-              cursor: not-allowed;
-
-              &:hover {
-                color: #c4c6cc;
-                cursor: not-allowed;
-              }
-            }
-          }
-
-          .operate-more {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-
-            .icon-mc-more {
-              font-size: 18px;
-            }
-
-            &:hover {
-              cursor: pointer;
-              background: #e1ecff;
-            }
-
-            &.active {
-              background: #e1ecff;
-            }
-          }
-        }
-      }
-    }
   }
 
   .explore-col {
     line-height: 20px;
+
     &.lever-rect-col {
       display: flex;
       align-items: center;
 
       .lever-rect {
+        position: relative;
+        display: inline-flex;
         flex-shrink: 0;
+        align-items: center;
         width: 3px;
         height: 20px;
         margin-right: 4px;
-        position: relative;
-        display: inline-flex;
-        align-items: center;
+
         &::before {
-          content: '';
+          position: absolute;
+          left: 0;
           width: 100%;
           height: 12px;
+          content: '';
           background-color: var(--lever-rect-color);
-          left: 0;
-          position: absolute;
         }
       }
 
@@ -201,129 +81,9 @@
       }
     }
 
-    &.alert-extend-info-col {
-      & > div {
-        display: inline-flex;
-        flex-direction: column;
-        justify-content: center;
-        max-width: 100%;
-        line-height: 18px;
-
-        .extend-content {
-          display: flex;
-          height: 18px;
-
-          @include text-ellipsis;
-
-          &-message {
-            @include text-ellipsis;
-          }
-
-          &-link {
-            color: #3a84ff;
-            cursor: pointer;
-
-            &.link-more {
-              float: right;
-              margin-left: 6px;
-            }
-          }
-        }
-      }
-    }
-
-    &.alert-description-col {
-      .description-click {
-        text-decoration: underline;
-        text-underline-offset: 4px;
-        cursor: pointer;
-
-        &:hover {
-          color: #3a84ff;
-        }
-      }
-    }
-
-    &.action-content-col {
-      .common-table-ellipsis {
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        white-space: normal;
-      }
-
-      a {
-        color: #3a84ff;
-      }
-    }
-
     &.explore-prefix-icon-col {
       .prefix-icon {
         margin-right: 4px;
-      }
-
-      .alert-status-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 16px;
-        height: 16px;
-
-        &.icon-mind-fill {
-          color: #f59789;
-        }
-
-        &.icon-mc-check-fill {
-          color: #6fc5bf;
-        }
-
-        &.icon-shixiao {
-          font-size: 14px;
-          color: #8e9bb3;
-        }
-      }
-
-      .alert-description-icon {
-        &.icon-monitor {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 16px;
-          height: 16px;
-          font-size: 14px;
-          color: #8e9bb3;
-          background-color: #f0f2f7;
-        }
-      }
-
-      .action-status-icon {
-        &.icon-mc-close-fill {
-          color: #f59789;
-        }
-
-        &.icon-mc-check-fill {
-          color: #6fc5bf;
-        }
-      }
-
-      .incident-status-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-
-        &.icon-mind-fill {
-          color: #f59789;
-        }
-        &.icon-mc-visual-fill {
-          color: #f8b64f;
-        }
-        &.icon-mc-check-fill {
-          color: #6fc5bf;
-        }
-        &.icon-mc-solved {
-          color: #8e9bb3;
-        }
       }
     }
   }
@@ -339,48 +99,5 @@
     right: var(--td-comp-paddingLR-s);
     left: var(--td-comp-paddingLR-s);
     width: calc(100% - var(--td-comp-paddingLR-s) - var(--td-comp-paddingLR-s));
-  }
-}
-
-.tippy-box[data-theme~='alarm-center-popover'] {
-  .alert-name-popover-container {
-    padding: 6px 8px;
-    line-height: 20px;
-
-    .alert-name-item {
-      display: flex;
-
-      // align-items: center;
-      align-items: flex-start;
-      font-size: 12px;
-
-      .alert-name-item-label {
-        display: inline-block;
-        flex-shrink: 0;
-        width: 58px;
-        margin-right: 4px;
-        text-align: right;
-      }
-
-      .alert-name-item-value {
-        display: inline-flex;
-        align-items: flex-start;
-        color: #a3c5fd;
-        cursor: pointer;
-
-        a {
-          display: inline-flex;
-          align-items: flex-start;
-        }
-
-        .icon-monitor {
-          margin-left: 2px;
-        }
-      }
-    }
-  }
-
-  .extend-info-popover-container {
-    padding: 6px 8px;
   }
 }

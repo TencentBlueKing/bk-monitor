@@ -160,11 +160,11 @@ export const AlertDataTypeMap = {
 
 export const AlertTargetTypeMap = {
   HOST: {
-    prefixIcon: 'target-icon icon-monitor icon-zhuji',
+    prefixIcon: 'alert-target-icon icon-monitor icon-zhuji',
     alias: window.i18n.t('主机'),
   },
   SERVICE: {
-    prefixIcon: 'target-icon icon-monitor icon-APM',
+    prefixIcon: 'alert-target-icon icon-monitor icon-APM',
     alias: window.i18n.t('服务'),
   },
   // TODO 待确认icon
