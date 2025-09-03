@@ -18,7 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
+import json
 import re
 from collections import defaultdict
 
@@ -1712,11 +1712,33 @@ class BaseIndexSetHandler:
             multi_execute_func = MultiExecuteFunc()
             objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
             for obj in objs:
+                time_field = obj.time_field or index_set.time_field
+                time_field_type = obj.time_field_type or index_set.time_field_type
                 table_info = {
                     "table_id": self.get_rt_id(index_set.index_set_id, obj.result_table_id),
                     "index_set": obj.result_table_id.replace(".", "_"),
                     "source_type": obj.scenario_id,
                     "cluster_id": obj.storage_cluster_id,
+                    "options": [
+                        {
+                            "name": "time_field",
+                            "value_type": "dict",
+                            "value": json.dumps(
+                                {
+                                    "name": time_field,
+                                    "type": time_field_type,
+                                    "unit": obj.time_field_unit or index_set.time_field_unit
+                                    if time_field_type != TimeFieldTypeEnum.DATE.value
+                                    else TimeFieldUnitEnum.MILLISECOND.value,
+                                }
+                            ),
+                        },
+                        {
+                            "name": "need_add_time",
+                            "value_type": "bool",
+                            "value": json.dumps(obj.scenario_id != Scenario.ES),
+                        },
+                    ],
                 }
                 if table_info["source_type"] == Scenario.LOG:
                     table_info["origin_table_id"] = obj.result_table_id
@@ -1740,6 +1762,7 @@ class BaseIndexSetHandler:
                             "bkbase_table_id": doris_result_table,
                             "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
                             "source_type": "bkdata",
+                            "need_create_index": False,
                         }
                     ],
                 }
