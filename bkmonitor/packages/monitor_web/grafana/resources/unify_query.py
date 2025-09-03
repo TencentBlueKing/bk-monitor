@@ -646,9 +646,11 @@ class UnifyQueryRawResource(ApiAuthResource):
             return []
 
         metrics = MetricListCache.objects.filter(
-            reduce(lambda x, y: x | y, metric_queries), bk_tenant_id=get_request_tenant_id()
+            reduce(lambda x, y: x | y, metric_queries),
+            bk_tenant_id=get_request_tenant_id(),
+            bk_biz_id=params["bk_biz_id"],
         )
-        metric_infos = cls.transfer_metric(metrics=metrics, bk_biz_id=params["bk_biz_id"])
+        metric_infos = cls.transfer_metric(bk_biz_id=params["bk_biz_id"], metrics=metrics)
         return metric_infos
 
     @staticmethod
