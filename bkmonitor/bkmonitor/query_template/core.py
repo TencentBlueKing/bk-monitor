@@ -23,6 +23,7 @@ class BaseQuery:
         self,
         name: str,
         bk_biz_id: int,
+        bk_tenant_id: str,
         query_configs: list[dict[str, Any]],
         alias: str | None = None,
         namespace: str | None = None,
@@ -34,6 +35,7 @@ class BaseQuery:
     ):
         self.name: str = name
         self.bk_biz_id: int = bk_biz_id
+        self.bk_tenant_id: str = bk_tenant_id
         self.alias: str = alias or ""
         self.namespace: str = namespace or constants.Namespace.DEFAULT.value
         self.description: str = description or ""
@@ -45,6 +47,7 @@ class BaseQuery:
     def to_dict(self) -> dict[str, Any]:
         return {
             "bk_biz_id": self.bk_biz_id,
+            "bk_tenant_id": self.bk_tenant_id,
             "name": self.name,
             "alias": self.alias,
             "namespace": self.namespace,
@@ -250,6 +253,7 @@ class QueryTemplateWrapper(BaseQuery):
         self,
         name: str,
         bk_biz_id: int,
+        bk_tenant_id: str,
         query_configs: list[dict[str, Any]],
         alias: str | None = None,
         namespace: str | None = None,
@@ -268,6 +272,7 @@ class QueryTemplateWrapper(BaseQuery):
         super().__init__(
             name=name,
             bk_biz_id=bk_biz_id,
+            bk_tenant_id=bk_tenant_id,
             query_configs=query_configs,
             alias=alias,
             namespace=namespace,
@@ -306,6 +311,7 @@ class QueryTemplateWrapper(BaseQuery):
         return cls.from_dict(
             {
                 "bk_biz_id": obj.bk_biz_id,
+                "bk_tenant_id": obj.bk_tenant_id,
                 "name": obj.name,
                 "alias": obj.alias,
                 "namespace": obj.namespace,

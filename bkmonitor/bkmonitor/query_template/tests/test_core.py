@@ -15,6 +15,8 @@ import pytest
 
 from .. import core, mock_data
 
+from constants.common import DEFAULT_TENANT_ID
+
 
 def _sorted_repr(item: Any) -> str:
     return json.dumps(item, sort_keys=True, ensure_ascii=False)
@@ -42,6 +44,7 @@ class TestQueryTemplateWrapper:
                 mock_data.CALLEE_SUCCESS_RATE_QUERY_TEMPLATE,
                 {
                     "bk_biz_id": 0,
+                    "bk_tenant_id": DEFAULT_TENANT_ID,
                     "alias": "被调成功率（%）",
                     "name": "apm_rpc_callee_success_rate",
                     "namespace": "default",
@@ -90,6 +93,7 @@ class TestQueryTemplateWrapper:
                 mock_data.CALLEE_P99_QUERY_TEMPLATE,
                 {
                     "bk_biz_id": 0,
+                    "bk_tenant_id": DEFAULT_TENANT_ID,
                     "alias": "被调 P99 耗时（ms）",
                     "name": "apm_rpc_callee_p99",
                     "namespace": "default",

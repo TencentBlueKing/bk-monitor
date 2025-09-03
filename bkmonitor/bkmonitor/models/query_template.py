@@ -13,6 +13,7 @@ from bkmonitor.utils.model_manager import AbstractRecordModel
 
 from django.utils.translation import gettext as _
 
+from constants.common import DEFAULT_TENANT_ID
 from constants.query_template import DEFAULT_NAMESPACE, GLOBAL_BIZ_ID
 
 
@@ -21,6 +22,7 @@ class QueryTemplate(AbstractRecordModel):
     alias = models.CharField(verbose_name=_("模板别名"), max_length=256, default="", blank=True)
     bk_biz_id = models.IntegerField(verbose_name=_("业务 ID"), default=GLOBAL_BIZ_ID, db_index=True)
     space_scope = models.JSONField(verbose_name=_("生效范围"), default=list)
+    bk_tenant_id = models.CharField(verbose_name=_("租户ID"), max_length=256, null=True, default=DEFAULT_TENANT_ID)
     namespace = models.CharField(verbose_name=_("命名空间"), max_length=128, default=DEFAULT_NAMESPACE, db_index=True)
     description = models.TextField(verbose_name=_("模板说明"), default="", blank=True)
     expression = models.TextField(verbose_name=_("计算公式"))
@@ -32,4 +34,4 @@ class QueryTemplate(AbstractRecordModel):
         verbose_name = _("查询模板")
         verbose_name_plural = _("查询模板")
         index_together = [["bk_biz_id", "name"], ["bk_biz_id", "namespace", "name"]]
-        unique_together = ["bk_biz_id", "name"]
+        unique_together = ["bk_biz_id", "bk_tenant_id", "name"]
