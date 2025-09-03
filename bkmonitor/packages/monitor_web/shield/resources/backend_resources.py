@@ -397,7 +397,10 @@ class BulkAddAlertShieldResource(AddShieldResource):
         ]
         # 编辑了维度后， 则将告警对应的剩下的维度的key放进来。 作为字典， key是告警id， value是剩下的维度key列表
         "dimensions": {"111": ["xxx", "yyy"], "100": ["xxx", "yyy"],
-        "bk_topo_node": [{"bk_obj_id": "set","bk_inst_id": 3}, {"bk_obj_id": "module","bk_inst_id": 4}]
+        "bk_topo_node": {
+            "111": [{"bk_obj_id": "set","bk_inst_id": 3}, {"bk_obj_id": "module","bk_inst_id": 4}]
+            "100": [{"bk_obj_id": "set","bk_inst_id": 3}, {"bk_obj_id": "module","bk_inst_id": 4}]
+            }
         },
       },
       "shield_notice": false,
@@ -448,9 +451,9 @@ class BulkAddAlertShieldResource(AddShieldResource):
             }
 
             # 如果前端传入了bk_topo_node维度， 则使用前端传入的维度。 主要是为了支持集群/模块维度的屏蔽
-            bk_topo_node = data["dimension_config"].get("bk_topo_node")
+            bk_topo_node: list = data["dimension_config"].get("bk_topo_node", {}).get(str(alert.id), [])
             if bk_topo_node:
-                default_dimension_config["bk_topo_node"] = bk_topo_node
+                default_dimension_config["bk_topo_node"][str(alert.id)] = bk_topo_node
 
             dimension_config.update(default_dimension_config)
             alert_documents.append(AlertDocument(id=alert.id, is_shielded=True, update_time=now_time))
