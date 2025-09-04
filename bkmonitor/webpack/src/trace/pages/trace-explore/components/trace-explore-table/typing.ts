@@ -44,6 +44,8 @@ export enum ExploreTableColumnTypeEnum {
   TEXT = 'text',
   /** 日期列 (将 时间戳 转换为 YYYY-MM-DD HH:mm:ss) */
   TIME = 'time',
+  /** 用户名展示标签列(已兼容多租户逻辑) */
+  USER_TAGS = 'user-tags',
 }
 
 /** 检索表格loading类型枚举 */
@@ -62,6 +64,41 @@ export interface ActiveConditionMenuTarget {
   conditionValue: string;
   customMenuList?: ExploreConditionMenuItem[];
   rowId: string;
+}
+
+/**  trace检索 table表格不同类型列 渲染值类型映射表 */
+export interface BaseTableCellRenderValueType {
+  [ExploreTableColumnTypeEnum.DURATION]: number;
+  [ExploreTableColumnTypeEnum.TAGS]: string[] | TagCellItem[];
+  [ExploreTableColumnTypeEnum.TIME]: number;
+  [ExploreTableColumnTypeEnum.USER_TAGS]: string[];
+  [ExploreTableColumnTypeEnum.LINK]: {
+    alias: string;
+    url: string;
+  };
+  [ExploreTableColumnTypeEnum.PREFIX_ICON]: {
+    alias: string;
+    prefixIcon: string | TableCellRenderer<ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>>;
+  };
+}
+
+/** trace检索 表格列配置类型 */
+export interface BaseTableColumn<K extends string = string, U extends Record<string, any> = Record<string, any>>
+  extends Omit<PrimaryTableCol, 'ellipsis' | 'ellipsisTitle'> {
+  /** 单元格是否开启溢出省略弹出 popover 功能 */
+  cellEllipsis?: boolean;
+  /** 自定义单元格渲染 */
+  cellRenderer?: TableCellRenderer;
+  /** 列描述(popover形式展现) **/
+  headerDescription?: string;
+  /** 字段类型 */
+  renderType?: K;
+  /** 单元格后置插槽（tag类型列暂未支持） */
+  suffixSlot?: TableCellRenderer;
+  /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */
+  clickCallback?: (row, column: BaseTableColumn<any, any>, event: MouseEvent) => void;
+  /** 需要自定义定义 渲染值 时可用 */
+  getRenderValue?: (row, column: BaseTableColumn<any, any>) => GetTableCellRenderValue<K, U>;
 }
 
 /** 自定义显示列字段缓存配置 */
@@ -84,48 +121,51 @@ export interface ExploreConditionMenuItem {
   suffixRender?: () => SlotReturnValue;
 }
 
-/** trace检索 表格列配置类型 */
-export interface ExploreTableColumn<T extends ExploreTableColumnTypeEnum = ExploreTableColumnTypeEnum>
-  extends PrimaryTableCol {
-  /** 列描述(popover形式展现) **/
-  headerDescription?: string;
-  /** 字段类型 */
-  renderType?: T;
-  /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */
-  clickCallback?: (row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, event: MouseEvent) => void;
-  /** 需要自定义定义 渲染值 时可用 */
-  getRenderValue?: (row, column: ExploreTableColumn<T>) => GetTableCellRenderValue<T>;
-  /** 单元格后置插槽（tag类型列暂未支持） */
-  suffixSlot?: (row, column: ExploreTableColumn) => SlotReturnValue;
-}
+export type ExploreTableColumn<T extends ExploreTableColumnTypeEnum | string = ExploreTableColumnTypeEnum> =
+  BaseTableColumn<T, BaseTableCellRenderValueType>;
 
 /**
  * @description 获取 table表格列 渲染值类型 (默认为字符串)
  *
  */
-export type GetTableCellRenderValue<T> = T extends keyof TableCellRenderValueType
-  ? TableCellRenderValueType[T]
-  : string;
+export type GetTableCellRenderValue<K, U = BaseTableCellRenderValueType> = K extends keyof U
+  ? U[K]
+  : string | string[] | unknown;
 
-/**  trace检索 table表格不同类型列 渲染值类型映射表 */
-export interface TableCellRenderValueType {
-  [ExploreTableColumnTypeEnum.DURATION]: number;
-  [ExploreTableColumnTypeEnum.TIME]: number;
-  [ExploreTableColumnTypeEnum.LINK]: {
-    alias: string;
-    url: string;
-  };
-  [ExploreTableColumnTypeEnum.PREFIX_ICON]: {
-    alias: string;
-    prefixIcon: ((row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>) => SlotReturnValue) | string;
-  };
-  [ExploreTableColumnTypeEnum.TAGS]: {
-    alias: string;
-    tagBgColor: string;
-    tagColor: string;
-    value: string;
-  }[];
+export interface TableCellRenderContext<K extends string = string> {
+  /** 开启省略文本省略的类名 */
+  cellEllipsisClass: string;
+  /** 不同类型单元格渲染策略对象集合 */
+  cellRenderHandleMap: Record<ExploreTableColumnTypeEnum | K, TableCellRenderer>;
+  /** 获取当前行的唯一 rowId */
+  getRowId: (row: Record<string, any>) => string;
+  /** 获取表格单元格渲染值 */
+  getTableCellRenderValue: <T extends ExploreTableColumnTypeEnum | string>(
+    row: Record<string, any>,
+    column: BaseTableColumn<any, any>
+  ) => GetTableCellRenderValue<T>;
+  /** 是否启用单元格文本省略号 */
+  isEnabledCellEllipsis: (column: BaseTableColumn<any, any>) => string;
 }
+
+/**
+ * 通用表格单元格渲染类型
+ * column 允许为 BaseTableColumn 或 ExploreTableColumn，row 为 any
+ */
+export type TableCellRenderer<T extends BaseTableColumn<any, any> = BaseTableColumn<any, any>> = (
+  row: any,
+  column: T,
+  renderCtx: TableCellRenderContext
+) => SlotReturnValue;
 
 /** 表格筛选项类型 */
 export type TableFilterItem = OptionData;
+
+export interface TagCellItem {
+  alias: string;
+  tagBgColor?: string;
+  tagColor?: string;
+  tagHoverBgColor?: string;
+  tagHoverColor?: string;
+  value: string;
+}

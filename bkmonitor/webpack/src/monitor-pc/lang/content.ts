@@ -133,6 +133,7 @@ export default {
   '共产生{0}个高危告警和{1}个其他告警': 'high-risk alarms : {0}, other alarm : {1}',
   '已选择 {n}': 'selected {n}',
   '已选择{0}个策略': '{0} rules selected',
+  '已选择 {0} 条告警': '{0} alarms selected',
   '已选择 {n} 个主机': 'Selected {n} hosts',
   '已选择 {n} 个动态分组': 'Selected {n} dynamic groups',
   '已选择{count}条': 'Selected {count} Items',

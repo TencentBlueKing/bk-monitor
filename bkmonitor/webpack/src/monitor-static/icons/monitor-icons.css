@@ -1,5 +1,8 @@
+/* stylelint-disable font-family-no-missing-generic-family-keyword */
+
+/* stylelint-disable font-family-name-quotes */
 @font-face {
-  font-family: icon-monitor; /* Project id 1185924 */
+  font-family: 'icon-monitor'; /* Project id 1185924 */
   src:
     url('monitor-icons.woff2?t=1751447220734') format('woff2'),
     url('monitor-icons.woff?t=1751447220734') format('woff'),
@@ -7,7 +10,7 @@
 }
 
 .icon-monitor {
-  font-family: icon-monitor !important;
+  font-family: 'icon-monitor' !important;
   font-size: 16px;
   font-style: normal;
   -webkit-font-smoothing: antialiased;

@@ -83,7 +83,12 @@ export default (type: string) => {
 
   const allFavoriteList = computed(() =>
     groupList.value.reduce<IFavoriteGroup['favorites']>((result, item) => {
-      return result.concat(item.favorites);
+      return result.concat(
+        item.favorites.map(f => ({
+          ...f,
+          groupName: item?.name || '',
+        }))
+      );
     }, [])
   );
   const wholeFavoriteList = computed(() =>

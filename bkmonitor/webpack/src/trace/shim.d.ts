@@ -61,6 +61,7 @@ declare global {
     i18n: typeof i18n.global;
     // 以下为日志全局变量配置
     mainComponent: any;
+
     rawWindow?: Window;
     site_url: string;
     source_app: string;

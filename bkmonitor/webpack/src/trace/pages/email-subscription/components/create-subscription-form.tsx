@@ -1110,6 +1110,7 @@ export default defineComponent({
                           ]}
                           data={this.variableTable.data}
                           maxHeight={400}
+                          needCustomScroll={false}
                           rowKey='id'
                           stripe
                         />
