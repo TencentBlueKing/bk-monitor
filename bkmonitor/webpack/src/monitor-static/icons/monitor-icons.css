@@ -1,3 +1,6 @@
+/* stylelint-disable selector-class-pattern */
+
+/* stylelint-disable font-family-no-missing-generic-family-keyword */
 @font-face {
   font-family: icon-monitor; /* Project id 1185924 */
   src:
@@ -12,6 +15,10 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-auto-decode::before {
+  content: '\e841';
 }
 
 .icon-icon-query-template::before {

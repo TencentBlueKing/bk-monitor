@@ -251,10 +251,12 @@
           .remark-column {
             width: 100%;
             height: 26px;
+            line-height: 26px;
             border-radius: 2px;
-            display: flex;
-            align-items: center;
             padding-left: 8px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
 
             &:hover {
               background: #eaebf0;

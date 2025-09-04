@@ -1160,6 +1160,33 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 continue
             cleaned_data[field.field] = field.get_value_by_es_field(data)
 
+        items = []
+        for item in data.get("extra_info", {}).get("strategy", {}).get("items", []):
+            query_configs = []
+            for config in item.get("query_configs", []):
+                query_configs.append(
+                    {
+                        "alias": config.get("alias", ""),
+                        "metric_id": config.get("metric_id", ""),
+                        "functions": config.get("functions", []),
+                        "agg_method": config.get("agg_method"),
+                        "agg_interval": config.get("agg_interval"),
+                        "agg_dimension": config.get("agg_dimension", []),
+                        "agg_condition": config.get("agg_condition", []),
+                    }
+                )
+
+            items.append(
+                {
+                    "id": item.get("id"),
+                    "name": item.get("name", ""),
+                    "expression": item.get("expression", ""),
+                    "functions": item.get("functions", []),
+                    "origin_sql": item.get("origin_sql", ""),
+                    "query_configs": query_configs,
+                }
+            )
+
         # 额外字段
         cleaned_data.update(
             {
@@ -1177,6 +1204,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "target_key": AlertDimensionFormatter.get_target_key(
                     cleaned_data.get("target_type"), data.get("dimensions")
                 ),
+                "items": items,
             }
         )
 
