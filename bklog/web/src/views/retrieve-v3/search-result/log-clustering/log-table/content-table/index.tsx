@@ -24,7 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, nextTick, watch, PropType } from "vue";
+import {
+  computed,
+  defineComponent,
+  ref,
+  nextTick,
+  watch,
+  PropType,
+  shallowRef,
+  onMounted,
+  onBeforeUnmount,
+} from "vue";
 import { orderBy } from "lodash-es";
 import useLocale from "@/hooks/use-locale";
 import tippy from "tippy.js";
@@ -104,6 +114,8 @@ export default defineComponent({
     const isOpen = ref(true); // 是否展开
     const tableData = ref<LogPattern[]>([]);
 
+    const localTableData = shallowRef<LogPattern[]>([]);
+
     const showYOY = computed(() => props.requestData?.year_on_year_hour >= 1);
     const isLimitExpandView = computed(
       () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]
@@ -132,9 +144,10 @@ export default defineComponent({
       () => store.getters.isAiAssistantActive
     );
 
-    let localTableData: LogPattern[] = [];
     let popoverInstance: any = null;
     let remarkPopoverTimer: NodeJS.Timeout;
+    const pageSize = 100;
+    let offset = 0;
 
     const isExternal = window.IS_EXTERNAL === "true";
 
@@ -166,8 +179,14 @@ export default defineComponent({
     watch(
       () => props.tableInfo?.dataList,
       () => {
-        tableData.value = props.tableInfo?.dataList;
-        localTableData = structuredClone(props.tableInfo?.dataList);
+        localTableData.value = structuredClone(props.tableInfo.dataList);
+        if (localTableData.value.length > pageSize) {
+          // 分页
+          tableData.value = props.tableInfo.dataList.slice(0, pageSize);
+          return;
+        }
+
+        tableData.value = props.tableInfo.dataList;
       },
       {
         immediate: true,
@@ -180,7 +199,7 @@ export default defineComponent({
         const sortObj = Object.entries(props.filterSortMap.sort).find(
           (item) => !!item[1]
         );
-        let dataList = structuredClone(localTableData);
+        let dataList = structuredClone(localTableData.value);
         if (sortObj) {
           // 排序
           const [field, order] = sortObj;
@@ -218,12 +237,19 @@ export default defineComponent({
       }
     );
 
+    watch(
+      () => [showGounpBy.value, isFlattenMode.value],
+      () => {
+        offset = 0;
+      }
+    );
+
     const updateTableRowData = (id: number, key: string, value: any) => {
       const row = tableData.value.find((item) => item.id === id);
       if (row) {
         row[key] = value;
       }
-      const localRow = localTableData.find((item) => item.id === id);
+      const localRow = localTableData.value.find((item) => item.id === id);
       if (localRow) {
         localRow[key] = value;
       }
@@ -445,9 +471,71 @@ export default defineComponent({
       store.dispatch("setQueryCondition", addConditions);
     };
 
+    const handleBottomAppendList = () => {
+      offset += pageSize;
+      tableData.value.push(
+        ...localTableData.value.slice(offset, offset + pageSize)
+      );
+    };
+
+    const handleGlobalwheel = (e: any) => {
+      e.preventDefault();
+      if (
+        tableWraperRef.value.clientHeight + tableWraperRef.value.scrollTop <
+        tableWraperRef.value.scrollHeight
+      ) {
+        e.stopPropagation();
+      }
+
+      if (!showGounpBy.value) {
+        return;
+      }
+
+      if (e.deltaY !== 0) {
+        tableWraperRef.value!.scrollTop += e.deltaY;
+      }
+    };
+
+    const handleGlobalScroll = (e: any) => {
+      if (!showGounpBy.value) {
+        return;
+      }
+      const { scrollHeight, clientHeight, scrollTop } = e.target;
+      if (scrollHeight === clientHeight) {
+        return;
+      }
+
+      if (clientHeight + scrollTop === scrollHeight) {
+        handleBottomAppendList();
+      }
+    };
+
+    onMounted(() => {
+      tableWraperRef.value.addEventListener("wheel", handleGlobalwheel, {
+        passive: false,
+      });
+      tableWraperRef.value!.addEventListener("scroll", handleGlobalScroll);
+    });
+
+    onBeforeUnmount(() => {
+      tableWraperRef.value.removeEventListener("wheel", handleGlobalwheel);
+      tableWraperRef.value!.removeEventListener("scroll", handleGlobalScroll);
+    });
+
     expose({
       scroll: (scrollLeft: number) =>
         (tableWraperRef.value!.scrollLeft = scrollLeft),
+      bottomAppendList: () => {
+        if (showGounpBy.value && !isFlattenMode.value) {
+          return;
+        }
+
+        if (offset > localTableData.value.length) {
+          return;
+        }
+
+        handleBottomAppendList();
+      },
     });
 
     return () => (
@@ -491,20 +579,23 @@ export default defineComponent({
               <log-icon type="sousuo-" />
             </div>
             <div class="count-display">
-              （{t("共有 {0} 条数据", [tableData.value.length])}）
+              （{t("共有 {0} 条数据", [localTableData.value.length])}）
             </div>
           </div>
         )}
         {!showGounpBy.value && (
           <div class="list-count-main">
             <i18n path="共有 {0} 条数据">
-              <span style="font-weight:700">{tableData.value.length}</span>
+              <span style="font-weight:700">{localTableData.value.length}</span>
             </i18n>
           </div>
         )}
         <div
           style={{ display: isOpen.value ? "block" : "none" }}
-          class="log-content-table-wraper"
+          class={{
+            "log-content-table-wraper": true,
+            "is-scroll-mode": showGounpBy.value,
+          }}
           ref={tableWraperRef}
         >
           <table class="log-content-table">
