@@ -6,9 +6,16 @@ from django.db import migrations
 def migrate_value_to_value_list(apps, schema_editor):
     LogServiceRelation = apps.get_model("apm_web", "LogServiceRelation")
     for record in LogServiceRelation.objects.filter(log_type="bk_log"):
-        if record.value and int(record.value) not in record.value_list:
-            record.value_list.append(int(record.value))
-            record.save()
+        if not record.value:
+            continue
+
+        try:
+            index_set_id = int(record.value)
+            if index_set_id not in record.value_list:
+                record.value_list = [index_set_id]
+                record.save()
+        except ValueError:  # ignore value error, if value is string, not number
+            continue
 
 
 class Migration(migrations.Migration):
