@@ -55,6 +55,7 @@ interface IEventExploreViewEvents {
   onSearch: () => void;
   onSetRouteParams(otherQuery: Record<string, any>): void;
   onShowEventSourcePopover(event: Event): void;
+  onIntervalChange: (interval: IntervalType) => void;
 }
 
 interface IEventExploreViewProps {
@@ -322,6 +323,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     }
     this.chartInterval = interval;
     this.updatePanelConfig();
+    this.sendInterval();
   }
 
   /**
@@ -329,6 +331,11 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
    */
   handleShowLegendChange(legends: ILegendItem[]) {
     this.showLegendList = legends.filter(v => v.show).map(v => v.name) as DimensionsTypeEnum[];
+  }
+
+  @Emit('intervalChange')
+  sendInterval() {
+    return this.chartInterval;
   }
 
   @Emit('showEventSourcePopover')

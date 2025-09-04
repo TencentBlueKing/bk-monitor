@@ -680,24 +680,31 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               item.interval_unit = 's';
               item.interval *= 60;
             }
+            let conditions = [];
+            if (item.metric_id) {
+              conditions = [{
+                key: 'metric_id',
+                value: item.metric_id || '',
+              }]
+            } else {
+              conditions = metricFields.map(field => {
+                if (field === 'data_source_label') {
+                  return {
+                    key: field,
+                    value: Array.isArray(item[field]) ? item[field] : [item[field]],
+                  };
+                }
+                return {
+                  key: field,
+                  value: item[field] ?? '',
+                };
+              }).filter(set => set.key !== 'data_label' || set.value);
+            }
             return getMetricListV2({
               bk_biz_id: this.bizId,
               // page: 1,
               // page_size: 1,
-              conditions: metricFields
-                .map(field => {
-                  if (field === 'data_source_label') {
-                    return {
-                      key: field,
-                      value: Array.isArray(item[field]) ? item[field] : [item[field]],
-                    };
-                  }
-                  return {
-                    key: field,
-                    value: item[field] ?? '',
-                  };
-                })
-                .filter(set => set.key !== 'data_label' || set.value),
+              conditions,
               search_value: '',
               tag: '',
             })

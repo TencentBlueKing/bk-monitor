@@ -33,7 +33,7 @@
 
   const store = useStore();
   const { $t } = useLocale();
-  const { getQualifiedFieldName } = useFieldNameHook({ store });
+  const { getQualifiedFieldName, getQualifiedFieldAttrs } = useFieldNameHook({ store });
 
   enum OptionItemType {
     Colon = 'Colon',
@@ -295,10 +295,10 @@
     if (inputField) {
       fieldList.value = originFieldList()
         .reduce((acc: { index: number; fieldName: string }[], item) => {
-          const name = getQualifiedFieldName(item, totalFields.value);
-          const index = name.toLowerCase().indexOf(inputField.toLowerCase());
-          if (index !== -1) {
-            acc.push({ index, fieldName: item });
+          const { field_name, is_virtual_alias_field } = getQualifiedFieldAttrs(item, totalFields.value, false, ['is_virtual_alias_field']);
+          const index = field_name.toLowerCase().indexOf(inputField.toLowerCase());
+          if (index >= 0) {
+            acc.push({ index: index * 10 - (is_virtual_alias_field ? 1 : 0), fieldName: item });
           }
           return acc;
         }, [])

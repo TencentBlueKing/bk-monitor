@@ -122,6 +122,34 @@ export default ({ store }) => {
     }
     return field_name;
   };
+
+  /**
+   * 根据字段名返回拼接字段名
+   * @param field_name
+   * @param list
+   * @param withAliasFieldMap
+   * @param attrs
+   * @returns
+   */
+  const getQualifiedFieldAttrs = (
+    field_name: string,
+    list?: FieldInfoItem[],
+    withAliasFieldMap = false,
+    attrs: string[] = [],
+  ) => {
+    const field = (list || getFieldList(withAliasFieldMap)).find(item => item.field_name === field_name);
+    const reduceFn = (acc, attr) => {
+      if (attr !== 'field_name') {
+        acc[attr] = field[attr];
+      }
+      return acc;
+    };
+    if (field?.query_alias) {
+      return attrs.reduce(reduceFn, { field_name: `${field.query_alias}(${field_name})` });
+    }
+    return attrs.reduce(reduceFn, { field_name });
+  };
+
   return {
     getFieldName,
     getFieldNames,
@@ -130,5 +158,6 @@ export default ({ store }) => {
     changeFieldName,
     getFieldNameByField: mGetFieldNameByField,
     getQualifiedFieldName,
+    getQualifiedFieldAttrs,
   };
 };

@@ -75,7 +75,6 @@ from apm.serializers import (
 )
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
-from apm_web.constants import ServiceRelationLogTypeChoices
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
@@ -1477,11 +1476,7 @@ class QueryLogRelationByIndexSetIdResource(Resource):
         from apm_web.models import LogServiceRelation
 
         # Step: 从服务关联中找
-        log_relation = (
-            LogServiceRelation.objects.filter(log_type=ServiceRelationLogTypeChoices.BK_LOG, value=data["index_set_id"])
-            .order_by("created_at")
-            .first()
-        )
+        log_relation = LogServiceRelation.filter_by_index_set_id(data["index_set_id"]).order_by("created_at").first()
         if log_relation:
             return {
                 "bk_biz_id": log_relation.bk_biz_id,

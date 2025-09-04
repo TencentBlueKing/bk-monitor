@@ -221,13 +221,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
   /** 是否支持智能检测算法 时序预测条件一致 */
   get isCanSetAiops(): boolean {
-    const {
-      data_source_label: dataSourceLabel,
-      data_type_label: dataTypeLabel,
-      functions,
-      result_table_id,
-    } = this.metricData[0] || {};
-
+    const { data_type_label: dataTypeLabel } = this.metricData[0] || {};
     const isTimeSeries = dataTypeLabel === 'time_series' || this.dataTypeLabel === 'time_series'; // 数据类型是否为指标
     const isLogMetric = dataTypeLabel === 'log' || this.dataTypeLabel === 'log';
     const isEventMetric = dataTypeLabel === 'event' || this.dataTypeLabel === 'event';

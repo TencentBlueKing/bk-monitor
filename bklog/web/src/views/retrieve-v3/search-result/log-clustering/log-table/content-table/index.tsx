@@ -24,7 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, nextTick, watch, PropType } from "vue";
+import {
+  computed,
+  defineComponent,
+  ref,
+  nextTick,
+  watch,
+  PropType,
+  shallowRef,
+  onMounted,
+  onBeforeUnmount,
+} from "vue";
 import { orderBy } from "lodash-es";
 import useLocale from "@/hooks/use-locale";
 import tippy from "tippy.js";
@@ -104,37 +114,40 @@ export default defineComponent({
     const isOpen = ref(true); // 是否展开
     const tableData = ref<LogPattern[]>([]);
 
+    const localTableData = shallowRef<LogPattern[]>([]);
+
     const showYOY = computed(() => props.requestData?.year_on_year_hour >= 1);
     const isLimitExpandView = computed(
-      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
+      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]
     );
     /** 获取当前编辑操作的数据 */
     const currentRowValue = computed(() =>
-      tableData.value.find((item) => item.id === currentRowId.value),
+      tableData.value.find((item) => item.id === currentRowId.value)
     );
     const showGounpBy = computed(
       () =>
-        props.requestData?.group_by.length > 0 && props.displayMode === "group",
+        props.requestData?.group_by.length > 0 && props.displayMode === "group"
     );
     const isFlattenMode = computed(
       () =>
-        props.requestData?.group_by.length > 0 && props.displayMode !== "group",
+        props.requestData?.group_by.length > 0 && props.displayMode !== "group"
     );
     const groupValueList = computed(() => {
       if (props.requestData?.group_by.length && props.tableInfo?.group.length) {
         return props.requestData.group_by.map(
-          (item, index) => `${item}=${props.tableInfo.group[index]}`,
+          (item, index) => `${item}=${props.tableInfo.group[index]}`
         );
       }
       return [];
     });
     const isAiAssistanceActive = computed(
-      () => store.getters.isAiAssistantActive,
+      () => store.getters.isAiAssistantActive
     );
 
-    let localTableData: LogPattern[] = [];
     let popoverInstance: any = null;
     let remarkPopoverTimer: NodeJS.Timeout;
+    const pageSize = 100;
+    let offset = 0;
 
     const isExternal = window.IS_EXTERNAL === "true";
 
@@ -149,7 +162,7 @@ export default defineComponent({
             widthList = props.widthList.slice(1, props.widthList.length - 1);
           }
           const columns = Array.from(
-            headRowRef.value?.querySelectorAll("th") || [],
+            headRowRef.value?.querySelectorAll("th") || []
           );
           if (columns.length) {
             columns.forEach((item: any, index) => {
@@ -160,27 +173,33 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     watch(
       () => props.tableInfo?.dataList,
       () => {
-        tableData.value = props.tableInfo?.dataList;
-        localTableData = structuredClone(props.tableInfo?.dataList);
+        localTableData.value = structuredClone(props.tableInfo.dataList);
+        if (localTableData.value.length > pageSize) {
+          // 分页
+          tableData.value = props.tableInfo.dataList.slice(0, pageSize);
+          return;
+        }
+
+        tableData.value = props.tableInfo.dataList;
       },
       {
         immediate: true,
-      },
+      }
     );
 
     watch(
       () => props.filterSortMap,
       () => {
         const sortObj = Object.entries(props.filterSortMap.sort).find(
-          (item) => !!item[1],
+          (item) => !!item[1]
         );
-        let dataList = structuredClone(localTableData);
+        let dataList = structuredClone(localTableData.value);
         if (sortObj) {
           // 排序
           const [field, order] = sortObj;
@@ -196,10 +215,10 @@ export default defineComponent({
           } else {
             const ownersMap = owners.reduce<Record<string, boolean>>(
               (map, item) => Object.assign(map, { [item]: true }),
-              {},
+              {}
             );
             dataList = dataList.filter((item) =>
-              item.owners.some((item) => !!ownersMap[item]),
+              item.owners.some((item) => !!ownersMap[item])
             );
           }
         }
@@ -208,14 +227,21 @@ export default defineComponent({
           // 过滤备注
           const isRemarked = remark[0] === "remarked";
           dataList = dataList.filter((item) =>
-            isRemarked ? item.remark.length > 0 : !item.remark.length,
+            isRemarked ? item.remark.length > 0 : !item.remark.length
           );
         }
         tableData.value = dataList;
       },
       {
         deep: true,
-      },
+      }
+    );
+
+    watch(
+      () => [showGounpBy.value, isFlattenMode.value],
+      () => {
+        offset = 0;
+      }
     );
 
     const updateTableRowData = (id: number, key: string, value: any) => {
@@ -223,7 +249,7 @@ export default defineComponent({
       if (row) {
         row[key] = value;
       }
-      const localRow = localTableData.find((item) => item.id === id);
+      const localRow = localTableData.value.find((item) => item.id === id);
       if (localRow) {
         localRow[key] = value;
       }
@@ -271,7 +297,7 @@ export default defineComponent({
               newSearchList,
               searchMode,
               isNewSearchPage,
-              { tab: "origin" },
+              { tab: "origin" }
             );
             window.open(openUrl, "_blank");
             // 新开页后当前页面回填聚类参数
@@ -388,7 +414,7 @@ export default defineComponent({
       currentRowId.value = row.id;
       window.open(
         `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
-        "_blank",
+        "_blank"
       );
     };
 
@@ -445,9 +471,71 @@ export default defineComponent({
       store.dispatch("setQueryCondition", addConditions);
     };
 
+    const handleBottomAppendList = () => {
+      offset += pageSize;
+      tableData.value.push(
+        ...localTableData.value.slice(offset, offset + pageSize)
+      );
+    };
+
+    const handleGlobalwheel = (e: any) => {
+      e.preventDefault();
+      if (
+        tableWraperRef.value.clientHeight + tableWraperRef.value.scrollTop <
+        tableWraperRef.value.scrollHeight
+      ) {
+        e.stopPropagation();
+      }
+
+      if (!showGounpBy.value) {
+        return;
+      }
+
+      if (e.deltaY !== 0) {
+        tableWraperRef.value!.scrollTop += e.deltaY;
+      }
+    };
+
+    const handleGlobalScroll = (e: any) => {
+      if (!showGounpBy.value) {
+        return;
+      }
+      const { scrollHeight, clientHeight, scrollTop } = e.target;
+      if (scrollHeight === clientHeight) {
+        return;
+      }
+
+      if (clientHeight + scrollTop === scrollHeight) {
+        handleBottomAppendList();
+      }
+    };
+
+    onMounted(() => {
+      tableWraperRef.value.addEventListener("wheel", handleGlobalwheel, {
+        passive: false,
+      });
+      tableWraperRef.value!.addEventListener("scroll", handleGlobalScroll);
+    });
+
+    onBeforeUnmount(() => {
+      tableWraperRef.value.removeEventListener("wheel", handleGlobalwheel);
+      tableWraperRef.value!.removeEventListener("scroll", handleGlobalScroll);
+    });
+
     expose({
       scroll: (scrollLeft: number) =>
         (tableWraperRef.value!.scrollLeft = scrollLeft),
+      bottomAppendList: () => {
+        if (showGounpBy.value && !isFlattenMode.value) {
+          return;
+        }
+
+        if (offset > localTableData.value.length) {
+          return;
+        }
+
+        handleBottomAppendList();
+      },
     });
 
     return () => (
@@ -491,20 +579,23 @@ export default defineComponent({
               <log-icon type="sousuo-" />
             </div>
             <div class="count-display">
-              （{t("共有 {0} 条数据", [tableData.value.length])}）
+              （{t("共有 {0} 条数据", [localTableData.value.length])}）
             </div>
           </div>
         )}
         {!showGounpBy.value && (
           <div class="list-count-main">
             <i18n path="共有 {0} 条数据">
-              <span style="font-weight:700">{tableData.value.length}</span>
+              <span style="font-weight:700">{localTableData.value.length}</span>
             </i18n>
           </div>
         )}
         <div
           style={{ display: isOpen.value ? "block" : "none" }}
-          class="log-content-table-wraper"
+          class={{
+            "log-content-table-wraper": true,
+            "is-scroll-mode": showGounpBy.value,
+          }}
           ref={tableWraperRef}
         >
           <table class="log-content-table">
@@ -538,17 +629,13 @@ export default defineComponent({
                 )}
                 {isFlattenMode.value &&
                   props.requestData.group_by.map((item) => (
-                    <th style={{ width: "100px" }}>{item}</th>
+                    <th style="width:100px">{item}</th>
                   ))}
-                <th style={{ minWidth: "350px" }}>Pattern</th>
-                <th style={{ width: "200px" }}>责任人</th>
-                {!isExternal && (
-                  <th style={{ width: "200px" }}>创建告警策略</th>
-                )}
-                <th style={{ width: "200px" }}>备注</th>
-                {isAiAssistanceActive.value && (
-                  <th style={{ width: "60px" }}>ai</th>
-                )}
+                <th style="minWidth:350px">Pattern</th>
+                <th style="width:200px">责任人</th>
+                {!isExternal && <th style="width:200px">创建告警策略</th>}
+                <th style="width:200px">备注</th>
+                {isAiAssistanceActive.value && <th style="width:60px">ai</th>}
               </tr>
             </thead>
             <tbody>
@@ -602,12 +689,12 @@ export default defineComponent({
                             row.year_on_year_percentage < 0
                               ? "#2CAF5E"
                               : row.year_on_year_percentage === 0
-                                ? "#313238"
-                                : "#E71818",
+                              ? "#313238"
+                              : "#E71818",
                         }}
                       >
                         <span>{`${Math.abs(
-                          Number(row.year_on_year_percentage.toFixed(2)),
+                          Number(row.year_on_year_percentage.toFixed(2))
                         )}%`}</span>
                         {row.year_on_year_percentage !== 0 ? (
                           <log-icon
@@ -739,7 +826,7 @@ export default defineComponent({
                             theme="primary"
                             disabled
                             v-bk-tooltips={t(
-                              "暂无配置责任人，无法自动创建告警策略",
+                              "暂无配置责任人，无法自动创建告警策略"
                             )}
                           />
                         )}

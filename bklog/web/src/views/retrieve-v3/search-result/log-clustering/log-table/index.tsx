@@ -109,11 +109,11 @@ export default defineComponent({
 
     const showGroupBy = computed(
       () =>
-        props.requestData?.group_by.length > 0 && displayType.value === "group",
+        props.requestData?.group_by.length > 0 && displayType.value === "group"
     );
     const isFlattenMode = computed(
       () =>
-        props.requestData?.group_by.length > 0 && displayType.value !== "group",
+        props.requestData?.group_by.length > 0 && displayType.value !== "group"
     );
     const smallLoaderWidthList = computed(() => {
       return props.requestData?.year_on_year_hour > 0
@@ -122,7 +122,7 @@ export default defineComponent({
     });
 
     const tableColumnWidth = computed(() =>
-      store.getters.isEnLanguage ? enTableWidth : cnTableWidth,
+      store.getters.isEnLanguage ? enTableWidth : cnTableWidth
     );
 
     const loadingWidthList = {
@@ -155,7 +155,7 @@ export default defineComponent({
       },
       {
         deep: true,
-      },
+      }
     );
 
     watch(
@@ -163,7 +163,7 @@ export default defineComponent({
       () => {
         refreshTable();
       },
-      { deep: true },
+      { deep: true }
     );
 
     const refreshTable = () => {
@@ -207,7 +207,7 @@ export default defineComponent({
               ...props.requestData,
             },
           },
-          { cancelWhenRouteChange: false },
+          { cancelWhenRouteChange: false }
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
         .then((res) => {
@@ -223,7 +223,7 @@ export default defineComponent({
             });
           });
           const keyValueList = keyValueSetList.map((item) =>
-            Array.from(item).sort(),
+            Array.from(item).sort()
           );
           let valueList: any[] = [];
           keyValueList.forEach((values) => {
@@ -304,7 +304,7 @@ export default defineComponent({
       tablesRef.value[index] = el;
     };
 
-    const handleGlobalScroll = (e: any) => {
+    const handleGlobalwheel = (e: any) => {
       e.preventDefault();
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         if (
@@ -314,18 +314,14 @@ export default defineComponent({
           return;
         }
 
-        if (e.deltaX < 0) {
-          globalScrollbarWraperRef.value!.scrollLeft -= 5;
-        } else {
-          globalScrollbarWraperRef.value!.scrollLeft += 5;
+        if (e.deltaX !== 0) {
+          globalScrollbarWraperRef.value!.scrollLeft += e.deltaX;
         }
         return;
       }
 
-      if (e.deltaY < 0) {
-        logTableRef.value!.scrollTop -= 20;
-      } else {
-        logTableRef.value!.scrollTop += 20;
+      if (e.deltaY !== 0) {
+        logTableRef.value!.scrollTop += e.deltaY;
       }
     };
 
@@ -338,15 +334,27 @@ export default defineComponent({
       }
     };
 
+    const handleGlobalScroll = (e: any) => {
+      const { scrollHeight, clientHeight, scrollTop } = e.target;
+      if (scrollHeight === clientHeight) {
+        return;
+      }
+      if (clientHeight + scrollTop === scrollHeight) {
+        tablesRef.value[0].bottomAppendList();
+      }
+    };
+
     onMounted(() => {
       refreshTable();
-      logTableRef.value!.addEventListener("wheel", handleGlobalScroll, {
+      logTableRef.value!.addEventListener("wheel", handleGlobalwheel, {
         passive: false,
       });
+      logTableRef.value!.addEventListener("scroll", handleGlobalScroll);
     });
 
     onBeforeUnmount(() => {
-      logTableRef.value!.removeEventListener("wheel", handleGlobalScroll);
+      logTableRef.value!.removeEventListener("wheel", handleGlobalwheel);
+      logTableRef.value!.removeEventListener("scroll", handleGlobalScroll);
     });
 
     expose({

@@ -2199,7 +2199,7 @@ class ResultTableField(models.Model):
             cls()._check_reserved_fields(uppercase_field_names)
 
         # 组装必要数据，用于后续的处理
-        fields, field_names, option_data = cls()._compose_data(table_id, field_data)
+        fields, field_names, option_data = cls()._compose_data(table_id, field_data, bk_tenant_id=bk_tenant_id)
 
         # 校验字段是否已经创建
         cls()._check_existed_fields(table_id, field_names)

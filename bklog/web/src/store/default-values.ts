@@ -29,7 +29,7 @@ import { TimeRangeType } from '@/components/time-range/time-range';
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import { type RouteParams, BK_LOG_STORAGE, FieldInfoItem } from './store.type';
+import { type RouteParams, BK_LOG_STORAGE, FieldInfoItemArgs } from './store.type';
 import RouteUrlResolver from './url-resolver';
 
 const DEFAULT_FIELDS_WIDTH = 200;
@@ -160,18 +160,19 @@ const update_URL_ARGS = route => {
 export { URL_ARGS, update_URL_ARGS };
 
 export const getDefaultRetrieveParams = (defaultValue?) => {
-  return Object.assign({
-    keyword: '',
-    host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
-    ip_chooser: {},
-    addition: [],
-    sort_list: [],
-    begin: 0,
-    size: 50,
-    interval: 'auto',
-    timezone: 'Asia/Shanghai',
-    search_mode: 'ui',
-  },
+  return Object.assign(
+    {
+      keyword: '',
+      host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
+      ip_chooser: {},
+      addition: [],
+      sort_list: [],
+      begin: 0,
+      size: 50,
+      interval: 'auto',
+      timezone: 'Asia/Shanghai',
+      search_mode: 'ui',
+    },
     defaultValue,
     URL_ARGS,
   );
@@ -232,7 +233,7 @@ export const IndexFieldInfo = {
   },
   // 重复别名扩展字段
   // 当有多个字段别名一致的时候，自动生成一个单独字段
-  alias_field_list: []
+  alias_field_list: [],
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
@@ -262,7 +263,7 @@ export const IndexItem = {
 /**
  * 创建字段项
  */
-export const createFieldItem = (fieldName: string, fieldType = 'object', args: FieldInfoItem = {}) => {
+export const createFieldItem = (fieldName: string, fieldType = 'object', args: FieldInfoItemArgs = {}) => {
   return {
     field_type: fieldType,
     field_name: fieldName,
@@ -281,9 +282,9 @@ export const createFieldItem = (fieldName: string, fieldType = 'object', args: F
     description: '',
     filterVisible: true,
     is_virtual_alias_field: false,
-    ...args
-  }
-}
+    ...args,
+  };
+};
 
 /**
  * 获取缓存配置
