@@ -29,7 +29,9 @@ import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted
 import { Dialog, Form, Input, Loading, Message, Popover, Progress, Tag } from 'bkui-vue';
 import { editIncident, incidentAlertAggregate } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
+import TemporaryShareNew from '../../../components/temporary-share/temporary-share-new';
 import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';
 import { useIncidentInject } from '../utils';
@@ -37,7 +39,7 @@ import FailureEditDialog from './failure-edit-dialog';
 
 import type { IIncident } from '../types';
 import type { IAggregationRoot } from '../types';
-import { useRoute } from 'vue-router'
+
 import './failure-header.scss';
 
 export default defineComponent({
@@ -347,7 +349,14 @@ export default defineComponent({
             {level_alias}
           </span>
           <div class='header-info'>
-            <span class='info-id'>{id}</span>
+            <div class='info-id'>
+              <span>{id}</span>
+              <TemporaryShareNew
+                icon='icon-mc-share'
+                navMode='share'
+              />
+            </div>
+
             <div class='info-name'>
               <label
                 class='info-name-title mr8'

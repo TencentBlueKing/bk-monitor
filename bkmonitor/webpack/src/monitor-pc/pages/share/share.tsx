@@ -67,9 +67,12 @@ export default class SharePage extends tsc<object> {
     }
     this.emptyMessage = '';
     let url = '';
-    // 事件中心
     if (data.name === 'event-center') {
+      // 事件中心
       url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}/#/event-center/detail/${data.eventId}`;
+    } else if (data.name === 'incident-detail') {
+      // 故障详情
+      url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/trace/incident/detail/${data.params.id}`;
     } else if (/^apm_/.test(String(data.query?.sceneId))) {
       // apm 处理
       const route = this.$router.resolve({
