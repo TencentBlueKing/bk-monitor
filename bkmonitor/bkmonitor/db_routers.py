@@ -15,6 +15,7 @@ import time
 from collections import defaultdict
 from functools import wraps
 
+import settings
 from bkmonitor.utils.local import local
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,11 @@ def is_backend(app_label):
 
 
 backend_router = "monitor_api"
-backend_alert_router = "backend_alert"
+if settings.BACKEND_DATABASE_NAME == "default":
+    backend_alert_router = "default"
+else:
+    backend_alert_router = "backend_alert"
+
 
 BK_MONITOR_MODULE = os.getenv("BK_MONITOR_MODULE", "default")
 
