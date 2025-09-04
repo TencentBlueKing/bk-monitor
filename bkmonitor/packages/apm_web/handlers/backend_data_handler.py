@@ -11,14 +11,18 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import logging
+from collections import defaultdict
 from datetime import datetime
 
 import pytz
 from django.conf import settings
+from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
+from bkmonitor.utils.time_tools import time_interval_align
 from constants.apm import TelemetryDataType
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import (
     DATA_LINK_V4_VERSION_NAME,
     DataSourceLabel,
@@ -522,42 +526,49 @@ class MetricBackendHandler(TelemetryBackendHandler):
             if not metric_biz_id:
                 return []
 
-            component_id = f"{namespace}_{self.bk_vm_result_table_id}"
-            grain = kwargs.get("time_grain", "1m")
-            promql = f'sum(sum_over_time(bkmonitor:record_count{{component_id=~"^{component_id}-"}}[{grain}]))'
-            request_params = {
-                "bk_biz_id": metric_biz_id,
-                "query_configs": [
-                    {
-                        "data_source_label": DataSourceLabel.PROMETHEUS,
-                        "data_type_label": DataTypeLabel.TIME_SERIES,
-                        "promql": promql,
-                        "interval": self.GRAIN_MAPPING[grain],
-                        "alias": "a",
-                        "filter_dict": {},
-                    }
-                ],
-                "expression": "",
-                "alias": "a",
-                "start_time": start_time,
-                "end_time": end_time,
-            }
+            if not self.bk_vm_result_table_id:
+                return []
 
-            try:
-                result = resource.grafana.graph_unify_query(request_params)
-                if result["series"]:
-                    datapoints = result["series"][0]["datapoints"]
-                else:
-                    datapoints = []
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(f"get data view error: {e}")
-                datapoints = []
+            # 多租户适配
+            tenant_prefix = "" if self.app.bk_tenant_id == DEFAULT_TENANT_ID else f"{self.app.bk_tenant_id}-"
+
+            # v3迁移到v4链路的规则
+            component_id_prefix = f"{namespace}_{self.bk_vm_result_table_id}-"
+
+            # 监控自建v4链路规则
+            databus_name = "_".join(self.bk_vm_result_table_id.split("_")[1:])
+            v4_component_id_prefix = f"bkmonitor-{databus_name}-"
+
+            grain = kwargs.get("time_grain", "1m")
+
+            # 时间对齐
+            start_time = time_interval_align(timestamp=start_time, interval=self.GRAIN_MAPPING[grain])
+            end_time = time_interval_align(timestamp=end_time, interval=self.GRAIN_MAPPING[grain])
+
+            request_params = dict(
+                # 数据存储在运营租户下
+                bk_tenant_id=DEFAULT_TENANT_ID,
+                promql=f'sum(sum_over_time(bkmonitor:record_count{{component_id=~"^{tenant_prefix}({component_id_prefix}|{v4_component_id_prefix})"}}[{grain}]))',
+                start=start_time,
+                end=end_time,
+                step=grain,
+                bk_biz_ids=[metric_biz_id],
+                timezone=timezone.get_current_timezone_name(),
+            )
+
+            series = api.unify_query.query_data_by_promql(**request_params)["series"]
+
+            # 讲同一个timestamp的count相加
+            timestamp_to_count = defaultdict(int)
+            for serie in series:
+                for datapoint in serie["datapoints"]:
+                    timestamp_to_count[datapoint[0]] += datapoint[1]
+
             resp = [
                 {
                     "series": [
-                        {"output_count": datapoint[0], "time": int(datapoint[1] / 1000)}
-                        for datapoint in datapoints
-                        if len(datapoint) >= 2
+                        {"output_count": count, "time": int(timestamp / 1000)}
+                        for timestamp, count in timestamp_to_count.items()
                     ]
                 }
             ]
