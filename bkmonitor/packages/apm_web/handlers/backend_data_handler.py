@@ -548,7 +548,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
             request_params = dict(
                 # 数据存储在运营租户下
                 bk_tenant_id=DEFAULT_TENANT_ID,
-                promql=f'sum(sum_over_time(bkmonitor:record_count{{component_id=~"^{tenant_prefix}({component_id_prefix}|{v4_component_id_prefix})"}}[{grain}]))',
+                promql=f'sum(increase(bkmonitor:record_count{{component_id=~"^{tenant_prefix}({component_id_prefix}|{v4_component_id_prefix})"}}[{grain}]))',
                 start=start_time,
                 end=end_time,
                 step=grain,
