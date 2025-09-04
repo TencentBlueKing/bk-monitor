@@ -1420,7 +1420,6 @@ class IndexSetHandler(APIModel):
 
         # 存储别名对应的字段及其所属rt列表
         alias_field_map = defaultdict(list)
-        query_alias_settings = []
         query_alias_mappings = defaultdict(list)
         query_alias_to_rt_mappings = defaultdict(list)
 
