@@ -139,7 +139,8 @@ export default defineComponent({
         // 第二轮：走到这里则说明剩余的空间不足以显示折叠标签，所以需要逐个递减至可以容纳折叠标签
         while (visibleCount > 0) {
           visibleCount--;
-          const elRect = tagElBoundingClientRectMap.get(tagsList[visibleCount]);
+          const elRect =
+            tagElBoundingClientRectMap.get(tagsList[visibleCount]) || tagsList[visibleCount]?.getBoundingClientRect?.();
           const tagWidth = elRect?.width;
           totalWidth = totalWidth - tagWidth - props.tagColGap;
           if (totalWidth < containerWidth) break;
