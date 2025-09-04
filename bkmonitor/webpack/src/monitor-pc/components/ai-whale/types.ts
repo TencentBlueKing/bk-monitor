@@ -120,14 +120,14 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         name: window.i18n.t('指标/PromQL语句'),
         placeholder: window.i18n.t('请输入指标/PromQL语句'),
       },
-      {
-        type: 'textarea',
-        key: 'user-demand',
-        fillBack: false,
-        required: true,
-        name: window.i18n.t('用户指令'),
-        placeholder: window.i18n.t('请输入用户指令'),
-      },
+      // {
+      //   type: 'textarea',
+      //   key: 'user-demand',
+      //   fillBack: false,
+      //   required: true,
+      //   name: window.i18n.t('用户指令'),
+      //   placeholder: window.i18n.t('请输入用户指令'),
+      // },
     ],
   },
   {
@@ -140,7 +140,7 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         key: 'trace_id',
         fillBack: true,
         required: false,
-        name: window.i18n.t('Trace ID'),
+        name: 'Trace ID',
         placeholder: window.i18n.t('请输入Trace ID'),
       },
       {

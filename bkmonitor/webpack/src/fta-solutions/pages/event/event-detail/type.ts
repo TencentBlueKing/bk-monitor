@@ -32,6 +32,7 @@ export interface IDetail {
   begin_time: number; // 事件产生事件
   bk_biz_id: number; // 业务id
   bk_cloud_id?: number;
+  bk_host_id?: number | string;
   category?: string;
   category_display?: string;
   create_time?: number;

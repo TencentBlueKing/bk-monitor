@@ -296,4 +296,5 @@ export default {
     '1-50 characters, and only uppercase and lowercase letters, numbers, _ and . are supported',
   '变量名仅支持大小写字符、数字、下划线、点（.），50个字符以内':
     'Variable name only supports case-sensitive characters, numbers, underscores, and dots (.), up to 50 characters',
+  请输入业务ID: 'Please enter the business ID',
 };

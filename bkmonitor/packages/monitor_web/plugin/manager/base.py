@@ -447,6 +447,7 @@ class PluginManager(BasePluginManager):
 
         self.tmp_path: str = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4())) if not tmp_path else tmp_path
         self.plugin_configs = plugin_configs
+        self.filename_list = []
         if plugin_configs:
             self.filename_list = list(self.plugin_configs.keys())
         else:

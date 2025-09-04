@@ -141,6 +141,9 @@ export type ConsitionItem = {
   disabled?: boolean;
 };
 
+/**
+ * 路由参数类型定义
+ */
 export type RouteParams = {
   addition: ConsitionItem[];
   keyword: string;
@@ -160,3 +163,23 @@ export type RouteParams = {
   [BK_LOG_STORAGE.HISTORY_ID]: string;
   [BK_LOG_STORAGE.FAVORITE_ID]: string;
 };
+
+export type FieldInfoItem = {
+  field_type: string,
+  field_name: string,
+  field_alias?: string,
+  is_display?: boolean,
+  is_editable?: boolean,
+  tag?: string,
+  origin_field?: string,
+  es_doc_values?: boolean,
+  is_analyzed?: boolean,
+  is_virtual_obj_node?: boolean,
+  field_operator?: string[],
+  is_built_in?: boolean,
+  is_case_sensitive?: boolean,
+  is_virtual_alias_field?: boolean,
+  tokenize_on_chars?: string,
+  description?: string,
+  filterVisible?: boolean,
+}

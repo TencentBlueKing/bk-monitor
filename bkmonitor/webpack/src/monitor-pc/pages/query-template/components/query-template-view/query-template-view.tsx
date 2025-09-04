@@ -30,6 +30,7 @@ import QueryChart from '../../query-chart/query-chart';
 import VariablesManage from '../../variables/variables-manage/variables-manage';
 import QueryConfigViewer from '../query-config-viewer/query-config-viewer';
 
+import type { BasicInfoData } from '../../typings';
 import type { Expression } from '../../typings/expression';
 import type { QueryConfig } from '../../typings/query-config';
 import type { VariableModelType } from '../../variables';
@@ -44,7 +45,7 @@ interface QueryTemplateViewEvents {
 }
 
 interface QueryTemplateViewProps {
-  chartTitle: string;
+  basicInfo: BasicInfoData;
   expressionConfig: Expression;
   metricFunctions: any[];
   queryConfigs: QueryConfig[];
@@ -55,10 +56,10 @@ interface QueryTemplateViewProps {
 @Component
 export default class QueryTemplateView extends tsc<QueryTemplateViewProps, QueryTemplateViewEvents> {
   @Prop({ default: () => [] }) metricFunctions: any[];
+  @Prop({ default: () => ({}) }) basicInfo: BasicInfoData;
   @Prop({ default: () => [] }) variablesList: VariableModelType[];
   @Prop({ default: () => [] }) queryConfigs: QueryConfig[];
   @Prop({ default: () => {} }) expressionConfig: Expression;
-  @Prop({ default: () => '' }) chartTitle: string;
   @Prop({ default: false }) submitLoading: boolean;
 
   handleVariableValueChange(val: any, index: number) {
@@ -95,9 +96,20 @@ export default class QueryTemplateView extends tsc<QueryTemplateViewProps, Query
               <QueryChart
                 expressionConfig={this.expressionConfig}
                 queryConfigs={this.queryConfigs}
-                title={this.chartTitle}
+                title={this.basicInfo.alias || this.basicInfo.name}
                 variablesList={this.variablesList}
-              />
+              >
+                <div
+                  class={['chart-title', { alias: this.basicInfo?.alias.length > 0 }]}
+                  slot='title'
+                  v-bk-tooltips={{
+                    content: this.basicInfo?.name,
+                    disabled: !this.basicInfo?.alias,
+                  }}
+                >
+                  {this.basicInfo.alias || this.basicInfo.name}
+                </div>
+              </QueryChart>
             </div>
           </div>
           <div class='template-view'>

@@ -341,7 +341,7 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
         # 查询拓扑信息
         topo_links: dict[str, list[TopoNode]] = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).convert_to_topo_link()
         topo_links: list[list[TopoNode]] = [
-            value for key, value in topo_links.values() if int(key.split("|")[1]) in host.bk_module_ids
+            value for key, value in topo_links.items() if int(key.split("|")[1]) in host.bk_module_ids
         ]
 
         bk_set_inst_id: int | None = None

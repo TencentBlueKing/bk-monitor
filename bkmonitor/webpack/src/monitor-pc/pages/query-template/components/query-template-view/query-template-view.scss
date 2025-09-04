@@ -22,6 +22,13 @@
         .edit-variable-wrap {
           margin-bottom: 16px;
         }
+
+        .chart-title {
+          &.alias {
+            cursor: pointer;
+            border-bottom: 1px dashed #c4c6cc;
+          }
+        }
       }
     }
 
@@ -62,7 +69,6 @@
     }
   }
 
-  
   .variable-tag-active {
     padding: 3px 6px;
     background: #e1ecff;

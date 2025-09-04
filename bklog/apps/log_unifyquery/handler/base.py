@@ -35,6 +35,7 @@ from apps.log_search.constants import (
     MAX_ASYNC_COUNT,
     SCROLL,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException, TokenInvalidException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -1021,6 +1022,8 @@ class UnifyQueryHandler:
         search_params = copy.deepcopy(self.base_dict)
         search_params["limit"] = MAX_RESULT_WINDOW
         search_params["scroll"] = SCROLL
+        # 全文下载不分片
+        search_params["slice_max"] = MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT if is_quick_export else 0
 
         max_result_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
         total_count = 0

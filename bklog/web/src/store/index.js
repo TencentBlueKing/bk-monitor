@@ -63,6 +63,7 @@ import {
   getDefaultRetrieveParams,
   getStorageOptions,
   indexSetClusteringData,
+  createFieldItem
 } from './default-values.ts';
 import globals from './globals';
 import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper';
@@ -105,7 +106,7 @@ const stateTpl = {
 
   /** 索引集对应的字段列表信息 */
   // @ts-ignore
-  indexFieldInfo: { ...IndexFieldInfo },
+  indexFieldInfo: { ...structuredClone(IndexFieldInfo) },
   indexSetQueryResult: { ...IndexSetQueryResult },
   indexSetFieldConfig: { clustering_config: { ...indexSetClusteringData } },
   indexSetFieldConfigList: {
@@ -320,6 +321,7 @@ const store = new Vuex.Store({
     },
     /**
      * API 请求参数 addition 格式化
+     * 这里会过滤掉隐藏的查询条件
      * @param {*} state
      * @param {*} getters
      * @returns
@@ -755,9 +757,32 @@ const store = new Vuex.Store({
           return 0;
         });
       }
-      // Object.assign(state.indexFieldInfo, processedData);
+
       Object.keys(processedData ?? {}).forEach(key => {
         set(state.indexFieldInfo, key, processedData[key]);
+      });
+
+      const field_alias_map = new Map();
+      const alias_field_list = state.indexFieldInfo.alias_field_list.map(f => f.field_name);
+      state.indexFieldInfo.fields.forEach(field => {
+        const field_alias = field.query_alias || field.field_alias || field.field_name;
+
+        if (!alias_field_list.includes(field_alias)) {
+          const exist_value = field_alias_map.get(field_alias) ?? { count: 0, field_alias, resolved: false, field };
+          exist_value.count++;
+          field_alias_map.set(field_alias, exist_value);
+
+          if (exist_value.count > 1 && !exist_value.resolved) {
+            exist_value.resolved = true;
+            field_alias_map.set(field_alias, exist_value);
+            state.indexFieldInfo.alias_field_list.push(createFieldItem(field_alias, 'keyword', {
+              ...field,
+              field_alias: '',
+              field_name: field_alias,
+              is_virtual_alias_field: true
+            }));
+          }
+        }
       });
     },
     updateIndexFieldEggsItems(state, payload) {
@@ -890,25 +915,10 @@ const store = new Vuex.Store({
         filterList
           .map(displayName => {
             const field = state.indexFieldInfo.fields.find(field => field.field_name === displayName);
-            if (field) return field;
-            return {
-              field_type: 'object',
-              field_name: displayName,
-              field_alias: '',
-              is_display: false,
-              is_editable: true,
-              tag: '',
-              origin_field: '',
-              es_doc_values: true,
-              is_analyzed: true,
-              is_virtual_obj_node: true,
-              field_operator: [],
-              is_built_in: true,
-              is_case_sensitive: false,
-              tokenize_on_chars: '',
-              description: '',
-              filterVisible: true,
-            };
+            if (field) {
+              return field;
+            }
+            return createFieldItem(displayName)
           })
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
@@ -995,7 +1005,7 @@ const store = new Vuex.Store({
      *
      * @return {Promise} promise 对象
      */
-    getMenuList({}, spaceUid) {
+    getMenuList({ }, spaceUid) {
       return http.request('meta/menu', {
         query: {
           space_uid: spaceUid,
@@ -1352,11 +1362,11 @@ const store = new Vuex.Store({
         baseData,
         !state.indexItem.isUnionIndex
           ? {
-              begin: queryBegin, // 单选检索的begin
-            }
+            begin: queryBegin, // 单选检索的begin
+          }
           : {
-              union_configs: unionConfigs,
-            },
+            union_configs: unionConfigs,
+          },
       );
       const params = {
         method: 'post',

@@ -37,6 +37,11 @@
         font-size: 14px;
         line-height: 22px;
         color: #979ba5;
+
+        &.alias {
+          cursor: pointer;
+          border-bottom: 1px dashed #c4c6cc;
+        }
       }
     }
 

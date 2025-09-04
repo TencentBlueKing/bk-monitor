@@ -310,8 +310,14 @@ export default class TemplateDetail extends tsc<TemplateDetailProps, TemplateDet
               <span>{this.$t('模板详情')}</span>
             </div>
             <div class='header-info-division' />
-            <div class='header-info-template-name'>
-              <span>{this.templateBaseInfo?.name || '--'}</span>
+            <div
+              class={['header-info-template-name', { alias: this.templateBaseInfo?.alias.length > 0 }]}
+              v-bk-tooltips={{
+                content: this.templateBaseInfo?.name,
+                disabled: !this.templateBaseInfo?.alias,
+              }}
+            >
+              <span>{this.templateBaseInfo?.alias || this.templateBaseInfo?.name || '--'}</span>
             </div>
           </div>
           <div class='header-operations'>

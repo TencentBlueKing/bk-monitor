@@ -177,7 +177,7 @@ export default class ChartTitle extends tsc<
   }
   get showMetricAlarm() {
     const metrics = new Set(this.metrics?.map(item => item.metric_id) || []);
-    return !this.readonly && Array.from(metrics).length === 1;
+    return !this.readonly && Array.from(metrics).length > 0;
   }
   get metricTitleData() {
     return this.metrics[0];
