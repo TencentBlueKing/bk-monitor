@@ -139,7 +139,7 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         key: 'trace_id',
         fillBack: true,
         required: false,
-        name: window.i18n.t('Trace ID'),
+        name: 'Trace ID',
         placeholder: window.i18n.t('请输入Trace ID'),
       },
       {

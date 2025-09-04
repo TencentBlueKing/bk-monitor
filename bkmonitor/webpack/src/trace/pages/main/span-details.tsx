@@ -58,9 +58,10 @@ import {
   EListItemType,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
+import { autoDecodeString, detectEncodingType } from '../common/formatter-utils';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
-import DashboardPanel from './dashboard-panel/dashboard-panel';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
+import DashboardPanel from './dashboard-panel/dashboard-panel';
 
 import type { Span } from '../../components/trace-view/typings';
 import type { IFlameGraphDataItem } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
@@ -202,7 +203,6 @@ export default defineComponent({
 
     const spanId = computed(() => props.spanDetails.span_id);
     provide('spanId', spanId);
-
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
     /* 初始化 */
@@ -734,7 +734,6 @@ export default defineComponent({
       isExpan: boolean,
       title: string | undefined,
       content: any,
-      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -756,7 +755,6 @@ export default defineComponent({
       isExpan: boolean,
       title: string,
       content: any,
-      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -791,10 +789,25 @@ export default defineComponent({
       return false;
     };
 
-    const formatContent = (content?: string, isFormat?: boolean) => {
-      if (typeof content === 'number' || typeof content === 'undefined') return content;
-      if (!isJson(content)) return typeof content === 'string' ? content : JSON.stringify(content);
-      const data = JSON.parse(content || '');
+    const formatContent = (content?: number | string, isFormat?: boolean) => {
+      if ((typeof content === 'number' && content.toString().length < 10) || typeof content === 'undefined')
+        return content;
+      if (!isJson(content?.toString())) {
+        const str = typeof content === 'string' ? content : JSON.stringify(content);
+        return detectEncodingType(str) ? (
+          <div>
+            {str}
+            <div class='decode-content'>
+              <i class='icon-monitor icon-auto-decode decode-content-icon' />
+              <span class='decode-content-result'>{t('解码结果：')}</span>
+              {autoDecodeString(str)}
+            </div>
+          </div>
+        ) : (
+          str
+        );
+      }
+      const data = JSON.parse(content?.toString() || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
     };
 

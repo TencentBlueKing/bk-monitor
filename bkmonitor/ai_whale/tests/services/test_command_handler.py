@@ -8,16 +8,17 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
+from ai_agent.services.local_command_handler import LocalCommandProcessor
 from ai_whale.resources.resources import (
-    CreateChatSessionResource,
     CreateChatSessionContentResource,
+    CreateChatSessionResource,
     DestroyChatSessionResource,
 )
-from ai_whale.utils import generate_uuid
-from ai_agent.services.local_command_handler import LocalCommandProcessor
+from ai_whale.utils import generate_user_content, generate_uuid
 
 command_processor = LocalCommandProcessor()  # noqa
 
@@ -61,26 +62,9 @@ def test_tracing_analysis_command():
     mock_req.session = {"bk_biz_id": 0}
     mock_trace_data = {"trace_data": "[TRACING DATA]"}
 
-    params = {
-        "session_code": generate_uuid(),
-        "role": "user",
-        "content": "Tracing分析",
-        "property": {
-            "extra": {
-                "command": "tracing_analysis",
-                "context": [
-                    {"__key": "app_name", "__value": "SRE", "content": "SRE", "context_type": "textarea"},
-                    {
-                        "__key": "trace_id",
-                        "__value": mock_trace_id,
-                        "trace_id": mock_trace_id,
-                        "context_type": "textarea",
-                    },
-                ],
-                "anchor_path_resources": {},
-            }
-        },
-    }
+    context_dict = {"bk_biz_id": 1, "app_name": "SRE", "trace_id": mock_trace_id}
+
+    params = generate_user_content(context_dict=context_dict, command="tracing_analysis")
 
     property_data = params.get("property", {})
     command_data = property_data.get("extra")
@@ -89,13 +73,61 @@ def test_tracing_analysis_command():
         "ai_whale.local_command_handlers.api.apm_api.query_trace_detail",
         return_value=mock_trace_data,
     ):
-        with patch("ai_whale.local_command_handlers.get_request", return_value=mock_req):
-            processed_content = command_processor.process_command(command_data)
+        processed_content = command_processor.process_command(command_data)
 
-    expected = (
-        f"请帮助我分析Tracing数据: {mock_trace_data['trace_data']}.\n"
-        "        应用名称: SRE\n"
-        "        结果要求: 确保分析准确无误，无需冗余回答内容"
+    expected = f"""
+        请帮助我分析Tracing数据: {mock_trace_data["trace_data"]}.
+        应用名称: SRE
+        业务ID: 1
+        结果要求: 确保分析准确无误，无需冗余回答内容
+        如果缺少任意参数,请告知用户前往数据探索->Tracing检索->Trace详情页面使用该功能
+        切记不要告诉用户缺少了参数，你需要礼貌的提示用户前往对应页面使用该功能
+        """
+
+    assert processed_content.strip() == expected.strip()
+
+
+def test_profiling_analysis_command():
+    command = "profiling_analysis"
+
+    context_dict = {
+        "query_params": json.dumps(
+            {
+                "bk_biz_id": 1,
+                "app_name": "app",
+                "service_name": "service",
+                "data_type": "cpu/nanoseconds",
+                "agg_method": "SUM",
+                "start": 1,
+                "end": 100,
+            }
+        )
+    }
+    from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
+    from apm_web.profile.diagrams.tree_converter import TreeConverter
+
+    parent = FunctionNode("parent", "parent", "foo_call", "foo", value=1, values=[1])
+    son = FunctionNode("son", "son", "bar_call", "bar", parent=parent, value=1)
+    tree = FunctionTree(parent, parent, function_node_map={parent.id: parent, son.id: son})
+    converter = TreeConverter(tree, {"type": "cpu", "unit": "nanoseconds"})
+
+    session_code = generate_uuid()
+    explanation_command_params = generate_user_content(
+        command=command, context_dict=context_dict, session_code=session_code
     )
 
-    assert processed_content == expected
+    with patch("apm_web.profile.views.ProfileQueryViewSet.converter_query", return_value=converter):
+        with patch("apm_web.profile.views.ProfileQueryViewSet.get_query_params", return_value=({}, {}, {})):
+            processed_content = command_processor.process_command(explanation_command_params["property"]["extra"])
+
+    expected = """
+        应用名称: app
+        业务ID: 0
+        请帮助我分析 Profiling 数据(DOT 描述): digraph "type=[cpu/nanoseconds]" {
+N0 [label="foo_call \\n 1.00 (100.00%)"]
+N1 [label="bar_call \\n 1.00 (100.00%)"]
+N0 -> N1
+}
+        结果要求: 确保分析准确无误，无需冗余回答内容
+    """
+    assert expected.strip() == processed_content.strip()
