@@ -207,7 +207,7 @@ class CollectorConfig(CollectorBase):
         multi_execute_func.append(
             "result_table_config",
             TransferApi.get_result_table,
-            params={"table_id": self.table_id, "no_request": True},
+            params={"table_id": self.table_id},
             use_request=False,
         )
         multi_execute_func.append(
@@ -639,12 +639,12 @@ class RestoreConfig(SoftDeleteModel):
 
     @classmethod
     def get_collector_config_id(cls, restore_config_id):
-        restore: "RestoreConfig" = cls.objects.get(restore_config_id=restore_config_id)
+        restore: RestoreConfig = cls.objects.get(restore_config_id=restore_config_id)
         return restore.archive.collector_config_id
 
     @classmethod
     def get_index_set_id(cls, restore_config_id):
-        restore: "RestoreConfig" = cls.objects.get(restore_config_id=restore_config_id)
+        restore: RestoreConfig = cls.objects.get(restore_config_id=restore_config_id)
         return restore.archive.instance_id
 
 

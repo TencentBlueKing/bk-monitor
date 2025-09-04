@@ -7,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Optional
 
 from django.conf import settings
 
@@ -22,7 +23,7 @@ ROOT_DISPLAY_NAME = "total"
 
 # 节点名称中不能包含以下特殊字符
 DOT_INVALID_CHARS = ["[", "]", ":", ";", "{", "}", '"', "<", ">"]
-GO_STRUCT_TYPE_REGEX = re.compile(r'\[go\.shape\..*\]')
+GO_STRUCT_TYPE_REGEX = re.compile(r"\[go\.shape\..*\]")
 
 
 @dataclass
@@ -36,9 +37,10 @@ class FunctionNode:
 
     is_root: bool = False
     has_parent: bool = False
-    children: Dict[str, "FunctionNode"] = field(default_factory=dict)
+    parent: Optional["FunctionNode"] = field(default=None)
+    children: dict[str, "FunctionNode"] = field(default_factory=dict)
     value: int = 0
-    values: List[int] = field(default=list)
+    values: list[int] = field(default=list)
 
     def __eq__(self, other):
         return self.id == other.id
@@ -118,7 +120,7 @@ class FunctionTree:
     root: FunctionNode
 
     map_root: FunctionNode
-    function_node_map: Dict[str, FunctionNode] = field(default_factory=dict)
+    function_node_map: dict[str, FunctionNode] = field(default_factory=dict)
 
 
 class ValueCalculator:

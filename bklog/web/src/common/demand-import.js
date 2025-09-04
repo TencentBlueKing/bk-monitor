@@ -34,7 +34,6 @@ import Vue from 'vue';
 import {
   bkAlert,
   bkBadge,
-  bkButton,
   bkBigTree,
   bkCheckbox,
   bkCheckboxGroup,
@@ -43,20 +42,15 @@ import {
   bkCollapseItem,
   bkContainer,
   bkDatePicker,
-  bkDialog,
   bkDropdownMenu,
   bkException,
   bkForm,
   bkFormItem,
-  bkInfoBox,
   bkInput,
-  bkLoading,
-  bkMessage,
   bkNavigation,
   bkNavigationMenu,
   bkNavigationMenuGroup,
   bkNavigationMenuItem,
-  bkNotify,
   bkOption,
   bkOptionGroup,
   bkPagination,
@@ -87,16 +81,11 @@ import {
   bkTransfer,
   bkTree,
   bkUpload,
-  bkClickoutside,
-  bkTooltips,
   bkSwiper,
   bkRate,
   bkAnimateNumber,
   bkVirtualScroll,
-  bkOverflowTips,
-  bkDivider,
   bkSpin,
-  bkResizeLayout,
 } from 'bk-magic-vue';
 
 // bkDiff 组件体积较大且不是很常用，因此注释掉。如果需要，打开注释即可
@@ -105,7 +94,6 @@ Vue.prototype.$BK_EL = { zIndex: 3000 };
 // components use
 Vue.use(bkAlert);
 Vue.use(bkBadge);
-Vue.use(bkButton);
 Vue.use(bkBigTree);
 Vue.use(bkCheckbox);
 Vue.use(bkCheckboxGroup);
@@ -114,7 +102,6 @@ Vue.use(bkCollapse);
 Vue.use(bkCollapseItem);
 Vue.use(bkContainer);
 Vue.use(bkDatePicker);
-Vue.use(bkDialog);
 Vue.use(bkDropdownMenu);
 Vue.use(bkException);
 Vue.use(bkForm);
@@ -159,21 +146,3 @@ Vue.use(bkRate);
 Vue.use(bkAnimateNumber);
 Vue.use(bkVirtualScroll);
 Vue.use(bkSpin);
-// bkDiff 组件体积较大且不是很常用，因此注释了。如果需要，打开注释即可
-// Vue.use(bkDiff)
-
-// directives use
-Vue.use(bkClickoutside);
-Vue.use(bkTooltips);
-Vue.use(bkLoading);
-Vue.use(bkDivider);
-Vue.use(bkResizeLayout);
-bkOverflowTips.setDefaultProps({
-  delay: [400, 0],
-});
-Vue.use(bkOverflowTips);
-
-// Vue prototype mount
-Vue.prototype.$bkInfo = bkInfoBox;
-Vue.prototype.$bkMessage = args => bkMessage({ ...args, zIndex: 5000 });
-Vue.prototype.$bkNotify = bkNotify;

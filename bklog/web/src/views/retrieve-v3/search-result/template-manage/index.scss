@@ -1,0 +1,95 @@
+.retrieve-template-manage-page {
+  height: calc(100vh - 52px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  .header-main {
+    width: 100%;
+    min-height: 52px;
+    height: 52px;
+    background: #ffffff;
+    box-shadow: 0 3px 4px 0 #0000000a;
+    padding-left: 12px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 99;
+
+    .back-icon {
+      font-size: 36px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .title {
+      color: #313238;
+    }
+  }
+
+  .content-main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+
+    .config-main {
+      flex: 1;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+
+      .template-config-main {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+
+        .rule-config-main {
+          flex: 1;
+          padding: 14px 16px;
+          overflow-y: auto;
+
+          .config-title {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+
+            .title {
+              font-weight: 700;
+              color: #313238;
+            }
+
+            .split-line {
+              width: 1px;
+              height: 14px;
+              background: #dcdee5;
+              margin: 0 9px;
+            }
+
+            .template-name {
+              color: #979ba5;
+            }
+          }
+
+          .rule-operate-main {
+            display: flex;
+            justify-content: space-between;
+            margin: 12px 0;
+
+            .operate-btns {
+              display: flex;
+              gap: 8px;
+
+              .operate-btn {
+                font-size: 12px;
+                color: #4d4f56;
+                width: 60px;
+                min-width: 60px;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

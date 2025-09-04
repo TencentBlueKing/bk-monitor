@@ -32,8 +32,9 @@ import VerifyInput from 'monitor-pc/components/verify-input/verify-input.vue';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import DimensionTransfer from './dimension-transfer';
+import ShieldTreeCompnent from './shield-tree-compnent';
 
-import type { IDimensionItem } from '../typings/event';
+import type { IDimensionItem, IBkTopoNodeItem } from '../typings/event';
 
 import './quick-shield.scss';
 
@@ -42,6 +43,7 @@ const { i18n } = window;
 export interface IDetail {
   alertId: string;
   dimension?: IDimensionItem[];
+  bkTopoNode?: IBkTopoNodeItem[];
   isModified?: boolean;
   severity: number;
   trigger?: string;
@@ -49,10 +51,13 @@ export interface IDetail {
     id?: number;
     name?: string;
   };
+  bkHostId?: number | string;
 }
+
 interface DimensionConfig {
   alert_ids: string[];
   dimensions?: { [key: string]: string[] };
+  bk_topo_node?: { [key: string]: IBkTopoNodeItem[] };
 }
 
 interface IQuickShieldProps {
@@ -105,10 +110,13 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
 
   backupDetails: IDetail[] = [];
 
+  editIndex = -1; // 当前编辑的索引
+
   dimensionSelectShow = false;
   transferDimensionList: IDimensionItem[] = [];
   transferTargetList: string[] = [];
-  transferEditIndex = -1;
+
+  shieldTreeDialogShow = false;
 
   @Watch('ids', { immediate: true, deep: true })
   handleShow(newIds, oldIds) {
@@ -233,6 +241,17 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
           return pre;
         }, {});
       }
+      // 屏蔽范围不存在回显，有值则推上去；使用alertId做key，兼容单个与批量操作(与上方维度信息类似方式）
+      const topoNodeDataArr = this.backupDetails.filter(item => item.bkTopoNode && item.bkTopoNode.length > 0)
+      if (topoNodeDataArr.length) {
+        (params.dimension_config as DimensionConfig).bk_topo_node = topoNodeDataArr.reduce((pre, item) => {
+          pre[item.alertId.toString()] = item.bkTopoNode.map(item => ({
+            bk_obj_id: item.bk_obj_id,
+            bk_inst_id: item.bk_inst_id,
+          }))
+          return pre;
+        }, {});
+      }
       bulkAddAlertShield(params)
         .then(() => {
           this.handleSucces(true);
@@ -299,12 +318,12 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
     this.transferDimensionList = this.details[idx].dimension;
     // 选中的数据
     this.transferTargetList = detail.dimension.map(dimension => dimension.key);
-    this.transferEditIndex = idx;
+    this.editIndex = idx;
     this.dimensionSelectShow = true;
   }
 
   handleTransferConfirm(selectedDimensionArr: IDimensionItem[]) {
-    const { backupDetails, transferEditIndex: idx } = this;
+    const { backupDetails, editIndex: idx } = this;
     // 增删维度信息
     backupDetails[idx].dimension = this.details[idx].dimension.filter(dimensionItem =>
       selectedDimensionArr.some(targetItem => targetItem.key === dimensionItem.key)
@@ -327,7 +346,34 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
   handleResetTransferData() {
     this.transferDimensionList = [];
     this.transferTargetList = [];
-    this.transferEditIndex = -1;
+    this.editIndex = -1;
+  }
+
+  /**
+   * 编辑屏蔽范围
+   * @param data 当前操作的屏蔽内容数据
+   * @param idx 当前操作的屏蔽内容数据索引
+   */
+  handleShieldEdit(data, idx) {
+    this.editIndex = idx;
+    this.shieldTreeDialogShow = true;
+  }
+
+  /**
+   * 屏蔽范围选择确认事件
+   * @param checkedIds 已满足后端格式的节点数据集合（node_name用于前端展示，提交后端时删除）
+   */
+  handleShieldConfirm(checkedIds: IBkTopoNodeItem[]) {
+    const { backupDetails, editIndex: idx } = this;
+    backupDetails[idx].bkTopoNode = checkedIds;
+    this.shieldTreeDialogShow = false;
+    this.editIndex = -1;
+  }
+
+  // 取消屏蔽范围选择弹窗
+  handleShieldCancel() {
+    this.shieldTreeDialogShow = false;
+    this.editIndex = -1;
   }
 
   getInfoCompnent() {
@@ -353,7 +399,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
           <div class='column-content'>{this.levelMap[detail.severity]}</div>
         </div> */}
         <div class='column-item'>
-          <div class='column-label is-special'> {`${this.$t('维度信息')}：`} </div>
+          <div class={`column-label ${this.details[idx].dimension.length ? 'is-special' : ''}`}> {`${this.$t('维度信息')}：`} </div>
           <div class='column-content'>
             {detail.dimension?.map((dem, dimensionIndex) => (
               <bk-tag
@@ -365,8 +411,8 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
               >
                 {`${dem.display_key || dem.key}(${dem.display_value || dem.value})`}
               </bk-tag>
-            )) || '--'}
-            {this.details[idx].dimension.length > 0 && (
+            ))}
+            {this.details[idx].dimension.length > 0 ? (
               <span
                 class='dimension-edit'
                 v-bk-tooltips={{ content: `${this.$t('编辑')}` }}
@@ -374,7 +420,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
               >
                 <i class='icon-monitor icon-bianji' />
               </span>
-            )}
+            ) : '-'}
             {/* {detail.isModified && (
               <span
                 class='reset'
@@ -384,6 +430,29 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
                 <i class='icon-monitor icon-zhongzhi1' />
               </span>
             )} */}
+          </div>
+        </div>
+        <div class='column-item'>
+          <div class={`column-label ${detail?.bkTopoNode?.length ? 'is-special' : ''}`}> {`${this.$t('屏蔽范围')}：`} </div>
+          <div class='column-content'>
+            {detail?.bkTopoNode?.length ? detail.bkTopoNode.map(node => (
+              <bk-tag
+                key={`${node.bk_inst_id}_${node.bk_obj_id}`}
+                ext-cls='tag-theme'
+                type='stroke'
+              >
+                {node.node_name}
+              </bk-tag>
+            )) : '-'}
+            {detail?.bkHostId && (
+              <span
+                class='dimension-edit'
+                v-bk-tooltips={{ content: `${this.$t('编辑')}` }}
+                onClick={() => this.handleShieldEdit(detail, idx)}
+              >
+                <i class='icon-monitor icon-bianji' />
+              </span>
+            )}
           </div>
         </div>
         <div
@@ -525,7 +594,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
         {/* 穿梭框 */}
         <bk-dialog
           width={640}
-          ext-cls='dimension-select-dialog-wrap'
+          ext-cls='quick-shield-dialog-wrap'
           v-model={this.dimensionSelectShow}
           header-position='left'
           mask-close={false}
@@ -538,6 +607,24 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
             value={this.transferTargetList}
             onCancel={this.handleTransferCancel}
             onConfirm={this.handleTransferConfirm}
+          />
+        </bk-dialog>
+        {/* 选择屏蔽范围弹窗 */}
+        <bk-dialog
+          width={480}
+          ext-cls='quick-shield-dialog-wrap'
+          v-model={this.shieldTreeDialogShow}
+          header-position='left'
+          mask-close={false}
+          show-footer={false}
+          title={this.$t('选择屏蔽范围')}
+        >
+          <ShieldTreeCompnent
+            show={this.shieldTreeDialogShow}
+            bizId={this.bizIds[0]}
+            bkHostId={this.details[this.editIndex]?.bkHostId || ''}
+            onCancel={this.handleShieldCancel}
+            onConfirm={this.handleShieldConfirm}
           />
         </bk-dialog>
       </MonitorDialog>

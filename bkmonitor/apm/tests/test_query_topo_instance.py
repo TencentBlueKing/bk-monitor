@@ -70,7 +70,7 @@ class TestTopoInstance(django.test.TestCase):
             return_value={"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME},
         ).start()
 
-        mock.patch("apm.core.handlers.instance_handlers.InstanceHandler.get_cache_data", return_value={}).start()
+        mock.patch("apm.core.handlers.apm_cache_handler.ApmCacheHandler.get_cache_data", return_value={}).start()
 
         obj = QueryTopoInstanceResource()
 
@@ -96,13 +96,13 @@ class TestTopoInstance(django.test.TestCase):
             return_value={"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME},
         ).start()
 
-        mock.patch("apm.core.handlers.instance_handlers.InstanceHandler.get_cache_data", return_value={}).start()
+        mock.patch("apm.core.handlers.apm_cache_handler.ApmCacheHandler.get_cache_data", return_value={}).start()
 
         obj = QueryTopoInstanceResource()
 
         res = obj.perform_request(request_data)
 
-        len(res["data"]) == 4
+        assert len(res["data"]) == 4
 
     def test_query_topo_instance_page(self):
         """
@@ -123,7 +123,7 @@ class TestTopoInstance(django.test.TestCase):
             return_value={"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME},
         ).start()
 
-        mock.patch("apm.core.handlers.instance_handlers.InstanceHandler.get_cache_data", return_value={}).start()
+        mock.patch("apm.core.handlers.apm_cache_handler.ApmCacheHandler.get_cache_data", return_value={}).start()
 
         obj = QueryTopoInstanceResource()
 

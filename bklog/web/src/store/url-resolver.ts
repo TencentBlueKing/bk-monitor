@@ -78,7 +78,7 @@ class RouteUrlResolver {
    * 需要清理URL参数时，获取默认的参数配置列表
    * @returns
    */
-  public getDefUrlQuery(ignoreList = []) {
+  public getDefUrlQuery(ignoreList: string[] = []) {
     const routeQuery = this.query;
     const appendParamKeys = [...this.resolveFieldList, 'end_time'].filter(f => !(ignoreList ?? []).includes(f));
     const undefinedQuery = appendParamKeys.reduce((out, key) => Object.assign(out, { [key]: undefined }), {});
@@ -171,9 +171,25 @@ class RouteUrlResolver {
     });
   }
 
+  private additionArrayResolver(str) {
+    if (!str) {
+      return [];
+    }
+
+    try {
+      return JSON.parse(decodeURIComponent(str));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  }
+
   private searchModeResolver() {
-    const hasAddition = this.query.keyword?.length;
-    const hasKeyword = this.query.addition?.length;
+    const hasKeyword = this.query.keyword?.length;
+    const additionArray = this.additionArrayResolver(this.query.addition).filter(
+      str => str.length > 0 && str !== '' && str !== null && str !== undefined && str !== '',
+    );
+    const hasAddition = additionArray.length;
     const defValue = ['sql', 'ui'].includes(this.query.search_mode) ? this.query.search_mode : 'ui';
 
     if (['sql', 'ui'].includes(this.query.search_mode)) {

@@ -30,7 +30,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import { From } from 'bk-magic-vue';
 
 import $http from '../../../../../../api';
-import { deepClone } from '../../../../../../common/util';
 import clusterImg from '../../../../../../images/cluster-img/cluster.png';
 import FilterRule from './filter-rule';
 
@@ -206,7 +205,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
   }
   handleOpenDialog(v: boolean) {
     if (v) {
-      this.cloneFormData = deepClone(this.formData);
+      this.cloneFormData = structuredClone(this.formData);
 
       if (this.clusterField[0]?.id) {
         this.formData.clustering_fields = this.clusterField[0]?.id || '';

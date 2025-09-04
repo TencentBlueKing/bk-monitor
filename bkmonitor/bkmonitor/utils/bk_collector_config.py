@@ -54,7 +54,8 @@ class BkCollectorConfig:
         cloud_infos = api.cmdb.search_cloud_area(bk_tenant_id=bk_tenant_id)
         for cloud_info in cloud_infos:
             bk_cloud_id = cloud_info.get("bk_cloud_id", -1)
-            if int(bk_cloud_id) == 0:
+            # 跳过两个特殊管控区域，0 直连区域，-1 未分配
+            if int(bk_cloud_id) in [0, -1]:
                 continue
 
             proxy_list = api.node_man.get_proxies(bk_cloud_id=bk_cloud_id)

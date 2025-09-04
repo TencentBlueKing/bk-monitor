@@ -24,11 +24,17 @@
  * IN THE SOFTWARE.
  */
 import { isRef, ref, Ref } from 'vue';
-import { debounce } from 'lodash';
+
+import { debounce } from 'lodash-es';
 import tippy, { Props, Placement, Instance } from 'tippy.js';
 
 type PopInstanceUtilType = {
-  refContent: (() => HTMLElement | string) | HTMLElement | Ref<{ $el?: HTMLElement } | string> | string;
+  refContent:
+    | (() => HTMLElement | string)
+    | HTMLElement
+    | Ref<{ $el?: HTMLElement } | string>
+    | Ref<HTMLElement>
+    | string;
   onShowFn: () => boolean;
   onHiddenFn: () => boolean;
   arrow: boolean;
@@ -39,8 +45,12 @@ type PopInstanceUtilType = {
 
 export default class PopInstanceUtil {
   private tippyInstance: Instance<Props>;
-  private refContent: (() => HTMLElement | string) | HTMLElement | Ref<{ $el?: HTMLElement } | string> | string =
-    ref(null);
+  private refContent:
+    | (() => HTMLElement | string)
+    | HTMLElement
+    | Ref<{ $el?: HTMLElement } | string>
+    | Ref<HTMLElement>
+    | string = ref(null);
   private onShowFn;
   private onHiddenFn;
   private arrow = true;

@@ -25,7 +25,7 @@
  */
 import { onMounted, Ref, onBeforeUnmount, ref } from 'vue';
 
-import { debounce, isElement } from 'lodash';
+import { debounce, isElement } from 'lodash-es';
 
 export default (
   target: (() => HTMLElement | string) | Ref<HTMLElement> | string,

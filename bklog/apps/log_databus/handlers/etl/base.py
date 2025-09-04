@@ -159,7 +159,6 @@ class EtlHandler:
         etl_params=None,
         fields=None,
         username="",
-        alias_settings=None,
     ):
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
@@ -217,7 +216,6 @@ class EtlHandler:
             etl_params=etl_params,
             es_version=cluster_info["cluster_config"]["version"],
             hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
-            alias_settings=alias_settings,
         )
 
         if not view_roles:
@@ -318,6 +316,7 @@ class EtlHandler:
             {
                 "bk_biz_id": self.data.bk_biz_id,
                 "result_table_id": self.data.table_id,
+                "storage_cluster_id": storage_cluster_id,
                 "result_table_name": self.data.collector_config_name,
                 "time_field": "dtEventTimeStamp",
             }
@@ -337,6 +336,7 @@ class EtlHandler:
                 username=username,
                 sort_fields=sort_fields,
                 target_fields=target_fields,
+                bcs_cluster_id=self.data.bcs_cluster_id,
             )
         else:
             if not view_roles:
@@ -353,6 +353,7 @@ class EtlHandler:
                 username=username,
                 sort_fields=sort_fields,
                 target_fields=target_fields,
+                bcs_cluster_id=self.data.bcs_cluster_id,
             )
             self.data.index_set_id = index_set.index_set_id
         self.data.etl_config = etl_config

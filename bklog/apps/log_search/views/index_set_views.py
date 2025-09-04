@@ -327,8 +327,13 @@ class IndexSetViewSet(ModelViewSet):
         }
         index_list = list(
             LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).values(
-                "index_set_id", "result_table_id", "scenario_id", "storage_cluster_id",
-                "time_field", "time_field_type", "time_field_unit"
+                "index_set_id",
+                "result_table_id",
+                "scenario_id",
+                "storage_cluster_id",
+                "time_field",
+                "time_field_type",
+                "time_field_unit",
             )
         )
         for index in index_list:
@@ -429,6 +434,27 @@ class IndexSetViewSet(ModelViewSet):
                         ],
                     }
                 )
+        # 追加Doris图表分析路由
+        base_doris_router = {
+            "source_type": "bkdata",
+            "storage_type": "doris",
+            "need_create_index": False,
+        }
+        for index_set in index_set_list:
+            if doris_table_id := index_set["doris_table_id"]:
+                doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
+                doris_router = base_doris_router.copy()
+                doris_router.update(
+                    {
+                        "space_type": index_set["space_uid"].split("__")[0],
+                        "space_id": index_set["space_uid"].split("__")[-1],
+                        "bkbase_table_id": doris_result_table,
+                        "data_label": f"bklog_index_set_{index_set['index_set_id']}_analysis",
+                        "table_id": f"bklog_index_set_{index_set['index_set_id']}_{doris_result_table}.__analysis__",
+                        "query_alias_settings": index_set["query_alias_settings"],
+                    }
+                )
+                router_list.append(doris_router)
         return Response({"total": total, "list": router_list})
 
     def retrieve(self, request, *args, **kwargs):

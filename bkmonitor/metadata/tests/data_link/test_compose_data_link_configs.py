@@ -38,6 +38,7 @@ def create_or_delete_records(mocker):
     result_table = models.ResultTable.objects.create(
         table_id="1001_bkmonitor_time_series_50010.__default__", bk_biz_id=1001, is_custom_table=False
     )
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     data_source.delete()
@@ -51,14 +52,14 @@ def test_compose_data_id_config(create_or_delete_records):
     """
 
     # 单租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    settings.ENABLE_MULTI_TENANT_MODE = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     assert bkbase_data_name == "bkm_data_link_test"
 
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor","labels":{'
-        '"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":0,'
+        '"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":2,'
         '"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
     )
 
@@ -69,11 +70,11 @@ def test_compose_data_id_config(create_or_delete_records):
     assert json.dumps(content) == expected_config
 
     # 多租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    settings.ENABLE_MULTI_TENANT_MODE = True
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor",'
         '"tenant":"system","labels":{"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test",'
-        '"bizId":0,"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
+        '"bizId":111,"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
     )
 
     content = data_id_config_ins.compose_config()
@@ -86,7 +87,7 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     测试VMResultTableConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    settings.ENABLE_MULTI_TENANT_MODE = False
 
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
@@ -100,7 +101,7 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     expect_config = (
         '{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},"spec":{'
-        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,'
+        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":2,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}}'
     )
@@ -112,11 +113,11 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     assert json.dumps(content) == expect_config
 
     # 多租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    settings.ENABLE_MULTI_TENANT_MODE = True
     expect_config = (
         '{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","tenant":"system","labels":{"bk_biz_id":"111"}},'
-        '"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":0,"dataType":"metric",'
+        '"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":111,"dataType":"metric",'
         '"description":"bkm_1001_bkmonitor_time_series_50010","maintainers":["admin"]}}'
     )
 
@@ -130,7 +131,7 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
     测试VMStorageBindingConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    settings.ENABLE_MULTI_TENANT_MODE = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
@@ -159,7 +160,7 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
     assert json.dumps(content) == expect_config
 
     # 多租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    settings.ENABLE_MULTI_TENANT_MODE = True
 
     expect_config = (
         '{"kind":"VmStorageBinding","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
@@ -179,7 +180,7 @@ def test_compose_log_result_table_config(create_or_delete_records):
     测试LogResultTableConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    settings.ENABLE_MULTI_TENANT_MODE = False
     log_result_table_ins, _ = models.LogResultTableConfig.objects.get_or_create(
         name="base_1_agent_event",
         namespace="bkmonitor",
@@ -206,7 +207,7 @@ def test_compose_log_result_table_config(create_or_delete_records):
         "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
         "spec": {
             "alias": "base_1_agent_event",
-            "bizId": 0,
+            "bizId": 2,
             "dataType": "log",
             "description": "base_1_agent_event",
             "fields": [
@@ -253,7 +254,7 @@ def test_compose_log_result_table_config(create_or_delete_records):
     assert actual_result == expected_config
 
     # 多租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    settings.ENABLE_MULTI_TENANT_MODE = True
     expected_config = {
         "kind": "ResultTable",
         "metadata": {
@@ -264,7 +265,7 @@ def test_compose_log_result_table_config(create_or_delete_records):
         },
         "spec": {
             "alias": "base_1_agent_event",
-            "bizId": 0,
+            "bizId": 1,
             "dataType": "log",
             "description": "base_1_agent_event",
             "fields": [
@@ -318,7 +319,7 @@ def test_compose_es_storage_binding_config(create_or_delete_records):
     测试ESStorageBindingConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    settings.ENABLE_MULTI_TENANT_MODE = False
 
     es_storage_ins, _ = models.ESStorageBindingConfig.objects.get_or_create(
         name="base_1_agent_event",
@@ -347,7 +348,7 @@ def test_compose_es_storage_binding_config(create_or_delete_records):
     assert actual_result == expected_config
 
     # 多租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    settings.ENABLE_MULTI_TENANT_MODE = True
     expected_config = {
         "kind": "ElasticSearchBinding",
         "metadata": {
@@ -378,7 +379,7 @@ def test_compose_data_bus_config(create_or_delete_records):
     测试DataBusConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    settings.ENABLE_MULTI_TENANT_MODE = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
@@ -417,7 +418,7 @@ def test_compose_data_bus_config(create_or_delete_records):
     assert json.dumps(content) == expect_config
 
     # 多租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    settings.ENABLE_MULTI_TENANT_MODE = True
 
     # 生成sink的时候,需要加上tenant
     sinks = [
@@ -448,8 +449,10 @@ def test_compose_log_databus_config(create_or_delete_records):
     测试LogDatabusConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    settings.ENABLE_MULTI_TENANT_MODE = False
     log_databus_ins, _ = models.LogDataBusConfig.objects.get_or_create(
+        bk_tenant_id="system",
+        bk_biz_id=1,
         name="base_1_agent_event",
         namespace="bkmonitor",
         data_link_name="base_1_agent_event",
@@ -457,7 +460,7 @@ def test_compose_log_databus_config(create_or_delete_records):
     )
     expected_config = {
         "kind": "Databus",
-        "metadata": {"labels": {"bk_biz_id": "0"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
+        "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
         "spec": {
             "maintainers": ["admin"],
             "sinks": [{"kind": "ElasticSearchBinding", "name": "base_1_agent_event", "namespace": "bkmonitor"}],
@@ -469,11 +472,11 @@ def test_compose_log_databus_config(create_or_delete_records):
     assert actual_result == expected_config
 
     # 多租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    settings.ENABLE_MULTI_TENANT_MODE = True
     expected_config = {
         "kind": "Databus",
         "metadata": {
-            "labels": {"bk_biz_id": "0"},
+            "labels": {"bk_biz_id": "1"},
             "name": "base_1_agent_event",
             "tenant": "system",
             "namespace": "bkmonitor",
@@ -502,7 +505,7 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
     测试单集群ConditionalSinkConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    settings.ENABLE_MULTI_TENANT_MODE = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
@@ -554,7 +557,7 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
     assert json.dumps(content) == expected
 
     # 多租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    settings.ENABLE_MULTI_TENANT_MODE = True
 
     expected = (
         '{"kind":"ConditionalSink","metadata":{"namespace":"bkmonitor",'
@@ -589,7 +592,7 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
     测试多集群ConditionalSinkConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    settings.ENABLE_MULTI_TENANT_MODE = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
@@ -660,7 +663,7 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
     assert json.dumps(content) == expected
 
     # 多租户模式
-    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    settings.ENABLE_MULTI_TENANT_MODE = True
 
     expected = (
         '{"kind":"ConditionalSink","metadata":{"namespace":"bkmonitor",'

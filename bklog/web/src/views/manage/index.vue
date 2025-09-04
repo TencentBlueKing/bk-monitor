@@ -25,18 +25,37 @@
 -->
 
 <template>
-  <div class="manage-container">
-    <div
-      v-if="!pageLoading"
-      class="manage-main"
-    >
-      <sub-nav></sub-nav>
-      <router-view
-        class="manage-content"
-        :key="routerKey"
-      ></router-view>
+  <bk-navigation class="bk-log-navigation" :theme-color="navThemeColor" head-height="0" header-title=""
+    navigation-type="left-right" default-open @toggle="handleToggle">
+    <template #menu>
+      <bk-navigation-menu :default-active="activeManageNav.id" :item-default-bg-color="navThemeColor">
+        <template v-for="groupItem in menuList">
+          <bk-navigation-menu-group v-if="groupItem.children.length"
+            :group-name="isExpand ? groupItem.name : groupItem.keyword" :key="groupItem.id">
+            <template>
+              <a v-for="navItem in getGroupChildren(groupItem.children)" class="nav-item"
+                :href="getRouteHref(navItem.id)" :key="navItem.id">
+                <bk-navigation-menu-item :data-test-id="`navBox_nav_${navItem.id}`" :icon="getMenuIcon(navItem)"
+                  :id="navItem.id" @click="handleClickNavItem(navItem.id)">
+                  <span>{{ isExpand ? navItem.name : '' }}</span>
+                </bk-navigation-menu-item>
+              </a>
+            </template>
+          </bk-navigation-menu-group>
+        </template>
+      </bk-navigation-menu>
+    </template>
+    <div class="navigation-content">
+      <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
+      <div class="manage-container">
+        <div v-if="!pageLoading" class="manage-main">
+          <sub-nav></sub-nav>
+          <router-view class="manage-content"></router-view>
+        </div>
+      </div>
     </div>
-  </div>
+  </bk-navigation>
+
 </template>
 
 <script>
@@ -51,19 +70,44 @@
     data() {
       return {
         navThemeColor: '#2c354d',
-        routerKey: 0,
         isExpand: true,
       };
     },
 
     computed: {
-      ...mapState(['topMenu', 'activeManageNav']),
-      ...mapState('globals', ['globalsData']),
+      ...mapState(['topMenu', 'activeManageNav', 'spaceUid', 'bkBizId']),
+      ...mapState('globals', ['globalsData'], 'isExternal'),
       ...mapGetters({
         pageLoading: 'pageLoading',
+        authPageInfo: 'globals/authContainerInfo',
       }),
       manageNavList() {
         return this.topMenu.find(item => item.id === 'manage')?.children || [];
+      },
+      menuList() {
+        const list = this.topMenu.find(item => item.id === 'manage')?.children;
+        if (this.isExternal) {
+          // 外部版只保留【日志提取】菜单
+          return list.filter(menu => menu.id === 'manage-extract-strategy');
+        }
+        return list;
+      },
+    },
+    watch: {
+      '$route.query.spaceUid'(newSpaceUid, oldSpaceUid) {
+        if (newSpaceUid !== oldSpaceUid) {
+          // 获取最外层路径
+          const topLevelRoute = this.getTopLevelRoute();
+
+          this.$router.replace({
+            name: topLevelRoute,
+            query: {
+              ...this.$route.query,
+              spaceUid: this.spaceUid,
+              bizId: this.bkBizId,
+            },
+          });
+        }
       },
     },
     methods: {
@@ -71,7 +115,6 @@
         if (item.icon) {
           return `bklog-icon bklog-${item.icon}`;
         }
-
         return 'bk-icon icon-home-shape';
       },
       handleClickNavItem(id) {
@@ -81,13 +124,35 @@
             spaceUid: this.$store.state.spaceUid,
           },
         });
-        if (this.activeManageNav.id === id) {
-          // this.routerKey += 1;
-        }
       },
       handleToggle(data) {
         this.isExpand = data;
       },
+      // 获取当前路由的最外层路径，用于切换业务时跳转到菜单栏目录项
+      getTopLevelRoute() {
+        const currentPath = this.$route.path;
+        const match = currentPath.match(/^\/manage\/([^\/]+)/);  // 匹配 /manage/xxx 的模式
+
+        if (match) return match[1]; // 返回紧跟 /manage 的路径段
+
+        return 'manage';
+      },
+      getGroupChildren(list) {
+        if (this.isExternal) {
+          // 外部版只保留【日志提取任务】
+          return list.filter(menu => menu.id === 'log-extract-task');
+        }
+        return list;
+      },
+      getRouteHref(pageName) {
+        const newUrl = this.$router.resolve({
+          name: pageName,
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
+        return newUrl.href;
+      }
     },
     mounted() {
       const bkBizId = this.$store.state.bkBizId;

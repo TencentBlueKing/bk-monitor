@@ -58,7 +58,9 @@ import {
   EListItemType,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
+import { autoDecodeString, detectEncodingType } from '../common/formatter-utils';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
+// import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 
 import type { Span } from '../../components/trace-view/typings';
@@ -201,7 +203,6 @@ export default defineComponent({
 
     const spanId = computed(() => props.spanDetails.span_id);
     provide('spanId', spanId);
-
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
     /* 初始化 */
@@ -275,8 +276,6 @@ export default defineComponent({
     function getDetails() {
       const {
         span_id: originalSpanId,
-
-        spanID,
         app_name: appName,
         service_name: serviceName,
         duration,
@@ -287,6 +286,7 @@ export default defineComponent({
         process,
         source,
         stage_duration,
+        resource: spanResource,
       } = props.spanDetails as any | Span;
       // 服务、应用 名在日志 tab 里能用到
       serviceNameProvider.value = serviceName;
@@ -478,24 +478,23 @@ export default defineComponent({
           },
         });
       }
+      const processTags = spanResource || process?.tags || [];
       /** process信息 */
-      if (process?.tags?.length) {
+      if (processTags.length) {
         info.list.push({
           type: EListItemType.tags,
           isExpan: true,
           title: 'Resource',
           [EListItemType.tags]: {
             list:
-              process?.tags.map(
-                (item: { key: any; query_key: string; query_value: any; type: string; value: any }) => ({
-                  label: item.key,
-                  content: item.value || '--',
-                  type: item.type,
-                  isFormat: false,
-                  query_key: item.query_key,
-                  query_value: item.query_value,
-                })
-              ) || [],
+              processTags.map((item: { key: any; query_key: string; query_value: any; type: string; value: any }) => ({
+                label: item.key,
+                content: item.value || '--',
+                type: item.type,
+                isFormat: false,
+                query_key: item.query_key,
+                query_value: item.query_value,
+              })) || [],
           },
         });
       }
@@ -735,7 +734,6 @@ export default defineComponent({
       isExpan: boolean,
       title: string | undefined,
       content: any,
-      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -757,7 +755,6 @@ export default defineComponent({
       isExpan: boolean,
       title: string,
       content: any,
-      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -792,10 +789,25 @@ export default defineComponent({
       return false;
     };
 
-    const formatContent = (content?: string, isFormat?: boolean) => {
-      if (typeof content === 'number' || typeof content === 'undefined') return content;
-      if (!isJson(content)) return typeof content === 'string' ? content : JSON.stringify(content);
-      const data = JSON.parse(content || '');
+    const formatContent = (content?: number | string, isFormat?: boolean) => {
+      if ((typeof content === 'number' && content.toString().length < 10) || typeof content === 'undefined')
+        return content;
+      if (!isJson(content?.toString())) {
+        const str = typeof content === 'string' ? content : JSON.stringify(content);
+        return detectEncodingType(str) ? (
+          <div>
+            {str}
+            <div class='decode-content'>
+              <i class='icon-monitor icon-auto-decode decode-content-icon' />
+              <span class='decode-content-result'>{t('解码结果：')}</span>
+              {autoDecodeString(str)}
+            </div>
+          </div>
+        ) : (
+          str
+        );
+      }
+      const data = JSON.parse(content?.toString() || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
     };
 
@@ -859,7 +871,9 @@ export default defineComponent({
                   outline={!item.isFormat}
                   size='small'
                   theme='primary'
-                  onClick={() => (item.isFormat = !item.isFormat)}
+                  onClick={() => {
+                    item.isFormat = !item.isFormat;
+                  }}
                 >
                   <i class='icon-monitor icon-code' />
                   {t('格式化')}
@@ -897,11 +911,14 @@ export default defineComponent({
           ))}
         </div>
         <div class='stage-time-content'>
-          {content.map(item => {
+          {content.map((item, index) => {
             if (item.type === 'useTime') {
               const times = item[item.type] as any;
               return (
-                <div class='use-time'>
+                <div
+                  key={index}
+                  class='use-time'
+                >
                   <span class='left'>{times.tags[0]}</span>
                   <span class='center'>
                     {times.gap.type === 'toLeft'
@@ -944,7 +961,10 @@ export default defineComponent({
             }
             if (item.type === 'gapTime') {
               return (
-                <div class='gap-time'>
+                <div
+                  key={index}
+                  class='gap-time'
+                >
                   <div class='top' />
                   <div class='center'>{item[item.type]}</div>
                   <div class='bottom' />
@@ -1077,7 +1097,11 @@ export default defineComponent({
             apm_service_name: props.spanDetails.service_name,
             apm_span_id: props.spanDetails.span_id,
           },
-          { cancelToken: new CancelToken(cb => (hostAndContainerCancelToken = cb)) }
+          {
+            cancelToken: new CancelToken(cb => {
+              hostAndContainerCancelToken = cb;
+            }),
+          }
         ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
         isTabPanelLoading.value = false;
@@ -1098,7 +1122,11 @@ export default defineComponent({
             start_time: startTime,
             end_time: endTime,
           },
-          { cancelToken: new CancelToken(cb => (hostAndContainerCancelToken = cb)) }
+          {
+            cancelToken: new CancelToken(cb => {
+              hostAndContainerCancelToken = cb;
+            }),
+          }
         ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
         isTabPanelLoading.value = false;
@@ -1590,7 +1618,11 @@ export default defineComponent({
                 <span class='sideslider-title'>
                   <span class='text'>Span ID: </span>
                   <span class={['status', spanStatus.value?.icon]} />
-                  <span class='name'>{info.title}</span>
+                  <span class='name'>{props.spanDetails?.span_id || info.title}</span>
+                  {/* <AiBluekingIcon
+                    content={props.spanDetails?.span_id || info.title}
+                    shortcutId={AI_BLUEKING_SHORTCUTS_ID.EXPLANATION}
+                  /> */}
                 </span>
                 {props.isShowPrevNextButtons ? (
                   <>

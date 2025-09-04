@@ -97,6 +97,7 @@ from apps.log_search.exceptions import (
     UnionSearchErrorException,
     UnionSearchFieldsFailException,
     UserIndexSetSearchHistoryNotExistException,
+    GetAllFieldsException,
 )
 from apps.log_search.handlers.es.dsl_bkdata_builder import (
     DslCreateSearchContextBodyCustomField,
@@ -384,21 +385,56 @@ class SearchHandler:
             self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
         return self._index_set
 
+    def get_all_fields_by_index_id(self, scope=SearchScopeEnum.DEFAULT.value, is_union_search=False, need_merge=True):
+        """
+        :param scope: 搜索类型
+        :param is_union_search: 联合查询
+        :param need_merge: 是否需要合并字段信息
+        """
+        multi_execute_func = MultiExecuteFunc()
+        index_set_data_obj_list: list = self.index_set.get_indexes(has_applied=True)
+        for index_set_data in index_set_data_obj_list:
+            _result_table_id = index_set_data["result_table_id"]
+            _mapping_handlers = MappingHandlers(
+                _result_table_id,
+                self.index_set_id,
+                index_set_data["scenario_id"] or self.origin_scenario_id,
+                index_set_data["storage_cluster_id"] or self.storage_cluster_id,
+                self.time_field,
+                start_time=self.start_time,
+                end_time=self.end_time,
+                time_zone=self.time_zone,
+            )
+            multi_execute_func.append(
+                result_key=f"{_result_table_id}",
+                func=_mapping_handlers.get_all_fields_by_index_id,
+                params={"scope": scope, "is_union_search": is_union_search},
+                multi_func_params=True,
+            )
+        multi_result = multi_execute_func.run(return_exception=True)
+        for ret in multi_result.values():
+            if isinstance(ret, Exception):
+                # 子查询异常
+                logger.exception("get all fields by index_set_id: %s, reson：%s", self.index_set_id, ret)
+                raise GetAllFieldsException(
+                    GetAllFieldsException.MESSAGE.format(index_set_id=self.index_set.index_set_id, e=ret)
+                )
+
+        if need_merge:
+            added_records = []
+            field_result_list = []
+            for key, (field_result, display_fields) in multi_result.items():
+                for item in field_result:
+                    field_name = item["field_name"]
+                    if field_name not in added_records:
+                        field_result_list.append(item)
+                        added_records.append(field_name)
+            return field_result_list, display_fields
+        return multi_result
+
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)
-        mapping_handlers = MappingHandlers(
-            self.origin_indices,
-            self.index_set_id,
-            self.origin_scenario_id,
-            self.storage_cluster_id,
-            self.time_field,
-            start_time=self.start_time,
-            end_time=self.end_time,
-            time_zone=self.time_zone,
-        )
-        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
-            scope=scope, is_union_search=is_union_search
-        )
+        field_result, display_fields = self.get_all_fields_by_index_id(scope=scope, is_union_search=is_union_search)
 
         if not is_union_search:
             sort_list: list = MappingHandlers.get_sort_list_by_index_id(index_set_id=self.index_set_id, scope=scope)
@@ -414,6 +450,7 @@ class SearchHandler:
 
         result_dict: dict = {
             "fields": field_result,
+            "default_sort_list": self._get_default_sort_list(),
             "display_fields": display_fields,
             "sort_list": sort_field_list,
             "time_field": self.time_field,
@@ -1943,14 +1980,22 @@ class SearchHandler:
                 if sort_list:
                     return sort_list
         # 安全措施, 用户未设置排序规则，且未创建默认配置时, 使用默认排序规则
+        return self._get_default_sort_list()
+
+    def _get_default_sort_list(self):
+        """获取默认排序配置"""
+        index_set_id = self.search_dict.get("index_set_id")
         return self.mapping_handlers.get_default_sort_list(
             index_set_id=index_set_id,
             scenario_id=self.scenario_id,
-            scope=scope,
             default_sort_tag=self.search_dict.get("default_sort_tag", False),
         )
 
     def _init_desensitize(self) -> bool:
+        # 查询原始日志时不进行脱敏  original_search参数不由用户传入
+        if self.search_dict.get("original_search", False):
+            return False
+
         is_desensitize = self.search_dict.get("is_desensitize", True)
 
         if not is_desensitize:
@@ -2361,10 +2406,9 @@ class SearchHandler:
             # 判断原文字段是否存在log中
             if text_field not in log.keys():
                 continue
-
-            for _config in self.field_configs:
-                field_name = _config["field_name"]
-                if field_name not in log.keys() or field_name == text_field:
+            # 原始内容替换成脱敏后的内容
+            for field_name in log.keys():
+                if field_name == text_field:
                     continue
                 log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
 
@@ -3179,6 +3223,7 @@ class UnionSearchHandler:
             "time_field": time_field,
             "time_field_type": time_field_type,
             "time_field_unit": time_field_unit,
+            "default_sort_list": default_sort_list,
         }
         return ret
 

@@ -60,34 +60,53 @@ class UseSegmentProp {
   private wrapperClassName = 'bklog-pop-wrapper';
   private wrapperIdName = 'bklog_pop_wrapper';
   private refContent: Ref<HTMLElement>;
+  private delineate: boolean;
   private $t: (str: string) => string;
-  constructor() {
+  private onclick: (...args: any) => void;
+  private stopPropagation: boolean;
+
+  constructor({
+    delineate = false,
+    onclick = undefined,
+    stopPropagation = false,
+  }: { delineate?: boolean; onclick?: (...args: any) => void; stopPropagation?: boolean } = {}) {
     const { $t } = useLocale();
     this.$t = $t;
     this.refContent = ref();
-    setTimeout(() => {
-      this.onMountedFn();
-    });
+    this.delineate = delineate;
+    this.onclick = onclick;
+    this.stopPropagation = stopPropagation;
+    if (!this.delineate) {
+      setTimeout(() => {
+        this.onMountedFn();
+      });
+    }
   }
 
+  /**
+   * 创建分段内容
+   * @param refName
+   * @returns
+   */
   createSegmentContent(refName: Ref) {
     const eventBoxList = [
       {
-        onClick: () => taskEventManager.executeFn('copy'),
+        onClick: (e: MouseEvent) => this.executeClickEvent(e, 'copy'),
         iconName: 'icon bklog-icon bklog-copy-3',
         text: this.$t('复制'),
+        disabled: false,
       },
       {
-        onClick: () => taskEventManager.executeFn('highlight'),
+        onClick: (e: MouseEvent) => this.executeClickEvent(e, 'highlight'),
         iconName: 'icon bklog-icon bklog-highlight',
         text: this.$t('高亮'),
+        disabled: this.delineate,
       },
       {
-        onClick: () => {
-          taskEventManager.executeFn('is');
-        },
+        onClick: (e: MouseEvent) => this.executeClickEvent(e, 'is'),
         iconName: 'icon bk-icon icon-plus-circle',
         text: this.$t('添加到本次检索'),
+        disabled: this.delineate,
         link: {
           tooltip: this.$t('新开标签页'),
           iconName: 'bklog-icon bklog-jump',
@@ -98,9 +117,10 @@ class UseSegmentProp {
         },
       },
       {
-        onClick: () => taskEventManager.executeFn('not'),
+        onClick: (e: MouseEvent) => this.executeClickEvent(e, 'not'),
         iconName: 'icon bk-icon icon-minus-circle',
         text: this.$t('从本次检索中排除'),
+        disabled: this.delineate,
         link: {
           tooltip: this.$t('新开标签页'),
           iconName: 'bklog-icon bklog-jump',
@@ -111,17 +131,19 @@ class UseSegmentProp {
         },
       },
       {
-        onClick: () => taskEventManager.executeFn('new-search-page-is', true),
+        onClick: (e: MouseEvent) => this.executeClickEvent(e, 'new-search-page-is', true),
         iconName: 'icon bk-icon icon-plus-circle',
         text: this.$t('新建检索'),
+        disabled: this.delineate,
         link: {
           iconName: 'bklog-icon bklog-jump',
         },
       },
       {
-        onClick: () => taskEventManager.executeFn('trace-view', true),
+        onClick: (e: MouseEvent) => this.executeClickEvent(e, 'trace-view', true),
         iconName: 'bklog-icon bklog-jincheng bklog-trace-view',
         text: this.$t('关联Trace检索'),
+        disabled: this.delineate,
         link: {
           iconName: 'bklog-icon bklog-jump',
         },
@@ -131,7 +153,7 @@ class UseSegmentProp {
         if (window?.__IS_MONITOR_TRACE__) {
           return item.text !== this.$t('新建检索');
         }
-        return true;
+        return !item.disabled;
       })
       .map(item => {
         if (window?.__IS_MONITOR_TRACE__) {
@@ -223,10 +245,36 @@ class UseSegmentProp {
     return this.refContent;
   }
 
+  /**
+   * 设置点击上下文
+   * @param keyRef
+   * @param clickEvent
+   */
+  setClickContext({ keyRef, clickEvent }) {
+    taskEventManager.appendEvent(keyRef, clickEvent);
+    taskEventManager.setActiveKey(keyRef);
+  }
+
   onMountedFn() {
     TaskRunning(this.mountedToBody.bind(this));
+  }
+
+  private executeClickEvent(e: MouseEvent, ...args) {
+    if (this.stopPropagation) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }
+
+    if (this.onclick) {
+      this.onclick(e, ...args);
+      return;
+    }
+
+    taskEventManager.executeFn(...args);
   }
 }
 
 const UseSegmentPropInstance = new UseSegmentProp();
 export default UseSegmentPropInstance;
+export { UseSegmentProp };

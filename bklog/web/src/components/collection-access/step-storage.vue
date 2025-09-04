@@ -668,13 +668,13 @@
           collector_config_name_en,
         } = this.curCollect;
         const option = { time_zone: '', time_format: '' };
-        const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
+        const copyFields = fields ? structuredClone(fields) : [];
         copyFields.forEach(row => {
           row.value = '';
           if (row.is_delete) {
             const copyRow = Object.assign(
-              JSON.parse(JSON.stringify(this.rowTemplate)),
-              JSON.parse(JSON.stringify(row)),
+              structuredClone(this.rowTemplate),
+              structuredClone(row),
             );
             Object.assign(row, copyRow);
           }
@@ -719,7 +719,7 @@
               // separator_field_list: ''
             },
 
-            etl_params ? JSON.parse(JSON.stringify(etl_params)) : {},
+            etl_params ? structuredClone(etl_params) : {},
           ),
           fields: copyFields.filter(item => !item.is_built_in),
           retention: retention ? `${retention}` : this.defaultRetention,
@@ -899,15 +899,6 @@
           }
           data.etl_params = payload;
         }
-        data.alias_settings = data.fields
-          .filter(item => item.query_alias)
-          .map(item => {
-            return {
-              field_name: item.alias_name || item.field_name,
-              query_alias: item.query_alias,
-              path_type: item.field_type,
-            };
-          });
         return data;
       },
       checkStorageReplies() {

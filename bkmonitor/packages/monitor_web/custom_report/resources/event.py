@@ -2,7 +2,6 @@ import logging
 import re
 from collections import defaultdict
 from functools import reduce
-from typing import Dict, Optional
 
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -133,7 +132,7 @@ class QueryCustomEventGroup(Resource):
         table_id = serializers.CharField(label="结果表 ID", required=False)
 
     @classmethod
-    def get_strategy_count_for_each_group(cls, table_ids, request_bk_biz_id: Optional[int] = None):
+    def get_strategy_count_for_each_group(cls, table_ids, request_bk_biz_id: int | None = None):
         """
         获取事件分组绑定的策略数
         """
@@ -283,7 +282,7 @@ class GetCustomEventGroup(Resource):
         return data_id_info["token"]
 
     @staticmethod
-    def query_event_detail(result_table_id, time_range) -> Dict[str, Dict]:
+    def query_event_detail(result_table_id, time_range) -> dict[str, dict]:
         result = defaultdict(
             lambda: {
                 "event_count": 0,
@@ -295,6 +294,7 @@ class GetCustomEventGroup(Resource):
         start, end = parse_time_range(time_range)
         data_source = load_data_source(DataSourceLabel.CUSTOM, DataTypeLabel.EVENT)(table=result_table_id)
         q = data_source._get_queryset(
+            bk_tenant_id=get_request_tenant_id(),
             metrics=[
                 {"field": "target", "method": "distinct", "alias": "target_count"},
                 {"field": "time", "method": "max", "alias": "last_change_timestamp"},
@@ -359,11 +359,12 @@ class CreateCustomEventGroup(Resource):
             return attrs
 
     def get_custom_event_data_id(self, bk_biz_id, operator, event_group_name):
-        data_name = "{}_{}_{}".format(self.CUSTOM_EVENT_DATA_NAME, event_group_name, bk_biz_id)
+        data_name = f"{self.CUSTOM_EVENT_DATA_NAME}_{event_group_name}_{bk_biz_id}"
         try:
             data_id_info = api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})
         except BKAPIError:
             param = {
+                "bk_biz_id": bk_biz_id,
                 "data_name": data_name,
                 "etl_config": ETL_CONFIG.CUSTOM_EVENT,
                 "operator": operator,

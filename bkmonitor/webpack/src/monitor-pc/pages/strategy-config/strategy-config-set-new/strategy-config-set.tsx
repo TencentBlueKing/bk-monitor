@@ -229,6 +229,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       checkType: 'total',
       timeRanges: DEFAULT_TIME_RANGE,
       calendars: [],
+      active_calendars: [],
     },
     recoveryConfig: {
       // 恢复条件
@@ -721,6 +722,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       ).filter(item => !!item) as MetricDetail[];
       if (!this.metricData.length) return;
       const expList = metric.expressionList || [];
+      if (!expList.length && metric.expression?.length && metric.expression.trim().length > 1) {
+        expList.push({
+          expression: metric.expression,
+          active: true,
+          functions: [],
+        });
+      }
       if (expList.length) {
         const item = expList.find(item => item.active);
         if (item) {
@@ -891,6 +899,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         checkType: 'total',
         timeRanges: DEFAULT_TIME_RANGE,
         calendars: [],
+        active_calendars: [],
       },
       recoveryConfig: {
         // 恢复条件
@@ -1305,6 +1314,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     triggerConfig.count = triggerConfigData.count || 0;
     triggerConfig.checkWindow = triggerConfigData.check_window || 0;
     triggerConfig.calendars = triggerConfigData.uptime?.calendars || [];
+    triggerConfig.active_calendars = triggerConfigData.uptime?.active_calendars || [];
 
     triggerConfig.timeRanges =
       triggerConfigData.uptime?.time_ranges?.map?.(timeRange => [`${timeRange.start}:00`, `${timeRange.end}:59`]) ||
@@ -2073,6 +2083,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         uptime: {
           // 关联日历
           calendars: triggerConfig.calendars,
+          active_calendars: triggerConfig.active_calendars,
           // 生效时间段
           time_ranges: triggerConfig.timeRanges.map(item => ({
             start: item[0].replace(/:\d{2}$/, ''),

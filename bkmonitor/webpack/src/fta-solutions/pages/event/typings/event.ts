@@ -68,6 +68,7 @@ export interface IChatGroupDialogOptions {
 export interface ICommonItem {
   id: string;
   name: string | TranslateResult;
+  needSearch?: boolean;
 }
 export interface ICommonTreeItem {
   children?: ICommonTreeItem[];
@@ -82,6 +83,12 @@ export interface IDimensionItem {
   value: string;
 }
 
+export interface IBkTopoNodeItem {
+  bk_obj_id: string;
+  bk_inst_id: string;
+  node_name?: string;
+}
+
 export interface IEventItem {
   ack_operator?: string;
   alert_count?: number;
@@ -94,6 +101,7 @@ export interface IEventItem {
   bk_biz_id: number;
   bk_biz_name: string;
   bk_cloud_id: number;
+  bk_host_id: number | string;
   bk_service_instance_id: string;
   category: string;
   content: any;
@@ -141,3 +149,11 @@ export interface IPagination {
   limit: number;
 }
 export type SearchType = 'action' | 'alert' | 'event' | 'incident';
+
+export interface ITopoNodeDataItem {
+  bk_inst_id: number;
+  bk_inst_name: string;
+  bk_obj_id: string;
+  bk_obj_name: string;
+  child?: ITopoNodeDataItem[];
+}

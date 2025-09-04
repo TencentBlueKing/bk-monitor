@@ -769,7 +769,9 @@ export default class DataRetrieval extends tsc<object> {
     let isExist = false;
     const result = this.queryResult.map(item => {
       const targets = item.targets.filter(set => !hiddenAliasList.includes(set.source));
-      !!targets?.length && (isExist = !!targets?.length);
+      if (targets?.length) {
+        isExist = !!targets?.length;
+      }
       return {
         ...item,
         targets,
@@ -2533,8 +2535,16 @@ export default class DataRetrieval extends tsc<object> {
         where: item.agg_condition,
         metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }],
       }));
+      const expression = epxList?.[0]?.value?.toLocaleLowerCase?.();
       queryData = {
-        expression: epxList?.[0]?.value?.toLocaleLowerCase?.(),
+        expressionList: expression
+          ? [
+              {
+                expression,
+                active: true,
+              },
+            ]
+          : [],
         query_configs: queryConfigs,
       };
     }
