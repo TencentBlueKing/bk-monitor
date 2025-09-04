@@ -9,6 +9,7 @@ from metadata.models import ClusterInfo
 from metadata.task.bkbase import sync_bkbase_cluster_info
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.sync_space import sync_bkcc_space
+from metadata.utils.gse import KafkaGseSyncer
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def _init_kafka_cluster(bk_tenant_id: str):
         logger.error("BK_MONITOR_KAFKA_HOST and BK_MONITOR_KAFKA_PORT must be set in environment variables")
         raise ValueError("BK_MONITOR_KAFKA_HOST and BK_MONITOR_KAFKA_PORT must be set in environment variables")
 
-    ClusterInfo.objects.create(
+    cluster = ClusterInfo.objects.create(
         bk_tenant_id=bk_tenant_id,
         cluster_type=ClusterInfo.TYPE_KAFKA,
         cluster_name="kafka_cluster1",
@@ -39,6 +40,10 @@ def _init_kafka_cluster(bk_tenant_id: str):
         port=kafka_port,
         is_default_cluster=True,
     )
+
+    # 注册到GSE
+    KafkaGseSyncer.register_to_gse(mq_cluster=cluster)
+
     logger.info("Kafka cluster created for tenant %s", bk_tenant_id)
 
 
