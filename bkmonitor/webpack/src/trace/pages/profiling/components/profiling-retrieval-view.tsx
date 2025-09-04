@@ -173,6 +173,7 @@ export default defineComponent({
             ...graphQueryParams.value,
             start_time: dateRange.startDate.unix(),
             end_time: dateRange.endDate.unix(),
+            bk_biz_id: window.bk_biz_id || window.cc_biz_id,
           }),
         };
       } catch {
