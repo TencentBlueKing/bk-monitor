@@ -750,20 +750,12 @@ class CodeRedefinedRuleListResource(Resource):
         requested_callee_service: str | None = validated_request_data.get("callee_service")
         requested_callee_method: str | None = validated_request_data.get("callee_method")
 
-        if kind == "callee":
-            if requested_callee_server and requested_callee_server != service_name:
-                raise ValueError(_lazy("callee 场景下 callee_server 必须等于 service_name"))
-            callee_server_value = service_name
-        else:
-            # caller 建议传入；不传则不过滤该维度
-            callee_server_value = requested_callee_server or None
-
         # 基础精确过滤
         q = Q(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name, kind=kind)
 
         # 对传入的维度，匹配该值或空串；未传的不加过滤
-        if callee_server_value is not None:
-            q &= Q(callee_server__in=[callee_server_value, ""])  # type: ignore
+        if requested_callee_server is not None:
+            q &= Q(callee_server__in=[requested_callee_server, ""])  # type: ignore
         if requested_callee_service is not None:
             if requested_callee_service == "":
                 q &= Q(callee_service="")
@@ -833,9 +825,28 @@ class CodeRedefinedRuleSetResource(Resource):
 
         instance_id: int | None = validated_request_data.get("id")
         if instance_id:
-            affected = CodeRedefinedConfigRelation.objects.filter(id=instance_id).update(**updates)
-            if not affected:
-                raise ValueError(_lazy("规则不存在"))
+            # 归属校验，禁止跨业务/应用/服务/kind 篡改
+            try:
+                instance = CodeRedefinedConfigRelation.objects.get(
+                    id=instance_id,
+                    bk_biz_id=bk_biz_id,
+                    app_name=app_name,
+                    service_name=service_name,
+                    kind=kind,
+                )
+            except CodeRedefinedConfigRelation.DoesNotExist:
+                raise ValueError(_lazy("非法请求：归属不匹配或规则不存在"))
+
+            # 仅更新必要字段，禁止更新归属类字段
+            fields_to_update = {
+                "callee_server": callee_server,
+                "callee_service": callee_service,
+                "callee_method": callee_method,
+                "code_type_rules": code_type_rules,
+                "enabled": enabled,
+                "updated_by": username,
+            }
+            CodeRedefinedConfigRelation.objects.filter(id=instance.id).update(**fields_to_update)
             return {"id": instance_id}
 
         filters = {
