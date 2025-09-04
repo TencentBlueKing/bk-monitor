@@ -50,10 +50,11 @@ class KafKaClient:
             bootstrap = f"{uri_obj.hostname}:{uri_obj.port}"
             producer_conf: dict[str, Any] = {"bootstrap.servers": bootstrap}
         elif isinstance(conf, dict):
-            self.topic = conf.pop("topic", "")
+            self.topic = conf.get("topic", "")
             if not self.topic:
                 raise ValueError(f"kafka config (dict) requires 'topic' config: {conf}")
-            producer_conf = dict(conf)
+            _conf = {k: v for k, v in conf.items() if k != "topic"}
+            producer_conf = dict(_conf)
         else:
             raise ValueError(f"unsupported kafka config type: {conf}")
 
