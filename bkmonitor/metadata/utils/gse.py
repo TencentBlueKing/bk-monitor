@@ -32,13 +32,10 @@ class KafkaGseSyncer:
     def sync_to_gse(cls):
         qs = models.ClusterInfo.objects.filter(is_register_to_gse=True)
         for mq_cluster in qs:
-            try:
-                if mq_cluster.is_default_cluster and mq_cluster.bk_tenant_id == DEFAULT_TENANT_ID:
-                    cls.register_default_to_gse(mq_cluster)
-                else:
-                    cls.register_to_gse(mq_cluster)
-            except:  # noqa
-                raise  # 这里不对异常捕获，需要抛出去，让Command执行失败
+            if mq_cluster.is_default_cluster and mq_cluster.bk_tenant_id == DEFAULT_TENANT_ID:
+                cls.register_default_to_gse(mq_cluster)
+            else:
+                cls.register_to_gse(mq_cluster)
 
     @classmethod
     def _get_kafka_sasl_auth(cls, cluster: models.ClusterInfo) -> dict[str, Any]:
