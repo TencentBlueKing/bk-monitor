@@ -122,11 +122,13 @@ class ApmDataSourceConfigBase(models.Model):
             instance.switch_result_table(False)
 
     def switch_result_table(self, is_enable=True):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         resource.metadata.modify_result_table(
             {
                 "table_id": self.result_table_id,
                 "is_enable": is_enable,
-                "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+                "bk_tenant_id": bk_tenant_id,
+                "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             }
         )
 
@@ -260,6 +262,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
         group_info = resource.metadata.create_time_series_group(params)
         resource.metadata.modify_time_series_group(
             {
+                "bk_tenant_id": bk_tenant_id,
                 "time_series_group_id": group_info["time_series_group_id"],
                 "field_list": [
                     {
@@ -279,11 +282,13 @@ class MetricDataSource(ApmDataSourceConfigBase):
         self.save()
 
     def update_fields(self, field_list):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         return resource.metadata.modify_time_series_group(
             {
+                "bk_tenant_id": bk_tenant_id,
                 "time_series_group_id": self.time_series_group_id,
                 "field_list": field_list,
-                "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+                "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             }
         )
 
@@ -573,11 +578,13 @@ class TraceDataSource(ApmDataSourceConfigBase):
         if self.result_table_id:
             table_id = self.result_table_id
 
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         params = {
             "bk_data_id": self.bk_data_id,
             # 必须为 库名.表名
             "table_id": table_id,
-            "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+            "bk_tenant_id": bk_tenant_id,
+            "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             "is_enable": True,
             "table_name_zh": self.app_name,
             "is_custom_table": True,
