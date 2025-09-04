@@ -15,7 +15,7 @@
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import { translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
-  import { BK_LOG_STORAGE } from '../../../store/store.type';
+  import { BK_LOG_STORAGE, FieldInfoItem } from '../../../store/store.type';
   import BatchInput from '../components/batch-input';
   const INPUT_MIN_WIDTH = 12;
 
@@ -164,7 +164,11 @@
 
   const { requestFieldEgges, isRequesting, setIsRequesting, isValidateEgges } = useFieldEgges();
 
-  const getFieldWeight = field => {
+  const getFieldWeight = (field: FieldInfoItem) => {
+    if (field.is_virtual_alias_field) {
+      return 102;
+    }
+
     if (field.field_name === '*') {
       return 101;
     }
@@ -193,7 +197,7 @@
         field_operator: [],
       });
     }
-    return list.map(field => ({ ...field, weight: getFieldWeight(field) })).sort((a, b) => b.weight - a.weight);
+    return list.map((field: any) => ({ ...field, weight: getFieldWeight(field) })).sort((a, b) => b.weight - a.weight);
   });
 
   const textDir = computed(() => {
@@ -437,7 +441,7 @@
     }
 
     if (activeCondition) {
-      handleConditionValueClick({ target: refConditionInput.value }, true);
+      handleConditionValueClick({ target: refConditionInput.value } as any, true);
 
       if (isValidateEgges(item)) {
         setIsRequesting(true);
@@ -566,7 +570,7 @@
     return 'empty';
   });
 
-  const currentEditTagIndex: Ref<string | null> = ref(null);
+  const currentEditTagIndex: Ref<number | null> = ref(null);
 
   const handleConditonValueTagItemClick = () => {
     isConditionValueInputFocus.value = true;
@@ -614,7 +618,7 @@
   let tagInputTimer: NodeJS.Timeout | null = null;
 
   const handleTagInputBlur = () => {
-    currentEditTagIndex.value = '';
+    currentEditTagIndex.value = null;
 
     tagInputTimer = setTimeout(() => {
       isConditionValueInputFocus.value = false;
@@ -622,7 +626,7 @@
   };
 
   const handleTagInputEnter = () => {
-    currentEditTagIndex.value = '';
+    currentEditTagIndex.value = null;
   };
   /**
    * 当前快捷键操作是否命中条件相关弹出
@@ -812,7 +816,7 @@
 
       // 如果当前没有自动focus条件选择
       if (!isConditionValueInputFocus.value) {
-        handleConditionValueClick({ target: refConditionInput.value }, true);
+        handleConditionValueClick({ target: refConditionInput.value } as any, true);
         return;
       }
 
@@ -835,7 +839,7 @@
       // 如果有可以自动联想的内容 & 没有自动展开下拉提示
       // 此时，自动展开下拉提示
       if (!instance?.state.isShown && activeItemMatchList.value.length) {
-        handleConditionValueClick({ target: refConditionInput.value });
+        handleConditionValueClick({ target: refConditionInput.value } as any);
       }
 
       // 如果是条件输入框内有数据执行数据填入操作
