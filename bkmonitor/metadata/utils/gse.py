@@ -33,7 +33,7 @@ class KafkaGseSyncer:
         qs = models.ClusterInfo.objects.filter(is_register_to_gse=True)
         for mq_cluster in qs:
             try:
-                if mq_cluster.is_default_cluster:
+                if mq_cluster.is_default_cluster and mq_cluster.bk_tenant_id == DEFAULT_TENANT_ID:
                     cls.register_default_to_gse(mq_cluster)
                 else:
                     cls.register_to_gse(mq_cluster)
