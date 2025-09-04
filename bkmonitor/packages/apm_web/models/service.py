@@ -128,7 +128,7 @@ class CodeRedefinedConfigRelation(ServiceBase):
     callee_service = models.CharField("被调Service", max_length=512, blank=True, default="")
     # 被调接口（完整名称/路径，精确匹配）
     callee_method = models.CharField("被调接口", max_length=512, blank=True, default="")
-    # 返回码重定义：原始字段直接落库，三组 code 列表，示例：{"success": "0", "failure": "3001,err_1", "timeout": "408"}
+    # 返回码重定义：原始字段直接落库，三组 code 列表，示例：{"success": "0", "exception": "3001,err_1", "timeout": "408"}
     code_type_rules = models.JSONField("重定义返回码分组信息", default=dict)
     # 是否启用
     enabled = models.BooleanField("是否启用", default=True)
