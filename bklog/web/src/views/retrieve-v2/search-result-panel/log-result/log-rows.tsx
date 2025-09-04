@@ -58,7 +58,6 @@ import RowRender from './row-render';
 import ScrollXBar from './scroll-x-bar';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import './log-rows.scss';
 
@@ -104,8 +103,8 @@ export default defineComponent({
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
       stopPropagation: true,
-      onclick: (_, ...args) => {
-        const [type] = args;
+      onclick: (...args) => {
+        const type = args[1];
         handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
         popInstanceUtil.hide();
 
