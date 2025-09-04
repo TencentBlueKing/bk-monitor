@@ -451,6 +451,7 @@ class Application(AbstractRecordModel):
     @atomic
     def create_application(
         cls,
+        bk_tenant_id,
         bk_biz_id,
         app_name,
         app_alias,
@@ -466,6 +467,7 @@ class Application(AbstractRecordModel):
         plugin_config=None,
     ):
         create_params = {
+            "bk_tenant_id": bk_tenant_id,
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
             "app_alias": app_alias,
@@ -480,6 +482,7 @@ class Application(AbstractRecordModel):
         application_info = api.apm_api.create_application(create_params)
 
         application = cls.objects.create(
+            bk_tenant_id=bk_tenant_id,
             application_id=application_info["application_id"],
             bk_biz_id=bk_biz_id,
             app_name=app_name,
