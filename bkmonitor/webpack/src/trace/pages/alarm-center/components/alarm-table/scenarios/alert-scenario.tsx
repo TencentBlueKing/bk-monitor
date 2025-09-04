@@ -60,6 +60,7 @@ export class AlertScenario extends BaseScenario {
 
   constructor(
     private readonly context: {
+      clickPopoverTools: IUsePopoverTools;
       handleAlertContentDetailShow: (e: MouseEvent, row: AlertTableItem, colKey: string) => void;
       handleAlertOperationClick: (
         clickType: 'chart' | 'confirm' | 'manual' | 'more',
@@ -153,7 +154,7 @@ export class AlertScenario extends BaseScenario {
         renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
         getRenderValue: row => AlertStatusMap?.[row.status],
         attrs: { class: 'alert-status-col' },
-        suffixSlot: row => this.renderOperatePanel(row),
+        suffixSlot: (row, column) => this.renderOperatePanel(row, column),
       },
     };
 
@@ -224,10 +225,13 @@ export class AlertScenario extends BaseScenario {
   /**
    * @description 状态(status) 列 插槽 操作面板渲染方法
    */
-  private renderOperatePanel(row: AlertTableItem) {
+  private renderOperatePanel(row: AlertTableItem, column?: BaseTableColumn) {
     const { status, is_ack: isAck, ack_operator: ackOperator, followerDisabled } = row;
+    const colKey = column?.colKey;
+    const moreMenuIsActive =
+      this.context.clickPopoverTools?.popoverInstance?.value?.instanceKey === `${row.id}-${colKey}-more`;
     return (
-      <div class='operate-panel'>
+      <div class={`operate-panel ${moreMenuIsActive ? 'more-menu-active' : ''}`}>
         {window.enable_create_chat_group ? (
           <span
             class='operate-panel-item icon-monitor icon-we-com'
@@ -270,7 +274,7 @@ export class AlertScenario extends BaseScenario {
         />
         <span
           class={['operate-more']}
-          onClick={e => this.context.handleAlertOperationClick('more', row, e)}
+          onClick={e => this.handleMoreOperationClick(e, row, column.colKey)}
         >
           <span class='icon-monitor icon-mc-more' />
         </span>
@@ -472,7 +476,7 @@ export class AlertScenario extends BaseScenario {
     return `${location.origin}${location.pathname}?bizId=${bk_biz_id}#/strategy-config/detail/${strategy_id}`;
   }
 
-  /*
+  /**
    * @description 告警确认文案
    */
   private askTipMsg(isAak, status, ackOperator, followerDisabled) {
@@ -487,5 +491,55 @@ export class AlertScenario extends BaseScenario {
       return statusNames[status];
     }
     return `${ackOperator || ''}${window.i18n.t('已确认')}`;
+  }
+
+  /**
+   * @description 获取更多操作下拉菜单 Menu dom
+   */
+  private getMoreMenuDom(row: AlertTableItem) {
+    return (
+      <div class='alert-table-more-operation-menu'>
+        <div
+          class={['more-item', { 'is-disable': row?.is_shielded || row?.followerDisabled }]}
+          onClick={() =>
+            !row?.is_shielded && !row?.followerDisabled && this.context.handleAlertOperationClick('manual', row)
+          }
+          onMouseenter={(e: MouseEvent) => {
+            let content = row?.is_shielded ? `${row.shield_operator?.[0] || ''}${window.i18n.t('已屏蔽')}` : '';
+            if (row?.followerDisabled) {
+              content = window.i18n.t('关注人禁用此操作');
+            }
+            this.context.hoverPopoverTools?.showPopover?.(e, content, {
+              theme: 'alarm-center-popover max-width-50vw text-wrap',
+            });
+          }}
+        >
+          <span class='icon-monitor icon-mc-notice-shield' />
+          <span>{window.i18n.t('快捷屏蔽')}</span>
+        </div>
+
+        <div
+          class={['more-item', { 'is-disable': row?.followerDisabled }]}
+          onClick={() => this.context.handleAlertOperationClick('manual', row)}
+          onMouseenter={(e: MouseEvent) => {
+            const content = row?.followerDisabled ? window.i18n.t('关注人禁用此操作') : '';
+            this.context.hoverPopoverTools?.showPopover?.(e, content, {
+              theme: 'alarm-center-popover max-width-50vw text-wrap',
+            });
+          }}
+        >
+          <span class='icon-monitor icon-fenpai' />
+          <span>{window.i18n.t('告警分派')}</span>
+        </div>
+      </div>
+    ) as unknown as Element;
+  }
+
+  /**
+   * @description alert Table 数据行操作栏中 更多 按钮点击回调
+   */
+  private handleMoreOperationClick(e: MouseEvent, row: AlertTableItem, colKey: string) {
+    const dom = this.getMoreMenuDom(row);
+    this.context.clickPopoverTools.showPopover(e, dom, `${row.id}-${colKey}-more`, { arrow: false });
   }
 }

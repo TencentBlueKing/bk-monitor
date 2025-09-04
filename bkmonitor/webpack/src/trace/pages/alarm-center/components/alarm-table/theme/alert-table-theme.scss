@@ -27,6 +27,10 @@
         color: #313238;
         background: #eaebf0;
 
+        &.more-menu-active {
+          display: flex;
+        }
+
         &-item {
           --icon-container-size: 18px;
 
@@ -229,5 +233,47 @@
 
   .extend-info-popover-container {
     padding: 6px 8px;
+  }
+
+  .alert-table-more-operation-menu {
+    display: flex;
+    flex-direction: column;
+    min-width: 68px;
+    font-size: 12px;
+    color: #63656e;
+    border: 1px solid #dcdee5;
+
+    .more-item {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      height: 32px;
+      padding: 0 10px;
+      white-space: nowrap;
+      background: #fff;
+
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+        background: #f0f1f5;
+      }
+
+      .icon-duihao,
+      .icon-mc-alarm-abnormal,
+      .icon-fenpai,
+      .icon-mc-notice-shield {
+        margin-right: 4px;
+        font-size: 14px;
+      }
+
+      .icon-fenpai {
+        font-size: 12px;
+      }
+
+      &.is-disable {
+        color: #c4c6cc;
+        cursor: not-allowed;
+      }
+    }
   }
 }
