@@ -19,26 +19,20 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from django.conf.urls import include
-from django.urls import re_path
-from rest_framework import routers
+from prometheus_client import Counter, Gauge
 
-from apps.ai_assistant.views import (
-    AIAssistantViewSet,
-    ChatSessionViewSet,
-    ChatSessionContentViewSet,
-    ChatCompletionViewSet,
-    AgentInfoViewSet,
+from apps.utils.prometheus import register_metric
+
+AI_AGENTS_REQUESTS_TOTAL = register_metric(
+    Counter,
+    name="ai_agents_requests_total",
+    documentation="AI小鲸服务调用统计",
+    labelnames=("agent_code", "resource_name", "status", "username", "command"),
 )
 
-router = routers.DefaultRouter(trailing_slash=True)
-
-router.register(r"", AIAssistantViewSet, basename="ai_assistant")
-router.register(r"agent", AgentInfoViewSet, basename="agent_info")
-router.register(r"session", ChatSessionViewSet, basename="chat_session")
-router.register(r"session_content", ChatSessionContentViewSet, basename="chat_session_content")
-router.register(r"chat_completion", ChatCompletionViewSet, basename="chat_completion")
-
-urlpatterns = [
-    re_path(r"^ai_assistant/", include(router.urls)),
-]
+AI_AGENTS_REQUESTS_COST_SECONDS = register_metric(
+    Gauge,
+    name="ai_agents_requests_cost_seconds",
+    documentation="AI小鲸服务调用耗时统计",
+    labelnames=("agent_code", "resource_name", "status", "username", "command"),
+)
