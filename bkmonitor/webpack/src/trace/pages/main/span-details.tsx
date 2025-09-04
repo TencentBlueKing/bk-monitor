@@ -203,10 +203,6 @@ export default defineComponent({
 
     const spanId = computed(() => props.spanDetails.span_id);
     provide('spanId', spanId);
-    const autoDecodeRefs = shallowRef<HTMLSpanElement[]>();
-    setTimeout(() => {
-      console.info(autoDecodeRefs.value, '============');
-    }, 1000);
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
     /* 初始化 */
@@ -793,23 +789,17 @@ export default defineComponent({
       return false;
     };
 
-    const formatContent = (content?: string, isFormat?: boolean) => {
-      if (typeof content === 'number' || typeof content === 'undefined') return content;
-      if (!isJson(content)) {
+    const formatContent = (content?: number | string, isFormat?: boolean) => {
+      if ((typeof content === 'number' && content.toString().length < 10) || typeof content === 'undefined')
+        return content;
+      if (!isJson(content?.toString())) {
         const str = typeof content === 'string' ? content : JSON.stringify(content);
-        if (detectEncodingType(str)) {
-          console.info(detectEncodingType(str), str, '============');
-        }
         return detectEncodingType(str) ? (
-          <div ref={autoDecodeRefs}>
+          <div>
             {str}
-            <div>
-              <span
-                style={{ color: '#798499', fontWeight: 600, marginLeft: '12px' }}
-                class='auto-decode-result'
-              >
-                {t('解码结果：')}
-              </span>
+            <div class='decode-content'>
+              <i class='icon-monitor icon-auto-decode decode-content-icon' />
+              <span class='decode-content-result'>{t('解码结果：')}</span>
               {autoDecodeString(str)}
             </div>
           </div>
@@ -817,7 +807,7 @@ export default defineComponent({
           str
         );
       }
-      const data = JSON.parse(content || '');
+      const data = JSON.parse(content?.toString() || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
     };
 
