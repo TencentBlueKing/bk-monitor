@@ -60,9 +60,9 @@ from apm_web.service.serializers import (
     ServiceConfigSerializer,
     PipelineOverviewRequestSerializer,
     ListPipelineRequestSerializer,
-    CodeRedefinedRuleListRequestSerializer,
-    CodeRedefinedRuleSetRequestSerializer,
-    CodeRedefinedRuleDeleteRequestSerializer,
+    ListCodeRedefinedRuleRequestSerializer,
+    SetCodeRedefinedRuleRequestSerializer,
+    DeleteCodeRedefinedRuleRequestSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkm_space.errors import NoRelatedResourceError
@@ -810,7 +810,7 @@ class ListPipelineResource(Resource):
 
 
 class ListCodeRedefinedRuleResource(Resource):
-    RequestSerializer = CodeRedefinedRuleListRequestSerializer
+    RequestSerializer = ListCodeRedefinedRuleRequestSerializer
 
     def perform_request(self, validated_request_data):
         if validated_request_data.get("is_mock", False):
@@ -870,7 +870,7 @@ class ListCodeRedefinedRuleResource(Resource):
 
 
 class SetCodeRedefinedRuleResource(Resource):
-    RequestSerializer = CodeRedefinedRuleSetRequestSerializer
+    RequestSerializer = SetCodeRedefinedRuleRequestSerializer
 
     def perform_request(self, validated_request_data):
         if validated_request_data.get("is_mock", False):
@@ -912,7 +912,7 @@ class SetCodeRedefinedRuleResource(Resource):
 
 
 class DeleteCodeRedefinedRuleResource(Resource):
-    RequestSerializer = CodeRedefinedRuleDeleteRequestSerializer
+    RequestSerializer = DeleteCodeRedefinedRuleRequestSerializer
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]

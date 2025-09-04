@@ -178,7 +178,7 @@ class BaseCodeRedefinedRequestSerializer(serializers.Serializer):
         return attrs
 
 
-class CodeRedefinedRuleListRequestSerializer(BaseCodeRedefinedRequestSerializer):
+class ListCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则列表查询请求序列化器"""
 
     callee_server = serializers.CharField(label="被调服务", required=False, allow_blank=True, default="")
@@ -190,7 +190,7 @@ class CodeRedefinedRuleListRequestSerializer(BaseCodeRedefinedRequestSerializer)
         return self.validate_callee_kind_consistency(attrs)
 
 
-class CodeRedefinedRuleSetRequestSerializer(BaseCodeRedefinedRequestSerializer):
+class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则设置请求序列化器"""
 
     callee_server = serializers.CharField(label="被调服务", allow_blank=True)
@@ -207,7 +207,7 @@ class CodeRedefinedRuleSetRequestSerializer(BaseCodeRedefinedRequestSerializer):
         return attrs
 
 
-class CodeRedefinedRuleDeleteRequestSerializer(BaseCodeRedefinedRequestSerializer):
+class DeleteCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则删除请求序列化器"""
 
     id = serializers.IntegerField(label="规则 ID")
