@@ -35,6 +35,7 @@ import TraceExploreLayout from '../trace-explore/components/trace-explore-layout
 import AlarmAnalysis from './components/alarm-analysis/alarm-analysis';
 import AlarmCenterHeader from './components/alarm-center-header';
 import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retrieval-filter';
+import { useAlarmFilter } from './components/alarm-retrieval-filter/hooks/use-alarm-filter';
 import AlarmTable from './components/alarm-table/alarm-table';
 import AlarmTrendChart from './components/alarm-trend-chart/alarm-trend-chart';
 import QuickFiltering from './components/quick-filtering';
@@ -43,6 +44,7 @@ import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
 import { type CommonCondition, AlarmType, CONTENT_SCROLL_ELEMENT_CLASS_NAME } from './typings';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
+import { useAppStore } from '@/store/modules/app';
 
 import './alarm-center.scss';
 export default defineComponent({
@@ -51,6 +53,7 @@ export default defineComponent({
     const router = useRouter();
     const route = useRoute();
     const alarmStore = useAlarmCenterStore();
+    const appStore = useAppStore();
     const { quickFilterList, quickFilterLoading } = useQuickFilter();
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
     const {
@@ -268,6 +271,7 @@ export default defineComponent({
       allTableFields,
       lockedTableFields,
       alarmStore,
+      appStore,
       retrievalFilterFields,
       favoriteList,
       residentSettingOnlyId,
@@ -283,6 +287,11 @@ export default defineComponent({
       handleCurrentPageChange,
       handlePageSizeChange,
       handleSortChange,
+      ...useAlarmFilter({
+        alarmType: alarmStore.alarmType,
+        commonFilterParams: alarmStore.commonFilterParams,
+        filterMode: alarmStore.filterMode,
+      }),
     };
   },
   render() {
@@ -291,13 +300,14 @@ export default defineComponent({
         <AlarmCenterHeader class='alarm-center-header' />
         <AlarmRetrievalFilter
           class='alarm-center-filters'
-          alarmType={this.alarmStore.alarmType}
           bizIds={this.alarmStore.bizIds}
-          commonFilterParams={this.alarmStore.commonFilterParams}
+          bizList={this.appStore.bizList}
           conditions={this.alarmStore.conditions}
           favoriteList={this.favoriteList}
           fields={this.retrievalFilterFields}
           filterMode={this.alarmStore.filterMode}
+          getValueFn={this.getRetrievalFilterValueData}
+          needIncidentOption={this.alarmStore.alarmType === AlarmType.INCIDENT}
           queryString={this.alarmStore.queryString}
           residentCondition={this.alarmStore.residentCondition}
           residentSettingOnlyId={this.residentSettingOnlyId}

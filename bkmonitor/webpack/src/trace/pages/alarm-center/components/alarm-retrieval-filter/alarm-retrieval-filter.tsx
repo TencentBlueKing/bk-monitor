@@ -29,61 +29,85 @@ import { type PropType, computed, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
-import { type IFavoriteListItem, type IFilterField, EMode } from '../../../../components/retrieval-filter/typing';
+import {
+  type IFavoriteListItem,
+  type IFilterField,
+  type IGetValueFnParams,
+  type IWhereValueOptionsItem,
+  EMode,
+} from '../../../../components/retrieval-filter/typing';
 import SpaceSelector from '../../../../components/space-select/space-selector';
 import AlarmModuleSelector from './components/alarm-module-selector';
 import SelectorTrigger from './components/selector-trigger';
-import { useAlarmFilter } from './hooks/use-alarm-filter';
 import { useSpaceSelect } from './hooks/use-space-select';
 
 import type { ITriggerSlotOptions } from '../../../../components/space-select/typing';
-import type { AlarmType } from '../../typings';
 import type { CommonCondition } from '../../typings/services';
+import type { ISpaceItem } from 'monitor-common/typings';
 
 import './alarm-retrieval-filter.scss';
 
 export default defineComponent({
   name: 'AlarmRetrievalFilter',
   props: {
+    /* 字段列表 */
     fields: {
       type: Array as PropType<IFilterField[]>,
       default: () => [],
     },
+    /* 查询模式 */
     filterMode: {
       type: String as PropType<EMode>,
       default: EMode.ui,
     },
+    /* ui模式条件值 */
     conditions: {
       type: Array as PropType<CommonCondition[]>,
       default: () => [],
     },
+    /* 常驻条件值 */
     residentCondition: {
       type: Object as PropType<CommonCondition[]>,
       default: () => ({}),
     },
+    /* 语句模式语句 */
     queryString: {
       type: String,
       default: '',
     },
+    /* 收藏列表 */
     favoriteList: {
       type: Array as PropType<IFavoriteListItem[]>,
       default: () => [],
     },
+    /* 常驻条件配置id */
     residentSettingOnlyId: {
       type: String,
       default: '',
     },
+    /* 当前选择的业务列表 */
     bizIds: {
       type: Array as PropType<(number | string)[]>,
       default: () => [],
     },
-    alarmType: {
-      type: String as PropType<AlarmType>,
-      default: '',
+    /* 获取值的函数 */
+    getValueFn: {
+      type: Function as PropType<(params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>>,
+      default: () =>
+        Promise.resolve({
+          count: 0,
+          list: [],
+        }),
     },
-    commonFilterParams: {
-      type: Object,
-      default: () => ({}),
+    /* 业务/空间列表 */
+    bizList: {
+      type: Array as PropType<ISpaceItem[]>,
+      default: () => [],
+    },
+    /* 是否包含我有故障、空间的选项 */
+    needIncidentOption: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: {
@@ -135,14 +159,7 @@ export default defineComponent({
       handleFilterModeChange,
       handleResidentConditionChange,
       handleBizIdsChange,
-      ...useAlarmFilter({
-        alarmType: props.alarmType,
-        commonFilterParams: props.commonFilterParams,
-        filterMode: props.filterMode,
-      }),
-      ...useSpaceSelect({
-        alarmType: props.alarmType,
-      }),
+      ...useSpaceSelect(),
     };
   },
   render() {
@@ -161,7 +178,7 @@ export default defineComponent({
         favoriteList={this.favoriteList}
         fields={this.fields}
         filterMode={this.filterMode}
-        getValueFn={this.getRetrievalFilterValueData}
+        getValueFn={this.getValueFn}
         isShowClear={true}
         isShowCopy={true}
         isShowResident={true}
@@ -183,7 +200,7 @@ export default defineComponent({
                 isCommonStyle={false}
                 multiple={this.isMultiple}
                 needChangeChoiceType={true}
-                needIncidentOption={this.isIncident}
+                needIncidentOption={this.needIncidentOption}
                 spaceList={this.bizList}
                 value={this.bizIds}
                 onApplyAuth={this.handleCheckAllowedByIds}
@@ -193,6 +210,7 @@ export default defineComponent({
                 {{
                   trigger: (options: ITriggerSlotOptions) => (
                     <SelectorTrigger
+                      class='selector-trigger-space-select'
                       tips={options.valueStrList
                         .map(
                           (item, index) =>

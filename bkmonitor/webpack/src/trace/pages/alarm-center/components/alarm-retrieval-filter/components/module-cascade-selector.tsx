@@ -83,6 +83,7 @@ export default defineComponent({
         {this.localCascades.map(item => (
           <Select
             key={item.id}
+            class='module-selector-module-cascade-selector'
             customContent={item.loading}
             filterable={true}
             modelValue={item.value}

@@ -182,7 +182,7 @@ export default defineComponent({
               }
             }
           } else {
-            // handleCheck(props.fields[0]);
+            handleCheck(props.fields[0]);
             // 需要等待popover 动画执行完毕 300ms
             // setTimeout(() => {
             //   searchInputRef.value?.focus();
@@ -273,14 +273,14 @@ export default defineComponent({
         await promiseTimeout(50);
       }
       if (isTextarea.value && queryString.value) {
+        const methodItem = checkedItem.value.methods[0];
         const value: IFilterItem = {
           key: { id: checkedItem.value?.name || '*', name: checkedItem.value?.alias || t('全文') },
-          method: { id: EMethod.include, name: t('包含') },
+          method: { id: methodItem?.value || EMethod.include, name: methodItem?.alias || t('包含') },
           value: [{ id: queryString.value, name: queryString.value }],
           condition: { id: ECondition.and, name: 'AND' },
         };
         emit('confirm', value);
-
         return;
       }
       if (

@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import type { ISpaceItem } from 'monitor-common/typings';
 import type { PropType } from 'vue';
+
+import type { ISpaceItem } from 'monitor-common/typings';
 
 export enum ETagsType {
   BCS = 'bcs' /** 容器项目 */,
@@ -35,20 +36,20 @@ export enum ETagsType {
   MONITOR = 'monitor' /** 监控空间 */,
 }
 
+export interface ILocalSpaceList extends ISpaceItem {
+  hasData?: boolean;
+  isCheck?: boolean;
+  isSpecial?: boolean;
+  name?: string;
+  noAuth?: boolean;
+  preciseMatch?: boolean;
+  show?: boolean;
+  tags?: ITagsItem[];
+}
 interface ITagsItem {
   id: string;
   name: string;
   type: ETagsType;
-}
-export interface ILocalSpaceList extends ISpaceItem {
-  isCheck?: boolean;
-  tags?: ITagsItem[];
-  name?: string;
-  show?: boolean;
-  preciseMatch?: boolean;
-  isSpecial?: boolean;
-  noAuth?: boolean;
-  hasData?: boolean;
 }
 
 export const SPACE_SELECTOR_PROPS = {
@@ -124,11 +125,11 @@ export const SPACE_SELECTOR_EMITS = {
 } as const;
 
 export interface ITriggerSlotOptions {
-  multiple: boolean;
+  active: boolean;
   disabled: boolean;
   error: boolean;
-  active: boolean;
-  valueStrList: { id: string; name: string }[];
+  multiple: boolean;
   valueStr: string;
+  valueStrList: { id: string; name: string }[];
   clear: () => void;
 }

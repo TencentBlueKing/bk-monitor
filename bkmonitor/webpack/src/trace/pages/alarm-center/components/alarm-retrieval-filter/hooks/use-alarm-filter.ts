@@ -23,7 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type IGetValueFnParams, EMode } from '../../../../../components/retrieval-filter/typing';
+import { watch } from 'vue';
+
+import {
+  type IGetValueFnParams,
+  type IWhereValueOptionsItem,
+  EMode,
+} from '../../../../../components/retrieval-filter/typing';
 import { AlarmServiceFactory } from '../../../../../pages/alarm-center/services/factory';
 import { AlarmType } from '../../../../../pages/alarm-center/typings';
 
@@ -36,25 +42,26 @@ type ICandidateValueMap = Map<
   }
 >;
 
-interface IParams {
-  fields: string[];
-  filters: any[];
-  isInit__?: boolean; // 此字段判断是否需要初始化缓存候选值，不传给接口参数
-  limit: number;
-  mode: string;
-  query_string: string;
-}
-
 export function useAlarmFilter({ alarmType = AlarmType.ALERT, commonFilterParams = {}, filterMode = EMode.ui }) {
   let axiosController = new AbortController();
   let candidateValueMap: ICandidateValueMap = new Map();
 
-  function getRetrievalFilterValueData(params: IGetValueFnParams) {
-    return getFieldsOptionValuesProxy(params);
+  watch(
+    () => alarmType,
+    (newVal, oldVal) => {
+      if (newVal !== oldVal) {
+        candidateValueMap = new Map();
+      }
+    }
+  );
+
+  function getRetrievalFilterValueData(params: IGetValueFnParams): Promise<IWhereValueOptionsItem> {
+    return getFieldsOptionValuesProxy(params) as any;
   }
 
-  function getFieldsOptionValuesProxy(params: any) {
-    function getMapKey(params: IParams) {
+  function getFieldsOptionValuesProxy(params: IGetValueFnParams) {
+    console.log(params);
+    function getMapKey(params: IGetValueFnParams) {
       return `${alarmType}____${filterMode}____${params.fields.join('')}____`;
     }
     function removeQuotesIfWrapped(str) {
@@ -70,13 +77,13 @@ export function useAlarmFilter({ alarmType = AlarmType.ALERT, commonFilterParams
       return str;
     }
     return new Promise(resolve => {
-      if (params?.isInit__) {
-        candidateValueMap = new Map();
-      }
+      // if (params?.isInit__) {
+      //   candidateValueMap = new Map();
+      // }
       const searchValue = String(params.where?.[0]?.value?.[0] || '');
       const searchValueLower = searchValue.toLocaleLowerCase();
       const candidateItem = candidateValueMap.get(getMapKey(params));
-      if (candidateItem?.isEnd && !params?.query_string) {
+      if (candidateItem?.isEnd && !params?.queryString) {
         if (searchValue) {
           const filterValues = candidateItem.values.filter(item => {
             const idLower = `${item.id}`.toLocaleLowerCase();

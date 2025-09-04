@@ -25,26 +25,26 @@
  */
 
 import {
+  computed,
   defineComponent,
-  shallowRef,
+  nextTick,
+  onUnmounted,
   shallowReactive,
-  watch,
+  shallowRef,
   triggerRef,
   useTemplateRef,
-  onUnmounted,
-  nextTick,
-  computed,
+  watch,
 } from 'vue';
+
+import { useDebounceFn } from '@vueuse/core';
+import { Button, Checkbox, Input } from 'bkui-vue';
+import { bizWithAlertStatistics } from 'monitor-api/modules/home';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { useTippy } from 'vue-tippy';
 
-import { useDebounceFn } from '@vueuse/core';
-import { Input, Checkbox, Button } from 'bkui-vue';
-import { bizWithAlertStatistics } from 'monitor-api/modules/home';
-
 import { useAppStore } from '../../store/modules/app';
-import { ETagsType, type ILocalSpaceList, SPACE_SELECTOR_EMITS, SPACE_SELECTOR_PROPS } from './typing';
+import { type ILocalSpaceList, ETagsType, SPACE_SELECTOR_EMITS, SPACE_SELECTOR_PROPS } from './typing';
 import { getEventPaths, SPACE_TYPE_MAP } from './utils';
 
 import type { ISpaceItem } from 'monitor-common/typings';
@@ -105,12 +105,10 @@ export default defineComponent({
     /* 当前分页数据 */
     const pagination = shallowReactive<{
       current: number;
-      count: number;
-      limit: number;
       data: ILocalSpaceList[];
+      limit: number;
     }>({
       current: 1,
-      count: 0,
       limit: 20,
       data: [],
     });
@@ -237,9 +235,11 @@ export default defineComponent({
     }
 
     function handleMousedown() {
-      console.log('asdfasdfasdf');
       if (popInstance || props.disabled) {
         return;
+      }
+      if (props.value.length > 1 && !props.multiple) {
+        handleChangeChoiceType(true);
       }
       const target = selectRef.value;
       popInstance = useTippy(target, {

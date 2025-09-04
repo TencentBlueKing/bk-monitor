@@ -236,6 +236,30 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
     ],
   },
   {
+    name: 'alert_name',
+    alias: '告警（策略）名称',
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+      {
+        alias: '包含',
+        value: 'include',
+      },
+      {
+        alias: '不包含',
+        value: 'exclude',
+      },
+    ],
+  },
+  {
     name: 'id',
     alias: '告警ID',
     isEnableOptions: true,
