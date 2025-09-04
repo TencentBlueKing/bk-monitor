@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+const oxlintPlugin = require('eslint-plugin-oxlint');
 const typescriptEslint = require('@typescript-eslint/eslint-plugin');
 const typescriptEslintParser = require('@typescript-eslint/parser');
 const codecc = require('eslint-plugin-codecc');
@@ -30,7 +31,7 @@ const eslintVueParser = require('vue-eslint-parser');
 const perfectionist = require('eslint-plugin-perfectionist');
 const eslintVuePlugin = require('eslint-plugin-vue');
 const { rules: tencentEslintLegacyRules } = require('eslint-config-tencent/ts');
-
+// deprecating formatting rules https://typescript-eslint.io/blog/deprecating-formatting-rules
 const deprecateRules = Object.fromEntries(
   [
     'ban-ts-comment',
@@ -333,7 +334,7 @@ module.exports = [
   {
     ignores: ['node_modules'],
   },
-  {
+    {
     rules: {
       'vue/multi-word-component-names': 'off',
       'vue/no-reserved-component-names': 'off',
@@ -363,5 +364,6 @@ module.exports = [
       '/src/__tests__/demos',
       'src/**/.config',
     ],
-  }
+  },
+  ...oxlintPlugin.buildFromOxlintConfigFile('./.oxlintrc.json'),
 ];

@@ -223,12 +223,13 @@ class ApmApplication(AbstractRecordModel):
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def create_application(
-        cls, bk_biz_id, app_name, app_alias, description, es_storage_config, options: dict | None = None
+        cls, bk_tenant_id, bk_biz_id, app_name, app_alias, description, es_storage_config, options: dict | None = None
     ):
         cls.check_application(bk_biz_id, app_name)
 
         # step1: 创建应用
         application = cls.objects.create(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
             app_name=app_name,
             app_alias=app_alias,

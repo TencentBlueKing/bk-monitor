@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, nextTick, Ref } from 'vue';
 
   // @ts-ignore
   import { getCharLength, getRegExp, formatDateTimeField, getOsCommandLabel } from '@/common/util';
@@ -45,15 +45,15 @@
   const store = useStore();
   const { t } = useLocale();
   const searchValue = ref('');
-  const refConditionInput = ref(null);
-  const refFullTexarea = ref(null);
-  const refUiValueOperator = ref(null);
-  const refUiValueOperatorList = ref(null);
-  const activeIndex = ref(0);
-  const refSearchResultList = ref(null);
-  const refFilterInput = ref(null);
+  const refConditionInput: Ref<HTMLInputElement | null> = ref(null);
+  const refFullTexarea: Ref<HTMLElement | null> = ref(null);
+  const refUiValueOperator: Ref<HTMLElement | null> = ref(null);
+  const refUiValueOperatorList: Ref<HTMLElement | null> = ref(null);
+  const activeIndex: Ref<number> = ref(0);
+  const refSearchResultList: Ref<HTMLElement | null> = ref(null);
+  const refFilterInput: Ref<HTMLElement | null> = ref(null);
   // 条件Value选择列表
-  const refValueTagInputOptionList = ref(null);
+  const refValueTagInputOptionList: Ref<HTMLElement | null> = ref(null);
 
   // 操作符下拉当前激活Index
   const operatorActiveIndex = ref(0);
@@ -182,7 +182,7 @@
 
   const fieldList = computed(() => {
     let list = [fullTextField.value];
-    list = list.concat(indexFieldInfo.value.fields);
+    list = list.concat(indexFieldInfo.value.fields, indexFieldInfo.value.alias_field_list ?? []);
     if (!isNotIpSelectShow.value) {
       list.push({
         field_name: '_ip-select_',
@@ -504,7 +504,7 @@
     }
 
     const isFulltextValue = activeFieldItem.value.field_name === '*';
-    let result = {
+    let result: any = {
       ...condition.value,
       field: activeFieldItem.value.field_name,
     };
@@ -536,9 +536,9 @@
     emit('save', result);
   };
 
-  const refValueTagInput = ref(null);
+  const refValueTagInput: Ref<HTMLInputElement | null> = ref(null);
   const isConditionValueInputFocus = ref(false);
-  const conditionValueActiveIndex = ref(-1);
+  const conditionValueActiveIndex: Ref<number | null> = ref(-1);
   const conditionValueInputVal = ref('');
 
   /**
@@ -566,7 +566,7 @@
     return 'empty';
   });
 
-  const currentEditTagIndex = ref(null);
+  const currentEditTagIndex: Ref<string | null> = ref(null);
 
   const handleConditonValueTagItemClick = () => {
     isConditionValueInputFocus.value = true;
@@ -586,13 +586,13 @@
     }, 500);
   };
 
-  const handleConditionValueClick = (e = null, autoFocus = false) => {
+  const handleConditionValueClick = (e?: MouseEvent, autoFocus = false) => {
     conditionValueInstance.cancelHide();
     conditionBlurTimer && clearTimeout(conditionBlurTimer);
     conditionBlurTimer = null;
 
     // tag-item-input edit-input
-    if (!e || e.target?.classList?.contains('edit-input')) {
+    if (!e || (e.target as HTMLElement)?.classList?.contains('edit-input')) {
       return;
     }
 
@@ -605,13 +605,13 @@
 
     if (activeItemMatchList.value.length > 0) {
       if (!conditionValueInstance.isShown()) {
-        const target = refConditionInput.value.parentNode;
+        const target = refConditionInput.value?.parentNode;
         conditionValueInstance.show(target, true);
       }
     }
   };
 
-  let tagInputTimer = null;
+  let tagInputTimer: NodeJS.Timeout | null = null;
 
   const handleTagInputBlur = () => {
     currentEditTagIndex.value = '';

@@ -128,7 +128,7 @@ class QueryTemplateModelSerializer(QueryTemplateBaseModelSerializer):
             raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
 
         # 校验该用户是否有业务范围的权限
-        cls._is_allowed_by_bk_biz_ids([validated_data["space_scope"]])
+        cls._is_allowed_by_bk_biz_ids(validated_data["space_scope"])
 
         if QueryTemplate.origin_objects.filter(bk_biz_id=bk_biz_id, name=validated_data["name"]).exists():
             raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))

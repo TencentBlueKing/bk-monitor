@@ -35,6 +35,8 @@
         <img
           class="logo-image"
           :src="platformData.logo"
+          width="40px"
+          height="40px"
           alt="logo"
         />
         <span class="logo-text">{{ platformData.name }}</span>

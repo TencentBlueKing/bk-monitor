@@ -45,12 +45,16 @@
     return fieldAliasMap;
   });
 
+  const requestAddition = computed(() => store.getters.requestAddition);
+
   const retrieveParams = computed(() => {
     return {
       bk_biz_id: store.state.bkBizId,
       ...store.getters.retrieveParams,
       start_time: datePickerValue.value[0],
       end_time: datePickerValue.value[1],
+      addition: requestAddition.value ?? [],
+      showFieldAlias: store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
     };
   });
 
