@@ -1487,7 +1487,7 @@ class IndexSetHandler(APIModel):
                 result_key=self.data.index_set_id,
                 func=TransferApi.create_or_update_log_router,
                 params={
-                    "query_alias_settings": query_alias_settings,
+                    "query_alias_settings": alias_settings,
                     "space_type": self.data.space_uid.split("__")[0],
                     "space_id": self.data.space_uid.split("__")[-1],
                     "storage_type": "doris",
