@@ -31,8 +31,10 @@ def add_unify_query_header_before(params):
     else:
         params["X-Bk-Scope-Skip-Space"] = "skip"
 
+    username = ""
     with ignored(Exception):
         username = get_request().user.username
+
     if username:
         params["Bk-Query-Source"] = f"username:{username}"
     else:
