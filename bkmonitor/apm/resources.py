@@ -135,7 +135,12 @@ class CreateApplicationResource(Resource):
         if not datasource_options:
             datasource_options = ApplicationHelper.get_default_storage_config(validated_data["bk_biz_id"])
 
+        bk_tenant_id = validated_data.get("bk_tenant_id")
+        if not bk_tenant_id:
+            bk_tenant_id = get_request_tenant_id()
+
         return ApmApplication.create_application(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=validated_data["bk_biz_id"],
             app_name=validated_data["app_name"],
             app_alias=validated_data["app_alias"],
