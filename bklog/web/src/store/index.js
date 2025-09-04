@@ -117,7 +117,6 @@ const stateTpl = {
     /** 当前日志来源是否展示  用于字段更新后还保持显示状态 */
     isShowSourceField: false,
   },
-  traceIndexId: '',
   // 业务Id
   bkBizId: URL_ARGS.bizId ?? '',
   // 默认业务ID
@@ -126,20 +125,16 @@ const stateTpl = {
   // 我的项目列表
   mySpaceList: [],
   currentMenu: {},
-  currentMenuItem: {},
   topMenu: [],
   menuList: [],
   visibleFields: [],
   // 数据接入权限
   menuProject: [],
-  errorPage: ['notTraceIndex'],
   // 全局配置
   globalsData: {},
   activeTopMenu: {},
   activeManageNav: {},
   activeManageSubNav: {},
-  // -- id, id对应数据
-  collectDetail: [0, {}],
   showFieldsConfigPopoverNum: 0,
   showRouterLeaveTip: false,
   // 新人指引
@@ -214,23 +209,14 @@ const store = new Vuex.Store({
     /** 联合查询索引集ID数组 */
     unionIndexList: state => state.unionIndexList,
     unionIndexItemList: state => state.unionIndexItemList,
-    traceIndexId: state => state.traceIndexId,
     bkBizId: state => state.bkBizId,
     defaultBizId: state => state.defaultBizId,
     mySpaceList: state => state.mySpaceList,
     pageLoading: state => state.pageLoading,
     globalsData: state => state.globalsData,
-    // -- 返回数据
-    collectDetail: state => state.collectDetail[1],
     asIframe: state => state.asIframe,
     iframeQuery: state => state.iframeQuery,
     demoUid: state => state.demoUid,
-    accessUserManage: state =>
-      Boolean(
-        state.topMenu
-          .find(item => item.id === 'manage')
-          ?.children.some(item => item.id === 'permissionGroup' && item.project_manage === true),
-      ),
     spaceBgColor: state => state.spaceBgColor,
     isEnLanguage: state => state.isEnLanguage,
     chartSizeNum: state => state.chartSizeNum,
@@ -354,12 +340,6 @@ const store = new Vuex.Store({
       return v === 'v2';
     },
     storeIsShowClusterStep: state => state.storeIsShowClusterStep,
-    getApiError: state => apiName => {
-      return state.apiErrorInfo[apiName];
-    },
-    resultTableStaticWidth: state => {
-      return (state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58) + 50;
-    },
     isAiAssistantActive: state => state.features.isAiAssistantActive,
   },
   // 公共 mutations
@@ -542,13 +522,6 @@ const store = new Vuex.Store({
       }
     },
 
-    updateAddition(state) {
-      state.indexItem.addition.forEach(item => {
-        const instance = new ConditionOperator(item);
-        Object.assign(item, instance.getRequestParam());
-      });
-    },
-
     updataOperatorDictionary(state, payload) {
       state.operatorDictionary = {};
       (payload.fields ?? []).forEach(field => {
@@ -592,15 +565,6 @@ const store = new Vuex.Store({
      */
     updateUser(state, user) {
       state.user = Object.assign({}, user);
-    },
-    /**
-     * 更新当前路由对应导航
-     */
-    updateCurrentMenu(state, current) {
-      Vue.set(state, 'currentMenu', current);
-    },
-    updateCurrentMenuItem(state, item) {
-      Vue.set(state, 'currentMenuItem', item);
     },
     updateSpace(state, spaceUid) {
       if (typeof spaceUid === 'string') {
@@ -649,9 +613,6 @@ const store = new Vuex.Store({
     updateUnionIndexItemList(state, unionIndexItemList) {
       state.unionIndexItemList = unionIndexItemList;
     },
-    updateTraceIndexId(state, indexId) {
-      state.traceIndexId = indexId;
-    },
     updateMenuList(state, menuList) {
       state.menuList.splice(0, state.menuList.length, ...menuList);
     },
@@ -673,12 +634,6 @@ const store = new Vuex.Store({
     updateGlobalsData(state, globalsData) {
       state.globalsData = globalsData;
       Vue.set(state, 'globalsData', globalsData);
-    },
-    // -- 代码调整 collectDetail: [id, 数据]
-    updateCollectDetail(state, collectDetail) {
-      const data = collectDetail[1];
-      data.params.paths = data.params.paths.map(item => ({ value: item }));
-      state.collectDetail = data;
     },
     updateAsIframe(state, asIframe) {
       state.asIframe = asIframe;
@@ -1090,14 +1045,6 @@ const store = new Vuex.Store({
         return globalsData;
       });
     },
-    // -- 代码调整
-    getCollectDetail({ commit, state }, data) {
-      // 判断是否有该id的缓存数据
-      if (state.collectDetail[0] !== data.collector_config_id) {
-        commit('updateCollectDetail', [data.collector_config_id, data || {}]);
-        return data;
-      }
-    },
     // 判断有无权限
     checkAllowed(context, paramData) {
       return new Promise(async (resolve, reject) => {
@@ -1224,47 +1171,7 @@ const store = new Vuex.Store({
         });
     },
 
-    /** 请求获取用户个人配置信息 */
-    requestIndexSetCustomConfigInfo({ commit, state }) {
-      // @ts-ignore
-      const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
-      if (!ids.length) {
-        return;
-      }
-      const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
-      !isUnionIndex && commit('deleteApiError', urlStr);
-      const queryData = {
-        start_time,
-        end_time,
-        is_realtime: 'True',
-      };
-      if (isUnionIndex) {
-        Object.assign(queryData, {
-          index_set_ids: ids,
-        });
-      }
-      return http
-        .request(
-          urlStr,
-          {
-            params: { index_set_id: ids[0] },
-            query: !isUnionIndex ? queryData : undefined,
-            data: isUnionIndex ? queryData : undefined,
-          },
-          isUnionIndex ? {} : { catchIsShowMessage: false },
-        )
-        .then(res => {
-          commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
-          return res;
-        })
-        .catch(() => {
-          commit('retrieve/updateCatchFieldCustomConfig', {
-            ...state.retrieve.catchFieldCustomConfig,
-            filterSetting: {},
-          });
-        })
-        .finally();
-    },
+
     /**
      * 执行查询
      *
@@ -1457,43 +1364,6 @@ const store = new Vuex.Store({
         });
     },
 
-    requestFieldConfigList({ state, commit }, payload) {
-      const cancelTokenKey = 'requestFieldConfigCancelToken';
-      RequestPool.execCanceToken(cancelTokenKey);
-      const requestCancelToken = payload.cancelToken ?? RequestPool.getCancelToken(cancelTokenKey);
-      commit('updateIndexSetFieldConfigList', {
-        data: [],
-        is_loading: true,
-      });
-      return http
-        .request(
-          'retrieve/getFieldsListConfig',
-          {
-            data: {
-              ...(state.indexItem.isUnionIndex
-                ? { index_set_ids: state.unionIndexList }
-                : { index_set_id: state.indexId }),
-              scope: 'default',
-              index_set_type: state.indexItem.isUnionIndex ? 'union' : 'single',
-            },
-          },
-          {
-            cancelToken: requestCancelToken,
-          },
-        )
-        .then(resp => {
-          commit('updateIndexSetFieldConfigList', {
-            data: resp.data ?? [],
-          });
-
-          return resp;
-        })
-        .finally(() => {
-          commit('updateIndexSetFieldConfigList', {
-            is_loading: false,
-          });
-        });
-    },
 
     /**
      * 索引集选择改变事件
@@ -1826,12 +1696,6 @@ const store = new Vuex.Store({
           return res;
         });
     },
-    setApiError({ commit }, payload) {
-      commit('SET_API_ERROR', payload);
-    },
-    clearApiError({ commit }, apiName) {
-      commit('CLEAR_API_ERROR', apiName);
-    },
 
     handleTrendDataZoom({ commit, getters }, payload) {
       const { start_time, end_time, format } = payload;
@@ -1885,37 +1749,6 @@ const store = new Vuex.Store({
           reject(err);
         }
       });
-    },
-
-    toggleFieldVisible({ commit, state }, { visible, field }) {
-      const displayFieldNames = state.visibleFields.map(item => item.field_name);
-      if (visible) {
-        // 需要显示字段
-        displayFieldNames.push(field.field_name);
-      } else {
-        // 需要隐藏字段
-        const index = state.visibleFields.findIndex(item => field.field_name === item.field_name);
-        displayFieldNames.splice(index, 1);
-      }
-      if (!displayFieldNames.length) return; // 可以设置为全部隐藏，但是不请求接口
-
-      http
-        .request('retrieve/postFieldsConfig', {
-          params: { index_set_id: state.indexId },
-          data: {
-            display_fields: displayFieldNames,
-            sort_list: state.indexFieldInfo.sort_list,
-            config_id: state.retrieve.filedSettingConfigID,
-            index_set_id: state.indexId,
-            index_set_ids: state.unionIndexList,
-            index_set_type: state.isUnionSearch ? 'union' : 'single',
-          },
-        })
-        .catch(e => {
-          console.warn(e);
-        });
-      commit('resetVisibleFields', { displayFieldNames, version: 'v2' });
-      commit('updateIsSetDefaultTableColumn', false);
     },
   },
 });
