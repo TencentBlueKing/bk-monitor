@@ -193,7 +193,6 @@ class CodeRedefinedRuleListRequestSerializer(BaseCodeRedefinedRequestSerializer)
 class CodeRedefinedRuleSetRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则设置请求序列化器"""
 
-    id = serializers.IntegerField(label="规则 ID", required=False)
     callee_server = serializers.CharField(label="被调服务", allow_blank=True)
     callee_service = serializers.CharField(label="被调 Service", allow_blank=True)
     callee_method = serializers.CharField(label="被调接口", allow_blank=True)

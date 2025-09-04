@@ -12,6 +12,7 @@ import json
 import logging
 from collections import defaultdict
 
+from django.db.models.functions import Length
 from jinja2.sandbox import SandboxedEnvironment as Environment
 from django.conf import settings
 from opentelemetry import trace
@@ -36,6 +37,7 @@ from apm.models import (
     SamplerConfig,
     SubscriptionConfig,
 )
+from apm_web.models import CodeRedefinedConfigRelation
 from bkmonitor.utils.bk_collector_config import BkCollectorConfig, BkCollectorClusterConfig
 from bkmonitor.utils.common_utils import count_md5
 from constants.bk_collector import BkCollectorComp
@@ -147,6 +149,7 @@ class ApplicationConfig(BkCollectorConfig):
         )
         profiles_drop_sampler_config = self.get_profiles_drop_sampler_config()
         traces_drop_sampler_config = self.get_traces_drop_sampler_config()
+        code_relabel_config = self.get_code_relabel_config()
 
         if apdex_config:
             config["apdex_config"] = apdex_config.get(self._application.app_name)
@@ -179,6 +182,9 @@ class ApplicationConfig(BkCollectorConfig):
 
         if db_slow_command_config:
             config["db_slow_command_config"] = db_slow_command_config
+
+        if code_relabel_config:
+            config["code_relabel_config"] = code_relabel_config
 
         service_configs = self.get_sub_configs("service_name", ApdexConfig.SERVICE_LEVEL)
         if service_configs:
@@ -259,6 +265,81 @@ class ApplicationConfig(BkCollectorConfig):
             return {}
 
         return {"name": "service_discover/common", "rules": res}
+
+    def get_code_relabel_config(self):
+        queryset = (
+            CodeRedefinedConfigRelation.objects.filter(
+                bk_biz_id=self._application.bk_biz_id,
+                app_name=self._application.app_name,
+                enabled=True,
+            )
+            .annotate(
+                method_len=Length("callee_method"),
+                service_len=Length("callee_service"),
+                server_len=Length("callee_server"),
+            )
+            .order_by("method_len", "service_len", "server_len")
+        )
+
+        # 按 service_name 和 kind 分组
+        service_groups = {}
+
+        for item in queryset:
+            # 允许保留空占位
+            name = f"{item.callee_server};{item.callee_service};{item.callee_method}"
+
+            # 透传存在的规则，键名固定：success | exception | timeout
+            codes = []
+            for code_type_key in ("success", "exception", "timeout"):
+                rule = (item.code_type_rules or {}).get(code_type_key)
+                if rule:
+                    codes.append(
+                        {
+                            "rule": rule,
+                            "actions": {"type": "upsert", "label": "code_type", "value": code_type_key},
+                        }
+                    )
+
+            if not codes:
+                continue
+
+            service_entry = {"name": name, "codes": codes}
+
+            # 按 (service_name, kind) 分组
+            group_key = (item.service_name, item.kind)
+            if group_key not in service_groups:
+                service_groups[group_key] = []
+            service_groups[group_key].append(service_entry)
+
+        relabel = []
+        for (service_name, kind), services in service_groups.items():
+            if kind == "caller":
+                relabel.append(
+                    {
+                        "metrics": [
+                            "rpc_client_handled_total",
+                            "rpc_client_handled_seconds_bucket",
+                        ],
+                        "target": service_name,
+                        "services": services,
+                    }
+                )
+            elif kind == "callee":
+                relabel.append(
+                    {
+                        "metrics": [
+                            "rpc_server_handled_total",
+                            "rpc_server_handled_seconds_bucket",
+                        ],
+                        "target": service_name,
+                        "services": services,
+                    }
+                )
+
+        if not relabel:
+            return {}
+
+        return {"name": "metrics_filter/code_relabel", "config": {"relabel": relabel}}
 
     def _get_match_groups(self, item):
         """获取自定义远程服务match_groups"""

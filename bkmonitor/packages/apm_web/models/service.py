@@ -148,8 +148,5 @@ class CodeRedefinedConfigRelation(ServiceBase):
                 "app_name",
                 "service_name",
                 "kind",
-                "callee_server",
-                "callee_service",
-                "callee_method",
             ]
         ]

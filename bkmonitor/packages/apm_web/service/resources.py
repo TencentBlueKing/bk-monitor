@@ -809,7 +809,7 @@ class ListPipelineResource(Resource):
         return {"count": pipelines["count"], "items": processed_pipelines}
 
 
-class CodeRedefinedRuleListResource(Resource):
+class ListCodeRedefinedRuleResource(Resource):
     RequestSerializer = CodeRedefinedRuleListRequestSerializer
 
     def perform_request(self, validated_request_data):
@@ -829,7 +829,10 @@ class CodeRedefinedRuleListResource(Resource):
 
         # 对传入的维度，匹配该值或空串；未传的不加过滤
         if requested_callee_server is not None:
-            q &= Q(callee_server__in=[requested_callee_server, ""])  # type: ignore
+            if requested_callee_server == "":
+                q &= Q(callee_server="")
+            else:
+                q &= Q(callee_server__in=[requested_callee_server, ""])  # type: ignore
         if requested_callee_service is not None:
             if requested_callee_service == "":
                 q &= Q(callee_service="")
@@ -848,7 +851,7 @@ class CodeRedefinedRuleListResource(Resource):
                 service_len=Length("callee_service"),
                 server_len=Length("callee_server"),
             )
-            .order_by("-method_len", "-service_len", "-server_len")
+            .order_by("method_len", "service_len", "server_len")
         )
         return list(
             queryset.values(
@@ -866,7 +869,7 @@ class CodeRedefinedRuleListResource(Resource):
         )
 
 
-class CodeRedefinedRuleSetResource(Resource):
+class SetCodeRedefinedRuleResource(Resource):
     RequestSerializer = CodeRedefinedRuleSetRequestSerializer
 
     def perform_request(self, validated_request_data):
@@ -884,45 +887,7 @@ class CodeRedefinedRuleSetResource(Resource):
 
         username = get_request_username()
 
-        updates = {
-            "bk_biz_id": bk_biz_id,
-            "app_name": app_name,
-            "service_name": service_name,
-            "kind": kind,
-            "callee_server": callee_server,
-            "callee_service": callee_service,
-            "callee_method": callee_method,
-            "code_type_rules": code_type_rules,
-            "enabled": enabled,
-            "updated_by": username,
-        }
-
-        instance_id: int | None = validated_request_data.get("id")
-        if instance_id:
-            # 归属校验，禁止跨业务/应用/服务/kind 篡改
-            try:
-                instance = CodeRedefinedConfigRelation.objects.get(
-                    id=instance_id,
-                    bk_biz_id=bk_biz_id,
-                    app_name=app_name,
-                    service_name=service_name,
-                    kind=kind,
-                )
-            except CodeRedefinedConfigRelation.DoesNotExist:
-                raise ValueError(_lazy("非法请求：归属不匹配或规则不存在"))
-
-            # 仅更新必要字段，禁止更新归属类字段
-            fields_to_update = {
-                "callee_server": callee_server,
-                "callee_service": callee_service,
-                "callee_method": callee_method,
-                "code_type_rules": code_type_rules,
-                "enabled": enabled,
-                "updated_by": username,
-            }
-            CodeRedefinedConfigRelation.objects.filter(id=instance.id).update(**fields_to_update)
-            return {"id": instance_id}
-
+        # 使用组合键进行 upsert
         filters = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
@@ -932,13 +897,21 @@ class CodeRedefinedRuleSetResource(Resource):
             "callee_service": callee_service,
             "callee_method": callee_method,
         }
-        obj, created = CodeRedefinedConfigRelation.objects.update_or_create(defaults=updates, **filters)
+
+        # 只更新必要字段，不更新组合键字段
+        defaults = {
+            "code_type_rules": code_type_rules,
+            "enabled": enabled,
+            "updated_by": username,
+        }
+
+        obj, created = CodeRedefinedConfigRelation.objects.update_or_create(defaults=defaults, **filters)
         if created:
             CodeRedefinedConfigRelation.objects.filter(id=obj.id).update(created_by=username)
         return {"id": obj.id}
 
 
-class CodeRedefinedRuleDeleteResource(Resource):
+class DeleteCodeRedefinedRuleResource(Resource):
     RequestSerializer = CodeRedefinedRuleDeleteRequestSerializer
 
     def perform_request(self, validated_request_data):
