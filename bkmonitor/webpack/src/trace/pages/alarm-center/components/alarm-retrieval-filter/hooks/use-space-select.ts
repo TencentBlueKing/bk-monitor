@@ -24,28 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, shallowRef } from 'vue';
+import { shallowRef } from 'vue';
 
 import { checkAllowed } from 'monitor-api/modules/iam';
 import { random } from 'monitor-common/utils/utils';
 
-import { useAppStore } from '../../../../../store/modules/app';
-import { AlarmType } from '../../../typings';
-export function useSpaceSelect({ alarmType = AlarmType.ALERT }) {
-  const appStore = useAppStore();
-
+export function useSpaceSelect() {
   const allowedBizList = shallowRef([]);
   const isMultiple = shallowRef(false);
-
-  const bizId = computed(() => {
-    return appStore.bizId;
-  });
-  const isIncident = computed(() => {
-    return alarmType === AlarmType.INCIDENT;
-  });
-  const bizList = computed(() => {
-    return appStore.bizList;
-  });
 
   /**
    * @description: 通过业务id 获取无权限申请url
@@ -79,9 +65,6 @@ export function useSpaceSelect({ alarmType = AlarmType.ALERT }) {
   }
 
   return {
-    bizId,
-    isIncident,
-    bizList,
     isMultiple,
     handleCheckAllowedByIds,
     handleChangeChoiceType,

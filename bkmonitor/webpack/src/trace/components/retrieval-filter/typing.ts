@@ -104,17 +104,6 @@ export interface IFieldItem {
   methods: IValue[];
   type?: EFieldType;
 }
-export interface IFieldItem {
-  /* 字段别名 */
-  alias: string;
-  /* 字段名 */
-  field: string;
-  /* 是否含有可选项选项 */
-  isEnableOptions: boolean;
-  /* 包含的method */
-  methods: IValue[];
-  type?: EFieldType;
-}
 export interface IFilterField {
   // 字段别名
   alias: string;
@@ -153,40 +142,12 @@ export interface IFilterField {
   }[];
 }
 
-// export interface IFilterField {
-//   alias: string;
-//   can_displayed?: boolean;
-//   // is_option_enabled: boolean;
-//   is_dimensions?: boolean;
-//   is_searched?: boolean;
-//   isEnableOptions?: boolean;
-//   name: string;
-//   type: EFieldType;
-//   supported_operations: {
-//     alias: string;
-//     label?: string;
-//     operator?: string;
-//     options?: {
-//       children?: {
-//         label: string;
-//         value: string;
-//       }[];
-//       default?: boolean | string;
-//       label: string;
-//       name: string;
-//     }[];
-//     placeholder?: string;
-//     value: EMethod;
-//     wildcard_operator?: string;
-//   }[]; // 支持的操作
-// }
-
 export interface IFilterItem {
   condition: { id: ECondition; name: string };
   hide?: boolean;
   isSetting?: boolean; // 是否是设置项
   key: { id: string; name: string };
-  method: { id: EMethod; name: string };
+  method: { id: EMethod | string; name: string };
   value: { id: number | string; name: number | string }[];
   options?:
     | Record<string, any>
@@ -196,28 +157,6 @@ export interface IFilterItem {
       };
 }
 
-export interface IFilterItem {
-  condition: { id: ECondition; name: string };
-  hide?: boolean;
-  isSetting?: boolean; // 是否是设置项
-  key: { id: string; name: string };
-  method: { id: EMethod; name: string };
-  value: { id: string; name: string }[];
-  options?: {
-    group_relation?: string;
-    is_wildcard?: boolean;
-  };
-}
-
-export interface IGetValueFnParams {
-  field?: string;
-  fields?: string[];
-  isInit__?: boolean; // 此字段不传给后台
-  limit?: number;
-  queryString?: string;
-  search?: string;
-  where?: IWhereItem[];
-}
 export interface IGetValueFnParams {
   field?: string;
   fields?: string[];
@@ -246,15 +185,7 @@ export interface IOptionsInfo {
   count: 0;
   list: IValue[];
 }
-export interface IOptionsInfo {
-  count: 0;
-  list: IValue[];
-}
 
-export interface IValue {
-  id: string;
-  name: string;
-}
 export interface IValue {
   id: string;
   name: string;
@@ -270,26 +201,6 @@ export interface IWhereItem {
     group_relation?: boolean;
     is_wildcard?: boolean;
   };
-}
-
-export interface IWhereItem {
-  condition?: ECondition;
-  key: string;
-  method?: EMethod | string;
-  operator?: string;
-  value: number[] | string[];
-  options?: {
-    group_relation?: boolean;
-    is_wildcard?: boolean;
-  };
-}
-
-export interface IWhereValueOptionsItem {
-  count: number;
-  list: {
-    id: string;
-    name: string;
-  }[];
 }
 
 export interface IWhereValueOptionsItem {

@@ -248,13 +248,14 @@ export default defineComponent({
     function handleEnter() {
       if (inputValue.value) {
         const allItem = props.fields.find(item => item.type === EFieldType.all);
+        const methodItem = allItem?.methods?.[0];
         localValue.value.push({
           key: {
             id: allItem?.name || '*',
             name: allItem?.alias || t('全文'),
           },
           value: [{ id: inputValue.value, name: inputValue.value }],
-          method: { id: EMethod.include, name: t('包含') },
+          method: { id: methodItem?.value || EMethod.include, name: methodItem?.alias || t('包含') },
           condition: { id: ECondition.and, name: 'AND' },
         });
         triggerShallowRef(localValue);

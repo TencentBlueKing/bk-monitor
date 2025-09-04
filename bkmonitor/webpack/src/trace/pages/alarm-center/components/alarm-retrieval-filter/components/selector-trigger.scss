@@ -1,9 +1,15 @@
+/* stylelint-disable selector-class-pattern */
 .alarm-retrieval-filter-component__selector-trigger {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  justify-content: center;
   height: 100%;
+  height: auto;
   padding: 3px 4px 0 8px;
   cursor: pointer;
-  border: 1px solid #00000000;
+  border: 1px solid #0000;
 
   &.right-split {
     border-right: 1px solid #DCDEE5;
