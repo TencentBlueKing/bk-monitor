@@ -918,11 +918,10 @@ class DeleteCodeRedefinedRuleResource(Resource):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str = validated_request_data["service_name"]
-        instance_id: int = validated_request_data["id"]
 
         try:
             instance = CodeRedefinedConfigRelation.objects.get(
-                id=instance_id, bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
             )
         except CodeRedefinedConfigRelation.DoesNotExist:
             # 按需求可以视为已删除

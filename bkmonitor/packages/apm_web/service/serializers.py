@@ -209,5 +209,3 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
 
 class DeleteCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则删除请求序列化器"""
-
-    id = serializers.IntegerField(label="规则 ID")
