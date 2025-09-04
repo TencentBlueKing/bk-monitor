@@ -324,7 +324,6 @@
 </template>
 <script>
   import { mapGetters } from 'vuex';
-  import { cloneDeep } from 'lodash';
   export default {
     name: 'SettingTable',
     props: {
@@ -510,7 +509,7 @@
     methods: {
       reset() {
         let arr = [];
-        const copyFields = cloneDeep(this.fields); // option指向地址bug
+        const copyFields = structuredClone(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
           typeErr: false,
@@ -667,7 +666,7 @@
         return value && value !== ' ' ? isNaN(value) : true;
       },
       getData() {
-        const data = cloneDeep(this.changeTableList);
+        const data = structuredClone(this.changeTableList);
 
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
@@ -684,7 +683,7 @@
         return data;
       },
       getAllData() {
-        const data = cloneDeep(this.tableAllList);
+        const data = structuredClone(this.tableAllList);
         data.forEach(field => {
           if (field.hasOwnProperty('expand')) {
             if (field.expand === false) {
@@ -949,7 +948,7 @@
         }
       },
       addObject(){
-        const fieldsObjectData = cloneDeep(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
+        const fieldsObjectData = structuredClone(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
         fieldsObjectData.forEach(item => {
           let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
           item.is_objectKey = true

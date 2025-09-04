@@ -108,6 +108,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     dimension_message: '',
     overview: {}, // 处理状态数据
     assignee: [],
+    bk_host_id: '',
   };
   actions = []; // 处理记录数据
   total = 0; // 记录数据总条数
@@ -491,6 +492,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
           id: this.basicInfo?.extra_info?.strategy?.id,
           name: this.basicInfo?.extra_info?.strategy?.name,
         },
+        bkHostId: this.basicInfo?.bk_host_id || '',
       },
     ];
     // EventModuleStore.setDimensionList(this.basicInfo?.dimensions || []);

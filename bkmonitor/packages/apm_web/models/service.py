@@ -98,7 +98,15 @@ class EventServiceRelation(ServiceBase):
 class LogServiceRelation(ServiceBase):
     log_type = models.CharField("日志类型", max_length=50, choices=ServiceRelationLogTypeChoices.choices())
     related_bk_biz_id = models.IntegerField("关联的业务id", null=True)
+    # 已过时，不再使用
     value = models.CharField("日志值", max_length=512)
+    # 需要保证value_list中的值是是 int 类型
+    value_list = models.JSONField("日志值列表", default=list)
+
+    @classmethod
+    def filter_by_index_set_id(cls, index_set_id):
+        """根据index_set_id过滤LogServiceRelation记录"""
+        return cls.objects.filter(log_type=ServiceRelationLogTypeChoices.BK_LOG, value_list__contains=[index_set_id])
 
 
 class AppServiceRelation(ServiceBase):

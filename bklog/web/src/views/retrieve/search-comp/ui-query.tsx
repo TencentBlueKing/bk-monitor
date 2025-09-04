@@ -30,7 +30,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Input } from 'bk-magic-vue';
 
 import $http from '../../../api';
-import { deepClone } from '../../../components/monitor-echarts/utils';
 
 import './ui-query.scss';
 
@@ -70,7 +69,7 @@ export default class UiQuery extends tsc<object> {
             : item.name,
           chName: item.name,
         }));
-      this.cacheFieldsList = deepClone(this.searchFieldsList); // 赋值缓存的展示字段
+      this.cacheFieldsList = structuredClone(this.searchFieldsList); // 赋值缓存的展示字段
     } finally {
       this.loading = false;
     }
@@ -85,7 +84,7 @@ export default class UiQuery extends tsc<object> {
     const cacheValueStr = this.cacheFieldsList.map(item => item.value).join(',');
     const searchValueStr = this.searchFieldsList.map(item => item.value).join(',');
     if (cacheValueStr === searchValueStr) return; // 鼠标失焦后判断每个值是否和缓存的一样 如果一样 则不请求
-    this.cacheFieldsList = deepClone(this.searchFieldsList); // 重新赋值缓存的展示字段
+    this.cacheFieldsList = structuredClone(this.searchFieldsList); // 重新赋值缓存的展示字段
     const params = this.searchFieldsList
       .filter(item => Boolean(item.value))
       .map(item => ({

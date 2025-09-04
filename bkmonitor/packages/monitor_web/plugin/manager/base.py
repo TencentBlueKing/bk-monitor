@@ -75,14 +75,14 @@ def check_skip_debug(need_debug):
 
 
 class BasePluginManager:
-    def __init__(self, plugin: CollectorPluginMeta, operator: str, tmp_path=None):
+    def __init__(self, plugin: CollectorPluginMeta, operator: str, tmp_path=None, plugin_configs=None):
         self.plugin = plugin
         self.operator = operator
         self.tmp_path = tmp_path
         self.version: PluginVersionHistory | None = PluginVersionHistory.objects.filter(
             bk_tenant_id=self.plugin.bk_tenant_id, plugin_id=self.plugin.plugin_id
         ).last()
-        self.plugin_configs: dict[str, bytes] | None = None
+        self.plugin_configs: dict[str, bytes] | None = plugin_configs
 
     def _update_version_params(
         self, data, version: PluginVersionHistory, current_version: PluginVersionHistory, stag=None
@@ -447,6 +447,7 @@ class PluginManager(BasePluginManager):
 
         self.tmp_path: str = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4())) if not tmp_path else tmp_path
         self.plugin_configs = plugin_configs
+        self.filename_list = []
         if plugin_configs:
             self.filename_list = list(self.plugin_configs.keys())
         else:

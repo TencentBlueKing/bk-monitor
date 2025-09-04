@@ -33,4 +33,6 @@ export default {
   跨应用追踪: 'Cross-application tracing',
   最大耗时: 'Max Duration',
   已读: 'Read',
+  'Trace 助手': 'Trace Helper',
+  请输入应用名称: 'Please enter the application name',
 };
