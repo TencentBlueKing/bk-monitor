@@ -1463,7 +1463,7 @@ class IndexSetHandler(APIModel):
                     IndexSetAliasSettingsException.MESSAGE.format(conflict_info=conflict_info)
                 )
 
-        self.data.query_alias_settings = query_alias_settings
+        self.data.query_alias_settings = alias_settings
         self.data.save()
         multi_execute_func = MultiExecuteFunc()
         objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
