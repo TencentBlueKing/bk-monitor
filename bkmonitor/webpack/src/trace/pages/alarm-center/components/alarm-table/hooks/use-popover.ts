@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { onBeforeUnmount } from 'vue';
+import { onBeforeUnmount, shallowRef } from 'vue';
 
+import { get } from '@vueuse/core';
 import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
 
 import type { Instance, Props as TProps } from 'tippy.js';
 
 export type IUsePopoverTools = ReturnType<typeof usePopover>;
+export type IUseTippyInstance = ReturnType<typeof useTippy> & { instanceKey?: string };
 
 /**
  * @description Popover 管理钩子（单例）
@@ -38,7 +40,7 @@ export type IUsePopoverTools = ReturnType<typeof usePopover>;
  */
 export function usePopover(popoverDefaultOptions: TippyOptions = {}) {
   /** popover 实例 */
-  let popoverInstance = null;
+  const popoverInstance = shallowRef<IUseTippyInstance | null>(null);
   /** popover 延迟打开定时器 */
   let popoverDelayTimer = null;
 
@@ -87,15 +89,15 @@ export function usePopover(popoverDefaultOptions: TippyOptions = {}) {
     }
 
     customOptions = customOptions || {};
-    const prevInstanceKey = popoverInstance?.instanceKey;
-    if (popoverInstance || popoverDelayTimer) {
+    const prevInstanceKey = get(popoverInstance)?.instanceKey;
+    if (get(popoverInstance) || popoverDelayTimer) {
       hidePopover();
     }
 
     // 相同实例Key直接返回，只关闭 popover 不在打开
     if (instanceKey && prevInstanceKey === instanceKey) return;
 
-    popoverInstance = useTippy(e.currentTarget, {
+    const instance: IUseTippyInstance = useTippy(e.currentTarget, {
       content: content,
       ...defaultOptions,
       ...customOptions,
@@ -105,13 +107,14 @@ export function usePopover(popoverDefaultOptions: TippyOptions = {}) {
       },
     });
     // 设置实例唯一标识key（非必须）
-    popoverInstance.instanceKey = instanceKey || '';
-    const currentInstance = popoverInstance;
+    instance.instanceKey = instanceKey || '';
+    popoverInstance.value = instance;
+    const currentInstance = get(popoverInstance);
     popoverDelayTimer = setTimeout(() => {
-      if (currentInstance === popoverInstance) {
-        popoverInstance?.show?.(0);
+      if (currentInstance === get(popoverInstance)) {
+        get(popoverInstance)?.show?.();
       } else {
-        currentInstance?.hide?.(0);
+        currentInstance?.hide?.();
         currentInstance?.destroy?.();
       }
     }, 300);
@@ -122,9 +125,9 @@ export function usePopover(popoverDefaultOptions: TippyOptions = {}) {
    */
   function hidePopover() {
     clearPopoverTimer();
-    popoverInstance?.hide?.(0);
-    popoverInstance?.destroy?.();
-    popoverInstance = null;
+    get(popoverInstance)?.hide?.();
+    get(popoverInstance)?.destroy?.();
+    popoverInstance.value = null;
   }
 
   /**
@@ -141,6 +144,7 @@ export function usePopover(popoverDefaultOptions: TippyOptions = {}) {
   });
 
   return {
+    popoverInstance,
     showPopover,
     hidePopover,
     clearPopoverTimer,
