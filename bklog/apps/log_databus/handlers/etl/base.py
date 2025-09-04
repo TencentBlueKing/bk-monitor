@@ -316,6 +316,7 @@ class EtlHandler:
             {
                 "bk_biz_id": self.data.bk_biz_id,
                 "result_table_id": self.data.table_id,
+                "storage_cluster_id": storage_cluster_id,
                 "result_table_name": self.data.collector_config_name,
                 "time_field": "dtEventTimeStamp",
             }

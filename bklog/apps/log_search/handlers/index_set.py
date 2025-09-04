@@ -1613,13 +1613,13 @@ class BaseIndexSetHandler:
         self.index_set_obj = index_set_obj
 
         self.pre_update()
-        logger.info(f"[update_index_set]pre_create index_set_name=>{self.index_set_name}")
+        logger.info(f"[update_index_set]pre_update index_set_name=>{self.index_set_name}")
 
         index_set = self.update()
-        logger.info(f"[update_index_set]create index_set_name=>{self.index_set_name}")
+        logger.info(f"[update_index_set]update index_set_name=>{self.index_set_name}")
 
         self.post_update(index_set)
-        logger.info(f"[update_index_set]post_create index_set_name=>{self.index_set_name}")
+        logger.info(f"[update_index_set]post_update index_set_name=>{self.index_set_name}")
         return index_set
 
     def delete_index_set(self, index_set_obj):
