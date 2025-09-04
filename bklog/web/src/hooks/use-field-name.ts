@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { BK_LOG_STORAGE } from '../store/store.type';
+import { BK_LOG_STORAGE, FieldInfoItem } from '../store/store.type';
 
 /**
  * 根据字段信息返回别名
@@ -93,13 +93,21 @@ export default ({ store }) => {
       ? field.query_alias || field.field_name
       : field.field_name;
   };
+
+  const getFieldList = (withAliasFieldMap = false) => {
+    if (withAliasFieldMap) {
+      return [].concat(store.state.indexFieldInfo.fields, store.state.indexFieldInfo.alias_field_list);
+    }
+    return store.state.indexFieldInfo.fields;
+  };
+
   /**
    * 根据别名返回字段名
    * @param name  别名query_alias
    * @returns 返回字段名，如果没有字段名则返回别名
    */
-  const changeFieldName = (name: string) => {
-    const field = store.state.indexFieldInfo.fields.filter(item => item.query_alias === name);
+  const changeFieldName = (name: string, list?: FieldInfoItem[], withAliasFieldMap = false) => {
+    const field = (list || getFieldList(withAliasFieldMap)).filter(item => item.query_alias === name);
     return field[0]?.field_name || name;
   };
   /**
@@ -107,8 +115,8 @@ export default ({ store }) => {
    * @param name  字段名field_name
    * @returns 返回拼接字段名
    */
-  const getQualifiedFieldName = (field_name: string) => {
-    const field = store.state.indexFieldInfo.fields.filter(item => item.field_name === field_name);
+  const getQualifiedFieldName = (field_name: string, list?: FieldInfoItem[], withAliasFieldMap = false) => {
+    const field = (list || getFieldList(withAliasFieldMap)).filter(item => item.field_name === field_name);
     if (field[0].query_alias) {
       return `${field[0].query_alias}(${field_name})`;
     }
