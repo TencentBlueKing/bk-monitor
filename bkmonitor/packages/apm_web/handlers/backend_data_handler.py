@@ -561,7 +561,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
             # 讲同一个timestamp的count相加
             timestamp_to_count = defaultdict(int)
             for serie in series:
-                for datapoint in serie["datapoints"]:
+                for datapoint in serie["values"]:
                     timestamp_to_count[datapoint[0]] += datapoint[1]
 
             resp = [
