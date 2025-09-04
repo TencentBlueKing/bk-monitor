@@ -241,7 +241,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
           return pre;
         }, {});
       }
-      // 屏蔽范围有值则推上去
+      // 屏蔽范围不存在回显，有值则推上去；使用alertId做key，兼容单个与批量操作(与上方维度信息类似方式）
       const topoNodeDataArr = this.backupDetails.filter(item => item.bkTopoNode && item.bkTopoNode.length > 0)
       if (topoNodeDataArr.length) {
         (params.dimension_config as DimensionConfig).bk_topo_node = topoNodeDataArr.reduce((pre, item) => {
@@ -349,19 +349,28 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
     this.editIndex = -1;
   }
 
-  // 屏蔽范围选择
+  /**
+   * 编辑屏蔽范围
+   * @param data 当前操作的屏蔽内容数据
+   * @param idx 当前操作的屏蔽内容数据索引
+   */
   handleShieldEdit(data, idx) {
     this.editIndex = idx;
     this.shieldTreeDialogShow = true;
   }
 
-  handleShieldConfirm(checkedIds) {
+  /**
+   * 屏蔽范围选择确认事件
+   * @param checkedIds 已满足后端格式的节点数据集合（node_name用于前端展示，提交后端时删除）
+   */
+  handleShieldConfirm(checkedIds: IBkTopoNodeItem[]) {
     const { backupDetails, editIndex: idx } = this;
     backupDetails[idx].bkTopoNode = checkedIds;
     this.shieldTreeDialogShow = false;
     this.editIndex = -1;
   }
 
+  // 取消屏蔽范围选择弹窗
   handleShieldCancel() {
     this.shieldTreeDialogShow = false;
     this.editIndex = -1;

@@ -28,12 +28,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getHostOrTopoNodeDetail } from 'monitor-api/modules/scene_view';
 
+import type { ITopoNodeDataItem } from '../typings/event';
+
 import './shield-tree-compnent.scss';
 
 interface IProps {
-  bizId: string | number; // 查询节点树id
-  bkHostId: string | number; // 查询节点树id
-  show?: boolean; 
+  bizId: string | number;
+  bkHostId: string | number; 
+  show?: boolean;
 }
 
 interface TreeNodeData {
@@ -54,21 +56,29 @@ interface TreeNodeData {
 export default class ShieldTreeCompnent extends tsc<
   IProps,
   {
+    // 取消添加节点事件
     onCancel: () => void;
+    // 确认添加节点事件
     onConfirm: [];
   }
 > {
+  // 告警中心首页有select组件切换空间，故bizId需要传递方式获取
   @Prop({ type: [String, Number], default: '' }) bizId: string | number;
+  // 请求节点树数据必须参数
   @Prop({ type: [String, Number], default: '' }) bkHostId: string | number;
+  // 展示节点树
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Ref('tree') treeRef: any;
 
   loading = true;
+  // 选中的节点树id，集群和模块之间字段名相同，id值可能重复，与后端确认使用_拼接方式：`${item.bk_inst_id}_${item.bk_obj_id}`
   checkedIds = [];
+  // big-tree渲染数据
   treeNodeList: TreeNodeData[] = [];
 
   @Watch('show', { immediate: true })
   handleWatchShow() {
+    // 告警中心首页存在批量操作，每次打开需要重置数据
     this.checkedIds = [];
     this.treeNodeList = [];
     if (this.show) {
@@ -78,10 +88,11 @@ export default class ShieldTreeCompnent extends tsc<
 
   @Emit('confirm')
   handleConfirm() {
+    // 将选中的id转换为后端需要的格式传递给父组件
     const findCheckedNodes = (nodes) => {
       let result = [];
       for (const item of nodes) {
-        const fullId = `${item.instId}_${item.objId}`;
+        const fullId = `${item.instId}_${item.objId}`; // 集群与模块之前的id不唯一所以拼接方式查找
         if (this.checkedIds.includes(fullId)) {
           result.push({
             bk_obj_id: item.objId,
@@ -112,12 +123,11 @@ export default class ShieldTreeCompnent extends tsc<
     this.loading = true;
     getHostOrTopoNodeDetail({
       bk_biz_id: this.bizId,
-      topo_tree: true,
-      bk_host_id: this.bkHostId,
+      topo_tree: true, // 只有该接口需要查找topoNode才需要此参数
+      bk_host_id: this.bkHostId, // 只有该接口需要查找topoNode才需要此参数
     })
     .then(res => {
       this.treeNodeList = this.mapTreeData(res);
-      
     })
     .catch(()=>{
       this.treeNodeList = [];
@@ -128,9 +138,13 @@ export default class ShieldTreeCompnent extends tsc<
     
   }
 
-  mapTreeData(data) {
+  /**
+   * 后端节点数据转换为big-tree渲染格式
+   * @param data 后端获取的节点树数据
+   */
+  mapTreeData(data: ITopoNodeDataItem[]) {
     return data.map(item => ({
-      id: `${item.bk_inst_id}_${item.bk_obj_id}`,
+      id: `${item.bk_inst_id}_${item.bk_obj_id}`, // 集群与模块之前的id不唯一所以拼接方式
       instId: item.bk_inst_id,
       objId: item.bk_obj_id,
       name: `${item.bk_obj_name}(${item.bk_inst_name})`,
@@ -140,7 +154,13 @@ export default class ShieldTreeCompnent extends tsc<
       children: item.child && item.child.length > 0 ? this.mapTreeData(item.child) : [],
     }));
   }
-
+ 
+  /**
+   * 更新big-tree组件节点状态
+   * @param nodeIds 需要变更状态的节点
+   * @param checked 目标变更的状态
+   * @param childDisable 禁用子节点
+   */
   async updateNodesState(nodeIds: string[], checked: boolean, childDisable: boolean) {
     const updateNodeAndChildren = (node: TreeNodeData, checked: boolean, disabled: boolean) => {
       // 如果有子节点，递归设置子节点
@@ -167,13 +187,14 @@ export default class ShieldTreeCompnent extends tsc<
     }
   }
 
-
+  // 节点checkbox事件
   handleCheckChange(id, node) {
     this.updateNodesState([node.id], node.state.checked, node.state.checked);
     const value = this.treeRef.nodes.filter(node => node.state.checked && !node.state.disabled).map(node => node.id);
     this.checkedIds = Array.from(new Set(value));
   }
 
+  // 骨架屏
   skeletonComponent() {
     return (
       <div class='skeleton-wrap'>
@@ -184,6 +205,7 @@ export default class ShieldTreeCompnent extends tsc<
     );
   }
 
+  // 节点树渲染
   treeNodeComponent() {
     return  (
       <div class='tree-node__container'>

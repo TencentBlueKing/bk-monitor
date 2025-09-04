@@ -149,3 +149,11 @@ export interface IPagination {
   limit: number;
 }
 export type SearchType = 'action' | 'alert' | 'event' | 'incident';
+
+export interface ITopoNodeDataItem {
+  bk_inst_id: number;
+  bk_inst_name: string;
+  bk_obj_id: string;
+  bk_obj_name: string;
+  child?: ITopoNodeDataItem[];
+}
