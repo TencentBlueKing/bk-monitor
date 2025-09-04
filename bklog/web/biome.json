@@ -41,8 +41,10 @@
     "enabled": true,
     "actions": {
       "source": {
-        "organizeImports": "on",
-        "useSortedProperties": "on"
+        "organizeImports": "off",
+        "useSortedAttributes": "off",
+        "useSortedKeys": "off",
+        "useSortedProperties": "off"
       }
     }
   }
