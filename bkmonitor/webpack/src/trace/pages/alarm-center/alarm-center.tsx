@@ -124,12 +124,18 @@ export default defineComponent({
     };
 
     const handleAddCondition = (condition: CommonCondition) => {
+      console.log(condition);
       if (alarmStore.filterMode === EMode.ui) {
         alarmStore.conditions = mergeWhereList(alarmStore.conditions, [
           {
             key: condition.key,
             method: condition.method,
-            value: condition.value.map(item => item.slice(1, -1)),
+            value: condition.value.map(item => {
+              if (item.startsWith('"') && item.endsWith('"')) {
+                return item.slice(1, -1);
+              }
+              return item;
+            }),
             ...(alarmStore.conditions.length > 1 ? { condition: 'and' } : {}),
           },
         ]);
