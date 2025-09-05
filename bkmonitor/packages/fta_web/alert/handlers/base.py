@@ -418,7 +418,32 @@ class BaseQueryHandler:
 
     def parse_condition_item(self, condition: dict) -> Q:
         """
-        解析单个filter条件为 Q
+        将字典格式的查询条件转换为Elasticsearch DSL的Q查询对象
+
+        参数:
+            condition: 包含查询条件的字典对象，格式要求:
+                {
+                    "method": "include/exclude/terms/gte/gt/lte/lt/range",
+                    "key": 字段名称,
+                    "value": 匹配值(字符串、列表或范围对象)
+                }
+
+        返回值:
+            转换后的Q查询对象，用于构建Elasticsearch查询条件
+
+        处理逻辑:
+        1. 包含查询(include):
+            - 单值转换为通配符查询(*value*)
+            - 多值生成多个通配符查询并通过OR组合
+        2. 排除查询(exclude):
+            - 单值转换为取反的通配符查询
+            - 多值生成多个通配符查询后整体取反
+        3. 范围查询(gte/gt/lte/lt):
+            - 支持大于等于、大于、小于等于、小于的范围比较
+        4. 复合范围查询(range):
+            - 支持组合范围条件，如{"gte": 10, "lte": 100}
+        5. 默认terms查询:
+            - 直接转换为terms精确匹配查询
         """
         if condition["method"] == "include":
             if isinstance(condition["value"], list):
@@ -426,12 +451,33 @@ class BaseQueryHandler:
                 queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
                 return queries[0] if len(queries) == 1 else Q("bool", should=queries)
             return Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
+
         elif condition["method"] == "exclude":
             if isinstance(condition["value"], list):
                 # 如果是列表，生成多个 wildcard 查询并通过 OR 组合后取反
                 queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
                 return ~(queries[0] if len(queries) == 1 else Q("bool", should=queries))
+            # 生成单个取反wildcard查询
             return ~Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
+
+        elif condition["method"] in ["gte", "gt", "lte", "lt"]:
+            # 范围查询：支持大于、大于等于、小于、小于等于操作
+            # 构建range查询条件，用于数值或日期字段的范围比较
+            return Q("range", **{condition["key"]: {condition["method"]: condition["value"]}})
+
+        elif condition["method"] == "range":
+            # 复合范围查询：支持组合范围条件
+            # value应为包含范围操作符的字典，如{"gte": 10, "lte": 100}
+            if not isinstance(condition["value"], dict):
+                raise ValueError("Range query value must be a dictionary with range operators (gte, gt, lte, lt)")
+
+            # 验证范围操作符的有效性
+            valid_operators = {"gte", "gt", "lte", "lt"}
+            if not all(op in valid_operators for op in condition["value"].keys()):
+                raise ValueError(f"Invalid range operators. Allowed: {valid_operators}")
+            return Q("range", **{condition["key"]: condition["value"]})
+
+        # 默认执行terms精确匹配查询
         return Q("terms", **{condition["key"]: condition["value"]})
 
     @classmethod
