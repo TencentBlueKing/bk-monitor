@@ -157,7 +157,7 @@ export default defineComponent({
     const pageSize = 100;
     let offset = 0;
 
-    const isExternal = window.IS_EXTERNAL === "true";
+    const isExternal = window.IS_EXTERNAL === true;
 
     watch(
       () => props.widthList,
@@ -369,7 +369,7 @@ export default defineComponent({
     };
 
     // 设置负责人
-    const handleChangePrincipal = (val: string[], row: LogPattern) => {
+    const handleChangePrincipal = (val: string[] | null, row: LogPattern) => {
       currentRowId.value = row.id;
       // 当创建告警策略开启时，不允许删掉最后一个责任人
       if (row.strategy_enabled && !val.length) {
@@ -820,7 +820,7 @@ export default defineComponent({
                             clearable={false}
                             has-delete-icon
                             on-change={(value) => (row.owners = value)}
-                            on-blur={() => handleChangePrincipal([], row)}
+                            on-blur={() => handleChangePrincipal(null, row)}
                           />
                         )}
                       </div>
