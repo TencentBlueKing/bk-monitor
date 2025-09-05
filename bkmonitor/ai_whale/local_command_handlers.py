@@ -71,11 +71,12 @@ class TracingAnalysisCommandHandler(CommandHandler):
             trace_data = [{k: x.get(k, None) for k in self.keys} for x in trace_data]
 
         #  获取 trace 总耗时
-        total_time: str = f"{self.us_to_ms(self.get_trace_total_time(trace_data))}ms"
+        total_time = f"{self.us_to_ms(self.get_trace_total_time(trace_data))}ms"
 
+        # 收集 trace_data_lite 和 error_span_ids, 同时控制长度
         error_span_ids = []
-        trace_data_lite_parts = []
         total_length = 0
+        trace_data_lite_parts = []
         for span_idx in range(0, len(trace_data), self.acc_span_step):
             span_group = trace_data[span_idx : span_idx + self.acc_span_step]
 
