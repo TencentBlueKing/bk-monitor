@@ -1174,7 +1174,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                             "display_value": d,
                         },
                     )
-                    for d in config.get("agg_dimension", []) + ["test_ip"]
+                    for d in config.get("agg_dimension", [])
                 }
                 query_configs.append(
                     {
