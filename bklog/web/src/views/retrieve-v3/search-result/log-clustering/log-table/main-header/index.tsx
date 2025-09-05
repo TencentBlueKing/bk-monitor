@@ -84,17 +84,17 @@ export default defineComponent({
     const showYOY = computed(() => props.requestData?.year_on_year_hour >= 1);
     const showGroupBy = computed(
       () =>
-        props.requestData?.group_by.length > 0 && props.displayMode === "group",
+        props.requestData?.group_by.length > 0 && props.displayMode === "group"
     );
     const isFlattenMode = computed(
       () =>
-        props.requestData?.group_by.length > 0 && props.displayMode !== "group",
+        props.requestData?.group_by.length > 0 && props.displayMode !== "group"
     );
     const isAiAssistanceActive = computed(
-      () => store.getters.isAiAssistantActive,
+      () => store.getters.isAiAssistantActive
     );
 
-    const isExternal = window.IS_EXTERNAL === "true";
+    const isExternal = window.IS_EXTERNAL === true;
     const ownerBaseList = [
       {
         id: "no_owner",
@@ -122,7 +122,7 @@ export default defineComponent({
       },
       {
         deep: true,
-      },
+      }
     );
 
     watch(
@@ -140,7 +140,7 @@ export default defineComponent({
       {
         immediate: true,
         deep: true,
-      },
+      }
     );
 
     // 获取当前数据指纹所有的责任人
@@ -196,7 +196,7 @@ export default defineComponent({
         Array.from(headRowRef.value!.querySelectorAll("th")).map((item: any) =>
           item.style.width
             ? item.style.width
-            : item.getBoundingClientRect().width,
+            : item.getBoundingClientRect().width
         ),
     });
 
@@ -315,7 +315,7 @@ export default defineComponent({
                       class="tip-main"
                       v-bk-tooltips={{
                         content: t(
-                          "勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。",
+                          "勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。"
                         ),
                         placement: "top",
                       }}
