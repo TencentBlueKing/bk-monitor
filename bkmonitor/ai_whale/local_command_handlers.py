@@ -74,20 +74,23 @@ class TracingAnalysisCommandHandler(CommandHandler):
         total_time: str = f"{self.us_to_ms(self.get_trace_total_time(trace_data))}ms"
 
         error_span_ids = []
-        trace_data_lite = ""
+        trace_data_lite_parts = []
+        total_length = 0
         for span_idx in range(0, len(trace_data), self.acc_span_step):
             span_group = trace_data[span_idx : span_idx + self.acc_span_step]
 
             span_group = self.convert_timestamp_fields(span_group)
-            trace_data_lite += json.dumps(span_group, ensure_ascii=False)
+            json_part = json.dumps(span_group, ensure_ascii=False)
+            trace_data_lite_parts.append(json_part)
 
             # 获取状态码 status.code 异常的 span_id
-            _error_span_ids = [span.get("span_id") for span in span_group if self.check_span_error(span)]
-            error_span_ids.extend(_error_span_ids)
+            error_span_ids_batch = [span.get("span_id") for span in span_group if self.check_span_error(span)]
+            error_span_ids.extend(error_span_ids_batch)
 
-            if len(trace_data_lite) >= self.max_character_length:
+            if total_length >= self.max_character_length:
                 break
 
+        trace_data_lite = "".join(trace_data_lite_parts)
         return {"trace_data": trace_data_lite, "total_time": total_time, "error_span_ids": error_span_ids}
 
     def process_content(self, context: list[dict]) -> str:
@@ -115,8 +118,8 @@ class TracingAnalysisCommandHandler(CommandHandler):
         请帮我分析 Tracing:
         应用名称: {{ app_name }}
         trace 总耗时: {{ total_time }}
-        可能出错的 span_id: {{ error_span_ids }}
-        Tracing 数据(JSON 格式): {{ trace_data }}
+        可能出错的 span_id: {{ error_span_ids | safe }}
+        Tracing 数据(JSON 格式): {{ trace_data | safe }}
         结果要求: 确保分析准确无误，无需冗余回答内容
         """
 

@@ -67,9 +67,9 @@ def test_tracing_analysis_command():
                 "end_time": 100,
                 "elapsed_time": 100,
                 "kind": 1,
-                "status": {"code": 0, "message": ""},
+                "status": {"code": 2, "message": ""},
                 "span_name": "span1",
-                "trace_id": mock_trace_id,
+                "span_id": "123",
             }
         ]
     }
