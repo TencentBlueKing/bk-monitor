@@ -415,9 +415,9 @@ class CustomTimeSeriesList(Resource):
         is_platform = serializers.BooleanField(required=False)
 
     @staticmethod
-    def get_strategy_count(table_ids, request_bk_biz_id: int | None = None):
+    def count_rt_bound_strategies(table_ids, request_bk_biz_id: int | None = None):
         """
-        获取绑定的策略数
+        统计与结果表绑定的策略数量
         """
         if not table_ids:
             return {}
@@ -480,7 +480,7 @@ class CustomTimeSeriesList(Resource):
         tables = serializer.data
 
         table_ids = [table["table_id"] for table in tables]
-        strategy_count_mapping = self.get_strategy_count(table_ids, validated_request_data.get("bk_biz_id"))
+        strategy_count_mapping = self.count_rt_bound_strategies(table_ids, validated_request_data.get("bk_biz_id"))
 
         label_display_dict = get_label_display_dict()
         for table in tables:
