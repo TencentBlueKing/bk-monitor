@@ -24,7 +24,6 @@ from django.db.transaction import atomic, on_commit
 from django.utils.translation import gettext as _
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
@@ -153,7 +152,7 @@ class ResultTable(models.Model):
 
             pivot_table = False
             if table_info.schema_type == ResultTable.SCHEMA_TYPE_FREE:
-                if not ResultTable.is_disable_metric_cutter(table_id):
+                if not ResultTable.is_disable_metric_cutter(table_id=table_id, bk_tenant_id=table_info.bk_tenant_id):
                     pivot_table = True
 
             segmented_query_enable = False
@@ -220,7 +219,7 @@ class ResultTable(models.Model):
         return DataSource.objects.get(bk_data_id=bk_data_id, bk_tenant_id=self.bk_tenant_id)
 
     @classmethod
-    def is_disable_metric_cutter(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
+    def is_disable_metric_cutter(cls, table_id, bk_tenant_id: str):
         """
         是否 禁用指标切分模式
         """
@@ -239,7 +238,7 @@ class ResultTable(models.Model):
 
     # TODO： 多租户 应该只允许获取一个租户下的结果表
     @classmethod
-    def get_table_id_cutter(cls, table_ids: list | set, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
+    def get_table_id_cutter(cls, table_ids: list | set, bk_tenant_id: str) -> dict:
         """获取结果表是否禁用切分模块"""
         logger.info("get_table_id_cutter: table_ids->[%s],bk_tenant_id->[%s]", table_ids, bk_tenant_id)
         table_id_data_id_map = {
@@ -288,7 +287,7 @@ class ResultTable(models.Model):
         schema_type,
         operator,
         default_storage,
-        bk_tenant_id=DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
         default_storage_config=None,
         field_list=(),
         is_sync_db=True,
@@ -606,7 +605,7 @@ class ResultTable(models.Model):
         logger.info("result_table:[%s] has create storage on type:[%s]", self.table_id, self.default_storage)
 
     @classmethod
-    def get_result_table_storage_info(cls, table_id, storage_type, bk_tenant_id=DEFAULT_TENANT_ID):
+    def get_result_table_storage_info(cls, table_id, storage_type, bk_tenant_id: str):
         """
         获取结果表一个指定存储的配置信息
         :param table_id: 结果表ID
@@ -620,7 +619,7 @@ class ResultTable(models.Model):
         return storage_info.consul_config
 
     @classmethod
-    def get_result_table_storage(cls, table_id, storage_type, bk_tenant_id=DEFAULT_TENANT_ID):
+    def get_result_table_storage(cls, table_id, storage_type, bk_tenant_id: str):
         """
         获取结果表一个指定存储
         :param table_id: 结果表ID
@@ -646,7 +645,7 @@ class ResultTable(models.Model):
         return storage_list
 
     @classmethod
-    def get_result_table(cls, table_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
+    def get_result_table(cls, table_id: str, bk_tenant_id: str):
         """
         可以使用已有的结果表的命名规范(2_system_cpu_summary)或
         新的命名规范(system_cpu_summary | system.cpu_summary | 2_system.cpu_summary)查询结果表
@@ -818,9 +817,7 @@ class ResultTable(models.Model):
 
         return result_table_list
 
-    def create_storage(
-        self, storage, is_sync_db, external_storage=None, bk_tenant_id=DEFAULT_TENANT_ID, **storage_config
-    ):
+    def create_storage(self, storage, is_sync_db, bk_tenant_id: str, external_storage=None, **storage_config):
         """
         创建结果表的一个实际存储
         :param storage: 存储方案
@@ -881,9 +878,9 @@ class ResultTable(models.Model):
     def bulk_create_fields(
         self,
         field_data: list[dict[str, Any]],
+        bk_tenant_id: str,
         is_etl_refresh: bool | None = True,
         is_force_add: bool | None = False,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ) -> True:
         """批量创建新的字段
 
@@ -943,7 +940,7 @@ class ResultTable(models.Model):
         field_name,
         field_type,
         operator,
-        bk_tenant_id=DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
         is_config_by_user=False,
         default_value=None,
         unit="",
@@ -1622,7 +1619,9 @@ class ResultTable(models.Model):
     def to_json(self):
         query_alias_settings = None
         if self.default_storage == ClusterInfo.TYPE_ES:
-            query_alias_settings = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+            query_alias_settings = ESFieldQueryAliasOption.generate_query_alias_settings(
+                table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
+            )
         data = {
             "table_id": self.table_id,
             "bk_tenant_id": self.bk_tenant_id,
@@ -1805,11 +1804,11 @@ class ResultTableField(models.Model):
     def bulk_create_default_fields(
         cls,
         table_id: str,
+        bk_tenant_id: str,
         include_cmdb_level: bool | None = False,
         is_time_field_only: bool | None = False,
         time_alias_name: str | None = None,
         time_option: str | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ) -> None:
         """批量创建默认字段， 包含 time，bk_biz_id，bk_supplier_id，bk_cloud_id，ip，bk_cmdb_level
 
@@ -1943,7 +1942,7 @@ class ResultTableField(models.Model):
     def make_default_fields(
         cls,
         table_id,
-        bk_tenant_id=DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
         include_cmdb_level=False,
         is_time_field_only=False,
         time_alias_name=None,
@@ -2065,7 +2064,7 @@ class ResultTableField(models.Model):
         logger.info(f"all default field is created for table->[{table_id}].")
 
     @classmethod
-    def make_cmdb_default_fields(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
+    def make_cmdb_default_fields(cls, table_id, bk_tenant_id: str):
         """
         增加CMDB层级拆分的字段内容
         :param table_id: 结果表ID
@@ -2116,7 +2115,7 @@ class ResultTableField(models.Model):
         logger.error("try to create filed [%s] which are reserved fields, nothing will added.", joined_names)
         raise ValueError(_("字段[{}]为保留字段，不可创建").format(joined_names))
 
-    def _check_existed_fields(self, table_id: str, field_names: list[str], bk_tenant_id=DEFAULT_TENANT_ID):
+    def _check_existed_fields(self, table_id: str, field_names: list[str], bk_tenant_id: str):
         """校验字段是否已经创建"""
 
         existed_field_names = ResultTableField.objects.filter(
@@ -2131,7 +2130,7 @@ class ResultTableField(models.Model):
         raise ValueError(_("字段[{}]已在表[{}]中存在，请确认").format(joined_names, table_id))
 
     def _compose_data(
-        self, table_id: str, field_data: list[dict[str, Any]], bk_tenant_id: str | None = DEFAULT_TENANT_ID
+        self, table_id: str, field_data: list[dict[str, Any]], bk_tenant_id: str
     ) -> tuple[list, list, list]:
         """组装数据"""
         logger.info(
@@ -2170,9 +2169,7 @@ class ResultTableField(models.Model):
         return fields, field_names, option_data
 
     @classmethod
-    def bulk_create_fields(
-        cls, table_id: str, field_data: list[dict[str, Any]], bk_tenant_id=DEFAULT_TENANT_ID
-    ) -> bool:
+    def bulk_create_fields(cls, table_id: str, field_data: list[dict[str, Any]], bk_tenant_id: str) -> bool:
         """批量创建 fields
 
         # 分为下面几步处理
@@ -2199,7 +2196,9 @@ class ResultTableField(models.Model):
             cls()._check_reserved_fields(uppercase_field_names)
 
         # 组装必要数据，用于后续的处理
-        fields, field_names, option_data = cls()._compose_data(table_id, field_data)
+        fields, field_names, option_data = cls()._compose_data(
+            table_id=table_id, field_data=field_data, bk_tenant_id=bk_tenant_id
+        )
 
         # 校验字段是否已经创建
         cls()._check_existed_fields(table_id, field_names)
@@ -2227,7 +2226,7 @@ class ResultTableField(models.Model):
         field_type,
         is_config_by_user,
         operator,
-        bk_tenant_id=DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
         unit="",
         default_value=None,
         tag="",
@@ -2308,7 +2307,7 @@ class ResultTableField(models.Model):
         return True
 
     @classmethod
-    def get_field_list(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID, include_default_fields=False):
+    def get_field_list(cls, table_id, bk_tenant_id: str, include_default_fields=False):
         """
         获取一个结果表的字段列表
         :param table_id: 结果表ID
@@ -2346,7 +2345,9 @@ class ResultTableField(models.Model):
             "description": _(self.description),
             "unit": _(self.unit),
             "alias_name": _(self.alias_name),
-            "option": ResultTableFieldOption.get_field_option(table_id=self.table_id, field_name=self.field_name),
+            "option": ResultTableFieldOption.get_field_option(
+                table_id=self.table_id, field_name=self.field_name, bk_tenant_id=self.bk_tenant_id
+            ),
             "is_disabled": self.is_disabled,
         }
 
@@ -2388,8 +2389,8 @@ class ResultTableField(models.Model):
     def batch_get_fields(
         cls,
         table_id_list: list[str],
+        bk_tenant_id: str,
         is_consul_config: bool | None = False,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ) -> dict:
         table_field_option_dict = ResultTableFieldOption.batch_field_option(
             table_id_list=table_id_list, bk_tenant_id=bk_tenant_id
@@ -2439,7 +2440,7 @@ class ResultTableRecordFormat(models.Model):
         verbose_name_plural = "结果表字段表"
 
     @classmethod
-    def create_record_format(cls, table_id, metric, dimension_list, bk_tenant_id=DEFAULT_TENANT_ID, is_available=False):
+    def create_record_format(cls, table_id, metric, dimension_list, bk_tenant_id: str, is_available=False):
         """
         创建关系记录
         :param table_id: 结果表ID
@@ -2532,7 +2533,7 @@ class CMDBLevelRecord(models.Model):
         verbose_name_plural = "CMDB层级拆分记录表"
 
     @classmethod
-    def is_level_exists(cls, source_table_id, cmdb_level, bk_tenant_id=DEFAULT_TENANT_ID):
+    def is_level_exists(cls, source_table_id, cmdb_level, bk_tenant_id: str):
         """
         判断一个指定的结果表是否已经存在指定的层级清洗配置
         :param source_table_id: 来源结果表ID
@@ -2546,9 +2547,7 @@ class CMDBLevelRecord(models.Model):
         ).exists()
 
     @classmethod
-    def create_record(
-        cls, source_table_id, bk_data_id, cmdb_level, operator, target_table_id=None, bk_tenant_id=DEFAULT_TENANT_ID
-    ):
+    def create_record(cls, source_table_id, bk_data_id, cmdb_level, operator, bk_tenant_id: str, target_table_id=None):
         """
         创建一个新的CMDB层级清理配置
         :param source_table_id: 源结果表名
@@ -2643,7 +2642,7 @@ class CMDBLevelRecord(models.Model):
         return record
 
     @classmethod
-    def get_table_data_source(cls, source_table_id, bk_tenant_id=DEFAULT_TENANT_ID):
+    def get_table_data_source(cls, source_table_id, bk_tenant_id: str):
         """
         返回一个结果表作为源的数据源
         :param source_table_id: 源结果表
@@ -2708,7 +2707,7 @@ class ResultTableOption(OptionBase):
     )
 
     @classmethod
-    def batch_result_table_option(cls, table_id_list, bk_tenant_id=DEFAULT_TENANT_ID):
+    def batch_result_table_option(cls, table_id_list, bk_tenant_id: str):
         """
         返回批量的
         :param table_id_list: 结果表ID列表
@@ -2731,7 +2730,7 @@ class ResultTableOption(OptionBase):
         return option_dict
 
     @classmethod
-    def sync_cmdb_level_option(cls, table_id, operator, bk_tenant_id=DEFAULT_TENANT_ID):
+    def sync_cmdb_level_option(cls, table_id, operator, bk_tenant_id: str):
         """
         同步CMDB层级拆分的记录，如果之前未有记录，则会创建一个新的
         否则会在已有的记录上更新记录
@@ -2772,7 +2771,7 @@ class ResultTableOption(OptionBase):
         return True
 
     @classmethod
-    def create_option(cls, table_id, name, value, creator, bk_tenant_id=DEFAULT_TENANT_ID):
+    def create_option(cls, table_id, name, value, creator, bk_tenant_id: str):
         """
         创建结果表选项内
         :param table_id: 结果表ID
@@ -2800,9 +2799,7 @@ class ResultTableOption(OptionBase):
         return new_record
 
     @classmethod
-    def bulk_create_options(
-        cls, table_id: str, option_data: dict[str, Any], creator: str, bk_tenant_id=DEFAULT_TENANT_ID
-    ):
+    def bulk_create_options(cls, table_id: str, option_data: dict[str, Any], creator: str, bk_tenant_id: str):
         """批量创建结果表级别的选项内容
 
         :param table_id: 结果表ID
@@ -2896,7 +2893,7 @@ class ResultTableFieldOption(OptionBase):
     )
 
     @classmethod
-    def create_option(cls, table_id, field_name, name, value, creator, bk_tenant_id=DEFAULT_TENANT_ID):
+    def create_option(cls, table_id, field_name, name, value, creator, bk_tenant_id: str):
         """
         创建结果表字段选项
         :param table_id: 结果表ID
@@ -2929,7 +2926,7 @@ class ResultTableFieldOption(OptionBase):
         return record
 
     @classmethod
-    def bulk_create_options(cls, table_id: str, option_data: list[dict], bk_tenant_id: str = DEFAULT_TENANT_ID):
+    def bulk_create_options(cls, table_id: str, option_data: list[dict], bk_tenant_id: str):
         """批量写入字段选项
 
         :param table_id: 结果表ID
@@ -2980,7 +2977,7 @@ class ResultTableFieldOption(OptionBase):
         )
 
     @classmethod
-    def batch_field_option(cls, table_id_list, bk_tenant_id=DEFAULT_TENANT_ID):
+    def batch_field_option(cls, table_id_list, bk_tenant_id: str):
         """
         禁止跨租户查询
         返回批量的
@@ -3006,7 +3003,7 @@ class ResultTableFieldOption(OptionBase):
         return option_dict
 
     @classmethod
-    def get_field_option(cls, table_id, field_name, bk_tenant_id=DEFAULT_TENANT_ID):
+    def get_field_option(cls, table_id, field_name, bk_tenant_id: str):
         """
         返回一个指定的option配置内容
         :param table_id: 结果表ID
@@ -3024,7 +3021,7 @@ class ResultTableFieldOption(OptionBase):
         return option_dict
 
     @classmethod
-    def get_field_option_es_format(cls, table_id, field_name, bk_tenant_id=DEFAULT_TENANT_ID):
+    def get_field_option_es_format(cls, table_id, field_name, bk_tenant_id: str):
         """
         返回一个自定的字段option配置内容，但是返回的格式是符合es mapping使用需求
         :param table_id: 结果表ID
@@ -3058,7 +3055,7 @@ class ESFieldQueryAliasOption(BaseModel):
     is_deleted = models.BooleanField("是否已删除", default=False)
 
     @classmethod
-    def generate_query_alias_settings(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
+    def generate_query_alias_settings(cls, table_id, bk_tenant_id: str):
         """
         生成指定 table_id 的别名配置
         :param table_id: 结果表ID
@@ -3098,7 +3095,7 @@ class ESFieldQueryAliasOption(BaseModel):
             raise
 
     @classmethod
-    def generate_alias_path_type_settings(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
+    def generate_alias_path_type_settings(cls, table_id, bk_tenant_id: str):
         """
         生成指定table_id的别名路径类型配置
         :param table_id: 结果表ID
@@ -3130,7 +3127,7 @@ class ESFieldQueryAliasOption(BaseModel):
 
     @staticmethod
     @transaction.atomic
-    def manage_query_alias_settings(table_id, query_alias_settings, operator, bk_tenant_id=DEFAULT_TENANT_ID):
+    def manage_query_alias_settings(table_id, query_alias_settings, operator, bk_tenant_id: str):
         """
         管理ES字段关联别名配置记录（支持一个field_path对应多个alias）
         :param table_id: 结果表ID

@@ -12,6 +12,7 @@ import json
 
 import pytest
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.record_rule.rules import RecordRule
 from metadata.models.record_rule.service import RecordRuleService
@@ -55,7 +56,7 @@ def test_create_record_rule(create_or_delete_records, mocker):
     rt = models.ResultTable.objects.get(table_id=table_id)
     assert rt.bk_biz_id == 2
 
-    metrics_cache_data = get_record_rule_metrics_by_biz_id(bk_biz_id=2)[0]["field_list"]
+    metrics_cache_data = get_record_rule_metrics_by_biz_id(bk_biz_id=2, bk_tenant_id=DEFAULT_TENANT_ID)[0]["field_list"]
     expected_cache_data = [
         {
             "field_name": "unify_query_tsdb_request_seconds_bucket_sum_2m",

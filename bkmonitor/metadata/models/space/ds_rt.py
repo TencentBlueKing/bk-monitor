@@ -277,10 +277,7 @@ def get_measurement_type_by_table_id(
     }
     # 获取到对应的类型
     measurement_type_dict = {}
-    if settings.ENABLE_MULTI_TENANT_MODE:  # 若开启多租户,则需要携带租户信息进行过滤
-        table_id_cutter = models.ResultTable.get_table_id_cutter(table_ids=table_ids, bk_tenant_id=bk_tenant_id)
-    else:
-        table_id_cutter = models.ResultTable.get_table_id_cutter(table_ids=table_ids)
+    table_id_cutter = models.ResultTable.get_table_id_cutter(table_ids=table_ids, bk_tenant_id=bk_tenant_id)
 
     for table in table_list:
         table_id, schema_type = table["table_id"], table["schema_type"]

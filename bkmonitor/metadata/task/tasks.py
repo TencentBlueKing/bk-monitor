@@ -70,11 +70,11 @@ def refresh_custom_log_report_config(log_group_id=None):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def access_to_bk_data_task(table_id):
+def access_to_bk_data_task(table_id, bk_tenant_id):
     try:
         bkdata_storage = models.BkDataStorage.objects.get(table_id=table_id)
     except models.BkDataStorage.DoesNotExist:
-        models.BkDataStorage.create_table(table_id, is_sync_db=True)
+        models.BkDataStorage.create_table(table_id=table_id, bk_tenant_id=bk_tenant_id, is_sync_db=True)
         return
 
     bkdata_storage.check_and_access_bkdata()

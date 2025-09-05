@@ -286,7 +286,9 @@ class Command(BaseCommand):
         )
         return list(set(kafka_table_id_list) - set(access_vm_table_ids))
 
-    def _create_kafka_storage(self, tale_id_kafka_info: dict, storage_cluster_id: int, partition: int) -> list:
+    def _create_kafka_storage(
+        self, tale_id_kafka_info: dict, storage_cluster_id: int, partition: int, bk_tenant_id: str
+    ) -> list:
         """接入计算平台"""
         failed_table_id_list = []
         # 没有创建的结果表，需要创建
@@ -296,6 +298,7 @@ class Command(BaseCommand):
             # 如果不存在，需要依次创建记录
             try:
                 models.KafkaStorage.create_table(
+                    bk_tenant_id=bk_tenant_id,
                     table_id=table_id,
                     is_sync_db=True,
                     storage_cluster_id=storage_cluster_id,

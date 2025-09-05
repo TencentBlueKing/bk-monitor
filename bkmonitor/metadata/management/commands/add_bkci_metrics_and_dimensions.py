@@ -99,7 +99,7 @@ class Command(BaseCommand):
             },
         )
 
-    def _get_or_create_result_table(self, bk_data_id: int):
+    def _get_or_create_result_table(self, bk_data_id: int, bk_tenant_id: str):
         """查询或创建结果表
 
         如果查询到，则直接返回
@@ -116,6 +116,7 @@ class Command(BaseCommand):
             field_list = self._get_rt_field_list(table_id)
             try:
                 params = {
+                    "bk_tenant_id": bk_tenant_id,
                     "table_id": table_id,
                     "bk_data_id": bk_data_id,
                     "table_name_zh": table_id,

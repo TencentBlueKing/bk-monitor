@@ -397,6 +397,7 @@ class TestDataSource:
         # 4. 进一步的测试创建RT表
         settings.INFLUXDB_DEFAULT_PROXY_CLUSTER_NAME = self.influxdb_cluster_name
         new_table = models.ResultTable.create_result_table(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             bk_data_id=new_data_source.bk_data_id,
             table_id=new_data_source.data_name,
             table_name_zh=new_data_source.data_name,
@@ -439,7 +440,7 @@ class TestDataSource:
         assert rt_field_option.name == models.ResultTableFieldOption.OPTION_ES_FIELD_TYPE
         assert rt_field_option.value == "string"
         assert "type" in rt_field_option.get_field_option_es_format(
-            table_id=new_data_source.data_name, field_name="custom_field"
+            table_id=new_data_source.data_name, field_name="custom_field", bk_tenant_id=DEFAULT_TENANT_ID
         )
         # 结果表option可以正常创建
         models.ResultTableOption.objects.get(table_id=new_table.table_id, name="es_unique_field_list")
@@ -456,6 +457,7 @@ class TestDataSource:
         # 变更字段，可以正常加入
         new_table.create_field(
             **{
+                "bk_tenant_id": DEFAULT_TENANT_ID,
                 "field_name": "good_custom_field",
                 "field_type": models.ResultTableField.FIELD_TYPE_INT,
                 "operator": self.operator,
@@ -469,6 +471,7 @@ class TestDataSource:
             new_table.schema_type = models.ResultTable.SCHEMA_TYPE_FIXED
             new_table.create_field(
                 **{
+                    "bk_tenant_id": DEFAULT_TENANT_ID,
                     "field_name": "bad_custom_field",
                     "field_type": models.ResultTableField.FIELD_TYPE_INT,
                     "operator": self.operator,
@@ -603,7 +606,7 @@ class TestDataSource:
             assert redis_config["storage_config"]["key"] == "_".join([config.REDIS_KEY_PREFIX, new_table.table_id])
 
         # 增加一个KAFKA的写入配置
-        models.KafkaStorage.create_table(new_table.table_id)
+        models.KafkaStorage.create_table(table_id=new_table.table_id, bk_tenant_id=DEFAULT_TENANT_ID)
         new_data_source.refresh_consul_config()
 
         if not IS_CONSUL_MOCK:
@@ -717,6 +720,7 @@ class TestDataSource:
         # =====================默认存储Kafka测试===========
         default_storage_table_id = f"{new_data_source.data_name}_kafka_defaul_storage"
         new_table = models.ResultTable.create_result_table(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             bk_data_id=new_data_source.bk_data_id,
             table_id=default_storage_table_id,
             table_name_zh=new_data_source.data_name,
@@ -787,6 +791,7 @@ class TestDataSource:
 
         # 创建一个对应的结果表
         new_table = models.ResultTable.create_result_table(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             bk_data_id=new_data_source.bk_data_id,
             table_id=new_data_source.data_name,
             table_name_zh=new_data_source.data_name,
@@ -1354,6 +1359,7 @@ class TestDataSource:
 
         # 测试创建index及alias能力
         new_es_storage = models.ESStorage.create_table(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             table_id="index_test",
             date_format=date_format,
         )
@@ -1426,6 +1432,7 @@ class TestDataSource:
         mocker.patch("elasticsearch5.client.indices.IndicesClient.update_aliases", return_value={"acknowledged": True})
 
         new_es_storage = models.ESStorage.create_table(
+            bk_tenant_id=DEFAULT_TENANT_ID,
             table_id="index_test",
             date_format=date_format,
             warm_phase_days=3,
@@ -1525,7 +1532,9 @@ class TestDataSource:
         mocker.patch("elasticsearch5.client.indices.IndicesClient.get_alias", side_effect=elasticsearch5.NotFoundError)
 
         mocker.patch("elasticsearch5.client.indices.IndicesClient.update_aliases", return_value={"acknowledged": True})
-        new_es_storage = models.ESStorage.create_table(table_id="index_test", date_format=date_format, retention=3)
+        new_es_storage = models.ESStorage.create_table(
+            table_id="index_test", date_format=date_format, retention=3, bk_tenant_id=DEFAULT_TENANT_ID
+        )
         now_datetime = datetime.datetime.utcnow()
         datetime0_str = (now_datetime - datetime.timedelta(days=4)).strftime(date_format)
         datetime1_str = (now_datetime - datetime.timedelta(days=3)).strftime(date_format)

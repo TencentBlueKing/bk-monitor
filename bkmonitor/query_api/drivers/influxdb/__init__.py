@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 sql convert:
 1. result_table -> <biz_id>, db_name, table_name
@@ -64,7 +64,7 @@ CUSTOM_RT_MAP = {}
 
 class InfluxDBDriver(DriverProxy):
     def __init__(self, sql, rt_instance=None):
-        super(InfluxDBDriver, self).__init__(sql)
+        super().__init__(sql)
 
         self.minute_x = None
         self.minute_x_field = None
@@ -92,7 +92,7 @@ class InfluxDBDriver(DriverProxy):
             raise SQLSyntaxError(_("语法错误: 查询字段不能为空"))
 
     def _build_sql(self):
-        logger.info(">>> %s" % str(self.q.statement))
+        logger.info(f">>> {str(self.q.statement)}")
 
     @property
     def sql(self):
@@ -117,7 +117,7 @@ class InfluxDBDriver(DriverProxy):
     def _replace_token(self, token_or_list, value):
         # the value only can _replace_token only once
         # if you want replace more time, call self.q.refresh_token()
-        if isinstance(token_or_list, (list, tuple)):
+        if isinstance(token_or_list, list | tuple):
             token_num = len(token_or_list)
             if token_num < 1:
                 return
@@ -148,7 +148,7 @@ class InfluxDBDriver(DriverProxy):
                 general_field_token = select_item.tokens[0]
                 alias_token = select_item.tokens[-1]
                 alias_name = alias_token.value.strip("`").strip("'").strip('"')
-                self._replace_token(alias_token, '"%s"' % alias_name)
+                self._replace_token(alias_token, f'"{alias_name}"')
 
             while isinstance(general_field_token, S.Function):
                 idx, turbid_field_token = general_field_token.token_next_by(i=S.Parenthesis)
@@ -165,7 +165,7 @@ class InfluxDBDriver(DriverProxy):
 
                 field_name = field_token.value.strip("`").strip("'").strip('"')
                 if field_name != "*":
-                    self._replace_token(field_token, '"%s"' % field_name)
+                    self._replace_token(field_token, f'"{field_name}"')
 
     def _process_group_fields(self):
         for group_field_token in self.q.group_items:
@@ -182,7 +182,11 @@ class InfluxDBDriver(DriverProxy):
             self.__rt_instance = self.get_result_table_instance()
 
         try:
-            rt_info = ResultTable.get_result_table_storage_info(self.__rt_instance.table_id, ClusterInfo.TYPE_INFLUXDB)
+            rt_info = ResultTable.get_result_table_storage_info(
+                table_id=self.__rt_instance.table_id,
+                storage_type=ClusterInfo.TYPE_INFLUXDB,
+                bk_tenant_id=self.__rt_instance.bk_tenant_id,
+            )
         except ObjectDoesNotExist:
             raise StorageResultTableNotExist(_("结果表[%s]对应的物理存储不存在") % self.q.result_table.value)
 
@@ -194,7 +198,7 @@ class InfluxDBDriver(DriverProxy):
             self.auth_info = [rt_info["auth_info"].get(key, "") for key in ["username", "password"]]
         table_name = storage_info["real_table_name"]
         retention_policy_name = storage_info["retention_policy_name"]
-        self.table_name = '"{}".{}'.format(retention_policy_name, table_name) if retention_policy_name else table_name
+        self.table_name = f'"{retention_policy_name}".{table_name}' if retention_policy_name else table_name
         self.db_name = storage_info["database"]
 
         rt_id = self.q.result_table.value.lower()
@@ -219,7 +223,9 @@ class InfluxDBDriver(DriverProxy):
 
         if self.__rt_instance.schema_type == ResultTable.SCHEMA_TYPE_FREE:
             # 动态字段解析
-            if not ResultTable.is_disable_metric_cutter(self.__rt_instance.table_id):
+            if not ResultTable.is_disable_metric_cutter(
+                table_id=self.__rt_instance.table_id, bk_tenant_id=self.__rt_instance.bk_tenant_id
+            ):
                 insert_where_filter.update(self._handle_free_schema_sql())
 
         if insert_where_filter:
@@ -274,16 +280,16 @@ class InfluxDBDriver(DriverProxy):
         def gen_where_sql(field, value):
             # 仅支持等于条件
             if isinstance(value, six.string_types):
-                return "{}='{}'".format(field, value)
-            return "{}={}".format(field, value)
+                return f"{field}='{value}'"
+            return f"{field}={value}"
 
         where_sql = " and ".join([gen_where_sql(k, v) for k, v in list(where_condition_dict.items())])
 
         if self.q.where_token:
             idx = len(self.q.where_token.tokens)
-            self.q.where_token.insert_before(idx, self._gen_string_token(" and %s " % where_sql))
+            self.q.where_token.insert_before(idx, self._gen_string_token(f" and {where_sql} "))
         else:
-            where_token = self._gen_string_token(" where %s " % where_sql)
+            where_token = self._gen_string_token(f" where {where_sql} ")
             self.q.statement.insert_after(self.q.result_table, where_token)
 
     @classmethod
@@ -297,7 +303,7 @@ class InfluxDBDriver(DriverProxy):
         self._process_minutex_items(self.q.select_items, "select", fn_get_item_name=self._get_select_field_name)
 
         self._process_minutex_items(
-            self.q.group_items, "group", fn_get_time_field_name=lambda minute_x: "time(%dm)" % minute_x
+            self.q.group_items, "group", fn_get_time_field_name=lambda minute_x: f"time({minute_x}m)"
         )
 
         if self.q.order_items:
@@ -392,12 +398,12 @@ class InfluxDBDriver(DriverProxy):
         if value.startswith("/"):
             value = value
         else:
-            value = "/^%s" % value.replace("'", "", 1)
+            value = "/^{}".format(value.replace("'", "", 1))
 
         if value.endswith("/"):
             value = value
         else:
-            value = "%s$/" % value[: len(value) - 1]
+            value = f"{value[: len(value) - 1]}$/"
 
         self._replace_token(like_value_token, value)
 
@@ -444,7 +450,7 @@ class InfluxDBDriver(DriverProxy):
             raise SQLSyntaxError("`LIMIT` syntax error.")
 
         if len(limit_nums) > 2:
-            raise SQLSyntaxError("`LIMIT` allows only one" " value to be specified.")
+            raise SQLSyntaxError("`LIMIT` allows only one value to be specified.")
 
         limit_value = min(limit_nums[-1], settings.SQL_MAX_LIMIT)
 
@@ -454,7 +460,7 @@ class InfluxDBDriver(DriverProxy):
     def _process_slimit(self):
         if not self.q.slimit_item:
             # 5w条线，不能再多了
-            slimit_token = self._gen_string_token(" slimit %d" % MAX_LIMIT)
+            slimit_token = self._gen_string_token(f" slimit {MAX_LIMIT}")
             self.q.statement.insert_after(len(self.q.statement.tokens), slimit_token)
             return
 
@@ -464,7 +470,7 @@ class InfluxDBDriver(DriverProxy):
             raise SQLSyntaxError("`SLIMIT` syntax error.")
 
         if len(slimit_nums) > 2:
-            raise SQLSyntaxError("`SLIMIT` allows only one" " value to be specified.")
+            raise SQLSyntaxError("`SLIMIT` allows only one value to be specified.")
 
         slimit_value = min(slimit_nums[-1], MAX_LIMIT)
 
@@ -483,7 +489,7 @@ class InfluxDBDriver(DriverProxy):
             query_client._headers.update({"Content-Type": "application/json", "Accept": "application/json"})
             result_set = query_client.query(sql, database=self.db_name, epoch="ms") or {}
         except (InfluxDBServerError, InfluxDBClientError) as e:
-            logger.exception("influxdb query error: %s" % self.__dict__)
+            logger.exception(f"influxdb query error: {self.__dict__}")
             raise e
         for key, _r in list(result_set.items()):
             measurement, series_name = key  # noqa

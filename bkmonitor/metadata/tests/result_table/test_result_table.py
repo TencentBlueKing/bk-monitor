@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
+from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 
 
@@ -59,7 +60,7 @@ def test_manage_query_alias_settings():
     ]
     table_id = "2_bklog.job_dev"
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin", bk_tenant_id=DEFAULT_TENANT_ID
     )
 
     alias_1 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path="__ext.io_kubernetes_pod")
@@ -74,7 +75,7 @@ def test_manage_query_alias_settings():
         {"field_name": "__ext.io_kubernetes_context", "query_alias": "k8s_context"},
     ]
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin", bk_tenant_id=DEFAULT_TENANT_ID
     )
 
     alias_1 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, field_path="__ext.io_kubernetes_pod")
@@ -91,7 +92,7 @@ def test_manage_query_alias_settings():
         {"field_name": "__ext.io_kubernetes_pod", "query_alias": "k8s_pod"},
     ]
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin", bk_tenant_id=DEFAULT_TENANT_ID
     )
 
     alias_ns1 = models.ESFieldQueryAliasOption.objects.get(table_id=table_id, query_alias="k8s_ns1")
@@ -124,13 +125,15 @@ def test_generate_query_alias_settings():
         {"field_name": "__ext.io_kubernetes_context", "query_alias": "k8s_context"},
     ]
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin", bk_tenant_id=DEFAULT_TENANT_ID
     )
     expected = {
         "k8s_ns": {"type": "alias", "path": "__ext.io_kubernetes_namespace"},
         "k8s_context": {"type": "alias", "path": "__ext.io_kubernetes_context"},
     }
-    actual_config = models.ESFieldQueryAliasOption.generate_query_alias_settings(table_id)
+    actual_config = models.ESFieldQueryAliasOption.generate_query_alias_settings(
+        table_id=table_id, bk_tenant_id=DEFAULT_TENANT_ID
+    )
     assert json.dumps(actual_config) == json.dumps(expected)
 
     # 测试点2: 软删除的配置不会出现
@@ -140,20 +143,24 @@ def test_generate_query_alias_settings():
         {"field_name": "__ext.io_kubernetes_pod", "query_alias": "k8s_pod"},
     ]
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin", bk_tenant_id=DEFAULT_TENANT_ID
     )
     expected = {
         "k8s_ns": {"type": "alias", "path": "__ext.io_kubernetes_namespace"},
         "k8s_ns1": {"type": "alias", "path": "__ext.io_kubernetes_namespace"},
         "k8s_pod": {"type": "alias", "path": "__ext.io_kubernetes_pod"},
     }
-    actual_config = models.ESFieldQueryAliasOption.generate_query_alias_settings(table_id)
+    actual_config = models.ESFieldQueryAliasOption.generate_query_alias_settings(
+        table_id=table_id, bk_tenant_id=DEFAULT_TENANT_ID
+    )
     assert json.dumps(actual_config) == json.dumps(expected)
 
     query_alias_settings = []
     models.ESFieldQueryAliasOption.manage_query_alias_settings(
-        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin"
+        query_alias_settings=query_alias_settings, table_id=table_id, operator="admin", bk_tenant_id=DEFAULT_TENANT_ID
     )
     expected = {}
-    actual_config = models.ESFieldQueryAliasOption.generate_query_alias_settings(table_id)
+    actual_config = models.ESFieldQueryAliasOption.generate_query_alias_settings(
+        table_id=table_id, bk_tenant_id=DEFAULT_TENANT_ID
+    )
     assert json.dumps(actual_config) == json.dumps(expected)

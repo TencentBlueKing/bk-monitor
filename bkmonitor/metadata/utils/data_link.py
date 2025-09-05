@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -14,7 +13,7 @@ import logging
 logger = logging.getLogger("metadata")
 
 
-def get_record_rule_metrics_by_biz_id(bk_biz_id, with_option: bool = True):
+def get_record_rule_metrics_by_biz_id(bk_biz_id, bk_tenant_id: str, with_option: bool = True):
     from metadata.models import (
         RecordRule,
         ResultTable,
@@ -37,7 +36,7 @@ def get_record_rule_metrics_by_biz_id(bk_biz_id, with_option: bool = True):
     else:
         space_id = bk_biz_id
 
-    result_table_id_list = list(RecordRule.objects.filter(space_id=space_id).values_list('table_id', flat=True))
+    result_table_id_list = list(RecordRule.objects.filter(space_id=space_id).values_list("table_id", flat=True))
     logger.info("get_record_rule_metrics_by_biz_id: get result_table_id_list->[%s]", result_table_id_list)
 
     # 1. 查询所有依赖的内容
@@ -65,9 +64,13 @@ def get_record_rule_metrics_by_biz_id(bk_biz_id, with_option: bool = True):
     storage_dict = {}
     if with_option:
         # 字段option
-        field_option_dict = ResultTableFieldOption.batch_field_option(table_id_list=result_table_id_list)
+        field_option_dict = ResultTableFieldOption.batch_field_option(
+            table_id_list=result_table_id_list, bk_tenant_id=bk_tenant_id
+        )
         # RT的option
-        rt_option_dict = ResultTableOption.batch_result_table_option(table_id_list=result_table_id_list)
+        rt_option_dict = ResultTableOption.batch_result_table_option(
+            table_id_list=result_table_id_list, bk_tenant_id=bk_tenant_id
+        )
 
         # 存储的组合
         storage_dict = {table_id: [] for table_id in result_table_id_list}

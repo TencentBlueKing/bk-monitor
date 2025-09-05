@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -31,6 +30,8 @@ class Command(BaseCommand):
         storage_cluster_id = options.get("storage_cluster_id")
         topic = options.get("topic")
         partition = options.get("partition")
+        # 获取租户id
+        bk_tenant_id = DataSource.objects.get(bk_data_id=data_id).bk_tenant_id
 
         if partition < 1:
             self.stderr.write("partition input error, it must gt 1, please check and retry")
@@ -40,21 +41,21 @@ class Command(BaseCommand):
             self.stderr.write("storage_cluster_id input error, it can't be empty, please check and retry")
             return
 
-        self.stdout.write("start access kafka, data_id={}".format(data_id))
+        self.stdout.write(f"start access kafka, data_id={data_id}")
 
         table_id_list = DataSourceResultTable.objects.filter(bk_data_id=data_id).values_list("table_id", flat=True)
 
-        self.stdout.write("find datasource result table, data_id={}, table_id_list={}".format(data_id, table_id_list))
+        self.stdout.write(f"find datasource result table, data_id={data_id}, table_id_list={table_id_list}")
         # 如果该data_id 没有对应的结果表，则退出
         if not table_id_list:
-            self.stderr.write("the table list is empty, table_id_list={}".format(table_id_list))
+            self.stderr.write(f"the table list is empty, table_id_list={table_id_list}")
             return
 
         kafka_storages = KafkaStorage.objects.filter(table_id__in=table_id_list).values("table_id", "topic")
         # 如果存在KafkaStorage。说明已经接入过kafka，直接打印结果，避免重复接入
 
         if kafka_storages and len(kafka_storages) == len(table_id_list):
-            self.stdout.write("found kafka_storages, nums = {}".format(len(kafka_storages)))
+            self.stdout.write(f"found kafka_storages, nums = {len(kafka_storages)}")
             for kafka_storage in kafka_storages:
                 self.stdout.write(
                     "table_id = {}, topic={}".format(kafka_storage.get("table_id"), kafka_storage.get("topic"))
@@ -68,6 +69,7 @@ class Command(BaseCommand):
             try:
                 if topic:
                     ks = KafkaStorage.create_table(
+                        bk_tenant_id=bk_tenant_id,
                         table_id=table_id,
                         is_sync_db=True,
                         storage_cluster_id=storage_cluster_id,
@@ -76,27 +78,29 @@ class Command(BaseCommand):
                     )
                 else:
                     ks = KafkaStorage.create_table(
-                        table_id=table_id, is_sync_db=True, storage_cluster_id=storage_cluster_id, partition=partition
+                        table_id=table_id,
+                        is_sync_db=True,
+                        storage_cluster_id=storage_cluster_id,
+                        partition=partition,
+                        bk_tenant_id=bk_tenant_id,
                     )
                 self.stdout.write(
-                    "the KafkaStorage is created, table_id={}, storage_cluster_id={},"
-                    " topic={}".format(table_id, storage_cluster_id, ks.topic)
+                    f"the KafkaStorage is created, table_id={table_id}, storage_cluster_id={storage_cluster_id},"
+                    f" topic={ks.topic}"
                 )
                 # 记录所有的kafkaStorage对象
                 ks_list.append(ks)
             except Exception as e:
-                msg = "the KafkaStorage is create failed, table_id={}, storage_cluster_id={}, err={}".format(
-                    table_id, storage_cluster_id, e
-                )
+                msg = f"the KafkaStorage is create failed, table_id={table_id}, storage_cluster_id={storage_cluster_id}, err={e}"
                 self.stderr.write(msg)
                 continue
 
         self.stdout.write("refresh kafka storage")
         # 刷洗kafka的配置
         for ks in ks_list:
-            self.stdout.write("start refresh kafka storage, table_id={}, topic={}".format(ks.table_id, ks.topic))
+            self.stdout.write(f"start refresh kafka storage, table_id={ks.table_id}, topic={ks.topic}")
             ks.ensure_topic()
-            self.stdout.write("refresh kafka storage success, table_id={}, topic={}".format(ks.table_id, ks.topic))
+            self.stdout.write(f"refresh kafka storage success, table_id={ks.table_id}, topic={ks.topic}")
 
         # 刷新consul配置
         self.stdout.write("start refresh consul config")

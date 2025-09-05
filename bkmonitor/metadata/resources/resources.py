@@ -305,6 +305,7 @@ class ListResultTableResource(Resource):
     def perform_request(self, request_data):
         # 获取bcs相关的dataid
         data_ids, _ = get_bcs_dataids()
+        bk_tenant_id = request_data["bk_tenant_id"]
 
         # 使用datasource排除掉dataid,得到table_id列表
         table_ids = [
@@ -336,7 +337,7 @@ class ListResultTableResource(Resource):
             for biz_id in bk_biz_id:
                 logger.info("ListResultTableResource: try to get precal metrics for bk_biz_id->[%s]", biz_id)
                 try:
-                    precal_metrics = get_record_rule_metrics_by_biz_id(bk_biz_id=biz_id)
+                    precal_metrics = get_record_rule_metrics_by_biz_id(bk_biz_id=biz_id, bk_tenant_id=bk_tenant_id)
                 except Exception as e:
                     logger.error(
                         "ListResultTableResource: get_record_rule_metrics_by_biz_id failed, "
@@ -575,7 +576,9 @@ class AccessBkDataByResultTableResource(Resource):
         except models.ResultTable.DoesNotExist:
             raise ValueError(_("结果表%s不存在，请确认后重试") % table_id)
 
-        models.BkDataStorage.create_table(table_id, is_access_now=validated_request_data["is_access_now"])
+        models.BkDataStorage.create_table(
+            table_id=table_id, is_access_now=validated_request_data["is_access_now"], bk_tenant_id=bk_tenant_id
+        )
 
 
 class IsDataLabelExistResource(Resource):
@@ -1746,7 +1749,9 @@ class CheckOrCreateKafkaStorageResource(Resource):
         ).values_list("table_id", flat=True)
         need_create_table_ids = list(set(table_ids) - set(exists_table_ids))
         for table_id in need_create_table_ids:
-            models.storage.KafkaStorage.create_table(table_id, is_sync_db=True, **{"expired_time": 1800000})
+            models.storage.KafkaStorage.create_table(
+                table_id=table_id, is_sync_db=True, bk_tenant_id=bk_tenant_id, **{"expired_time": 1800000}
+            )
             models.ResultTable.objects.get(table_id=table_id).refresh_etl_config()
 
 

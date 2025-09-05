@@ -14,6 +14,7 @@ from typing import Any
 
 from rest_framework.exceptions import NotFound
 
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.views import serializers
 from core.drf_resource import Resource
 from metadata import models
@@ -26,6 +27,7 @@ class QueryEsResource(Resource):
     _INDEX_PATTERN = re.compile(r"^(?P<prefix>.+)_(?P<date>\d{8})_\d+$")
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         query_body = serializers.DictField(required=True, label="查询内容")
         use_full_index_names = serializers.BooleanField(required=False, label="是否使用索引全名进行检索", default=False)
@@ -46,8 +48,9 @@ class QueryEsResource(Resource):
 
     def perform_request(self, validated_request_data):
         table_id = validated_request_data["table_id"]
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
         try:
-            result_table = self.get_result_table(table_id)
+            result_table = self.get_result_table(table_id=table_id, bk_tenant_id=bk_tenant_id)
         except NotFound:
             logger.warning(f"query_es_data result_table({table_id}) not exists, return empty data")
             return []
@@ -81,9 +84,9 @@ class QueryEsResource(Resource):
         return data
 
     @staticmethod
-    def get_result_table(table_id: str) -> models.ResultTable:
+    def get_result_table(table_id: str, bk_tenant_id: str) -> models.ResultTable:
         try:
-            result_table = models.ResultTable.get_result_table(table_id=table_id)
+            result_table = models.ResultTable.get_result_table(table_id=table_id, bk_tenant_id=bk_tenant_id)
         except models.ResultTable.DoesNotExist:
             raise NotFound(f"result_table({table_id}) not exists.")
         except Exception as err:
