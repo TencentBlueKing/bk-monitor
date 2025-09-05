@@ -24,34 +24,48 @@
  * IN THE SOFTWARE.
  */
 
-import type { TableCol } from '@blueking/tdesign-ui';
-import type { SlotReturnValue } from 'tdesign-vue-next';
+import { type PropType, defineComponent } from 'vue';
 
-// 表格列字段
-export type TableColumnItem<T = any> = {
-  /** 是否为默认列 */
-  is_default?: boolean;
-  /** 是否必须显示且不可编辑隐藏 */
-  is_locked?: boolean;
-} & TableCol<T>;
+import type { DimensionField } from 'monitor-pc/pages/query-template/typings';
 
-/** commonTable Empty 属性类型 */
-export type TableEmpty = TableEmptyProps | TableRenderer;
+import './dimension-detail.scss';
 
-export interface TableEmptyProps {
-  emptyText: string;
-  type: 'empty' | 'search-empty';
-}
-
-/** 表格分页属性类型 */
-export interface TablePagination {
-  /** 当前页码 */
-  currentPage: number;
-  /** 每页条数 */
-  pageSize: number;
-  /** 总数 */
-  total: number;
-}
-
-/** 表格通用渲染函数类型 */
-export type TableRenderer<T = undefined> = T extends undefined ? () => SlotReturnValue : (props?: T) => SlotReturnValue;
+export default defineComponent({
+  name: 'DimensionDetail',
+  props: {
+    /* 聚合维度信息 id-聚合维度对象 映射表 */
+    allDimensionMap: {
+      type: Object as PropType<Record<string, DimensionField>>,
+      default: () => ({}),
+    },
+    /* 已选聚合维度id数组 */
+    value: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+  },
+  render() {
+    return (
+      <div class='alert-dimension-detail-component'>
+        <span class='dimension-label'>{this.$slots?.label || this.$t('聚合维度')}</span>
+        <span class='dimension-colon'>:</span>
+        <div class='tags-wrap'>
+          {this.value?.map?.(v => (
+            <div
+              key={v}
+              class='tags-item'
+              v-tippy={{
+                content: v,
+                placement: 'top',
+                disabled: !v,
+                delay: [300, 0],
+              }}
+            >
+              <span class='tags-item-name'>{this.allDimensionMap?.[v]?.name || v}</span>
+            </div>
+          )) || '--'}
+        </div>
+      </div>
+    );
+  },
+});

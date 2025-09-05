@@ -24,34 +24,41 @@
  * IN THE SOFTWARE.
  */
 
-import type { TableCol } from '@blueking/tdesign-ui';
-import type { SlotReturnValue } from 'tdesign-vue-next';
+import { computed, defineComponent } from 'vue';
 
-// 表格列字段
-export type TableColumnItem<T = any> = {
-  /** 是否为默认列 */
-  is_default?: boolean;
-  /** 是否必须显示且不可编辑隐藏 */
-  is_locked?: boolean;
-} & TableCol<T>;
+import { secToString } from 'monitor-pc/components/cycle-input/utils';
 
-/** commonTable Empty 属性类型 */
-export type TableEmpty = TableEmptyProps | TableRenderer;
+import './interval-detail.scss';
 
-export interface TableEmptyProps {
-  emptyText: string;
-  type: 'empty' | 'search-empty';
-}
-
-/** 表格分页属性类型 */
-export interface TablePagination {
-  /** 当前页码 */
-  currentPage: number;
-  /** 每页条数 */
-  pageSize: number;
-  /** 总数 */
-  total: number;
-}
-
-/** 表格通用渲染函数类型 */
-export type TableRenderer<T = undefined> = T extends undefined ? () => SlotReturnValue : (props?: T) => SlotReturnValue;
+export default defineComponent({
+  name: 'IntervalDetail',
+  props: {
+    /* 汇聚周期(秒级时间戳) */
+    value: {
+      type: [Number, String],
+      default: '',
+    },
+  },
+  setup(props) {
+    const intervalView = computed(() => {
+      const unitMap = {
+        m: 'min',
+        s: 's',
+      };
+      const convertInterval = secToString({ value: props.value, unit: '' });
+      return `${convertInterval?.value} ${unitMap[convertInterval?.unit]}`;
+    });
+    return {
+      intervalView,
+    };
+  },
+  render() {
+    return (
+      <div class='alert-interval-detail-component'>
+        <span class='interval-label'>{this.$slots?.label?.() || this.$t('汇聚周期')}</span>
+        <span class='interval-colon'>:</span>
+        <span class='interval-name'>{this.intervalView || '--'}</span>
+      </div>
+    );
+  },
+});

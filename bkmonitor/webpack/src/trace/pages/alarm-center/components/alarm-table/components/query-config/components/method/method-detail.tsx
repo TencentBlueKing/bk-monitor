@@ -24,34 +24,26 @@
  * IN THE SOFTWARE.
  */
 
-import type { TableCol } from '@blueking/tdesign-ui';
-import type { SlotReturnValue } from 'tdesign-vue-next';
+import { defineComponent } from 'vue';
 
-// 表格列字段
-export type TableColumnItem<T = any> = {
-  /** 是否为默认列 */
-  is_default?: boolean;
-  /** 是否必须显示且不可编辑隐藏 */
-  is_locked?: boolean;
-} & TableCol<T>;
+import './method-detail.scss';
 
-/** commonTable Empty 属性类型 */
-export type TableEmpty = TableEmptyProps | TableRenderer;
-
-export interface TableEmptyProps {
-  emptyText: string;
-  type: 'empty' | 'search-empty';
-}
-
-/** 表格分页属性类型 */
-export interface TablePagination {
-  /** 当前页码 */
-  currentPage: number;
-  /** 每页条数 */
-  pageSize: number;
-  /** 总数 */
-  total: number;
-}
-
-/** 表格通用渲染函数类型 */
-export type TableRenderer<T = undefined> = T extends undefined ? () => SlotReturnValue : (props?: T) => SlotReturnValue;
+export default defineComponent({
+  name: 'MethodDetail',
+  props: {
+    /* 汇聚方法 */
+    value: {
+      type: String,
+      default: '',
+    },
+  },
+  render() {
+    return (
+      <div class='alert-method-detail-component'>
+        <span class='method-label'>{this.$slots?.label?.() || this.$t('汇聚方法')}</span>
+        <span class='method-colon'>:</span>
+        <span class='method-name'>{this.value || '--'}</span>
+      </div>
+    );
+  },
+});

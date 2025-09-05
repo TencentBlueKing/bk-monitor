@@ -1,0 +1,54 @@
+.alert-condition-detail-kv-tag-component {
+  .condition-detail-kv-tag-component-wrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-width: 131px;
+    min-height: 40px;
+    padding: 4px;
+    font-size: 12px;
+    line-height: 16px;
+    background: #eaebf0;
+    border-radius: 2px;
+
+    .key-wrap {
+      display: flex;
+      align-items: center;
+      padding-right: 42px;
+
+      .key-name {
+        color: #757880;
+      }
+
+      .key-method {
+        margin-left: 2px;
+        color: #979ba5;
+
+        &.exclude,
+        &.ne,
+        &.neq,
+        &.nreg {
+          color: #ea3636;
+        }
+      }
+    }
+
+    .value-wrap {
+      color: #313238;
+      word-break: break-all;
+
+      .value-condition {
+        margin: 0 4px;
+        font-family: RobotoMono-Medium, Menlo, Monaco, Consolas, 'Courier New', monospace;
+        font-weight: 500;
+        color: #f59500;
+      }
+
+      .value-name {
+        font-family: RobotoMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace;
+        font-weight: 400;
+        color: #313238;
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+.alert-condition-detail-component {
+  display: flex;
+  color: #757880;
+
+  .condition-label {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 50px;
+    text-align: right;
+  }
+
+  .condition-colon {
+    display: inline-flex;
+    flex-shrink: 0;
+    margin-right: 10px;
+    margin-left: 2px;
+  }
+
+  .tags-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}

@@ -24,34 +24,44 @@
  * IN THE SOFTWARE.
  */
 
-import type { TableCol } from '@blueking/tdesign-ui';
-import type { SlotReturnValue } from 'tdesign-vue-next';
+import { type PropType, defineComponent } from 'vue';
 
-// 表格列字段
-export type TableColumnItem<T = any> = {
-  /** 是否为默认列 */
-  is_default?: boolean;
-  /** 是否必须显示且不可编辑隐藏 */
-  is_locked?: boolean;
-} & TableCol<T>;
+import ConditionDetailKvTag from './condition-detail-kv-tag';
 
-/** commonTable Empty 属性类型 */
-export type TableEmpty = TableEmptyProps | TableRenderer;
+import type { AggCondition, DimensionField } from 'monitor-pc/pages/query-template/typings';
 
-export interface TableEmptyProps {
-  emptyText: string;
-  type: 'empty' | 'search-empty';
-}
+import './condition-detail.scss';
 
-/** 表格分页属性类型 */
-export interface TablePagination {
-  /** 当前页码 */
-  currentPage: number;
-  /** 每页条数 */
-  pageSize: number;
-  /** 总数 */
-  total: number;
-}
-
-/** 表格通用渲染函数类型 */
-export type TableRenderer<T = undefined> = T extends undefined ? () => SlotReturnValue : (props?: T) => SlotReturnValue;
+export default defineComponent({
+  name: 'ConditionDetail',
+  props: {
+    /* 聚合维度信息 id-聚合维度对象 映射表 */
+    allDimensionMap: {
+      type: Object as PropType<Record<string, DimensionField>>,
+      default: () => ({}),
+    },
+    /* 已选过滤条件 */
+    value: {
+      type: Array as PropType<AggCondition[]>,
+      default: () => [],
+    },
+  },
+  render() {
+    return (
+      <div class='alert-condition-detail-component'>
+        <span class='condition-label'>{this.$slots?.label || this.$t('过滤条件')}</span>
+        <span class='condition-colon'>:</span>
+        <div class='tags-wrap'>
+          {this.value?.map?.((item, index) => (
+            <ConditionDetailKvTag
+              key={`${item.key}-${index}`}
+              allDimensionMap={this.allDimensionMap}
+              value={item}
+            />
+          ))}
+        </div>
+        ;
+      </div>
+    );
+  },
+});
