@@ -73,7 +73,7 @@ export default defineComponent({
     };
 
     const handleFormatDate = val => {
-      store.commit('updateIsFormatDate', val);
+      store.commit('updateState', {key: 'isFormatDate',value: val});
     };
     const handleShowLogTimeChange = (e, sort) => {
       const target = e.target;

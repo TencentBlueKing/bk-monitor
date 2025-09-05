@@ -87,7 +87,6 @@ const stateTpl = {
   // 系统当前登录用户
   user: {},
   // 是否作为iframe被嵌套
-  asIframe: false,
   iframeQuery: {},
   // 当前项目及Id
   space: {},
@@ -213,7 +212,6 @@ const store = new Vuex.Store({
     mySpaceList: state => state.mySpaceList,
     pageLoading: state => state.pageLoading,
     globalsData: state => state.globalsData,
-    asIframe: state => state.asIframe,
     iframeQuery: state => state.iframeQuery,
     demoUid: state => state.demoUid,
     spaceBgColor: state => state.spaceBgColor,
@@ -532,29 +530,6 @@ const store = new Vuex.Store({
       });
     },
 
-    updateUserMeta(state, payload) {
-      state.userMeta = payload;
-    },
-    /**
-     * 设置初始化 loading 是否显示
-     */
-    setPageLoading(state, loading) {
-      state.pageLoading = loading;
-    },
-    updateAuthDialogData(state, payload) {
-      state.authDialogData = payload;
-    },
-    updateIsFormatDate(state, payload) {
-      state.isFormatDate = payload;
-    },
-    /**
-     * 更新当前运行环境
-     * @param {Object} state store state
-     * @param {String} runVersion 运行环境
-     */
-    updateRunVersion(state, runVersion) {
-      state.runVersion = runVersion;
-    },
     /**
      * 更新当前用户 user
      *
@@ -585,9 +560,6 @@ const store = new Vuex.Store({
         };
       });
     },
-    updateIndexId(state, indexId) {
-      state.indexId = indexId;
-    },
     updateUnionIndexList(state, unionIndexList) {
       const updateIndexItem = unionIndexList.updateIndexItem ?? true;
       const list = Array.isArray(unionIndexList) ? unionIndexList : unionIndexList.list;
@@ -601,33 +573,9 @@ const store = new Vuex.Store({
       const unionIndexItemList = state.retrieve.indexSetList.filter(item => list.includes(item.index_set_id));
       state.unionIndexItemList.splice(0, state.unionIndexItemList.length, ...unionIndexItemList);
     },
-    updateUnionIndexItemList(state, unionIndexItemList) {
-      state.unionIndexItemList = unionIndexItemList;
-    },
-    updateMenuList(state, menuList) {
-      state.menuList.splice(0, state.menuList.length, ...menuList);
-    },
-    updateActiveTopMenu(state, payload) {
-      state.activeTopMenu = payload;
-    },
-    updateActiveManageNav(state, payload) {
-      state.activeManageNav = payload;
-    },
-    updateActiveManageSubNav(state, payload) {
-      state.activeManageSubNav = payload;
-    },
-    updateMenuProject(state, menuProject) {
-      state.menuProject.splice(0, state.menuProject.length, ...menuProject);
-    },
-    updateTopMenu(state, topMenu) {
-      state.topMenu.splice(0, state.topMenu.length, ...topMenu);
-    },
     updateGlobalsData(state, globalsData) {
       state.globalsData = globalsData;
       Vue.set(state, 'globalsData', globalsData);
-    },
-    updateAsIframe(state, asIframe) {
-      state.asIframe = asIframe;
     },
     updateIframeQuery(state, iframeQuery) {
       Object.assign(state.iframeQuery, iframeQuery);
@@ -635,38 +583,8 @@ const store = new Vuex.Store({
     updateShowFieldsConfigPopoverNum(state, showFieldsConfigPopoverNum) {
       state.showFieldsConfigPopoverNum += showFieldsConfigPopoverNum;
     },
-    updateRouterLeaveTip(state, isShow) {
-      state.showRouterLeaveTip = isShow;
-    },
-    setUserGuideData(state, userGuideData) {
-      state.userGuideData = userGuideData;
-    },
-    setDemoUid(state, demoUid) {
-      state.demoUid = demoUid;
-    },
-    setSpaceBgColor(state, val) {
-      state.spaceBgColor = val;
-    },
-    updateIsEnLanguage(state, val) {
-      state.isEnLanguage = val;
-    },
     updateChartSize(state) {
       state.chartSizeNum += 1;
-    },
-    updateIsShowGlobalDialog(state, val) {
-      state.isShowGlobalDialog = val;
-    },
-    updateGlobalActiveLabel(state, val) {
-      state.globalActiveLabel = val;
-    },
-    updateGlobalSettingList(state, val) {
-      state.globalSettingList = val;
-    },
-    updateMaskingToggle(state, val) {
-      state.maskingToggle = val;
-    },
-    updateExternalMenu(state, val) {
-      state.externalMenu = val;
     },
     updateVisibleFields(state, val) {
       state.visibleFields.splice(0, state.visibleFields.length, ...(val ?? []));
@@ -675,13 +593,6 @@ const store = new Vuex.Store({
       const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58 + 50;
       setDefaultTableWidth(fieldList ?? state.visibleFields, tableList, null, staticWidth);
     },
-    updateIsNotVisibleFieldsShow(state, val) {
-      state.isNotVisibleFieldsShow = val;
-    },
-    updateNoticeAlert(state, val) {
-      state.showAlert = val;
-    },
-
     updateIndexFieldInfo(state, payload) {
       const HIDDEN_FIELDS = new Set(builtInInitHiddenList);
       const processedData = payload ? { ...payload } : {};
@@ -719,12 +630,6 @@ const store = new Vuex.Store({
     resetIndexFieldInfo(state, payload) {
       const defValue = { ...IndexFieldInfo };
       state.indexFieldInfo = Object.assign(defValue, payload ?? {});
-    },
-    updateStoreIsShowClusterStep(state, val) {
-      state.storeIsShowClusterStep = val;
-    },
-    updateClusterParams(state, payload) {
-      state.clusterParams = payload;
     },
     updateSqlQueryFieldList(state, payload) {
       const target = {};
@@ -799,6 +704,16 @@ const store = new Vuex.Store({
     updateTableLineIsWrap(state, payload) {
       state.storage.tableLineIsWrap = payload;
     },
+    updateState(state, payload) {
+      const { key, value } = payload;
+      const currentValue = state[key];
+      if (Array.isArray(currentValue) && Array.isArray(value)) {
+        state[key].length = 0; 
+        state[key] = currentValue
+      } else {
+        state[key] = value;
+      }
+    },
     /** 初始化表格宽度 为false的时候会按照初始化的情况来更新宽度 */
     updateIsSetDefaultTableColumn(state, payload) {
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
@@ -860,7 +775,7 @@ const store = new Vuex.Store({
           })
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
-      store.commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
+      store.commit('updateState', {key: 'isNotVisibleFieldsShow', value: !visibleFields.length} );
 
       // if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
@@ -907,9 +822,6 @@ const store = new Vuex.Store({
     },
     resetState(state) {
       Object.assign(state, structuredClone(stateTpl));
-    },
-    updateLocalSort(state, payload) {
-      state.localSort = payload;
     },
   },
   actions: {
@@ -1015,8 +927,8 @@ const store = new Vuex.Store({
               deepUpdateMenu(menu, child);
             }
           });
-          commit('updateTopMenu', menuList);
-          commit('updateMenuProject', res.data || []);
+          commit('updateState', {key: 'topMenu',value: menuList});
+          commit('updateState', {key: 'menuProject',value: res.data || []});
 
           return menuList;
         });
@@ -1359,7 +1271,7 @@ const store = new Vuex.Store({
       commit('resetIndexSetQueryResult', { search_count: 0, is_loading: true });
 
       if (!payload.isUnionIndex) {
-        commit('updateIndexId', payload.ids[0]);
+        commit('updateState', {key: 'indexId',value: payload.ids[0]});
       }
 
       return dispatch('requestIndexSetFieldInfo');

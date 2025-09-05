@@ -196,6 +196,9 @@
       navActive() {
         return '';
       },
+      isAsIframe(){
+        return this.$route.query.from === 'monitor'
+      },
       menuList() {
         const list = this.topMenu.find(item => item.id === this.activeTopMenu.id)?.children;
         if (this.isExternal && this.activeTopMenu.id === 'manage') {
@@ -222,7 +225,7 @@
         handler(val) {
           // 更新全局操作列表
           const isShowSettingList = val.toggleString !== 'off';
-          this.$store.commit('updateGlobalSettingList', isShowSettingList ? this.dialogSettingList : []);
+          this.$store.commit('updateState', {key: 'globalSettingList',value: isShowSettingList ? this.dialogSettingList : []});
         },
       },
     },
@@ -234,15 +237,15 @@
       } else {
         document.body.style['font-family'] = 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
       }
-      this.$store.commit('updateRunVersion', window.RUN_VER || '');
+      this.$store.commit('updateState', {key: 'runVersion',value: window.RUN_VER || ''});
 
       // 是否转换日期类型字段格式
       const isFormatDate = jsCookie.get('operation');
       if (isFormatDate === 'false') {
-        this.$store.commit('updateIsFormatDate', false);
+        this.$store.commit('updateState', {key: 'isFormatDate',value: false});
       }
       const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
-      this.$store.commit('updateIsEnLanguage', isEnLanguage);
+      this.$store.commit('updateState', {key: 'isEnLanguage',value: isEnLanguage});
       if(isEnLanguage){
         document.body.classList.add('language-en');
       }else {
@@ -280,20 +283,20 @@
             toggleList = [];
             // const index = this.dialogSettingList.findIndex(item => item.id === 'masking-setting');
             // const newSettingList = this.dialogSettingList.slice(index, 1);
-            this.$store.commit('updateGlobalSettingList', []);
+            store.commit('updateState', {key: 'globalSettingList',value: []});
             break;
           }
           default:
             break;
         }
-        this.$store.commit('updateMaskingToggle', {
+        this.$store.commit('updateState', {key: 'maskingToggle',value: {
           toggleString: logDesensitize,
           toggleList,
-        });
+        }});
       },
       /** 更新全局弹窗的选项 */
       handleChangeMenu(item) {
-        this.$store.commit('updateGlobalActiveLabel', item.id);
+        this.$store.commit('updateState', {key: 'globalActiveLabel',value: item.id});
       },
       getMenuIcon(item) {
         if (item.icon) {
@@ -320,7 +323,7 @@
         this.$http
           .request('meta/getUserGuide')
           .then(res => {
-            this.$store.commit('setUserGuideData', res.data);
+            this.$store.commit('updateState', {key: 'userGuideData',value: res.data});
           })
           .catch(e => {
             console.warn(e);
@@ -344,7 +347,7 @@
         return list;
       },
       showAlertChange(v) {
-        this.$store.commit('updateNoticeAlert', v);
+        this.$store.commit('updateState', {key: 'showAlert', value: v});
         const refNoticeComponent = this.$refs.refNoticeComponent;
         if (refNoticeComponent) {
           this.noticeComponentHeight = refNoticeComponent.$el.offsetHeight;

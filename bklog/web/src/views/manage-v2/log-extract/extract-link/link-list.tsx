@@ -136,7 +136,7 @@ export default defineComponent({
               },
             ],
           });
-          store.commit('updateAuthDialogData', res.data);
+          store.commit('updateState', {key: 'authDialogData',value: res.data});
         } catch (err) {
           console.warn(err);
         } finally {

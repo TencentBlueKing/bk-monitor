@@ -507,7 +507,7 @@
         isExternal: state => state.isExternal,
         externalMenu: state => state.externalMenu,
       }),
-      ...mapGetters(['asIframe', 'iframeQuery', 'isNewRetrieveRoute']),
+      ...mapGetters([ 'iframeQuery', 'isNewRetrieveRoute']),
       ...mapGetters({
         authMainPageInfo: 'globals/authContainerInfo',
         unionIndexList: 'unionIndexList',
@@ -520,6 +520,9 @@
       sumLeftWidth() {
         // 收藏和检索左边的页面的合计宽度
         return this.collectWidth + this.leftPanelWidth;
+      },
+      asIframe(){
+        return this.$route.query.asIframe === 'true';
       },
       isShowUiType() {
         // 判断当前点击的收藏是否展示表单字段
@@ -596,7 +599,10 @@
         immediate: true,
         handler(val) {
           const filterIndexSetList = this.indexSetList.filter(item => val.includes(String(item.index_set_id)));
-          this.$store.commit('updateUnionIndexItemList', filterIndexSetList);
+          this.$store.commit('updateState', {
+            key: 'unionIndexItemList',
+            value: filterIndexSetList,
+          });
         },
       },
     },
@@ -666,7 +672,7 @@
         if (this.isSearchAllowed) this.authPageInfo = null;
         this.resetRetrieveCondition();
         this.resetFavoriteValue();
-        this.$store.commit('updateIndexId', val);
+        this.$store.commit('updateState', {key: 'indexId',value: val});
         this.clearCondition('*', false);
         this.$refs.searchCompRef?.clearAllCondition();
         this.isSetDefaultTableColumn = false;
@@ -1227,7 +1233,7 @@
             const res = await this.$store.dispatch('checkAndGetData', paramData);
             if (res.isAllowed === false) {
               this.isSearchAllowed = false;
-              this.$store.commit('updateAuthDialogData', res.data);
+              this.$store.commit('updateState', {key: 'authDialogData',value: res.data});
               return;
             }
           } catch (err) {
@@ -1241,7 +1247,7 @@
           try {
             this.basicLoading = true;
             const res = await this.$store.dispatch('getApplyData', paramData);
-            this.$store.commit('updateAuthDialogData', res.data);
+            this.$store.commit('updateState', {key: 'authDialogData',value: res.data});
           } catch (err) {
             console.warn(err);
           } finally {
@@ -1681,7 +1687,7 @@
           })
           .filter(Boolean);
         this.showShowUnionSource(true);
-        this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
+        this.$store.commit('updateState', {key: 'isNotVisibleFieldsShow', value: !this.visibleFields.length});
         // 初始化的时候不进行设置自适应宽度 当前dom还没挂在在页面 导致在第一次检索时isSetDefaultTableColumn参数为true 无法更新自适应宽度
         if (this.isSetDefaultTableColumn && !this.shouldUpdateFields) {
           this.setDefaultTableColumn();

@@ -65,8 +65,7 @@ export default defineComponent({
       '--notice-component-height': `${noticeComponentHeight.value}px`,
     }));
 
-    const isAsIframe = computed(() => store.getters.asIframe);
-
+    const isAsIframe = computed(() => route.query.from === 'monitor');
     const showAlert = computed(() => store.state.showAlert);
 
     const isShowGlobalDialog = computed(() => store.state.isShowGlobalDialog);
@@ -89,22 +88,24 @@ export default defineComponent({
           break;
         case 'off': {
           toggleList = [];
-          store.commit('updateGlobalSettingList', []);
+          store.commit('updateState', {key: 'globalSettingList',value: []});
           break;
         }
         default:
           break;
       }
-      store.commit('updateMaskingToggle', {
+      store.commit('updateState', {key: 'maskingToggle',value: {
         toggleString: logDesensitize,
         toggleList,
-      });
+      }});
 
       // 更新全局操作列表
       const isShowSettingList = logDesensitize !== 'off';
       store.commit(
-        'updateGlobalSettingList',
-        isShowSettingList ? [{ id: 'masking-setting', name: $t('全局脱敏') }] : [],
+        'updateState', {
+          key: 'globalSettingList',
+          value: isShowSettingList ? [{ id: 'masking-setting', name: $t('全局脱敏') }] : []
+        }
       );
     };
 
@@ -113,7 +114,7 @@ export default defineComponent({
      * @param v
      */
     const showAlertChange = (v: boolean) => {
-      store.commit('updateNoticeAlert', v);
+      store.commit('updateState', {key: 'showAlert', value: v});
 
       if (refNoticeComponent.value) {
         noticeComponentHeight.value = refNoticeComponent.value.$el.offsetHeight;
@@ -182,7 +183,7 @@ export default defineComponent({
      * 更新全局弹窗的选项
      */
     const handleChangeMenu = (item: any) => {
-      store.commit('updateGlobalActiveLabel', item.id);
+      store.commit('updateState', {key: 'globalActiveLabel',value: item.id});
     };
 
     /**
@@ -220,10 +221,10 @@ export default defineComponent({
           ? 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif'
           : 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
       document.body.style['font-family'] = fontFamily;
-      store.commit('updateRunVersion', window.RUN_VER || '');
+      store.commit('updateState', {key: 'runVersion',value: window.RUN_VER || ''});
 
       const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
-      store.commit('updateIsEnLanguage', isEnLanguage);
+      store.commit('updateState', {key: 'isEnLanguage',value: isEnLanguage});
       const languageClassName = isEnLanguage ? 'language-en' : 'language-zh';
       document.body.classList.add(languageClassName);
       // 初始化脱敏灰度相关的代码
