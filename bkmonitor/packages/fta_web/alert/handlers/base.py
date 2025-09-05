@@ -423,7 +423,7 @@ class BaseQueryHandler:
         参数:
             condition: 包含查询条件的字典对象，格式要求:
                 {
-                    "method": "include/exclude/terms/gte/gt/lte/lt/range",
+                    "method": "include/exclude/terms/gte/gt/lte/lt",
                     "key": 字段名称,
                     "value": 匹配值(字符串、列表或范围对象)
                 }
@@ -440,9 +440,7 @@ class BaseQueryHandler:
             - 多值生成多个通配符查询后整体取反
         3. 范围查询(gte/gt/lte/lt):
             - 支持大于等于、大于、小于等于、小于的范围比较
-        4. 复合范围查询(range):
-            - 支持组合范围条件，如{"gte": 10, "lte": 100}
-        5. 默认terms查询:
+        4. 默认terms查询:
             - 直接转换为terms精确匹配查询
         """
         if condition["method"] == "include":
