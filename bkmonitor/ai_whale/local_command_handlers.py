@@ -111,6 +111,9 @@ class TracingAnalysisCommandHandler(CommandHandler):
         return self.jinja_env.render(template, variables)
 
     def get_template(self):
+        # jinja 模板会对一些字符转义, 这种转义我认为会对 llm 推理造成不好的影响:
+        # 例如: `可能出错的 span_id: ['123']` 被转义为 `可能出错的 span_id: [&#39;123&#39;]`
+        # 故添加 `variable | safe` 取消转义
         return """
         请帮我分析 Tracing:
         应用名称: {{ app_name }}
