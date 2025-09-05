@@ -110,10 +110,3 @@ API_CODE_REDEFINED_RULE_LIST_RESPONSE = {
         },
     ],
 }
-
-API_CODE_REDEFINED_RULE_SET_RESPONSE = {
-    "result": True,
-    "code": 200,
-    "message": "OK",
-    "data": {"id": 101},
-}

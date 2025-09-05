@@ -52,7 +52,6 @@ from apm_web.service.mock_data import (
     API_PIPELINE_OVERVIEW_RESPONSE,
     API_LIST_PIPELINE_RESPONSE,
     API_CODE_REDEFINED_RULE_LIST_RESPONSE,
-    API_CODE_REDEFINED_RULE_SET_RESPONSE,
 )
 from apm_web.service.serializers import (
     AppServiceRelationSerializer,
@@ -851,7 +850,7 @@ class ListCodeRedefinedRuleResource(Resource):
                 service_len=Length("callee_service"),
                 server_len=Length("callee_server"),
             )
-            .order_by("method_len", "service_len", "server_len")
+            .order_by("-method_len", "-service_len", "-server_len")
         )
         return list(
             queryset.values(
@@ -873,42 +872,47 @@ class SetCodeRedefinedRuleResource(Resource):
     RequestSerializer = SetCodeRedefinedRuleRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock", False):
-            return API_CODE_REDEFINED_RULE_SET_RESPONSE
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str = validated_request_data["service_name"]
         kind: str = validated_request_data["kind"]
-        enabled: bool = validated_request_data.get("enabled", True)
-        callee_server: str = validated_request_data["callee_server"]
-        callee_service: str = validated_request_data["callee_service"]
-        callee_method: str = validated_request_data["callee_method"]
-        code_type_rules = validated_request_data["code_type_rules"]
+        rules: list = validated_request_data["rules"]
 
         username = get_request_username()
+        created_ids = []
 
-        # 使用组合键进行 upsert
-        filters = {
-            "bk_biz_id": bk_biz_id,
-            "app_name": app_name,
-            "service_name": service_name,
-            "kind": kind,
-            "callee_server": callee_server,
-            "callee_service": callee_service,
-            "callee_method": callee_method,
-        }
+        # 处理每个规则
+        for rule in rules:
+            callee_server: str = rule["callee_server"]
+            callee_service: str = rule["callee_service"]
+            callee_method: str = rule["callee_method"]
+            code_type_rules = rule["code_type_rules"]
+            enabled: bool = rule.get("enabled", True)
 
-        # 只更新必要字段，不更新组合键字段
-        defaults = {
-            "code_type_rules": code_type_rules,
-            "enabled": enabled,
-            "updated_by": username,
-        }
+            # 使用组合键进行 upsert
+            filters = {
+                "bk_biz_id": bk_biz_id,
+                "app_name": app_name,
+                "service_name": service_name,
+                "kind": kind,
+                "callee_server": callee_server,
+                "callee_service": callee_service,
+                "callee_method": callee_method,
+            }
 
-        obj, created = CodeRedefinedConfigRelation.objects.update_or_create(defaults=defaults, **filters)
-        if created:
-            CodeRedefinedConfigRelation.objects.filter(id=obj.id).update(created_by=username)
-        return {"id": obj.id}
+            # 只更新必要字段，不更新组合键字段
+            defaults = {
+                "code_type_rules": code_type_rules,
+                "enabled": enabled,
+                "updated_by": username,
+            }
+
+            obj, created = CodeRedefinedConfigRelation.objects.update_or_create(defaults=defaults, **filters)
+            if created:
+                CodeRedefinedConfigRelation.objects.filter(id=obj.id).update(created_by=username)
+            created_ids.append(obj.id)
+
+        return {}
 
 
 class DeleteCodeRedefinedRuleResource(Resource):
@@ -918,11 +922,26 @@ class DeleteCodeRedefinedRuleResource(Resource):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str = validated_request_data["service_name"]
+        kind: str = validated_request_data["kind"]
+
+        # 构建精确匹配条件
+        filters = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "service_name": service_name,
+            "kind": kind,
+        }
+
+        # 添加可选的被调字段进行精确匹配
+        if "callee_server" in validated_request_data:
+            filters["callee_server"] = validated_request_data["callee_server"]
+        if "callee_service" in validated_request_data:
+            filters["callee_service"] = validated_request_data["callee_service"]
+        if "callee_method" in validated_request_data:
+            filters["callee_method"] = validated_request_data["callee_method"]
 
         try:
-            instance = CodeRedefinedConfigRelation.objects.get(
-                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-            )
+            instance = CodeRedefinedConfigRelation.objects.get(**filters)
         except CodeRedefinedConfigRelation.DoesNotExist:
             # 按需求可以视为已删除
             return

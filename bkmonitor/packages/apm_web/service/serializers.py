@@ -165,7 +165,6 @@ class BaseCodeRedefinedRequestSerializer(serializers.Serializer):
     app_name = serializers.CharField(label="应用名")
     service_name = serializers.CharField(label="本服务")
     kind = serializers.ChoiceField(label="角色", choices=[("caller", "caller"), ("callee", "callee")])
-    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
 
     def validate_callee_kind_consistency(self, attrs):
         """验证 callee 角色的一致性规则"""
@@ -184,14 +183,15 @@ class ListCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer)
     callee_server = serializers.CharField(label="被调服务", required=False, allow_blank=True, default="")
     callee_service = serializers.CharField(label="被调 Service", required=False, allow_blank=True, default=None)
     callee_method = serializers.CharField(label="被调接口", required=False, allow_blank=True, default=None)
+    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
 
     def validate(self, attrs):
         """验证请求参数"""
         return self.validate_callee_kind_consistency(attrs)
 
 
-class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
-    """代码重定义规则设置请求序列化器"""
+class CodeRedefinedRuleItemSerializer(serializers.Serializer):
+    """单个代码重定义规则项序列化器"""
 
     callee_server = serializers.CharField(label="被调服务", allow_blank=True)
     callee_service = serializers.CharField(label="被调 Service", allow_blank=True)
@@ -199,13 +199,31 @@ class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     code_type_rules = serializers.JSONField(label="返回码映射")
     enabled = serializers.BooleanField(label="是否启用", required=False, default=True)
 
+
+class SetCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
+    """代码重定义规则设置请求序列化器"""
+
+    rules = serializers.ListField(child=CodeRedefinedRuleItemSerializer(), label="规则列表", min_length=1)
+
     def validate(self, attrs):
-        """验证参数；callee 角色下强制覆盖 callee_server=service_name，且不对 code_type_rules 做转换"""
-        attrs = self.validate_callee_kind_consistency(attrs)
-        if attrs.get("kind") == "callee":
-            attrs["callee_server"] = attrs["service_name"]
+        """验证参数；callee 角色下强制覆盖 callee_server=service_name"""
+        kind = attrs.get("kind")
+        service_name = attrs.get("service_name")
+
+        # 对每个规则项进行验证
+        if kind == "callee":
+            for rule in attrs.get("rules", []):
+                # 复用基础校验逻辑
+                rule_attrs = {"kind": kind, "service_name": service_name, "callee_server": rule.get("callee_server")}
+                self.validate_callee_kind_consistency(rule_attrs)
+                rule["callee_server"] = service_name
+
         return attrs
 
 
 class DeleteCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则删除请求序列化器"""
+
+    callee_server = serializers.CharField(label="被调服务", required=False, allow_blank=True)
+    callee_service = serializers.CharField(label="被调 Service", required=False, allow_blank=True)
+    callee_method = serializers.CharField(label="被调接口", required=False, allow_blank=True)
