@@ -482,7 +482,8 @@ export default defineComponent({
       e.preventDefault();
       if (
         tableWraperRef.value.clientHeight + tableWraperRef.value.scrollTop <
-        tableWraperRef.value.scrollHeight
+          tableWraperRef.value.scrollHeight &&
+        tableWraperRef.value.scrollTop > 0
       ) {
         e.stopPropagation();
       }
