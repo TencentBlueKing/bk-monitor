@@ -42,7 +42,12 @@ class TracingAnalysisCommandHandler(CommandHandler):
 
     @staticmethod
     def get_trace_total_time(trace: list[dict]) -> int:
-            return int(end) - int(st)
+        st, end = inf, 0
+        for span in trace:
+            st = min(st, span.get("start_time", 0))
+            end = max(end, span.get("end_time", 0))
+        if st != inf:
+            return end - int(st)
         logger.error("get_trace_total_time failed to get valid start_time")
         return end
 
