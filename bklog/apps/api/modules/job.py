@@ -55,7 +55,7 @@ class _JobApi:
     def __init__(self):
         self.get_public_script_list = DataAPI(
             method="GET",
-            url=self._build_url("get_public_script_list", "get_public_script_list"),
+            url=self._build_url("system/get_public_script_list", "get_public_script_list"),
             description=_("查询公共脚本列表"),
             module=self.MODULE,
             before_request=get_job_request_before,
@@ -71,7 +71,7 @@ class _JobApi:
         )
         self.fast_transfer_file = DataAPI(
             method="POST",
-            url=self._build_url("fast_transfer_file/", "fast_transfer_file/"),
+            url=self._build_url("system/fast_transfer_file/", "fast_transfer_file/"),
             description=_("快速分发文件"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
@@ -79,14 +79,14 @@ class _JobApi:
         )
         self.get_job_instance_log = DataAPI(
             method="GET",
-            url=self._build_url("get_job_instance_log", "get_job_instance_log"),
+            url=self._build_url("system/get_job_instance_log", "get_job_instance_log"),
             description=_("根据作业id获取执行日志"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
         )
         self.get_job_instance_status = DataAPI(
             method="GET",
-            url=self._build_url("get_job_instance_status/", "get_job_instance_status/"),
+            url=self._build_url("system/get_job_instance_status/", "get_job_instance_status/"),
             description=_("根据作业实例 ID 查询作业执行状态"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
@@ -94,7 +94,7 @@ class _JobApi:
         )
         self.batch_get_job_instance_ip_log = DataAPI(
             method="POST",
-            url=self._build_url("batch_get_job_instance_ip_log/", "batch_get_job_instance_ip_log/"),
+            url=self._build_url("system/batch_get_job_instance_ip_log/", "batch_get_job_instance_ip_log/"),
             description=_("根据ip列表批量查询作业执行日志"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
