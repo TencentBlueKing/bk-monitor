@@ -24,34 +24,39 @@
  * IN THE SOFTWARE.
  */
 
-import type { TableCol } from '@blueking/tdesign-ui';
-import type { SlotReturnValue } from 'tdesign-vue-next';
+import { type PropType, defineComponent } from 'vue';
 
-// 表格列字段
-export type TableColumnItem<T = any> = {
-  /** 是否为默认列 */
-  is_default?: boolean;
-  /** 是否必须显示且不可编辑隐藏 */
-  is_locked?: boolean;
-} & TableCol<T>;
+import type { AggFunction } from 'monitor-pc/pages/query-template/typings';
 
-/** commonTable Empty 属性类型 */
-export type TableEmpty = TableEmptyProps | TableRenderer;
+import './function-detail.scss';
 
-export interface TableEmptyProps {
-  emptyText: string;
-  type: 'empty' | 'search-empty';
-}
+export default defineComponent({
+  name: 'FunctionDetail',
+  props: {
+    /* 已选函数数组 */
+    value: {
+      type: Array as PropType<AggFunction[]>,
+      default: () => [],
+    },
+  },
 
-/** 表格分页属性类型 */
-export interface TablePagination {
-  /** 当前页码 */
-  currentPage: number;
-  /** 每页条数 */
-  pageSize: number;
-  /** 总数 */
-  total: number;
-}
-
-/** 表格通用渲染函数类型 */
-export type TableRenderer<T = undefined> = T extends undefined ? () => SlotReturnValue : (props?: T) => SlotReturnValue;
+  render() {
+    return (
+      <div class='alert-function-detail-component'>
+        <span class='function-label'>{this.$slots?.label?.() || this.$t('函数')}</span>
+        <span class='function-colon'>:</span>
+        <div class='function-name-wrap'>
+          {this.value?.map?.((item, index) => {
+            const paramsStr = item.params?.map?.(param => param.value)?.toString?.();
+            return (
+              <span
+                key={`${item.id}-${index}`}
+                class='function-name'
+              >{`${item.id}${paramsStr ? `(${paramsStr})` : ''}; `}</span>
+            );
+          }) || '--'}
+        </div>
+      </div>
+    );
+  },
+});
