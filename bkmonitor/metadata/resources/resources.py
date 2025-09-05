@@ -417,7 +417,7 @@ class ModifyResultTableResource(Resource):
         table_id = validated_request_data.pop("table_id")
         query_alias_settings = validated_request_data.pop("query_alias_settings", None)
         operator = validated_request_data.get("operator", None)
-        bk_tenant_id = validated_request_data.get("bk_tenant_id", DEFAULT_TENANT_ID)
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
 
         # 处理查询别名设置
         self._handle_query_alias_settings(table_id, query_alias_settings, operator, bk_tenant_id)
