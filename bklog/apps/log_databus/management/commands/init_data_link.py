@@ -25,6 +25,7 @@ from django.db.models import Q
 from django.utils.translation import gettext as _
 
 from apps.api import TransferApi
+from django.conf import settings
 from apps.log_databus.constants import KAFKA_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
 
@@ -34,24 +35,28 @@ class Command(BaseCommand):
         parser.add_argument("--es_cluster_id", type=int, nargs="*", help="elasticsearch cluster ids")
         parser.add_argument("--kafka_cluster_id", type=int, help="kafka cluster id")
         parser.add_argument("--transfer_cluster_id", type=str, help="transfer cluster id")
+        parser.add_argument("--bk_tenant_id", type=str, help="tenant id")
 
     def handle(self, **options):
         default_es_cluster_ids = options.get("es_cluster_id") or []
         default_kafka_cluster_id = options.get("kafka_cluster_id")
         transfer_cluster_id = options.get("transfer_cluster_id")
+        bk_tenant_id = options.get("bk_tenant_id", settings.BK_APP_TENANT_ID)
 
         if DataLinkConfig.objects.all().exists():
             print("[Init Default Data Link] DataLinkConfig item exist. SKIP.")
             return
 
         if not default_es_cluster_ids:
-            es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True})
+            es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True,
+                                                        "bk_tenant_id": bk_tenant_id})
             for es in es_clusters:
                 if es["cluster_config"]["is_default_cluster"]:
                     default_es_cluster_ids.append(es["cluster_config"]["cluster_id"])
 
         if not default_kafka_cluster_id:
-            kafka_clusters = TransferApi.get_cluster_info({"cluster_type": KAFKA_CLUSTER_TYPE, "no_request": True})
+            kafka_clusters = TransferApi.get_cluster_info({"cluster_type": KAFKA_CLUSTER_TYPE, "no_request": True,
+                                                           "bk_tenant_id": bk_tenant_id})
             for kafka in kafka_clusters:
                 if kafka["cluster_config"]["is_default_cluster"]:
                     default_kafka_cluster_id = kafka["cluster_config"]["cluster_id"]
@@ -61,14 +66,15 @@ class Command(BaseCommand):
             transfer_cluster_id = "default"
 
         print(
-            "create data link config with: es_cluster_ids: {}, kafka_cluster_id: {}, transfer_cluster_id: {}".format(
-                default_es_cluster_ids, default_kafka_cluster_id, transfer_cluster_id
+            "[{}]create data link config with: es_cluster_ids: {}, kafka_cluster_id: {}, transfer_cluster_id: {}".format(
+                bk_tenant_id, default_es_cluster_ids, default_kafka_cluster_id, transfer_cluster_id
             )
         )
 
         link = DataLinkConfig.objects.get_or_create(
             defaults={
                 "bk_biz_id": 0,
+                "bk_tenant_id": bk_tenant_id,
                 "kafka_cluster_id": default_kafka_cluster_id,
                 "transfer_cluster_id": transfer_cluster_id,
                 "es_cluster_ids": default_es_cluster_ids,
