@@ -46,6 +46,7 @@ import { useIsEnabledProfilingInject } from '../../plugins/hooks';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
 import { SPAN_KIND_MAPS } from '../../store/constant';
+import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { useAppStore } from '../../store/modules/app';
 import { useSpanDetailQueryStore } from '../../store/modules/span-detail-query';
 import { useTraceStore } from '../../store/modules/trace';
@@ -357,8 +358,9 @@ export default defineComponent({
           {
             label: t('类型'),
             content: (
-              <span>
-                {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`} />}
+              <span class='content-detail-type'>
+                {/* {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`} />} */}
+                {!isVirtual && kind < 6 && (SPAN_KIND_MAPS_NEW[kind].prefixIcon as Function)()}
                 <span>{getTypeText()}</span>
               </span>
             ),
