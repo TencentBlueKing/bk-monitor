@@ -104,6 +104,7 @@ class DataLinkHandler(object):
         model_fields = {
             "link_group_name": link_group_name,
             "bk_biz_id": bk_biz_id,
+            "bk_tenant_id": bk_tenant_id,
             "kafka_cluster_id": kafka_cluster_id,
             "transfer_cluster_id": transfer_cluster_id,
             "es_cluster_ids": es_cluster_ids,
