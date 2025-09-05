@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import uuid
 import json
+import uuid
 
 
 def generate_uuid():
@@ -17,6 +17,37 @@ def generate_uuid():
     生成uuid
     """
     return str(uuid.uuid4())
+
+
+def generate_user_content(
+    command: str,
+    context_dict: dict[str, str] = {},
+    role: str = "user",
+    content: str = "",
+    cite: str = "",
+    session_code: str | None = None,
+) -> dict:
+    """
+    快速获取前端 POST /session_content 的请求体, 测试时使用
+    NOTE: context_type 都被设为了 'input' 类型
+    """
+
+    if session_code is None:
+        session_code = generate_uuid()
+
+    content_property = {
+        "extra": {
+            "anchor_path_resources": {},
+            "cite": cite,
+            "command": command,
+            "context": [
+                {key: value, "__key": key, "__value": value, "__label": "[test label]", "context_type": "input"}
+                for key, value in context_dict.items()
+            ],
+        },
+    }
+
+    return {"content": content, "property": content_property, "role": role, "session_code": session_code}
 
 
 def collect_streaming_response(generator):
@@ -58,14 +89,3 @@ def collect_streaming_response(generator):
         return {"full_content": full_content, "json_chunks": json_chunks}
     # 否则返回原始拼接的内容
     return full_content
-
-
-def get_nested_value(data: dict, key: str, sep: str = "."):
-    """获取嵌套字典中的值"""
-    keys = key.split(sep)
-    for k in keys:
-        if isinstance(data, dict) and k in data:
-            data = data[k]
-        else:
-            return None
-    return data
