@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -31,25 +30,28 @@ def get_record_rule_metrics_by_biz_id(bk_biz_id, with_option: bool = True):
             "get_record_rule_metrics_by_biz_id: bk_biz_id is negative, try to get space_id by bk_biz_id->[%s]",
             bk_biz_id,
         )
-        space = Space.objects.get(id=abs(bk_biz_id))
+        space: Space = Space.objects.get(id=abs(bk_biz_id))
         space_id = space.space_id
         logger.info("get_record_rule_metrics_by_biz_id: get space_id->[%s] by bk_biz_id->[%s]", space_id, bk_biz_id)
     else:
+        space: Space = Space.objects.get(space_id=str(bk_biz_id))
         space_id = bk_biz_id
 
-    result_table_id_list = list(RecordRule.objects.filter(space_id=space_id).values_list('table_id', flat=True))
+    result_table_id_list = list(RecordRule.objects.filter(space_id=space_id).values_list("table_id", flat=True))
     logger.info("get_record_rule_metrics_by_biz_id: get result_table_id_list->[%s]", result_table_id_list)
 
     # 1. 查询所有依赖的内容
     # rt
     result_table_list = [
         result_table.to_json_self_only()
-        for result_table in ResultTable.objects.filter(table_id__in=result_table_id_list)
+        for result_table in ResultTable.objects.filter(
+            table_id__in=result_table_id_list, bk_tenant_id=space.bk_tenant_id
+        )
     ]
 
     # 字段
     field_dict = {}
-    for field in ResultTableField.objects.filter(table_id__in=result_table_id_list):
+    for field in ResultTableField.objects.filter(table_id__in=result_table_id_list, bk_tenant_id=space.bk_tenant_id):
         try:
             field_dict[field.table_id].append(field.to_json_self_only())
         except KeyError:
@@ -65,9 +67,13 @@ def get_record_rule_metrics_by_biz_id(bk_biz_id, with_option: bool = True):
     storage_dict = {}
     if with_option:
         # 字段option
-        field_option_dict = ResultTableFieldOption.batch_field_option(table_id_list=result_table_id_list)
+        field_option_dict = ResultTableFieldOption.batch_field_option(
+            table_id_list=result_table_id_list, bk_tenant_id=space.bk_tenant_id
+        )
         # RT的option
-        rt_option_dict = ResultTableOption.batch_result_table_option(table_id_list=result_table_id_list)
+        rt_option_dict = ResultTableOption.batch_result_table_option(
+            table_id_list=result_table_id_list, bk_tenant_id=space.bk_tenant_id
+        )
 
         # 存储的组合
         storage_dict = {table_id: [] for table_id in result_table_id_list}

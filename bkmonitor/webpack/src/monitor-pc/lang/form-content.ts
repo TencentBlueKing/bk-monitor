@@ -181,7 +181,6 @@ export default {
   '事件分析总结：': 'Event analysis summary:',
   日志分析: 'Log analysis',
   '日志分析总结：': 'Log analysis summary:',
-  事件: 'Event',
   示例事件: 'Example event',
   告警类别: 'Alarm category',
   事件类别: 'Event category',

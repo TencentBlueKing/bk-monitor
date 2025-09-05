@@ -81,6 +81,9 @@ export default class AiBluekingWrapper extends tsc<object> {
     if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS) {
       return !!selectedText?.match(/^[0-9a-f]{32}$/);
     }
+    if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS) {
+      return false;
+    }
     return true;
   }
   handleShortcutClick(data: { shortcut: AIBluekingShortcut }) {

@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
-import useLocale from '@/hooks/use-locale';
+import { computed, defineComponent, ref, watch } from "vue";
+import useLocale from "@/hooks/use-locale";
 
-import './index.scss';
+import "./index.scss";
 
 export default defineComponent({
-  name: 'TemporaryGroup',
+  name: "TemporaryGroup",
   props: {
     fingerOperateData: {
       type: Object,
@@ -52,15 +52,21 @@ export default defineComponent({
     const group = ref<string[]>([]);
     const isShowPopoverInstance = ref(false);
     const tippyOptions = ref({
-      theme: 'light',
-      trigger: 'manual',
+      theme: "light",
+      trigger: "manual",
       hideOnClick: false,
-      offset: '16',
+      offset: "16",
       interactive: true,
     });
 
     const groupList = computed(() =>
-      props.fingerOperateData.groupList.filter(item => !props.fingerOperateData.dimensionList.includes(item.id)),
+      props.fingerOperateData.groupList.filter(
+        (item) =>
+          !props.fingerOperateData.dimensionList.includes(item.id) &&
+          !["dtEventTimeStamp", "time", "iterationIndex", "gseIndex"].includes(
+            item.id
+          )
+      )
     );
 
     watch(
@@ -70,7 +76,7 @@ export default defineComponent({
       },
       {
         deep: true,
-      },
+      }
     );
 
     const closePopover = () => {
@@ -79,16 +85,16 @@ export default defineComponent({
     };
 
     const handleConfirm = () => {
-      emit('handle-finger-operate', 'fingerOperateData', {
+      emit("handle-finger-operate", "fingerOperateData", {
         selectGroupList: group.value,
       });
       emit(
-        'handle-finger-operate',
-        'requestData',
+        "handle-finger-operate",
+        "requestData",
         {
           group_by: [...group.value],
         },
-        true,
+        true
       );
       closePopover();
     };
@@ -99,7 +105,7 @@ export default defineComponent({
     };
 
     const handleShowPopover = () => {
-      emit('click-trigger');
+      emit("click-trigger");
       if (!isShowPopoverInstance.value) {
         popoverRef.value.instance.show();
       } else {
@@ -127,55 +133,42 @@ export default defineComponent({
         disabled={!props.clusterSwitch}
         on-show={initLocalValue}
         tippy-options={tippyOptions.value}
-        placement='bottom-start'
+        placement="bottom-start"
       >
-        <div
-          class='quick-filter-trigger-main'
-          on-click={handleShowPopover}
-        >
-          <log-icon
-            type='group'
-            class='trigger-icon'
-          />
-          <span>{t('临时分组')}</span>
+        <div class="quick-filter-trigger-main" on-click={handleShowPopover}>
+          <log-icon type="group" class="trigger-icon" />
+          <span>{t("临时分组")}</span>
         </div>
-        <div slot='content'>
-          <div class='temporary-group-popover '>
-            <div class='title-main'>{t('临时分组')}</div>
-            <bk-alert
-              type='info'
-              style='color: #4D4F56'
-            >
-              <div slot='title'>
-                <i18n path='满足临时的分组需求，刷新不会保存（如需固化下来，请使用“{0}”功能)'>
+        <div slot="content">
+          <div class="temporary-group-popover ">
+            <div class="title-main">{t("临时分组")}</div>
+            <bk-alert type="info" style="color: #4D4F56">
+              <div slot="title">
+                <i18n path="满足临时的分组需求，刷新不会保存（如需固化下来，请使用“{0}”功能)">
                   <bk-button
                     text
-                    theme='primary'
-                    style='font-size: 12px'
-                    on-click={() => emit('open-dimension-split')}
+                    theme="primary"
+                    style="font-size: 12px"
+                    on-click={() => emit("open-dimension-split")}
                   >
-                    {t('维度拆分')}
+                    {t("维度拆分")}
                   </bk-button>
                 </i18n>
               </div>
             </bk-alert>
-            <div class='piece-item'>
-              <span class='title'>{t('分组')}</span>
+            <div class="piece-item">
+              <span class="title">{t("分组")}</span>
               <bk-select
                 value={group.value}
                 scroll-height={140}
-                ext-popover-cls='quick-filter-selected-ext'
+                ext-popover-cls="quick-filter-selected-ext"
                 display-tag
                 multiple
                 searchable
-                on-change={val => (group.value = val)}
+                on-change={(val) => (group.value = val)}
               >
-                {groupList.value.map(option => (
-                  <bk-option
-                    id={option.id}
-                    key={option.id}
-                    name={option.name}
-                  >
+                {groupList.value.map((option) => (
+                  <bk-option id={option.id} key={option.id} name={option.name}>
                     <bk-checkbox
                       checked={group.value.includes(option.id)}
                       title={option.name}
@@ -186,21 +179,17 @@ export default defineComponent({
                 ))}
               </bk-select>
             </div>
-            <div class='popover-button'>
+            <div class="popover-button">
               <bk-button
-                style='margin-right: 8px'
-                size='small'
-                theme='primary'
+                style="margin-right: 8px"
+                size="small"
+                theme="primary"
                 on-click={handleConfirm}
               >
-                {t('确定')}
+                {t("确定")}
               </bk-button>
-              <bk-button
-                size='small'
-                theme='default'
-                on-click={closePopover}
-              >
-                {t('取消')}
+              <bk-button size="small" theme="default" on-click={closePopover}>
+                {t("取消")}
               </bk-button>
             </div>
           </div>

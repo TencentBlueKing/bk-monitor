@@ -42,6 +42,7 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.time_tools import (
     hms_string,
     parse_time_compare_abbreviation,
@@ -539,6 +540,7 @@ class UnifyQueryRawResource(ApiAuthResource):
                         pass
                 return attrs
 
+        bk_tenant_id = TenantIdField(label="租户ID")
         target = serializers.ListField(default=[], label="监控目标")
         target_filter_type = serializers.ChoiceField(
             label="监控目标过滤方法", default="auto", choices=["auto", "query", "post-query"]
@@ -648,7 +650,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         metrics = MetricListCache.objects.filter(
             reduce(lambda x, y: x | y, metric_queries),
             bk_tenant_id=get_request_tenant_id(),
-            bk_biz_id=params["bk_biz_id"],
+            bk_biz_id__in=[params["bk_biz_id"], 0],
         )
         metric_infos = cls.transfer_metric(bk_biz_id=params["bk_biz_id"], metrics=metrics)
         return metric_infos

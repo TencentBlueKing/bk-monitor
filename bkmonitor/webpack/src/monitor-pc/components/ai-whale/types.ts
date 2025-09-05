@@ -62,6 +62,7 @@ export const AI_BLUEKING_SHORTCUTS_ID = {
   PROMQL_HELPER: 'promql_helper',
   METADATA_DIAGNOSIS: 'metadata_diagnosis',
   TRACING_ANALYSIS: 'tracing_analysis',
+  PROFILING_ANALYSIS: 'profiling_analysis',
 } as const;
 export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
 export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
@@ -159,6 +160,22 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         hide: true,
         name: window.i18n.t('业务ID'),
         placeholder: window.i18n.t('请输入业务ID'),
+      },
+    ],
+  },
+  {
+    id: AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS,
+    name: window.i18n.t('Profiling 助手'),
+    // icon: 'icon-monitor icon-mc-help-fill',
+    components: [
+      {
+        type: 'input',
+        key: 'query_params',
+        fillBack: true,
+        required: false,
+        hide: false,
+        name: window.i18n.t('Profiling 查询参数'),
+        placeholder: window.i18n.t('请输入Profiling 查询参数'),
       },
     ],
   },

@@ -292,11 +292,14 @@ class DataSource(models.Model):
 
             real_table_id_list = list(real_table_ids.keys())
 
-            # TODO: 多租户 需要适配多租户查询RTField和Option
             # 批量获取结果表级别选项
-            table_id_option_dict = ResultTableOption.batch_result_table_option(real_table_id_list)
+            table_id_option_dict = ResultTableOption.batch_result_table_option(
+                real_table_id_list, bk_tenant_id=self.bk_tenant_id
+            )
             # 获取字段信息
-            table_field_dict = ResultTableField.batch_get_fields(real_table_id_list, is_consul_config)
+            table_field_dict = ResultTableField.batch_get_fields(
+                real_table_id_list, is_consul_config, bk_tenant_id=self.bk_tenant_id
+            )
             # 判断需要未删除，而且在启用状态的结果表
             for rt, rt_info in real_table_ids.items():
                 result_table_info_list.append(
