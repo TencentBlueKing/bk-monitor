@@ -106,7 +106,7 @@ class StrategyCacheManager(CacheManager):
                     table_id = query_config.get("result_table_id")
                     table_biz_records.add((table_id, bk_biz_id))
 
-        # 把记录报错到缓存中
+        # 把记录保存到缓存中
         if table_biz_records:
             pipeline = cls.cache.pipeline()
             pipeline.delete(cls.STRATEGY_TABLE_BIZ_CACHE_KEY)
