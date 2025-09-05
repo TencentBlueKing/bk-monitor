@@ -484,6 +484,7 @@ export default defineComponent({
                 clearKey={this.clearKey}
                 fields={this.localFields}
                 getValueFn={this.getValueFn}
+                loadDelay={this.loadDelay}
                 placeholder={this.placeholder}
                 value={this.uiValue}
                 onChange={this.handleUiValueChange}
@@ -622,7 +623,10 @@ export default defineComponent({
             defaultResidentSetting={this.defaultResidentSetting}
             fields={this.localFields}
             getValueFn={this.getValueFn}
+            handleGetUserConfig={this.handleGetUserConfig}
+            handleSetUserConfig={this.handleSetUserConfig}
             isDefaultSetting={this.isDefaultResidentSetting}
+            loadDelay={this.loadDelay}
             residentSettingOnlyId={this.residentSettingOnlyId}
             value={this.residentSettingValue}
             onChange={this.handleCommonWhereChange}

@@ -26,8 +26,8 @@
 
 import { getFieldsOptionValues } from 'monitor-api/modules/apm_trace';
 
-import { transformFieldName } from '../../pages/trace-explore/components/trace-explore-table/constants';
-import { NULL_VALUE_ID, NULL_VALUE_NAME } from './utils';
+import { NULL_VALUE_ID, NULL_VALUE_NAME } from '../../../components/retrieval-filter/utils';
+import { transformFieldName } from '../components/trace-explore-table/constants';
 
 type ICandidateValueMap = Map<
   string,

@@ -37,6 +37,8 @@ import TimeConsuming from './time-consuming';
 import {
   type IFilterField,
   type IFilterItem,
+  type IGetValueFnParams,
+  type INormalWhere,
   type IValue,
   type TGetValueFn,
   ECondition,
@@ -461,7 +463,7 @@ export default defineComponent({
      * @returns {Promise<any>} 返回一个Promise，解析为查询结果数据
      *                         如果查询失败，返回空结果 {count: 0, list: []}
      */
-    function getValueFnProxy(params: { field: string; limit: number; search: string }): any | TGetValueFn {
+    function getValueFnProxy(params: IGetValueFnParams): any | TGetValueFn {
       return new Promise((resolve, _reject) => {
         props
           .getValueFn({
@@ -629,7 +631,7 @@ export default defineComponent({
                           } as any
                         }
                         styleType={'form'}
-                        value={this.timeConsumingValue}
+                        value={this.timeConsumingValue as INormalWhere}
                         onChange={this.handleTimeConsumingValueChange}
                       />
                     ) : (
@@ -638,6 +640,7 @@ export default defineComponent({
                         ref='valueSelector'
                         fieldInfo={this.valueSelectorFieldInfo}
                         getValueFn={this.getValueFnProxy}
+                        loadDelay={this.loadDelay}
                         placeholder={''}
                         value={this.values}
                         autoFocus

@@ -29,7 +29,6 @@ import { computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vu
 import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
 
-import useUserConfig from '../../hooks/useUserConfig';
 import ResidentSettingTransfer from './resident-setting-transfer';
 import SettingKvInput from './setting-kv-input';
 import SettingKvSelector from './setting-kv-selector';
@@ -37,6 +36,7 @@ import TimeConsuming from './time-consuming';
 import {
   type IFieldItem,
   type IFilterField,
+  type IGetValueFnParams,
   type INormalWhere,
   type TGetValueFn,
   ECondition,
@@ -59,7 +59,6 @@ export default defineComponent({
   props: RESIDENT_SETTING_PROPS,
   emits: RESIDENT_SETTING_EMITS,
   setup(props, { emit }) {
-    const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
     const { t } = useI18n();
 
     const elRef = useTemplateRef<HTMLDivElement>('el');
@@ -81,7 +80,7 @@ export default defineComponent({
       async val => {
         const fields: IResidentSetting[] = [];
         userConfigLoading.value = true;
-        const defaultConfig = (await handleGetUserConfig<string[]>(val)) || [];
+        const defaultConfig = (await props.handleGetUserConfig(val)) || [];
         userConfigLoading.value = false;
         const valueNameMap = getValueNameMap();
         const pushFields = (config: string[]) => {
@@ -95,7 +94,7 @@ export default defineComponent({
                     value: valueNameMap[key]?.value || [],
                     method: fieldNameMap.value[key]?.methods?.[0]?.value || EMethod.eq,
                   }
-                ),
+                ) as INormalWhere,
               });
             }
           }
@@ -188,11 +187,11 @@ export default defineComponent({
             value: [],
             method: fieldNameMap.value[item.name]?.methods?.[0]?.value || EMethod.eq,
           }
-        ),
+        ) as INormalWhere,
       }));
       handleChange();
       destroyPopoverInstance();
-      handleSetUserConfig(JSON.stringify(fields.map(item => item.name)));
+      props.handleSetUserConfig(JSON.stringify(fields.map(item => item.name)));
     }
     function handleValueChange(value: INormalWhere, index: number) {
       localValue.value[index].value = value;
@@ -271,7 +270,7 @@ export default defineComponent({
      * @description 该函数将搜索参数转换为查询条件，通过props.getValueFn执行查询
      * 支持通配符搜索，并在发生错误时返回空结果集
      */
-    function getValueFnProxy(params: { field: string; limit: number; search: string }): any | TGetValueFn {
+    function getValueFnProxy(params: IGetValueFnParams): any | TGetValueFn {
       return new Promise((resolve, _reject) => {
         props
           .getValueFn({
@@ -363,6 +362,7 @@ export default defineComponent({
                   class='mb-4 mr-4'
                   fieldInfo={this.getFieldInfo(item.field)}
                   getValueFn={this.getValueFnProxy}
+                  loadDelay={this.loadDelay}
                   value={item.value}
                   onChange={v => this.handleValueChange(v, index)}
                 />
