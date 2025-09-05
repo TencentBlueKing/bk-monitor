@@ -332,6 +332,9 @@ export default defineComponent({
       } else {
         tablesInfoList.value = localTablesInfoList;
       }
+      setTimeout(() => {
+        logTableRef.value!.scrollTop = 0;
+      });
     };
 
     const handleGlobalScroll = (e: any) => {
