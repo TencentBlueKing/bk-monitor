@@ -463,19 +463,10 @@ class BaseQueryHandler:
         elif condition["method"] in ["gte", "gt", "lte", "lt"]:
             # 范围查询：支持大于、大于等于、小于、小于等于操作
             # 构建range查询条件，用于数值或日期字段的范围比较
-            return Q("range", **{condition["key"]: {condition["method"]: condition["value"]}})
-
-        elif condition["method"] == "range":
-            # 复合范围查询：支持组合范围条件
-            # value应为包含范围操作符的字典，如{"gte": 10, "lte": 100}
-            if not isinstance(condition["value"], dict):
-                raise ValueError("Range query value must be a dictionary with range operators (gte, gt, lte, lt)")
-
-            # 验证范围操作符的有效性
-            valid_operators = {"gte", "gt", "lte", "lt"}
-            if not all(op in valid_operators for op in condition["value"].keys()):
-                raise ValueError(f"Invalid range operators. Allowed: {valid_operators}")
-            return Q("range", **{condition["key"]: condition["value"]})
+            value = condition["value"]
+            if isinstance(value, list) and value:
+                value = value[0]
+            return Q("range", **{condition["key"]: {condition["method"]: value}})
 
         # 默认执行terms精确匹配查询
         return Q("terms", **{condition["key"]: condition["value"]})
