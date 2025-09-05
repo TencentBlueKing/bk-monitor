@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 import json
 import uuid
+from django.conf import settings
+from bkmonitor.utils.request import get_request
 
 
 def generate_uuid():
@@ -89,3 +91,20 @@ def collect_streaming_response(generator):
         return {"full_content": full_content, "json_chunks": json_chunks}
     # 否则返回原始拼接的内容
     return full_content
+
+
+def get_agent_code_by_scenario_route():
+    """
+    根据场景路由,获取对应的Agent Code,默认使用主智能体
+    Agent路由能力
+    """
+    route = None
+    try:
+        request = get_request()
+        route = request.headers.get("Monitor-Route-Name")
+    except Exception:  # pylint: disable=broad-except
+        pass
+
+    agent_code = settings.AIDEV_SCENE_AGENT_CODE_MAPPING.get(route, settings.AIDEV_AGENT_APP_CODE)
+
+    return agent_code
