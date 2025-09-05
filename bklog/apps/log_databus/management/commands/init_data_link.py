@@ -41,7 +41,7 @@ class Command(BaseCommand):
         default_es_cluster_ids = options.get("es_cluster_id") or []
         default_kafka_cluster_id = options.get("kafka_cluster_id")
         transfer_cluster_id = options.get("transfer_cluster_id")
-        bk_tenant_id = options.get("bk_tenant_id", settings.BK_APP_TENANT_ID)
+        bk_tenant_id = options.get("bk_tenant_id") or settings.BK_APP_TENANT_ID
 
         if DataLinkConfig.objects.filter(bk_tenant_id=bk_tenant_id).exists():
             print("[Init Default Data Link] DataLinkConfig item exist. SKIP.")
