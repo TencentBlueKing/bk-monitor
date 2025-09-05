@@ -431,7 +431,6 @@ class CustomTimeSeriesList(Resource):
         query_configs_queryset = (
             QueryConfigModel.objects.annotate(result_table_id=models.F("config__result_table_id"))
             .filter(
-                reduce(lambda x, y: x | y, (Q(result_table_id=table_id) for table_id in table_ids)),
                 data_source_label=DataSourceLabel.CUSTOM,
                 data_type_label=DataTypeLabel.TIME_SERIES,
             )
@@ -446,8 +445,11 @@ class CustomTimeSeriesList(Resource):
 
         # 构建结果表ID到策略ID的映射关系
         table_id_strategy_mapping = defaultdict(set)
+        table_ids = set(table_ids)
         for query_config in query_configs:
-            table_id_strategy_mapping[query_config["result_table_id"]].add(query_config["strategy_id"])
+            result_table_id = query_config["result_table_id"]
+            if result_table_id in table_ids:
+                table_id_strategy_mapping[query_config["result_table_id"]].add(query_config["strategy_id"])
 
         return {key: len(value) for key, value in table_id_strategy_mapping.items()}
 
