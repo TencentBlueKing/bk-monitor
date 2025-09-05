@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import uuid
 import json
+import uuid
 
 
 def generate_uuid():
@@ -17,6 +17,33 @@ def generate_uuid():
     生成uuid
     """
     return str(uuid.uuid4())
+
+
+def generate_user_content(
+    command: str,
+    context_dict: dict[str, str] = {},
+    role: str = "user",
+    content: str = "",
+    cite: str = "",
+    session_code: str = generate_uuid(),
+) -> dict:
+    """
+    快速获取前端 POST /session_content 的请求体, 测试时使用
+    NOTE: context_type 都被设为了 'input' 类型
+    """
+    content_property = {
+        "extra": {
+            "anchor_path_resources": {},
+            "cite": cite,
+            "command": command,
+            "context": [
+                {key: value, "__key": key, "__value": value, "__label": "[test label]", "context_type": "input"}
+                for key, value in context_dict.items()
+            ],
+        },
+    }
+
+    return {"content": content, "property": content_property, "role": role, "session_code": session_code}
 
 
 def collect_streaming_response(generator):
