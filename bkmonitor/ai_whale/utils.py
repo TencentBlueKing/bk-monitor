@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 import uuid
 import json
+from django.conf import settings
+from bkmonitor.utils.request import get_request
 
 
 def generate_uuid():
@@ -69,3 +71,20 @@ def get_nested_value(data: dict, key: str, sep: str = "."):
         else:
             return None
     return data
+
+
+def get_agent_code_by_scenario_route():
+    """
+    根据场景路由,获取对应的Agent Code,默认使用主智能体
+    Agent路由能力
+    """
+    route = None
+    try:
+        request = get_request()
+        route = request.headers.get("Monitor-Route-Name")
+    except Exception:  # pylint: disable=broad-except
+        pass
+
+    agent_code = settings.AIDEV_SCENE_AGENT_CODE_MAPPING.get(route, settings.AIDEV_AGENT_APP_CODE)
+
+    return agent_code
