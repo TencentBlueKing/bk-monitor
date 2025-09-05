@@ -14,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from . import constants
+from ..utils.serializers import TenantIdField
 
 
 class MixedTypeListField(serializers.ListField):
@@ -160,6 +161,7 @@ class QueryConfigSerializer(serializers.Serializer):
 
 class QueryTemplateSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+    bk_tenant_id = TenantIdField(label=_("租户ID"), prefer_request_tenant=False)
     name = serializers.RegexField(label=_("查询模板名称"), max_length=50, regex=r"^[a-z0-9_]+$")
     alias = serializers.CharField(label=_("查询模板别名"), max_length=128, required=False, allow_blank=True, default="")
     namespace = serializers.ChoiceField(

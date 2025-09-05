@@ -22,6 +22,7 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.models.query_template import QueryTemplate
 from bkmonitor.query_template.core import QueryTemplateWrapper
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.query_template import GLOBAL_BIZ_ID
 
 from . import serializers
@@ -49,7 +50,10 @@ class QueryTemplateViewSet(GenericViewSet):
 
     def filter_queryset(self, queryset: QuerySet[QueryTemplate]) -> QuerySet[QueryTemplate]:
         bk_biz_id = int(get_request().biz_id)
-        return queryset.filter(Q(bk_biz_id=bk_biz_id) | Q(space_scope__contains=bk_biz_id) | Q(bk_biz_id=GLOBAL_BIZ_ID))
+        return queryset.filter(
+            Q(bk_tenant_id=get_request_tenant_id())
+            & (Q(bk_biz_id=bk_biz_id) | Q(space_scope__contains=bk_biz_id) | Q(bk_biz_id=GLOBAL_BIZ_ID))
+        )
 
     def retrieve(self, request: Request, *args, **kwargs) -> Response:
         serializer = self.get_serializer(data=request.query_params)

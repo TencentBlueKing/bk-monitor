@@ -15,6 +15,7 @@ from django.db.models import Q
 from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.common import DEFAULT_TENANT_ID
 
 from . import constants
 
@@ -150,6 +151,7 @@ CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
 
 CALLEE_SUCCESS_RATE_QUERY_INSTANCE: dict[str, Any] = {
     "bk_biz_id": 0,
+    "bk_tenant_id": DEFAULT_TENANT_ID,
     "alias": "被调成功率（%）",
     "name": "apm_rpc_callee_success_rate",
     "description": "",
