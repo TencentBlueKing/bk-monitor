@@ -794,6 +794,8 @@ export default defineComponent({
                     <td style="padding-left: 0px">
                       <div
                         class="principal-main"
+                        // 组件样式有问题，暂时这样处理
+                        style={{ padding: isExternal && "5px 0" }}
                         v-bk-tooltips={{
                           placement: "top",
                           content: row.owners.join(", "),
@@ -814,8 +816,9 @@ export default defineComponent({
                         ) : (
                           <bk-tag-input
                             style="width: 100%"
+                            class="principal-tag-input"
                             value={row.owners}
-                            placeholder=" "
+                            placeholder="--"
                             allow-create
                             clearable={false}
                             has-delete-icon
