@@ -112,7 +112,7 @@ from apps.utils.cache import caches_one_hour
 from apps.utils.custom_report import BK_CUSTOM_REPORT, CONFIG_OTLP_FIELD
 from apps.utils.db import array_chunk
 from apps.utils.function import map_if
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import get_local_param, get_request_username, get_request_tenant_id
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
@@ -1455,11 +1455,11 @@ class CollectorHandler:
         if data_link_id:
             return data_link_id
         # 业务可见的私有链路ID
-        data_link_obj = DataLinkConfig.objects.filter(bk_biz_id=bk_biz_id).order_by("data_link_id").first()
+        data_link_obj = DataLinkConfig.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id()).order_by("data_link_id").first()
         if data_link_obj:
             return data_link_obj.data_link_id
         # 公共链路ID
-        data_link_obj = DataLinkConfig.objects.filter(bk_biz_id=0).order_by("data_link_id").first()
+        data_link_obj = DataLinkConfig.objects.filter(bk_biz_id=0, bk_tenant_id=get_request_tenant_id()).order_by("data_link_id").first()
         if data_link_obj:
             return data_link_obj.data_link_id
 

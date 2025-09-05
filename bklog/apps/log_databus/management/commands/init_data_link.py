@@ -48,15 +48,15 @@ class Command(BaseCommand):
             return
 
         if not default_es_cluster_ids:
-            es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True,
-                                                        "bk_tenant_id": bk_tenant_id})
+            es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True
+                                                        }, bk_tenant_id=bk_tenant_id)
             for es in es_clusters:
                 if es["cluster_config"]["is_default_cluster"]:
                     default_es_cluster_ids.append(es["cluster_config"]["cluster_id"])
 
         if not default_kafka_cluster_id:
             kafka_clusters = TransferApi.get_cluster_info({"cluster_type": KAFKA_CLUSTER_TYPE, "no_request": True,
-                                                           "bk_tenant_id": bk_tenant_id})
+                                                           }, bk_tenant_id=bk_tenant_id)
             for kafka in kafka_clusters:
                 if kafka["cluster_config"]["is_default_cluster"]:
                     default_kafka_cluster_id = kafka["cluster_config"]["cluster_id"]
@@ -82,6 +82,7 @@ class Command(BaseCommand):
                 "description": _("默认数据链路"),
             },
             link_group_name="default",
+            bk_tenant_id=bk_tenant_id,
             is_deleted=False,
         )
 

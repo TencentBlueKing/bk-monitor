@@ -1250,6 +1250,7 @@ ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower(
 IS_GLOBAL_TENANT = True
 # 为了统一多租户和非多租户场景的逻辑，默认使用system租户
 BK_APP_TENANT_ID = "system"
+ALL_TENANT_SET_ID = 1
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式

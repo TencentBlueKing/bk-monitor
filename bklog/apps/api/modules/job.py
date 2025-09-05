@@ -75,7 +75,7 @@ class _JobApi:
             description=_("快速分发文件"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
-            bk_tenant_id=biz_to_tenant_getter(),
+            bk_tenant_id=settings.BK_APP_TENANT_ID,
         )
         self.get_job_instance_log = DataAPI(
             method="GET",

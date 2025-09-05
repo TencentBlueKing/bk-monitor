@@ -139,7 +139,6 @@ class FileServer(object):
 
         kwargs = {
             "bk_username": operator,
-            "bk_biz_id": bk_biz_id,
             "file_source_list": file_source_list,
             "account": account,
             "account_alias": account,
@@ -147,6 +146,11 @@ class FileServer(object):
             "task_name": task_name,
             "target_server": {},
         }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            kwargs["bk_scope_type"] = "tenant_set"
+            kwargs["bk_scope_id"] = settings.ALL_TENANT_SET_ID
+        else:
+            kwargs["bk_biz_id"] = bk_biz_id
         if settings.ENABLE_DHCP:
             kwargs["target_server"]["host_id_list"] = [item.bk_host_id for item in target_server]
         else:
