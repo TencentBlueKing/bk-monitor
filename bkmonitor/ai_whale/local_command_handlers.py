@@ -88,6 +88,7 @@ class TracingAnalysisCommandHandler(CommandHandler):
             error_span_ids_batch = [span.get("span_id") for span in span_group if self.check_span_error(span)]
             error_span_ids.extend(error_span_ids_batch)
 
+            total_length += len(json_part)
             if total_length >= self.max_character_length:
                 break
 
