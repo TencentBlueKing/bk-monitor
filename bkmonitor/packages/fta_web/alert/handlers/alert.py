@@ -1160,10 +1160,22 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 continue
             cleaned_data[field.field] = field.get_value_by_es_field(data)
 
+        dimension_translation = data.get("extra_info", {}).get("origin_alarm", {}).get("dimension_translation", {})
         items = []
         for item in data.get("extra_info", {}).get("strategy", {}).get("items", []):
             query_configs = []
             for config in item.get("query_configs", []):
+                agg_dimension = {
+                    d: dimension_translation.get(
+                        d,
+                        {
+                            "value": d,
+                            "display_name": d,
+                            "display_value": d,
+                        },
+                    )
+                    for d in config.get("agg_dimension", []) + ["test_ip"]
+                }
                 query_configs.append(
                     {
                         "alias": config.get("alias", ""),
@@ -1171,7 +1183,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                         "functions": config.get("functions", []),
                         "agg_method": config.get("agg_method"),
                         "agg_interval": config.get("agg_interval"),
-                        "agg_dimension": config.get("agg_dimension", []),
+                        "agg_dimension": agg_dimension,
                         "agg_condition": config.get("agg_condition", []),
                     }
                 )
