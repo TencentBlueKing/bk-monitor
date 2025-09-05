@@ -454,6 +454,7 @@ export default defineComponent({
               fieldInfo={this.fieldInfo}
               getValueFn={this.getValueFn}
               isPopover={true}
+              loadDelay={this.loadDelay}
               noDataSimple={true}
               search={this.inputValue}
               selected={this.localValue}

@@ -33,6 +33,8 @@ import {
   type IFavoriteListItem,
   type IFilterField,
   type IGetValueFnParams,
+  type IHandleGetUserConfig,
+  type IHandleSetUserConfig,
   type IWhereValueOptionsItem,
   EMode,
 } from '../../../../components/retrieval-filter/typing';
@@ -109,6 +111,16 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    // 常驻设置获取用户配置
+    handleGetUserConfig: {
+      type: Function as PropType<IHandleGetUserConfig>,
+      default: () => Promise.resolve(undefined),
+    },
+    // 常驻设置设置用户配置
+    handleSetUserConfig: {
+      type: Function as PropType<IHandleSetUserConfig>,
+      default: () => Promise.resolve(false),
+    },
   },
   emits: {
     conditionChange: (_v: CommonCondition[]) => true,
@@ -179,9 +191,12 @@ export default defineComponent({
         fields={this.fields}
         filterMode={this.filterMode}
         getValueFn={this.getValueFn}
+        handleGetUserConfig={this.handleGetUserConfig}
+        handleSetUserConfig={this.handleSetUserConfig}
         isShowClear={true}
         isShowCopy={true}
         isShowResident={true}
+        loadDelay={0}
         queryString={this.queryString}
         residentSettingOnlyId={this.residentSettingOnlyId}
         where={this.conditions}

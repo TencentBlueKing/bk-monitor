@@ -53,7 +53,6 @@ import {
   EMethod,
   EMode,
 } from '../../components/retrieval-filter/typing';
-import { useCandidateValue } from '../../components/retrieval-filter/use-candidate-value';
 import {
   DURATION_KEYS,
   INPUT_TAG_KEYS,
@@ -76,6 +75,7 @@ import FavoriteBox, { type IFavoriteGroup, EditFavorite } from './components/fav
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
+import { useCandidateValue } from './hooks/use-candidate-value';
 import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
@@ -95,6 +95,11 @@ export default defineComponent({
     const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
     const { handleGetUserConfig: handleGetThumbtackUserConfig, handleSetUserConfig: handleSetThumbtackUserConfig } =
       useUserConfig();
+    const {
+      handleGetUserConfig: handleGetResidentSettingUserConfig,
+      handleSetUserConfig: handleSetResidentSettingUserConfig,
+    } = useUserConfig();
+
     const { t } = useI18n();
     const route = useRoute();
     const router = useRouter();
@@ -487,7 +492,7 @@ export default defineComponent({
     }
 
     function setUrlParams() {
-      const { favorite_id, trace_id, listType, query, ...otherQuery } = route.query;
+      const { ...otherQuery } = route.query;
       const queryParams = {
         ...otherQuery,
         start_time: store.timeRange[0],
@@ -848,6 +853,8 @@ export default defineComponent({
       handleClearRetrievalFilter,
       handleCopyWhereQueryString,
       handleSetCommonWhereToFavoriteCache,
+      handleGetResidentSettingUserConfig,
+      handleSetResidentSettingUserConfig,
     };
   },
   render() {
@@ -891,11 +898,14 @@ export default defineComponent({
                 fields={this.retrievalFields as any[]}
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
+                handleGetUserConfig={this.handleGetResidentSettingUserConfig}
+                handleSetUserConfig={this.handleSetResidentSettingUserConfig}
                 isDefaultResidentSetting={this.isDefaultResidentSetting}
                 isShowClear={true}
                 isShowCopy={true}
                 isShowFavorite={true}
                 isShowResident={true}
+                loadDelay={300}
                 placeholder={this.retrievalFilterPlaceholder}
                 queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}

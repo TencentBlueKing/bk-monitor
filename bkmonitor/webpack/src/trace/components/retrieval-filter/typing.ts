@@ -160,12 +160,16 @@ export interface IFilterItem {
 export interface IGetValueFnParams {
   field?: string;
   fields?: string[];
-  isInit__?: boolean; // 此字段不传给后台
+  isInit__?: boolean; // 此字段不传给后台(在聚焦或者查询的时候此值为true)
   limit?: number;
   queryString?: string;
   search?: string;
   where?: IWhereItem[];
 }
+
+export type IHandleGetUserConfig = (key: string, config?: Record<string, any>) => Promise<string[] | undefined>;
+
+export type IHandleSetUserConfig = (value: string, configId?: string) => Promise<boolean>;
 
 //  组件内部标准格式
 export interface INormalWhere {
@@ -180,7 +184,6 @@ export interface INormalWhere {
         is_wildcard?: boolean;
       };
 }
-
 export interface IOptionsInfo {
   count: 0;
   list: IValue[];
@@ -190,6 +193,7 @@ export interface IValue {
   id: string;
   name: string;
 }
+
 // 组件外部格式
 export interface IWhereItem {
   condition?: ECondition | string;
@@ -210,7 +214,6 @@ export interface IWhereValueOptionsItem {
     name: string;
   }[];
 }
-
 export type TGetValueFn = (params: IGetValueFnParams) => Promise<IOptionsInfo>;
 
 // interface FavList {
@@ -385,6 +388,21 @@ export const RETRIEVAL_FILTER_PROPS = {
       return v;
     },
   },
+  // 常驻设置获取用户配置
+  handleGetUserConfig: {
+    type: Function as PropType<IHandleGetUserConfig>,
+    default: () => Promise.resolve(undefined),
+  },
+  // 常驻设置设置用户配置
+  handleSetUserConfig: {
+    type: Function as PropType<IHandleSetUserConfig>,
+    default: () => Promise.resolve(false),
+  },
+  // 延迟加载（降低加载数据时的跳动）
+  loadDelay: {
+    type: Number,
+    default: 300,
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
@@ -423,6 +441,10 @@ export const UI_SELECTOR_PROPS = {
     type: String,
     default: window.i18n.t('快捷键 / ，可直接输入'),
   },
+  loadDelay: {
+    type: Number,
+    default: 300,
+  },
 };
 export const UI_SELECTOR_EMITS = {
   change: (_v: IFilterItem[]) => true,
@@ -451,6 +473,10 @@ export const UI_SELECTOR_OPTIONS_PROPS = {
   keyword: {
     type: String,
     default: '',
+  },
+  loadDelay: {
+    type: Number,
+    default: 300,
   },
 };
 export const UI_SELECTOR_OPTIONS_EMITS = {
@@ -481,6 +507,11 @@ export const VALUE_TAG_SELECTOR_PROPS = {
         count: 0,
         list: [],
       }),
+  },
+  // 延迟加载
+  loadDelay: {
+    type: Number,
+    default: 300,
   },
 };
 export const VALUE_TAG_SELECTOR_EMITS = {
@@ -578,6 +609,11 @@ export const VALUE_OPTIONS_PROPS = {
   noDataSimple: {
     type: Boolean,
     default: false,
+  },
+  // 延迟加载
+  loadDelay: {
+    type: Number,
+    default: 300,
   },
 };
 export const VALUE_OPTIONS_EMITS = {
@@ -718,6 +754,10 @@ export const SETTING_KV_SELECTOR_PROPS = {
         list: [],
       }),
   },
+  loadDelay: {
+    type: Number,
+    default: 300,
+  },
 };
 export const SETTING_KV_SELECTOR_EMITS = {
   change: (_v: INormalWhere) => true,
@@ -768,6 +808,18 @@ export const RESIDENT_SETTING_PROPS = {
     type: Array as PropType<string[]>,
     default: () => [],
   },
+  handleGetUserConfig: {
+    type: Function as PropType<IHandleGetUserConfig>,
+    default: () => Promise.resolve(undefined),
+  },
+  handleSetUserConfig: {
+    type: Function as PropType<IHandleSetUserConfig>,
+    default: () => Promise.resolve(false),
+  },
+  loadDelay: {
+    type: Number,
+    default: 300,
+  },
 };
 export const RESIDENT_SETTING_EMITS = {
   change: (_v: INormalWhere[]) => true,
@@ -782,10 +834,10 @@ export const TIME_CONSUMING_PROPS = {
     default: '',
   },
   value: {
-    type: Object as PropType<IWhereItem>,
+    type: Object as PropType<INormalWhere>,
     default: () => null,
   },
 };
 export const TIME_CONSUMING_EMITS = {
-  change: (_v: IWhereItem) => true,
+  change: (_v: INormalWhere) => true,
 } as const;

@@ -252,7 +252,9 @@ export default defineComponent({
       }
       if (props.fieldInfo?.isEnableOptions) {
         const limit = pageSize.value * page.value;
-        await promiseTimeout(300);
+        if (props.loadDelay) {
+          await promiseTimeout(props.loadDelay);
+        }
         const data = await props.getValueFn({
           search: props.search,
           limit,

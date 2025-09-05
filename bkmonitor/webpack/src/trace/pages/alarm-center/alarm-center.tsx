@@ -30,6 +30,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { EFieldType, EMode } from '../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../components/retrieval-filter/utils';
+import useUserConfig from '../../hooks/useUserConfig';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
 import AlarmAnalysis from './components/alarm-analysis/alarm-analysis';
@@ -54,6 +55,10 @@ export default defineComponent({
     const route = useRoute();
     const alarmStore = useAlarmCenterStore();
     const appStore = useAppStore();
+    const {
+      handleGetUserConfig: handleGetResidentSettingUserConfig,
+      handleSetUserConfig: handleSetResidentSettingUserConfig,
+    } = useUserConfig();
     const { quickFilterList, quickFilterLoading } = useQuickFilter();
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
     const {
@@ -293,6 +298,8 @@ export default defineComponent({
       handleCurrentPageChange,
       handlePageSizeChange,
       handleSortChange,
+      handleGetResidentSettingUserConfig,
+      handleSetResidentSettingUserConfig,
       ...useAlarmFilter({
         alarmType: alarmStore.alarmType,
         commonFilterParams: alarmStore.commonFilterParams,
@@ -313,6 +320,8 @@ export default defineComponent({
           fields={this.retrievalFilterFields}
           filterMode={this.alarmStore.filterMode}
           getValueFn={this.getRetrievalFilterValueData}
+          handleGetUserConfig={this.handleGetResidentSettingUserConfig}
+          handleSetUserConfig={this.handleSetResidentSettingUserConfig}
           needIncidentOption={this.alarmStore.alarmType === AlarmType.INCIDENT}
           queryString={this.alarmStore.queryString}
           residentCondition={this.alarmStore.residentCondition}
