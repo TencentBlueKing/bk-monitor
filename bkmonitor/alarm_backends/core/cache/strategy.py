@@ -83,10 +83,53 @@ class StrategyCacheManager(CacheManager):
     STRATEGY_GROUP_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".strategy_group"
     # 最近增量更新时间
     LAST_UPDATED_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".last_updated"
+    # 策略使用的表名与业务ID记录缓存key
+    STRATEGY_TABLE_BIZ_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".strategy_table_biz_records"
     # 事件型时序检测周期(默认60s)
     fake_event_agg_interval = 60
     # 实例维度
     instance_dimensions = {"bk_target_ip", "bk_target_service_instance_id", "bk_host_id"}
+
+    @classmethod
+    def record_table_biz_relations(cls, strategies: list[dict]):
+        """
+        记录策略使用的表名与业务ID关系
+        ：params strategies: 策略列表
+        """
+        # 使用set去重
+        table_biz_records = set()
+        # 遍历所有策略，提取表名和业务ID
+        for strategy in strategies:
+            bk_biz_id = strategy.get("bk_biz_id")
+            for item in strategy.get("items", {}):
+                for query_config in item.get("query_configs", {}):
+                    table_id = query_config.get("result_table_id")
+                    table_biz_records.add((table_id, bk_biz_id))
+
+        # 把记录报错到缓存中
+        if table_biz_records:
+            pipeline = cls.cache.pipeline()
+            pipeline.delete(cls.STRATEGY_TABLE_BIZ_CACHE_KEY)
+            for table_id, bk_biz_id in table_biz_records:
+                pipeline.sadd(cls.STRATEGY_TABLE_BIZ_CACHE_KEY, f"{table_id}|{bk_biz_id}")
+            pipeline.expire(cls.STRATEGY_TABLE_BIZ_CACHE_KEY, cls.CACHE_TIMEOUT)
+            pipeline.execute()
+
+    @classmethod
+    def get_table_biz_relations(cls):
+        """
+        获取策略使用的表明与业务ID
+        """
+        table_biz_relations = set()
+        records = cls.cache.smembers(cls.STRATEGY_TABLE_BIZ_CACHE_KEY)
+        for record in records:
+            if isinstance(record, bytes):
+                record = record.decode("utf-8")
+            parts = record.split("|")
+            if len(parts) == 2:
+                table_id, bk_biz_id = parts
+                table_biz_relations.add((table_id, bk_biz_id))
+        return table_biz_relations
 
     @classmethod
     def transform_template_to_topo_nodes(cls, target, template_node_type, cache_manager):
@@ -1137,6 +1180,7 @@ class StrategyCacheManager(CacheManager):
             cls.refresh_fta_alert_strategy_ids,  # 刷新自愈策略列表缓存
             cls.refresh_nodata_strategy_ids,  # 刷新无数据策略ID列表缓存
             cls.refresh_aiops_sdk_strategy_ids,  # 刷新AIOPS SDK策略ID列表缓存
+            cls.record_table_biz_relations,  # 记录表名和业务ID关系
         ]
 
         # 获取策略列表, 执行缓存策略刷新操作
@@ -1310,6 +1354,7 @@ class StrategyCacheManager(CacheManager):
             refresh_nodata_strategy_ids,
             refresh_aiops_sdk_strategy_ids,
             refresh_strategy,
+            cls.record_table_biz_relations,  # 记录表名和业务ID关系
         ]
 
         for processor in processors:
