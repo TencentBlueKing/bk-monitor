@@ -18,12 +18,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
 from apps.api.modules.utils import adapt_non_bkcc, add_esb_info_before_request, biz_to_tenant_getter
-from config.domains import JOB_APIGATEWAY_ROOT_V2, JOB_APIGATEWAY_ROOT_V3
+from config.domains import JOB_APIGATEWAY_ROOT_V3
 
 
 def get_job_request_before(params):
@@ -54,7 +55,7 @@ class _JobApi:
     def __init__(self):
         self.get_public_script_list = DataAPI(
             method="GET",
-            url=self._build_url("get_public_script_list", "get_public_script_list"),
+            url=self._build_url("system/get_public_script_list", "get_public_script_list"),
             description=_("查询公共脚本列表"),
             module=self.MODULE,
             before_request=get_job_request_before,
@@ -62,7 +63,7 @@ class _JobApi:
         )
         self.fast_execute_script = DataAPI(
             method="POST",
-            url=self._build_url("fast_execute_script/", "fast_execute_script/"),
+            url=self._build_url("system/fast_execute_script/", "fast_execute_script/"),
             description=_("快速执行脚本"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
@@ -70,7 +71,7 @@ class _JobApi:
         )
         self.fast_transfer_file = DataAPI(
             method="POST",
-            url=self._build_url("fast_transfer_file/", "fast_transfer_file/"),
+            url=self._build_url("system/fast_transfer_file/", "fast_transfer_file/"),
             description=_("快速分发文件"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
@@ -78,14 +79,14 @@ class _JobApi:
         )
         self.get_job_instance_log = DataAPI(
             method="GET",
-            url=self._build_url("get_job_instance_log", "get_job_instance_log"),
+            url=self._build_url("system/get_job_instance_log", "get_job_instance_log"),
             description=_("根据作业id获取执行日志"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
         )
         self.get_job_instance_status = DataAPI(
             method="GET",
-            url=self._build_url("get_job_instance_status/", "get_job_instance_status/"),
+            url=self._build_url("system/get_job_instance_status/", "get_job_instance_status/"),
             description=_("根据作业实例 ID 查询作业执行状态"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,
@@ -93,7 +94,7 @@ class _JobApi:
         )
         self.batch_get_job_instance_ip_log = DataAPI(
             method="POST",
-            url=self._build_url("batch_get_job_instance_ip_log/", "batch_get_job_instance_ip_log/"),
+            url=self._build_url("system/batch_get_job_instance_ip_log/", "batch_get_job_instance_ip_log/"),
             description=_("根据ip列表批量查询作业执行日志"),
             module=self.MODULE,
             before_request=get_job_request_before_with_esb,

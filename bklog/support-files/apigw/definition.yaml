@@ -74,6 +74,35 @@ grant_permissions:
   - bk_app_code: bk_bkmonitorv3
     grant_dimension: "gateway"
 
+  - bk_app_code: "bk_apigateway"
+    grant_dimension: "resource"
+    resource_names:
+      - esquery_dsl
+
+  - bk_app_code: "bk_bkdata"
+    grant_dimension: "resource"
+    resource_names:
+      - esquery_search
+
+  - bk_app_code: "bk_bcs_app"
+    grant_dimension: "resource"
+    resource_names:
+      - list_bcs_collector
+      - list_bcs_collector_without_rule
+      - create_bcs_collector
+      - update_bcs_collector
+      - delete_bcs_collector
+      - retry_bcs_collector
+      - start_bcs_collector
+      - stop_bcs_collector
+      - esquery_search
+      - switch_bcs_collector_storage
+      - databus_storage_cluster_groups
+      - get_bcs_collector_storage
+      - databus_custom_create
+      - databus_custom_update
+
+
 # 应用申请指定网关所有资源的权限，待网关管理员审批后，应用才可访问网关资源；
 # 用于命令 `apply_apigw_permissions`
 # apply_permissions:
