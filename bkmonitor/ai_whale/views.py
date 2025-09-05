@@ -21,6 +21,7 @@ from ai_whale.resources.resources import (
     CreateChatCompletionResource,
     BatchDeleteSessionContentResource,
     UpdateChatSessionResource,
+    RenameChatSessionResource,
 )
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
@@ -44,7 +45,7 @@ class SessionViewSet(AIAgentsPermissionMixin, ResourceViewSet):
         ResourceRoute("GET", RetrieveChatSessionResource),
         ResourceRoute("PUT", UpdateChatSessionResource, pk_field="session_code"),
         ResourceRoute("DELETE", DestroyChatSessionResource, pk_field="session_code"),
-        # ResourceRoute("POST", RenameChatSessionResource, pk_field="session_code", endpoint="ai_rename"),
+        ResourceRoute("POST", RenameChatSessionResource, pk_field="session_code", endpoint="ai_rename"),
     ]
 
 

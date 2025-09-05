@@ -29,7 +29,9 @@ class SearchFavoriteSerializer(serializers.ModelSerializer):
 class SearchConditionSerializer(serializers.Serializer):
     key = serializers.CharField(label="匹配字段")
     value = serializers.ListField(label="匹配值")
-    method = serializers.ChoiceField(label="匹配方法", choices=["eq", "neq", "include", "exclude"], default="eq")
+    method = serializers.ChoiceField(
+        label="匹配方法", choices=["eq", "neq", "include", "exclude", "gt", "gte", "lt", "lte"], default="eq"
+    )
     condition = serializers.ChoiceField(label="复合条件", choices=["and", "or", ""], default="")
 
 

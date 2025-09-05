@@ -117,15 +117,19 @@ class AIDevInterface:
         return self.api_client.api.update_chat_session_content(path_params={"id": id}, json=params)
 
     # ==================== 发起对话 ====================
-    def create_chat_completion(self, session_code, execute_kwargs, agent_code, username, temperature=0.3):
+    def create_chat_completion(
+        self, session_code, execute_kwargs, agent_code, username, temperature=0.3, switch_agent_by_scene=False
+    ):
         """发起流式/非流式会话"""
         callbacks = [get_langfuse_callback()]  # 添加Langfuse回调
         agent_instance = AgentInstanceFactory.build_agent(
+            agent_code=agent_code,
             build_type=AgentBuildType.SESSION,
             session_code=session_code,
             resource_manager=self.api_client,
             callbacks=callbacks,
             temperature=temperature,
+            switch_agent_by_scene=switch_agent_by_scene,
         )  # 工厂方法构建Agent实例
         if execute_kwargs.get("stream", False):
             # 使用增强的流式处理函数

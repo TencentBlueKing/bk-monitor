@@ -103,6 +103,8 @@ export default defineComponent({
         (getGroupStr.value || getDimensionStr.value || getYearStr.value)
     );
 
+    const isExternal = window.IS_EXTERNAL === true;
+
     const handleStrategySubmitStatus = (v) => {
       strategyHaveSubmit.value = v;
     };
@@ -146,16 +148,20 @@ export default defineComponent({
               is-cluster-active={props.isClusterActive}
               on-handle-finger-operate={handleFingerOperate}
             />
-            <email-subscription
-              style="margin: 0 8px"
-              indexId={props.indexId}
-              isClusterActive={props.isClusterActive}
-            />
-            <ClusterConfig
-              ref={clusterConfigRef}
-              indexId={props.indexId}
-              total-fields={props.totalFields}
-            />
+            {!isExternal && (
+              <email-subscription
+                style="margin: 0 8px"
+                indexId={props.indexId}
+                isClusterActive={props.isClusterActive}
+              />
+            )}
+            {!isExternal && (
+              <ClusterConfig
+                ref={clusterConfigRef}
+                indexId={props.indexId}
+                total-fields={props.totalFields}
+              />
+            )}
           </div>
         </div>
         {isShowGroupTag.value && (

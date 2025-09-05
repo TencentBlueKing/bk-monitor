@@ -104,6 +104,12 @@
               }
             }
 
+            .principal-tag-input {
+              .bk-tag-input {
+                background: #f5f7fa;
+              }
+            }
+
             .ai-assist-column {
               .ai-icon {
                 display: none;
@@ -231,6 +237,20 @@
 
                 &.disabled {
                   background: transparent !important;
+                }
+              }
+            }
+
+            .principal-tag-input {
+              .bk-tag-input {
+                border-color: transparent;
+
+                &:hover {
+                  background: #eaebf0;
+                }
+                &.active {
+                  border-color: #3a84ff;
+                  background: #fff;
                 }
               }
             }

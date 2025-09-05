@@ -2346,7 +2346,9 @@ class ResultTableField(models.Model):
             "description": _(self.description),
             "unit": _(self.unit),
             "alias_name": _(self.alias_name),
-            "option": ResultTableFieldOption.get_field_option(table_id=self.table_id, field_name=self.field_name),
+            "option": ResultTableFieldOption.get_field_option(
+                table_id=self.table_id, field_name=self.field_name, bk_tenant_id=self.bk_tenant_id
+            ),
             "is_disabled": self.is_disabled,
         }
 

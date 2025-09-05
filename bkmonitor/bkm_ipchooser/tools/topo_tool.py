@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import logging
 import typing
 from collections import defaultdict
@@ -24,11 +23,9 @@ class TopoTool:
 
     @classmethod
     def find_topo_node_paths(
-        cls, bk_biz_id: int, node_list: typing.List[types.TreeNode], count_instance_type: str = InstanceType.HOST.value
+        cls, bk_biz_id: int, node_list: list[types.TreeNode], count_instance_type: str = InstanceType.HOST.value
     ):
-        def _find_topo_node_paths(
-            _cur_node: types.TreeNode, _cur_path: typing.List[types.TreeNode], _hit_inst_ids: typing.Set
-        ):
+        def _find_topo_node_paths(_cur_node: types.TreeNode, _cur_path: list[types.TreeNode], _hit_inst_ids: set):
             inst_key = cls.build_inst_key(_cur_node["bk_obj_id"], _cur_node["bk_inst_id"])
             if inst_key in inst_id__node_map:
                 inst_id__node_map[inst_key]["bk_path"] = deepcopy(_cur_path)
@@ -44,7 +41,7 @@ class TopoTool:
                 del _cur_path[-1]
 
         topo_tree = cls.get_topo_tree_with_count(bk_biz_id=bk_biz_id, count_instance_type=count_instance_type)
-        inst_id__node_map: typing.Dict[str, types.TreeNode] = {
+        inst_id__node_map: dict[str, types.TreeNode] = {
             cls.build_inst_key(bk_node["bk_obj_id"], bk_node["bk_inst_id"]): bk_node for bk_node in node_list
         }
         _find_topo_node_paths(topo_tree, [topo_tree], set())
@@ -52,11 +49,11 @@ class TopoTool:
 
     @classmethod
     def fill_host_count_to_tree(
-        cls, nodes: typing.List[types.TreeNode], host_ids_gby_module_id: typing.Dict[int, typing.List[int]]
-    ) -> typing.Set[int]:
-        total_host_ids: typing.Set[int] = set()
+        cls, nodes: list[types.TreeNode], host_ids_gby_module_id: dict[int, list[int]]
+    ) -> set[int]:
+        total_host_ids: set[int] = set()
         for node in nodes:
-            bk_host_ids: typing.Set[int] = set()
+            bk_host_ids: set[int] = set()
             if node.get("bk_obj_id") == constants.ObjectType.MODULE.value:
                 bk_host_ids = bk_host_ids | set(host_ids_gby_module_id.get(node["bk_inst_id"], set()))
             else:
@@ -76,13 +73,15 @@ class TopoTool:
         topo_tree: types.TreeNode = topo_tree or resource.ResourceQueryHelper.get_topo_tree(
             bk_biz_id, return_all=return_all
         )
+        if not topo_tree:
+            return {}
 
         # 判断需要统计的实例类型
-        ids_gby_module_id: typing.Dict[int, typing.List[int]] = defaultdict(list)
+        ids_gby_module_id: dict[int, list[int]] = defaultdict(list)
         if count_instance_type == constants.InstanceType.HOST.value:
             # 查询业务下全部主机与模块的关系
             cache_key = f"host_topo_relations:{bk_biz_id}"
-            host_topo_relations: typing.List[typing.Dict] = cache.get(cache_key)
+            host_topo_relations: list[dict] = cache.get(cache_key)
             if not host_topo_relations:
                 host_topo_relations = resource.ResourceQueryHelper.fetch_host_topo_relations(bk_biz_id)
                 cache.set(cache_key, host_topo_relations, cls.CACHE_5MIN)
@@ -94,7 +93,7 @@ class TopoTool:
         else:
             # 查询业务下所有服务实例（缓存5分钟）
             cache_key = f"all_service_instance_detail:{bk_biz_id}"
-            service_instances: typing.List[typing.Dict] = cache.get(cache_key)
+            service_instances: list[dict] = cache.get(cache_key)
             if not service_instances:
                 service_instances = batch_request.batch_request(
                     BkApi.list_service_instance_detail, params={"bk_biz_id": bk_biz_id}, limit=200
@@ -109,7 +108,7 @@ class TopoTool:
         return topo_tree
 
     @classmethod
-    def format_topo_node(cls, node: typing.Dict) -> typing.Dict:
+    def format_topo_node(cls, node: dict) -> dict:
         """
         格式化节点
         """
@@ -124,10 +123,10 @@ class TopoTool:
     def get_module_ids_by_nodes(
         cls,
         bk_biz_id,
-        nodes: typing.Set[typing.Tuple[str, int]],
-        topo_tree: typing.Dict = None,
+        nodes: set[tuple[str, int]],
+        topo_tree: dict = None,
         match_all: bool = False,
-    ) -> typing.Dict[typing.Tuple[str, int], typing.Set[int]]:
+    ) -> dict[tuple[str, int], set[int]]:
         """
         获取节点下的子模块ID
         """

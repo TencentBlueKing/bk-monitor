@@ -1395,6 +1395,9 @@ AIDEV_AGENT_ENABLE_LANGFUSE = False  # 是否开启langfuse上报
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
 
+# 场景-Agent映射配置,用于实现Agent路由
+AIDEV_SCENE_AGENT_CODE_MAPPING = {}
+
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True
 
