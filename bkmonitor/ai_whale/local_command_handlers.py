@@ -66,12 +66,12 @@ class TracingAnalysisCommandHandler(CommandHandler):
         return trace_data
 
     def process_trace_data(self, trace_data):
-        # 1. 超长的 trace 数据只保留必要字段
+        #  获取 trace 总耗时, 在 保留必要字段 之前计算
+        total_time = f"{self.us_to_ms(self.get_trace_total_time(trace_data))}ms"
+
+        # 长的 trace 数据只保留必要字段
         if len(trace_data) > self.max_span:
             trace_data = [{k: x.get(k, None) for k in self.keys} for x in trace_data]
-
-        #  获取 trace 总耗时
-        total_time = f"{self.us_to_ms(self.get_trace_total_time(trace_data))}ms"
 
         # 收集 trace_data_lite 和 error_span_ids, 同时控制长度
         error_span_ids = []
