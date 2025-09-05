@@ -13,7 +13,6 @@ from typing import Any
 from django.db import models
 
 from apm_web.constants import ServiceRelationLogTypeChoices
-from bkmonitor.utils.db import JsonField
 from monitor_web.data_explorer.event.constants import EventCategory
 
 
@@ -128,5 +127,26 @@ class ApdexServiceRelation(ServiceBase):
 
 
 class CodeRedefinedConfigRelation(ServiceBase):
-    ret_code_as_exception = models.BooleanField("非 0 返回码是否当成异常", default=False)
-    rules = JsonField(verbose_name="匹配规则", null=True, blank=True)
+    ret_code_as_exception = models.BooleanField("非 0 返回码是否当成异常", default=False)  # 待新下发实现后旧逻辑移除！
+    # 类型：caller / callee
+    kind = models.CharField("类型", max_length=16, choices=[("caller", "主调"), ("callee", "被调")])
+    # 被调服务（caller 时必填；callee 时必须与 service_name 一致）
+    callee_server = models.CharField("被调服务", max_length=512, blank=True, default="")
+    # 被调 Service
+    callee_service = models.CharField("被调Service", max_length=512, blank=True, default="")
+    # 被调接口（完整名称/路径，精确匹配）
+    callee_method = models.CharField("被调接口", max_length=512, blank=True, default="")
+    # 返回码重定义：原始字段直接落库，三组 code 列表，示例：{"success": "0", "exception": "3001,err_1", "timeout": "408"}
+    code_type_rules = models.JSONField("重定义返回码分组信息", default=dict)
+    # 是否启用
+    enabled = models.BooleanField("是否启用", default=True)
+
+    class Meta:
+        index_together = [
+            [
+                "bk_biz_id",
+                "app_name",
+                "service_name",
+                "kind",
+            ]
+        ]
