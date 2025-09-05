@@ -108,16 +108,26 @@ class FileServer(object):
         )
 
     @classmethod
-    def query_task_result(cls, task_instance_id, operator, bk_biz_id):
-        result = JobApi.get_job_instance_status(
-            params={
-                "bk_biz_id": bk_biz_id,
-                "job_instance_id": task_instance_id,
-                "bk_username": operator,
-                "return_ip_result": True,
-            },
-            request_cookies=False,
-        )
+    def query_task_result(cls, task_instance_id, operator, bk_biz_id, is_platform=False):
+        params = {
+            "job_instance_id": task_instance_id,
+            "bk_username": operator,
+            "return_ip_result": True,
+        }
+        if is_platform:
+            params["bk_scope_type"] = "tenant_set"
+            params["bk_scope_id"] = settings.ALL_TENANT_SET_ID
+            result = JobApi.get_job_instance_status(
+                params=params,
+                request_cookies=False,
+                bk_tenant_id=settings.BK_APP_TENANT_ID,
+            )
+        else:
+            params["bk_biz_id"] = bk_biz_id
+            result = JobApi.get_job_instance_status(
+                params=params,
+                request_cookies=False,
+            )
         return result
 
     @classmethod
