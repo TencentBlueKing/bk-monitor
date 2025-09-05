@@ -407,10 +407,12 @@ class GetObservationSceneList(Resource):
 
     @classmethod
     def get_custom_metric_list(cls, bk_biz_id: int):
-        from monitor_web.custom_report.resources import CustomTimeSeriesList
+        from monitor_web.custom_report.resources import count_rt_bound_strategies
 
         tables = CustomTSTable.objects.filter(bk_biz_id=bk_biz_id)
-        strategy_counts = CustomTimeSeriesList.count_rt_bound_strategies([t.table_id for t in tables])
+        strategy_counts = count_rt_bound_strategies(
+            [t.table_id for t in tables], data_source_label=DataSourceLabel.CUSTOM, data_type_label=DataTypeLabel.EVENT
+        )
         return [
             {
                 "id": table.time_series_group_id,
@@ -427,12 +429,16 @@ class GetObservationSceneList(Resource):
 
     @classmethod
     def get_custom_event_list(cls, bk_biz_id: int):
-        from monitor_web.custom_report.resources import CustomTimeSeriesList
+        from monitor_web.custom_report.resources import count_rt_bound_strategies
 
         tables = CustomEventGroup.objects.filter(bk_biz_id=bk_biz_id, type=EVENT_TYPE.CUSTOM_EVENT).only(
             "table_id", "bk_event_group_id", "name", "data_label", "bk_data_id", "scenario"
         )
-        strategy_counts = CustomTimeSeriesList.count_rt_bound_strategies([table.table_id for table in tables])
+        strategy_counts = count_rt_bound_strategies(
+            [table.table_id for table in tables],
+            data_source_label=DataSourceLabel.CUSTOM,
+            data_type_label=DataTypeLabel.EVENT,
+        )
         return [
             {
                 "id": table.bk_event_group_id,

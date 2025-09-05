@@ -164,9 +164,14 @@ class QueryCustomEventGroup(Resource):
         groups = serializer.data
 
         table_ids = [group["table_id"] for group in groups]
-        from monitor_web.custom_report.resources import CustomTimeSeriesList
+        from monitor_web.custom_report.resources import count_rt_bound_strategies
 
-        strategy_count_mapping = CustomTimeSeriesList.count_rt_bound_strategies(table_ids, params.get("bk_biz_id"))
+        strategy_count_mapping = count_rt_bound_strategies(
+            table_ids,
+            data_source_label=DataSourceLabel.CUSTOM,
+            data_type_label=DataTypeLabel.EVENT,
+            bk_biz_id=params.get("bk_biz_id"),
+        )
 
         label_display_dict = get_label_display_dict()
         for group in groups:
