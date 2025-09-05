@@ -191,7 +191,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
             .distinct()
             .prefetch_related(Prefetch("tasks", queryset=UptimeCheckTask.objects.only("id")))
         )
-        serializer = self.get_serializer(queryset, many=True)
+        serializer: UptimeCheckNodeSerializer = self.get_serializer(queryset, many=True)
         # 将节点解析成cmdb主机，存放在以host_id 和 ip+cloud_id 为key 的 字典里
         node_to_host = resource.uptime_check.get_node_host_dict(bk_tenant_id=get_request_tenant_id(), nodes=queryset)
 
@@ -248,7 +248,10 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                     "task_num": task_num,
                     "is_common": node["is_common"],
                     "gse_status": node_status.get("gse_status", BEAT_STATUS["RUNNING"]),
-                    "status": node_status.get("status", "0"),
+                    # TODO: 多租户环境下暂时跳过心跳检查
+                    "status": node_status.get("status", "0")
+                    if not settings.ENABLE_MULTI_TENANT_MODE
+                    else BEAT_STATUS["RUNNING"],
                     "version": node_status.get("version", "") if node_status.get("version", "") else beat_version,
                 }
             )
