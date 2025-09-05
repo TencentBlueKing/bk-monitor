@@ -57,10 +57,6 @@ export default defineComponent({
     AiAssitant,
   },
   props: {
-    retrieveParams: {
-      type: Object,
-      required: true,
-    },
     clusterSwitch: {
       type: Boolean,
       default: false,
@@ -107,6 +103,7 @@ export default defineComponent({
     const filterSortMap = ref(initFilterSortMap());
     const displayType = ref("group");
 
+    const retrieveParams = computed(() => store.getters.retrieveParams);
     const showGroupBy = computed(
       () =>
         props.requestData?.group_by.length > 0 && displayType.value === "group"
@@ -158,13 +155,9 @@ export default defineComponent({
       }
     );
 
-    watch(
-      () => props.retrieveParams,
-      () => {
-        refreshTable();
-      },
-      { deep: true }
-    );
+    watch(retrieveParams, () => {
+      refreshTable();
+    });
 
     const refreshTable = () => {
       // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
@@ -178,14 +171,28 @@ export default defineComponent({
       const {
         start_time,
         end_time,
-        addition,
         size,
         keyword = "*",
         ip_chooser,
         host_scopes,
         interval,
         timezone,
-      } = props.retrieveParams;
+      } = retrieveParams.value;
+      const addition = retrieveParams.value.addition.reduce((list, item) => {
+        if (!item.disabled) {
+          list.push({
+            field: item.field,
+            operator: item.operator,
+            value:
+              item.hidden_values && item.hidden_values.length > 0
+                ? item.value.filter(
+                    (value) => !item.hidden_values.includes(value)
+                  )
+                : item.value,
+          });
+        }
+        return list;
+      }, []);
       tableLoading.value = true;
       (
         $http.request(
@@ -424,7 +431,7 @@ export default defineComponent({
           ) : (
             <bk-exception type="empty" scene="part" style="margin-top: 80px">
               <span>
-                {props.retrieveParams.addition.length > 0
+                {retrieveParams.value.addition.length > 0
                   ? t("搜索结果为空")
                   : t("暂无数据")}
               </span>
