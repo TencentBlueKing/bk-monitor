@@ -25,12 +25,16 @@ def generate_user_content(
     role: str = "user",
     content: str = "",
     cite: str = "",
-    session_code: str = generate_uuid(),
+    session_code: str | None = None,
 ) -> dict:
     """
     快速获取前端 POST /session_content 的请求体, 测试时使用
     NOTE: context_type 都被设为了 'input' 类型
     """
+
+    if session_code is None:
+        session_code = generate_uuid()
+
     content_property = {
         "extra": {
             "anchor_path_resources": {},
