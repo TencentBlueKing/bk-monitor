@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from collections import defaultdict
 
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
@@ -34,14 +35,20 @@ class ResultTableCacheManager(CacheManager):
     # 业务ID列表分片大小
     BK_BIZ_ID_CHUNK_SIZE = 10
 
+    # 表ID列表分片大小
+    BK_TABLE_ID_CHUNK_SIZE = 10
+
     @classmethod
-    def refresh_metadata(cls, bk_biz_ids: list[int]):
+    def refresh_metadata(cls, bk_biz_ids: list[int] = None, table_ids: list[str] = None):
         """
         刷新元数据结果表缓存
 
         Args:
             bk_biz_ids: 业务ID列表
+            table_ids: 表ID列表
         """
+        if not bk_biz_ids:
+            return
         for bk_biz_id in bk_biz_ids:
             # 查询元数据结果表
             try:
@@ -55,6 +62,11 @@ class ResultTableCacheManager(CacheManager):
             # 如果业务下没有结果表，则跳过
             if not result_tables:
                 continue
+
+            if table_ids:
+                result_tables = [rt for rt in result_tables if rt["table_id"] in table_ids]
+                if not result_tables:
+                    continue
 
             pipeline = cls.cache.pipeline()
             for result_table in result_tables:
@@ -83,13 +95,16 @@ class ResultTableCacheManager(CacheManager):
             pipeline.execute()
 
     @classmethod
-    def refresh_bkdata(cls, bk_biz_ids: list[int]):
+    def refresh_bkdata(cls, bk_biz_ids: list[int], table_ids: list[str] = None):
         """
         刷新数据平台结果表缓存
 
         Args:
             bk_biz_ids: 业务ID列表
+            table_ids: 表ID列表
         """
+        if not bk_biz_ids:
+            return
         for bk_biz_id in bk_biz_ids:
             # 数据平台仅支持cmdb业务
             if bk_biz_id <= 0:
@@ -107,6 +122,11 @@ class ResultTableCacheManager(CacheManager):
             # 如果业务下没有结果表，则跳过
             if not result_tables:
                 continue
+
+            if table_ids:
+                result_tables = [rt for rt in result_tables if rt["result_table_id"] in table_ids]
+                if not result_tables:
+                    continue
 
             pipeline = cls.cache.pipeline()
             for result_table in result_tables:
@@ -132,12 +152,13 @@ class ResultTableCacheManager(CacheManager):
             pipeline.execute()
 
     @classmethod
-    def refresh_bklog(cls, bk_biz_ids: list[int]):
+    def refresh_bklog(cls, bk_biz_ids: list[int], table_ids: list[str] = None):
         """
         刷新日志平台结果表缓存
 
         Args:
             bk_biz_ids: 业务ID列表
+            table_ids: 表ID列表
         """
         for bk_biz_id in bk_biz_ids:
             # 查询日志平台索引集
@@ -150,6 +171,11 @@ class ResultTableCacheManager(CacheManager):
             # 如果业务下没有索引集，则跳过
             if not index_list:
                 continue
+
+            if table_ids:
+                index_list = [index for index in index_list if index["index_set_id"] in table_ids]
+                if not index_list:
+                    continue
 
             pipeline = cls.cache.pipeline()
             for index in index_list:
@@ -242,6 +268,39 @@ class ResultTableCacheManager(CacheManager):
         pool.close()
         pool.join()
 
+    @classmethod
+    def refresh_by_strategy_records(cls):
+        """
+        基于策略缓存记录的表名和业务ID组合进行结果表缓存刷新
+        """
+        table_biz_relations = StrategyCacheManager.get_table_biz_relations()
+        if not table_biz_relations:
+            cls.logger.info("[result_table_cache] No table-biz relations found, fallback to full refresh")
+            cls.refresh()
+            return
+        biz_tables = defaultdict(set)
+        for table_id, bk_biz_id in table_biz_relations:
+            biz_tables[bk_biz_id].add(table_id)
+
+        # 创建线程池
+        pool = ThreadPool(cls.THREAD_POOL_SIZE)
+
+        for bk_biz_id, table_ids in biz_tables.items():
+            table_ids_list = list(table_ids)
+            bk_biz_ids = [bk_biz_id]
+            for table_chunk in [
+                table_ids_list[i : i + cls.BK_TABLE_ID_CHUNK_SIZE]
+                for i in range(0, len(table_ids_list), cls.BK_TABLE_ID_CHUNK_SIZE)
+            ]:
+                # 异步刷新各类结果表缓存
+                pool.apply_async(cls.refresh_metadata, args=(bk_biz_ids, table_chunk))
+                pool.apply_async(cls.refresh_bkdata, args=(bk_biz_ids, table_chunk))
+                pool.apply_async(cls.refresh_bklog, args=(bk_biz_ids, table_chunk))
+
+        # 关闭线程池并等待完成
+        pool.close()
+        pool.join()
+
 
 def main():
-    ResultTableCacheManager.refresh()
+    ResultTableCacheManager.refresh_by_strategy_records()
