@@ -4,9 +4,7 @@ from ai_agent.services.local_command_handler import (
     CommandHandler,
     local_command_handler,
 )
-from apps.log_search.models import LogIndexSet
 from apps.log_unifyquery.builder.context import build_context_params
-from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
 from apps.utils.log import logger
 from bkm_space.utils import space_uid_to_bk_biz_id
 
@@ -53,6 +51,10 @@ class LogAnalysisCommandHandler(CommandHandler):
         return context_log
 
     def process_content(self, context: list[dict]) -> str:
+        # 必须放到这里加载，否则 django 会因国际化加载失败
+        from apps.log_search.models import LogIndexSet
+        from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
+
         template = self.get_template()
         variables = self.extract_context_vars(context)
 
