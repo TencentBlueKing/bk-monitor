@@ -566,11 +566,10 @@ class IncidentSnapshot:
                     entity.entity_type,
                     entity.logic_key(),
                     entity_id
-                    if entity.is_anomaly
-                    or entity.is_on_alert
+                    if entity.is_on_alert
                     or entity.is_root
                     or getattr(incident.feedback, "incident_root", None) == entity.entity_id
-                    else "normal",
+                    else ("anomaly" if entity.is_anomaly else "normal"),
                 )
             else:
                 # 按照聚合配置进行聚合

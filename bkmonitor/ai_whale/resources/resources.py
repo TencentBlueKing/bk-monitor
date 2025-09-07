@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from ai_whale.utils import get_agent_code_by_scenario_route
 from core.drf_resource import Resource
 from rest_framework import serializers
 import logging
@@ -268,8 +269,15 @@ class CreateChatCompletionResource(Resource):
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         execute_kwargs = validated_request_data["execute_kwargs"]
-        agent_code = validated_request_data.get("agent_code")
         username = get_request_username()
+
+        agent_code = get_agent_code_by_scenario_route()
+        switch_agent_by_scene = False
+        if (
+            agent_code != settings.AIDEV_AGENT_APP_CODE
+        ):  # 若根据请求场景获取到的Agent Code与默认Agent Code不一致,则切换Agent
+            logger.info("CreateChatCompletionResource: scenario route agent code->[%s],switch it", agent_code)
+            switch_agent_by_scene = True
 
         logger.info(
             "CreateChatCompletionResource: try to create chat completion with session_code->[%s], agent_code->[%s]",
@@ -282,4 +290,5 @@ class CreateChatCompletionResource(Resource):
             agent_code=agent_code,
             username=username,
             temperature=settings.AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE,
+            switch_agent_by_scene=switch_agent_by_scene,
         )

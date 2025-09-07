@@ -4,7 +4,7 @@ requires-python = "==3.11.*"
 
 [[package]]
 name = "aidev-agent"
-version = "1.0.0b31"
+version = "1.0.0b33"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asgiref" },
@@ -22,8 +22,9 @@ dependencies = [
     { name = "pytz" },
     { name = "werkzeug" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/b4/17/8d29b4ac9edf726b98cad75dc51e50cfc8cd6073249a9795fd273d37bf1b/aidev_agent-1.0.0b33.tar.gz", hash = "sha256:66bdf25f3ad77840ea9389ee1f250df0b2339f46d4281960c6aa74e06e49ed75", size = 111034, upload-time = "2025-09-05T03:35:14.335Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f5/a1/a9b791c3d3a40477969b0efbdcdbcf79c20d893ec4ec6fa957c806b7fbf6/aidev_agent-1.0.0b31-py3-none-any.whl", hash = "sha256:88283549e28e1db7c1d4a28289f548c1118f6934cdd26e6fbbb19d0d029f3009", size = 137706, upload-time = "2025-08-28T09:42:18.928Z" },
+    { url = "https://files.pythonhosted.org/packages/56/d1/e023dc5a8f25263cfb4c5a9de22e013947855834b547ecd354d793f9bcc7/aidev_agent-1.0.0b33-py3-none-any.whl", hash = "sha256:cd02fc6814c3ab3a1c3ee6286b4af9eae36b54e5453ccb38626673515b3fa4d0", size = 138994, upload-time = "2025-09-05T03:35:12.308Z" },
 ]
 
 [[package]]
@@ -438,7 +439,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aidev-agent", specifier = "==1.0.0b31" },
+    { name = "aidev-agent", specifier = "==1.0.0b33" },
     { name = "apigw-manager", specifier = "==4.0.4" },
     { name = "arrow", specifier = "==0.6.0" },
     { name = "babel", specifier = "==2.14.0" },
