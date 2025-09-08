@@ -25,17 +25,18 @@
  */
 
 import { defineComponent, ref, computed, watch } from 'vue';
-import useStore from '@/hooks/use-store';
+
+import { messageError } from '@/common/bkmagic';
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import BkUserSelector from '@blueking/user-selector';
-import http from '@/api';
+import { Message } from 'bk-magic-vue';
+
 import { useSidebarDiff } from '../../hooks/use-sidebar-diff';
 import { useSpaceSelector } from '../../hooks/use-space-selector';
 import ManageHelper from '../../manage-helper.ts';
-import { Message } from 'bk-magic-vue';
-import { messageError } from '@/common/bkmagic';
-
 import EsDialog from './es-dialog.tsx';
+import http from '@/api';
 
 import './es-slider.scss';
 
@@ -55,7 +56,7 @@ export default defineComponent({
     editClusterId: {
       type: Number,
       default: null,
-    }, 
+    },
     onHandleCancelSlider: { type: Function },
     onHandleUpdatedTable: { type: Function },
   },
@@ -180,15 +181,12 @@ export default defineComponent({
 
     // 冷热设置不对，禁用提交
     const invalidHotSetting = computed(() => {
-      formData.value.enable_hot_warm && !(formData.value.hot_attr_name && formData.value.warm_attr_value);
+      return formData.value.enable_hot_warm && !(formData.value.hot_attr_name && formData.value.warm_attr_value);
     });
 
     const isRulesCheckSubmit = computed(() => !formData.value.admin.length);
     const isDisableHotSetting = computed(() => hotColdAttrSet.value.length < 2); // 标签数量不足，禁止开启冷热设置
-    const sourceNameCheck = computed(() => {
-      const { source_type, source_name } = formData.value;
-      return source_type === 'other' && source_name.trim() === '';
-    });
+
     const scopeValueType = computed(() => formData.value.visible_config.visible_type !== 'multi_biz'); // 可见范围单选判断，禁用下拉框
     const isBizAttr = computed(() => formData.value.visible_config.visible_type === 'biz_attr');
     // 提交按钮是否禁用
@@ -431,7 +429,7 @@ export default defineComponent({
     };
 
     // 查看实例列表弹窗
-    const handleViewInstanceList = (type: 'hot' | 'cold') => {
+    const handleViewInstanceList = (type: 'cold' | 'hot') => {
       viewInstanceType.value = type;
       showInstanceDialog.value = true;
     };
@@ -540,7 +538,7 @@ export default defineComponent({
     // 关闭侧边栏
     const handleCancel = async () => {
       const canClose = await handleCloseSidebar();
-      if(canClose){
+      if (canClose) {
         emit('handleCancelSlider');
       }
     };
@@ -667,7 +665,9 @@ export default defineComponent({
           searchSelectRef.value.menu.checked = {};
           if (searchSelectRef.value.menuChildInstance) searchSelectRef.value.menuChildInstance.checked = {};
           searchSelectRef.value.menuInstance = null;
-        } catch (_) {}
+        } catch (e) {
+          console.log(e);
+        }
       }
     };
 
@@ -799,13 +799,13 @@ export default defineComponent({
       >
         <bk-sideslider
           width={640}
-          title={isEdit.value ? t('编辑集群') : t('新建集群')}
+          before-close={handleCloseSidebar}
           is-show={props.showSlider}
           quick-close={true}
+          title={isEdit.value ? t('编辑集群') : t('新建集群')}
           transfer
-          before-close={handleCloseSidebar}
-          onShown={handleShowSlider}
           onAnimation-end={() => emit('handleCancelSlider')}
+          onShown={handleShowSlider}
         >
           <template slot='content'>
             <div
@@ -816,8 +816,8 @@ export default defineComponent({
                 <bk-form
                   ref={validateForm}
                   class='king-form'
-                  label-width={170}
                   form-type='vertical'
+                  label-width={170}
                   {...{
                     props: {
                       model: basicFormData.value,
@@ -835,10 +835,10 @@ export default defineComponent({
                     required
                   >
                     <bk-input
-                      value={basicFormData.value.cluster_name}
-                      readonly={isEdit.value}
                       data-test-id='esAccessFromBox_input_fillName'
                       maxlength={50}
+                      readonly={isEdit.value}
+                      value={basicFormData.value.cluster_name}
                       onChange={(val: string) => (basicFormData.value.cluster_name = val)}
                     />
                   </bk-form-item>
@@ -878,9 +878,9 @@ export default defineComponent({
                     >
                       <bk-input
                         class='address-input'
-                        value={basicFormData.value.domain_name}
-                        readonly={isEdit.value}
                         data-test-id='esAccessFromBox_input_fillDomainName'
+                        readonly={isEdit.value}
+                        value={basicFormData.value.domain_name}
                         onChange={(val: string) => (basicFormData.value.domain_name = val)}
                       />
                     </bk-form-item>
@@ -894,14 +894,14 @@ export default defineComponent({
                       required
                     >
                       <bk-input
-                        value={basicFormData.value.port}
+                        data-test-id='esAccessFromBox_input_fillPort'
                         max={65535}
                         min={0}
                         readonly={isEdit.value}
                         show-controls={false}
-                        data-test-id='esAccessFromBox_input_fillPort'
                         type='number'
-                        onChange={(val: string | number) => (basicFormData.value.port = String(val))}
+                        value={basicFormData.value.port}
+                        onChange={(val: number | string) => (basicFormData.value.port = String(val))}
                       />
                     </bk-form-item>
 
@@ -910,9 +910,9 @@ export default defineComponent({
                       required
                     >
                       <bk-select
-                        value={basicFormData.value.schema}
                         clearable={false}
                         data-test-id='esAccessFromBox_select_selectProtocol'
+                        value={basicFormData.value.schema}
                         onChange={(val: string) => (basicFormData.value.schema = val)}
                       >
                         <bk-option
@@ -931,16 +931,16 @@ export default defineComponent({
                   <div class='form-item-container'>
                     <bk-form-item label={t('用户名')}>
                       <bk-input
-                        value={basicFormData.value.auth_info.username}
                         data-test-id='esAccessFromBox_input_fillUsername'
+                        value={basicFormData.value.auth_info.username}
                         onChange={(val: string) => (basicFormData.value.auth_info.username = val)}
                       />
                     </bk-form-item>
                     <bk-form-item label={t('密码')}>
                       <bk-input
-                        value={basicFormData.value.auth_info.password}
                         data-test-id='esAccessFromBox_input_fillPassword'
                         type='password'
+                        value={basicFormData.value.auth_info.password}
                         onChange={(val: string) => (basicFormData.value.auth_info.password = val)}
                       />
                     </bk-form-item>
@@ -950,8 +950,8 @@ export default defineComponent({
                   <bk-form-item label=''>
                     <div class='test-container'>
                       <bk-button
-                        loading={connectLoading.value}
                         data-test-id='esAccessFromBox_button_connectivityTest'
+                        loading={connectLoading.value}
                         theme='primary'
                         type='button'
                         onClick={handleTestConnect}
@@ -1009,8 +1009,8 @@ export default defineComponent({
                         >
                           {visibleScopeSelectList.value.map(item => (
                             <bk-radio
-                              class='scope-radio'
                               key={item.id}
+                              class='scope-radio'
                               value={item.id}
                             >
                               {item.name}
@@ -1020,28 +1020,17 @@ export default defineComponent({
 
                         {/* 多空间选择 */}
                         <bk-select
-                          value={visibleBkBiz.value}
                           v-show={!scopeValueType.value}
-                          list={mySpaceList.value}
-                          virtual-scroll-render={virtualscrollSpaceList}
-                          display-key='space_full_code_name'
-                          id-key='bk_biz_id'
-                          display-tag
-                          enable-virtual-scroll
-                          multiple
-                          searchable
-                          onToggle={handleToggleVisible}
-                          onChange={(val: string[]) => (visibleBkBiz.value = val)}
                           scopedSlots={{
                             trigger: () => (
                               <div class='visible-scope-box'>
                                 <div class='selected-tag'>
                                   {visibleList.value.map((tag, index) => (
                                     <bk-tag
+                                      key={tag.id}
                                       class={'tag-icon ' + (tag.is_use ? 'is-active' : 'is-normal')}
                                       v-bk-tooltips={inUseProjectPopover(!!tag.is_use)}
                                       closable={!tag.is_use}
-                                      key={tag.id}
                                       onClose={() => handleDeleteTag(index)}
                                     >
                                       {tag.name}
@@ -1059,18 +1048,29 @@ export default defineComponent({
                               </div>
                             ),
                           }}
+                          display-key='space_full_code_name'
+                          id-key='bk_biz_id'
+                          list={mySpaceList.value}
+                          value={visibleBkBiz.value}
+                          virtual-scroll-render={virtualscrollSpaceList}
+                          display-tag
+                          enable-virtual-scroll
+                          multiple
+                          searchable
+                          onChange={(val: string[]) => (visibleBkBiz.value = val)}
+                          onToggle={handleToggleVisible}
                         />
 
                         {/* 按照空间属性选择 */}
                         {isBizAttr.value && (
                           <bk-search-select
                             ref={searchSelectRef}
-                            value={bkBizLabelsList.value}
                             data={bizParentList.value}
                             popover-zindex={selectZIndex.value}
                             remote-method={handleRemoteMethod}
                             show-condition={false}
                             show-popover-tag-change={false}
+                            value={bkBizLabelsList.value}
                             clearable
                             onChange={(val: any[]) => (bkBizLabelsList.value = val)}
                             onInput-change={handleInputChange}
@@ -1090,78 +1090,78 @@ export default defineComponent({
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('默认')}</div>
                             <bk-select
-                              value={formData.value.setup_config.retention_days_default}
                               clearable={false}
                               data-test-id='storageBox_select_selectExpiration'
+                              value={formData.value.setup_config.retention_days_default}
                               onChange={(val: string) => (formData.value.setup_config.retention_days_default = val)}
-                              scopedSlots={{
-                                trigger: () => (
-                                  <div class='bk-select-name'>
-                                    {String(formData.value.setup_config.retention_days_default) + t('天')}
-                                  </div>
-                                ),
-                                extension: () => (
-                                  <div style='padding: 8px 0'>
-                                    <bk-input
-                                      value={customRetentionDay.value}
-                                      placeholder={t('输入自定义天数，按 Enter 确认')}
-                                      show-controls={false}
-                                      size='small'
-                                      type='number'
-                                      onChange={(val: string) => (customRetentionDay.value = val)}
-                                      onEnter={(val: string) => enterCustomDay(val, 'retention')}
-                                    />
-                                  </div>
-                                ),
-                              }}
                             >
                               {retentionDaysList.value.map((option, index) => (
                                 <bk-option
                                   id={option.id}
                                   key={index}
-                                  name={option.name}
                                   disabled={option.disabled}
+                                  name={option.name}
                                 />
                               ))}
+                              <div
+                                class='bk-select-name'
+                                slot='trigger'
+                              >
+                                {String(formData.value.setup_config.retention_days_default) + t('天')}
+                              </div>
+                              <div
+                                style='padding: 8px 0'
+                                slot='extension'
+                              >
+                                <bk-input
+                                  placeholder={t('输入自定义天数，按 Enter 确认')}
+                                  show-controls={false}
+                                  size='small'
+                                  type='number'
+                                  value={customRetentionDay.value}
+                                  onChange={(val: string) => (customRetentionDay.value = val)}
+                                  onEnter={(val: string) => enterCustomDay(val, 'retention')}
+                                />
+                              </div>
                             </bk-select>
                           </div>
 
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('最大')}</div>
                             <bk-select
-                              value={formData.value.setup_config.retention_days_max}
                               clearable={false}
                               data-test-id='storageBox_select_selectExpiration'
+                              value={formData.value.setup_config.retention_days_max}
                               onChange={(val: string) => (formData.value.setup_config.retention_days_max = val)}
-                              scopedSlots={{
-                                trigger: () => (
-                                  <div class='bk-select-name'>
-                                    {String(formData.value.setup_config.retention_days_max) + t('天')}
-                                  </div>
-                                ),
-                                extension: () => (
-                                  <div style='padding: 8px 0'>
-                                    <bk-input
-                                      value={customMaxDay.value}
-                                      placeholder={t('输入自定义天数，按 Enter 确认')}
-                                      show-controls={false}
-                                      size='small'
-                                      type='number'
-                                      onChange={(val: string) => (customMaxDay.value = val)}
-                                      onEnter={(val: string) => enterCustomDay(val, 'max')}
-                                    />
-                                  </div>
-                                ),
-                              }}
                             >
                               {maxDaysList.value.map((option, index) => (
                                 <bk-option
                                   id={option.id}
                                   key={index}
-                                  name={option.name}
                                   disabled={option.disabled}
+                                  name={option.name}
                                 />
                               ))}
+                              <div
+                                style='padding: 8px 0'
+                                slot='extension'
+                              >
+                                <bk-input
+                                  placeholder={t('输入自定义天数，按 Enter 确认')}
+                                  show-controls={false}
+                                  size='small'
+                                  type='number'
+                                  value={customMaxDay.value}
+                                  onChange={(val: string) => (customMaxDay.value = val)}
+                                  onEnter={(val: string) => enterCustomDay(val, 'max')}
+                                />
+                              </div>
+                              <div
+                                class='bk-select-name'
+                                slot='trigger'
+                              >
+                                {String(formData.value.setup_config.retention_days_max) + t('天')}
+                              </div>
                             </bk-select>
                           </div>
                         </div>
@@ -1176,11 +1176,11 @@ export default defineComponent({
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('默认')}</div>
                             <bk-input
-                              value={formData.value.setup_config.number_of_replicas_default}
                               max={Number(formData.value.setup_config.number_of_replicas_max)}
                               min={0}
                               type='number'
-                              onChange={(val: string | number) =>
+                              value={formData.value.setup_config.number_of_replicas_default}
+                              onChange={(val: number | string) =>
                                 (formData.value.setup_config.number_of_replicas_default = Number(val))
                               }
                             />
@@ -1188,10 +1188,10 @@ export default defineComponent({
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('最大')}</div>
                             <bk-input
-                              value={formData.value.setup_config.number_of_replicas_max}
                               min={Number(formData.value.setup_config.number_of_replicas_default)}
                               type='number'
-                              onChange={(val: string | number) =>
+                              value={formData.value.setup_config.number_of_replicas_max}
+                              onChange={(val: number | string) =>
                                 (formData.value.setup_config.number_of_replicas_max = Number(val))
                               }
                             />
@@ -1208,11 +1208,11 @@ export default defineComponent({
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('默认')}</div>
                             <bk-input
-                              value={formData.value.setup_config.es_shards_default}
                               max={Number(formData.value.setup_config.es_shards_max)}
                               min={1}
                               type='number'
-                              onChange={(val: string | number) =>
+                              value={formData.value.setup_config.es_shards_default}
+                              onChange={(val: number | string) =>
                                 (formData.value.setup_config.es_shards_default = Number(val))
                               }
                             />
@@ -1220,10 +1220,10 @@ export default defineComponent({
                           <div class='flex-space-item'>
                             <div class='space-item-label'>{t('最大')}</div>
                             <bk-input
-                              value={formData.value.setup_config.es_shards_max}
                               min={Number(formData.value.setup_config.es_shards_default)}
                               type='number'
-                              onChange={(val: string | number) =>
+                              value={formData.value.setup_config.es_shards_max}
+                              onChange={(val: number | string) =>
                                 (formData.value.setup_config.es_shards_max = Number(val))
                               }
                             />
@@ -1238,10 +1238,10 @@ export default defineComponent({
                       >
                         <div class='form-flex-container'>
                           <bk-switcher
-                            value={formData.value.enable_hot_warm}
                             disabled={isDisableHotSetting.value}
                             size='large'
                             theme='primary'
+                            value={formData.value.enable_hot_warm}
                             onChange={val => {
                               formData.value.enable_hot_warm = val;
                               handleChangeHotWarm(val);
@@ -1285,9 +1285,9 @@ export default defineComponent({
                             >
                               {hotColdAttrSet.value.map(option => (
                                 <bk-option
-                                  disabled={option.isSelected}
                                   id={option.computedId}
                                   key={option.computedId}
+                                  disabled={option.isSelected}
                                   name={`${option.computedName}(${option.computedCounts})`}
                                 />
                               ))}
@@ -1314,9 +1314,9 @@ export default defineComponent({
                             >
                               {hotColdAttrSet.value.map(option => (
                                 <bk-option
-                                  disabled={option.isSelected}
                                   id={option.computedId}
                                   key={option.computedId}
+                                  disabled={option.isSelected}
                                   name={`${option.computedName}(${option.computedCounts})`}
                                 />
                               ))}
@@ -1330,9 +1330,9 @@ export default defineComponent({
                         <bk-form-item label={t('日志归档')}>
                           <div class='document-container'>
                             <bk-switcher
-                              value={formData.value.enable_archive}
                               size='large'
                               theme='primary'
+                              value={formData.value.enable_archive}
                               onChange={(v: boolean) => (formData.value.enable_archive = v)}
                             />
                             {!!archiveDocUrl.value && (
@@ -1349,9 +1349,9 @@ export default defineComponent({
                         {isItsm.value && (
                           <bk-form-item label={t('容量评估')}>
                             <bk-switcher
-                              value={formData.value.enable_assessment}
                               size='large'
                               theme='primary'
+                              value={formData.value.enable_assessment}
                               onChange={(v: boolean) => (formData.value.enable_assessment = v)}
                             />
                           </bk-form-item>
@@ -1366,8 +1366,8 @@ export default defineComponent({
                       >
                         <div class='principal'>
                           <BkUserSelector
-                            api={userApi.value}
                             class={isAdminError.value && 'is-error'}
+                            api={userApi.value}
                             empty-text={t('无匹配人员')}
                             placeholder={t('请选择集群负责人')}
                             value={formData.value.admin}
@@ -1383,10 +1383,10 @@ export default defineComponent({
                         label={t('说明')}
                       >
                         <bk-input
-                          value={formData.value.description}
                           maxlength={100}
                           rows={3}
                           type='textarea'
+                          value={formData.value.description}
                           onChange={(val: string) => (formData.value.description = val)}
                         />
                       </bk-form-item>
@@ -1399,9 +1399,9 @@ export default defineComponent({
               <div class='submit-container'>
                 <bk-button
                   class='king-button mr10'
+                  data-test-id='esAccessFromBox_button_confirm'
                   disabled={isDisableClickSubmit.value}
                   loading={confirmLoading.value}
-                  data-test-id='esAccessFromBox_button_confirm'
                   theme='primary'
                   onClick={handleConfirm}
                 >
@@ -1420,10 +1420,10 @@ export default defineComponent({
 
         {/* 查看实例列表弹窗 */}
         <EsDialog
-          value={showInstanceDialog.value}
           formData={formData.value}
           list={hotColdOriginList.value}
           type={viewInstanceType.value}
+          value={showInstanceDialog.value}
           on-handle-value-change={val => (showInstanceDialog.value = val)}
         />
       </div>

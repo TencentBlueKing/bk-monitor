@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 import { VIEW_BUSINESS } from './common/authority-map';
+import './polyfill';
 import { URL_ARGS } from './store/default-values';
 import { BK_LOG_STORAGE } from './store/store.type';
 
@@ -41,6 +41,27 @@ export const getExternalMenuListBySpace = space => {
   return list;
 };
 
+/**
+ * 获取所有空间列表
+ * @param http
+ * @param store
+ * @returns
+ */
+export const getAllSpaceList = (http, store) => {
+  window.scheduler.postTask(() => {
+    http.request('space/getMySpaceList').then(resp => {
+      const spaceList = resp.data;
+      spaceList.forEach(item => {
+        item.bk_biz_id = `${item.bk_biz_id}`;
+        item.space_uid = `${item.space_uid}`;
+        item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
+      });
+
+      store.commit('updateMySpaceList', spaceList);
+    });
+  });
+};
+
 export default ({
   http,
   store,
@@ -49,37 +70,50 @@ export default ({
   store: any;
   isExternal?: boolean;
 }) => {
-
   /**
    * 根据索引ID获取空间信息
    * 如果当前URL参数中没有spaceUid和bizId，则根据index_id获取空间信息
    * 如果当前URL参数中没有index_id，则跳过
-   * @returns 
+   * @returns
    */
   const getSpaceByIndexId = () => {
-    if (URL_ARGS.index_id && (!URL_ARGS.spaceUid && !URL_ARGS.bizId)) {
-      return http.request('indexSet/getSpaceByIndexId', {
-        params: {
-          index_set_id: URL_ARGS.index_id,
-        },
-      }).then(resp => {
-        if (resp.result) {
-          store.commit('updateSpace', resp.data);
-          store.commit('updateStorage', {
-            [BK_LOG_STORAGE.BK_BIZ_ID]: resp.data.bk_biz_id,
-            [BK_LOG_STORAGE.BK_SPACE_UID]: resp.data.space_uid,
-          });
-        }
-      });
+    if (URL_ARGS.index_id && !URL_ARGS.spaceUid && !URL_ARGS.bizId) {
+      return http
+        .request('indexSet/getSpaceByIndexId', {
+          params: {
+            index_set_id: URL_ARGS.index_id,
+          },
+        })
+        .then(resp => {
+          if (resp.result) {
+            store.commit('updateSpace', resp.data);
+            store.commit('updateStorage', {
+              [BK_LOG_STORAGE.BK_BIZ_ID]: resp.data.bk_biz_id,
+              [BK_LOG_STORAGE.BK_SPACE_UID]: resp.data.space_uid,
+            });
+          }
+        });
     }
     return Promise.resolve(true);
-  }
+  };
+
+  /**
+   * 空间列表请求参数
+   */
+  const spaceRequestData = {
+    query: {
+      space_uid: URL_ARGS.spaceUid,
+      has_permission: URL_ARGS.spaceUid ? undefined : 1,
+      page: 1,
+      page_size: 1,
+    },
+  };
 
   /**
    * 获取空间列表
    * return
    */
-  const spaceRequest = http.request('space/getMySpaceList').then(resp => {
+  const spaceRequest = http.request('space/getMySpaceList', spaceRequestData).then(resp => {
     const spaceList = resp.data;
     spaceList.forEach(item => {
       item.bk_biz_id = `${item.bk_biz_id}`;
@@ -119,11 +153,17 @@ export default ({
     });
   });
 
+  /**
+   * 获取用户信息
+   */
   const userInfoRequest = http.request('userInfo/getUsername').then(resp => {
     store.commit('updateUserMeta', resp.data);
     return resp.data;
   });
 
+  /**
+   * 获取全局配置
+   */
   const globalsRequest = http.request('collect/globals').then(res => {
     store.commit('globals/setGlobalsData', res.data);
     return res.data;
