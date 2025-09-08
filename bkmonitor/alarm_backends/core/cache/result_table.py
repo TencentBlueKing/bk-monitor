@@ -14,7 +14,7 @@ from collections import defaultdict
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.data_source import DataSourceLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 
@@ -278,23 +278,55 @@ class ResultTableCacheManager(CacheManager):
             cls.logger.info("[result_table_cache] No table-biz relations found, fallback to full refresh")
             cls.refresh()
             return
-        biz_tables = defaultdict(set)
-        for table_id, bk_biz_id in table_biz_relations:
-            biz_tables[bk_biz_id].add(table_id)
+        # 按数据源类型分类
+        metadata_tables = defaultdict(set)  # bk_monitor 数据源
+        bkdata_tables = defaultdict(set)  # bk_data 数据源
+        bklog_tables = defaultdict(set)  # bk_log_search 数据源
+
+        for table_id, bk_biz_id, data_source_label, data_type_label in table_biz_relations:
+            if (
+                data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
+                and data_type_label == DataTypeLabel.TIME_SERIES
+            ):
+                metadata_tables[bk_biz_id].add(table_id)
+            elif data_source_label == DataSourceLabel.CUSTOM and data_type_label == DataTypeLabel.TIME_SERIES:
+                metadata_tables[bk_biz_id].add(table_id)
+            elif data_source_label == DataSourceLabel.BK_DATA and data_type_label == DataTypeLabel.TIME_SERIES:
+                bkdata_tables[bk_biz_id].add(table_id)
+            elif data_source_label == DataSourceLabel.BK_LOG_SEARCH and data_type_label == DataTypeLabel.LOG:
+                bklog_tables[bk_biz_id].add(table_id)
 
         # 创建线程池
         pool = ThreadPool(cls.THREAD_POOL_SIZE)
 
-        for bk_biz_id, table_ids in biz_tables.items():
+        # 处理元数据结果表 (bk_monitor/time_series)
+        for bk_biz_id, table_ids in metadata_tables.items():
             table_ids_list = list(table_ids)
             bk_biz_ids = [bk_biz_id]
             for table_chunk in [
                 table_ids_list[i : i + cls.BK_TABLE_ID_CHUNK_SIZE]
                 for i in range(0, len(table_ids_list), cls.BK_TABLE_ID_CHUNK_SIZE)
             ]:
-                # 异步刷新各类结果表缓存
                 pool.apply_async(cls.refresh_metadata, args=(bk_biz_ids, table_chunk))
+
+        # 处理数据平台结果表 (bk_data/time_series)
+        for bk_biz_id, table_ids in bkdata_tables.items():
+            table_ids_list = list(table_ids)
+            bk_biz_ids = [bk_biz_id]
+            for table_chunk in [
+                table_ids_list[i : i + cls.BK_TABLE_ID_CHUNK_SIZE]
+                for i in range(0, len(table_ids_list), cls.BK_TABLE_ID_CHUNK_SIZE)
+            ]:
                 pool.apply_async(cls.refresh_bkdata, args=(bk_biz_ids, table_chunk))
+
+        # 处理日志平台结果表 (bk_log_search/log)
+        for bk_biz_id, table_ids in bklog_tables.items():
+            table_ids_list = list(table_ids)
+            bk_biz_ids = [bk_biz_id]
+            for table_chunk in [
+                table_ids_list[i : i + cls.BK_TABLE_ID_CHUNK_SIZE]
+                for i in range(0, len(table_ids_list), cls.BK_TABLE_ID_CHUNK_SIZE)
+            ]:
                 pool.apply_async(cls.refresh_bklog, args=(bk_biz_ids, table_chunk))
 
         # 关闭线程池并等待完成

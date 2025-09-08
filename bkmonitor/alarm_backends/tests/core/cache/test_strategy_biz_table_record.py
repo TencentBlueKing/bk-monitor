@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from unittest import mock
 
 from alarm_backends.core.cache.strategy import StrategyCacheManager
+from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
 def test_record_table_biz_relations():
@@ -26,8 +27,24 @@ def test_record_table_biz_relations():
             {
                 "bk_biz_id": 2,
                 "items": [
-                    {"query_configs": [{"result_table_id": "table1"}]},
-                    {"query_configs": [{"result_table_id": "table2"}]},
+                    {
+                        "query_configs": [
+                            {
+                                "result_table_id": "table1",
+                                "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                                "data_type_label": DataTypeLabel.TIME_SERIES,
+                            }
+                        ]
+                    },
+                    {
+                        "query_configs": [
+                            {
+                                "result_table_id": "table2",
+                                "data_source_label": DataSourceLabel.BK_DATA,
+                                "data_type_label": DataTypeLabel.TIME_SERIES,
+                            }
+                        ]
+                    },
                 ],
             },
             {
@@ -36,7 +53,9 @@ def test_record_table_biz_relations():
                     {
                         "query_configs": [
                             {
-                                "result_table_id": "table1"  # 相同表名不同业务
+                                "result_table_id": "table1",  # 相同表名不同业务
+                                "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
+                                "data_type_label": DataTypeLabel.LOG,
                             }
                         ]
                     }
@@ -56,9 +75,18 @@ def test_record_table_biz_relations():
 
         # 检查 sadd 是否使用正确的参数调用
         expected_calls = [
-            mock.call(StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY, "table1|2"),
-            mock.call(StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY, "table2|2"),
-            mock.call(StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY, "table1|3"),
+            mock.call(
+                StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY,
+                f"table1|2|{DataSourceLabel.BK_MONITOR_COLLECTOR}|{DataTypeLabel.TIME_SERIES}",
+            ),
+            mock.call(
+                StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY,
+                f"table2|2|{DataSourceLabel.BK_DATA}|{DataTypeLabel.TIME_SERIES}",
+            ),
+            mock.call(
+                StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY,
+                f"table1|3|{DataSourceLabel.BK_LOG_SEARCH}|{DataTypeLabel.LOG}",
+            ),
         ]
         mock_pipeline.sadd.assert_has_calls(expected_calls, any_order=True)
         assert mock_pipeline.sadd.call_count == 3
@@ -95,7 +123,17 @@ def test_record_table_biz_relations_missing_fields():
         strategies = [
             {
                 # 缺少 bk_biz_id
-                "items": [{"query_configs": [{"result_table_id": "table1"}]}]
+                "items": [
+                    {
+                        "query_configs": [
+                            {
+                                "result_table_id": "table1",
+                                "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                                "data_type_label": DataTypeLabel.TIME_SERIES,
+                            }
+                        ]
+                    }
+                ]
             },
             {
                 "bk_biz_id": 2,
@@ -113,16 +151,12 @@ def test_record_table_biz_relations_missing_fields():
 
         StrategyCacheManager.record_table_biz_relations(strategies)
 
-        # 在这种情况下会调用pipeline，因为会生成 table1|None 这样的记录
-        mock_cache.pipeline.assert_called_once()
-        mock_pipeline.delete.assert_called_once_with(StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY)
-        mock_pipeline.expire.assert_called_once_with(
-            StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY, StrategyCacheManager.CACHE_TIMEOUT
-        )
-        mock_pipeline.execute.assert_called_once()
-
-        # 应该添加 table1|None 这条记录
-        mock_pipeline.sadd.assert_called_once_with(StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY, "table1|None")
+        # 在这种情况下不会调用pipeline，因为没有有效的记录 (bk_biz_id为None)
+        mock_cache.pipeline.assert_not_called()
+        mock_pipeline.delete.assert_not_called()
+        mock_pipeline.expire.assert_not_called()
+        mock_pipeline.execute.assert_not_called()
+        mock_pipeline.sadd.assert_not_called()
 
 
 def test_get_table_biz_relations():
@@ -131,10 +165,10 @@ def test_get_table_biz_relations():
     """
     with mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.cache") as mock_cache:
         mock_records = [
-            b"table1|2",
-            b"table2|2",
-            b"table1|3",
-            "table3|4",  # 字符串类型记录
+            f"table1|2|{DataSourceLabel.BK_MONITOR_COLLECTOR}|{DataTypeLabel.TIME_SERIES}".encode(),
+            f"table2|2|{DataSourceLabel.BK_DATA}|{DataTypeLabel.TIME_SERIES}".encode(),
+            f"table1|3|{DataSourceLabel.BK_LOG_SEARCH}|{DataTypeLabel.LOG}",
+            f"table3|4|{DataSourceLabel.CUSTOM}|{DataTypeLabel.TIME_SERIES}",  # 字符串类型记录
         ]
 
         mock_cache.smembers.return_value = mock_records
@@ -145,7 +179,12 @@ def test_get_table_biz_relations():
         mock_cache.smembers.assert_called_once_with(StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY)
 
         # 检查结果
-        expected_result = {("table1", "2"), ("table2", "2"), ("table1", "3"), ("table3", "4")}
+        expected_result = {
+            ("table1", "2", DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
+            ("table2", "2", DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+            ("table1", "3", DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
+            ("table3", "4", DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+        }
         assert result == expected_result
 
 
@@ -168,9 +207,9 @@ def test_get_table_biz_relations_malformed_record():
     """
     with mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.cache") as mock_cache:
         mock_records = [
-            b"table1|2",
+            f"table1|2|{DataSourceLabel.BK_MONITOR_COLLECTOR}|{DataTypeLabel.TIME_SERIES}".encode(),
             b"malformed_record",  # 缺少分隔符
-            b"table2|3|extra",  # 分隔符过多
+            b"table2|3|extra|field|too_many",  # 分隔符过多
         ]
 
         mock_cache.smembers.return_value = mock_records
@@ -178,5 +217,5 @@ def test_get_table_biz_relations_malformed_record():
         result = StrategyCacheManager.get_table_biz_relations()
 
         # 应只包含格式正确的记录
-        expected_result = {("table1", "2")}
+        expected_result = {("table1", "2", DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)}
         assert result == expected_result

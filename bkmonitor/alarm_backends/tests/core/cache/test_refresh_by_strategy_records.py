@@ -28,8 +28,12 @@ def test_refresh_by_strategy_records_with_relations():
             "alarm_backends.core.cache.result_table.StrategyCacheManager.get_table_biz_relations"
         ) as mock_get_relations:
             with mock.patch("alarm_backends.core.cache.result_table.ThreadPool") as mock_thread_pool_class:
-                # 设置模拟返回值
-                mock_get_relations.return_value = {("table1", "2"), ("table2", "2"), ("table1", "3")}
+                # 设置模拟返回值 (包含完整的数据源信息)
+                mock_get_relations.return_value = {
+                    ("table1", "2", "bk_monitor", "time_series"),
+                    ("table2", "2", "bk_data", "time_series"),
+                    ("table1", "3", "bk_log_search", "log"),
+                }
 
                 # 模拟线程池
                 mock_thread_pool = mock.Mock()
@@ -43,15 +47,12 @@ def test_refresh_by_strategy_records_with_relations():
 
                 # 验证线程池的使用
                 mock_thread_pool_class.assert_called_once_with(ResultTableCacheManager.THREAD_POOL_SIZE)
-                assert mock_thread_pool.apply_async.call_count == 6  # 2个业务 * 3种刷新方法
+                assert mock_thread_pool.apply_async.call_count == 3  # 3个不同的业务和数据源类型
 
                 # 验证refresh方法被正确调用
                 expected_calls = [
-                    mock.call(ResultTableCacheManager.refresh_metadata, args=(["2"], ["table1", "table2"])),
-                    mock.call(ResultTableCacheManager.refresh_bkdata, args=(["2"], ["table1", "table2"])),
-                    mock.call(ResultTableCacheManager.refresh_bklog, args=(["2"], ["table1", "table2"])),
-                    mock.call(ResultTableCacheManager.refresh_metadata, args=(["3"], ["table1"])),
-                    mock.call(ResultTableCacheManager.refresh_bkdata, args=(["3"], ["table1"])),
+                    mock.call(ResultTableCacheManager.refresh_metadata, args=(["2"], ["table1"])),
+                    mock.call(ResultTableCacheManager.refresh_bkdata, args=(["2"], ["table2"])),
                     mock.call(ResultTableCacheManager.refresh_bklog, args=(["3"], ["table1"])),
                 ]
 
@@ -103,7 +104,7 @@ def test_refresh_by_strategy_records_chunking():
             with mock.patch("alarm_backends.core.cache.result_table.ThreadPool") as mock_thread_pool_class:
                 # 创建超过分块大小的表ID
                 table_ids = [f"table{i}" for i in range(15)]  # 15个表ID，分块大小为10
-                relations = {(table_id, "2") for table_id in table_ids}
+                relations = {(table_id, "2", "bk_monitor", "time_series") for table_id in table_ids}
                 mock_get_relations.return_value = relations
 
                 # 模拟线程池
@@ -117,8 +118,8 @@ def test_refresh_by_strategy_records_chunking():
                 mock_get_relations.assert_called_once()
 
                 # 验证分块处理：应该有2个分块 (10和5)
-                # 业务2有15个表，分块为2组(10和5)，每组调用3个方法
-                assert mock_thread_pool.apply_async.call_count == 6  # 2个分块 * 3种刷新方法
+                # 业务2有15个表，分块为2组(10和5)，每组调用1个方法
+                assert mock_thread_pool.apply_async.call_count == 2  # 2个分块 * 1种刷新方法
 
                 # 验证线程池关闭方法被调用
                 mock_thread_pool.close.assert_called_once()

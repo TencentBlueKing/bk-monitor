@@ -103,15 +103,19 @@ class StrategyCacheManager(CacheManager):
             bk_biz_id = strategy.get("bk_biz_id")
             for item in strategy.get("items", {}):
                 for query_config in item.get("query_configs", {}):
+                    data_source_label = query_config.get("data_source_label")
+                    data_type_label = query_config.get("data_type_label")
                     table_id = query_config.get("result_table_id")
-                    table_biz_records.add((table_id, bk_biz_id))
+                    if table_id and bk_biz_id is not None:
+                        table_biz_records.add((table_id, bk_biz_id, data_source_label, data_type_label))
 
         # 把记录保存到缓存中
         if table_biz_records:
             pipeline = cls.cache.pipeline()
             pipeline.delete(cls.STRATEGY_TABLE_BIZ_CACHE_KEY)
-            for table_id, bk_biz_id in table_biz_records:
-                pipeline.sadd(cls.STRATEGY_TABLE_BIZ_CACHE_KEY, f"{table_id}|{bk_biz_id}")
+            for table_id, bk_biz_id, data_source_label, data_type_label in table_biz_records:
+                record = f"{table_id}|{bk_biz_id}|{data_source_label}|{data_type_label}"
+                pipeline.sadd(cls.STRATEGY_TABLE_BIZ_CACHE_KEY, record)
             pipeline.expire(cls.STRATEGY_TABLE_BIZ_CACHE_KEY, cls.CACHE_TIMEOUT)
             pipeline.execute()
 
@@ -126,9 +130,9 @@ class StrategyCacheManager(CacheManager):
             if isinstance(record, bytes):
                 record = record.decode("utf-8")
             parts = record.split("|")
-            if len(parts) == 2:
-                table_id, bk_biz_id = parts
-                table_biz_relations.add((table_id, bk_biz_id))
+            if len(parts) == 4:
+                table_id, bk_biz_id, data_source_label, data_type_label = parts
+                table_biz_relations.add((table_id, bk_biz_id, data_source_label, data_type_label))
         return table_biz_relations
 
     @classmethod
