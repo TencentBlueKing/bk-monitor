@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { shallowRef, watchEffect, onScopeDispose } from 'vue';
-
-import { useAlarmCenterStore } from '@/store/modules/alarm-center';
+import { onScopeDispose, shallowRef, watchEffect } from 'vue';
 
 import { getOperatorDisabled } from '../utils';
+import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typings';
 

@@ -23,27 +23,27 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import { Input } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
-import DescriptionCard from '../description-card/description-card';
+import QueryConfigViewer from '../description-card/query-config-viewer';
+
+import type { AlertContentItem } from '../../../../typings';
 
 import './alert-content-detail.scss';
 
 export default defineComponent({
   name: 'AlertMetricsConfig',
   props: {
-    metricsId: {
-      type: String,
+    alertContentDetail: {
+      type: Object as PropType<AlertContentItem>,
     },
   },
-  setup() {
+  setup(props) {
     const { t } = useI18n();
 
-    /** 数据含义 */
-    const description = shallowRef('请求处理错误码等级为 error');
     /** 当前是否为编辑状态 */
     const isEdit = shallowRef(false);
     /** 数据含义 input 框中的值 */
@@ -55,7 +55,7 @@ export default defineComponent({
     function toggleEditMode(editStatus: boolean) {
       let value = '';
       if (editStatus) {
-        value = description.value;
+        value = props.alertContentDetail?.name || '';
       }
       inputValue.value = value;
       isEdit.value = editStatus;
@@ -73,7 +73,6 @@ export default defineComponent({
       t,
       isEdit,
       inputValue,
-      description,
       toggleEditMode,
       handleSave,
     };
@@ -81,50 +80,41 @@ export default defineComponent({
   render() {
     return (
       <div class='alert-content-detail'>
-        <div class='alert-content-description'>
-          <div class='description-item description-meaning'>
-            <div class='item-label'>
-              <span>{this.t('数据含义')}:</span>
-            </div>
-            {this.isEdit ? (
-              <div class='item-value-edit'>
-                <Input
-                  v-model={this.inputValue}
-                  size='small'
-                />
-                <div class='operations'>
-                  <i
-                    class='icon-monitor icon-mc-check-small'
-                    onClick={this.handleSave}
-                  />
-                  <i
-                    class='icon-monitor icon-mc-close'
-                    onClick={() => this.toggleEditMode(false)}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div class='item-value-view'>
-                <span class='value'>{this.description}</span>
+        <div class='description-meaning'>
+          <div class='item-label'>
+            <span>{`${this.t('数据含义')} :`}</span>
+          </div>
+          {this.isEdit ? (
+            <div class='item-value-edit'>
+              <Input
+                v-model={this.inputValue}
+                size='small'
+              />
+              <div class='operations'>
                 <i
-                  class='icon-monitor icon-bianji'
-                  onClick={() => this.toggleEditMode(true)}
+                  class='icon-monitor icon-mc-check-small'
+                  onClick={this.handleSave}
+                />
+                <i
+                  class='icon-monitor icon-mc-close'
+                  onClick={() => this.toggleEditMode(false)}
                 />
               </div>
-            )}
-          </div>
-          <div class='description-item description-expression'>
-            <div class='item-label'>
-              <span>{this.t('表达式')}:</span>
             </div>
+          ) : (
             <div class='item-value-view'>
-              <span class='value'>a + b</span>
+              <span class='value'>{this.alertContentDetail?.name || '--'}</span>
+              <i
+                class='icon-monitor icon-bianji'
+                onClick={() => this.toggleEditMode(true)}
+              />
             </div>
-          </div>
+          )}
         </div>
-        <div class='alert-content-cards'>
-          <DescriptionCard />
-        </div>
+        <QueryConfigViewer
+          expression={this.alertContentDetail?.expression}
+          queryConfigs={this.alertContentDetail?.query_configs}
+        />
       </div>
     );
   },

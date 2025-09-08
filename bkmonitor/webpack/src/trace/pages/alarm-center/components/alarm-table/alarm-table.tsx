@@ -41,6 +41,7 @@ import { useRouter } from 'vue-router';
 import { ALERT_STORAGE_KEY } from '../../services/alert-services';
 import { INCIDENT_STORAGE_KEY } from '../../services/incident-services';
 import {
+  type AlertContentItem,
   type AlertTableItem,
   type TableColumnItem,
   type TablePagination,
@@ -116,6 +117,8 @@ export default defineComponent({
     const selectedRowKeys = deepRef<(number | string)[]>([]);
     /* 关注人则禁用操作 */
     const isSelectedFollower = shallowRef(false);
+    /** 当前查看的告警内容详情数据 */
+    const activeAlertContentDetail = shallowRef<AlertContentItem>(null);
     /** 滚动容器元素 */
     let scrollContainer: HTMLElement = null;
     /** 滚动结束后回调逻辑执行计时器  */
@@ -222,7 +225,12 @@ export default defineComponent({
      * @description 打开告警内容详情 popover
      */
     function handleAlertContentDetailShow(e: MouseEvent, row: AlertTableItem, colKey: string) {
-      clickPopoverTools.showPopover(e, () => alertContentDetailRef.value.$el, `${row.id}-${colKey}`);
+      activeAlertContentDetail.value = row?.items?.[0];
+      clickPopoverTools.showPopover(e, () => alertContentDetailRef.value.$el, `${row.id}-${colKey}`, {
+        onHidden: () => {
+          activeAlertContentDetail.value = null;
+        },
+      });
     }
 
     /**
@@ -263,6 +271,7 @@ export default defineComponent({
       tableScenarioClassName,
       settings,
       isSelectedFollower,
+      activeAlertContentDetail,
       handleSelectionChange,
       handleAlertBatchSet,
     };
@@ -309,7 +318,10 @@ export default defineComponent({
         />
 
         <div style='display: none;'>
-          <AlertContentDetail ref='alertContentDetailRef' />
+          <AlertContentDetail
+            ref='alertContentDetailRef'
+            alertContentDetail={this.activeAlertContentDetail}
+          />
         </div>
       </div>
     );
