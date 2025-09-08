@@ -69,3 +69,44 @@ API_LIST_PIPELINE_RESPONSE = {
         ],
     },
 }
+
+
+API_CODE_REDEFINED_RULE_LIST_RESPONSE = {
+    "result": True,
+    "code": 200,
+    "message": "OK",
+    "data": [
+        {
+            "id": 101,
+            "kind": "caller",
+            "service_name": "trpc_demo",
+            "callee_server": "trpc_demo",
+            "callee_service": "",
+            "callee_method": "/api/order/submit",
+            "code_type_rules": {
+                "success": "0",
+                "exception": "3001,err_1",
+                "timeout": "408",
+            },
+            "enabled": True,
+            "updated_at": "2025-01-01 12:00:00",
+            "updated_by": "admin",
+        },
+        {
+            "id": 102,
+            "kind": "caller",
+            "service_name": "trpc_demo",
+            "callee_server": "trpc_demo",
+            "callee_service": "trpc.test.hello",
+            "callee_method": "hello",
+            "code_type_rules": {
+                "success": "0-1,3-7",
+                "exception": "3001,err_2",
+                "timeout": "4080",
+            },
+            "enabled": True,
+            "updated_at": "2025-01-01 11:00:00",
+            "updated_by": "system",
+        },
+    ],
+}
