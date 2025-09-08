@@ -77,10 +77,6 @@ export default defineComponent({
     const handleInitData = () => {
       const finger = props.fingerOperateData;
       dimension.value = finger.dimensionList;
-      console.log(
-        "finger.selectGroupList????",
-        props.fingerOperateData.groupList
-      );
       catchDimension.value = finger.dimensionList;
       group.value = finger.selectGroupList;
     };

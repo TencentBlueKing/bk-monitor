@@ -26,7 +26,7 @@
 
   const emit = defineEmits(['input', 'change', 'height-change', 'popup-change']);
   const store = useStore();
-  const { $t } = useLocale();
+  const { t } = useLocale();
   const popoverRefs = ref(new Map())
   const morePopoverRefs = ref([]);
   const setPopoverRef = (el, parentIndex, childIndex) => {
@@ -46,7 +46,7 @@
   // 动态设置placeHolder
   const inputPlaceholder = computed(() => {
     if (inputValueLength.value === 0) {
-      return `${$t('快捷键')} /，${$t('请输入')}...`;
+      return `${t('快捷键')} /，${t('请输入')}...`;
     }
 
     return '';
@@ -74,7 +74,7 @@
 
   const operatorDictionary = computed(() => {
     const defVal = {
-      [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
+      [getOperatorKey(FulltextOperatorKey)]: { label: t('包含'), operator: FulltextOperator },
     };
     return {
       ...defVal,
@@ -95,7 +95,7 @@
     if (translateKeys.includes(operatorMapping[item.operator])) {
       const operator = operatorMapping[item.operator] ?? item.operator;
       if (/[\u4e00-\u9fff]/.test(operator)) {
-        return $t(operator);
+        return t(operator);
       }
 
       return operator;
@@ -205,8 +205,8 @@
   };
 
   const getMatchName = field => {
-    if (field === '*') return $t('全文');
-    if (field === '_ip-select_') return $t('IP目标');
+    if (field === '*') return t('全文');
+    if (field === '_ip-select_') return t('IP目标');
 
     return getFieldName(field);
   };
@@ -460,7 +460,7 @@
       @click.stop="handleAddItem"
     >
       <div class="tag-add">+</div>
-      <div class="tag-text">{{ $t('添加条件') }}</div>
+      <div class="tag-text">{{ t('添加条件') }}</div>
     </li>
     <li
       v-for="(item, index) in modelValue"
