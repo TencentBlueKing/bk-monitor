@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("apm_web", "0031_logservicerelation_value_to_value_list.py"),
+        ("apm_web", "0031_logservicerelation_value_to_value_list"),
     ]
 
     operations = [
