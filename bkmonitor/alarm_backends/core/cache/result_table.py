@@ -287,9 +287,11 @@ class ResultTableCacheManager(CacheManager):
             if (
                 data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
                 and data_type_label == DataTypeLabel.TIME_SERIES
-            ):
+            ) or (data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR and data_type_label == DataTypeLabel.EVENT):
                 metadata_tables[bk_biz_id].add(table_id)
-            elif data_source_label == DataSourceLabel.CUSTOM and data_type_label == DataTypeLabel.TIME_SERIES:
+            elif (data_source_label == DataSourceLabel.CUSTOM and data_type_label == DataTypeLabel.TIME_SERIES) or (
+                data_source_label == DataSourceLabel.CUSTOM and data_type_label == DataTypeLabel.EVENT
+            ):
                 metadata_tables[bk_biz_id].add(table_id)
             elif data_source_label == DataSourceLabel.BK_DATA and data_type_label == DataTypeLabel.TIME_SERIES:
                 bkdata_tables[bk_biz_id].add(table_id)
@@ -299,7 +301,7 @@ class ResultTableCacheManager(CacheManager):
         # 创建线程池
         pool = ThreadPool(cls.THREAD_POOL_SIZE)
 
-        # 处理元数据结果表 (bk_monitor/time_series)
+        # 处理元数据结果表 (bk_monitor)
         for bk_biz_id, table_ids in metadata_tables.items():
             table_ids_list = list(table_ids)
             bk_biz_ids = [bk_biz_id]
@@ -309,7 +311,7 @@ class ResultTableCacheManager(CacheManager):
             ]:
                 pool.apply_async(cls.refresh_metadata, args=(bk_biz_ids, table_chunk))
 
-        # 处理数据平台结果表 (bk_data/time_series)
+        # 处理数据平台结果表 (bk_data)
         for bk_biz_id, table_ids in bkdata_tables.items():
             table_ids_list = list(table_ids)
             bk_biz_ids = [bk_biz_id]
@@ -319,7 +321,7 @@ class ResultTableCacheManager(CacheManager):
             ]:
                 pool.apply_async(cls.refresh_bkdata, args=(bk_biz_ids, table_chunk))
 
-        # 处理日志平台结果表 (bk_log_search/log)
+        # 处理日志平台结果表 (bk_log_search)
         for bk_biz_id, table_ids in bklog_tables.items():
             table_ids_list = list(table_ids)
             bk_biz_ids = [bk_biz_id]

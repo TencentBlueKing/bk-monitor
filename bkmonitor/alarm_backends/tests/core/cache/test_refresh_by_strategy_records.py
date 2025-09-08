@@ -117,8 +117,7 @@ def test_refresh_by_strategy_records_chunking():
                 # 验证调用
                 mock_get_relations.assert_called_once()
 
-                # 验证分块处理：应该有2个分块 (10和5)
-                # 业务2有15个表，分块为2组(10和5)，每组调用1个方法
+                # 验证线程池的使用
                 assert mock_thread_pool.apply_async.call_count == 2  # 2个分块 * 1种刷新方法
 
                 # 验证线程池关闭方法被调用

@@ -216,6 +216,5 @@ def test_get_table_biz_relations_malformed_record():
 
         result = StrategyCacheManager.get_table_biz_relations()
 
-        # 应只包含格式正确的记录
         expected_result = {("table1", "2", DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)}
         assert result == expected_result
