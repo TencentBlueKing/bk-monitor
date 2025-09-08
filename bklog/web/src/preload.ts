@@ -98,12 +98,26 @@ export default ({
   };
 
   /**
+   * 获取空间UID
+   * @returns space_uid
+   */
+  const getSpaceUid = () => {
+    if (URL_ARGS.spaceUid) {
+      return URL_ARGS.spaceUid;
+    }
+
+    return store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+  };
+
+  const SPACE_UID = getSpaceUid();
+
+  /**
    * 空间列表请求参数
    */
   const spaceRequestData = {
     query: {
-      space_uid: URL_ARGS.spaceUid,
-      has_permission: URL_ARGS.spaceUid ? undefined : 1,
+      space_uid: SPACE_UID,
+      has_permission: SPACE_UID ? undefined : 1,
       page: 1,
       page_size: 1,
     },
