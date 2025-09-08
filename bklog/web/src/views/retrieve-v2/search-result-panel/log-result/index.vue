@@ -41,9 +41,7 @@
         </div>
         <ResultStorage></ResultStorage>
       </div>
-      <div
-        class="tools-more"
-      >
+      <div class="tools-more">
         <div class="operation-icons">
           <div class="group-text light-search">
             <label class="light-search-label">{{ $t('高亮') }}</label>
@@ -102,7 +100,7 @@
       </div>
     </div>
 
-    <table-log
+    <TableLog
       :content-type="contentType"
       :retrieve-params="retrieveParams"
     />

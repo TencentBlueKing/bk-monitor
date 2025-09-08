@@ -626,7 +626,7 @@ export const copyMessage = (val, alertMsg = undefined) => {
     document.execCommand('copy');
     document.body.removeChild(input);
     window.mainComponent.messageSuccess(
-      alertMsg ? (alertMsg ?? window.mainComponent.$t('复制失败')) : window.mainComponent.$t('复制成功'),
+      alertMsg ? alertMsg ?? window.mainComponent.$t('复制失败') : window.mainComponent.$t('复制成功'),
     );
   } catch (e) {
     console.warn(e);
@@ -1165,27 +1165,34 @@ export const formatNumberWithRegex = number => {
   return parts.join('.');
 };
 /** 上下文，实时日志高亮颜色 */
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const contextHighlightColor = [
   {
-    dark: '#FFB401',
-    light: '#FFF6E1',
+    dark: 'rgb(255, 215, 153)',
+    light: 'rgb(255, 235, 204)',
   },
   {
-    dark: '#1CAB88',
-    light: '#E8FFF5',
+    dark: 'rgb(178, 235, 208)',
+    light: 'rgb(206, 235, 222)',
   },
   {
-    dark: '#3A84FF',
-    light: '#F0F5FF',
+    dark: 'rgb(186, 225, 245)',
+    light: 'rgb(215, 235, 245)',
   },
   {
-    dark: '#FF5656',
-    light: '#FFEEEE',
+    dark: 'rgb(194, 203, 255)',
+    light: 'rgb(224, 229, 255)',
   },
   {
-    dark: '#00CBCB',
-    light: '#E1FCFD',
+    dark: 'rgb(245, 194, 255)',
+    light: 'rgb(249, 219, 255)',
+  },
+  {
+    dark: 'rgb(255, 194, 204)',
+    light: 'rgb(255, 224, 230)',
+  },
+  {
+    dark: 'rgb(206, 240, 168)',
+    light: 'rgb(226, 240, 211)',
   },
 ];
 
