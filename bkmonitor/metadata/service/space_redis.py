@@ -138,7 +138,9 @@ def push_and_publish_es_table_id(
 
     try:
         logger.info("push_and_publish_es_table_id: table_id->[%s] try to compose storage cluster records", table_id)
-        storage_record = models.StorageClusterRecord.compose_table_id_storage_cluster_records(table_id)
+        storage_record = models.StorageClusterRecord.compose_table_id_storage_cluster_records(
+            table_id=table_id, bk_tenant_id=bk_tenant_id
+        )
     except Exception as e:  # pylint: disable=broad-except
         logger.warning("get table_id storage cluster record failed, table_id: %s, error: %s", table_id, e)
         storage_record = []

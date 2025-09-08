@@ -627,7 +627,7 @@ class StorageResultTable:
 
     @classmethod
     @abc.abstractmethod
-    def create_table(cls, table_id, is_sync_db=False, **kwargs):
+    def create_table(cls, table_id, bk_tenant_id: str, is_sync_db=False, **kwargs):
         """实际创建结果表"""
         # 注意在创建结果表的时候，需要注意
         # 1. 创建当前结果表的DB信息记录
@@ -1714,7 +1714,7 @@ class KafkaStorage(models.Model, StorageResultTable):
     def create_table(
         cls,
         table_id,
-        bk_tenant_id=DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
         is_sync_db=False,
         storage_cluster_id=None,
         topic=None,
@@ -1969,7 +1969,7 @@ class ESStorage(models.Model, StorageResultTable):
     def create_table(
         cls,
         table_id,
-        bk_tenant_id=DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
         is_sync_db=True,
         date_format="%Y%m%d%H",
         slice_size=500,
@@ -4561,7 +4561,7 @@ class BkDataStorage(models.Model, StorageResultTable):
         )
 
     @classmethod
-    def create_table(cls, table_id, is_sync_db=False, is_access_now=False, bk_tenant_id=DEFAULT_TENANT_ID, **kwargs):
+    def create_table(cls, table_id, bk_tenant_id: str, is_sync_db=False, is_access_now=False, **kwargs):
         try:
             bkdata_storage = BkDataStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
         except BkDataStorage.DoesNotExist:
@@ -5117,7 +5117,7 @@ class StorageClusterRecord(models.Model):
         unique_together = ("table_id", "cluster_id", "enable_time", "bk_tenant_id")  # 联合索引，保证唯一性
 
     @classmethod
-    def compose_table_id_storage_cluster_records(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
+    def compose_table_id_storage_cluster_records(cls, table_id, bk_tenant_id: str):
         """
         组装指定结果表的历史存储集群记录
         [

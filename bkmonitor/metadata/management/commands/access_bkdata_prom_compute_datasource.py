@@ -43,7 +43,9 @@ class Command(BaseCommand):
 
         self.stdout.write(f"start access kafka, data_id={data_id}")
 
-        table_id_list = DataSourceResultTable.objects.filter(bk_data_id=data_id).values_list("table_id", flat=True)
+        table_id_list = DataSourceResultTable.objects.filter(bk_data_id=data_id, bk_tenant_id=bk_tenant_id).values_list(
+            "table_id", flat=True
+        )
 
         self.stdout.write(f"find datasource result table, data_id={data_id}, table_id_list={table_id_list}")
         # 如果该data_id 没有对应的结果表，则退出
@@ -51,7 +53,9 @@ class Command(BaseCommand):
             self.stderr.write(f"the table list is empty, table_id_list={table_id_list}")
             return
 
-        kafka_storages = KafkaStorage.objects.filter(table_id__in=table_id_list).values("table_id", "topic")
+        kafka_storages = KafkaStorage.objects.filter(table_id__in=table_id_list, bk_tenant_id=bk_tenant_id).values(
+            "table_id", "topic"
+        )
         # 如果存在KafkaStorage。说明已经接入过kafka，直接打印结果，避免重复接入
 
         if kafka_storages and len(kafka_storages) == len(table_id_list):

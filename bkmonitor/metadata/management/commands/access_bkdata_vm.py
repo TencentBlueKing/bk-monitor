@@ -112,7 +112,10 @@ class Command(BaseCommand):
 
         # 开始创建 kafka 记录
         failed_create_kafka_table_id = self._create_kafka_storage(
-            tale_id_kafka_info, kafka_storage_cluster_id, partition
+            tale_id_kafka_info=tale_id_kafka_info,
+            storage_cluster_id=kafka_storage_cluster_id,
+            partition=partition,
+            bk_tenant_id=bk_tenant_id,
         )
         if failed_create_kafka_table_id:
             self.stderr.write(f"table_id: {json.dumps(failed_create_kafka_table_id)} create kafka storage error")
