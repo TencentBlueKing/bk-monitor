@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -17,7 +17,6 @@ import re
 import time
 from abc import ABCMeta
 from collections import defaultdict, namedtuple
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from functools import reduce
 from io import StringIO
@@ -63,6 +62,7 @@ from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.range import load_agg_condition_instance
 from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import (
     datetime2timestamp,
     now,
@@ -982,7 +982,8 @@ class AlertRelatedInfoResource(Resource):
         environment_template = _(" 环境类型({})")
         environment_mapping = {"1": _("测试"), "2": _("体验"), "3": _("正式")}
 
-        def enrich_related_infos(bk_biz_id, instances):
+        def enrich_related_infos(params_tuple: tuple) -> None:
+            bk_biz_id, instances = params_tuple
             ips = instances["ips"]
             service_instance_ids = instances["service_instance_ids"]
             host_ids = instances["host_ids"]
@@ -1064,8 +1065,8 @@ class AlertRelatedInfoResource(Resource):
                 related_infos[alert_id]["topo_info"] = topo_info
 
         # 多线程处理每个业务的主机和服务实例信息
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            executor.map(enrich_related_infos, instances_by_biz.keys(), instances_by_biz.values())
+        with ThreadPool(8) as executor:
+            executor.map(enrich_related_infos, list(instances_by_biz.items()))
 
         return related_infos
 
@@ -2002,8 +2003,8 @@ class AlertTopNResource(Resource):
         if not need_time_partition:
             return resource.alert.alert_top_n_result(**validated_request_data)
 
-        executor = ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(self.get_bucket_count, validated_request_data)
+        executor = ThreadPool(processes=1)
+        future = executor.apply_async(self.get_bucket_count, [validated_request_data])
 
         start_time = validated_request_data.pop("start_time")
         end_time = validated_request_data.pop("end_time")
@@ -2066,8 +2067,8 @@ class AlertTopNResource(Resource):
             result["fields"].append(field)
 
         # 补充bucket_count值，以及限制buckets长度与size一致
-        field_bucket_count_map = future.result()
-        executor.shutdown(wait=True)
+        field_bucket_count_map = future.get()
+        executor.close()
         # 对每个字段的桶按count降序排序，并截取前size个
         for field_data in result["fields"]:
             field = field_data["field"]

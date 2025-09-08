@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -172,4 +172,10 @@ export default {
   变更人: 'Changed by',
   变更时间: 'Changed at',
   最近更新记录: 'Latest Update',
+
+  // 查询模板
+  模板名称: 'Template Name',
+  模板别名: 'Template Alias',
+  模板说明: 'Template Description',
+  消费场景: 'Consumption Scenario',
 };

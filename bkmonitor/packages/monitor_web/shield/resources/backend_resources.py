@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -396,7 +396,11 @@ class BulkAddAlertShieldResource(AddShieldResource):
           "111", "100"
         ]
         # 编辑了维度后， 则将告警对应的剩下的维度的key放进来。 作为字典， key是告警id， value是剩下的维度key列表
-        "dimensions": {"111": ["xxx", "yyy"], "100": ["xxx", "yyy"]
+        "dimensions": {"111": ["xxx", "yyy"], "100": ["xxx", "yyy"],
+        "bk_topo_node": {
+            "111": [{"bk_obj_id": "set","bk_inst_id": 3}, {"bk_obj_id": "module","bk_inst_id": 4}]
+            "100": [{"bk_obj_id": "set","bk_inst_id": 3}, {"bk_obj_id": "module","bk_inst_id": 4}]
+            }
         },
       },
       "shield_notice": false,
@@ -436,16 +440,22 @@ class BulkAddAlertShieldResource(AddShieldResource):
                 if target_dimensions is None or dimension_data["key"] in target_dimensions:
                     dimension_config[dimension_data["key"]] = dimension_data["value"]
                     shield_dimensions.append(dimension)
-            dimension_config.update(
+
+            default_dimension_config = {
                 # 下划线的配置，不参与屏蔽逻辑。
-                {
-                    "_alert_id": alert.id,
-                    "strategy_id": alert.strategy_id,
-                    "_severity": alert.severity,
-                    "_alert_message": getattr(alert.event, "description", ""),
-                    "_dimensions": AlertDimensionFormatter.get_dimensions_str(shield_dimensions),
-                }
-            )
+                "_alert_id": alert.id,
+                "strategy_id": alert.strategy_id,
+                "_severity": alert.severity,
+                "_alert_message": getattr(alert.event, "description", ""),
+                "_dimensions": AlertDimensionFormatter.get_dimensions_str(shield_dimensions),
+            }
+
+            # 如果前端传入了bk_topo_node维度， 则使用前端传入的维度。 主要是为了支持集群/模块维度的屏蔽
+            bk_topo_node: list = data["dimension_config"].get("bk_topo_node", {}).get(str(alert.id), [])
+            if bk_topo_node:
+                default_dimension_config["bk_topo_node"][str(alert.id)] = bk_topo_node
+
+            dimension_config.update(default_dimension_config)
             alert_documents.append(AlertDocument(id=alert.id, is_shielded=True, update_time=now_time))
             dimension_configs.append(dimension_config)
 

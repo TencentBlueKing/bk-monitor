@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
 
-import { throttle } from 'lodash';
+import { throttle } from 'lodash-es';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import CollectMain from './collect-main';
 import DragContainer from './components/drag-container/drag-container';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import './index.scss';
 
@@ -48,7 +49,8 @@ export default defineComponent({
       isShow.value = val;
     }, 100);
 
-    RetrieveHelper.on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, handleShownChange);
+    const { addEvent } = useRetrieveEvent();
+    addEvent(RetrieveEvent.FAVORITE_SHOWN_CHANGE, handleShownChange);
 
     /**
      * 处理宽度变化
@@ -65,16 +67,12 @@ export default defineComponent({
     const handleUpdateIsShow = (val: boolean) => {
       RetrieveHelper.setFavoriteShown(val);
       /** 2025-08-11 当左侧收藏夹收起的时候，清空当前收藏夹选中态  */
-      RetrieveHelper.setFavoriteActive({});
+      // RetrieveHelper.setFavoriteActive({});
     };
 
     onMounted(() => {
       RetrieveHelper.setFavoriteWidth(collectWidth.value);
       emit('width-change', collectWidth.value);
-    });
-
-    onBeforeUnmount(() => {
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_SHOWN_CHANGE, handleShownChange);
     });
 
     const favoriteStyle = computed(() => ({

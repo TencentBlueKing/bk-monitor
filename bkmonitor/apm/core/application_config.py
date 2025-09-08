@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -222,6 +222,7 @@ class ApplicationConfig(BkCollectorConfig):
         log_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_LOGS_BATCH_SIZE)
         metric_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_METRIC_BATCH_SIZE)
         trace_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_TRACES_BATCH_SIZE)
+        profile_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_PROFILES_BATCH_SIZE)
 
         res = {}
         if log_size:
@@ -230,6 +231,8 @@ class ApplicationConfig(BkCollectorConfig):
             res["metrics_batch_size"] = metric_size
         if trace_size:
             res["traces_batch_size"] = trace_size
+        if profile_size:
+            res["profiles_batch_size"] = profile_size
 
         return res
 

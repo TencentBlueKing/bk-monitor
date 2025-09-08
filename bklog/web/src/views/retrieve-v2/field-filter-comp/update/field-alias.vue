@@ -30,8 +30,9 @@ import useLocale from "@/hooks/use-locale";
 import useStore from "@/hooks/use-store";
 import { useRoute } from "vue-router/composables";
 import $http from "@/api";
-import { deepClone } from "@/common/util";
-import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import { RetrieveEvent } from '@/views/retrieve-helper';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+
 const store = useStore();
 const route = useRoute();
 const { t } = useLocale();
@@ -47,8 +48,9 @@ const handleOpenSidebar = async () => {
   emit("handle-popover-hide");
   addObject();
 };
-//监听全局设置的跳转
-RetrieveHelper.on(RetrieveEvent.ALIAS_CONFIG_OPEN, val => {
+
+const { addEvent } =  useRetrieveEvent();
+addEvent(RetrieveEvent.ALIAS_CONFIG_OPEN, () => {
    if (val) {
       handleOpenSidebar();
     }
@@ -125,7 +127,7 @@ const aliasShow = (row) => {
   return !row.alias_name;
 };
 const addObject = () => {
-  const deepFields = deepClone(
+  const deepFields = structuredClone(
     fields.value
       .filter((fields) => fields.field_type !== "object")
       .map((item) => {

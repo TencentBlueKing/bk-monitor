@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -286,4 +286,20 @@ export const optimizedDeepEqual = (obj1: NestedObject, obj2: NestedObject) => {
   const str2 = JSON.stringify(sortKeys(obj2));
 
   return str1 === str2;
+};
+
+/** 时间戳转化成统一的秒 */
+export const convertTimestamp = (timestamp: number | string) => {
+  const num = Number(timestamp);
+  if (isNaN(num)) {
+    return timestamp;
+  }
+  const str = num.toString();
+
+  // 如果是13位时间戳，除以1000取整得到10位
+  if (str.length === 13) {
+    return Math.floor(num / 1000);
+  }
+
+  return num;
 };

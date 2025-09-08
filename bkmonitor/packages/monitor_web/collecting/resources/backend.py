@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2024 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -484,73 +484,77 @@ class CollectConfigDetailResource(Resource):
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
 
-        # 请求IP选择器接口，获取采集目标
-        if (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.INSTANCE
-        ):
-            target_result = resource.commons.get_host_instance_by_ip(
-                {
-                    "bk_biz_id": collect_config_meta.bk_biz_id,
-                    "bk_biz_ids": [collect_config_meta.bk_biz_id],
-                    "ip_list": collect_config_meta.deployment_config.target_nodes,
-                }
-            )
-        elif (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.TOPO
-        ):
-            node_list = []
-            for item in collect_config_meta.deployment_config.target_nodes:
-                item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
-                node_list.append(item)
-            target_result = resource.commons.get_host_instance_by_node(
-                {"bk_biz_id": collect_config_meta.bk_biz_id, "node_list": node_list}
-            )
-        elif collect_config_meta.target_object_type in [
-            TargetObjectType.HOST,
-            TargetObjectType.SERVICE,
-        ] and collect_config_meta.deployment_config.target_node_type in [
-            TargetNodeType.SERVICE_TEMPLATE,
-            TargetNodeType.SET_TEMPLATE,
-        ]:
+        if not collect_config_meta.deployment_config.target_nodes:
+            # 如果没有目标节点，直接返回空列表
             target_result = []
-            templates = {
-                template["bk_inst_id"]: template["bk_inst_name"]
-                for template in resource.commons.get_template(
-                    dict(
-                        bk_biz_id=collect_config_meta.bk_biz_id,
-                        bk_obj_id=collect_config_meta.deployment_config.target_node_type,
-                        bk_inst_type=collect_config_meta.target_object_type,
-                    )
-                ).get("children", [])
-            }
-            for item in collect_config_meta.deployment_config.target_nodes:
-                item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
-                item.update({"bk_inst_name": templates.get(item["bk_inst_id"])})
-                target_result.append(item)
-        elif (
-            collect_config_meta.target_object_type == TargetObjectType.HOST
-            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.DYNAMIC_GROUP
-        ):
-            bk_inst_ids = []
-            for item in collect_config_meta.deployment_config.target_nodes:
-                bk_inst_ids.append(item["bk_inst_id"])
-            target_result = api.cmdb.search_dynamic_group(
-                bk_biz_id=collect_config_meta.bk_biz_id,
-                bk_obj_id="host",
-                dynamic_group_ids=bk_inst_ids,
-                with_count=True,
-            )
-
         else:
-            node_list = []
-            for item in collect_config_meta.deployment_config.target_nodes:
-                item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
-                node_list.append(item)
-            target_result = resource.commons.get_service_instance_by_node(
-                {"bk_biz_id": collect_config_meta.bk_biz_id, "node_list": node_list}
-            )
+            # 请求IP选择器接口，获取采集目标
+            if (
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.INSTANCE
+            ):
+                target_result = resource.commons.get_host_instance_by_ip(
+                    {
+                        "bk_biz_id": collect_config_meta.bk_biz_id,
+                        "bk_biz_ids": [collect_config_meta.bk_biz_id],
+                        "ip_list": collect_config_meta.deployment_config.target_nodes,
+                    }
+                )
+            elif (
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.TOPO
+            ):
+                node_list = []
+                for item in collect_config_meta.deployment_config.target_nodes:
+                    item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
+                    node_list.append(item)
+                target_result = resource.commons.get_host_instance_by_node(
+                    {"bk_biz_id": collect_config_meta.bk_biz_id, "node_list": node_list}
+                )
+            elif collect_config_meta.target_object_type in [
+                TargetObjectType.HOST,
+                TargetObjectType.SERVICE,
+            ] and collect_config_meta.deployment_config.target_node_type in [
+                TargetNodeType.SERVICE_TEMPLATE,
+                TargetNodeType.SET_TEMPLATE,
+            ]:
+                target_result = []
+                templates = {
+                    template["bk_inst_id"]: template["bk_inst_name"]
+                    for template in resource.commons.get_template(
+                        dict(
+                            bk_biz_id=collect_config_meta.bk_biz_id,
+                            bk_obj_id=collect_config_meta.deployment_config.target_node_type,
+                            bk_inst_type=collect_config_meta.target_object_type,
+                        )
+                    ).get("children", [])
+                }
+                for item in collect_config_meta.deployment_config.target_nodes:
+                    item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
+                    item.update({"bk_inst_name": templates.get(item["bk_inst_id"])})
+                    target_result.append(item)
+            elif (
+                collect_config_meta.target_object_type == TargetObjectType.HOST
+                and collect_config_meta.deployment_config.target_node_type == TargetNodeType.DYNAMIC_GROUP
+            ):
+                bk_inst_ids = []
+                for item in collect_config_meta.deployment_config.target_nodes:
+                    bk_inst_ids.append(item["bk_inst_id"])
+                target_result = api.cmdb.search_dynamic_group(
+                    bk_biz_id=collect_config_meta.bk_biz_id,
+                    bk_obj_id="host",
+                    dynamic_group_ids=bk_inst_ids,
+                    with_count=True,
+                )
+
+            else:
+                node_list = []
+                for item in collect_config_meta.deployment_config.target_nodes:
+                    item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
+                    node_list.append(item)
+                target_result = resource.commons.get_service_instance_by_node(
+                    {"bk_biz_id": collect_config_meta.bk_biz_id, "node_list": node_list}
+                )
         config_version = collect_config_meta.deployment_config.plugin_version.config_version
         release_version = collect_config_meta.plugin.get_release_ver_by_config_ver(config_version)
         # 密码转为非明文

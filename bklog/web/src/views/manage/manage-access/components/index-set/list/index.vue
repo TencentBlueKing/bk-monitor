@@ -223,7 +223,7 @@
 </template>
 
 <script>
-  import { projectManages} from '@/common/util';
+  import { projectManages, updateLastSelectedIndexId } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import IndexSetLabelSelect from '@/components/index-set-label-select';
   import { mapGetters } from 'vuex';
@@ -318,7 +318,7 @@
         this.isTableLoading = true;
         const { ids } = this.$route.query; // 根据id来检索
         const indexSetIDList = ids ? decodeURIComponent(ids) : [];
-        const query = JSON.parse(JSON.stringify(this.searchParams));
+        const query = structuredClone(this.searchParams);
         query.page = this.pagination.current;
         query.pagesize = this.pagination.limit;
         query.space_uid = this.spaceUid;
@@ -463,6 +463,7 @@
           });
         } else if (type === 'search') {
           // 检索
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
           this.$router.push({
             name: 'retrieve',
             params: {

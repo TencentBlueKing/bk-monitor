@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -215,6 +215,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
             logger.exception(f"Failed to get uptime check node status: {e}")
 
         node_task_counts = {node.id: node.tasks.count() for node in queryset}
+
         for node in serializer.data:
             task_num = node_task_counts.get(node["id"], 0)
             host_instance = get_by_node(node, node_to_host)
@@ -230,6 +231,8 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                     node, all_node_status, {"gse_status": BEAT_STATUS["DOWN"], "status": BEAT_STATUS["DOWN"]}
                 )
                 beat_version = get_by_node(node, all_beat_version, beat_version)
+
+            # 添加权限信息
             result.append(
                 {
                     "id": node["id"],

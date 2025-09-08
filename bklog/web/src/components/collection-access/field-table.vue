@@ -566,7 +566,6 @@
 
 <script>
   import { mapGetters } from 'vuex';
-  import { deepClone } from '../../common/util';
   export default {
     name: 'FieldTable',
     props: {
@@ -738,7 +737,7 @@
     methods: {
       reset() {
         let arr = [];
-        const copyFields = deepClone(this.fields); // option指向地址bug
+        const copyFields = structuredClone(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
           typeErr: false,
@@ -889,8 +888,7 @@
         return value && value !== ' ' ? isNaN(value) : true;
       },
       getData() {
-        // const data = JSON.parse(JSON.stringify(this.formData.tableList.filter(row => !row.is_delete)))
-        const data = deepClone(this.formData.tableList);
+        const data = structuredClone(this.formData.tableList);
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;
@@ -915,7 +913,7 @@
         return data;
       },
       getAlltData() {
-        const data = deepClone(this.formData.tableList);
+        const data = structuredClone(this.formData.tableList);
 
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -155,6 +155,8 @@ export default {
   URI信息: 'URI Info',
   URI配置: 'URI Configuration',
   例如: 'For example',
+  响应耗时: 'Response Time',
+
   // 调用分析
   维度值分布: 'Dimension value distribution',
   K8S对象: 'K8s object',
@@ -191,4 +193,22 @@ export default {
     'After association, related observation data will be automatically obtained, including events, etc. Note: After the pipeline is selected, the startup parameters must be synchronized to configure.',
   新增流水线: 'Add Pipeline',
   批量编辑通知对象: 'Batch edit notification object',
+  // 指标模版
+  函数变量: 'Function Variable',
+  维度变量: 'Dimension Variable',
+  维度值变量: 'Dimension Value Variable',
+  汇聚变量: 'Aggregation Variable',
+  条件变量: 'Condition Variable',
+  表达式函数变量: 'Expression Function Variable',
+  常规变量: 'General Variable',
+  变量管理: 'Variable Management',
+  如何使用变量: 'How to use variables',
+  使用变量: 'Use variable',
+  定义变量: 'Define variable',
+  后续消费: 'Subsequent consumption',
+  创建变量: 'Create variable',
+  变量配置框: 'Variable configuration box',
+  查询模板: 'Query template',
+  变量值: 'Variable value',
+  模板配置预览: 'Template configuration preview',
 };

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -120,6 +120,7 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import (
     get_backend_username,
@@ -138,6 +139,7 @@ from constants.apm import (
     TailSamplingSupportMethod,
     TelemetryDataType,
 )
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import ApplicationsResultTableLabel, DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import Resource, api, resource
@@ -224,7 +226,12 @@ class CreateApplicationResource(Resource):
         ).exists():
             raise ValueError(_("应用名称: {}已被创建").format(validated_request_data["app_name"]))
 
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
         app = Application.create_application(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
             app_alias=validated_request_data["app_alias"],
@@ -481,6 +488,10 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
             data["trace_data_status"] = DataStatus.NO_DATA
             if ApplicationHandler.have_data(application, start_time, end_time):
                 data["trace_data_status"] = DataStatus.NORMAL
+
+        # 增加一个信息给到页面，是否需要提供尾部采样的选项。
+        # 如果没有 bk base 等相关配置，则不提供尾部采样选项
+        data["is_enabled_tail_sampling"] = bool(settings.APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID)
         return data
 
 
@@ -728,6 +739,9 @@ class SetupResource(Resource):
         def setup(self):
             pass
 
+        def get_transfer_config(self):
+            return {}
+
     class NoDataPeriodProcessor(SetupProcessor):
         update_key = ["no_data_period"]
 
@@ -773,6 +787,10 @@ class SetupResource(Resource):
             self._application.setup_config(
                 self._application.apdex_config, self._params, self._application.APDEX_CONFIG_KEY, override=True
             )
+            self._application.apdex_config = self._params
+
+        def get_transfer_config(self):
+            return self._application.get_apdex_config()
 
     class InstanceNameSetupProcessor(SetupProcessor):
         group_key = "application_instance_name_config"
@@ -782,6 +800,10 @@ class SetupResource(Resource):
             self._application.setup_config(
                 self._application.instance_config, self._params, self._application.INSTANCE_NAME_CONFIG_KEY
             )
+            self._application.instance_name_config = self._params
+
+        def get_transfer_config(self):
+            return self._application.get_instance_name_config()
 
     class DimensionSetupProcessor(SetupProcessor):
         group_key = "application_dimension_config"
@@ -791,6 +813,10 @@ class SetupResource(Resource):
             self._application.setup_config(
                 self._application.dimension_config, self._params, self._application.DIMENSION_CONFIG_KEY
             )
+            self._application.dimension_config = self._params
+
+        def get_transfer_config(self):
+            return self._application.get_dimension_config()
 
     class DbSetupProcessor(SetupProcessor):
         update_key = ["application_db_config"]
@@ -802,6 +828,10 @@ class SetupResource(Resource):
                 self._application.DB_CONFIG_KEY,
                 override=True,
             )
+            self._application.db_config = self._params["application_db_config"]
+
+        def get_transfer_config(self):
+            return self._application.get_db_configs()
 
     class QPSSetupProcessor(SetupProcessor):
         update_key = ["application_qps_config"]
@@ -813,6 +843,10 @@ class SetupResource(Resource):
                 self._application.QPS_CONFIG_KEY,
                 override=True,
             )
+            self._application.qps_config = self._params["application_qps_config"]
+
+        def get_transfer_config(self):
+            return self._application.get_qps_config()
 
     class EventSetupProcessor(SetupProcessor):
         update_key = [Application.EVENT_CONFIG_KEY]
@@ -824,6 +858,7 @@ class SetupResource(Resource):
                 self._application.EVENT_CONFIG_KEY,
                 override=True,
             )
+            self._application.event_config = self._params[Application.EVENT_CONFIG_KEY]
 
     def perform_request(self, validated_data):
         try:
@@ -848,6 +883,7 @@ class SetupResource(Resource):
         ]
 
         need_handle_processors = []
+        need_transfer_configs = {}
         for key, value in validated_data.items():
             for processor in processors:
                 if processor.group_key and key == processor.group_key:
@@ -860,10 +896,13 @@ class SetupResource(Resource):
 
         for processor in need_handle_processors:
             processor.setup()
+            need_transfer_configs.update(processor.get_transfer_config())
 
         # Step2: 因为采样配置较复杂所以不走Processor 交给单独Helper处理
         if validated_data.get("application_sampler_config"):
-            SamplingHelpers(validated_data["application_id"]).setup(validated_data["application_sampler_config"])
+            sampling_helpers = SamplingHelpers(validated_data["application_id"])
+            sampling_helpers.setup(validated_data["application_sampler_config"])
+            need_transfer_configs.update(sampling_helpers.get_transfer_config())
 
         Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
@@ -873,7 +912,7 @@ class SetupResource(Resource):
 
         from apm_web.tasks import update_application_config
 
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(application.bk_biz_id, application.app_name, need_transfer_configs)
 
 
 class ListApplicationResource(PageListResource):
@@ -1157,7 +1196,8 @@ class ServiceDetailResource(Resource):
                 }.items()
             ]
 
-        self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
+        # 暂时用不上，并需注意方法体逻辑已过时
+        # self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
 
         return [
             {
@@ -2863,7 +2903,9 @@ class CustomServiceConfigResource(Resource):
         application = Application.objects.filter(
             bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
         ).first()
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(
+            application.bk_biz_id, application.app_name, application.get_custom_service_config()
+        )
 
     def validate_name(self, validated_data, config_id=None):
         if validated_data["match_type"] == CustomServiceMatchType.AUTO:
@@ -2914,7 +2956,9 @@ class DeleteCustomSeriviceResource(Resource):
         from apm_web.tasks import update_application_config
 
         application = Application.objects.filter(bk_biz_id=instance.bk_biz_id, app_name=instance.app_name).first()
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(
+            application.bk_biz_id, application.app_name, application.get_custom_service_config()
+        )
 
 
 class CustomServiceMatchListResource(Resource):

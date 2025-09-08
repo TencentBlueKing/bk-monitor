@@ -923,7 +923,7 @@ class HostCollectorHandler(CollectorHandler):
         content_data = list()
         for node_obj in node_collect:
             map_key = "{}|{}".format(node_obj["bk_obj_id"], node_obj["bk_inst_id"])
-            host_result = total_host_result.get(map_key, [])
+            host_result = set(total_host_result.get(map_key, []))
             label_name = target_mapping.get(map_key, "") if is_task else ""
 
             content_obj = {
@@ -1116,7 +1116,6 @@ class HostCollectorHandler(CollectorHandler):
         )
 
         instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
-
         return {"contents": self._get_status_content(instance_status, is_task=False)}
 
     @staticmethod

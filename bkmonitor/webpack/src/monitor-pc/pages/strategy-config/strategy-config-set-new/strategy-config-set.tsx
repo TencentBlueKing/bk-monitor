@@ -3,7 +3,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -229,6 +229,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       checkType: 'total',
       timeRanges: DEFAULT_TIME_RANGE,
       calendars: [],
+      active_calendars: [],
     },
     recoveryConfig: {
       // 恢复条件
@@ -679,24 +680,31 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               item.interval_unit = 's';
               item.interval *= 60;
             }
+            let conditions = [];
+            if (item.metric_id) {
+              conditions = [{
+                key: 'metric_id',
+                value: item.metric_id || '',
+              }]
+            } else {
+              conditions = metricFields.map(field => {
+                if (field === 'data_source_label') {
+                  return {
+                    key: field,
+                    value: Array.isArray(item[field]) ? item[field] : [item[field]],
+                  };
+                }
+                return {
+                  key: field,
+                  value: item[field] ?? '',
+                };
+              }).filter(set => set.key !== 'data_label' || set.value);
+            }
             return getMetricListV2({
               bk_biz_id: this.bizId,
               // page: 1,
               // page_size: 1,
-              conditions: metricFields
-                .map(field => {
-                  if (field === 'data_source_label') {
-                    return {
-                      key: field,
-                      value: Array.isArray(item[field]) ? item[field] : [item[field]],
-                    };
-                  }
-                  return {
-                    key: field,
-                    value: item[field] ?? '',
-                  };
-                })
-                .filter(set => set.key !== 'data_label' || set.value),
+              conditions,
               search_value: '',
               tag: '',
             })
@@ -721,6 +729,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       ).filter(item => !!item) as MetricDetail[];
       if (!this.metricData.length) return;
       const expList = metric.expressionList || [];
+      if (!expList.length && metric.expression?.length && metric.expression.trim().length > 1) {
+        expList.push({
+          expression: metric.expression,
+          active: true,
+          functions: [],
+        });
+      }
       if (expList.length) {
         const item = expList.find(item => item.active);
         if (item) {
@@ -891,6 +906,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         checkType: 'total',
         timeRanges: DEFAULT_TIME_RANGE,
         calendars: [],
+        active_calendars: [],
       },
       recoveryConfig: {
         // 恢复条件
@@ -1305,6 +1321,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     triggerConfig.count = triggerConfigData.count || 0;
     triggerConfig.checkWindow = triggerConfigData.check_window || 0;
     triggerConfig.calendars = triggerConfigData.uptime?.calendars || [];
+    triggerConfig.active_calendars = triggerConfigData.uptime?.active_calendars || [];
 
     triggerConfig.timeRanges =
       triggerConfigData.uptime?.time_ranges?.map?.(timeRange => [`${timeRange.start}:00`, `${timeRange.end}:59`]) ||
@@ -2073,6 +2090,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         uptime: {
           // 关联日历
           calendars: triggerConfig.calendars,
+          active_calendars: triggerConfig.active_calendars,
           // 生效时间段
           time_ranges: triggerConfig.timeRanges.map(item => ({
             start: item[0].replace(/:\d{2}$/, ''),

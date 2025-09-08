@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -42,18 +42,18 @@ def _get_span_detail(_bk_biz_id, _app_name, _span_id):
 # 从服务关联中找日志
 def process_service_relation(bk_biz_id, app_name, service_name, indexes_mapping, overwrite_method=None):
     result = []
-    relation = ServiceLogHandler.get_log_relation(bk_biz_id, app_name, service_name)
-    if relation:
+    relations = ServiceLogHandler.get_log_relations(bk_biz_id, app_name, service_name)
+    for relation in relations:
         if relation.related_bk_biz_id != bk_biz_id:
             relation_full_indexes = get_biz_index_sets_with_cache(bk_biz_id=relation.related_bk_biz_id)
             indexes_mapping[relation.related_bk_biz_id] = relation_full_indexes
             index_info = next(
-                (i for i in relation_full_indexes if str(i["index_set_id"]) == relation.value),
+                (i for i in relation_full_indexes if i["index_set_id"] in relation.value_list),
                 None,
             )
         else:
             index_info = next(
-                (i for i in indexes_mapping.get(bk_biz_id, []) if str(i["index_set_id"]) == relation.value),
+                (i for i in indexes_mapping.get(bk_biz_id, []) if i["index_set_id"] in relation.value_list),
                 None,
             )
         if index_info:
@@ -241,7 +241,7 @@ class ServiceLogInfoResource(Resource, HostIndexQueryMixin):
             return True
 
         # 2. 是否手动关联了日志索引集
-        if ServiceLogHandler.get_log_relation(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name):
+        if ServiceLogHandler.get_log_relations(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name):
             return True
 
         # 3. 是否有关联的 pod 日志

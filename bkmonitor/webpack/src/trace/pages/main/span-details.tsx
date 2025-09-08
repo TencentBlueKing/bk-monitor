@@ -3,7 +3,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
@@ -46,6 +46,7 @@ import { useIsEnabledProfilingInject } from '../../plugins/hooks';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
 import { SPAN_KIND_MAPS } from '../../store/constant';
+import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { useAppStore } from '../../store/modules/app';
 import { useSpanDetailQueryStore } from '../../store/modules/span-detail-query';
 import { useTraceStore } from '../../store/modules/trace';
@@ -58,9 +59,10 @@ import {
   EListItemType,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
+import { autoDecodeString, detectEncodingType } from '../common/formatter-utils';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
-import DashboardPanel from './dashboard-panel/dashboard-panel';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
+import DashboardPanel from './dashboard-panel/dashboard-panel';
 
 import type { Span } from '../../components/trace-view/typings';
 import type { IFlameGraphDataItem } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
@@ -202,7 +204,6 @@ export default defineComponent({
 
     const spanId = computed(() => props.spanDetails.span_id);
     provide('spanId', spanId);
-
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
     /* 初始化 */
@@ -286,6 +287,7 @@ export default defineComponent({
         process,
         source,
         stage_duration,
+        resource: spanResource,
       } = props.spanDetails as any | Span;
       // 服务、应用 名在日志 tab 里能用到
       serviceNameProvider.value = serviceName;
@@ -356,8 +358,9 @@ export default defineComponent({
           {
             label: t('类型'),
             content: (
-              <span>
-                {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`} />}
+              <span class='content-detail-type'>
+                {/* {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`} />} */}
+                {!isVirtual && kind < 6 && (SPAN_KIND_MAPS_NEW[kind].prefixIcon as Function)()}
                 <span>{getTypeText()}</span>
               </span>
             ),
@@ -477,24 +480,23 @@ export default defineComponent({
           },
         });
       }
+      const processTags = spanResource || process?.tags || [];
       /** process信息 */
-      if (process?.tags?.length) {
+      if (processTags.length) {
         info.list.push({
           type: EListItemType.tags,
           isExpan: true,
           title: 'Resource',
           [EListItemType.tags]: {
             list:
-              process?.tags.map(
-                (item: { key: any; query_key: string; query_value: any; type: string; value: any }) => ({
-                  label: item.key,
-                  content: item.value || '--',
-                  type: item.type,
-                  isFormat: false,
-                  query_key: item.query_key,
-                  query_value: item.query_value,
-                })
-              ) || [],
+              processTags.map((item: { key: any; query_key: string; query_value: any; type: string; value: any }) => ({
+                label: item.key,
+                content: item.value || '--',
+                type: item.type,
+                isFormat: false,
+                query_key: item.query_key,
+                query_value: item.query_value,
+              })) || [],
           },
         });
       }
@@ -734,7 +736,6 @@ export default defineComponent({
       isExpan: boolean,
       title: string | undefined,
       content: any,
-      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -756,7 +757,6 @@ export default defineComponent({
       isExpan: boolean,
       title: string,
       content: any,
-      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -791,10 +791,25 @@ export default defineComponent({
       return false;
     };
 
-    const formatContent = (content?: string, isFormat?: boolean) => {
-      if (typeof content === 'number' || typeof content === 'undefined') return content;
-      if (!isJson(content)) return typeof content === 'string' ? content : JSON.stringify(content);
-      const data = JSON.parse(content || '');
+    const formatContent = (content?: number | string, isFormat?: boolean) => {
+      if ((typeof content === 'number' && content.toString().length < 10) || typeof content === 'undefined')
+        return content;
+      if (!isJson(content?.toString())) {
+        const str = typeof content === 'string' ? content : JSON.stringify(content);
+        return detectEncodingType(str) ? (
+          <div>
+            {str}
+            <div class='decode-content'>
+              <i class='icon-monitor icon-auto-decode decode-content-icon' />
+              <span class='decode-content-result'>{t('解码结果：')}</span>
+              {autoDecodeString(str)}
+            </div>
+          </div>
+        ) : (
+          str
+        );
+      }
+      const data = JSON.parse(content?.toString() || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
     };
 

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -33,6 +33,7 @@ export enum EFieldType {
   integer = 'integer',
   keyword = 'keyword',
   text = 'text',
+  variable = 'variable',
 }
 export enum EMethod {
   eq = 'eq',
@@ -112,7 +113,8 @@ export interface IFilterItem {
   method: { id: EMethod; name: string };
   value: { id: string; name: string }[];
   options?: {
-    is_wildcard: boolean;
+    is_wildcard?: boolean;
+    isVariable?: boolean;
   };
 }
 /* 接口where参数格式 */

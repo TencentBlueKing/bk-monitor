@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -15,7 +15,7 @@ import pytest
 
 from metadata import models
 from metadata.resources import ListBkBaseRtInfoByBizIdResource
-from metadata.task.bkbase import sync_bkbase_cluster_info, sync_bkbase_rt_meta_info_all
+from metadata.task.bkbase import sync_all_bkbase_cluster_info, sync_bkbase_rt_meta_info_all
 from metadata.task.tasks import sync_bkbase_v4_metadata
 from metadata.tests.common_utils import consul_client
 
@@ -397,7 +397,7 @@ def test_sync_bkbase_clusters(create_or_delete_records):
     ]
     with patch("core.drf_resource.api.bkdata.list_data_bus_raw_data") as mock_api:
         mock_api.side_effect = [mock_es_data, mock_vm_data, mock_doris_data]
-        sync_bkbase_cluster_info()
+        sync_all_bkbase_cluster_info()
 
         es_cluster = models.ClusterInfo.objects.get(domain_name="es.example.com")
         assert es_cluster.username == "es_user"

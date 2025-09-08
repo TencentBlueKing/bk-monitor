@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -12,7 +12,6 @@ import copy
 import logging
 import re
 
-from django.conf import settings
 from django.db import transaction
 from django.utils.translation import gettext as _
 
@@ -400,7 +399,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
             strategy_config.save()
 
 
-def import_view(bk_biz_id, view_config_list, is_overwrite_mode=False):
+def import_view(bk_biz_id, view_config_list, folder_id: int, is_overwrite_mode=False):
     # 已存在的视图名，防止重名
     existed_dashboards = resource.grafana.get_dashboard_list(bk_biz_id=bk_biz_id)
     existed_names = {dashboard["name"] for dashboard in existed_dashboards}
@@ -422,7 +421,7 @@ def import_view(bk_biz_id, view_config_list, is_overwrite_mode=False):
             # 导入仪表盘，清理配置id
             create_config.pop("id", None)
             uid = create_config.pop("uid", "")
-            folder_id = create_config.pop("folderId", None)
+            create_config.pop("folderId", None)
             logger.info(str(create_config))
             # 非覆盖模式，视图重名增加后缀
             if not is_overwrite_mode:
@@ -454,9 +453,8 @@ def import_view(bk_biz_id, view_config_list, is_overwrite_mode=False):
                 "org_id": org_id,
                 "inputs": inputs,
                 "overwrite": True,
+                "folderId": folder_id,
             }
-            if folder_id is not None:
-                params["folderId"] = folder_id
 
             result = api.grafana.import_dashboard(**params)
             if result["result"]:
@@ -523,13 +521,9 @@ def get_strategy_config(bk_biz_id: int, strategy_ids: list[int]) -> list[dict]:
 
                 # 处理数据标签导出配置（自定义上报和插件采集类型）
                 data_label = query_config.get("data_label", None)
-                if (
-                    settings.ENABLE_DATA_LABEL_EXPORT
-                    and data_label
-                    and (
-                        query_config.get("data_source_label", None)
-                        in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
-                    )
+                if data_label and (
+                    query_config.get("data_source_label", None)
+                    in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
                 ):
                     # 替换结果表ID为数据标签
                     query_config["metric_id"] = re.sub(

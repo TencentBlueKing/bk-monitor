@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -94,7 +94,7 @@ from bkmonitor.utils.time_tools import (
     parse_time_compare_abbreviation,
 )
 from constants.apm import (
-    ApmMetrics,
+    TraceMetric,
     MetricTemporality,
     OtlpKey,
     SpanKindCachedEnum,
@@ -1330,7 +1330,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             "conditions": [
                 {
                     "key": "metric_id",
-                    "value": [f"custom.{application.metric_result_table_id}.{m}" for m, _, _ in ApmMetrics.all()],
+                    "value": [f"custom.{application.metric_result_table_id}.{m}" for m in TraceMetric.all()],
                 }
             ],
             "page": 0,

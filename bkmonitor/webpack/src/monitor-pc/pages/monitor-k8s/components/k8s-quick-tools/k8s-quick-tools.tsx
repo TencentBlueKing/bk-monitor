@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,26 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+/** biome-ignore-all lint/correctness/noUnusedVariables: <explanation> */
 
-import { Prop, Component, Ref, ProvideReactive, Inject } from 'vue-property-decorator';
+import { Component, Inject, Prop, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 
+import { EMode } from '../../../../components/retrieval-filter/utils';
 import { DimensionSceneMap, K8sGroupDimension, SceneAliasMap } from '../../k8s-dimension';
-import { K8sTableColumnKeysEnum, type SceneEnum } from '../../typings/k8s-new';
+import { K8sTableColumnKeysEnum, K8SToEventWhereKeyMap, SceneEnum } from '../../typings/k8s-new';
 
 import type { DrillDownEvent, K8sTableColumnResourceKey, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
 
 import './k8s-quick-tools.scss';
 
 interface K8sQuickToolsProps {
+  /** 公共参数 */
+  filterCommonParams: { [key: string]: any; filter_dict: Record<string, string[]>; scenario: SceneEnum };
   /** 激活工具栏时数据所在维度 */
   groupByField: K8sTableColumnResourceKey;
   /** 需要 添加/移除 到筛选项中的源数据值（非最终添加/移除的值，因为图表使用时可能会存在一些拼接逻辑还需做拆分获取最终值） */
   value: string;
-  /** 公共参数 */
-  filterCommonParams: { scenario: SceneEnum; filter_dict: Record<string, string[]>; [key: string]: any };
 }
 
 @Component
@@ -146,20 +148,68 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     const { scene: currentScene, groupBy, filterBy, ...rest } = this.$route.query;
     const targetPageGroupInstance = K8sGroupDimension.createInstance(targetScene);
     targetPageGroupInstance.addGroupFilter(this.groupByField);
-
+    // 事件场景 跳转
+    if (targetScene === SceneEnum.Event) {
+      const eventQuery = {
+        ...rest,
+        scene: targetScene,
+        /** 因存在内部跳转功能，所以使用事件检索URL格式 */
+        targets: JSON.stringify([
+          {
+            data: {
+              query_configs: [
+                {
+                  where:
+                    this.groupByField === K8sTableColumnKeysEnum.WORKLOAD
+                      ? [
+                          {
+                            key: K8SToEventWhereKeyMap.workload_kind,
+                            method: 'eq',
+                            value: [this.filterValue.split(':')[0]],
+                          },
+                          {
+                            key: K8SToEventWhereKeyMap.workload,
+                            method: 'eq',
+                            value: [this.filterValue.split(':')[1]],
+                          },
+                        ]
+                      : [
+                          {
+                            key: K8SToEventWhereKeyMap[this.groupByField],
+                            method: 'eq',
+                            value: [this.filterValue],
+                            condition: 'and',
+                          },
+                        ],
+                  query_string: '',
+                },
+              ],
+            },
+          },
+        ]),
+        filterMode: EMode.ui,
+        prop: '',
+        order: '',
+      };
+      this.gotoK8sPageByQuery(eventQuery);
+      return;
+    }
     const query = {
       ...rest,
       filterBy: JSON.stringify({ [this.groupByField]: [this.filterValue] }),
       groupBy: JSON.stringify(targetPageGroupInstance.groupFilters),
       scene: targetScene,
     };
+    this.gotoK8sPageByQuery(query);
+  }
+
+  gotoK8sPageByQuery(query: Record<string, any>) {
     const targetRoute = this.$router.resolve({
       query,
     });
     this.handlePopoverHide();
     window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
   }
-
   /**
    * @description 场景选择下拉菜单 popover 显示
    *
@@ -213,6 +263,13 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
               {SceneAliasMap[scene]}
             </li>
           ))}
+          <li
+            key='event'
+            class='menu-item'
+            onClick={() => this.handleNewK8sPage(SceneEnum.Event)}
+          >
+            {SceneAliasMap[SceneEnum.Event]}
+          </li>
         </ul>
       </div>
     );
@@ -236,7 +293,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
           value={this.groupByField}
           onHandleDrillDown={this.handleDrillDown}
         />
-        {this.sceneMenuList?.length ? (
+        {this.sceneMenuList?.length || K8SToEventWhereKeyMap[this.groupByField] ? (
           <div
             class={`tool-item scene-tool ${this.popoverInstance ? 'active' : ''}`}
             v-bk-tooltips={{ content: this.$t('查看该对象的其他场景'), interactive: false }}

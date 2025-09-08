@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -116,6 +116,7 @@ def get_core_context(request):
         "ENABLE_APM_PROFILING": "true" if settings.APM_PROFILING_ENABLED else "false",
         "BK_JOB_URL": settings.JOB_URL,
         "BK_CC_URL": settings.BK_CC_URL,
+        "BK_CI_URL": settings.BK_CI_URL,
         "BK_BCS_URL": settings.BK_BCS_HOST,
         # 蓝鲸平台URL
         "BK_URL": settings.BK_URL,

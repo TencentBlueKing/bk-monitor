@@ -1,14 +1,14 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Any, Dict, List, Optional, Set
+
+from typing import Any
 
 from django.db import models
 
@@ -43,7 +43,7 @@ class EventServiceRelation(ServiceBase):
     options = models.JSONField(verbose_name="事件选项", default=dict)
 
     @classmethod
-    def fetch_relations(cls, bk_biz_id: int, app_name: str, service_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_relations(cls, bk_biz_id: int, app_name: str, service_name: str | None = None) -> list[dict[str, Any]]:
         """获取事件关联配置
         [
             {
@@ -75,19 +75,19 @@ class EventServiceRelation(ServiceBase):
             },
         ]
         """
-        filter_kwargs: Dict[str, Any] = {"bk_biz_id": bk_biz_id, "app_name": app_name}
+        filter_kwargs: dict[str, Any] = {"bk_biz_id": bk_biz_id, "app_name": app_name}
         if service_name:
             filter_kwargs["service_name"] = service_name
 
-        table_options_map: Dict[str, Dict[str, Any]] = {}
-        table_relations_map: Dict[str, List[Dict[str, Any]]] = {EventCategory.SYSTEM_EVENT.value: []}
+        table_options_map: dict[str, dict[str, Any]] = {}
+        table_relations_map: dict[str, list[dict[str, Any]]] = {EventCategory.SYSTEM_EVENT.value: []}
         for relation in EventServiceRelation.objects.filter(**filter_kwargs).values("table", "relations", "options"):
             table_options_map[relation["table"]] = relation["options"]
             table_relations_map.setdefault(relation["table"], []).extend(relation["relations"])
 
         # 去重
         for table in table_relations_map:
-            duplicate_relation_tuples: Set[frozenset] = {frozenset(r.items()) for r in table_relations_map[table]}
+            duplicate_relation_tuples: set[frozenset] = {frozenset(r.items()) for r in table_relations_map[table]}
             table_relations_map[table] = [dict(relation_tuple) for relation_tuple in duplicate_relation_tuples]
 
         return [
@@ -99,7 +99,15 @@ class EventServiceRelation(ServiceBase):
 class LogServiceRelation(ServiceBase):
     log_type = models.CharField("日志类型", max_length=50, choices=ServiceRelationLogTypeChoices.choices())
     related_bk_biz_id = models.IntegerField("关联的业务id", null=True)
+    # 已过时，不再使用
     value = models.CharField("日志值", max_length=512)
+    # 需要保证value_list中的值是是 int 类型
+    value_list = models.JSONField("日志值列表", default=list)
+
+    @classmethod
+    def filter_by_index_set_id(cls, index_set_id):
+        """根据index_set_id过滤LogServiceRelation记录"""
+        return cls.objects.filter(log_type=ServiceRelationLogTypeChoices.BK_LOG, value_list__contains=[index_set_id])
 
 
 class AppServiceRelation(ServiceBase):

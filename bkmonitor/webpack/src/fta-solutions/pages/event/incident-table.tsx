@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -109,8 +109,8 @@ interface IncidentItem {
   status: string;
 }
 
-// const alertStoreKey = '__ALERT_EVENT_COLUMN__' ;
-// const actionStoreKey = '__ACTION_EVENT_COLUMN__';
+const incidentKey = '__INCIDENT_EVENT_COLUMN__';
+
 type TableSizeType = 'large' | 'medium' | 'small';
 @Component({
   // components: { Popover, Pagination, Checkbox }
@@ -160,6 +160,12 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
    * @return {*}
    */
   get tableColumn(): IColumnItem[] {
+    let storeColumnList: any = localStorage.getItem(incidentKey) || '';
+    try {
+      storeColumnList = JSON.parse(storeColumnList) || [];
+    } catch {
+      storeColumnList = [];
+    }
     return (
       [
         {
@@ -331,7 +337,12 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           },
         },
       ] as IColumnItem[]
-    ).filter(Boolean);
+    )
+      .filter(Boolean)
+      .map(item => ({
+        ...item,
+        checked: storeColumnList?.length ? storeColumnList.includes(item.id) : item.checked,
+      }));
   }
 
   @Watch('tableData')
@@ -794,6 +805,22 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
       />
     );
   }
+  /**
+   * @description: 设置表字段显示
+   * @param {*} param1
+   * @return {*}
+   */
+  handleSettingChange({ size, fields }) {
+    this.tableSize = size;
+    for (const item of this.tableColumn) {
+      item.checked = fields.some(field => field.id === item.id);
+    }
+    localStorage.setItem(
+      incidentKey,
+      JSON.stringify(this.tableColumn.filter(item => item.checked || item.disabled).map(item => item.id))
+    );
+    this.tableKey = random(10);
+  }
   // 表格column设置
   handleGetColumns() {
     const columList = [];
@@ -841,6 +868,19 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           on-sort-change={this.handleSortChange}
         >
           {this.handleGetColumns()}
+          <bk-table-column
+            key={`${this.tableKey}_${this.searchType}`}
+            type='setting'
+          >
+            <bk-table-setting-content
+              class='event-table-setting'
+              fields={this.tableColumn}
+              label-key='name'
+              selected={this.tableColumn.filter(item => item.checked || item.disabled)}
+              value-key='id'
+              on-setting-change={this.handleSettingChange}
+            />
+          </bk-table-column>
         </bk-table>
       </div>
     );

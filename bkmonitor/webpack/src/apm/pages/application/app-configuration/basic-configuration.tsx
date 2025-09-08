@@ -3,7 +3,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -476,11 +476,16 @@ export default class BasicInfo extends tsc<IProps> {
     this.showInstanceSelector = !show;
     if (show) {
       if (!this.logAsciiList.length && this.isShowLog2TracesFormItem) this.fetchEncodingList();
-      const { app_alias: appAlias, description, plugin_config, application_sampler_config } = this.appInfo;
+      const { app_alias: appAlias, description, plugin_config, application_sampler_config, is_enabled_tail_sampling } = this.appInfo;
       const apdexConfig = this.appInfo.application_apdex_config || {};
-      const samplerConfig = Object.assign({}, application_sampler_config, {
-        sampler_percentage: application_sampler_config.sampler_percentage || 0,
-      });
+      let samplerConfig = {};
+      // 如果is_enabled_tail_sampling关闭，不设置sampler_type=tail的相关配置
+      if (is_enabled_tail_sampling || application_sampler_config.sampler_type !== 'tail') {
+        samplerConfig = Object.assign({}, application_sampler_config, {
+          sampler_percentage: application_sampler_config.sampler_percentage || 0,
+        });
+      }
+      
       Object.assign(this.formData, apdexConfig, samplerConfig, {
         app_alias: appAlias,
         description,
@@ -757,6 +762,10 @@ export default class BasicInfo extends tsc<IProps> {
   async getSamplingOptions() {
     await samplingOptions().then(data => {
       this.samplingTypeList = this.samplingTypeList.filter(item => (data?.sampler_types || []).includes(item.id));
+      // is_enabled_tail_sampling关闭 则不显示尾部采样的下拉选项
+      if (!this.appInfo.is_enabled_tail_sampling) {
+        this.samplingTypeList = this.samplingTypeList.filter(item => item.id !== 'tail');
+      }
       this.samplingRuleOptions = (data?.tail_sampling_options || []).map(item => {
         return {
           id: item.key,

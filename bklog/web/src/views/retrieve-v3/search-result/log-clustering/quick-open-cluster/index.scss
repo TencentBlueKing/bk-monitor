@@ -1,0 +1,31 @@
+.quick-open-cluster-container {
+  min-width: 1120px;
+  height: 100%;
+  padding: 36px 20px;
+  color: #313238;
+  min-height: calc(100vh - 220px);
+  display: flex;
+  justify-content: space-between;
+
+  .left-box {
+    font-size: 12px;
+    text-align: left;
+
+    p {
+      margin-top: 8px;
+      color: #63656e;
+    }
+  }
+
+  .right-box {
+    width: 54%;
+    min-width: 618px;
+    pointer-events: none;
+
+    img {
+      width: 100%;
+      border: solid #f5f7fa 8px;
+      border-radius: 4px;
+    }
+  }
+}

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -223,12 +223,13 @@ class ApmApplication(AbstractRecordModel):
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def create_application(
-        cls, bk_biz_id, app_name, app_alias, description, es_storage_config, options: dict | None = None
+        cls, bk_tenant_id, bk_biz_id, app_name, app_alias, description, es_storage_config, options: dict | None = None
     ):
         cls.check_application(bk_biz_id, app_name)
 
         # step1: 创建应用
         application = cls.objects.create(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
             app_name=app_name,
             app_alias=app_alias,

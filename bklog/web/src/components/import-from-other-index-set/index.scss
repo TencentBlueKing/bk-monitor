@@ -1,0 +1,21 @@
+.add-rule {
+  .bk-form {
+    width: 560px;
+    padding-top: 8px;
+    font-size: 12px;
+
+    .bk-label {
+      text-align: right;
+    }
+  }
+
+  .bk-form-content {
+    display: flex;
+    align-items: center;
+    height: 32px;
+
+    .bk-form-radio {
+      margin-right: 20px;
+    }
+  }
+}

@@ -57,7 +57,7 @@ export default defineComponent({
     },
     onChange: { type: Function },
   },
-  emits: ['change'],
+  emits: ['change','update'],
 
   setup(props, { emit }) {
     const isError = ref(false); // 是否显示错误状态
@@ -76,6 +76,7 @@ export default defineComponent({
       const realVal = val.filter(item => item !== undefined);
       isError.value = !realVal.length;
       emit('change', realVal);
+      emit('update', realVal);
     };
 
     // 失焦时校验

@@ -57,9 +57,10 @@
   import useStore from '../hooks/use-store';
   import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
   import { BK_LOG_STORAGE } from '../store/store.type';
-  import { debounce } from 'lodash';
+  import { debounce, isEmpty } from 'lodash-es';
   import JSONBig from 'json-bigint';
   import useLocale from '@/hooks/use-locale';
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -242,13 +243,21 @@
     return val;
   };
 
+  const formatEmptyObject = (val: unknown) => {
+    if (typeof val === 'object') {
+      return isEmpty(val) ? '--' : val;
+    }
+
+    return val;
+  }
+
   const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
     const strVal = getDateFieldValue(field, getCellRender(val), formatDate);
     return {
       ref: ref(),
       isJson: typeof objValue === 'object' && objValue !== undefined,
-      value: getDateFieldValue(field, objValue, formatDate),
+      value: formatEmptyObject(getDateFieldValue(field, objValue, formatDate)),
       stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
       field,
     };
@@ -271,7 +280,7 @@
 
   const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
   const debounceUpdate = debounce(() => {
-    updateRootFieldOperator(rootList.value, depth.value);
+    updateRootFieldOperator(rootList.value as any, depth.value);
     setEditor(depth.value);
     isResolved.value = true;
     setTimeout(() => {
@@ -318,7 +327,8 @@
     },
   );
 
-  RetrieveHelper.on(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
 
   onMounted(() => {
     setIsOverflowY();
@@ -326,7 +336,6 @@
 
   onBeforeUnmount(() => {
     destroy();
-    RetrieveHelper.off(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
   });
 </script>
 <style lang="scss">

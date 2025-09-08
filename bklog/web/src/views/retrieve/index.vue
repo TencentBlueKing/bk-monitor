@@ -308,7 +308,6 @@
   import { mapGetters, mapState } from 'vuex';
 
   import * as authorityMap from '../../common/authority-map';
-  import { deepClone } from '../../components/monitor-echarts/utils';
   import { handleTransformToTimestamp } from '../../components/time-range/utils';
   import { updateTimezone } from '../../language/dayjs';
   import AddCollectDialog from './collect/add-collect-dialog';
@@ -2066,13 +2065,13 @@
           this.$refs.searchCompRef.clearValue();
           return;
         }
-        const data = deepClone(value);
+        const data = structuredClone(value);
         if (!Object.keys(data.params.ip_chooser || []).length) {
           data.params.ip_chooser = {};
         }
         this.addFavoriteData = {}; // 清空新建收藏的数据
         this.isFavoriteSearch = true;
-        this.activeFavorite = deepClone(data);
+        this.activeFavorite = structuredClone(data);
         this.activeFavoriteID = data.id;
         const { index_set_id: indexSetID, params } = data;
         const selectIsUnionSearch = value.index_set_type === 'union';

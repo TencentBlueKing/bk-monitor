@@ -29,6 +29,8 @@ import { getTargetElement } from '@/hooks/hooks-helper';
 import useLocale from '@/hooks/use-locale';
 
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+
 import './index.scss';
 
 export default defineComponent({
@@ -38,7 +40,8 @@ export default defineComponent({
     const offsetTop = ref(0);
     const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
 
-    RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
+    const { addEvent } = useRetrieveEvent();
+    addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
       if (event.target) {
         offsetTop.value = (event.target as HTMLElement).scrollTop;
       }

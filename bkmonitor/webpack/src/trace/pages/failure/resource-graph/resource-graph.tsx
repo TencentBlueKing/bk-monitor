@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -79,7 +79,7 @@ export default defineComponent({
       default: () => {},
     },
   },
-  emits: ['toDetail', 'hideToolTips', 'collapseResource'],
+  emits: ['hideToolTips', 'collapseResource', 'viewService'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const graphRef = ref<HTMLElement>(null);
@@ -1492,9 +1492,6 @@ export default defineComponent({
     onUnmounted(() => {
       graphRef.value && removeListener(graphRef.value as HTMLElement, onResize);
     });
-    const handleToDetail = node => {
-      emit('toDetail', node);
-    };
     const handleException = () => {
       const { type, msg } = exceptionData.value;
       if (!type && !msg) return '';
@@ -1513,13 +1510,17 @@ export default defineComponent({
         >
           <div style={{ color: type === 'noData' ? '#979BA5' : '#E04949' }}>
             <div class='exception-title'>{type === 'noData' ? msg : t('查询异常')}</div>
-            {type === 'error' && <div class='exception-desc'>{msg}</div>}
+            {type === 'error' && <span class='exception-desc'>{msg}</span>}
           </div>
         </Exception>
       );
     };
     const handleCollapseResource = () => {
-      emit('collapseResource');
+      emit('collapseResource', true);
+    };
+    const handleViewService = data => {
+      hideToolTips();
+      emit('viewService', data);
     };
     return {
       graphRef,
@@ -1527,14 +1528,14 @@ export default defineComponent({
       tooltipsModel,
       tooltipsEdge,
       tooltipsType,
-      hideToolTips,
-      handleToDetail,
       loading,
       graph,
       exceptionData,
+      hideToolTips,
       handleException,
       handleCollapseResource,
       t,
+      handleViewService,
     };
   },
   render() {
@@ -1578,7 +1579,7 @@ export default defineComponent({
             model={this.tooltipsModel}
             showViewResource={false}
             type={this.tooltipsType}
-            onToDetail={this.handleToDetail}
+            onViewService={this.handleViewService}
           />
         </div>
       </div>

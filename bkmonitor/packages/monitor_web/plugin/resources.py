@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -12,15 +12,14 @@ specific language governing permissions and limitations under the License.
 import base64
 import copy
 import hashlib
+import json
 import logging
 import os
 import re
 import shutil
+import subprocess
 import tarfile
 import time
-import pathlib
-import subprocess
-import json
 from collections import namedtuple
 from distutils.version import StrictVersion
 from uuid import uuid4
@@ -48,19 +47,19 @@ from core.errors.api import BKAPIError
 from core.errors.export_import import ExportImportError
 from core.errors.plugin import (
     BizChangedError,
+    JsonParseError,
     MetricNumberError,
     PluginIDExist,
     PluginIDFormatError,
     PluginIDNotExist,
     PluginParseError,
     PluginVersionNotExist,
+    RegexParseError,
     RegisterPackageError,
     RelatedItemsExist,
     SNMPMetricNumberError,
-    UnsupportedPluginTypeError,
-    RegexParseError,
     SubprocessCallError,
-    JsonParseError,
+    UnsupportedPluginTypeError,
 )
 from monitor.models import GlobalConfig
 from monitor_web.commons.data_access import PluginDataAccessor
@@ -92,6 +91,7 @@ from monitor_web.plugin.serializers import (
     SNMPTrapSerializer,
 )
 from monitor_web.plugin.signature import Signature
+from pathlib import Path
 from utils import count_md5
 
 logger = logging.getLogger(__name__)
@@ -141,7 +141,7 @@ class DataDogPluginUploadResource(Resource):
             result = dict(parser_content, **file_info)
             return result
         except Exception as err:
-            logger.error("[plugin] Upload plugin failed, msg is %s" % str(err))
+            logger.error(f"[plugin] Upload plugin failed, msg is {str(err)}")
             raise err
         finally:
             PluginFileManager.clean_dir(base_path)
@@ -426,7 +426,7 @@ class PluginImportResource(Resource):
         super().__init__()
         self.tmp_path = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4()))
         self.plugin_id = None
-        self.filename_list = []
+        self.filename_dict = {}
         self.current_version = None
         self.tmp_version = None
         self.plugin_type = None
@@ -443,16 +443,20 @@ class PluginImportResource(Resource):
         file_data = serializers.FileField(required=True)
 
     def un_tar_gz_file(self, tar_obj):
-        # 解压文件到临时目录
-        with tarfile.open(fileobj=tar_obj, mode="r:gz") as tar:
-            tar.extractall(self.tmp_path, filter='data')
-            self.filename_list = tar.getnames()
+        # 免解压读取文件内容到内存
+        with tarfile.open(fileobj=tar_obj) as package_file:
+            for member in package_file.getmembers():
+                # 取代 tarfile.extractall 的 filter="data"
+                if not member.isreg():
+                    continue
+                with package_file.extractfile(member) as f:
+                    self.filename_dict[Path(member.name)] = f.read()
 
     def get_plugin(self):
         meta_yaml_path = ""
         # 获取plugin_id,meta.yaml必要信息
-        for filename in self.filename_list:
-            path = filename.split("/")
+        for filename in self.filename_dict.keys():
+            path = filename.parts
             if (
                 len(path) >= 4
                 and path[-1] == "meta.yaml"
@@ -460,15 +464,14 @@ class PluginImportResource(Resource):
                 and path[-4] in list(OS_TYPE_TO_DIRNAME.values())
             ):
                 self.plugin_id = path[-3]
-                meta_yaml_path = os.path.join(self.tmp_path, filename)
+                meta_yaml_path = filename
                 break
 
         if not self.plugin_id:
             raise PluginParseError({"msg": _("无法解析plugin_id")})
 
         try:
-            with open(meta_yaml_path) as f:
-                meta_content = f.read()
+            meta_content = self.filename_dict[meta_yaml_path]
         except OSError:
             raise PluginParseError({"msg": _("meta.yaml不存在，无法解析")})
 
@@ -491,8 +494,8 @@ class PluginImportResource(Resource):
             return
         if self.current_version.is_official:
             if self.tmp_version.is_official:
-                self.create_params["conflict_detail"] = """导入插件包版本为：{}；已有插件版本为：{}""".format(
-                    self.tmp_version.version, self.current_version.version
+                self.create_params["conflict_detail"] = (
+                    f"""导入插件包版本为：{self.tmp_version.version}；已有插件版本为：{self.current_version.version}"""
                 )
                 self.check_conflict_title()
                 if not self.create_params["conflict_title"]:
@@ -500,21 +503,17 @@ class PluginImportResource(Resource):
                     self.create_params["duplicate_type"] = None
             else:
                 self.create_params["conflict_detail"] = (
-                    """导入插件包为非官方插件, 版本为: {}；当前插件为官方插件，版本为：{}""".format(
-                        self.tmp_version.version, self.current_version.version
-                    )
+                    f"""导入插件包为非官方插件, 版本为: {self.tmp_version.version}；当前插件为官方插件，版本为：{self.current_version.version}"""
                 )
                 self.check_conflict_title()
         else:
             if self.tmp_version.is_official:
                 self.create_params["conflict_detail"] = (
-                    """导入插件包为官方插件，版本为：{}；当前插件为非官方插件，版本为：{}""".format(
-                        self.tmp_version.version, self.current_version.version
-                    )
+                    f"""导入插件包为官方插件，版本为：{self.tmp_version.version}；当前插件为非官方插件，版本为：{self.current_version.version}"""
                 )
             else:
-                self.create_params["conflict_detail"] = """导入插件包版本为: {}；当前插件版本为: {}""".format(
-                    self.tmp_version.version, self.current_version.version
+                self.create_params["conflict_detail"] = (
+                    f"""导入插件包版本为: {self.tmp_version.version}；当前插件版本为: {self.current_version.version}"""
                 )
                 self.check_conflict_title()
 
@@ -523,13 +522,16 @@ class PluginImportResource(Resource):
         conflict_ids = []
 
         def handle_collector_json(config_value):
-            for config in list(config_value.get("collector_json", {}).values()):
-                if isinstance(config, dict):
-                    # 避免导入包和原插件内容一致，文件名不同
-                    config.pop("file_name", None)
-                    config.pop("file_id", None)
-                    if config.get("script_content_base64") and isinstance(config["script_content_base64"], bytes):
-                        config["script_content_base64"] = str(config["script_content_base64"], encoding="utf-8")
+            # for config in list(config_value.get("collector_json", {}).values()):
+            collector_json = config_value.get("collector_json", {})
+            if collector_json is not None:
+                for config in list(collector_json.values()):
+                    if isinstance(config, dict):
+                        # 避免导入包和原插件内容一致，文件名不同
+                        config.pop("file_name", None)
+                        config.pop("file_id", None)
+                        if config.get("script_content_base64") and isinstance(config["script_content_base64"], bytes):
+                            config["script_content_base64"] = str(config["script_content_base64"], encoding="utf-8")
             return config_value
 
         self.create_params["conflict_title"] = ""
@@ -603,6 +605,7 @@ class PluginImportResource(Resource):
                 plugin=self.plugin_id,
                 plugin_type=self.plugin_type,
                 tmp_path=self.tmp_path,
+                plugin_configs=self.filename_dict,
             )
             self.tmp_version = import_manager.get_tmp_version()
             self.check_duplicate()
@@ -948,7 +951,7 @@ class ProcessCollectorDebugResource(Resource):
                     raise RegexParseError({"msg": f"对应字字段为 {field_name}"})
 
         # 获取当前目录
-        current_dir = pathlib.Path(__file__).parent
+        current_dir = Path(__file__).parent
         cmd_path = current_dir / "process_matcher" / "bin" / "process_matcher"
 
         # 提取参数

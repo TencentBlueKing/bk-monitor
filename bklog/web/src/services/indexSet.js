@@ -70,6 +70,14 @@ const indexes = {
   method: 'get',
 };
 
+/**
+ * 获取索引集的空间
+ */
+const getSpaceByIndexId = {
+  url: '/index_set/:index_set_id/space/',
+  method: 'get',
+}
+
 // 创建索引
 const createIndex = {
   url: '/index_set/:index_set_id/index/',
@@ -140,4 +148,5 @@ export {
   getIndexSpent,
   getIndexHistory,
   getOperationRecord,
+  getSpaceByIndexId,
 };

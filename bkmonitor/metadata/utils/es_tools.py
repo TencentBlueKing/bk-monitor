@@ -1,16 +1,16 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import ipaddress
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import requests
 from django.conf import settings
@@ -31,7 +31,7 @@ def get_value_if_not_none(value, default):
     return value
 
 
-def compose_es_hosts(host: str, port: int) -> List:
+def compose_es_hosts(host: str, port: int) -> list[str]:
     """组装 es 需要的 host
     NOTE：兼容 IPV6与python3.11，将IPV6对应格式组装为 [host]:port
     """
@@ -55,7 +55,7 @@ def compose_es_hosts(host: str, port: int) -> List:
     return [f"{host}:{port}"]
 
 
-def get_client_by_datasource_info(datasource_info: Dict[str, Any]):
+def get_client_by_datasource_info(datasource_info: dict[str, Any]):
     is_ssl_verify: bool = datasource_info.get("is_ssl_verify") or False
     connection_info = {
         "hosts": compose_es_hosts(datasource_info["domain_name"], datasource_info["port"]),
@@ -64,8 +64,8 @@ def get_client_by_datasource_info(datasource_info: Dict[str, Any]):
     }
 
     # 如果需要身份验证
-    username: Optional[str] = datasource_info["auth_info"].get("username")
-    password: Optional[str] = datasource_info["auth_info"].get("password")
+    username: str | None = datasource_info["auth_info"].get("username")
+    password: str | None = datasource_info["auth_info"].get("password")
     if username is not None and password is not None:
         connection_info["http_auth"] = (username, password)
 
@@ -92,13 +92,10 @@ def get_client_by_datasource_info(datasource_info: Dict[str, Any]):
     return es_client
 
 
-def get_client(cluster):
+def get_client(bk_tenant_id: str, cluster_id: int):
     from metadata.models import ClusterInfo
 
-    cluster_info = cluster
-    if isinstance(cluster, int):
-        cluster_info = ClusterInfo.objects.get(cluster_id=cluster)
-
+    cluster_info = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
     datasource_info = {
         "port": cluster_info.port,
         "schema": cluster_info.schema,
@@ -116,8 +113,8 @@ def get_cluster_disk_size(es_client, kind="total", bytes="b"):
 
 
 def es_retry_session(
-    es_client: Union[Elasticsearch, Elasticsearch5, Elasticsearch6], retry_num: int, backoff_factor: float, **kwargs
-) -> Union[Elasticsearch, Elasticsearch5, Elasticsearch6]:
+    es_client: Elasticsearch | Elasticsearch5 | Elasticsearch6, retry_num: int, backoff_factor: float, **kwargs
+) -> Elasticsearch | Elasticsearch5 | Elasticsearch6:
     # 创建一个 Retry 对象，设置重试次数、延迟时间等参数
     # 等待[0.2s, 0.4s, 0.8s]
     retry_strategy = Retry(total=retry_num, backoff_factor=backoff_factor, **kwargs)

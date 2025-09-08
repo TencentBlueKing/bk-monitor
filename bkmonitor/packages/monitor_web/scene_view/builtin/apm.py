@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -623,7 +623,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
     def _replace_variable(cls, view_config, target, value):
         """替换模版中的变量"""
         content = json.dumps(view_config)
-        return json.loads(content.replace(target, str(value)))
+        return json.loads(content.replace(target, json.dumps(str(value))[1:-1]))
 
     @classmethod
     def _add_functions(cls, view_config: dict[str, Any], functions: list[dict[str, Any]]):

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -1160,6 +1160,45 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 continue
             cleaned_data[field.field] = field.get_value_by_es_field(data)
 
+        dimension_translation = data.get("extra_info", {}).get("origin_alarm", {}).get("dimension_translation", {})
+        items = []
+        for item in data.get("extra_info", {}).get("strategy", {}).get("items", []):
+            query_configs = []
+            for config in item.get("query_configs", []):
+                agg_dimension = {
+                    d: dimension_translation.get(
+                        d,
+                        {
+                            "value": d,
+                            "display_name": d,
+                            "display_value": d,
+                        },
+                    )
+                    for d in config.get("agg_dimension", [])
+                }
+                query_configs.append(
+                    {
+                        "alias": config.get("alias", ""),
+                        "metric_id": config.get("metric_id", ""),
+                        "functions": config.get("functions", []),
+                        "agg_method": config.get("agg_method"),
+                        "agg_interval": config.get("agg_interval"),
+                        "agg_dimension": agg_dimension,
+                        "agg_condition": config.get("agg_condition", []),
+                    }
+                )
+
+            items.append(
+                {
+                    "id": item.get("id"),
+                    "name": item.get("name", ""),
+                    "expression": item.get("expression", ""),
+                    "functions": item.get("functions", []),
+                    "origin_sql": item.get("origin_sql", ""),
+                    "query_configs": query_configs,
+                }
+            )
+
         # 额外字段
         cleaned_data.update(
             {
@@ -1177,6 +1216,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "target_key": AlertDimensionFormatter.get_target_key(
                     cleaned_data.get("target_type"), data.get("dimensions")
                 ),
+                "items": items,
             }
         )
 

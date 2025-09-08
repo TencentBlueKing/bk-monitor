@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import logging
+from typing import Any
 import urllib.parse
 
 from celery.schedules import crontab
@@ -64,7 +65,7 @@ def register_alarm_cache_bmw_task():
     }
 
     # 参数准备
-    task_kind_params: dict[str, dict[str, dict]] = {
+    task_kind_params: dict[str, Any] = {
         "daemon:alarm:cmdb_resource_watch": {
             "kind": "daemon:alarm:cmdb_resource_watch",
             "payload": {
@@ -99,7 +100,7 @@ def register_alarm_cache_bmw_task():
     if r.status_code != 200:
         logger.error(f"获取已注册的告警缓存刷新任务失败: {r.text}")
     try:
-        result: list[dict] = r.json()["data"]
+        result: list[dict] = r.json()["data"] or []
     except requests.JSONDecodeError:
         logger.error(f"获取已注册的告警缓存刷新任务失败: {r.text}")
         return

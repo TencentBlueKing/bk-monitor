@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -53,11 +53,6 @@ export const GLOBAL_FEATURE_LIST = [
   // {
   //   id: 'resource-register',
   //   name: '资源注册',
-  //   icon: 'icon-monitor icon-mc-migrate-tool'
-  // }
-  // {
-  //   id: 'data-pipeline',
-  //   name: '链路管理',
   //   icon: 'icon-monitor icon-mc-migrate-tool'
   // }
 ];
@@ -418,6 +413,21 @@ export const getRouteConfig = () => {
           ],
         },
         {
+          name: '指标管理',
+          shortName: '指标',
+          id: 'metric-manage',
+          children: [
+            {
+              name: '查询模板',
+              icon: 'icon-monitor icon-query-template menu-icon',
+              id: 'query-template',
+              path: '/query-template',
+              href: '#/query-template',
+              canStore: true,
+            },
+          ],
+        },
+        {
           name: '共享',
           shortName: '共享',
           id: 'share',
@@ -554,8 +564,9 @@ export function getLocalStoreRoute() {
   if (!str?.length) return undefined;
   try {
     return JSON.parse(str);
-  } catch {}
-  return undefined;
+  } catch {
+    return undefined;
+  }
 }
 /**
  * @param id 路由id
