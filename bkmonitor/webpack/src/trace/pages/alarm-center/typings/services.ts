@@ -27,6 +27,7 @@
 import type { ACTION_STORAGE_KEY } from '../services/action-services';
 import type { ALERT_STORAGE_KEY } from '../services/alert-services';
 import type { INCIDENT_STORAGE_KEY } from '../services/incident-services';
+import type { AggFunction, QueryConfig } from 'monitor-pc/pages/query-template/typings';
 
 /**
  * 处理记录 table数据
@@ -140,9 +141,18 @@ export type ActionTableItem = {
 };
 export type AlarmStorageKey = typeof ACTION_STORAGE_KEY | typeof ALERT_STORAGE_KEY | typeof INCIDENT_STORAGE_KEY;
 
+/** 告警 -- 告警内容详情 */
+export interface AlertContentItem {
+  expression: string;
+  function: AggFunction[];
+  id: number;
+  name: string;
+  origin_sql: string;
+  query_configs: QueryConfig[];
+}
+
 /** 告警 -- 关联事件数接口返回数据类型 */
 export type AlertEventCountResult = Record<string, number>;
-
 export interface AlertExtendInfoItem {
   data_label: string;
   hostname?: string;
@@ -150,6 +160,7 @@ export interface AlertExtendInfoItem {
   topo_info?: string;
   type?: string;
 }
+
 /** 告警 -- 关联告警信息接口返回数据类型 */
 export type AlertExtendInfoResult = Record<string, AlertExtendInfoItem>;
 /**
@@ -198,6 +209,7 @@ export type AlertTableItem = {
   is_blocked: boolean;
   is_handled: boolean;
   is_shielded: boolean;
+  items: AlertContentItem[];
   labels: string[];
   latest_time: number;
   metric: string[];

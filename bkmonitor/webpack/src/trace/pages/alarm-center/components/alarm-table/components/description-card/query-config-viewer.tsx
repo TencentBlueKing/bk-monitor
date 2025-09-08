@@ -24,39 +24,53 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 
-import type { AggFunction } from 'monitor-pc/pages/query-template/typings';
+import { useI18n } from 'vue-i18n';
 
-import './function-detail.scss';
+import QueryConfigDetail from '../query-config/query-config-detail';
+
+import type { QueryConfig } from 'monitor-pc/pages/query-template/typings';
+
+import './query-config-viewer.scss';
 
 export default defineComponent({
-  name: 'FunctionDetail',
+  name: 'QueryConfigViewer',
   props: {
-    /* 已选函数数组 */
-    value: {
-      type: Array as PropType<AggFunction[]>,
+    queryConfigs: {
+      type: Array as PropType<QueryConfig[]>,
       default: () => [],
     },
+    expression: {
+      type: String,
+    },
   },
-
+  setup(props) {
+    const { t } = useI18n();
+    const showExpression = computed(() => props.queryConfigs?.length > 1);
+    return { t, showExpression };
+  },
   render() {
     return (
-      <div class='alert-function-detail-component'>
-        <span class='function-label'>{this.$slots?.label?.() || this.$t('函数')}</span>
-        <span class='function-colon'>:</span>
-        <div class='function-name-wrap'>
-          {this.value?.length
-            ? this.value?.map?.((item, index) => {
-                const paramsStr = item.params?.map?.(param => param.value)?.toString?.();
-                return (
-                  <span
-                    key={`${item.id}-${index}`}
-                    class='function-name'
-                  >{`${item.id}${paramsStr ? `(${paramsStr})` : ''}; `}</span>
-                );
-              })
-            : '--'}
+      <div class='query-config-viewer'>
+        {this.showExpression ? (
+          <div class='expression-view'>
+            <div class='item-label'>
+              <span>{`${this.t('表达式')} :`}</span>
+            </div>
+            <div class='item-value-view'>
+              <span class='value'>{this.expression || '--'}</span>
+            </div>
+          </div>
+        ) : null}
+        <div class='config-view'>
+          {this.queryConfigs.map((queryConfig, i) => (
+            <QueryConfigDetail
+              key={i}
+              queryConfig={queryConfig}
+              showAlias={this.showExpression}
+            />
+          ))}
         </div>
       </div>
     );

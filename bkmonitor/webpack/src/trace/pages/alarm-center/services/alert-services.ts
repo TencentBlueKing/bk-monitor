@@ -28,6 +28,8 @@ import { isEn } from '@/i18n/i18n';
 
 import { alertTopN, searchAlert } from 'monitor-api/modules/alert';
 import { listSearchFavorite } from 'monitor-api/modules/model';
+import { getMethodIdForLowerCase } from 'monitor-pc/pages/query-template/components/utils/utils';
+import { MetricDetailV2, QueryConfig } from 'monitor-pc/pages/query-template/typings';
 
 import {
   type AlarmType,
@@ -811,6 +813,38 @@ export class AlertService extends AlarmService {
       show_aggs: false, // 是否展示聚合
     })
       .then(({ alerts, total }) => {
+        // 将后端queryConfig相关数转换组装为前端定义统一的 QueryConfig 格式
+        for (const alert of alerts || []) {
+          const sourceQueryConfigs = alert.items[0]?.query_configs || [];
+          const queryConfigs: QueryConfig[] = [];
+          for (const source of sourceQueryConfigs) {
+            const metricDetail = alert?.metric_display?.find?.(metric => metric.id === source.metric_id);
+            queryConfigs.push(
+              new QueryConfig(
+                new MetricDetailV2({
+                  metric_id: source.metric_id,
+                  metric_field_name: metricDetail?.name || '',
+                  dimensions: Object.entries(source.agg_dimension).map(([key, value]) => ({
+                    id: key,
+                    // @ts-ignore
+                    name: value?.display_value || '',
+                  })),
+                }),
+                {
+                  agg_condition: source.agg_condition,
+                  agg_dimension: Object.keys(source.agg_dimension),
+                  functions: source.functions,
+                  metric_id: source.metric_id,
+                  agg_interval: source.agg_interval,
+                  alias: source.alias,
+                  agg_method: getMethodIdForLowerCase(source.agg_method) || 'AVG',
+                }
+              )
+            );
+          }
+          alert.items[0].query_configs = queryConfigs;
+        }
+        console.log('================ alerts ================', alerts);
         return {
           total,
           data: alerts || [],

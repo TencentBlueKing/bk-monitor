@@ -52,15 +52,16 @@ export default defineComponent({
         <span class='condition-label'>{this.$slots?.label || this.$t('过滤条件')}</span>
         <span class='condition-colon'>:</span>
         <div class='tags-wrap'>
-          {this.value?.map?.((item, index) => (
-            <ConditionDetailKvTag
-              key={`${item.key}-${index}`}
-              allDimensionMap={this.allDimensionMap}
-              value={item}
-            />
-          ))}
+          {this.value?.length
+            ? this.value?.map?.((item, index) => (
+                <ConditionDetailKvTag
+                  key={`${item.key}-${index}`}
+                  allDimensionMap={this.allDimensionMap}
+                  value={item}
+                />
+              ))
+            : '--'}
         </div>
-        ;
       </div>
     );
   },

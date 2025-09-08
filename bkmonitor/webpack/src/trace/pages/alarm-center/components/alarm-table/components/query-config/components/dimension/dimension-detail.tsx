@@ -50,20 +50,22 @@ export default defineComponent({
         <span class='dimension-label'>{this.$slots?.label || this.$t('聚合维度')}</span>
         <span class='dimension-colon'>:</span>
         <div class='tags-wrap'>
-          {this.value?.map?.(v => (
-            <div
-              key={v}
-              class='tags-item'
-              v-tippy={{
-                content: v,
-                placement: 'top',
-                disabled: !v,
-                delay: [300, 0],
-              }}
-            >
-              <span class='tags-item-name'>{this.allDimensionMap?.[v]?.name || v}</span>
-            </div>
-          )) || '--'}
+          {this.value?.length
+            ? this.value?.map?.(v => (
+                <div
+                  key={v}
+                  class='tags-item'
+                  v-tippy={{
+                    content: v,
+                    placement: 'top',
+                    disabled: !v,
+                    delay: [300, 0],
+                  }}
+                >
+                  <span class='tags-item-name'>{this.allDimensionMap?.[v]?.name || v}</span>
+                </div>
+              ))
+            : '--'}
         </div>
       </div>
     );
