@@ -1932,7 +1932,6 @@ export default {
   '需先填写「服务名」，生成上报示例': 'Please fill in the service name first, and generate the reporting example',
   节点概览: 'Node overview',
   边概览: 'Edge overview',
-  从属关系: 'Belonging Relationship',
   '跳转至 {0} 查看': 'Go to {0} for details',
   容器场景页: 'Container scene page',
   复制节点名: 'Copy node name',
@@ -1959,4 +1958,14 @@ export default {
   非空数据: 'Non-empty data',
   非空数据占比: 'Proportion of non-empty data',
   添加方式: 'Add method',
+
+  // 查询模板
+  '模板名称:': 'Template name:',
+  模板详情: 'Template details',
+  模板配置: 'Template configuration',
+  生效范围: 'Effective range',
+  变量别名: 'Variable alias',
+  变量类型: 'Variable type',
+  变量描述: 'Variable description',
+  可选维度: 'Optional dimensions',
 };

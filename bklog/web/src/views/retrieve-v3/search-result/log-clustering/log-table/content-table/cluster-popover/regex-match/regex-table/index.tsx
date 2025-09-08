@@ -23,12 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import _ from 'lodash';
-import { defineComponent, ref } from 'vue';
-import useLocale from '@/hooks/use-locale';
-import { random } from '@/common/util';
-import ValidateInput from './validate-input';
-import './index.scss';
+import { defineComponent, ref } from "vue";
+import useLocale from "@/hooks/use-locale";
+import { random } from "@/common/util";
+import ValidateInput from "./validate-input";
+import "./index.scss";
 
 export interface RowData {
   rowKey: string;
@@ -39,7 +38,7 @@ export interface RowData {
 }
 
 export default defineComponent({
-  name: 'RegexTable',
+  name: "RegexTable",
   components: {
     ValidateInput,
   },
@@ -57,18 +56,18 @@ export default defineComponent({
     const regexRules = [
       {
         validator: (value: string) => !!value,
-        message: t('不能为空'),
+        message: t("不能为空"),
       },
     ];
 
     const occupyRules = [
       {
         validator: (value: string) => !!value,
-        message: t('不能为空'),
+        message: t("不能为空"),
       },
       {
         validator: (value: string) => /^[A-Z_-]+$/.test(value),
-        message: t('{n}不规范, 包含特殊符号.', { n: t('占位符') }),
+        message: t("{n}不规范, 包含特殊符号.", { n: t("占位符") }),
       },
     ];
 
@@ -88,7 +87,7 @@ export default defineComponent({
         return;
       }
 
-      const list = _.cloneDeep(tableData.value);
+      const list = structuredClone(tableData.value);
       const currentItem = list[currentIndex];
       list.splice(currentIndex, 1);
       list.splice(hoverRowIndex, 0, currentItem);
@@ -96,7 +95,7 @@ export default defineComponent({
       currentIndex = -1;
       hoverRowIndex = -1;
       tableRenderKey.value += 1;
-      emit('change', tableData.value);
+      emit("change", tableData.value);
       setTimeout(() => {
         updateTableRenderKey();
       });
@@ -108,17 +107,18 @@ export default defineComponent({
         return;
       }
 
-      emit('delete', currentRow);
+      emit("delete", currentRow);
       tableData.value.splice(index, 1);
-      emit('change', tableData.value);
+      emit("change", tableData.value);
       setTimeout(() => {
         updateTableRenderKey();
       });
     };
 
-    const setItemRef = (type: string, index: number) => (el: HTMLElement | null) => {
-      inputColumnsMapRef.value[type][index] = el;
-    };
+    const setItemRef =
+      (type: string, index: number) => (el: HTMLElement | null) => {
+        inputColumnsMapRef.value[type][index] = el;
+      };
 
     const updateTableRenderKey = () => {
       inputColumnsMapRef.value = {
@@ -131,93 +131,87 @@ export default defineComponent({
     };
 
     const handleOpenClusterConfig = () => {
-      emit('open-cluster-config');
+      emit("open-cluster-config");
     };
 
     expose({
       setDataList: (list: RowData[]) => {
-        tableData.value = list.map(item => ({ ...item, rowKey: random() }));
+        tableData.value = list.map((item) => ({ ...item, rowKey: random() }));
         updateTableRenderKey();
       },
-      addItem: (item: RowData) => {
+      addItem: (item: Omit<RowData, "rowKey">) => {
         tableData.value.unshift({
           rowKey: random(),
           ...item,
         });
-        emit('change', tableData.value);
+        emit("change", tableData.value);
         updateTableRenderKey();
       },
       getData: async () => {
-        await Promise.all(inputColumnsMapRef.value.regex.map(el => el.getValue()));
-        await Promise.all(inputColumnsMapRef.value.occupy.map(el => el.getValue()));
+        await Promise.all(
+          inputColumnsMapRef.value.regex.map((el: any) => el.getValue()),
+        );
+        await Promise.all(
+          inputColumnsMapRef.value.occupy.map((el: any) => el.getValue()),
+        );
         return tableData.value;
       },
     });
 
     return () => (
-      <table
-        class='regex-table-main'
-        ref={tableRef}
-        key={tableRenderKey.value}
-      >
+      <table class="regex-table-main" ref={tableRef} key={tableRenderKey.value}>
         <thead>
           <tr>
-            <th style='width:42px'></th>
-            <th style='width:68px'>{t('生效顺序')}</th>
-            <th style='width:42px'>{t('高亮')}</th>
-            <th style='width:500px'>{t('正则表达式')}</th>
-            <th style='width:223px'>{t('占位符')}</th>
-            <th style='width:42px'>{t('操作')}</th>
+            <th style="width:42px"></th>
+            <th style="width:68px">{t("生效顺序")}</th>
+            <th style="width:42px">{t("高亮")}</th>
+            <th style="width:500px">{t("正则表达式")}</th>
+            <th style="width:223px">{t("占位符")}</th>
+            <th style="width:42px">{t("操作")}</th>
           </tr>
         </thead>
         <tbody>
           {tableData.value.map((row, index) => (
             <tr
               key={`${row.rowKey}_${index}`}
-              draggable='true'
+              draggable="true"
               on-dragstart={() => handleDragStart(index)}
               on-dragover={() => handleDragOver(index)}
               on-dragend={handleDragEnd}
             >
               <td>
-                <div class='drag-column'>
-                  <log-icon type='drag-dots' />
+                <div class="drag-column">
+                  <log-icon type="drag-dots" />
                 </div>
               </td>
               <td>
-                <div class='index-column'>{index + 1}</div>
+                <div class="index-column">{index + 1}</div>
               </td>
               <td>
-                <div class='highlight-column'>
-                  <div
-                    class='rect'
-                    style={{ background: row.highlight }}
-                  ></div>
+                <div class="highlight-column">
+                  <div class="rect" style={{ background: row.highlight }}></div>
                 </div>
               </td>
               <td>
-                <div class='input-column'>
-                  <bk-popover
-                    placement='top'
-                    disabled={!row.disabled}
-                  >
+                <div class="input-column">
+                  <bk-popover placement="top" disabled={!row.disabled}>
                     <ValidateInput
-                      ref={setItemRef('regex', index)}
+                      ref={setItemRef("regex", index)}
                       value={row.pattern}
                       rules={regexRules}
                       disabled={row.disabled}
-                      on-input={value => (row.pattern = value.trim())}
+                      on-input={(value) => (row.pattern = value.trim())}
                     />
-                    <span slot='content'>
-                      <i18n path='聚类正则已生效，请前往 {0} 修改'>
+                    <span slot="content">
+                      <i18n path="聚类正则已生效，请前往 {0} 修改">
                         <bk-button
                           text
-                          theme='primary'
-                          size='small'
-                          style='padding:0;color:#699DF4'
+                          theme="primary"
+                          size="small"
+                          style="padding:0;color:#699DF4"
                           on-click={handleOpenClusterConfig}
                         >
-                          {t('聚类设置')}
+                          {t("聚类设置")}
                         </bk-button>
                       </i18n>
                     </span>
@@ -225,28 +219,25 @@ export default defineComponent({
                 </div>
               </td>
               <td>
-                <div class='input-column'>
-                  <bk-popover
-                    placement='top'
-                    disabled={!row.disabled}
-                  >
+                <div class="input-column">
+                  <bk-popover placement="top" disabled={!row.disabled}>
                     <ValidateInput
-                      ref={setItemRef('occupy', index)}
+                      ref={setItemRef("occupy", index)}
                       value={row.occupy}
                       rules={occupyRules}
                       disabled={row.disabled}
-                      on-input={value => (row.occupy = value.trim())}
+                      on-input={(value) => (row.occupy = value.trim())}
                     />
-                    <span slot='content'>
-                      <i18n path='聚类正则已生效，请前往 {0} 修改'>
+                    <span slot="content">
+                      <i18n path="聚类正则已生效，请前往 {0} 修改">
                         <bk-button
                           text
-                          theme='primary'
-                          size='small'
-                          style='padding:0;color:#699DF4'
+                          theme="primary"
+                          size="small"
+                          style="padding:0;color:#699DF4"
                           on-click={handleOpenClusterConfig}
                         >
-                          {t('聚类设置')}
+                          {t("聚类设置")}
                         </bk-button>
                       </i18n>
                     </span>
@@ -254,11 +245,14 @@ export default defineComponent({
                 </div>
               </td>
               <td>
-                <div class='action-column'>
+                <div class="action-column">
                   <span on-click={() => handleDeleteItem(index)}>
                     <log-icon
-                      type='circle-minus-filled'
-                      class={{ 'delete-icon': true, 'is-disabled': row.disabled }}
+                      type="circle-minus-filled"
+                      class={{
+                        "delete-icon": true,
+                        "is-disabled": row.disabled,
+                      }}
                     />
                   </span>
                 </div>

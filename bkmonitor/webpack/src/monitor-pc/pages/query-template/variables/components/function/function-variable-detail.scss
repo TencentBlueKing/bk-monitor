@@ -1,0 +1,18 @@
+.function-detail {
+  .default-value-item {
+    .form-item-value {
+      display: flex;
+      flex-wrap: wrap;
+
+      .function-tag {
+        display: flex;
+        align-items: center;
+        height: 22px;
+        padding: 4px;
+        margin: 0 4px 2px 0;
+        background: #f0f1f5;
+        border-radius: 2px;
+      }
+    }
+  }
+}

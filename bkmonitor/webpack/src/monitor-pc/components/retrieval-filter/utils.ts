@@ -33,6 +33,7 @@ export enum EFieldType {
   integer = 'integer',
   keyword = 'keyword',
   text = 'text',
+  variable = 'variable',
 }
 export enum EMethod {
   eq = 'eq',
@@ -112,7 +113,8 @@ export interface IFilterItem {
   method: { id: EMethod; name: string };
   value: { id: string; name: string }[];
   options?: {
-    is_wildcard: boolean;
+    is_wildcard?: boolean;
+    isVariable?: boolean;
   };
 }
 /* 接口where参数格式 */
