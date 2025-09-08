@@ -67,9 +67,6 @@ class LogAnalysisCommandHandler(CommandHandler):
             return self.jinja_env.render(template, {"log": log, "context": ""})
 
         log_data = json.loads(log)
-        # 过滤无关字段
-        for key in self.FIELDS_EXCLUDED:
-            log_data.pop(key, None)
 
         params = log_data.copy()
         params.update(
