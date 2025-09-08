@@ -136,8 +136,7 @@ class SpaceTableIDRedis:
 
     def push_data_label_table_ids(
         self,
-        # todo 会被command调用， 暂不能完全改造
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
         data_label_list: list | None = None,
         table_id_list: list | None = None,
         is_publish: bool | None = False,
@@ -510,8 +509,7 @@ class SpaceTableIDRedis:
 
     def push_table_id_detail(
         self,
-        # todo 存在command调用， 其余默认值已经修改
-        bk_tenant_id: str = DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
         is_publish: bool | None = False,
         include_es_table_ids: bool | None = False,
@@ -651,8 +649,7 @@ class SpaceTableIDRedis:
 
         return _table_id_detail
 
-    # todo 会被push_table_id_detail 调用， 暂不能完全改造
-    def _get_field_alias_map(self, table_id_list: list[str], bk_tenant_id: str | None = DEFAULT_TENANT_ID):
+    def _get_field_alias_map(self, table_id_list: list[str], bk_tenant_id: str):
         """
         构建字段别名映射map
         @param table_id_list: 结果表列表
@@ -697,10 +694,7 @@ class SpaceTableIDRedis:
             # 发生错误时返回空字典，确保不影响主流程
             return {}
 
-    # todo 会被push_table_id调用， 暂不能完全修改
-    def _compose_es_table_id_detail(
-        self, bk_tenant_id: str = DEFAULT_TENANT_ID, table_id_list: list[str] | None = None
-    ) -> dict[str, dict]:
+    def _compose_es_table_id_detail(self, bk_tenant_id: str, table_id_list: list[str] | None = None) -> dict[str, dict]:
         """组装 es 结果表的详细信息"""
         logger.info("start to compose es table_id detail data")
         # 这里要过来的结果表不会太多
@@ -1423,10 +1417,9 @@ class SpaceTableIDRedis:
         # 3. 此时，必然是自定义时序，且是公共的平台数据源，同时非该当前空间下，ß需要添加过滤条件
         return True
 
-    # todo 会被push_data_label_tables_ids 调用， 暂不能完全改造
     def _refine_available_data_label(
         self,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
         table_id_list: list | None = None,
         data_label_list: list | None = None,
     ) -> list:

@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from core.drf_resource import api
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
@@ -15,7 +16,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         space_id = options["space_id"]
-        bk_tenant_id = options["bk_tenant_id"]
         table_ids_str = options["table_ids"]
 
         # 验证space_id
@@ -28,6 +28,8 @@ class Command(BaseCommand):
         source_label = "custom"
         type_label = "time_series"
         space_type = "bkcc"
+
+        bk_tenant_id = space_uid_to_bk_tenant_id(space_uid=f"{space_type}__{space_id}")
 
         # 解析结果表ID列表
         bk_data_result_table_ids = [table_id.strip() for table_id in table_ids_str.split(",") if table_id.strip()]

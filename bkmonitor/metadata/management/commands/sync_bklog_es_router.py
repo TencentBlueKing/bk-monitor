@@ -30,9 +30,14 @@ class Command(BaseCommand):
     DEFAULT_QUEUE_MAX_SIZE = 100000
 
     def add_arguments(self, parser):
+        parser.add_argument("--bk_tenant_id", required=True, help="租户ID")
         parser.add_argument("--force", action="store_true", help="强制刷新")
 
     def handle(self, *args, **options):
+        # 获取租户ID参数
+        self.bk_tenant_id = options.get("bk_tenant_id", "system")
+        self.stdout.write(f"Using tenant ID: {self.bk_tenant_id}")
+
         if not self._can_refresh(options):
             self.stdout.write("data exists, skip refresh")
             return
@@ -64,7 +69,13 @@ class Command(BaseCommand):
         if options.get("force"):
             return True
         # 如果存在索引集的数据，则认为不需要拉取历史数据
-        return not models.ESStorage.objects.exclude(index_set=None).exclude(index_set="").exists()
+        # 添加租户id过滤
+        return not (
+            models.ESStorage.objects.filter(bk_tenant_id=self.bk_tenant_id)
+            .exclude(index_set=None)
+            .exclude(index_set="")
+            .exists()
+        )
 
     def _list_es_router(self) -> Queue:
         # 拉取总数量
@@ -132,7 +143,7 @@ class Command(BaseCommand):
             updated_rt_objs.append(obj)
             exist_tid_list.append(obj.table_id)
 
-        exist_objs = models.ESStorage.objects.filter(table_id__in=tid_list)
+        exist_objs = models.ESStorage.objects.filter(table_id__in=tid_list, bk_tenant_id=self.bk_tenant_id)
         # 批量更新数据集
         updated_objs = []
         for obj in exist_objs:
@@ -194,6 +205,7 @@ class Command(BaseCommand):
                     creator="system",
                     bk_biz_id=space_and_biz.get(info["space_uid"], 0),
                     data_label=info["data_label"],
+                    bk_tenant_id=self.bk_tenant_id,
                 )
             )
             es_obj_list.append(
@@ -204,6 +216,7 @@ class Command(BaseCommand):
                     index_set=info["index_set"],
                     need_create_index=info["need_create_index"] or True,  # 区分是否需要创建索引
                     origin_table_id=info["origin_table_id"],
+                    bk_tenant_id=self.bk_tenant_id,
                 )
             )
         # 批量创建结果表，批量创建 es 存储
@@ -222,6 +235,7 @@ class Command(BaseCommand):
 
     def _push_and_publish(self, update_space_set: set, update_rt_set: set, update_data_label_set: set):
         """推送并发布"""
+        # 多租户环境下， 不允许跨租户推送路由
         client = SpaceTableIDRedis()
         # 如果为空时，则不需要进行路由更新
         if update_space_set:
@@ -233,15 +247,20 @@ class Command(BaseCommand):
                     self.stderr.write(f"failed to push space table ids, err: {e}, space: {space_type, space_id}")
         # 推送标签
         if update_data_label_set:
-            client.push_data_label_table_ids(list(update_data_label_set), is_publish=True)
+            client.push_data_label_table_ids(
+                data_label_list=list(update_data_label_set), is_publish=True, bk_tenant_id=self.bk_tenant_id
+            )
         # 推送详情
         if update_rt_set:
-            client.push_table_id_detail(is_publish=True, include_es_table_ids=True)
+            client.push_table_id_detail(is_publish=True, include_es_table_ids=True, bk_tenant_id=self.bk_tenant_id)
 
     def _compose_create_or_update_option_objs(self, table_id: str, options: list[dict]) -> tuple[list, list]:
         """创建或者更新结果表 option"""
         # 查询结果表下的option
-        exist_objs = {obj.name: obj for obj in models.ResultTableOption.objects.filter(table_id=table_id)}
+        exist_objs = {
+            obj.name: obj
+            for obj in models.ResultTableOption.objects.filter(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
+        }
         need_update_objs, need_add_objs = [], []
 
         for option in options:
@@ -259,6 +278,8 @@ class Command(BaseCommand):
                 if need_update:
                     need_update_objs.append(exist_obj)
             else:
-                need_add_objs.append(models.ResultTableOption(table_id=table_id, **dict(option)))
+                need_add_objs.append(
+                    models.ResultTableOption(table_id=table_id, **dict(option), bk_tenant_id=self.bk_tenant_id)
+                )
 
         return need_add_objs, need_update_objs
