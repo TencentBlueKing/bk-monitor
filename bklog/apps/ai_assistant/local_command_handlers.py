@@ -62,7 +62,7 @@ class LogAnalysisCommandHandler(CommandHandler):
         context_count = int(variables.get("context_count", 10))
         log = variables["log"]
 
-        index_set_obj = LogIndexSet.objects.get(index_set_id=index_set_id).first()
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if not index_set_obj:
             return self.jinja_env.render(template, {"log": log, "context": ""})
 
@@ -91,7 +91,7 @@ class LogAnalysisCommandHandler(CommandHandler):
             context_result = query_handler.search()
             context_logs = context_result.get("origin_log_list") or []
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("context fetch failed, reason: %s, origin log: %s", e, log)
+            logger.exception("context fetch failed, reason: %s, origin log: %s", e, log)
 
         total_character_length = len(log)
 
