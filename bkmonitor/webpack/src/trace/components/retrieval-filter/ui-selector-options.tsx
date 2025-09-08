@@ -640,6 +640,7 @@ export default defineComponent({
                         ref='valueSelector'
                         fieldInfo={this.valueSelectorFieldInfo}
                         getValueFn={this.getValueFnProxy}
+                        limit={this.limit}
                         loadDelay={this.loadDelay}
                         placeholder={''}
                         value={this.values}

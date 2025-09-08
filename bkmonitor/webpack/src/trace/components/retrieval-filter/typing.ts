@@ -403,6 +403,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Number,
     default: 300,
   },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
@@ -445,6 +450,11 @@ export const UI_SELECTOR_PROPS = {
     type: Number,
     default: 300,
   },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
+  },
 };
 export const UI_SELECTOR_EMITS = {
   change: (_v: IFilterItem[]) => true,
@@ -477,6 +487,11 @@ export const UI_SELECTOR_OPTIONS_PROPS = {
   loadDelay: {
     type: Number,
     default: 300,
+  },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
   },
 };
 export const UI_SELECTOR_OPTIONS_EMITS = {
@@ -512,6 +527,11 @@ export const VALUE_TAG_SELECTOR_PROPS = {
   loadDelay: {
     type: Number,
     default: 300,
+  },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
   },
 };
 export const VALUE_TAG_SELECTOR_EMITS = {
@@ -614,6 +634,11 @@ export const VALUE_OPTIONS_PROPS = {
   loadDelay: {
     type: Number,
     default: 300,
+  },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
   },
 };
 export const VALUE_OPTIONS_EMITS = {
@@ -758,6 +783,11 @@ export const SETTING_KV_SELECTOR_PROPS = {
     type: Number,
     default: 300,
   },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
+  },
 };
 export const SETTING_KV_SELECTOR_EMITS = {
   change: (_v: INormalWhere) => true,
@@ -819,6 +849,11 @@ export const RESIDENT_SETTING_PROPS = {
   loadDelay: {
     type: Number,
     default: 300,
+  },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
   },
 };
 export const RESIDENT_SETTING_EMITS = {
