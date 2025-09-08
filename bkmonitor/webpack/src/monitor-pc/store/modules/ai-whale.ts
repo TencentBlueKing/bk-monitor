@@ -31,7 +31,8 @@ import store from '../store';
 
 import type { AIBluekingShortcut } from '@/components/ai-whale/types';
 
-const AI_USER_LIST = 'AI_USER_LIST';
+// const AI_USER_LIST = 'AI_USER_LIST';
+const AI_BIZ_LIST = 'AI_BIZ_LIST';
 
 // 定义模块
 @Module({ name: 'aiWhale', dynamic: true, namespaced: true, store })
@@ -68,9 +69,9 @@ class AiWhaleStore extends VuexModule {
     }
     // 获取全局配置中的 AI 用户列表
     const globalConfigModal = new GlobalConfigMixin();
-    const list: string[] = await globalConfigModal.handleGetGlobalConfig<string[]>(AI_USER_LIST);
+    const list: string[] = await globalConfigModal.handleGetGlobalConfig<string[]>(AI_BIZ_LIST);
     // 检查当前用户是否在 AI 用户列表中
-    const isEnabled = list.includes(window.username || window.user_name);
+    const isEnabled = this.context.getters.bizId && list.some(item => +item === +this.context.getters.bizId);
     // 通过 Mutation 设置 enableAiAssistant 的值
     this.context.commit('setEnableAiAssistant', isEnabled);
   }
