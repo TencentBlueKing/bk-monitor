@@ -28,7 +28,7 @@ import { defineComponent, ref, computed } from 'vue';
 import AIBlueking from '@blueking/ai-blueking/vue2';
 
 import { random } from '../common/util';
-import { type AIBluekingShortcut, AI_BLUEKING_SHORTCUTS, AI_BLUEKING_SHORTCUTS_ID } from './ai-type';
+import { type AIBluekingShortcut, AI_BLUEKING_SHORTCUTS } from './ai-type';
 
 import './ai-assistant.scss';
 import '@blueking/ai-blueking/dist/vue2/style.css';
@@ -36,8 +36,9 @@ import '@blueking/ai-blueking/dist/vue2/style.css';
 interface IRowSendData {
   space_uid: string;
   index_set_id: string;
-  log_data: unknown;
-  query: string;
+  log: string;
+  query?: string;
+  context_count?: number;
   index: number;
   type: string;
 }
@@ -45,36 +46,14 @@ export default defineComponent({
   setup(_props, { expose, emit }) {
     const aiBlueking = ref<InstanceType<typeof AIBlueking> | null>(null);
 
-    const prompts = ref([]);
     let chatid = random(10);
 
     const isShow = ref(false);
-    const aiFixedLinkArgs = { index: null, id: null };
-    const cachedArgs: Partial<IRowSendData> = {};
 
     const apiUrl = `${window.AJAX_URL_PREFIX || '/api/v1'}ai_assistant`;
     const shortcuts = computed(() => {
       return [...AI_BLUEKING_SHORTCUTS];
     });
-
-    const getFixedRow = () => {
-      return `<div data-ai="{ type: 'button', data: '[${aiFixedLinkArgs.index}, ${aiFixedLinkArgs.id}]' }" class="ai-clickable" >
-          <div class="bklog-ai-row-title">分析当前日志:</div>
-          <div class="bklog-ai-row-content">
-            ${Object.keys(cachedArgs.log_data ?? {})
-              .slice(0, 100)
-              .map(key => {
-                return `<span class="bklog-ai-cell-label">${key}:</span><span class="bklog-ai-cell-text">${JSON.stringify(cachedArgs.log_data[key])}</span>`;
-              })
-              .join('')}
-          </div>
-        </div >`;
-    };
-
-    // 外部调用启动首次聊天
-    const handleSendRowAi = () => {
-      aiBlueking.value?.handleSendMessage?.(getFixedRow());
-    };
 
     // 暂停聊天
     const handleStop = () => {
@@ -86,30 +65,29 @@ export default defineComponent({
       aiBlueking.value?.hide?.();
     };
 
-    const handleClose = () => {
-      isShow.value = false;
-      handleStop();
-      chatid = null;
-      emit('close');
-    };
 
     const displayAiAssistant = () => {
       isShow.value = true;
-      aiBlueking.value?.handleShow?.();
     };
 
     const setAiStart = (sendMsg = false, args: IRowSendData) => {
       chatid = random(10);
-      displayAiAssistant();
       if (sendMsg) {
-        args.type = 'log_interpretation';
-        Object.assign(cachedArgs, args);
-        Object.assign(aiFixedLinkArgs, { index: args.index, id: chatid });
-        handleSendRowAi();
+        aiBlueking.value?.handleShow();
+        const shortcut = structuredClone(AI_BLUEKING_SHORTCUTS[0]);
+        shortcut.components.forEach(comp => {
+          const value = args[comp.key];
+          if (value) {
+            comp.default = typeof value === 'object' ? JSON.stringify(value) : value;
+          }
+        });
+
+        aiBlueking.value?.handleShortcutClick?.({ shortcut, source: 'popup' });
       }
     };
 
     const showAiAssistant = (sendMsg = false, args: IRowSendData) => {
+      debugger;
       if (isShow.value && chatid) {
         handleStop();
         setTimeout(() => {
@@ -121,42 +99,41 @@ export default defineComponent({
       setAiStart(sendMsg, args);
     };
 
-    const triggerShortcut = (shortcut: AIBluekingShortcut) => {
-      if (shortcut?.id) {
-        displayAiAssistant();
-        aiBlueking.value?.handleShortcutClick?.({ shortcut, source: 'popup' });
-      }
-    };
+
     const handleShortcutFilter = (shortcut: AIBluekingShortcut, selectedText: string) => {
-      // trace 分析判断
-      if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS) {
-        return !!selectedText?.match(/^[0-9a-f]{32}$/);
-      }
-      if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS) {
-        return false;
-      }
-      return true;
+      return false;
     };
-    const handleShortcutClick = () => {};
 
     expose({
       open: showAiAssistant,
       close: hiddenAiAssistant,
-      shortcutClick: triggerShortcut,
     });
 
     return () => (
-      <AIBlueking
-        ref={aiBlueking}
-        enable-popup={true}
-        hideNimbus={true}
-        prompts={prompts.value}
-        shortcutFilter={handleShortcutFilter}
-        shortcuts={shortcuts.value}
-        url={apiUrl}
-        on-close={handleClose}
-        on-shortcut-click={handleShortcutClick}
-      />
+      <div class='ai-blueking-wrapper'>
+        <AIBlueking
+          ref={aiBlueking}
+          requestOptions={{
+            beforeRequest: data => {
+              return {
+                ...data,
+                headers: {
+                  ...(data?.headers || {}),
+                  Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
+                },
+              };
+            },
+          }}
+          enablePopup={false}
+          hideNimbus={true}
+          prompts={[]}
+          shortcutFilter={handleShortcutFilter}
+          shortcuts={shortcuts.value}
+          url={apiUrl}
+          onClose={hiddenAiAssistant}
+          onShow={displayAiAssistant}
+        />
+      </div>
     );
   },
 });

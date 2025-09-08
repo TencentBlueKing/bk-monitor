@@ -56,87 +56,55 @@ export interface ComponentOption {
   value: string;
 }
 export const AI_BLUEKING_SHORTCUTS_ID = {
-  EXPLANATION: 'explanation',
-  TRANSLATE: 'translate',
-  PROMQL_HELPER: 'promql_helper',
-  METADATA_DIAGNOSIS: 'metadata_diagnosis',
-  TRACING_ANALYSIS: 'tracing_analysis',
-  PROFILING_ANALYSIS: 'profiling_analysis',
+  LOG_ANALYSIS: 'log_analysis',
 } as const;
+
 export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
+
+// index_set_id,
+// log,
+// context_count
+
 export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
   {
-    id: AI_BLUEKING_SHORTCUTS_ID.EXPLANATION,
-    name: window.$t('解读'),
+    id: AI_BLUEKING_SHORTCUTS_ID.LOG_ANALYSIS,
+    name: window.$t('日志解读'),
     components: [
       {
         type: 'textarea',
-        key: 'content',
+        key: 'index_set_id',
+        name: window.$t('内容'),
+        fillBack: true,
+        required: true,
+        hide: true,
+        placeholder: window.$t('请输入需要解读的内容'),
+      },
+      {
+        type: 'textarea',
+        key: 'context_count',
+        name: window.$t('内容'),
+        default: 10,
+        fillBack: true,
+        required: true,
+        hide: true,
+        placeholder: window.$t('请输入需要解读的内容'),
+      },
+      {
+        type: 'textarea',
+        key: 'index',
+        name: window.$t('内容'),
+        fillBack: true,
+        required: true,
+        hide: true,
+        placeholder: window.$t('请输入需要解读的内容'),
+      },
+      {
+        type: 'textarea',
+        key: 'log',
         name: window.$t('内容'),
         fillBack: true,
         required: true,
         placeholder: window.$t('请输入需要解读的内容'),
-      },
-    ],
-  },
-  {
-    id: AI_BLUEKING_SHORTCUTS_ID.PROMQL_HELPER,
-    name: window.$t('PromQL助手'),
-    components: [
-      {
-        type: 'textarea',
-        key: 'promql',
-        fillBack: true,
-        required: true,
-        name: window.$t('指标/PromQL语句'),
-        placeholder: window.$t('请输入指标/PromQL语句'),
-      },
-    ],
-  },
-  {
-    id: AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS,
-    name: window.$t('Trace 助手'),
-    components: [
-      {
-        type: 'input',
-        key: 'trace_id',
-        fillBack: true,
-        required: false,
-        name: 'Trace ID',
-        placeholder: window.$t('请输入Trace ID'),
-      },
-      {
-        type: 'input',
-        key: 'app_name',
-        fillBack: false,
-        required: false,
-        hide: true,
-        name: window.$t('应用名称'),
-        placeholder: window.$t('请输入应用名称'),
-      },
-      {
-        type: 'input',
-        key: 'bk_biz_id',
-        fillBack: false,
-        required: false,
-        hide: true,
-        name: window.$t('业务ID'),
-        placeholder: window.$t('请输入业务ID'),
-      },
-    ],
-  },
-  {
-    id: AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS,
-    name: window.$t('Profiling 助手'),
-    components: [
-      {
-        type: 'input',
-        key: 'query_params',
-        fillBack: true,
-        required: false,
-        hide: false,
-        name: window.$t('Profiling 查询参数'),
-        placeholder: window.$t('请输入Profiling 查询参数'),
       },
     ],
   },
