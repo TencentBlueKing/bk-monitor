@@ -18,7 +18,6 @@ from django.db.models import Q
 from django.utils.timezone import now as tz_now
 
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
-from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.constants import DEFAULT_MEASUREMENT
 from metadata.models.space import utils
@@ -1544,8 +1543,7 @@ class SpaceTableIDRedis:
 
         return {"table_id_ts_group_id": table_id_ts_group_id, "group_id_field_map": group_id_field_map}
 
-    # todo 会被push_table_id_detail 调用，暂不能完全改造
-    def _compose_table_id_fields(self, bk_tenant_id: str = DEFAULT_TENANT_ID, table_ids: set | None = None) -> dict:
+    def _compose_table_id_fields(self, bk_tenant_id: str, table_ids: set | None = None) -> dict:
         """组装结果表对应的指标数据"""
         logger.info(
             "_compose_table_id_fields: try to compose table id fields,table_ids->[%s],bk_tenant_id->[%s]",
