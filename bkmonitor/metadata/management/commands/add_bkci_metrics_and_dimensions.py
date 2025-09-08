@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import os
-from typing import List, Optional
 
 from django.conf import settings
 from django.core.management import BaseCommand
 
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from metadata import models
 from metadata.models.space.constants import SYSTEM_USERNAME, EtlConfigs, SpaceTypes
 from metadata.task.sync_space import push_and_publish_space_router
@@ -50,23 +50,29 @@ class Command(BaseCommand):
         self._get_or_create_result_table(bk_data_id)
         # 5. 创建关联资源
         self._create_space_resource(space_id)
+        # 获取租户id
+        self.bk_tenant_id = space_uid_to_bk_tenant_id(space_uid=f"{SpaceTypes.BKCI.value}__{space_id}")
+
         # 6. 推送数据到 redis并发布
         # NOTE: 仅 bkci 类型更新
-        push_and_publish_space_router(space_type=SpaceTypes.BKCI.value)
+        push_and_publish_space_router(space_type=SpaceTypes.BKCI.value, bk_tenant_id=self.bk_tenant_id)
 
         print("init bkci data successfully")
 
-    def _create_bkci_system_space(self, space_id: Optional[str] = None):
+    def _create_bkci_system_space(self, space_id: str | None = None):
         """创建 bkci 的系统空间"""
         if not space_id:
             return
         models.Space.objects.get_or_create(
-            space_type_id=SpaceTypes.BKCI.value, space_id=space_id, space_name="蓝盾运营管理平台"
+            space_type_id=SpaceTypes.BKCI.value,
+            space_id=space_id,
+            space_name="蓝盾运营管理平台",
+            bk_tenant_id=self.bk_tenant_id,
         )
 
     def _get_or_create_data_source(self, bk_data_id: int, mq_cluster_id: int):
         # 如果已经存在，为防止类型不正确，更新一次
-        data_source = models.DataSource.objects.filter(bk_data_id=bk_data_id)
+        data_source = models.DataSource.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=self.bk_tenant_id)
         if data_source.exists():
             data_source.update(space_type_id=SpaceTypes.BKCI.value)
             return
@@ -83,9 +89,10 @@ class Command(BaseCommand):
             type_label="time_series",
             source_label="bk_monitor",
             space_type_id=SpaceTypes.BKCI.value,
+            bk_tenant_id=self.bk_tenant_id,
         )
 
-    def _get_or_create_space_data_source(self, bk_data_id: int, space_id: Optional[str] = None):
+    def _get_or_create_space_data_source(self, bk_data_id: int, space_id: str | None = None):
         if not space_id:
             return
         models.SpaceDataSource.objects.get_or_create(
@@ -96,6 +103,7 @@ class Command(BaseCommand):
                 "creator": SYSTEM_USERNAME,
                 "from_authorization": False,
             },
+            bk_tenant_id=self.bk_tenant_id,
         )
 
     def _get_or_create_result_table(self, bk_data_id: int):
@@ -105,7 +113,7 @@ class Command(BaseCommand):
         否则，要创建结果表和对应的field
         """
         table_id_list = [f"{self.db_name}.{key}" for key in self.metrics_and_dimensions]
-        existed_table_qs = models.ResultTable.objects.filter(table_id__in=table_id_list)
+        existed_table_qs = models.ResultTable.objects.filter(table_id__in=table_id_list, bk_tenant_id=self.bk_tenant_id)
         existed_table_id_list = existed_table_qs.values_list("table_id", flat=True)
         # 过滤到需要创建或更新的结果表
         created_table_id_list = set(table_id_list) - set(existed_table_id_list)
@@ -126,6 +134,7 @@ class Command(BaseCommand):
                     "is_sync_db": False,
                     "bk_biz_id": 0,
                     "create_storage": False,
+                    "bk_tenant_id": self.bk_tenant_id,
                 }
                 models.ResultTable.create_result_table(**params)
             except Exception as e:
@@ -148,7 +157,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"update result table: {table.table_id} successfully")
         self.stdout.write("update result table end")
 
-    def _get_rt_field_list(self, table_id: str) -> List:
+    def _get_rt_field_list(self, table_id: str) -> list:
         measurements = table_id.split(".")[-1]
         # 指标数据
         field_list = [
@@ -187,7 +196,7 @@ class Command(BaseCommand):
 
         return field_list
 
-    def _create_space_resource(self, space_id: Optional[str] = None):
+    def _create_space_resource(self, space_id: str | None = None):
         """创建关联资源"""
         if not space_id:
             return
@@ -198,4 +207,5 @@ class Command(BaseCommand):
             resource_type=SpaceTypes.BKCI.value,
             resource_id=space_id,
             defaults={"dimension_values": [{"project_id": space_id}]},
+            bk_tenant_id=self.bk_tenant_id,
         )

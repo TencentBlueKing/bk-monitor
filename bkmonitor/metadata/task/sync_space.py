@@ -705,7 +705,7 @@ def refresh_bkci_space_name():
 
 
 def push_and_publish_space_router(
-    bk_tenant_id: str | None = DEFAULT_TENANT_ID,
+    bk_tenant_id: str,
     space_type: str | None = None,
     space_id: str | None = None,
     space_id_list: list[str] | None = None,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 
 from django.conf import settings
@@ -47,18 +47,21 @@ class Command(BaseCommand):
             is_platform_flag = False
         ts_group.bk_biz_id = input_bk_biz_id
         ts_group.save()
+        # 获得租户id
+        bk_tenant_id = ts_group.bk_tenant_id
+
         # 更新 result_table 业务信息
-        rt = ResultTable.objects.get(table_id=ts_group.table_id)
+        rt = ResultTable.objects.get(table_id=ts_group.table_id, bk_tenant_id=bk_tenant_id)
         rt.bk_biz_id = input_bk_biz_id
         rt.save()
 
         # 更新 custom ts table 业务信息
-        ct = CustomTSTable.objects.get(time_series_group_id=ts_group.time_series_group_id)
+        ct = CustomTSTable.objects.get(time_series_group_id=ts_group.time_series_group_id, bk_tenant_id=bk_tenant_id)
         ct.bk_biz_id = bk_biz_id
         ct.is_platform = is_platform_flag
         ct.save()
 
-        ds = DataSource.objects.get(bk_data_id=ts_group.bk_data_id)
+        ds = DataSource.objects.get(bk_data_id=ts_group.bk_data_id, bk_tenant_id=bk_tenant_id)
         origin_space_uid = ds.space_uid
         biz_change = False
         if origin_space_uid != f"bkcc__{bk_biz_id}":
@@ -70,8 +73,12 @@ class Command(BaseCommand):
         if biz_change:
             try:
                 origin_bk_biz_id = origin_space_uid.split("__", -1)[-1]
-                space_ds = SpaceDataSource.objects.get(bk_data_id=ds.bk_data_id, space_id=origin_bk_biz_id)
-                if SpaceDataSource.objects.filter(bk_data_id=ds.bk_data_id, space_id=bk_biz_id).exists():
+                space_ds = SpaceDataSource.objects.get(
+                    bk_data_id=ds.bk_data_id, space_id=origin_bk_biz_id, bk_tenant_id=bk_tenant_id
+                )
+                if SpaceDataSource.objects.filter(
+                    bk_data_id=ds.bk_data_id, space_id=bk_biz_id, bk_tenant_id=bk_tenant_id
+                ).exists():
                     space_ds.delete()
                 else:
                     space_ds.space_id = bk_biz_id
@@ -88,8 +95,8 @@ class Command(BaseCommand):
             finally:
                 from metadata.task.sync_space import push_and_publish_space_router
 
-                if Space.objects.filter(space_id=bk_biz_id).exists():
-                    push_and_publish_space_router(space_id=bk_biz_id)
+                if Space.objects.filter(space_id=bk_biz_id, bk_tenant_id=bk_tenant_id).exists():
+                    push_and_publish_space_router(space_id=bk_biz_id, bk_tenant_id=bk_tenant_id)
 
     def add_arguments(self, parser):
         parser.add_argument("--group_name", type=str, required=True, help="时序分组名")
