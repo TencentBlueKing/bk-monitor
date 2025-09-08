@@ -1187,3 +1187,14 @@ class SearchLogForCodeSerializer(serializers.Serializer):
     end_time = serializers.CharField(label=_("结束时间"), required=True)
     timezone = serializers.CharField(label=_("时区"), required=False, default="UTC")
     limit = serializers.IntegerField(label=_("限制条数"), required=False, default=DEFAULT_QUERY_LIMIT)
+
+
+class SpaceListSerializer(serializers.Serializer):
+    """
+    空间列表序列化器
+    """
+
+    space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
+    has_permission = serializers.BooleanField(label=_("仅获取有权限的空间"), default=False)
+    page = serializers.IntegerField(label=_("页数"), required=False, min_value=1)
+    page_size = serializers.IntegerField(label=_("每页条数"), required=False, min_value=1)
