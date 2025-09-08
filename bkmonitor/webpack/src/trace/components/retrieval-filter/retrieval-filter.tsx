@@ -484,6 +484,7 @@ export default defineComponent({
                 clearKey={this.clearKey}
                 fields={this.localFields}
                 getValueFn={this.getValueFn}
+                limit={this.limit}
                 loadDelay={this.loadDelay}
                 placeholder={this.placeholder}
                 value={this.uiValue}
@@ -626,6 +627,7 @@ export default defineComponent({
             handleGetUserConfig={this.handleGetUserConfig}
             handleSetUserConfig={this.handleSetUserConfig}
             isDefaultSetting={this.isDefaultResidentSetting}
+            limit={this.limit}
             loadDelay={this.loadDelay}
             residentSettingOnlyId={this.residentSettingOnlyId}
             value={this.residentSettingValue}

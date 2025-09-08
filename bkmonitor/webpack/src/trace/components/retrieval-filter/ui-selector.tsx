@@ -377,6 +377,7 @@ export default defineComponent({
               fields={this.fields}
               getValueFn={this.getValueFn}
               keyword={this.inputValue}
+              limit={this.limit}
               loadDelay={this.loadDelay}
               show={this.showSelector}
               value={this.localValue?.[this.updateActive]}

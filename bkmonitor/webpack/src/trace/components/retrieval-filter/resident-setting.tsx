@@ -362,6 +362,7 @@ export default defineComponent({
                   class='mb-4 mr-4'
                   fieldInfo={this.getFieldInfo(item.field)}
                   getValueFn={this.getValueFnProxy}
+                  limit={this.limit}
                   loadDelay={this.loadDelay}
                   value={item.value}
                   onChange={v => this.handleValueChange(v, index)}
