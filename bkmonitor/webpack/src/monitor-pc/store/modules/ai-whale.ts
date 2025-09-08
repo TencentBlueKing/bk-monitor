@@ -71,7 +71,7 @@ class AiWhaleStore extends VuexModule {
     const globalConfigModal = new GlobalConfigMixin();
     const list: string[] = await globalConfigModal.handleGetGlobalConfig<string[]>(AI_BIZ_LIST);
     // 检查当前用户是否在 AI 用户列表中
-    const isEnabled = this.context.getters.bizId && list.some(item => +item === +this.context.getters.bizId);
+    const isEnabled = this.context.rootGetters.bizId && list.some(item => +item === +this.context.rootGetters.bizId);
     // 通过 Mutation 设置 enableAiAssistant 的值
     this.context.commit('setEnableAiAssistant', isEnabled);
   }
