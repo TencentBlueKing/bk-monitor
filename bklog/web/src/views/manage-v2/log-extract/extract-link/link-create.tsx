@@ -3,7 +3,7 @@ import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
 import useLocale from '@/hooks/use-locale';
 import http from '@/api';
-import BkUserSelector from '@blueking/user-selector';
+import ValidateUserSelector from '@/components/user-selector';
 
 import './link-create.scss';
 
@@ -271,13 +271,11 @@ export default defineComponent({
               property='operator'
               required
             >
-              <BkUserSelector
-                api={userApi}
+              <ValidateUserSelector
                 class={isAdminError.value ? 'is-error' : ''}
                 empty-text={t('无匹配人员')}
                 placeholder={t('请选择用户')}
                 value={formData.value.operator}
-                data-test-id='basicInformation_input_executive'
                 onBlur={handleBlur}
                 onChange={handleUserChange}
                 onFocus={handleClearOperator}
