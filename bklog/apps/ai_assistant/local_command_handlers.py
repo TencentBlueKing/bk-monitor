@@ -63,7 +63,7 @@ class LogAnalysisCommandHandler(CommandHandler):
         log = variables["log"]
 
         log_data = json.loads(log)
-        for key in log_data:
+        for key in log_data.copy():
             if key in self.FIELDS_EXCLUDED:
                 del log_data[key]
 
