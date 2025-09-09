@@ -154,6 +154,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label="第三方事件接入业务白名单", default=[])),
         ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label="自定义指标过期时间", default=30 * 24 * 3600)),
         ("AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE", slz.IntegerField(label="LLM默认温度参数", default=0.3)),
+        ("AI_BIZ_LIST", slz.ListField(label="AI小鲸灰度业务名单", default=[])),
         ("AIDEV_COMMAND_AGENT_MAPPING", slz.DictField(label="快捷指令<->Agent映射", default={})),
         ("AIDEV_SCENE_AGENT_CODE_MAPPING", slz.DictField(label="场景-Agent映射配置", default={})),
         ("FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", slz.IntegerField(label="获取自定义指标的间隔时间", default=7200)),
