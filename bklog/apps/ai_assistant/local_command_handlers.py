@@ -96,7 +96,7 @@ class LogAnalysisCommandHandler(CommandHandler):
 
         for index, context_log in enumerate(context_logs):
             # 在模型上下文内容大小限制的前提下，尽可能多的引用日志上下文
-            if total_character_length < self.MAX_CHARACTER_LENGTH:
+            if total_character_length > self.MAX_CHARACTER_LENGTH:
                 break
 
             # 去掉与原始日志完全一致的 kv 对，精简上下文内容大小
