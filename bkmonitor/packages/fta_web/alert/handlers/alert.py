@@ -824,7 +824,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
             return Q("ids", values=alert_ids)
         elif condition["key"] == "query_string":
-            con_q = Q()
+            con_q = None
             for query_string in condition["value"]:
                 query_string = process_stage_string(query_string)
                 query_string = process_metric_string(query_string)
@@ -835,7 +835,10 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     else:
                         temp_q = Q(query_dsl)
 
-                    con_q = con_q | temp_q
+                    if con_q is None:
+                        con_q = temp_q
+                    else:
+                        con_q = con_q | temp_q
 
             return con_q
         return super().parse_condition_item(condition)
