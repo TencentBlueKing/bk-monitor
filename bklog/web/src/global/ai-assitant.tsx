@@ -43,7 +43,7 @@ interface IRowSendData {
   type: string;
 }
 export default defineComponent({
-setup(_props, { expose }) {
+  setup(_props, { expose }) {
     const aiBlueking = ref<InstanceType<typeof AIBlueking> | null>(null);
 
     let chatid = random(10);
@@ -65,7 +65,6 @@ setup(_props, { expose }) {
       aiBlueking.value?.hide?.();
     };
 
-
     const displayAiAssistant = () => {
       isShow.value = true;
     };
@@ -79,7 +78,7 @@ setup(_props, { expose }) {
           shortcut.components.forEach(comp => {
             const value = args[comp.key];
             if (value) {
-              comp.default = typeof value === 'object' ? JSON.stringify(value) : value;
+              comp.default = typeof value === 'object' ? JSON.stringify(value).replace(/<\/?mark>/gim, '') : value;
             }
           });
 
