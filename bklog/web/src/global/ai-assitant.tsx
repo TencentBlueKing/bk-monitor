@@ -88,6 +88,7 @@ export default defineComponent({
     };
 
     const showAiAssistant = (sendMsg = false, args: IRowSendData) => {
+      debugger;
       if (isShow.value && chatid) {
         handleStop();
         setTimeout(() => {
