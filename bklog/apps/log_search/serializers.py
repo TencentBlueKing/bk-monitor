@@ -926,6 +926,7 @@ class QueryFieldBaseSerializer(serializers.Serializer):
     start_time = serializers.IntegerField(required=True)
     end_time = serializers.IntegerField(required=True)
     time_range = serializers.CharField(required=False, default=None)
+    interval = serializers.CharField(required=False, default="auto", max_length=16)
 
     # 关键字填充条
     keyword = serializers.CharField(allow_null=True, allow_blank=True)
