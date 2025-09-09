@@ -134,6 +134,7 @@ dev = [
 stubs = [
     "celery-types>=0.23.0",
     "django-stubs==4.2.7",
+    "django-types==0.22.0"
 ]
 
 
@@ -204,3 +205,9 @@ docstring-code-format = true
 
 [tool.ruff.lint.extend-per-file-ignores]
 "config/**" = ["F405"]
+
+[tool.pyright]
+exclude = ["tests"]
+extraPaths = ["packages"]
+typeCheckingMode = "standard"
+reportIncompatibleVariableOverride = false
