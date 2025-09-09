@@ -26,6 +26,7 @@ from django.db.models import Q
 from django.db.models.functions import Length
 
 from api.cmdb.define import Business
+from apm.resources import ReleaseAppConfigResource
 from apm_web.constants import (
     CategoryEnum,
     CMDBCategoryIconMap,
@@ -912,7 +913,89 @@ class SetCodeRedefinedRuleResource(Resource):
                 CodeRedefinedConfigRelation.objects.filter(id=obj.id).update(created_by=username)
             created_ids.append(obj.id)
 
+        # 同步下发：汇总整个应用的 code_relabel 列表并下发到 APM
+        self.publish_code_relabel_to_apm(bk_biz_id, app_name)
+
         return {}
+
+    @classmethod
+    def publish_code_relabel_to_apm(cls, bk_biz_id: int, app_name: str) -> None:
+        code_relabel_config = cls.build_code_relabel_config(bk_biz_id, app_name)
+
+        # 下发到 APM 模块
+        ReleaseAppConfigResource()(
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+            code_relabel_config=code_relabel_config,
+        )
+
+    @classmethod
+    def build_code_relabel_config(cls, bk_biz_id: int, app_name: str) -> list[dict[str, Any]]:
+        """将 DB 规则聚合为 collector 的 code_relabel 列表结构。
+
+        规则：
+        - kind=caller → metrics: ["rpc_client_handled_total","rpc_client_dropped_total"]
+        - kind=callee → metrics: ["rpc_server_handled_total","rpc_server_dropped_total"]
+        - source = service_name（本服务）
+        - services[].name = "callee_server;callee_service;callee_method"；空串/空行统一转 "*"
+        - codes[].rule 透传；codes[].target 固定 {action:"upsert", label:"code_type", value in [success,exception,timeout]}
+        """
+        metrics_map = {
+            "caller": ["rpc_client_handled_total", "rpc_client_dropped_total"],
+            "callee": ["rpc_server_handled_total", "rpc_server_dropped_total"],
+        }
+
+        def star_if_empty(value: str | None) -> str:
+            if value is None:
+                return "*"
+            text = str(value).strip()
+            return text if text else "*"
+
+        queryset = CodeRedefinedConfigRelation.objects.filter(
+            bk_biz_id=bk_biz_id, app_name=app_name, enabled=True
+        ).order_by("service_name", "kind", "callee_server", "callee_service", "callee_method")
+
+        grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        for item in queryset:
+            name = ";".join(
+                [
+                    star_if_empty(item.callee_server),
+                    star_if_empty(item.callee_service),
+                    star_if_empty(item.callee_method),
+                ]
+            )
+
+            codes: list[dict[str, Any]] = []
+            for code_type_key in ("success", "exception", "timeout"):
+                rule_val = (item.code_type_rules or {}).get(code_type_key)
+                if rule_val is None:
+                    continue
+                rule_text = str(rule_val).strip()
+                if not rule_text:
+                    continue
+                codes.append(
+                    {
+                        "rule": rule_text,
+                        "target": {"action": "upsert", "label": "code_type", "value": code_type_key},
+                    }
+                )
+
+            if not codes:
+                continue
+
+            entry = {"name": name, "codes": codes}
+            group_key = (item.service_name, item.kind)
+            grouped.setdefault(group_key, []).append(entry)
+
+        # 组装最终列表
+        code_relabel: list[dict[str, Any]] = []
+        for (service_name, kind), services in grouped.items():
+            metrics = metrics_map.get(kind)
+            if not metrics:
+                continue
+            code_relabel.append({"metrics": metrics, "source": service_name, "services": services})
+
+        return code_relabel
 
 
 class DeleteCodeRedefinedRuleResource(Resource):
@@ -947,4 +1030,7 @@ class DeleteCodeRedefinedRuleResource(Resource):
             return
 
         instance.delete()
+
+        # 同步下发删除后的配置
+        SetCodeRedefinedRuleResource.publish_code_relabel_to_apm(bk_biz_id, app_name)
         return
