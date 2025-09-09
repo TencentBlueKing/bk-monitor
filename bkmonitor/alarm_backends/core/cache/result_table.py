@@ -47,52 +47,59 @@ class ResultTableCacheManager(CacheManager):
             bk_biz_ids: 业务ID列表
             table_ids: 表ID列表
         """
+        result_tables = []
         if not bk_biz_ids:
             return
-        for bk_biz_id in bk_biz_ids:
-            # 查询元数据结果表
-            try:
-                result_tables = api.metadata.list_result_table(bk_biz_id=bk_biz_id)
-            except BKAPIError as e:
-                cls.logger.error(
-                    f"ResultTableCacheManager: update metadata result table failed for biz({bk_biz_id}), {e}"
-                )
-                continue
-
-            # 如果业务下没有结果表，则跳过
-            if not result_tables:
-                continue
-
-            if table_ids:
-                result_tables = [rt for rt in result_tables if rt["table_id"] in table_ids]
-                if not result_tables:
+        if table_ids:
+            for table_id in table_ids:
+                try:
+                    result_tables.append(api.metadata.get_result_table(table_id=table_id))
+                except BKAPIError as e:
+                    cls.logger.error(
+                        f"ResultTableCacheManager: update metadata result table failed for table_id({table_id}), {e}"
+                    )
+                    continue
+        else:
+            for bk_biz_id in bk_biz_ids:
+                # 查询元数据结果表
+                try:
+                    result_table = api.metadata.list_result_table(bk_biz_id=bk_biz_id)
+                    result_tables.extend(result_table)
+                except BKAPIError as e:
+                    cls.logger.error(
+                        f"ResultTableCacheManager: update metadata result table failed for biz({bk_biz_id}), {e}"
+                    )
                     continue
 
-            pipeline = cls.cache.pipeline()
-            for result_table in result_tables:
-                table_id = result_table["table_id"]
-                data = {
-                    "table_id": table_id,
-                    "table_name": result_table["table_name_zh"],
-                    "fields": [
-                        {
-                            "field_name": field["field_name"],
-                            "field_type": field["type"],
-                            "field_alias": field["description"],
-                            "is_dimension": field["tag"] in ["dimension", "group"],
-                        }
-                        for field in result_table["field_list"][:MAX_FIELD_SUPPORTED]
-                    ],
-                }
+        # 如果业务下没有结果表，则跳过
+        if not result_tables:
+            return
 
-                pipeline.set(
-                    cls.CACHE_KEY_TEMPLATE.format(
-                        result_table.get("source_label", DataSourceLabel.BK_MONITOR_COLLECTOR), data["table_id"]
-                    ),
-                    json.dumps(data),
-                    cls.CACHE_TIMEOUT,
-                )
-            pipeline.execute()
+        pipeline = cls.cache.pipeline()
+        for result_table in result_tables:
+            table_id = result_table["table_id"]
+            data = {
+                "table_id": table_id,
+                "table_name": result_table["table_name_zh"],
+                "fields": [
+                    {
+                        "field_name": field["field_name"],
+                        "field_type": field["type"],
+                        "field_alias": field["description"],
+                        "is_dimension": field["tag"] in ["dimension", "group"],
+                    }
+                    for field in result_table["field_list"][:MAX_FIELD_SUPPORTED]
+                ],
+            }
+
+            pipeline.set(
+                cls.CACHE_KEY_TEMPLATE.format(
+                    result_table.get("source_label", DataSourceLabel.BK_MONITOR_COLLECTOR), data["table_id"]
+                ),
+                json.dumps(data),
+                cls.CACHE_TIMEOUT,
+            )
+        pipeline.execute()
 
     @classmethod
     def refresh_bkdata(cls, bk_biz_ids: list[int], table_ids: list[str] = None):
@@ -103,53 +110,62 @@ class ResultTableCacheManager(CacheManager):
             bk_biz_ids: 业务ID列表
             table_ids: 表ID列表
         """
+        result_tables = []
         if not bk_biz_ids:
             return
-        for bk_biz_id in bk_biz_ids:
-            # 数据平台仅支持cmdb业务
-            if bk_biz_id <= 0:
-                continue
 
-            # 查询数据平台结果表
-            try:
-                result_tables = api.bkdata.list_result_table(bk_biz_id=bk_biz_id)
-            except BKAPIError as e:
-                cls.logger.error(
-                    f"ResultTableCacheManager: update bkdata result table failed for biz({bk_biz_id}), {e}"
-                )
-                continue
-
-            # 如果业务下没有结果表，则跳过
-            if not result_tables:
-                continue
-
-            if table_ids:
-                result_tables = [rt for rt in result_tables if rt["result_table_id"] in table_ids]
-                if not result_tables:
+        if table_ids:
+            for table_id in table_ids:
+                try:
+                    result_table = api.bkdata.get_result_table(result_table_id=table_id)
+                    result_tables.append(result_table)
+                except BKAPIError as e:
+                    cls.logger.error(
+                        f"ResultTableCacheManager: update bkdata result table failed for table_id({table_id}), {e}"
+                    )
+                    continue
+        else:
+            for bk_biz_id in bk_biz_ids:
+                # 数据平台仅支持cmdb业务
+                if bk_biz_id <= 0:
                     continue
 
-            pipeline = cls.cache.pipeline()
-            for result_table in result_tables:
-                data = {
-                    "table_id": result_table["result_table_id"],
-                    "table_name": result_table["result_table_name_alias"],
-                    "fields": [
-                        {
-                            "field_name": field["field_name"],
-                            "field_type": field["field_type"],
-                            "field_alias": field["field_alias"],
-                            "is_dimension": field["is_dimension"],
-                        }
-                        for field in result_table["fields"][:MAX_FIELD_SUPPORTED]
-                    ],
-                }
+                # 查询数据平台结果表
+                try:
+                    result_table = api.bkdata.list_result_table(bk_biz_id=bk_biz_id)
+                    result_tables.extend(result_table)
+                except BKAPIError as e:
+                    cls.logger.error(
+                        f"ResultTableCacheManager: update bkdata result table failed for biz({bk_biz_id}), {e}"
+                    )
+                    continue
 
-                pipeline.set(
-                    cls.CACHE_KEY_TEMPLATE.format(DataSourceLabel.BK_DATA, data["table_id"]),
-                    json.dumps(data),
-                    cls.CACHE_TIMEOUT,
-                )
-            pipeline.execute()
+        # 如果业务下没有结果表，则跳过
+        if not result_tables:
+            return
+
+        pipeline = cls.cache.pipeline()
+        for result_table in result_tables:
+            data = {
+                "table_id": result_table["result_table_id"],
+                "table_name": result_table["result_table_name_alias"],
+                "fields": [
+                    {
+                        "field_name": field["field_name"],
+                        "field_type": field["field_type"],
+                        "field_alias": field["field_alias"],
+                        "is_dimension": field["is_dimension"],
+                    }
+                    for field in result_table["fields"][:MAX_FIELD_SUPPORTED]
+                ],
+            }
+
+            pipeline.set(
+                cls.CACHE_KEY_TEMPLATE.format(DataSourceLabel.BK_DATA, data["table_id"]),
+                json.dumps(data),
+                cls.CACHE_TIMEOUT,
+            )
+        pipeline.execute()
 
     @classmethod
     def refresh_bklog(cls, bk_biz_ids: list[int], table_ids: list[str] = None):
@@ -173,7 +189,7 @@ class ResultTableCacheManager(CacheManager):
                 continue
 
             if table_ids:
-                index_list = [index for index in index_list if index["index_set_id"] in table_ids]
+                index_list = [index for index in index_list if index["result_table_id"] in table_ids]
                 if not index_list:
                     continue
 
