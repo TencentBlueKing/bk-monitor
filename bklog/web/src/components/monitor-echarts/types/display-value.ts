@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { FormattedValue } from '../value-formats-package';
+import type { FormattedValue } from '../value-formats-package';
 
 export type DisplayProcessor = (value: any) => DisplayValue;
 

@@ -66,9 +66,8 @@ export default ({ store }) => {
   const getFieldNames = (fields: any) => {
     if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
       return fields.map(fieldInfo => fieldInfo.query_alias || fieldInfo.field_name);
-    } else {
-      return fields.map(fieldInfo => fieldInfo.field_name);
     }
+    return fields.map(fieldInfo => fieldInfo.field_name);
   };
 
   /**

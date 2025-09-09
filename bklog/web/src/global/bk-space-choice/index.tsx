@@ -34,7 +34,7 @@ import { useRouter, useRoute } from 'vue-router/composables';
 
 import * as authorityMap from '../../common/authority-map';
 import useStore from '../../hooks/use-store';
-import UserConfigMixin from '../../mixins/userStoreConfig';
+import UserConfigMixin from '../../mixins/user-store-config';
 import List from './list';
 
 import './index.scss';
