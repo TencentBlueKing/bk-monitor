@@ -94,6 +94,7 @@ class StrategyCacheManager(CacheManager):
     def record_table_biz_relations(cls, strategies: list[dict]):
         """
         记录策略使用的表名与业务ID关系
+        获取策略列表中的业务ID，data_source_label，table_id(如果是日志相关，则使用index_set_id，如果不是则使用result_table_id)
         ：params strategies: 策略列表
         """
         # 使用set去重
@@ -101,20 +102,23 @@ class StrategyCacheManager(CacheManager):
         # 遍历所有策略，提取表名和业务ID
         for strategy in strategies:
             bk_biz_id = strategy.get("bk_biz_id")
-            for item in strategy.get("items", {}):
-                for query_config in item.get("query_configs", {}):
+            for item in strategy.get("items", []):
+                for query_config in item.get("query_configs", []):
                     data_source_label = query_config.get("data_source_label")
-                    data_type_label = query_config.get("data_type_label")
-                    table_id = query_config.get("result_table_id")
+                    # 如果是日志平台的结果表，table_id则使用index_set_id，如果不是则使用result_table_id
+                    if data_source_label == DataSourceLabel.BK_LOG_SEARCH:
+                        table_id = query_config.get("index_set_id")
+                    else:
+                        table_id = query_config.get("result_table_id")
                     if table_id and bk_biz_id is not None:
-                        table_biz_records.add((table_id, bk_biz_id, data_source_label, data_type_label))
+                        table_biz_records.add((table_id, bk_biz_id, data_source_label))
 
         # 把记录保存到缓存中
         if table_biz_records:
             pipeline = cls.cache.pipeline()
             pipeline.delete(cls.STRATEGY_TABLE_BIZ_CACHE_KEY)
-            for table_id, bk_biz_id, data_source_label, data_type_label in table_biz_records:
-                record = f"{table_id}|{bk_biz_id}|{data_source_label}|{data_type_label}"
+            for table_id, bk_biz_id, data_source_label in table_biz_records:
+                record = f"{table_id}|{bk_biz_id}|{data_source_label}"
                 pipeline.sadd(cls.STRATEGY_TABLE_BIZ_CACHE_KEY, record)
             pipeline.expire(cls.STRATEGY_TABLE_BIZ_CACHE_KEY, cls.CACHE_TIMEOUT)
             pipeline.execute()
@@ -122,7 +126,7 @@ class StrategyCacheManager(CacheManager):
     @classmethod
     def get_table_biz_relations(cls):
         """
-        获取策略使用的表明与业务ID
+        获取策略使用的table_id与业务ID，data_source_label，返回这三者组成的元组集合
         """
         table_biz_relations = set()
         records = cls.cache.smembers(cls.STRATEGY_TABLE_BIZ_CACHE_KEY)
@@ -130,9 +134,9 @@ class StrategyCacheManager(CacheManager):
             if isinstance(record, bytes):
                 record = record.decode("utf-8")
             parts = record.split("|")
-            if len(parts) == 4:
-                table_id, bk_biz_id, data_source_label, data_type_label = parts
-                table_biz_relations.add((table_id, bk_biz_id, data_source_label, data_type_label))
+            if len(parts) == 3:
+                table_id, bk_biz_id, data_source_label = parts
+                table_biz_relations.add((table_id, bk_biz_id, data_source_label))
         return table_biz_relations
 
     @classmethod

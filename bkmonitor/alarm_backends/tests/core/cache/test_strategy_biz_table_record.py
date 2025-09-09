@@ -56,6 +56,7 @@ def test_record_table_biz_relations():
                                 "result_table_id": "table1",  # 相同表名不同业务
                                 "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
                                 "data_type_label": DataTypeLabel.LOG,
+                                "index_set_id": "log_table1",
                             }
                         ]
                     }
@@ -77,15 +78,15 @@ def test_record_table_biz_relations():
         expected_calls = [
             mock.call(
                 StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY,
-                f"table1|2|{DataSourceLabel.BK_MONITOR_COLLECTOR}|{DataTypeLabel.TIME_SERIES}",
+                f"table1|2|{DataSourceLabel.BK_MONITOR_COLLECTOR}",
             ),
             mock.call(
                 StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY,
-                f"table2|2|{DataSourceLabel.BK_DATA}|{DataTypeLabel.TIME_SERIES}",
+                f"table2|2|{DataSourceLabel.BK_DATA}",
             ),
             mock.call(
                 StrategyCacheManager.STRATEGY_TABLE_BIZ_CACHE_KEY,
-                f"table1|3|{DataSourceLabel.BK_LOG_SEARCH}|{DataTypeLabel.LOG}",
+                f"log_table1|3|{DataSourceLabel.BK_LOG_SEARCH}",
             ),
         ]
         mock_pipeline.sadd.assert_has_calls(expected_calls, any_order=True)
@@ -165,10 +166,10 @@ def test_get_table_biz_relations():
     """
     with mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.cache") as mock_cache:
         mock_records = [
-            f"table1|2|{DataSourceLabel.BK_MONITOR_COLLECTOR}|{DataTypeLabel.TIME_SERIES}".encode(),
-            f"table2|2|{DataSourceLabel.BK_DATA}|{DataTypeLabel.TIME_SERIES}".encode(),
-            f"table1|3|{DataSourceLabel.BK_LOG_SEARCH}|{DataTypeLabel.LOG}",
-            f"table3|4|{DataSourceLabel.CUSTOM}|{DataTypeLabel.TIME_SERIES}",  # 字符串类型记录
+            f"table1|2|{DataSourceLabel.BK_MONITOR_COLLECTOR}".encode(),
+            f"table2|2|{DataSourceLabel.BK_DATA}".encode(),
+            f"table1|3|{DataSourceLabel.BK_LOG_SEARCH}".encode(),
+            f"table3|4|{DataSourceLabel.CUSTOM}",  # 字符串类型记录
         ]
 
         mock_cache.smembers.return_value = mock_records
@@ -180,10 +181,10 @@ def test_get_table_biz_relations():
 
         # 检查结果
         expected_result = {
-            ("table1", "2", DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
-            ("table2", "2", DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
-            ("table1", "3", DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
-            ("table3", "4", DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+            ("table1", "2", DataSourceLabel.BK_MONITOR_COLLECTOR),
+            ("table2", "2", DataSourceLabel.BK_DATA),
+            ("table1", "3", DataSourceLabel.BK_LOG_SEARCH),
+            ("table3", "4", DataSourceLabel.CUSTOM),
         }
         assert result == expected_result
 
@@ -207,7 +208,7 @@ def test_get_table_biz_relations_malformed_record():
     """
     with mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.cache") as mock_cache:
         mock_records = [
-            f"table1|2|{DataSourceLabel.BK_MONITOR_COLLECTOR}|{DataTypeLabel.TIME_SERIES}".encode(),
+            f"table1|2|{DataSourceLabel.BK_MONITOR_COLLECTOR}".encode(),
             b"malformed_record",  # 缺少分隔符
             b"table2|3|extra|field|too_many",  # 分隔符过多
         ]
@@ -216,5 +217,5 @@ def test_get_table_biz_relations_malformed_record():
 
         result = StrategyCacheManager.get_table_biz_relations()
 
-        expected_result = {("table1", "2", DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)}
+        expected_result = {("table1", "2", DataSourceLabel.BK_MONITOR_COLLECTOR)}
         assert result == expected_result
