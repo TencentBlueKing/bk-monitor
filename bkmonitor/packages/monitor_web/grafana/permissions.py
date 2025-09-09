@@ -11,8 +11,9 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from django.utils import timezone
+from django.conf import settings
 from iam import ObjectSet, make_expression
-from iam.exceptions import AuthAPIError
+from iam.exceptions import AuthAPIError, AuthInvalidParam
 from rest_framework import permissions
 
 from bk_dataview.api import get_or_create_org
@@ -72,6 +73,12 @@ class DashboardPermission(BasePermission):
         """
         获取仪表盘角色
         """
+        if not username:
+            message = "username is required"
+            if settings.ROLE == "api":
+                message += "request header: [X-Bkapi-Authorization] need bk_username field"
+            raise AuthInvalidParam(message)
+
         role = GrafanaRole.Anonymous
         bk_biz_id = int(org_name)
         permission = Permission(username=username, bk_tenant_id=get_request_tenant_id())

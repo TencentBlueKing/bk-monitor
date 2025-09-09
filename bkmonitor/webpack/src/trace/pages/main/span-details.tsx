@@ -46,7 +46,6 @@ import { useIsEnabledProfilingInject } from '../../plugins/hooks';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
 import { SPAN_KIND_MAPS } from '../../store/constant';
-import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { useAppStore } from '../../store/modules/app';
 import { useSpanDetailQueryStore } from '../../store/modules/span-detail-query';
 import { useTraceStore } from '../../store/modules/trace';
@@ -58,8 +57,9 @@ import {
   type ITagsItem,
   EListItemType,
 } from '../../typings/trace';
-import { downFile, getSpanKindIcon } from '../../utils';
+import { downFile } from '../../utils';
 import { autoDecodeString, detectEncodingType } from '../common/formatter-utils';
+import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
@@ -254,17 +254,6 @@ export default defineComponent({
       { immediate: true, deep: true }
     );
 
-    /** 获取 span 类型icon */
-    function getTypeIcon() {
-      const { source, kind, ebpf_kind: ebpfKind } = props.spanDetails;
-      if (source === 'ebpf') {
-        // ebpf 类型
-        return ebpfKind === 'ebpf_system' ? 'System1' : 'Network1';
-      }
-
-      return getSpanKindIcon(kind);
-    }
-
     /** 获取 span 类型描述 */
     function getTypeText() {
       const { kind, source, ebpf_kind: ebpfKind, is_virtual: isVirtual } = props.spanDetails;
@@ -360,7 +349,7 @@ export default defineComponent({
             content: (
               <span class='content-detail-type'>
                 {/* {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`} />} */}
-                {!isVirtual && kind < 6 && (SPAN_KIND_MAPS_NEW[kind].prefixIcon as Function)()}
+                {!isVirtual && kind < 6 && (SPAN_KIND_MAPS_NEW[kind].prefixIcon as () => any)()}
                 <span>{getTypeText()}</span>
               </span>
             ),
