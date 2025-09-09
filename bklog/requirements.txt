@@ -16,7 +16,7 @@ django-dbconn-retry==0.1.8
 
 cloudpickle==2.1.0
 
-pytz==2024.2
+pytz==2025.2
 gunicorn==23.0.0
 urllib3==1.26.19
 django-cors-headers==3.14.0
@@ -29,7 +29,7 @@ mistune==3.0.2
 python-consul==1.1.0
 PyYAML==6.0.2
 dataclasses==0.6
-typing_extensions==4.5.0
+typing_extensions==4.14.0
 Markdown==3.3
 wrapt==1.15.0
 pyinstrument==3.4.2
@@ -126,6 +126,10 @@ apigw-manager==3.0.2
 
 # 日志聚类
 jieba-fast==0.53
+
+# bkaidev
+aidev-agent==1.0.0b33
+langfuse==2.60.5
 
 # 各自环境所需的不同依赖, 通过 sites/${env}/deploy/requirements_env.txt得到
 -r requirements_env.txt
