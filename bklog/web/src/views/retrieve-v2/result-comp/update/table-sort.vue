@@ -127,11 +127,9 @@
   /** 新增变量处理v-for时需要使用的 key 字段，避免重复新建 VNode */
   const sortList = ref<{ key: string; sorts: string[] }[]>([{ key: random(8), sorts: ['', ''] }]);
 
-  const shadowSort = computed(() => sortList.value.map(e => e.sorts));
+  const shadowSort = computed(() => sortList.value.map(e => e.sorts).filter(e => e[0] !== '' && e[1] !== ''));
   const fieldList = computed(() => store.state.indexFieldInfo.fields);
-  // const dtEventTimeStampSort = computed(() => {
-  //   return sortList.value.find(e => e.sorts[0] === 'dtEventTimeStamp') || { key: random(8), sorts: ['dtEventTimeStamp', 'desc'] };
-  // });
+
   const showFieldList = computed(() => {
     return sortList.value.filter( e =>{
       return  isFieldHidden(e.sorts[0])
@@ -144,17 +142,9 @@
       return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
     });
   });
-  // const totalTimeCount = computed(()=>{
-  //   const requiredFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
-  //   return fieldList.value.filter(field =>{
-  //     if (requiredFields.includes(field.field_name)) {
-  //       return true;
-  //     }
-  //   }).length;
-  // })
+
   const deleteTableItem = (val: string) => {
     sortList.value = sortList.value.filter(item => item.key !== val);
-    // sortList.value = sortList.value.slice(0, val).concat(sortList.value.slice(val + 1));
   };
   const addTableItem = () => {
     sortList.value.push({ key: random(8), sorts: ['', ''] });
