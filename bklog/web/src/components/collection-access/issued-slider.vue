@@ -491,7 +491,7 @@
       },
       prevHandler() {
         if (this.operateType === 'add') {
-          this.$store.commit('updateRouterLeaveTip', true);
+          this.$store.commit('updateState', {key: 'showRouterLeaveTip',value: true});
           this.$router.replace({
             name: 'collectEdit',
             params: {

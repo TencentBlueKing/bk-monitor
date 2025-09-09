@@ -58,7 +58,7 @@ export default class MaskingDialog extends tsc<IProps> {
   }
 
   handleCloseDialog() {
-    this.$store.commit('updateIsShowGlobalDialog', false);
+    this.$store.commit('updateState', {key: 'isShowGlobalDialog',value: false});
   }
 
   getContentPanel(activeMenu: string) {
