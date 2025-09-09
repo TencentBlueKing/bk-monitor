@@ -43,7 +43,7 @@ interface IRowSendData {
   type: string;
 }
 export default defineComponent({
-  setup(_props, { expose }) {
+setup(_props, { expose }) {
     const aiBlueking = ref<InstanceType<typeof AIBlueking> | null>(null);
 
     let chatid = random(10);
@@ -64,6 +64,7 @@ export default defineComponent({
       isShow.value = false;
       aiBlueking.value?.hide?.();
     };
+
 
     const displayAiAssistant = () => {
       isShow.value = true;
@@ -88,6 +89,7 @@ export default defineComponent({
     };
 
     const showAiAssistant = (sendMsg = false, args: IRowSendData) => {
+      debugger;
       if (isShow.value && chatid) {
         handleStop();
         setTimeout(() => {

@@ -62,16 +62,16 @@ class LogAnalysisCommandHandler(CommandHandler):
         context_count = int(variables.get("context_count", 10))
         log = variables["log"]
 
+        log_data = json.loads(log)
+        for key in log_data.copy():
+            if key in self.FIELDS_EXCLUDED:
+                del log_data[key]
+
         index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if not index_set_obj:
-            return self.jinja_env.render(template, {"log": log, "context": ""})
+            return self.jinja_env.render(template, {"log": json.dumps(log_data), "context": ""})
 
-        log_data = json.loads(log)
-        # 过滤无关字段
-        for key in self.FIELDS_EXCLUDED:
-            log_data.pop(key, None)
-
-        params = log_data.copy()
+        params = json.loads(log)
         params.update(
             {
                 "search_type_tag": "context",
@@ -99,7 +99,7 @@ class LogAnalysisCommandHandler(CommandHandler):
 
         for index, context_log in enumerate(context_logs):
             # 在模型上下文内容大小限制的前提下，尽可能多的引用日志上下文
-            if total_character_length < self.MAX_CHARACTER_LENGTH:
+            if total_character_length > self.MAX_CHARACTER_LENGTH:
                 break
 
             # 去掉与原始日志完全一致的 kv 对，精简上下文内容大小
@@ -113,10 +113,10 @@ class LogAnalysisCommandHandler(CommandHandler):
             final_context_logs.append(cleaned_context_log)
             total_character_length += len(cleaned_context_log)
 
-        return self.jinja_env.render(template, {"log": log, "context": "\n".join(final_context_logs)})
+        return self.jinja_env.render(template, {"log": json.dumps(log_data), "context": "\n".join(final_context_logs)})
 
     def get_template(self) -> str:
-        return """## 日志内容开始 ##
+        return """## 日志内容开始
 {{ log }}
 ## 日志内容结束 ##
 ## 上下文内容开始 ##
