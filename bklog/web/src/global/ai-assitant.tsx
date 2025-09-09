@@ -28,7 +28,7 @@ import { defineComponent, ref, computed } from 'vue';
 import AIBlueking from '@blueking/ai-blueking/vue2';
 
 import { random } from '../common/util';
-import { type AIBluekingShortcut, AI_BLUEKING_SHORTCUTS } from './ai-type';
+import { AI_BLUEKING_SHORTCUTS } from './ai-type';
 
 import './ai-assistant.scss';
 import '@blueking/ai-blueking/dist/vue2/style.css';
@@ -43,7 +43,7 @@ interface IRowSendData {
   type: string;
 }
 export default defineComponent({
-  setup(_props, { expose, emit }) {
+setup(_props, { expose }) {
     const aiBlueking = ref<InstanceType<typeof AIBlueking> | null>(null);
 
     let chatid = random(10);
@@ -74,15 +74,17 @@ export default defineComponent({
       chatid = random(10);
       if (sendMsg) {
         aiBlueking.value?.handleShow();
-        const shortcut = structuredClone(AI_BLUEKING_SHORTCUTS[0]);
-        shortcut.components.forEach(comp => {
-          const value = args[comp.key];
-          if (value) {
-            comp.default = typeof value === 'object' ? JSON.stringify(value) : value;
-          }
-        });
+        aiBlueking.value?.addNewSession().finally(() => {
+          const shortcut = structuredClone(AI_BLUEKING_SHORTCUTS[0]);
+          shortcut.components.forEach(comp => {
+            const value = args[comp.key];
+            if (value) {
+              comp.default = typeof value === 'object' ? JSON.stringify(value) : value;
+            }
+          });
 
-        aiBlueking.value?.handleShortcutClick?.({ shortcut, source: 'popup' });
+          aiBlueking.value?.handleShortcutClick?.({ shortcut, source: 'popup' });
+        });
       }
     };
 
@@ -99,8 +101,7 @@ export default defineComponent({
       setAiStart(sendMsg, args);
     };
 
-
-    const handleShortcutFilter = (shortcut: AIBluekingShortcut, selectedText: string) => {
+    const handleShortcutFilter = () => {
       return false;
     };
 
@@ -129,6 +130,7 @@ export default defineComponent({
           prompts={[]}
           shortcutFilter={handleShortcutFilter}
           shortcuts={shortcuts.value}
+          showHistoryIcon={false}
           url={apiUrl}
           onClose={hiddenAiAssistant}
           onShow={displayAiAssistant}
