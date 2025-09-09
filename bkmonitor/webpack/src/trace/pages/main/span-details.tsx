@@ -58,11 +58,11 @@ import {
   EListItemType,
 } from '../../typings/trace';
 import { downFile } from '../../utils';
-import { autoDecodeString, detectEncodingType } from '../common/formatter-utils';
 import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
+import DecodeDialog from '@/components/decode-dialog/decode-dialog';
 
 import type { Span } from '../../components/trace-view/typings';
 import type { IFlameGraphDataItem } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
@@ -785,24 +785,13 @@ export default defineComponent({
         return content;
       if (!isJson(content?.toString())) {
         const str = typeof content === 'string' ? content : JSON.stringify(content);
-        return detectEncodingType(str) ? (
-          <div>
-            {str}
-            <div class='decode-content'>
-              <i class='icon-monitor icon-auto-decode decode-content-icon' />
-              <span class='decode-content-result'>{t('解码结果：')}</span>
-              {autoDecodeString(str)}
-            </div>
-          </div>
-        ) : (
-          str
-        );
+        return <DecodeDialog content={str} />;
       }
       const data = JSON.parse(content?.toString() || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
     };
 
-    /** 导出原始数据josn */
+    /** 导出原始数据 json */
     const handleExportOriginData = () => {
       if (originalData.value) {
         const jsonString = JSON.stringify(originalData.value, null, 4);
