@@ -28,7 +28,8 @@ import { type PropType, defineComponent, shallowRef } from 'vue';
 import { Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import QueryConfigViewer from '../description-card/query-config-viewer';
+import PromqlViewer from '../promql-viewer/promql-viewer';
+import QueryConfigViewer from '../query-config-viewer/query-config-viewer';
 
 import type { AlertContentItem } from '../../../../typings';
 
@@ -111,10 +112,18 @@ export default defineComponent({
             </div>
           )}
         </div>
-        <QueryConfigViewer
-          expression={this.alertContentDetail?.expression}
-          queryConfigs={this.alertContentDetail?.query_configs}
-        />
+        {this.alertContentDetail?.origin_sql ? (
+          <PromqlViewer
+            class='alert-content-promql-view'
+            readonly={true}
+            value={this.alertContentDetail?.origin_sql}
+          />
+        ) : (
+          <QueryConfigViewer
+            expression={this.alertContentDetail?.expression}
+            queryConfigs={this.alertContentDetail?.query_configs}
+          />
+        )}
       </div>
     );
   },

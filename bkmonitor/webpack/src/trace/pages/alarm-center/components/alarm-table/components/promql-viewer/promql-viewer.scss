@@ -1,72 +1,72 @@
+/* stylelint-disable declaration-no-important */
 .promql-viewer {
+  position: relative;
+  box-sizing: content-box;
+  display: flex;
   width: 100%;
+  min-height: 68px;
+  overflow: hidden;
+  color: #63656e;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
 
-  .language-promql {
-    display: inline-block;
+  &.is-error {
+    border-color: #ff5656;
+  }
+
+  .promql-editor {
     width: 100%;
-    font-family: RobotoMono;
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 22px;
-    color: #000000;
-    word-break: break-all;
-    word-wrap: break-word;
-    white-space: pre-wrap;
+    height: 100%;
+    border: 0;
 
-    span {
-      word-break: break-all;
-      word-wrap: break-word;
+    /* stylelint-disable-next-line selector-class-pattern */
+    .overflowingContentWidgets {
+      .monaco-hover-content {
+        .hover-row.status-bar {
+          display: none;
+        }
+      }
     }
+  }
 
-    /* 关键字 (by, without, offset) */
-    .hljs-keyword {
-      color: #008080;
-    }
+  .scroll-decoration {
+    box-shadow: none;
+  }
 
-    /* 函数 (sum, rate, predict_linear) */
-    .hljs-function {
-      color: #008080;
-    }
+  .placeholder-widget {
+    top: 6px !important;
+    left: 12px !important;
+    color: #888;
+    pointer-events: none;
+  }
 
-    /* 字符串 (标签值) */
-    .hljs-string {
-      color: #800000;
-    }
+  .resize-vertical-drop {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 16px;
+    height: 16px;
+    cursor: ns-resize;
 
-    /* 数字 (5, 0.05, 3600) */
-    .hljs-number {
-      color: #098658;
-    }
+    .lines {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform: rotate(135deg) translate(4px, -8px);
 
-    /* 运算符 (+, -, /, *) */
-    .hljs-operator {
-      color: #000000;
-    }
+      .line-1 {
+        width: 6px;
+        height: 1px;
+        margin-bottom: 2px;
+        background: #666;
+      }
 
-    /* 注释 */
-    .hljs-comment {
-      font-style: italic;
-      color: #7a7a8c;
-    }
-
-    /* 标签名 (job, status_code) */
-    .hljs-label {
-      color: #800000;
-    }
-
-    /* 指标名 (http_requests_total) */
-    .hljs-metric {
-      color: #000000;
-    }
-
-    /* 时间单位 (5m, 1h) */
-    .hljs-duration {
-      color: #098658;
-    }
-
-    /* 聚合操作符 (sum, avg, count) */
-    .hljs-aggregation {
-      color: #000000;
+      .line-2 {
+        width: 12px;
+        height: 1px;
+        background: #666;
+      }
     }
   }
 }
