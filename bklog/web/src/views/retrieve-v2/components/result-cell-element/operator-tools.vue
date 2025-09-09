@@ -68,10 +68,6 @@
               class="bk-icon icon-exclamation-circle-shape"
             ></span>
             <span>{{ toolMessage.realTimeLog }}</span>
-            <!-- <i18n path="请前往 {0}">
-                  <span class="clean-str">{{$t('清洗')}}</span>
-                </i18n>
-              <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
           </span>
         </div>
       </div>
@@ -83,10 +79,6 @@
               class="bk-icon icon-exclamation-circle-shape"
             ></span>
             <span>{{ toolMessage.webConsole }}</span>
-            <!-- <i18n path="请前往 {0}">
-              <span class="clean-str">{{$t('清洗')}}</span>
-            </i18n>
-            <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
           </span>
         </div>
       </div>
@@ -98,10 +90,6 @@
               class="bk-icon icon-exclamation-circle-shape"
             ></span>
             <span>{{ toolMessage.contextLog }}</span>
-            <!-- <i18n path="请前往 {0}">
-                <span class="clean-str">{{$t('清洗')}}</span>
-              </i18n>
-              <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
           </span>
         </div>
       </div>
@@ -118,21 +106,11 @@
         >
         </span>
       </span>
-      <!-- <span
-        class="handle-card"
-        v-bk-tooltips="
-          $t('{0}日志来源', {
-            0: !isShowSourceField ? $t('显示') : $t('隐藏'),
-          })
-        "
-        @click.stop="handleClick('logSource')"
-      >
-        <i :class="['bk-icon bklog-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>
-      </span> -->
     </template>
     <template v-if="isAiAssistanceActive">
       <span
         class="handle-card ai-assistant bklog-row-ai"
+        v-bk-tooltips="{ allowHtml: false, content: $t('AI助手') }"
         @click.stop="e => handleCheckClick('ai', true, e)"
         @mouseup.stop
       >

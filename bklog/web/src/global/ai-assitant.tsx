@@ -78,7 +78,7 @@ export default defineComponent({
           shortcut.components.forEach(comp => {
             const value = args[comp.key];
             if (value) {
-              comp.default = typeof value === 'object' ? JSON.stringify(value) : value;
+              comp.default = typeof value === 'object' ? JSON.stringify(value).replace(/<\/?mark>/gim, '') : value;
             }
           });
 
