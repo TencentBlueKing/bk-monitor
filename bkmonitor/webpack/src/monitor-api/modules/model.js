@@ -223,6 +223,17 @@ export const listAssignRule = request('GET', 'fta/assign/rules/');
 export const partialUpdateAssignRule = request('PATCH', 'fta/assign/rules/{pk}/');
 export const retrieveAssignRule = request('GET', 'fta/assign/rules/{pk}/');
 export const updateAssignRule = request('PUT', 'fta/assign/rules/{pk}/');
+export const alertsStrategyTemplate = request('POST', 'apm/strategy/strategy_template/alerts/');
+export const applyStrategyTemplate = request('POST', 'apm/strategy/strategy_template/apply/');
+export const batchPartialUpdateStrategyTemplate = request('POST', 'apm/strategy/strategy_template/batch_partial_update/');
+export const checkStrategyTemplate = request('POST', 'apm/strategy/strategy_template/check/');
+export const cloneStrategyTemplate = request('POST', 'apm/strategy/strategy_template/{pk}/clone/');
+export const compareStrategyTemplate = request('POST', 'apm/strategy/strategy_template/{pk}/compare/');
+export const destroyStrategyTemplate = request('DELETE', 'apm/strategy/strategy_template/{pk}/');
+export const listStrategyTemplate = request('GET', 'apm/strategy/strategy_template/');
+export const previewStrategyTemplate = request('POST', 'apm/strategy/strategy_template/{pk}/preview/');
+export const retrieveStrategyTemplate = request('GET', 'apm/strategy/strategy_template/{pk}/');
+export const updateStrategyTemplate = request('PUT', 'apm/strategy/strategy_template/{pk}/');
 
 export default {
   countBaseAlarm,
@@ -396,4 +407,15 @@ export default {
   partialUpdateAssignRule,
   retrieveAssignRule,
   updateAssignRule,
+  alertsStrategyTemplate,
+  applyStrategyTemplate,
+  batchPartialUpdateStrategyTemplate,
+  checkStrategyTemplate,
+  cloneStrategyTemplate,
+  compareStrategyTemplate,
+  destroyStrategyTemplate,
+  listStrategyTemplate,
+  previewStrategyTemplate,
+  retrieveStrategyTemplate,
+  updateStrategyTemplate,
 };
