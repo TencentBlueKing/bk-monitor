@@ -291,6 +291,7 @@ class SearchAttrSerializer(serializers.Serializer):
     start_time = DateTimeFieldWithEpoch(required=False)
     end_time = DateTimeFieldWithEpoch(required=False)
     time_range = serializers.CharField(required=False, default=None)
+    time_zone = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     from_favorite_id = serializers.IntegerField(required=False, default=0)
 
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
@@ -927,6 +928,7 @@ class QueryFieldBaseSerializer(serializers.Serializer):
     end_time = serializers.IntegerField(required=True)
     time_range = serializers.CharField(required=False, default=None)
     interval = serializers.CharField(required=False, default="auto", max_length=16)
+    time_zone = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     # 关键字填充条
     keyword = serializers.CharField(allow_null=True, allow_blank=True)
