@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch } from 'vue';
+import { defineComponent, ref, computed, watch, onMounted } from 'vue';
 
 import { getRegExp } from '@/common/util';
 import useFieldEgges from '@/hooks/use-field-egges';
@@ -248,6 +248,10 @@ export default defineComponent({
       controlOperateRef.value.unbindKeyEvent();
     };
 
+    onMounted(() => {
+      handleFieldItemClick(0);
+    });
+
     expose({
       hide: handleClickCancel,
     });
@@ -317,10 +321,16 @@ export default defineComponent({
                         class='display-container rtl-text'
                         dir={textDir.value}
                       >
-                        <bdi>
-                          <span class='field-alias'>{item.field_alias}</span>
-                          <span class='field-name'>({item.field_name})</span>
-                        </bdi>
+                        {item.field_alias !== '' ? (
+                          <bdi>
+                            <span class='field-alias'>{item.field_alias}</span>
+                            <span class='field-name'>({item.field_name})</span>
+                          </bdi>
+                        ) : (
+                          <bdi>
+                            <span class='field-alias'>{item.field_name}</span>
+                          </bdi>
+                        )}
                       </div>
                     </div>
                   ))}
