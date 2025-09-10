@@ -1,6 +1,3 @@
-/* stylelint-disable selector-class-pattern */
-
-/* stylelint-disable font-family-no-missing-generic-family-keyword */
 @font-face {
   font-family: icon-monitor; /* Project id 1185924 */
   src:
@@ -15,6 +12,22 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-mc-decode::before {
+  content: '\e845';
+}
+
+.icon-beizhu1::before {
+  content: '\e844';
+}
+
+.icon-zhongdingyi::before {
+  content: '\e843';
+}
+
+.icon-File::before {
+  content: '\e842';
 }
 
 .icon-auto-decode::before {

@@ -79,7 +79,7 @@ export default defineComponent({
             >
               <i
                 key='decode-icon'
-                class='icon-monitor icon-dimension-filled decode-icon'
+                class='icon-monitor icon-mc-decode decode-icon'
               />
               {this.t('解码')}
             </div>
