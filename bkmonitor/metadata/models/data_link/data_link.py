@@ -32,6 +32,7 @@ from metadata.models.data_link.constants import (
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
     DataBusConfig,
+    DorisStorageBindingConfig,
     ESStorageBindingConfig,
     LogDataBusConfig,
     LogResultTableConfig,
@@ -39,7 +40,8 @@ from metadata.models.data_link.data_link_configs import (
     VMStorageBindingConfig,
 )
 from metadata.models.data_link.utils import generate_result_table_field_list, get_bkbase_raw_data_id_name
-from metadata.models.storage import ClusterInfo
+from metadata.models.result_table import LogV4DataLinkOption
+from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage
 
 if TYPE_CHECKING:
     from metadata.models import DataSource
@@ -62,6 +64,7 @@ class DataLink(models.Model):
     SYSTEM_PROC_PERF = "system_proc_perf"  # 系统进程性能链路
     SYSTEM_PROC_PORT = "system_proc_port"  # 系统进程端口链路
     BASE_EVENT_V1 = "base_event_v1"  # 基础事件链路
+    BK_LOG = "bk_log"  # 日志链路
 
     DATA_LINK_STRATEGY_CHOICES = (
         (BK_STANDARD_V2_TIME_SERIES, "标准单指标单表时序数据链路"),
@@ -73,6 +76,7 @@ class DataLink(models.Model):
         (BASE_EVENT_V1, "基础事件链路"),
         (SYSTEM_PROC_PERF, "系统进程性能链路"),
         (SYSTEM_PROC_PORT, "系统进程端口链路"),
+        (BK_LOG, "日志链路"),
     )
 
     # 各个套餐所需要的链路资源
@@ -91,6 +95,7 @@ class DataLink(models.Model):
         BASE_EVENT_V1: [LogResultTableConfig, ESStorageBindingConfig, LogDataBusConfig],
         SYSTEM_PROC_PERF: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PORT: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
+        BK_LOG: [LogResultTableConfig, ESStorageBindingConfig, LogDataBusConfig],
     }
 
     STORAGE_TYPE_MAP = {
@@ -103,6 +108,7 @@ class DataLink(models.Model):
         BASE_EVENT_V1: ClusterInfo.TYPE_ES,
         SYSTEM_PROC_PERF: ClusterInfo.TYPE_VM,
         SYSTEM_PROC_PORT: ClusterInfo.TYPE_VM,
+        BK_LOG: ClusterInfo.TYPE_ES,
     }
 
     DATABUS_TRANSFORMER_FORMAT = {
@@ -143,14 +149,146 @@ class DataLink(models.Model):
             DataLink.SYSTEM_PROC_PORT: partial(
                 self.compose_system_proc_configs, data_link_strategy=DataLink.SYSTEM_PROC_PORT
             ),
+            DataLink.BK_LOG: self.compose_log_configs,
         }
         return switcher[self.data_link_strategy](*args, **kwargs)
 
-    def compose_log_configs(self, *args, **kwargs):
+    def compose_log_configs(
+        self,
+        bk_biz_id: int,
+        data_source: "DataSource",
+        table_id: str,
+    ) -> list[dict[str, Any]]:
+        """生成日志链路配置
+
+        Args:
+            bk_biz_id: 业务ID
+            data_source: 数据源
+            table_id: 结果表ID
+            storage_cluster_name: 存储集群名称
         """
-        生成日志链路配置
-        """
-        return []
+        from metadata.models import ResultTableOption
+
+        logger.info(
+            "compose_log_configs: data_link_name->[%s],bk_biz_id->[%s],data_source->[%s],table_id->[%s],storage_cluster_name->[%s]",
+            self.data_link_name,
+            bk_biz_id,
+            data_source,
+            table_id,
+        )
+
+        es_storage = ESStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
+        doris_storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
+
+        config_list: list[dict[str, Any]] = []
+        with transaction.atomic():
+            # 获取结果表选项
+            option = ResultTableOption.objects.get(
+                bk_tenant_id=self.bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_V4_LOG_DATA_LINK
+            ).value
+            datalink_option = LogV4DataLinkOption(**json.loads(option))
+
+            fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
+            clean_rules = [clean_rule.model_dump() for clean_rule in datalink_option.clean_rules]
+
+            # 创建结果表配置
+            result_table, _ = LogResultTableConfig.objects.get_or_create(
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                namespace=self.namespace,
+                data_link_name=self.data_link_name,
+                name=self.data_link_name,
+            )
+
+            # 创建存储绑定配置
+            databus_sinks: list[dict[str, Any]] = []
+            bingding_configs: list[dict[str, Any]] = []
+
+            # 创建ES存储绑定配置
+            if es_storage and datalink_option.es_storage_config:
+                storage_option = datalink_option.es_storage_config
+                binding, _ = ESStorageBindingConfig.objects.get_or_create(
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    namespace=self.namespace,
+                    data_link_name=self.data_link_name,
+                    name=self.data_link_name,
+                    es_cluster_name=es_storage.storage_cluster.cluster_name,
+                    timezone=es_storage.time_zone,
+                )
+
+                # 生成索引规则
+                index_name = table_id.replace(".", "_")
+                write_alias = f"write_%Y%m%d_{index_name}"
+
+                bingding_configs.append(
+                    binding.compose_config(
+                        storage_cluster_name=es_storage.storage_cluster.cluster_name,
+                        write_alias_format=write_alias,
+                        unique_field_list=storage_option.unique_field_list,
+                        json_field_list=storage_option.json_field_list,
+                    )
+                )
+                databus_sinks.append(
+                    {
+                        "kind": DataLinkKind.ESSTORAGEBINDING.value,
+                        "name": binding.name,
+                        "namespace": self.namespace,
+                    }
+                )
+
+            # 创建 Doris 存储绑定配置
+            if doris_storage and datalink_option.doris_storage_config:
+                storage_option = datalink_option.doris_storage_config
+                binding, _ = DorisStorageBindingConfig.objects.get_or_create(
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    namespace=self.namespace,
+                    data_link_name=self.data_link_name,
+                    name=self.data_link_name,
+                )
+                bingding_configs.append(
+                    binding.compose_config(
+                        storage_cluster_name=doris_storage.storage_cluster.cluster_name,
+                        storage_keys=storage_option.storage_keys,
+                        json_fields=storage_option.json_fields,
+                        field_config_group=storage_option.field_config_group,
+                        expires=f"{doris_storage.expire_days}d",
+                        flush_timeout=storage_option.flush_timeout,
+                    )
+                )
+                databus_sinks.append(
+                    {
+                        "kind": DataLinkKind.DORISBINDING.value,
+                        "name": binding.name,
+                        "namespace": self.namespace,
+                    }
+                )
+
+            # 如果没有任何存储绑定配置，则抛出异常
+            if not bingding_configs:
+                raise ValueError("至少需要一个存储绑定配置")
+
+            # 创建数据总线配置
+            databus, _ = LogDataBusConfig.objects.get_or_create(
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                namespace=self.namespace,
+                data_link_name=self.data_link_name,
+                name=self.data_link_name,
+                data_id_name=self.data_link_name,
+            )
+
+            # 组装配置
+            config_list.extend(
+                [
+                    result_table.compose_config(fields=fields),
+                    *bingding_configs,
+                    databus.compose_config(sinks=databus_sinks, rules=clean_rules),
+                ]
+            )
+
+        return config_list
 
     def compose_system_proc_configs(
         self,
