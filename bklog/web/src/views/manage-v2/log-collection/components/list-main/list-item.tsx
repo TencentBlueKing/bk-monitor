@@ -29,18 +29,18 @@ import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
-import AddIndexSet from '../business-comp/add-index-set';
+import AddIndexSet from '../business-comp/step2/add-index-set';
 
 import './list-item.scss';
 
-interface ListItemData {
+type ListItemData = {
   key: string;
   label: string;
   count?: number;
   icon?: string;
   unEditable?: boolean;
   [key: string]: any;
-}
+};
 
 export default defineComponent({
   name: 'ListItem',
@@ -56,6 +56,7 @@ export default defineComponent({
   },
   emits: ['choose'],
   setup(props, { emit }) {
+    const DEBOUNCE_DELAY_MS = 100;
     const { t } = useLocale();
     const rootRef = ref<HTMLSpanElement>();
     const panelRef = ref<HTMLDivElement>();
@@ -106,7 +107,9 @@ export default defineComponent({
     };
 
     const initActionPop = () => {
-      if (!isEnableGroupAction.value) return;
+      if (!isEnableGroupAction.value) {
+        return;
+      }
 
       // 清理已存在的实例
       if (tippyInstance) {
@@ -129,7 +132,9 @@ export default defineComponent({
 
     /** 渲染相关操作 */
     const initManagePop = (kind: 'delete' | 'edit') => {
-      if (!isEnableGroupAction.value || isProcessing.value) return;
+      if (!isEnableGroupAction.value || isProcessing.value) {
+        return;
+      }
 
       isProcessing.value = true;
       isHover.value = true;
@@ -188,11 +193,16 @@ export default defineComponent({
 
     /** 选中具体某个操作 */
     const handleMenuClick = (type: string) => {
-      if (isProcessing.value) return;
+      if (isProcessing.value) {
+        return;
+      }
 
       tippyInstance?.hide();
-      if (type === 'edit') initEditGroupPop();
-      else if (type === 'delete') initDelPop();
+      if (type === 'edit') {
+        initEditGroupPop();
+      } else if (type === 'delete') {
+        initDelPop();
+      }
     };
 
     const handleEditGroupCancel = () => {
@@ -217,9 +227,11 @@ export default defineComponent({
 
     // 防抖处理的项目点击
     const handleItem = debounce(() => {
-      if (isProcessing.value) return;
+      if (isProcessing.value) {
+        return;
+      }
       emit('choose', props.data);
-    }, 100);
+    }, DEBOUNCE_DELAY_MS);
 
     onMounted(initActionPop);
 
@@ -251,7 +263,7 @@ export default defineComponent({
                 width: 240,
                 disabled: !isCanDel,
               }}
-              onClick={() => !isCanDel && !isProcessing.value && handleMenuClick(menu.key)}
+              on-Click={() => !(isCanDel || isProcessing.value) && handleMenuClick(menu.key)}
             >
               {menu.label}
             </span>
@@ -307,9 +319,9 @@ export default defineComponent({
       >
         <div
           class={['base-item', { active: props.activeKey === props.data.key }]}
-          onClick={handleItem}
+          on-Click={handleItem}
         >
-          <i class={`bklog-icon item-icon bklog-${props.data.icon || 'file-close'}`}></i>
+          <i class={`bklog-icon item-icon bklog-${props.data.icon || 'file-close'}`} />
           <div class='item-label'>{props.data.label}</div>
           <div class='item-count'>{props.data.count}</div>
         </div>

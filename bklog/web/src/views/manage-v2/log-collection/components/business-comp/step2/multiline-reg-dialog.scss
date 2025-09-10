@@ -1,0 +1,40 @@
+@import '@/scss/mixins/scroller';
+.multiline-reg-dialog-box {
+    .multiline-reg-dialog-content {
+        .bk-label-text {
+          color: #313238;
+        }
+        .bk-form-textarea{
+          @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+        }
+        .test-container {
+          display: flex;
+          align-items: center;
+    
+          .test-result {
+            display: flex;
+            align-items: center;
+            line-height: 20px;
+    
+            .bk-icon {
+              margin-right: 6px;
+              font-size: 12px;
+            }
+    
+            .icon-check-circle-shape {
+              color: #2dcb56;
+            }
+    
+            .icon-close-circle-shape {
+              color: #ea3636;
+            }
+    
+            .match-counts {
+              margin: 0 4px;
+              font-weight: bold;
+              color: #3a84ff;
+            }
+          }
+        }
+    }
+}

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -37,19 +37,20 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
+    console.log(t('v2.logCollection.title'), props, emit);
     const isShowLeft = ref(true);
     const handleShowLeft = () => {
       isShowLeft.value = !isShowLeft.value;
     };
     return () => (
       <div class='v2-log-collection-main'>
-        {isShowLeft.value && <div class='v2-log-collection-left'></div>}
+        {isShowLeft.value && <div class='v2-log-collection-left' />}
         <div class='v2-log-collection-right'>
           <span
             class='right-btn-box'
-            onClick={handleShowLeft}
+            on-Click={handleShowLeft}
           >
-            <i class={`bk-icon icon-angle-${isShowLeft.value ? 'left' : 'right'} right-btn`}></i>
+            <i class={`bk-icon icon-angle-${isShowLeft.value ? 'left' : 'right'} right-btn`} />
           </span>
         </div>
       </div>

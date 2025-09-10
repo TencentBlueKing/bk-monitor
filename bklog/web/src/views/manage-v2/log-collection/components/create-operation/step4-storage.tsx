@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
 import { useOperation } from '../../hook/useOperation';
-import ClusterTable from '../business-comp/cluster-table';
+import ClusterTable from '../business-comp/step4/cluster-table';
 import { step4Data } from './data';
 
 import './step4-storage.scss';
@@ -40,6 +40,7 @@ export default defineComponent({
   emits: ['prev'],
 
   setup(props, { emit }) {
+    console.log('props', props);
     const { t } = useLocale();
     const { cardRender } = useOperation();
     const activeName = ref(['shared', 'exclusive']);
@@ -128,14 +129,14 @@ export default defineComponent({
           <bk-input
             class='min-width'
             type='number'
-          ></bk-input>
+          />
         </div>
         <div class='link-config label-form-box'>
           <span class='label-title'>{t('分片数')}</span>
           <bk-input
             class='min-width'
             type='number'
-          ></bk-input>
+          />
         </div>
       </div>
     );
@@ -164,7 +165,7 @@ export default defineComponent({
             {t('上一步')}
           </bk-button>
           <bk-button
-            class='mr-8 width-88'
+            class='width-88 mr-8'
             theme='primary'
           >
             {t('提交')}

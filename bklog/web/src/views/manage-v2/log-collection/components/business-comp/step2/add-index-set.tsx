@@ -28,7 +28,7 @@ import { defineComponent, type PropType, ref, nextTick } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
-import type { ListItemData } from '../../type';
+import type { ListItemData } from '../../../type';
 
 import './add-index-set.scss';
 

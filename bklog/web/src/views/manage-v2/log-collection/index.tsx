@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, onMounted } from 'vue';
+import { defineComponent, ref, onMounted } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -40,6 +40,8 @@ export default defineComponent({
   emits: ['width-change'],
 
   setup(props, { emit }) {
+    console.log('props', props, emit);
+    const LOADING_TIMEOUT_MS = 1200;
     const { t } = useLocale();
     const isShowLeft = ref(true);
     const listLoading = ref(false);
@@ -61,11 +63,12 @@ export default defineComponent({
     const handleChoose = item => {
       currentIndexSet.value = item;
     };
+
     onMounted(() => {
       listLoading.value = true;
       setTimeout(() => {
         listLoading.value = false;
-      }, 1200);
+      }, LOADING_TIMEOUT_MS);
     });
 
     return () => (
@@ -82,9 +85,9 @@ export default defineComponent({
         <div class='v2-log-collection-right'>
           <span
             class='right-btn-box'
-            onClick={handleShowLeft}
+            on-Click={handleShowLeft}
           >
-            <i class={`bk-icon icon-angle-${isShowLeft.value ? 'left' : 'right'} right-btn`}></i>
+            <i class={`bk-icon icon-angle-${isShowLeft.value ? 'left' : 'right'} right-btn`} />
           </span>
           <TableList
             data={tableList.value}

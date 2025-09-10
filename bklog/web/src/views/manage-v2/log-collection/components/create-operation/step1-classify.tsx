@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -40,6 +40,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const activeKey = ref('host_log');
+    console.log(props);
     const list = [
       {
         name: '主机采集',
@@ -127,7 +128,7 @@ export default defineComponent({
         </div>
         <div class='classify-btns'>
           <bk-button
-            class='mr-8 width-88'
+            class='width-88 mr-8'
             theme='primary'
             on-click={() => {
               emit('next');

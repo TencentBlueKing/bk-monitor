@@ -29,9 +29,9 @@ import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
 
 import StepClassify from './step1-classify';
-import StepBkDataCollection from './step2-bk-data-collection';
+// import StepBkDataCollection from './step2-bk-data-collection';
 import StepConfiguration from './step2-configuration';
-import StepCustomReport from './step2-custom-report';
+// import StepCustomReport from './step2-custom-report';
 import StepClean from './step3-clean';
 import StepStorage from './step4-storage';
 
@@ -43,7 +43,8 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const mainRef = ref<HTMLDivElement>();
-    const step = ref(2);
+    const DEFAULT_STEP = 3;
+    const step = ref(DEFAULT_STEP);
 
     const stepDesc = [
       { title: t('索引集分类'), icon: 1, components: StepClassify },

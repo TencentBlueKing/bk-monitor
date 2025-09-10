@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { defineComponent } from 'vue';
 
 import './info-tips.scss';
 
@@ -37,7 +37,7 @@ export default defineComponent({
     },
   },
 
-  setup(props, { emit }) {
+  setup(props) {
     return () => (
       <span class='info-tips-box'>
         <i class='bk-icon icon-info-circle tips-icon' />

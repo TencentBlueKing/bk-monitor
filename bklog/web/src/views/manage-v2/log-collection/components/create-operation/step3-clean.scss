@@ -2,6 +2,9 @@
   width: 100%;
   height: 100%;
   position: relative;
+  .label-form-box .label-title {
+    width: 124px !important;
+  }
   .template-btn {
     margin: 0 24px;
     color: #3a84ff;
@@ -23,40 +26,74 @@
     display: flex;
     align-items: center;
     z-index: 1;
+    cursor: pointer;
     .status-icon-box {
       width: 32px;
       height: 32px;
       border-radius: 50%;
-      background: #3a84ff;
       margin-right: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
+      will-change: transform;
+      transform-origin: 50% 50%;
+      backface-visibility: hidden;
+      transform: translateZ(0);
+    }
+    .spinner {
+      width: 30px;
+      height: 30px;
+      will-change: transform;
+      transform-origin: 50% 50%;
+      animation: spin 2s linear infinite;
+    }
+    .status-icon {
+      position: absolute;
+      left: 12px;
     }
     .status-txt {
       color: #fff;
       font-size: 14px;
       text-align: center;
     }
+    &.loading {
+      .status-icon-box {
+        background: url('@/images/log-collection/loading.svg') no-repeat center;
+        background-size: 32px 32px; /* 固定像素，避免 contain 的细微重采样 */
+        animation: spin 2s linear infinite;
+      }
+      .status-icon {
+        color: #fff;
+      }
+      
+    }
     &.success {
       background: #3d9399;
       .status-icon-box {
         background: #fff;
-        .status-icon {
-          font-size: 33px;
-          color: #00b38f;
-        }
+      }
+      .status-icon {
+        font-size: 33px;
+        color: #00b38f;
       }
     }
     &.failed {
       background: #b34747;
       .status-icon-box {
         background: #fff;
-        .status-icon {
-          font-size: 38px;
-          color: #ea3636;
-        }
       }
+      .status-icon {
+        font-size: 38px;
+        color: #ea3636;
+      }
+    }
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
     }
   }
   .select-group {
@@ -80,6 +117,7 @@
       font-size: 12px;
       padding: 0 8px;
       line-height: 30px;
+      min-width: 40px;
     }
     .select-box {
       flex: 1;
@@ -105,6 +143,13 @@
       .link-icon {
         font-size: 14px;
       }
+      .template-select {
+        border: none;
+        display: inline-block;
+        &.is-focus {
+          box-shadow: none;
+        }
+      }
     }
     .clean-btn {
       display: block;
@@ -119,37 +164,100 @@
       display: flex;
       align-items: center;
     }
-    .tab-box {
-      font-size: 12px;
-      color: #4d4f56;
-      display: flex;
-      .tab-list {
-        background: #f0f1f5;
-        border-radius: 2px;
-        padding: 4px;
-        height: 32px;
-        margin-right: 12px;
-        .tab-item {
-          display: inline-block;
-          padding: 4px 12px;
-          cursor: pointer;
-        }
-        .is-selected {
-          background: #ffffff;
-          border-radius: 2px;
-          color: #3a84ff;
-        }
-      }
-    }
-    .add-btn {
-      font-size: 20px !important;
-      top: -3px !important;
-    }
     .fields-table {
       margin: 12px 0;
+    }
+    .select-item {
+      width: 40%;
     }
   }
   .advanced-setting {
     width: 100%;
+  }
+  .url-demo-box, .debug-box {
+    display: flex;
+    align-items: center;
+    .input-box {
+      width: 38%;
+    }
+    .icons {
+      color: #63656e;
+      margin-left: 12px;
+      cursor: pointer;
+    }
+  }
+  .debug-box {
+    width: 38%;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    .symbol {
+      margin: 0 4px;
+      color: #979ba5;
+      font-size: 14px;
+    }
+    .first-input {
+      width: 30%;
+    }
+  }
+  .debug-btn {
+    margin-left: 12px;
+    border: 1px solid #3a84ff;
+    color: #3a84ff;
+    &:hover {
+      border: 1px solid #3a84ff;
+      color: #3a84ff;
+    }
+  }
+  .separator-box {
+    display: block;
+    width: 47.5%;
+    .select-box {
+      min-width: 110px;
+    }
+  }
+  .regex-box-main {
+    margin-top: 12px;
+    .title {
+      font-size: 12px;
+      color: #4D4F56;
+      margin-bottom: 6px;
+      .tips-icon {
+        color: #979BA5;
+        font-size: 14px;
+        margin-left: 10px;
+      }
+    }
+  }
+}
+.template-select-popover {
+  width: 240px !important;
+  .bk-option-content {
+    padding: 0 7px 0 12px !important;
+  }
+  .template-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    &:hover {
+      .option-btn {
+        display: inline-block;
+      }
+    }
+    .option-name {
+      flex: 1;
+    }
+    .option-btn {
+      display: none;
+      height: 24px;
+      line-height: 24px;
+      background: #3A84FF;
+      border-radius: 2px;
+      padding: 0 6px;
+      text-align: center;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
   }
 }

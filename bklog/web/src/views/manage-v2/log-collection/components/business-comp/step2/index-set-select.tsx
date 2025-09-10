@@ -24,58 +24,84 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
-import { useOperation } from '../../hook/useOperation';
-import BaseInfo from '../business-comp/step2/base-info';
+import AddIndexSet from './add-index-set';
 
-import './step2-custom-report.scss';
+import './index-set-select.scss';
 
 export default defineComponent({
-  name: 'StepCustomReport',
+  name: 'IndexSetSelect',
+  props: {
+    list: {
+      type: Array,
+      default: () => [],
+    },
+    value: {
+      type: Array,
+      default: () => [],
+    },
+  },
 
-  emits: ['next', 'prev'],
+  emits: ['select'],
 
   setup(props, { emit }) {
-    console.log(props, 'props');
     const { t } = useLocale();
-    const { cardRender } = useOperation();
-    /** 基本信息 */
-    const renderBaseInfo = () => <BaseInfo typeKey='custom' />;
-
-    const cardConfig = [
-      {
-        title: t('基础信息'),
-        key: 'baseInfo',
-        renderFn: renderBaseInfo,
-      },
-    ];
+    const isAdd = ref(false);
+    const addIndexSetRef = ref();
+    const selectArr = ref([]);
+    const handleAdd = () => {
+      isAdd.value = true;
+      setTimeout(() => {
+        addIndexSetRef.value?.autoFocus?.();
+      });
+    };
+    const handleCancel = () => {
+      isAdd.value = false;
+    };
+    const handleSubmit = () => {
+      handleCancel();
+      emit('select', selectArr.value);
+    };
+    const handleSelect = val => {
+      selectArr.value = val;
+    };
     return () => (
-      <div class='operation-step2-custom-report'>
-        {cardRender(cardConfig)}
-        <div class='classify-btns'>
-          <bk-button
-            class='mr-8'
-            on-click={() => {
-              emit('prev');
-            }}
-          >
-            {t('上一步')}
-          </bk-button>
-          <bk-button
-            class='width-88 mr-8'
-            theme='primary'
-            on-click={() => {
-              emit('next');
-            }}
-          >
-            {t('下一步')}
-          </bk-button>
-          <bk-button>{t('取消')}</bk-button>
+      <bk-select
+        class='index-set-select-box'
+        value={props.value}
+        multiple
+        searchable
+        onChange={val => handleSelect(val)}
+      >
+        {(props.list || []).map(option => (
+          <bk-option
+            id={option.id}
+            key={option.id}
+            name={option.name}
+          />
+        ))}
+        <div
+          class='index-set-select-extension'
+          slot='extension'
+        >
+          {isAdd.value ? (
+            <AddIndexSet
+              ref={addIndexSetRef}
+              isFrom={false}
+              on-cancel={handleCancel}
+              on-submit={handleSubmit}
+            />
+          ) : (
+            <span on-Click={handleAdd}>
+              <i class='bk-icon icon-plus-circle' />
+              {t('新增索引集')}
+            </span>
+          )}
         </div>
-      </div>
+      </bk-select>
     );
   },
 });

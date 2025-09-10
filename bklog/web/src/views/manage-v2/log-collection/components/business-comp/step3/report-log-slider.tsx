@@ -24,62 +24,64 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType } from 'vue';
+import { defineComponent } from 'vue';
 
-import './classify-card.scss';
+import { copyText } from '@/components/monitor-echarts/utils';
+import useLocale from '@/hooks/use-locale';
 
-// 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
-const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
-
+import './report-log-slider.scss';
+/**
+ * 上报日志详情
+ */
 export default defineComponent({
-  name: 'ClassifyCard',
+  name: 'ReportLogSlider',
   props: {
-    data: {
-      type: Object as PropType<{ icon?: string; name?: string }>,
+    isShow: {
+      type: Boolean,
+      default: false,
+    },
+    jsonText: {
+      type: Object,
       default: () => ({}),
     },
-    activeKey: {
-      type: String,
-      default: '',
-    },
   },
-  emits: ['choose'],
+
+  emits: ['change'],
 
   setup(props, { emit }) {
-    const resolveIconUrl = (iconName?: string) => {
-      if (!iconName) {
-        return '';
-      }
-      try {
-        return iconsContext(`./${iconName}.png`);
-      } catch (e) {
-        console.log(e);
-        return '';
-      }
-    };
-    /** 选中 */
-    const handleChoose = () => {
-      emit('choose', props.data);
-    };
-
+    const { t } = useLocale();
     return () => (
-      <div
-        class={{
-          'classify-card-main': true,
-          active: props.activeKey === props.data?.value,
+      <bk-sideslider
+        width={596}
+        class='report-log-slider-main'
+        before-close={() => {
+          emit('change', false);
         }}
-        on-Click={handleChoose}
-      >
-        <div
-          style={{
-            background: `url(${resolveIconUrl(props.data?.icon)})`,
-            'background-size': '100% 100%',
-          }}
-          class='card-icon'
-        />
-        <div class='card-txt'>{props.data?.name}</div>
-        <i class='bklog-icon bklog-correct icon-correct' />
-      </div>
+        scopedSlots={{
+          header: () => (
+            <div class='report-log-slider-header'>
+              <span class='title'>{t('上报日志详情')}</span>
+              <span
+                class='copy-btn'
+                on-click={() => copyText(JSON.stringify(props.jsonText))}
+              >
+                {t('复制')}
+              </span>
+            </div>
+          ),
+          content: () => (
+            <div class='p20 json-text-style'>
+              <JsonFormatWrapper
+                data={props.jsonText}
+                deep={5}
+              />
+            </div>
+          ),
+        }}
+        is-show={props.isShow}
+        quick-close={true}
+        transfer
+      />
     );
   },
 });

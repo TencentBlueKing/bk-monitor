@@ -24,61 +24,64 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType } from 'vue';
+import { defineComponent } from 'vue';
 
-import './classify-card.scss';
-
-// 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
-const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
+import './input-add-group.scss';
 
 export default defineComponent({
-  name: 'ClassifyCard',
+  name: 'InputAddGroup',
   props: {
-    data: {
-      type: Object as PropType<{ icon?: string; name?: string }>,
-      default: () => ({}),
-    },
-    activeKey: {
-      type: String,
-      default: '',
+    valueList: {
+      type: Array,
+      default: () => [''],
     },
   },
-  emits: ['choose'],
+
+  emits: ['update'],
 
   setup(props, { emit }) {
-    const resolveIconUrl = (iconName?: string) => {
-      if (!iconName) {
-        return '';
-      }
-      try {
-        return iconsContext(`./${iconName}.png`);
-      } catch (e) {
-        console.log(e);
-        return '';
-      }
+    const handleAdd = () => {
+      emit('update', [...props.valueList, '']);
     };
-    /** 选中 */
-    const handleChoose = () => {
-      emit('choose', props.data);
+    /**
+     * 新增
+     */
+    const handleChange = (index: number, val: any) => {
+      const nextList = [...props.valueList];
+      nextList[index] = String(val);
+      emit('update', nextList);
     };
-
-    return () => (
-      <div
-        class={{
-          'classify-card-main': true,
-          active: props.activeKey === props.data?.value,
-        }}
-        on-Click={handleChoose}
-      >
-        <div
-          style={{
-            background: `url(${resolveIconUrl(props.data?.icon)})`,
-            'background-size': '100% 100%',
-          }}
-          class='card-icon'
+    /**
+     * 删除（删到只有 1 行时，此时是清空 input 的交互）
+     */
+    const handleDel = (index: number) => {
+      const nextList = [...props.valueList];
+      if (nextList.length > 1) {
+        nextList.splice(index, 1);
+      } else {
+        nextList[0] = '';
+      }
+      emit('update', nextList);
+    };
+    const renderInputItem = (item: string, index: number) => (
+      <div class='input-add-group-item'>
+        <bk-input
+          value={item}
+          onInput={(val: any) => handleChange(index, val)}
         />
-        <div class='card-txt'>{props.data?.name}</div>
-        <i class='bklog-icon bklog-correct icon-correct' />
+        <span
+          class='bk-icon icon-plus-circle-shape icons'
+          on-Click={handleAdd}
+        />
+        <span
+          class='bk-icon icon-minus-circle-shape icons'
+          on-Click={() => handleDel(index)}
+        />
+      </div>
+    );
+    return () => (
+      <div class='input-add-group-main'>
+        {props.valueList.map((item: string, index: number) => renderInputItem(item, index))}
       </div>
     );
   },

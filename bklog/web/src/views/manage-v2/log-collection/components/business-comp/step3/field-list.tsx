@@ -24,61 +24,46 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType } from 'vue';
+import { defineComponent } from 'vue';
 
-import './classify-card.scss';
+import useLocale from '@/hooks/use-locale';
 
-// 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
-const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
-
+import './field-list.scss';
+/**
+ * @file 字段列表
+ */
 export default defineComponent({
-  name: 'ClassifyCard',
+  name: 'FieldList',
   props: {
     data: {
-      type: Object as PropType<{ icon?: string; name?: string }>,
-      default: () => ({}),
-    },
-    activeKey: {
-      type: String,
-      default: '',
+      type: Array,
+      default: () => [],
     },
   },
-  emits: ['choose'],
+  emits: [''],
 
-  setup(props, { emit }) {
-    const resolveIconUrl = (iconName?: string) => {
-      if (!iconName) {
-        return '';
-      }
-      try {
-        return iconsContext(`./${iconName}.png`);
-      } catch (e) {
-        console.log(e);
-        return '';
-      }
-    };
-    /** 选中 */
-    const handleChoose = () => {
-      emit('choose', props.data);
-    };
-
+  setup(props) {
+    const { t } = useLocale();
+    console.log(props.data);
     return () => (
-      <div
-        class={{
-          'classify-card-main': true,
-          active: props.activeKey === props.data?.value,
-        }}
-        on-Click={handleChoose}
-      >
-        <div
-          style={{
-            background: `url(${resolveIconUrl(props.data?.icon)})`,
-            'background-size': '100% 100%',
-          }}
-          class='card-icon'
-        />
-        <div class='card-txt'>{props.data?.name}</div>
-        <i class='bklog-icon bklog-correct icon-correct' />
+      <div class='field-list-main-box'>
+        <div class='tab-box'>
+          <div class='tab-list'>
+            <span class='tab-item is-selected'>{t('可见字段 (8)')}</span>
+            <span class='tab-item'>{t('被隐藏字段 (0)')}</span>
+          </div>
+          <span class='checkbox-box'>
+            <bk-checkbox class='mr-5' />
+            {t('显示内置字段')}
+          </span>
+        </div>
+        <div class='fields-table'>111</div>
+        <div class='example-box'>
+          <span class='form-link'>
+            <i class='bk-icon icon-plus link-icon add-btn' />
+            {t('新增字段')}
+          </span>
+        </div>
       </div>
     );
   },

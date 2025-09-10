@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 
 import { formatFileSize } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -32,6 +32,10 @@ import useStore from '@/hooks/use-store';
 import { useRouter } from 'vue-router/composables';
 
 import './cluster-table.scss';
+
+/**
+ * 集群选择表格
+ */
 
 export default defineComponent({
   name: 'ClusterTable',
@@ -60,11 +64,13 @@ export default defineComponent({
     const { t } = useLocale();
     const router = useRouter();
     const store = useStore();
-    const getPercent = row => {
-      return (100 - row.storage_usage) / 100;
-    };
+    const PERCENT_BASE = 100;
     const currentRow = ref(null);
     const setupConfig = ref(null);
+
+    const getPercent = row => {
+      return (PERCENT_BASE - row.storage_usage) / PERCENT_BASE;
+    };
     /** 选中集群 */
     const handleSelectCluster = row => {
       setupConfig.value = row.setup_config;
@@ -152,7 +158,7 @@ export default defineComponent({
                       percent={getPercent(row)}
                       show-text={false}
                       theme='success'
-                    ></bk-progress>
+                    />
                   </div>
                   <span>{`${100 - row.storage_usage}%`}</span>
                 </div>
@@ -200,7 +206,10 @@ export default defineComponent({
         <div class='desc-title'>{t('集群说明')}</div>
         <div class='desc-content'>
           {clusterDesc.value.map(item => (
-            <div class='desc-content-item'>
+            <div
+              key={item.value}
+              class='desc-content-item'
+            >
               <span class='item-title'>{item.label}：</span>
               <span class='item-desc'>{item.value}</span>
             </div>

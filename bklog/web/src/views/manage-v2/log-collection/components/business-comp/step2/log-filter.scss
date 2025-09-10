@@ -1,0 +1,37 @@
+.log-filter-main {
+    width: 100%;
+    margin-top: 14px;
+    .bk-button-group {
+        .bk-button {
+            width: 70px !important;
+        }
+    }
+    .separator-box {
+        width: 100%;
+        margin-top: 20px;
+        .separator-box-top {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            .separator-box-top-select {
+                width: 52%;
+                margin-right: 8px;
+            }
+        }
+        .separator-box-bottom {
+            .bk-textarea-wrapper {
+                border: none;
+            }
+            .bk-form-textarea {
+                border: none;
+                background: rgb(49, 50, 56);
+                color: rgb(196, 198, 204);
+                &:focus {
+                    border: none !important;
+                    background: rgb(49, 50, 56) !important;
+                    color: rgb(196, 198, 204) !important;
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,34 @@
+.device-metadata-main {
+    margin-top: 10px;
+    .form-link {
+        padding-left: 0 !important; 
+    }
+    .device-metadata-tips-box {
+        margin-top: 8px;
+    }
+    .device-metadata-input-list {
+        margin-top: 10px;
+        .device-metadata-input-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            .icons {
+                color: #c4c6cb;
+                font-size: 18px;
+                margin-left: 8px;
+                cursor: pointer;
+            }
+            .symbol {
+                color: #ff9c01;
+                margin: 0 7px;
+            }
+        }
+    }
+}
+.device-metadata-option {
+    display: flex;
+    align-items: center;
+    .mr-5 {
+        margin-right: 5px;
+    }
+}

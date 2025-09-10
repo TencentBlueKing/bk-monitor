@@ -24,62 +24,62 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType } from 'vue';
+import { defineComponent, ref } from 'vue';
 
-import './classify-card.scss';
+import useLocale from '@/hooks/use-locale';
 
-// 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
-const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
-
+import './collect-issued-slider.scss';
+/**
+ * @description: 采集才发侧边栏
+ */
 export default defineComponent({
-  name: 'ClassifyCard',
+  name: 'CollectIssuedSlider',
   props: {
-    data: {
-      type: Object as PropType<{ icon?: string; name?: string }>,
-      default: () => ({}),
+    isShow: {
+      type: Boolean,
+      default: false,
     },
-    activeKey: {
-      type: String,
-      default: '',
+    isStopCollection: {
+      type: Boolean,
+      default: false,
     },
   },
-  emits: ['choose'],
 
-  setup(props, { emit }) {
-    const resolveIconUrl = (iconName?: string) => {
-      if (!iconName) {
-        return '';
-      }
-      try {
-        return iconsContext(`./${iconName}.png`);
-      } catch (e) {
-        console.log(e);
-        return '';
-      }
-    };
-    /** 选中 */
-    const handleChoose = () => {
-      emit('choose', props.data);
-    };
+  emits: [''],
+
+  setup(props) {
+    const { t } = useLocale();
+    const collectionName = ref();
+
+    const renderHeader = () => (
+      <div>
+        {props.isStopCollection ? (
+          <div class='collect-link'>
+            {t('编辑采集项')}
+            <span style='padding: 3px 9px; background-color: #f0f1f5'>
+              <span class='bk-icon bklog-icon bklog-position' />
+              {collectionName.value}
+            </span>
+          </div>
+        ) : (
+          <span>{t('采集下发')}</span>
+        )}
+      </div>
+    );
 
     return () => (
-      <div
-        class={{
-          'classify-card-main': true,
-          active: props.activeKey === props.data?.value,
+      <bk-sideslider
+        width={800}
+        ext-cls='collect-issued-slider-main'
+        scopedSlots={{
+          header: renderHeader,
         }}
-        on-Click={handleChoose}
-      >
-        <div
-          style={{
-            background: `url(${resolveIconUrl(props.data?.icon)})`,
-            'background-size': '100% 100%',
-          }}
-          class='card-icon'
-        />
-        <div class='card-txt'>{props.data?.name}</div>
-        <i class='bklog-icon bklog-correct icon-correct' />
-      </div>
+        is-show={props.isShow}
+        quick-close={true}
+        transfer
+        // @animation-end="closeSlider"
+        // @shown="showSlider"
+      />
     );
   },
 });

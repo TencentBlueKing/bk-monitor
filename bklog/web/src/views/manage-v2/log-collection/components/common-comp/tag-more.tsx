@@ -23,26 +23,27 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+/** biome-ignore-all lint/style/useForOf: <explanation> */
 import { defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 import './tag-more.scss';
 
-export interface TagItem {
+export type TagItem = {
   id?: number | string;
   name: string;
   [key: string]: any;
-}
+};
 
-export interface TagMoreProps {
+export type TagMoreProps = {
   className?: string; // 自定义class
   gap?: number; // tag之间的间距，默认8px
   maxTagWidth?: number; // 每个tag的最大宽度，默认128px
   showTooltip?: boolean; // 是否显示tooltip，默认true
   tags: TagItem[];
   tooltipPlacement?: 'bottom' | 'left' | 'right' | 'top'; // tooltip位置
-}
+};
 
 export default defineComponent({
   props: {
@@ -92,7 +93,9 @@ export default defineComponent({
 
     // 初始化测量用的DOM元素
     const initMeasureElements = () => {
-      if (!measureRef.value) return;
+      if (!measureRef.value) {
+        return;
+      }
 
       if (!measureSpans.tag.value) {
         const span = document.createElement('span');
@@ -113,7 +116,9 @@ export default defineComponent({
 
     // 测量标签宽度（使用缓存的DOM元素）
     const measureItemWidth = (text: string) => {
-      if (!measureSpans.tag.value) return props.maxTagWidth;
+      if (!measureSpans.tag.value) {
+        return props.maxTagWidth;
+      }
 
       measureSpans.tag.value.textContent = text;
       const naturalWidth = measureSpans.tag.value.offsetWidth;
@@ -122,13 +127,16 @@ export default defineComponent({
 
     // 测量指示器宽度（使用缓存的DOM元素）
     const measureIndicatorWidth = (n: number) => {
-      if (!measureSpans.indicator.value) return 0;
+      if (!measureSpans.indicator.value) {
+        return 0;
+      }
 
       measureSpans.indicator.value.textContent = `+${n}`;
       return measureSpans.indicator.value.offsetWidth;
     };
 
     // 计算可见的标签数量（优化计算逻辑）
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
     const calculateVisibleTags = () => {
       if (!containerRef.value || props.tags.length === 0) {
         visibleTags.value = props.tags;
@@ -204,7 +212,9 @@ export default defineComponent({
     const debouncedCalculate = (() => {
       let timeout: null | number = null;
       return () => {
-        if (timeout) window.clearTimeout(timeout);
+        if (timeout) {
+          window.clearTimeout(timeout);
+        }
         timeout = window.setTimeout(() => {
           calculateVisibleTags();
           timeout = null;
@@ -259,7 +269,9 @@ export default defineComponent({
     });
 
     const initActionPop = () => {
-      if (!props.showTooltip || !containerRef.value) return;
+      if (!(props.showTooltip && containerRef.value)) {
+        return;
+      }
 
       tippyInstance = tippy(containerRef.value as SingleTarget, {
         content: tipsPanelRef.value as any,

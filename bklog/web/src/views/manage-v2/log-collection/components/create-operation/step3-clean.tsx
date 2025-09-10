@@ -24,12 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
 import { useOperation } from '../../hook/useOperation';
+import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
+import FieldList from '../business-comp/step3/field-list';
+import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
+import { jsonStr } from './detail';
+// 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
+const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
 
 import './step3-clean.scss';
 
@@ -41,6 +47,102 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const { cardRender } = useOperation();
+    const showCollectIssuedSlider = ref(false);
+    const showReportLogSlider = ref(false);
+    const jsonText = ref(jsonStr);
+    const cleaningModeList = [
+      {
+        label: t('JSON'),
+        value: 'json',
+      },
+      {
+        label: t('分隔符'),
+        value: 'separator',
+      },
+      {
+        label: t('正则表达式'),
+        value: 'regex',
+      },
+      // {
+      //   label: t('高级清洗'),
+      //   value: 'advanced',
+      // },
+    ];
+    const cleaningMode = ref('json');
+    /** 根据清洗模式，渲染不同的内容 */
+    const renderCleaningMode = () => {
+      if (cleaningMode.value === 'json') {
+        return <bk-button class='clean-btn'>{t('清洗')}</bk-button>;
+      }
+      if (cleaningMode.value === 'separator') {
+        return (
+          <div class='separator-box select-group'>
+            <div class='select-item'>
+              <span class='select-title'>{t('分隔符')}</span>
+              <bk-select class='select-box' />
+            </div>
+            <bk-button class='clean-btn'>{t('调试')}</bk-button>
+          </div>
+        );
+      }
+      if (cleaningMode.value === 'regex') {
+        return (
+          <div class='regex-box-main'>
+            <div class='title'>
+              {t('正则表达式')}
+              <i
+                class='bk-icon icon-info-circle tips-icon'
+                v-bk-tooltips={{
+                  placement: 'right',
+                  content: `${t('正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容')}<br />${t(' - 日志内容：[2006-01-02 15:04:05] content')}<br /> ${t(' - 表达式：')} \[(?P<request_time>[^]]+)\] (?P<content>.+)`,
+                }}
+              />
+            </div>
+            <bk-input
+              placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
+              type='textarea'
+            />
+            <bk-button class='clean-btn'>{t('调试')}</bk-button>
+          </div>
+        );
+      }
+    };
+    /** 应用模版下拉框 */
+    const renderTemplateSelect = () => (
+      <bk-select
+        class='template-select'
+        ext-popover-cls={'template-select-popover'}
+        searchable
+        // on-selected={handleAddSortFields}
+      >
+        <span
+          class='form-link'
+          slot='trigger'
+        >
+          <i class='bklog-icon bklog-app-store link-icon' />
+          {t('应用模板')}
+        </span>
+        {[
+          { id: 1, name: '模板名称' },
+          { id: 2, name: '模板名称' },
+        ].map(item => (
+          <bk-option
+            id={item.id}
+            key={item.id}
+            name={item.name}
+          >
+            <div class='template-option'>
+              <span class='option-name'>{item.name}</span> <span class='option-btn'>{t('应用')}</span>
+            </div>
+          </bk-option>
+        ))}
+      </bk-select>
+    );
+
+    /** 选择清洗模式 */
+    const handleChangeCleaningMode = mode => {
+      cleaningMode.value = mode.value;
+    };
     /** 清洗设置 */
     const renderSetting = () => (
       <div class='clean-setting'>
@@ -72,7 +174,10 @@ export default defineComponent({
           <span class='label-title no-require'>{t('日志样例')}</span>
           <div class='form-box'>
             <div class='example-box'>
-              <span class='form-link'>
+              <span
+                class='form-link'
+                on-click={() => (showReportLogSlider.value = true)}
+              >
                 <i class='bklog-icon bklog-audit link-icon' />
                 {t('上报日志')}
               </span>
@@ -92,44 +197,31 @@ export default defineComponent({
           <span class='label-title no-require'>{t('清洗模式')}</span>
           <div class='form-box'>
             <div class='example-box'>
-              <span class='form-link'>
-                <i class='bklog-icon bklog-app-store link-icon' />
-                {t('应用模板')}
-              </span>
+              {/* 应用模版 */}
+              {renderTemplateSelect()}
               <span class='form-link'>
                 <i class='bklog-icon bklog-help link-icon' />
                 {t('说明文档')}
               </span>
             </div>
             <div class='bk-button-group'>
-              <bk-button class='is-selected'>{t('JSON')}</bk-button>
-              <bk-button>{t('分隔符')}</bk-button>
-              <bk-button>{t('正则表达式')}</bk-button>
-              {/* <bk-button>{t('高级清洗')}</bk-button> */}
+              {cleaningModeList.map(mode => (
+                <bk-button
+                  key={mode.value}
+                  class={{ 'is-selected': mode.value === cleaningMode.value }}
+                  on-click={() => handleChangeCleaningMode(mode)}
+                >
+                  {mode.label}
+                </bk-button>
+              ))}
             </div>
-            <bk-button class='clean-btn'>{t('清洗')}</bk-button>
+            {renderCleaningMode()}
           </div>
         </div>
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('字段列表')}</span>
           <div class='form-box'>
-            <div class='tab-box'>
-              <div class='tab-list'>
-                <span class='tab-item is-selected'>{t('可见字段 (8)')}</span>
-                <span class='tab-item'>{t('被隐藏字段 (0)')}</span>
-              </div>
-              <span class='checkbox-box'>
-                <bk-checkbox class='mr-5' />
-                {t('显示内置字段')}
-              </span>
-            </div>
-            <div class='fields-table'>111</div>
-            <div class='example-box'>
-              <span class='form-link'>
-                <i class='bk-icon icon-plus link-icon add-btn' />
-                {t('新增字段')}
-              </span>
-            </div>
+            <FieldList />
           </div>
         </div>
       </div>
@@ -154,7 +246,7 @@ export default defineComponent({
                 <bk-select class='select-box' />
               </div>
               <div class='select-item'>
-                <span class='select-title'>{t('时间格式')}</span>
+                <span class='select-title'>{t('时区选择')}</span>
                 <bk-select class='select-box' />
               </div>
             </div>
@@ -177,6 +269,32 @@ export default defineComponent({
             />
           </div>
         </div>
+        <div class='label-form-box'>
+          <span class='label-title no-require'>{t('路径样例')}</span>
+          <div class='form-box mt-5'>
+            <div class='url-demo-box'>
+              <bk-input class='input-box' />
+              <i class='bklog-icon bklog-refresh-icon icons' />
+            </div>
+          </div>
+        </div>
+        <div class='label-form-box'>
+          <span class='label-title'>{t('采集路径分割正则')}</span>
+          <div class='form-box mt-5'>
+            <div class='url-demo-box'>
+              <bk-input class='input-box' />
+              <bk-button class='debug-btn'>{t('调试')}</bk-button>
+            </div>
+            <div class='debug-box'>
+              <bk-input
+                class='first-input'
+                disabled
+              />
+              <span class='symbol'>:</span>
+              <bk-input disabled />
+            </div>
+          </div>
+        </div>
       </div>
     );
     const cardConfig = [
@@ -193,14 +311,23 @@ export default defineComponent({
     ];
     return () => (
       <div class='operation-step3-clean'>
-        <div class='status-box success'>
-          <span class='status-icon-box'>
-            <i class='bklog-icon bklog-circle-correct-filled status-icon' />
-            {/* <i class='bklog-icon bklog-shanchu status-icon' /> */}
-          </span>
+        <div
+          class='status-box loading'
+          on-Click={() => (showCollectIssuedSlider.value = true)}
+        >
+          <span class='status-icon-box' />
+          <i class='bklog-icon bklog-caijixiafazhong status-icon' />
+          {/* <i class='bklog-icon bklog-circle-correct-filled status-icon' /> */}
+          {/* <i class='bklog-icon bklog-shanchu status-icon' /> */}
           <span class='status-txt'>{t('采集下发中...')}</span>
         </div>
         {cardRender(cardConfig)}
+        <CollectIssuedSlider isShow={showCollectIssuedSlider.value} />
+        <ReportLogSlider
+          isShow={showReportLogSlider.value}
+          jsonText={jsonText.value}
+          on-change={value => (showReportLogSlider.value = value)}
+        />
         <div class='classify-btns-fixed'>
           <bk-button
             class='mr-8'

@@ -27,10 +27,10 @@
 import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
+// import useStore from '@/hooks/use-store';
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import tippy, { type Instance } from 'tippy.js';
-import { useRouter, useRoute } from 'vue-router/composables';
+// import { useRouter } from 'vue-router/composables';
 
 import { useCollectList } from '../../hook/useCollectList';
 import { STATUS_ENUM, SETTING_FIELDS, MENU_LIST } from '../../utils';
@@ -59,15 +59,10 @@ export default defineComponent({
 
   setup(props) {
     const { t } = useLocale();
-    const router = useRouter();
-    const store = useStore();
+    // const router = useRouter();
+    // const store = useStore();
     // 使用自定义 hook 管理状态
-    const {
-      authGlobalInfo,
-      operateHandler,
-
-      checkCreateAuth,
-    } = useCollectList();
+    const { authGlobalInfo, operateHandler, checkCreateAuth } = useCollectList();
 
     let tippyInstances: Instance[] = [];
 
@@ -260,6 +255,7 @@ export default defineComponent({
 
     /** 销毁所有tippy */
     const destroyTippyInstances = () => {
+      // biome-ignore lint/complexity/noForEach: <explanation>
       tippyInstances.forEach(i => {
         try {
           i.hide();
@@ -288,7 +284,9 @@ export default defineComponent({
       const targets = document.querySelectorAll(
         '.v2-log-collection-table .bk-table-fixed-body-wrapper .table-more-btn',
       );
-      if (!targets.length) return;
+      if (!targets.length) {
+        return;
+      }
 
       const instances = tippy(targets as unknown as HTMLElement[], {
         trigger: 'click',
@@ -377,7 +375,7 @@ export default defineComponent({
             class='tool-search-select'
             data={data2}
             placeholder={t('搜索 采集名、存储名、索引集、接入类型、日志类型、集群名、采集状态、创建人、更新人')}
-          ></bk-search-select>
+          />
         </div>
         <div class='v2-log-collection-table-main'>
           {props.loading ? (
@@ -430,8 +428,7 @@ export default defineComponent({
                       <div>
                         <span class='link mr-6'>{t('检索')}</span>
                         <span class='link'>{t('编辑')}</span>
-                        <span class='bk-icon icon-more more-btn table-more-btn'></span>
-                        {/* 每行独立的弹层内容容器，默认隐藏，由 tippy 读取 */}
+                        <span class='bk-icon icon-more more-btn table-more-btn' />
                         <div
                           style={{ display: 'none' }}
                           class='row-menu-popover'
@@ -441,7 +438,7 @@ export default defineComponent({
                               <span
                                 key={item.key}
                                 class='menu-item'
-                                onClick={(e: MouseEvent) => handleMenuClick(item.key, row, e)}
+                                on-Click={(e: MouseEvent) => handleMenuClick(item.key, row, e)}
                               >
                                 {item.label}
                               </span>
@@ -454,7 +451,7 @@ export default defineComponent({
                 }}
                 fixed={'right'}
                 label={t('操作')}
-              ></bk-table-column>
+              />
               <bk-table-column
                 tippy-options={{ zIndex: 3000 }}
                 type='setting'
@@ -463,7 +460,7 @@ export default defineComponent({
                   fields={settingFields}
                   // :selected="setting.selectedFields"
                   // @setting-change="handleSettingChange"
-                ></bk-table-setting-content>
+                />
               </bk-table-column>
             </bk-table>
           )}

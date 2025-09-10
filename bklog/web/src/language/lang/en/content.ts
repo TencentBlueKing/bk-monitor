@@ -1270,4 +1270,5 @@ export default {
   "聚类正则已生效，请前往 {0} 修改": "",
   "最大 {num} 个": "Up to {num}",
   "最大 {num} 天": "Up to {num} days",
+  "第{num}组": "Group {num}",
 };

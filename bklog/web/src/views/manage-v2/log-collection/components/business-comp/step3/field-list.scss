@@ -1,0 +1,29 @@
+.field-list-main-box {
+    width: 100%;
+    .tab-box {
+        font-size: 12px;
+        color: #4d4f56;
+        display: flex;
+        .tab-list {
+          background: #f0f1f5;
+          border-radius: 2px;
+          padding: 4px;
+          height: 32px;
+          margin-right: 12px;
+          .tab-item {
+            display: inline-block;
+            padding: 4px 12px;
+            cursor: pointer;
+          }
+          .is-selected {
+            background: #ffffff;
+            border-radius: 2px;
+            color: #3a84ff;
+          }
+        }
+      }
+      .add-btn {
+        font-size: 20px !important;
+        top: -3px !important;
+      }
+}

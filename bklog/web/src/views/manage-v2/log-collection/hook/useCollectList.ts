@@ -26,6 +26,7 @@
 
 import { computed, ref } from "vue";
 
+// biome-ignore lint/performance/noNamespaceImport: <explanation>
 import * as authorityMap from "@/common/authority-map";
 import {
   projectManages,
@@ -34,7 +35,7 @@ import {
   // setDefaultSettingSelectFiled,
   // deepClone,
 } from "@/common/util";
-import useLocale from "@/hooks/use-locale";
+// import useLocale from "@/hooks/use-locale";
 import useStore from "@/hooks/use-store";
 import { useRouter, useRoute } from "vue-router/composables";
 // import $http from '@/api';
@@ -43,7 +44,7 @@ import { useRouter, useRoute } from "vue-router/composables";
  * 采集列表的自定义 Hook
  */
 export const useCollectList = () => {
-  const { t } = useLocale();
+  // const { t } = useLocale();
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
@@ -64,6 +65,7 @@ export const useCollectList = () => {
 
   /** 是否有创建权限 */
   const checkCreateAuth = async () => {
+    console.log(store.getters, "store");
     try {
       const res = await store.dispatch("checkAllowed", {
         action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
@@ -121,6 +123,7 @@ export const useCollectList = () => {
     }
     return true;
   };
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
   const leaveCurrentPage = (row, operateType) => {
     if (
       operateType === "status" &&
@@ -175,6 +178,7 @@ export const useCollectList = () => {
       return;
     }
 
+    // biome-ignore lint/suspicious/noEvolvingTypes: <explanation>
     let backRoute = null;
     const params = {};
     const query = {};
@@ -247,6 +251,7 @@ export const useCollectList = () => {
     });
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
   const operateHandler = (row, operateType) => {
     // type: [view, status , search, edit, field, start, stop, delete]
     const isCanClick = getOperatorCanClick(row, operateType);

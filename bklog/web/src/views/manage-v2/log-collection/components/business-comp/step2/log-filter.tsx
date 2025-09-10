@@ -24,84 +24,90 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
-import AddIndexSet from './add-index-set';
+import AddGroupTable from './add-group-table';
 
-import './index-set-select.scss';
+import './log-filter.scss';
 
 export default defineComponent({
-  name: 'IndexSetSelect',
+  name: 'LogFilter',
   props: {
-    list: {
-      type: Array,
-      default: () => [],
-    },
-    value: {
+    groupList: {
       type: Array,
       default: () => [],
     },
   },
 
-  emits: ['select'],
+  emits: ['update:groupList'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const isAdd = ref(false);
-    const addIndexSetRef = ref();
-    const selectArr = ref([]);
-    const handleAdd = () => {
-      isAdd.value = true;
-      setTimeout(() => {
-        addIndexSetRef.value?.autoFocus?.();
-      });
+    const typeKey = ref('separator');
+    const groupList = ref([
+      {
+        fieldindex: '-1',
+        word: '111',
+        op: '=',
+        logic_op: 'and',
+      },
+    ]);
+    const typeList = [
+      {
+        name: t('字符串'),
+        value: 'string',
+      },
+      {
+        name: t('分隔符'),
+        value: 'separator',
+      },
+    ];
+
+    const handleChangeType = type => {
+      typeKey.value = type.value;
     };
-    const handleCancel = () => {
-      isAdd.value = false;
+
+    const handleAddGroup = data => {
+      groupList.value = data;
+      emit('update:groupList', data);
     };
-    const handleSubmit = () => {
-      handleCancel();
-      emit('select', selectArr.value);
-    };
-    const handleSelect = val => {
-      selectArr.value = val;
-    };
-    return () => (
-      <bk-select
-        class='index-set-select-box'
-        value={props.value}
-        multiple
-        searchable
-        onChange={val => handleSelect(val)}
-      >
-        {(props.list || []).map(option => (
-          <bk-option
-            id={option.id}
-            key={option.id}
-            name={option.name}
-          />
-        ))}
-        <div
-          class='index-set-select-extension'
-          slot='extension'
-        >
-          {isAdd.value ? (
-            <AddIndexSet
-              ref={addIndexSetRef}
-              isFrom={false}
-              on-cancel={handleCancel}
-              on-submit={handleSubmit}
-            />
-          ) : (
-            <span on-Click={handleAdd}>
-              <i class='bk-icon icon-plus-circle' />
-              {t('新增索引集')}
-            </span>
-          )}
+
+    const renderSeparator = () => (
+      <div class='separator-box'>
+        <div class='separator-box-top'>
+          <bk-select class='separator-box-top-select' />
+          <bk-button>{t('调试')}</bk-button>
         </div>
-      </bk-select>
+        <bk-input
+          class='separator-box-bottom'
+          placeholder={t('请输入日志样例')}
+          type='textarea'
+        />
+      </div>
+    );
+
+    return () => (
+      <div class='log-filter-main'>
+        <div class='bk-button-group'>
+          {typeList.map(type => (
+            <bk-button
+              key={type.value}
+              class={{ 'is-selected': type.value === typeKey.value }}
+              size='small'
+              on-click={() => handleChangeType(type)}
+            >
+              {type.name}
+            </bk-button>
+          ))}
+        </div>
+        {typeKey.value === 'separator' && renderSeparator()}
+        <AddGroupTable
+          list={groupList.value || props.groupList}
+          on-update={handleAddGroup}
+        />
+      </div>
     );
   },
 });

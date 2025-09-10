@@ -761,3 +761,6 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-group:before {
 	content: "\e233";
 }
+.bklog-caijixiafazhong:before {
+	content: "\e234";
+}

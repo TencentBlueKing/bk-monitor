@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
 import { useOperation } from '../../hook/useOperation';
+import BaseInfo from '../business-comp/step2/base-info';
+import DragTag from '../common-comp/drag-tag';
 import InfoTips from '../common-comp/info-tips';
-import BaseInfo from '../business-comp/base-info';
 
 import './step2-bk-data-collection.scss';
 
@@ -40,8 +41,37 @@ export default defineComponent({
   emits: ['next', 'prev'],
 
   setup(props, { emit }) {
+    console.log('props', props);
     const { t } = useLocale();
     const { cardRender } = useOperation();
+    const isShowDialog = ref(false);
+    const sortFieldList = ref([
+      { id: 'hello', label: 'hello' },
+      { id: 'world', label: 'world' },
+      { id: '5000140_bcs', label: '5000140_bcs' },
+      { id: 'log_mosc', label: 'log_mosc' },
+      { id: 'bcs_sys_log', label: 'bcs_sys_log' },
+      { id: 'bcs_sys_', label: 'bcs_sys_' },
+    ]);
+    const valueList = ref([
+      { id: '5000140_bcs_sys_log_mosc', label: '5000140_bcs_sys_log_mosc' },
+      { id: '5000140_bcs_sys_log_hello', label: '5000140_bcs_sys_log_hello' },
+      { id: '5000140_bcs_sys_log', label: '5000140_bcs_sys_log' },
+      { id: '5000140_bcs_sys_log_mosc1', label: '5000140_bcs_sys_log_mosc1' },
+      { id: '5000140_bcs_sys_log_hello1', label: '5000140_bcs_sys_log_hello1' },
+      { id: '5000140_bcs_sys_log1', label: '5000140_bcs_sys_log1' },
+      { id: '5000140_bcs_sys_log_mosc2', label: '5000140_bcs_sys_log_mosc2' },
+      { id: '5000140_bcs_sys_log_hello2', label: '5000140_bcs_sys_log_hello2' },
+      { id: '5000140_bcs_sys_log2', label: '5000140_bcs_sys_log2' },
+    ]);
+
+    const handleAddDataSource = () => {
+      isShowDialog.value = true;
+    };
+    const handleCancel = () => {
+      isShowDialog.value = false;
+    };
+
     /** 基本信息 */
     const renderBaseInfo = () => <BaseInfo typeKey='bk-data' />;
     /** 数据源 */
@@ -50,8 +80,23 @@ export default defineComponent({
         <div class='label-form-box'>
           <span class='label-title'>{t('数据源')}</span>
           <div class='form-box'>
-            <div>1</div>
-            <div class='data-source-table'></div>
+            <DragTag
+              addType={'custom'}
+              sortable={false}
+              on-custom-add={handleAddDataSource}
+            />
+            <div class='data-source-table'>
+              <bk-table data={[]}>
+                <bk-table-column
+                  label={t('名称')}
+                  prop='ip'
+                />
+                <bk-table-column
+                  label={t('类型')}
+                  prop='source'
+                />
+              </bk-table>
+            </div>
           </div>
         </div>
       </div>
@@ -67,7 +112,10 @@ export default defineComponent({
         <div class='label-form-box'>
           <span class='label-title'>{t('目标字段')}</span>
           <div class='form-box'>
-            <bk-select class='select-sort' />
+            <bk-select
+              class='select-sort'
+              multiple
+            />
             <InfoTips
               class='block'
               tips={t('用于标识日志文件来源及唯一性')}
@@ -77,6 +125,11 @@ export default defineComponent({
         <div class='label-form-box'>
           <span class='label-title'>{t('排序字段')}</span>
           <div class='form-box'>
+            <DragTag
+              addType={'select'}
+              selectList={sortFieldList.value}
+              value={valueList.value}
+            />
             <InfoTips
               class='block'
               tips={t('用于控制日志排序的字段')}
@@ -122,6 +175,42 @@ export default defineComponent({
           </bk-button>
           <bk-button>{t('取消')}</bk-button>
         </div>
+        <bk-dialog
+          width={680}
+          ext-cls='bk-data-index-dialog'
+          header-position={'left'}
+          mask-close={false}
+          ok-text={t('添加')}
+          theme='primary'
+          title={t('新增索引')}
+          value={isShowDialog.value}
+          on-cancel={handleCancel}
+        >
+          <bk-form label-width={60}>
+            <bk-form-item
+              label={t('索引')}
+              property={'name'}
+              required={true}
+            >
+              <bk-select searchable />
+            </bk-form-item>
+            <bk-form-item>
+              <bk-table
+                key={isShowDialog.value}
+                data={[]}
+              >
+                <bk-table-column
+                  label={t('名称')}
+                  prop='ip'
+                />
+                <bk-table-column
+                  label={t('类型')}
+                  prop='source'
+                />
+              </bk-table>
+            </bk-form-item>
+          </bk-form>
+        </bk-dialog>
       </div>
     );
   },

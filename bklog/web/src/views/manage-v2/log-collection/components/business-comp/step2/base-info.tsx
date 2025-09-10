@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
-import InfoTips from '../common-comp/info-tips';
+import InfoTips from '../../common-comp/info-tips';
 import IndexSetSelect from './index-set-select';
 
 import './base-info.scss';
@@ -43,7 +43,7 @@ export default defineComponent({
   },
   emits: [],
 
-  setup(props, { emit }) {
+  setup(props) {
     const { t } = useLocale();
     const formData = ref({ name: '' });
     /** 展示数据名的key */
