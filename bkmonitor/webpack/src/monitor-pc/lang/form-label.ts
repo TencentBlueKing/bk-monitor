@@ -1968,4 +1968,5 @@ export default {
   变量类型: 'Variable type',
   变量描述: 'Variable description',
   可选维度: 'Optional dimensions',
+  主调服务: 'Caller service'
 };
