@@ -58,15 +58,14 @@ export const autoDecodeString = (str: string): string => {
 
     // 2. Unicode编码 - 特征明显：\uXXXX 或 \xXX格式
     { type: EncodingType.UNICODE, canDecode: canDecodeUnicode },
+    // 3. 时间戳 - 容易误判：纯数字但有长度限制
+    { type: EncodingType.TIMESTAMP, canDecode: canDecodeTimestamp },
 
-    // 3. 十六进制 - 支持成对字节（紧凑或空格/逗号分隔），启发式过滤无意义二进制
+    // 4. 十六进制 - 支持成对字节（紧凑或空格/逗号分隔），启发式过滤无意义二进制
     { type: EncodingType.HEX, canDecode: canDecodeHex },
 
     // 4. Base64编码 - 特征较明显：特定字符集+长度规则
     { type: EncodingType.BASE64, canDecode: canDecodeBase64 },
-
-    // 5. 时间戳 - 容易误判：纯数字但有长度限制
-    { type: EncodingType.TIMESTAMP, canDecode: canDecodeTimestamp },
 
     // 6. ASCII编码 - 最容易误判：数字序列，放最后
     { type: EncodingType.ASCII, canDecode: canDecodeAscii },
@@ -556,247 +555,208 @@ const canDecodeAscii = (str: string): boolean => {
  */
 const canDecodeBase64 = (str: string): boolean => {
   try {
+    // 1. 预处理：去除前后空格，排除空字符串
     const s = str.trim();
-
-    // 1. 基础验证
-    if (s.length < 4) {
+    if (!s) {
       return false;
     }
 
-    // 2. 排除明显非 Base64 的模式
-    // 排除包含空白字符的字符串
-    if (/\s/.test(s)) {
+    // 2. 基础规则1：长度必须是4的整数倍（Base64编码逻辑：3字节→4字符，不足补=）
+    if (s.length % 4 !== 0) {
       return false;
     }
 
-    // 排除纯数字字符串
+    // 3. 排除明显的非Base64模式（在字符集检查前）
+    // HTTP路径：以/开头，可能包含状态码或路径段
+    if (/^\/\d+$/.test(s) || /^\/[a-zA-Z0-9]+$/.test(s)) {
+      return false;
+    }
+
+    // URL路径段：包含多个/的明显路径
+    if (s.includes('/') && s.split('/').length > 2) {
+      return false;
+    }
+
+    // 排除纯数字字符串（很可能是端口号、ID等，不是Base64）
     if (/^\d+$/.test(s)) {
       return false;
     }
 
-    // 排除常见的标识符模式：包含下划线或连字符的标识符
-    // 如: bk_log_search, bk-log-search-web-b44fbc78c-ggs9m
-    if (/_/.test(s) || /-/.test(s)) {
-      // 如果包含下划线或连字符，进一步检查是否为标识符模式
-      if (/^[a-zA-Z0-9_-]+$/.test(s)) {
-        // 检查是否包含多个分隔符或看起来像标识符
-        const separatorCount = (s.match(/[_-]/g) || []).length;
-        const totalLength = s.length;
+    // 排除常见的非Base64模式
+    if (/^[a-zA-Z]+$/.test(s) && s.length <= 8) {
+      // 短的纯字母字符串很可能是常见单词
+      const commonWords = ['main', 'root', 'user', 'home', 'test', 'data', 'info', 'demo', 'page', 'app', 'api', 'web'];
+      if (commonWords.includes(s.toLowerCase())) {
+        return false;
+      }
+    }
+    // 4. 基础规则2：字符集合规 + 填充符位置合法
+    // 标准Base64字符集：A-Z, a-z, 0-9, +, /；Base64URL变体：-, _；填充符：=（仅允许在末尾，最多2个）
+    const base64Pattern = /^[A-Za-z0-9+/\-_]+(={0,2})$/;
+    if (!base64Pattern.test(s)) {
+      return false;
+    }
 
-        // 如果分隔符较多，或者长度较长且包含分隔符，很可能是标识符
-        if (separatorCount >= 2 || (totalLength > 20 && separatorCount >= 1)) {
-          return false;
-        }
-
-        // 检查是否符合常见标识符命名模式
-        if (/^[a-z]+[_-][a-z]+/i.test(s)) {
-          return false;
-        }
-
-        // 对于 Base64URL 格式，下划线的处理需要更谨慎
-        if (/_/.test(s)) {
-          // 如果字符串很短且只有一个下划线，可能是 Base64URL
-          const underscoreCount = (s.match(/_/g) || []).length;
-          if (underscoreCount === 1 && s.length >= 6) {
-            // 对于单个下划线的情况，检查是否符合 Base64URL 模式
-            // 下划线不应该在开头或结尾，且前后应该是 Base64 字符
-            const underscorePos = s.indexOf('_');
-            if (
-              underscorePos > 0 &&
-              underscorePos < s.length - 1 &&
-              /[A-Za-z0-9+/]/.test(s[underscorePos - 1]) &&
-              /[A-Za-z0-9+/]/.test(s[underscorePos + 1])
-            ) {
-              // 可能是合法的 Base64URL，继续后续检查
-            } else {
-              return false;
-            }
-          } else {
-            // 多个下划线或位置不当，很可能是标识符
-            return false;
-          }
-        }
+    // 4. 核心验证：尝试解码（排除"格式合规但无效"的情况）
+    let decodedData: string;
+    try {
+      // 先尝试标准Base64解码（处理+、/）
+      decodedData = atob(s);
+    } catch {
+      try {
+        // 若标准解码失败，尝试Base64URL解码（处理-、_）
+        const normalized = s.replace(/-/g, '+').replace(/_/g, '/');
+        // 补充填充符（Base64URL可能省略填充符）
+        const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+        decodedData = atob(padded);
+      } catch {
+        return false;
       }
     }
 
-    // 排除域名、文件扩展名等点分隔模式
-    if (/\./.test(s) && /^[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)+$/.test(s)) {
-      return false;
-    }
-
-    // 排除纯字母的短字符串（很可能是普通单词）
-    if (/^[a-zA-Z]+$/.test(s) && s.length <= 10) {
-      return false;
-    }
-
-    // 3. Base64 字符集验证
-    // 检查填充符：'=' 只能出现在末尾，且最多 2 个
-    if (/=/.test(s) && !/=+$/.test(s)) {
-      return false;
-    }
-    const paddingCount = (s.match(/=+$/) || [''])[0].length;
-    if (paddingCount > 2) {
-      return false;
-    }
-
-    // 检查字符集（支持 Base64 和 Base64URL）
-    const core = s.replace(/=+$/g, '');
-    if (!/^[A-Za-z0-9+/_-]*$/.test(core)) {
-      return false;
-    }
-
-    // 4. 长度验证（允许不完整的 Base64，但需要合理的长度）
-    // Base64 最小长度为 2（不含填充），但实际意义的内容至少需要 4 位
-    if (core.length < 2) {
-      return false;
-    }
-
-    // 5. 尝试解码
-    let normalized = core.replace(/-/g, '+').replace(/_/g, '/');
-    const mod = normalized.length % 4;
-    if (mod === 1) {
-      // 余数为 1 是非法的
-      return false;
-    }
-    if (mod !== 0) {
-      normalized = normalized + '='.repeat(4 - mod);
-    } else if (paddingCount > 0) {
-      normalized = normalized + '='.repeat(paddingCount);
-    }
-
-    // 验证是否符合严格的 Base64 格式
-    const strictBase64Regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$/;
-    if (!strictBase64Regex.test(normalized)) {
-      return false;
-    }
-
-    // 6. 解码并验证结果
-    const decoded = atob(normalized);
-    if (decoded.length === 0) {
-      return false;
-    }
-
-    // 7. 检查解码结果是否有意义
-    return isDecodedContentMeaningful(decoded);
+    // 5. 增强验证：解码后数据的"合理性"（避免纯随机二进制的误判）
+    // 使用新的严格验证逻辑，包含乱码检测和HTML显示能力检查
+    return isValidUtf8OrText(decodedData);
   } catch {
     return false;
   }
 };
 
 /**
- * 检查解码后的内容是否有意义
- * @param decoded 解码后的字符串
- * @returns 是否有意义
+ * 检查解码后的数据是否是有效的UTF-8文本或可打印文本
+ * @param decodedData 解码后的二进制数据字符串
+ * @returns 是否为有效的文本数据
  */
-const isDecodedContentMeaningful = (decoded: string): boolean => {
-  const total = decoded.length;
-  if (total === 0) {
+const isValidUtf8OrText = (decodedData: string): boolean => {
+  if (!decodedData || decodedData.length === 0) {
     return false;
   }
 
-  // 统计字符类型
-  let printableCount = 0; // 可打印字符 (32-126)
-  let controlCount = 0; // 控制字符
-  let nullCount = 0; // 空字节
-
-  const bytes: number[] = [];
-  for (let i = 0; i < total; i++) {
-    const code = decoded.charCodeAt(i) & 0xff;
-    bytes.push(code);
-
-    if (code === 0) {
-      nullCount++;
-    } else if (code >= 32 && code <= 126) {
-      printableCount++;
-    } else if (code < 32 || code === 127) {
-      controlCount++;
-    }
-  }
-
-  // 1. 尝试 UTF-8 解码
-  let utf8Text = '';
-  let isValidUtf8 = false;
+  // 1. 尝试UTF-8验证
   try {
     if (typeof TextDecoder !== 'undefined') {
       const decoder = new TextDecoder('utf-8', { fatal: true });
-      utf8Text = decoder.decode(new Uint8Array(bytes));
-      isValidUtf8 = true;
+      const bytes = new Uint8Array(decodedData.length);
+      for (let i = 0; i < decodedData.length; i++) {
+        bytes[i] = decodedData.charCodeAt(i) & 0xff;
+      }
 
-      // 检查 UTF-8 解码后的内容是否有意义
-      if (isValidUtf8 && isTextMeaningful(utf8Text)) {
+      const text = decoder.decode(bytes);
+      // 如果UTF-8解码成功，检查是否包含有意义的可读字符
+      const hasReadableChars = /[a-zA-Z0-9\u4e00-\u9fff\s.,!?;:(){}[\]"'-]/.test(text);
+      const hasLetters = /[a-zA-Z\u4e00-\u9fff]/.test(text); // 必须包含字母
+
+      if (hasReadableChars && hasLetters) {
+        // 如果UTF-8解码成功且包含有意义字符，直接返回true
+        // 不再需要HTML显示检查，因为UTF-8本身就保证了内容的有效性
         return true;
       }
     }
   } catch {
-    // UTF-8 解码失败，继续其他检查
+    // UTF-8解码失败，继续其他检查
   }
 
-  // 2. 检查是否为纯 ASCII 可读文本
-  const printableRatio = printableCount / total;
+  // 2. 检查是否主要由ASCII可打印字符组成
+  let printableCount = 0;
+  const totalCount = decodedData.length;
 
-  // 对于短内容，降低要求
-  if (total <= 3) {
-    // 短内容：至少有一个可打印字符且没有空字节
-    return printableCount >= 1 && nullCount === 0;
-  }
-
-  // 如果大部分是可打印字符，认为有意义
-  if (printableRatio >= 0.7 && printableCount >= 2) {
-    return true;
-  }
-
-  // 3. 如果包含过多控制字符或空字节，认为无意义
-  if (nullCount > 0 || controlCount > total * 0.4) {
-    return false;
-  }
-
-  // 4. 检查是否包含连续的可读字符
-  let maxPrintableRun = 0;
-  let currentRun = 0;
-  for (const code of bytes) {
-    if (code >= 32 && code <= 126) {
-      currentRun++;
-      maxPrintableRun = Math.max(maxPrintableRun, currentRun);
-    } else {
-      currentRun = 0;
+  for (let i = 0; i < totalCount; i++) {
+    const code = decodedData.charCodeAt(i) & 0xff;
+    if (
+      (code >= 32 && code <= 126) || // ASCII可打印字符
+      code === 9 ||
+      code === 10 ||
+      code === 13
+    ) {
+      // 常见空白字符
+      printableCount++;
     }
   }
 
-  // 如果有连续的可读字符，认为有意义（对短内容降低要求）
-  return maxPrintableRun >= Math.min(3, total);
+  // 如果可打印字符比例低于70%，认为不是有效文本
+  const isHighlyPrintable = printableCount / totalCount >= 0.7;
+
+  // 结合HTML显示能力检查
+  return isHighlyPrintable && isHtmlDisplayable(decodedData);
 };
 
 /**
- * 检查文本内容是否有意义
- * @param text 文本内容
- * @returns 是否有意义
+ * 检查解码后的内容是否包含乱码
+ * @param decodedData 解码后的数据
+ * @returns 是否包含乱码（true表示有乱码，应该排除）
  */
-const isTextMeaningful = (text: string): boolean => {
-  if (!text || text.length < 1) {
+const hasGarbledText = (decodedData: string): boolean => {
+  if (!decodedData || decodedData.length === 0) {
+    return true; // 空内容视为乱码
+  }
+
+  let controlCharCount = 0;
+  let extendedCharCount = 0;
+  let printableCharCount = 0;
+  const totalCount = decodedData.length;
+
+  for (let i = 0; i < totalCount; i++) {
+    const code = decodedData.charCodeAt(i) & 0xff;
+
+    if (code >= 32 && code <= 126) {
+      // ASCII可打印字符
+      printableCharCount++;
+    } else if (code >= 128 && code <= 255) {
+      // 扩展ASCII字符，可能是乱码
+      extendedCharCount++;
+    } else if (code < 32 && code !== 9 && code !== 10 && code !== 13) {
+      // 控制字符（排除常见的tab、换行、回车）
+      controlCharCount++;
+    }
+  }
+
+  const extendedRatio = extendedCharCount / totalCount;
+  const printableRatio = printableCharCount / totalCount;
+
+  // 判断为乱码的条件：
+  // 1. 扩展字符比例过高（超过30%）
+  // 2. 包含控制字符
+  // 3. 可打印字符比例过低（低于60%）
+  return extendedRatio > 0.3 || controlCharCount > 0 || printableRatio < 0.6;
+};
+
+/**
+ * 检查解码后的内容是否可以在HTML中正常显示
+ * @param decodedData 解码后的数据
+ * @returns 是否可以在HTML中显示
+ */
+const isHtmlDisplayable = (decodedData: string): boolean => {
+  if (!decodedData || decodedData.length === 0) {
     return false;
   }
 
-  // 检查是否包含中文字符
-  if (/[\u4e00-\u9fff]/.test(text)) {
-    return true;
+  // 首先检查是否包含乱码
+  if (hasGarbledText(decodedData)) {
+    return false;
   }
 
-  // 检查是否包含常见的英文单词模式
-  if (/[a-zA-Z]{2,}/.test(text)) {
-    return true;
+  let htmlDisplayableCount = 0;
+  const totalCount = decodedData.length;
+
+  for (let i = 0; i < totalCount; i++) {
+    const code = decodedData.charCodeAt(i) & 0xff;
+
+    // HTML中可安全显示的字符：
+    // - ASCII可打印字符（32-126），但排除 < > & 以避免HTML注入
+    // - 常见空白字符：tab(9), 换行(10), 回车(13)
+    const isHtmlSafe =
+      (code >= 32 && code <= 126 && code !== 60 && code !== 62 && code !== 38) ||
+      code === 9 ||
+      code === 10 ||
+      code === 13;
+
+    if (isHtmlSafe) {
+      htmlDisplayableCount++;
+    }
   }
 
-  // 检查是否包含数字和字母的组合（但不是纯随机）
-  if (/[a-zA-Z]/.test(text) && /\d/.test(text) && text.length >= 3) {
-    return true;
-  }
-
-  // 检查是否包含常见的标点符号和文本结构
-  if (/[.,:;!?(){}[\]"']/.test(text) && /[a-zA-Z]/.test(text)) {
-    return true;
-  }
-
-  return false;
+  // 要求至少80%的字符可以在HTML中安全显示
+  return htmlDisplayableCount / totalCount >= 0.8;
 };
 
 /**
@@ -869,40 +829,182 @@ const isDecodedTextReadable = (decoded: string): boolean => {
     return false;
   }
 
+  // 尝试常见文本编码进行验证
+  if (tryCommonTextEncodings(decoded)) {
+    return true;
+  }
+
   // 统计字符类型
-  let readableCount = 0; // 可读字符：可打印ASCII + 常见空白 + 中文等Unicode字符
+  let printableCount = 0; // 可打印字符 (32-126)
+  let extendedCount = 0; // 扩展字符 (128-255, Latin-1)
+  let unicodeCount = 0; // Unicode字符 (> 255)
+  let whitespaceCount = 0; // 常见空白字符
   let controlCount = 0; // 控制字符
 
   for (let i = 0; i < decoded.length; i++) {
     const code = decoded.charCodeAt(i);
 
-    if (
-      (code >= 32 && code <= 126) || // 可打印 ASCII
-      code === 9 ||
-      code === 10 ||
-      code === 13 || // 常见空白字符 (tab, newline, carriage return)
-      code > 127 // Unicode 字符（包括中文等）
-    ) {
-      readableCount++;
+    if (code >= 32 && code <= 126) {
+      printableCount++;
+    } else if (code === 9 || code === 10 || code === 13 || code === 32) {
+      whitespaceCount++; // tab, newline, carriage return, space
+    } else if (code >= 128 && code <= 255) {
+      extendedCount++; // Latin-1 扩展字符
+    } else if (code > 255) {
+      unicodeCount++; // Unicode 字符（包括中文等）
     } else {
-      controlCount++;
+      controlCount++; // 其他控制字符
     }
   }
 
-  // 严格的判断：
-  // 1. 不能有任何不可打印的控制字符（除了常见空白字符）
-  // 2. 解码后的内容必须主要是有意义的文本
-  if (controlCount > 0) {
+  const total = decoded.length;
+  const readableRatio = (printableCount + extendedCount + unicodeCount + whitespaceCount) / total;
+  const controlRatio = controlCount / total;
+
+  // 更宽松的判断标准：
+  // 1. 允许少量控制字符（如二进制数据中的控制字符）
+  // 2. 主要内容应该是可读的
+  // 3. 控制字符比例不能太高
+
+  // 如果控制字符比例超过30%，认为不可读
+  if (controlRatio > 0.3) {
     return false;
   }
 
-  // 检查是否包含有意义的文本内容
-  const hasLetters = /[a-zA-Z\u4e00-\u9fff]/.test(decoded);
-  const hasReadableContent = readableCount >= decoded.length * 0.9;
-  const isAllPrintable = readableCount === decoded.length;
+  // 如果可读字符比例超过70%，认为可读
+  if (readableRatio >= 0.7) {
+    return true;
+  }
 
-  // 要么包含字母，要么全部是可打印字符
-  return (hasLetters && hasReadableContent) || isAllPrintable;
+  // 对于短文本，更宽松的标准
+  if (total <= 10) {
+    // 短文本：至少50%可读字符，且控制字符不超过20%
+    return readableRatio >= 0.5 && controlRatio <= 0.2;
+  }
+
+  // 检查是否包含有意义的文本模式
+  const hasLetters = /[a-zA-Z\u4e00-\u9fff]/.test(decoded);
+  const hasNumbers = /\d/.test(decoded);
+  const hasPunctuation = /[.,:;!?(){}[\]"']/.test(decoded);
+
+  // 如果包含字母、数字或标点符号，且可读比例合理，认为可读
+  if ((hasLetters || hasNumbers || hasPunctuation) && readableRatio >= 0.6) {
+    return true;
+  }
+
+  // 默认：可读比例需要达到80%
+  return readableRatio >= 0.8;
+};
+
+/**
+ * 尝试常见文本编码来验证文本可读性
+ * @param decoded 解码后的字符串
+ * @returns 是否通过编码验证
+ */
+const tryCommonTextEncodings = (decoded: string): boolean => {
+  try {
+    // 1. 尝试UTF-8验证
+    if (typeof TextEncoder !== 'undefined' && typeof TextDecoder !== 'undefined') {
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder('utf-8', { fatal: true });
+
+      try {
+        const bytes = encoder.encode(decoded);
+        const reDecoded = decoder.decode(bytes);
+        if (reDecoded === decoded) {
+          // UTF-8 编码/解码成功，检查内容是否有意义
+          return isTextContentMeaningful(decoded);
+        }
+      } catch {
+        // UTF-8 验证失败，继续尝试其他方法
+      }
+    }
+
+    // 2. 检查是否为有效的Latin-1字符序列
+    let hasExtendedLatin = false;
+    let hasValidContent = false;
+
+    for (let i = 0; i < decoded.length; i++) {
+      const code = decoded.charCodeAt(i);
+
+      // 检查是否包含Latin-1扩展字符
+      if (code >= 128 && code <= 255) {
+        hasExtendedLatin = true;
+      }
+
+      // 检查是否包含有意义的内容
+      if ((code >= 32 && code <= 126) || code > 127) {
+        hasValidContent = true;
+      }
+    }
+
+    // 如果包含Latin-1扩展字符或有效内容，进一步验证
+    if (hasExtendedLatin || hasValidContent) {
+      return isTextContentMeaningful(decoded);
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * 检查文本内容是否有意义（更宽松的标准）
+ * @param text 文本内容
+ * @returns 是否有意义
+ */
+const isTextContentMeaningful = (text: string): boolean => {
+  if (!text || text.length < 1) {
+    return false;
+  }
+
+  // 检查是否包含中文字符
+  if (/[\u4e00-\u9fff]/.test(text)) {
+    return true;
+  }
+
+  // 检查是否包含常见的英文单词模式
+  if (/[a-zA-Z]{2,}/.test(text)) {
+    return true;
+  }
+
+  // 检查是否包含数字和字母的组合
+  if (/[a-zA-Z]/.test(text) && /\d/.test(text) && text.length >= 3) {
+    return true;
+  }
+
+  // 检查是否包含常见的标点符号和文本结构
+  if (/[.,:;!?(){}[\]"']/.test(text) && (/[a-zA-Z]/.test(text) || /\d/.test(text))) {
+    return true;
+  }
+
+  // 检查是否为连续的可打印字符序列（如ASCII表）
+  let printableRun = 0;
+  let maxPrintableRun = 0;
+
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code >= 32 && code <= 126) {
+      printableRun++;
+      maxPrintableRun = Math.max(maxPrintableRun, printableRun);
+    } else {
+      printableRun = 0;
+    }
+  }
+
+  // 如果有较长的可打印字符序列，认为有意义
+  if (maxPrintableRun >= Math.min(10, text.length * 0.5)) {
+    return true;
+  }
+
+  // 对于包含扩展字符的内容，更宽松的判断
+  const extendedCharCount = Array.from(text).filter(char => char.charCodeAt(0) > 127).length;
+  if (extendedCharCount > 0 && extendedCharCount / text.length >= 0.1) {
+    return true;
+  }
+
+  return false;
 };
 
 /**
