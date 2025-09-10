@@ -80,7 +80,7 @@ class AIDevInterface:
 
     def rename_chat_session_by_user_question(self, session_code):
         """
-        根据用户输入的第一句作为会话标题
+        根据用户输入的第一句问题作为会话标题
         """
         context = self.get_chat_session_contents(session_code=session_code)
 
@@ -90,7 +90,14 @@ class AIDevInterface:
                 "rename_chat_session_by_user_question: failed to get session contents for session_code->[%s]",
                 session_code,
             )
-            return None
+            return {
+                "result": False,
+                "code": "error",
+                "data": None,
+                "message": "Failed to get session contents",
+                "request_id": None,
+                "trace_id": None,
+            }
 
         # 查找第一条role为'user'的记录
         user_message = None
@@ -103,16 +110,68 @@ class AIDevInterface:
             logger.warning(
                 "rename_chat_session_by_user_question: no user message found for session_code->[%s]", session_code
             )
-            return None
+            return {
+                "result": False,
+                "code": "error",
+                "data": None,
+                "message": "No user message found",
+                "request_id": None,
+                "trace_id": None,
+            }
 
-        return {
-            "result": True,
-            "code": "success",
-            "data": {"session_name": user_message, "session_code": session_code},
-            "message": "ok",  # ok
-            "request_id": None,
-            "trace_id": None,
-        }
+        # 截断为16个字符作为会话标题
+        session_title = user_message
+
+        # 调用更新会话API
+        try:
+            update_params = {"session_name": session_title}
+            update_result = self.update_chat_session(session_code, update_params)
+
+            if update_result.get("result", False):
+                logger.info(
+                    "rename_chat_session_by_user_question: successfully updated session title to->[%s] for "
+                    "session_code->[%s]",
+                    session_title,
+                    session_code,
+                )
+                return {
+                    "result": True,
+                    "code": "success",
+                    "data": {"session_name": session_title, "session_code": session_code},
+                    "message": "ok",
+                    "request_id": update_result.get("request_id"),
+                    "trace_id": update_result.get("trace_id"),
+                }
+            else:
+                logger.warning(
+                    "rename_chat_session_by_user_question: failed to update session title for "
+                    "session_code->[%s], result: %s",
+                    session_code,
+                    update_result,
+                )
+                return {
+                    "result": False,
+                    "code": "error",
+                    "data": None,
+                    "message": update_result.get("message", "Failed to update session title"),
+                    "request_id": update_result.get("request_id"),
+                    "trace_id": update_result.get("trace_id"),
+                }
+        except Exception as e:
+            logger.error(
+                "rename_chat_session_by_user_question: exception occurred while updating session title for "
+                "session_code->[%s]: %s",
+                session_code,
+                e,
+            )
+            return {
+                "result": False,
+                "code": "error",
+                "data": None,
+                "message": f"Exception occurred: {str(e)}",
+                "request_id": None,
+                "trace_id": None,
+            }
 
     # ==================== 会话内容管理 ====================
     def create_chat_session_content(self, params):
