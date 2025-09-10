@@ -17,7 +17,14 @@
         display: none;
       }
     }
+    .bk-table-fixed,
+    .bk-table-fixed-right {
+      border-bottom: 0;
+    }
 
+    .bk-table-body-wrapper {
+      border-bottom: 1px solid #dfe0e5;
+    }
     .bk-table-fixed-body-wrapper,
     /* stylelint-disable-next-line no-descending-specificity */
     .bk-table-body-wrapper {
@@ -25,7 +32,11 @@
       flex: 1;
       flex-direction: column;
       min-height: 0;
-      border-bottom: 1px solid #dfe0e5;
+      .bk-table-row-last {
+        td {
+          border-bottom: 0;
+        }
+      }
 
       .right-align-cell {
         .cell {
