@@ -80,7 +80,7 @@ class AIDevInterface:
 
     def rename_chat_session_by_user_question(self, session_code):
         """
-        根据用户输入的第一句问题截断16个字符作为会话标题
+        根据用户输入的第一句作为会话标题
         """
         context = self.get_chat_session_contents(session_code=session_code)
 
@@ -105,13 +105,10 @@ class AIDevInterface:
             )
             return None
 
-        # 截断为16个字符作为会话标题
-        session_title = user_message[:16]
-
         return {
             "result": True,
             "code": "success",
-            "data": {"session_name": session_title, "session_code": session_code},
+            "data": {"session_name": user_message, "session_code": session_code},
             "message": None,
             "request_id": None,
             "trace_id": None,
