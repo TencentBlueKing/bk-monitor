@@ -340,4 +340,6 @@ export default {
   链路排障: 'Link troubleshooting',
   数据源ID: 'Data source ID',
   请输入数据源ID: 'Please enter the data source ID',
+  '重定义为 {0}': 'Redefined as {0}',
+  超时: 'Timeout'
 };
