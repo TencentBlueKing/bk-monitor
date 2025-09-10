@@ -52,6 +52,7 @@ import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-servi
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 import CustomEventMenu from './custom-event-menu/custom-event-menu';
+import QuickAddStrategy from './quick-add-strategy/quick-add-strategy';
 import {
   type EventTagColumn,
   type EventTagConfig,
@@ -989,13 +990,14 @@ class CallerLineChart extends CommonSimpleChart {
    * @return {*}
    */
   handleAllMetricClick() {
-    const configs = this.panel.toStrategy(null);
-    if (configs) {
-      this.handleAddStrategy(this.panel, null, {});
-      return;
-    }
-    const copyPanel = this.getCopyPanel();
-    this.handleAddStrategy(copyPanel as any, null, {}, true);
+    this.quickAddStrategyObj.show = true;
+    // const configs = this.panel.toStrategy(null);
+    // if (configs) {
+    //   this.handleAddStrategy(this.panel, null, {});
+    //   return;
+    // }
+    // const copyPanel = this.getCopyPanel();
+    // this.handleAddStrategy(copyPanel as any, null, {}, true);
   }
 
   getTimeShiftCompareValue() {
@@ -1212,6 +1214,11 @@ class CallerLineChart extends CommonSimpleChart {
       message: success ? this.$t('保存成功') : this.$t('保存失败'),
     });
   }
+
+  handleQuickAddStrategyShowChange(v: boolean) {
+    this.quickAddStrategyObj.show = v;
+  }
+
   render() {
     return (
       <div
@@ -1414,6 +1421,10 @@ class CallerLineChart extends CommonSimpleChart {
             position={this.customMenuPosition}
           />
         )}
+        <QuickAddStrategy
+          show={this.quickAddStrategyObj.show}
+          onShowChange={this.handleQuickAddStrategyShowChange}
+        />
         {this.isCodeRedefine && (
           <CodeRedefineSlider
             isShow={this.codeRedefineShow}
