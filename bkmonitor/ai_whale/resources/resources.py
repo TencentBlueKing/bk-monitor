@@ -132,8 +132,11 @@ class RenameChatSessionResource(Resource):
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         logger.info("RenameChatSessionResource: try to rename session->[%s]", session_code)
-        # return aidev_interface.rename_chat_session(session_code=session_code)
-        return aidev_interface.rename_chat_session_by_user_question(session_code=session_code)
+
+        if settings.ENABLE_AI_RENAME:
+            return aidev_interface.rename_chat_session(session_code=session_code)
+        else:
+            return aidev_interface.rename_chat_session_by_user_question(session_code=session_code)
 
 
 # -------------------- 会话内容管理 -------------------- #
