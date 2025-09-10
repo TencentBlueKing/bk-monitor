@@ -155,5 +155,24 @@ STRATEGY_TEMPLATE_LIST = [
         "create_time": "2025-08-04 17:43:26+0800",
         "update_user": "admin",
         "update_time": "2025-08-04 17:43:26+0800",
-    }
+    },
+    {
+        "id": 2,
+        "name": "[调用分析] 主调平均耗时",
+        "system": "RPC",
+        "category": "RPC_CALLER",
+        "type": "inner",
+        "is_enabled": True,
+        "is_auto_apply": True,
+        "algorithms": [
+            {"level": 2, "method": "lte", "threshold": 1000, "type": "Threshold"},
+            {"level": 1, "method": "lte", "threshold": 3000, "type": "Threshold"},
+        ],
+        "user_group_list": [{"id": 1, "name": "应用创建者"}],
+        "applied_service_names": ["example.greeter1", "example.greeter"],
+        "create_user": "admin",
+        "create_time": "2025-08-04 17:43:26+0800",
+        "update_user": "admin",
+        "update_time": "2025-08-04 17:43:26+0800",
+    },
 ]
