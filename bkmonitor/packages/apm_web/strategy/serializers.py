@@ -20,7 +20,7 @@ from . import constants
 class DetectSerializer(serializers.Serializer):
     """判断条件"""
 
-    recovery_check_window = serializers.IntegerField(label=_("恢复检查窗口"), min_value=1)
+    recovery_check_window = serializers.IntegerField(label=_("恢复检查窗口"), min_value=1, default=5)
     trigger_check_window = serializers.IntegerField(label=_("触发检查窗口"), min_value=1)
     trigger_count = serializers.IntegerField(label=_("触发次数"), min_value=1)
 
@@ -103,8 +103,8 @@ class StrategyTemplateUpdateSerializer(serializers.Serializer):
     detect = DetectSerializer(label=_("判断条件"))
     user_group_list = serializers.ListField(label=_("用户组列表"), child=UserGroupSerializer())
     context = serializers.DictField(label=_("查询模板的变量上下文"), default={})
-    is_enabled = serializers.BooleanField(label=_("是否启用"))
-    is_auto_apply = serializers.BooleanField(label=_("是否自动下发"))
+    is_enabled = serializers.BooleanField(label=_("是否启用"), default=True)
+    is_auto_apply = serializers.BooleanField(label=_("是否自动下发"), default=False)
 
 
 class StrategyTemplateUpdateRequestSerializer(
