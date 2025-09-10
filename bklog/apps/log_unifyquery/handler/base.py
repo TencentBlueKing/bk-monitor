@@ -577,7 +577,7 @@ class UnifyQueryHandler:
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "down_sample_range": "",
-            "timezone": "UTC",  # 仅用于提供给 unify-query 生成读别名，对应存储入库时区
+            "timezone": self.search_params.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE),
             "bk_biz_id": self.bk_biz_id,
         }
 
@@ -835,7 +835,6 @@ class UnifyQueryHandler:
             q["time_aggregation"] = {}
         params["step"] = interval
         params["order_by"] = []
-        params["timezone"] = get_local_param("time_zone", settings.TIME_ZONE)
         response = self.query_ts_reference(params)
         return_data = {"aggs": {}}
         if not response["series"]:
