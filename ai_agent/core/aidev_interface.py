@@ -90,14 +90,7 @@ class AIDevInterface:
                 "rename_chat_session_by_user_question: failed to get session contents for session_code->[%s]",
                 session_code,
             )
-            return {
-                "result": False,
-                "code": "error",
-                "data": None,
-                "message": "Failed to get session contents",
-                "request_id": None,
-                "trace_id": None,
-            }
+            return None
 
         # 查找第一条role为'user'的记录
         user_message = None
@@ -110,16 +103,8 @@ class AIDevInterface:
             logger.warning(
                 "rename_chat_session_by_user_question: no user message found for session_code->[%s]", session_code
             )
-            return {
-                "result": False,
-                "code": "error",
-                "data": None,
-                "message": "No user message found",
-                "request_id": None,
-                "trace_id": None,
-            }
+            return None
 
-        # 截断为16个字符作为会话标题
         session_title = user_message
 
         # 调用更新会话API
@@ -149,14 +134,7 @@ class AIDevInterface:
                     session_code,
                     update_result,
                 )
-                return {
-                    "result": False,
-                    "code": "error",
-                    "data": None,
-                    "message": update_result.get("message", "Failed to update session title"),
-                    "request_id": update_result.get("request_id"),
-                    "trace_id": update_result.get("trace_id"),
-                }
+                return None
         except Exception as e:
             logger.error(
                 "rename_chat_session_by_user_question: exception occurred while updating session title for "
@@ -164,14 +142,7 @@ class AIDevInterface:
                 session_code,
                 e,
             )
-            return {
-                "result": False,
-                "code": "error",
-                "data": None,
-                "message": f"Exception occurred: {str(e)}",
-                "request_id": None,
-                "trace_id": None,
-            }
+            return None
 
     # ==================== 会话内容管理 ====================
     def create_chat_session_content(self, params):
