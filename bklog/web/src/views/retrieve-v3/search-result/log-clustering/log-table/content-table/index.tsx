@@ -24,7 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, nextTick, watch, PropType } from "vue";
+import {
+  computed,
+  defineComponent,
+  ref,
+  nextTick,
+  watch,
+  PropType,
+  shallowRef,
+  onMounted,
+  onBeforeUnmount,
+} from "vue";
 import { orderBy } from "lodash-es";
 import useLocale from "@/hooks/use-locale";
 import tippy from "tippy.js";
@@ -101,42 +111,53 @@ export default defineComponent({
     const tableWraperRef = ref<HTMLElement>();
     const currentRowId = ref(0);
     const cacheExpandStr = ref<any[]>([]); // 展示pattern按钮数组
-    const isOpen = ref(true); // 是否展开
+    const isOpen = ref(props.index === 0); // 是否展开
     const tableData = ref<LogPattern[]>([]);
+
+    const localTableData = shallowRef<LogPattern[]>([]);
+
+    const showTableList = computed(
+      () =>
+        isOpen.value ||
+        isFlattenMode.value ||
+        !props.requestData?.group_by.length
+    );
 
     const showYOY = computed(() => props.requestData?.year_on_year_hour >= 1);
     const isLimitExpandView = computed(
-      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
+      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]
     );
     /** 获取当前编辑操作的数据 */
     const currentRowValue = computed(() =>
-      tableData.value.find((item) => item.id === currentRowId.value),
+      tableData.value.find((item) => item.id === currentRowId.value)
     );
     const showGounpBy = computed(
       () =>
-        props.requestData?.group_by.length > 0 && props.displayMode === "group",
+        props.requestData?.group_by.length > 0 && props.displayMode === "group"
     );
     const isFlattenMode = computed(
       () =>
-        props.requestData?.group_by.length > 0 && props.displayMode !== "group",
+        props.requestData?.group_by.length > 0 && props.displayMode !== "group"
     );
     const groupValueList = computed(() => {
       if (props.requestData?.group_by.length && props.tableInfo?.group.length) {
         return props.requestData.group_by.map(
-          (item, index) => `${item}=${props.tableInfo.group[index]}`,
+          (item, index) => `${item}=${props.tableInfo.group[index]}`
         );
       }
       return [];
     });
     const isAiAssistanceActive = computed(
-      () => store.getters.isAiAssistantActive,
+      () => store.getters.isAiAssistantActive
     );
 
-    let localTableData: LogPattern[] = [];
+    let outerSCrollLeft = 0;
     let popoverInstance: any = null;
     let remarkPopoverTimer: NodeJS.Timeout;
+    const pageSize = 100;
+    let offset = 0;
 
-    const isExternal = window.IS_EXTERNAL === "true";
+    const isExternal = window.IS_EXTERNAL === true;
 
     watch(
       () => props.widthList,
@@ -149,7 +170,7 @@ export default defineComponent({
             widthList = props.widthList.slice(1, props.widthList.length - 1);
           }
           const columns = Array.from(
-            headRowRef.value?.querySelectorAll("th") || [],
+            headRowRef.value?.querySelectorAll("th") || []
           );
           if (columns.length) {
             columns.forEach((item: any, index) => {
@@ -160,27 +181,37 @@ export default defineComponent({
       },
       {
         immediate: true,
-      },
+      }
     );
 
     watch(
       () => props.tableInfo?.dataList,
       () => {
-        tableData.value = props.tableInfo?.dataList;
-        localTableData = structuredClone(props.tableInfo?.dataList);
+        localTableData.value = structuredClone(props.tableInfo.dataList);
+        if (localTableData.value.length > pageSize) {
+          // 分页
+          tableData.value = props.tableInfo.dataList.slice(0, pageSize);
+          return;
+        }
+
+        tableData.value = props.tableInfo.dataList;
       },
       {
         immediate: true,
-      },
+      }
     );
 
     watch(
-      () => props.filterSortMap,
+      () => [props.filterSortMap, isOpen.value],
       () => {
+        if (!isOpen.value) {
+          return;
+        }
+
         const sortObj = Object.entries(props.filterSortMap.sort).find(
-          (item) => !!item[1],
+          (item) => !!item[1]
         );
-        let dataList = structuredClone(localTableData);
+        let dataList = structuredClone(localTableData.value);
         if (sortObj) {
           // 排序
           const [field, order] = sortObj;
@@ -196,10 +227,10 @@ export default defineComponent({
           } else {
             const ownersMap = owners.reduce<Record<string, boolean>>(
               (map, item) => Object.assign(map, { [item]: true }),
-              {},
+              {}
             );
             dataList = dataList.filter((item) =>
-              item.owners.some((item) => !!ownersMap[item]),
+              item.owners.some((item) => !!ownersMap[item])
             );
           }
         }
@@ -208,22 +239,37 @@ export default defineComponent({
           // 过滤备注
           const isRemarked = remark[0] === "remarked";
           dataList = dataList.filter((item) =>
-            isRemarked ? item.remark.length > 0 : !item.remark.length,
+            isRemarked ? item.remark.length > 0 : !item.remark.length
           );
         }
         tableData.value = dataList;
       },
       {
         deep: true,
-      },
+      }
     );
+
+    watch(
+      () => [showGounpBy.value, isFlattenMode.value],
+      () => {
+        offset = 0;
+      }
+    );
+
+    watch(isOpen, () => {
+      if (isOpen.value) {
+        setTimeout(() => {
+          tableWraperRef.value.scrollLeft = outerSCrollLeft;
+        });
+      }
+    });
 
     const updateTableRowData = (id: number, key: string, value: any) => {
       const row = tableData.value.find((item) => item.id === id);
       if (row) {
         row[key] = value;
       }
-      const localRow = localTableData.find((item) => item.id === id);
+      const localRow = localTableData.value.find((item) => item.id === id);
       if (localRow) {
         localRow[key] = value;
       }
@@ -271,7 +317,7 @@ export default defineComponent({
               newSearchList,
               searchMode,
               isNewSearchPage,
-              { tab: "origin" },
+              { tab: "origin" }
             );
             window.open(openUrl, "_blank");
             // 新开页后当前页面回填聚类参数
@@ -323,7 +369,7 @@ export default defineComponent({
     };
 
     // 设置负责人
-    const handleChangePrincipal = (val: string[], row: LogPattern) => {
+    const handleChangePrincipal = (val: string[] | null, row: LogPattern) => {
       currentRowId.value = row.id;
       // 当创建告警策略开启时，不允许删掉最后一个责任人
       if (row.strategy_enabled && !val.length) {
@@ -388,7 +434,7 @@ export default defineComponent({
       currentRowId.value = row.id;
       window.open(
         `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
-        "_blank",
+        "_blank"
       );
     };
 
@@ -445,9 +491,74 @@ export default defineComponent({
       store.dispatch("setQueryCondition", addConditions);
     };
 
+    const handleBottomAppendList = () => {
+      offset += pageSize;
+      tableData.value.push(
+        ...localTableData.value.slice(offset, offset + pageSize)
+      );
+    };
+
+    const handleGlobalwheel = (e: any) => {
+      e.preventDefault();
+      if (
+        tableWraperRef.value.clientHeight + tableWraperRef.value.scrollTop <
+          tableWraperRef.value.scrollHeight &&
+        tableWraperRef.value.scrollTop > 0
+      ) {
+        e.stopPropagation();
+      }
+
+      if (!showGounpBy.value) {
+        return;
+      }
+
+      if (e.deltaY !== 0) {
+        tableWraperRef.value!.scrollTop += e.deltaY;
+      }
+    };
+
+    const handleGlobalScroll = (e: any) => {
+      if (!showGounpBy.value) {
+        return;
+      }
+      const { scrollHeight, clientHeight, scrollTop } = e.target;
+      if (scrollHeight === clientHeight) {
+        return;
+      }
+
+      if (clientHeight + scrollTop === scrollHeight) {
+        handleBottomAppendList();
+      }
+    };
+
+    onMounted(() => {
+      tableWraperRef.value.addEventListener("wheel", handleGlobalwheel, {
+        passive: false,
+      });
+      tableWraperRef.value!.addEventListener("scroll", handleGlobalScroll);
+    });
+
+    onBeforeUnmount(() => {
+      tableWraperRef.value.removeEventListener("wheel", handleGlobalwheel);
+      tableWraperRef.value!.removeEventListener("scroll", handleGlobalScroll);
+    });
+
     expose({
-      scroll: (scrollLeft: number) =>
-        (tableWraperRef.value!.scrollLeft = scrollLeft),
+      scroll: (scrollLeft: number) => {
+        outerSCrollLeft = scrollLeft;
+        tableWraperRef.value!.scrollLeft = scrollLeft;
+      },
+      bottomAppendList: () => {
+        if (showGounpBy.value && !isFlattenMode.value) {
+          return;
+        }
+
+        if (offset > localTableData.value.length) {
+          return;
+        }
+
+        handleBottomAppendList();
+      },
     });
 
     return () => (
@@ -491,20 +602,25 @@ export default defineComponent({
               <log-icon type="sousuo-" />
             </div>
             <div class="count-display">
-              （{t("共有 {0} 条数据", [tableData.value.length])}）
+              （{t("共有 {0} 条数据", [localTableData.value.length])}）
             </div>
           </div>
         )}
         {!showGounpBy.value && (
           <div class="list-count-main">
             <i18n path="共有 {0} 条数据">
-              <span style="font-weight:700">{tableData.value.length}</span>
+              <span style="font-weight:700">{localTableData.value.length}</span>
             </i18n>
           </div>
         )}
         <div
-          style={{ display: isOpen.value ? "block" : "none" }}
-          class="log-content-table-wraper"
+          style={{
+            display: isOpen.value || showTableList.value ? "block" : "none",
+          }}
+          class={{
+            "log-content-table-wraper": true,
+            "is-scroll-mode": showGounpBy.value,
+          }}
           ref={tableWraperRef}
         >
           <table class="log-content-table">
@@ -538,235 +654,235 @@ export default defineComponent({
                 )}
                 {isFlattenMode.value &&
                   props.requestData.group_by.map((item) => (
-                    <th style={{ width: "100px" }}>{item}</th>
+                    <th style="width:100px">{item}</th>
                   ))}
-                <th style={{ minWidth: "350px" }}>Pattern</th>
-                <th style={{ width: "200px" }}>责任人</th>
-                {!isExternal && (
-                  <th style={{ width: "200px" }}>创建告警策略</th>
-                )}
-                <th style={{ width: "200px" }}>备注</th>
-                {isAiAssistanceActive.value && (
-                  <th style={{ width: "60px" }}>ai</th>
-                )}
+                <th style="minWidth:350px">Pattern</th>
+                <th style="width:200px">责任人</th>
+                {!isExternal && <th style="width:200px">创建告警策略</th>}
+                <th style="width:200px">备注</th>
+                {isAiAssistanceActive.value && <th style="width:60px">ai</th>}
               </tr>
             </thead>
             <tbody>
-              {tableData.value.map((row, rowIndex) => (
-                <tr>
-                  <td>
-                    <div class="signature-box">
-                      <div class="signature" v-bk-overflow-tips>
-                        {row.signature}
-                      </div>
-                      <div class="new-finger" v-show={row.is_new_class}>
-                        New
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <bk-button
-                      text
-                      theme="primary"
-                      size="small"
-                      style="padding: 0px"
-                      on-click={() => handleMenuBatchClick(row)}
-                    >
-                      {row.count}
-                    </bk-button>
-                  </td>
-                  <td>
-                    <bk-button
-                      text
-                      theme="primary"
-                      style="padding: 0px"
-                      size="small"
-                      on-click={() => handleMenuBatchClick(row)}
-                    >
-                      {`${row.percentage.toFixed(2)}%`}
-                    </bk-button>
-                  </td>
-                  {showYOY.value && (
+              {showTableList.value &&
+                tableData.value.map((row, rowIndex) => (
+                  <tr>
                     <td>
-                      <span style="padding-left:6px">
-                        {row.year_on_year_count}
-                      </span>
+                      <div class="signature-box">
+                        <div class="signature" v-bk-overflow-tips>
+                          {row.signature}
+                        </div>
+                        <div class="new-finger" v-show={row.is_new_class}>
+                          New
+                        </div>
+                      </div>
                     </td>
-                  )}
-                  {showYOY.value && (
                     <td>
-                      <div
-                        class="compared-change"
-                        style={{
-                          color:
-                            row.year_on_year_percentage < 0
-                              ? "#2CAF5E"
-                              : row.year_on_year_percentage === 0
+                      <bk-button
+                        text
+                        theme="primary"
+                        size="small"
+                        style="padding: 0px"
+                        on-click={() => handleMenuBatchClick(row)}
+                      >
+                        {row.count}
+                      </bk-button>
+                    </td>
+                    <td>
+                      <bk-button
+                        text
+                        theme="primary"
+                        style="padding: 0px"
+                        size="small"
+                        on-click={() => handleMenuBatchClick(row)}
+                      >
+                        {`${row.percentage.toFixed(2)}%`}
+                      </bk-button>
+                    </td>
+                    {showYOY.value && (
+                      <td>
+                        <span style="padding-left:6px">
+                          {row.year_on_year_count}
+                        </span>
+                      </td>
+                    )}
+                    {showYOY.value && (
+                      <td>
+                        <div
+                          class="compared-change"
+                          style={{
+                            color:
+                              row.year_on_year_percentage < 0
+                                ? "#2CAF5E"
+                                : row.year_on_year_percentage === 0
                                 ? "#313238"
                                 : "#E71818",
-                        }}
-                      >
-                        <span>{`${Math.abs(
-                          Number(row.year_on_year_percentage.toFixed(2)),
-                        )}%`}</span>
-                        {row.year_on_year_percentage !== 0 ? (
-                          <log-icon
-                            style="font-size: 16px;"
-                            type={
-                              row.year_on_year_percentage < 0
-                                ? "down-4"
-                                : "up-2"
-                            }
-                          />
-                        ) : (
-                          <log-icon style="font-size: 16px;" type="--2" />
-                        )}
-                      </div>
-                    </td>
-                  )}
-                  {isFlattenMode.value &&
-                    row.group.map((item) => (
-                      <td>
-                        <div class="dynamic-column" v-bk-overflow-tips>
-                          {item}
-                        </div>
-                      </td>
-                    ))}
-                  <td>
-                    <div
-                      class={[
-                        "pattern-content",
-                        { "is-limit": getLimitState(rowIndex) },
-                      ]}
-                    >
-                      <ClusterEventPopover
-                        rowData={row}
-                        indexId={props.indexId}
-                        on-event-click={(isLink) =>
-                          handleMenuClick(row, isLink)
-                        }
-                        on-open-cluster-config={() =>
-                          emit("open-cluster-config")
-                        }
-                      >
-                        <text-highlight
-                          style=""
-                          class="monospace-text"
-                          queries={getHeightLightList(row.pattern)}
+                          }}
                         >
-                          {row.pattern ? row.pattern : t("未匹配")}
-                        </text-highlight>
-                      </ClusterEventPopover>
-                      {!isLimitExpandView.value && (
-                        <div>
-                          {!cacheExpandStr.value.includes(rowIndex) ? (
-                            <p
-                              class="show-whole-btn"
-                              on-click={() => handleShowWhole(rowIndex)}
-                            >
-                              {t("展开全部")}
-                            </p>
+                          <span>{`${Math.abs(
+                            Number(row.year_on_year_percentage.toFixed(2))
+                          )}%`}</span>
+                          {row.year_on_year_percentage !== 0 ? (
+                            <log-icon
+                              style="font-size: 16px;"
+                              type={
+                                row.year_on_year_percentage < 0
+                                  ? "down-4"
+                                  : "up-2"
+                              }
+                            />
                           ) : (
-                            <p
-                              class="hide-whole-btn"
-                              on-click={() => handleHideWhole(rowIndex)}
-                            >
-                              {t("收起")}
-                            </p>
+                            <log-icon style="font-size: 16px;" type="--2" />
                           )}
                         </div>
-                      )}
-                    </div>
-                  </td>
-                  <td style="padding-left: 0px">
-                    <div
-                      class="principal-main"
-                      v-bk-tooltips={{
-                        placement: "top",
-                        content: row.owners.join(", "),
-                        delay: 300,
-                        disabled: !row.owners.length,
-                      }}
-                    >
-                      {!isExternal ? (
-                        <bk-user-selector
-                          class="principal-input"
-                          api={window.BK_LOGIN_URL}
-                          empty-text={t("无匹配人员")}
-                          value={row.owners}
-                          placeholder="--"
-                          multiple
-                          on-change={(val) => handleChangePrincipal(val, row)}
-                        />
-                      ) : (
-                        <bk-tag-input
-                          style="width: 100%"
-                          value={row.owners}
-                          placeholder=" "
-                          allow-create
-                          clearable={false}
-                          has-delete-icon
-                          on-change={(value) => (row.owners = value)}
-                          on-blur={() => handleChangePrincipal([], row)}
-                        />
-                      )}
-                    </div>
-                  </td>
-                  {!isExternal && (
+                      </td>
+                    )}
+                    {isFlattenMode.value &&
+                      row.group.map((item) => (
+                        <td>
+                          <div class="dynamic-column" v-bk-overflow-tips>
+                            {item}
+                          </div>
+                        </td>
+                      ))}
                     <td>
-                      <div class="create-strategy-main">
-                        {row.owners.length > 0 ? (
-                          <div class="is-able">
-                            <bk-switcher
-                              theme="primary"
-                              value={row.strategy_enabled}
-                              on-change={(val) => changeStrategy(val, row)}
-                            />
-                            {row.strategy_id > 0 && (
-                              <span
-                                on-click={() => handleStrategyInfoClick(row)}
+                      <div
+                        class={[
+                          "pattern-content",
+                          { "is-limit": getLimitState(rowIndex) },
+                        ]}
+                      >
+                        <ClusterEventPopover
+                          rowData={row}
+                          indexId={props.indexId}
+                          on-event-click={(isLink) =>
+                            handleMenuClick(row, isLink)
+                          }
+                          on-open-cluster-config={() =>
+                            emit("open-cluster-config")
+                          }
+                        >
+                          <text-highlight
+                            style=""
+                            class="monospace-text"
+                            queries={getHeightLightList(row.pattern)}
+                          >
+                            {row.pattern ? row.pattern : t("未匹配")}
+                          </text-highlight>
+                        </ClusterEventPopover>
+                        {!isLimitExpandView.value && (
+                          <div>
+                            {!cacheExpandStr.value.includes(rowIndex) ? (
+                              <p
+                                class="show-whole-btn"
+                                on-click={() => handleShowWhole(rowIndex)}
                               >
-                                <log-icon
-                                  type="audit"
-                                  style="font-size: 16px"
-                                />
-                              </span>
+                                {t("展开全部")}
+                              </p>
+                            ) : (
+                              <p
+                                class="hide-whole-btn"
+                                on-click={() => handleHideWhole(rowIndex)}
+                              >
+                                {t("收起")}
+                              </p>
                             )}
                           </div>
+                        )}
+                      </div>
+                    </td>
+                    <td style="padding-left: 0px">
+                      <div
+                        class="principal-main"
+                        // 组件样式有问题，暂时这样处理
+                        style={{ padding: isExternal && "5px 0" }}
+                        v-bk-tooltips={{
+                          placement: "top",
+                          content: row.owners.join(", "),
+                          delay: 300,
+                          disabled: !row.owners.length,
+                        }}
+                      >
+                        {!isExternal ? (
+                          <bk-user-selector
+                            class="principal-input"
+                            api={window.BK_LOGIN_URL}
+                            empty-text={t("无匹配人员")}
+                            value={row.owners}
+                            placeholder="--"
+                            multiple
+                            on-change={(val) => handleChangePrincipal(val, row)}
+                          />
                         ) : (
-                          <bk-switcher
-                            value={row.strategy_enabled}
-                            theme="primary"
-                            disabled
-                            v-bk-tooltips={t(
-                              "暂无配置责任人，无法自动创建告警策略",
-                            )}
+                          <bk-tag-input
+                            style="width: 100%"
+                            class="principal-tag-input"
+                            value={row.owners}
+                            placeholder="--"
+                            allow-create
+                            clearable={false}
+                            has-delete-icon
+                            on-change={(value) => (row.owners = value)}
+                            on-blur={() => handleChangePrincipal(null, row)}
                           />
                         )}
                       </div>
                     </td>
-                  )}
-                  <td style="padding-right: 8px;">
-                    <div
-                      class="remark-column"
-                      on-mouseenter={(e) => handleHoverRemarkIcon(e, row)}
-                      on-mouseleave={() => clearTimeout(remarkPopoverTimer)}
-                    >
-                      {remarkContent(row.remark)}
-                    </div>
-                  </td>
-                  {isAiAssistanceActive.value && (
-                    <td>
-                      <div class="ai-assist-column">
-                        <span on-click={() => emit("open-ai", row, rowIndex)}>
-                          <log-icon class="ai-icon" type="ai-mofabang" />
-                          <img class="ai-icon-active" src={aiImageUrl} />
-                        </span>
+                    {!isExternal && (
+                      <td>
+                        <div class="create-strategy-main">
+                          {row.owners.length > 0 ? (
+                            <div class="is-able">
+                              <bk-switcher
+                                theme="primary"
+                                value={row.strategy_enabled}
+                                on-change={(val) => changeStrategy(val, row)}
+                              />
+                              {row.strategy_id > 0 && (
+                                <span
+                                  on-click={() => handleStrategyInfoClick(row)}
+                                >
+                                  <log-icon
+                                    type="audit"
+                                    style="font-size: 16px"
+                                  />
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <bk-switcher
+                              value={row.strategy_enabled}
+                              theme="primary"
+                              disabled
+                              v-bk-tooltips={t(
+                                "暂无配置责任人，无法自动创建告警策略"
+                              )}
+                            />
+                          )}
+                        </div>
+                      </td>
+                    )}
+                    <td style="padding-right: 8px;">
+                      <div
+                        class="remark-column"
+                        on-mouseenter={(e) => handleHoverRemarkIcon(e, row)}
+                        on-mouseleave={() => clearTimeout(remarkPopoverTimer)}
+                      >
+                        {remarkContent(row.remark)}
                       </div>
                     </td>
-                  )}
-                </tr>
-              ))}
+                    {isAiAssistanceActive.value && (
+                      <td>
+                        <div class="ai-assist-column">
+                          <span on-click={() => emit("open-ai", row, rowIndex)}>
+                            <log-icon class="ai-icon" type="ai-mofabang" />
+                            <img class="ai-icon-active" src={aiImageUrl} />
+                          </span>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>

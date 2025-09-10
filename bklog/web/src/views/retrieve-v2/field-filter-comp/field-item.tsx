@@ -44,7 +44,7 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
-  @Prop({ type: Object, required: true }) retrieveParams: object;
+  @Prop({ type: Object, required: true }) retrieveParams: any;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: object;
   @Prop({ type: Boolean, required: true }) isFrontStatistics: boolean;
@@ -102,6 +102,11 @@ export default class FieldItem extends tsc<object> {
     return this.unionIndexItemList
       .filter(item => this.unionIndexList.includes(item.index_set_id))
       .map(item => item.indexName);
+  }
+
+  get agg_field() {
+    const fieldName = this.fieldItem.field_name;
+    return this.retrieveParams.showFieldAlias ? (this.fieldAliasMap[fieldName] ?? fieldName) : fieldName;
   }
 
   get computedFieldName() {
@@ -168,11 +173,12 @@ export default class FieldItem extends tsc<object> {
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
+
     this.queryParams = {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
-      agg_field: this.fieldItem.field_name,
+      agg_field: this.agg_field,
       statisticalFieldData: this.statisticalFieldData,
       isFrontStatisticsL: this.isFrontStatistics,
     };
@@ -231,7 +237,7 @@ export default class FieldItem extends tsc<object> {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
-      agg_field: this.fieldItem.field_name,
+      agg_field: this.agg_field,
       limit: this.fieldData?.distinct_count,
     };
     axiosInstance
@@ -315,7 +321,7 @@ export default class FieldItem extends tsc<object> {
             ref='operationRef'
             class={['operation-text', { 'analysis-active': this.analysisActive }]}
           >
-            {(this.isShowFieldsAnalysis && !this.isUnionSearch && !this.isFrontStatistics)&& (
+            {this.isShowFieldsAnalysis && !this.isUnionSearch && !this.isFrontStatistics && (
               <div
                 class='operation-icon-box'
                 v-bk-tooltips={{ content: this.$t('图表分析') }}
@@ -370,7 +376,6 @@ export default class FieldItem extends tsc<object> {
                   <span class='field-name'>{this.fieldItem?.field_name}</span>
                   <div class='col-line' />
                   <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
-                  <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
                 </div>
                 <div class='fnBtn'>
                   <bk-button
@@ -394,7 +399,7 @@ export default class FieldItem extends tsc<object> {
             <template slot='content'>
               <div class='agg-sides-content slider-content'>
                 <AggChart
-                  field-name={this.fieldItem.field_name}
+                  field-name={this.agg_field}
                   field-type={this.fieldItem.field_type}
                   is-front-statistics={this.isFrontStatistics}
                   limit={this.fieldData?.distinct_count}

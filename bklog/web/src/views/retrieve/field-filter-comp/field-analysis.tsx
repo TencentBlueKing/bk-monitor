@@ -36,6 +36,7 @@ import { lineColor } from '../../../store/constant';
 import store from '@/store';
 
 import './field-analysis.scss';
+import { cloneDeep } from 'lodash-es';
 const CancelToken = axios.CancelToken;
 
 const timeSeriesBase = {
@@ -178,7 +179,6 @@ export default class FieldAnalysis extends Vue {
         },
       );
       Object.assign(this.fieldData, res.data);
-    } catch (error) {
     } finally {
       this.infoLoading = false;
     }
@@ -229,7 +229,7 @@ export default class FieldAnalysis extends Vue {
           return `${item[0]} - ${resData[index + 1][0]}`;
         });
         const pillarInterval = Math.round(xAxisData.length / 2) - 1;
-        this.pillarOption = structuredClone(pillarChartOption);
+        this.pillarOption = cloneDeep(pillarChartOption);
         // 柱状图初始化
         Object.assign(this.pillarOption, {
           tooltip: {
@@ -310,7 +310,7 @@ export default class FieldAnalysis extends Vue {
         const {
           xAxis: { minInterval, splitNumber, ...resetxAxis },
         } = lineOrBarOptions;
-        this.lineOptions = structuredClone(lineOrBarOptions);
+        this.lineOptions = cloneDeep(lineOrBarOptions);
         Object.assign(this.lineOptions, {
           useUTC: false,
           tooltip: {

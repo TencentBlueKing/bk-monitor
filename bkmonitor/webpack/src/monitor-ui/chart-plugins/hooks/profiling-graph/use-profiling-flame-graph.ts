@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -111,8 +111,8 @@ export function getGraphOptions(
         const nodeItem: IFlameGraphDataItem = params.value?.[3];
         const { value, text } = parseProfileDataTypeValue(nodeItem.value, unit, true);
         const { name, diff_info, proportion } = nodeItem;
-        let reference;
-        let difference;
+        let reference: number | string = '';
+        let difference: number | string = '';
         let columnName = text;
         if (isCompared && diff_info) {
           const parseData = parseProfileDataTypeValue(diff_info.comparison, unit, true);
@@ -212,6 +212,7 @@ export function recursionData(jsonData: IFlameGraphDataItem) {
     queue.push({ node: data[0], level: 0, start: 0, end: 0 });
     while (queue.length > 0) {
       const { node, level, start, end } = queue.shift();
+      // biome-ignore lint/correctness/noUnusedVariables: false positive
       const { children, ...others } = node;
       const item = {
         ...others,
@@ -249,7 +250,6 @@ export function recursionData(jsonData: IFlameGraphDataItem) {
     return result;
   }
   const list = flattenTreeWithLevelBFS(Array.isArray(jsonData) ? jsonData : [jsonData]);
-  console.info(list);
   return list;
 }
 

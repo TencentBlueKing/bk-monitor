@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -133,6 +133,11 @@ class ServiceInfoResource(Resource):
         return {}
 
     @classmethod
+    def get_log_relation_info_list(cls, bk_biz_id, app_name, service_name):
+        relations = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
+        return LogServiceRelationOutputSerializer(instance=relations, many=True).data
+
+    @classmethod
     def get_app_relation_info(cls, bk_biz_id, app_name, service_name):
         query = AppServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
         if query.exists():
@@ -221,7 +226,7 @@ class ServiceInfoResource(Resource):
         )
         instance_res = pool.apply_async(RelationMetricHandler.list_instances, kwds=query_instance_param)
         app_relation = pool.apply_async(self.get_app_relation_info, args=(bk_biz_id, app_name, service_name))
-        log_relation = pool.apply_async(self.get_log_relation_info, args=(bk_biz_id, app_name, service_name))
+        log_relation_list = pool.apply_async(self.get_log_relation_info_list, args=(bk_biz_id, app_name, service_name))
         cmdb_relation = pool.apply_async(self.get_cmdb_relation_info, args=(bk_biz_id, app_name, service_name))
         event_relation = pool.apply_async(self.get_event_relation_info, args=(bk_biz_id, app_name, service_name))
         uri_relation = pool.apply_async(self.get_uri_relation_info, args=(bk_biz_id, app_name, service_name))
@@ -244,7 +249,7 @@ class ServiceInfoResource(Resource):
                 service_info.update(service)
 
         app_relation_info = app_relation.get()
-        log_relation_info = log_relation.get()
+        log_relation_info_list = log_relation_list.get()
         cmdb_relation_info = cmdb_relation.get()
         event_relation_info = event_relation.get()
         uri_relation_info = uri_relation.get()
@@ -254,7 +259,7 @@ class ServiceInfoResource(Resource):
             [
                 apdex_info,
                 app_relation_info,
-                log_relation_info,
+                log_relation_info_list[0] if log_relation_info_list else {},
                 cmdb_relation_info,
                 *event_relation_info,
                 *uri_relation_info,
@@ -267,7 +272,7 @@ class ServiceInfoResource(Resource):
 
         service_info["relation"] = {
             "app_relation": app_relation_info,
-            "log_relation": log_relation_info,
+            "log_relation_list": log_relation_info_list,
             "cmdb_relation": cmdb_relation_info,
             "event_relation": event_relation_info,
             "uri_relation": uri_relation_info,
@@ -438,7 +443,7 @@ class ServiceConfigResource(Resource):
         update_relation = functools.partial(self.update, bk_biz_id, app_name, service_name)
 
         update_relation(validated_request_data.get("cmdb_relation"), CMDBServiceRelation)
-        update_relation(validated_request_data.get("log_relation"), LogServiceRelation)
+        self.update_log_relations(bk_biz_id, app_name, service_name, validated_request_data.get("log_relation_list"))
         update_relation(validated_request_data.get("app_relation"), AppServiceRelation)
 
         if validated_request_data.get("apdex_relation"):
@@ -482,6 +487,77 @@ class ServiceConfigResource(Resource):
                 UriServiceRelation.objects.create(uri=item, rank=index, **filter_params)
 
         UriServiceRelation.objects.filter(id__in=itertools.chain(*[ids for _, ids in delete_uris.items()])).delete()
+
+    @classmethod
+    def update_log_relations(cls, bk_biz_id: int, app_name: str, service_name: str, log_relation_list: list):
+        if not log_relation_list:
+            LogServiceRelation.objects.filter(
+                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+            ).delete()
+            return
+
+        # 检查是否有重复的related_bk_biz_id，并合并value_list
+        unique_relations = {}
+        for request_relation in log_relation_list:
+            related_bk_biz_id = request_relation.get("related_bk_biz_id")
+            if related_bk_biz_id in unique_relations:
+                # 合并value_list
+                existing_value_list = unique_relations[related_bk_biz_id].get("value_list", [])
+                new_value_list = request_relation.get("value_list", [])
+                unique_relations[related_bk_biz_id]["value_list"] = existing_value_list + new_value_list
+            else:
+                unique_relations[related_bk_biz_id] = request_relation
+
+        # 将合并后的结果转换为列表
+        log_relation_list = list(unique_relations.values())
+
+        # 获取现有记录的主键映射
+        existing_relations = LogServiceRelation.objects.filter(
+            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+        ).values_list("related_bk_biz_id", "id")
+
+        existing_id_map = {related_bk_biz_id: id for related_bk_biz_id, id in existing_relations}
+
+        to_update = []
+        to_create = []
+        to_delete = [id for _, id in existing_relations]
+        username = get_request_username()
+        update_time = arrow.now().datetime
+
+        for request_relation in log_relation_list:
+            related_bk_biz_id = request_relation.get("related_bk_biz_id")
+            if related_bk_biz_id in existing_id_map:
+                if request_relation.get("value_list"):
+                    # 否则更新记录
+                    instance = LogServiceRelation(
+                        id=existing_id_map[related_bk_biz_id],
+                        updated_by=username,
+                        updated_at=update_time,
+                        **request_relation,
+                    )
+                    to_update.append(instance)
+                    # 如果记录不需要更新或者 value_list 为空，则需要删除记录
+                    to_delete.remove(existing_id_map[related_bk_biz_id])
+            else:
+                # 创建记录
+                instance = LogServiceRelation(
+                    bk_biz_id=bk_biz_id,
+                    app_name=app_name,
+                    service_name=service_name,
+                    updated_by=username,
+                    created_by=username,
+                    **request_relation,
+                )
+                to_create.append(instance)
+
+        if to_update:
+            LogServiceRelation.objects.bulk_update(
+                to_update, fields=["updated_by", "updated_at", "value_list"], batch_size=100
+            )
+        if to_create:
+            LogServiceRelation.objects.bulk_create(to_create, batch_size=100)
+        if to_delete:
+            LogServiceRelation.objects.filter(id__in=to_delete).delete()
 
     @classmethod
     def update_event_relations(
@@ -606,9 +682,7 @@ class AppQueryByIndexSetResource(Resource):
         index_set_id = serializers.IntegerField()
 
     def perform_request(self, data):
-        relations = LogServiceRelation.objects.filter(
-            log_type=ServiceRelationLogTypeChoices.BK_LOG, value=data["index_set_id"]
-        )
+        relations = LogServiceRelation.filter_by_index_set_id(data["index_set_id"])
         res = []
         for relation in relations:
             res.append({"bk_biz_id": relation.bk_biz_id, "app_name": relation.app_name})

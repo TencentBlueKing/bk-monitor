@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -193,7 +193,6 @@ export default {
     'After association, related observation data will be automatically obtained, including events, etc. Note: After the pipeline is selected, the startup parameters must be synchronized to configure.',
   新增流水线: 'Add Pipeline',
   批量编辑通知对象: 'Batch edit notification object',
-  事件分析: 'Event Analysis',
   // 指标模版
   函数变量: 'Function Variable',
   维度变量: 'Dimension Variable',

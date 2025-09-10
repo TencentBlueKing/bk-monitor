@@ -31,16 +31,17 @@
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-import http from '@/api';
-import store from '@/store';
+
 import reportLogStore from '@/store/modules/report-log';
 import exception from '@/views/404';
 
+import dashboardRoutes from './dashboard';
+import monitorRoutes from './dashboard';
 // 1.导入各业务模块的路由（检索、监控、仪表盘、管理）
 import manageRoutes from './manage';
 import retrieveRoutes from './retrieve';
-import dashboardRoutes from './dashboard';
-import monitorRoutes from './dashboard';
+import http from '@/api';
+import store from '@/store';
 
 Vue.use(VueRouter);
 
@@ -50,13 +51,17 @@ const originalReplace = VueRouter.prototype.replace;
 
 // push
 VueRouter.prototype.push = function push(location, onResolve, onReject) {
-  if (onResolve || onReject) return originalPush.call(this, location, onResolve, onReject);
+  if (onResolve || onReject) {
+    return originalPush.call(this, location, onResolve, onReject);
+  }
   return originalPush.call(this, location).catch(err => err);
 };
 
 // replace
 VueRouter.prototype.replace = function push(location, onResolve, onReject) {
-  if (onResolve || onReject) return originalReplace.call(this, location, onResolve, onReject);
+  if (onResolve || onReject) {
+    return originalReplace.call(this, location, onResolve, onReject);
+  }
   return originalReplace.call(this, location).catch(err => err);
 };
 
@@ -75,9 +80,9 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
     // 当用户访问根路径/时，根据当前环境和参数，自动跳转到检索页or管理页
     {
       path: '',
-      redirect: () => ({
+      redirect: to => ({
         name: getDefRouteName(),
-        query: { spaceUid: spaceId, bizId: bkBizId },
+        query: { ...(to?.query ?? {}), spaceUid: spaceId, bizId: bkBizId },
       }),
       meta: { title: '检索', navId: 'retrieve' },
     },
@@ -134,7 +139,7 @@ export default (spaceId, bkBizId, externalMenu) => {
   };
 
   // 路由前置守卫：切换路由时取消请求、处理外部跳转和重定向
-  router.beforeEach(async (to, from, next) => {
+  router.beforeEach(async (to, _, next) => {
     await cancelRequest();
     if (to.name === 'retrieve') {
       window.parent.postMessage(
@@ -170,7 +175,9 @@ export default (spaceId, bkBizId, externalMenu) => {
 
   // 路由后置钩子：每次路由切换后上报路由日志
   router.afterEach(to => {
-    if (to.name === 'exception') return;
+    if (to.name === 'exception') {
+      return;
+    }
     reportLogStore.reportRouteLog({
       route_id: to.name,
       nav_id: to.meta.navId,

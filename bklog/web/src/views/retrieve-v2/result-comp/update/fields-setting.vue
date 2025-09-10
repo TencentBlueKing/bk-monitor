@@ -244,7 +244,7 @@
         if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
           return this.catchFieldCustomSortList;
         }
-        return this.$store.state.indexFieldInfo.sort_list;
+        return this.$store.state.indexFieldInfo?.user_custom_config?.sortList ?? [];
       },
       shadowTotal() {
         return formatHierarchy(this.$store.state.indexFieldInfo.fields);
@@ -295,7 +295,7 @@
         return this.$store.state.isEnLanguage ? '60' : '114';
       },
       currentSortList() {
-        return this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
+        return (this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields) ?? [];
       },
       currentVisibleList() {
         return (
@@ -350,9 +350,8 @@
      },
       /** 保存或应用 */
       async confirmModifyFields() {
-        const currentSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
+        const updateSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
         const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
-        const updateSortList = this.syncSort(currentSortList)
         if (currentVisibleList.length === 0) {
           this.messageWarn(this.$t('显示字段不能为空'));
           return;
@@ -759,7 +758,7 @@
         }
 
         .bk-tab-label-list-has-bar::after {
-          display: none !important;
+          display: none;
         }
 
         .config-tab {
@@ -835,7 +834,6 @@
 
       .text-type {
         margin-bottom: 8px;
-        font-family: MicrosoftYaHei;
         font-size: 14px;
         line-height: 22px;
         color: #313238;

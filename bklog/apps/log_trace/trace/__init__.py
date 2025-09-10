@@ -72,8 +72,28 @@ def jsonify(data: Any) -> str:
 def requests_callback(span: Span, request, response):
     """处理蓝鲸格式返回码"""
 
+    body = request.body
+
+    try:
+        authorization_header = request.headers.get("x-bkapi-authorization")
+        if authorization_header:
+            username = json.loads(authorization_header).get("bk_username")
+            if username:
+                span.set_attribute("user.username", username)
+    except (TypeError, json.JSONDecodeError):
+        if body:
+            try:
+                username = json.loads(body).get("bk_username")
+                if username:
+                    span.set_attribute("user.username", username)
+            except (TypeError, json.JSONDecodeError):
+                pass
+
+    span.set_attribute("request.body", jsonify(body)[:MAX_PARAMS_SIZE])
+
+    # 仅统计 JSON 请求
     # 流式请求不统计，避免流式失效
-    if hasattr(response.raw, "stream"):
+    if "application/json" not in response.headers.get("Content-Type", ""):
         return
 
     try:
@@ -106,25 +126,6 @@ def requests_callback(span: Span, request, response):
         span.set_status(Status(StatusCode.OK))
     else:
         span.set_status(Status(StatusCode.ERROR))
-
-    body = request.body
-
-    try:
-        authorization_header = request.headers.get("x-bkapi-authorization")
-        if authorization_header:
-            username = json.loads(authorization_header).get("bk_username")
-            if username:
-                span.set_attribute("user.username", username)
-    except (TypeError, json.JSONDecodeError):
-        if body:
-            try:
-                username = json.loads(body).get("bk_username")
-                if username:
-                    span.set_attribute("user.username", username)
-            except (TypeError, json.JSONDecodeError):
-                pass
-
-    span.set_attribute("request.body", jsonify(body)[:MAX_PARAMS_SIZE])
 
 
 def django_request_hook(span: Span, request: HttpRequest):

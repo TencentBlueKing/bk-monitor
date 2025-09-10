@@ -166,56 +166,23 @@ git config tag.gpgsign true
   npm run analyze
   ```
 
-## 格式化以及校验、vscode的biome扩展
+## 格式化以及校验
 
 ### 格式化
   1、biome格式化配置[文档](https://biomejs.dev/zh-cn/reference/configuration/)
   2、biome格式化命令
   ```bash
   # 格式化
-  npm run format
+  npm run biome:format
   ```
+  3、biome vscode扩展[文档](https://biomejs.dev/zh-cn/reference/vscode/)
+  > 注意：目前安装这个插件可能启动会失败，可以手动格式化；有git钩子，也可不手动格式化
 
 ### 校验
-  1、biome校验配置[文档](https://biomejs.dev/analyzer/suppressions/)
-  2、biome校验命令
+  1、oxlint校验配置[文档](https://oxc.rs/docs/guide/usage/linter/rules.html)
+  2、oxlint校验命令
   ```bash
   # 校验
-  npm run lint
+  npm run oxlint
   ```
-
-### vscode的biome扩展
-  1、biome vscode扩展[文档](https://biomejs.dev/reference/vscode/)
-  > 注意：英文版描述更全一点
-  
-  2、由于找不到在子目录下biome配置文件&执行二进制文件，基于windows下，在根工作空间下.vscode/settings.json配置如下：
-  ```json
-  {
-  	"biome.lsp.bin": "./bklog/web/node_modules/@biomejs/cli-win32-x64/biome.exe",
-  	"editor.formatOnSave": true,
-  	"editor.formatOnPaste": true,
-  	"editor.codeActionsOnSave": {
-  		"source.fixAll.biome": "explicit"
-  	},
-  	"[typescript]": {
-  		"editor.defaultFormatter": "biomejs.biome"
-  	},
-  	"[json]": {
-  		"editor.defaultFormatter": "biomejs.biome"
-  	},
-  	"[javascript]": {
-  		"editor.defaultFormatter": "biomejs.biome"
-  	},
-  	"[jsonc]": {
-  		"editor.defaultFormatter": "biomejs.biome"
-  	},
-  	"[typescriptreact]": {
-  		"editor.defaultFormatter": "biomejs.biome"
-  	},
-  	"typescript.tsdk": "./bklog/web/node_modules/typescript/lib",
-  	"biome.configurationPath": "./bklog/web/biome.json",
-  	"editor.defaultFormatter": "biomejs.biome"
-  }
-  ```
-  > 注意：biome.lsp.bin配置内容基于不同系统不一样，请对照windows下配置进行更改
-  > 注意：biome扩展报错 或 biome.json配置更改了，请重新加载窗口
+  3、oxlint vscode扩展[文档](https://oxc.rs/docs/guide/usage/linter.html#vscode-extension)

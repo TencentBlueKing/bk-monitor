@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -62,6 +62,7 @@ export const AI_BLUEKING_SHORTCUTS_ID = {
   PROMQL_HELPER: 'promql_helper',
   METADATA_DIAGNOSIS: 'metadata_diagnosis',
   TRACING_ANALYSIS: 'tracing_analysis',
+  PROFILING_ANALYSIS: 'profiling_analysis',
 } as const;
 export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
 export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
@@ -139,7 +140,7 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         key: 'trace_id',
         fillBack: true,
         required: false,
-        name: window.i18n.t('Trace ID'),
+        name: 'Trace ID',
         placeholder: window.i18n.t('请输入Trace ID'),
       },
       {
@@ -159,6 +160,22 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         hide: true,
         name: window.i18n.t('业务ID'),
         placeholder: window.i18n.t('请输入业务ID'),
+      },
+    ],
+  },
+  {
+    id: AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS,
+    name: window.i18n.t('Profiling 助手'),
+    // icon: 'icon-monitor icon-mc-help-fill',
+    components: [
+      {
+        type: 'input',
+        key: 'query_params',
+        fillBack: true,
+        required: false,
+        hide: false,
+        name: window.i18n.t('Profiling 查询参数'),
+        placeholder: window.i18n.t('请输入Profiling 查询参数'),
       },
     ],
   },

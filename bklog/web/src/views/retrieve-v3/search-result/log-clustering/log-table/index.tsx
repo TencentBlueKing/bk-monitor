@@ -57,10 +57,6 @@ export default defineComponent({
     AiAssitant,
   },
   props: {
-    retrieveParams: {
-      type: Object,
-      required: true,
-    },
     clusterSwitch: {
       type: Boolean,
       default: false,
@@ -107,13 +103,14 @@ export default defineComponent({
     const filterSortMap = ref(initFilterSortMap());
     const displayType = ref("group");
 
+    const retrieveParams = computed(() => store.getters.retrieveParams);
     const showGroupBy = computed(
       () =>
-        props.requestData?.group_by.length > 0 && displayType.value === "group",
+        props.requestData?.group_by.length > 0 && displayType.value === "group"
     );
     const isFlattenMode = computed(
       () =>
-        props.requestData?.group_by.length > 0 && displayType.value !== "group",
+        props.requestData?.group_by.length > 0 && displayType.value !== "group"
     );
     const smallLoaderWidthList = computed(() => {
       return props.requestData?.year_on_year_hour > 0
@@ -122,7 +119,7 @@ export default defineComponent({
     });
 
     const tableColumnWidth = computed(() =>
-      store.getters.isEnLanguage ? enTableWidth : cnTableWidth,
+      store.getters.isEnLanguage ? enTableWidth : cnTableWidth
     );
 
     const loadingWidthList = {
@@ -155,16 +152,12 @@ export default defineComponent({
       },
       {
         deep: true,
-      },
+      }
     );
 
-    watch(
-      () => props.retrieveParams,
-      () => {
-        refreshTable();
-      },
-      { deep: true },
-    );
+    watch(retrieveParams, () => {
+      refreshTable();
+    });
 
     const refreshTable = () => {
       // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
@@ -178,14 +171,28 @@ export default defineComponent({
       const {
         start_time,
         end_time,
-        addition,
         size,
         keyword = "*",
         ip_chooser,
         host_scopes,
         interval,
         timezone,
-      } = props.retrieveParams;
+      } = retrieveParams.value;
+      const addition = retrieveParams.value.addition.reduce((list, item) => {
+        if (!item.disabled) {
+          list.push({
+            field: item.field,
+            operator: item.operator,
+            value:
+              item.hidden_values && item.hidden_values.length > 0
+                ? item.value.filter(
+                    (value) => !item.hidden_values.includes(value)
+                  )
+                : item.value,
+          });
+        }
+        return list;
+      }, []);
       tableLoading.value = true;
       (
         $http.request(
@@ -207,7 +214,7 @@ export default defineComponent({
               ...props.requestData,
             },
           },
-          { cancelWhenRouteChange: false },
+          { cancelWhenRouteChange: false }
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
         .then((res) => {
@@ -223,7 +230,7 @@ export default defineComponent({
             });
           });
           const keyValueList = keyValueSetList.map((item) =>
-            Array.from(item).sort(),
+            Array.from(item).sort()
           );
           let valueList: any[] = [];
           keyValueList.forEach((values) => {
@@ -304,7 +311,7 @@ export default defineComponent({
       tablesRef.value[index] = el;
     };
 
-    const handleGlobalScroll = (e: any) => {
+    const handleGlobalwheel = (e: any) => {
       e.preventDefault();
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         if (
@@ -314,18 +321,14 @@ export default defineComponent({
           return;
         }
 
-        if (e.deltaX < 0) {
-          globalScrollbarWraperRef.value!.scrollLeft -= 5;
-        } else {
-          globalScrollbarWraperRef.value!.scrollLeft += 5;
+        if (e.deltaX !== 0) {
+          globalScrollbarWraperRef.value!.scrollLeft += e.deltaX;
         }
         return;
       }
 
-      if (e.deltaY < 0) {
-        logTableRef.value!.scrollTop -= 20;
-      } else {
-        logTableRef.value!.scrollTop += 20;
+      if (e.deltaY !== 0) {
+        logTableRef.value!.scrollTop += e.deltaY;
       }
     };
 
@@ -336,17 +339,32 @@ export default defineComponent({
       } else {
         tablesInfoList.value = localTablesInfoList;
       }
+      setTimeout(() => {
+        logTableRef.value!.scrollTop = 0;
+      });
+    };
+
+    const handleGlobalScroll = (e: any) => {
+      const { scrollHeight, clientHeight, scrollTop } = e.target;
+      if (scrollHeight === clientHeight) {
+        return;
+      }
+      if (clientHeight + scrollTop === scrollHeight) {
+        tablesRef.value[0].bottomAppendList();
+      }
     };
 
     onMounted(() => {
       refreshTable();
-      logTableRef.value!.addEventListener("wheel", handleGlobalScroll, {
+      logTableRef.value!.addEventListener("wheel", handleGlobalwheel, {
         passive: false,
       });
+      logTableRef.value!.addEventListener("scroll", handleGlobalScroll);
     });
 
     onBeforeUnmount(() => {
-      logTableRef.value!.removeEventListener("wheel", handleGlobalScroll);
+      logTableRef.value!.removeEventListener("wheel", handleGlobalwheel);
+      logTableRef.value!.removeEventListener("scroll", handleGlobalScroll);
     });
 
     expose({
@@ -413,7 +431,7 @@ export default defineComponent({
           ) : (
             <bk-exception type="empty" scene="part" style="margin-top: 80px">
               <span>
-                {props.retrieveParams.addition.length > 0
+                {retrieveParams.value.addition.length > 0
                   ? t("搜索结果为空")
                   : t("暂无数据")}
               </span>

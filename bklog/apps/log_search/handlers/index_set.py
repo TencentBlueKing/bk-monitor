@@ -1418,42 +1418,51 @@ class IndexSetHandler(APIModel):
                 result_table_mappings[_filed_name].append(result_table_id)
             field_name_mappings[result_table_id] = field_name_list
 
-        exist_query_alias_dict = {}
-        query_alias_settings = []
+        # 存储别名对应的字段及其所属rt列表
+        alias_field_map = defaultdict(list)
         query_alias_mappings = defaultdict(list)
+        query_alias_to_rt_mappings = defaultdict(list)
+
         for alias_setting in alias_settings:
-            # 在mappings中的字段名标识
-            alias_setting_flag = False
             field_name = alias_setting["field_name"]
             query_alias = alias_setting["query_alias"]
-            # 为result_table_id和alias_setting建立映射关系
+
+            # 存储别名对应的字段和rt列表
+            rt_list = result_table_mappings.get(field_name, [])
+            alias_field_map[query_alias].append({
+                "field_name": field_name,
+                "rt_list": rt_list
+            })
+
+            # 为当前字段所属的所有rt添加别名配置
             for _result_table_id, _field_name_list in field_name_mappings.items():
                 if field_name in _field_name_list:
                     query_alias_mappings[_result_table_id].append(alias_setting)
-                    alias_setting_flag = True
-            if not alias_setting_flag:
-                continue
-            # 补全需要保存到logindexset中的query_alias_settings
-            query_alias_settings.append(alias_setting)
-            if query_alias in exist_query_alias_dict:
-                conflict_field_name = exist_query_alias_dict[query_alias]
-                conflict_info = [
-                    {
-                        "field_name": field_name,
+                    query_alias_to_rt_mappings[query_alias].append(_result_table_id)
+
+        # 检查同名别名的字段rt列表是否有交集
+        for query_alias, fields in alias_field_map.items():
+            if len(fields) <= 1:
+                continue  # 单个字段无需检查
+
+            # 使用集合操作检查所有rt列表是否有交集
+            all_rt_sets = [set(field["rt_list"]) for field in fields]
+            union_rt = set().union(*all_rt_sets)
+
+            # 如果所有rt集合的总大小小于各集合大小的总和，说明有交集
+            if len(union_rt) < sum(len(rt_set) for rt_set in all_rt_sets):
+                conflict_info = []
+                for field in fields:
+                    conflict_info.append({
+                        "field_name": field["field_name"],
                         "query_alias": query_alias,
-                        "result_tables": result_table_mappings.get(field_name, []),
-                    },
-                    {
-                        "field_name": conflict_field_name,
-                        "query_alias": query_alias,
-                        "result_tables": result_table_mappings.get(conflict_field_name, []),
-                    },
-                ]
+                        "result_tables": field["rt_list"],
+                    })
                 raise IndexSetAliasSettingsException(
                     IndexSetAliasSettingsException.MESSAGE.format(conflict_info=conflict_info)
                 )
-            exist_query_alias_dict[query_alias] = field_name
-        self.data.query_alias_settings = query_alias_settings
+
+        self.data.query_alias_settings = alias_settings
         self.data.save()
         multi_execute_func = MultiExecuteFunc()
         objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
@@ -1478,7 +1487,7 @@ class IndexSetHandler(APIModel):
                 result_key=self.data.index_set_id,
                 func=TransferApi.create_or_update_log_router,
                 params={
-                    "query_alias_settings": query_alias_settings,
+                    "query_alias_settings": alias_settings,
                     "space_type": self.data.space_uid.split("__")[0],
                     "space_id": self.data.space_uid.split("__")[-1],
                     "storage_type": "doris",
@@ -1604,13 +1613,13 @@ class BaseIndexSetHandler:
         self.index_set_obj = index_set_obj
 
         self.pre_update()
-        logger.info(f"[update_index_set]pre_create index_set_name=>{self.index_set_name}")
+        logger.info(f"[update_index_set]pre_update index_set_name=>{self.index_set_name}")
 
         index_set = self.update()
-        logger.info(f"[update_index_set]create index_set_name=>{self.index_set_name}")
+        logger.info(f"[update_index_set]update index_set_name=>{self.index_set_name}")
 
         self.post_update(index_set)
-        logger.info(f"[update_index_set]post_create index_set_name=>{self.index_set_name}")
+        logger.info(f"[update_index_set]post_update index_set_name=>{self.index_set_name}")
         return index_set
 
     def delete_index_set(self, index_set_obj):
@@ -1840,10 +1849,11 @@ class BaseIndexSetHandler:
             )
 
         # 需更新的索引
+        existing_rt_ids = {item["result_table_id"] for item in self.index_set_obj.indexes}
         to_update_indexes = [
             index
             for index in self.indexes
-            if index["result_table_id"] in [index["result_table_id"] for index in self.index_set_obj.indexes]
+            if index.get("result_table_id") in existing_rt_ids
         ]
         for index in to_update_indexes:
             update_params = {}

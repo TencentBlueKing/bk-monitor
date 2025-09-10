@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -75,7 +75,6 @@ from apm.serializers import (
 )
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
-from apm_web.constants import ServiceRelationLogTypeChoices
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
@@ -135,7 +134,12 @@ class CreateApplicationResource(Resource):
         if not datasource_options:
             datasource_options = ApplicationHelper.get_default_storage_config(validated_data["bk_biz_id"])
 
+        bk_tenant_id = validated_data.get("bk_tenant_id")
+        if not bk_tenant_id:
+            bk_tenant_id = get_request_tenant_id()
+
         return ApmApplication.create_application(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=validated_data["bk_biz_id"],
             app_name=validated_data["app_name"],
             app_alias=validated_data["app_alias"],
@@ -1472,11 +1476,7 @@ class QueryLogRelationByIndexSetIdResource(Resource):
         from apm_web.models import LogServiceRelation
 
         # Step: 从服务关联中找
-        log_relation = (
-            LogServiceRelation.objects.filter(log_type=ServiceRelationLogTypeChoices.BK_LOG, value=data["index_set_id"])
-            .order_by("created_at")
-            .first()
-        )
+        log_relation = LogServiceRelation.filter_by_index_set_id(data["index_set_id"]).order_by("created_at").first()
         if log_relation:
             return {
                 "bk_biz_id": log_relation.bk_biz_id,

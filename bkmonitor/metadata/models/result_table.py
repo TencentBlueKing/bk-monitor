@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -2199,7 +2199,7 @@ class ResultTableField(models.Model):
             cls()._check_reserved_fields(uppercase_field_names)
 
         # 组装必要数据，用于后续的处理
-        fields, field_names, option_data = cls()._compose_data(table_id, field_data)
+        fields, field_names, option_data = cls()._compose_data(table_id, field_data, bk_tenant_id=bk_tenant_id)
 
         # 校验字段是否已经创建
         cls()._check_existed_fields(table_id, field_names)
@@ -2346,7 +2346,9 @@ class ResultTableField(models.Model):
             "description": _(self.description),
             "unit": _(self.unit),
             "alias_name": _(self.alias_name),
-            "option": ResultTableFieldOption.get_field_option(table_id=self.table_id, field_name=self.field_name),
+            "option": ResultTableFieldOption.get_field_option(
+                table_id=self.table_id, field_name=self.field_name, bk_tenant_id=self.bk_tenant_id
+            ),
             "is_disabled": self.is_disabled,
         }
 

@@ -5,7 +5,7 @@ description = "bkmonitor"
 readme = "README.md"
 requires-python = "==3.11.*"
 dependencies = [
-    "aidev-agent==1.0.0b31",
+    "aidev-agent==1.0.0b35",
     "apigw-manager==4.0.4",
     "arrow==0.6.0",
     "babel==2.14.0",
@@ -134,6 +134,7 @@ dev = [
 stubs = [
     "celery-types>=0.23.0",
     "django-stubs==4.2.7",
+    "django-types==0.22.0"
 ]
 
 
@@ -204,3 +205,9 @@ docstring-code-format = true
 
 [tool.ruff.lint.extend-per-file-ignores]
 "config/**" = ["F405"]
+
+[tool.pyright]
+exclude = ["tests"]
+extraPaths = ["packages"]
+typeCheckingMode = "standard"
+reportIncompatibleVariableOverride = false

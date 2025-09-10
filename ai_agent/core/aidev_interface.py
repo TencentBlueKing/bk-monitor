@@ -78,6 +78,72 @@ class AIDevInterface:
         """AI 智能总结会话标题"""
         return self.api_client.api.rename_chat_session(path_params={"session_code": session_code})
 
+    def rename_chat_session_by_user_question(self, session_code):
+        """
+        根据用户输入的第一句问题作为会话标题
+        """
+        context = self.get_chat_session_contents(session_code=session_code)
+
+        # 检查返回结果是否成功
+        if not context.get("result", False) or not context.get("data"):
+            logger.warning(
+                "rename_chat_session_by_user_question: failed to get session contents for session_code->[%s]",
+                session_code,
+            )
+            return None
+
+        # 查找第一条role为'user'的记录
+        user_message = None
+        for item in context["data"]:
+            if item.get("role") == "user":
+                user_message = item.get("content", "")
+                break
+
+        if not user_message:
+            logger.warning(
+                "rename_chat_session_by_user_question: no user message found for session_code->[%s]", session_code
+            )
+            return None
+
+        session_title = user_message
+
+        # 调用更新会话API
+        try:
+            update_params = {"session_name": session_title}
+            update_result = self.update_chat_session(session_code, update_params)
+
+            if update_result.get("result", False):
+                logger.info(
+                    "rename_chat_session_by_user_question: successfully updated session title to->[%s] for "
+                    "session_code->[%s]",
+                    session_title,
+                    session_code,
+                )
+                return {
+                    "result": True,
+                    "code": "success",
+                    "data": {"session_name": session_title, "session_code": session_code},
+                    "message": "ok",
+                    "request_id": update_result.get("request_id"),
+                    "trace_id": update_result.get("trace_id"),
+                }
+            else:
+                logger.warning(
+                    "rename_chat_session_by_user_question: failed to update session title for "
+                    "session_code->[%s], result: %s",
+                    session_code,
+                    update_result,
+                )
+                return None
+        except Exception as e:
+            logger.error(
+                "rename_chat_session_by_user_question: exception occurred while updating session title for "
+                "session_code->[%s]: %s",
+                session_code,
+                e,
+            )
+            return None
+
     # ==================== 会话内容管理 ====================
     def create_chat_session_content(self, params):
         """创建会话内容"""
@@ -117,15 +183,19 @@ class AIDevInterface:
         return self.api_client.api.update_chat_session_content(path_params={"id": id}, json=params)
 
     # ==================== 发起对话 ====================
-    def create_chat_completion(self, session_code, execute_kwargs, agent_code, username, temperature=0.3):
+    def create_chat_completion(
+        self, session_code, execute_kwargs, agent_code, username, temperature=0.3, switch_agent_by_scene=False
+    ):
         """发起流式/非流式会话"""
         callbacks = [get_langfuse_callback()]  # 添加Langfuse回调
         agent_instance = AgentInstanceFactory.build_agent(
+            agent_code=agent_code,
             build_type=AgentBuildType.SESSION,
             session_code=session_code,
             resource_manager=self.api_client,
             callbacks=callbacks,
             temperature=temperature,
+            switch_agent_by_scene=switch_agent_by_scene,
         )  # 工厂方法构建Agent实例
         if execute_kwargs.get("stream", False):
             # 使用增强的流式处理函数

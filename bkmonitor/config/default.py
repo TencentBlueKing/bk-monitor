@@ -1,7 +1,7 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community
 Edition) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 http://opensource.org/licenses/MIT
@@ -1383,6 +1383,9 @@ ALARM_BACKEND_CLUSTER_NAME = os.getenv("BK_MONITOR_ALARM_BACKEND_CLUSTER_NAME", 
 ALARM_BACKEND_CLUSTER_CODE = os.getenv("BK_MONITOR_ALARM_BACKEND_CLUSTER_CODE", 0)
 ALARM_BACKEND_CLUSTER_ROUTING_RULES = []
 
+# AI小鲸灰度业务名单
+AI_BIZ_LIST = []
+
 # AIDEV配置
 AIDEV_AGENT_APP_CODE = os.getenv("BK_AIDEV_AGENT_APP_CODE")
 AIDEV_AGENT_APP_SECRET = os.getenv("BK_AIDEV_AGENT_APP_SECRET")
@@ -1394,6 +1397,11 @@ AIDEV_COMMAND_AGENT_MAPPING = {}  # 快捷指令<->Agent映射
 AIDEV_AGENT_ENABLE_LANGFUSE = False  # 是否开启langfuse上报
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
+# 是否开启AI RENAME
+ENABLE_AI_RENAME = False
+
+# 场景-Agent映射配置,用于实现Agent路由
+AIDEV_SCENE_AGENT_CODE_MAPPING = {}
 
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True

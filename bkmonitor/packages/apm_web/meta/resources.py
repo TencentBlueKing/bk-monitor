@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -120,6 +120,7 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import (
     get_backend_username,
@@ -138,6 +139,7 @@ from constants.apm import (
     TailSamplingSupportMethod,
     TelemetryDataType,
 )
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import ApplicationsResultTableLabel, DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import Resource, api, resource
@@ -224,7 +226,12 @@ class CreateApplicationResource(Resource):
         ).exists():
             raise ValueError(_("应用名称: {}已被创建").format(validated_request_data["app_name"]))
 
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
         app = Application.create_application(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
             app_alias=validated_request_data["app_alias"],
@@ -1189,7 +1196,8 @@ class ServiceDetailResource(Resource):
                 }.items()
             ]
 
-        self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
+        # 暂时用不上，并需注意方法体逻辑已过时
+        # self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
 
         return [
             {

@@ -1,7 +1,7 @@
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
-Copyright (C) 2022 THL A29 Limited,
+Copyright (C) 2017-2025 Tencent,
 a Tencent company. All rights reserved.
 Licensed under the MIT License (the "License");
 you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ from apm.utils.base import rt_id_to_index
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.user import get_global_user
 from constants.apm import PRECALCULATE_RESULT_TABLE_OPTION, PreCalculateSpecificField, PrecalculateStorageConfig
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from metadata.models import ESStorage
@@ -270,6 +271,7 @@ class PrecalculateStorage:
             {
                 "bk_data_id": bk_data_id,
                 "table_id": table_name,
+                "bk_tenant_id": DEFAULT_TENANT_ID,
                 "operator": get_global_user(),
                 "is_enable": True,
                 "table_name_zh": f"APM预计算结果表: {table_name}",
@@ -401,6 +403,7 @@ class PrecalculateStorage:
         """更新所有DataLink的预计算存储配置"""
         params = {
             "table_id": table_name,
+            "bk_tenant_id": DEFAULT_TENANT_ID,
             "operator": get_global_user(),
             "label": "application_check",
             "field_list": PrecalculateStorageConfig.TABLE_SCHEMA,

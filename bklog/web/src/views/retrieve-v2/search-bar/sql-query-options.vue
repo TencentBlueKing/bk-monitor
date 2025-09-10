@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-  import { computed, ref, watch, nextTick, Ref } from 'vue';
+  import { computed, ref, watch, nextTick, Ref, ComputedRef } from 'vue';
 
   import useFieldNameHook from '@/hooks/use-field-name';
   // @ts-ignore
@@ -13,7 +13,9 @@
 
   import { excludesFields } from './const.common'; // @ts-ignore
   import FavoriteList from './favorite-list';
-  import useFieldEgges from './use-field-egges';
+  import useFieldEgges from '@/hooks/use-field-egges';
+  import { FieldInfoItem } from '@/store/store.type';
+
 
   const props = defineProps({
     value: {
@@ -31,7 +33,7 @@
 
   const store = useStore();
   const { $t } = useLocale();
-  const { getQualifiedFieldName } = useFieldNameHook({ store });
+  const { getQualifiedFieldName, getQualifiedFieldAttrs } = useFieldNameHook({ store });
 
   enum OptionItemType {
     Colon = 'Colon',
@@ -58,20 +60,20 @@
   });
 
   const retrieveDropdownData = computed(() => store.state.retrieveDropdownData);
-  const totalFields = computed(() => store.state.indexFieldInfo.fields ?? []);
+  const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => [].concat(store.state.indexFieldInfo.fields ?? [], store.state.indexFieldInfo.alias_field_list ?? []));
   const { isRequesting, requestFieldEgges, isValidateEgges } = useFieldEgges();
 
   /** 获取数字类型的字段name */
   const getNumTypeFieldList = computed(() => {
     return totalFields.value
-      .filter((item: { field_type: string }) => ['long', 'integer', 'float'].includes(item.field_type))
-      .map((item: { field_name: any }) => item.field_name);
+      .filter((item) => ['long', 'integer', 'float'].includes(item.field_type))
+      .map((item) => item.field_name);
   });
 
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
-    return totalFields.value.filter(filterFn).map(fieldInfo => fieldInfo.field_name);
+    return totalFields.value.filter(filterFn).map((fieldInfo: FieldInfoItem) => fieldInfo.field_name);
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
@@ -83,7 +85,7 @@
   const valueList: Ref<string[]> = ref([]);
 
   const refDropdownEl: Ref<HTMLElement | null> = ref(null);
-  const activeIndex = ref(null);
+  const activeIndex: Ref<number | null> = ref(null);
 
   const operatorSelectList = ref([
     {
@@ -147,7 +149,7 @@
   };
 
   const setValueList = (fieldName: string, value: string) => {
-    const fieldInfo = store.state.indexFieldInfo.fields.find(item => item.field_name === fieldName);
+    const fieldInfo = totalFields.value.find(item => item.field_name === fieldName);
     if (fieldInfo && isValidateEgges(fieldInfo)) {
       valueList.value = [];
       requestFieldEgges(fieldInfo, value, resp => {
@@ -202,7 +204,7 @@
     return '';
   };
 
-  const emitValueChange = (appendValue: string, retrieve = false, replace = false, focusPosition = undefined) => {
+  const emitValueChange = (appendValue: string, retrieve = false, replace = false, focusPosition: number | undefined = undefined) => {
     emits('change', appendValue, retrieve, replace, focusPosition);
   };
 
@@ -266,13 +268,13 @@
     const matchValue = lastValues?.[3] ?? lastValues?.[2];
     const matchValueWithQuotes = lastValues?.[2];
 
-    if (matchValueWithQuotes && lastFragment.length >= matchValue.length) {
+    if (matchValueWithQuotes && lastFragment.length >= (matchValue?.length ?? 0)) {
       const lastValue = lastFragment.slice(0, lastFragment.length - matchValueWithQuotes.length);
       const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastValue)?.groups?.field;
 
       if (confirmField) {
         showWhichDropdown(OptionItemType.Value);
-        setValueList(confirmField, matchValue);
+        setValueList(confirmField, matchValue ?? '');
         return;
       }
     }
@@ -292,11 +294,11 @@
     const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
     if (inputField) {
       fieldList.value = originFieldList()
-        .reduce((acc, item) => {
-          const name = getQualifiedFieldName(item);
-          const index = name.toLowerCase().indexOf(inputField.toLowerCase());
-          if (index !== -1) {
-            acc.push({ index, fieldName: item });
+        .reduce((acc: { index: number; fieldName: string }[], item) => {
+          const { field_name, is_virtual_alias_field } = getQualifiedFieldAttrs(item, totalFields.value, false, ['is_virtual_alias_field']);
+          const index = field_name.toLowerCase().indexOf(inputField.toLowerCase());
+          if (index >= 0) {
+            acc.push({ index: index * 10 - (is_virtual_alias_field ? 1 : 0), fieldName: item });
           }
           return acc;
         }, [])
@@ -407,7 +409,7 @@
   };
 
   const scrollActiveItemIntoView = () => {
-    if (activeIndex.value >= 0) {
+    if ((activeIndex.value ?? -1) >= 0) {
       const target = refDropdownEl.value?.querySelector('.list-item.active');
       target?.scrollIntoView({ block: 'nearest' });
     }
@@ -564,7 +566,7 @@
     });
   });
   const fieldNameShow = (item)=> {
-    return getQualifiedFieldName(item)
+    return getQualifiedFieldName(item, totalFields.value)
   }
   defineExpose({
     beforeShowndFn,
