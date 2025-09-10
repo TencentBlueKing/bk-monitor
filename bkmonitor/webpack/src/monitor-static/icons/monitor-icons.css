@@ -1,3 +1,6 @@
+/* stylelint-disable selector-class-pattern */
+
+/* stylelint-disable font-family-no-missing-generic-family-keyword */
 @font-face {
   font-family: icon-monitor; /* Project id 1185924 */
   src:
@@ -15,7 +18,7 @@
 }
 
 .icon-mc-decode::before {
-  content: '\e845';
+  content: '\e846';
 }
 
 .icon-beizhu1::before {
