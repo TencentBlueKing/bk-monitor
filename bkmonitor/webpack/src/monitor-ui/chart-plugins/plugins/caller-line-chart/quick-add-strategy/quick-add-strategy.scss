@@ -1,0 +1,71 @@
+.quick-add-strategy-side-component {
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .ml-24 {
+    margin-left: 24px;
+  }
+
+  .quick-add-strategy-content {
+    display: flex;
+    min-height: calc(-100px + 100vh);
+
+    .template-list {
+      width: 449px;
+      padding: 12px 24px 0;
+    }
+
+    .template-preview {
+      flex: 1;
+      padding: 12px 24px;
+      background: #FAFBFD;
+      border-left: 1px solid #DCDEE5;
+
+      .template-preview-header {
+        display: flex;
+        align-items: center;
+
+        .header-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #313238;
+        }
+
+        .split-line {
+          width: 1px;
+          height: 14px;
+          margin: 0 8px;
+          background: #C4C6CC;
+        }
+
+        .header-desc {
+          color: #4D4F56;
+        }
+
+        .header-right-link {
+          display: flex;
+          align-items: center;
+          margin: 0 0 0 auto;
+          line-height: 12px;
+          color: #3A84FF;
+          cursor: pointer;
+
+          .icon-fenxiang {
+            margin-left: 5px;
+            font-size: 12px;
+          }
+        }
+      }
+    }
+  }
+
+  .quick-add-strategy-footer {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 48px;
+    background: #FAFBFD;
+    border-top: 1px solid #DCDEE5;
+  }
+}
