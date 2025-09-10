@@ -54,7 +54,7 @@ export default () => {
     /**
      * 检测字段是否为 flattened 字段
      */
-    if (field.field_name.split('.').length > 1) {
+    if (field.field_type === 'flattened') {
       setIsRequesting(false);
       return;
     }
