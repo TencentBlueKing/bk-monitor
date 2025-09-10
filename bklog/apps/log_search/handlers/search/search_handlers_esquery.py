@@ -412,13 +412,15 @@ class SearchHandler:
                 multi_func_params=True,
             )
         multi_result = multi_execute_func.run(return_exception=True)
-        for ret in multi_result.values():
+        for key, ret in multi_result.items():
             if isinstance(ret, Exception):
                 # 子查询异常
-                logger.exception("get all fields by index_set_id: %s, reson：%s", self.index_set_id, ret)
-                raise GetAllFieldsException(
-                    GetAllFieldsException.MESSAGE.format(index_set_id=self.index_set.index_set_id, e=ret)
-                )
+                logger.exception("get all fields by index_set_id: %s, reason：%s", self.index_set_id, ret)
+                multi_result.pop(key)
+                if not multi_result:
+                    raise GetAllFieldsException(
+                        GetAllFieldsException.MESSAGE.format(index_set_id=self.index_set.index_set_id, e=ret)
+                    )
 
         if need_merge:
             added_records = []
