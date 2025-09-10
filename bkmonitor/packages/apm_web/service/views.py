@@ -25,7 +25,7 @@ from apm_web.service.resources import (
     SetCodeRedefinedRuleResource,
     DeleteCodeRedefinedRuleResource,
     GetCodeRemarksResource,
-    SetCodeRemarksResource,
+    SetCodeRemarkResource,
 )
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
@@ -60,7 +60,7 @@ class ServiceViewSet(ResourceViewSet):
         ResourceRoute("POST", DeleteCodeRedefinedRuleResource, "delete_code_redefined_rule"),
         # 返回码备注：获取/设置
         ResourceRoute("POST", GetCodeRemarksResource, "get_code_remarks"),
-        ResourceRoute("POST", SetCodeRemarksResource, "set_code_remarks"),
+        ResourceRoute("POST", SetCodeRemarkResource, "set_code_remark"),
         ResourceRoute("POST", CMDBServiceTemplateResource, "cmdb_service_template"),
         ResourceRoute("POST", LogServiceChoiceListResource, "log_service_relation_choices"),
         ResourceRoute("POST", AppQueryByIndexSetResource, "app_query_by_index_set"),

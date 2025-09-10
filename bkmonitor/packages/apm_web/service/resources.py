@@ -62,9 +62,9 @@ from apm_web.service.serializers import (
     ListPipelineRequestSerializer,
     ListCodeRedefinedRuleRequestSerializer,
     SetCodeRedefinedRuleRequestSerializer,
-    DeleteCodeRedefinedRuleRequestSerializer,
-    SetCodeRemarksRequestSerializer,
+    SetCodeRemarkRequestSerializer,
     BaseCodeRedefinedRequestSerializer,
+    DeleteCodeRedefinedRuleRequestSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkm_space.errors import NoRelatedResourceError
@@ -1039,7 +1039,8 @@ class DeleteCodeRedefinedRuleResource(Resource):
 
 
 class GetCodeRemarksResource(Resource):
-    """获取返回码备注
+    """
+    获取返回码备注
 
     维度：业务 + 应用 + 服务 + 调用类型(kind)
     存储：ApmMetaConfig ，config_key 随 kind 变化
@@ -1049,13 +1050,13 @@ class GetCodeRemarksResource(Resource):
 
     CONFIG_KEY_MAP = {"caller": "code_remarks_caller", "callee": "code_remarks_callee"}
 
-    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+    def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str = validated_request_data["service_name"]
         kind: str = validated_request_data["kind"]
 
-        config_key = self.CONFIG_KEY_MAP.get(kind, "")
+        config_key = self.CONFIG_KEY_MAP.get(kind)
         if not config_key:
             return {}
 
@@ -1063,27 +1064,32 @@ class GetCodeRemarksResource(Resource):
         return instance.config_value if instance else {}
 
 
-class SetCodeRemarksResource(Resource):
-    """设置返回码备注
-
-    维度：业务 + 应用 + 服务 + 调用类型(kind)
-    存储：ApmMetaConfig ，config_key 随 kind 变化
-    """
-
-    RequestSerializer = SetCodeRemarksRequestSerializer
+class SetCodeRemarkResource(Resource):
+    RequestSerializer = SetCodeRemarkRequestSerializer
 
     CONFIG_KEY_MAP = {"caller": "code_remarks_caller", "callee": "code_remarks_callee"}
 
-    def perform_request(self, validated_request_data: dict[str, Any]) -> dict:
+    def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str = validated_request_data["service_name"]
         kind: str = validated_request_data["kind"]
-        code_remarks: dict[str, str] = validated_request_data["code_remarks"]
+        code: str = str(validated_request_data["code"]).strip()
+        remark: str = str(validated_request_data.get("remark", "")).strip()
 
-        config_key = self.CONFIG_KEY_MAP.get(kind, "")
+        config_key = self.CONFIG_KEY_MAP.get(kind)
         if not config_key:
             return {}
 
-        ApmMetaConfig.service_config_setup(bk_biz_id, app_name, service_name, config_key, code_remarks)
+        exists = ApmMetaConfig.get_service_config_value(bk_biz_id, app_name, service_name, config_key)
+        data = (exists.config_value if exists else {}) or {}
+
+        # 设置/覆盖/删除（空串即删除该码的备注）
+        if remark:
+            data[code] = remark
+        else:
+            if code in data:
+                del data[code]
+
+        ApmMetaConfig.service_config_setup(bk_biz_id, app_name, service_name, config_key, data)
         return {}

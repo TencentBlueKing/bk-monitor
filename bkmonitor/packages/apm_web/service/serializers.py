@@ -229,12 +229,8 @@ class DeleteCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerialize
     callee_method = serializers.CharField(label="被调接口", required=False, allow_blank=True)
 
 
-class SetCodeRemarksRequestSerializer(BaseCodeRedefinedRequestSerializer):
-    """设置返回码备注请求序列化器"""
+class SetCodeRemarkRequestSerializer(BaseCodeRedefinedRequestSerializer):
+    """设置单个返回码备注 请求序列化器"""
 
-    code_remarks = serializers.DictField(
-        label="错误码备注映射",
-        child=serializers.CharField(allow_blank=True, allow_null=False),
-        required=True,
-        allow_empty=True,
-    )
+    code = serializers.CharField(label="返回码", allow_blank=False)
+    remark = serializers.CharField(label="备注", required=False, allow_blank=True, default="")
