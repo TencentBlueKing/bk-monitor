@@ -17,6 +17,10 @@ class Command(BaseCommand):
         parser.add_argument("--username", type=str, help="admin user name")
 
     def handle(self, **options):
-        username = options.get("username")
-        user = get_user_model()
-        user.objects.filter(username=username).update(is_superuser=True, is_staff=True)
+        try:
+            username = options.get("username")
+            user = get_user_model()
+            user.objects.filter(username=username).update(is_superuser=True, is_staff=True)
+            print("[Init Admin Auth] operate SUCCESS!")
+        except Exception as e:
+            print(f"[Init Admin Auth] operate FAILED! details: {str(e)}")
