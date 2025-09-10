@@ -1,0 +1,250 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { Component, Mixins, Prop } from 'vue-property-decorator';
+import { ofType } from 'vue-tsx-support';
+
+import { listUserGroup } from 'monitor-api/modules/model';
+import authorityMixinCreate from 'monitor-pc/mixins/authorityMixin';
+import { MANAGE_AUTH as MANAGE } from 'monitor-pc/pages/alarm-group/authority-map';
+
+import JudgmentConditions from './judgment-conditions';
+import TemplateList from './template-list';
+
+import type { IAlarmGroupList } from './typing';
+
+import './quick-add-strategy.scss';
+
+interface IProps {
+  show?: boolean;
+  onShowChange?: (v: boolean) => void;
+}
+
+@Component
+class QuickAddStrategy extends Mixins(
+  authorityMixinCreate({
+    ALARM_GROUP_MANAGE_AUTH: MANAGE,
+  })
+) {
+  @Prop({ type: Boolean, default: false }) show: boolean;
+
+  templateList = [];
+  alarmGroupList: IAlarmGroupList[] = [];
+  alarmGroupLoading = false;
+
+  created() {
+    this.templateList = [
+      {
+        id: 1,
+        name: '[调用分析] 主调平均耗时',
+        system: 'RPC',
+        category: 'caller',
+        type: 'app',
+        is_enabled: true,
+        is_auto_apply: true,
+        algorithms: [
+          {
+            level: 2,
+            method: 'lte',
+            threshold: 1000,
+            type: 'Threshold',
+          },
+          {
+            level: 1,
+            method: 'lte',
+            threshold: 3000,
+            type: 'Threshold',
+          },
+        ],
+        user_group_list: [{ id: 1, name: '应用创建者' }],
+        applied_service_names: ['example.greeter1', 'example.greeter'],
+        create_user: 'admin',
+        create_time: '2025-08-04 17:43:26+0800',
+        update_user: 'admin',
+        update_time: '2025-08-04 17:43:26+0800',
+      },
+      {
+        id: 10,
+        name: '[调用分析] 主调平均耗时xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        system: 'RPC',
+        category: 'caller',
+        type: 'app',
+        is_enabled: true,
+        is_auto_apply: true,
+        algorithms: [
+          {
+            level: 2,
+            method: 'lte',
+            threshold: 1000,
+            type: 'Threshold',
+          },
+          {
+            level: 1,
+            method: 'lte',
+            threshold: 3000,
+            type: 'Threshold',
+          },
+        ],
+        user_group_list: [{ id: 1, name: '应用创建者' }],
+        applied_service_names: ['example.greeter1', 'example.greeter'],
+        create_user: 'admin',
+        create_time: '2025-08-04 17:43:26+0800',
+        update_user: 'admin',
+        update_time: '2025-08-04 17:43:26+0800',
+      },
+      {
+        id: 2,
+        name: '[调用分析] 主调平均耗时',
+        system: 'RPC',
+        category: 'callee',
+        type: 'app',
+        is_enabled: true,
+        is_auto_apply: true,
+        algorithms: [
+          {
+            level: 2,
+            method: 'lte',
+            threshold: 1000,
+            type: 'Threshold',
+          },
+          {
+            level: 1,
+            method: 'lte',
+            threshold: 3000,
+            type: 'Threshold',
+          },
+        ],
+        user_group_list: [{ id: 1, name: '应用创建者' }],
+        applied_service_names: ['example.greeter1', 'example.greeter'],
+        create_user: 'admin',
+        create_time: '2025-08-04 17:43:26+0800',
+        update_user: 'admin',
+        update_time: '2025-08-04 17:43:26+0800',
+      },
+      {
+        id: 2,
+        name: '[调用分析] 主调平均耗时',
+        system: 'EVENT',
+        category: '',
+        type: 'app',
+        is_enabled: true,
+        is_auto_apply: true,
+        algorithms: [
+          {
+            level: 2,
+            method: 'lte',
+            threshold: 1000,
+            type: 'Threshold',
+          },
+          {
+            level: 1,
+            method: 'lte',
+            threshold: 3000,
+            type: 'Threshold',
+          },
+        ],
+        user_group_list: [{ id: 1, name: '应用创建者' }],
+        applied_service_names: ['example.greeter1', 'example.greeter'],
+        create_user: 'admin',
+        create_time: '2025-08-04 17:43:26+0800',
+        update_user: 'admin',
+        update_time: '2025-08-04 17:43:26+0800',
+      },
+    ];
+    this.getAlarmGroupList();
+  }
+
+  handleShowChange(v: boolean) {
+    this.$emit('showChange', v);
+  }
+
+  getAlarmGroupList() {
+    this.alarmGroupLoading = true;
+    return listUserGroup({ exclude_detail_info: 1 })
+      .then(data => {
+        this.alarmGroupList = data.map(item => ({
+          id: item.id,
+          name: item.name,
+          needDuty: item.need_duty,
+          receiver:
+            item?.users?.map(rec => rec.display_name).filter((item, index, arr) => arr.indexOf(item) === index) || [],
+        }));
+      })
+      .finally(() => {
+        this.alarmGroupLoading = false;
+      });
+  }
+
+  render() {
+    return (
+      <bk-sideslider
+        width={1024}
+        ext-cls={'quick-add-strategy-side-component'}
+        before-close={() => {
+          this.handleShowChange(false);
+        }}
+        isShow={this.show}
+        quick-close
+      >
+        <div slot='header'>{this.$t('一键添加策略')}</div>
+        <div
+          class='quick-add-strategy-content'
+          slot='content'
+        >
+          <div class='template-list'>
+            <TemplateList templateList={this.templateList} />
+            <JudgmentConditions userList={this.alarmGroupList} />
+          </div>
+          <div class='template-preview'>
+            <div class='template-preview-header'>
+              <span class='header-title'>{this.$t('预览')}</span>
+              <span class='split-line' />
+              <span class='header-desc'>主调成功率告警</span>
+              <span class='header-right-link'>
+                <span>{this.$t('模板详情')}</span>
+                <span class='icon-monitor icon-fenxiang' />
+              </span>
+            </div>
+          </div>
+        </div>
+        <div
+          class='quick-add-strategy-footer'
+          slot='footer'
+        >
+          <bk-button
+            class='mr-8 ml-24'
+            theme='primary'
+          >
+            {this.$t('一键生成')}
+          </bk-button>
+          <bk-button>{this.$t('取消')}</bk-button>
+        </div>
+      </bk-sideslider>
+    );
+  }
+}
+
+export default ofType<IProps>().convert(QuickAddStrategy);
