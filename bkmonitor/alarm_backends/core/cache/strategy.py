@@ -1362,7 +1362,6 @@ class StrategyCacheManager(CacheManager):
             refresh_nodata_strategy_ids,
             refresh_aiops_sdk_strategy_ids,
             refresh_strategy,
-            cls.record_table_biz_relations,  # 记录表名和业务ID关系
         ]
 
         for processor in processors:
