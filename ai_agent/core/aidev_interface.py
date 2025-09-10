@@ -78,6 +78,42 @@ class AIDevInterface:
         """AI 智能总结会话标题"""
         return self.api_client.api.rename_chat_session(path_params={"session_code": session_code})
 
+    def rename_chat_session_by_user_question(self, session_code):
+        """
+        根据用户输入的第一句作为会话标题
+        """
+        context = self.get_chat_session_contents(session_code=session_code)
+
+        # 检查返回结果是否成功
+        if not context.get("result", False) or not context.get("data"):
+            logger.warning(
+                "rename_chat_session_by_user_question: failed to get session contents for session_code->[%s]",
+                session_code,
+            )
+            return None
+
+        # 查找第一条role为'user'的记录
+        user_message = None
+        for item in context["data"]:
+            if item.get("role") == "user":
+                user_message = item.get("content", "")
+                break
+
+        if not user_message:
+            logger.warning(
+                "rename_chat_session_by_user_question: no user message found for session_code->[%s]", session_code
+            )
+            return None
+
+        return {
+            "result": True,
+            "code": "success",
+            "data": {"session_name": user_message, "session_code": session_code},
+            "message": None,
+            "request_id": None,
+            "trace_id": None,
+        }
+
     # ==================== 会话内容管理 ====================
     def create_chat_session_content(self, params):
         """创建会话内容"""
