@@ -69,4 +69,15 @@
       }
     }
   }
+
+  .alert-content-promql-view {
+    &.promql-viewer {
+      border: 0;
+
+      .monaco-editor {
+        --vscode-editor-background: #f5f7fa;
+        --vscode-editorGutter-background: #f5f7fa;
+      }
+    }
+  }
 }

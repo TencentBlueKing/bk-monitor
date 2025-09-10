@@ -827,7 +827,7 @@ export class AlertService extends AlarmService {
                   dimensions: Object.entries(source.agg_dimension).map(([key, value]) => ({
                     id: key,
                     // @ts-ignore
-                    name: value?.display_value || '',
+                    name: value?.display_name || '',
                   })),
                 }),
                 {
@@ -844,7 +844,6 @@ export class AlertService extends AlarmService {
           }
           alert.items[0].query_configs = queryConfigs;
         }
-        console.log('================ alerts ================', alerts);
         return {
           total,
           data: alerts || [],
