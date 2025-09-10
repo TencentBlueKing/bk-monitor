@@ -128,6 +128,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
                 data={this.data}
                 defaultActiveName={this.defaultActiveName}
                 theme='filter'
+                isApmNewStyle={true}
                 on-clear={this.handleClear}
               />
             )}
@@ -160,6 +161,8 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
           default: ({ data }) => (
             <span class='check-label-content'>
               {data.icon && <i class={['icon-monitor', 'pre-icon', data.icon]} />}
+              {/* cssIcon：apm新版首页更新，数据状态不使用iconfont的图标，css直接画出 */}
+              {data.cssIcon && <i class={['icon-monitor', 'css-icon', data.cssIcon]} />}
               <span
                 class='label-text'
                 v-bk-overflow-tips

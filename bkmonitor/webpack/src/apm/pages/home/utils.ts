@@ -110,30 +110,36 @@ export const charColor = (index: number) => {
 };
 
 export const OPERATE_OPTIONS: IOperateOption[] = [
-  {
-    id: 'appDetails',
-    name: window.i18n.t('应用详情'),
-    authority: true,
-  },
+  // {
+  //   id: 'appDetails',
+  //   name: window.i18n.t('应用详情'),
+  //   authority: true,
+  //   iconClassName: '',
+  // },
   {
     id: 'appConfig',
     name: window.i18n.t('应用配置'),
     authority: true,
+    iconClassName: 'icon-shezhi1',
   },
   {
     id: 'accessService',
     name: window.i18n.t('服务接入'),
     authority: true,
+    iconClassName: 'icon-a-1jiahao',
   },
   {
     id: 'noDataAlarm',
     name: window.i18n.t('新增无数据告警'),
     authority: true,
+    iconClassName: 'icon-mc-add-strategy',
   },
   {
     id: 'delete',
     name: window.i18n.t('删除'),
     authority: true,
+    iconClassName: 'icon-mc-delete-line',
+    isDanger: true,
   },
 ];
 

@@ -288,8 +288,36 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
    * @param row
    */
   handleAppClick(row: IAppListItem) {
+    console.log('应用列表点击');
+    
     if (this.appName === row.app_name) return;
     this.appName = row.app_name;
+  }
+
+  /**
+   * @description 展示hover详情按钮的条件
+   * @param row
+   * @returns {boolean}
+   */
+  hoverDetailShow(row: IAppListItem) {
+    // 接入中
+    if (!row.metric_result_table_id || !row.trace_result_table_id) return false;
+    return true;
+  }
+
+
+  /**
+   * @description 应用列表内的详情点击
+   * @param row
+   */
+  handleAppDetail(row: IAppListItem, e: Event) {
+    e.stopPropagation();
+    // 权限判断
+    if (!row?.permission[authorityMap.VIEW_AUTH]) {
+      this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH)
+      return;
+    }
+    this.handleConfig('appDetails', row);
   }
 
   /**
@@ -298,6 +326,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
    * @param row
    */
   handleConfig(id: string, row: IAppListItem) {
+    // 2025-09-09 popover内的应用详情已被调整为列表item在hover时直接展示
     if (id === 'appDetails') {
       this.$router.push({
         name: 'application',
@@ -468,6 +497,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                     {item.metric_result_table_id || item.trace_result_table_id ? null : (
                       <bk-tag theme='info'>{this.$t('接入中')}...</bk-tag>
                     )}
+                    {this.hoverDetailShow(item) && (
+                      <div
+                      v-authority={{ active: !item?.permission[authorityMap.VIEW_AUTH] }}
+                      class='item-hover-detail'
+                      onClick={(e) => this.handleAppDetail(item, e)}
+                    >
+                      {this.$t('详情')}
+                    </div>
+                    ) }
                     <div class='item-content'>
                       <span class='item-service-count'>{item?.service_count}</span>
                       <OperateOptions
