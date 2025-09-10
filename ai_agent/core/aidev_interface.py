@@ -109,7 +109,7 @@ class AIDevInterface:
             "result": True,
             "code": "success",
             "data": {"session_name": user_message, "session_code": session_code},
-            "message": None,
+            "message": "ok",  # ok
             "request_id": None,
             "trace_id": None,
         }

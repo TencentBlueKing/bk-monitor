@@ -1397,6 +1397,8 @@ AIDEV_COMMAND_AGENT_MAPPING = {}  # 快捷指令<->Agent映射
 AIDEV_AGENT_ENABLE_LANGFUSE = False  # 是否开启langfuse上报
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
+# 是否开启AI RENAME
+ENABLE_AI_RENAME = False
 
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
