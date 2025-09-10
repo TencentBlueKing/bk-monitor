@@ -1022,6 +1022,7 @@ class UnifyQueryHandler:
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = size
         search_dict["scroll"] = scroll
+        search_dict["is_search_after"] = True
         result = UnifyQueryApi.query_ts_raw(search_dict)
         return result
 
@@ -1049,6 +1050,7 @@ class UnifyQueryHandler:
         # 参数补充
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = max_result_window
+        search_dict["is_search_after"] = True
         while search_after_size >= max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
             search_dict["result_table_options"] = search_result["result_table_options"]
             search_result = UnifyQueryApi.query_ts_raw(search_dict)
