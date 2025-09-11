@@ -33,9 +33,9 @@ import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
-import { jsonStr } from './detail';
-// 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
-const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
+import { jsonStr, tableFieldData } from './detail';
+// // 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
+// const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
 
 import './step3-clean.scss';
 
@@ -221,7 +221,7 @@ export default defineComponent({
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('字段列表')}</span>
           <div class='form-box'>
-            <FieldList />
+            <FieldList data={tableFieldData.fields} />
           </div>
         </div>
       </div>

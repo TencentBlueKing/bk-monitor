@@ -129,7 +129,7 @@ export default defineComponent({
             <bk-input
               ref={inputRef}
               placeholder={props.isFrom ? t('请输入') : t('请输入索引集名称')}
-              size={!props.isFrom && 'small'}
+              // size={!props.isFrom && 'small'}
               value={item.label}
               clearable
               onInput={val => (item.label = val)}

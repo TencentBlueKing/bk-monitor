@@ -86,6 +86,7 @@ export default defineComponent({
         <div
           class='index-set-select-extension'
           slot='extension'
+          on-Click={handleAdd}
         >
           {isAdd.value ? (
             <AddIndexSet
@@ -95,7 +96,7 @@ export default defineComponent({
               on-submit={handleSubmit}
             />
           ) : (
-            <span on-Click={handleAdd}>
+            <span>
               <i class='bk-icon icon-plus-circle' />
               {t('新增索引集')}
             </span>

@@ -55,7 +55,8 @@
     "actions": {
       "source": {
         "organizeImports": "off",
-        "useSortedProperties": "off"
+        "useSortedProperties": "off",
+        "useSortedAttributes": "off"
       }
     }
   }

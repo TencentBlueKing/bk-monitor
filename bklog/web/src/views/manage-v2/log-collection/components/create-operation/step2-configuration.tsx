@@ -75,7 +75,8 @@ export default defineComponent({
     const formData = ref({
       target_node_type: 'INSTANCE',
     });
-    // const globalsData = computed(() => store.getters.globalsData);
+    // 获取全局数据
+    // const globalsData = computed(() => store.getters['globals/globalsData']);
     const collectTargetTarget = {
       // 已(动态)选择 静态主机 节点 服务模板 集群模板
       INSTANCE: '已选择{0}个静态主机',
