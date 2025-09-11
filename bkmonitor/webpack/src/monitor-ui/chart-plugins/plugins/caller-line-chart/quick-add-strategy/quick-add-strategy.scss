@@ -19,6 +19,7 @@
     .template-preview {
       flex: 1;
       padding: 12px 24px;
+      overflow: hidden;
       background: #FAFBFD;
       border-left: 1px solid #DCDEE5;
 
@@ -30,6 +31,7 @@
           font-size: 14px;
           font-weight: 700;
           color: #313238;
+          white-space: nowrap;
         }
 
         .split-line {
@@ -40,7 +42,11 @@
         }
 
         .header-desc {
+          margin-right: 4px;
+          overflow: hidden;
+          text-overflow: ellipsis;
           color: #4D4F56;
+          white-space: nowrap;
         }
 
         .header-right-link {
@@ -49,6 +55,7 @@
           margin: 0 0 0 auto;
           line-height: 12px;
           color: #3A84FF;
+          white-space: nowrap;
           cursor: pointer;
 
           .icon-fenxiang {
