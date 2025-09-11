@@ -804,7 +804,7 @@ const store = new Vuex.Store({
           })
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
-      store.commit('updateState', {'isNotVisibleFieldsShow', value: !visibleFields.length} );
+      store.commit('updateState', {'isNotVisibleFieldsShow': !visibleFields.length} );
 
       // if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
