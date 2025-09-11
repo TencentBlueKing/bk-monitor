@@ -5,7 +5,7 @@ description = "bkmonitor"
 readme = "README.md"
 requires-python = "==3.11.*"
 dependencies = [
-    "aidev-agent==1.0.0b35",
+    "aidev-agent==1.0.0b37",
     "apigw-manager==4.0.4",
     "arrow==0.6.0",
     "babel==2.14.0",
@@ -85,7 +85,6 @@ dependencies = [
     "python-magic==0.4.27",
     "pyyaml==6.0.1",
     "redis==4.6.0",
-    "requests==2.32.4",
     "requests-toolbelt==1.0.0",
     "schema==0.7.7",
     "selenium<4.2",
