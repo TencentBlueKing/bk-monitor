@@ -25,7 +25,7 @@
  */
 import { type Ref, computed, defineComponent, inject, reactive, shallowRef, watch } from 'vue';
 
-import { Collapse, Dropdown, Exception, Loading, OverflowTitle, Sideslider, bkTooltips } from 'bkui-vue';
+import { bkTooltips, Collapse, Dropdown, Exception, Loading, OverflowTitle, Sideslider } from 'bkui-vue';
 import { incidentDiagnosis } from 'monitor-api/modules/incident';
 import base64Svg from 'monitor-common/svg/base64';
 import { useI18n } from 'vue-i18n';
@@ -442,7 +442,7 @@ export default defineComponent({
         class='exception-wrap-item'
         description={data.message}
         scene='part'
-        title={t('超时错误')}
+        title={t('查询异常')}
         type='500'
       />
     );
