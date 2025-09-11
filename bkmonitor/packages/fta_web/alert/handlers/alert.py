@@ -98,6 +98,7 @@ def get_alert_ids_by_action_id(action_ids) -> list:
             action_ids = [int(str(action_id)[10:]) for action_id in action_ids]
             alert_ids = ActionInstance.objects.filter(id__in=action_ids).values_list("alerts", flat=True)
     except Exception:
+        logger.exception("Failed to get alert ids by action ids")
         alert_ids = []
     alert_ids = set(chain.from_iterable(alert_ids))
     return list(alert_ids)
@@ -237,6 +238,12 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("set_id", _lazy("集群ID"), es_field="event.bk_topo_node"),
     ]
 
+    def visit_search_field(self, node: SearchField, context: dict):
+        if node.name in ["处理记录ID", "action_id"]:
+            node = Word("")
+
+        yield from self.generic_visit(node, context)
+
     def visit_word(self, node: Word, context: dict):
         if context.get("ignore_word"):
             yield from self.generic_visit(node, context)
@@ -254,7 +261,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
 
             for fun in process_fun_list:
                 new_node, new_context = fun(node, context)
-                if new_node:
+                if new_node is not None:
                     node, context = new_node, new_context
                     break
 
