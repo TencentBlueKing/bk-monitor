@@ -563,7 +563,7 @@ export default class MaskingSetting extends tsc<IProps> {
   async getOptionApplyData() {
     try {
       const res = await this.$store.dispatch('getApplyData', this.authorityData);
-      this.$store.commit('updateAuthDialogData', res.data);
+      this.$store.commit('updateState', { 'authDialogData': res.data});
     } catch (err) {
       console.warn(err);
     }

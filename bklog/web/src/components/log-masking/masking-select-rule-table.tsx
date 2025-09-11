@@ -171,7 +171,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     if (!this.isAllowed) {
       try {
         const res = await this.$store.dispatch('getApplyData', this.authorityData);
-        this.$store.commit('updateAuthDialogData', res.data);
+        this.$store.commit('updateState', { 'authDialogData': res.data});
       } catch (err) {
         console.warn(err);
       }

@@ -97,12 +97,10 @@ export default () => {
       activeTab = "union";
     }
 
-    store.commit("updateIndexItem", routeParams);
-    store.commit("updateSpace", routeParams.spaceUid);
-    store.commit("updateIndexId", routeParams.index_id);
-    store.commit("updateStorage", {
-      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
-    });
+    store.commit('updateIndexItem', routeParams);
+    store.commit('updateSpace', routeParams.spaceUid);
+    store.commit('updateState', { 'indexId': routeParams.index_id});
+    store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
   };
 
   RetrieveHelper.setScrollSelector(".v3-bklog-content");
@@ -255,15 +253,11 @@ export default () => {
             )
             .map((val) => val.index_set_id);
           if (indexSetMatch.length) {
-            store.commit("updateIndexItem", {
-              ids: indexSetMatch,
-              isUnionIndex: true,
-              selectIsUnionSearch: true,
-            });
-            store.commit("updateUnionIndexItemList", tagList);
-            store.commit("updateStorage", {
-              [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: "union",
-            });
+            store.commit('updateIndexItem', { ids: indexSetMatch, isUnionIndex: true, selectIsUnionSearch: true });
+            store.commit('updateState', {
+              'unionIndexItemList': tagList,
+            } );
+            store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'union' });
           }
         }
 
@@ -315,9 +309,9 @@ export default () => {
           });
 
           if (emptyIndexSetList.length) {
-            store.commit("updateIndexItem", { ids: [], items: [] });
-            store.commit("updateIndexId", "");
-            store.commit("updateIndexSetQueryResult", {
+            store.commit('updateIndexItem', { ids: [], items: [] });
+            store.commit('updateState', { 'indexId': ''});
+            store.commit('updateIndexSetQueryResult', {
               is_error: true,
               exception_msg: `index-set-not-found:(${emptyIndexSetList.join(
                 ","
@@ -346,11 +340,8 @@ export default () => {
 
           if (defaultId) {
             const strId = `${defaultId}`;
-            store.commit("updateIndexItem", {
-              ids: [strId],
-              items: [defIndexItem].filter(Boolean),
-            });
-            store.commit("updateIndexId", strId);
+            store.commit('updateIndexItem', { ids: [strId], items: [defIndexItem].filter(Boolean) });
+            store.commit('updateState', { 'indexId': strId});
           }
         }
 
@@ -366,13 +357,10 @@ export default () => {
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
-          const type = indexId ?? route.params.indexId ? "single" : "union";
-          if (indexId && type === "single") {
-            store.commit("updateIndexId", indexId);
-            store.commit("updateUnionIndexList", {
-              updateIndexItem: false,
-              list: [],
-            });
+          const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
+          if (indexId && type === 'single') {
+            store.commit('updateState', { 'indexId': indexId});
+            store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
           }
 
           if (type === "union") {
@@ -422,11 +410,8 @@ export default () => {
 
           if (defaultId) {
             const strId = `${defaultId}`;
-            store.commit("updateIndexItem", {
-              ids: [strId],
-              items: [resp[1][0]],
-            });
-            store.commit("updateIndexId", strId);
+            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateState', { 'indexId': strId});
           }
         }
 
@@ -478,8 +463,8 @@ export default () => {
       timezone,
       datePickerValue,
     });
-    store.commit("updateIndexId", "");
-    store.commit("updateUnionIndexList", []);
+    store.commit('updateState', { 'indexId': ''});
+    store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);
 
     getIndexSetList();

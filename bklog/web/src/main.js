@@ -89,7 +89,7 @@ const mountedVueInstance = () => {
     let externalMenu = [];
     if (window.IS_EXTERNAL && space) {
       externalMenu = getExternalMenuListBySpace(space) ?? [];
-      store.commit('updateExternalMenu', externalMenu);
+      store.commit('updateState', {'externalMenu': externalMenu});
     }
 
     store.dispatch('requestMenuList', spaceUid);

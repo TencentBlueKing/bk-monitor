@@ -166,7 +166,7 @@ export default defineComponent({
       try {
         isChangeOperatorLoading.value = true;
         const res = await http.request('userInfo/getUsername');
-        store.commit('updateUserMeta', res.data);
+        store.commit('updateState', {'userMeta': res.data});
         manageStrategyData.value.operator = res.data.operator;
       } catch (e) {
         console.warn(e);

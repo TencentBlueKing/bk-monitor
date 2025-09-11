@@ -231,7 +231,7 @@ export default defineComponent({
       try {
         isTableLoading.value = true;
         const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateAuthDialogData', res.data);
+        store.commit('updateState', { 'authDialogData': res.data});
       } catch (err) {
         console.warn(err);
       } finally {
