@@ -89,12 +89,12 @@ export default class MaskingDialog extends tsc<IProps> {
       >
         <div class={`masking-container ${this.showAlert ? 'is-show-notice' : ''}`}>
           <div class='masking-title'>
-            <div></div>
+            <div />
             <span>{this.$t('全局设置')}</span>
             <div
               class='bk-icon icon-close'
               onClick={this.handleCloseDialog}
-            ></div>
+            />
           </div>
           <div class='center-box'>
             <div
