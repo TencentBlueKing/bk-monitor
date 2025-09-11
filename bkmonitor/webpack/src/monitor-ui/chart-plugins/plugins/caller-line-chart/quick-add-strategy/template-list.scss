@@ -44,6 +44,7 @@
       margin-bottom: 4px;
       cursor: pointer;
       background: #F0F1F5;
+      border: 1px solid #F0F1F5;
       border-radius: 2px;
 
       .template-item-checkbox {
@@ -75,6 +76,16 @@
         .icon-mc-goto {
           margin-left: 2px;
           font-size: 16px;
+        }
+      }
+
+      &.active {
+        color: #3A84FF;
+        background: #F0F5FF;
+        border: 1px solid #3A84FF;
+
+        .template-item-desc {
+          color: #3A84FF;
         }
       }
     }
