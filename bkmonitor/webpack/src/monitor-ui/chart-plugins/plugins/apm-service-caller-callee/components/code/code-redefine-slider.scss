@@ -52,6 +52,16 @@
         }
       }
 
+      .skeleton-wrap {
+        .skeleton-element {
+          height: 150px;
+
+          &+.skeleton-element {
+            margin-top: 25px;
+          }
+        }
+      }
+
       .rule-row {
         height: 154px;
         background-color: #fff;

@@ -46,6 +46,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
 
   data: CodeRedefineItem[] = [];
 
+  loading = false;
   submitLoading = false;
 
   /** 重复的规则下标 */
@@ -199,10 +200,13 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
 
   async getCodeRedefineList() {
+    this.loading = true;
     const data = await listCodeRedefinedRule({
       app_name: this.appName,
       service_name: this.service,
       kind: this.type,
+    }).finally(() => {
+      this.loading = false;
     });
     if (data.length) {
       this.data = data.map(item => ({
@@ -360,54 +364,62 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                 {this.$t('导出')}
               </bk-button>
             </div>
-            <bk-table
-              data={this.data}
-              border
-              row-auto-height
-              row-class-name='rule-row'
-            >
-              {this.showColumn.map(item => this.renderColumn(item))}
-              <bk-table-column
-                label={this.$tc('操作')}
-                width={136}
-                scopedSlots={{
-                  default: ({ $index }) => (
-                    <div class='operate-btns'>
-                      <bk-button
-                        class='btn'
-                        theme='primary'
-                        text
-                        onClick={() => {
-                          this.addRow(this.data[$index]);
-                        }}
-                      >
-                        {this.$t('复制')}
-                      </bk-button>
-                      <bk-button
-                        class='btn'
-                        theme='primary'
-                        text
-                        onClick={() => {
-                          this.addRow();
-                        }}
-                      >
-                        {this.$t('新增')}
-                      </bk-button>
-                      <bk-button
-                        class='btn'
-                        theme='danger'
-                        text
-                        onClick={() => {
-                          this.data.splice($index, 1);
-                        }}
-                      >
-                        {this.$t('删除')}
-                      </bk-button>
-                    </div>
-                  ),
-                }}
-              />
-            </bk-table>
+            {this.loading ? (
+              <div class='skeleton-wrap'>
+                <div class='skeleton-element' />
+                <div class='skeleton-element' />
+                <div class='skeleton-element' />
+              </div>
+            ) : (
+              <bk-table
+                data={this.data}
+                border
+                row-auto-height
+                row-class-name='rule-row'
+              >
+                {this.showColumn.map(item => this.renderColumn(item))}
+                <bk-table-column
+                  label={this.$tc('操作')}
+                  width={136}
+                  scopedSlots={{
+                    default: ({ $index }) => (
+                      <div class='operate-btns'>
+                        <bk-button
+                          class='btn'
+                          theme='primary'
+                          text
+                          onClick={() => {
+                            this.addRow(this.data[$index]);
+                          }}
+                        >
+                          {this.$t('复制')}
+                        </bk-button>
+                        <bk-button
+                          class='btn'
+                          theme='primary'
+                          text
+                          onClick={() => {
+                            this.addRow();
+                          }}
+                        >
+                          {this.$t('新增')}
+                        </bk-button>
+                        <bk-button
+                          class='btn'
+                          theme='danger'
+                          text
+                          onClick={() => {
+                            this.data.splice($index, 1);
+                          }}
+                        >
+                          {this.$t('删除')}
+                        </bk-button>
+                      </div>
+                    ),
+                  }}
+                />
+              </bk-table>
+            )}
           </div>
 
           <div class='submit-btns'>
