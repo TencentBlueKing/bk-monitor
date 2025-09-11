@@ -34,7 +34,7 @@ import { MANAGE_AUTH as MANAGE } from 'monitor-pc/pages/alarm-group/authority-ma
 import JudgmentConditions from './judgment-conditions';
 import TemplateList from './template-list';
 
-import type { IAlarmGroupList } from './typing';
+import type { IAlarmGroupList, ITempLateItem } from './typing';
 
 import './quick-add-strategy.scss';
 
@@ -54,6 +54,9 @@ class QuickAddStrategy extends Mixins(
   templateList = [];
   alarmGroupList: IAlarmGroupList[] = [];
   alarmGroupLoading = false;
+  cursorId = '';
+  cursorItem: ITempLateItem = null;
+  checkedList = [];
 
   created() {
     this.templateList = [
@@ -65,6 +68,7 @@ class QuickAddStrategy extends Mixins(
         type: 'app',
         is_enabled: true,
         is_auto_apply: true,
+        has_been_applied: true,
         algorithms: [
           {
             level: 2,
@@ -110,6 +114,7 @@ class QuickAddStrategy extends Mixins(
         ],
         user_group_list: [{ id: 1, name: '应用创建者' }],
         applied_service_names: ['example.greeter1', 'example.greeter'],
+        has_been_applied: false,
         create_user: 'admin',
         create_time: '2025-08-04 17:43:26+0800',
         update_user: 'admin',
@@ -123,6 +128,7 @@ class QuickAddStrategy extends Mixins(
         type: 'app',
         is_enabled: true,
         is_auto_apply: true,
+        has_been_applied: false,
         algorithms: [
           {
             level: 2,
@@ -145,7 +151,7 @@ class QuickAddStrategy extends Mixins(
         update_time: '2025-08-04 17:43:26+0800',
       },
       {
-        id: 2,
+        id: 22,
         name: '[调用分析] 主调平均耗时',
         system: 'EVENT',
         category: '',
@@ -168,6 +174,7 @@ class QuickAddStrategy extends Mixins(
         ],
         user_group_list: [{ id: 1, name: '应用创建者' }],
         applied_service_names: ['example.greeter1', 'example.greeter'],
+        has_been_applied: false,
         create_user: 'admin',
         create_time: '2025-08-04 17:43:26+0800',
         update_user: 'admin',
@@ -198,6 +205,46 @@ class QuickAddStrategy extends Mixins(
       });
   }
 
+  handleCursorChange(id) {
+    this.cursorId = id;
+    this.cursorItem = this.templateList.find(item => item.id === id);
+  }
+
+  handleCheckedChange(checked) {
+    this.checkedList = checked;
+  }
+
+  handleSubmit() {
+    const h = this.$createElement;
+    this.$bkInfo({
+      type: 'success',
+      title: this.$t('批量创建策略成功'),
+      okText: '留在当前页',
+      width: 480,
+      confirmFn: () => {
+        console.log('confirmFn');
+      },
+      cancelFn: () => {
+        console.log('cancelFn');
+      },
+      subHeader: h(
+        'div',
+        {
+          style: {
+            height: '46px',
+            background: '#F5F7FA',
+            display: 'flex',
+            alignItems: 'center',
+            color: '#4D4F56',
+            justifyContent: 'center',
+          },
+        },
+        this.$t('已配置策略重新下发会被覆盖') as string
+      ),
+      cancelText: '前往策略列表',
+    });
+  }
+
   render() {
     return (
       <bk-sideslider
@@ -215,14 +262,20 @@ class QuickAddStrategy extends Mixins(
           slot='content'
         >
           <div class='template-list'>
-            <TemplateList templateList={this.templateList} />
+            <TemplateList
+              checked={this.checkedList}
+              cursorId={this.cursorId}
+              templateList={this.templateList}
+              onCheckedChange={this.handleCheckedChange}
+              onCursorChange={this.handleCursorChange}
+            />
             <JudgmentConditions userList={this.alarmGroupList} />
           </div>
           <div class='template-preview'>
             <div class='template-preview-header'>
               <span class='header-title'>{this.$t('预览')}</span>
               <span class='split-line' />
-              <span class='header-desc'>主调成功率告警</span>
+              <span class='header-desc'>{this.cursorItem?.name || '--'}</span>
               <span class='header-right-link'>
                 <span>{this.$t('模板详情')}</span>
                 <span class='icon-monitor icon-fenxiang' />
@@ -237,6 +290,7 @@ class QuickAddStrategy extends Mixins(
           <bk-button
             class='mr-8 ml-24'
             theme='primary'
+            onClick={this.handleSubmit}
           >
             {this.$t('一键生成')}
           </bk-button>
