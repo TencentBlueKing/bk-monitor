@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -28,12 +28,7 @@ class TranslationField:
         }
 
     def __repr__(self):
-        return "<TranslationField {name}({display_name}): {value}({display_value})>".format(
-            name=self.name,
-            value=self.value,
-            display_name=self.display_name,
-            display_value=self.display_value,
-        )
+        return f"<TranslationField {self.name}({self.display_name}): {self.value}({self.display_value})>"
 
 
 class BaseTranslator:
@@ -67,9 +62,6 @@ class BaseTranslator:
         raise NotImplementedError
 
     def __repr__(self):
-        return "<{cls_name}: {data_source_label} - {data_type_label} - {result_table_id}>".format(
-            cls_name=self.__class__.__name__,
-            data_source_label=self.data_source_label,
-            data_type_label=self.data_type_label,
-            result_table_id=self.result_table_id,
+        return (
+            f"<{self.__class__.__name__}: {self.data_source_label} - {self.data_type_label} - {self.result_table_id}>"
         )

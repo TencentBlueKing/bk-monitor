@@ -43,16 +43,16 @@ import { renderHeader, xssFilter } from './common/util';
 import './directives/index';
 import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
-import preload, { getExternalMenuListBySpace } from './preload';
+import preload, { getAllSpaceList, getExternalMenuListBySpace } from './preload';
 import getRouter from './router';
 import store from './store';
 import { BK_LOG_STORAGE } from './store/store.type';
 
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 import './scss/theme/theme-dark.scss';
 import './scss/theme/theme-light.scss';
 import './static/font-face/index.css';
 import './static/style.css';
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 Vue.prototype.$renderHeader = renderHeader;
 Vue.prototype.$xss = xssFilter;
@@ -107,6 +107,7 @@ const mountedVueInstance = () => {
       mounted() {
         // 对于手动输入URL，直接刷新页面重置所有参数和状态
         window.addEventListener('hashchange', this.reset);
+        getAllSpaceList(http, store);
       },
       beforeUnmount() {
         window.removeEventListener('hashchange', this.reset);
@@ -140,8 +141,8 @@ if (process.env.NODE_ENV === 'development') {
   Vue.config.devtools = true;
 }
 
-const _ResizeObserver = window.ResizeObserver;
-window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
+const BaseResizeObserver = window.ResizeObserver;
+window.ResizeObserver = class ResizeObserver extends BaseResizeObserver {
   constructor(callback) {
     callback = debounce(callback);
     super(callback);

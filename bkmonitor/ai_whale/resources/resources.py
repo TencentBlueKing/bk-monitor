@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -132,7 +132,11 @@ class RenameChatSessionResource(Resource):
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         logger.info("RenameChatSessionResource: try to rename session->[%s]", session_code)
-        return aidev_interface.rename_chat_session(session_code=session_code)
+
+        if settings.ENABLE_AI_RENAME:
+            return aidev_interface.rename_chat_session(session_code=session_code)
+        else:
+            return aidev_interface.rename_chat_session_by_user_question(session_code=session_code)
 
 
 # -------------------- 会话内容管理 -------------------- #

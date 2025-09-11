@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -31,7 +31,7 @@ class ExpireFilter(base.Filter):
         # 丢弃超过max(半个小时 或者 10个周期延迟)的告警
         expire_seconds = max([record.items[0].query_configs[0]["agg_interval"] * 10, 30 * constants.CONST_MINUTES])
         if arrow.utcnow().timestamp - arrow.get(utctime).timestamp > expire_seconds:
-            logger.info("Discard the data(%s) because it takes more than 30 minutes" % record.raw_data)
+            logger.info(f"Discard the data({record.raw_data}) because it takes more than 30 minutes")
             return True
         else:
             return False
@@ -64,9 +64,7 @@ class RangeFilter(base.Filter):
             is_filtered = not is_match
             if is_filtered:
                 logger.debug(
-                    "Discard the alarm ({}) because it not match strategy({}) item({}) agg_condition".format(
-                        record.raw_data, item.strategy.id, item_id
-                    )
+                    f"Discard the alarm ({record.raw_data}) because it not match strategy({item.strategy.id}) item({item_id}) agg_condition"
                 )
 
             record.is_retains[item_id] = not is_filtered

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http:#opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -645,7 +645,7 @@ def converge_actions(instances, action_type=ConvergeType.ACTION, is_enabled=True
             )
         cp = ConvergeProcessor(converge_config, instance.id, action_type, alerts=alerts)
         cp.converge_alarm()
-        print("$%s converge status " % instance.id, cp.status)
+        print(f"${instance.id} converge status ", cp.status)
 
 
 class TestActionProcessor(TransactionTestCase):
@@ -2992,7 +2992,7 @@ class TestActionProcessor(TransactionTestCase):
             # 创建不同维度的内容
             total_actions += self.create_test_action_inst(bk_biz_id)
 
-        print("total actions: %s" % total_actions)
+        print(f"total actions: {total_actions}")
 
         # 产生20个子任务进行汇总操作
         self.assertEqual(
@@ -3009,7 +3009,7 @@ class TestActionProcessor(TransactionTestCase):
             # 创建不通维度的内容
             total_actions += self.create_test_action_inst(bk_biz_id)
 
-        print("total actions: %s" % total_actions)
+        print(f"total actions: {total_actions}")
 
         self.assertEqual(
             ConvergeRelation.objects.filter(converge_status=ConvergeStatus.EXECUTED, related_type="action").count(), 20
@@ -3146,7 +3146,7 @@ class TestActionProcessor(TransactionTestCase):
             # 创建不同维度的内容
             total_actions += self.create_test_action_inst(bk_biz_id)
 
-        print("total actions: %s" % total_actions)
+        print(f"total actions: {total_actions}")
 
         # 一共产生了30个子任务，5个主任务
         self.assertEqual(
@@ -3163,7 +3163,7 @@ class TestActionProcessor(TransactionTestCase):
             # 创建不通维度的内容
             total_actions += self.create_test_action_inst(bk_biz_id)
 
-        print("total actions: %s" % total_actions)
+        print(f"total actions: {total_actions}")
 
         # 新产生的任务，都默认是忽略，汇总到同维度告警上
         self.assertEqual(
@@ -4177,7 +4177,7 @@ class TestActionProcessor(TransactionTestCase):
                 )
             cp = ConvergeProcessor(converge_config, instance.id, action_type, alerts=alerts)
             cp.converge_alarm()
-            print("$%s converge status " % instance.id, cp.status)
+            print(f"${instance.id} converge status ", cp.status)
 
     def test_timeout_action(self):
         before_twenty_minutes = datetime.now(tz=timezone.utc) - timedelta(minutes=20)

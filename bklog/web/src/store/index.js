@@ -63,7 +63,7 @@ import {
   getDefaultRetrieveParams,
   getStorageOptions,
   indexSetClusteringData,
-  createFieldItem
+  createFieldItem,
 } from './default-values.ts';
 import globals from './globals';
 import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper';
@@ -293,6 +293,7 @@ const store = new Vuex.Store({
         interval,
         sort_list,
         format,
+        timezone,
       } = state.indexItem;
 
       const search_mode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
@@ -316,6 +317,7 @@ const store = new Vuex.Store({
         search_mode,
         sort_list,
         bk_biz_id: state.bkBizId,
+        time_zone: timezone,
         ...searchParams,
       };
     },
@@ -775,12 +777,14 @@ const store = new Vuex.Store({
           if (exist_value.count > 1 && !exist_value.resolved) {
             exist_value.resolved = true;
             field_alias_map.set(field_alias, exist_value);
-            state.indexFieldInfo.alias_field_list.push(createFieldItem(field_alias, 'keyword', {
-              ...field,
-              field_alias: '',
-              field_name: field_alias,
-              is_virtual_alias_field: true
-            }));
+            state.indexFieldInfo.alias_field_list.push(
+              createFieldItem(field_alias, 'keyword', {
+                ...field,
+                field_alias: '',
+                field_name: field_alias,
+                is_virtual_alias_field: true,
+              }),
+            );
           }
         }
       });
@@ -918,7 +922,7 @@ const store = new Vuex.Store({
             if (field) {
               return field;
             }
-            return createFieldItem(displayName)
+            return createFieldItem(displayName);
           })
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
@@ -1005,7 +1009,7 @@ const store = new Vuex.Store({
      *
      * @return {Promise} promise 对象
      */
-    getMenuList({ }, spaceUid) {
+    getMenuList({}, spaceUid) {
       return http.request('meta/menu', {
         query: {
           space_uid: spaceUid,
@@ -1362,11 +1366,11 @@ const store = new Vuex.Store({
         baseData,
         !state.indexItem.isUnionIndex
           ? {
-            begin: queryBegin, // 单选检索的begin
-          }
+              begin: queryBegin, // 单选检索的begin
+            }
           : {
-            union_configs: unionConfigs,
-          },
+              union_configs: unionConfigs,
+            },
       );
       const params = {
         method: 'post',

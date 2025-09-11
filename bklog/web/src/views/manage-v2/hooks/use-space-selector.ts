@@ -24,18 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { ref } from 'vue';
-import { SPACE_TYPE_MAP } from '@/store/constant';
-import useLocale from '@/hooks/use-locale';
+import { Ref, ref } from 'vue';
 
-export function useSpaceSelector(visibleBkBizInit: number[] = []) {
+import useLocale from '@/hooks/use-locale';
+import { SPACE_TYPE_MAP } from '@/store/constant';
+
+export function useSpaceSelector(visibleBkBiz: Ref<string[]>) {
   const { t } = useLocale();
-  const spaceMultiple = ref(true);  // 空间多选
-  const isUseMark = ref(true);  // 是否展示正在使用的标记
-  const visibleBkBiz = ref([...visibleBkBizInit]);  // 当前可见的业务ID列表
+  const spaceMultiple = ref(true); // 空间多选
+  const isUseMark = ref(true); // 是否展示正在使用的标记
 
   // 空间选择
-  function handleSelectSpaceChange(bizId: number) {
+  function handleSelectSpaceChange(bizId: string) {
     if (visibleBkBiz.value.includes(bizId)) {
       visibleBkBiz.value = visibleBkBiz.value.filter(val => val !== bizId);
     } else {
@@ -44,7 +44,7 @@ export function useSpaceSelector(visibleBkBizInit: number[] = []) {
   }
 
   // 空间选择器下拉选择面板渲染
-  function virtualscrollSpaceList(item: any, h: Function) {
+  function virtualscrollSpaceList(item: any, h: any) {
     return h(
       'div',
       {
@@ -57,41 +57,33 @@ export function useSpaceSelector(visibleBkBizInit: number[] = []) {
         },
       },
       [
-        h(
-          'div',
-          { class: 'list-item-left' },
-          [
-            isUseMark.value &&
-              h('span', { class: `identify-icon ${isUseMark.value && item.is_use ? 'is-use' : 'not-use'}` }),
-            h('span', { class: 'code-name' }, [
-              item.space_full_code_name,
-              isUseMark.value && item.is_use ? `（${t('正在使用')}）` : '',
-            ]),
-          ],
-        ),
-        h(
-          'div',
-          { class: 'list-item-right' },
-          [
-            item.space_type_name &&
-              item.tags.map((tag: any) =>
-                h(
-                  'span',
-                  {
-                    class: 'list-item-tag light-theme',
-                    style: {
-                      ...SPACE_TYPE_MAP[tag.id].light,
-                    },
+        h('div', { class: 'list-item-left' }, [
+          isUseMark.value &&
+            h('span', { class: `identify-icon ${isUseMark.value && item.is_use ? 'is-use' : 'not-use'}` }),
+          h('span', { class: 'code-name' }, [
+            item.space_full_code_name,
+            isUseMark.value && item.is_use ? `（${t('正在使用')}）` : '',
+          ]),
+        ]),
+        h('div', { class: 'list-item-right' }, [
+          item.space_type_name &&
+            item.tags.map((tag: any) =>
+              h(
+                'span',
+                {
+                  class: 'list-item-tag light-theme',
+                  style: {
+                    ...SPACE_TYPE_MAP[tag.id].light,
                   },
-                  tag.name,
-                ),
+                },
+                tag.name,
               ),
-            spaceMultiple.value &&
-              h('span', {
-                class: visibleBkBiz.value.includes(item.bk_biz_id) ? 'bk-icon icon-check-1' : '',
-              }),
-          ],
-        ),
+            ),
+          spaceMultiple.value &&
+            h('span', {
+              class: visibleBkBiz.value.includes(item.bk_biz_id) ? 'bk-icon icon-check-1' : '',
+            }),
+        ]),
       ],
     );
   }
@@ -99,6 +91,7 @@ export function useSpaceSelector(visibleBkBizInit: number[] = []) {
   return {
     spaceMultiple,
     isUseMark,
+    visibleBkBiz,
     handleSelectSpaceChange,
     virtualscrollSpaceList,
   };

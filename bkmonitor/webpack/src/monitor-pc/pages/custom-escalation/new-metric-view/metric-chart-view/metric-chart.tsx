@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -403,7 +403,7 @@ class NewMetricChart extends CommonSimpleChart {
       return `${number}小时前`;
     }
   }
-  handleSeriesName(item: DataQuery, set, isFull = false) {
+  handleSeriesName(item: DataQuery, set) {
     const { dimensions = {}, dimensions_translation = {}, time_offset } = set;
     const { metric = {} } = item;
     const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}` : '';
@@ -660,7 +660,7 @@ class NewMetricChart extends CommonSimpleChart {
           this.handleResize();
         }, 100);
       } else {
-        this.initialized = this.metrics.length > 0;
+        this.initialized = true;
         this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }

@@ -219,8 +219,6 @@ export default class FieldAnalysis extends Vue {
       );
 
       Object.assign(this.fieldData, res.data);
-    } catch (error) {
-      // console.error('Field statistics info error:', error);
     } finally {
       this.infoLoading = false;
     }
@@ -611,7 +609,7 @@ export default class FieldAnalysis extends Vue {
       pillarQueryTime,
     } = this;
 
-    const distinctCount = formatNumberWithRegex(fieldData.distinct_count);
+    // const distinctCount = formatNumberWithRegex(fieldData.distinct_count);
     const fieldPercent = (fieldData.field_percent * 100).toFixed(2);
 
     return (
@@ -762,7 +760,6 @@ export default class FieldAnalysis extends Vue {
               <div class='distinct-count-num-box'>
                 <div class='count-num'>
                   <span class='count-num-title'>{window.mainComponent.$t('去重后字段统计')}</span>
-                  <span class='distinct-count-num'>{distinctCount}</span>
                 </div>
                 <div class='more-fn'>
                   {!chartLoading && fieldData.distinct_count > 5 && (
