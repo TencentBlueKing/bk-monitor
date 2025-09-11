@@ -23,49 +23,50 @@ class StrategyTemplateViewSet(GenericViewSet):
     queryset = None
     serializer_class = None
 
+    def __init__(self, *args, **kwargs):
+        self._query_data = None
+        super().__init__(*args, **kwargs)
+
+    @property
+    def query_data(self) -> dict:
+        if self._query_data:
+            return self._query_data
+        serializer_class = self.serializer_class or self.get_serializer_class()
+        original_data = self.request.query_params if self.request.method == "GET" else self.request.data
+        serializer_inst = serializer_class(data=original_data)
+        serializer_inst.is_valid(raise_exception=True)
+        self._query_data = serializer_inst.validated_data
+        return self._query_data
+
     def get_permissions(self):
-        return [BusinessActionPermission([ActionEnum.EXPLORE_METRIC, ActionEnum.MANAGE_RULE])]
+        return [BusinessActionPermission([ActionEnum.MANAGE_APM_APPLICATION])]
 
     def get_serializer_class(self):
         action_serializer_map = {
             "retrieve": serializers.StrategyTemplateDetailRequestSerializer,
             "destroy": serializers.StrategyTemplateDeleteRequestSerializer,
             "update": serializers.StrategyTemplateUpdateRequestSerializer,
-            "list": serializers.StrategyTemplateListRequestSerializer,
-            "preview": serializers.StrategyTemplatePreviewRequestSerializer,
-            "apply": serializers.StrategyTemplateApplyRequestSerializer,
-            "check": serializers.StrategyTemplateCheckRequestSerializer,
-            "clone": serializers.StrategyTemplateCloneRequestSerializer,
-            "batch_partial_update": serializers.StrategyTemplateBatchPartialUpdateRequestSerializer,
-            "compare": serializers.StrategyTemplateCompareRequestSerializer,
-            "alerts": serializers.StrategyTemplateAlertsRequestSerializer,
         }
         return action_serializer_map.get(self.action) or self.serializer_class
 
-    def retrieve(self, request: Request, *args, **kwargs) -> Response:
-        serializer = self.get_serializer(data=request.query_params)
-        serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("is_mock"):
+    def retrieve(self, *args, **kwargs) -> Response:
+        if self.query_data.get("is_mock"):
             return Response(mock_data.CALLEE_SUCCESS_RATE_STRATEGY_TEMPLATE)
         return Response({})
 
-    def destroy(self, request: Request, *args, **kwargs) -> Response:
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    def destroy(self, *args, **kwargs) -> Response:
+        if self.query_data.get("is_mock"):
+            return Response({})
         return Response({})
 
-    def update(self, request: Request, *args, **kwargs) -> Response:
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-        if validated_data.get("is_mock"):
+    def update(self, *args, **kwargs) -> Response:
+        if self.query_data.get("is_mock"):
             return Response(mock_data.CALLEE_SUCCESS_RATE_STRATEGY_TEMPLATE)
         return Response({})
 
-    def list(self, request: Request, *args, **kwargs) -> Response:
-        serializer = self.get_serializer(data=request.query_params)
-        serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("is_mock"):
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateSearchRequestSerializer)
+    def search(self, request: Request, *args, **kwargs) -> Response:
+        if self.query_data.get("is_mock"):
             return Response(
                 {
                     "total": 1,
@@ -74,21 +75,15 @@ class StrategyTemplateViewSet(GenericViewSet):
             )
         return Response({})
 
-    @action(methods=["POST"], detail=True)
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplatePreviewRequestSerializer)
     def preview(self, request: Request, *args, **kwargs) -> Response:
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("is_mock"):
+        if self.query_data.get("is_mock"):
             return Response(mock_data.CALLEE_SUCCESS_RATE_STRATEGY_PREVIEW)
         return Response({})
 
-    @action(methods=["POST"], detail=False)
-    def apply(self, request: Request, *args, **kwargs) -> Response:
-        """模板下发"""
-
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("is_mock"):
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
+    def apply(self, *args, **kwargs) -> Response:
+        if self.query_data.get("is_mock"):
             return Response(
                 {
                     "app_name": "demo",
@@ -97,11 +92,9 @@ class StrategyTemplateViewSet(GenericViewSet):
             )
         return Response({})
 
-    @action(methods=["POST"], detail=False)
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCheckRequestSerializer)
     def check(self, request: Request, *args, **kwargs) -> Response:
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("is_mock"):
+        if self.query_data.get("is_mock"):
             return Response(
                 {
                     "list": mock_data.CHECK_STRATEGY_INSTANCE_LIST,
@@ -109,35 +102,29 @@ class StrategyTemplateViewSet(GenericViewSet):
             )
         return Response({})
 
-    @action(methods=["POST"], detail=True)
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCloneRequestSerializer)
     def clone(self, request: Request, *args, **kwargs) -> Response:
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("is_mock"):
+        if self.query_data.get("is_mock"):
             return Response({"id": 2})
         return Response({})
 
-    @action(methods=["POST"], detail=False)
+    @action(
+        methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateBatchPartialUpdateRequestSerializer
+    )
     def batch_partial_update(self, request: Request, *args, **kwargs) -> Response:
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("is_mock"):
+        if self.query_data.get("is_mock"):
             return Response({"ids": [1, 2]})
         return Response({})
 
-    @action(methods=["POST"], detail=True)
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)
     def compare(self, request: Request, *args, **kwargs) -> Response:
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("is_mock"):
+        if self.query_data.get("is_mock"):
             return Response(mock_data.COMPARE_STRATEGY_INSTANCE)
         return Response({})
 
-    @action(methods=["POST"], detail=False)
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateAlertsRequestSerializer)
     def alerts(self, request: Request, *args, **kwargs) -> Response:
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("is_mock"):
+        if self.query_data.get("is_mock"):
             return Response(
                 {
                     "list": mock_data.STRATEGY_TEMPLATE_RELATION_ALERTS,

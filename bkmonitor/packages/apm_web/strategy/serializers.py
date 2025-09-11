@@ -18,8 +18,6 @@ from . import constants
 
 
 class DetectSerializer(serializers.Serializer):
-    """判断条件"""
-
     recovery_check_window = serializers.IntegerField(label=_("恢复检查窗口"), min_value=1, default=5)
     trigger_check_window = serializers.IntegerField(label=_("触发检查窗口"), min_value=1)
     trigger_count = serializers.IntegerField(label=_("触发次数"), min_value=1)
@@ -31,8 +29,6 @@ class UserGroupSerializer(serializers.Serializer):
 
 
 class AlgorithmSerializer(serializers.Serializer):
-    """检测算法"""
-
     level = serializers.ChoiceField(label=_("级别"), choices=constants.ThresholdLevel.choices())
     method = serializers.ChoiceField(label=_("检测方法"), choices=allowed_threshold_method)
     threshold = serializers.FloatField(label=_("阈值"))
@@ -54,7 +50,7 @@ class BaseServiceStrategyTemplateRequestSerializer(BaseAppStrategyTemplateReques
 
 
 class StrategyTemplatePreviewRequestSerializer(BaseServiceStrategyTemplateRequestSerializer):
-    pass
+    strategy_template_id = serializers.IntegerField(label=_("策略模板 ID"), min_value=1)
 
 
 class StrategyTemplateDetailRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
@@ -62,13 +58,9 @@ class StrategyTemplateDetailRequestSerializer(BaseAppStrategyTemplateRequestSeri
 
 
 class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
-    """策略模板下发"""
-
     class GlobalSerializer(serializers.Serializer):
-        detect = DetectSerializer(required=False)
-        user_group_ids = serializers.ListField(
-            label=_("用户组 ID 列表"), child=serializers.IntegerField(min_value=1), required=False
-        )
+        detect = DetectSerializer(label=_("判断条件"), required=False)
+        user_group_list = serializers.ListField(label=_("用户组列表"), child=UserGroupSerializer(), required=False)
 
     class ExtraSerializer(GlobalSerializer):
         strategy_template_id = serializers.IntegerField(label=_("策略模板 ID"), min_value=1)
@@ -93,8 +85,12 @@ class StrategyTemplateCheckRequestSerializer(BaseAppStrategyTemplateRequestSeria
     )
 
 
-class StrategyTemplateListRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
-    pass
+class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
+    class ConditionSerializer(serializers.Serializer):
+        key = serializers.CharField(label="查询条件键")
+        value = serializers.ListField(label="查询条件值", child=serializers.CharField())
+
+    conditions = serializers.ListField(label="查询条件", child=ConditionSerializer(), default=[], allow_empty=True)
 
 
 class StrategyTemplateUpdateSerializer(serializers.Serializer):
@@ -114,6 +110,7 @@ class StrategyTemplateUpdateRequestSerializer(
 
 
 class StrategyTemplateCloneRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
+    source_id = serializers.IntegerField(label=_("源策略模板 ID"), min_value=1)
     edit_data = StrategyTemplateUpdateSerializer(label=_("克隆模板编辑数据"))
 
 
@@ -129,7 +126,7 @@ class StrategyTemplateBatchPartialUpdateRequestSerializer(BaseAppStrategyTemplat
 
 
 class StrategyTemplateCompareRequestSerializer(BaseServiceStrategyTemplateRequestSerializer):
-    pass
+    strategy_template_id = serializers.IntegerField(label=_("策略模板 ID"), min_value=1)
 
 
 class StrategyTemplateAlertsRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
