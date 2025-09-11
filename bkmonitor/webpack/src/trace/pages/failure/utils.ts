@@ -36,3 +36,22 @@ export const replaceSpecialCondition = (qs: string) => {
   const regExp = new RegExp(`${window.i18n.t('通知人')}\\s*:\\s*(""|'')`, 'gi');
   return qs.replace(regExp, `NOT ${window.i18n.t('通知人')} : *`);
 };
+
+/**
+ * @description 检查文本是否溢出（超过n行）
+ * @param el 元素
+ * @param n 行数，默认3行
+ * @returns 是否溢出
+ */
+export const checkOverflow = (el: HTMLElement, n = 3) => {
+  if (!el) return false;
+
+  // 使用getComputedStyle获取精确样式
+  const styles = getComputedStyle(el);
+  const lineHeight = parseInt(styles.lineHeight) || 22; // 默认22px
+
+  // 计算n行高度
+  const maxHeight = lineHeight * n;
+
+  return el.scrollHeight > maxHeight;
+};

@@ -23,16 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, reactive, shallowRef, watch } from 'vue';
+import {
+  type Ref,
+  computed,
+  defineComponent,
+  inject,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  shallowRef,
+  watch,
+} from 'vue';
 
-import { Collapse, Dropdown, Exception, Loading, OverflowTitle, Sideslider, bkTooltips } from 'bkui-vue';
+import { bkTooltips, Collapse, Dropdown, Exception, Loading, Message, Popover, Sideslider } from 'bkui-vue';
 import { incidentDiagnosis } from 'monitor-api/modules/incident';
 import base64Svg from 'monitor-common/svg/base64';
+import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import MarkdownViewer from '../../../components/markdown-editor/viewer';
 import { EVENTS_TYPE_MAP } from '../constant';
+import { checkOverflow } from '../utils';
 
 import type {
   IAlertData,
@@ -92,6 +104,13 @@ export default defineComponent({
       return list.filter(item => subPanels.value?.[item.key]?.enabled);
     });
 
+    const showPatternPop = reactive<Record<number, boolean>>({});
+    const patternOverflowMap = reactive<Record<number, boolean>>({});
+    // 每个示例日志项的popover展示状态
+    const showDemoLogPop = reactive<Record<number, boolean>>({});
+    // 存储每个示例日志项的溢出状态
+    const demoLogOverflowMap = reactive<Record<number, boolean>>({});
+
     /** 跳转到告警tab带上策路ID过滤 */
     const goDetail = (data: IStrategyMapItem) => {
       emit('strategy', data);
@@ -100,6 +119,15 @@ export default defineComponent({
     /** 跳转到告警tab */
     const goAlertList = (list: IAlertData[]) => {
       emit('alertList', list);
+    };
+
+    /** 拷贝操作 */
+    const handleCopy = (text: string) => {
+      copyText(text);
+      Message({
+        theme: 'success',
+        message: t('复制成功'),
+      });
     };
 
     const dimensionalTitleSlot = (item: IAnomalyAnalysis) => (
@@ -352,6 +380,52 @@ export default defineComponent({
       );
     };
 
+    const handleMouseEnter = async (event: MouseEvent, index: number, type: string) => {
+      if (!event.target) return;
+
+      const target = event.currentTarget as HTMLElement;
+      if (type === 'demo_log') {
+        if (!demoLogOverflowMap[index]) {
+          // 首次检查时计算并缓存
+          demoLogOverflowMap[index] = checkOverflow(target);
+        }
+        showDemoLogPop[index] = demoLogOverflowMap[index];
+        // 将Pattern项的popover隐藏，避免popover重叠
+        showPatternPop[index] = false;
+      } else {
+        if (!patternOverflowMap[index]) {
+          // 首次检查时计算并缓存
+          patternOverflowMap[index] = checkOverflow(target);
+        }
+        showPatternPop[index] = patternOverflowMap[index];
+        // 将示例日志项的popover隐藏，避免popover重叠
+        showDemoLogPop[index] = false;
+      }
+    };
+
+    // 响应窗口变化重新计算
+    const handleResize = () => {
+      for (const key of Object.keys(demoLogOverflowMap)) {
+        const index = Number(key);
+        const el = document.querySelector(`.log-tips__demo_log[data-index="${index}"]`);
+        if (el) demoLogOverflowMap[index] = checkOverflow(el as HTMLElement);
+      }
+
+      for (const key of Object.keys(patternOverflowMap)) {
+        const index = Number(key);
+        const el = document.querySelector(`.log-tips__pattern[data-index="${index}`);
+        if (el) patternOverflowMap[index] = checkOverflow(el as HTMLElement);
+      }
+    };
+
+    onMounted(() => {
+      window.addEventListener('resize', handleResize);
+    });
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', handleResize);
+    });
+
     // 日志分析标题
     const logTitleSlot = (item: ILogAnalysis, itemIndex: number) => (
       <span class='log-title'>
@@ -366,8 +440,33 @@ export default defineComponent({
       </span>
     );
 
+    const renderLogJSONTips = (log: any, isChild = false) => {
+      return (
+        <>
+          <span style='color: #9D694C;'>{'{'}</span>
+          {Object.entries(log).map(([key, value]) => (
+            <div
+              key={key}
+              style={{ marginLeft: isChild ? '8px' : '28px' }}
+              class='log-popover-content_item'
+            >
+              <span class='item-label'>"{key}":</span>
+              <span class='item-value'>
+                {typeof value === 'number'
+                  ? value
+                  : typeof value === 'object'
+                    ? renderLogJSONTips(value, true)
+                    : `"${value}"`}
+              </span>
+            </div>
+          ))}
+          <span style='color: #9D694C;'>{'}'}</span>
+        </>
+      );
+    };
+
     // 日志分析内容
-    const logContentSlot = (item: ILogAnalysis) => {
+    const logContentSlot = (item: ILogAnalysis, index: number) => {
       return (
         <div class='log-content-warpper'>
           <div class='log-content'>
@@ -375,18 +474,41 @@ export default defineComponent({
               <span>Pattern：</span>
               {/* <i class='icon-monitor icon-fenxiang right-icon' /> */}
             </div>
-            <OverflowTitle
-              class='log-content-tips'
-              popoverOptions={{
-                width: 350,
-                extCls: 'log-content-tips_popover',
+            <Popover
+              key={`${index}-pattern`}
+              width={560}
+              extCls='log-content-tips_popover'
+              disabled={!item.pattern}
+              isShow={showPatternPop[index]}
+              placement='right-start'
+              popoverDelay={[500, 0]}
+              theme='light'
+              trigger='manual'
+              onClickoutside={() => {
+                showPatternPop[index] = false;
               }}
-              placement='right'
-              type='tips'
-              resizeable
             >
-              <span>{item.pattern}</span>
-            </OverflowTitle>
+              {{
+                content: () => (
+                  <div class='log-popover-content'>
+                    <i
+                      class={['icon-monitor', 'copy-icon', 'icon-mc-copy']}
+                      onClick={handleCopy.bind(this, item.pattern)}
+                    />
+                    <span class='log-pattern'>{item.pattern}</span>
+                  </div>
+                ),
+                default: () => (
+                  <span
+                    class='log-tips__default log-tips__pattern'
+                    data-index={index}
+                    onMouseenter={e => handleMouseEnter(e, index, 'pattern')}
+                  >
+                    {item.pattern}
+                  </span>
+                ),
+              }}
+            </Popover>
           </div>
 
           <div class='log-content'>
@@ -394,18 +516,41 @@ export default defineComponent({
               <span>{t('示例日志：')}</span>
               {/* <i class='icon-monitor icon-fenxiang right-icon' /> */}
             </div>
-            <OverflowTitle
-              class='log-content-tips'
-              popoverOptions={{
-                width: 350,
-                extCls: 'log-content-tips_popover',
+            <Popover
+              key={`${index}-demo_log`}
+              width={560}
+              extCls='log-content-tips_popover'
+              disabled={!item.demo_log || item.demo_log === '{}'}
+              isShow={showDemoLogPop[index]}
+              placement='right-start'
+              popoverDelay={[500, 0]}
+              theme='light'
+              trigger='manual'
+              onClickoutside={() => {
+                showDemoLogPop[index] = false;
               }}
-              placement='right'
-              type='tips'
-              resizeable
             >
-              <span>{item.demo_log}</span>
-            </OverflowTitle>
+              {{
+                content: () => (
+                  <div class='log-popover-content'>
+                    <i
+                      class={['icon-monitor', 'copy-icon', 'icon-mc-copy']}
+                      onClick={handleCopy.bind(this, item.demo_log)}
+                    />
+                    {renderLogJSONTips(JSON.parse(item.demo_log))}
+                  </div>
+                ),
+                default: () => (
+                  <span
+                    class='log-tips__default log-tips__demo_log'
+                    data-index={index}
+                    onMouseenter={e => handleMouseEnter(e, index, 'demo_log')}
+                  >
+                    {item.demo_log}
+                  </span>
+                ),
+              }}
+            </Popover>
           </div>
         </div>
       );
@@ -426,7 +571,7 @@ export default defineComponent({
               v-model={logActiveIndex.value}
               v-slots={{
                 default: (item, index) => logTitleSlot(item, index),
-                content: item => logContentSlot(item),
+                content: (item, index) => logContentSlot(item, index),
               }}
               header-icon='right-shape'
               list={Object.values(contentList?.logs_analysis)[0] || []}
