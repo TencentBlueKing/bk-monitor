@@ -270,7 +270,7 @@ export default defineComponent({
                 return item;
               });
               const temporarySortList = syncSpecifiedFieldSort(field.field_name, sortList);
-              store.commit('updateLocalSort', true);
+              store.commit('updateState', {'localSort': true});
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: temporarySortList });
               store.dispatch('requestIndexSetQuery');

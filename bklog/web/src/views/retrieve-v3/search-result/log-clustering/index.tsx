@@ -143,7 +143,7 @@ export default defineComponent({
     });
 
     watch(isShowClusterStep, () => {
-      store.commit("updateStoreIsShowClusterStep", isShowClusterStep.value);
+      store.commit('updateState', { 'storeIsShowClusterStep': isShowClusterStep.value});
     });
     const stopPolling = () => {
       // 清除定时器
@@ -264,7 +264,7 @@ export default defineComponent({
         });
       }
       Object.assign(requestData.value, queryRequestData);
-      store.commit("updateClusterParams", requestData.value);
+      store.commit('updateState', { 'clusterParams': requestData.value});
       setRouteParams();
       isInitPage.value = false;
     };
@@ -288,7 +288,7 @@ export default defineComponent({
         case "requestData": // 数据指纹的请求参数
           Object.assign(requestData.value, val);
           // 数据指纹对请求参数修改过的操作将数据回填到url上
-          store.commit("updateClusterParams", requestData.value);
+          store.commit('updateState', { 'clusterParams': requestData.value});
           setRouteParams();
           break;
         case "fingerOperateData": // 数据指纹操作的参数
@@ -399,7 +399,7 @@ export default defineComponent({
         //   requestFinger();
         // }
         if (!isInitPage.value) {
-          store.commit("updateClusterParams", requestData.value);
+          store.commit('updateState', { 'clusterParams': requestData.value});
           setRouteParams();
         }
       }
@@ -408,7 +408,7 @@ export default defineComponent({
     onBeforeUnmount(() => {
       if (isClusterActive.value) {
         isClusterActive.value = false;
-        store.commit("updateClusterParams", null);
+        store.commit('updateState', { 'clusterParams': null});
         setRouteParams();
         stopPolling(); // 停止状态轮询
       }

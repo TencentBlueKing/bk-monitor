@@ -374,7 +374,7 @@
           }
 
           this.cancelModifyFields();
-          this.$store.commit('updateLocalSort', false);
+          this.$store.commit('updateState', { 'localSort': false});
           this.$store.commit('updateIsSetDefaultTableColumn', false);
           this.$store
             .dispatch('userFieldConfigChange', {

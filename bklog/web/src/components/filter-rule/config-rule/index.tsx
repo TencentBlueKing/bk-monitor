@@ -46,7 +46,7 @@ export default defineComponent({
   props: {
     data: {
       type: Object,
-      default: () => undefined,
+      default: () => {},
     },
     isCreate: {
       type: Boolean,
@@ -79,7 +79,7 @@ export default defineComponent({
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
     const isFieldListEmpty = computed(() => !indexFieldInfo.value.fields.length);
-    const isSearchEmpty = computed(() => !isFieldListEmpty.value && !filterFieldList.value.length);
+    const isSearchEmpty = computed(() => !(isFieldListEmpty.value || filterFieldList.value.length));
     const exceptionType = computed(() => (isFieldListEmpty.value ? 'empty' : 'search-empty'));
     const textDir = computed(() => {
       const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
@@ -209,13 +209,13 @@ export default defineComponent({
 
     const handleClickKeyUp = () => {
       if (hoverIndex.value > 0) {
-        hoverIndex.value = hoverIndex.value - 1;
+        hoverIndex.value -= 1;
       }
     };
 
     const handleClickKeyDown = () => {
       if (hoverIndex.value < filterFieldList.value.length - 1) {
-        hoverIndex.value = hoverIndex.value + 1;
+        hoverIndex.value += 1;
       }
     };
 
@@ -316,7 +316,7 @@ export default defineComponent({
                           color: getFieldIconTextColor(item.field_type),
                         }}
                         class={[getFieldIcon(item.field_type), 'field-type-icon']}
-                      ></span>
+                      />
                       <div
                         class='display-container rtl-text'
                         dir={textDir.value}

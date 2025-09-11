@@ -195,7 +195,7 @@ export default ({
    * 获取用户信息
    */
   const userInfoRequest = http.request('userInfo/getUsername').then(resp => {
-    store.commit('updateUserMeta', resp.data);
+    store.commit('updateState', {'userMeta': resp.data});
     return resp.data;
   });
 
@@ -211,7 +211,7 @@ export default ({
    * 获取用户引导数据
    */
   const getUserGuideRequest = http.request('meta/getUserGuide').then(res => {
-    store.commit('setUserGuideData', res.data);
+    store.commit('updateState', {'userGuideData': res.data});
     return res.data;
   });
 
