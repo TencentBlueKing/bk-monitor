@@ -213,5 +213,5 @@ export default {
   模板配置预览: 'Template configuration preview',
 
   返回码重定义: 'Redefine return code',
-  
+  返回码备注说明: 'Return code remark description'
 };

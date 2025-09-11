@@ -45,6 +45,8 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 
 import './multi-view-table.scss';
 import CodeRedefineSlider from './code/code-redefine-slider';
+import CodeRemarksDialog from './code/code-remarks-dialog';
+import { getCodeRemarks } from 'monitor-api/modules/apm_service';
 
 interface IMultiViewTableEvent {
   onDimensionKeyChange?: (key: string) => void;
@@ -126,10 +128,14 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   codeRedefineShow = false;
   /** 返回码备注弹窗 */
   codeRemarksShow = null;
+  /** 返回码备注 */
+  codeRemarks = {};
+  code = '';
 
   created() {
     this.curDimensionKey = 'request_total';
   }
+
   /** 是否需要展示百分号 */
   hasPrefix(fieldName: string) {
     return this.prefix.some(pre => fieldName.startsWith(pre));
@@ -270,7 +276,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   mounted() {
     TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
-    setTimeout(() => this.getServiceList());
+    setTimeout(() => {
+      this.getServiceList()
+      this.getCodeRemarks()
+    });
     window.addEventListener('resize', this.handleResize);
   }
   beforeDestroy() {
@@ -565,6 +574,21 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       return;
     }
   }
+  /** 返回码备注 */
+  async getCodeRemarks() {
+    const data = await getCodeRemarks({
+      app_name: this.appName,
+      service_name: this.serviceName,
+      kind: this.currentKind,
+    }).catch(() => ({}));
+    this.codeRemarks = data
+  }
+
+  handleCodeRemarksSuccess() {
+    this.codeRemarksShow = false;
+    this.getCodeRemarks();
+  }
+
   async getSimpleList(field: string, value: string) {
     const { kind } = this.dimensionParam;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -593,10 +617,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       ...item,
     }));
   }
-  @Watch('filterOpt', { deep: true })
-  handleFilterOpt(_val) {
-    // console.log(val, 'val');
-  }
+
   fieldFilterMethod(value, row, column) {
     const { property } = column;
     this.filterOpt[property] = Array.from(new Set([...this.filterOpt[property], value]));
@@ -606,9 +627,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
 
   /** 返回码表格列 */
   renderCodeColumn(item: DimensionItem, data) {
+    const remark = this.codeRemarks[data[item.value]];
     return (
       <span
-        class={['multi-view-table-link', { 'block-link': data?.isTotal || item.value === 'time' || !data[item.value] }]}
+        class={['multi-view-table-link', 'code-column', { 'block-link': data?.isTotal || item.value === 'time' || !data[item.value] }]}
       >
         <span
           class='item-txt'
@@ -617,6 +639,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         >
           {data[item.value] || '--'}
         </span>
+        {remark && <span class='remark-text'>{remark}</span>}
         {!data?.isTotal && data[item.value] && (
           <i
             class='icon-monitor icon-mc-copy tab-row-icon'
@@ -629,12 +652,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             onClick={this.handleCodeRedefine}
           />
         )}
-        {/* {data[item.value] && (
+        {data[item.value] && (
           <i
             class='icon-monitor icon-beizhu1 tab-row-icon'
-            onClick={() => this.handleEditCodeRemark(data)}
+            onClick={() => this.handleEditCodeRemark(data[item.value])}
           />
-        )} */}
+        )}
       </span>
     );
   }
@@ -645,8 +668,9 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   /** 返回码备注 */
-  handleEditCodeRemark(data) {
+  handleEditCodeRemark(code: string) {
     this.codeRemarksShow = true;
+    this.code = code;
   }
 
   // 渲染左侧表格的列
@@ -1138,7 +1162,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             show-total-count
             on-change={this.pageChange}
             on-limit-change={this.limitChange}
-            {...{ on: { 'update:current': v => {this.pagination.current = v} } }}
+            {...{
+              on: {
+                'update:current': v => {
+                  this.pagination.current = v;
+                },
+              },
+            }}
           />
         )}
         {/* 维度趋势图侧栏 */}
@@ -1149,7 +1179,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           quick-close={true}
           title={this.$t('维度趋势图')}
           transfer={true}
-          {...{ on: { 'update:isShow': v => {this.isShowDetail = v} } }}
+          {...{
+            on: {
+              'update:isShow': v => {
+                this.isShowDetail = v;
+              },
+            },
+          }}
         >
           {this.isShowDetail && (
             <div
@@ -1266,6 +1302,21 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           callOptions={this.callOptions}
           variablesData={this.variablesData}
           service={this.serviceName}
+        />
+
+        <CodeRemarksDialog
+          isShow={this.codeRemarksShow}
+          code={this.code}
+          value={this.codeRemarks[this.code]}
+          params={{
+            app_name: this.appName,
+            service_name: this.serviceName,
+            kind: this.currentKind
+          }}
+          onShowChange={show => {
+            this.codeRemarksShow = show;
+          }}
+          onSuccess={this.handleCodeRemarksSuccess}
         />
       </div>
     );
