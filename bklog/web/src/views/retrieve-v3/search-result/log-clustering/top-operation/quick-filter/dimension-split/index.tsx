@@ -24,15 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref } from "vue";
-import $http from "@/api";
-import { bkInfoBox } from "bk-magic-vue";
-import useLocale from "@/hooks/use-locale";
+import { computed, defineComponent, onMounted, ref } from 'vue';
 
-import "./index.scss";
+import useLocale from '@/hooks/use-locale';
+import { bkInfoBox } from 'bk-magic-vue';
+
+import $http from '@/api';
+
+import './index.scss';
 
 export default defineComponent({
-  name: "DimensionSplit",
+  name: 'DimensionSplit',
   props: {
     fingerOperateData: {
       type: Object,
@@ -57,30 +59,24 @@ export default defineComponent({
     const catchDimension = ref<string[]>([]);
     const isShowPopoverInstance = ref(false);
     const tippyOptions = ref({
-      theme: "light",
-      trigger: "manual",
+      theme: 'light',
+      trigger: 'manual',
       hideOnClick: false,
-      offset: "16",
+      offset: '16',
       interactive: true,
     });
 
     const dimensionList = computed(() =>
       props.fingerOperateData.groupList.filter(
-        (item) =>
+        item =>
           !group.value.includes(item.id) &&
-          !["dtEventTimeStamp", "time", "iterationIndex", "gseIndex"].includes(
-            item.id
-          )
-      )
+          !['dtEventTimeStamp', 'time', 'iterationIndex', 'gseIndex'].includes(item.id),
+      ),
     );
 
     const handleInitData = () => {
       const finger = props.fingerOperateData;
       dimension.value = finger.dimensionList;
-      console.log(
-        "finger.selectGroupList????",
-        props.fingerOperateData.groupList
-      );
       catchDimension.value = finger.dimensionList;
       group.value = finger.selectGroupList;
     };
@@ -89,7 +85,7 @@ export default defineComponent({
      * 是否默认展示分组接口
      */
     const updateInitGroup = async () => {
-      await $http.request("/logClustering/updateInitGroup", {
+      await $http.request('/logClustering/updateInitGroup', {
         params: {
           index_set_id: props.indexId,
         },
@@ -105,17 +101,17 @@ export default defineComponent({
     };
 
     const finishEmit = () => {
-      emit("handle-finger-operate", "fingerOperateData", {
+      emit('handle-finger-operate', 'fingerOperateData', {
         dimensionList: dimension.value,
         selectGroupList: group.value,
       });
       emit(
-        "handle-finger-operate",
-        "requestData",
+        'handle-finger-operate',
+        'requestData',
         {
           group_by: [],
         },
-        true
+        true,
       );
       closePopover();
     };
@@ -123,15 +119,13 @@ export default defineComponent({
     const submitPopover = async () => {
       // 设置过维度 进行二次确认弹窗判断
       if (catchDimension.value.length) {
-        const dimensionSortStr = dimension.value.sort().join(",");
-        const catchDimensionSortStr = catchDimension.value.sort().join(",");
+        const dimensionSortStr = dimension.value.sort().join(',');
+        const catchDimensionSortStr = catchDimension.value.sort().join(',');
         const isShowInfo = dimensionSortStr !== catchDimensionSortStr;
         if (isShowInfo) {
           bkInfoBox({
-            type: "warning",
-            title: t(
-              "修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？"
-            ),
+            type: 'warning',
+            title: t('修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'),
             confirmFn: async () => {
               await updateInitGroup();
               finishEmit();
@@ -151,7 +145,7 @@ export default defineComponent({
     };
 
     const handleShowPopover = () => {
-      emit("click-trigger");
+      emit('click-trigger');
       if (!isShowPopoverInstance.value) {
         popoverRef.value.instance.show();
       } else {
@@ -181,47 +175,60 @@ export default defineComponent({
         ref={popoverRef}
         width={400}
         disabled={!props.clusterSwitch}
+        placement='bottom-start'
         tippy-options={tippyOptions.value}
-        placement="bottom-start"
         on-show={handleInitData}
       >
-        <div class="quick-filter-trigger-main" on-click={handleShowPopover}>
-          <log-icon type="dimens" class="trigger-icon" />
-          <span>{t("聚合维度")}</span>
+        <div
+          class='quick-filter-trigger-main'
+          on-click={handleShowPopover}
+        >
+          <log-icon
+            class='trigger-icon'
+            type='dimens'
+          />
+          <span>{t('聚合维度')}</span>
         </div>
-        <div slot="content">
-          <div class="dimension-popover">
-            <div class="title-main">{t("聚合维度")}</div>
-            <bk-alert type="info" style="color: #4D4F56">
-              <div slot="title">
-                <i18n path="如需根据某些维度拆分聚类结果，可将字段设置为维度；维度拆分是比较 {0} 的，根据拆分结果填写责任人和备注，较少改动（临时分组需求请使用“{1}”功能）">
-                  <span style="font-weight: 700">{t("固化")}</span>
+        <div slot='content'>
+          <div class='dimension-popover'>
+            <div class='title-main'>{t('聚合维度')}</div>
+            <bk-alert
+              style='color: #4D4F56'
+              type='info'
+            >
+              <div slot='title'>
+                <i18n path='如需根据某些维度拆分聚类结果，可将字段设置为维度；维度拆分是比较 {0} 的，根据拆分结果填写责任人和备注，较少改动（临时分组需求请使用“{1}”功能）'>
+                  <span style='font-weight: 700'>{t('固化')}</span>
                   <bk-button
+                    style='font-size: 12px'
+                    theme='primary'
                     text
-                    theme="primary"
-                    style="font-size: 12px"
-                    on-click={() => emit("open-temp-group")}
+                    on-click={() => emit('open-temp-group')}
                   >
-                    {t("临时分组")}
+                    {t('临时分组')}
                   </bk-button>
                 </i18n>
               </div>
             </bk-alert>
-            <div class="piece-item">
-              <span class="title">{t("维度")}</span>
+            <div class='piece-item'>
+              <span class='title'>{t('维度')}</span>
               <bk-select
-                value={dimension.value}
+                ext-popover-cls='quick-filter-selected-ext'
                 scroll-height={140}
-                ext-popover-cls="quick-filter-selected-ext"
+                value={dimension.value}
                 display-tag
                 multiple
                 searchable
-                on-change={(val) => {
+                on-change={val => {
                   dimension.value = val;
                 }}
               >
-                {dimensionList.value.map((option) => (
-                  <bk-option id={option.id} key={option.id} name={option.name}>
+                {dimensionList.value.map(option => (
+                  <bk-option
+                    id={option.id}
+                    key={option.id}
+                    name={option.name}
+                  >
                     <bk-checkbox
                       checked={dimension.value.includes(option.id)}
                       title={option.name}
@@ -232,17 +239,21 @@ export default defineComponent({
                 ))}
               </bk-select>
             </div>
-            <div class="popover-button">
+            <div class='popover-button'>
               <bk-button
-                style="margin-right: 8px"
-                size="small"
-                theme="primary"
+                style='margin-right: 8px'
+                size='small'
+                theme='primary'
                 on-click={submitPopover}
               >
-                {t("确定")}
+                {t('确定')}
               </bk-button>
-              <bk-button size="small" theme="default" on-click={closePopover}>
-                {t("取消")}
+              <bk-button
+                size='small'
+                theme='default'
+                on-click={closePopover}
+              >
+                {t('取消')}
               </bk-button>
             </div>
           </div>

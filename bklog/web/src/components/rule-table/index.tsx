@@ -285,7 +285,9 @@ export default defineComponent({
           ruleList={props.ruleList}
           on-add={handleAddRule}
           on-edit={handleEditRule}
-          on-show-change={val => (isShowAddRule.value = val)}
+          on-show-change={val => {
+            isShowAddRule.value = val;
+          }}
         />
       </div>
     );
