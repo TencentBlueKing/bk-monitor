@@ -234,7 +234,7 @@ export const useFavorite = () => {
 
     // 重置状态
     store.commit('resetIndexsetItemParams');
-    store.commit('updateIndexId', cloneValue.index_set_id);
+    store.commit('updateState', { 'indexId': cloneValue.index_set_id});
     store.commit('updateIsSetDefaultTableColumn', false);
     store.commit('updateStorage', {
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: item.index_set_type,

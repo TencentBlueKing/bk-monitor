@@ -254,7 +254,7 @@ class SearchHandler:
         self.time_range: str = search_dict.get("time_range")
         self.start_time: str = search_dict.get("start_time")
         self.end_time: str = search_dict.get("end_time")
-        self.time_zone: str = get_local_param("time_zone", settings.TIME_ZONE)
+        self.time_zone: str = search_dict.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE)
 
         # 透传query string
         self.query_string: str = search_dict.get("keyword")
@@ -2747,6 +2747,7 @@ class UnionSearchHandler:
             "start_time": self.search_dict.get("start_time"),
             "end_time": self.search_dict.get("end_time"),
             "time_range": self.search_dict.get("time_range"),
+            "timezone": self.search_dict.get("time_zone"),
             "keyword": self.search_dict.get("keyword"),
             "size": self.search_dict.get("size"),
             "is_union_search": True,
@@ -2914,6 +2915,7 @@ class UnionSearchHandler:
             "start_time": self.search_dict.get("start_time"),
             "end_time": self.search_dict.get("end_time"),
             "time_range": self.search_dict.get("time_range"),
+            "timezone": self.search_dict.get("time_zone"),
             "keyword": self.search_dict.get("keyword"),
             "size": self.search_dict.get("size"),
             "is_union_search": True,

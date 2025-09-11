@@ -511,6 +511,7 @@ export default class App extends tsc<object> {
     }
     window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
     this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
+    aiWhaleStore.setEnableAiAssistantAction();
   }
   // 刷新页面
   async handleUpdateRoute(params: Record<string, any>, promise = () => false, path?: string) {

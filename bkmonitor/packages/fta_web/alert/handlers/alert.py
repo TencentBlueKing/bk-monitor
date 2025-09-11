@@ -60,6 +60,7 @@ from fta_web.alert.handlers.translator import (
     StrategyTranslator,
 )
 from fta_web.alert.handlers.action import ActionQueryHandler
+from fta_web.alert.utils import process_stage_string, process_metric_string
 
 logger = logging.getLogger(__name__)
 
@@ -483,6 +484,13 @@ class AlertQueryHandler(BaseBizQueryHandler):
         self.is_time_partitioned = is_time_partitioned
         self.is_finaly_partition = is_finaly_partition
         self.need_bucket_count = need_bucket_count
+        self.query_context = {
+            "bk_biz_ids": self.bk_biz_ids,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "page": self.page,
+            "page_size": self.page_size,
+        }
 
     def get_search_object(
         self,
@@ -555,18 +563,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return search_object
 
     def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
-        # 构建上下文信息
-        context = {
-            "bk_biz_ids": self.bk_biz_ids,
-            "start_time": self.start_time,
-            "end_time": self.end_time,
-            "page": self.page,
-            "page_size": self.page_size,
-        }
-
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
-        search_object = self.add_query_string(search_object, context=context)
+        search_object = self.add_query_string(search_object, context=self.query_context)
         search_object = self.add_ordering(search_object)
         search_object = self.add_pagination(search_object)
 
@@ -824,6 +823,24 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 alert_ids = [0]
 
             return Q("ids", values=alert_ids)
+        elif condition["key"] == "query_string":
+            con_q = None
+            for query_string in condition["value"]:
+                query_string = process_stage_string(query_string)
+                query_string = process_metric_string(query_string)
+                if query_string.strip():
+                    query_dsl = self.query_transformer.transform_query_string(query_string, self.query_context)
+                    if isinstance(query_dsl, str):
+                        temp_q = Q("query_string", query=query_dsl)
+                    else:
+                        temp_q = Q(query_dsl)
+
+                    if con_q is None:
+                        con_q = temp_q
+                    else:
+                        con_q = con_q | temp_q
+
+            return con_q
         return super().parse_condition_item(condition)
 
     def add_biz_condition(self, search_object):

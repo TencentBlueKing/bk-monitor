@@ -124,10 +124,34 @@ export default ({
   };
 
   /**
+   * 获取默认空间列表
+   * 优先获取当前地址栏中的SpaceId信息，如果地址栏中没有SpaceId则在缓存中获取用户最后选择的SpaceId
+   * 根据返回数据判定，如果返回数据为空，则重新请求当前用户有权限的第一个Space信息
+   * @returns
+   */
+  const getDefaultSpaceList = () => {
+    const requestSpaceList = params => http.request('space/getMySpaceList', params);
+    return requestSpaceList(spaceRequestData).then(resp => {
+      const spaceList = resp.data;
+      if (spaceList.length) {
+        return Promise.resolve(resp);
+      }
+
+      if (spaceRequestData.query.space_uid) {
+        spaceRequestData.query.space_uid = undefined;
+        spaceRequestData.query.has_permission = 1;
+        return requestSpaceList(spaceRequestData);
+      }
+
+      return Promise.resolve(resp);
+    });
+  };
+
+  /**
    * 获取空间列表
    * return
    */
-  const spaceRequest = http.request('space/getMySpaceList', spaceRequestData).then(resp => {
+  const spaceRequest = getDefaultSpaceList().then(resp => {
     const spaceList = resp.data;
     spaceList.forEach(item => {
       item.bk_biz_id = `${item.bk_biz_id}`;
@@ -171,7 +195,7 @@ export default ({
    * 获取用户信息
    */
   const userInfoRequest = http.request('userInfo/getUsername').then(resp => {
-    store.commit('updateUserMeta', resp.data);
+    store.commit('updateState', {'userMeta': resp.data});
     return resp.data;
   });
 
@@ -187,7 +211,7 @@ export default ({
    * 获取用户引导数据
    */
   const getUserGuideRequest = http.request('meta/getUserGuide').then(res => {
-    store.commit('setUserGuideData', res.data);
+    store.commit('updateState', {'userGuideData': res.data});
     return res.data;
   });
 

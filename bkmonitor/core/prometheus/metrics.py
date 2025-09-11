@@ -1209,13 +1209,13 @@ API_REQUESTS_TOTAL = Counter(
 )
 
 AI_AGENTS_REQUESTS_TOTAL = Counter(
-    name="bkmonitor_ai_agents_requests_total",
+    name="ai_agents_requests_total",
     documentation="AI小鲸服务调用统计",
     labelnames=("agent_code", "resource_name", "status", "username", "command"),
 )
 
 AI_AGENTS_REQUESTS_COST_SECONDS = Gauge(
-    name="bkmonitor_ai_agents_requests_cost_seconds",
+    name="ai_agents_requests_cost_seconds",
     documentation="AI小鲸服务调用耗时统计",
     labelnames=("agent_code", "resource_name", "status", "username", "command"),
 )
