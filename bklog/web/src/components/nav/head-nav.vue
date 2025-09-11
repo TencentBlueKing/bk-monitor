@@ -310,6 +310,7 @@
         isShowGlobalDialog: state => state.isShowGlobalDialog,
         globalSettingList: state => state.globalSettingList,
         externalMenu: state => state.externalMenu,
+        spaceListLoaded: state => state.spaceListLoaded
       }),
       ...mapGetters('globals', ['globalsData']),
       platformData() {
@@ -364,6 +365,14 @@
         /** 当路由改变时应该把 dialog 关闭掉 */
         this.showGlobalDialog = false;
       },
+      spaceListLoaded: {
+        handler(value) {
+          if (value) {
+            this.navMenu.requestMySpaceList();
+          }
+        },
+        immediate: true
+      }
     },
     async created() {
       this.language = jsCookie.get('blueking_language') || 'zh-cn';
@@ -377,8 +386,6 @@
         emit: window.$emit
       });
 
-      this.navMenu.requestMySpaceList();
-      
       this.getGlobalsData();
       this.getUserInfo();
       window.bus.$on('showGlobalDialog', this.handleGoToMyReport);

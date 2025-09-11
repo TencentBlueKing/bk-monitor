@@ -125,6 +125,7 @@ const stateTpl = {
 
   // 我的项目列表
   mySpaceList: [],
+  spaceListLoaded: false,
   currentMenu: {},
   currentMenuItem: {},
   topMenu: [],
