@@ -2415,9 +2415,23 @@ class ResultTableField(models.Model):
                 "option": getitems(table_field_option_dict, [i.table_id, i.field_name], default={}),
                 "is_disabled": i.is_disabled,
             }
+
             if is_consul_config and i.alias_name != "":
                 item["field_name"] = i.alias_name
                 item["alias_name"] = i.field_name
+
+            if settings.ENABLE_CONSUL_LITE_MODE:
+                logger.info("Consul Lite Mode Enabled, remove unnecessary fields")
+                if not item["default_value"]:
+                    item.pop("default_value")
+
+                if item["option"] == {}:
+                    item.pop("option")
+
+                if item["alias_name"] == "":
+                    item.pop("alias_name")
+
+                item.pop("description")
 
             # 组装对应的数据
             data.setdefault(i.table_id, []).append(item)

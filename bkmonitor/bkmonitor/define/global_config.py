@@ -159,6 +159,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("AIDEV_SCENE_AGENT_CODE_MAPPING", slz.DictField(label="场景-Agent映射配置", default={})),
         ("FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", slz.IntegerField(label="获取自定义指标的间隔时间", default=7200)),
         ("ENABLE_BKDATA_METRIC_CACHE", slz.BooleanField(label="是否开启数据平台指标缓存", default=True)),
+        ("ENABLE_CONSUL_LITE_MODE", slz.BooleanField(label="是否开启Consul Lite模式", default=False)),
         (
             "TRANSLATE_SNMP_TRAP_DIMENSIONS",
             slz.BooleanField(label="是否翻译snmp trap的oid维度", default=settings.TRANSLATE_SNMP_TRAP_DIMENSIONS),
