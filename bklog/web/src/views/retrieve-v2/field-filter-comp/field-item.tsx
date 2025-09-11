@@ -104,11 +104,10 @@ export default class FieldItem extends tsc<object> {
       .map(item => item.indexName);
   }
 
-
   get agg_field() {
     const fieldName = this.fieldItem.field_name;
-    return this.retrieveParams.showFieldAlias ? (this.fieldAliasMap[fieldName] ?? fieldName) : fieldName
-  };
+    return this.retrieveParams.showFieldAlias ? (this.fieldAliasMap[fieldName] ?? fieldName) : fieldName;
+  }
 
   get computedFieldName() {
     let name = this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
@@ -322,7 +321,7 @@ export default class FieldItem extends tsc<object> {
             ref='operationRef'
             class={['operation-text', { 'analysis-active': this.analysisActive }]}
           >
-            {(this.isShowFieldsAnalysis && !this.isUnionSearch && !this.isFrontStatistics)&& (
+            {this.isShowFieldsAnalysis && !this.isUnionSearch && !this.isFrontStatistics && (
               <div
                 class='operation-icon-box'
                 v-bk-tooltips={{ content: this.$t('图表分析') }}
@@ -377,7 +376,6 @@ export default class FieldItem extends tsc<object> {
                   <span class='field-name'>{this.fieldItem?.field_name}</span>
                   <div class='col-line' />
                   <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
-                  <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
                 </div>
                 <div class='fnBtn'>
                   <bk-button
