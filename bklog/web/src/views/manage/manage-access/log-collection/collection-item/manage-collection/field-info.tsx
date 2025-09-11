@@ -329,7 +329,7 @@ export default class FieldInfo extends tsc<IProps> {
 
   handleClickEdit() {
     if (!this.editAuth && this.editAuthData) {
-      this.$store.commit('updateAuthDialogData', this.editAuthData);
+      this.$store.commit('updateState', {'authDialogData': this.editAuthData});
       return;
     }
     const params = {
