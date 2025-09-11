@@ -160,7 +160,6 @@ export default defineComponent({
     const cacheBkBizLabelsList = ref([]); // 缓存按照业务属性选择
     const bizParentList = ref([]); // 按照业务属性父级列表
     const bizChildrenList = ref({}); // 业务属性选择子级键值对象
-    const visibleIsToggle = ref(false); // 多业务选择icon方向
     const userApi = ref((window as any).BK_LOGIN_URL); // 负责人api
     const isShowManagement = ref(false); // 是否展示集群管理
     const retentionDaysList = ref([]); // 默认过期时间列表
@@ -198,40 +197,15 @@ export default defineComponent({
     const watchFormData = computed(() => ({ formData: formData.value, basicFormData: basicFormData.value }));
 
     const { initSidebarFormData, handleCloseSidebar } = useSidebarDiff(watchFormData.value);
-    const { virtualscrollSpaceList } = useSpaceSelector(visibleBkBiz.value);
+    const { virtualscrollSpaceList } = useSpaceSelector(visibleBkBiz);
 
     const handleShowSlider = () => {
       selectZIndex.value = (window as any).__bk_zIndex_manager.nextZIndex();
     };
-    // 可见范围 tag 的气泡配置
-    const inUseProjectPopover = (isUse: boolean) => ({
-      theme: 'light',
-      content: t('该业务已有采集使用，无法取消可见'),
-      disabled: !isUse,
-    });
-    // 删除可见范围 tag
-    const handleDeleteTag = (index: number) => {
-      visibleList.value.splice(index, 1);
-    };
+
     // 来源变更：非 other 时清空来源名称
     const handleChangeSource = (val: string) => {
       if (val !== 'other') formData.value.source_name = '';
-    };
-
-    // 多空间选择下拉展开/收起
-    const handleToggleVisible = (val: boolean) => {
-      visibleIsToggle.value = val;
-      if (!val) {
-        visibleList.value.splice(0, visibleList.value.length);
-        visibleBkBiz.value.forEach(bizId => {
-          if (!visibleList.value.some(item => String(item.id) === bizId)) {
-            const target = mySpaceList.value.find((p: any) => p.bk_biz_id === bizId);
-            if (target) {
-              visibleList.value.push({ id: bizId, name: target.space_full_code_name, is_use: false });
-            }
-          }
-        });
-      }
     };
 
     // 编辑：获取集群信息并回填
@@ -1021,33 +995,6 @@ export default defineComponent({
                         {/* 多空间选择 */}
                         <bk-select
                           v-show={!scopeValueType.value}
-                          scopedSlots={{
-                            trigger: () => (
-                              <div class='visible-scope-box'>
-                                <div class='selected-tag'>
-                                  {visibleList.value.map((tag, index) => (
-                                    <bk-tag
-                                      key={tag.id}
-                                      class={'tag-icon ' + (tag.is_use ? 'is-active' : 'is-normal')}
-                                      v-bk-tooltips={inUseProjectPopover(!!tag.is_use)}
-                                      closable={!tag.is_use}
-                                      onClose={() => handleDeleteTag(index)}
-                                    >
-                                      {tag.name}
-                                    </bk-tag>
-                                  ))}
-                                </div>
-                                {!visibleList.value.length && <span class='please-select'>{t('请选择')}</span>}
-                                <span
-                                  class={[
-                                    'bk-icon',
-                                    'icon-angle-down',
-                                    !visibleIsToggle.value ? '' : 'icon-rotate',
-                                  ].join(' ')}
-                                ></span>
-                              </div>
-                            ),
-                          }}
                           display-key='space_full_code_name'
                           id-key='bk_biz_id'
                           list={mySpaceList.value}
@@ -1057,9 +1004,7 @@ export default defineComponent({
                           enable-virtual-scroll
                           multiple
                           searchable
-                          onChange={(val: string[]) => (visibleBkBiz.value = val)}
-                          onToggle={handleToggleVisible}
-                        />
+                        ></bk-select>
 
                         {/* 按照空间属性选择 */}
                         {isBizAttr.value && (
