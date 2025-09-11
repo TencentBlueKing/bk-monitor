@@ -43,6 +43,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
 
   @Ref('fileRef') fileRef!: HTMLInputElement;
+  @Ref('tableRef') tableRef!: any;
 
   data: CodeRedefineItem[] = [];
 
@@ -64,6 +65,32 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
     { label: this.$tc('超时'), value: 'timeout' },
     { label: this.$tc('成功'), value: 'success' },
   ];
+
+  codeRegex = /^(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?(?:,(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?)*$/;
+
+  rules = {
+    success: [
+      {
+        validator: val => !val || this.codeRegex.test(val),
+        message: window.i18n.tc('返回码格式错误'),
+        trigger: 'blur',
+      },
+    ],
+    exception: [
+      {
+        validator: val => !val || this.codeRegex.test(val),
+        message: window.i18n.tc('返回码格式错误'),
+        trigger: 'blur',
+      },
+    ],
+    timeout: [
+      {
+        validator: val => !val || this.codeRegex.test(val),
+        message: window.i18n.tc('返回码格式错误'),
+        trigger: 'blur',
+      },
+    ],
+  };
 
   get showColumn() {
     if (this.type === 'callee') return this.columns.slice(1);
@@ -88,6 +115,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
       this.showColumn.filter(item => item.prop !== 'code_type_rules').map(item => this.getOptionListByKey(item.prop));
     } else {
       this.data = [];
+      this.repeatRulesIndex = new Set();
     }
   }
 
@@ -176,20 +204,32 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
               );
             }}
             scopedSlots={{
-              default: ({ row, $index }) => (
-                <div class='code-rules'>
+              default: ({ $index }) => (
+                <bk-form
+                  ref={`codeRulesForm_${$index}`}
+                  class='code-rules'
+                  label-width={0}
+                  {...{
+                    props: {
+                      model: this.data[$index].code_type_rules,
+                      rules: this.rules,
+                    },
+                  }}
+                >
                   {this.codeStatus.map(item => (
                     <div
                       class='code-status-rule-item'
                       key={item.value}
                     >
-                      <bk-input v-model={this.data[$index].code_type_rules[item.value]} />
+                      <bk-form-item property={item.value}>
+                        <bk-input v-model={this.data[$index].code_type_rules[item.value]} />
+                      </bk-form-item>
                       <i18n path={'重定义为 {0}'}>
                         <span class={[item.value]}>{item.label}</span>
                       </i18n>
                     </div>
                   ))}
-                </div>
+                </bk-form>
               ),
             }}
           />
@@ -274,7 +314,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
   }
 
   /** 校验填写的规则 */
-  validRules() {
+  async validRules() {
     const values = this.data.map(item => `${item.callee_server}_${item.callee_service}_${item.callee_method}`);
     const repeatRules = new Set();
     const set = new Set();
@@ -287,11 +327,18 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
       }
     }
     this.repeatRulesIndex = repeatRules;
-    return this.repeatRulesIndex.size === 0;
+    if (this.repeatRulesIndex.size !== 0) return false;
+    const codeValidate = this.data.map((_, index) => this.tableRef.$refs[`codeRulesForm_${index}`].validate());
+    const codeValid = await Promise.all(codeValidate)
+      .then(() => true)
+      .catch(() => false);
+    if (!codeValid) return false;
+    return true;
   }
 
   async handleSave() {
-    if (!this.validRules()) return;
+    const valid = await this.validRules();
+    if (!valid) return;
     this.submitLoading = true;
     const data = await setCodeRedefinedRule({
       app_name: this.appName,
@@ -372,6 +419,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
               </div>
             ) : (
               <bk-table
+                ref='tableRef'
                 data={this.data}
                 border
                 row-auto-height
@@ -404,16 +452,18 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                         >
                           {this.$t('新增')}
                         </bk-button>
-                        <bk-button
-                          class='btn'
-                          theme='danger'
-                          text
-                          onClick={() => {
-                            this.data.splice($index, 1);
-                          }}
-                        >
-                          {this.$t('删除')}
-                        </bk-button>
+                        {this.data.length > 1 && (
+                          <bk-button
+                            class='btn'
+                            theme='danger'
+                            text
+                            onClick={() => {
+                              this.data.splice($index, 1);
+                            }}
+                          >
+                            {this.$t('删除')}
+                          </bk-button>
+                        )}
                       </div>
                     ),
                   }}
