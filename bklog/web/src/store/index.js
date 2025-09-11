@@ -741,16 +741,21 @@ const store = new Vuex.Store({
       state.storage.tableLineIsWrap = payload;
     },
     updateState(state, payload) {
-      const { key, value } = payload;
-      const currentValue = state[key];
-      if (Array.isArray(currentValue) && Array.isArray(value)) {
-        console.log(key,currentValue);
-        
-        state[key].length = 0; 
-        state[key] = value
-        // state[key].push(...value);
+      if (typeof payload === 'object') {
+        Object.keys(payload).forEach(key => {
+          if (state[key] !== undefined) {
+            const value = payload[key];
+            const currentValue = state[key];
+            if (Array.isArray(currentValue) && Array.isArray(value)) {
+              state[key].length = 0;
+              state[key] = value; 
+            } else {
+              state[key] = value;
+            }
+          }
+        });
       } else {
-        state[key] = value;
+        console.error('Payload should be a non-null object');
       }
     },
     /** 初始化表格宽度 为false的时候会按照初始化的情况来更新宽度 */
@@ -799,7 +804,7 @@ const store = new Vuex.Store({
           })
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
-      store.commit('updateState', {key: 'isNotVisibleFieldsShow', value: !visibleFields.length} );
+      store.commit('updateState', {'isNotVisibleFieldsShow', value: !visibleFields.length} );
 
       // if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
@@ -951,8 +956,8 @@ const store = new Vuex.Store({
               deepUpdateMenu(menu, child);
             }
           });
-          commit('updateState', {key: 'topMenu',value: menuList});
-          commit('updateState', {key: 'menuProject',value: res.data || []});
+          commit('updateState', {'topMenu': menuList});
+          commit('updateState', {'menuProject': res.data || []});
 
           return menuList;
         });
@@ -1295,7 +1300,7 @@ const store = new Vuex.Store({
       commit('resetIndexSetQueryResult', { search_count: 0, is_loading: true });
 
       if (!payload.isUnionIndex) {
-        commit('updateState', {key: 'indexId',value: payload.ids[0]});
+        commit('updateState', {'indexId': payload.ids[0]});
       }
 
       return dispatch('requestIndexSetFieldInfo');

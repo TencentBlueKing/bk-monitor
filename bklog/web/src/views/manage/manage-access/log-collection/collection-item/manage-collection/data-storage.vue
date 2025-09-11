@@ -184,7 +184,7 @@
       },
       handleClickEdit() {
         if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateState', {key: 'authDialogData',value: this.editAuthData});
+          this.$store.commit('updateState', { 'authDialogData': this.editAuthData});
           return;
         }
         const params = {

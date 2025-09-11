@@ -312,7 +312,7 @@ export default defineComponent({
       try {
         isTableLoading.value = true;
         const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateState', {key: 'authDialogData',value: res.data});
+        store.commit('updateState', { 'authDialogData': res.data});
       } catch (err) {
         console.warn('权限申请失败:', err);
       } finally {

@@ -411,7 +411,7 @@
                 },
               ],
             });
-            this.$store.commit('updateState', {key: 'authDialogData',value: res.data});
+            this.$store.commit('updateState', {'authDialogData': res.data});
           } catch (err) {
             console.warn(err);
           } finally {
@@ -440,7 +440,7 @@
                 },
               ],
             });
-            this.$store.commit('updateState', {key: 'authDialogData',value: res.data});
+            this.$store.commit('updateState', {'authDialogData': res.data});
           } catch (err) {
             console.warn(err);
           } finally {

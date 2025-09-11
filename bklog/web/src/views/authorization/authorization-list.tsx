@@ -353,7 +353,7 @@ export default class AuthorizationList extends tsc<object> {
         ],
       });
       if (res.isAllowed === false) {
-        this.$store.commit('updateState', {key: 'authDialogData',value: res.data});
+        this.$store.commit('updateState', {'authDialogData': res.data});
         return false;
       }
       return true;

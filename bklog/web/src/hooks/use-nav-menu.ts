@@ -107,7 +107,7 @@ export function useNavMenu(options: {
         list.push('manage');
       }
     });
-    store.commit('updateState', {key: 'externalMenu',value: list});
+    store.commit('updateState', {'externalMenu': list});
   };
 
   const setRouter = async (spaceUid: string) => {
@@ -148,7 +148,7 @@ export function useNavMenu(options: {
             menuListData.find((item: any) => {
               return matchedList.some((record: any) => record.name === item.id);
             }) || {};
-          store.commit('updateState', {key: 'activeTopMenu',value: activeTopMenu});
+          store.commit('updateState', {'activeTopMenu': activeTopMenu});
           const topMenuList = activeTopMenu.children?.length ? activeTopMenu.children : [];
           const topMenuChildren = topMenuList.reduce((pre: any[], cur: any) => {
             if (cur.children?.length) {
@@ -160,14 +160,14 @@ export function useNavMenu(options: {
             topMenuChildren.find((item: any) => {
               return matchedList.some((record: any) => record.name === item.id);
             }) || {};
-          store.commit('updateState', {key: 'activeManageNav',value: activeManageNav});
+          store.commit('updateState', {'activeManageNav': activeManageNav});
 
           const activeManageSubNav = activeManageNav.children
             ? activeManageNav.children.find((item: any) => {
                 return matchedList.some((record: any) => record.name === item.id);
               })
             : {};
-          store.commit('updateState', {key: 'activeManageSubNav',value: activeManageSubNav});
+          store.commit('updateState', {'activeManageSubNav': activeManageSubNav});
         },
         { immediate: true },
       );
@@ -196,7 +196,7 @@ export function useNavMenu(options: {
           delete newQuery.bizId;
         }
         if (params.indexId) delete params.indexId;
-        store.commit('updateState', {key: 'pageLoading',value: true});
+        store.commit('updateState', {'pageLoading': true});
         router.push({
           name: RoutingHop,
           params: {
@@ -206,9 +206,9 @@ export function useNavMenu(options: {
         });
       }
       setTimeout(() => {
-        store.commit('updateState', {key: 'pageLoading',value: false});
+        store.commit('updateState', {'pageLoading': false});
         isFirstLoad.value = false;
-        store.commit('updateState', {key: 'showRouterLeaveTip',value: false});
+        store.commit('updateState', {'showRouterLeaveTip': false});
       }, 0);
     }
   };
@@ -242,7 +242,7 @@ export function useNavMenu(options: {
 
   const checkSpaceChange = (spaceUid = '') => {
     if (!isFirstLoad.value && (route.meta as any)?.needBack) {
-      store.commit('updateState', {key: 'showRouterLeaveTip',value: true});
+      store.commit('updateState', {'showRouterLeaveTip': true});
 
       bkInfo({
         title: t('是否放弃本次操作？'),
@@ -250,7 +250,7 @@ export function useNavMenu(options: {
           spaceChange(spaceUid);
         },
         cancelFn: () => {
-          store.commit('updateState', {key: 'showRouterLeaveTip',value: false});
+          store.commit('updateState', {'showRouterLeaveTip': false});
         },
       });
       return;
@@ -279,7 +279,7 @@ export function useNavMenu(options: {
       const demoId = String((window as any).DEMO_BIZ_ID);
       const demoProject = spaceList.find((item: any) => item.bk_biz_id === demoId);
       const demoProjectUrl = demoProject ? getDemoProjectUrl(demoProject.space_uid) : '';
-      store.commit('updateState', {key: 'demoUid',value: demoProject ? demoProject.space_uid : ''});
+      store.commit('updateState', {'demoUid': demoProject ? demoProject.space_uid : ''});
       const isOnlyDemo = demoProject && spaceList.length === 1;
       if (!isHaveViewBusiness || isOnlyDemo) {
         const args: any = {
@@ -312,7 +312,7 @@ export function useNavMenu(options: {
           });
           args.getAccess.url = authRes.data.apply_url;
         }
-        store.commit('updateState', {key: 'pageLoading',value: false});
+        store.commit('updateState', {'pageLoading': false});
         checkSpaceChange();
         emit && emit('welcome', args);
       } else {
@@ -328,7 +328,7 @@ export function useNavMenu(options: {
       }
     } catch (e) {
       console.warn(e);
-      store.commit('updateState', {key: 'pageLoading',value: false});
+      store.commit('updateState', {'pageLoading': false});
     }
   };
 

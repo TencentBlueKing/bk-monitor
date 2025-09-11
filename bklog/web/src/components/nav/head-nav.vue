@@ -366,7 +366,7 @@
     },
     async created() {
       this.language = jsCookie.get('blueking_language') || 'zh-cn';
-      this.$store.commit('updateState', {key: 'menuList',value: menuArr});
+      this.$store.commit('updateState', { 'menuList': menuArr});
 
       // 初始化 navMenu 并保存到组件数据
       this.navMenu = useNavMenu({
@@ -416,7 +416,7 @@
         //   });
       },
       jumpToHome() {
-        this.$store.commit('updateState', {key: 'isShowGlobalDialog',value: false});
+        this.$store.commit('updateState', {'isShowGlobalDialog': false});
 
         if (window.IS_EXTERNAL) {
           this.$router.push({
@@ -441,7 +441,7 @@
       },
       routerHandler(menu) {
         // 关闭全局设置弹窗
-        this.$store.commit('updateState', {key: 'isShowGlobalDialog',value: false});
+        this.$store.commit('updateState', {'isShowGlobalDialog': false});
         if (menu.id === this.navMenu.activeTopMenu.id) {
           if (menu.id === 'retrieve') {
             this.$router.push({
@@ -606,8 +606,8 @@
       },
       handleClickGlobalDialog(id) {
         // 打开全局设置弹窗
-        this.$store.commit('updateState', {key: 'globalActiveLabel',value: id});
-        this.$store.commit('updateState', {key: 'isShowGlobalDialog',value: true});
+        this.$store.commit('updateState', {'globalActiveLabel': id});
+        this.$store.commit('updateState', {'isShowGlobalDialog': true});
       },
       getLanguageClass(language) {
         return language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese';

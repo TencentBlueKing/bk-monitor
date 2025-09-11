@@ -217,7 +217,7 @@
             ],
           });
           if (res.isAllowed === false) {
-            this.$store.commit('updateState', {key: 'authDialogData',value: res.data});
+            this.$store.commit('updateState', { 'authDialogData': res.data});
             this.isLoading = false;
             return false;
           }

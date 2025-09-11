@@ -404,7 +404,7 @@
         if (this.exhibitAll) this.requestFinger();
       },
       isShowClusterStep(v) {
-        this.$store.commit('updateState', {key: 'storeIsShowClusterStep', value: v});
+        this.$store.commit('updateState', {'storeIsShowClusterStep': v});
       },
     },
     methods: {

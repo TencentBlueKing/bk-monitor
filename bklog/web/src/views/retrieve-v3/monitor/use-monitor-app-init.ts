@@ -154,7 +154,7 @@ export default indexSetApi => {
       if (!indexSetIdList.value.length) {
         const defaultId = `${resp[0].index_set_id}`;
         store.commit('updateIndexItem', { ids: [defaultId], items: [resp[0]] });
-        store.commit('updateState', {key: 'indexId',value: defaultId});
+        store.commit('updateState', {'indexId': defaultId});
         router.replace({
           query: { ...route.query, indexId: defaultId, unionList: undefined },
         });
@@ -181,7 +181,7 @@ export default indexSetApi => {
 
         if (emptyIndexSetList.length) {
           store.commit('updateIndexItem', { ids: [], items: [] });
-          store.commit('updateState', {key: 'indexId',value: ''});
+          store.commit('updateState', { 'indexId': ''});
           store.commit('updateIndexSetQueryResult', {
             is_error: true,
             exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,

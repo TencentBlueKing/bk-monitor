@@ -99,7 +99,7 @@ export default () => {
 
     store.commit('updateIndexItem', routeParams);
     store.commit('updateSpace', routeParams.spaceUid);
-    store.commit('updateState', {key: 'indexId',value: routeParams.index_id});
+    store.commit('updateState', { 'indexId': routeParams.index_id});
     store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
   };
 
@@ -255,8 +255,7 @@ export default () => {
           if (indexSetMatch.length) {
             store.commit('updateIndexItem', { ids: indexSetMatch, isUnionIndex: true, selectIsUnionSearch: true });
             store.commit('updateState', {
-              key: 'unionIndexItemList',
-              value: tagList,
+              'unionIndexItemList': tagList,
             } );
             store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'union' });
           }
@@ -311,7 +310,7 @@ export default () => {
 
           if (emptyIndexSetList.length) {
             store.commit('updateIndexItem', { ids: [], items: [] });
-            store.commit('updateState', {key: 'indexId',value: ''});
+            store.commit('updateState', { 'indexId': ''});
             store.commit('updateIndexSetQueryResult', {
               is_error: true,
               exception_msg: `index-set-not-found:(${emptyIndexSetList.join(
@@ -342,7 +341,7 @@ export default () => {
           if (defaultId) {
             const strId = `${defaultId}`;
             store.commit('updateIndexItem', { ids: [strId], items: [defIndexItem].filter(Boolean) });
-            store.commit('updateState', {key: 'indexId',value: strId});
+            store.commit('updateState', { 'indexId': strId});
           }
         }
 
@@ -360,7 +359,7 @@ export default () => {
 
           const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
           if (indexId && type === 'single') {
-            store.commit('updateState', {key: 'indexId',value: indexId});
+            store.commit('updateState', { 'indexId': indexId});
             store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
           }
 
@@ -412,7 +411,7 @@ export default () => {
           if (defaultId) {
             const strId = `${defaultId}`;
             store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
-            store.commit('updateState', {key: 'indexId',value: strId});
+            store.commit('updateState', { 'indexId': strId});
           }
         }
 
@@ -464,7 +463,7 @@ export default () => {
       timezone,
       datePickerValue,
     });
-    store.commit('updateState', {key: 'indexId',value: ''});
+    store.commit('updateState', { 'indexId': ''});
     store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);
 
