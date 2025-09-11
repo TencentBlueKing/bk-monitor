@@ -495,7 +495,7 @@ export default defineComponent({
                       class={['icon-monitor', 'copy-icon', 'icon-mc-copy']}
                       onClick={handleCopy.bind(this, item.pattern)}
                     />
-                    <span class='log-pattern'>{item.pattern}</span>
+                    <div class='log-pattern'>{item.pattern}</div>
                   </div>
                 ),
                 default: () => (
@@ -537,7 +537,7 @@ export default defineComponent({
                       class={['icon-monitor', 'copy-icon', 'icon-mc-copy']}
                       onClick={handleCopy.bind(this, item.demo_log)}
                     />
-                    {renderLogJSONTips(JSON.parse(item.demo_log))}
+                    <div class='log-popover-content_json'>{renderLogJSONTips(JSON.parse(item.demo_log))}</div>
                   </div>
                 ),
                 default: () => (
