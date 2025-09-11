@@ -84,6 +84,7 @@ export default class JudgmentConditions extends tsc<IProps> {
                   v-model={this.detectConfig.checkWindow}
                   behavior='simplicity'
                   placeholder={this.$t('输入数字')}
+                  show-controls={false}
                   size='small'
                   type='number'
                   on-change={this.emitValueChange}
@@ -93,6 +94,7 @@ export default class JudgmentConditions extends tsc<IProps> {
                   v-model={this.detectConfig.count}
                   behavior='simplicity'
                   placeholder={this.$t('输入数字')}
+                  show-controls={false}
                   size='small'
                   type='number'
                   on-change={this.emitValueChange}
