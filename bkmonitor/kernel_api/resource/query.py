@@ -55,9 +55,6 @@ class QueryEsResource(Resource):
         except models.ResultTable.DoesNotExist:
             logger.warning(f"query_es_data result_table({table_id}) not exists, return empty data")
             return {"hits": {"total": 0, "hits": []}}
-        except Exception as err:
-            logger.exception(f"get result_table({table_id}) failed, error message is {err}")
-            raise Exception(f"get result_table({table_id}) failed, error message is {err}")
 
         storage: models.ESStorage = self.get_storage(result_table)
         storage_info: dict[str, Any] = storage.consul_config
