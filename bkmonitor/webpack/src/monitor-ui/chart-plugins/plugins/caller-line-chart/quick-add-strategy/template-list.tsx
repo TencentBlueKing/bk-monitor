@@ -32,14 +32,18 @@ import type { ICategoryItem, ITempLateItem, TTemplateList } from './typing';
 import './template-list.scss';
 
 interface IProps {
-  checked?: string[];
+  checked?: (number | string)[];
+  cursorId?: number | string;
   templateList?: ITempLateItem[];
+  onCheckedChange?: (checked: (number | string)[]) => void;
+  onCursorChange?: (id: number | string) => void;
 }
 
 @Component
 export default class TemplateList extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) templateList: ITempLateItem[];
-  @Prop({ type: Array, default: () => [] }) checked: string[];
+  @Prop({ type: Array, default: () => [] }) checked: (number | string)[];
+  @Prop({ type: [String, Number], default: '' }) cursorId: number | string;
 
   templateTree: TTemplateList[] = [];
 
@@ -90,6 +94,11 @@ export default class TemplateList extends tsc<IProps> {
             ],
           });
         }
+        for (const child of systemItem?.children || []) {
+          if ((child as ICategoryItem).children) {
+            (child as ICategoryItem).checked = (child as ICategoryItem).children.every(c => c.checked);
+          }
+        }
       } else {
         const systemItem = templateTree.find(child => child.system === item.system);
         if (systemItem?.children) {
@@ -106,8 +115,45 @@ export default class TemplateList extends tsc<IProps> {
         }
       }
     }
-    console.log(templateTree);
     this.templateTree = templateTree;
+  }
+
+  handleClickTemplateItem(item: ITempLateItem) {
+    this.$emit('cursorChange', item.id);
+  }
+
+  handleChangeChecked(item: ITempLateItem, checked: boolean) {
+    item.checked = checked;
+    this.handleChange();
+  }
+
+  handleChange() {
+    const checkedList = [];
+    for (const item of this.templateTree) {
+      for (const child of item.children) {
+        if ((child as ICategoryItem)?.children) {
+          for (const c of (child as ICategoryItem).children) {
+            if (c.checked) {
+              checkedList.push(c.id);
+            }
+          }
+        } else {
+          if (child.checked) {
+            checkedList.push(child.id);
+          }
+        }
+      }
+    }
+    console.log(checkedList);
+    this.$emit('checkedChange', checkedList);
+  }
+
+  handleChangeCategoryChecked(category: ICategoryItem, checked: boolean) {
+    category.checked = checked;
+    for (const item of category.children) {
+      item.checked = checked;
+    }
+    this.handleChange();
   }
 
   render() {
@@ -115,15 +161,28 @@ export default class TemplateList extends tsc<IProps> {
       return (
         <div
           key={item.id}
-          class='template-item'
+          class={['template-item', { active: item.id === this.cursorId }]}
+          onClick={() => this.handleClickTemplateItem(item)}
         >
-          <bk-checkbox class='template-item-checkbox' />
+          <span
+            onClick={e => {
+              e.stopPropagation();
+            }}
+          >
+            <bk-checkbox
+              class='template-item-checkbox'
+              value={item.checked}
+              onChange={v => this.handleChangeChecked(item, v)}
+            />
+          </span>
           <span class='template-item-icon icon-monitor icon-check' />
           <div class='template-item-desc'>{item.name}</div>
-          <div class='template-item-status'>
-            <span>{this.$t('已配置')}</span>
-            <span class='icon-monitor icon-mc-goto' />
-          </div>
+          {item?.has_been_applied ? (
+            <div class='template-item-status'>
+              <span>{this.$t('已配置')}</span>
+              <span class='icon-monitor icon-mc-goto' />
+            </div>
+          ) : undefined}
         </div>
       );
     };
@@ -143,7 +202,15 @@ export default class TemplateList extends tsc<IProps> {
                     key={child.category}
                     class='category-item'
                   >
-                    <bk-checkbox class='category-item-checkbox'>{child.category}</bk-checkbox>
+                    <bk-checkbox
+                      class='category-item-checkbox'
+                      value={child.checked}
+                      onChange={v => {
+                        this.handleChangeCategoryChecked(child as ICategoryItem, v);
+                      }}
+                    >
+                      {child.category}
+                    </bk-checkbox>
                     {(child as ICategoryItem).children.map(c => renderTemplateItem(c))}
                   </div>
                 );
