@@ -257,12 +257,14 @@ class UnifyQueryHandler:
             return "1m"
 
         # 兼容毫秒查询
-        hour_interval = (arrow.get(int(self.end_time)) - arrow.get(int(self.start_time))).total_seconds() / 3600
-        if hour_interval <= 1:
+        hour_interval = (arrow.get(int(self.end_time)) - arrow.get(int(self.start_time))).total_seconds()
+        if hour_interval <= 1 * 60:
+            return "1s"
+        if hour_interval <= 1 * 3600:
             return "1m"
-        elif hour_interval <= 6:
+        elif hour_interval <= 6 * 3600:
             return "5m"
-        elif hour_interval <= 24 * 3:
+        elif hour_interval <= 24 * 3 * 3600:
             return "1h"
         else:
             return "1d"
