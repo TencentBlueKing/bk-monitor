@@ -208,7 +208,7 @@ class ApplicationConfig(BkCollectorConfig):
         if not code_relabel_rules:
             return {}
 
-        return {"name": "metrics_filter/relable", "code_relabel": code_relabel_rules}
+        return {"name": "metrics_filter/relabel", "code_relabel": code_relabel_rules}
 
     def get_bk_data_id_config(self):
         data_ids = {}
