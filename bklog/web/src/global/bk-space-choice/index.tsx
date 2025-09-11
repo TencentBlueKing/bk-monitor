@@ -72,7 +72,7 @@ export default defineComponent({
     const defaultSpace = ref(null); // 当前弹窗中选中的业务
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
     const setDefaultBizIdLoading = ref(false); // 设置默认业务时的 loading 状态
-    const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
+    const DEFAULT_BIZ_ID_KEY = 'DEFAULT_BIZ_ID';
     const refRootElement = ref<HTMLElement>(null);
 
     const isExternal = computed(() => store.state.isExternal);
@@ -88,7 +88,9 @@ export default defineComponent({
 
     // 业务名称和首字母
     const bizName = computed(() => {
-      if (props.isExternalAuth && !!exterlAuthSpaceName.value) return exterlAuthSpaceName.value;
+      if (props.isExternalAuth && !!exterlAuthSpaceName.value) {
+        return exterlAuthSpaceName.value;
+      }
       return mySpaceList.value.find(item => item.space_uid === spaceUid.value)?.space_name ?? '';
     });
     const bizNameIcon = computed(() => bizName.value?.[0]?.toLocaleUpperCase() ?? '');
@@ -99,10 +101,12 @@ export default defineComponent({
     // 初始化空间类型列表
     onMounted(() => {
       const spaceTypeMap: Record<string, 1> = {};
-      mySpaceList.value.forEach(item => {
+      for (const item of mySpaceList.value) {
         spaceTypeMap[item.space_type_id] = 1;
-        if (item.space_type_id === 'bkci' && item.space_code) spaceTypeMap.bcs = 1;
-      });
+        if (item.space_type_id === 'bkci' && item.space_code) {
+          spaceTypeMap.bcs = 1;
+        }
+      }
       spaceTypeIdList.value = Object.keys(spaceTypeMap).map(key => ({
         id: key,
         name: SPACE_TYPE_MAP[key]?.name || t('未知'),
@@ -141,6 +145,7 @@ export default defineComponent({
     const lowerCaseKeyword = computed(() => keyword.value.trim().toLocaleLowerCase());
 
     const authorizedList = computed(() =>
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
       mySpaceList.value.filter(item => {
         let show = false;
         if (searchTypeId.value) {
@@ -149,7 +154,7 @@ export default defineComponent({
               ? item.space_type_id === 'bkci' && !!item.space_code
               : item.space_type_id === searchTypeId.value;
         }
-        if ((show && lowerCaseKeyword.value) || (!searchTypeId.value && !show)) {
+        if ((show && lowerCaseKeyword.value) || !(searchTypeId.value || show)) {
           show =
             item.space_name.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1 ||
             item.py_text.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1 ||
@@ -157,8 +162,12 @@ export default defineComponent({
             `${item.bk_biz_id}`.includes(lowerCaseKeyword.value) ||
             `${item.space_code}`.includes(lowerCaseKeyword.value);
         }
-        if (!show) return false;
-        if (!item.permission?.[authorityMap.VIEW_BUSINESS]) return false;
+        if (!show) {
+          return false;
+        }
+        if (!item.permission?.[authorityMap.VIEW_BUSINESS]) {
+          return false;
+        }
         return true;
       }),
     );
@@ -184,9 +193,8 @@ export default defineComponent({
           ...commonList.value,
           ...generalList,
         ];
-      } else {
-        return [...generalList];
       }
+      return [...generalList];
     });
 
     // 点击业务名称时触发，切换下拉框显示并聚焦搜索框
@@ -218,12 +226,12 @@ export default defineComponent({
     };
 
     // 设置/取消默认业务
-    const handleDefaultId = async () => {
+    const handleDefaultId = () => {
       setDefaultBizIdLoading.value = true;
       // 如果是设置默认，取当前选中的业务ID，否则传 'undefined'
       const bizId = isSetBizIdDefault.value ? Number(defaultSpace.value?.id) : 'undefined';
       userConfigMixin
-        .handleSetUserConfig(DEFAULT_BIZ_ID, `${bizId}`, '')
+        .handleSetUserConfig(DEFAULT_BIZ_ID_KEY, `${bizId}`, '')
         .then(result => {
           if (result) {
             store.commit('SET_APP_STATE', {
@@ -293,7 +301,7 @@ export default defineComponent({
     const updateCacheBizId = (id: number) => {
       const maxLen = BIZ_SELECTOR_COMMON_MAX;
       // 移除已存在的 id
-      const cacheIds = commonListIdsLog.value.filter(item => item != id);
+      const cacheIds = commonListIdsLog.value.filter(item => item !== id);
       // 将当前 id 插入第一位
       cacheIds.unshift(id);
 
@@ -304,7 +312,9 @@ export default defineComponent({
     const experienceDemo = () => {
       showBizList.value = false;
       checkSpaceChange(demoUid.value); // 切换到demo业务
-      if (demoId.value) updateCacheBizId(Number(demoId.value)); // 更新常用业务缓存
+      if (demoId.value) {
+        updateCacheBizId(Number(demoId.value));
+      } // 更新常用业务缓存
     };
 
     // 下拉框内容渲染
@@ -362,7 +372,7 @@ export default defineComponent({
                 on-HandleClickMenuItem={handleClickMenuItem}
                 on-HandleClickOutSide={handleClickOutSide}
                 on-OpenDialog={openDialog}
-              ></List>
+              />
             </div>
             {/* 体验DEMO按钮 */}
             <div class='menu-select-extension'>
@@ -374,7 +384,7 @@ export default defineComponent({
                     experienceDemo();
                   }}
                 >
-                  <span class='icon bklog-icon bklog-app-store'></span>
+                  <span class='icon bklog-icon bklog-app-store' />
                   {t('体验DEMO')}
                 </div>
               )}
@@ -409,7 +419,7 @@ export default defineComponent({
               {bizName.value}
               <i
                 style={{
-                  transform: `rotate(${!showBizList.value ? '0deg' : '-180deg'})`,
+                  transform: `rotate(${showBizList.value ? '-180deg' : '0deg'})`,
                 }}
                 class='bk-select-angle bk-icon icon-angle-up-fill select-icon'
               />

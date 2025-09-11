@@ -205,10 +205,13 @@ export default defineComponent({
 
     // 来源变更：非 other 时清空来源名称
     const handleChangeSource = (val: string) => {
-      if (val !== 'other') formData.value.source_name = '';
+      if (val !== 'other') {
+        formData.value.source_name = '';
+      }
     };
 
     // 编辑：获取集群信息并回填
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const editDataSource = async () => {
       try {
         sliderLoading.value = true;
@@ -246,8 +249,8 @@ export default defineComponent({
           setup_config: res.data.cluster_config.custom_option?.setup_config || {},
           admin: res.data.cluster_config.custom_option?.admin || [],
           description: res.data.cluster_config.custom_option?.description || '',
-          enable_archive: res.data.cluster_config.custom_option?.enable_archive || false,
-          enable_assessment: res.data.cluster_config.custom_option?.enable_assessment || false,
+          enable_archive: res.data.cluster_config.custom_option?.enable_archive,
+          enable_assessment: res.data.cluster_config.custom_option?.enable_assessment,
           visible_config: res.data.cluster_config.custom_option?.visible_config || {},
           // 合并 basicFormData.value 的基础属性
           cluster_name: basicFormData.value.cluster_name,
@@ -264,7 +267,7 @@ export default defineComponent({
         // 回填多业务选择
         visibleList.value = [];
         cacheVisibleList.value = [];
-        (res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []).forEach(val => {
+        for (const val of res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []) {
           const target = mySpaceList.value.find(project => project.bk_biz_id === String(val.bk_biz_id));
           if (target) {
             target.is_use = val.is_use;
@@ -276,7 +279,7 @@ export default defineComponent({
             visibleList.value.push(targetObj);
             cacheVisibleList.value.push(targetObj);
           }
-        });
+        }
 
         // 回填业务属性标签
         bkBizLabelsList.value = Object.entries(
@@ -319,8 +322,12 @@ export default defineComponent({
             password: basicFormData.value.auth_info.password,
           },
         };
-        if (isEdit.value) postData.cluster_id = props.editClusterId;
-        if (postData.es_auth_info.password === '******') postData.es_auth_info.password = '';
+        if (isEdit.value) {
+          postData.cluster_id = props.editClusterId;
+        }
+        if (postData.es_auth_info.password === '******') {
+          postData.es_auth_info.password = '';
+        }
 
         connectLoading.value = true;
         await http.request('/source/connectivityDetect', { data: postData }, { catchIsShowMessage: false });
@@ -357,16 +364,19 @@ export default defineComponent({
     // 处理冷热标签原始数据，汇总计数并恢复已选项
     const dealWithHotColdData = () => {
       const set: any[] = [];
-      hotColdOriginList.value.forEach(item => {
+      for (const item of hotColdOriginList.value) {
         const newItem = { ...item };
         newItem.computedId = `${item.attr}:${item.value}`;
         newItem.computedName = `${item.attr}:${item.value}`;
         newItem.computedCounts = 1;
         newItem.isSelected = false;
         const exist = set.find(s => s.computedId === newItem.computedId);
-        if (exist) exist.computedCounts += 1;
-        else set.push(newItem);
-      });
+        if (exist) {
+          exist.computedCounts += 1;
+        } else {
+          set.push(newItem);
+        }
+      }
       hotColdAttrSet.value = set;
       selectedHotId.value = formData.value.hot_attr_name
         ? `${formData.value.hot_attr_name}:${formData.value.hot_attr_value}`
@@ -409,9 +419,12 @@ export default defineComponent({
     };
 
     // 提交新增/提交编辑
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const handleConfirm = async () => {
       const isCanSubmit = checkSelectItem();
-      if (!isCanSubmit) return;
+      if (!isCanSubmit) {
+        return;
+      }
       try {
         await validateForm.value?.validate();
         let url = '/source/create';
@@ -422,21 +435,12 @@ export default defineComponent({
         const postData: any = JSON.parse(JSON.stringify(formData.value));
         postData.bk_biz_id = bkBizId.value;
 
-        // 冷热关闭时移除相关字段
-        if (!postData.enable_hot_warm) {
-          delete postData.hot_attr_name;
-          delete postData.hot_attr_value;
-          delete postData.warm_attr_name;
-          delete postData.warm_attr_value;
-        }
-
         // 数字化 setup_config
         for (const key in postData.setup_config) {
-          postData.setup_config[key] = Number(postData.setup_config[key]);
+          if (Object.hasOwn(postData.setup_config, key)) {
+            postData.setup_config[key] = Number(postData.setup_config[key]);
+          }
         }
-
-        // 来源非 other 时移除自定义来源名
-        if (postData.source_type !== 'other') delete postData.source_name;
 
         // 可见范围：多业务
         if (visibleList.value.length) {
@@ -456,11 +460,31 @@ export default defineComponent({
         if (isEdit.value) {
           url = '/source/update';
           paramsData.cluster_id = props.editClusterId;
-          if (postData.auth_info.password === '******') postData.auth_info.password = '';
+          if (postData.auth_info.password === '******') {
+            postData.auth_info.password = '';
+          }
+        }
+
+        let newPostData = JSON.parse(JSON.stringify(postData));
+        // 冷热关闭时移除相关字段
+        if (!postData.enable_hot_warm) {
+          const {
+            hot_attr_name: _hotAttrName,
+            hot_attr_value: _hotAttrValue,
+            warm_attr_name: _warmAttrName,
+            warm_attr_value: _warmAttrValue,
+            ...reset
+          } = postData;
+          newPostData = reset;
+        }
+        // 来源非 other 时移除自定义来源名
+        if (postData.source_type !== 'other') {
+          const { source_name: _sourceName, ...reset } = newPostData;
+          newPostData = reset;
         }
 
         confirmLoading.value = true;
-        await http.request(url, { data: postData, params: paramsData });
+        await http.request(url, { data: newPostData, params: paramsData });
         Message({ theme: 'success', message: t('保存成功'), delay: 1500 });
         emit('handleUpdatedTable');
       } catch (e) {
@@ -480,7 +504,7 @@ export default defineComponent({
       if (visibleType === 'biz_attr' && !bkBizLabelsList.value.length) {
         messageType = t('可见类型为业务属性时，业务标签不能为空');
       }
-      if (!!messageType) {
+      if (messageType) {
         Message({ theme: 'error', message: messageType });
         return false;
       }
@@ -491,21 +515,21 @@ export default defineComponent({
     const filterBzID = () => {
       const parentSet = new Set<string>();
       const list: Record<string, string[]> = {};
-      bkBizLabelsList.value.forEach((item: any) => {
+      for (const item of bkBizLabelsList.value) {
         // 若当前元素父级未重复则生成新键名并赋值
-        if (!parentSet.has(item.id)) {
-          parentSet.add(item.id);
-          list[item.id] = [];
-          const valuesList = item.values.map((v: any) => v.id);
-          list[item.id] = list[item.id].concat(valuesList);
-        } else {
+        if (parentSet.has(item.id)) {
           // 若当前元素父级重复则去重过滤
           const valuesList = item.values.map((v: any) => v.id);
           const concatList = valuesList.concat(list[item.id]);
           const childSet = new Set<string>([...concatList]);
           list[item.id] = [...childSet];
+        } else {
+          parentSet.add(item.id);
+          list[item.id] = [];
+          const valuesList = item.values.map((v: any) => v.id);
+          list[item.id] = list[item.id].concat(valuesList);
         }
-      });
+      }
       return list;
     };
 
@@ -528,13 +552,18 @@ export default defineComponent({
     // 更新过期时间列表里禁止选中的情况
     const daySelectAddToDisable = () => {
       const { retention_days_default: d, retention_days_max: m } = formData.value.setup_config;
-      retentionDaysList.value.forEach(el => (el.disabled = Number(m) < Number(el.id)));
-      maxDaysList.value.forEach(el => (el.disabled = Number(d) > Number(el.id)));
+      for (const el of retentionDaysList.value) {
+        el.disabled = Number(m) < Number(el.id);
+      }
+      for (const el of maxDaysList.value) {
+        el.disabled = Number(d) > Number(el.id);
+      }
     };
 
     // 判断过期时间输入的值
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const enterCustomDay = (val, type) => {
-      const numberVal = parseInt(val.trim(), 10);
+      const numberVal = Number.parseInt(val.trim(), 10);
       const stringVal = numberVal.toString();
       const isRetention = type === 'retention';
       if (numberVal) {
@@ -594,12 +623,12 @@ export default defineComponent({
           remote: true,
         }));
         // 生成子级数组
-        (res.data || []).forEach((item: any) => {
+        for (const item of res.data || []) {
           bizChildrenList.value[item.biz_property_id] = (item.biz_property_value || []).map((v: any) => ({
             id: v,
             name: v,
           }));
-        });
+        }
       } catch (e) {
         console.warn(e);
       }
@@ -609,7 +638,7 @@ export default defineComponent({
       new Promise(resolve => {
         setTimeout(() => {
           // 空值返回全部，搜索返回部分
-          if (!!bizInputStr.value) {
+          if (bizInputStr.value) {
             resolve((bizChildrenList.value[bizSelectID.value] || []).filter(i => i.name.includes(bizInputStr.value)));
           } else {
             resolve(bizChildrenList.value[bizSelectID.value] || []);
@@ -637,7 +666,9 @@ export default defineComponent({
           searchSelectRef.value.updateInput();
           searchSelectRef.value.clearInput();
           searchSelectRef.value.menu.checked = {};
-          if (searchSelectRef.value.menuChildInstance) searchSelectRef.value.menuChildInstance.checked = {};
+          if (searchSelectRef.value.menuChildInstance) {
+            searchSelectRef.value.menuChildInstance.checked = {};
+          }
           searchSelectRef.value.menuInstance = null;
         } catch (e) {
           console.log(e);
@@ -721,7 +752,9 @@ export default defineComponent({
     watch(
       () => basicFormData.value,
       () => {
-        if (!isFirstShow.value) connectResult.value = '';
+        if (!isFirstShow.value) {
+          connectResult.value = '';
+        }
         isFirstShow.value = false;
       },
       { deep: true },
@@ -766,6 +799,7 @@ export default defineComponent({
     );
 
     // 主渲染
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     return () => (
       <div
         class='es-access-slider-container'
@@ -869,7 +903,7 @@ export default defineComponent({
                     >
                       <bk-input
                         data-test-id='esAccessFromBox_input_fillPort'
-                        max={65535}
+                        max={65_535}
                         min={0}
                         readonly={isEdit.value}
                         show-controls={false}
@@ -934,13 +968,13 @@ export default defineComponent({
                       </bk-button>
                       {connectResult.value === 'success' && (
                         <div class='success-text'>
-                          <i class='bk-icon icon-check-circle-shape'></i>
+                          <i class='bk-icon icon-check-circle-shape' />
                           {t('连通成功！')}
                         </div>
                       )}
                       {connectResult.value === 'failed' && (
                         <div class='error-text'>
-                          <i class='bk-icon icon-close-circle-shape'></i>
+                          <i class='bk-icon icon-close-circle-shape' />
                           {t('连通失败！')}
                         </div>
                       )}
@@ -964,7 +998,7 @@ export default defineComponent({
                         <span>{t('ES集群管理')}</span>
                         <span
                           class={['bk-icon icon-angle-double-down', isShowManagement.value ? 'is-show' : ''].join(' ')}
-                        ></span>
+                        />
                       </div>
                     </bk-form-item>
                   )}
@@ -1194,9 +1228,18 @@ export default defineComponent({
                           />
                           {isDisableHotSetting.value &&
                             !connectLoading.value && [
-                              <span class='bk-icon icon-info'></span>,
-                              <span style='font-size: 12px'>{t('没有获取到正确的标签，')}</span>,
+                              <span
+                                key='icon-info'
+                                class='bk-icon icon-info'
+                              />,
+                              <span
+                                key='left-text'
+                                style='font-size: 12px'
+                              >
+                                {t('没有获取到正确的标签，')}
+                              </span>,
                               <a
+                                key='button-text'
                                 class='button-text'
                                 href={configDocUrl.value}
                                 target='_blank'
@@ -1219,7 +1262,7 @@ export default defineComponent({
                                   class='button-text'
                                   onClick={() => handleViewInstanceList('hot')}
                                 >
-                                  <span class='bk-icon icon-eye'></span>
+                                  <span class='bk-icon icon-eye' />
                                   {t('查看实例列表')}
                                 </div>
                               )}
@@ -1248,7 +1291,7 @@ export default defineComponent({
                                   class='button-text'
                                   onClick={() => handleViewInstanceList('cold')}
                                 >
-                                  <span class='bk-icon icon-eye'></span>
+                                  <span class='bk-icon icon-eye' />
                                   {t('查看实例列表')}
                                 </div>
                               )}
@@ -1285,7 +1328,8 @@ export default defineComponent({
                                 class='check-document button-text'
                                 onClick={() => ManageHelper.handleGotoLink('logArchive')}
                               >
-                                <span class='bk-icon icon-text-file'></span>
+                                <span class='bk-icon icon-text-file' />
+                                {/** biome-ignore lint/nursery/useAnchorHref: reason */}
                                 <a>{t('查看说明文档')}</a>
                               </div>
                             )}

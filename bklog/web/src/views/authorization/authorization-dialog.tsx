@@ -33,7 +33,8 @@ import dayjs from 'dayjs';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 
 import $http from '../../api';
-import { AngleType, EditModel } from './authorization-list';
+
+import type { AngleType, EditModel } from './authorization-list';
 
 import './authorization-dialog.scss';
 
@@ -117,6 +118,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             name: item.authorized_user,
           };
         }
+        return null;
       })
       .filter(Boolean);
   }
@@ -140,13 +142,13 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
       this.formRef.clearError();
       this.authorizedUsersList = await this.getAuthListData();
       if (this.rowData) {
-        Object.keys(this.rowData ?? {}).forEach(key => {
+        for (const key of Object.keys(this.rowData ?? {})) {
           if (Array.isArray(this.rowData[key])) {
             this.formData[key].splice(0, this.formData[key].length, ...this.rowData[key]); // 清空数组
           } else {
             this.$set(this.formData, key, this.rowData[key]);
           }
-        });
+        }
 
         this.$nextTick(() => {
           this.formData.resources.splice(0, this.formData.resources.length, ...(this.rowData.resources || []));
@@ -164,7 +166,9 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   }
 
   async handleActionChange(val: string) {
-    if (!val || val === '-') return;
+    if (!val || val === '-') {
+      return;
+    }
     this.formData.resources = [];
     this.resourceList = await this.getActionSelectList(val);
   }
@@ -179,10 +183,12 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
       };
       return newObj;
     });
-    this.actionList.forEach(item => {
-      if (!newVal.includes(item.id)) this.actionCatchSelectObj[item.id] = [];
+    for (const item of this.actionList) {
+      if (!newVal.includes(item.id)) {
+        this.actionCatchSelectObj[item.id] = [];
+      }
       this.handleQuestAction(item.id);
-    });
+    }
     this.formData.action_multiple = newVal;
   }
 
@@ -194,12 +200,12 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     }
   }
 
-  async handleSelectExportConfig(user) {
+  handleSelectExportConfig(user) {
     const userAuthorized = this.authorizedUsersList.filter(item => item.authorized_user === user);
     this.formData.action_multiple = [];
-    userAuthorized.forEach(item => {
+    for (const item of userAuthorized) {
       this.actionCatchSelectObj[item.action_id] = item.resources;
-    });
+    }
     this.handleClickActionList(userAuthorized.map(item => item.action_id));
   }
 
@@ -216,7 +222,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
         },
       });
       return res?.data;
-    } catch (err) {
+    } catch {
       return [];
     }
   }
@@ -252,7 +258,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     if (!this.isAloneAddForm && !!this.actionData.actionShowList.length) {
       try {
         await this.actionFormRef?.validate();
-      } catch (error) {
+      } catch {
         checkActionMultiple = false;
       }
     }
@@ -264,10 +270,12 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
         this.formData.action_id = '-';
       }
       await this.formRef.validate(async valid => {
-        if (!checkActionMultiple) return;
+        if (!checkActionMultiple) {
+          return;
+        }
         if (valid) {
           this.loading = true;
-          let res = null;
+          let res: Record<string, any> | null = null;
           try {
             if (this.isAloneAddForm) {
               res = await this.authorizedRequest(this.formData);
@@ -312,8 +320,8 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     });
   }
 
-  handleUsersChange(val: Array<string>) {
-    const lastCheck = val[val.length - 1];
+  handleUsersChange(val: string[]) {
+    const lastCheck = val.at(-1);
     if (lastCheck === '__all__') {
       this.formData.authorized_users.splice(0, val.length, '__all__');
     } else if (val.includes('__all__')) {
@@ -333,13 +341,13 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   handleSelectAloneType(authorizeType: AddType) {
     this.addType = authorizeType;
     this.formRef.clearError();
-    if (!this.isAloneAddForm) {
+    if (this.isAloneAddForm) {
+      this.formData.action_id = '';
+      this.formData.resources = [];
+    } else {
       this.formData.action_multiple = [];
       this.actionCatchSelectObj = {};
       this.actionData.actionShowList = [];
-    } else {
-      this.formData.action_id = '';
-      this.formData.resources = [];
     }
   }
 
@@ -353,7 +361,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
         },
       });
       return res?.data ?? [];
-    } catch (error) {
+    } catch {
       return [];
     }
   }
@@ -404,8 +412,9 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               {this.actionList.map(item => (
                 <bk-option
                   id={item.id}
+                  key={item.id}
                   name={item.name}
-                ></bk-option>
+                />
               ))}
             </bk-select>
           </bk-form-item>
@@ -432,7 +441,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
                   id={item.uid}
                   key={item.uid}
                   name={item.text}
-                ></bk-option>
+                />
               ))}
             </bk-select>
           </bk-form-item>
@@ -445,7 +454,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
         <div style='margin-bottom: 8px;'>
           <i18n
             class='import-user-content'
-            v-show={!this.isAloneAddForm && !this.rowData}
+            v-show={!(this.isAloneAddForm || this.rowData)}
             path='导入{0}的权限配置'
           >
             <bk-select
@@ -461,7 +470,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
                   id={item.id}
                   key={item.id}
                   name={item.name}
-                ></bk-option>
+                />
               ))}
             </bk-select>
           </i18n>
@@ -489,7 +498,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           </bk-form-item>
 
           <bk-form-item
-            v-show={!this.isAloneAddForm && !this.rowData}
+            v-show={!(this.isAloneAddForm || this.rowData)}
             error-display-type='normal'
             property='action_multiple'
           >
@@ -502,7 +511,12 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               onChange={this.handleClickActionList}
             >
               {this.actionList.map(item => (
-                <bk-checkbox value={item.id}>{item.name}</bk-checkbox>
+                <bk-checkbox
+                  key={item.id}
+                  value={item.id}
+                >
+                  {item.name}
+                </bk-checkbox>
               ))}
             </bk-checkbox-group>
           </bk-form-item>
@@ -518,7 +532,8 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           >
             {this.actionData.actionShowList.map((action, index) => (
               <bk-form-item
-                v-show={!this.isAloneAddForm && !this.rowData}
+                key={action.name}
+                v-show={!(this.isAloneAddForm || this.rowData)}
                 error-display-type='normal'
                 property={`actionShowList.${index}.select`}
                 rules={this.actionRules.select}
@@ -538,7 +553,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
                       id={item.uid}
                       key={item.uid}
                       name={item.text}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
               </bk-form-item>
@@ -606,7 +621,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
                 type='date'
                 value={this.formData.expire_time}
                 onChange={this.handleDateChange}
-              ></bk-date-picker>
+              />
             </bk-form-item>
           )}
         </bk-form>
