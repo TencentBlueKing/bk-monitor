@@ -11,7 +11,7 @@
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@blueking/ai-blueking": "1.2.5-beta.2",
+    "@blueking/ai-blueking": "1.2.5-beta.4",
     "@blueking/bk-user-display-name": "1.0.3-beta.5",
     "@blueking/bk-user-selector": "0.0.35-beta.1",
     "@blueking/bk-weweb": "0.0.35-beta.7",
