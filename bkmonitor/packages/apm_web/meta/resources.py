@@ -1658,7 +1658,7 @@ class PushUrlResource(Resource):
         cluster_domains = getattr(settings, "APM_CLUSTER_INTERNAL_REPORT_DOMAINS", []) or []
         for cluster_domain in cluster_domains:
             proxy_host_infos.insert(
-                -len(default_cloud_display) if default_cloud_display else 0, {"ip": cluster_domain, "bk_cloud_id": 0}
+                len(default_cloud_display) if default_cloud_display else 0, {"ip": cluster_domain, "bk_cloud_id": 0}
             )
 
         return proxy_host_infos
