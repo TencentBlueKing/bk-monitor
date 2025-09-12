@@ -180,7 +180,7 @@ class BaseCodeRedefinedRequestSerializer(serializers.Serializer):
 class ListCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerializer):
     """代码重定义规则列表查询请求序列化器"""
 
-    callee_server = serializers.CharField(label="被调服务", required=False, allow_blank=True, default="")
+    callee_server = serializers.CharField(label="被调服务", required=False, allow_blank=True, default=None)
     callee_service = serializers.CharField(label="被调 Service", required=False, allow_blank=True, default=None)
     callee_method = serializers.CharField(label="被调接口", required=False, allow_blank=True, default=None)
     is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
@@ -227,3 +227,10 @@ class DeleteCodeRedefinedRuleRequestSerializer(BaseCodeRedefinedRequestSerialize
     callee_server = serializers.CharField(label="被调服务", required=False, allow_blank=True)
     callee_service = serializers.CharField(label="被调 Service", required=False, allow_blank=True)
     callee_method = serializers.CharField(label="被调接口", required=False, allow_blank=True)
+
+
+class SetCodeRemarkRequestSerializer(BaseCodeRedefinedRequestSerializer):
+    """设置单个返回码备注 请求序列化器"""
+
+    code = serializers.CharField(label="返回码", allow_blank=False)
+    remark = serializers.CharField(label="备注", required=False, allow_blank=True, default="")

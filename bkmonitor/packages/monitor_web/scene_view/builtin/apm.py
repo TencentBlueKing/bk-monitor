@@ -143,12 +143,12 @@ def discover_caller_callee(
     if not server_config:
         return discover_result
 
-    try:
-        code_redefined_config = CodeRedefinedConfigRelation.objects.get(
-            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-        )
+    code_redefined_config = CodeRedefinedConfigRelation.objects.filter(
+        bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+    ).first()
+    if code_redefined_config:
         server_config["ret_code_as_exception"] = code_redefined_config.ret_code_as_exception
-    except CodeRedefinedConfigRelation.DoesNotExist:
+    else:
         server_config["ret_code_as_exception"] = False
 
     # 模调指标可能来源于用户自定义，因为框架/协议原因无法补充「服务」字段，此处允许动态设置「服务」配置以满足该 case。

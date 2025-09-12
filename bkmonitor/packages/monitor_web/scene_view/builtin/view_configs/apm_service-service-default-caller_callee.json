@@ -428,7 +428,8 @@
             "unit": "percent",
             "precision": 6,
             "is_support_group_by": true,
-            "is_support_compare": true
+            "is_support_compare": true,
+            "is_code_redefine": true
           }
         },
         {
@@ -685,6 +686,7 @@
             "unit": "percent",
             "precision": 6,
             "enable_panels_selector": true,
+            "is_code_redefine": true,
             "child_panels_selector_variables": [
               {
                 "id": "exception_rate",
@@ -696,7 +698,8 @@
                     "exception"
                   ],
                   "code_extra_where": {}
-                }
+                },
+                "is_code_redefine": true
               },
               {
                 "id": "timeout_rate",
@@ -708,7 +711,8 @@
                     "timeout"
                   ],
                   "code_extra_where": {}
-                }
+                },
+                "is_code_redefine": true
               }
             ],
             "is_support_group_by": true,

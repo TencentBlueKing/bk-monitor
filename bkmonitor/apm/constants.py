@@ -544,6 +544,7 @@ class ConfigTypes:
     DB_SLOW_COMMAND_CONFIG = "db_slow_command_config"
     DB_CONFIG = "db_config"
     ATTRIBUTES_CONFIG_LOGS = "attributes_config_logs"
+    CODE_RELABEL_CONFIG = "code_relabel_config"
 
     @classmethod
     def choices(cls):
@@ -555,6 +556,7 @@ class ConfigTypes:
             (cls.DB_SLOW_COMMAND_CONFIG, _("db慢命令配置")),
             (cls.DB_CONFIG, _("db配置")),
             (cls.ATTRIBUTES_CONFIG_LOGS, _("attributes 配置(logs)")),
+            (cls.CODE_RELABEL_CONFIG, _("返回码重定义配置")),
         ]
 
 
