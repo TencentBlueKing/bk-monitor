@@ -1,20 +1,39 @@
 # 服务快速接入指引（JavaScript）
 
-👏 欢迎共建最佳实践样例
+{{QUICK_START_OVERVIEW}}
 
-## 1. 前置准备
+## 1. 环境要求
 
-### 1.1 术语介绍
+在开始之前，请确保您已经安装了以下软件：
+* Git
+* Docker
 
-{{TERM_INTRO}}
 
-### 1.2 运行参数
+## 2. 初始化示例 demo
+
+```shell
+git clone {{ECOSYSTEM_REPOSITORY_URL}}
+cd {{ECOSYSTEM_REPOSITORY_NAME}}/examples/js-examples/helloworld
+docker build -t helloworld-js:latest .
+```
+
+
+## 3. 运行示例 demo
+
+复制以下命令参数在你的终端运行：
+
+```shell
+# 如果本地该端口已被占用，请替换为其他可用端口
+DEMO_PORT=8080
+docker run -e TOKEN="{{access_config.token}}" \
+-e SERVICE_NAME="{{service_name}}" \
+-e OTLP_ENDPOINT="{{access_config.otlp.http_endpoint}}" \
+-e ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
+-e ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
+-e ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
+-p $DEMO_PORT:8080 helloworld-js:latest
+```
+
+运行参数说明：
 
 {{QUICK_START_RUN_PARAMETERS}}
-
-
-## 2. 了解更多
-
-* <a href="{{APM_ACCESS_URL}}" target="_blank">应用性能监控（APM）数据接入指南</a>
-* <a href="{{ECOSYSTEM_REPOSITORY_URL}}" target="_blank">各语言、框架接入代码样例</a>
-* <a href="https://opentelemetry.io/zh/docs/languages/js/" target="_blank">OpenTelemetry JavaScript SDK & API</a>
