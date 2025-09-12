@@ -25,6 +25,7 @@
  */
 import { VIEW_BUSINESS } from './common/authority-map';
 import './polyfill';
+import { SET_APP_STATE } from './store';
 import { URL_ARGS } from './store/default-values';
 import { BK_LOG_STORAGE } from './store/store.type';
 
@@ -58,6 +59,7 @@ export const getAllSpaceList = (http, store) => {
       });
 
       store.commit('updateMySpaceList', spaceList);
+      store.commit(SET_APP_STATE, { spaceListLoaded: true });
     });
   });
 };

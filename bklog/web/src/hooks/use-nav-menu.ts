@@ -25,11 +25,12 @@
  */
 
 import { ref, computed, watch } from 'vue';
-import useStore from '@/hooks/use-store';
+
+import * as authorityMap from '@/common/authority-map';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
+import useStore from '@/hooks/use-store';
 import reportLogStore from '@/store/modules/report-log';
-import * as authorityMap from '@/common/authority-map';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 
 export function useNavMenu(options: {
@@ -259,6 +260,7 @@ export function useNavMenu(options: {
   };
 
   const requestMySpaceList = async () => {
+    debugger;
     try {
       const queryObj = structuredClone(route.query);
       if (queryObj.from) {
