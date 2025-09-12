@@ -89,7 +89,7 @@ export default () => {
             click: (e: MouseEvent) => {
               let nextOrder = 'ascending';
               const targets = (e.target as HTMLElement).parentElement.querySelectorAll('.bk-table-sort-caret');
-              targets.forEach(element => {
+              for (const element of targets) {
                 if (element.classList.contains('active')) {
                   element.classList.remove('active');
                   if (element.classList.contains('ascending')) {
@@ -100,7 +100,7 @@ export default () => {
                     nextOrder = null;
                   }
                 }
-              });
+              }
 
               const sortMap = {
                 ascending: 'asc',
@@ -163,12 +163,12 @@ export default () => {
             on: {
               click: e => {
                 e.stopPropagation();
-                const displayFieldNames = [];
-                visibleFields.value.forEach(field => {
-                  if (field.field_name !== fieldName) {
-                    displayFieldNames.push(field.field_name);
+                const displayFieldNames: string[] = [];
+                for (const newField of visibleFields.value) {
+                  if (newField.field_name !== fieldName) {
+                    displayFieldNames.push(newField.field_name);
                   }
-                });
+                }
                 store.dispatch('userFieldConfigChange', {
                   displayFields: displayFieldNames,
                 });

@@ -26,7 +26,9 @@
 export default class StaticUtil {
   static getRegExp(reg: RegExp | boolean | number | string, defaultFlags = '', fullMatch = false): RegExp {
     // 如果已经是 RegExp 对象，直接返回
-    if (reg instanceof RegExp) return reg;
+    if (reg instanceof RegExp) {
+      return reg;
+    }
 
     const regString = String(reg).trim();
 

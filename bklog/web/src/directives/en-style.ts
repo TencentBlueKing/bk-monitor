@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { VueConstructor } from 'vue';
-
 import jsCookie from 'js-cookie';
-import { DirectiveBinding } from 'vue/types/options';
+
+import type { VueConstructor } from 'vue';
+import type { DirectiveBinding } from 'vue/types/options';
 
 export default class EnStyleDirective {
   public static install(Vue: VueConstructor) {
@@ -52,10 +52,11 @@ export default class EnStyleDirective {
         let cssText = '';
         if (typeof options.styles === 'string') {
           cssText += options.styles;
-        } else
-          Object.keys(options.styles).forEach(key => {
+        } else {
+          for (const key of Object.keys(options.styles)) {
             cssText += `${key}: ${options.styles[key]};`;
-          });
+          }
+        }
         el.style.cssText += cssText;
       },
     });

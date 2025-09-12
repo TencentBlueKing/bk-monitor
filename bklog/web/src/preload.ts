@@ -32,13 +32,13 @@ import { BK_LOG_STORAGE } from './store/store.type';
 /** 外部版根据空间授权权限显示菜单 */
 export const getExternalMenuListBySpace = space => {
   const list: string[] = [];
-  (space.external_permission || []).forEach(permission => {
+  for (const permission of space.external_permission || []) {
     if (permission === 'log_search') {
       list.push('retrieve');
     } else if (permission === 'log_extract') {
       list.push('manage');
     }
-  });
+  }
   return list;
 };
 
@@ -155,11 +155,11 @@ export default ({
    */
   const spaceRequest = getDefaultSpaceList().then(resp => {
     const spaceList = resp.data;
-    spaceList.forEach(item => {
+    for (const item of spaceList) {
       item.bk_biz_id = `${item.bk_biz_id}`;
       item.space_uid = `${item.space_uid}`;
       item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
-    });
+    }
 
     store.commit('updateMySpaceList', spaceList);
 

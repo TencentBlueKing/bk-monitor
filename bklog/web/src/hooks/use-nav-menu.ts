@@ -71,8 +71,12 @@ export function useNavMenu(options: {
   // methods
   const getDemoProjectUrl = (id: string) => {
     let siteUrl = (window as any).SITE_URL;
-    if (!siteUrl.startsWith('/')) siteUrl = `/${siteUrl}`;
-    if (!siteUrl.endsWith('/')) siteUrl += '/';
+    if (!siteUrl.startsWith('/')) {
+      siteUrl = `/${siteUrl}`;
+    }
+    if (!siteUrl.endsWith('/')) {
+      siteUrl += '/';
+    }
     return `${window.location.origin + siteUrl}#/retrieve?spaceUid=${id}`;
   };
 
@@ -98,31 +102,31 @@ export function useNavMenu(options: {
     }
   };
 
-  const updateExternalMenuBySpace = (spaceUid: string) => {
+  const updateExternalMenuBySpace = (newSpaceUid: string) => {
     const list: string[] = [];
-    const curSpace = (mySpaceList.value || []).find((item: any) => item.space_uid === spaceUid);
-    (curSpace?.external_permission || []).forEach((permission: string) => {
+    const curSpace = (mySpaceList.value || []).find((item: any) => item.space_uid === newSpaceUid);
+    for (const permission of curSpace?.external_permission || []) {
       if (permission === 'log_search') {
         list.push('retrieve');
       } else if (permission === 'log_extract') {
         list.push('manage');
       }
-    });
-    store.commit('updateState', {'externalMenu': list});
+    }
+    store.commit('updateState', { externalMenu: list });
   };
 
-  const setRouter = async (spaceUid: string) => {
+  const setRouter = async (newSpaceUid: string) => {
     if (isExternal.value) {
-      updateExternalMenuBySpace(spaceUid);
+      updateExternalMenuBySpace(newSpaceUid);
     }
     try {
-      const menuListData = await store.dispatch('requestMenuList', spaceUid);
+      const menuListData = await store.dispatch('requestMenuList', newSpaceUid);
 
       const manageGroupNavList = menuListData.find((item: any) => item.id === 'manage')?.children || [];
       const manageNavList: any[] = [];
-      manageGroupNavList.forEach((group: any) => {
+      for (const group of manageGroupNavList) {
         manageNavList.push(...group.children);
-      });
+      }
       const logCollectionNav = manageNavList.find((nav: any) => nav.id === 'log-collection');
 
       if (logCollectionNav) {
@@ -145,12 +149,12 @@ export function useNavMenu(options: {
         () => route.name,
         () => {
           const matchedList = (route as any).matched;
-          const activeTopMenu =
+          const newActiveTopMenu =
             menuListData.find((item: any) => {
               return matchedList.some((record: any) => record.name === item.id);
             }) || {};
-          store.commit('updateState', {'activeTopMenu': activeTopMenu});
-          const topMenuList = activeTopMenu.children?.length ? activeTopMenu.children : [];
+          store.commit('updateState', { activeTopMenu: newActiveTopMenu });
+          const topMenuList = newActiveTopMenu.children?.length ? newActiveTopMenu.children : [];
           const topMenuChildren = topMenuList.reduce((pre: any[], cur: any) => {
             if (cur.children?.length) {
               pre.push(...cur.children);
@@ -161,14 +165,14 @@ export function useNavMenu(options: {
             topMenuChildren.find((item: any) => {
               return matchedList.some((record: any) => record.name === item.id);
             }) || {};
-          store.commit('updateState', {'activeManageNav': activeManageNav});
+          store.commit('updateState', { activeManageNav: activeManageNav });
 
           const activeManageSubNav = activeManageNav.children
             ? activeManageNav.children.find((item: any) => {
                 return matchedList.some((record: any) => record.name === item.id);
               })
             : {};
-          store.commit('updateState', {'activeManageSubNav': activeManageSubNav});
+          store.commit('updateState', { activeManageSubNav: activeManageSubNav });
         },
         { immediate: true },
       );
@@ -194,43 +198,45 @@ export function useNavMenu(options: {
         };
         if (query.bizId) {
           newQuery.spaceUid = spaceUid;
-          delete newQuery.bizId;
         }
-        if (params.indexId) delete params.indexId;
-        store.commit('updateState', {'pageLoading': true});
+        const { bizId: _bizId, ...otherNewQuery } = newQuery;
+        const { indexId: _indexId, ...otherParams } = params;
+        store.commit('updateState', { pageLoading: true });
         router.push({
           name: RoutingHop,
           params: {
-            ...params,
+            ...otherParams,
           },
-          query: newQuery,
+          query: otherNewQuery,
         });
       }
       setTimeout(() => {
-        store.commit('updateState', {'pageLoading': false});
+        store.commit('updateState', { pageLoading: false });
         isFirstLoad.value = false;
-        store.commit('updateState', {'showRouterLeaveTip': false});
+        store.commit('updateState', { showRouterLeaveTip: false });
       }, 0);
     }
   };
 
-  const spaceChange = async (spaceUid = '') => {
-    store.commit('updateSpace', spaceUid);
-    if (spaceUid) {
-      const space = mySpaceList.value.find((item: any) => item.space_uid === spaceUid);
+  const spaceChange = async (newSpaceUid = '') => {
+    store.commit('updateSpace', newSpaceUid);
+    if (newSpaceUid) {
+      const space = mySpaceList.value.find((item: any) => item.space_uid === newSpaceUid);
       await checkSpaceAuth(space);
     }
-    store.commit('updateStorage', { [BK_LOG_STORAGE.BK_SPACE_UID]: spaceUid });
+    store.commit('updateStorage', { [BK_LOG_STORAGE.BK_SPACE_UID]: newSpaceUid });
     for (const item of mySpaceList.value) {
-      if (item.space_uid === spaceUid) {
+      if (item.space_uid === newSpaceUid) {
         store.commit('updateStorage', { [BK_LOG_STORAGE.BK_BIZ_ID]: item.bk_biz_id });
         break;
       }
     }
-    if (spaceUid) await setRouter(spaceUid);
+    if (newSpaceUid) {
+      await setRouter(newSpaceUid);
+    }
 
     // 首次加载应用路由触发上报还未获取到 spaceUid ，需手动执行上报
-    if (store.state.isAppFirstLoad && spaceUid) {
+    if (store.state.isAppFirstLoad && newSpaceUid) {
       store.state.isAppFirstLoad = false;
       const { name, meta } = route as any;
       reportLogStore.reportRouteLog({
@@ -241,22 +247,22 @@ export function useNavMenu(options: {
     }
   };
 
-  const checkSpaceChange = (spaceUid = '') => {
+  const checkSpaceChange = (newSpaceUid = '') => {
     if (!isFirstLoad.value && (route.meta as any)?.needBack) {
-      store.commit('updateState', {'showRouterLeaveTip': true});
+      store.commit('updateState', { showRouterLeaveTip: true });
 
       bkInfo({
         title: t('是否放弃本次操作？'),
         confirmFn: () => {
-          spaceChange(spaceUid);
+          spaceChange(newSpaceUid);
         },
         cancelFn: () => {
-          store.commit('updateState', {'showRouterLeaveTip': false});
+          store.commit('updateState', { showRouterLeaveTip: false });
         },
       });
       return;
     }
-    spaceChange(spaceUid);
+    spaceChange(newSpaceUid);
   };
 
   const requestMySpaceList = async () => {
@@ -270,18 +276,18 @@ export function useNavMenu(options: {
       const spaceList = store.state.mySpaceList;
       let isHaveViewBusiness = false;
 
-      spaceList.forEach((item: any) => {
+      for (const item of spaceList) {
         item.bk_biz_id = `${item.bk_biz_id}`;
         item.space_uid = `${item.space_uid}`;
         item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
         item.permission.view_business_v2 && (isHaveViewBusiness = true);
-      });
+      }
 
-      const { bizId, spaceUid } = queryObj;
+      const { bizId, spaceUid: newSpaceUid } = queryObj;
       const demoId = String((window as any).DEMO_BIZ_ID);
       const demoProject = spaceList.find((item: any) => item.bk_biz_id === demoId);
       const demoProjectUrl = demoProject ? getDemoProjectUrl(demoProject.space_uid) : '';
-      store.commit('updateState', {'demoUid': demoProject ? demoProject.space_uid : ''});
+      store.commit('updateState', { demoUid: demoProject ? demoProject.space_uid : '' });
       const isOnlyDemo = demoProject && spaceList.length === 1;
       if (!isHaveViewBusiness || isOnlyDemo) {
         const args: any = {
@@ -289,15 +295,15 @@ export function useNavMenu(options: {
           getAccess: {},
         };
         if (isOnlyDemo) {
-          if (bizId === demoProject.bk_biz_id || spaceUid === demoProject.space_uid) {
+          if (bizId === demoProject.bk_biz_id || newSpaceUid === demoProject.space_uid) {
             return checkSpaceChange(demoProject.space_uid);
           }
           args.demoBusiness = {
             url: demoProjectUrl,
           };
         }
-        if (spaceUid || bizId) {
-          const query = spaceUid ? { space_uid: spaceUid } : { bk_biz_id: bizId };
+        if (newSpaceUid || bizId) {
+          const query = newSpaceUid ? { space_uid: newSpaceUid } : { bk_biz_id: bizId };
           const [betaRes, authRes] = await Promise.all([
             http.request('/meta/getMaintainerApi', { query }),
             store.dispatch('getApplyData', {
@@ -314,13 +320,15 @@ export function useNavMenu(options: {
           });
           args.getAccess.url = authRes.data.apply_url;
         }
-        store.commit('updateState', {'pageLoading': false});
+        store.commit('updateState', { pageLoading: false });
         checkSpaceChange();
-        emit && emit('welcome', args);
+        emit?.('welcome', args);
       } else {
         const firstRealSpaceUid = spaceList.find((item: any) => item.bk_biz_id !== demoId).space_uid;
-        if (spaceUid || bizId) {
-          const matchProject = spaceList.find((item: any) => item.space_uid === spaceUid || item.bk_biz_id === bizId);
+        if (newSpaceUid || bizId) {
+          const matchProject = spaceList.find(
+            (item: any) => item.space_uid === newSpaceUid || item.bk_biz_id === bizId,
+          );
           checkSpaceChange(matchProject ? matchProject.space_uid : firstRealSpaceUid);
         } else {
           const storageSpaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
@@ -330,7 +338,7 @@ export function useNavMenu(options: {
       }
     } catch (e) {
       console.warn(e);
-      store.commit('updateState', {'pageLoading': false});
+      store.commit('updateState', { pageLoading: false });
     }
   };
 

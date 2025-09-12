@@ -23,22 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Ref } from 'vue';
-
 import { isElement, debounce } from 'lodash-es';
+
+import type { Ref } from 'vue';
 
 function deepQueryShadowSelector(selector) {
   // 搜索当前根下的元素
   const searchInRoot = (root: HTMLElement | ShadowRoot) => {
     // 尝试直接查找
     const el = root.querySelector(selector);
-    if (el) return el;
+    if (el) {
+      return el;
+    }
     // 查找当前根下所有可能的 Shadow Host
-    const shadowHosts = Array.from(root.querySelectorAll('*')).filter(el => el.shadowRoot);
+    const shadowHosts = Array.from(root.querySelectorAll('*')).filter(elItem => elItem.shadowRoot);
     // 递归穿透每个 Shadow Host
     for (const host of shadowHosts) {
       const result = searchInRoot(host.shadowRoot);
-      if (result) return result;
+      if (result) {
+        return result;
+      }
     }
     return null;
   };
@@ -76,9 +80,11 @@ export const getTargetElement = (
  * @returns
  */
 export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit = true) => {
-  if (!str) return [];
+  if (!str) {
+    return [];
+  }
 
-  let tokens = [];
+  const tokens: Record<string, any>[] = [];
   let processedLength = 0;
   const CHUNK_SIZE = 200;
 
@@ -96,7 +102,9 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
     const segments = str.split(/(<mark>.*?<\/mark>)/gi);
 
     for (const segment of segments) {
-      if (tokens.length >= MAX_TOKENS) break;
+      if (tokens.length >= MAX_TOKENS) {
+        break;
+      }
       const isMark = MARK_REGEX.test(segment);
 
       const segmengtSplitList = segment.replace(MARK_REGEX, '$1').split(DELIMITER_REGEX).filter(Boolean);
@@ -110,14 +118,14 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
         }
       }
 
-      normalTokens.forEach(t => {
+      for (const t of normalTokens) {
         processedLength += t.length;
         tokens.push({
           text: t,
           isMark,
           isCursorText: !DELIMITER_REGEX.test(t),
         });
-      });
+      }
     }
   }
 
@@ -162,7 +170,7 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
  * @returns
  */
 export const setScrollLoadCell = (
-  wordList: Array<unknown>,
+  wordList: unknown[],
   rootElement: HTMLElement,
   contentElement: HTMLElement,
   renderFn: (item: unknown) => HTMLElement,
@@ -201,13 +209,13 @@ export const setScrollLoadCell = (
 
     const fragment = document.createDocumentFragment();
     const pageItems = wordList.slice(startIndex, startIndex + (size ?? pageSize));
-    pageItems.forEach(item => {
+    for (const item of pageItems) {
       const child = renderFn?.(item) ?? defaultRenderFn(item);
 
       fragment.appendChild(child);
-    });
+    }
 
-    startIndex = startIndex + (size ?? pageSize);
+    startIndex += size ?? pageSize;
     contentElement?.append?.(fragment);
     return true;
   };
@@ -257,6 +265,7 @@ export const setScrollLoadCell = (
   };
 
   const reset = list => {
+    // biome-ignore lint/style/noParameterAssign: reason
     wordList = list;
     startIndex = 0;
     contentElement.innerHTML = '';
