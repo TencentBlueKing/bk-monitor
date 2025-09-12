@@ -189,10 +189,6 @@ class DataAccessor:
             self.data_id = None
 
     @property
-    def tsdb_name(self):
-        return f"{self.bk_biz_id}_{self.db_name}" if self.bk_biz_id else self.db_name
-
-    @property
     def data_name(self):
         return f"{self.bk_biz_id}_{self.db_name}" if self.bk_biz_id else self.db_name
 
