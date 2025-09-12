@@ -1,28 +1,3 @@
-/*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
- *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
- *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- */
 import { request } from '../base';
 
 export const countBaseAlarm = request('GET', 'rest/v1/base_alarm/count/');
@@ -223,6 +198,18 @@ export const listAssignRule = request('GET', 'fta/assign/rules/');
 export const partialUpdateAssignRule = request('PATCH', 'fta/assign/rules/{pk}/');
 export const retrieveAssignRule = request('GET', 'fta/assign/rules/{pk}/');
 export const updateAssignRule = request('PUT', 'fta/assign/rules/{pk}/');
+export const alertsStrategyTemplate = request('POST', 'apm/strategy/strategy_template/alerts/');
+export const applyStrategyTemplate = request('POST', 'apm/strategy/strategy_template/apply/');
+export const batchPartialUpdateStrategyTemplate = request('POST', 'apm/strategy/strategy_template/batch_partial_update/');
+export const checkStrategyTemplate = request('POST', 'apm/strategy/strategy_template/check/');
+export const cloneStrategyTemplate = request('POST', 'apm/strategy/strategy_template/clone/');
+export const compareStrategyTemplate = request('POST', 'apm/strategy/strategy_template/compare/');
+export const destroyStrategyTemplate = request('DELETE', 'apm/strategy/strategy_template/{pk}/');
+export const optionValuesStrategyTemplate = request('POST', 'apm/strategy/strategy_template/option_values/');
+export const previewStrategyTemplate = request('POST', 'apm/strategy/strategy_template/preview/');
+export const retrieveStrategyTemplate = request('GET', 'apm/strategy/strategy_template/{pk}/');
+export const searchStrategyTemplate = request('POST', 'apm/strategy/strategy_template/search/');
+export const updateStrategyTemplate = request('PUT', 'apm/strategy/strategy_template/{pk}/');
 
 export default {
   countBaseAlarm,
@@ -396,4 +383,16 @@ export default {
   partialUpdateAssignRule,
   retrieveAssignRule,
   updateAssignRule,
+  alertsStrategyTemplate,
+  applyStrategyTemplate,
+  batchPartialUpdateStrategyTemplate,
+  checkStrategyTemplate,
+  cloneStrategyTemplate,
+  compareStrategyTemplate,
+  destroyStrategyTemplate,
+  optionValuesStrategyTemplate,
+  previewStrategyTemplate,
+  retrieveStrategyTemplate,
+  searchStrategyTemplate,
+  updateStrategyTemplate,
 };
