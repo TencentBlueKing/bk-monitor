@@ -266,7 +266,6 @@ export function useNavMenu(options: {
   };
 
   const requestMySpaceList = async () => {
-    debugger;
     try {
       const queryObj = structuredClone(route.query);
       if (queryObj.from) {
