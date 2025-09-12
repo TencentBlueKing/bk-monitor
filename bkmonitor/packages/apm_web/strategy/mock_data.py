@@ -176,3 +176,15 @@ STRATEGY_TEMPLATE_LIST = [
         "update_time": "2025-08-04 17:43:26+0800",
     },
 ]
+
+STRATEGY_TEMPLATE_OPTION_VALUES = {
+    "system": [
+        {"value": "RPC", "alias": "调用分析"},
+        {"value": "K8S", "alias": "容器"},
+        {"value": "METRIC", "alias": "自定义指标"},
+        {"value": "LOG", "alias": "日志"},
+        {"value": "TRACE", "alias": "调用链"},
+        {"value": "EVENT", "alias": "事件"},
+    ],
+    "user_group_list": [{"value": 1, "alias": "应用创建者"}],
+}

@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 from rest_framework.decorators import action
-from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
@@ -65,7 +64,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         return Response({})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateSearchRequestSerializer)
-    def search(self, request: Request, *args, **kwargs) -> Response:
+    def search(self, *args, **kwargs) -> Response:
         if self.query_data.get("is_mock"):
             return Response(
                 {
@@ -76,7 +75,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         return Response({})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplatePreviewRequestSerializer)
-    def preview(self, request: Request, *args, **kwargs) -> Response:
+    def preview(self, *args, **kwargs) -> Response:
         if self.query_data.get("is_mock"):
             return Response(mock_data.CALLEE_SUCCESS_RATE_STRATEGY_PREVIEW)
         return Response({})
@@ -93,7 +92,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         return Response({})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCheckRequestSerializer)
-    def check(self, request: Request, *args, **kwargs) -> Response:
+    def check(self, *args, **kwargs) -> Response:
         if self.query_data.get("is_mock"):
             return Response(
                 {
@@ -103,7 +102,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         return Response({})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCloneRequestSerializer)
-    def clone(self, request: Request, *args, **kwargs) -> Response:
+    def clone(self, *args, **kwargs) -> Response:
         if self.query_data.get("is_mock"):
             return Response({"id": 2})
         return Response({})
@@ -111,23 +110,29 @@ class StrategyTemplateViewSet(GenericViewSet):
     @action(
         methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateBatchPartialUpdateRequestSerializer
     )
-    def batch_partial_update(self, request: Request, *args, **kwargs) -> Response:
+    def batch_partial_update(self, *args, **kwargs) -> Response:
         if self.query_data.get("is_mock"):
             return Response({"ids": [1, 2]})
         return Response({})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)
-    def compare(self, request: Request, *args, **kwargs) -> Response:
+    def compare(self, *args, **kwargs) -> Response:
         if self.query_data.get("is_mock"):
             return Response(mock_data.COMPARE_STRATEGY_INSTANCE)
         return Response({})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateAlertsRequestSerializer)
-    def alerts(self, request: Request, *args, **kwargs) -> Response:
+    def alerts(self, *args, **kwargs) -> Response:
         if self.query_data.get("is_mock"):
             return Response(
                 {
                     "list": mock_data.STRATEGY_TEMPLATE_RELATION_ALERTS,
                 }
             )
+        return Response({})
+
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateOptionValuesRequestSerializer)
+    def option_values(self, *args, **kwargs) -> Response:
+        if self.query_data.get("is_mock"):
+            return Response(mock_data.STRATEGY_TEMPLATE_OPTION_VALUES)
         return Response({})

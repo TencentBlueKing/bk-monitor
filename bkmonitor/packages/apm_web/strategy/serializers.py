@@ -93,7 +93,7 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
     conditions = serializers.ListField(label="查询条件", child=ConditionSerializer(), default=[], allow_empty=True)
 
 
-class StrategyTemplateUpdateSerializer(serializers.Serializer):
+class BaseStrategyTemplateUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(label=_("策略模板名称"))
     algorithms = serializers.ListField(label=_("检测算法列表"), child=AlgorithmSerializer())
     detect = DetectSerializer(label=_("判断条件"))
@@ -104,14 +104,14 @@ class StrategyTemplateUpdateSerializer(serializers.Serializer):
 
 
 class StrategyTemplateUpdateRequestSerializer(
-    StrategyTemplateUpdateSerializer, BaseAppStrategyTemplateRequestSerializer
+    BaseStrategyTemplateUpdateSerializer, BaseAppStrategyTemplateRequestSerializer
 ):
     pass
 
 
 class StrategyTemplateCloneRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
     source_id = serializers.IntegerField(label=_("源策略模板 ID"), min_value=1)
-    edit_data = StrategyTemplateUpdateSerializer(label=_("克隆模板编辑数据"))
+    edit_data = BaseStrategyTemplateUpdateSerializer(label=_("克隆模板编辑数据"))
 
 
 class StrategyTemplateBatchPartialUpdateRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
@@ -136,3 +136,7 @@ class StrategyTemplateAlertsRequestSerializer(BaseAppStrategyTemplateRequestSeri
 
 class StrategyTemplateDeleteRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
     pass
+
+
+class StrategyTemplateOptionValuesRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
+    fields = serializers.ListField(label=_("字段列表"), child=serializers.CharField(), default=[], allow_empty=True)
