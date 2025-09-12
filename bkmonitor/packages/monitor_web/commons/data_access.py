@@ -224,7 +224,7 @@ class DataAccessor:
         """
         Returns:
             dict[str, Any]: 结果表信息
-            bool: 结果表是否使用业务ID前缀
+            dict[str, ResultTable]: 结果表信息映射，包含表的详细信息
         """
         # 向前兼容，优先查询不带业务ID的结果表
         without_biz_result_table_list = api.metadata.list_result_table(
