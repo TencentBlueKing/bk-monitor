@@ -43,8 +43,8 @@ class LogAccessViewSet(APIViewSet):
         actions=[ActionEnum.SEARCH_LOG, ActionEnum.MANAGE_INDICES],
         resource_meta=ResourceEnum.INDICES,
     )
-    @list_route(methods=["GET"], url_path="list_log_collectors")
-    def list_log_collectors(self, request):
+    @list_route(methods=["POST"], url_path="collector")
+    def collector(self, request):
         data = self.params_valid(LogCollectorSerializer)
         result = LogCollectorHandler(data["space_uid"]).get_log_collectors(data)
         return Response(result)

@@ -1768,14 +1768,11 @@ class RunSubscriptionTaskSerializer(serializers.Serializer):
 
 
 class LogCollectorSerializer(serializers.Serializer):
+    class ConditionSerializer(serializers.Serializer):
+        key = serializers.CharField(required=True)
+        value = serializers.ListField(required=True)
+
     space_uid = SpaceUIDField(label=_("空间唯一标识"))
     page = serializers.IntegerField(label=_("分页"), min_value=1)
     pagesize = serializers.IntegerField(label=_("分页大小"), min_value=1)
-    collector_config_name = serializers.CharField(label=_("采集名称"), required=False, allow_blank=True)
-    bk_data_name = serializers.CharField(label=_("存储名"), required=False, allow_blank=True)
-    scenario_id = serializers.CharField(label=_("接入情景"), required=False, allow_blank=True)
-    collector_scenario_id = serializers.CharField(label=_("日志类型"), required=False, allow_blank=True)
-    storage_cluster_name = serializers.CharField(label=_("集群名"), required=False, allow_blank=True)
-    status_name = serializers.CharField(label=_("采集状态"), required=False, allow_blank=True)
-    created_by = serializers.CharField(label=_("创建者"), required=False, allow_blank=True)
-    updated_by = serializers.CharField(label=_("更新者"), required=False, allow_blank=True)
+    conditions = ConditionSerializer(label=_("过滤规则"), many=True, required=False)

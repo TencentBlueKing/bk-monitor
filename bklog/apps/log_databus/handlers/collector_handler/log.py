@@ -1,3 +1,5 @@
+from itertools import chain
+
 from collections import defaultdict
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_search.constants import CollectorScenarioEnum
@@ -224,18 +226,32 @@ class LogCollectorHandler:
 
     def get_log_collectors(self, data):
         """获取日志采集信息"""
-        scenario_id_list = data["scenario_id"].split(",") if "scenario_id" in data else None
-        collector_config_name_list = (
-            data["collector_config_name"].split(",") if "collector_config_name" in data else None
-        )
-        bk_data_name_list = data["bk_data_name"].split(",") if "bk_data_name" in data else None
-        collector_scenario_id_list = (
-            data["collector_scenario_id"].split(",") if "collector_scenario_id" in data else None
-        )
-        created_at_list = data["created_at"].split(",") if "created_at" in data else None
-        updated_by_list = data["updated_by"].split(",") if "updated_by" in data else None
-        status_name_list = data["status_name"].split(",") if "status_name" in data else None
-        storage_cluster_name_list = data["storage_cluster_name"].split(",") if "storage_cluster_name" in data else None
+        conditions = data.get("conditions", [])
+        scenario_id_list = []
+        collector_config_name_list = []
+        bk_data_name_list = []
+        collector_scenario_id_list = []
+        created_at_list = []
+        updated_by_list = []
+        status_name_list = []
+        storage_cluster_name_list = []
+        for item in conditions:
+            if item["key"] == "scenario_id":
+                scenario_id_list = item["value"]
+            elif item["key"] == "collector_config_name":
+                collector_config_name_list = item["value"]
+            elif item["key"] == "bk_data_name":
+                bk_data_name_list = item["value"]
+            elif item["key"] == "collector_scenario_id":
+                collector_scenario_id_list = item["value"]
+            elif item["key"] == "created_at":
+                created_at_list = item["value"]
+            elif item["key"] == "updated_by":
+                updated_by_list = item["value"]
+            elif item["key"] == "status_name":
+                status_name_list = item["value"]
+            elif item["key"] == "storage_cluster_name":
+                storage_cluster_name_list = item["value"]
 
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
@@ -249,14 +265,13 @@ class LogCollectorHandler:
             status_name_list=status_name_list,
         )
 
-        if any(
-            [
-                data.get("collector_config_name"),
-                data.get("bk_data_name"),
-                data.get("collector_scenario_id"),
-                data.get("status_name"),
-            ]
-        ):
+        lists_to_check = [
+            collector_config_name_list,
+            bk_data_name_list,
+            collector_scenario_id_list,
+            status_name_list,
+        ]
+        if any(chain.from_iterable(lists_to_check)):
             # 如果存在对采集名称、存储名、日志类型、采集状态不为空的查询,直接返回
             log_index_sets = []
         else:
