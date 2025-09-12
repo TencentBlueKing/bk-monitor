@@ -73,6 +73,7 @@ CHECK_STRATEGY_INSTANCE_LIST = [
         "service_name": "example.greeter",
         "strategy_template_id": 2,
         "same_origin_strategy_template": {"id": 1, "name": "[RPC] 被调成功率模板"},
+        "strategy": None,
         "has_diff": True,
         "has_been_applied": False,
     },
