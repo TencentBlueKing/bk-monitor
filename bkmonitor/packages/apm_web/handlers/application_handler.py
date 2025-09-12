@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
@@ -15,7 +14,9 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 from apm_web.metric_handler import RequestCountInstance
+from apm_web.utils import check_app_integration_status
 
 
 class ApplicationHandler:
@@ -24,5 +25,6 @@ class ApplicationHandler:
         """
         获取此应用是否有数据
         """
-
+        if check_app_integration_status(application) is False:
+            return False
         return bool(RequestCountInstance(application, start_time, end_time).query_instance())
