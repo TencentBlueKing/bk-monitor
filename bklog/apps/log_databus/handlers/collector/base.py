@@ -758,6 +758,9 @@ class CollectorHandler:
             cluster_infos = {}
 
         time_zone = get_local_param("time_zone")
+        index_set_id_set = set(
+            LogIndexSetData.objects.exclude(apply_status="normal").values_list("index_set_id", flat=True)
+        )
         for _data in data:
             cluster_info = cluster_infos.get(
                 _data["table_id"],
@@ -791,11 +794,7 @@ class CollectorHandler:
 
             # 是否可以检索
             if _data["is_active"] and _data["index_set_id"]:
-                _data["is_search"] = (
-                    not LogIndexSetData.objects.filter(index_set_id=_data["index_set_id"])
-                    .exclude(apply_status="normal")
-                    .exists()
-                )
+                _data["is_search"] = _data["index_set_id"] not in index_set_id_set
             else:
                 _data["is_search"] = False
 

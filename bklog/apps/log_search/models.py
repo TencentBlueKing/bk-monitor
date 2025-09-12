@@ -458,7 +458,7 @@ class LogIndexSet(SoftDeleteModel):
             result = datetime_to_timestamp(temp)
         return timestamp_to_timeformat(result)
 
-    def get_indexes(self, has_applied=None, project_info=True):
+    def get_indexes(self, has_applied=None):
         """
         返回当前索引集下的索引列表
         :return:
@@ -466,13 +466,6 @@ class LogIndexSet(SoftDeleteModel):
         index_set_data = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
         if has_applied:
             index_set_data = index_set_data.filter(apply_status=LogIndexSetData.Status.NORMAL)
-        bizs = {}
-        if self.scenario_id == Scenario.BKDATA:
-            if project_info is True:
-                bizs = {
-                    space.bk_biz_id: space.space_name
-                    for space in Space.objects.filter(bk_biz_id__in=list({data.bk_biz_id for data in index_set_data}))
-                }
         source_name = self.source_name
 
         return [
@@ -480,7 +473,6 @@ class LogIndexSet(SoftDeleteModel):
                 "index_id": data.index_id,
                 "index_set_id": self.index_set_id,
                 "bk_biz_id": data.bk_biz_id,
-                "bk_biz_name": bizs.get(data.bk_biz_id, "") if project_info is False else None,
                 "source_id": self.source_id,
                 "source_name": source_name,
                 "result_table_id": data.result_table_id,
