@@ -2420,9 +2420,9 @@ class ResultTableField(models.Model):
                 item["field_name"] = i.alias_name
                 item["alias_name"] = i.field_name
 
-            if settings.ENABLE_CONSUL_LITE_MODE:
+            if settings.ENABLE_CONSUL_LITE_MODE and is_consul_config:
                 logger.info("Consul Lite Mode Enabled, remove unnecessary fields")
-                if not item["default_value"]:
+                if item["default_value"] is None:
                     item.pop("default_value")
 
                 if item["option"] == {}:
