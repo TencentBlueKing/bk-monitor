@@ -150,7 +150,8 @@
   "overrides": {
     "semver": "7.6.0",
     "postcss": "8.4.38",
-    "braces": "3.0.3"
+    "braces": "3.0.3",
+    "form-data": "4.0.4"
   },
   "resolutions": {
     "semver": "7.6.0",
