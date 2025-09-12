@@ -37,10 +37,10 @@ from .tools.environment import (
     ROLE,
 )
 from .tools.mysql import (
+    get_backend_alert_mysql_settings,
     get_backend_mysql_settings,
     get_grafana_mysql_settings,
     get_saas_mysql_settings,
-    get_backend_alert_mysql_settings,
 )
 from .tools.service import get_service_url
 
@@ -349,6 +349,7 @@ ACTIVE_VIEWS = {
         "apm_event": "apm_web.event.views",
         "apm_profile": "apm_web.profile.views",
         "apm_container": "apm_web.container.views",
+        "apm_strategy": "apm_web.strategy.views",
     },
 }
 
