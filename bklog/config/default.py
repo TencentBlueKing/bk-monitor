@@ -393,6 +393,9 @@ BK_API_URL_TMPL = os.getenv("BKAPP_API_URL_TMPL", f"{PAAS_API_HOST}/api/{{api_na
 BK_APIGW_JWT_PROVIDER_CLS = "apps.middleware.apigw.ApiGatewayJWTProvider"
 # APIGW 同步配置
 SYNC_APIGATEWAY_ENABLED = os.getenv("BKAPP_SYNC_APIGATEWAY_ENABLED", "on")
+# APIGW 开启配置
+APIGW_ENABLED = os.getenv("BKAPP_APIGW_ENABLED", "true")
+APIGW_PUBLIC_KEY = os.getenv("BKAPP_APIGW_PUBLIC_KEY", "")
 
 # 日志归档文档
 BK_ARCHIVE_DOC_URL = os.getenv("BKAPP_ARCHIVE_DOC_URL", "")
