@@ -58,7 +58,7 @@ export default defineComponent({
 
     // 文本框失焦时校验
     const handleBlur = (val: string) => {
-      const validator = props.validator as (val: string) => boolean;
+      const validator = props.validator as (newVal: string) => boolean;
       isError.value = !validator(val);
     };
 

@@ -31,7 +31,8 @@ import { Exception } from 'bk-magic-vue';
 import VueDraggable from 'vuedraggable';
 
 import CollectGroup from './collect-group';
-import { IGroupItem } from './collect-index';
+
+import type { IGroupItem } from './collect-index';
 
 import './collect-container.scss';
 
@@ -75,10 +76,18 @@ export default class CollectContainer extends tsc<IProps> {
     this.handleValueChange('drag-move-end', dragIDList);
   }
   handleMoveIng(e) {
-    if (e.draggedContext.element.group_type === 'private') return false;
-    if (e.draggedContext.element.group_type === 'unknown') return false;
-    if (e.relatedContext.element.group_type === 'private') return false;
-    if (e.relatedContext.element.group_type === 'unknown') return false;
+    if (e.draggedContext.element.group_type === 'private') {
+      return false;
+    }
+    if (e.draggedContext.element.group_type === 'unknown') {
+      return false;
+    }
+    if (e.relatedContext.element.group_type === 'private') {
+      return false;
+    }
+    if (e.relatedContext.element.group_type === 'unknown') {
+      return false;
+    }
     return true;
   }
 
@@ -96,7 +105,19 @@ export default class CollectContainer extends tsc<IProps> {
           class='group-container'
           v-bkloading={{ isLoading: this.collectLoading }}
         >
-          {!this.isSearchEmpty ? (
+          {this.isSearchEmpty ? (
+            <div class='data-empty'>
+              <div class='empty-box'>
+                <Exception
+                  class='exception-wrap-item exception-part'
+                  scene='part'
+                  type='search-empty'
+                >
+                  <span class='empty-text'>{this.$t('无符合条件收藏')}</span>
+                </Exception>
+              </div>
+            </div>
+          ) : (
             <VueDraggable
               vModel={this.dragList}
               animation='150'
@@ -113,23 +134,11 @@ export default class CollectContainer extends tsc<IProps> {
                       collectItem={item}
                       groupList={this.groupList}
                       isSearchFilter={this.isSearchFilter}
-                    ></CollectGroup>
+                    />
                   </div>
                 ))}
               </transition-group>
             </VueDraggable>
-          ) : (
-            <div class='data-empty'>
-              <div class='empty-box'>
-                <Exception
-                  class='exception-wrap-item exception-part'
-                  scene='part'
-                  type='search-empty'
-                >
-                  <span class='empty-text'>{this.$t('无符合条件收藏')}</span>
-                </Exception>
-              </div>
-            </div>
           )}
         </div>
       </div>
