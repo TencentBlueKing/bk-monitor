@@ -1550,9 +1550,9 @@ class SearchAlertResource(Resource):
         record_history = validated_request_data.pop("record_history")
 
         # 检测处理记录ID查询并调整时间范围
-        has_action_query, action_ids = self.detect_action_id_query(validated_request_data)
-        if has_action_query and action_ids:
-            validated_request_data = self.adjust_time_range_for_action_id(validated_request_data, action_ids)
+        has_action_id, detect_result = self.detect_action_id_query(validated_request_data)
+        if has_action_id:
+            validated_request_data = self.adjust_time_range_for_action_id(validated_request_data, detect_result)
 
         # 替换时间范围
         if validated_request_data.get("replace_time_range"):
@@ -1570,7 +1570,7 @@ class SearchAlertResource(Resource):
         return result
 
     @staticmethod
-    def detect_action_id_query(request_data: dict) -> tuple[bool, list]:
+    def detect_action_id_query(request_data: dict) -> tuple:
         """
         检测查询是否涉及处理记录ID
 
@@ -1580,16 +1580,17 @@ class SearchAlertResource(Resource):
         Returns:
             tuple: (是否包含 action_id 查询, 处理记录 ID 列表)
         """
-        action_ids = []
-        has_action_query = False
+        action_ids_in_query = set()
+        action_ids_in_conditions = set()
+
+        has_action_id = False
 
         # 检查 query_string 中的处理记录ID
         query_string = request_data.get("query_string", "")
         if query_string:
             action_id_matches = re.findall(r"处理记录ID\s*:\s*(\d+)", query_string)
             if action_id_matches:
-                action_ids.extend(action_id_matches)
-                has_action_query = True
+                action_ids_in_query.update(set(action_id_matches))
 
         # 检查 conditions 中的 action_id 条件
         conditions = request_data.get("conditions", [])
@@ -1597,15 +1598,22 @@ class SearchAlertResource(Resource):
             if condition.get("key") == "action_id":
                 condition_values = condition.get("value", [])
                 if isinstance(condition_values, list):
-                    action_ids.extend([str(val) for val in condition_values])
+                    action_ids_in_conditions.update([str(val) for val in condition_values])
                 else:
-                    action_ids.append(str(condition_values))
-                has_action_query = True
+                    action_ids_in_conditions.add(str(condition_values))
 
-        return has_action_query, action_ids
+        if action_ids_in_query or action_ids_in_conditions:
+            has_action_id = True
+
+        result = {
+            "action_ids_in_query": action_ids_in_query,
+            "action_ids_in_conditions": action_ids_in_conditions,
+        }
+
+        return has_action_id, result
 
     @staticmethod
-    def adjust_time_range_for_action_id(request_data: dict, action_ids: list) -> dict:
+    def adjust_time_range_for_action_id(request_data: dict, detect_result: dict) -> dict:
         """
         根据处理记录ID调整查询时间范围并替换查询条件
 
@@ -1614,25 +1622,45 @@ class SearchAlertResource(Resource):
 
         Args:
             request_data: 原始请求数据
-            action_ids: 处理记录ID列表
+            detect_result: 检测结果
 
         Returns:
             dict: 调整后的请求数据，包含新的时间范围和告警ID查询条件
         """
         from fta_web.alert.handlers.alert import get_alert_ids_by_action_id
 
+        action_ids_in_query = detect_result["action_ids_in_query"]
+        action_ids_in_conditions = detect_result["action_ids_in_conditions"]
+
+        alert_ids = set()
+
         try:
             # 通过处理记录ID获取告警ID
-            alert_ids = get_alert_ids_by_action_id(action_ids)
+            if action_ids_in_query:
+                temp_ids_in_query, action_alert_map = get_alert_ids_by_action_id(action_ids_in_query)
+                alert_ids.update(temp_ids_in_query)
+                # 增加到上下文信息中，便于后续处理query string时，进行精准替换
+                request_data["context"] = {"action_alert_map": action_alert_map}
+
+            if action_ids_in_conditions:
+                temp_ids_conditions, action_alert_map = get_alert_ids_by_action_id(action_ids_in_conditions)
+                alert_ids.update(temp_ids_conditions)
+                if temp_ids_conditions:
+                    # 将对应的action_id条件转换为id条件，值为对应的告警ID
+                    for condition in request_data.get("conditions", []):
+                        if condition["key"] == "action_id":
+                            condition["key"] = "id"
+                            # 不存在的action_id，告警ID设置为0
+                            condition["value"] = action_alert_map.get(condition["value"], ["0"])
             if not alert_ids:
                 return request_data
 
             # 提取告警ID前10位作为时间戳
-            timestamps = []
+            timestamps = set()
             for alert_id in alert_ids:
                 try:
                     timestamp = int(str(alert_id)[:10])
-                    timestamps.append(timestamp)
+                    timestamps.add(timestamp)
                 except (ValueError, IndexError):
                     logger.warning(f"告警ID {alert_id} 时间戳解析失败")
                     continue
@@ -1652,24 +1680,6 @@ class SearchAlertResource(Resource):
             request_data["end_time"] = max(
                 max_timestamp + one_hour_in_seconds, request_data.get("end_time", max_timestamp)
             )
-
-            # 清理原有的处理记录ID查询条件，替换为告警ID查询
-            # query_string 中出处理记录ID，后续会在AlertQueryTransformer 中进行删除，所以这里不用处理。
-            # 清理 conditions 中的 action_id 条件，添加告警ID条件
-            conditions = request_data.get("conditions", [])
-            conditions = [cond for cond in conditions if cond.get("key") != "action_id"]
-
-            # 添加告警ID条件
-            if alert_ids:
-                alert_id_condition = {
-                    "key": "id",
-                    "value": [str(alert_id) for alert_id in alert_ids],
-                    "method": "eq",
-                    "condition": "and",
-                }
-                conditions.append(alert_id_condition)
-
-            request_data["conditions"] = conditions
 
         except Exception as e:
             logger.error(f"处理记录ID查询时间范围调整失败: {e}")

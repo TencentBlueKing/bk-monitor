@@ -87,21 +87,30 @@ def readable_name_alias_to_id(node: SearchField):
     return
 
 
-def get_alert_ids_by_action_id(action_ids) -> list:
+def get_alert_ids_by_action_id(action_ids) -> tuple[list, dict]:
     if not isinstance(action_ids, list):
         action_ids = [action_ids]
     try:
         actions = ActionInstanceDocument.mget(action_ids)
+        # 构造action_alert_map是为了后续处理query_string时，可以对其中的action_id进行精准替换为对应的
+        action_alert_map = {}  # 以action_id为key的映射
         if actions:
-            alert_ids = [action.alert_id for action in actions]
+            for action in actions:
+                action_alert_map[action.id] = [action.alert_id]
         else:
             action_ids = [int(str(action_id)[10:]) for action_id in action_ids]
-            alert_ids = ActionInstance.objects.filter(id__in=action_ids).values_list("alerts", flat=True)
+            actions = ActionInstance.objects.filter(id__in=action_ids)
+            for action in actions:
+                # 构造action_id: 10位时间戳+action.id
+                action_id = f"{int(action.create_time.timestamp())}{action.id}"
+                action_alert_map[action_id] = action.alerts
     except Exception:
         logger.exception("Failed to get alert ids by action ids")
-        alert_ids = []
-    alert_ids = set(chain.from_iterable(alert_ids))
-    return list(alert_ids)
+        action_alert_map = {}
+
+    # 展平所有告警ID
+    alert_ids = set(chain.from_iterable(action_alert_map.values()))
+    return list(alert_ids), action_alert_map
 
 
 def get_alert_ids_by_action_name(action_names, include=False, exclude=False, **kwargs) -> list:
@@ -238,12 +247,6 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("set_id", _lazy("集群ID"), es_field="event.bk_topo_node"),
     ]
 
-    def visit_search_field(self, node: SearchField, context: dict):
-        if node.name in ["处理记录ID", "action_id"]:
-            node = Word("")
-
-        yield from self.generic_visit(node, context)
-
     def visit_word(self, node: Word, context: dict):
         if context.get("ignore_word"):
             yield from self.generic_visit(node, context)
@@ -311,7 +314,11 @@ class AlertQueryTransformer(BaseQueryTransformer):
             "action_id",
             _("处理记录ID"),
         ]:
-            alert_ids = get_alert_ids_by_action_id(node.value)
+            action_alert_map = context.get("action_alert_map", {})
+            if action_alert_map:
+                alert_ids = action_alert_map.get(node.value, [])
+            else:
+                alert_ids = get_alert_ids_by_action_id(node.value)
             node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
             context.update({"ignore_search_field": True, "ignore_word": True})
 
@@ -491,13 +498,16 @@ class AlertQueryHandler(BaseBizQueryHandler):
         self.is_time_partitioned = is_time_partitioned
         self.is_finaly_partition = is_finaly_partition
         self.need_bucket_count = need_bucket_count
-        self.query_context = {
-            "bk_biz_ids": self.bk_biz_ids,
-            "start_time": self.start_time,
-            "end_time": self.end_time,
-            "page": self.page,
-            "page_size": self.page_size,
-        }
+        self.query_context = kwargs.get("context", {})
+        self.query_context.update(
+            {
+                "bk_biz_ids": self.bk_biz_ids,
+                "start_time": self.start_time,
+                "end_time": self.end_time,
+                "page": self.page,
+                "page_size": self.page_size,
+            }
+        )
 
     def get_search_object(
         self,
@@ -804,12 +814,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
             )
         elif condition["key"] == "alert_name":
             condition["key"] = "alert_name.raw"
-        elif condition["key"] == "id" and condition["origin_key"] == "action_id":
-            # 处理动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
-            alert_ids = get_alert_ids_by_action_id(condition["value"])
-            if not alert_ids:
-                alert_ids = [0]
-            return Q("ids", values=alert_ids)
 
         elif condition["origin_key"] == "action_name" and condition["key"] == "id":
             # 用于支持对处理套餐名称查询
