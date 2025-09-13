@@ -25,17 +25,18 @@
  */
 
 import { defineComponent, ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import useRouter from '@/hooks/use-router';
-import useRoute from '@/hooks/use-route';
-import http from '@/api';
 
 import EmptyStatus from '@/components/empty-status/index.vue';
+import useLocale from '@/hooks/use-locale';
+import useRoute from '@/hooks/use-route';
+import useRouter from '@/hooks/use-router';
+import useStore from '@/hooks/use-store';
+
 import DownloadUrl from './download-url.tsx';
 import ListBox from './list-box.tsx';
 import TaskStatusDetail from './task-status-detail.tsx';
 import TextFilterDetail from './text-filter-detail.tsx';
+import http from '@/api';
 
 import './index.scss';
 
@@ -101,7 +102,9 @@ export default defineComponent({
         pagination.value.count = res.data.total;
         // 获取请求displayName的 ipList参数列表
         const allIpList = res.data.list.reduce((pre: any[], cur: any) => {
-          if (!cur.enable_clone) return pre;
+          if (!cur.enable_clone) {
+            return pre;
+          }
           pre.push(
             ...cur.ip_list.map((item: any) => {
               if (item?.bk_host_id) {
@@ -142,7 +145,7 @@ export default defineComponent({
           },
         });
         displayNameList.value = res.data;
-      } catch (error) {
+      } catch {
         displayNameList.value = [];
       }
     };
@@ -155,6 +158,7 @@ export default defineComponent({
         return;
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       timeoutID.value = setTimeout(async () => {
         if (!pollingList.value.length) {
           return;
@@ -166,14 +170,14 @@ export default defineComponent({
             },
           });
 
-          res.data.forEach((newItem: any) => {
+          for (const newItem of res.data) {
             const taskItem = taskList.value.find(item => item.task_id === newItem.task_id);
             if (taskItem) {
               taskItem.task_process_info = newItem.task_process_info;
               taskItem.download_status = newItem.download_status;
               taskItem.download_status_display = newItem.download_status_display;
             }
-          });
+          }
         } catch (err) {
           console.warn(err);
         }
@@ -242,7 +246,9 @@ export default defineComponent({
 
     // 克隆任务
     const cloneTask = (row: any) => {
-      if (!row.enable_clone) return;
+      if (!row.enable_clone) {
+        return;
+      }
       sessionStorage.setItem('cloneData', JSON.stringify(row));
       router.push({
         name: 'extract-clone',
@@ -255,7 +261,9 @@ export default defineComponent({
     // 下载文件
     const downloadFile = ({ task_id }: any) => {
       let urlPrefix = (window as any).AJAX_URL_PREFIX;
-      if (!urlPrefix.endsWith('/')) urlPrefix += '/';
+      if (!urlPrefix.endsWith('/')) {
+        urlPrefix += '/';
+      }
       const { bkBizId } = store.state;
 
       const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${task_id}&bk_biz_id=${bkBizId}`;
@@ -303,7 +311,9 @@ export default defineComponent({
             displayNameList.value.find(dItem => {
               const hostMatch = item.bk_host_id === dItem.bk_host_id;
               const ipMatch = `${item.ip}_${item.bk_cloud_id}` === `${dItem.bk_host_innerip}_${dItem.bk_cloud_id}`;
-              if (item?.bk_host_id) return hostMatch || ipMatch;
+              if (item?.bk_host_id) {
+                return hostMatch || ipMatch;
+              }
               return ipMatch;
             })?.display_name || ''
           );
@@ -362,26 +372,21 @@ export default defineComponent({
           </bk-button>
           <bk-input
             class='king-input-search'
-            value={searchKeyword.value}
             clearable={true}
+            data-test-id='fromBox_input_searchExtraction'
             left-icon='bk-icon icon-search'
             placeholder={t('搜索文件名、创建人，按 enter 键搜索')}
-            data-test-id='fromBox_input_searchExtraction'
+            value={searchKeyword.value}
+            on-left-icon-click={handleSearch}
             onChange={val => (searchKeyword.value = val)}
             onClear={handleSearch}
             onEnter={handleSearch}
-            on-left-icon-click={handleSearch}
           />
         </div>
 
         {/* 表格 */}
         <bk-table
           class='king-table'
-          data={taskList.value}
-          pagination={pagination.value}
-          data-test-id='fromBox_table_tableBox'
-          onPage-change={handlePageChange}
-          onPage-limit-change={handlePageLimitChange}
           scopedSlots={{
             empty: () => (
               <div>
@@ -392,12 +397,14 @@ export default defineComponent({
               </div>
             ),
           }}
+          data={taskList.value}
+          data-test-id='fromBox_table_tableBox'
+          pagination={pagination.value}
+          onPage-change={handlePageChange}
+          onPage-limit-change={handlePageLimitChange}
         >
           {/* 文件来源主机列 */}
           <bk-table-column
-            label={t('文件来源主机')}
-            renderHeader={renderHeader}
-            min-width='140'
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
@@ -405,13 +412,13 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('文件来源主机')}
+            min-width='140'
+            renderHeader={renderHeader}
           />
 
           {/* 文件列 */}
           <bk-table-column
-            label={t('文件')}
-            renderHeader={renderHeader}
-            min-width='240'
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
@@ -419,21 +426,21 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('文件')}
+            min-width='240'
+            renderHeader={renderHeader}
           />
 
           {/* 创建时间列 */}
           <bk-table-column
             label={t('创建时间')}
-            renderHeader={renderHeader}
             min-width='120'
             prop='created_at'
+            renderHeader={renderHeader}
           />
 
           {/* 备注列 */}
           <bk-table-column
-            label={t('备注')}
-            renderHeader={renderHeader}
-            min-width='120'
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
@@ -441,21 +448,21 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('备注')}
+            min-width='120'
+            renderHeader={renderHeader}
           />
 
           {/* 创建人列 */}
           <bk-table-column
             label={t('创建人')}
-            renderHeader={renderHeader}
             min-width='100'
             prop='created_by'
+            renderHeader={renderHeader}
           />
 
           {/* 任务状态列 */}
           <bk-table-column
-            label={t('任务状态')}
-            renderHeader={renderHeader}
-            min-width='120'
             scopedSlots={{
               default: ({ row }: any) => (
                 <div
@@ -480,30 +487,31 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('任务状态')}
+            min-width='120'
+            renderHeader={renderHeader}
           />
 
           {/* 操作列 */}
           <bk-table-column
             width='200'
-            label={t('操作')}
-            renderHeader={renderHeader}
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='task-operation-container'>
                   <span
                     class='task-operation'
-                    onClick={() => viewDetail(row)}
+                    onClick={() => viewDetail(row)} // eslint-disable-line @typescript-eslint/no-misused-promises
                   >
                     {t('详情')}
                   </span>
                   <span
+                    class={['task-operation', !row.enable_clone && 'cannot-click']}
                     v-bk-tooltips={{
                       content: row.message,
                       disabled: row.enable_clone,
                       delay: 300,
-                      placement: 'top'
+                      placement: 'top',
                     }}
-                    class={['task-operation', !row.enable_clone && 'cannot-click']}
                     onClick={() => cloneTask(row)}
                   >
                     {t('克隆')}
@@ -519,7 +527,7 @@ export default defineComponent({
                   {row.download_status === 'redownloadable' && (
                     <span
                       class='task-operation'
-                      onClick={() => reDownloadFile(row)}
+                      onClick={() => reDownloadFile(row)} // eslint-disable-line @typescript-eslint/no-misused-promises
                     >
                       {t('重试')}
                     </span>
@@ -527,6 +535,8 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('操作')}
+            renderHeader={renderHeader}
           />
         </bk-table>
 
@@ -552,31 +562,31 @@ export default defineComponent({
               v-bkloading={{ isLoading: sideSlider.value.isLoading }}
             >
               <ListBox
+                icon='bklog-icon bklog-info-fill'
                 mark={true}
                 title={sideSlider.value.data.task_process_info}
-                icon='bklog-icon bklog-info-fill'
               />
               <TaskStatusDetail status-data={sideSlider.value.data.task_step_status} />
               <DownloadUrl task-id={sideSlider.value.data.task_id} />
               <ListBox
+                icon='bk-icon icon-sitemap'
                 list={sideSlider.value.data.preview_directory}
                 title={t('文件路径')}
-                icon='bk-icon icon-sitemap'
               />
               <ListBox
+                icon='bk-icon icon-data'
                 list={getDownloadTheTargetList(sideSlider.value.data)}
                 title={t('文件来源主机')}
-                icon='bk-icon icon-data'
               />
               <ListBox
+                icon='bk-icon icon-file'
                 list={sideSlider.value.data.file_path}
                 title={t('文件列表')}
-                icon='bk-icon icon-file'
               />
               <ListBox
+                icon='bk-icon icon-clock'
                 list={sideSlider.value.data.expiration_date}
                 title={t('过期时间')}
-                icon='bk-icon icon-clock'
               />
               {sideSlider.value.data.filter_type && <TextFilterDetail data={sideSlider.value.data} />}
             </div>
