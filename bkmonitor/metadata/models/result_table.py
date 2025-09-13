@@ -2431,6 +2431,10 @@ class ResultTableField(models.Model):
                 if item["alias_name"] == "":
                     item.pop("alias_name")
 
+                if not item["is_disabled"]:
+                    item.pop("is_disabled")
+                item.pop("unit")
+
                 item.pop("description")
 
             # 组装对应的数据
