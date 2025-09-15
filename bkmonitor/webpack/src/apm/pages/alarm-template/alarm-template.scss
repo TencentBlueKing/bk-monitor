@@ -1,6 +1,12 @@
 .alarm-template {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
+  padding: 12px;
+
+  .alarm-template-header {
+    display: flex;
+
+    .alarm-template-header-operations {
+      display: flex;
+      column-gap: 8px;
+    }
+  }
 }
