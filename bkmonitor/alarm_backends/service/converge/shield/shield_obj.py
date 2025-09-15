@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -37,7 +36,7 @@ from core.errors.alarm_backends import StrategyNotFound
 logger = logging.getLogger("fta_action")
 
 
-class ShieldObj(object):
+class ShieldObj:
     """
     每条屏蔽配置对应的obj
     """
@@ -128,12 +127,12 @@ class ShieldObj(object):
             if dynamic_group_ids:
                 dynamic_groups = DynamicGroupManager.multi_get(dynamic_group_ids)
 
-            bk_host_ids = set()
+            bk_host_ids: set = {0}
             for dynamic_group in dynamic_groups:
                 if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
                     bk_host_ids.update(dynamic_group["bk_inst_ids"])
-            if bk_host_ids:
-                clean_dimension["bk_host_id"] = list(bk_host_ids)
+            # 动态分组所属的主机为空，则表示屏蔽规则失效，依然需要将bk_host_id: [0] 设置到待匹配维度中
+            clean_dimension["bk_host_id"] = list(bk_host_ids)
 
         for k, v in list(clean_dimension.items()):
             field = load_field_instance(k, v)
@@ -316,15 +315,13 @@ class ShieldObj(object):
 
         for notice_way in self.config["notice_config"]["notice_way"]:
             sender = Sender(
-                title_template_path="notice/shield/{notice_way}_title.jinja".format(
-                    notice_way=notice_way,
-                ),
-                content_template_path="notice/shield/{notice_way}_content.jinja".format(
-                    notice_way=notice_way,
-                ),
+                title_template_path=f"notice/shield/{notice_way}_title.jinja",
+                content_template_path=f"notice/shield/{notice_way}_content.jinja",
                 context=context,
             )
-            logger.debug("[屏蔽通知] shield({}) 通知方式：{}, 内容：{}".format(self.config["id"], notice_way, sender.content))
+            logger.debug(
+                "[屏蔽通知] shield({}) 通知方式：{}, 内容：{}".format(self.config["id"], notice_way, sender.content)
+            )
             notice_result = sender.send(notice_way, notice_receivers)
             all_notice_result[notice_way] = notice_result
 
