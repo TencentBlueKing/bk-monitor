@@ -24,18 +24,21 @@ class LogCollectorHandler:
         for item in result:
             scenario_id = item.get("scenario_id", Scenario.LOG)
             collector_scenario_id = item.get("collector_scenario_id", "")
+            collector_config_name = item.get("collector_config_name", "")
+            index_set_name = item.get("index_set_name", "")
             table_id = item.get("table_id", "")
             table_id_prefix = item.get("table_id_prefix", "")
-            bk_data_name = item.get("bk_data_name", "")
-            if table_id and table_id_prefix:
+            if index_set_name:
+                bk_data_name = item["bk_data_name"]
+            elif table_id and table_id_prefix:
                 bk_data_name = f"{table_id_prefix}{table_id}"
+            else:
+                bk_data_name = ""
             result_list.append(
                 {
                     "table_id": item.get("table_id", ""),
                     "bk_data_id": item.get("bk_data_id", ""),
-                    "name": item.get("collector_config_name")
-                    if item.get("collector_config_name")
-                    else item.get("index_set_name", ""),
+                    "name": collector_config_name if collector_config_name else index_set_name,
                     "collector_config_id": item.get("collector_config_id", ""),
                     "table_id_prefix": item.get("table_id_prefix", ""),
                     "bk_data_name": bk_data_name,
