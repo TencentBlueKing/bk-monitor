@@ -882,7 +882,6 @@ class SetCodeRedefinedRuleResource(Resource):
         rules: list = validated_request_data["rules"]
 
         username = get_request_username()
-        created_ids = []
 
         # 处理每个规则
         for rule in rules:
@@ -913,7 +912,6 @@ class SetCodeRedefinedRuleResource(Resource):
             obj, created = CodeRedefinedConfigRelation.objects.update_or_create(defaults=defaults, **filters)
             if created:
                 CodeRedefinedConfigRelation.objects.filter(id=obj.id).update(created_by=username)
-            created_ids.append(obj.id)
 
         # 同步下发：汇总整个应用的 code_relabel 列表并下发到 APM
         self.publish_code_relabel_to_apm(bk_biz_id, app_name)
