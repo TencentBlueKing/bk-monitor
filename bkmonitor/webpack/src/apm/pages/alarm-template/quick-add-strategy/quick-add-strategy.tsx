@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Mixins, Prop } from 'vue-property-decorator';
+import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
-import { listUserGroup } from 'monitor-api/modules/model';
+import { listUserGroup, searchStrategyTemplate } from 'monitor-api/modules/model';
 import authorityMixinCreate from 'monitor-pc/mixins/authorityMixin';
 import { MANAGE_AUTH as MANAGE } from 'monitor-pc/pages/alarm-group/authority-map';
 
+import TemplateDetails from '../template-operate/template-details';
 import JudgmentConditions from './judgment-conditions';
 import TemplateList from './template-list';
 
@@ -39,6 +40,7 @@ import type { IAlarmGroupList, ITempLateItem } from './typing';
 import './quick-add-strategy.scss';
 
 interface IProps {
+  params?: Record<string, any>;
   show?: boolean;
   onShowChange?: (v: boolean) => void;
 }
@@ -50,6 +52,7 @@ class QuickAddStrategy extends Mixins(
   })
 ) {
   @Prop({ type: Boolean, default: false }) show: boolean;
+  @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
 
   templateList = [];
   alarmGroupList: IAlarmGroupList[] = [];
@@ -58,130 +61,23 @@ class QuickAddStrategy extends Mixins(
   cursorItem: ITempLateItem = null;
   checkedList = [];
 
+  templateDetails = {
+    show: false,
+  };
+
+  @Watch('show')
+  handleWatchShowChange(v: boolean) {
+    if (v) {
+      this.getTemplateList();
+    }
+  }
+
   created() {
-    this.templateList = [
-      {
-        id: 1,
-        name: '[调用分析] 主调平均耗时',
-        system: 'RPC',
-        category: 'caller',
-        type: 'app',
-        is_enabled: true,
-        is_auto_apply: true,
-        has_been_applied: true,
-        algorithms: [
-          {
-            level: 2,
-            method: 'lte',
-            threshold: 1000,
-            type: 'Threshold',
-          },
-          {
-            level: 1,
-            method: 'lte',
-            threshold: 3000,
-            type: 'Threshold',
-          },
-        ],
-        user_group_list: [{ id: 1, name: '应用创建者' }],
-        applied_service_names: ['example.greeter1', 'example.greeter'],
-        create_user: 'admin',
-        create_time: '2025-08-04 17:43:26+0800',
-        update_user: 'admin',
-        update_time: '2025-08-04 17:43:26+0800',
-      },
-      {
-        id: 10,
-        name: '[调用分析] 主调平均耗时xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-        system: 'RPC',
-        category: 'caller',
-        type: 'app',
-        is_enabled: true,
-        is_auto_apply: true,
-        algorithms: [
-          {
-            level: 2,
-            method: 'lte',
-            threshold: 1000,
-            type: 'Threshold',
-          },
-          {
-            level: 1,
-            method: 'lte',
-            threshold: 3000,
-            type: 'Threshold',
-          },
-        ],
-        user_group_list: [{ id: 1, name: '应用创建者' }],
-        applied_service_names: ['example.greeter1', 'example.greeter'],
-        has_been_applied: false,
-        create_user: 'admin',
-        create_time: '2025-08-04 17:43:26+0800',
-        update_user: 'admin',
-        update_time: '2025-08-04 17:43:26+0800',
-      },
-      {
-        id: 2,
-        name: '[调用分析] 主调平均耗时',
-        system: 'RPC',
-        category: 'callee',
-        type: 'app',
-        is_enabled: true,
-        is_auto_apply: true,
-        has_been_applied: false,
-        algorithms: [
-          {
-            level: 2,
-            method: 'lte',
-            threshold: 1000,
-            type: 'Threshold',
-          },
-          {
-            level: 1,
-            method: 'lte',
-            threshold: 3000,
-            type: 'Threshold',
-          },
-        ],
-        user_group_list: [{ id: 1, name: '应用创建者' }],
-        applied_service_names: ['example.greeter1', 'example.greeter'],
-        create_user: 'admin',
-        create_time: '2025-08-04 17:43:26+0800',
-        update_user: 'admin',
-        update_time: '2025-08-04 17:43:26+0800',
-      },
-      {
-        id: 22,
-        name: '[调用分析] 主调平均耗时',
-        system: 'EVENT',
-        category: '',
-        type: 'app',
-        is_enabled: true,
-        is_auto_apply: true,
-        algorithms: [
-          {
-            level: 2,
-            method: 'lte',
-            threshold: 1000,
-            type: 'Threshold',
-          },
-          {
-            level: 1,
-            method: 'lte',
-            threshold: 3000,
-            type: 'Threshold',
-          },
-        ],
-        user_group_list: [{ id: 1, name: '应用创建者' }],
-        applied_service_names: ['example.greeter1', 'example.greeter'],
-        has_been_applied: false,
-        create_user: 'admin',
-        create_time: '2025-08-04 17:43:26+0800',
-        update_user: 'admin',
-        update_time: '2025-08-04 17:43:26+0800',
-      },
-    ];
     this.getAlarmGroupList();
+  }
+
+  handleShowTemplateDetails() {
+    this.templateDetails.show = true;
   }
 
   handleShowChange(v: boolean) {
@@ -245,6 +141,14 @@ class QuickAddStrategy extends Mixins(
     });
   }
 
+  getTemplateList() {
+    searchStrategyTemplate({
+      ...this.params,
+    }).then(data => {
+      this.templateList = data?.list || [];
+    });
+  }
+
   render() {
     return (
       <bk-sideslider
@@ -276,12 +180,21 @@ class QuickAddStrategy extends Mixins(
               <span class='header-title'>{this.$t('预览')}</span>
               <span class='split-line' />
               <span class='header-desc'>{this.cursorItem?.name || '--'}</span>
-              <span class='header-right-link'>
+              <span
+                class='header-right-link'
+                onClick={this.handleShowTemplateDetails}
+              >
                 <span>{this.$t('模板详情')}</span>
                 <span class='icon-monitor icon-fenxiang' />
               </span>
             </div>
           </div>
+          <TemplateDetails
+            show={this.templateDetails.show}
+            onShowChange={v => {
+              this.templateDetails.show = v;
+            }}
+          />
         </div>
         <div
           class='quick-add-strategy-footer'
