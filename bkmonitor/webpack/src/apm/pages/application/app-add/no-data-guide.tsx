@@ -117,7 +117,7 @@ export default class NoDataGuide extends tsc<IProps> {
    * 通过app name来获取应用的信息
    */
   async getAppInfo() {
-    this.appInfo = await applicationInfoByAppName({ app_name: this.appName });
+    this.appInfo = await applicationInfoByAppName({ app_name: this.appName }).catch(() => undefined);
   }
 
   /** 获取环境 语言 md文档等信息 */
