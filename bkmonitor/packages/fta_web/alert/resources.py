@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from functools import reduce
 from io import StringIO
 from typing import Any
+from itertools import chain
 
 from django.conf import settings
 from django.core.cache import cache
@@ -1548,7 +1549,7 @@ class SearchAlertResource(Resource):
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
         record_history = validated_request_data.pop("record_history")
-
+        origin_request_data = copy.deepcopy(validated_request_data)
         # 检测处理记录ID查询并调整时间范围
         has_action_id, detect_result = self.detect_action_id_query(validated_request_data)
         if has_action_id:
@@ -1562,8 +1563,8 @@ class SearchAlertResource(Resource):
 
         with SearchHistory.record(
             SearchType.ALERT,
-            validated_request_data,
-            enabled=record_history and validated_request_data.get("query_string"),
+            origin_request_data,
+            enabled=record_history and origin_request_data.get("query_string"),
         ):
             result = handler.search(show_overview=show_overview, show_aggs=show_aggs, show_dsl=show_dsl)
 
@@ -1606,8 +1607,8 @@ class SearchAlertResource(Resource):
             has_action_id = True
 
         result = {
-            "action_ids_in_query": action_ids_in_query,
-            "action_ids_in_conditions": action_ids_in_conditions,
+            "action_ids_in_query": list(action_ids_in_query),
+            "action_ids_in_conditions": list(action_ids_in_conditions),
         }
 
         return has_action_id, result
@@ -1634,55 +1635,53 @@ class SearchAlertResource(Resource):
 
         alert_ids = set()
 
-        try:
-            # 通过处理记录ID获取告警ID
-            if action_ids_in_query:
-                temp_ids_in_query, action_alert_map = get_alert_ids_by_action_id(action_ids_in_query)
-                alert_ids.update(temp_ids_in_query)
-                # 增加到上下文信息中，便于后续处理query string时，进行精准替换
-                request_data["context"] = {"action_alert_map": action_alert_map}
+        # 通过处理记录ID获取告警ID
+        if action_ids_in_query:
+            temp_ids_in_query, action_alert_map = get_alert_ids_by_action_id(action_ids_in_query)
+            alert_ids.update(temp_ids_in_query)
+            # 增加到上下文信息中，便于后续处理query string时，进行精准替换
+            request_data["context"] = {"action_alert_map": action_alert_map}
 
-            if action_ids_in_conditions:
-                temp_ids_conditions, action_alert_map = get_alert_ids_by_action_id(action_ids_in_conditions)
-                alert_ids.update(temp_ids_conditions)
-                if temp_ids_conditions:
-                    # 将对应的action_id条件转换为id条件，值为对应的告警ID
-                    for condition in request_data.get("conditions", []):
-                        if condition["key"] == "action_id":
-                            condition["key"] = "id"
-                            # 不存在的action_id，告警ID设置为0
-                            condition["value"] = action_alert_map.get(condition["value"], ["0"])
-            if not alert_ids:
-                return request_data
+        if action_ids_in_conditions:
+            temp_ids_conditions, action_alert_map = get_alert_ids_by_action_id(action_ids_in_conditions)
+            alert_ids.update(temp_ids_conditions)
+            if temp_ids_conditions:
+                # 将对应的action_id条件转换为id条件，值为对应的告警ID
+                for condition in request_data.get("conditions", []):
+                    if condition["key"] == "action_id":
+                        condition["key"] = "id"
+                        # 不存在的action_id，告警ID设置为0
+                        condition["value"] = chain.from_iterable(
+                            [action_alert_map.get(value, ["0"]) for value in condition["value"]]
+                        )
+                        condition["value"] = list(set(condition["value"]))
 
-            # 提取告警ID前10位作为时间戳
-            timestamps = set()
-            for alert_id in alert_ids:
-                try:
-                    timestamp = int(str(alert_id)[:10])
-                    timestamps.add(timestamp)
-                except (ValueError, IndexError):
-                    logger.warning(f"告警ID {alert_id} 时间戳解析失败")
-                    continue
+        if not alert_ids:
+            return request_data
 
-            if not timestamps:
-                return request_data
+        # 提取告警ID前10位作为时间戳
+        timestamps = set()
+        for alert_id in alert_ids:
+            try:
+                timestamp = int(str(alert_id)[:10])
+                timestamps.add(timestamp)
+            except (ValueError, IndexError):
+                logger.warning(f"告警ID {alert_id} 时间戳解析失败")
+                continue
 
-            # 计算时间范围（前后扩展1小时）
-            one_hour_in_seconds = 3600
-            min_timestamp = min(timestamps)
-            max_timestamp = max(timestamps)
+        if not timestamps:
+            return request_data
 
-            # 与原时间范围合并，确保能够覆盖所有情况
-            request_data["start_time"] = min(
-                min_timestamp - one_hour_in_seconds, request_data.get("start_time", min_timestamp)
-            )
-            request_data["end_time"] = max(
-                max_timestamp + one_hour_in_seconds, request_data.get("end_time", max_timestamp)
-            )
+        # 计算时间范围（前后扩展1小时）
+        one_hour_in_seconds = 3600
+        min_timestamp = min(timestamps)
+        max_timestamp = max(timestamps)
 
-        except Exception as e:
-            logger.error(f"处理记录ID查询时间范围调整失败: {e}")
+        # 与原时间范围合并，确保能够覆盖所有情况
+        request_data["start_time"] = min(
+            min_timestamp - one_hour_in_seconds, request_data.get("start_time", min_timestamp)
+        )
+        request_data["end_time"] = max(max_timestamp + one_hour_in_seconds, request_data.get("end_time", max_timestamp))
 
         return request_data
 

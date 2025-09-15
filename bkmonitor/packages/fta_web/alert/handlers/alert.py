@@ -87,25 +87,25 @@ def readable_name_alias_to_id(node: SearchField):
     return
 
 
-def get_alert_ids_by_action_id(action_ids) -> tuple[list, dict]:
-    if not isinstance(action_ids, list):
-        action_ids = [action_ids]
+def get_alert_ids_by_action_id(action_ids: list) -> tuple[list, dict]:
     try:
         actions = ActionInstanceDocument.mget(action_ids)
         # 构造action_alert_map是为了后续处理query_string时，可以对其中的action_id进行精准替换为对应的
         action_alert_map = {}  # 以action_id为key的映射
         if actions:
             for action in actions:
-                action_alert_map[action.id] = [action.alert_id]
-        else:
+                action_alert_map[action.id] = action.alert_id
+
+        if len(actions) < len(action_ids):
+            action_ids = set(action_ids) - set(action_alert_map.keys())
             action_ids = [int(str(action_id)[10:]) for action_id in action_ids]
             actions = ActionInstance.objects.filter(id__in=action_ids)
             for action in actions:
                 # 构造action_id: 10位时间戳+action.id
                 action_id = f"{int(action.create_time.timestamp())}{action.id}"
                 action_alert_map[action_id] = action.alerts
-    except Exception:
-        logger.exception("Failed to get alert ids by action ids")
+    except Exception as e:
+        logger.exception(f"Failed to get alert ids by action ids, error: {e}")
         action_alert_map = {}
 
     # 展平所有告警ID
