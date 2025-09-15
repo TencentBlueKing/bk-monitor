@@ -57,6 +57,11 @@ export type eventPanelType = 'analyze' | 'list';
 
 export type FilterInputStatus = 'error' | 'success';
 
+export interface IBkTopoNodeItem {
+  bk_inst_id: string;
+  bk_obj_id: string;
+  node_name?: string;
+}
 export interface IChatGroupDialogOptions {
   alertCount?: number;
   alertIds?: string[];
@@ -76,17 +81,12 @@ export interface ICommonTreeItem {
   id: SearchType | string;
   name: string;
 }
+
 export interface IDimensionItem {
   display_key: string;
   display_value: string;
   key: string;
   value: string;
-}
-
-export interface IBkTopoNodeItem {
-  bk_obj_id: string;
-  bk_inst_id: string;
-  node_name?: string;
 }
 
 export interface IEventItem {
@@ -96,6 +96,7 @@ export interface IEventItem {
   alert_name: string;
   appointee?: string[];
   assignee: string[];
+  assignees?: string[];
   begin_time: number;
   bizName: string;
   bk_biz_id: number;
@@ -126,7 +127,7 @@ export interface IEventItem {
   is_ack: boolean;
   is_handled: boolean;
   is_shielded: boolean;
-  labels?: string[];
+  labels?: string[] | { key: string; value: string }[];
   latest_time: number;
   metric: string;
   metric_display: { id: string; name: string }[];
@@ -148,8 +149,6 @@ export interface IPagination {
   current: number;
   limit: number;
 }
-export type SearchType = 'action' | 'alert' | 'event' | 'incident';
-
 export interface ITopoNodeDataItem {
   bk_inst_id: number;
   bk_inst_name: string;
@@ -157,3 +156,5 @@ export interface ITopoNodeDataItem {
   bk_obj_name: string;
   child?: ITopoNodeDataItem[];
 }
+
+export type SearchType = 'action' | 'alert' | 'event' | 'incident';
