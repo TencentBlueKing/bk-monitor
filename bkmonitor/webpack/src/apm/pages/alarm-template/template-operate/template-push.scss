@@ -1,0 +1,51 @@
+.template-push-side-component {
+  .template-push-header {
+    display: flex;
+    align-items: center;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+
+      .header-title {
+        font-size: 16px;
+        color: #313238;
+      }
+
+      .split-line {
+        width: 1px;
+        height: 14px;
+        margin: 0 8px;
+        background: #DCDEE5;
+      }
+
+      .header-desc {
+        font-size: 14px;
+        color: #979BA5;
+      }
+    }
+  }
+
+  .template-push-content {
+    min-height: calc(100vh - 100px);
+
+    .bk-tab-header {
+      float: none;
+      display: block;
+      border-top: 1px solid #fafbfd;
+    }
+
+    .bk-tab-section {
+      border-bottom: none;
+    }
+  }
+
+  .template-push-footer {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 48px;
+    background: #FAFBFD;
+    border-top: 1px solid #DCDEE5;
+  }
+}
