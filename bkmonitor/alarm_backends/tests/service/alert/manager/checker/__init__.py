@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -141,7 +140,7 @@ ANOMALY_EVENT = {
         "record_id": "55a76cf628e46c04a052f4e19bdb9dbf.1569246480",
         "value": 1.38,
         "values": {"timestamp": 1569246480, "load5": 1.38},
-        "dimensions": {"ip": "10.0.0.1"},
+        "dimensions": {"ip": "10.0.0.1", "bk_cloud_id": "1"},
         "time": 1569246480,
     },
     "anomaly": {

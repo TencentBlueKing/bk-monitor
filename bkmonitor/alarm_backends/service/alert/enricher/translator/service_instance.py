@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 from django.utils.translation import gettext as _
 
@@ -30,7 +28,7 @@ class ServiceInstanceTranslator(BaseTranslator):
         if not field:
             return data
         instance_id = field.value
-        instance = ServiceInstanceManager.get(instance_id)
+        instance = ServiceInstanceManager.get(bk_tenant_id=self.bk_tenant_id, service_instance_id=instance_id)
         if not instance:
             field.display_name = _("服务实例ID")
         else:

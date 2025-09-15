@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import copy
 
@@ -28,7 +26,35 @@ from alarm_backends.service.access.event.records import (
 from alarm_backends.service.access.event.records.custom_event import (
     GseCustomStrEventRecord,
 )
-from alarm_backends.tests.service.access.event.config import *  # noqa
+from alarm_backends.tests.service.access.event.config import (
+    AGENT_LOSE_DATA,
+    AGENT_LOSE_DATA2,
+    AGENT_LOSE_DATA3,
+    AGENT_LOSE_STRATEGY,
+    AGENT_LOSE_DATA_CLEAN,
+    AGENT_LOSE_DATA_CLEAN2,
+    PING_UNREACH_STRATEGY,
+    PING_UNREACH_DATA,
+    PING_UNREACH_DATA_CLEAN,
+    DISK_READ_ONLY_STRATEGY,
+    DISK_READ_ONLY_DATA,
+    DISK_READ_ONLY_DATA_CLEAN,
+    DISK_FULL_STRATEGY,
+    DISK_FULL_DATA,
+    DISK_FULL_DATA_CLEAN,
+    COREFILE_STRATEGY,
+    COREFILE_DATA,
+    COREFILE_DATA_CLEAN,
+    CUSTOM_STR_STRATEGY,
+    CUSTOM_STR_DATA,
+    CUSTOM_STR_DATA_CLEAN,
+    PROCESS_EVENT_STRATEGY,
+    GSE_PROCESS_EVENT_DATA,
+    GSE_PROCESS_EVENT_DATA_CLEAN,
+    HOST_OBJECT,
+    now,
+    utc_now,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -40,7 +66,7 @@ def mock_arrow(mocker):
 
 
 @pytest.mark.usefixtures("mock_arrow")
-class TestGseEventRecords(object):
+class TestGseEventRecords:
     def test_agent(self, mocker):
         get_strategy_by_id = mocker.patch.object(StrategyCacheManager, "get_strategy_by_id")
         get_strategy_by_id.return_value = copy.deepcopy(AGENT_LOSE_STRATEGY)
@@ -75,7 +101,7 @@ class TestGseEventRecords(object):
                 assert r.data["anomaly"] == AGENT_LOSE_DATA_CLEAN2["anomaly"]
 
         assert get_host_by_agent_id.call_count == 1
-        assert get_host_by_agent_id.call_args[0][0] == "0100005254008ed86116666614661851"
+        assert get_host_by_agent_id.call_args[1]["bk_agent_id"] == "0100005254008ed86116666614661851"
 
     def test_ping(self, mocker):
         get_strategy_by_id = mocker.patch.object(StrategyCacheManager, "get_strategy_by_id")
@@ -188,7 +214,7 @@ class TestGseEventRecords(object):
 
 
 @pytest.mark.usefixtures("mock_arrow")
-class TestCustomEventRecords(object):
+class TestCustomEventRecords:
     def test_custom_str(self, mocker):
         get_strategy_by_id = mocker.patch.object(StrategyCacheManager, "get_strategy_by_id")
         get_strategy_by_id.return_value = copy.deepcopy(CUSTOM_STR_STRATEGY)
@@ -218,7 +244,7 @@ class TestCustomEventRecords(object):
 
 
 @pytest.mark.usefixtures("mock_arrow")
-class TestGseProcessEventRecords(object):
+class TestGseProcessEventRecords:
     def test_custom_str(self, mocker):
         get_strategy_by_id = mocker.patch.object(StrategyCacheManager, "get_strategy_by_id")
         get_strategy_by_id.return_value = copy.deepcopy(PROCESS_EVENT_STRATEGY)

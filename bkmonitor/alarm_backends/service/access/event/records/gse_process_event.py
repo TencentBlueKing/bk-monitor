@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -10,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 import arrow
 from django.utils.translation import gettext as _
@@ -85,28 +84,27 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
     TITLE = _("Gse进程托管事件上报")
 
     def __init__(self, raw_data, strategies):
-        super(GseProcessEventRecord, self).__init__(raw_data=raw_data, strategies=strategies)
-
+        super().__init__(raw_data=raw_data, strategies=strategies)
         self.strategies = strategies
 
     def check(self):
         for data in self.raw_data.get("data", []):
             # 是否存在符合规则的数据
             if data.get("event_name"):
-                logger.debug("custom event value: %s" % self.raw_data)
+                logger.debug(f"custom event value: {self.raw_data}")
                 return True
-        logger.warning("custom event value check fail: %s" % self.raw_data)
+        logger.warning(f"custom event value check fail: {self.raw_data}")
         return False
 
     def flat(self):
         try:
             event_records = []
             for data in self.raw_data.get("data", []):
-                alarm_time = datetime.utcfromtimestamp(int(data.get("timestamp", 0)) // 1000).strftime(
+                alarm_time = datetime.fromtimestamp(int(data.get("timestamp", 0)) // 1000, UTC).strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
                 if not alarm_time:
-                    alarm_time = datetime.utcfromtimestamp(arrow.utcnow().timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                    alarm_time = datetime.fromtimestamp(arrow.utcnow().timestamp, UTC).strftime("%Y-%m-%d %H:%M:%S")
                 dimension = data.get("dimension", {})
                 dimension["event_name"] = data.get("event_name")
                 new_alarm = {
@@ -118,7 +116,7 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
                     "_host_": dimension.get("bk_target_ip"),
                     "_agent_id_": dimension.get("bk_agent_id", ""),
                     "_title_": _("事件类型: {}, 事件内容: {}").format(
-                        GSE_PROCESS_EVENT_NAME.get(dimension.get('event_name')), data.get('event', {}).get('content')
+                        GSE_PROCESS_EVENT_NAME.get(dimension.get("event_name")), data.get("event", {}).get("content")
                     ),
                     "_extra_": {"value": data},
                     "dimensions": dimension,

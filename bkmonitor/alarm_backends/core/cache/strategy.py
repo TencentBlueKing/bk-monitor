@@ -13,11 +13,11 @@ import json
 import logging
 import time
 from collections import defaultdict
+from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
 from itertools import chain, groupby
 from operator import itemgetter
 from typing import Any
-from collections.abc import Callable, Iterable
 
 import arrow
 from django.conf import settings
@@ -89,7 +89,13 @@ class StrategyCacheManager(CacheManager):
     instance_dimensions = {"bk_target_ip", "bk_target_service_instance_id", "bk_host_id"}
 
     @classmethod
-    def transform_template_to_topo_nodes(cls, target, template_node_type, cache_manager):
+    def transform_template_to_topo_nodes(
+        cls,
+        bk_tenant_id: str,
+        target: dict,
+        template_node_type: str,
+        cache_manager: type[SetTemplateManager | ServiceTemplateManager],
+    ):
         """
         转化模板为节点
         :param target: 监控目标
@@ -106,7 +112,8 @@ class StrategyCacheManager(CacheManager):
         if target["value"]:
             is_invalid_template = True
             for node in target["value"]:
-                instances = cache_manager.get(node["bk_inst_id"])
+                result = cache_manager.mget(bk_tenant_id=node["bk_tenant_id"], ids=[node["bk_inst_id"]])
+                instances = [instance for instance in result.values() if instance]
                 if instances:
                     is_invalid_template = False
                 else:
@@ -241,17 +248,18 @@ class StrategyCacheManager(CacheManager):
 
     @classmethod
     def check_target(cls, strategy, target, invalid_strategy_dict):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(strategy["bk_biz_id"])
         # 判定集群/服务模板是否失效
         is_invalid_template = False
         # 转化集群/服务模板为拓扑节点
         target_field = target["field"].upper()
         if TargetNodeType.SET_TEMPLATE in target_field:
             _, is_invalid_template = cls.transform_template_to_topo_nodes(
-                target, TargetNodeType.SET_TEMPLATE, SetTemplateManager
+                bk_tenant_id, target, TargetNodeType.SET_TEMPLATE, SetTemplateManager
             )
         elif TargetNodeType.SERVICE_TEMPLATE in target_field:
             _, is_invalid_template = cls.transform_template_to_topo_nodes(
-                target, TargetNodeType.SERVICE_TEMPLATE, ServiceTemplateManager
+                bk_tenant_id, target, TargetNodeType.SERVICE_TEMPLATE, ServiceTemplateManager
             )
         if is_invalid_template:
             # 模板id全部不存在，目标失效
@@ -260,13 +268,12 @@ class StrategyCacheManager(CacheManager):
         else:
             # 判断模板下的拓扑节点id是否存在
             if TargetNodeType.TOPO in target["field"].upper() and target["value"]:
-                is_invalid_topo = True
-                for node in target["value"]:
-                    if TopoManager.get(node["bk_obj_id"], node["bk_inst_id"]):
-                        is_invalid_topo = False
-                        break
+                nodes = TopoManager.mget(
+                    bk_tenant_id=bk_tenant_id,
+                    topo_nodes=[(node["bk_obj_id"], node["bk_inst_id"]) for node in target["value"]],
+                )
                 # 拓扑节点id全部不存在，目标失效
-                if is_invalid_topo:
+                if not nodes:
                     invalid_strategy_dict[StrategyModel.InvalidType.INVALID_TARGET].add(strategy["id"])
                     strategy["is_invalid"] = True
 
