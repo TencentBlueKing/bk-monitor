@@ -91,7 +91,9 @@ export default class QueryStatement extends tsc<object> {
 
   handleChangeSearchType(item: string) {
     // 如果当前为sql模式，且检索的keywords和收藏的keywords不一致 则不允许切换
-    if (this.isSqlSearchType && !this.isCanUseUiType) return;
+    if (this.isSqlSearchType && !this.isCanUseUiType) {
+      return;
+    }
     this.activeSearchType = item;
     this.handleClickSearchType();
   }
@@ -107,16 +109,17 @@ export default class QueryStatement extends tsc<object> {
           <span
             class='bklog-icon bklog-help'
             v-bk-tooltips={this.tips}
-          ></span>
+          />
           <div id='retrieve-help-tips-content'>
             <div>
               {this.$t('可输入DSL语句进行快速查询')}
+              {/** biome-ignore lint/nursery/useAnchorHref: reason */}
               <a
                 class='tips-link'
                 onClick={() => this.handleGotoLink('queryString')}
               >
                 {this.$t('查看语法')}
-                <span class='bklog-icon bklog-lianjie'></span>
+                <span class='bklog-icon bklog-lianjie' />
               </a>
             </div>
             <div class='title'>{this.$t('精确匹配(支持AND、OR)：')}</div>
@@ -150,6 +153,7 @@ export default class QueryStatement extends tsc<object> {
             >
               {searchTypeList.map(item => (
                 <span
+                  key={item}
                   class={{ active: this.activeSearchType === item }}
                   onClick={() => this.handleChangeSearchType(item)}
                 >
@@ -161,7 +165,7 @@ export default class QueryStatement extends tsc<object> {
               <span
                 style='color: #d7473f; display: inline-block; transform: translateY(-2px);'
                 class='bk-icon icon-exclamation-circle-shape'
-              ></span>
+              />
               <span>{this.$t('收藏的内容已修改，不能切回表单模式')}</span>
             </div>
           </Popover>
@@ -169,7 +173,7 @@ export default class QueryStatement extends tsc<object> {
         <div>
           {/* 历史记录 */}
           <div class='history-button'>
-            <span class='bklog-icon bklog-lishijilu'></span>
+            <span class='bklog-icon bklog-lishijilu' />
             <span onClick={this.handleClickHistoryButton}>{this.$t('查询历史')}</span>
           </div>
           <div v-show={false}>
@@ -193,7 +197,7 @@ export default class QueryStatement extends tsc<object> {
                   </li>
                 ))
               ) : (
-                <li class='list-item not-history'>{this.$t('暂无历史记录')}</li>
+                <li class='not-history list-item'>{this.$t('暂无历史记录')}</li>
               )}
             </ul>
           </div>

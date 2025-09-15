@@ -364,7 +364,7 @@ export default class CollectDialog extends tsc<IProps> {
     reKeyword === '' && (reKeyword = '*');
     try {
       const res = await $http.request('favorite/getSearchFields', {
-        data: { reKeyword },
+        data: { keyword: reKeyword },
       });
       this.searchFieldsList = res.data.map(item => ({
         ...item,

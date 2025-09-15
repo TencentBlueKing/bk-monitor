@@ -28,6 +28,8 @@ import { Component, Prop, Ref, Vue, Emit, Watch } from 'vue-property-decorator';
 
 import axios from 'axios';
 import dayjs from 'dayjs';
+import * as echarts from 'echarts';
+import { cloneDeep } from 'lodash-es';
 
 import $http from '../../../api';
 import { formatNumberWithRegex } from '../../../common/util';
@@ -36,7 +38,6 @@ import { lineColor } from '../../../store/constant';
 import store from '@/store';
 
 import './field-analysis.scss';
-import { cloneDeep } from 'lodash-es';
 const CancelToken = axios.CancelToken;
 
 const timeSeriesBase = {
@@ -252,7 +253,9 @@ export default class FieldAnalysis extends Vue {
               interval: pillarInterval,
               showMaxLabel: true,
               formatter: value => {
-                if (value.length > 18) return `${value.slice(0, 18)}...`; // 只显示前18个字符
+                if (value.length > 18) {
+                  return `${value.slice(0, 18)}...`;
+                } // 只显示前18个字符
                 return value;
               },
             },
@@ -275,8 +278,7 @@ export default class FieldAnalysis extends Vue {
           return;
         }
         this.height = LINE_CHART_BASE_HEIGHT;
-        const series = [];
-        const echarts = require('echarts');
+        const series: any[] = [];
         seriesData.forEach((el, index) => {
           series.push({
             ...timeSeriesBase,
@@ -300,15 +302,15 @@ export default class FieldAnalysis extends Vue {
           show: true,
         }));
         // 收集所有时间戳
-        const allTimestamps = series.reduce((acc, series) => {
-          return acc.concat(series.data.map(item => item[0]));
+        const allTimestamps = series.reduce((acc, seriesItem) => {
+          return acc.concat(seriesItem.data.map(item => item[0]));
         }, []);
 
         // 找到最小和最大时间戳
         const minTimestamp = Math.min.apply(null, allTimestamps);
         const maxTimestamp = Math.max.apply(null, allTimestamps);
         const {
-          xAxis: { minInterval, splitNumber, ...resetxAxis },
+          xAxis: { minInterval: _minInterval, splitNumber: _splitNumber, ...resetxAxis },
         } = lineOrBarOptions;
         this.lineOptions = cloneDeep(lineOrBarOptions);
         Object.assign(this.lineOptions, {
@@ -379,7 +381,9 @@ export default class FieldAnalysis extends Vue {
 
   /** 设置时间戳时间显示格式 与检索趋势图保持一致 */
   setFormatStr(start: number, end: number) {
-    if (!start || !end) return;
+    if (!(start && end)) {
+      return;
+    }
     const differenceInHours = Math.abs(start - end) / (60 * 60);
     if (differenceInHours <= 48) {
       formatStr = 'HH:mm';
@@ -391,8 +395,9 @@ export default class FieldAnalysis extends Vue {
   }
 
   initFieldChart() {
-    if (this.isShowEmpty) return;
-    const echarts = require('echarts');
+    if (this.isShowEmpty) {
+      return;
+    }
     const chart: any = echarts.init(this.chartRef, null, {
       height: `${this.height}px`,
     });
@@ -441,7 +446,7 @@ export default class FieldAnalysis extends Vue {
     </div>`;
   }
   /** 设置定位 */
-  handleSetPosition(pos: number[], params: any, dom: any, rect: any, size: any) {
+  handleSetPosition(pos: number[], _params: any, _dom: any, _rect: any, size: any) {
     const { contentSize } = size;
     const chartRect = this.chartRef.getBoundingClientRect();
     const posRect = {
@@ -478,14 +483,14 @@ export default class FieldAnalysis extends Vue {
       item.show = !item.show;
     } else if (eventType === 'click') {
       const hasOtherShow = this.legendData.some(set => set.name !== item.name && set.show);
-      this.legendData.forEach(legend => {
+      for (const legend of this.legendData) {
         legend.show = legend.name === item.name || !hasOtherShow;
-      });
+      }
     }
-    const showSeriesName = this.legendData.filter(legend => legend.show).map(item => item.name);
-    const showSeries = this.seriesData.filter(item => showSeriesName.includes(item.name));
+    const showSeriesName = this.legendData.filter(legend => legend.show).map(leItem => leItem.name);
+    const showSeries = this.seriesData.filter(sItem => showSeriesName.includes(sItem.name));
     const options = this.chart.getOption();
-    const showColor = this.legendData.filter(legend => legend.show).map(item => item.color);
+    const showColor = this.legendData.filter(legend => legend.show).map(lItem => lItem.color);
 
     this.chart.setOption(
       {
@@ -512,10 +517,12 @@ export default class FieldAnalysis extends Vue {
     // 根据 event.deltaY 判断滚动方向
     if (event.deltaY < 0) {
       // 向上滚动
-      if (this.currentPageNum > 1) this.currentPageNum -= 1;
-    } else {
+      if (this.currentPageNum > 1) {
+        this.currentPageNum -= 1;
+      }
+    } else if (this.currentPageNum < this.legendMaxPageNum) {
       // 向下滚动
-      if (this.currentPageNum < this.legendMaxPageNum) this.currentPageNum += 1;
+      this.currentPageNum += 1;
     }
   }
 
@@ -583,20 +590,39 @@ export default class FieldAnalysis extends Vue {
           }}
           v-bkloading={{ isLoading: this.chartLoading }}
         >
-          {!this.isShowEmpty ? (
+          {this.isShowEmpty ? (
+            <div class='not-data-empty'>
+              <bk-exception
+                scene='part'
+                type={this.emptyTipsStr ? '500' : 'empty'}
+              >
+                <div style={{ marginTop: '10px' }}>
+                  <span>{this.emptyStr}</span>
+                  {!!this.emptyTipsStr && (
+                    <i
+                      class='bk-icon icon-exclamation-circle'
+                      v-bk-tooltips={{
+                        content: this.emptyTipsStr,
+                      }}
+                    />
+                  )}
+                </div>
+              </bk-exception>
+            </div>
+          ) : (
             <div>
               <div class='chart-title'>
                 <span>
-                  {!this.isPillarChart
-                    ? `TOP 5 ${window.mainComponent.$t('时序图')}`
-                    : window.mainComponent.$t('数值分布直方图')}
+                  {this.isPillarChart
+                    ? window.mainComponent.$t('数值分布直方图')
+                    : `TOP 5 ${window.mainComponent.$t('时序图')}`}
                 </span>
                 <span>{this.getPillarQueryTime}</span>
               </div>
               <div
                 ref='fieldChart'
                 style={{ width: '100%', height: `${this.height}px` }}
-              ></div>
+              />
               {!this.isPillarChart && (
                 <div
                   style={{ height: `${LEGEND_BOX_HEIGHT}px` }}
@@ -609,7 +635,7 @@ export default class FieldAnalysis extends Vue {
                     {this.legendData.map((legend, index) => {
                       return (
                         <div
-                          key={index}
+                          key={`${index}-${legend}`}
                           class='common-legend-item'
                           title={legend.name}
                           onClick={e => this.handleLegendEvent(e, 'click', legend)}
@@ -617,7 +643,7 @@ export default class FieldAnalysis extends Vue {
                           <span
                             style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
                             class='legend-icon'
-                          ></span>
+                          />
                           <div
                             style={{ color: legend.show ? '#63656e' : '#ccc' }}
                             class='legend-name title-overflow'
@@ -636,41 +662,26 @@ export default class FieldAnalysis extends Vue {
                           disabled: this.currentPageNum === 1,
                         }}
                         onClick={() => {
-                          if (this.currentPageNum > 1) this.currentPageNum -= 1;
+                          if (this.currentPageNum > 1) {
+                            this.currentPageNum -= 1;
+                          }
                         }}
-                      ></i>
+                      />
                       <i
                         class={{
                           'bk-select-angle bk-icon icon-angle-up-fill': true,
                           disabled: this.currentPageNum === this.legendMaxPageNum,
                         }}
                         onClick={() => {
-                          if (this.currentPageNum < this.legendMaxPageNum) this.currentPageNum += 1;
+                          if (this.currentPageNum < this.legendMaxPageNum) {
+                            this.currentPageNum += 1;
+                          }
                         }}
-                      ></i>
+                      />
                     </div>
                   )}
                 </div>
               )}
-            </div>
-          ) : (
-            <div class='not-data-empty'>
-              <bk-exception
-                scene='part'
-                type={!!this.emptyTipsStr ? '500' : 'empty'}
-              >
-                <div style={{ marginTop: '10px' }}>
-                  <span>{this.emptyStr}</span>
-                  {!!this.emptyTipsStr && (
-                    <i
-                      class='bk-icon icon-exclamation-circle'
-                      v-bk-tooltips={{
-                        content: this.emptyTipsStr,
-                      }}
-                    ></i>
-                  )}
-                </div>
-              </bk-exception>
             </div>
           )}
         </div>
