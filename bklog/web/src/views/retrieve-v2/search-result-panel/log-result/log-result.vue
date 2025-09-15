@@ -175,7 +175,7 @@
           this.$refs.refAiAssitant.open(true, {
             space_uid: this.$store.getters.spaceUid,
             index_set_id: this.$store.getters.indexId,
-            log_data: row,
+            log: row,
             index,
           });
           return;

@@ -65,7 +65,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
 
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = undefined;
   // 刷新间隔
-  @ProvideReactive('refreshInterval') refreshInterval = -1;
+  // @ProvideReactive('refreshInterval') refreshInterval = -1;
   @ProvideReactive('filterOption') filterOption: IMetricAnalysisConfig;
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {
     interval: 'auto',

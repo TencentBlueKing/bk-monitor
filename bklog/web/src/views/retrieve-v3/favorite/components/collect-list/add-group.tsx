@@ -29,7 +29,7 @@ import { computed, defineComponent, ref, reactive, watch, PropType } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
-import { useFavorite } from '../../hooks/useFavorite';
+import { useFavorite } from '../../hooks/use-favorite';
 import { IFavoriteItem } from '../../types';
 import { handleApiError } from '../../utils';
 

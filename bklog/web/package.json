@@ -17,7 +17,6 @@
     "clean": "rimraf ../static/dist/*",
     "analyze": "npm run clean && bkmonitor-cli build -a",
     "lint": "eslint \"**/*.{js,ts,tsx}\" --fix",
-    "prettier": "prettier --write ./ '!**/*.{css,scss,less}'",
     "stylelint": "stylelint \"./src/**/*.(vue|scss|css)\" --fix",
     "biome:format": "biome format --write ./src",
     "oxlint": "npx oxlint && npx eslint"
@@ -25,7 +24,7 @@
   "dependencies": {
     "@babel/helper-module-imports": "7.24.7",
     "@babel/runtime": "7.26.10",
-    "@blueking/ai-blueking": "0.3.29",
+    "@blueking/ai-blueking": "1.2.5-beta.2",
     "@blueking/bkmonitor-cli": "^7.0.1",
     "@blueking/bkui-library": "0.0.0-beta.5",
     "@blueking/date-picker": "^2.0.0-beta.48",
@@ -77,6 +76,7 @@
     "qs": "6.11.2",
     "resize-detector": "0.3.0",
     "sass-loader": "14.2.1",
+    "scheduler-polyfill": "^1.3.0",
     "screenfull": "6.0.2",
     "sql-formatter": "15.6.6",
     "thread-loader": "4.0.4",

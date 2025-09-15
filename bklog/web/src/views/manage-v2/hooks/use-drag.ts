@@ -25,6 +25,7 @@
  */
 
 import { ref } from 'vue';
+
 import useStore from '@/hooks/use-store';
 
 export function useDrag() {
@@ -34,8 +35,8 @@ export function useDrag() {
   const maxIntroWidth = ref(480); // 默认最大宽度
   const introWidth = ref(1); // 侧边栏宽度
   const isDraging = ref(false); // 是否正在拖拽
-  const currentTreeBoxWidth = ref<number | null>(null); // 当前侧边宽度
-  const currentScreenX = ref<number | null>(null); // 当前鼠标位置
+  const currentTreeBoxWidth = ref<null | number>(null); // 当前侧边宽度
+  const currentScreenX = ref<null | number>(null); // 当前鼠标位置
 
   function dragBegin(e: MouseEvent) {
     currentTreeBoxWidth.value = introWidth.value;
@@ -46,8 +47,7 @@ export function useDrag() {
 
   function dragMoving(e: MouseEvent) {
     isDraging.value = true;
-    const newTreeBoxWidth =
-      (currentTreeBoxWidth.value ?? 0) - e.screenX + (currentScreenX.value ?? 0);
+    const newTreeBoxWidth = (currentTreeBoxWidth.value ?? 0) - e.screenX + (currentScreenX.value ?? 0);
     if (newTreeBoxWidth < minIntroWidth.value) {
       introWidth.value = minIntroWidth.value;
     } else if (newTreeBoxWidth >= maxIntroWidth.value) {

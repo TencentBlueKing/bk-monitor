@@ -77,7 +77,7 @@ export default class ClassDragMixin extends Vue {
 
   public dragMoving(e: MouseEvent) {
     switch (this.currentDragType) {
-      case 'dragX':
+      case 'dragX': {
         const newTreeBoxWidth = this.currentBoxWidth + e.screenX - this.currentScreenX;
         if (newTreeBoxWidth < this.collectMinWidth) {
           this.collectWidth = this.collectMinWidth;
@@ -88,7 +88,8 @@ export default class ClassDragMixin extends Vue {
           this.collectWidth = newTreeBoxWidth;
         }
         break;
-      case 'dragY':
+      }
+      case 'dragY': {
         const newTreeBoxHeight = this.currentBoxHeight + e.screenY - this.currentScreenY;
         if (newTreeBoxHeight < this.collectMinHeight) {
           this.collectHeight = this.collectMinHeight;
@@ -99,6 +100,7 @@ export default class ClassDragMixin extends Vue {
           this.collectHeight = newTreeBoxHeight;
         }
         break;
+      }
       default:
         break;
     }

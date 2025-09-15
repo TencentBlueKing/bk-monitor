@@ -254,7 +254,7 @@ class SearchHandler:
         self.time_range: str = search_dict.get("time_range")
         self.start_time: str = search_dict.get("start_time")
         self.end_time: str = search_dict.get("end_time")
-        self.time_zone: str = get_local_param("time_zone", settings.TIME_ZONE)
+        self.time_zone: str = search_dict.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE)
 
         # 透传query string
         self.query_string: str = search_dict.get("keyword")
@@ -412,13 +412,15 @@ class SearchHandler:
                 multi_func_params=True,
             )
         multi_result = multi_execute_func.run(return_exception=True)
-        for ret in multi_result.values():
+        for key, ret in multi_result.items():
             if isinstance(ret, Exception):
                 # 子查询异常
-                logger.exception("get all fields by index_set_id: %s, reson：%s", self.index_set_id, ret)
-                raise GetAllFieldsException(
-                    GetAllFieldsException.MESSAGE.format(index_set_id=self.index_set.index_set_id, e=ret)
-                )
+                logger.exception("get all fields by index_set_id: %s, reason：%s", self.index_set_id, ret)
+                multi_result.pop(key)
+                if not multi_result:
+                    raise GetAllFieldsException(
+                        GetAllFieldsException.MESSAGE.format(index_set_id=self.index_set.index_set_id, e=ret)
+                    )
 
         if need_merge:
             added_records = []
@@ -2745,6 +2747,7 @@ class UnionSearchHandler:
             "start_time": self.search_dict.get("start_time"),
             "end_time": self.search_dict.get("end_time"),
             "time_range": self.search_dict.get("time_range"),
+            "timezone": self.search_dict.get("time_zone"),
             "keyword": self.search_dict.get("keyword"),
             "size": self.search_dict.get("size"),
             "is_union_search": True,
@@ -2912,6 +2915,7 @@ class UnionSearchHandler:
             "start_time": self.search_dict.get("start_time"),
             "end_time": self.search_dict.get("end_time"),
             "time_range": self.search_dict.get("time_range"),
+            "timezone": self.search_dict.get("time_zone"),
             "keyword": self.search_dict.get("keyword"),
             "size": self.search_dict.get("size"),
             "is_union_search": True,

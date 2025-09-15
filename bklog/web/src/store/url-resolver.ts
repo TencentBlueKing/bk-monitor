@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Route } from 'vue-router';
-
-// @ts-ignore
+// @ts-expect-error
 import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
 
 import { ConditionOperator } from './condition-operator';
 import { BK_LOG_STORAGE } from './store.type';
+
+import type { Route } from 'vue-router';
 
 /**
  * 初始化App时解析URL中的参数
@@ -67,7 +67,7 @@ class RouteUrlResolver {
     return this.resolveFieldList.reduce((output, key) => {
       const value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonResolver(this.query?.[key]);
       if (value !== undefined) {
-        return Object.assign(output, { [key]: value });
+        output[key] = value;
       }
 
       return output;
@@ -81,7 +81,10 @@ class RouteUrlResolver {
   public getDefUrlQuery(ignoreList: string[] = []) {
     const routeQuery = this.query;
     const appendParamKeys = [...this.resolveFieldList, 'end_time'].filter(f => !(ignoreList ?? []).includes(f));
-    const undefinedQuery = appendParamKeys.reduce((out, key) => Object.assign(out, { [key]: undefined }), {});
+    const undefinedQuery = appendParamKeys.reduce((out, key) => {
+      out[key] = undefined;
+      return out;
+    }, {});
     return {
       ...routeQuery,
       ...undefinedQuery,
@@ -118,7 +121,7 @@ class RouteUrlResolver {
       return next?.(val) ?? val;
     }
 
-    return undefined;
+    return;
   }
 
   private objectResolver(str) {
@@ -282,7 +285,7 @@ class RetrieveUrlResolver {
           return getEncodeString(val);
         }
 
-        return undefined;
+        return;
       },
       default: val => {
         if (typeof val === 'object' && val !== null) {
@@ -294,7 +297,7 @@ class RetrieveUrlResolver {
             return getEncodeString(val);
           }
 
-          return undefined;
+          return;
         }
 
         return val?.length ? val : undefined;
@@ -311,7 +314,8 @@ class RetrieveUrlResolver {
           const valueFn = typeof routeQueryMap[key] === 'function' ? routeQueryMap[key] : routeQueryMap.default;
           const value = valueFn(val);
           const fieldName = this.storeFieldKeyMap[key] ?? key;
-          return Object.assign(result, { [fieldName]: value });
+          result[fieldName] = value;
+          return result;
         }, {});
     };
 

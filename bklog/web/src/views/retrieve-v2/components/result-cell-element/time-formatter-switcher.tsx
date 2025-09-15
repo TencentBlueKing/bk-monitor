@@ -42,7 +42,7 @@ export default class TimeFormatterSwitcher extends tsc<object> {
 
   handleClickSwitcher(val) {
     jsCookie.set('operation', String(val));
-    this.$store.commit('updateIsFormatDate', val);
+    this.$store.commit('updateState', {'isFormatDate': val});
   }
   render() {
     return (

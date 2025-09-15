@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -19,8 +18,8 @@ from core.drf_resource.contrib.nested_api import KernelAPIResource
 class MonitorAPIGWResource(KernelAPIResource):
     TIMEOUT = 300
     base_url_statement = None
-    base_url = settings.NEW_MONITOR_API_BASE_URL or "{}/api/bk-monitor/{}/".format(
-        settings.BK_COMPONENT_API_URL, settings.APIGW_STAGE
+    base_url = (
+        settings.NEW_MONITOR_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/bk-monitor/{settings.APIGW_STAGE}/"
     )
     # 模块名
     module_name = "mointor_v3"
@@ -49,6 +48,7 @@ class UptimeCheckTaskListResource(MonitorAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         plain = serializers.BooleanField(label="是否返回简单数据", default=True)
+        id = serializers.CharField(label="任务ID", required=False)
 
 
 class UptimeCheckNodeListResource(MonitorAPIGWResource):

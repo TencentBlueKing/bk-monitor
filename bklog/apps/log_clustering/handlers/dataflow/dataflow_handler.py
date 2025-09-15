@@ -259,7 +259,11 @@ class DataFlowHandler(BaseAiopsHandler):
                 op = "NOT LIKE"
                 val = f"%{val}%"
             if idx > 0:
-                result.append("or")
+                # 否定条件需要用 and 连接
+                if op in ["<>", "NOT LIKE"]:
+                    result.append("and")
+                else:
+                    result.append("or")
             result.extend([query_field_name, op, f"'{val}'"])
         if len(filter_rule.get("value")) > 1 and len(filter_rules) > 1:
             result.append(")")

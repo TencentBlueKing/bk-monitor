@@ -152,7 +152,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         search_dict = copy.deepcopy(self.base_dict)
         reference_list = []
         for query in search_dict["query_list"]:
-            query["limit"] = limit
+            query["limit"] = limit * 2 + 10
             query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
             # 增加字段不为空的条件
             if len(query["conditions"]["field_list"]) > 0:

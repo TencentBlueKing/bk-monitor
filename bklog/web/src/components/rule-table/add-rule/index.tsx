@@ -23,14 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, watch } from "vue";
-import useLocale from "@/hooks/use-locale";
-import $http from "@/api";
+import { defineComponent, ref, watch } from 'vue';
 
-import "./index.scss";
+import useLocale from '@/hooks/use-locale';
+
+import $http from '@/api';
+
+import './index.scss';
 
 export default defineComponent({
-  name: "AddRule",
+  name: 'AddRule',
   props: {
     isShow: {
       type: Boolean,
@@ -53,7 +55,7 @@ export default defineComponent({
     const { t } = useLocale();
 
     const formRef = ref<any>(null);
-    const detectionStr = ref("");
+    const detectionStr = ref('');
     const isShow = ref(false);
     // 检测语法是否通过
     const isRuleCorrect = ref(false);
@@ -62,9 +64,9 @@ export default defineComponent({
     // 是否正在检测中
     const isDetection = ref(false);
     const formData = ref({
-      regular: "", // 添加聚类规则正则
-      placeholder: "", // 添加聚类规则占位符
-      scope: "alone",
+      regular: '', // 添加聚类规则正则
+      placeholder: '', // 添加聚类规则占位符
+      scope: 'alone',
     });
 
     const rules = {
@@ -72,7 +74,7 @@ export default defineComponent({
         {
           validator: async (val: string) => {
             try {
-              const res = await $http.request("logClustering/checkRegexp", {
+              const res = await $http.request('logClustering/checkRegexp', {
                 data: { regexp: val },
               });
               if (res.data) {
@@ -83,14 +85,14 @@ export default defineComponent({
             }
           },
           required: true,
-          trigger: "blur",
+          trigger: 'blur',
         },
       ],
       placeholder: [
         {
           validator: (val: string) => /^(?!.*:)\S+/.test(val),
           required: true,
-          trigger: "blur",
+          trigger: 'blur',
         },
       ],
     };
@@ -112,11 +114,14 @@ export default defineComponent({
           return;
         }
         const data = structuredClone(props.data);
-        delete data.__Index__;
-        const key = Object.keys(data)[0];
-        const value = data[key];
+        const keys = Object.keys(data).filter(key => key !== '__Index__');
+        if (keys.length === 0) {
+          return;
+        }
+        const firstKey = keys[0];
+        const value = data[firstKey];
         formData.value.regular = value;
-        formData.value.placeholder = key;
+        formData.value.placeholder = firstKey;
       },
       {
         immediate: true,
@@ -136,10 +141,10 @@ export default defineComponent({
 
     const handleOpenToggle = (isOpen: boolean) => {
       isShow.value = isOpen;
-      emit("show-change", isOpen);
+      emit('show-change', isOpen);
       if (!isOpen) {
-        formData.value.regular = "";
-        formData.value.placeholder = "";
+        formData.value.regular = '';
+        formData.value.placeholder = '';
         isRuleCorrect.value = false;
         isClickSubmit.value = false;
         isDetection.value = false;
@@ -148,7 +153,7 @@ export default defineComponent({
 
     // 检测规则和占位符是否重复
     const isRulesRepeat = (newRules = {}) => {
-      return props.ruleList.some((listItem: Object) => {
+      return props.ruleList.some((listItem: Record<string, any>) => {
         const [regexKey, regexVal] = Object.entries(newRules)[0];
         const [listKey, listVal] = Object.entries(listItem)[0];
         return regexKey === listKey && regexVal === listVal;
@@ -161,15 +166,15 @@ export default defineComponent({
         const { regular, placeholder } = formData.value;
         newRuleObj[placeholder] = regular;
         // 添加渲染列表时不重复的key值
-        newRuleObj.__Index__ = new Date().getTime();
+        newRuleObj.__Index__ = Date.now();
         if (props.isEdit) {
           // 编辑规则替换编辑对象
-          emit("edit", newRuleObj);
+          emit('edit', newRuleObj);
         } else {
           // 检测正则和占位符是否都重复 重复则不添加
           const isRepeat = isRulesRepeat(newRuleObj);
           if (!isRepeat) {
-            emit("add", newRuleObj);
+            emit('add', newRuleObj);
           }
         }
         isShow.value = false;
@@ -177,19 +182,19 @@ export default defineComponent({
         // 第一次点击检查时显示文案变化
         isDetection.value = true;
         isClickSubmit.value = true;
-        detectionStr.value = t("检验中");
+        detectionStr.value = t('检验中');
         setTimeout(() => {
           formRef
             .value!.validate()
             .then(() => {
               isRuleCorrect.value = true;
               isDetection.value = false;
-              detectionStr.value = t("检验成功");
+              detectionStr.value = t('检验成功');
             })
             .catch(() => {
               isRuleCorrect.value = false;
               isDetection.value = false;
-              detectionStr.value = t("检测失败");
+              detectionStr.value = t('检测失败');
             });
         }, 1000);
       }
@@ -202,11 +207,11 @@ export default defineComponent({
     return () => (
       <bk-dialog
         width={640}
-        ext-cls="edit-rule-main"
-        value={isShow.value}
+        ext-cls='edit-rule-main'
+        header-position='left'
         mask-close={false}
-        title={props.isEdit ? t("编辑规则") : t("添加规则")}
-        header-position="left"
+        title={props.isEdit ? t('编辑规则') : t('添加规则')}
+        value={isShow.value}
         on-value-change={handleOpenToggle}
       >
         <bk-form
@@ -218,63 +223,68 @@ export default defineComponent({
               rules,
             },
           }}
-          form-type="vertical"
+          form-type='vertical'
         >
-          <bk-form-item label={t("正则表达式")} property="regular" required>
+          <bk-form-item
+            label={t('正则表达式')}
+            property='regular'
+            required
+          >
             <bk-input
-              style="width: 560px"
+              style='width: 560px'
               value={formData.value.regular}
-              on-change={(val) => (formData.value.regular = val)}
+              on-change={val => (formData.value.regular = val)}
             />
             <div>
-              {t("样例")}
-              {`：\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}`}
+              {t('样例')}
+              {'：\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}'}
             </div>
           </bk-form-item>
-          <bk-form-item label={t("占位符")} property="placeholder" required>
+          <bk-form-item
+            label={t('占位符')}
+            property='placeholder'
+            required
+          >
             <bk-input
-              style="width: 560px"
+              style='width: 560px'
               value={formData.value.placeholder}
-              on-change={(val) =>
-                (formData.value.placeholder = val.trim().toUpperCase())
-              }
+              on-change={val => (formData.value.placeholder = val.trim().toUpperCase())}
             />
-            <div>{t("样例")}：IP</div>
+            <div>{t('样例')}：IP</div>
           </bk-form-item>
         </bk-form>
-        <div slot="footer">
-          <div class="footer-main">
-            <div class="inspection-status">
+        <div slot='footer'>
+          <div class='footer-main'>
+            <div class='inspection-status'>
               {isClickSubmit.value && (
                 <div>
                   {isDetection.value ? (
-                    <bk-spin class="spin" size="mini" />
+                    <bk-spin
+                      class='spin'
+                      size='mini'
+                    />
                   ) : (
                     <span
-                      style={`color:${
-                        isRuleCorrect.value ? "#45E35F" : "#FE5376"
-                      }`}
+                      style={`color:${isRuleCorrect.value ? '#45E35F' : '#FE5376'}`}
                       class={[
-                        "bk-icon spin",
-                        isRuleCorrect.value
-                          ? "icon-check-circle-shape"
-                          : "icon-close-circle-shape",
+                        'bk-icon spin',
+                        isRuleCorrect.value ? 'icon-check-circle-shape' : 'icon-close-circle-shape',
                       ]}
-                    ></span>
+                    />
                   )}
-                  <span style="margin-left: 6px">{detectionStr.value}</span>
+                  <span style='margin-left: 6px'>{detectionStr.value}</span>
                 </div>
               )}
             </div>
-            <div class="btns-main">
+            <div class='btns-main'>
               <bk-button
                 disabled={isDetection.value}
-                theme="primary"
+                theme='primary'
                 on-click={handleRuleSubmit}
               >
-                {isRuleCorrect.value ? t("保存") : t("检测语法")}
+                {isRuleCorrect.value ? t('保存') : t('检测语法')}
               </bk-button>
-              <bk-button on-click={handleClickCancel}>{t("取消")}</bk-button>
+              <bk-button on-click={handleClickCancel}>{t('取消')}</bk-button>
             </div>
           </div>
         </div>

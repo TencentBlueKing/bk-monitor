@@ -198,7 +198,7 @@
       store.commit('updateIndexItem', { ...payload, ...indexSetDefaultCondition });
 
       if (!payload.isUnionIndex) {
-        store.commit('updateIndexId', payload.ids[0]);
+        store.commit('updateState', { 'indexId': payload.ids[0]});
       }
 
       store.commit('updateSqlQueryFieldList', []);
