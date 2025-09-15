@@ -1,0 +1,28 @@
+.template-edit-side-component {
+  .template-edit-header {
+    display: flex;
+    align-items: center;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+
+      .header-title {
+        font-size: 16px;
+        color: #313238;
+      }
+
+      .split-line {
+        width: 1px;
+        height: 14px;
+        margin: 0 8px;
+        background: #DCDEE5;
+      }
+
+      .header-desc {
+        font-size: 14px;
+        color: #979BA5;
+      }
+    }
+  }
+}
