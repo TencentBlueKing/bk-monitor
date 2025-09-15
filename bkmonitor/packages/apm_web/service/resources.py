@@ -26,7 +26,7 @@ from django.db.models import Q
 from django.db.models.functions import Length
 
 from api.cmdb.define import Business
-from apm.resources import ReleaseAppConfigResource
+
 from apm_web.constants import (
     CategoryEnum,
     CMDBCategoryIconMap,
@@ -925,10 +925,12 @@ class SetCodeRedefinedRuleResource(Resource):
         code_relabel_config = cls.build_code_relabel_config(bk_biz_id, app_name)
 
         # 下发到 APM 模块
-        ReleaseAppConfigResource()(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            code_relabel_config=code_relabel_config,
+        api.apm_api.release_app_config(
+            {
+                "bk_biz_id": bk_biz_id,
+                "app_name": app_name,
+                "code_relabel_config": code_relabel_config,
+            }
         )
 
     @classmethod
@@ -936,15 +938,25 @@ class SetCodeRedefinedRuleResource(Resource):
         """将 DB 规则聚合为 collector 的 code_relabel 列表结构。
 
         规则：
-        - kind=caller → metrics: ["rpc_client_handled_total","rpc_client_dropped_total"]
-        - kind=callee → metrics: ["rpc_server_handled_total","rpc_server_dropped_total"]
+        - kind=caller → metrics: [定义指标名]
+        - kind=callee → metrics: [定义指标名]
         - source = service_name（本服务）
         - services[].name = "callee_server;callee_service;callee_method"；空串/空行统一转 "*"
         - codes[].rule 透传；codes[].target 固定 {action:"upsert", label:"code_type", value in [success,exception,timeout]}
         """
         metrics_map = {
-            "caller": ["rpc_client_handled_total", "rpc_client_dropped_total"],
-            "callee": ["rpc_server_handled_total", "rpc_server_dropped_total"],
+            "caller": [
+                "rpc_client_handled_total",
+                "rpc_client_handled_seconds_bucket",
+                "rpc_client_handled_seconds_count",
+                "rpc_client_handled_seconds_sum",
+            ],
+            "callee": [
+                "rpc_server_handled_total",
+                "rpc_server_handled_seconds_bucket",
+                "rpc_server_handled_seconds_count",
+                "rpc_server_handled_seconds_sum",
+            ],
         }
 
         def star_if_empty(value: str | None) -> str:
