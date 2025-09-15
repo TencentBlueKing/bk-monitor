@@ -96,7 +96,7 @@ export default class AlarmDeleteConfirm extends tsc<AlarmDeleteConfirmProps, Ala
         </div>
         <div class='tip-confirm-info'>
           <div class='tip-confirm-info-item'>
-            <span class='info-item-label'>{this.$t('告警模板:')}</span>
+            <span class='info-item-label'>{`${this.$t('告警模板')}:`}</span>
             <span class='info-item-value'>{this.templateName}</span>
           </div>
         </div>

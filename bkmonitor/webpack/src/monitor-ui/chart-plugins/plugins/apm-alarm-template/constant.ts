@@ -45,6 +45,19 @@ export const ALARM_TEMPLATE_QUICK_FILTER_LIST: ITableFilterItem[] = [
   },
 ];
 
+/** apm 告警模板列表-表格默认展示字段 */
+export const TABLE_DEFAULT_DISPLAY_FIELDS = [
+  'name',
+  'category',
+  'update_time',
+  'applied_service_names',
+  'algorithms',
+  'user_group_list',
+  'is_enabled',
+  'is_auto_apply',
+  'operator',
+];
+
 /** 批量操作类型 Enum 枚举 */
 export const BatchOperationTypeEnum = {
   /** 开启自动下发 */
