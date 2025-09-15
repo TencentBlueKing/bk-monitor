@@ -24,18 +24,17 @@ class LogCollectorHandler:
         for item in result:
             scenario_id = item.get("scenario_id", Scenario.LOG)
             collector_scenario_id = item.get("collector_scenario_id", "")
-            collector_config_name = item.get("collector_config_name", "")
             table_id = item.get("table_id", "")
             table_id_prefix = item.get("table_id_prefix", "")
             bk_data_name = item.get("bk_data_name", "")
             if table_id and table_id_prefix:
-                bk_data_name = f"{table_id_prefix}_table_id"
+                bk_data_name = f"{table_id_prefix}{table_id}"
             result_list.append(
                 {
                     "table_id": item.get("table_id", ""),
                     "bk_data_id": item.get("bk_data_id", ""),
-                    "collector_config_name": collector_config_name
-                    if collector_config_name
+                    "name": item.get("collector_config_name")
+                    if item.get("collector_config_name")
                     else item.get("index_set_name", ""),
                     "collector_config_id": item.get("collector_config_id", ""),
                     "table_id_prefix": item.get("table_id_prefix", ""),
@@ -74,7 +73,7 @@ class LogCollectorHandler:
         self,
         scenario_id_list: list = None,
         collector_config_name_list: list = None,
-        bk_data_name_list: list = None,
+        table_id_list: list = None,
         collector_scenario_id_list: list = None,
         created_by_list: list = None,
         updated_by_list: list = None,
@@ -85,7 +84,7 @@ class LogCollectorHandler:
          获取采集项信息
         :param scenario_id_list: 接入情景
         :param collector_config_name_list: 采集名称
-        :param bk_data_name_list: 存储名
+        :param table_id_list: 结果表ID
         :param collector_scenario_id_list: 日志类型
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
@@ -104,10 +103,10 @@ class LogCollectorHandler:
             qs = qs.filter(created_by__in=created_by_list)
         if updated_by_list:
             qs = qs.filter(updated_by__in=updated_by_list)
-        if bk_data_name_list:
+        if table_id_list:
             # 存储名查询，忽略前缀
             query = Q()
-            for table_id in bk_data_name_list:
+            for table_id in table_id_list:
                 query |= Q(table_id__endswith=table_id)
             qs = qs.filter(query)
 
@@ -151,7 +150,7 @@ class LogCollectorHandler:
          获取索引集内容
         :param scenario_id_list: 接入情景
         :param index_set_name_list: 索引集名名称
-        :param result_table_id_list: 存储名
+        :param result_table_id_list: 结果表ID
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
         :param storage_cluster_name_list: 集群名
@@ -248,7 +247,7 @@ class LogCollectorHandler:
         """获取日志采集信息"""
         conditions = data.get("conditions", [])
         scenario_id_list = []
-        collector_config_name_list = []
+        name_list = []
         bk_data_name_list = []
         collector_scenario_id_list = []
         created_at_list = []
@@ -258,8 +257,8 @@ class LogCollectorHandler:
         for item in conditions:
             if item["key"] == "scenario_id":
                 scenario_id_list = item["value"]
-            elif item["key"] == "collector_config_name":
-                collector_config_name_list = item["value"]
+            elif item["key"] == "name":
+                name_list = item["value"]
             elif item["key"] == "bk_data_name":
                 bk_data_name_list = item["value"]
             elif item["key"] == "collector_scenario_id":
@@ -276,8 +275,8 @@ class LogCollectorHandler:
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
             scenario_id_list=scenario_id_list,
-            collector_config_name_list=collector_config_name_list,
-            bk_data_name_list=bk_data_name_list,
+            collector_config_name_list=name_list,
+            table_id_list=bk_data_name_list,
             collector_scenario_id_list=collector_scenario_id_list,
             created_by_list=created_at_list,
             updated_by_list=updated_by_list,
@@ -296,7 +295,7 @@ class LogCollectorHandler:
             # 获取索引集信息
             log_index_sets = self.get_log_index_set_info(
                 scenario_id_list=scenario_id_list,
-                index_set_name_list=collector_config_name_list,
+                index_set_name_list=name_list,
                 result_table_id_list=bk_data_name_list,
                 created_by_list=created_at_list,
                 updated_by_list=updated_by_list,
