@@ -24,13 +24,22 @@ class LogCollectorHandler:
         for item in result:
             scenario_id = item.get("scenario_id", Scenario.LOG)
             collector_scenario_id = item.get("collector_scenario_id", "")
+            collector_config_name = item.get("collector_config_name", "")
+            table_id = item.get("table_id", "")
+            table_id_prefix = item.get("table_id_prefix", "")
+            bk_data_name = item.get("bk_data_name", "")
+            if table_id and table_id_prefix:
+                bk_data_name = f"{table_id_prefix}_table_id"
             result_list.append(
                 {
                     "table_id": item.get("table_id", ""),
                     "bk_data_id": item.get("bk_data_id", ""),
-                    "collector_config_name": item.get("collector_config_name", ""),
+                    "collector_config_name": collector_config_name
+                    if collector_config_name
+                    else item.get("index_set_name", ""),
                     "collector_config_id": item.get("collector_config_id", ""),
                     "table_id_prefix": item.get("table_id_prefix", ""),
+                    "bk_data_name": bk_data_name,
                     "updated_by": item.get("updated_by", ""),
                     "updated_at": item.get("updated_at", ""),
                     "created_by": item.get("created_by", ""),
@@ -132,6 +141,8 @@ class LogCollectorHandler:
     def get_log_index_set_info(
         self,
         scenario_id_list: list = None,
+        index_set_name_list: list = None,
+        result_table_id_list: list = None,
         created_by_list: list = None,
         updated_by_list: list = None,
         storage_cluster_name_list: list = None,
@@ -139,6 +150,8 @@ class LogCollectorHandler:
         """
          获取索引集内容
         :param scenario_id_list: 接入情景
+        :param index_set_name_list: 索引集名名称
+        :param result_table_id_list: 存储名
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
         :param storage_cluster_name_list: 集群名
@@ -148,10 +161,24 @@ class LogCollectorHandler:
         )
         if scenario_id_list:
             log_index_sets = log_index_sets.filter(scenario_id__in=scenario_id_list)
+        if index_set_name_list:
+            log_index_sets = log_index_sets.filter(index_set_name__in=index_set_name_list)
         if created_by_list:
             log_index_sets = log_index_sets.filter(created_at__in=created_by_list)
         if updated_by_list:
             log_index_sets = log_index_sets.filter(updated_by__in=updated_by_list)
+
+        log_index_set_data = LogIndexSetData.objects.all()
+        if result_table_id_list:
+            log_index_set_data = log_index_set_data.filter(result_table_id__in=result_table_id_list)
+        index_set_id_list = []
+        log_index_set_data_mappings = defaultdict(list)
+        for obj in log_index_set_data:
+            log_index_set_data_mappings[obj.index_set_id].append(obj)
+            index_set_id_list.append(obj.index_set_id)
+
+        if result_table_id_list:
+            log_index_sets = log_index_sets.filter(index_set_id__in=index_set_id_list)
 
         index_set_ids = []
         source_ids = []
@@ -166,40 +193,40 @@ class LogCollectorHandler:
         for item in access_source_config:
             access_source_config_mappings[item["source_id"]] = item["source_name"]
 
-        log_index_set_data = LogIndexSetData.objects.filter(index_set_id__in=index_set_ids)
-
-        log_index_set_data_mappings = defaultdict(list)
-        for obj in log_index_set_data:
-            log_index_set_data_mappings[obj.index_set_id].append(obj)
-
         result_list = []
         for obj in log_index_sets:
             _index_set_id = obj.index_set_id
             index_set_data = log_index_set_data_mappings[_index_set_id]
             source_id = obj.source_id
-            indexes = [
-                {
-                    "index_id": data.index_id,
-                    "index_set_id": _index_set_id,
-                    "bk_biz_id": data.bk_biz_id,
-                    "source_id": source_id,
-                    "source_name": access_source_config_mappings.get(source_id, "--"),
-                    "result_table_id": data.result_table_id,
-                    "scenario_id": data.scenario_id,
-                    "storage_cluster_id": data.storage_cluster_id,
-                    "time_field": data.time_field,
-                    "result_table_name": data.result_table_name,
-                    "apply_status": data.apply_status,
-                    "apply_status_name": data.get_apply_status_display(),
-                }
-                for data in index_set_data
-            ]
+            indexes = []
+            bk_data_name_list = []
+            for data in index_set_data:
+                result_table_id = data.result_table_id
+                indexes.append(
+                    {
+                        "index_id": data.index_id,
+                        "index_set_id": _index_set_id,
+                        "bk_biz_id": data.bk_biz_id,
+                        "source_id": source_id,
+                        "source_name": access_source_config_mappings.get(source_id, "--"),
+                        "result_table_id": result_table_id,
+                        "scenario_id": data.scenario_id,
+                        "storage_cluster_id": data.storage_cluster_id,
+                        "time_field": data.time_field,
+                        "result_table_name": data.result_table_name,
+                        "apply_status": data.apply_status,
+                        "apply_status_name": data.get_apply_status_display(),
+                    }
+                )
+                if result_table_id:
+                    bk_data_name_list.append(result_table_id)
 
             result_list.append(
                 {
                     "index_set_id": obj.index_set_id,
                     "index_set_name": obj.index_set_name,
                     "indexes": indexes,
+                    "bk_data_name": ",".join(bk_data_name_list),
                     "updated_at": obj.updated_at,
                     "updated_by": obj.updated_by,
                     "tag_ids": obj.tag_ids,
@@ -259,8 +286,6 @@ class LogCollectorHandler:
         )
 
         lists_to_check = [
-            collector_config_name_list,
-            bk_data_name_list,
             collector_scenario_id_list,
             status_name_list,
         ]
@@ -271,6 +296,8 @@ class LogCollectorHandler:
             # 获取索引集信息
             log_index_sets = self.get_log_index_set_info(
                 scenario_id_list=scenario_id_list,
+                index_set_name_list=collector_config_name_list,
+                result_table_id_list=bk_data_name_list,
                 created_by_list=created_at_list,
                 updated_by_list=updated_by_list,
                 storage_cluster_name_list=storage_cluster_name_list,
