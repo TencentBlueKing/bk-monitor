@@ -42,6 +42,7 @@ import authorityMixinCreate from '../../../apm/mixins/authorityMixin';
 import authorityStore from '../../store/modules/authority';
 import * as authorityMap from '../home/authority-map';
 import AddAppSide from './add-app/add-app-side';
+import ServiceAddSide from '../service/service-add-side';
 import AppHomeList from './components/apm-home-list';
 import ApmHomeResizeLayout from './components/apm-home-resize-layout';
 import NavBar from './nav-bar';
@@ -85,9 +86,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   refreshInstance = null;
   appName = '';
 
+  // 用于查询接入服务抽屉上报token
+  appId = '';
+
   showFilterPanel = true;
 
   isShowAppAdd = false;
+
+  // 展示接入服务抽屉
+  isShowServiceAdd = false;
 
   searchCondition = '';
 
@@ -271,6 +278,19 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
     this.isShowAppAdd = v;
   }
 
+  // 新建应用成功
+  handleAddAppSuccess([ appName, appId ]) {
+    this.appName = appName;
+    this.appId = appId;
+    this.getAppList();
+    this.isShowServiceAdd = true;
+  }
+
+  // 接入服务抽屉显隐
+  handleServiceAddSideShow(v) {
+    this.isShowServiceAdd = v;
+  }
+
   /** 设置打开帮助文档 */
   handleSettingsMenuSelect(option) {
     if (option.id === 'help-docs') {
@@ -288,8 +308,6 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
    * @param row
    */
   handleAppClick(row: IAppListItem) {
-    console.log('应用列表点击');
-    
     if (this.appName === row.app_name) return;
     this.appName = row.app_name;
   }
@@ -443,10 +461,13 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
               <AddAppSide
                 isShow={this.isShowAppAdd}
                 onShowChange={v => this.handleToggleAppAdd(v)}
-                onSuccess={v => {
-                  this.appName = v;
-                  this.getAppList();
-                }}
+                onSuccess={v => this.handleAddAppSuccess(v)}
+              />
+              <ServiceAddSide
+                isShow={this.isShowServiceAdd}
+                applicationId={this.appId}
+                appName={this.appName}
+                onSidesliderShow={v => this.handleServiceAddSideShow(v)}
               />
             </div>
             {this.loading ? (

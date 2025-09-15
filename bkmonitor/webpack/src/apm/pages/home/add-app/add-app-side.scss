@@ -5,6 +5,30 @@
     max-height: calc(100vh - 60px);
   }
 
+  .content-tip-wrap {
+    margin: 24px 24px 16px;
+    padding: 6px 9px;
+    display: flex;
+    align-items: flex-start;
+    border: 1px solid #a3c5fd;
+    border-radius: 2px;
+    background-color: #f0f5ff;
+    .icon-monitor {
+      line-height: 20px;
+      color: #3a84ff;
+    }
+    .more-link {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+  .content-tip {
+    margin-left: 9px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+  }
+
   .report-type-wrap {
     width: 100%;
   }
