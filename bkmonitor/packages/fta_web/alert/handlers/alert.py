@@ -318,7 +318,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
             if action_alert_map:
                 alert_ids = action_alert_map.get(node.value, [])
             else:
-                alert_ids = get_alert_ids_by_action_id(node.value)
+                alert_ids, action_alert_map = get_alert_ids_by_action_id([node.value])
             node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
             context.update({"ignore_search_field": True, "ignore_word": True})
 
