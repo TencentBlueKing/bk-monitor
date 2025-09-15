@@ -26,7 +26,7 @@
 
 import dayjs from 'dayjs';
 
-import { IChartOptionPorps, ChartType } from './type-interface';
+import type { IChartOptionPorps, ChartType } from './type-interface';
 export default class EchartsSeries {
   public lineWidth = 1;
   public chartType: ChartType;
@@ -37,41 +37,21 @@ export default class EchartsSeries {
     this.chartType = chartType;
     this.colors = colors;
     this.showExtremum = showExtremum;
-    this.chartOption = chartOption || {};
+    this.chartOption = chartOption;
     this.lineWidth = lineWidth || 1;
   }
+
   // 设置x轴label formatter方法
   public handleSetFormatterFunc(seriesData: any, map?: Map<number, string[]>) {
-    let formatterFunc = null;
     const minX = Array.isArray(seriesData[0]) ? seriesData[0][0] : seriesData[0].x;
-    const [maxX] = seriesData[seriesData.length - 1];
-    minX &&
-      maxX &&
-      (formatterFunc = (v: any) => {
-        // 用绝对值兼容倒叙的情况
-        const duration = Math.abs(dayjs.duration(dayjs(maxX).diff(dayjs(minX))).asSeconds());
-        const stringValue = map?.get(v)?.[1];
-        if (duration < 60 * 60 * 24) {
-          if (duration < 60 * 5) {
-            return stringValue ?? dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '');
-          }
-
-          return dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '');
-        }
-        if (duration < 60 * 60 * 24 * 2) {
-          return dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '');
-        }
-        if (duration < 60 * 60 * 24 * 8) {
-          return dayjs.tz(v).format('MM-DD HH:mm:ss').replace(/:00$/, '');
-        }
-        if (duration <= 60 * 60 * 24 * 30 * 12) {
-          return dayjs.tz(v).format('MM-DD');
-        }
-        return dayjs.tz(v).format('YYYY-MM-DD');
-      });
-    return formatterFunc;
+    const [maxX] = seriesData.at(-1);
+    if (minX && maxX) {
+      return (v: any) => this.formatTimeStamp(v, minX, maxX, map);
+    }
+    return null;
   }
-  public overwriteMerge(destinationArray: any, sourceArray: any) {
+
+  public overwriteMerge(_destinationArray: any, sourceArray: any) {
     return sourceArray;
   }
   public handleYxisLabelFormatter(num: number): string {
@@ -85,12 +65,34 @@ export default class EchartsSeries {
       { value: 1e18, symbol: 'E' },
     ];
     const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
-    let i;
+    let i: number;
     for (i = si.length - 1; i > 0; i--) {
       if (num >= si[i].value) {
         break;
       }
     }
     return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
+  }
+  private formatTimeStamp(v: any, minX: any, maxX: any, map?: Map<number, string[]>) {
+    // 用绝对值兼容倒叙的情况
+    const duration = Math.abs(dayjs.duration(dayjs(maxX).diff(dayjs(minX))).asSeconds());
+    const stringValue = map?.get(v)?.[1];
+    if (duration < 60 * 60 * 24) {
+      if (duration < 60 * 5) {
+        return stringValue ?? dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '');
+      }
+
+      return dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '');
+    }
+    if (duration < 60 * 60 * 24 * 2) {
+      return dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '');
+    }
+    if (duration < 60 * 60 * 24 * 8) {
+      return dayjs.tz(v).format('MM-DD HH:mm:ss').replace(/:00$/, '');
+    }
+    if (duration <= 60 * 60 * 24 * 30 * 12) {
+      return dayjs.tz(v).format('MM-DD');
+    }
+    return dayjs.tz(v).format('YYYY-MM-DD');
   }
 }

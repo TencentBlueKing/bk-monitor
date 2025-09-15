@@ -25,8 +25,10 @@
  */
 import { defineComponent, ref } from 'vue';
 import TextHighlight from 'vue-text-highlight';
-import useLocale from '@/hooks/use-locale';
+
 import FilterRule from '@/components/filter-rule';
+import useLocale from '@/hooks/use-locale';
+
 import DebugTool from './debug-tool';
 
 import './index.scss';
@@ -41,7 +43,7 @@ export default defineComponent({
   props: {
     max_log_length: {
       type: Number,
-      default: 10000,
+      default: 10_000,
     },
     ruleList: {
       type: Array,
@@ -84,23 +86,23 @@ export default defineComponent({
             {t('保存')}
           </bk-button>
           <bk-button
-            outline
             theme='primary'
+            outline
             on-click={() => (showDebug.value = !showDebug.value)}
           >
             <span style='margin-right: 4px'>{t('调试工具')}</span>
             <log-icon
-              common
               type={showDebug.value ? 'angle-double-down' : 'angle-double-up'}
+              common
             />
           </bk-button>
           <bk-button on-click={handleReset}>{t('重置')}</bk-button>
         </div>
         {showDebug.value && (
           <debug-tool
+            collectorConfigId={props.collectorConfigId}
             maxLogLength={props.max_log_length}
             ruleList={props.ruleList}
-            collectorConfigId={props.collectorConfigId}
           />
         )}
       </div>

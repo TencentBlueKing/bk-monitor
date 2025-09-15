@@ -14,7 +14,7 @@
   import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import { translateKeys } from './const-values';
-  import useFieldEgges from './use-field-egges';
+  import useFieldEgges from '@/hooks/use-field-egges';
   import { BK_LOG_STORAGE, FieldInfoItem } from '../../../store/store.type';
   import BatchInput from '../components/batch-input';
   const INPUT_MIN_WIDTH = 12;

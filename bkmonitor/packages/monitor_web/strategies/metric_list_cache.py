@@ -52,6 +52,7 @@ from constants.data_source import (
     OthersResultTableLabel,
     ResultTableLabelObj,
 )
+from constants.apm import APM_TRACE_TABLE_REGEX
 from constants.event import ALL_EVENT_PLUGIN_METRIC, EVENT_PLUGIN_METRIC_PREFIX
 from constants.strategy import (
     HOST_SCENARIO,
@@ -914,7 +915,6 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
 
         # apm索引集仅同步日志关键字指标
         name = table["index_set_name"]
-        apm_index_set_prefix = [f"{self.bk_biz_id}_bkapm_trace_", f"bkapm_{self.bk_biz_id}_trace_"]
 
         # 获取维度列表
         dimension_list = []
@@ -932,7 +932,7 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
                 fields_msg["es_doc_values"]
                 and fields_msg.get("field_type") in TIME_SERIES_FIELD_TYPE
                 and fields_msg.get("field_name") not in LOG_SEARCH_DIMENSION_LIST
-            ) and not any([name.startswith(i) for i in apm_index_set_prefix]):
+            ) and APM_TRACE_TABLE_REGEX.match(name) is None:
                 create_data = {
                     "default_dimensions": [],
                     "default_condition": [],

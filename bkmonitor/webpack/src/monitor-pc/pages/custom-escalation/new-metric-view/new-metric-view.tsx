@@ -58,7 +58,7 @@ export default class NewMetricView extends tsc<object> {
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
   @ProvideReactive('containerScrollTop') containerScrollTop = 0;
-
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   @Ref('panelChartView') panelChartView!: PanelChartView;
 
   @Provide('handleChartDataZoom')
@@ -184,12 +184,15 @@ export default class NewMetricView extends tsc<object> {
   handleMetricsSelectReset() {
     this.dimenstionParams = {};
   }
+  handleRefreshChange(value: number) {
+    this.refreshInterval = value;
+  }
 
   created() {
     const routerQuery = this.$route.query as Record<string, string>;
     this.currentView = routerQuery.viewTab || 'default';
     this.state = {
-      viewColumn: Number.parseInt(routerQuery.viewColumn) || 2,
+      viewColumn: Number.parseInt(routerQuery.viewColumn, 10) || 2,
       showStatisticalValue: routerQuery.showStatisticalValue === 'true',
     };
   }
@@ -204,9 +207,11 @@ export default class NewMetricView extends tsc<object> {
         <PageHeadr>
           <DashboardTools
             isSplitPanel={false}
+            refreshInterval={this.refreshInterval}
             showListMenu={false}
             timeRange={this.timeRange}
             onImmediateRefresh={this.handleImmediateRefresh}
+            onRefreshChange={this.handleRefreshChange}
             onTimeRangeChange={this.handleTimeRangeChange}
           />
         </PageHeadr>

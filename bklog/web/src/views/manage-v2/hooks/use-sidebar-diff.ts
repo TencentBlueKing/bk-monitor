@@ -25,9 +25,10 @@
  */
 
 import { ref, computed, watch } from 'vue';
+
+import { deepClone, deepEqual } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import { InfoBox } from 'bk-magic-vue';
-import { deepClone, deepEqual } from '@/common/util';
 
 export function useSidebarDiff(formData: Record<string, any>) {
   const { t } = useLocale();
@@ -39,12 +40,20 @@ export function useSidebarDiff(formData: Record<string, any>) {
   const watchFormData = computed(() => ({ ...formData }));
 
   // 自动监听formData变更
-  watch(watchFormData, (newVal) => {
-    // 已经修改过 或 未初始化formData的值时不对比
-    if (isChange.value || !isDataInit.value) return;
-    // 对比是否进行过修改
-    if (!deepEqual(newVal, initCloneData.value)) isChange.value = true;
-  }, { deep: true });
+  watch(
+    watchFormData,
+    newVal => {
+      // 已经修改过 或 未初始化formData的值时不对比
+      if (isChange.value || !isDataInit.value) {
+        return;
+      }
+      // 对比是否进行过修改
+      if (!deepEqual(newVal, initCloneData.value)) {
+        isChange.value = true;
+      }
+    },
+    { deep: true },
+  );
 
   // 侧边栏离开,二次确认
   function isSidebarClosed(): Promise<boolean> {

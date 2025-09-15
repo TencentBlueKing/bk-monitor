@@ -14,6 +14,7 @@ from typing import Any
 
 from rest_framework.exceptions import NotFound
 
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.views import serializers
 from core.drf_resource import Resource
 from metadata import models
@@ -26,6 +27,7 @@ class QueryEsResource(Resource):
     _INDEX_PATTERN = re.compile(r"^(?P<prefix>.+)_(?P<date>\d{8})_\d+$")
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         query_body = serializers.DictField(required=True, label="查询内容")
         use_full_index_names = serializers.BooleanField(required=False, label="是否使用索引全名进行检索", default=False)
@@ -44,13 +46,15 @@ class QueryEsResource(Resource):
                 )
         return list(processed_index_names)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_id = validated_request_data["table_id"]
+
         try:
-            result_table = self.get_result_table(table_id)
-        except NotFound:
+            result_table = models.ResultTable.get_result_table(bk_tenant_id=bk_tenant_id, table_id=table_id)
+        except models.ResultTable.DoesNotExist:
             logger.warning(f"query_es_data result_table({table_id}) not exists, return empty data")
-            return []
+            return {"hits": {"total": 0, "hits": []}}
 
         storage: models.ESStorage = self.get_storage(result_table)
         storage_info: dict[str, Any] = storage.consul_config
@@ -79,17 +83,6 @@ class QueryEsResource(Resource):
             **extra,
         )
         return data
-
-    @staticmethod
-    def get_result_table(table_id: str) -> models.ResultTable:
-        try:
-            result_table = models.ResultTable.get_result_table(table_id=table_id)
-        except models.ResultTable.DoesNotExist:
-            raise NotFound(f"result_table({table_id}) not exists.")
-        except Exception as err:
-            logger.exception(f"get result_table({table_id}) failed, error message is {err}")
-            raise Exception(f"get result_table({table_id}) failed, error message is {err}")
-        return result_table
 
     @staticmethod
     def get_storage(result_table: models.ResultTable) -> models.ESStorage:

@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType } from 'vue';
+import { computed, defineComponent, type PropType } from 'vue';
+
 import './index.scss';
 
 export type ShowListType = {
@@ -31,7 +32,7 @@ export type ShowListType = {
   label?: string;
   desc?: string;
   descType?: string;
-  valueRender?: (value: any, object: any) => string | HTMLElement;
+  valueRender?: (value: any, object: any) => HTMLElement | string;
 };
 
 export default defineComponent({
@@ -77,18 +78,19 @@ export default defineComponent({
     });
     return () => (
       <bk-form
+        formType={props.formType}
         label-width={props.labelWidth}
         model={props.object}
-        formType={props.formType}
         on-input={() => {}}
       >
         {renderList.value.map(item => (
           <bk-form-item
-            label={item.label ?? item.fieldName}
-            desc={item.desc}
-            desc-type={item.descType}
+            key={item.fieldName}
             style='margin-top: 0;'
             ext-cls='bklog-v3-object-view-item'
+            desc={item.desc}
+            desc-type={item.descType}
+            label={item.label ?? item.fieldName}
           >
             {item.valueRender(item.fieldName, props.object)}
           </bk-form-item>

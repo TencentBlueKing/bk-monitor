@@ -34,7 +34,7 @@ import CollectHead from './components/collect-head/collect-head';
 import CollectList from './components/collect-list/collect-list';
 import CollectTab from './components/collect-tab/collect-tab';
 import CollectTool from './components/collect-tool/collect-tool';
-import { useFavorite } from './hooks/useFavorite';
+import { useFavorite } from './hooks/use-favorite';
 import { ITabItem } from './types';
 import { getGroupNameRules } from './utils';
 
