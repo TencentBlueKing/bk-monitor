@@ -184,7 +184,7 @@
                 },
               ],
             });
-            this.$store.commit('updateAuthDialogData', res.data);
+            this.$store.commit('updateState', {'authDialogData': res.data});
           } catch (err) {
             console.warn(err);
           } finally {

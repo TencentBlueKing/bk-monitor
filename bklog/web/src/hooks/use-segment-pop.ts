@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue, { h, ref, Ref } from 'vue';
+import Vue, { h, ref, type Ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -67,7 +67,7 @@ class UseSegmentProp {
 
   constructor({
     delineate = false,
-    onclick = undefined,
+    onclick,
     stopPropagation = false,
   }: { delineate?: boolean; onclick?: (...args: any) => void; stopPropagation?: boolean } = {}) {
     const { $t } = useLocale();

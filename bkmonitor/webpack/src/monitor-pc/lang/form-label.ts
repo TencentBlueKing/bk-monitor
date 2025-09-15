@@ -1970,4 +1970,5 @@ export default {
   可选维度: 'Optional dimensions',
   上报地址: 'Reporting address',
   上报token: 'Reporting token',
+  主调服务: 'Caller service'
 };

@@ -203,7 +203,9 @@ class BaseQuery:
         using_scope: bool = True,
     ) -> UnifyQuerySet:
         start_time, end_time = self._get_time_range(self.retention, start_time, end_time)
-        queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time)
+        # Q：为什么设置 time_align=False？
+        # A：Tracing 检索场景对实时性要求高，时间对齐会导致结束时间戳前移，此处和事件检索保持一致，默认不对齐时间。
+        queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time).time_align(False)
         if using_scope:
             # 默认仅查询本业务下的数据
             return queryset.scope(self.bk_biz_id)

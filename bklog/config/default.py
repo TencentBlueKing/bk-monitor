@@ -1243,6 +1243,15 @@ UNIFYQUERY_APIGATEWAY_ROOT = os.getenv("BKAPP_UNIFYQUERY_APIGATEWAY_ROOT", "")
 # AIDEV
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
+# aidev的apigw地址 新版ai小鲸sdk使用
+BK_AIDEV_APIGW_ENDPOINT = os.getenv("BK_AIDEV_APIGW_ENDPOINT", "")
+# aidev智能体
+BK_AIDEV_AGENT_APP_CODE = os.getenv("BK_AIDEV_AGENT_APP_CODE", "")
+BK_AIDEV_AGENT_APP_SECRET = os.getenv("BK_AIDEV_AGENT_APP_SECRET", "")
+# langfuse llm观测服务
+LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "")
+LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY", "")
+LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")
 
 # 是否启用多租户模式
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"

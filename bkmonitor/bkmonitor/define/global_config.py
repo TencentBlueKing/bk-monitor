@@ -154,10 +154,12 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label="第三方事件接入业务白名单", default=[])),
         ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label="自定义指标过期时间", default=30 * 24 * 3600)),
         ("AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE", slz.IntegerField(label="LLM默认温度参数", default=0.3)),
+        ("AI_BIZ_LIST", slz.ListField(label="AI小鲸灰度业务名单", default=[])),
         ("AIDEV_COMMAND_AGENT_MAPPING", slz.DictField(label="快捷指令<->Agent映射", default={})),
         ("AIDEV_SCENE_AGENT_CODE_MAPPING", slz.DictField(label="场景-Agent映射配置", default={})),
         ("FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", slz.IntegerField(label="获取自定义指标的间隔时间", default=7200)),
         ("ENABLE_BKDATA_METRIC_CACHE", slz.BooleanField(label="是否开启数据平台指标缓存", default=True)),
+        ("ENABLE_CONSUL_LITE_MODE", slz.BooleanField(label="是否开启Consul Lite模式", default=False)),
         (
             "TRANSLATE_SNMP_TRAP_DIMENSIONS",
             slz.BooleanField(label="是否翻译snmp trap的oid维度", default=settings.TRANSLATE_SNMP_TRAP_DIMENSIONS),
@@ -409,7 +411,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
         ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
         ("AIDEV_AGENT_AI_GENERATING_KEYWORD", slz.CharField(label="AIAgent内容生成关键字", default="生成中")),
-        ("AIDEV_AGENT_ENABLE_LANGFUSE", slz.BooleanField(label="是否开启langfuse上报", default=[])),
+        ("AIDEV_AGENT_ENABLE_LANGFUSE", slz.BooleanField(label="是否开启langfuse上报", default=False)),
+        ("ENABLE_AI_RENAME", slz.BooleanField(label="是否开启AI RENAME", default=False)),
         (
             "BK_DATA_RECORD_RULE_PROJECT_ID",
             slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1),

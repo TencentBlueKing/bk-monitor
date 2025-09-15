@@ -124,6 +124,18 @@
       }
     }
 
+    .tab-row-icon {
+      flex-shrink: 0;
+      display: none;
+      font-size: 13px;
+      color: #63656e;
+      margin-left: 6px;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
     .multi-view-table-txt {
       color: #63656e;
 
@@ -149,6 +161,7 @@
 
     .multi-view-table-link {
       position: relative;
+      display: flex;
       width: 100%;
       color: #3a84ff;
       cursor: pointer;
@@ -165,21 +178,14 @@
 
       .item-txt {
         display: inline-block;
-        max-width: 95%;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
-      .tab-row-icon {
-        display: none;
-      }
-
-      .icon-mc-copy {
-        position: absolute;
-        right: -20px;
-        margin-left: 6px;
-        color: #63656e;
+      .remark-text {
+        margin-left: 8px;
+        color: #979BA5;
       }
     }
 

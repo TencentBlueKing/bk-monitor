@@ -27,7 +27,7 @@
 import { Component, Model, Emit, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Sideslider, Form, FormItem, Input, Button, Popover } from 'bk-magic-vue';
+import { Sideslider, Form, FormItem, Input, Button, type Popover } from 'bk-magic-vue';
 
 import MaskingSelectRuleTable from './masking-select-rule-table';
 
@@ -75,7 +75,9 @@ export default class MaskingExtract extends tsc<IProps> {
   }
 
   delDirectory(index) {
-    if (this.directoryList.length === 1) return;
+    if (this.directoryList.length === 1) {
+      return;
+    }
     this.directoryList.splice(index, 1);
   }
 
@@ -84,7 +86,9 @@ export default class MaskingExtract extends tsc<IProps> {
   }
 
   delSuffix(index) {
-    if (this.suffixList.length === 1) return;
+    if (this.suffixList.length === 1) {
+      return;
+    }
     this.suffixList.splice(index, 1);
   }
 
@@ -164,7 +168,7 @@ export default class MaskingExtract extends tsc<IProps> {
               label={'名称'}
               required
             >
-              <Input></Input>
+              <Input />
             </FormItem>
             <FormItem
               label={'脱敏设置'}
@@ -179,45 +183,48 @@ export default class MaskingExtract extends tsc<IProps> {
               <div class='masking-rule'>
                 <span class='rule-name'>手机号脱敏</span>
                 <span class='rule-value'>替换｜替换为 0</span>
-                <i class='rule-icon bk-icon icon-close-circle-shape'></i>
+                <i class='rule-icon bk-icon icon-close-circle-shape' />
               </div>
               <div class='masking-rule'>
                 <span class='rule-name'>手机号脱敏</span>
                 <span class='rule-value'>替换｜替换为 0</span>
-                <i class='rule-icon bk-icon icon-close-circle-shape'></i>
+                <i class='rule-icon bk-icon icon-close-circle-shape' />
               </div>
               <div class='form-item-tips'>
                 <i
                   class='bklog-icon bklog-info-fill'
                   v-bk-tooltips={{ content: this.$t('字段名与表达式至少填写 1 个') }}
-                ></i>
+                />
               </div>
             </FormItem>
             <FormItem
               label={'用户列表'}
               required
             >
-              <Input></Input>
+              <Input />
             </FormItem>
             <FormItem
               label={'授权目录'}
               required
             >
               {this.directoryList.map((item, index) => (
-                <div class='length-change-item'>
-                  <Input></Input>
+                <div
+                  key={`${index}-${item}`}
+                  class='length-change-item'
+                >
+                  <Input />
                   <div class='ml9'>
                     <i
                       class='bk-icon icon-plus-circle-shape icons'
                       onClick={() => this.addDirectory()}
-                    ></i>
+                    />
                     <i
                       class={[
                         'bk-icon icon-minus-circle-shape icons ml9',
                         { disable: this.directoryList.length === 1 },
                       ]}
                       onClick={() => this.delDirectory(index)}
-                    ></i>
+                    />
                   </div>
                 </div>
               ))}
@@ -227,17 +234,20 @@ export default class MaskingExtract extends tsc<IProps> {
               required
             >
               {this.suffixList.map((item, index) => (
-                <div class='length-change-item'>
-                  <Input></Input>
+                <div
+                  key={`${index}-${item}`}
+                  class='length-change-item'
+                >
+                  <Input />
                   <div class='ml9'>
                     <i
                       class='bk-icon icon-plus-circle-shape icons'
                       onClick={() => this.addSuffix()}
-                    ></i>
+                    />
                     <i
                       class={['bk-icon icon-minus-circle-shape icons ml9', { disable: this.suffixList.length === 1 }]}
                       onClick={() => this.delSuffix(index)}
-                    ></i>
+                    />
                   </div>
                 </div>
               ))}
@@ -254,7 +264,7 @@ export default class MaskingExtract extends tsc<IProps> {
               required
             >
               <div class='length-change-item'>
-                <Input></Input>
+                <Input />
                 <Button
                   class='ml9'
                   theme='primary'

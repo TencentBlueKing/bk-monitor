@@ -9,7 +9,7 @@
   import CommonFilterSetting from './common-filter-setting.vue';
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
   import { operatorMapping, translateKeys } from './const-values';
-  import useFieldEgges from './use-field-egges';
+  import useFieldEgges from '@/hooks/use-field-egges';
   import RetrieveHelper from '../../retrieve-helper';
   import { useRoute } from 'vue-router/composables';
   import { getCommonFilterAddition, getCommonFilterFieldsList, setStorageCommonFilterAddition } from '../../../store/helper';

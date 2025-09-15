@@ -402,6 +402,8 @@ class BaseQueryHandler:
         cond_q = None
         for condition in conditions:
             q = self.parse_condition_item(condition)
+            if q is None:
+                continue
             if condition["method"] == "neq":
                 q = ~q
             if cond_q is None:

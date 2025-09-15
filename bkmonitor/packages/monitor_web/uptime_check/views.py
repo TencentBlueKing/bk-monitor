@@ -349,23 +349,36 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
 
         # 如果传入plain参数，则返回简单数据
         if request.query_params.get("plain", False):
-            return Response(
-                [
-                    {
-                        "id": task.id,
-                        "name": task.name,
-                        "bk_biz_id": task.bk_biz_id,
-                        "status": task.status,
-                        "config": task.config,
-                        "protocol": task.protocol,
-                        "check_interval": task.check_interval,
-                        "location": task.location,
-                    }
-                    for task in queryset.only(
-                        "id", "name", "bk_biz_id", "status", "config", "protocol", "check_interval", "location"
-                    )
-                ]
-            )
+            task_id = request.query_params.get("id")
+            if task_id:
+                tasks = queryset.filter(id=task_id)
+                response = Response(
+                    [
+                        {
+                            "id": task.id,
+                            "name": task.name,
+                            "bk_biz_id": task.bk_biz_id,
+                            "status": task.status,
+                            "config": task.config,
+                            "protocol": task.protocol,
+                            "check_interval": task.check_interval,
+                            "location": task.location,
+                        }
+                        for task in tasks
+                    ]
+                )
+            else:
+                response = Response(
+                    [
+                        {
+                            "id": task.id,
+                            "name": task.name,
+                            "bk_biz_id": task.bk_biz_id,
+                        }
+                        for task in queryset.only("id", "name", "bk_biz_id")
+                    ]
+                )
+            return response
 
         bk_biz_id = int(request.query_params.get("bk_biz_id", 0))
         if bk_biz_id:

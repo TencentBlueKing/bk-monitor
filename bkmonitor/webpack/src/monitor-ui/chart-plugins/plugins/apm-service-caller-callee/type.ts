@@ -128,3 +128,15 @@ export interface ITabItem {
   label: string;
   handle?: () => void;
 }
+
+
+export interface CodeRedefineItem {
+  callee_server: string;
+  callee_service: string;
+  callee_method: string;
+  code_type_rules: {
+    success: string;
+    exception: string
+    timeout: string
+  }
+}

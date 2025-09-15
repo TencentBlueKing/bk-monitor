@@ -27,24 +27,24 @@
 import { Component, Prop, Emit, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { From } from 'bk-magic-vue';
-
 import $http from '../../../../../../api';
 import clusterImg from '../../../../../../images/cluster-img/cluster.png';
 import FilterRule from './filter-rule';
 
+import type { From } from 'bk-magic-vue';
+
 import './quick-open-cluster.scss';
 
 interface IProps {
-  totalFields: Array<any>;
+  totalFields: any[];
 }
 
 const { $i18n } = window.mainComponent;
 
 @Component
 export default class QuickOpenCluster extends tsc<IProps> {
-  @Prop({ type: Array, required: true }) totalFields: Array<any>;
-  @Prop({ type: Array, required: true }) datePickerValue: Array<any>;
+  @Prop({ type: Array, required: true }) totalFields: any[];
+  @Prop({ type: Array, required: true }) datePickerValue: any[];
   @Prop({ type: Object, required: true }) retrieveParams: object;
   @Ref('quickClusterFrom') quickClusterFromRef: From;
   @Ref('filterRule') filterRuleRef;
@@ -97,10 +97,10 @@ export default class QuickOpenCluster extends tsc<IProps> {
   @Watch('formData.clustering_fields')
   handleClusteringFields(fieldName) {
     if (this.formData.filter_rules.length) {
-      this.formData.filter_rules.forEach(rule => {
+      for (const rule of this.formData.filter_rules) {
         const targetField = this.totalFields.find(f => f.field_name === fieldName);
         Object.assign(rule, { ...targetField, fields_name: targetField.field_name });
-      });
+      }
     }
   }
 
@@ -109,7 +109,9 @@ export default class QuickOpenCluster extends tsc<IProps> {
   }
   async handleConfirmSubmit() {
     const isRulePass = await this.filterRuleRef.handleCheckRuleValidate();
-    if (!isRulePass) return;
+    if (!isRulePass) {
+      return;
+    }
     this.quickClusterFromRef.validate().then(async () => {
       this.confirmLading = true;
       try {
@@ -136,7 +138,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
         if (res.code === 0) {
           // 若是从未弹窗过的话，打开更多聚类的弹窗
           const clusterPopoverState = localStorage.getItem('CLUSTER_MORE_POPOVER');
-          if (!Boolean(clusterPopoverState)) {
+          if (!clusterPopoverState) {
             const dom = document.querySelector('#more-operator');
             dom.addEventListener('popoverShowEvent', this.operatorTargetEvent);
             dom.dispatchEvent(new Event('popoverShowEvent'));
@@ -265,8 +267,9 @@ export default class QuickOpenCluster extends tsc<IProps> {
                 {this.clusterField.map(option => (
                   <bk-option
                     id={option.id}
+                    key={option.id}
                     name={option.name}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
               <span
@@ -275,7 +278,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
                   placements: ['right'],
                 }}
               >
-                <span class='bk-icon icon-info'></span>
+                <span class='bk-icon icon-info' />
               </span>
             </div>
           </bk-form-item>
@@ -289,7 +292,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
               date-picker-value={this.datePickerValue}
               retrieve-params={this.retrieveParams}
               total-fields={this.totalFields}
-            ></FilterRule>
+            />
           </bk-form-item>
           <bk-form-item
             label={$i18n.t('告警配置')}
@@ -304,7 +307,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
                     content: $i18n.t('表示近一段时间内新增日志模式。可自定义新类判定的时间区间。如：近30天内新增'),
                     placements: ['top'],
                   }}
-                ></i>
+                />
               </bk-checkbox>
               <bk-checkbox v-model={this.formData.normal_strategy_enable}>
                 {$i18n.t('开启数量突增告警')}
@@ -314,7 +317,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
                     content: $i18n.t('表示某日志模式数量突然异常增长，可能某些模块突发风险'),
                     placements: ['top'],
                   }}
-                ></i>
+                />
               </bk-checkbox>
             </div>
           </bk-form-item>
@@ -367,7 +370,12 @@ export default class QuickOpenCluster extends tsc<IProps> {
           )}
         </div>
         <div class='right-box'>
-          <img src={clusterImg} />
+          {/** biome-ignore lint/nursery/useImageSize: reason */}
+          {/** biome-ignore lint/performance/noImgElement: reason */}
+          <img
+            alt='日志聚类'
+            src={clusterImg}
+          />
         </div>
       </div>
     );
