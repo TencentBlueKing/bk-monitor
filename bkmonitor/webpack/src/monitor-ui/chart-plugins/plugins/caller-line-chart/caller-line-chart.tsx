@@ -27,6 +27,7 @@
 import { Component, Emit, Inject, InjectReactive, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import QuickAddStrategy from 'apm/pages/alarm-template/quick-add-strategy/quick-add-strategy';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
@@ -52,7 +53,6 @@ import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-servi
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 import CustomEventMenu from './custom-event-menu/custom-event-menu';
-import QuickAddStrategy from './quick-add-strategy/quick-add-strategy';
 import {
   type EventTagColumn,
   type EventTagConfig,
@@ -1422,6 +1422,9 @@ class CallerLineChart extends CommonSimpleChart {
           />
         )}
         <QuickAddStrategy
+          params={{
+            app_name: this.viewOptions.filters?.app_name,
+          }}
           show={this.quickAddStrategyObj.show}
           onShowChange={this.handleQuickAddStrategyShowChange}
         />
