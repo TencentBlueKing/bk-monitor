@@ -1177,6 +1177,21 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 continue
             cleaned_data[field.field] = field.get_value_by_es_field(data)
 
+        condition_mapping = {
+            "bk_agent_id": "Agent ID",
+            "bk_biz_id": "业务ID",
+            "bk_cloud_id": "采集器云区域ID",
+            "bk_host_id": "采集主机ID",
+            "bk_target_cloud_id": "云区域ID",
+            "bk_target_host_id": "目标主机ID",
+            "bk_target_ip": "目标IP",
+            "device_name": "设备名",
+            "device_type": "设备类型",
+            "hostname": "主机名",
+            "ip": "采集器IP",
+            "mount_point": "挂载点",
+        }
+
         dimension_translation = data.get("extra_info", {}).get("origin_alarm", {}).get("dimension_translation", {})
         items = []
         for item in data.get("extra_info", {}).get("strategy", {}).get("items", []):
@@ -1193,6 +1208,10 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     )
                     for d in config.get("agg_dimension", [])
                 }
+
+                for condition in config.get("agg_condition", []):
+                    condition["dimension_name"] = condition_mapping.get(condition["key"], condition["key"])
+
                 query_configs.append(
                     {
                         "alias": config.get("alias", ""),
