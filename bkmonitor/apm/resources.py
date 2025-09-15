@@ -909,7 +909,8 @@ class QueryEndpointResource(Resource):
     def perform_request(self, data):
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
 
-        endpoints = Endpoint.objects.filter(**filter_params).order_by("-updated_at")
+        # 获取数据库中的端点:wq数据，包含id字段用于匹配缓存
+        endpoints = Endpoint.objects.filter(**filter_params)
         if data["category"]:
             endpoints = endpoints.filter(category_id=data["category"])
         if data["category_kind_value"]:
@@ -926,17 +927,37 @@ class QueryEndpointResource(Resource):
         if data.get("filters"):
             endpoints = endpoints.filter(**data["filters"])
 
-        return [
-            {
-                "endpoint_name": endpoint.endpoint_name,
-                "kind": endpoint.span_kind,
-                "service_name": endpoint.service_name,
-                "category_kind": {"key": endpoint.category_kind_key, "value": endpoint.category_kind_value},
-                "category": endpoint.category_id,
-                "extra_data": endpoint.extra_data,
-            }
-            for endpoint in endpoints
-        ]
+        # 从Redis缓存获取端点时间信息
+        cache_name = ApmCacheHandler.get_endpoint_cache_key(data["bk_biz_id"], data["app_name"])
+        cache_data = ApmCacheHandler().get_cache_data(cache_name)
+
+        # 构建端点数据并合并缓存时间信息
+        result = []
+        for endpoint in endpoints:
+            # 构建缓存key，格式：{id}:{service_name}:{endpoint_name}
+            cache_key = f"{endpoint.id}:{endpoint.service_name}:{endpoint.endpoint_name}"
+
+            # 获取时间戳，优先使用缓存中的时间，如果缓存中没有则使用数据库的updated_at
+            updated_at = endpoint.updated_at
+            if cache_key in cache_data:
+                updated_at = datetime.datetime.fromtimestamp(cache_data[cache_key], tz=pytz.UTC)
+
+            result.append(
+                {
+                    "endpoint_name": endpoint.endpoint_name,
+                    "kind": endpoint.span_kind,
+                    "service_name": endpoint.service_name,
+                    "category_kind": {"key": endpoint.category_kind_key, "value": endpoint.category_kind_value},
+                    "category": endpoint.category_id,
+                    "extra_data": endpoint.extra_data,
+                    "updated_at": updated_at,
+                }
+            )
+
+        # 按照更新时间倒序排序（最新的在前面）
+        result.sort(key=lambda x: x["updated_at"], reverse=True)
+
+        return result
 
 
 class QueryEventResource(Resource):
