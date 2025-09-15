@@ -370,6 +370,8 @@ export default {
   开启Kubernetes监控: 'Start Kubernetes Monitoring',
   开启容器监控: 'Start Container Monitoring',
   开启综合拨测: 'Start Synthetic',
+  开启自动下发: 'Start Auto Deployment',
+  关闭自动下发: 'Stop Auto Deployment',
 
   '启/停策略': 'On/Off Rule',
   开启周期回调: 'Periodic Callback',
