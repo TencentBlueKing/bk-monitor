@@ -2437,6 +2437,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   renderList() {
     return this.searchType === 'incident' ? (
       <IncidentTable
+        key='incident-table'
         bizIds={this.bizIds}
         doLayout={this.activePanel}
         loading={this.tableLoading}
@@ -2458,6 +2459,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       />
     ) : (
       <EventTable
+        key='event-table'
         bizIds={this.bizIds}
         doLayout={this.activePanel}
         loading={this.tableLoading}

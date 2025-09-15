@@ -587,7 +587,7 @@ export default defineComponent({
         class='exception-wrap-item'
         description={data.message}
         scene='part'
-        title={t('超时错误')}
+        title={t('查询异常')}
         type='500'
       />
     );
