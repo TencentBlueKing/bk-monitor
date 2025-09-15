@@ -1,20 +1,24 @@
+from collections import defaultdict
 from itertools import chain
 
-from collections import defaultdict
-from apps.log_databus.handlers.collector import CollectorHandler
-from apps.log_search.constants import CollectorScenarioEnum
-from apps.log_search.models import LogIndexSet, LogIndexSetData, AccessSourceConfig, Scenario
-from apps.log_databus.models import CollectorConfig
+from django.core.paginator import Paginator
 from django.db.models import Q
 
-from bkm_space.utils import space_uid_to_bk_biz_id
+from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.handlers.index_set import IndexSetHandler
-from django.core.paginator import Paginator
+from apps.log_search.models import LogIndexSet, LogIndexSetData, AccessSourceConfig, Scenario
+from apps.log_databus.models import CollectorConfig
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
-def fetch_log_collector_data(func):
-    def inner(*args, **kwargs):
-        result = func(*args, **kwargs)
+class LogCollectorHandler:
+    def __init__(self, space_uid):
+        self.space_uid = space_uid
+        self.bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
+
+    @staticmethod
+    def fetch_log_collector_data(result: list[dict]):
         result_list = []
         scenario_choices = dict(Scenario.CHOICES)
         for item in result:
@@ -49,14 +53,6 @@ def fetch_log_collector_data(func):
             )
         return result_list
 
-    return inner
-
-
-class LogCollectorHandler:
-    def __init__(self, space_uid):
-        self.space_uid = space_uid
-        self.bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
-
     @staticmethod
     def get_collector_subscription_status(collector_id_list) -> dict[str, dict]:
         collector_status_mappings = {}
@@ -65,7 +61,6 @@ class LogCollectorHandler:
             collector_status_mappings[item["collector_id"]] = item
         return collector_status_mappings
 
-    @fetch_log_collector_data
     def get_collector_config_info(
         self,
         scenario_id_list: list = None,
@@ -131,11 +126,9 @@ class LogCollectorHandler:
                 continue
             item["status_name"] = status_name
             result_list.append(item)
-
         result_list = CollectorHandler.add_tags_info(result_list)
         return result_list
 
-    @fetch_log_collector_data
     def get_log_index_set_info(
         self,
         scenario_id_list: list = None,
@@ -284,6 +277,7 @@ class LogCollectorHandler:
             )
 
         combined_data = collector_configs + log_index_sets
+        combined_data = self.fetch_log_collector_data(combined_data)
         # 分页
         paginator = Paginator(combined_data, data["pagesize"])
         page_obj = paginator.get_page(data["page"])
