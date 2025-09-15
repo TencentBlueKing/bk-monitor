@@ -907,9 +907,9 @@ class QueryEndpointResource(Resource):
         filters = serializers.DictField(label="查询条件", required=False)
 
     def perform_request(self, data):
-        # 获取过期时间分界线，但不在数据库查询中使用
+        # 获取过期时间分界线，确保使用UTC时区
         retention = DiscoverHandler.get_app_retention(data["bk_biz_id"], data["app_name"])
-        retention_cutoff = datetime.datetime.now() - datetime.timedelta(retention)
+        retention_cutoff = datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(retention)
 
         # 获取数据库中的端点数据，不使用updated_at__gte过滤，避免过早过滤导致数据丢失
         filter_params = {
