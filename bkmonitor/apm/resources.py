@@ -907,9 +907,15 @@ class QueryEndpointResource(Resource):
         filters = serializers.DictField(label="查询条件", required=False)
 
     def perform_request(self, data):
-        filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
+        # 获取过期时间分界线，但不在数据库查询中使用
+        retention = DiscoverHandler.get_app_retention(data["bk_biz_id"], data["app_name"])
+        retention_cutoff = datetime.datetime.now() - datetime.timedelta(retention)
 
-        # 获取数据库中的端点:wq数据，包含id字段用于匹配缓存
+        # 获取数据库中的端点数据，不使用updated_at__gte过滤，避免过早过滤导致数据丢失
+        filter_params = {
+            "bk_biz_id": data["bk_biz_id"],
+            "app_name": data["app_name"],
+        }
         endpoints = Endpoint.objects.filter(**filter_params)
         if data["category"]:
             endpoints = endpoints.filter(category_id=data["category"])
@@ -931,7 +937,7 @@ class QueryEndpointResource(Resource):
         cache_name = ApmCacheHandler.get_endpoint_cache_key(data["bk_biz_id"], data["app_name"])
         cache_data = ApmCacheHandler().get_cache_data(cache_name)
 
-        # 构建端点数据并合并缓存时间信息
+        # 构建端点数据并合并缓存时间信息，然后根据合并后的时间进行过期过滤
         result = []
         for endpoint in endpoints:
             # 构建缓存key，格式：{id}:{service_name}:{endpoint_name}
@@ -942,17 +948,19 @@ class QueryEndpointResource(Resource):
             if cache_key in cache_data:
                 updated_at = datetime.datetime.fromtimestamp(cache_data[cache_key], tz=pytz.UTC)
 
-            result.append(
-                {
-                    "endpoint_name": endpoint.endpoint_name,
-                    "kind": endpoint.span_kind,
-                    "service_name": endpoint.service_name,
-                    "category_kind": {"key": endpoint.category_kind_key, "value": endpoint.category_kind_value},
-                    "category": endpoint.category_id,
-                    "extra_data": endpoint.extra_data,
-                    "updated_at": updated_at,
-                }
-            )
+            # 根据合并后的时间进行过期过滤
+            if updated_at >= retention_cutoff:
+                result.append(
+                    {
+                        "endpoint_name": endpoint.endpoint_name,
+                        "kind": endpoint.span_kind,
+                        "service_name": endpoint.service_name,
+                        "category_kind": {"key": endpoint.category_kind_key, "value": endpoint.category_kind_value},
+                        "category": endpoint.category_id,
+                        "extra_data": endpoint.extra_data,
+                        "updated_at": updated_at,
+                    }
+                )
 
         # 按照更新时间倒序排序（最新的在前面）
         result.sort(key=lambda x: x["updated_at"], reverse=True)
