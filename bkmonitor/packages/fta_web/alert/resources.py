@@ -55,6 +55,7 @@ from bkmonitor.models import (
     AlgorithmModel,
     MetricListCache,
     StrategyModel,
+    ItemModel,
 )
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
@@ -3212,3 +3213,19 @@ class GetAlertDataRetrievalResource(Resource):
             result = {}
 
         return result
+
+
+class UpdateDataMeaningResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        id = serializers.IntegerField(required=True, label="Item ID")
+        name = serializers.CharField(required=True, label="数据含义描述")
+
+    def perform_request(self, request_data):
+        try:
+            item = ItemModel.objects.get(id=request_data["item_id"])
+        except ItemModel.DoesNotExist:
+            raise ValueError(f"Item with id {request_data['item_id']} does not exist")
+        item.name = request_data["name"]
+        item.save()
+
+        return {"item_id": item.id, "description": item.name}
