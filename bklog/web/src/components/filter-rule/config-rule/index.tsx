@@ -128,29 +128,33 @@ export default defineComponent({
       ],
     };
 
+    const initData = () => {
+      if (props.data && filterFieldList.value.length) {
+        activeIndex.value =
+          filterFieldList.value.findIndex(
+            item => item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
+          ) || 0;
+
+        hoverIndex.value = activeIndex.value;
+        formData.value = {
+          op: props.data.op,
+          values: props.data.value,
+        };
+
+        const fieldInfo = filterFieldList.value[activeIndex.value];
+        localFormData.value = {
+          op: props.data.op,
+          values: props.data.value,
+          field_name: fieldInfo.field_name,
+          field_alias: fieldInfo.field_alias,
+        };
+      }
+    };
+
     watch(
       () => [props.data, filterFieldList.value],
       () => {
-        if (props.data && filterFieldList.value.length) {
-          activeIndex.value =
-            filterFieldList.value.findIndex(
-              item => item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
-            ) || 0;
-
-          hoverIndex.value = activeIndex.value;
-          formData.value = {
-            op: props.data.op,
-            values: props.data.value,
-          };
-
-          const fieldInfo = filterFieldList.value[activeIndex.value];
-          localFormData.value = {
-            op: props.data.op,
-            values: props.data.value,
-            field_name: fieldInfo.field_name,
-            field_alias: fieldInfo.field_alias,
-          };
-        }
+        initData();
       },
       { immediate: true },
     );
@@ -244,6 +248,7 @@ export default defineComponent({
     const handlePopoverShow = () => {
       formRef.value?.clearError();
       controlOperateRef.value.bindKeyEvent();
+      initData();
       setTimeout(() => {
         const selectItemDom = fieldListMainRef.value.querySelector('.is-active');
         if (selectItemDom) {
