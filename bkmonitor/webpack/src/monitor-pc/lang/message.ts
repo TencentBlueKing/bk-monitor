@@ -533,4 +533,6 @@ export default {
   创建查询模板成功: 'Created metric template successfully',
   编辑查询模板成功: 'Edited metric template successfully',
   '有未生效的变量，是否清空？': 'There are variables that are not in effect, do you want to clear them?',
+
+  修改备注成功: 'Remark modified successfully'
 };

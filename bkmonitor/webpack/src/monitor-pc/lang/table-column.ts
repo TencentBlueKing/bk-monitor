@@ -178,4 +178,12 @@ export default {
   模板别名: 'Template Alias',
   模板说明: 'Template Description',
   消费场景: 'Consumption Scenario',
+  
+
+  
+  被调服务: 'Called server',
+  被调service: 'Called service',
+  被调接口: 'Called interface',
+  返回码: 'Return code',
+  
 };
