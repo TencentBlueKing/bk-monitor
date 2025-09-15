@@ -60,8 +60,8 @@ class ApplicationStore extends VuexModule implements IApplicationState {
    * @param name 应用名
    */
   @Action
-  getAppInfo(query: IAppInfoQuery): Promise<Record<string, any>> {
-    return applicationInfoByAppName(query);
+  async getAppInfo(query: IAppInfoQuery): Promise<Record<string, any>> {
+    return applicationInfoByAppName(query).catch(() => undefined);
   }
   /**
    * 请求插件列表
