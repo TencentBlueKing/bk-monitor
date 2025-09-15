@@ -34,12 +34,12 @@ export const ALARM_TEMPLATE_QUICK_FILTER_LIST: ITableFilterItem[] = [
     name: window.i18n.t('全部模板') as unknown as string,
   },
   {
-    icon: '',
+    icon: 'icon-neizhi',
     id: 'inner',
     name: window.i18n.t('内置模板') as unknown as string,
   },
   {
-    icon: '',
+    icon: 'icon-kelong',
     id: 'app',
     name: window.i18n.t('克隆模板') as unknown as string,
   },

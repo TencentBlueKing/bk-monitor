@@ -32,7 +32,7 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import { AlarmTemplateDetailTabEnum, TABLE_DEFAULT_DISPLAY_FIELDS } from '../../constant';
-import { type AlarmTemplateDetailTabEnumType, type ApmAlarmTemplateListItem } from '../../typeing';
+import { type AlarmTemplateDetailTabEnumType, type AlarmTemplateListItem } from '../../typeing';
 import AlarmDeleteConfirm, { type AlarmDeleteConfirmEvent } from '../alarm-delete-confirm/alarm-delete-confirm';
 
 import './alarm-template-table.scss';
@@ -48,7 +48,7 @@ interface AlarmTemplateTableProps {
   /** 空数据类型 */
   emptyType: 'empty' | 'search-empty';
   /** 表格数据 */
-  tableData: ApmAlarmTemplateListItem[];
+  tableData: AlarmTemplateListItem[];
 }
 
 @Component
@@ -59,7 +59,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   /** 表格加载状态 */
   @Prop({ type: Boolean }) loading: boolean;
   /** 表格数据 */
-  @Prop({ type: Array, default: () => [] }) tableData: ApmAlarmTemplateListItem[];
+  @Prop({ type: Array, default: () => [] }) tableData: AlarmTemplateListItem[];
   /** 总数 */
   @Prop({ type: Number }) total: number;
   /** 空数据类型 */
@@ -70,7 +70,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
   sliderActiveTab: AlarmTemplateDetailTabEnumType = null;
   /** 模板详情 - 当前需要显示详情信息的数据 id */
-  sliderActiveId: ApmAlarmTemplateListItem['id'] = null;
+  sliderActiveId: AlarmTemplateListItem['id'] = null;
   /** 是否出于请求删除接口中状态 */
   isDeleteActive = false;
   /** 删除二次确认 popover 实例 */
@@ -226,7 +226,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   /**
    * @description: 删除模板确认回调
    */
-  handleDeleteTemplateConfirm(templateId: ApmAlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) {
+  handleDeleteTemplateConfirm(templateId: AlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) {
     this.isDeleteActive = true;
     confirmEvent?.confirmPromise
       ?.then(() => {
@@ -246,7 +246,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     isShow: boolean,
     showEvent?: {
       ActiveSliderTab?: AlarmTemplateDetailTabEnumType;
-      id: ApmAlarmTemplateListItem['id'];
+      id: AlarmTemplateListItem['id'];
     }
   ) {
     let sliderTab = null;

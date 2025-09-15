@@ -27,7 +27,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type ApmAlarmTemplateListItem } from '../../typeing';
+import { type AlarmTemplateListItem } from '../../typeing';
 
 import './alarm-delete-confirm.scss';
 
@@ -41,18 +41,18 @@ export interface AlarmDeleteConfirmEvent {
 }
 interface AlarmDeleteConfirmEmit {
   onCancel: () => void;
-  onConfirm: (templateId: ApmAlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) => void;
+  onConfirm: (templateId: AlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) => void;
 }
 
 interface AlarmDeleteConfirmProps {
-  templateId: ApmAlarmTemplateListItem['id'];
-  templateName: ApmAlarmTemplateListItem['name'];
+  templateId: AlarmTemplateListItem['id'];
+  templateName: AlarmTemplateListItem['name'];
 }
 
 @Component
 export default class AlarmDeleteConfirm extends tsc<AlarmDeleteConfirmProps, AlarmDeleteConfirmEmit> {
-  @Prop({ type: [String, Number] }) templateId: ApmAlarmTemplateListItem['id'];
-  @Prop({ type: String }) templateName: ApmAlarmTemplateListItem['name'];
+  @Prop({ type: [String, Number] }) templateId: AlarmTemplateListItem['id'];
+  @Prop({ type: String }) templateName: AlarmTemplateListItem['name'];
   /** 是否在请求删除状态中 */
   loading = false;
 

@@ -24,15 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-export interface ApmAlarmAlgorithmItem {
+export interface AlarmAlgorithmItem {
   level: number;
   method: string;
   threshold: number;
   type: string;
 }
 
-export interface ApmAlarmTemplateListItem {
-  algorithms: ApmAlarmAlgorithmItem[];
+export interface AlarmTemplateConditionParamItem {
+  key: string;
+  value: string[];
+}
+
+export interface AlarmTemplateListItem {
+  algorithms: AlarmAlgorithmItem[];
   applied_service_names: string[];
   category: string;
   create_time: string;
@@ -45,10 +50,10 @@ export interface ApmAlarmTemplateListItem {
   type: string;
   update_time: string;
   update_user: string;
-  user_group_list: ApmAlarmUserGroupItem[];
+  user_group_list: AlarmUserGroupItem[];
 }
 
-export interface ApmAlarmUserGroupItem {
+export interface AlarmUserGroupItem {
   id: number;
   name: string;
 }

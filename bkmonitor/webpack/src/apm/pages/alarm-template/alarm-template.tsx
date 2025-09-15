@@ -29,9 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
+import AlarmTemplateSearch from './components/alarm-templte-search/alarm-template-search';
 import BatchOperations from './components/batch-operations/batch-operations';
 import { ALARM_TEMPLATE_QUICK_FILTER_LIST } from './constant';
-import { type BatchOperationTypeEnumType } from './typeing';
+import { type AlarmTemplateConditionParamItem, type BatchOperationTypeEnumType } from './typeing';
 
 import './alarm-template.scss';
 
@@ -39,6 +40,8 @@ import './alarm-template.scss';
 export default class AlarmTemplate extends tsc<object> {
   /** 模板类型快速筛选tab */
   quickStatus = 'all';
+  /** 搜索关键字 */
+  searchKeyword: AlarmTemplateConditionParamItem[] = [];
   /** 表格已勾选的数据行id */
   selectedRowKeys: string[] = [];
 
@@ -55,6 +58,11 @@ export default class AlarmTemplate extends tsc<object> {
     console.log('================ operationType ================', operationType);
   }
 
+  handleSearchChange(keyword: AlarmTemplateConditionParamItem[]) {
+    this.searchKeyword = keyword;
+    // this.setRouterParams();
+  }
+
   render() {
     return (
       <div class='alarm-template'>
@@ -65,7 +73,7 @@ export default class AlarmTemplate extends tsc<object> {
               onOperationClick={this.handleBatchOperationClick}
             />
             <StatusTab
-              class='filter-tab'
+              class='alarm-template-header-filter-tab'
               v-model={this.quickStatus}
               needAll={false}
               statusList={ALARM_TEMPLATE_QUICK_FILTER_LIST}
@@ -73,11 +81,11 @@ export default class AlarmTemplate extends tsc<object> {
             />
           </div>
           <div class='alarm-template-header-search'>
-            {/* <QueryTemplateSearch
+            <AlarmTemplateSearch
               class='search-input'
               searchKeyword={this.searchKeyword}
               onChange={this.handleSearchChange}
-            /> */}
+            />
           </div>
         </div>
         <div class='alarm-template-main'>

@@ -27,27 +27,27 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
+import { type SearchSelectItem } from 'monitor-pc/pages/query-template/typings';
 
-import { SEARCH_SELECT_OPTIONS } from '../../constants';
-
-import type { QueryListRequestParams, SearchSelectItem } from '../../typings';
+import { type AlarmTemplateConditionParamItem } from '../../typeing';
 
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-interface QueryTemplateSearchEmits {
-  onChange: (list: QueryListRequestParams['conditions']) => void;
+interface AlarmTemplateSearchEmits {
+  onChange: (list: AlarmTemplateConditionParamItem[]) => void;
 }
-type QueryTemplateSearchProps = {
-  searchKeyword: QueryListRequestParams['conditions'];
+type AlarmTemplateSearchProps = {
+  searchKeyword: AlarmTemplateConditionParamItem[];
 };
 
 @Component
-export default class QueryTemplateSearch extends tsc<QueryTemplateSearchProps, QueryTemplateSearchEmits> {
-  @Prop({ type: Array, default: () => [] }) searchKeyword!: QueryListRequestParams['conditions'];
+export default class AlarmTemplateSearch extends tsc<AlarmTemplateSearchProps, AlarmTemplateSearchEmits> {
+  @Prop({ type: Array, default: () => [] }) searchKeyword!: AlarmTemplateConditionParamItem[];
+  @Prop({ type: Array, default: () => [] }) selectOptions!: SearchSelectItem[];
 
   /** 所有可搜索项信息映射表 */
   get allSearchSelectOptionMap() {
-    return SEARCH_SELECT_OPTIONS.reduce((acc, cur) => {
+    return this.selectOptions.reduce((acc, cur) => {
       acc[cur.id] = cur;
       return acc;
     }, {});
@@ -103,11 +103,11 @@ export default class QueryTemplateSearch extends tsc<QueryTemplateSearchProps, Q
   render() {
     return (
       <SearchSelect
-        class='query-template-search'
+        class='alarm-template-search'
         clearable={true}
-        data={SEARCH_SELECT_OPTIONS}
+        data={this.selectOptions}
         modelValue={this.searchSelectValue}
-        placeholder={this.$t('搜索 模板名称、模板别名、模板说明、创建人、更新人')}
+        placeholder={this.$t('搜索 模板名称、模板类型、最近更新人、关联服务、告警组、启停')}
         onChange={this.handleSearchChange}
       />
     );

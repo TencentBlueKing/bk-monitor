@@ -1968,4 +1968,9 @@ export default {
   变量类型: 'Variable type',
   变量描述: 'Variable description',
   可选维度: 'Optional dimensions',
+
+  // APM-告警模板
+  全部模板: 'All templates',
+  内置模板: 'Built-in templates',
+  克隆模板: 'Clone template',
 };
