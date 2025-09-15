@@ -29,6 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 import StatusTab from '../table-chart/status-tab';
 import BatchOperations from './components/batch-operations/batch-operations';
 import { ALARM_TEMPLATE_QUICK_FILTER_LIST } from './constant';
+import { type BatchOperationTypeEnumType } from './typeing';
+
+import './apm-alarm-template.scss';
 
 @Component
 export default class ApmAlarmTemplate extends tsc<object> {
@@ -43,12 +46,21 @@ export default class ApmAlarmTemplate extends tsc<object> {
   handleQuickStatusChange(status: string) {
     this.quickStatus = status;
   }
+  /**
+   * @description 批量操作按钮点击事件
+   */
+  handleBatchOperationClick(operationType: BatchOperationTypeEnumType) {
+    console.log('================ operationType ================', operationType);
+  }
   render() {
     return (
       <div class='apm-alarm-template'>
         <div class='apm-alarm-template-header'>
           <div class='alarm-template-header-operations'>
-            <BatchOperations disabled={!this.selectedRowKeys?.length} />
+            <BatchOperations
+              disabled={!!this.selectedRowKeys?.length}
+              onOperationClick={this.handleBatchOperationClick}
+            />
             <StatusTab
               class='filter-tab'
               v-model={this.quickStatus}

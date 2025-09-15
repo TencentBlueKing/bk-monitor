@@ -24,10 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { BATCH_OPERATION_LIST } from '../../constant';
+import { type BatchOperationTypeEnumType } from '../../typeing';
+
+import './batch-operations.scss';
+
+interface BatchOperationsEvents {
+  /** 菜单点击事件 */
+  onOperationClick: (operationType: BatchOperationTypeEnumType) => void;
+}
 
 interface BatchOperationsProps {
   /** 是否禁用 批量操作 按钮 */
@@ -35,7 +43,10 @@ interface BatchOperationsProps {
 }
 
 @Component
-export default class BatchOperations extends tsc<BatchOperationsProps> {
+export default class BatchOperations extends tsc<BatchOperationsProps, BatchOperationsEvents> {
+  /** 批量操作列表dom实例 */
+  @Ref('batchMenuRef') batchMenuRef: HTMLDivElement;
+
   /** 是否禁用 批量操作 按钮 */
   @Prop({ type: Boolean, default: false }) disabled: boolean;
 
@@ -44,6 +55,9 @@ export default class BatchOperations extends tsc<BatchOperationsProps> {
   /** popover 延迟打开定时器 */
   popoverDelayTimer = null;
 
+  /**
+   * @description: 监听 disabled  变化
+   */
   @Watch('disabled')
   handleDisabledChange() {
     if (!this.disabled) return;
@@ -51,26 +65,39 @@ export default class BatchOperations extends tsc<BatchOperationsProps> {
   }
 
   /**
+   * @description: 批量操作点击事件
+   */
+  @Emit('operationClick')
+  handleOperationClick(operationType: BatchOperationTypeEnumType) {
+    this.handlePopoverHide();
+    return operationType;
+  }
+
+  /**
    * @description: 展开
    * @param {MouseEvent} e
    * @param {string} content
    */
-  handlePopoverShow(e: MouseEvent, content: string, customOptions = {}) {
+  handlePopoverShow(e: MouseEvent) {
+    if (this.disabled) return;
     if (this.popoverInstance || this.popoverDelayTimer) {
       this.handlePopoverHide();
+      return;
     }
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
-      content,
+      content: this.batchMenuRef,
       animation: false,
       maxWidth: 'none',
-      arrow: true,
+      arrow: false,
+      trigger: 'click',
       boundary: 'window',
+      placement: 'bottom',
       interactive: true,
-      theme: 'explore-content-popover',
+      distance: 14,
+      theme: 'light padding-0 apm-alarm-template-batch-operations',
       onHidden: () => {
         this.handlePopoverHide();
       },
-      ...customOptions,
     });
     const target = e.currentTarget;
     const popoverCache = this.popoverInstance;
@@ -81,7 +108,7 @@ export default class BatchOperations extends tsc<BatchOperationsProps> {
         popoverCache?.hide?.(0);
         popoverCache?.destroy?.();
       }
-    }, 500);
+    }, 200);
   }
 
   /**
@@ -105,15 +132,22 @@ export default class BatchOperations extends tsc<BatchOperationsProps> {
 
   render() {
     return (
-      <div class={`batch-operations ${this.disabled ? 'is-disabled' : ''}`}>
+      <div
+        class={`batch-operations ${this.disabled ? 'is-disabled' : ''}`}
+        onClick={this.handlePopoverShow}
+      >
         <span class='batch-operations-name'> {this.$t('批量操作')} </span>
         <i class={`icon-monitor icon-arrow-down ${this.popoverInstance ? 'is-active' : ''}`} />
         <div style='display: none'>
-          <ul class='batch-menu-list'>
+          <ul
+            ref='batchMenuRef'
+            class='batch-menu-list'
+          >
             {BATCH_OPERATION_LIST.map(item => (
               <li
                 key={item.id}
                 class='batch-menu-item'
+                onClick={() => this.handleOperationClick(item.id)}
               >
                 {item.name}
               </li>

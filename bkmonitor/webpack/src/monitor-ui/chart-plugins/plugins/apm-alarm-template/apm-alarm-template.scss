@@ -1,0 +1,12 @@
+.apm-alarm-template {
+  padding: 12px;
+
+  .apm-alarm-template-header {
+    display: flex;
+
+    .alarm-template-header-operations {
+      display: flex;
+      column-gap: 8px;
+    }
+  }
+}
