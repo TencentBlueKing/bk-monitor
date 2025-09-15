@@ -80,6 +80,7 @@ import type { CallOptions, IFilterCondition } from '../apm-service-caller-callee
 import type { IPosition } from 'CustomEventMenu';
 
 import './caller-line-chart.scss';
+import CodeRedefineSlider from '../apm-service-caller-callee/components/code/code-redefine-slider';
 
 interface IProps {
   panel: PanelModel;
@@ -98,6 +99,7 @@ class CallerLineChart extends CommonSimpleChart {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
+  @InjectReactive({ from: 'variablesData', default: () => ({}) }) readonly variablesData!: Record<string, any>;
 
   @Ref('eventAnalyze') eventAnalyzeRef: HTMLDivElement;
 
@@ -135,6 +137,8 @@ class CallerLineChart extends CommonSimpleChart {
   eventColumns: Partial<EventTagColumn>[] = [];
   cacheEventConfig: Partial<EventTagConfig> = {};
 
+  codeRedefineShow = false;
+
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
   }
@@ -156,6 +160,11 @@ class CallerLineChart extends CommonSimpleChart {
   // title是否需要展示下拉框
   get enablePanelsSelector() {
     return !!this.panel.options?.enable_panels_selector;
+  }
+
+  // 是否需要返回码重定义功能
+  get isCodeRedefine() {
+    return this.panel.options?.is_code_redefine;
   }
 
   get curSelectPanel() {
@@ -1250,7 +1259,18 @@ class CallerLineChart extends CommonSimpleChart {
               <span>{this.panel.title}</span>
             )}
           </div>
-          <div>
+          <div style='display: flex;'>
+            {this.isCodeRedefine && (
+              <div
+                class='event-analyze tips-icon'
+                v-bk-tooltips={{ content: this.$t('返回码重定义') }}
+                onClick={() => {
+                  this.codeRedefineShow = true;
+                }}
+              >
+                <i class='icon-monitor icon-zhongdingyi' />
+              </div>
+            )}
             {typeof this.eventConfig.is_enabled_metric_tags !== 'undefined' && (
               <bk-popover
                 ref='eventAnalyze'
@@ -1392,6 +1412,19 @@ class CallerLineChart extends CommonSimpleChart {
           <CustomEventMenu
             eventItem={this.clickEventItem}
             position={this.customMenuPosition}
+          />
+        )}
+        {this.isCodeRedefine && (
+          <CodeRedefineSlider
+            isShow={this.codeRedefineShow}
+            onShowChange={show => {
+              this.codeRedefineShow = show;
+            }}
+            type={this.callOptions.kind}
+            appName={this.viewOptions?.app_name}
+            callOptions={this.callOptions}
+            variablesData={this.variablesData}
+            service={this.viewOptions?.service_name}
           />
         )}
       </div>

@@ -48,7 +48,7 @@ export type FieldItem = {
  * @param field
  */
 export const formatHierarchy = (fieldList: Partial<FieldItem>[]) => {
-  const result = [];
+  const result: Partial<FieldItem>[] = [];
   for (const field of fieldList) {
     const splitList = field.field_name.split('.');
 
@@ -57,27 +57,30 @@ export const formatHierarchy = (fieldList: Partial<FieldItem>[]) => {
       continue;
     }
 
-    let leftName = [];
+    const leftName: string[] = [];
 
     for (const name of splitList) {
       leftName.push(name);
       const fieldName = leftName.join('.');
       if (result.findIndex(item => item.field_name === fieldName) === -1) {
-        const fieldAlias = fieldName === field.field_name ? field.field_alias : fieldName;
-        const fieldType = fieldName === field.field_name ? field.field_type : 'object';
-        const queryAlias = fieldName === field.field_name ? field.query_alias : fieldName;
-        result.push(
-          Object.assign({}, field, {
-            field_name: fieldName,
-            field_alias: fieldAlias,
-            is_virtual_obj_node: fieldName !== field.field_name,
-            field_type: fieldType,
-            query_alias: queryAlias,
-          }),
-        );
+        result.push(buildNewField(field, fieldName));
       }
     }
   }
 
   return result;
+};
+const buildNewField = (field: Partial<FieldItem>, fieldName: string) => {
+  const isSameName = fieldName === field.field_name;
+  const fieldAlias = isSameName ? field.field_alias : fieldName;
+  const fieldType = isSameName ? field.field_type : 'object';
+  const queryAlias = isSameName ? field.query_alias : fieldName;
+  return {
+    ...field,
+    field_name: fieldName,
+    field_alias: fieldAlias,
+    is_virtual_obj_node: !isSameName,
+    field_type: fieldType,
+    query_alias: queryAlias,
+  };
 };

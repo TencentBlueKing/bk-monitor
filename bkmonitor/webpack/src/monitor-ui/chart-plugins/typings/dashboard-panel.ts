@@ -356,7 +356,8 @@ export type PanelOption = {
   child_panels_selector_variables?: {
     id?: string;
     title?: string;
-  };
+  }[];
+  is_code_redefine?: boolean; // 是否有返回码重定义功能
   collect_interval_display?: string; // 数据步长（步长过大情况时需要，正常情况无此字段）
   enable_panels_selector?: boolean;
   header?: {

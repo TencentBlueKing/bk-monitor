@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+/** biome-ignore-all lint/suspicious/noTemplateCurlyInString: reason */
 
 export default {
   '正则匹配：': 'Regex matching:',

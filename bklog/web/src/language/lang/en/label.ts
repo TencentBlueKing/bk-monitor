@@ -857,4 +857,7 @@ export default {
   立即新建: 'Create now',
   平铺模式: 'Flat mode',
   分组模式: 'Group mode',
+  AI助手: 'AI Assistant',
+  日志解读: 'Log interpretation',
+  请输入需要解读的内容: 'Please enter the content to be interpreted',
 };

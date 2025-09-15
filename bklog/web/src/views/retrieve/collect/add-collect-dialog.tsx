@@ -52,8 +52,8 @@ interface IProps {
   addFavoriteData: object;
   replaceData?: object;
   isClickFavoriteEdit?: boolean;
-  visibleFields: Array<any>;
-  favoriteList: Array<any>;
+  visibleFields: any[];
+  favoriteList: any[];
 }
 
 @Component
@@ -63,8 +63,8 @@ export default class CollectDialog extends tsc<IProps> {
   @Prop({ type: Object, default: () => ({}) }) addFavoriteData: object; // 新建收藏的数据
   @Prop({ type: Object, default: () => ({}) }) replaceData: object; // 替换收藏的params数据
   @Prop({ type: Boolean, default: false }) isClickFavoriteEdit: boolean; // 当前编辑的收藏是否是点击活跃的
-  @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>; // 字段
-  @Prop({ type: Array, default: () => [] }) favoriteList: Array<any>; // 收藏列表
+  @Prop({ type: Array, default: () => [] }) visibleFields: any[]; // 字段
+  @Prop({ type: Array, default: () => [] }) favoriteList: any[]; // 收藏列表
   @Ref('validateForm') validateFormRef: Form;
   @Ref('checkInputForm') checkInputFormRef: Form;
   searchFieldsList = []; // 表单模式显示字段
@@ -214,8 +214,7 @@ export default class CollectDialog extends tsc<IProps> {
   get favStrList() {
     return this.favoriteList.reduce((pre, cur) => {
       // 获取所有收藏的名字新增时判断是否重命名
-      pre = pre.concat(cur.favorites.map(item => item.name));
-      return pre;
+      return pre.concat(cur.favorites.map(item => item.name));
     }, []);
   }
 
@@ -249,8 +248,10 @@ export default class CollectDialog extends tsc<IProps> {
   }
 
   checkName() {
-    if (this.verifyData.groupName.trim() === '') return true;
-    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+    if (this.verifyData.groupName.trim() === '') {
+      return true;
+    }
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
       this.verifyData.groupName.trim(),
     );
   }
@@ -261,12 +262,14 @@ export default class CollectDialog extends tsc<IProps> {
 
   /** 判断是否收藏名是否重复 */
   checkRepeatName() {
-    if (!this.isCreateFavorite) return true;
+    if (!this.isCreateFavorite) {
+      return true;
+    }
     return !this.favStrList.includes(this.favoriteData.name);
   }
   /** 检查收藏语法是否正确 */
   checkSpecification() {
-    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
       this.favoriteData.name.trim(),
     );
   }
@@ -318,7 +321,6 @@ export default class CollectDialog extends tsc<IProps> {
           });
           this.requestGroupList(true, this.verifyData.groupName.trim());
         }
-      } catch (error) {
       } finally {
         this.isShowAddGroup = true;
         this.verifyData.groupName = '';
@@ -340,35 +342,38 @@ export default class CollectDialog extends tsc<IProps> {
 
   handleSubmitFormData() {
     this.validateFormRef.validate().then(() => {
-      if (!this.unknownGroupID) return;
-      if (!this.favoriteData.group_id) this.favoriteData.group_id = this.unknownGroupID;
+      if (!this.unknownGroupID) {
+        return;
+      }
+      if (!this.favoriteData.group_id) {
+        this.favoriteData.group_id = this.unknownGroupID;
+      }
       this.handleUpdateFavorite(this.favoriteData);
     });
   }
 
   handleClickDisplayFields(value) {
-    if (value) {
-      // 如果关闭 则更新当前显示的显示字段
-      if (this.isCreateFavorite || this.isClickFavoriteEdit) {
-        this.favoriteData.display_fields = this.visibleFields.map(item => item.field_name);
-      }
+    // 如果关闭 则更新当前显示的显示字段
+    if ((value && this.isCreateFavorite) || this.isClickFavoriteEdit) {
+      this.favoriteData.display_fields = this.visibleFields.map(item => item.field_name);
     }
   }
 
   async getSearchFieldsList(keyword: string) {
-    keyword === '' && (keyword = '*');
+    let reKeyword = keyword;
+    reKeyword === '' && (reKeyword = '*');
     try {
       const res = await $http.request('favorite/getSearchFields', {
-        data: { keyword },
+        data: { keyword: reKeyword },
       });
       this.searchFieldsList = res.data.map(item => ({
         ...item,
         name: item.is_full_text_field
-          ? `${this.$t('全文检索')}${!!item.repeat_count ? `(${item.repeat_count})` : ''}`
+          ? `${this.$t('全文检索')}${item.repeat_count ? `(${item.repeat_count})` : ''}`
           : item.name,
         chName: item.name,
       }));
-    } catch (error) {}
+    } catch {}
   }
 
   /** 更新收藏 */
@@ -409,7 +414,7 @@ export default class CollectDialog extends tsc<IProps> {
         this.handleSubmitChange(this.isCreateFavorite, res.data);
         this.handleShowChange();
       }
-    } catch (error) {}
+    } catch {}
   }
 
   /** 获取组列表 */
@@ -426,9 +431,8 @@ export default class CollectDialog extends tsc<IProps> {
       }));
       this.publicGroupList = this.groupList.slice(1, this.groupList.length);
       this.privateGroupList = [this.groupList[0]];
-      this.unknownGroupID = this.groupList[this.groupList.length - 1]?.id;
+      this.unknownGroupID = this.groupList.at(-1)?.id;
       this.privateGroupID = this.groupList[0]?.id;
-    } catch (error) {
     } finally {
       if (isAddGroup) {
         this.favoriteData.group_id = this.groupList.find(item => item.name === groupName)?.id;
@@ -455,8 +459,8 @@ export default class CollectDialog extends tsc<IProps> {
 
   render() {
     const indexSetName = () => {
-      const { index_set_name: indexSetName, index_set_names: indexSetNames } = this.favoriteData;
-      return !this.isUnionSearch ? indexSetName : indexSetNames?.map(item => <Tag>{item}</Tag>) || '';
+      const { index_set_name: newIndexSetName, index_set_names: indexSetNames } = this.favoriteData;
+      return this.isUnionSearch ? indexSetNames?.map(item => <Tag key={item}>{item}</Tag>) || '' : newIndexSetName;
     };
     return (
       <Dialog
@@ -501,7 +505,7 @@ export default class CollectDialog extends tsc<IProps> {
                 class='collect-name'
                 vModel={this.favoriteData.name}
                 placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('填写收藏名') })}
-              ></Input>
+              />
             </FormItem>
             <FormItem
               class='collect-radio'
@@ -541,7 +545,7 @@ export default class CollectDialog extends tsc<IProps> {
                       id={item.id}
                       key={item.id}
                       name={item.name}
-                    ></Option>
+                    />
                   ))}
                   <div slot='extension'>
                     {this.isShowAddGroup ? (
@@ -550,7 +554,7 @@ export default class CollectDialog extends tsc<IProps> {
                         onClick={() => (this.isShowAddGroup = false)}
                       >
                         <div>
-                          <i class='bk-icon icon-plus-circle'></i> {this.$t('新增')}
+                          <i class='bk-icon icon-plus-circle' /> {this.$t('新增')}
                         </div>
                       </div>
                     ) : (
@@ -574,21 +578,21 @@ export default class CollectDialog extends tsc<IProps> {
                               vModel={this.verifyData.groupName}
                               placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
                               clearable
-                            ></Input>
+                            />
                           </FormItem>
                         </Form>
                         <div class='operate-button'>
                           <span
                             class='bk-icon icon-check-line'
                             onClick={() => this.handleCreateGroup()}
-                          ></span>
+                          />
                           <span
                             class='bk-icon icon-close-line-2'
                             onClick={() => {
                               this.isShowAddGroup = true;
                               this.verifyData.groupName = '';
                             }}
-                          ></span>
+                          />
                         </div>
                       </li>
                     )}
@@ -605,7 +609,12 @@ export default class CollectDialog extends tsc<IProps> {
             </div>
             <CheckboxGroup vModel={this.favoriteData.params.search_fields}>
               {this.searchFieldsList.map(item => (
-                <Checkbox value={item.chName}>{item.name}</Checkbox>
+                <Checkbox
+                  key={item}
+                  value={item.chName}
+                >
+                  {item.name}
+                </Checkbox>
               ))}
             </CheckboxGroup>
           </FormItem>
@@ -625,10 +634,10 @@ export default class CollectDialog extends tsc<IProps> {
                 vModel={this.favoriteData.is_enable_display_fields}
                 theme='primary'
                 on-change={value => this.handleClickDisplayFields(value)}
-              ></Switcher>
+              />
               <span class='current-filed'>{this.showFieldsLabel}: </span>
               {this.favoriteData.display_fields.length ? (
-                this.favoriteData.display_fields.map(item => <Tag>{item}</Tag>)
+                this.favoriteData.display_fields.map(item => <Tag key={item}>{item}</Tag>)
               ) : (
                 <span class='current-filed'>{this.$t('显示全部字段')}</span>
               )}

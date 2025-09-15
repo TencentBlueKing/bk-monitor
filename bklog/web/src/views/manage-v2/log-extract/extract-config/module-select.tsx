@@ -25,8 +25,10 @@
  */
 
 import { defineComponent, ref, onMounted, nextTick } from 'vue';
-import useStore from '@/hooks/use-store';
+
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+
 import http from '@/api';
 
 import './module-select.scss';
@@ -85,14 +87,14 @@ export default defineComponent({
         });
         topoList.value = res.data;
         moduleList.value = filterList(res.data);
-        
+
         // 数据回填
-        const { topoExpandNodes: expandNodes, topoCheckedNodes: checkedNodes, moduleCheckedItems } = recursiveFindDefault(
-          res.data,
-          null,
-          props.selectedModules,
-        );
-        
+        const {
+          topoExpandNodes: expandNodes,
+          topoCheckedNodes: checkedNodes,
+          moduleCheckedItems,
+        } = recursiveFindDefault(res.data, null, props.selectedModules);
+
         // 回填已选择的模块
         selectedModuleList.value = moduleCheckedItems.map((item: any) => ({
           bk_inst_id: item.bk_inst_id,
@@ -101,23 +103,23 @@ export default defineComponent({
           bk_biz_id: item.bk_biz_id,
         }));
         moduleCheckedNodes.value = moduleCheckedItems.map((item: any) => item.id);
-        
+
         if (moduleCheckedNodes.value.length === moduleList.value.length) {
           isSelectAllModule.value = true;
         } else if (moduleCheckedNodes.value.length !== 0) {
           indeterminate.value = true;
         }
-        
+
         // 保证根节点默认展开
         const rootId = res.data[0]?.id;
         if (rootId && !expandNodes.includes(rootId)) {
           expandNodes.push(rootId);
         }
-        
+
         // 回填已选择的大区
         topoExpandNodes.value = expandNodes;
         topoCheckedNodes.value = checkedNodes;
-        
+
         if (checkedNodes.length) {
           // 父亲勾选后子孙禁用勾选
           await nextTick();
@@ -138,24 +140,24 @@ export default defineComponent({
       if (bool) {
         inheritCheckNode(nodes, bool);
       } else {
-        nodes.forEach((node: any) => {
+        for (const node of nodes) {
           if (node?.children?.length) {
             recursiveDealCheckedNode(node.children, node.checked);
           }
-        });
+        }
       }
     };
 
     // 找到模板节点并打平去重
     const filterList = (list: any[], dict: any = {}) => {
-      list.forEach((item: any) => {
+      for (const item of list) {
         if (item.bk_obj_id === 'module' && !dict[item.bk_inst_name]) {
           dict[item.bk_inst_name] = item;
         }
         if (item.children?.length) {
           filterList(item.children, dict);
         }
-      });
+      }
       return Object.values(dict);
     };
 
@@ -164,21 +166,22 @@ export default defineComponent({
       treeNodes: any[],
       parentNode: any,
       selectedNodes: any[],
-      topoCheckedNodes: string[] = [],
-      topoExpandNodes: string[] = [],
+      newTopoCheckedNodes: string[] = [],
+      newTopoExpandNodes: string[] = [],
       moduleCheckedMap: any = {},
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     ) => {
-      treeNodes.forEach((treeNode: any) => {
+      for (const treeNode of treeNodes) {
         treeNode.parentNode = parentNode || null;
 
         for (const selectedNode of selectedNodes) {
           if (selectedNode.bk_obj_id === treeNode.bk_obj_id && selectedNode.bk_inst_id === treeNode.bk_inst_id) {
-            topoCheckedNodes.push(treeNode.id);
+            newTopoCheckedNodes.push(treeNode.id);
             if (treeNode.bk_obj_id === 'module' && !moduleCheckedMap[treeNode.bk_inst_name]) {
               moduleCheckedMap[treeNode.bk_inst_name] = treeNode;
             }
             if (parentNode) {
-              topoExpandNodes.push(parentNode.id);
+              newTopoExpandNodes.push(parentNode.id);
             }
             break;
           }
@@ -189,51 +192,50 @@ export default defineComponent({
             treeNode.children,
             treeNode,
             selectedNodes,
-            topoCheckedNodes,
-            topoExpandNodes,
+            newTopoCheckedNodes,
+            newTopoExpandNodes,
             moduleCheckedMap,
           );
         }
-      });
-
+      }
       return {
         topoCheckedNodes,
-        topoExpandNodes: [...new Set(topoExpandNodes)],
+        topoExpandNodes: [...new Set(newTopoExpandNodes)],
         moduleCheckedItems: Object.values(moduleCheckedMap),
       };
     };
 
     // 按大区选择
-    const handleTopoNodeCheck = (checkedId: string, checkedNode: any) => {
+    const handleTopoNodeCheck = (_checkedId: string, checkedNode: any) => {
       checkedNode?.children?.length && inheritCheckNode(checkedNode.children, checkedNode.state.checked);
       selectedTopoList.value = recursiveFindTopoNodes(topoTreeRef.value.nodes[0]);
     };
 
     // 父亲勾选或取消勾选后，子孙跟随状态变化，且父亲勾选后子孙禁用勾选
     const inheritCheckNode = (nodes: any[], bool: boolean) => {
-      nodes.forEach((node: any) => {
+      for (const node of nodes) {
         node.checked = bool;
         node.disabled = bool;
         node.children?.length && inheritCheckNode(node.children, bool);
-      });
+      }
     };
 
     // 遍历树找到勾选的节点，如果父节点已勾选，子孙节点不算在列表内
-    const recursiveFindTopoNodes = (node: any, selectedTopoList: any[] = []) => {
+    const recursiveFindTopoNodes = (node: any, newSelectedTopoList: any[] = []) => {
       if (node.checked) {
         const { data } = node;
-        selectedTopoList.push({
+        newSelectedTopoList.push({
           bk_inst_id: data.bk_inst_id,
           bk_inst_name: data.bk_inst_name,
           bk_obj_id: data.bk_obj_id,
           bk_biz_id: data.bk_biz_id,
         });
       } else if (node.children?.length) {
-        node.children.forEach((child: any) => {
-          recursiveFindTopoNodes(child, selectedTopoList);
-        });
+        for (const child of node.children) {
+          recursiveFindTopoNodes(child, newSelectedTopoList);
+        }
       }
-      return selectedTopoList;
+      return newSelectedTopoList;
     };
 
     // 按模板选择
@@ -268,9 +270,9 @@ export default defineComponent({
       if (val) {
         indeterminate.value = false;
         isSelectAllModule.value = true;
-        nodes.forEach((node: any) => {
+        for (const node of nodes) {
           node.checked = true;
-        });
+        }
         selectedModuleList.value = nodes.map((node: any) => {
           const { data } = node;
           return {
@@ -283,9 +285,9 @@ export default defineComponent({
       } else {
         indeterminate.value = false;
         isSelectAllModule.value = false;
-        nodes.forEach((node: any) => {
+        for (const node of nodes) {
           node.checked = false;
-        });
+        }
         selectedModuleList.value = [];
       }
     };
@@ -309,11 +311,11 @@ export default defineComponent({
     // 主渲染函数
     return () => (
       <bk-dialog
+        width={680}
         closeIcon={false}
         confirmFn={handleConfirm}
         maskClose={false}
         value={props.showSelectDialog}
-        width={680}
         on-value-change={handleValueChange}
       >
         <div
@@ -323,7 +325,7 @@ export default defineComponent({
           <bk-radio-group
             style='margin-bottom: 20px'
             value={selectedTypeData.value}
-            onChange={(val: string) => selectedTypeData.value = val}
+            onChange={(val: string) => (selectedTypeData.value = val)}
           >
             <bk-radio
               style='margin-right: 16px'
@@ -333,7 +335,7 @@ export default defineComponent({
             </bk-radio>
             <bk-radio value='module'>{t('按模块选择')}</bk-radio>
           </bk-radio-group>
-          
+
           {/* 按大区选择 */}
           <div
             class='tree-container'
@@ -349,7 +351,7 @@ export default defineComponent({
               on-check-change={handleTopoNodeCheck}
             />
           </div>
-          
+
           {/* 按模块选择 */}
           <div
             class='tree-container'
@@ -360,8 +362,8 @@ export default defineComponent({
                 indeterminate={indeterminate.value}
                 value={isSelectAllModule.value}
                 onChange={val => {
-                    isSelectAllModule.value = val;
-                    handleSelectAllChange(val);
+                  isSelectAllModule.value = val;
+                  handleSelectAllChange(val);
                 }}
               >
                 {t('全选')}
@@ -379,4 +381,4 @@ export default defineComponent({
       </bk-dialog>
     );
   },
-}); 
+});

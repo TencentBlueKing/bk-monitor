@@ -73,14 +73,14 @@ export default class AggChart extends tsc<object> {
   get topFiveList() {
     const totalList = Object.entries(this.statisticalFieldData);
     totalList.sort((a, b) => Number(b[1]) - Number(a[1]));
-    totalList.forEach(item => {
+    for (const item of totalList) {
       const markList = item[0].toString().match(/(<mark>).*?(<\/mark>)/g) || [];
       if (markList.length) {
-        item[0] = markList.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
+        item[0] = markList.map(mItem => mItem.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
       }
-    });
+    }
     this.shouldShowMore = totalList.length > 5;
-    return this.showAllList ? totalList : totalList.filter((item, index) => index < 5);
+    return this.showAllList ? totalList : totalList.filter((_item, index) => index < 5);
   }
   get showFiveList() {
     return this.isFrontStatistics ? this.topFiveList : this.fieldValueData.values;
@@ -93,12 +93,16 @@ export default class AggChart extends tsc<object> {
   }
 
   mounted() {
-    if (!this.isFrontStatistics) this.queryFieldFetchTopList();
+    if (!this.isFrontStatistics) {
+      this.queryFieldFetchTopList();
+    }
   }
 
   @Watch('reQueryAggChart')
   watchPicker() {
-    if (this.isFrontStatistics) return;
+    if (this.isFrontStatistics) {
+      return;
+    }
     this.queryFieldFetchTopList(this.limitSize);
   }
 
@@ -110,22 +114,33 @@ export default class AggChart extends tsc<object> {
     return `${showPercentageStr}%`;
   }
   addCondition(operator, value) {
-    if (this.fieldType === '__virtual__') return;
+    if (this.fieldType === '__virtual__') {
+      return;
+    }
     this.addFilterCondition(this.fieldName, operator, value);
   }
   getIconPopover(operator, value) {
-    if (this.fieldType === '__virtual__') return this.$t('该字段为平台补充 不可检索');
-    if (this.filterIsExist(operator, value)) return this.$t('已添加过滤条件');
+    if (this.fieldType === '__virtual__') {
+      return this.$t('该字段为平台补充 不可检索');
+    }
+    if (this.filterIsExist(operator, value)) {
+      return this.$t('已添加过滤条件');
+    }
     return `${this.fieldName} ${operator} ${_escape(value)}`;
   }
   filterIsExist(operator, value) {
-    if (this.fieldType === '__virtual__') return true;
+    let newOperator = operator;
+    if (this.fieldType === '__virtual__') {
+      return true;
+    }
     if (this.retrieveParams?.addition.length) {
-      if (operator === 'not') operator = 'is not';
+      if (newOperator === 'not') {
+        newOperator = 'is not';
+      }
       return this.retrieveParams.addition.some(addition => {
         return (
           addition.field === this.fieldName &&
-          addition.operator === (this.mappingKay[operator] ?? operator) && // is is not 值映射
+          addition.operator === (this.mappingKay[newOperator] ?? newOperator) && // is is not 值映射
           addition.value.toString() === value.toString()
         );
       });
@@ -151,7 +166,6 @@ export default class AggChart extends tsc<object> {
         this.shouldShowMore = res.data.distinct_count > 5;
         Object.assign(this.fieldValueData, res.data);
       }
-    } catch (error) {
     } finally {
       this.listLoading = false;
     }
@@ -171,8 +185,11 @@ export default class AggChart extends tsc<object> {
           </i18n>
         </div>
         <ul class='chart-list'>
-          {this.showFiveList.map(item => (
-            <li class='chart-item'>
+          {this.showFiveList.map((item, index) => (
+            <li
+              key={`${index}-${item}`}
+              class='chart-item'
+            >
               <div class='chart-content'>
                 <div class='text-container'>
                   <div
@@ -187,7 +204,7 @@ export default class AggChart extends tsc<object> {
                   <div
                     style={{ width: this.computePercent(item[1]) }}
                     class='percent-bar'
-                  ></div>
+                  />
                 </div>
               </div>
               <div class='operation-container'>
@@ -195,12 +212,12 @@ export default class AggChart extends tsc<object> {
                   class={['bk-icon icon-enlarge-line', this.filterIsExist('is', item[0]) ? 'disable' : '']}
                   v-bk-tooltips={this.getIconPopover('=', item[0])}
                   onClick={() => this.addCondition('is', item[0])}
-                ></span>
+                />
                 <span
                   class={['bk-icon icon-narrow-line', this.filterIsExist('is not', item[0]) ? 'disable' : '']}
                   v-bk-tooltips={this.getIconPopover('!=', item[0])}
                   onClick={() => this.addCondition('is not', item[0])}
-                ></span>
+                />
               </div>
             </li>
           ))}
@@ -211,7 +228,9 @@ export default class AggChart extends tsc<object> {
                   <span
                     onClick={() => {
                       this.showAllList = !this.showAllList;
-                      if (this.isFrontStatistics) return;
+                      if (this.isFrontStatistics) {
+                        return;
+                      }
                       this.queryFieldFetchTopList(100);
                     }}
                   >

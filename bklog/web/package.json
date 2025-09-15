@@ -17,7 +17,6 @@
     "clean": "rimraf ../static/dist/*",
     "analyze": "npm run clean && bkmonitor-cli build -a",
     "lint": "eslint \"**/*.{js,ts,tsx}\" --fix",
-    "prettier": "prettier --write ./ '!**/*.{css,scss,less}'",
     "stylelint": "stylelint \"./src/**/*.(vue|scss|css)\" --fix",
     "biome:format": "biome format --write ./src",
     "oxlint": "npx oxlint && npx eslint"

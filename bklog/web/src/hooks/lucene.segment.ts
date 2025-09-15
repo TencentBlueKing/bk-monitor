@@ -43,7 +43,9 @@ export default class LuceneSegment {
         if (tokenCount < MAX_TOKENS) {
           const tokens = LuceneSegment.processBuffer(plainText, MAX_TOKENS, tokenCount);
           for (const token of tokens) {
-            if (tokenCount >= MAX_TOKENS) break;
+            if (tokenCount >= MAX_TOKENS) {
+              break;
+            }
             result.push(token);
             tokenCount++;
           }
@@ -71,7 +73,9 @@ export default class LuceneSegment {
       if (tokenCount < MAX_TOKENS) {
         const tokens = LuceneSegment.processBuffer(plainText, MAX_TOKENS, tokenCount);
         for (const token of tokens) {
-          if (tokenCount >= MAX_TOKENS) break;
+          if (tokenCount >= MAX_TOKENS) {
+            break;
+          }
           result.push(token);
           tokenCount++;
         }
@@ -138,16 +142,19 @@ export default class LuceneSegment {
    * @param next 后一个字符
    */
   private static canBePartOfToken(c: string, prev: null | string, next: null | string): boolean {
-    if (this.isMidLetter(c)) {
-      return Boolean(prev && next && this.isLetter(prev) && this.isLetter(next));
+    if (LuceneSegment.isMidLetter(c)) {
+      return Boolean(prev && next && LuceneSegment.isLetter(prev) && LuceneSegment.isLetter(next));
     }
-    if (this.isMidNumLet(c)) {
+    if (LuceneSegment.isMidNumLet(c)) {
       return Boolean(
-        prev && next && ((this.isLetter(prev) && this.isLetter(next)) || (this.isNumber(prev) && this.isNumber(next))),
+        prev &&
+          next &&
+          ((LuceneSegment.isLetter(prev) && LuceneSegment.isLetter(next)) ||
+            (LuceneSegment.isNumber(prev) && LuceneSegment.isNumber(next))),
       );
     }
-    if (this.isMidNum(c)) {
-      return Boolean(prev && next && this.isNumber(prev) && this.isNumber(next));
+    if (LuceneSegment.isMidNum(c)) {
+      return Boolean(prev && next && LuceneSegment.isNumber(prev) && LuceneSegment.isNumber(next));
     }
     return false;
   }
@@ -169,70 +176,86 @@ export default class LuceneSegment {
       const next = i < buffer.length - 1 ? buffer[i + 1] : null;
 
       // ExtendNumLet（_）不切分，直接加入 token
-      if (this.isExtendNumLet(c)) {
+      if (LuceneSegment.isExtendNumLet(c)) {
         currentToken += c;
         currentMidSequence = false;
         continue;
       }
 
       // 处理 Mid 字符
-      if (this.isMidLetter(c) || this.isMidNumLet(c) || this.isMidNum(c)) {
+      if (LuceneSegment.isMidLetter(c) || LuceneSegment.isMidNumLet(c) || LuceneSegment.isMidNum(c)) {
         // 连续 Mid 字符触发切分
-        if (currentMidSequence) {
-          if (currentToken) {
+        if (currentMidSequence === true) {
+          if (currentToken !== '') {
             result.push({ text: currentToken, isMark: false, isCursorText: true });
-            if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+            if (result.length + currentTokenCount >= MAX_TOKENS) {
+              return result;
+            }
           }
           // 分词符号本身也要保留，isCursorText: false
           result.push({ text: c, isMark: false, isCursorText: false });
-          if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+          if (result.length + currentTokenCount >= MAX_TOKENS) {
+            return result;
+          }
           currentToken = '';
           currentMidSequence = true;
           continue;
         }
         currentMidSequence = true;
         // 检查是否满足连接条件
-        const keepAsPartOfToken = this.canBePartOfToken(c, prev, next);
+        const keepAsPartOfToken = LuceneSegment.canBePartOfToken(c, prev, next);
         if (keepAsPartOfToken) {
           currentToken += c;
         } else {
-          if (currentToken) {
+          if (currentToken !== '') {
             result.push({ text: currentToken, isMark: false, isCursorText: true });
-            if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+            if (result.length + currentTokenCount >= MAX_TOKENS) {
+              return result;
+            }
           }
           // 分词符号本身也要保留，isCursorText: false
           result.push({ text: c, isMark: false, isCursorText: false });
-          if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+          if (result.length + currentTokenCount >= MAX_TOKENS) {
+            return result;
+          }
           currentToken = '';
         }
       } else if (c === '-' || c === ' ' || c === '\t') {
         // 其它常见分隔符
-        if (currentToken) {
+        if (currentToken !== '') {
           result.push({ text: currentToken, isMark: false, isCursorText: true });
-          if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+          if (result.length + currentTokenCount >= MAX_TOKENS) {
+            return result;
+          }
         }
         result.push({ text: c, isMark: false, isCursorText: false });
-        if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+        if (result.length + currentTokenCount >= MAX_TOKENS) {
+          return result;
+        }
         currentToken = '';
         currentMidSequence = false;
       } else {
         // 非 Mid 字符结束连续 Mid 序列
         currentMidSequence = false;
-        if (this.isLetter(c) || this.isNumber(c)) {
+        if (LuceneSegment.isLetter(c) || LuceneSegment.isNumber(c)) {
           currentToken += c;
         } else {
           // 其它所有符号都要保留，isCursorText: false
-          if (currentToken) {
+          if (currentToken !== '') {
             result.push({ text: currentToken, isMark: false, isCursorText: true });
-            if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+            if (result.length + currentTokenCount >= MAX_TOKENS) {
+              return result;
+            }
             currentToken = '';
           }
           result.push({ text: c, isMark: false, isCursorText: false });
-          if (result.length + currentTokenCount >= MAX_TOKENS) return result;
+          if (result.length + currentTokenCount >= MAX_TOKENS) {
+            return result;
+          }
         }
       }
     }
-    if (currentToken) {
+    if (currentToken !== '') {
       result.push({ text: currentToken, isMark: false, isCursorText: true });
     }
     return result;

@@ -87,6 +87,7 @@ export default defineComponent({
     /** 快速导入的dom */
     let inputDocument: HTMLInputElement;
     let localRuleType = 'template';
+    let isShowSwitchPopConfirm = false;
 
     const handleRuleTypeChange = (value: string, onlyState = false) => {
       ruleType.value = value;
@@ -111,6 +112,7 @@ export default defineComponent({
     };
 
     const handleBeforeRuleTypeChange = (value: string) => {
+      isShowSwitchPopConfirm = true;
       ruleType.value = value;
       localRuleType = value;
       nextTick(() => {
@@ -119,6 +121,7 @@ export default defineComponent({
     };
 
     const handleRuleTypeChangeConfirm = () => {
+      isShowSwitchPopConfirm = false;
       handleRuleTypeChange(localRuleType);
     };
 
@@ -148,7 +151,7 @@ export default defineComponent({
     watch(
       () => [props.defaultValue, templateList.value, isCustomize.value],
       () => {
-        if (isCustomize.value) {
+        if (isShowSwitchPopConfirm || isCustomize.value) {
           return;
         }
 
@@ -306,6 +309,9 @@ export default defineComponent({
           placement='bottom'
           title={t('确认切换配置模式？')}
           trigger='click'
+          on-cancel={() => {
+            isShowSwitchPopConfirm = false;
+          }}
           on-confirm={handleRuleTypeChangeConfirm}
         >
           <bk-radio-group
