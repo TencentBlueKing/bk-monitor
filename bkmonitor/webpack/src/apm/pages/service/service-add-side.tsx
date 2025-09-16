@@ -106,7 +106,7 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
     // src\apm\pages\service\data-guide.tsx
     this.pushUrlList = data.map(item => ({
       id: item.push_url,
-      name: `${this.$t('管控区域')} ${item.bk_cloud_id} ${item.push_url}`,
+      name: `${item.bk_cloud_alias || this.$t('管控区域')} ${item.push_url}`,
     }));
     this.pushUrlVal = this.pushUrlList[0]?.id || '';
   }
