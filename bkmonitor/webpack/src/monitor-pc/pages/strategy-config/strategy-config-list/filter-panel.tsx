@@ -106,8 +106,12 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
         <section
           class='filter-panel'
           v-show={this.show}
-          onMouseenter={() => (this.isShowScrollbar = true)}
-          onMouseleave={() => (this.isShowScrollbar = false)}
+          onMouseenter={() => {
+            this.isShowScrollbar = true;
+          }}
+          onMouseleave={() => {
+            this.isShowScrollbar = false;
+          }}
         >
           {this.$slots.header || (
             <div class='filter-panel-header mb20'>
@@ -128,7 +132,6 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
                 data={this.data}
                 defaultActiveName={this.defaultActiveName}
                 theme='filter'
-                isApmNewStyle={true}
                 on-clear={this.handleClear}
               />
             )}
@@ -193,7 +196,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
    * @param ids
    * @param item
    */
-  handleTreeCheckChange(ids: string[], node: ITreeNode, item: IGroupData) {
+  handleTreeCheckChange(_ids: string[], node: ITreeNode, item: IGroupData) {
     if (node.data.children) {
       const { children } = node.data;
       const childrenIds = children.map(item => item.id);
