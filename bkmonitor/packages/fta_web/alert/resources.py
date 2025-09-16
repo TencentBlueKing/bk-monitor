@@ -55,7 +55,6 @@ from bkmonitor.models import (
     AlgorithmModel,
     MetricListCache,
     StrategyModel,
-    ItemModel,
 )
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
@@ -3217,15 +3216,35 @@ class GetAlertDataRetrievalResource(Resource):
 
 class UpdateDataMeaningResource(Resource):
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="Item ID")
-        name = serializers.CharField(required=True, label="数据含义描述")
+        alert_id = serializers.CharField(required=True, label="告警ID")
+        data_meaning = serializers.CharField(required=True, label="数据含义")
 
     def perform_request(self, request_data):
-        try:
-            item = ItemModel.objects.get(id=request_data["item_id"])
-        except ItemModel.DoesNotExist:
-            raise ValueError(f"Item with id {request_data['item_id']} does not exist")
-        item.name = request_data["name"]
-        item.save()
+        alert_id = request_data["alert_id"]
+        data_meaning = request_data["data_meaning"]
 
-        return {"item_id": item.id, "description": item.name}
+        # 获取告警文档并验证存在性
+        alert = AlertDocument.get(alert_id)
+        if not alert:
+            raise ValueError(f"告警 {alert_id} 不存在")
+
+        # 安全获取extra_info结构
+        extra_info = alert.to_dict().setdefault("extra_info", {})
+        strategy = extra_info.setdefault("strategy", {})
+        items = strategy.setdefault("items", [])
+        if not items:
+            strategy["items"] = [{"name": data_meaning}]
+        else:
+            # 更新第一个item的name字段
+            items[0]["name"] = data_meaning
+
+        # 执行文档更新
+        AlertDocument.bulk_create(
+            [AlertDocument(id=alert_id, extra_info=extra_info)],
+            action=BulkActionType.UPDATE,
+        )
+
+        return {
+            "alert_id": alert_id,
+            "description": data_meaning,
+        }
