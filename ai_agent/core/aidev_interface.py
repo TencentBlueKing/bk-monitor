@@ -46,6 +46,7 @@ class AIDevInterface:
         session_res = self.api_client.api.create_chat_session(json=params, headers={"X-BKAIDEV-USER": username})
 
         # TODO：监控&日志 场景下，目前只存在单Prompt场景，后续需要规范Prompt的插入时机和行为
+        # TEST
         self.create_chat_session_content(
             params={
                 "session_code": session_code,
