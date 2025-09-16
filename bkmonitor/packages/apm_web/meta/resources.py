@@ -1633,8 +1633,8 @@ class PushUrlResource(Resource):
         {"tags": ["grpc", "opentelemetry"], "port": "4317", "path": ""},
         {"tags": ["http", "opentelemetry"], "port": "4318", "path": "/v1/traces"},
     ]
-    CLOUD_AREA_ZERO_ALIAS = "国内 IDC（内网）"
-    CLUSTER_PUSH_URL_ALIAS = "TKEx-IEG（BCS）内网"
+    CLOUD_AREA_ZERO_ALIAS = "内网"
+    CLUSTER_PUSH_URL_ALIAS = "集群内服务"
 
     @classmethod
     def get_proxy_infos(cls, bk_biz_id):
@@ -1655,8 +1655,8 @@ class PushUrlResource(Resource):
             proxy_host_infos.insert(0, {"ip": proxy_ip, "bk_cloud_id": 0})
 
         # 添加集群内上报域名（在默认区域0之后）
-        cluster_domains = getattr(settings, "APM_CLUSTER_INTERNAL_REPORT_DOMAINS", []) or []
-        for cluster_domain in cluster_domains:
+        cluster_domain = getattr(settings, "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE", "")
+        if cluster_domain:
             proxy_host_infos.insert(
                 len(default_cloud_display) if default_cloud_display else 0, {"ip": cluster_domain, "bk_cloud_id": 0}
             )
@@ -1681,7 +1681,8 @@ class PushUrlResource(Resource):
 
     def _get_cloud_alias_map(self) -> dict[int, str]:
         """获取云区域别名映射"""
-        clouds = api.cmdb.search_cloud_area()
+        bk_tenant_id = get_request_tenant_id()
+        clouds = api.cmdb.search_cloud_area(bk_tenant_id=bk_tenant_id)
         return {int(c.get("bk_cloud_id", 0)): c.get("bk_cloud_name", "") for c in clouds}
 
     def _generate_alias(self, ip: str, bk_cloud_id: int, cloud_alias_map: dict[int, str]) -> str:
@@ -1695,8 +1696,8 @@ class PushUrlResource(Resource):
             return self.CLOUD_AREA_ZERO_ALIAS
 
         # 判断是否为集群内域名
-        cluster_domains = getattr(settings, "APM_CLUSTER_INTERNAL_REPORT_DOMAINS", []) or []
-        if ip in cluster_domains:
+        cluster_domain = getattr(settings, "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE", "")
+        if cluster_domain and ip == cluster_domain:
             return self.CLUSTER_PUSH_URL_ALIAS
 
         # 其他代理：使用云区域名称
