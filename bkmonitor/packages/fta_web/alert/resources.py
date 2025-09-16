@@ -3214,7 +3214,7 @@ class GetAlertDataRetrievalResource(Resource):
         return result
 
 
-class UpdateDataMeaningResource(Resource):
+class EditDataMeaningResource(Resource):
     class RequestSerializer(serializers.Serializer):
         alert_id = serializers.CharField(required=True, label="告警ID")
         data_meaning = serializers.CharField(required=True, label="数据含义")
