@@ -23,32 +23,46 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const NODE_TYPE_ICON = {
-  // node
-  apm_service: 'icon-mc-apm_service',
-  apm_service_instance: 'icon-mc-service_instance',
-  service: 'icon-mc-bcs-service',
-  pod: 'icon-mc-pod',
-  system: 'icon-mc-system',
-  idc: 'icon-mc-idc',
-  idc_unit: 'icon-mc-idc_unit',
-  // service
-  http: 'icon-wangye',
-  rpc: 'icon-yuanchengfuwu',
-  db: 'icon-shujuku',
-  messaging: 'icon-xiaoxizhongjianjian',
-  async_backend: 'icon-renwu',
-  all: 'icon-mc-service-all',
-  other: 'icon-mc-service-unknown',
-  // python: '',
-  // go: '',
-  // '其他语言': '',
-  metric: 'icon-zhibiaojiansuo',
-  log: 'icon-a-logrizhi',
-  trace: 'icon-Tracing',
-  profiling: 'icon-Profiling',
+import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import './service-add-side-item.scss';
+
+type IEvent = {
+  onCopy: () => void;
 };
 
-export const getIconByNodeType = (nodeType?: string) => {
-  return NODE_TYPE_ICON[nodeType as keyof typeof NODE_TYPE_ICON] || NODE_TYPE_ICON.other;
-};
+interface IProps {
+  title: string;
+  disabledStyle?: boolean;
+  copyValue?: string;
+}
+
+@Component
+export default class ServiceAddSideItem extends tsc<IProps, IEvent> {
+  // 展示的标题
+  @Prop({ default: '', type: String }) title: string;
+  // 灰底背景
+  @Prop({ default: false, type: Boolean }) disabledStyle: boolean;
+
+  @Emit('copy')
+  handleCopy() {}
+
+  render() {
+    return (
+      <div class='service-add-side__item'>
+        <div class='service-add-side__item-label'>{this.title}</div>
+        <div class='service-add-side__item-content'>
+          <div class={['service-add-side__item-hd', { 'is-disabled': this.disabledStyle }]}>{this.$slots.default}</div>
+          <div
+            class='service-add-side__item-bd'
+            onClick={this.handleCopy}
+          >
+            <i class='icon-monitor icon-mc-copy' />
+          </div>
+        </div>
+        {this.$slots.btm && <div class='service-add-side__item-btm'>{this.$slots.btm}</div>}
+      </div>
+    );
+  }
+}

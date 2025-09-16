@@ -483,6 +483,9 @@ CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
 CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = []  # 当接收端为 k8s 集群部署时，需要配置这个，支持部署在多个集群内
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
+# 集群内上报固定域名
+CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE = "bkm-collector.bkmonitor-operator"
+
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
 BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
     "BKAPP_BUILTIN_DATA_RT_REDIS_KEY", "bkmonitorv3:spaces:built_in_result_table_detail"
@@ -494,6 +497,7 @@ ECOSYSTEM_CODE_ROOT_URL = ""
 
 # APM config
 APM_ACCESS_URL = ""
+APM_DATA_PUSH_URL = ""
 APM_BEST_PRACTICE_URL = ""
 APM_METRIC_DESCRIPTION_URL = ""
 
