@@ -98,12 +98,12 @@ export default (props, { emit }) => {
 
       return Promise.all([singleRequest, unionRequest])
         .then(resp => {
-          const list = [];
-          resp.forEach(rows => {
-            rows.forEach(row => {
+          const list: any[] = [];
+          for (const rows of resp) {
+            for (const row of rows) {
               list.push({ ...row, update_time: new Date(row.updated_at).getTime() });
-            });
-          });
+            }
+          }
           historyList.value = list.sort((a, b) => b.update_time - a.update_time).slice(0, 20);
         })
         .finally(() => {
@@ -168,13 +168,13 @@ export default (props, { emit }) => {
       .then(resp => {
         if (resp.result) {
           if (item?.index_set_type === 'single') {
-            const index = historyList.value.findIndex((item: any) => item.id !== item.id);
+            const index = historyList.value.findIndex((newItem: any) => newItem.id !== item.id);
             historyList.value.splice(index, 1);
             return historyList.value;
           }
 
           if (item?.index_set_type === 'union') {
-            const index = historyList.value.findIndex((item: any) => item.id !== item.id);
+            const index = historyList.value.findIndex((newItem: any) => newItem.id !== item.id);
             historyList.value.splice(index, 1);
             return historyList.value;
           }
@@ -186,7 +186,7 @@ export default (props, { emit }) => {
         }
 
         messageError(resp.message);
-        return undefined;
+        return;
       })
       .catch(error => {
         messageError(error.message ?? error);
@@ -345,10 +345,8 @@ export default (props, { emit }) => {
       .then(resp => {
         if (resp.result) {
           messageSuccess('收藏成功！');
-          if (unionFavoriteList.value.length > 0) {
-            if (!unionFavoriteList.value.some(item => item.id === resp.data.id)) {
-              unionFavoriteList.value.push(resp.data);
-            }
+          if (unionFavoriteList.value.length > 0 && !unionFavoriteList.value.some(item => item.id === resp.data.id)) {
+            unionFavoriteList.value.push(resp.data);
           }
 
           return true;

@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from functools import reduce
 from io import StringIO
 from typing import Any
+from itertools import chain
 
 from django.conf import settings
 from django.core.cache import cache
@@ -1548,26 +1549,146 @@ class SearchAlertResource(Resource):
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
         record_history = validated_request_data.pop("record_history")
+        origin_request_data = copy.deepcopy(validated_request_data)
+        # 检测处理记录ID查询并调整时间范围
+        has_action_id, detect_result = self.detect_action_id_query(validated_request_data)
+        if has_action_id:
+            validated_request_data = self.adjust_time_range_for_action_id(validated_request_data, detect_result)
 
         # 替换时间范围
         if validated_request_data.get("replace_time_range"):
-            validated_request_data = self.replace_time(validated_request_data)
+            validated_request_data = self.replace_time_for_alert_id(validated_request_data)
 
         handler = AlertQueryHandler(**validated_request_data)
 
         with SearchHistory.record(
             SearchType.ALERT,
-            validated_request_data,
-            enabled=record_history and validated_request_data.get("query_string"),
+            origin_request_data,
+            enabled=record_history and origin_request_data.get("query_string"),
         ):
             result = handler.search(show_overview=show_overview, show_aggs=show_aggs, show_dsl=show_dsl)
 
         return result
 
     @staticmethod
-    def replace_time(request_data: dict) -> dict:
+    def detect_action_id_query(request_data: dict) -> tuple:
         """
-        根据查询字符串中的告警ID/处理记录ID，动态调整时间范围
+        检测查询是否涉及处理记录ID
+
+        Args:
+            request_data: 请求数据
+
+        Returns:
+            tuple: (是否包含 action_id 查询, 处理记录 ID 列表)
+        """
+        action_ids_in_query = set()
+        action_ids_in_conditions = set()
+
+        has_action_id = False
+
+        # 检查 query_string 中的处理记录ID
+        query_string = request_data.get("query_string", "")
+        if query_string:
+            action_id_matches = re.findall(r"处理记录ID\s*:\s*(\d+)", query_string)
+            if action_id_matches:
+                action_ids_in_query.update(set(action_id_matches))
+
+        # 检查 conditions 中的 action_id 条件
+        conditions = request_data.get("conditions", [])
+        for condition in conditions:
+            if condition.get("key") == "action_id":
+                condition_values = condition.get("value", [])
+                if isinstance(condition_values, list):
+                    action_ids_in_conditions.update([str(val) for val in condition_values])
+                else:
+                    action_ids_in_conditions.add(str(condition_values))
+
+        if action_ids_in_query or action_ids_in_conditions:
+            has_action_id = True
+
+        result = {
+            "action_ids_in_query": list(action_ids_in_query),
+            "action_ids_in_conditions": list(action_ids_in_conditions),
+        }
+
+        return has_action_id, result
+
+    @staticmethod
+    def adjust_time_range_for_action_id(request_data: dict, detect_result: dict) -> dict:
+        """
+        根据处理记录ID调整查询时间范围并替换查询条件
+
+        该方法不仅调整时间范围，还会将处理记录ID查询转换为直接的告警ID查询，
+        避免后续查询中的重复处理，提高查询效率。
+
+        Args:
+            request_data: 原始请求数据
+            detect_result: 检测结果
+
+        Returns:
+            dict: 调整后的请求数据，包含新的时间范围和告警ID查询条件
+        """
+        from fta_web.alert.handlers.alert import get_alert_ids_by_action_id
+
+        action_ids_in_query = detect_result["action_ids_in_query"]
+        action_ids_in_conditions = detect_result["action_ids_in_conditions"]
+
+        alert_ids = set()
+
+        # 通过处理记录ID获取告警ID
+        if action_ids_in_query:
+            temp_ids_in_query, action_alert_map = get_alert_ids_by_action_id(action_ids_in_query)
+            alert_ids.update(temp_ids_in_query)
+            # 增加到上下文信息中，便于后续处理query string时，进行精准替换
+            request_data["context"] = {"action_alert_map": action_alert_map}
+
+        if action_ids_in_conditions:
+            temp_ids_conditions, action_alert_map = get_alert_ids_by_action_id(action_ids_in_conditions)
+            alert_ids.update(temp_ids_conditions)
+            if temp_ids_conditions:
+                # 将对应的action_id条件转换为id条件，值为对应的告警ID
+                for condition in request_data.get("conditions", []):
+                    if condition["key"] == "action_id":
+                        condition["key"] = "id"
+                        # 不存在的action_id，告警ID设置为0
+                        condition["value"] = chain.from_iterable(
+                            [action_alert_map.get(value, ["0"]) for value in condition["value"]]
+                        )
+                        condition["value"] = list(set(condition["value"]))
+
+        if not alert_ids:
+            return request_data
+
+        # 提取告警ID前10位作为时间戳
+        timestamps = set()
+        for alert_id in alert_ids:
+            try:
+                timestamp = int(str(alert_id)[:10])
+                timestamps.add(timestamp)
+            except (ValueError, IndexError):
+                logger.warning(f"告警ID {alert_id} 时间戳解析失败")
+                continue
+
+        if not timestamps:
+            return request_data
+
+        # 计算时间范围（前后扩展1小时）
+        one_hour_in_seconds = 3600
+        min_timestamp = min(timestamps)
+        max_timestamp = max(timestamps)
+
+        # 与原时间范围合并，确保能够覆盖所有情况
+        request_data["start_time"] = min(
+            min_timestamp - one_hour_in_seconds, request_data.get("start_time", min_timestamp)
+        )
+        request_data["end_time"] = max(max_timestamp + one_hour_in_seconds, request_data.get("end_time", max_timestamp))
+
+        return request_data
+
+    @staticmethod
+    def replace_time_for_alert_id(request_data: dict) -> dict:
+        """
+        根据查询字符串中的告警ID，动态调整时间范围
         规则：提取所有ID的前10位作为基准时间戳，前后扩展1小时
         """
 
@@ -1577,7 +1698,7 @@ class SearchAlertResource(Resource):
         query_string = request_data.get("query_string", "")
 
         # 匹配所有告警ID/处理记录ID
-        id_matches = re.findall(r"(告警ID|处理记录ID)\s*:\s*(\d+)", query_string)
+        id_matches = re.findall(r"告警ID\s*:\s*(\d+)", query_string)
         if not id_matches:
             return request_data
 

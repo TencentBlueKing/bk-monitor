@@ -30,6 +30,7 @@ import useLocale from '@/hooks/use-locale';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
+
 import './index.scss';
 
 export default defineComponent({
@@ -59,7 +60,7 @@ export default defineComponent({
         v-bk-tooltips={$t('返回顶部')}
         onClick={() => scrollTop()}
       >
-        <i class='bklog-icon bklog-backtotop'></i>
+        <i class='bklog-icon bklog-backtotop' />
       </span>
     );
     return {

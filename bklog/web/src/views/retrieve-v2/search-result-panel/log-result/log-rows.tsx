@@ -105,7 +105,11 @@ export default defineComponent({
       stopPropagation: true,
       onclick: (...args) => {
         const type = args[1];
-        handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
+        if (type === 'add-to-ai') {
+          props.handleClickTools(type, savedSelection?.toString() ?? '');
+        } else {
+          handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
+        }
         popInstanceUtil.hide();
 
         if (savedSelection) {
@@ -270,7 +274,7 @@ export default defineComponent({
                 return item;
               });
               const temporarySortList = syncSpecifiedFieldSort(field.field_name, sortList);
-              store.commit('updateState', {'localSort': true});
+              store.commit('updateState', { localSort: true });
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: temporarySortList });
               store.dispatch('requestIndexSetQuery');
