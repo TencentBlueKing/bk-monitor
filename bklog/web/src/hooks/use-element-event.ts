@@ -1,3 +1,5 @@
+import { onBeforeUnmount, onMounted } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,51 +25,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref } from 'vue';
+export default () => {
+  const events = [];
+  const addElementEvent = (element, eventName, callback) => {
+    events.push({ element, eventName, callback });
+  };
 
-import { getTargetElement } from '@/hooks/hooks-helper';
-import useLocale from '@/hooks/use-locale';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
-import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
-
-
-import './index.scss';
-
-export default defineComponent({
-  emits: ['scroll-top'],
-  setup(_, { emit }) {
-    const { $t } = useLocale();
-    const offsetTop = ref(0);
-    const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
-
-    const { addEvent } = useRetrieveEvent();
-
-    addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
-      if (event.target) {
-        offsetTop.value = (event.target as HTMLElement).scrollTop;
-      }
+  onMounted(() => {
+    events.forEach(({ element, eventName, callback }) => {
+      element.addEventListener(eventName, callback);
     });
+  });
 
-    const showBox = computed(() => offsetTop.value > 1000);
-    const scrollTop = () => {
-      getTargetElement(GLOBAL_SCROLL_SELECTOR)?.scrollTo(0, 0);
-      emit('scroll-top');
-    };
+  onBeforeUnmount(() => {
+    events.forEach(({ element, eventName, callback }) => {
+      element.removeEventListener(eventName, callback);
+    });
+  });
 
-    const renderBody = () => (
-      <span
-        class={['bklog-v3-btn-scroll-top', { 'show-box': showBox.value }]}
-        v-bk-tooltips={$t('返回顶部')}
-        onClick={() => scrollTop()}
-      >
-        <i class='bklog-icon bklog-backtotop' />
-      </span>
-    );
-    return {
-      renderBody,
-    };
-  },
-  render() {
-    return this.renderBody();
-  },
-});
+  return {
+    addElementEvent,
+  };
+};

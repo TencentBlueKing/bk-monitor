@@ -126,11 +126,13 @@ export default class {
   on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (...args) => void) {
     const targetEvents = Array.isArray(fnName) ? fnName : [fnName];
     for (const event of targetEvents) {
+      if (!this.events.has(event)) {
+        this.events.set(event, [callbackFn]);
+      }
+
       if (this.events.has(event) && !this.events.get(event)?.includes(callbackFn)) {
         this.events.get(event)?.push(callbackFn);
       }
-
-      this.events.set(event, [callbackFn]);
     }
 
     return this;
