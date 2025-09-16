@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import time
+import json
 import logging
 from functools import wraps
 from typing import Any
@@ -333,6 +334,10 @@ class EnhancedStreamingResponseWrapper:
                     self.metrics_tracker.on_first_chunk()
                     first_chunk = False
 
+                # 过滤逻辑：跳过event为think的数据块
+                if self._should_skip_chunk(chunk):
+                    continue
+
                 self.metrics_tracker.on_chunk_yield(chunk)
                 yield chunk
 
@@ -343,6 +348,26 @@ class EnhancedStreamingResponseWrapper:
             # 流式响应出错
             self.metrics_tracker.on_streaming_error(error)
             raise
+
+    def _should_skip_chunk(self, chunk):
+        """判断是否应该跳过当前数据块"""
+        try:
+            # 检查chunk是否为字符串且以'data: '开头
+            if isinstance(chunk, str) and chunk.startswith('data: '):
+                # 提取JSON部分
+                json_str = chunk[6:]  # 去掉'data: '前缀
+                data = json.loads(json_str)
+
+                # 检查event字段是否为'think'
+                if data.get('event') == 'think':
+                    logger.debug(f"EnhancedStreamingResponseWrapper: Skipping chunk with event=think")
+                    return True
+
+        except (json.JSONDecodeError, AttributeError, KeyError) as e:
+            # JSON解析失败或其他错误，不跳过该chunk
+            logger.debug(f"EnhancedStreamingResponseWrapper: Failed to parse chunk for filtering: {e}")
+
+        return False
 
     def as_streaming_response(self):
         """转换为 Django 流式响应"""
