@@ -24,12 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { checkStrategyTemplate } from 'monitor-api/modules/model';
+
+import RelationServiceTable from './relation-service-table';
+
+import type { IRelationService } from './typings';
 
 import './template-push.scss';
 
 interface IProps {
+  params?: Record<string, any>;
   show?: boolean;
   onShowChange?: (v: boolean) => void;
 }
@@ -37,6 +44,7 @@ interface IProps {
 @Component
 export default class TemplatePush extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
+  @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
 
   tabList = [
     {
@@ -52,11 +60,30 @@ export default class TemplatePush extends tsc<IProps> {
   ];
   activeTab = 'service';
 
+  relationService: IRelationService[] = [];
+
+  @Watch('show')
+  handleWatchShowChange(v: boolean) {
+    if (v) {
+      this.getCheckStrategyTemplate();
+    }
+  }
+
   handleShowChange(v: boolean) {
     this.$emit('showChange', v);
   }
 
   handleSubmit() {}
+
+  getCheckStrategyTemplate() {
+    checkStrategyTemplate({
+      strategy_template_ids: this.params?.strategy_template_ids,
+      service_names: this.params?.service_names,
+      app_name: this.params?.app_name,
+    }).then(data => {
+      this.relationService = data?.list || [];
+    });
+  }
 
   render() {
     return (
@@ -93,10 +120,10 @@ export default class TemplatePush extends tsc<IProps> {
                   <span>{item.label}</span>
                   <span>{`(${item.count})`}</span>
                 </template>
-                <div class='panel-content'>xxxx</div>
               </bk-tab-panel>
             ))}
           </bk-tab>
+          <RelationServiceTable relationService={this.relationService} />
         </div>
         <div
           class='template-push-footer'
