@@ -384,6 +384,7 @@ export default class FieldItem extends tsc<object> {
                   <span class='field-name'>{this.fieldItem?.field_name}</span>
                   <div class='col-line' />
                   <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
+                  <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
                 </div>
                 <div class='fnBtn'>
                   <bk-button

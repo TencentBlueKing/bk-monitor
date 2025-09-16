@@ -284,7 +284,7 @@ export function useNavMenu(options: {
 
       const { bizId, spaceUid: newSpaceUid } = queryObj;
       const demoId = String((window as any).DEMO_BIZ_ID);
-      const demoProject = spaceList.find((item: any) => item.bk_biz_id === demoId);
+      const demoProject = spaceList.find((item: any) => `${item.bk_biz_id}` === demoId);
       const demoProjectUrl = demoProject ? getDemoProjectUrl(demoProject.space_uid) : '';
       store.commit('updateState', { demoUid: demoProject ? demoProject.space_uid : '' });
       const isOnlyDemo = demoProject && spaceList.length === 1;
