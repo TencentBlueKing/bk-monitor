@@ -23,39 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import type { QueryVariablesTransformResult } from '../components/utils/query-variable-tool';
-import type { AggCondition, AggFunction, IVariableSubmitParams } from './index';
-
-export type ConditionDetailTagItem = Omit<AggCondition, 'value'> & { value: QueryVariablesTransformResult<string>[] };
-export interface IDetailEvents {
-  onClose: () => void;
-}
-
-export interface IDetailProps {
-  visible: boolean;
-}
-
-export interface IQueryConfig {
-  data_source_label: string;
-  data_type_label: string;
-  functions: (AggFunction | string)[];
-  group_by: string[];
-  metric_id: string;
-  metrics: { alias: string; field: string; method: string }[];
-  table: string;
-  where: (AggCondition | string)[];
-}
-
-export interface QueryTemplateDetail {
-  alias: string;
-  can_delete: boolean;
-  can_edit: boolean;
-  expression: string;
-  functions: (AggFunction | string)[];
-  id: number;
-  name: string;
-  query_configs: IQueryConfig[];
-  space_scope: number[];
-  variables: IVariableSubmitParams[];
+@Component
+export default class TemplateFormDetail extends tsc<object> {
+  render() {
+    return <div class='template-form-detail' />;
+  }
 }
