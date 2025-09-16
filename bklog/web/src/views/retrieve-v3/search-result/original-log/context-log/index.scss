@@ -3,6 +3,20 @@
     padding: 0;
   }
 
+  .bk-resize-collapse {
+    background: #3a84ff !important;
+  }
+
+  .bk-resize-layout-aside {
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 -2px 8px 0 rgba(0, 0, 0, 0.04);
+
+    .bk-resize-layout-aside-content {
+      overflow: visible;
+    }
+  }
+
   .context-log-wrapper {
     position: relative;
     height: 100%;
@@ -34,7 +48,6 @@
         flex: 1;
         overflow-y: auto;
         background: #f5f7fa;
-        border: 1px solid #dcdee5;
         border-bottom: none;
 
         &::-webkit-scrollbar {

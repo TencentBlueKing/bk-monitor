@@ -67,7 +67,6 @@ const queryTypeList = ref([$t("UI 模式"), $t("语句模式")]);
 const refRootElement = ref(null);
 const refKeywordInspectElement = ref(null);
 
-const queryParams = ["ui", "sql"];
 const route = useRoute();
 const router = useRouter();
 
@@ -96,18 +95,20 @@ const isGloalUsage = computed(() => props.usageType === "global");
 const activeIndex = computed(() =>
   !isGloalUsage.value
     ? localModeActiveIndex.value
-    : store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] ?? 0,
+    : store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] ?? 0
 );
 const isFilterSecFocused = computed(
-  () => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition,
+  () =>
+    isGloalUsage.value &&
+    store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition
 );
 const indexItem = computed(() => store.state.indexItem);
 const keyword = computed(() => indexItem.value.keyword);
 const addition = computed(() => indexItem.value.addition);
 const searchMode = computed(() =>
   !isGloalUsage.value
-    ? queryParams[localModeActiveIndex.value]
-    : SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? "ui",
+    ? SEARCH_MODE_DIC[localModeActiveIndex.value]
+    : SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? "ui"
 );
 const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
 const queryText = computed(() => queryTypeList.value[activeIndex.value]);
@@ -126,7 +127,7 @@ const isCopyBtnActive = computed(() => {
 });
 
 const isIndexFieldLoading = computed(
-  () => store.state.indexFieldInfo.is_loading,
+  () => store.state.indexFieldInfo.is_loading
 );
 
 const computedIconClass = computed(() => {
@@ -152,11 +153,11 @@ watch(
       uiQueryValue.value.forEach(
         (v) =>
           (v.field_type = (indexFieldInfo.value.fields ?? []).find(
-            (f) => f.field_name === v.field,
-          )?.field_type),
+            (f) => f.field_name === v.field
+          )?.field_type)
       );
     });
-  },
+  }
 );
 
 watch(
@@ -164,7 +165,7 @@ watch(
   () => {
     sqlQueryValue.value = keyword.value;
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 watch(clearSearchValueNum, () => {
@@ -176,7 +177,7 @@ const formatAddition = (addition) => {
     const value = {
       ...v,
       field_type: (indexFieldInfo.value.fields ?? []).find(
-        (f) => f.field_name === v.field,
+        (f) => f.field_name === v.field
       )?.field_type,
     };
 
@@ -190,13 +191,13 @@ watch(
     uiQueryValue.value.splice(0);
     uiQueryValue.value.push(...formatAddition(addition.value));
   },
-  { immediate: true, deep: true },
+  { immediate: true, deep: true }
 );
 
 const setRouteParams = () => {
   const query = { ...route.query };
 
-  const nextMode = queryParams[activeIndex.value];
+  const nextMode = SEARCH_MODE_DIC[activeIndex.value];
   const resolver = new RetrieveUrlResolver({
     keyword: keyword.value,
     addition: store.getters.retrieveParams.addition,
@@ -266,7 +267,7 @@ const handleBtnQueryClick = () => {
           getBtnQueryResult();
           RetrieveHelper.searchValueChange(
             searchMode.value,
-            sqlQueryValue.value,
+            sqlQueryValue.value
           );
         });
 
@@ -281,7 +282,7 @@ const handleBtnQueryClick = () => {
   emit(
     "search",
     searchMode.value,
-    searchMode.value === "ui" ? uiQueryValue.value : sqlQueryValue.value,
+    searchMode.value === "ui" ? uiQueryValue.value : sqlQueryValue.value
   );
 };
 
@@ -347,7 +348,7 @@ const handleHeightChange = (height) => {
 
 const handleQueryTypeChange = () => {
   const nextType = activeIndex.value === 0 ? 1 : 0;
-  const nextMode = queryParams[nextType];
+  const nextMode = SEARCH_MODE_DIC[nextType];
   inspectResponse.value.is_legal = true;
   inspectResponse.is_resolved = false;
   if (isGloalUsage.value) {
@@ -374,7 +375,7 @@ const sourceUISQLAddition = ref([]);
 const initSourceSQLStr = (params, search_mode) => {
   if (search_mode === "ui") {
     sourceUISQLAddition.value = formatAddition(
-      structuredClone(params.addition),
+      structuredClone(params.addition)
     );
   } else {
     sourceSQLStr.value = params?.keyword ?? "";
@@ -385,12 +386,13 @@ const { addEvent } = useRetrieveEvent();
 addEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, (val) => {
   activeFavorite.value = val;
   const type =
-    queryParams.findIndex((idx) => idx === activeFavorite.value.search_mode) ??
-    0;
+    SEARCH_MODE_DIC.findIndex(
+      (idx) => idx === activeFavorite.value.search_mode
+    ) ?? 0;
 
   initSourceSQLStr(
     activeFavorite.value.params,
-    activeFavorite.value.search_mode,
+    activeFavorite.value.search_mode
   );
   store.commit("updateStorage", { searchType: type });
   setRouteParams();
@@ -433,7 +435,7 @@ const saveCurrentActiveFavorite = async () => {
   } = activeFavorite.value;
   const searchMode = activeIndex.value === 0 ? "ui" : "sql";
   const reqFormatAddition = uiQueryValue.value.map((item) =>
-    new ConditionOperator(item).getRequestParam(),
+    new ConditionOperator(item).getRequestParam()
   );
   const searchParams =
     searchMode === "sql"
@@ -535,15 +537,15 @@ const handleFilterSecClick = () => {
       const common_filter_addition = getCommonFilterAddition(store.state);
       if (common_filter_addition.length) {
         window.mainComponent.messageSuccess(
-          $t("“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。"),
+          $t("“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。")
         );
         uiQueryValue.value.push(
           ...formatAddition(common_filter_addition.filter(additionFilter)).map(
             (item) => ({
               ...item,
               isCommonFixed: true,
-            }),
-          ),
+            })
+          )
         );
         clearStorageCommonFilterAddition(store.state);
         store.commit("updateIndexItemParams", {
@@ -600,13 +602,16 @@ const handleInspectKeywordReplace = () => {
 };
 
 defineExpose({
+  setLocalMode: (val) => {
+    localModeActiveIndex.value = val;
+  },
   addValue: (item) => {
     if (searchMode.value === "ui") {
       const isExisted = uiQueryValue.value.find(
         (v) =>
           v.field === item.field &&
           v.operator === item.operator &&
-          v.value.toString() === item.value.toString(),
+          v.value.toString() === item.value.toString()
       );
       if (isExisted) {
         console.warn("已存在相同条件，无法添加");
@@ -730,7 +735,7 @@ defineExpose({
             :addition="uiQueryValue"
             :class="{ disabled: isInputLoading }"
             :match-s-q-l-str="matchSQLStr"
-            :search-mode="queryParams[activeIndex]"
+            :search-mode="SEARCH_MODE_DIC[activeIndex]"
             :sql="sqlQueryValue"
             @refresh="handleRefresh"
             @save-current-active-favorite="saveCurrentActiveFavorite"

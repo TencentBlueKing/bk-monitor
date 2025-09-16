@@ -1,6 +1,16 @@
-.log-context-dialog-main {
+.log-realtime-dialog-main {
   .bk-dialog-body {
     padding: 0;
+  }
+
+  .bk-resize-collapse {
+    background: #3a84ff !important;
+  }
+
+  .bk-resize-layout-aside {
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 -2px 8px 0 rgba(0, 0, 0, 0.04);
   }
 
   .context-log-wrapper {
@@ -14,7 +24,7 @@
       clear: both;
       font-size: 0;
       visibility: hidden;
-      content: '';
+      content: "";
     }
 
     .dialog-label {
@@ -47,7 +57,7 @@
           position: relative;
 
           &::before {
-            content: '';
+            content: "";
             width: 1px;
             height: 12px;
             background: #dcdee5;
@@ -83,7 +93,6 @@
         flex: 1;
         overflow-y: auto;
         background: #f5f7fa;
-        border: 1px solid #dcdee5;
         border-bottom: none;
 
         &::-webkit-scrollbar {

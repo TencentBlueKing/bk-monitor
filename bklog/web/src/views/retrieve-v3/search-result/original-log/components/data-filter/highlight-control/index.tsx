@@ -24,16 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch } from "vue";
-import { contextHighlightColor } from "@/common/util";
-import "./index.scss";
+import { defineComponent, ref, watch } from 'vue';
+
+import { contextHighlightColor } from '@/common/util';
+
+import './index.scss';
 
 export default defineComponent({
-  name: "HighlightControl",
+  name: 'HighlightControl',
   props: {
     showType: {
       type: String,
-      default: "log",
+      default: 'log',
     },
     lightList: {
       type: Array,
@@ -48,23 +50,19 @@ export default defineComponent({
     const isUpDisabled = ref(false);
     const isDownDisabled = ref(false);
 
-    const lightToDarkColorMap = contextHighlightColor.reduce<
-      Record<string, string>
-    >(
+    const lightToDarkColorMap = contextHighlightColor.reduce<Record<string, string>>(
       (colorMap, item) =>
         Object.assign(colorMap, {
           [item.light]: item.dark,
         }),
-      {}
+      {},
     );
-    const darkToLightColorMap = contextHighlightColor.reduce<
-      Record<string, string>
-    >(
+    const darkToLightColorMap = contextHighlightColor.reduce<Record<string, string>>(
       (colorMap, item) =>
         Object.assign(colorMap, {
           [item.dark]: item.light,
         }),
-      {}
+      {},
     );
 
     let currentViewIndex = 1;
@@ -77,11 +75,11 @@ export default defineComponent({
       highlightHtmlList = [];
     };
 
-    const initLightItemList = (direction = "") => {
+    const initLightItemList = (direction = '') => {
       highlightHtmlList = document.querySelectorAll('[data-index="light"]');
       lightSize.value = highlightHtmlList.length;
       if (lightSize.value) {
-        const markDom = document.querySelector(".dialog-log-markdown");
+        const markDom = document.querySelector('.dialog-log-markdown');
         const markTop = markDom!.getBoundingClientRect().top;
         let isFindShow = false;
         for (let index = 0; index < highlightHtmlList.length; index++) {
@@ -92,13 +90,13 @@ export default defineComponent({
             // 这个必须，不然偶现数值不匹配
             setInputIndexShow(currentViewIndex);
             const background = highlightHtmlList[index].style.background;
-            highlightHtmlList[index].style.background =
-              lightToDarkColorMap[background] || background;
+            highlightHtmlList[index].style.background = lightToDarkColorMap[background] || background;
+            highlightHtmlList[index].style.fontWeight = '700';
             isFindShow = true;
             break;
           }
         }
-        if (!isFindShow && direction !== "top" && direction !== "down") {
+        if (!isFindShow && direction !== 'top' && direction !== 'down') {
           catchViewIndex.value = highlightHtmlList.length;
           handelChangeLight(highlightHtmlList.length);
         }
@@ -120,19 +118,17 @@ export default defineComponent({
       {
         immediate: true,
         deep: true,
-      }
+      },
     );
 
     watch(
       () => props.showType,
       () => {
         if (lightSize.value) {
-          const background =
-            highlightHtmlList[currentViewIndex - 1].style.background;
-          highlightHtmlList[currentViewIndex - 1].style.background =
-            lightToDarkColorMap[background] || background;
+          const background = highlightHtmlList[currentViewIndex - 1].style.background;
+          highlightHtmlList[currentViewIndex - 1].style.background = lightToDarkColorMap[background] || background;
         }
-      }
+      },
     );
 
     const checkUpDownDisabled = () => {
@@ -146,50 +142,45 @@ export default defineComponent({
       const viewIndex = currentViewIndex - 1;
       const catchIndex = catchViewIndex.value - 1;
       highlightHtmlList[viewIndex].scrollIntoView({
-        behavior: "instant",
-        block: "center",
-        inline: "center",
+        behavior: 'instant',
+        block: 'center',
+        inline: 'center',
       });
       highlightHtmlList[catchIndex].style.background =
         darkToLightColorMap[highlightHtmlList[catchIndex].style.background];
+      highlightHtmlList[catchIndex].style.fontWeight = '500';
       highlightHtmlList[viewIndex].style.background =
         lightToDarkColorMap[highlightHtmlList[viewIndex].style.background];
+      highlightHtmlList[viewIndex].style.fontWeight = '700';
       setInputIndexShow(currentViewIndex);
       checkUpDownDisabled();
     };
 
-    const handleInputChange = (event) => {
+    const handleInputChange = event => {
       const $target = event.target;
       const value = parseInt($target.textContent, 10);
       // 无效值不抛出事件
-      if (
-        !value ||
-        value < 1 ||
-        value > lightSize.value ||
-        value === currentViewIndex
-      )
-        return;
+      if (!value || value < 1 || value > lightSize.value || value === currentViewIndex) return;
       currentViewIndex = value;
     };
 
     const initHightlightList = () => {
-      highlightHtmlList.forEach((item) => {
-        item.style.background =
-          darkToLightColorMap[item.style.background] || item.style.background;
+      highlightHtmlList.forEach(item => {
+        item.style.background = darkToLightColorMap[item.style.background] || item.style.background;
       });
     };
 
     const handleBlur = () => {
       initHightlightList();
       focus.value = false;
-      if (typeof catchViewIndex.value !== "string") {
+      if (typeof catchViewIndex.value !== 'string') {
         catchViewIndex.value = currentViewIndex;
       }
       handelChangeLight(currentViewIndex);
     };
 
-    const handleKeyDown = (e) => {
-      if (["Enter", "NumpadEnter"].includes(e.code)) {
+    const handleKeyDown = e => {
+      if (['Enter', 'NumpadEnter'].includes(e.code)) {
         initHightlightList();
         focus.value = true;
         handelChangeLight(currentViewIndex);
@@ -208,11 +199,11 @@ export default defineComponent({
     });
 
     return () => (
-      <div class="highlight-control-main">
-        <div class={["jump-input-wrapper", { focus: focus.value }]}>
+      <div class='highlight-control-main'>
+        <div class={['jump-input-wrapper', { focus: focus.value }]}>
           <span
             ref={jumpInputRef}
-            class="jump-input"
+            class='jump-input'
             contenteditable
             onBlur={handleBlur}
             onFocus={() => (focus.value = true)}
@@ -221,32 +212,30 @@ export default defineComponent({
           >
             {catchViewIndex.value}
           </span>
-          <span class={["page-total", { focus: focus.value }]}>
-            / {lightSize.value}
-          </span>
+          <span class={['page-total', { focus: focus.value }]}>/ {lightSize.value}</span>
         </div>
-        <div class="jump-btns-main">
+        <div class='jump-btns-main'>
           <div
-            class={{ "jump-btn": true, "is-disabled": isUpDisabled.value }}
+            class={{ 'jump-btn': true, 'is-disabled': isUpDisabled.value }}
             onClick={() => {
               if (currentViewIndex === 1) return;
               handelChangeLight(currentViewIndex - 1);
             }}
           >
-            <i class="bk-icon icon-arrows-up"></i>
+            <i class='bk-icon icon-arrows-up'></i>
           </div>
           <div
+            style='margin-right: 6px'
             class={{
-              "jump-btn": true,
-              "is-disabled": isDownDisabled.value,
+              'jump-btn': true,
+              'is-disabled': isDownDisabled.value,
             }}
-            style="margin-right: 6px"
             onClick={() => {
               if (currentViewIndex === lightSize.value) return;
               handelChangeLight(currentViewIndex + 1);
             }}
           >
-            <i class="bk-icon icon-arrows-down"></i>
+            <i class='bk-icon icon-arrows-down'></i>
           </div>
         </div>
       </div>
