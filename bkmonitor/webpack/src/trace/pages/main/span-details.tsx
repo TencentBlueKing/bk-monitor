@@ -387,7 +387,7 @@ export default defineComponent({
               attributes.map(
                 (item: { key: string; query_key: string; query_value: any; type: string; value: string }) => ({
                   label: item.key,
-                  content: item.value || '--',
+                  content: item.value ?? '',
                   type: item.type,
                   isFormat: false,
                   query_key: item.query_key,
