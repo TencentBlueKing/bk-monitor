@@ -29,23 +29,135 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
+import AlarmTemplateTable from './components/alarm-template-table/alarm-template-table';
 import AlarmTemplateSearch from './components/alarm-templte-search/alarm-template-search';
 import BatchOperations from './components/batch-operations/batch-operations';
 import EditTemplateSlider from './components/template-form/edit-template-slider';
-import { ALARM_TEMPLATE_QUICK_FILTER_LIST } from './constant';
+import { ALARM_TEMPLATE_QUICK_FILTER_LIST, AlarmTemplateTypeMap } from './constant';
 
-import type { AlarmTemplateConditionParamItem, BatchOperationTypeEnumType } from './typeing';
+import type { AlarmDeleteConfirmEvent } from './components/alarm-delete-confirm/alarm-delete-confirm';
+import type { AlarmTemplateConditionParamItem, AlarmTemplateListItem, BatchOperationTypeEnumType } from './typing';
+import type { SearchSelectItem } from 'monitor-pc/pages/query-template/typings';
 
 import './alarm-template.scss';
 
 @Component
 export default class AlarmTemplate extends tsc<object> {
+  /** 列表请求状态 loading */
+  tableLoading = false;
+  /** 表格数据 */
+  tableData: AlarmTemplateListItem[] = [
+    {
+      id: 1,
+      name: '[调用分析] 主调平均耗时',
+      system: 'RPC',
+      category: 'RPC_CALLER',
+      type: 'app',
+      is_enabled: true,
+      is_auto_apply: true,
+      algorithms: [
+        {
+          level: 2,
+          method: 'lte',
+          threshold: 1000,
+          type: 'Threshold',
+        },
+        {
+          level: 1,
+          method: 'lte',
+          threshold: 3000,
+          type: 'Threshold',
+        },
+      ],
+      user_group_list: [{ id: 1, name: '应用创建者' }],
+      applied_service_names: ['example.greeter1', 'example.greeter'],
+      create_user: 'admin',
+      create_time: '2025-08-04 17:43:26+0800',
+      update_user: 'admin',
+      update_time: '2025-08-04 17:43:26+0800',
+    },
+    {
+      id: 2,
+      name: '[调用分析] 主调平均耗时',
+      system: 'RPC',
+      category: 'RPC_CALLER',
+      type: 'inner',
+      is_enabled: false,
+      is_auto_apply: false,
+      algorithms: [
+        {
+          level: 3,
+          method: 'lte',
+          threshold: 1000,
+          type: 'Threshold',
+        },
+        {
+          level: 2,
+          method: 'lte',
+          threshold: 1000,
+          type: 'Threshold',
+        },
+        {
+          level: 1,
+          method: 'lte',
+          threshold: 3000,
+          type: 'Threshold',
+        },
+      ],
+      user_group_list: [{ id: 1, name: '应用创建者' }],
+      applied_service_names: [
+        'activity-microservce.activities-10012',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+        'example.greeter',
+      ],
+      create_user: 'admin',
+      create_time: '2025-08-04 17:43:26+0800',
+      update_user: 'admin',
+      update_time: '2025-08-04 17:43:26+0800',
+    },
+    {
+      id: 3,
+      name: '[调用分析] 主调平均耗时',
+      system: 'RPC',
+      category: 'RPC_CALLER',
+      type: 'inner',
+      is_enabled: false,
+      is_auto_apply: false,
+      algorithms: [],
+      user_group_list: [{ id: 1, name: '应用创建者' }],
+      applied_service_names: ['activity-microservce.activities-10012', 'example.greeter', 'example.greeter'],
+      create_user: 'admin',
+      create_time: '2025-08-04 17:43:26+0800',
+      update_user: 'admin',
+      update_time: '2025-08-04 17:43:26+0800',
+    },
+  ];
   /** 模板类型快速筛选tab */
   quickStatus = 'all';
   /** 搜索关键字 */
   searchKeyword: AlarmTemplateConditionParamItem[] = [];
   /** 表格已勾选的数据行id */
   selectedRowKeys: string[] = [];
+  /** 搜索选择器选项(接口获取) */
+  selectOptions: SearchSelectItem[] = [
+    {
+      name: window.i18n.t('全文检索') as unknown as string,
+      id: 'query',
+      multiple: false,
+    },
+  ];
 
   editTemplateId = null;
   editTemplateShow = false;
@@ -63,9 +175,59 @@ export default class AlarmTemplate extends tsc<object> {
     console.log('================ operationType ================', operationType);
   }
 
+  /** 筛选值改变后回调（作用于 表格表头筛选 & 顶部筛选searchInput框） */
   handleSearchChange(keyword: AlarmTemplateConditionParamItem[]) {
     this.searchKeyword = keyword;
     // this.setRouterParams();
+  }
+
+  /**
+   * @description 删除查询模板
+   * @param templateId 模板Id
+   */
+  deleteTemplateById(templateId: AlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) {
+    // destroyQueryTemplateById(templateId)
+    //   .then(() => {
+    //     confirmEvent.successCallback();
+    //     this.$bkMessage({
+    //       message: this.$t('删除成功'),
+    //       theme: 'success',
+    //     });
+    //     this.handleRefresh();
+    //   })
+    //   .catch(() => {
+    //     confirmEvent.errorCallback();
+    //     this.$bkMessage({
+    //       message: this.$t('删除失败'),
+    //       theme: 'error',
+    //     });
+    //   });
+  }
+
+  /**
+   * @description 下发事件回调
+   */
+  handleDispatch(id: AlarmTemplateListItem['id']) {
+    console.log('================ 下发事件回调 ================', id);
+  }
+
+  /**
+   * @description 克隆事件回调
+   */
+  handleCloneTemplate(id: AlarmTemplateListItem['id']) {
+    console.log('================ 克隆事件回调 ================', id);
+  }
+
+  /**
+   * @description 批量/单个模板内属性更新事件回调
+   */
+  handleBatchUpdate(
+    id: AlarmTemplateListItem['id'] | AlarmTemplateListItem['id'][],
+    updateValue: Partial<AlarmTemplateListItem>,
+    promiseEvent?: AlarmDeleteConfirmEvent
+  ) {
+    const ids = Array.isArray(id) ? id : [id];
+    console.log('================ 批量/单个模板更新事件回调 ================', ids, updateValue);
   }
 
   handleEditTemplate(id: number) {
@@ -86,34 +248,31 @@ export default class AlarmTemplate extends tsc<object> {
               class='alarm-template-header-filter-tab'
               v-model={this.quickStatus}
               needAll={false}
-              statusList={ALARM_TEMPLATE_QUICK_FILTER_LIST}
+              statusList={ALARM_TEMPLATE_QUICK_FILTER_LIST.map(e => AlarmTemplateTypeMap[e])}
               onChange={this.handleQuickStatusChange}
             />
-            <bk-button onClick={() => this.handleEditTemplate(1)}>编辑模板</bk-button>
           </div>
           <div class='alarm-template-header-search'>
             <AlarmTemplateSearch
               class='search-input'
               searchKeyword={this.searchKeyword}
+              selectOptions={this.selectOptions}
               onChange={this.handleSearchChange}
             />
           </div>
         </div>
         <div class='alarm-template-main'>
-          {/* <QueryTemplateTable
-            current={this.current}
+          <AlarmTemplateTable
             emptyType={this.searchKeyword?.length ? 'search-empty' : 'empty'}
             loading={this.tableLoading}
-            pageSize={this.pageSize}
-            sort={this.sort}
             tableData={this.tableData}
-            total={this.total}
+            onBatchUpdate={this.handleBatchUpdate}
             onClearSearch={() => this.handleSearchChange([])}
-            onCurrentPageChange={this.handleCurrentPageChange}
+            onCloneTemplate={this.handleCloneTemplate}
             onDeleteTemplate={this.deleteTemplateById}
-            onPageSizeChange={this.handlePageSizeChange}
-            onSortChange={this.handleSortChange}
-          /> */}
+            onDispatch={this.handleDispatch}
+            onEditTemplate={this.handleEditTemplate}
+          />
         </div>
 
         <EditTemplateSlider

@@ -29,24 +29,39 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
-import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
-import { AlarmTemplateDetailTabEnum, TABLE_DEFAULT_DISPLAY_FIELDS } from '../../constant';
-import { type AlarmTemplateDetailTabEnumType, type AlarmTemplateListItem } from '../../typeing';
+import { AlarmTemplateTypeEnum, AlarmTemplateTypeMap, TABLE_DEFAULT_DISPLAY_FIELDS } from '../../constant';
 import AlarmDeleteConfirm, { type AlarmDeleteConfirmEvent } from '../alarm-delete-confirm/alarm-delete-confirm';
+import DetectionAlgorithmsGroup from '../detection-algorithms-group/detection-algorithms-group';
+
+import type { AlarmTemplateListItem } from '../../typing';
 
 import './alarm-template-table.scss';
 
 interface AlarmTemplateTableEmits {
+  /** 批量/单个模板内属性更新事件回调 */
+  onBatchUpdate: (
+    templateId: AlarmTemplateListItem['id'],
+    updateValue: Partial<AlarmTemplateListItem>,
+    promiseEvent: AlarmDeleteConfirmEvent
+  ) => void;
   /** 清空筛选条件 */
   onClearSearch: () => void;
+  /** 克隆事件回调 */
+  onCloneTemplate: (templateId: AlarmTemplateListItem['id']) => void;
   /** 删除查询模板事件回调 */
-  onDeleteTemplate: (templateId: string, confirmEvent: AlarmDeleteConfirmEvent) => void;
+  onDeleteTemplate: (templateId: AlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) => void;
+  /** 下发事件回调 */
+  onDispatch: (templateId: AlarmTemplateListItem['id']) => void;
+  /** 编辑告警模板事件回调 */
+  onEditTemplate: (templateId: AlarmTemplateListItem['id']) => void;
 }
 
 interface AlarmTemplateTableProps {
   /** 空数据类型 */
   emptyType: 'empty' | 'search-empty';
+  /** 表格加载状态 */
+  loading: boolean;
   /** 表格数据 */
   tableData: AlarmTemplateListItem[];
 }
@@ -60,17 +75,9 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   @Prop({ type: Boolean }) loading: boolean;
   /** 表格数据 */
   @Prop({ type: Array, default: () => [] }) tableData: AlarmTemplateListItem[];
-  /** 总数 */
-  @Prop({ type: Number }) total: number;
   /** 空数据类型 */
   @Prop({ type: String, default: 'empty' }) emptyType: 'empty' | 'search-empty';
 
-  /** 模板详情 - 侧弹抽屉显示状态 */
-  sliderShow = false;
-  /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
-  sliderActiveTab: AlarmTemplateDetailTabEnumType = null;
-  /** 模板详情 - 当前需要显示详情信息的数据 id */
-  sliderActiveId: AlarmTemplateListItem['id'] = null;
   /** 是否出于请求删除接口中状态 */
   isDeleteActive = false;
   /** 删除二次确认 popover 实例 */
@@ -84,53 +91,58 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       label: this.$t('模板名称'),
       minWidth: 180,
       fixed: 'left',
-      formatter: this.clickShowSlicerColRenderer,
+      showOverflowTooltip: false,
+      formatter: this.nameColRenderer,
     },
     category: {
       id: 'category',
       label: this.$t('模板类型'),
-      minWidth: 180,
+      minWidth: 110,
     },
     update_time: {
       id: 'update_time',
       label: this.$t('最近更新'),
-      minWidth: 220,
+      minWidth: 210,
+      showOverflowTooltip: false,
+      formatter: this.updateTimeColRenderer,
     },
     applied_service_names: {
       id: 'applied_service_names',
       label: this.$t('关联服务'),
-      width: 100,
-      formatter: this.userColRenderer,
+      width: 250,
+      showOverflowTooltip: false,
+      formatter: this.appliedServiceNamesColRenderer,
     },
     algorithms: {
       id: 'algorithms',
       label: this.$t('检测规则'),
-      sortable: true,
-      width: 180,
+      width: 220,
+      resizable: false,
+      showOverflowTooltip: false,
+      formatter: this.algorithmsColRenderer,
     },
     user_group_list: {
       id: 'user_group_list',
       label: this.$t('告警组'),
       width: 100,
-      formatter: this.userColRenderer,
+      // formatter: this.userColRenderer,
     },
     is_enabled: {
       id: 'is_enabled',
       label: this.$t('启用 / 禁用'),
-      sortable: true,
-      width: 180,
+      width: 120,
+      formatter: this.switcherColRenderer,
     },
     is_auto_apply: {
       id: 'is_auto_apply',
       label: this.$t('自动下发'),
-      align: 'right',
       width: 120,
-      formatter: this.relationCountColRenderer,
+      formatter: this.switcherColRenderer,
     },
     operator: {
       id: 'operator',
       label: this.$t('操作'),
-      width: 100,
+      width: 160,
       resizable: false,
       fixed: 'right',
       formatter: this.operatorColRenderer,
@@ -147,11 +159,54 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   }
 
   /**
+   * @description 下发事件回调
+   */
+  @Emit('dispatch')
+  handleDispatch(id: AlarmTemplateListItem['id']) {
+    return id;
+  }
+
+  /**
+   * @description 编辑告警模板事件回调
+   */
+  @Emit('editTemplate')
+  handleEditTemplate(id: AlarmTemplateListItem['id']) {
+    return id;
+  }
+
+  /**
+   * @description 克隆告警模板事件回调
+   */
+  @Emit('cloneTemplate')
+  handleCloneTemplate(id: AlarmTemplateListItem['id']) {
+    return id;
+  }
+
+  /**
+   * @description 删除告警模板事件回调
+   */
+  @Emit('deleteTemplate')
+  handleDeleteTemplate(id: AlarmTemplateListItem['id']) {
+    return id;
+  }
+
+  /**
    * @description: 清空筛选条件
    */
   @Emit('clearSearch')
   clearSearch() {
     return;
+  }
+
+  /**
+   * @description 批量/单个模板内属性更新事件回调
+   */
+  handleBatchUpdate(
+    templateId: AlarmTemplateListItem['id'],
+    updateValue: Partial<AlarmTemplateListItem>,
+    promiseEvent?: AlarmDeleteConfirmEvent
+  ) {
+    this.$emit('batchUpdate', templateId, updateValue, promiseEvent);
   }
 
   mounted() {
@@ -165,7 +220,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
    * @description: 显示 删除二次确认 popover
    * @param {MouseEvent} e
    */
-  handleDeletePopoverShow(e: MouseEvent, row) {
+  handleDeletePopoverShow(e: MouseEvent, row: AlarmTemplateListItem) {
     if (this.isDeleteActive) return;
     if (this.deletePopoverInstance || this.deletePopoverDelayTimer) {
       this.handlePopoverHide();
@@ -228,7 +283,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
    */
   handleDeleteTemplateConfirm(templateId: AlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) {
     this.isDeleteActive = true;
-    confirmEvent?.confirmPromise
+    confirmEvent?.promiseEvent
       ?.then(() => {
         this.isDeleteActive = false;
         this.handlePopoverHide();
@@ -240,192 +295,172 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   }
 
   /**
-   * @description: 打开/关闭 侧弹详情抽屉面板
+   * @description: switcher 状态改变回调(启用/停止 & 自动下发)
    */
-  handleSliderShowChange(
-    isShow: boolean,
-    showEvent?: {
-      ActiveSliderTab?: AlarmTemplateDetailTabEnumType;
-      id: AlarmTemplateListItem['id'];
-    }
+  handleSwitcherChange(
+    templateId: AlarmTemplateListItem['id'],
+    value: boolean,
+    columnKey: 'is_auto_apply' | 'is_enabled'
   ) {
-    let sliderTab = null;
-    if (isShow) {
-      sliderTab = showEvent?.ActiveSliderTab || AlarmTemplateDetailTabEnum.BASE_INFO;
-    }
-    this.sliderActiveTab = sliderTab;
-    this.sliderActiveId = showEvent?.id;
-    this.sliderShow = isShow;
+    let successCallback = null;
+    let errorCallback = null;
+    const promiseEvent = new Promise((res, rej) => {
+      successCallback = res;
+      errorCallback = rej;
+    })
+      .then(() => {
+        this.loading = false;
+      })
+      .catch(() => {
+        this.loading = false;
+      });
+    this.handleBatchUpdate(templateId, { [columnKey]: value }, { promiseEvent, successCallback, errorCallback });
+    return promiseEvent;
   }
 
   /**
-   * @description 跳转至 编辑查询模板 页面
+   * @description: 表格 模板名称 列渲染
    */
-  jumpToEditPage(id: string) {
-    this.$router.push({
-      name: 'alarm-template-edit',
-      params: {
-        id,
-      },
-    });
-  }
-
-  /**
-   * @description: 当删除按钮不可操作时，获取删除提示文案
-   */
-  getDeleteTip(row) {
-    if (row?.relation_config_count > 0) {
-      return this.$t('当前仍然有关联的消费场景，无法删除') as string;
-    }
-    if (row?.bk_biz_id === 0) {
-      return this.$t('全局模板无法删除') as string;
-    }
-    if (row?.bk_biz_id !== this.$store.getters.bizId) {
-      const bizId = row?.bk_biz_id;
-      const bizName = this.$store.getters.bizIdMap.get(bizId)?.name;
-      const url = `${location.origin}${location.pathname}?bizId=${bizId}${location.hash}`;
-      return (
-        <i18n
-          class='text'
-          path='模板属于业务 {0}，无法删除'
-        >
-          <a
-            style='color: #3a84ff'
-            href={url}
-            rel='noreferrer'
-            target='_blank'
-          >
-            {bizName}
-          </a>
-        </i18n>
-      );
-    }
-    return this.$t('无法删除');
-  }
-
-  /**
-   * @description: 当编辑按钮不可操作时，获取编辑提示文案
-   */
-  getEditTip(row) {
-    if (row?.bk_biz_id === 0) {
-      return this.$t('全局模板无法编辑') as string;
-    }
-    if (row?.bk_biz_id !== this.$store.getters.bizId) {
-      const bizId = row?.bk_biz_id;
-      const bizName = this.$store.getters.bizIdMap.get(bizId)?.name;
-      const url = `${location.origin}${location.pathname}?bizId=${bizId}${location.hash}`;
-
-      return (
-        <i18n
-          class='text'
-          path='模板属于业务 {0}，无法编辑'
-        >
-          <a
-            style='color: #3a84ff'
-            href={url}
-            rel='noreferrer'
-            target='_blank'
-          >
-            {bizName}
-          </a>
-        </i18n>
-      );
-    }
-    return this.$t('无法编辑');
-  }
-
-  /**
-   * @description: 消费场景 列渲染
-   * 由于消费场景列是异步请求，所以需要使用增加 loading 状态交互过渡
-   */
-  relationCountColRenderer(row, column) {
-    if (row.relation_config_count == null) {
-      return (
-        <div class='relation-count-col'>
-          <img
-            class='loading-svg'
-            alt=''
-            src={loadingIcon}
+  nameColRenderer(row: AlarmTemplateListItem) {
+    return (
+      <div class='name-col'>
+        <div class='type-icon'>
+          <i
+            class={['icon-monitor', AlarmTemplateTypeMap[row?.type || AlarmTemplateTypeEnum.INNER].icon]}
+            v-bk-tooltips={{ content: AlarmTemplateTypeMap[row?.type || AlarmTemplateTypeEnum.INNER].name }}
           />
         </div>
-      );
-    }
-
-    if (!row.relation_config_count) {
-      return row.relation_config_count;
-    }
-    return this.clickShowSlicerColRenderer(row, column);
-  }
-
-  /**
-   * @description: 表格 点击打开侧弹详情抽屉面板 列渲染
-   */
-  clickShowSlicerColRenderer(row, column) {
-    const columnKey = column.columnKey;
-    const showSliderOption = {
-      columnKey: columnKey,
-      id: row.id,
-    };
-    let alias = row?.[columnKey];
-    if (columnKey === 'relation_config_count') {
-      alias ||= 0;
-    }
-    return (
-      <span
-        class={'click-show-slicer-col'}
-        onClick={() => this.handleSliderShowChange(true, showSliderOption)}
-      >
-        {alias}
-      </span>
-    );
-  }
-
-  /**
-   * @description 用户名 列渲染（兼容多租户）
-   */
-  userColRenderer(row, column) {
-    const colKey = column.columnKey;
-    return <bk-user-display-name user-id={row[colKey]} />;
-  }
-  /**
-   * @description: 表格 操作 列渲染
-   */
-  operatorColRenderer(row) {
-    const canDelete = row?.can_delete && row?.relation_config_count === 0;
-
-    return (
-      <div class='operator-col'>
-        <bk-popover
-          disabled={row?.can_edit}
-          placement='right'
+        <div
+          class='name-text'
+          v-bk-overflow-tips
         >
-          <bk-button
-            disabled={!row?.can_edit}
-            text={true}
-            onClick={() => this.jumpToEditPage(row.id)}
-          >
-            {this.$t('编辑')}
-          </bk-button>
-          <span slot='content'>{this.getEditTip(row)}</span>
-        </bk-popover>
-        <bk-popover
-          disabled={canDelete}
-          placement='right'
+          <span>{row?.name}</span>
+        </div>
+        <div
+          class='alarm-tag'
+          v-bk-tooltips={{ content: this.$t('查看各服务告警情况') }}
         >
-          <bk-button
-            disabled={!canDelete}
-            text={true}
-            onClick={(e: MouseEvent) => this.handleDeletePopoverShow(e, row)}
-          >
-            {this.$t('删除')}
-          </bk-button>
-          <span slot='content'>{this.getDeleteTip(row)}</span>
-        </bk-popover>
+          <i class='icon-monitor icon-gaojing3' />
+          <span class='alarm-count'>2</span>
+        </div>
       </div>
     );
   }
 
-  defaultRenderer(row, column) {
+  /**
+   * @description: 表格 最近更新 列渲染
+   */
+  updateTimeColRenderer(row: AlarmTemplateListItem) {
+    return (
+      <div class='update-time-col'>
+        <div
+          class='update-user'
+          v-bk-overflow-tips
+        >
+          <bk-user-display-name user-id={row?.update_user} />
+        </div>
+        <div
+          class='update-time'
+          v-bk-overflow-tips
+        >
+          <span>{row?.update_time || '--'}</span>
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * @description: 表格 关联服务 列渲染
+   */
+  appliedServiceNamesColRenderer(row: AlarmTemplateListItem) {
+    if (!row?.applied_service_names?.length) return '--';
+    return (
+      <div class='applied-service-name-col'>
+        <div
+          class='first-service-name'
+          v-bk-overflow-tips
+        >
+          <span>{row?.applied_service_names?.[0] || '--'}</span>
+        </div>
+        {row?.applied_service_names?.length > 1 && (
+          <div
+            class='service-name-ellipsis-tag'
+            v-bk-tooltips={{ content: this.$t('查看全部关联服务') }}
+          >
+            <span class='ellipsis-count'>{`+ ${row?.applied_service_names?.length - 1}`}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+  /**
+   * @description: 表格 检测规则 列渲染
+   */
+  algorithmsColRenderer(row: AlarmTemplateListItem) {
+    return (
+      <div class='algorithms-col'>
+        <DetectionAlgorithmsGroup algorithms={row?.algorithms} />
+        <div class='edit-btn'>
+          <i class='icon-monitor icon-bianji' />
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * @description 表格 switcher 按钮列渲染（启用/停止 & 自动下发）
+   */
+  switcherColRenderer(row: AlarmTemplateListItem, column) {
+    const columnKey = column.columnKey;
+    const value = row?.[columnKey];
+    const switcherDisabled = columnKey === 'is_auto_apply' && !row?.is_enabled;
+    return (
+      <div class={['switcher-col', `${columnKey}-col`]}>
+        <bk-switcher
+          v-bk-tooltips={{ content: this.$t('该模板已禁用，无法下发'), disabled: !switcherDisabled }}
+          disabled={switcherDisabled}
+          pre-check={() => this.handleSwitcherChange(row.id, value, columnKey)}
+          size='small'
+          theme='primary'
+          value={value}
+        />
+      </div>
+    );
+  }
+
+  /**
+   * @description: 表格 操作 列渲染
+   */
+  operatorColRenderer(row: AlarmTemplateListItem) {
+    return (
+      <div class='operator-col'>
+        <span v-bk-tooltips={{ content: this.$t('该模板已禁用，无法下发'), disabled: row?.is_enabled }}>
+          <bk-button
+            disabled={!row?.is_enabled}
+            text={true}
+            onClick={() => this.handleDispatch(row.id)}
+          >
+            {this.$t('下发')}
+          </bk-button>
+        </span>
+        <bk-button
+          text={true}
+          onClick={() => this.handleEditTemplate(row.id)}
+        >
+          {this.$t('编辑')}
+        </bk-button>
+        <bk-button
+          text={true}
+          onClick={() => this.handleCloneTemplate(row.id)}
+        >
+          {this.$t('克隆')}
+        </bk-button>
+        <i class='more-btn icon-monitor icon-gengduo1' />
+      </div>
+    );
+  }
+
+  defaultRenderer(row: AlarmTemplateListItem, column) {
     return row[column.columnKey] || '--';
   }
 
@@ -435,7 +470,6 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         key={`column_${column.id}`}
         width={column.width}
         align={column.align}
-        class-name={`${column.align ?? 'left'}-align-cell`}
         column-key={column.id}
         fixed={column.fixed}
         formatter={column.formatter || this.defaultRenderer}
@@ -444,7 +478,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         prop={column.id}
         render-header={column?.renderHeader ? () => column.renderHeader(column) : undefined}
         resizable={column.resizable ?? true}
-        show-overflow-tooltip={true}
+        show-overflow-tooltip={column.showOverflowTooltip ?? true}
         sortable={column?.sortable && 'custom'}
       />
     );
@@ -462,6 +496,10 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
           data={this.tableData}
           outer-border={false}
         >
+          <bk-table-column
+            selectable={row => row?.is_enabled}
+            type='selection'
+          />
           {this.tableColumns.map(column => this.transformColumn(column))}
           <EmptyStatus
             slot='empty'
@@ -484,14 +522,6 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
             onCancel={this.handlePopoverHide}
             onConfirm={this.handleDeleteTemplateConfirm}
           />
-          {/* <TemplateDetail
-            defaultActiveTab={this.sliderActiveTab}
-            sliderShow={this.sliderShow}
-            templateId={this.sliderActiveId}
-            onDeleteTemplate={(templateId, confirmEvent) => this.$emit('deleteTemplate', templateId, confirmEvent)}
-            onEdit={this.jumpToEditPage}
-            onSliderShowChange={this.handleSliderShowChange}
-          /> */}
         </div>
       </div>
     );
