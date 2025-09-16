@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, onBeforeUnmount, Ref, ref } from 'vue';
+import { computed, defineComponent, onMounted, onBeforeUnmount, type Ref, ref } from 'vue';
 
 export default defineComponent({
   props: {
@@ -58,7 +58,7 @@ export default defineComponent({
           style={scrollXElementStyle.value}
           class='bklog-scroll-x'
         >
-          <div style={scrollXInnerElementStyle.value}></div>
+          <div style={scrollXInnerElementStyle.value} />
         </div>
       );
     };

@@ -28,8 +28,9 @@ import { onBeforeMount, onBeforeUnmount } from 'vue';
 import Konva from 'konva';
 import * as PIXI from 'pixi.js';
 
-import { WordListItem } from '../../../../hooks/use-text-segmentation';
 import CanvasText from './canvas-text';
+
+import type { WordListItem } from '../../../../hooks/use-text-segmentation';
 
 export default ({ onSegmentClick }) => {
   const konvaInstance: {
@@ -54,7 +55,7 @@ export default ({ onSegmentClick }) => {
     container: undefined,
   };
 
-  let fontFamily;
+  let fontFamily: string;
   const fontSize = 12;
   const lineHeight = 20 / 12;
   const rowHeight = lineHeight * fontSize;
@@ -65,7 +66,7 @@ export default ({ onSegmentClick }) => {
   let boxHeight = 0;
 
   let wordList: WordListItem[];
-  let hoverItem;
+  let hoverItem: any;
   let textContainer: HTMLDivElement;
   let isDisposeing = false;
 
@@ -267,10 +268,11 @@ export default ({ onSegmentClick }) => {
     return { top, left: offsetLeft };
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   const getWrapText = (item: WordListItem, leftWidth: number) => {
     const box = getTempText();
     const chars = item.text.split('');
-    const leftText = [];
+    const leftText: any[] = [];
     let width = 0;
     let bufferWidth = 0;
     while (width < leftWidth) {
@@ -280,20 +282,18 @@ export default ({ onSegmentClick }) => {
       if (width < leftWidth) {
         bufferWidth = 0;
         leftText.push(char);
-      } else {
-        if (width - leftWidth < 1) {
-          const startIndex = item.startIndex + leftText.length;
-          const { top } = getRangePosition(startIndex, startIndex + 1);
+      } else if (width - leftWidth < 1) {
+        const startIndex = item.startIndex + leftText.length;
+        const { top } = getRangePosition(startIndex, startIndex + 1);
 
-          if (top === item.top) {
-            bufferWidth = 0;
-            leftText.push(char);
-          } else {
-            chars.unshift(char);
-          }
+        if (top === item.top) {
+          bufferWidth = 0;
+          leftText.push(char);
         } else {
           chars.unshift(char);
         }
+      } else {
+        chars.unshift(char);
       }
     }
 
@@ -316,18 +316,20 @@ export default ({ onSegmentClick }) => {
       const text = getTempText();
       const width = text.width(rightText.text);
       const diff = width - rightText.width;
-      leftText.width = leftText.width - diff;
-      rightText.left = rightText.left - diff;
+      leftText.width -= diff;
+      rightText.left -= diff;
       rightText.width = width;
     }
   };
 
+  // biome-ignore-start lint/style/noParameterAssign: reason
   const resetWordWrapPositon = (
     textNode,
     itemList: WordListItem[],
     currentIndex: number,
     originLeft: number,
     updateLeft = true,
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   ) => {
     const item = itemList[currentIndex];
 
@@ -347,6 +349,7 @@ export default ({ onSegmentClick }) => {
       const [leftText, rightText] = item.split;
       const offsetXIndex = leftText?.text?.length ?? 0;
 
+      // biome-ignore lint/nursery/noShadow: reason
       const { top, left } = getRangePosition(item.startIndex + offsetXIndex, item.endIndex);
 
       if (left > rightText.left || top > rightText.top) {
@@ -357,7 +360,7 @@ export default ({ onSegmentClick }) => {
         resetSplitWordWrap(leftText, rightText);
 
         if (updateLeft) {
-          originLeft = originLeft + diffWidth;
+          originLeft += diffWidth;
         }
 
         if (leftText.text.length === 0) {
@@ -427,9 +430,10 @@ export default ({ onSegmentClick }) => {
           left,
           top,
         },
-      ].filter(item => item.text.length > 0);
+      ].filter(newItem => newItem.text.length > 0);
 
       if (item.split?.length > 1) {
+        // biome-ignore lint/nursery/noShadow: reason
         const [leftText, rightText] = item.split;
         resetSplitWordWrap(leftText, rightText);
       }
@@ -450,18 +454,21 @@ export default ({ onSegmentClick }) => {
 
     return originLeft;
   };
+  // biome-ignore-end lint/style/noParameterAssign: reason
 
   const getRequestAnimationFrame = () => {
     return window.requestAnimationFrame;
   };
 
+  // biome-ignore lint/nursery/noShadow: reason
   const computeWordListPosition = (list?: WordListItem[], next?: (list?: WordListItem[]) => void) => {
     wordList = list;
     return new Promise<WordListItem[]>(resolve => {
       getRequestAnimationFrame()(() => {
         let left = 0;
         // 换行产生的偏移量
-        let offsetWidth = 0;
+        const offsetWidth = 0;
+        // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
         (wordList || []).forEach((item, index) => {
           if (isDisposeing) {
             return;
@@ -487,14 +494,14 @@ export default ({ onSegmentClick }) => {
               line,
             });
 
-            left = left + width;
+            left += width;
 
             if (isWrap && item.left > 0) {
               left = left + boxWidth - item.left;
             }
 
             if (isEmpty) {
-              left = left - width;
+              left -= width;
               item.width = 0;
             }
 
@@ -506,50 +513,48 @@ export default ({ onSegmentClick }) => {
             const nextLineOffset = left % boxWidth;
 
             // 分词在换行被截断
-            if (nextLine > line && nextLineOffset > 0 && item.width > 0) {
-              if (item.text?.length) {
-                const diffWidth = left % boxWidth;
-                const [leftText, rightText] = getWrapText(item, width - diffWidth);
-                rightText.width = item.width - leftText.width;
-                left = boxWidth * nextLine + width - leftText.width;
+            if (nextLine > line && nextLineOffset > 0 && item.width > 0 && item.text?.length) {
+              const diffWidth = left % boxWidth;
+              const [leftText, rightText] = getWrapText(item, width - diffWidth);
+              rightText.width = item.width - leftText.width;
+              left = boxWidth * nextLine + width - leftText.width;
 
-                if (rightText.text === '' && rightText.width > 0) {
-                  left = left - rightText.width;
-                }
-
-                item.split = [
-                  {
-                    text: leftText.text,
-                    isMark: item.isMark,
-                    isCursorText: item.isCursorText,
-                    left: item.left,
-                    top: item.top,
-                    width: leftText.width,
-                    renderWidth: leftText.renderWidth,
-                    line,
-                  },
-                  {
-                    text: rightText.text,
-                    isMark: item.isMark,
-                    isCursorText: item.isCursorText,
-                    left: 0,
-                    top: item.top + fontSize * lineHeight,
-                    width: width - leftText.width,
-                    line: nextLine,
-                  },
-                ].filter(item => item.width > 0 && item.text !== '');
-
-                if (item.split.length === 1) {
-                  item.left = item.split[0].left;
-                  item.top = item.split[0].top;
-                  item.width = item.split[0].width;
-                  item.line = item.split[0].line;
-                  item.renderWidth = item.split[0].renderWidth;
-                  item.split = undefined;
-                }
-
-                left = resetWordWrapPositon(textContainer.firstChild, wordList, index, left, true);
+              if (rightText.text === '' && rightText.width > 0) {
+                left -= rightText.width;
               }
+
+              item.split = [
+                {
+                  text: leftText.text,
+                  isMark: item.isMark,
+                  isCursorText: item.isCursorText,
+                  left: item.left,
+                  top: item.top,
+                  width: leftText.width,
+                  renderWidth: leftText.renderWidth,
+                  line,
+                },
+                {
+                  text: rightText.text,
+                  isMark: item.isMark,
+                  isCursorText: item.isCursorText,
+                  left: 0,
+                  top: item.top + fontSize * lineHeight,
+                  width: width - leftText.width,
+                  line: nextLine,
+                },
+              ].filter(newItem => newItem.width > 0 && item.text !== '');
+
+              if (item.split.length === 1) {
+                item.left = item.split[0].left;
+                item.top = item.split[0].top;
+                item.width = item.split[0].width;
+                item.line = item.split[0].line;
+                item.renderWidth = item.split[0].renderWidth;
+                item.split = undefined;
+              }
+
+              left = resetWordWrapPositon(textContainer.firstChild, wordList, index, left, true);
             }
           }
         });
@@ -561,7 +566,7 @@ export default ({ onSegmentClick }) => {
   };
 
   const validateWordPosition = () => {
-    const lastWord = wordList[wordList.length - 1];
+    const lastWord = wordList.at(-1);
     const { top, left } = getRangePosition(lastWord.startIndex, lastWord.endIndex);
     return top === lastWord.top && left === lastWord.left;
   };
@@ -584,22 +589,21 @@ export default ({ onSegmentClick }) => {
       return;
     }
 
-    words
-      .filter(item => item.isMark)
-      .forEach(item => {
-        if (isDisposeing || item.left === undefined) {
-          return;
-        }
+    const filterWords = words.filter(item => item.isMark);
+    for (const item of filterWords) {
+      if (isDisposeing || item.left === undefined) {
+        continue;
+      }
 
-        if (item.split?.length) {
-          item.split.forEach(setMarkWordRect);
-        } else {
-          setMarkWordRect(item);
-        }
-      });
+      if (item.split?.length) {
+        item.split.forEach(setMarkWordRect);
+      } else {
+        setMarkWordRect(item);
+      }
+    }
   };
 
-  let mouseenterTimer;
+  let mouseenterTimer: any;
 
   const handleTextBoxMouseenter = evt => {
     mouseenterTimer && clearTimeout(mouseenterTimer);
@@ -621,6 +625,7 @@ export default ({ onSegmentClick }) => {
     }, 100);
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   const handleTextBoxMousemove = evt => {
     if (webgl && !pixiInstance.app) {
       return;
@@ -657,9 +662,9 @@ export default ({ onSegmentClick }) => {
       }
 
       if (word.split?.length) {
-        word.split.forEach(item => {
+        for (const item of word.split) {
           appendColorText(item);
-        });
+        }
 
         return;
       }
@@ -730,11 +735,11 @@ export default ({ onSegmentClick }) => {
   };
 
   const resetWordList = () => {
-    wordList.forEach(item => {
+    for (const item of wordList) {
       item.split = undefined;
       item.left = undefined;
       item.top = undefined;
-    });
+    }
 
     destroyKonvaInstance();
   };

@@ -286,7 +286,7 @@ export default class OptimizedHighlighter {
       const chunkId = Number.parseInt(wrapper.dataset.chunkId, 10);
 
       if (chunkId === -1) {
-        return;
+        continue;
       }
 
       if (entry.isIntersecting) {

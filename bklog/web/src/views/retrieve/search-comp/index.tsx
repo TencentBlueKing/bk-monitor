@@ -184,7 +184,7 @@ export default class SearchComp extends tsc<IProps> {
     for (const item of this.totalFields) {
       // 操作符列表为undefined或者没数据时不加入过滤条件
       if (!(Array.isArray(item.field_operator) && item.field_operator.length)) {
-        break;
+        continue;
       }
       const fieldName = item.field_name;
       const alias = this.fieldAliasMap[fieldName];
@@ -650,7 +650,7 @@ export default class SearchComp extends tsc<IProps> {
   initValueList() {
     for (const item of this.conditionList) {
       if (item.conditionType === 'ip-select') {
-        return;
+        continue;
       }
       item.valueList = this.aggsItems[item.id] ?? [];
     }
