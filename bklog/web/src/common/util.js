@@ -108,9 +108,9 @@ export function randomColor(baseColor, count) {
   for (let i = 0; i < count; i++) {
     ret[i] = `#${Math.floor(segments[0] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
       16,
-    )}${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
-      16,
-    )}${Math.floor(segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}`;
+    )}${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}${Math.floor(
+      segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20,
+    ).toString(16)}`;
   }
   return ret;
 }
@@ -545,11 +545,11 @@ export function formatFileSize(size, dropFractionIfInteger = false) {
 export function readBlobResponse(response) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = function () {
+    reader.onload = () => {
       resolve(reader.result);
     };
 
-    reader.onerror = function () {
+    reader.onerror = () => {
       reject(reader.error);
     };
 
@@ -626,7 +626,7 @@ export const copyMessage = (val, alertMsg = undefined) => {
     document.execCommand('copy');
     document.body.removeChild(input);
     window.mainComponent.messageSuccess(
-      alertMsg ? alertMsg ?? window.mainComponent.$t('复制失败') : window.mainComponent.$t('复制成功'),
+      alertMsg ? (alertMsg ?? window.mainComponent.$t('复制失败')) : window.mainComponent.$t('复制成功'),
     );
   } catch (e) {
     console.warn(e);
@@ -1167,31 +1167,31 @@ export const formatNumberWithRegex = number => {
 /** 上下文，实时日志高亮颜色 */
 export const contextHighlightColor = [
   {
-    dark: 'rgb(255, 215, 153)',
+    dark: 'rgb(255, 209, 138)',
     light: 'rgb(255, 235, 204)',
   },
   {
-    dark: 'rgb(178, 235, 208)',
+    dark: 'rgb(164, 235, 202)',
     light: 'rgb(206, 235, 222)',
   },
   {
-    dark: 'rgb(186, 225, 245)',
+    dark: 'rgb(171, 221, 245)',
     light: 'rgb(215, 235, 245)',
   },
   {
-    dark: 'rgb(194, 203, 255)',
+    dark: 'rgb(179, 190, 255)',
     light: 'rgb(224, 229, 255)',
   },
   {
-    dark: 'rgb(245, 194, 255)',
+    dark: 'rgb(243, 179, 255)',
     light: 'rgb(249, 219, 255)',
   },
   {
-    dark: 'rgb(255, 194, 204)',
+    dark: 'rgb(255, 179, 191)',
     light: 'rgb(255, 224, 230)',
   },
   {
-    dark: 'rgb(206, 240, 168)',
+    dark: 'rgb(199, 240, 153)',
     light: 'rgb(226, 240, 211)',
   },
 ];

@@ -24,57 +24,58 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from "vue";
-import VueDraggable from "vuedraggable";
-import useLocale from "@/hooks/use-locale";
-import "./index.scss";
+import { computed, defineComponent, ref, watch } from 'vue';
+
+import { messageSuccess } from '@/common/bkmagic';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import VueDraggable from 'vuedraggable';
+
+import './index.scss';
 
 export default defineComponent({
-  name: "FieldsConfig",
+  name: 'FieldsConfig',
   components: {
     VueDraggable,
   },
-  props: {
-    total: {
-      type: Array<string>,
-      required: true,
-    },
-    display: {
-      type: Array<string>,
-      required: true,
-    },
-  },
-  setup(props, { emit, expose }) {
+  setup(_, { emit, expose }) {
     const { t } = useLocale();
+    const store = useStore();
 
     const fieldConfigRef = ref();
-    const totalFieldNames = ref<string[]>([]); // 所有的字段名
     const displayFieldNames = ref<string[]>([]); // 展示的字段名
     const confirmLoading = ref(false);
 
+    const totalFieldNames = computed(() => store.state.indexFieldInfo.fields.map(item => item.field_name));
     const restFieldNames = computed(() =>
-      totalFieldNames.value.filter(
-        (field) => !displayFieldNames.value.includes(field)
-      )
+      totalFieldNames.value.filter(field => !displayFieldNames.value.includes(field)),
     );
     const disabledRemove = computed(() => displayFieldNames.value.length <= 1);
 
     const dragOptions = {
       animation: 150,
-      tag: "ul",
-      handle: ".bklog-drag-dots",
-      "ghost-class": "sortable-ghost-class",
+      tag: 'ul',
+      handle: '.bklog-drag-dots',
+      'ghost-class': 'sortable-ghost-class',
     };
 
     watch(
-      () => props.total,
-      () => {
-        totalFieldNames.value = [...props.total];
-        displayFieldNames.value = [...props.display];
+      () => store.state.retrieve.catchFieldCustomConfig,
+      config => {
+        const fields = config.contextDisplayFields;
+        if (fields?.length > 0) {
+          displayFieldNames.value = fields;
+        } else {
+          displayFieldNames.value = totalFieldNames.value.includes('log') ? ['log'] : totalFieldNames.value;
+        }
+        setTimeout(() => {
+          emit('success', displayFieldNames.value);
+        });
       },
       {
         immediate: true,
-      }
+        deep: true,
+      },
     );
 
     /**
@@ -92,81 +93,100 @@ export default defineComponent({
 
     const handleConfirm = () => {
       confirmLoading.value = true;
-      emit("confirm", displayFieldNames.value);
+      store
+        .dispatch('userFieldConfigChange', {
+          contextDisplayFields: displayFieldNames.value,
+        })
+        .then(() => {
+          messageSuccess(t('设置成功'));
+          emit('success', displayFieldNames.value);
+        })
+        .finally(() => {
+          confirmLoading.value = false;
+        });
     };
 
     const handleCancel = () => {
-      emit("cancel");
+      emit('cancel');
     };
 
     expose({
       getDom: () => fieldConfigRef.value,
-      closeConfirmLoading: () => {
-        confirmLoading.value = false;
-      },
     });
 
     return () => (
-      <div style="display: none">
-        <div class="fields-config-tippy" ref={fieldConfigRef}>
-          <div class="config-title">{t("设置显示与排序")}</div>
-          <div class="field-list-container">
-            <div class="field-list">
-              <div class="list-title">
-                <i18n path="显示字段（已选 {0} 条)">
+      <div style='display: none'>
+        <div
+          ref={fieldConfigRef}
+          class='fields-config-tippy'
+        >
+          <div class='config-title'>{t('设置显示与排序')}</div>
+          <div class='field-list-container'>
+            <div class='field-list'>
+              <div class='list-title'>
+                <i18n path='显示字段（已选 {0} 条)'>
                   <span>{displayFieldNames.value.length}</span>
                 </i18n>
               </div>
-              <vue-draggable {...dragOptions} value={displayFieldNames.value}>
+              <vue-draggable
+                {...dragOptions}
+                value={displayFieldNames.value}
+              >
                 <transition-group>
                   {displayFieldNames.value.map((field, index) => (
-                    <li class="list-item display-item" key={index}>
-                      <span class="icon bklog-icon bklog-drag-dots"></span>
-                      <div class="field_name">{field}</div>
+                    <li
+                      key={index}
+                      class='list-item display-item'
+                    >
+                      <span class='icon bklog-icon bklog-drag-dots'></span>
+                      <div class='field_name'>{field}</div>
                       <div
-                        class={[
-                          "operate-button",
-                          disabledRemove.value && "disabled",
-                        ]}
+                        class={['operate-button', disabledRemove.value && 'disabled']}
                         on-click={() => removeItem(index)}
                       >
-                        {t("删除")}
+                        {t('删除')}
                       </div>
                     </li>
                   ))}
                 </transition-group>
               </vue-draggable>
             </div>
-            <div class="field-list">
-              <div class="list-title">{t("其他字段")}</div>
+            <div class='field-list'>
+              <div class='list-title'>{t('其他字段')}</div>
               <ul>
                 {restFieldNames.value.map((field, index) => (
-                  <li class="list-item rest-item" key={index}>
-                    <div class="field_name">{field}</div>
-                    <div class="operate-button" on-click={() => addItem(field)}>
-                      {t("添加")}
+                  <li
+                    key={index}
+                    class='list-item rest-item'
+                  >
+                    <div class='field_name'>{field}</div>
+                    <div
+                      class='operate-button'
+                      on-click={() => addItem(field)}
+                    >
+                      {t('添加')}
                     </div>
                   </li>
                 ))}
               </ul>
             </div>
           </div>
-          <div class="config-buttons">
+          <div class='config-buttons'>
             <bk-button
-              style="margin-right: 8px"
-              size="small"
-              theme="primary"
+              style='margin-right: 8px'
               loading={confirmLoading.value}
+              size='small'
+              theme='primary'
               on-click={handleConfirm}
             >
-              {t("确定")}
+              {t('确定')}
             </bk-button>
             <bk-button
-              style="margin-right: 24px"
-              size="small"
+              style='margin-right: 24px'
+              size='small'
               on-click={handleCancel}
             >
-              {t("取消")}
+              {t('取消')}
             </bk-button>
           </div>
         </div>

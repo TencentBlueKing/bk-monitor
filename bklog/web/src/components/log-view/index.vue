@@ -140,7 +140,7 @@ export default {
     },
     getViewLightList() {
       const list = [];
-      if (!!this.filterKey) {
+      if (this.filterKey) {
         list.push({
           str: this.filterKey,
           style: "color: #FF5656; font-size: 12px; font-weight: 700;",
@@ -348,7 +348,7 @@ export default {
       border-top: 1px solid transparent;
 
       &.log-init {
-        background: #1f2735;
+        background: #3d4d69;
       }
 
       &.new-log-line {

@@ -24,31 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-import {
-  defineComponent,
-  ref,
-  watch,
-  computed,
-  nextTick,
-  onMounted,
-  onBeforeUnmount,
-} from "vue";
-import useLocale from "@/hooks/use-locale";
-import useStore from "@/hooks/use-store";
-import $http from "@/api";
-import FieldsConfig from "@/components/common/fields-config.vue";
-import LogView from "@/components/log-view/index.vue";
-import { getFlatObjValues } from "@/common/util";
-import useFieldNameHook from "@/hooks/use-field-name";
-import DataFilter from "../components/data-filter";
-import LogResult from "../components/origin-log-result";
-import { messageSuccess } from "@/common/bkmagic";
-import CommonHeader from "../components/common-header";
+import { defineComponent, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 
-import "./index.scss";
+import { messageSuccess } from '@/common/bkmagic';
+import { getFlatObjValues } from '@/common/util';
+import FieldsConfig from '@/components/common/fields-config.vue';
+import LogView from '@/components/log-view/index.vue';
+import useLocale from '@/hooks/use-locale';
+
+import CommonHeader from '../components/common-header';
+import DataFilter from '../components/data-filter';
+import LogResult from '../components/origin-log-result';
+import $http from '@/api';
+
+import './index.scss';
 
 export default defineComponent({
-  name: "RealTimeLog",
+  name: 'RealTimeLog',
   components: {
     LogView,
     FieldsConfig,
@@ -83,7 +75,6 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
-    const store = useStore();
     const { t } = useLocale();
 
     const dataFilterRef = ref();
@@ -91,20 +82,16 @@ export default defineComponent({
     const contextLog = ref();
     const isShow = ref(false);
     const logLoading = ref(false);
-    const totalFieldNames = ref([]); // 所有的字段名
-    const displayFieldNames = ref([]); // 展示的字段名
-    const isConfigLoading = ref(false);
     const logList = ref<any[]>([]);
     const reverseLogList = ref<any[]>([]);
     const zero = ref(true);
     const prevBegin = ref(0);
     const nextBegin = ref(0);
-    const filterType = ref("include");
-    const activeFilterKey = ref("");
+    const filterType = ref('include');
+    const activeFilterKey = ref('');
     const ignoreCase = ref(false);
-    const showType = ref("log");
+    const showType = ref('log');
     const highlightList = ref([]);
-    const currentConfigID = ref(0);
     const localParams = ref<any>({});
     const rowShowParams = ref<any>({});
     const interval = ref({
@@ -138,7 +125,7 @@ export default defineComponent({
       },
       {
         immediate: true,
-      }
+      },
     );
 
     watch(
@@ -146,17 +133,17 @@ export default defineComponent({
       async () => {
         if (props.indexSetId && props.logParams) {
           deepClone(props.logParams);
-          await requestFields();
           requestRealTimeLog();
           handleTogglePoll(true);
         }
       },
       {
         immediate: true,
-      }
+      },
     );
 
     const initLogValues = () => {
+      logLoading.value = false;
       logList.value = [];
       reverseLogList.value = [];
       nextBegin.value = 0;
@@ -165,7 +152,6 @@ export default defineComponent({
     };
 
     const handleAfterLeave = () => {
-      console.log("handleAfterLeave");
       dataFilterRef.value.reset();
       logResultRef.value.reset();
       highlightList.value = [];
@@ -174,34 +160,34 @@ export default defineComponent({
         next: 0,
       };
       ignoreCase.value = false;
-      activeFilterKey.value = "";
-      showType.value = "log";
-      filterType.value = "include";
+      activeFilterKey.value = '';
+      showType.value = 'log';
+      filterType.value = 'include';
       initLogValues();
-      emit("close-dialog");
+      emit('close-dialog');
     };
 
     const handleFixCurrentRow = () => {
-      const listElement = contextLog.value.querySelector("#log-content");
-      const activeRow = listElement.querySelector(".line.log-init");
+      const listElement = contextLog.value.querySelector('#log-content');
+      const activeRow = listElement.querySelector('.line.log-init');
       const scrollTop = activeRow.offsetTop;
       contextLog.value.scrollTo({
         left: 0,
         top: scrollTop,
-        behavior: "smooth",
+        behavior: 'smooth',
       });
     };
 
     const handleKeyup = (event: any) => {
       if (event.keyCode === 27) {
-        emit("close-dialog");
+        emit('close-dialog');
       }
     };
 
     const deepClone = (obj: any) => {
       const string = JSON.stringify(obj)
-        .replace(/<mark>/g, "")
-        .replace(/<\/mark>/g, "");
+        .replace(/<mark>/g, '')
+        .replace(/<\/mark>/g, '');
       // 扁平化对象内的对象值
       const parseObj = JSON.parse(string);
       if (props.targetFields.length) {
@@ -209,34 +195,6 @@ export default defineComponent({
         rowShowParams.value = newObject;
       }
       localParams.value = parseObj;
-    };
-
-    const requestFields = async () => {
-      try {
-        isConfigLoading.value = true;
-        const res = await $http.request("retrieve/getLogTableHead", {
-          params: {
-            index_set_id: props.indexSetId,
-          },
-          query: {
-            scope: "search_context",
-            start_time: props.retrieveParams.start_time,
-            end_time: props.retrieveParams.end_time,
-            is_realtime: "True",
-          },
-        });
-        currentConfigID.value = res.data.config_id;
-        const { getFieldNames, getFieldName } = useFieldNameHook({ store });
-        displayFieldNames.value = res.data.display_fields.map((item) =>
-          getFieldName(item)
-        );
-        totalFieldNames.value = getFieldNames(res.data.fields);
-        return true;
-      } catch (err) {
-        console.error(err);
-      } finally {
-        isConfigLoading.value = false;
-      }
     };
 
     const easeScroll = (to = 0, duration = 300, target: any) => {
@@ -258,7 +216,7 @@ export default defineComponent({
 
       function computeCoordinate(time, start, to, duration) {
         // 计算滚动绝对纵坐标
-        let factor = Math.pow(time / duration, 2); // 系数为 1 就是 linear 效果
+        let factor = (time / duration) ** 2; // 系数为 1 就是 linear 效果
         if (factor > 1) factor = 1;
         return start + (to - start) * factor;
       }
@@ -270,32 +228,32 @@ export default defineComponent({
       }
       logLoading.value = true;
       $http
-        .request("retrieve/getRealTimeLog", {
+        .request('retrieve/getRealTimeLog', {
           params: {
             index_set_id: props.indexSetId,
           },
           data: Object.assign(
             {
-              order: "-",
+              order: '-',
               size: 50,
               zero: zero.value,
               dtEventTimeStamp: props.logParams.dtEventTimeStamp,
             },
-            localParams.value
+            localParams.value,
           ),
         })
-        .then((res) => {
+        .then(res => {
           // 通过gseindex 去掉出返回日志， 并加入现有日志
           const { list } = res.data;
-          if (list && list.length) {
+          if (list?.length) {
             // 超过最大长度时剔除部分日志
             if (logList.value.length > maxLength) {
               logList.value.splice(0, shiftLength);
-              contextLog.value!.scrollTo({ top: 0 });
+              contextLog.value.scrollTo({ top: 0 });
             }
 
             const logArr: any[] = [];
-            list.forEach((item) => {
+            list.forEach(item => {
               const { log } = item;
               logArr.push({ log });
             });
@@ -311,12 +269,7 @@ export default defineComponent({
                 if (zero.value) {
                   zero.value = false;
                 }
-                easeScroll(
-                  contextLog.value!.scrollHeight -
-                    contextLog.value!.offsetHeight,
-                  300,
-                  contextLog.value
-                );
+                easeScroll(contextLog.value.scrollHeight - contextLog.value.offsetHeight, 300, contextLog.value);
               });
             }
           }
@@ -334,7 +287,7 @@ export default defineComponent({
 
     const initLogScrollPosition = () => {
       // 确定第0条的位置
-      firstLogEl = document.querySelector(".dialog-log-markdown .log-init");
+      firstLogEl = document.querySelector('.dialog-log-markdown .log-init');
       // 没有数据
       if (!firstLogEl) return;
       const logContentHeight = firstLogEl.scrollHeight;
@@ -345,28 +298,26 @@ export default defineComponent({
       if (wrapperOffsetHeight <= logContentHeight) {
         contextLog.value.scrollTop = logOffsetTop;
       } else {
-        contextLog.value.scrollTop =
-          logOffsetTop -
-          Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
+        contextLog.value.scrollTop = logOffsetTop - Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
       }
       zero.value = false;
     };
 
     const handleFilter = (field: string, value: any) => {
       switch (field) {
-        case "filterKey":
+        case 'filterKey':
           filterLog(value);
           break;
-        case "showType":
+        case 'showType':
           showType.value = value;
           break;
-        case "ignoreCase":
+        case 'ignoreCase':
           ignoreCase.value = value;
           break;
-        case "interval":
+        case 'interval':
           interval.value = value;
           break;
-        case "filterType":
+        case 'filterType':
           filterType.value = value;
           break;
         default:
@@ -386,10 +337,9 @@ export default defineComponent({
       }, 300);
     };
 
-    const handleChooseRow = async (data: Record<string, string>) => {
+    const handleChooseRow = (data: Record<string, string>) => {
       initLogValues();
       deepClone(data);
-      await requestFields();
       requestRealTimeLog();
     };
 
@@ -402,32 +352,27 @@ export default defineComponent({
     };
 
     const handleCopy = () => {
-      const el = document.createElement("textarea");
-      const copyStrList = reverseLogList.value
-        .concat(logList.value)
-        .map((item) => item.log);
-      el.value = copyStrList.join("\n");
-      el.setAttribute("readonly", "");
-      el.style.position = "absolute";
-      el.style.left = "-9999px";
+      const el = document.createElement('textarea');
+      const copyStrList = reverseLogList.value.concat(logList.value).map(item => item.log);
+      el.value = copyStrList.join('\n');
+      el.setAttribute('readonly', '');
+      el.style.position = 'absolute';
+      el.style.left = '-9999px';
       document.body.appendChild(el);
-      const selected =
-        document.getSelection()!.rangeCount > 0
-          ? document.getSelection()!.getRangeAt(0)
-          : false;
+      const selected = document.getSelection().rangeCount > 0 ? document.getSelection().getRangeAt(0) : false;
       el.select();
-      document.execCommand("copy");
+      document.execCommand('copy');
       document.body.removeChild(el);
       if (selected) {
-        document.getSelection()!.removeAllRanges();
-        document.getSelection()!.addRange(selected);
+        document.getSelection().removeAllRanges();
+        document.getSelection().addRange(selected);
       }
-      messageSuccess(t("复制成功"));
+      messageSuccess(t('复制成功'));
     };
 
     const handleScroll = () => {
-      const { scrollTop, offsetHeight } = contextLog.value!;
-      const contentHeight = contextLog.value!.scrollHeight;
+      const { scrollTop, offsetHeight } = contextLog.value;
+      const contentHeight = contextLog.value.scrollHeight;
       if (scrollTop + offsetHeight >= contentHeight) {
         isScrollBottom = true;
       } else {
@@ -437,91 +382,93 @@ export default defineComponent({
 
     onMounted(() => {
       initLogScrollPosition();
-      contextLog.value!.addEventListener("scroll", handleScroll);
-      document.addEventListener("keyup", handleKeyup);
+      contextLog.value.addEventListener('scroll', handleScroll);
+      document.addEventListener('keyup', handleKeyup);
     });
 
     onBeforeUnmount(() => {
-      document.removeEventListener("keyup", handleKeyup);
-      contextLog.value!.removeEventListener("scroll", handleScroll);
+      document.removeEventListener('keyup', handleKeyup);
+      contextLog.value.removeEventListener('scroll', handleScroll);
       clearInterval(timer);
     });
 
     return () => (
       <bk-dialog
-        value={isShow.value}
+        ext-cls='log-realtime-dialog-main'
         draggable={false}
         esc-close={false}
-        render-directives="if"
-        ext-cls="log-context-dialog-main"
-        fullscreen
         mask-close={false}
+        render-directives='if'
         show-footer={false}
+        value={isShow.value}
+        fullscreen
         on-after-leave={handleAfterLeave}
       >
         <bk-resize-layout
-          placement="bottom"
-          initial-divide={500}
+          style='height: 100%'
           border={false}
-          style="height: 100%"
-          collapsible
+          initial-divide={250}
+          placement='bottom'
           auto-minimize
+          collapsible
         >
-          <div class="context-log-wrapper" slot="main">
+          <div
+            class='context-log-wrapper'
+            slot='main'
+          >
             <CommonHeader
-              targetFields={props.targetFields}
               paramsInfo={localParams.value}
+              targetFields={props.targetFields}
             />
-            <div class="context-main">
-              <div class="data-filter-wraper">
+            <div class='context-main'>
+              <div class='data-filter-wraper'>
                 <DataFilter
                   ref={dataFilterRef}
-                  display={displayFieldNames.value}
-                  total={totalFieldNames.value}
                   isRealTime
-                  on-handle-filter={handleFilter}
-                  on-fix-current-row={handleFixCurrentRow}
-                  on-toggle-poll={handleTogglePoll}
                   on-copy={handleCopy}
+                  on-fix-current-row={handleFixCurrentRow}
+                  on-handle-filter={handleFilter}
+                  on-toggle-poll={handleTogglePoll}
                 />
               </div>
               <div
                 ref={contextLog}
-                class="dialog-log-markdown"
+                class='dialog-log-markdown'
                 v-bkloading={{ isLoading: logLoading.value, opacity: 0.6 }}
               >
                 {logList.value.length > 0 ? (
                   <LogView
-                    isRealTimeLog
                     filter-key={activeFilterKey.value}
                     filter-type={filterType.value}
                     ignore-case={ignoreCase.value}
                     interval={interval.value}
-                    log-list={logList.value}
-                    reverse-log-list={reverseLogList.value}
-                    show-type={showType.value}
                     light-list={highlightList.value}
+                    log-list={logList.value}
                     max-length={maxLength}
+                    reverse-log-list={reverseLogList.value}
                     shift-length={shiftLength}
+                    show-type={showType.value}
+                    isRealTimeLog
                   />
-                ) : (
+                ) : !logLoading.value ? (
                   <bk-exception
-                    type="empty"
-                    scene="part"
-                    style="margin-top: 80px"
+                    style='margin-top: 80px'
+                    scene='part'
+                    type='empty'
                   >
-                    <span>{t("暂无数据")}</span>
+                    <span>{t('暂无数据')}</span>
                   </bk-exception>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
           {isShow.value && (
             <LogResult
-              slot="aside"
               ref={logResultRef}
+              slot='aside'
               indexSetId={props.indexSetId}
               logIndex={props.rowIndex}
+              retrieveParams={props.retrieveParams}
               on-choose-row={handleChooseRow}
             />
           )}
