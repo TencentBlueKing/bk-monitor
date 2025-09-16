@@ -1,0 +1,21 @@
+
+
+.template-details-relation-service-table {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+
+  .left-table {
+    flex: 1;
+    padding: 16px 24px;
+
+    .search-input {
+      margin-bottom: 12px;
+    }
+  }
+
+  .right-preview {
+    width: 240px;
+    border-left: 1px solid #DCDEE5;
+  }
+}
