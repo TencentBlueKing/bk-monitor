@@ -23,14 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, Emit, Prop } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { metaConfigInfo, queryBkDataToken, pushUrl } from 'monitor-api/modules/apm_meta';
+import { metaConfigInfo, pushUrl, queryBkDataToken } from 'monitor-api/modules/apm_meta';
+import { copyText } from 'monitor-common/utils/utils';
 
 import ServiceAddSideItem from './service-add-side-item';
-
-import { copyText } from 'monitor-common/utils/utils';
 
 import './service-add-side.scss';
 
@@ -39,9 +38,9 @@ type IEvent = {
 };
 
 interface IProps {
-  isShow: boolean;
-  applicationId: string | number;
+  applicationId: number | string;
   appName: string;
+  isShow: boolean;
 }
 
 @Component
@@ -49,7 +48,7 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
   // 显示接入服务抽屉
   @Prop({ default: false, type: Boolean }) isShow: boolean;
   // 查询上报token必须参数
-  @Prop({ default: '', type: [String, Number] }) applicationId: string | number;
+  @Prop({ default: '', type: [String, Number] }) applicationId: number | string;
   // Quick Start跳转携带参数
   @Prop({ default: '', type: String }) appName: string;
 
@@ -118,15 +117,14 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
       .then(res => res)
       .catch(() => '');
     if (data.setup) {
-      const { access_url = '', data_push_url_all = '' } = data.setup.guide_url;
-      this.morePushUrl = access_url; // 更多地址（上报地址）
-      this.reportGuideUrl = data_push_url_all; // 上报指引地址
+      const { access_url = '', data_push_url_all = '' } = data.setup?.guide_url || {};
+      this.morePushUrl = data_push_url_all; // 更多地址（上报地址）
+      this.reportGuideUrl = access_url; // 上报指引地址
     }
   }
 
   /**
-   * 
-   * @param urlStr 
+   * @param urlStr
    * 上报地址的更多地址/上报指引/Quick Start 跳转
    * Quick Start和apm列表首页的接入服务按钮跳转到的页面一致
    * apm列表首页的接入服务按钮有权限控制
@@ -135,14 +133,15 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
    * (2025-09-15)
    */
   handleGoToLink(urlStr: string) {
-    if (urlStr === 'Quick Start') {
+    if (urlStr === 'Quick') {
       // 首次新建应用成功后，服务相关的动态路由 可能未加载，故直接使用拼接方式跳转
-      const hash = `#/apm/service-add/${this.appName}`;
+      const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}service-add/${this.appName}`;
       const url = location.href.replace(location.hash, hash);
+      console.log('url', url);
       window.open(url, '_blank');
       return;
     }
-    window.open(urlStr, '_blank');
+    urlStr?.length && window.open(urlStr, '_blank');
   }
 
   // 复制上报token/上报地址
@@ -177,8 +176,8 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
           slot='content'
         >
           <ServiceAddSideItem
-            title={this.$t('上报token') as string}
             disabledStyle={true}
+            title={this.$t('上报token') as string}
             onCopy={() => this.handleCopy(this.token)}
           >
             {this.token}
@@ -189,13 +188,13 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
           >
             <bk-select
               key='select'
-              clearable={false}
               v-model={this.pushUrlVal}
+              clearable={false}
             >
               {this.pushUrlList.map(item => (
                 <bk-option
-                  key={item.id}
                   id={item.id}
+                  key={item.id}
                   name={item.name}
                 />
               ))}
@@ -213,12 +212,12 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
               class='service-add-side__block'
               onClick={() => this.handleGoToLink(this.reportGuideUrl)}
             >
-              <i class='icon-monitor icon-mingxi' />
+              <i class='icon-monitor icon-mc-detail' />
               {this.$t('上报指引')}
             </div>
             <div
               class='service-add-side__block'
-              onClick={() => this.handleGoToLink('Quick Start')}
+              onClick={() => this.handleGoToLink('Quick')}
             >
               <i class='icon-monitor icon-auto-decode' />
               Quick Start
