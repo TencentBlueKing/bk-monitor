@@ -342,12 +342,13 @@ export default class ApmServiceList extends tsc<
     const filterDataPart1 = JSON.parse(JSON.stringify(this.filterList));
     this.filterList = [...filterDataPart1, ...filterDataPart2].map(item => {
       let newData = item.data;
-      if (item.id === 'category') {
-        newData = item.data.map(dataItem => ({
-          ...dataItem,
-          icon: NODE_TYPE_ICON[dataItem.id],
-        }));
-      }
+      // if (item.id === 'category') {
+      newData = item.data.map(dataItem => ({
+        ...dataItem,
+        icon: NODE_TYPE_ICON[dataItem.id] ?? '',
+        cssIcon: item.id === 'have_data' ? `have_data-${dataItem.id}` : undefined,
+      }));
+      // }
       return {
         ...item,
         data: newData,
@@ -564,14 +565,16 @@ export default class ApmServiceList extends tsc<
                 }}
               >
                 <bk-button
-                  class={['mr-8', { disabled: !this.authority }]}
+                  class={['header-btn', { disabled: !this.authority }]}
                   v-authority={{ active: !this.authority }}
                   disabled={this.isConnecting}
+                  text
                   theme='primary'
                   onClick={() =>
                     this.authority ? this.handleGotoAppOverview() : this.handleShowAuthorityDetail(this.authorityDetail)
                   }
                 >
+                  <i class='icon-monitor icon-shezhi1' />
                   {this.$t('应用详情')}
                 </bk-button>
               </div>
@@ -582,13 +585,15 @@ export default class ApmServiceList extends tsc<
                 }}
               >
                 <bk-button
-                  class={[{ disabled: !this.authority }]}
+                  class={['header-btn', { disabled: !this.authority }]}
                   v-authority={{ active: !this.authority }}
                   disabled={this.isConnecting}
+                  text
                   onClick={() =>
                     this.authority ? this.handleGoToAppConfig() : this.handleShowAuthorityDetail(this.authorityDetail)
                   }
                 >
+                  <i class='icon-monitor icon-chakan' />
                   {this.$t('应用配置')}
                 </bk-button>
               </div>
@@ -611,6 +616,7 @@ export default class ApmServiceList extends tsc<
               slot='aside'
             >
               <FilterPanel
+                class='filter-panel-apm'
                 checkedData={this.checkedFilter}
                 data={this.filterList}
                 defaultActiveName={this.defaultActiveName}
@@ -621,18 +627,18 @@ export default class ApmServiceList extends tsc<
                 <div
                   class='filter-panel-header'
                   slot='header'
+                  onClick={this.handleHidePanel}
                 >
-                  <span class='title'>{this.$t('筛选')}</span>
                   <span
                     class='folding'
-                    onClick={this.handleHidePanel}
                   >
-                    <i class='icon-monitor icon-double-up' />
+                    <i class='icon-monitor icon-gongneng-shouqi' />
                   </span>
+                  <span class='title'>{this.$t('筛选')}</span>
                 </div>
               </FilterPanel>
             </div>
-            <div class='main-left-table'>
+            <div class={['main-left-table', {'filter-panel-hide': !this.showFilterPanel}]}>
               <div class='app-list-content'>
                 <div class='app-list-content-top'>
                   {this.filterLoading || !this.appData ? (
@@ -642,16 +648,20 @@ export default class ApmServiceList extends tsc<
                     />
                   ) : (
                     <div class='app-list-bts'>
-                      <i
-                        class='icon-monitor icon-double-up'
+                      <span
                         v-show={!this.showFilterPanel}
+                        class='bts-filter-wrap'
                         onClick={this.handleHidePanel}
-                      />
+                      >
+                        <i class='icon-monitor icon-gongneng-shouqi bts-filter-hd' />
+                        <span class='bts-filter-bd'>{this.$t('筛选')}</span>
+                      </span>
+                      
                       <bk-button
                         class={[{ disabled: !this.authority }]}
                         v-authority={{ active: !this.authority }}
                         theme='primary'
-                        outline
+                        ext-cls='app-add-btn-style'
                         onClick={() =>
                           this.authority
                             ? this.handleGotoServiceApply()
@@ -689,13 +699,14 @@ export default class ApmServiceList extends tsc<
                           {!this.loading ? (
                             <CommonTable
                               style={{ display: !this.loading ? 'block' : 'none' }}
+                              class='apm-index-table'
                               checkable={false}
                               columns={this.tableColumns}
                               data={this.tableData}
                               hasColumnSetting={false}
-                              outerBorder={true}
                               pagination={this.pagination}
                               scrollLoading={false}
+                              isApmNewStyle={true}
                               onCollect={val => this.handleCollect(val)}
                               onGoToServiceByLink={val => this.handleGotoService(val)}
                               onLimitChange={this.handlePageLimitChange}

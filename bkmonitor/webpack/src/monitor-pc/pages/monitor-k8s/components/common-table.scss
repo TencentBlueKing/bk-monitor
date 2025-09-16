@@ -613,6 +613,21 @@
     &.icon-zhongzhi {
       font-size: 14px;
     }
+
+    &.icon-apm-status-no_data {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 1px solid #ea3636;
+      background-color: #ffdddd;
+    }
+
+    &.icon-apm-status-disabled {
+      @extend .icon-apm-status-no_data;
+      border-color: #c4c6cc;
+      background-color: #f0f1f5;
+    }
   }
 
   .loading-svg {

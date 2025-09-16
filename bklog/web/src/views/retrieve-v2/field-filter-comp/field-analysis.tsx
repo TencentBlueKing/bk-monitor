@@ -411,13 +411,17 @@ export default class FieldAnalysis extends Vue {
       }
     });
   }
-
   setFormatStr(start: number, end: number) {
+    const FIVE_MINUTES = 5 * 60 * 1000;
+
     if (!start || !end) return;
 
-    const differenceInHours = Math.abs(start - end) / 3600000;
+    const diffMs = Math.abs(start - end);
+    const differenceInHours = diffMs / 3600000;
 
-    if (differenceInHours <= 24) {
+    if (diffMs <= FIVE_MINUTES) {
+      this.formatStr = 'HH:mm:ss';
+    } else if (differenceInHours <= 24) {
       this.formatStr = 'HH:mm';
     } else if (differenceInHours > 24 && differenceInHours <= 168) {
       this.formatStr = 'MM-DD HH:mm';
@@ -720,7 +724,7 @@ export default class FieldAnalysis extends Vue {
                         key={index}
                         class='common-legend-item'
                         title={legend.name}
-                        onClick={e => this.handleLegendEvent(e, 'click', legend)}
+                        on-Click={e => this.handleLegendEvent(e, 'click', legend)}
                       >
                         <span
                           style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
@@ -743,15 +747,15 @@ export default class FieldAnalysis extends Vue {
                           'bk-select-angle bk-icon icon-angle-up-fill last-page-up': true,
                           disabled: currentPageNum === 1,
                         }}
-                        onClick={() => (this.currentPageNum = Math.max(1, currentPageNum - 1))}
-                      ></i>
+                        on-Click={() => (this.currentPageNum = Math.max(1, currentPageNum - 1))}
+                      />
                       <i
                         class={{
                           'bk-select-angle bk-icon icon-angle-up-fill': true,
                           disabled: currentPageNum === legendMaxPageNum,
                         }}
-                        onClick={() => (this.currentPageNum = Math.min(legendMaxPageNum, currentPageNum + 1))}
-                      ></i>
+                        on-Click={() => (this.currentPageNum = Math.min(legendMaxPageNum, currentPageNum + 1))}
+                      />
                     </div>
                   )}
                 </div>
@@ -765,7 +769,7 @@ export default class FieldAnalysis extends Vue {
                   {!chartLoading && fieldData.distinct_count > 5 && (
                     <span
                       class='more-distinct'
-                      onClick={() => this.showMore(true)}
+                      on-Click={() => this.showMore(true)}
                     >
                       {window.mainComponent.$t('查看全部')}
                     </span>
@@ -773,7 +777,7 @@ export default class FieldAnalysis extends Vue {
                   <span
                     class='fn-btn bk-icon icon-download'
                     v-bk-tooltips={window.mainComponent.$t('下载')}
-                    onClick={this.downloadFieldStatistics}
+                    on-Click={this.downloadFieldStatistics}
                   ></span>
                   {/* <span
                     class='fn-btn bk-icon icon-apps'

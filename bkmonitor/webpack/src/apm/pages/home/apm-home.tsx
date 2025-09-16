@@ -42,6 +42,7 @@ import authorityMixinCreate from '../../../apm/mixins/authorityMixin';
 import authorityStore from '../../store/modules/authority';
 import * as authorityMap from '../home/authority-map';
 import AddAppSide from './add-app/add-app-side';
+import ServiceAddSide from '../service/service-add-side';
 import AppHomeList from './components/apm-home-list';
 import ApmHomeResizeLayout from './components/apm-home-resize-layout';
 import NavBar from './nav-bar';
@@ -85,9 +86,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   refreshInstance = null;
   appName = '';
 
+  // 用于查询接入服务抽屉上报token
+  appId = '';
+
   showFilterPanel = true;
 
   isShowAppAdd = false;
+
+  // 展示接入服务抽屉
+  isShowServiceAdd = false;
 
   searchCondition = '';
 
@@ -271,6 +278,19 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
     this.isShowAppAdd = v;
   }
 
+  // 新建应用成功
+  handleAddAppSuccess([ appName, appId ]) {
+    this.appName = appName;
+    this.appId = appId;
+    this.getAppList();
+    this.isShowServiceAdd = true;
+  }
+
+  // 接入服务抽屉显隐
+  handleServiceAddSideShow(v) {
+    this.isShowServiceAdd = v;
+  }
+
   /** 设置打开帮助文档 */
   handleSettingsMenuSelect(option) {
     if (option.id === 'help-docs') {
@@ -293,11 +313,38 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   }
 
   /**
+   * @description 展示hover详情按钮的条件
+   * @param row
+   * @returns {boolean}
+   */
+  hoverDetailShow(row: IAppListItem) {
+    // 接入中
+    if (!row.metric_result_table_id || !row.trace_result_table_id) return false;
+    return true;
+  }
+
+
+  /**
+   * @description 应用列表内的详情点击
+   * @param row
+   */
+  handleAppDetail(row: IAppListItem, e: Event) {
+    e.stopPropagation();
+    // 权限判断
+    if (!row?.permission[authorityMap.VIEW_AUTH]) {
+      this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH)
+      return;
+    }
+    this.handleConfig('appDetails', row);
+  }
+
+  /**
    * @description 更多选项
    * @param id
    * @param row
    */
   handleConfig(id: string, row: IAppListItem) {
+    // 2025-09-09 popover内的应用详情已被调整为列表item在hover时直接展示
     if (id === 'appDetails') {
       this.$router.push({
         name: 'application',
@@ -414,10 +461,13 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
               <AddAppSide
                 isShow={this.isShowAppAdd}
                 onShowChange={v => this.handleToggleAppAdd(v)}
-                onSuccess={v => {
-                  this.appName = v;
-                  this.getAppList();
-                }}
+                onSuccess={v => this.handleAddAppSuccess(v)}
+              />
+              <ServiceAddSide
+                isShow={this.isShowServiceAdd}
+                applicationId={this.appId}
+                appName={this.appName}
+                onSidesliderShow={v => this.handleServiceAddSideShow(v)}
               />
             </div>
             {this.loading ? (
@@ -468,6 +518,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                     {item.metric_result_table_id || item.trace_result_table_id ? null : (
                       <bk-tag theme='info'>{this.$t('接入中')}...</bk-tag>
                     )}
+                    {this.hoverDetailShow(item) && (
+                      <div
+                      v-authority={{ active: !item?.permission[authorityMap.VIEW_AUTH] }}
+                      class='item-hover-detail'
+                      onClick={(e) => this.handleAppDetail(item, e)}
+                    >
+                      {this.$t('详情')}
+                    </div>
+                    ) }
                     <div class='item-content'>
                       <span class='item-service-count'>{item?.service_count}</span>
                       <OperateOptions
