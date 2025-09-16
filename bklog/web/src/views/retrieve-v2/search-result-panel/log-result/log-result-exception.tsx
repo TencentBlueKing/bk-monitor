@@ -1,14 +1,41 @@
-import { computed, defineComponent, PropType } from 'vue';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { computed, defineComponent, type PropType } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
+import { bkMessage } from 'bk-magic-vue';
+
 import useStore from '../../../../hooks/use-store';
 import RetrieveHelper from '../../../retrieve-helper';
-import { bkMessage } from 'bk-magic-vue';
 
 export default defineComponent({
   props: {
     type: {
       type: String as PropType<
-        'search-empty' | 'empty' | 'error' | 'index-set-not-found' | 'index-set-field-not-found' | 'loading' | 'hidden'
+        'empty' | 'error' | 'hidden' | 'index-set-field-not-found' | 'index-set-not-found' | 'loading' | 'search-empty'
       >,
       default: 'hidden',
     },
@@ -21,13 +48,13 @@ export default defineComponent({
     const { $t } = useLocale();
     const store = useStore();
     const isFieldSettingShow = computed(() => {
-      return !store.getters.isUnionSearch && !isExternal.value;
+      return !(store.getters.isUnionSearch || isExternal.value);
     });
 
     const hasCollectorConfigId = computed(() => {
       const indexSetList = store.state.retrieve.indexSetList;
       const indexSetId = store.state.indexId;
-      const currentIndexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+      const currentIndexSet = indexSetList.find(item => item.index_set_id === indexSetId);
       return currentIndexSet?.collector_config_id;
     });
 
@@ -104,11 +131,11 @@ export default defineComponent({
                 <h3>3.{$t('一键反馈')}</h3>
                 <div>
                   {$t('若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。')}
-                  <br></br>
+                  <br />
                   {/* <span class='segment-span-tag'>问题反馈</span> */}
                   <a
                     class='segment-span-tag'
-                    href={`wxwork://message/?username=BK助手`}
+                    href={'wxwork://message/?username=BK助手'}
                   >
                     {$t('问题反馈')}
                   </a>
@@ -153,7 +180,7 @@ export default defineComponent({
           >
             <div style='text-align: left; color: #313238;'>
               <div style='font-size: 14px; padding: 8px 0;'>
-                {`索引集字段列表查询失败，刷新页面尝试重新查询 `}
+                {'索引集字段列表查询失败，刷新页面尝试重新查询 '}
                 <span
                   style={{ cursor: 'pointer', color: '#3a84ff' }}
                   onClick={() => window.location.reload()}

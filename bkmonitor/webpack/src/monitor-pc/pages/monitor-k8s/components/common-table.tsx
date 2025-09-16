@@ -183,9 +183,6 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   @Prop({ type: Boolean, default: false }) highlightCurrentRow: boolean;
   // 动态计算表格列宽度
   @Prop({ type: Function, default: undefined }) calcColumnWidth: (maxWidth: number) => number;
-  // apm首页新版样式
-  @Prop({ type: Boolean, default: false }) isApmNewStyle: boolean;
-  
 
   // 是否在分屏展示
   @InjectReactive('isSplitPanel') isSplitPanel: boolean;
@@ -623,16 +620,6 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         text: this.$t('未开启'),
       },
     };
-    // apm首页新状态样式，normal维持原状，无数据和未开启通过css画出
-    if (this.isApmNewStyle) {
-      for (const key of Object.keys(icons)) {
-        // normal维持原状，仅修改无数据和未开启
-        if (key !== 'normal') {
-          icons[key].icon = `icon-apm-status-${key}`;
-        }
-        
-      }
-    }
     return value?.icon ? (
       <i
         class={`icon-monitor ${icons[value.icon].icon || ''} data_status_column`}
@@ -681,7 +668,9 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   @Emit('columnSettingChange')
   handleSettingChange({ size, fields }) {
     this.tableSize = size;
-    this.tableColumns.forEach(item => (item.checked = fields.some(field => field.id === item.id)));
+    for (const item of this.tableColumns) {
+      item.checked = fields.some(field => field.id === item.id);
+    }
     const colList = this.tableColumns.filter(item => item.checked || item.disabled).map(item => item.id);
     this.storeKey && this.storage.set(this.storeKey, colList);
     this.tableKey = random(10);
@@ -698,13 +687,13 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   }
   @Emit('filterChange')
   handleFilterChange(filters: IFilterItem) {
-    Object.keys(filters).forEach(item => {
+    for (const item of Object.keys(filters)) {
       if (filters[item].length) {
         this.filterDict[item] = filters[item];
       } else if (this.filterDict[item]) {
         delete this.filterDict[item];
       }
-    });
+    }
     return this.filterDict;
   }
 

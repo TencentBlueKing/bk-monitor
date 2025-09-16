@@ -185,16 +185,7 @@ export default class AddAppForm extends tsc<IProps> {
         theme: 'success',
         message: this.$t('应用创建成功，你可以继续接入服务。'),
       });
-      this.$emit('success', [params.app_name as string, res.application_id || '']);
-      // if (isAccess) {
-      //   // 跳转到接入服务页面
-      //   this.$router.push({
-      //     name: 'service-add',
-      //     params: {
-      //       appName: params.app_name as string,
-      //     },
-      //   });
-      // }
+      this.$emit('success', params.app_name as string);
       this.initForm();
     }
     this.saveLoading = false;
@@ -261,7 +252,7 @@ export default class AddAppForm extends tsc<IProps> {
               key={item.id}
               class='report-type-wrap'
             >
-              <div class={['report-left-content', {'is-disabled': !this.formData[item.id]}]}>
+              <div class={['report-left-content', { 'is-disabled': !this.formData[item.id] }]}>
                 <i class={['icon-monitor', item.icon]} />
               </div>
               <div class='report-middle-content'>

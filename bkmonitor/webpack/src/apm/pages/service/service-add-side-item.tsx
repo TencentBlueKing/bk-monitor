@@ -33,9 +33,9 @@ type IEvent = {
 };
 
 interface IProps {
-  title: string;
-  disabledStyle?: boolean;
   copyValue?: string;
+  disabledStyle?: boolean;
+  title: string;
 }
 
 @Component
@@ -58,7 +58,10 @@ export default class ServiceAddSideItem extends tsc<IProps, IEvent> {
             class='service-add-side__item-bd'
             onClick={this.handleCopy}
           >
-            <i class='icon-monitor icon-mc-copy' />
+            <i
+              class='icon-monitor icon-mc-copy'
+              v-bk-tooltips={{ content: this.$t('复制') }}
+            />
           </div>
         </div>
         {this.$slots.btm && <div class='service-add-side__item-btm'>{this.$slots.btm}</div>}

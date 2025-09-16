@@ -328,7 +328,7 @@ export default class FieldAnalysis extends Vue {
     }
 
     this.height = CHART_HEIGHTS.LINE_BASE;
-    const series = [];
+    const series: any[] = [];
     const echarts = this.echarts || (await this.loadEChartsLibrary());
 
     seriesData.forEach((el: any, index: number) => {
@@ -362,7 +362,7 @@ export default class FieldAnalysis extends Vue {
     const maxTimestamp = Math.max(...allTimestamps);
 
     const {
-      xAxis: { minInterval, splitNumber, ...resetxAxis },
+      xAxis: { minInterval: _minInterval, splitNumber: _splitNumber, ...resetxAxis },
     } = lineOrBarOptions;
     this.lineOptions = { ...lineOrBarOptions };
 
@@ -414,7 +414,9 @@ export default class FieldAnalysis extends Vue {
   setFormatStr(start: number, end: number) {
     const FIVE_MINUTES = 5 * 60 * 1000;
 
-    if (!start || !end) return;
+    if (!(start && end)) {
+      return;
+    }
 
     const diffMs = Math.abs(start - end);
     const differenceInHours = diffMs / 3600000;
@@ -432,7 +434,9 @@ export default class FieldAnalysis extends Vue {
   }
 
   async initFieldChart() {
-    if (this.isShowEmpty || !this.chartRef) return;
+    if (this.isShowEmpty || !this.chartRef) {
+      return;
+    }
 
     try {
       // 清理旧图表实例
@@ -503,7 +507,7 @@ export default class FieldAnalysis extends Vue {
   }
   /** 设置定位 */
 
-  handleSetPosition(pos: [number, number], params: any, dom: any, rect: any, size: any) {
+  handleSetPosition(pos: [number, number], _params: any, _dom: any, _rect: any, size: any) {
     if (!this.chartRect) {
       this.chartRect = this.chartRef.getBoundingClientRect();
     }
@@ -523,14 +527,18 @@ export default class FieldAnalysis extends Vue {
   }
   /** 点击分组 */
   handleLegendEvent(e: MouseEvent, actionType: LegendActionType, item: any) {
-    if (this.legendData.length < 2) return;
+    if (this.legendData.length < 2) {
+      return;
+    }
 
     const eventType = e.shiftKey && actionType === 'click' ? 'shift-click' : actionType;
 
     const newLegendData = [...this.legendData];
     const itemIndex = newLegendData.findIndex(legend => legend.name === item.name);
 
-    if (itemIndex === -1) return;
+    if (itemIndex === -1) {
+      return;
+    }
 
     if (eventType === 'shift-click') {
       newLegendData[itemIndex].show = !newLegendData[itemIndex].show;
@@ -594,6 +602,7 @@ export default class FieldAnalysis extends Vue {
     this.$emit('showMore', this.fieldData, !!show);
   }
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   render() {
     const {
       isPillarChart,
@@ -689,7 +698,7 @@ export default class FieldAnalysis extends Vue {
                     <i
                       class='bk-icon icon-exclamation-circle'
                       v-bk-tooltips={{ content: emptyTipsStr }}
-                    ></i>
+                    />
                   )}
                 </div>
               </bk-exception>
@@ -710,7 +719,7 @@ export default class FieldAnalysis extends Vue {
                 />
               )}
 
-              {!chartLoading && !isPillarChart && (
+              {!(chartLoading || isPillarChart) && (
                 <div
                   style={{ height: `${CHART_HEIGHTS.LEGEND_BOX}px` }}
                   class='legend-box'
@@ -721,7 +730,7 @@ export default class FieldAnalysis extends Vue {
                   >
                     {legendData.map((legend, index) => (
                       <div
-                        key={index}
+                        key={`${index}-${legend}`}
                         class='common-legend-item'
                         title={legend.name}
                         on-Click={e => this.handleLegendEvent(e, 'click', legend)}
@@ -729,7 +738,7 @@ export default class FieldAnalysis extends Vue {
                         <span
                           style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
                           class='legend-icon'
-                        ></span>
+                        />
                         <div
                           style={{ color: legend.show ? '#63656e' : '#ccc' }}
                           class='legend-name title-overflow'
