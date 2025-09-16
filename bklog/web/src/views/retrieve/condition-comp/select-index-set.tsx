@@ -222,7 +222,7 @@ export default class QueryStatement extends tsc<object> {
       if (this.filterTagID) {
         const isFilterTagItem = tagIDList.includes(this.filterTagID);
         if (!isFilterTagItem) {
-          break;
+          continue;
         }
       }
 
@@ -266,7 +266,7 @@ export default class QueryStatement extends tsc<object> {
         // 无数据 不加入标签
         if (tag.tag_id === 4) {
           item.isNotVal = true;
-          break;
+          continue;
         }
         if (!labelMap.has(tag.tag_id)) {
           labelMap.set(tag.tag_id, tag);

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,7 +27,8 @@ import { Component, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 
 import CreateSubscriptionForm from './create-subscription-form';
-import { TestSendingTarget } from './types';
+
+import type { TestSendingTarget } from './types';
 
 import './quick-create-subscription.scss';
 
@@ -71,7 +71,9 @@ class QuickCreateSubscription extends tsc<IProps> {
 
   async testSending(to: TestSendingTarget) {
     const tempFormData = await (this.$refs.refOfCreateSubscriptionForm as any)?.validateAllForms?.();
-    if (!tempFormData) return;
+    if (!tempFormData) {
+      return;
+    }
     const formData = structuredClone(tempFormData);
     if (to === 'self') {
       const selfChannels = [
@@ -125,7 +127,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                 mode='create'
                 // 这里填 订阅场景、索引集 等已知参数
                 scenario={this.scenario}
-              ></create-subscription-form>
+              />
             </div>
             <div class='footer-bar'>
               <bk-button
@@ -146,45 +148,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                 {this.$t('测试发送')}
               </bk-button>
               {/* 20240305 若默认测试发送只给自己，那么没必要再出一次气泡窗选择了 */}
-              {false && (
-                <bk-dropdown-menu
-                  placement='top-start'
-                  trigger='click'
-                >
-                  <bk-button
-                    style='width: 88px; margin-right: 8px;'
-                    slot='dropdown-trigger'
-                    loading={this.isSending}
-                    theme='primary'
-                    outline
-                  >
-                    {this.$t('测试发送')}
-                  </bk-button>
-
-                  <ul
-                    class='bk-dropdown-list'
-                    slot='dropdown-content'
-                  >
-                    <li>
-                      <a
-                        href='javascript:;'
-                        onClick={() => this.testSending('self')}
-                      >
-                        {this.$t('给自己')}
-                      </a>
-                    </li>
-                    {/* 2024.1.12 由于该按钮需要权限判断，但不好实现，这里直接去掉该功能。这里先保留 */}
-                    {/* <li>
-                    <a
-                      href='javascript:;'
-                      onClick={() => this.testSending('all')}
-                    >
-                      {this.$t('给全员')}
-                    </a>
-                  </li> */}
-                  </ul>
-                </bk-dropdown-menu>
-              )}
+              {false}
               <bk-button
                 style='width: 88px;'
                 onClick={() => this.$emit('change', false)}
@@ -208,7 +172,7 @@ class QuickCreateSubscription extends tsc<IProps> {
             <i
               style='color: rgb(45, 202, 86);'
               class='bk-icon icon-check-circle-shape'
-            ></i>
+            />
             <span style='margin-left: 10px;'>{this.$t('发送测试邮件成功')}</span>
           </div>
           <div class='test-send-success-dialog-content'>{this.$t('邮件任务已生成, 请一分钟后到邮箱查看')}</div>
