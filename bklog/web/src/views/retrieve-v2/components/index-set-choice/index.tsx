@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, Ref, ref } from 'vue';
-
-import { Props } from 'tippy.js';
+import { computed, defineComponent, onBeforeUnmount, onMounted, type PropType, type Ref, ref } from 'vue';
 
 import { getOsCommandLabel } from '../../../../common/util';
 import BklogPopover from '../../../../components/bklog-popover';
 import EllipsisTagList from '../../../../components/ellipsis-tag-list';
 import Content from './content';
-import { IndexSetTabList, IndexSetType } from './use-choice';
+
+import type { IndexSetTabList, IndexSetType } from './use-choice';
+import type { Props } from 'tippy.js';
 
 import './index.scss';
 
@@ -100,7 +100,7 @@ export default defineComponent({
     const shortcutKey = `${getOsCommandLabel()}+O`;
     const refContentObject: Ref<any | null> = ref(null);
 
-    let unionListValue = [];
+    let unionListValue: any[] = [];
 
     const tippyOptions: Props = {
       hideOnClick: false,
@@ -225,7 +225,7 @@ export default defineComponent({
                   on-auth-request={handleAuthRequest}
                   on-type-change={handleTabChange}
                   on-value-change={handleValueChange}
-                ></Content>
+                />
               ),
             },
           }}
@@ -245,8 +245,8 @@ export default defineComponent({
                 ),
               },
             }}
-          ></EllipsisTagList>
-          <span class='bklog-icon bklog-arrow-down-filled-2'></span>
+          />
+          <span class='bklog-icon bklog-arrow-down-filled-2' />
         </BklogPopover>
       );
     };

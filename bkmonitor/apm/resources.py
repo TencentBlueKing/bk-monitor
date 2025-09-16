@@ -409,6 +409,10 @@ class ReleaseAppConfigResource(Resource):
 
         db_slow_command_config = DbSlowCommandConfigSerializer(label="慢命令配置", default={})
 
+        code_relabel_config = serializers.ListField(
+            label="返回码重定义配置", child=serializers.DictField(), required=False, default=list
+        )
+
         qps = serializers.IntegerField(label="qps", min_value=1, required=False)
 
     def perform_request(self, validated_request_data):
@@ -424,6 +428,14 @@ class ReleaseAppConfigResource(Resource):
         self.set_config(bk_biz_id, app_name, app_name, ApdexConfig.APP_LEVEL, validated_request_data)
         self.set_custom_service_config(bk_biz_id, app_name, validated_request_data.get("custom_service_config"))
         self.set_qps_config(bk_biz_id, app_name, app_name, ApdexConfig.APP_LEVEL, validated_request_data.get("qps"))
+        # 写入 code_relabel 列表
+        self.set_code_relabel_config(
+            bk_biz_id,
+            app_name,
+            app_name,
+            ApdexConfig.APP_LEVEL,
+            validated_request_data.get("code_relabel_config", []),
+        )
 
         for service_config in service_configs:
             self.set_config(bk_biz_id, app_name, app_name, ApdexConfig.SERVICE_LEVEL, service_config)
@@ -520,6 +532,14 @@ class ReleaseAppConfigResource(Resource):
         if not db_slow_command_config:
             return
         type_value_config = {"type": ConfigTypes.DB_SLOW_COMMAND_CONFIG, "value": json.dumps(db_slow_command_config)}
+        NormalTypeValueConfig.refresh_config(
+            bk_biz_id, app_name, config_level, config_key, [type_value_config], need_delete_config=False
+        )
+
+    def set_code_relabel_config(self, bk_biz_id, app_name, config_key, config_level, code_relabel_list):
+        if not code_relabel_list:
+            return
+        type_value_config = {"type": ConfigTypes.CODE_RELABEL_CONFIG, "value": json.dumps(code_relabel_list)}
         NormalTypeValueConfig.refresh_config(
             bk_biz_id, app_name, config_level, config_key, [type_value_config], need_delete_config=False
         )

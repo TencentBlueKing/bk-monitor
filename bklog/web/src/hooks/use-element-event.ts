@@ -1,8 +1,10 @@
+import { onBeforeUnmount, onMounted } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,40 +25,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export default () => {
+  const events = [];
+  const addElementEvent = (element, eventName, callback) => {
+    events.push({ element, eventName, callback });
+  };
 
-/**
- * 获取 url 上的 hash 值
- * @param key 参数名
- * @returns 参数值
- */
-export const getUrlHashValue = (key: string) => {
-  const hashValue = window.location.hash.split('?')?.[1] || '';
-  if (!hashValue) {
-    return '';
-  }
-  const hashValueObj = new URLSearchParams(hashValue);
-  return hashValueObj.get(key);
-};
+  onMounted(() => {
+    events.forEach(({ element, eventName, callback }) => {
+      element.addEventListener(eventName, callback);
+    });
+  });
 
-/**
- * 将 URLSearchParams 转换为对象
- * @param params URLSearchParams
- * @returns 对象
- */
-export const paramsToObject = (params: URLSearchParams): Record<string, string | string[]> => {
-  const obj: Record<string, string | string[]> = {};
+  onBeforeUnmount(() => {
+    events.forEach(({ element, eventName, callback }) => {
+      element.removeEventListener(eventName, callback);
+    });
+  });
 
-  for (const [key, value] of params.entries()) {
-    if (key in obj) {
-      if (Array.isArray(obj[key])) {
-        (obj[key] as string[]).push(value);
-      } else {
-        obj[key] = [obj[key] as string, value];
-      }
-    } else {
-      obj[key] = value;
-    }
-  }
-
-  return obj;
+  return {
+    addElementEvent,
+  };
 };

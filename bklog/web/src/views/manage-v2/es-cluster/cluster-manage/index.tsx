@@ -129,7 +129,7 @@ export default defineComponent({
     const sourceFilters = computed(() => {
       const { es_source_type: esSourceType } = globalsData.value;
       const target: TText[] = [];
-      for (const data of esSourceType) {
+      for (const data of esSourceType ?? []) {
         target.push({
           text: data.name,
           value: data.id,
