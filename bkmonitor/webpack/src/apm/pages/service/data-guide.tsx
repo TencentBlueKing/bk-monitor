@@ -183,7 +183,7 @@ export default class ServiceApply extends tsc<
       .then(list => {
         return (list || []).map(item => ({
           id: item.push_url,
-          name: `${this.$t('管控区域')} ${item.bk_cloud_id} ${item.push_url}`,
+          name: `${item.bk_cloud_alias || this.$t('管控区域')} ${item.push_url}`,
         }));
       })
       .catch(() => []);
