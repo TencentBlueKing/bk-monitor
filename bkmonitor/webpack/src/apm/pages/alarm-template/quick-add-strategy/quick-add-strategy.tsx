@@ -175,21 +175,30 @@ class QuickAddStrategy extends Mixins(
             />
             <JudgmentConditions userList={this.alarmGroupList} />
           </div>
+
           <div class='template-preview'>
-            <div class='template-preview-header'>
-              <span class='header-title'>{this.$t('预览')}</span>
-              <span class='split-line' />
-              <span class='header-desc'>{this.cursorItem?.name || '--'}</span>
-              <span
-                class='header-right-link'
-                onClick={this.handleShowTemplateDetails}
-              >
-                <span>{this.$t('模板详情')}</span>
-                <span class='icon-monitor icon-fenxiang' />
-              </span>
-            </div>
+            {!!this.cursorId && (
+              <div class='template-preview-header'>
+                <span class='header-title'>{this.$t('预览')}</span>
+                <span class='split-line' />
+                <span class='header-desc'>{this.cursorItem?.name || '--'}</span>
+                <span
+                  class='header-right-link'
+                  onClick={this.handleShowTemplateDetails}
+                >
+                  <span>{this.$t('模板详情')}</span>
+                  <span class='icon-monitor icon-fenxiang' />
+                </span>
+              </div>
+            )}
           </div>
           <TemplateDetails
+            params={{
+              app_name: this.params?.app_name || '',
+              service_name: this.params?.service_name,
+              strategy_template_ids: [this.cursorId],
+              ids: [this.cursorId],
+            }}
             show={this.templateDetails.show}
             onShowChange={v => {
               this.templateDetails.show = v;
