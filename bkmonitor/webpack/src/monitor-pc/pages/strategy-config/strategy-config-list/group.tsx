@@ -50,6 +50,7 @@ interface IGroupProps {
   data?: IGroupData[]; // 数据源
   defaultActiveName?: string[]; // 默认展开项
   theme?: themeType; // 主题
+  isApmNewStyle?: boolean; // 是否是apm新样式(更换：展开收起的三角icon、清空icon)
 }
 
 interface IGroupSlots {
@@ -73,6 +74,7 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
   @Prop({ type: String, default: '' }) readonly theme: themeType;
   @Prop({ type: Array, default: () => [] }) readonly defaultActiveName!: TActiveName;
   @Prop({ type: Function, default: undefined }) readonly customTitleSlot: titleSlotType;
+  @Prop({ type: Boolean, default: false }) readonly isApmNewStyle: boolean;
 
   activeName: TActiveName = [];
 
@@ -114,11 +116,11 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
     return (
       <div class='group-title filter'>
         <div class='title-left'>
-          <i class={['bk-icon icon-angle-right', { expand: this.activeName.includes(item.id) }]} />
+          <i class={[`${this.isApmNewStyle ? 'icon-monitor icon-mc-arrow-down' : 'bk-icon icon-angle-right'}`, { expand: this.activeName.includes(item.id) }]} />
           <span class='name'>{item.name}</span>
         </div>
         <i
-          class='icon-monitor icon-mc-clear'
+          class={['icon-monitor', `${this.isApmNewStyle ? 'icon-a-Clearqingkong' : 'icon-mc-clear'}`]}
           v-bk-tooltips={{ content: this.$t('清除已勾选') }}
           onClick={event => this.handleClearChecked(event, item)}
         />

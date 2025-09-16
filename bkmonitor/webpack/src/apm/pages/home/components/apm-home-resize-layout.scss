@@ -13,6 +13,7 @@
     flex: 1;
     height: 100%;
     overflow: hidden;
+    background-color: #fff;
   }
 
   .aside-wrap {
@@ -45,7 +46,7 @@
 
   .aside-content {
     height: 100%;
-    border-right: 1px solid #dcdee5;
+    // border-right: 1px solid #dcdee5;
     transition: width 0.3s;
 
     .aside-drop-wrap {
@@ -58,17 +59,17 @@
       cursor: col-resize;
       user-select: none;
 
-      &:hover {
-        background-image: linear-gradient(
-          270deg,
-          transparent,
-          transparent 2px,
-          rgb(58, 132, 255) 0px,
-          rgb(58, 132, 255) 4px,
-          transparent 0px,
-          transparent
-        );
-      }
+      // &:hover {
+      //   background-image: linear-gradient(
+      //     270deg,
+      //     transparent,
+      //     transparent 2px,
+      //     rgb(58, 132, 255) 0px,
+      //     rgb(58, 132, 255) 4px,
+      //     transparent 0px,
+      //     transparent
+      //   );
+      // }
 
       .drop-point {
         position: absolute;

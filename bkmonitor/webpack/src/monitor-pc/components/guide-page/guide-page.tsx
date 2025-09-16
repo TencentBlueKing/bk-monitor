@@ -31,6 +31,9 @@ import { getDocLink } from 'monitor-api/modules/commons';
 import type { IBtnAndLinkItem, ISPaceIntroduceData, SpaceIntroduceKeys } from '../../types/common/common';
 import type { Route } from 'vue-router';
 
+import AddAppSide from '../../../apm/pages/home/add-app/add-app-side';
+import ServiceAddSide from '../../../apm/pages/service/service-add-side'
+
 import './guide-page.scss';
 
 const SPACE_DEMO_NAME = 'DEMO';
@@ -47,6 +50,18 @@ export default class GuidePage extends tsc<IGuidePageProps> {
   @Prop({ required: false, type: Object }) guideData: ISPaceIntroduceData;
 
   navId: '' | SpaceIntroduceKeys = '';
+
+  // 展开新建应用抽屉
+  isShowAppAdd = false;
+
+  // 展开接入服务抽屉
+  isShowServiceAdd = false;
+
+  // 用于查询接入服务抽屉上报token
+  appId = '';
+  // 用于接入服务抽屉Quick Start跳转携带参数
+  appName = '';
+
   /** 业务id */
   get bizId() {
     return this.$store.getters.bizId;
@@ -99,12 +114,40 @@ export default class GuidePage extends tsc<IGuidePageProps> {
         subTitle: this.$t('该功能暂不可用'),
       });
     } else if (item.url.match(/^#\//)) {
+      // 新建apm改为抽屉方式
+      if (item.url.includes('apm/application/add')) {
+        this.handleToggleAppAdd(true);
+        return;
+      }
       location.href = location.href.replace(location.hash, item.url);
       // this.$router.push({ path: item.url.replace('#/', '') });
     } else if (item.url) {
       window.open(item.url, '_blank');
     }
   }
+
+  // 新建应用抽屉显示状态
+  handleToggleAppAdd(v: boolean) {
+    this.isShowAppAdd = v;
+  }
+
+  // 新建应用成功
+  handleAddAppSuccess([appName, appId]) {
+    this.appName = appName;
+    this.appId = appId;
+    // 打开接入服务抽屉
+    this.isShowServiceAdd = true;
+  }
+
+  // 接入服务抽屉显隐
+  handleServiceAddSideShow(v) {
+    this.isShowServiceAdd = v;
+    // 跳转apm首页
+    // this.$router.push({
+    //   name: 'home',
+    // });
+  }
+
   render() {
     if (!this.introduceData) return undefined;
     const { title = '', subTitle = '', introduce = [], buttons = [], links = [] } = this.introduceData?.data || {};
@@ -160,6 +203,17 @@ export default class GuidePage extends tsc<IGuidePageProps> {
             <div class={`guide-img-wrap img-${this.guideId ?? this.navId}`} />
           </div>
         </div>
+        <AddAppSide
+          isShow={this.isShowAppAdd}
+          onShowChange={v => this.handleToggleAppAdd(v)}
+          onSuccess={v => this.handleAddAppSuccess(v)}
+        />
+        <ServiceAddSide
+          isShow={this.isShowServiceAdd}
+          applicationId={this.appId}
+          appName={this.appName}
+          onSidesliderShow={v => this.handleServiceAddSideShow(v)}
+        />
       </div>
     );
   }
