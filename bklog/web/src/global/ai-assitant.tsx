@@ -103,9 +103,18 @@ export default defineComponent({
       return false;
     };
 
+    const sendMessage = msg => {
+      if (!isShow.value) {
+        aiBlueking.value?.handleShow();
+      }
+
+      aiBlueking.value?.handleSendMessage(msg);
+    };
+
     expose({
       open: showAiAssistant,
       close: hiddenAiAssistant,
+      sendMessage,
     });
 
     return () => (
