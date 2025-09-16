@@ -93,7 +93,7 @@ export default class FieldFilterComp extends tsc<object> {
     for (const fieldItem of indexHiddenFields) {
       if (/^[_]{1,2}/g.test(fieldItem.field_name)) {
         underlineFieldList.push(fieldItem);
-        break;
+        continue;
       }
       otherList.push(fieldItem);
     }
@@ -106,7 +106,7 @@ export default class FieldFilterComp extends tsc<object> {
     for (const item of this.hiddenFields) {
       if (item.field_type === '__virtual__' || item.is_built_in) {
         builtInHiddenFields.push(item);
-        break;
+        continue;
       }
       indexHiddenFields.push(item);
     }
