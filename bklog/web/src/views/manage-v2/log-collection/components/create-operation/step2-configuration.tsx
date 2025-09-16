@@ -268,7 +268,7 @@ export default defineComponent({
           <span class='label-title'>{t('采集范围')}</span>
           <bk-radio-group class='form-box'>
             <bk-radio class='mr-24'>{t('仅采集下发后的日志')}</bk-radio>
-            <bk-radio>{t('采集完整文件')}</bk-radio>
+            <bk-radio>{t('采集全量日志')}</bk-radio>
           </bk-radio-group>
         </div>
         <div class='label-form-box large-width'>

@@ -34,6 +34,7 @@ import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
 import { jsonStr, tableFieldData } from './detail';
+import { log } from './log';
 // // 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
 // const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
 
@@ -53,28 +54,28 @@ export default defineComponent({
     const cleaningModeList = [
       {
         label: t('JSON'),
-        value: 'json',
+        value: 'bk_log_json',
       },
       {
         label: t('分隔符'),
-        value: 'separator',
+        value: 'bk_log_delimiter',
       },
       {
         label: t('正则表达式'),
-        value: 'regex',
+        value: 'bk_log_regexp',
       },
       // {
       //   label: t('高级清洗'),
       //   value: 'advanced',
       // },
     ];
-    const cleaningMode = ref('json');
+    const cleaningMode = ref('bk_log_json');
     /** 根据清洗模式，渲染不同的内容 */
     const renderCleaningMode = () => {
-      if (cleaningMode.value === 'json') {
+      if (cleaningMode.value === 'bk_log_json') {
         return <bk-button class='clean-btn'>{t('清洗')}</bk-button>;
       }
-      if (cleaningMode.value === 'separator') {
+      if (cleaningMode.value === 'bk_log_delimiter') {
         return (
           <div class='separator-box select-group'>
             <div class='select-item'>
@@ -85,7 +86,7 @@ export default defineComponent({
           </div>
         );
       }
-      if (cleaningMode.value === 'regex') {
+      if (cleaningMode.value === 'bk_log_regexp') {
         return (
           <div class='regex-box-main'>
             <div class='title'>
@@ -221,7 +222,10 @@ export default defineComponent({
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('字段列表')}</span>
           <div class='form-box'>
-            <FieldList data={tableFieldData.fields} />
+            <FieldList
+              data={tableFieldData.fields}
+              selectEtlConfig={cleaningMode.value}
+            />
           </div>
         </div>
       </div>
@@ -322,7 +326,10 @@ export default defineComponent({
           <span class='status-txt'>{t('采集下发中...')}</span>
         </div>
         {cardRender(cardConfig)}
-        <CollectIssuedSlider isShow={showCollectIssuedSlider.value} />
+        <CollectIssuedSlider
+          data={log}
+          isShow={showCollectIssuedSlider.value}
+        />
         <ReportLogSlider
           isShow={showReportLogSlider.value}
           jsonText={jsonText.value}

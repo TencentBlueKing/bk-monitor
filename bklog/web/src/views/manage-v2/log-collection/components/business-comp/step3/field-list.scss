@@ -27,6 +27,20 @@
     top: -3px !important;
   }
   .fields-table-box {
+    .header-text {
+      display: flex;
+      align-items: center;
+      .header-text-link {
+        cursor: pointer;
+        color: #3a84ff;
+        margin-left: 8px;
+        font-size: 12px;
+        .link-icon {
+          font-size: 13px;
+          margin-right: 5px;
+        }
+      }
+    }
     .overflow-tips-field-name {
       display: flex;
       height: 100%;
@@ -41,6 +55,70 @@
       .ext-btn {
         font-size: 16px;
       }
+    }
+    .participle-form-item {
+      display: flex;
+      align-items: center;
+      .ext-btn {
+        cursor: pointer;
+        font-size: 18px;
+        position: absolute;
+        z-index: 99;
+        bottom: 14px;
+      }
+      .rotate {
+        transform: rotate(-90deg);
+      }
+      .bk-form-input[disabled] {
+        border-color: transparent !important;
+      }
+      .bk-form-content {
+        display: flex;
+        align-items: center;
+      }
+    }
+    .disable-background {
+      background-color: #fafbfd;
+    }
+    .participle-field-name-input {
+      width: 50%;
+      border-right: 1px solid rgb(223, 224, 229);
+    }
+    .participle-icon {
+      display: inline-block;
+      font-size: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 22px;
+      height: 18px;
+      line-height: 16px;
+      background-color: white;
+      position: absolute;
+      z-index: 99;
+      text-align: center;
+    }
+    .participle-icon-color {
+      background-color: rgb(250, 251, 253) !important;
+    }
+    .participle-alias-name-input {
+      width: 50%;
+      .bk-form-input {
+        padding-left: 15px;
+      }
+    }
+    .participle-field-name-input-pl5 {
+      input {
+        padding-left: 15px;
+      }
+    }
+    .tooltips-icon {
+      top: 18px;
+    }
+    .tooltips-btn {
+      position: absolute;
+      right: 5px;
+      background: #ea3636;
+      border-radius: 2px;
     }
     .bk-table-body-wrapper .fields-table-column {
       background: #fafbfd;
@@ -95,6 +173,25 @@
       background: #fafbfd;
       color: #4D4F56;
     }
+    .word-breaker {
+      display: inline-block;
+      width: 100%;
+      height: 42px;
+      line-height: 42px;
+      padding: 0 10px;
+      position: relative;
+      background: #fff;
+      .select-angle {
+        position: absolute;
+        color: #979BA5;
+        font-size: 20px;
+        right: 4px;
+        top: 10px;
+      }
+    }
+    .bg-gray {
+      background: #FAFBFD;
+    }
     .disabled-work {
       display: inline-block;
       width: 100%;
@@ -103,7 +200,7 @@
       background: #fafbfd;
       cursor: not-allowed;
       color: #c4c6cc;
-      padding-left: 15px;
+      padding-left: 10px;
     }
     .table-operation {
       display: flex;
@@ -116,6 +213,51 @@
       .del-icon {
         color: #ea3636;
         margin-left: 12px;
+      }
+    }
+  }
+}
+.tippy-box[data-theme~='word-breaker-theme-popover'] {
+  max-width: 450px !important;
+  min-width: 380px;
+  .tippy-content {
+    padding: 0;
+  }
+  .word-breaker-menu-content{
+    padding: 10px 14px;
+    .menu-item {
+      display: flex;
+      align-items: center;
+      color: #63656e;
+      margin: 8px 0;
+      .menu-item-label {
+        text-align: right;
+        display: inline-block;
+        width: 68px;
+        margin-right: 16px;
+      }
+      .custom-input {
+        flex: 1;
+        margin-left: 4px;
+        height: 26px;
+        line-height: 26px;
+        .bk-input-text, .bk-form-input {
+          height: 26px;
+          line-height: 26px;
+        }
+      }
+    }
+    .menu-footer {
+      text-align: right;
+      margin-top: 10px;
+      margin-bottom: 6px;
+      .bk-button {
+        min-width: 54px;
+        height: 24px;
+        line-height: 22px;
+      }
+      .bk-primary {
+        margin-right: 8px;
       }
     }
   }

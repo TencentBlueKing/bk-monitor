@@ -1,0 +1,167 @@
+.host-detail-main {
+    width: 100%;
+    height: 100%;
+    margin-top: 12px;
+    .running {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        background: url('../../../../../images/loading.svg');
+        margin-right: 4px;
+        background-size: cover;
+        vertical-align: middle;
+        animation: spin 2s linear infinite;
+    }
+    .host-detail-tab {
+        display: inline-block;
+        background: #F0F1F5;
+        border-radius: 2px;
+        padding: 4px;
+        font-size: 12px;
+        height: 32px;
+        .host-detail-tab-item {
+            display: inline-block;
+            height: 24px;
+            line-height: 24px;
+            padding: 0 12px;
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+            &::after {
+                content: '';
+                display: inline-block;
+                width: 1px;
+                height: 12px;
+                background: #D3D6E2;
+                margin: 0 12px;
+                position: absolute;
+                left: -12px;
+                top: 7px;
+            }
+            &:first-child {
+                &::after {
+                    display: none;
+                }
+            }
+            &.active {
+                background: #fff;
+                color: #3A84FF;
+                &::after {
+                    display: none;
+                }
+            }
+            &.disabled {
+                cursor: not-allowed;
+                color: #979BA5;
+            }
+            .item-circle {
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                margin-right: 4px;
+                &.failed {
+                    background: #FFDDDD;
+                    border: 1px solid #EA3636;
+                }
+                &.success {
+                    background: #CBF0DA;
+                    border: 1px solid #2CAF5E;
+                }
+            }
+        }
+    }
+    .host-detail-content {
+        width: 100%;
+        margin-top: 12px;
+        display: flex;
+        height: calc(100vh - 160px);
+        .content-left {
+            width: 320px;
+            height: 100%;
+            margin-right: 8px;
+            background: #FFFFFF;
+            border: 1px solid #DCDEE5;
+            border-bottom: none;
+            
+            .content-left-title {
+                height: 42px;
+                line-height: 42px;
+                background: #F5F7FA;
+                border-bottom: 1px solid #DCDEE5;
+                color: #313238;
+                font-size: 12px;
+                padding-left: 16px;
+            }
+            .left-list {
+                width: 100%;
+                height: calc(100% - 42px);
+                overflow-y: auto;
+                .left-item {
+                    font-size: 12px;
+                    color: #4D4F56;
+                    height: 42px;
+                    line-height: 42px;
+                    border-bottom: 1px solid #DCDEE5;
+                    padding: 0 10px 0 16px;
+                    cursor: pointer;
+                    &.active {
+                        background: #F0F5FF;
+                        border: 1px solid #3A84FF;
+                    }
+                    .item-circle {
+                        display: inline-block;
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 50%;
+                        margin-right: 8px;
+                        &.SUCCESS {
+                            background: #CBF0DA;
+                            border: 1px solid #2CAF5E; 
+                        }
+                        &.FAILED {
+                            background: #FFDDDD;
+                            border: 1px solid #EA3636; 
+                        }
+                    }
+                }
+            }
+        }
+        .content-right {
+            flex: 1;
+            height: 100%;
+            background: #1A1A1A;
+            overflow-y: auto;
+            .content-right-title {
+                height: 42px;
+                line-height: 42px;
+                background: #2E2E2E;
+                box-shadow: 0 2px 4px 0 #00000080;
+                color: #C4C6CC;
+                font-size: 12px;
+                padding-left: 16px;
+                position: relative;
+                .refresh-icon {
+                    cursor: pointer;
+                    font-size: 14px;
+                    position: absolute;
+                    right: 18px;
+                    top: 14px;
+                }
+            }
+            .content-box {
+                color: #C4C6CC;
+                font-size: 12px;
+                padding: 14px 18px;
+            }
+        }
+    }
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+}

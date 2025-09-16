@@ -164,10 +164,6 @@ export default defineComponent({
             title={t('所属索引集')}
           />
         ),
-        filters: [
-          { text: 'bk_apm_trace', value: 'bk_apm_trace' },
-          { text: 'bk_aiops', value: 'bk_aiops' },
-        ],
       },
       {
         label: t('接入类型'),
@@ -374,7 +370,7 @@ export default defineComponent({
           <bk-search-select
             class='tool-search-select'
             data={data2}
-            placeholder={t('搜索 采集名、存储名、索引集、接入类型、日志类型、集群名、采集状态、创建人、更新人')}
+            placeholder={t('搜索 采集名、存储名、索引集、集群名、创建人、更新人')}
           />
         </div>
         <div class='v2-log-collection-table-main'>

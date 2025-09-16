@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed } from 'vue';
+import { defineComponent, ref, computed, onBeforeUnmount, onMounted, nextTick } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import tippy, { type Instance } from 'tippy.js';
 
 import './field-list.scss';
 export type FieldItem = {
@@ -91,10 +92,6 @@ export default defineComponent({
       type: Array,
       default: () => [],
     },
-    isAdd: {
-      type: Boolean,
-      default: true,
-    },
     tableType: {
       type: String,
       default: 'edit',
@@ -135,11 +132,28 @@ export default defineComponent({
     const { t } = useLocale();
     const store = useStore();
     const typeKey = ref('visible');
-    const showBuiltIn = ref(true);
+    const showBuiltIn = ref(false);
+    let tippyInstances: Instance[] = [];
     const formData = ref({ tableList: [] as FieldItem[] });
     // 获取全局数据
     const globalsData = computed(() => store.getters['globals/globalsData']);
     const isPreviewMode = computed(() => props.tableType === 'preview');
+    const isAdd = computed(() => props.selectEtlConfig === 'bk_log_json');
+    const currentParticipleState = ref('default');
+    const currentTokenizeOnChars = ref('');
+    // 分词选项列表
+    const participleList = [
+      {
+        id: 'default',
+        name: t('自然语言分词'),
+        placeholder: t('自然语言分词，按照日常语法习惯进行分词'),
+      },
+      {
+        id: 'custom',
+        name: t('自定义'),
+        placeholder: t('支持自定义分词符，可按需自行配置符号进行分词'),
+      },
+    ];
     /**
      * 来源render
      * @param row
@@ -153,6 +167,22 @@ export default defineComponent({
 
       return <span class={`source-box ${sourceInfo.class}`}>{sourceInfo.label}</span>;
     };
+
+    /**
+     * 分词类型变更
+     * @param state
+     */
+    const handleChangeParticipleState = (state: string) => {
+      currentParticipleState.value = state;
+      currentTokenizeOnChars.value = state === 'custom' ? props.originalTextTokenizeOnChars : '';
+    };
+    /**
+     * 取消分词符popover
+     */
+    const handleWordBreakerCancelClick = () => {
+      // 关闭 tippy
+      tippyInstances.forEach(i => i?.hide());
+    };
     /**
      * 分词符render
      * @param row
@@ -160,9 +190,152 @@ export default defineComponent({
      */
     const renderWordBreaker = (row: any) => {
       if (row.field_type === 'string' && !row.is_built_in) {
-        return <span class='word-breaker'>{row.word_breaker}</span>;
+        return (
+          <span>
+            <span class='word-breaker word-breaker-edit'>
+              {row.word_breaker}
+              <i class='select-angle bk-icon icon-angle-down' />
+            </span>
+            <div
+              style={{ display: 'none' }}
+              class='word-breaker-popover'
+            >
+              <div class='word-breaker-menu-content'>
+                <div class='menu-item'>
+                  <span class='menu-item-label'>{t('分词')}</span>
+                  <bk-switcher
+                    // v-model={currentIsAnalyzed.value}
+                    // disabled={getCustomizeDisabled(props.row, 'analyzed')}
+                    theme='primary'
+                    // on-change={handelChangeAnalyzed}
+                  />
+                </div>
+                <div class='menu-item'>
+                  <span class='menu-item-label'>{t('分词符')}</span>
+                  <div class='bk-button-group'>
+                    {participleList.map(option => (
+                      <bk-button
+                        key={option.id}
+                        class={{
+                          'participle-btn': true,
+                          'is-selected': currentParticipleState.value === option.id,
+                        }}
+                        data-test-id={`fieldExtractionBox_button_filterMethod${option.id}`}
+                        size='small'
+                        // disabled={getCustomizeDisabled(props.row)}
+                        on-click={() => handleChangeParticipleState(option.id)}
+                      >
+                        {option.name}
+                      </bk-button>
+                    ))}
+                  </div>
+                  {currentParticipleState.value === 'custom' && (
+                    <bk-input
+                      class='custom-input'
+                      // v-model={currentTokenizeOnChars.value}
+                      // disabled={getCustomizeDisabled(props.row)}
+                    />
+                  )}
+                </div>
+                <div class='menu-item'>
+                  <span class='menu-item-label'>{t('大小写敏感')}</span>
+                  <bk-switcher
+                    // v-model={currentIsCaseSensitive.value}
+                    // disabled={getCustomizeDisabled(props.row)}
+                    theme='primary'
+                  />
+                </div>
+                <div class='menu-footer'>
+                  <bk-button
+                    size='small'
+                    theme='primary'
+                  >
+                    {t('确定')}
+                  </bk-button>
+                  <bk-button
+                    size='small'
+                    onClick={handleWordBreakerCancelClick}
+                  >
+                    {t('取消')}
+                  </bk-button>
+                </div>
+              </div>
+            </div>
+          </span>
+        );
       }
       return <span class='disabled-work'>{t('无需设置')}</span>;
+    };
+    /**
+     * 值 render
+     * @param row
+     * @returns
+     */
+    const renderValue = (row: any) => {
+      if (!row.is_built_in) {
+        return <span class='word-breaker bg-gray'>{String(row.is_built_in)}</span>;
+      }
+      return <span class='disabled-work'>{t('暂无预览')}</span>;
+    };
+
+    const initMenuPop = () => {
+      // 销毁旧实例，避免重复绑定
+      destroyTippyInstances();
+
+      const targets = document.querySelectorAll('.fields-table-box .bk-table-body-wrapper .word-breaker-edit');
+      if (!targets.length) {
+        return;
+      }
+
+      const instances = tippy(targets as unknown as HTMLElement[], {
+        trigger: 'click',
+        placement: 'top',
+        theme: 'light word-breaker-theme-popover',
+        interactive: true,
+        hideOnClick: true,
+        appendTo: () => document.body,
+        onShow(instance) {
+          (instance.reference as HTMLElement).classList.add('is-hover');
+        },
+        onHide(instance) {
+          (instance.reference as HTMLElement).classList.remove('is-hover');
+        },
+        content(reference) {
+          const btn = reference as HTMLElement;
+          // 约定：内容紧跟在按钮后的兄弟元素中
+          const container = btn.nextElementSibling as HTMLElement | null;
+          const contentNode = container?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
+          return (contentNode ?? container ?? document.createElement('div')) as unknown as Element;
+        },
+      });
+
+      // tippy 返回单个或数组，这里统一转为数组
+      tippyInstances = Array.isArray(instances) ? instances : [instances];
+    };
+    /** 销毁所有tippy */
+    const destroyTippyInstances = () => {
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      tippyInstances.forEach(i => {
+        try {
+          i.hide();
+          i.destroy();
+        } catch (_) {}
+      });
+      tippyInstances = [];
+    };
+    onMounted(() => {
+      nextTick(() => {
+        initMenuPop();
+      });
+    });
+    onBeforeUnmount(() => {
+      destroyTippyInstances();
+    });
+    /**
+     * 刷新值
+     */
+    const handleFreshValue = () => {
+      console.log('刷新值');
     };
 
     /**
@@ -209,7 +382,7 @@ export default defineComponent({
       if (props.selectEtlConfig === 'bk_log_json') {
         return false;
       }
-      return props.extractMethod !== 'bk_log_delimiter' || props.isSetDisabled;
+      return props.extractMethod !== 'bk_log_delimiter' || !!props.isSetDisabled;
     };
     /**
      * 字段名render
@@ -229,11 +402,118 @@ export default defineComponent({
         );
       }
       return (
-        <bk-input
-          disabled={row.is_built_in}
-          value={row.field_name}
-        />
+        <div
+          class={{
+            'is-required is-error': row.fieldErr,
+            'disable-background': row.is_built_in,
+            'participle-form-item': true,
+          }}
+        >
+          {row.field_type === 'object' && row.children?.length && !row.expand && (
+            <span
+              class='ext-btn rotate bklog-icon bklog-arrow-down-filled'
+              on-click={() => expandObject(row, true)}
+            />
+          )}
+          {row.field_type === 'object' && row.children?.length && row.expand && (
+            <span
+              class='ext-btn bklog-icon bklog-arrow-down-filled'
+              on-click={() => expandObject(row, false)}
+            />
+          )}
+
+          {row.is_built_in && row.alias_name ? (
+            <bk-input
+              // v-model={[row.alias_name, 'trim']}
+              class='participle-field-name-input-pl5'
+              // disabled={() => getFieldEditDisabled(row)}
+              // on-blur={() => checkFieldNameItem(row)}
+            />
+          ) : (
+            <bk-input
+              class={{
+                'participle-field-name-input': row.alias_name || row.alias_name_show,
+                // 'participle-field-name-input-pl5': true,
+              }}
+              // v-model={[row.field_name, 'trim']}
+              // disabled={() => getFieldEditDisabled(row)}
+              // on-blur={() => checkFieldNameItem(row)}
+            />
+          )}
+          {(row.alias_name || row.alias_name_show) && !row.is_built_in && (
+            <span class={{ 'participle-icon': true, 'participle-icon-color': getFieldEditDisabled(row) }}>
+              <i
+                style='color: #3a84ff;'
+                class='bk-icon bklog-icon bklog-yingshe'
+              />
+            </span>
+          )}
+          {(row.alias_name || row.alias_name_show) && !row.is_built_in && (
+            <bk-input
+              class='participle-alias-name-input'
+              // v-model={[row.alias_name, 'trim']}
+              // disabled={() => getFieldEditDisabled(row)}
+              placeholder={t('请输入映射名')}
+              // on-blur={() => checkAliasNameItem(row)}
+            />
+          )}
+
+          {row.fieldErr && !row.btnShow && (
+            <i
+              style='right: 8px'
+              class='bk-icon icon-exclamation-circle-shape tooltips-icon'
+              v-bk-tooltips={{ content: row.fieldErr, placement: 'top' }}
+            />
+          )}
+
+          {props.selectEtlConfig === 'bk_log_json' && row.fieldAliasErr && !row.alias_name && !row.alias_name_show && (
+            // {props.selectEtlConfig === 'bk_log_json' && (
+            <bk-button
+              class='tooltips-btn'
+              // on-click={() => handlePopoverRename(row)}
+              v-bk-tooltips={{
+                width: row.width,
+                content: row.fieldAliasErr || t('点击定义字段名映射'),
+                placement: 'top',
+              }}
+              theme='danger'
+            >
+              {t('字段映射')}
+            </bk-button>
+          )}
+        </div>
       );
+      // return (
+      //   <bk-input
+      //     disabled={row.is_built_in}
+      //     value={row.field_name}
+      //   />
+      // );
+    };
+
+    /**
+     * 绘制表头
+     * @param h
+     * @param param1
+     * @param item
+     * @returns
+     */
+    const renderHeader = (h, { column }, item) => {
+      if (item.key === 'value') {
+        return (
+          <span class='header-text'>
+            {item.label}
+            <span
+              class='header-text-link'
+              on-click={handleFreshValue}
+            >
+              <i class='bklog-icon bklog-refresh2 link-icon' />
+              {t('刷新')}
+            </span>
+          </span>
+        );
+      }
+      return <span class='header-text'>{column.label}</span>;
     };
 
     const columns = ref([
@@ -286,8 +566,9 @@ export default defineComponent({
       },
       {
         label: t('值'),
+        key: 'value',
         prop: 'is_built_in',
-        renderFn: (row: any) => <span class='value-box'>{String(row.is_built_in)}</span>,
+        renderFn: renderValue,
       },
     ]);
     const handleType = (type: string) => {
@@ -379,6 +660,7 @@ export default defineComponent({
               class-name={item?.renderFn ? 'fields-table-column' : ''}
               label={item.label}
               prop={item.prop}
+              renderHeader={(h, { column, $index }: any) => renderHeader(h, { column, $index }, item)}
             />
           ))}
           <bk-table-column
@@ -407,6 +689,12 @@ export default defineComponent({
         </bk-table>
       </div>
     );
+    /**
+     * 新增字段
+     */
+    const handleAddField = () => {
+      console.log('新增字段');
+    };
 
     return () => (
       <div class='field-list-main-box'>
@@ -422,9 +710,12 @@ export default defineComponent({
           </span>
         </div>
         {renderTable()}
-        {props.isAdd && (
+        {isAdd.value && (
           <div class='example-box'>
-            <span class='form-link'>
+            <span
+              class='form-link'
+              on-click={handleAddField}
+            >
               <i class='bk-icon icon-plus link-icon add-btn' />
               {t('新增字段')}
             </span>

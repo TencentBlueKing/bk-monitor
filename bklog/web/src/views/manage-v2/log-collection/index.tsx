@@ -40,7 +40,6 @@ export default defineComponent({
   emits: ['width-change'],
 
   setup(props, { emit }) {
-    console.log('props', props, emit);
     const LOADING_TIMEOUT_MS = 1200;
     const { t } = useLocale();
     const isShowLeft = ref(true);

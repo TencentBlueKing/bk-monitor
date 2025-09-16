@@ -28,6 +28,8 @@ import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
+import HostDetail from '../../common-comp/host-detail';
+
 import './collect-issued-slider.scss';
 /**
  * @description: 采集才发侧边栏
@@ -42,6 +44,10 @@ export default defineComponent({
     isStopCollection: {
       type: Boolean,
       default: false,
+    },
+    data: {
+      type: Object,
+      default: () => ({}),
     },
   },
 
@@ -67,12 +73,20 @@ export default defineComponent({
       </div>
     );
 
+    const renderContent = () => (
+      <div class='collect-issued-slider-content'>
+        <div class='collect-issued-slider-alert'>{t('采集下发存在失败，请点击 重试，如再次失败请 联系助手。')}</div>
+        <HostDetail log={props.data} />
+      </div>
+    );
+
     return () => (
       <bk-sideslider
-        width={800}
+        width={960}
         ext-cls='collect-issued-slider-main'
         scopedSlots={{
           header: renderHeader,
+          content: renderContent,
         }}
         is-show={props.isShow}
         quick-close={true}
