@@ -1408,6 +1408,7 @@ class CallerLineChart extends CommonSimpleChart {
         <QuickAddStrategy
           params={{
             app_name: this.viewOptions.filters?.app_name,
+            service_name: this.viewOptions.filters?.service_name,
           }}
           show={this.quickAddStrategyObj.show}
           onShowChange={this.handleQuickAddStrategyShowChange}

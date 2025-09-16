@@ -24,15 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { alertsStrategyTemplate } from 'monitor-api/modules/model';
+import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
+
+import AlertServiceTable from './alert-service-table';
 import TemplateEdit from './template-edit';
 import TemplatePush from './template-push';
+
+import type { IAlertStrategiesItem, IStrategiesItem } from './typings';
 
 import './template-details.scss';
 
 interface IProps {
+  params?: Record<string, any>;
   show?: boolean;
   onShowChange?: (v: boolean) => void;
 }
@@ -40,6 +47,7 @@ interface IProps {
 @Component
 export default class TemplateDetails extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
+  @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
 
   tabList = [
     {
@@ -60,6 +68,16 @@ export default class TemplateDetails extends tsc<IProps> {
     show: false,
   };
 
+  alertStrategies: IAlertStrategiesItem[] = [];
+  strategies: IStrategiesItem[] = [];
+
+  @Watch('show')
+  handleWatchShowChange(v: boolean) {
+    if (v) {
+      this.getAlertsStrategyTemplate();
+    }
+  }
+
   handleShowChange(v: boolean) {
     this.$emit('showChange', v);
   }
@@ -75,7 +93,70 @@ export default class TemplateDetails extends tsc<IProps> {
     this.templateEdit.show = true;
   }
 
+  getAlertsStrategyTemplate() {
+    alertsStrategyTemplate({
+      app_name: this.params?.app_name,
+      ids: this.params?.ids,
+      need_strategies: true,
+    }).then(data => {
+      this.alertStrategies = data?.list || [];
+      this.getStrategies();
+    });
+  }
+
+  getStrategies() {
+    const strategies = [];
+    for (const item of this.alertStrategies) {
+      if (item?.strategies?.length) {
+        strategies.push(...item.strategies);
+      }
+    }
+    this.strategies = strategies;
+  }
+
+  handleGoService(serviceName: string) {
+    const { app_name: appName } = this.params;
+    const { from, to } = this.$route.query;
+    let urlStr = `${window.__BK_WEWEB_DATA__?.baseroute || ''}service/?filter-service_name=${serviceName}&filter-app_name=${appName}`;
+    urlStr += `&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
+    const { href } = this.$router.resolve({
+      path: urlStr,
+    });
+    const url = location.href.replace(location.pathname, '/').replace(location.hash, '') + href;
+    window.open(url);
+  }
+
+  handleGoAlarm(id: string) {
+    const { from, to } = this.$route.query;
+    window.open(
+      location.href.replace(
+        location.hash,
+        `#/event-center?queryString=${`metric : "${id}"`}&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`
+      )
+    );
+  }
+
   render() {
+    const tabContent = () => {
+      switch (this.tabActive) {
+        case 'basic':
+          return <div>基本信息</div>;
+        case 'service':
+          return (
+            <div class='relation-service-alarm'>
+              <AlertServiceTable
+                strategies={this.strategies}
+                onGoAlarm={this.handleGoAlarm}
+                onGoService={this.handleGoService}
+                onGoTemplatePush={this.handleShowTemplatePush}
+              />
+            </div>
+          );
+        default:
+          return undefined;
+      }
+    };
+
     return (
       <bk-sideslider
         width={640}
@@ -131,19 +212,13 @@ export default class TemplateDetails extends tsc<IProps> {
               </div>
             ))}
           </div>
-          <div class='tab-content'>
-            {(() => {
-              switch (this.tabActive) {
-                case 'basic':
-                  return <div>基本信息</div>;
-                case 'service':
-                  return <div>关联服务 & 告警</div>;
-                default:
-                  return undefined;
-              }
-            })()}
-          </div>
+          <div class='tab-content'>{tabContent()}</div>
           <TemplatePush
+            params={{
+              strategy_template_ids: this.params?.strategy_template_ids,
+              service_names: [this.params?.service_name],
+              app_name: this.params?.app_name,
+            }}
             show={this.templatePush.show}
             onShowChange={v => {
               this.templatePush.show = v;
