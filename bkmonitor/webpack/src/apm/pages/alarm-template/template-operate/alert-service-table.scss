@@ -1,0 +1,33 @@
+.template-details-alert-service-table {
+  .top-tips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    height: 32px;
+    padding: 0 8px;
+    margin-bottom: 12px;
+    color: #4D4F56;
+    background: #F0F5FF;
+    border: 1px solid #A3C5FD;
+    border-radius: 2px;
+
+    .icon-hint {
+      margin-right: 8px;
+      color: #3A84FF;
+    }
+
+    .link {
+      color: #3A84FF;
+      cursor: pointer;
+    }
+  }
+
+  .search-input {
+    margin-bottom: 12px;
+  }
+
+  .table-link {
+    color: #3A84FF;
+      cursor: pointer;
+  }
+}

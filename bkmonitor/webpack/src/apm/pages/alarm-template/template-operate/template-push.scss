@@ -27,17 +27,21 @@
   }
 
   .template-push-content {
+    display: flex;
+    flex-direction: column;
     min-height: calc(100vh - 100px);
 
     .bk-tab-header {
       float: none;
       display: block;
-      border-top: 1px solid #fafbfd;
+      border-top: 1px solid #fafbfd !important;
     }
 
     .bk-tab-section {
+      padding: 0;
       border-bottom: none;
     }
+
   }
 
   .template-push-footer {
