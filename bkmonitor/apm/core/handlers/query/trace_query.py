@@ -150,7 +150,7 @@ class TraceQuery(BaseQuery):
         )
 
         start_time, end_time = cls._get_time_range(retention, start_time, end_time)
-        queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time)
+        queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time).time_align(False)
         for result_table_id in result_table_ids:
             q: QueryConfigBuilder = base_q.table(result_table_id)
             queryset: UnifyQuerySet = queryset.add_query(q)

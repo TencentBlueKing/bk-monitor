@@ -102,7 +102,18 @@ export default defineComponent({
     function handleGotoOld() {
       router.push({
         name: 'home',
-        query: route.query,
+        query: {
+          ...route.query,
+          trace_id: undefined,
+          span_id: undefined,
+          where: JSON.stringify(
+            [
+              route.query.search_id === 'traceID'
+                ? { key: 'trace_id', operator: 'equal', value: [route.query.trace_id] }
+                : { key: 'span_id', operator: 'equal', value: [route.query.trace_id] },
+            ].filter(item => item.value[0])
+          ),
+        },
       });
     }
     return () => (

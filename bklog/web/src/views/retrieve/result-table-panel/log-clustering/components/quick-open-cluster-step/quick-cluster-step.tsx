@@ -63,7 +63,9 @@ export default class QuickClusterStep extends tsc<IProps> {
 
   get errorMessage() {
     const clusterDataList = Object.entries(this.clusterStepData).reduce((acc, [key, val]) => {
-      if (Object.values(this.stepIndexKeyMappingList).includes(key)) acc.push(val);
+      if (Object.values(this.stepIndexKeyMappingList).includes(key)) {
+        acc.push(val);
+      }
       return acc;
     }, []);
     const failedObj = clusterDataList.find(item => item.status === 'FAILED');
@@ -75,18 +77,26 @@ export default class QuickClusterStep extends tsc<IProps> {
   }
   getNumHTMLShow(step) {
     const status = this.getStatus(step);
-    if (status === 'SUCCESS') return <i class='bk-icon icon-check-circle-shape'></i>;
-    if (status === 'FAILED') return <i class='bk-icon icon-close-circle-shape'></i>;
+    if (status === 'SUCCESS') {
+      return <i class='bk-icon icon-check-circle-shape' />;
+    }
+    if (status === 'FAILED') {
+      return <i class='bk-icon icon-close-circle-shape' />;
+    }
     return <span class='step-num'>{step}</span>;
   }
   getImageSrc(step) {
     const status = this.getStatus(step);
-    if (status === 'SUCCESS') return this.imgSuccessSrcMapping[step];
+    if (status === 'SUCCESS') {
+      return this.imgSuccessSrcMapping[step];
+    }
     return this.imgSrcMapping[step];
   }
   getStepStyleClass(step, originClass = '') {
     const status = this.getStatus(step);
-    if (status === 'SUCCESS') return `finish ${originClass}`;
+    if (status === 'SUCCESS') {
+      return `finish ${originClass}`;
+    }
     return originClass;
   }
 
@@ -97,7 +107,7 @@ export default class QuickClusterStep extends tsc<IProps> {
           <div class='top-time'>
             {this.errorMessage ? (
               <div class='time-str'>
-                <i class='bk-icon icon-close icon-error'></i>
+                <i class='bk-icon icon-close icon-error' />
                 <span class='time-tips'>{$i18n.t('聚类启动失败')}</span>
               </div>
             ) : (
@@ -112,7 +122,7 @@ export default class QuickClusterStep extends tsc<IProps> {
                     mode: 'spin',
                     size: 'small',
                   }}
-                ></i>
+                />
                 <i18n
                   class='time-tips'
                   path='任务启动中，预计等待时长 {0} 分钟'
@@ -140,7 +150,12 @@ export default class QuickClusterStep extends tsc<IProps> {
           <div class='step-container'>
             <div class='step-item'>
               <div class='image-content'>
-                <img src={this.getImageSrc(1)} />
+                {/** biome-ignore lint/performance/noImgElement: reason */}
+                {/** biome-ignore lint/nursery/useImageSize: reason */}
+                <img
+                  alt='图片显示状态'
+                  src={this.getImageSrc(1)}
+                />
               </div>
               <div class='step-description'>
                 <div class='title-box'>
@@ -152,10 +167,15 @@ export default class QuickClusterStep extends tsc<IProps> {
                 </span>
               </div>
             </div>
-            <span class={this.getStepStyleClass(1, 'bk-icon icon-angle-double-right-line')}></span>
+            <span class={this.getStepStyleClass(1, 'bk-icon icon-angle-double-right-line')} />
             <div class='step-item'>
               <div class='image-content'>
-                <img src={this.getImageSrc(2)} />
+                {/** biome-ignore lint/nursery/useImageSize: reason */}
+                {/** biome-ignore lint/performance/noImgElement: reason */}
+                <img
+                  alt='图片显示状态'
+                  src={this.getImageSrc(2)}
+                />
               </div>
               <div class='step-description'>
                 <div class='title-box'>
@@ -167,11 +187,13 @@ export default class QuickClusterStep extends tsc<IProps> {
                 </span>
               </div>
             </div>
-            <span class={this.getStepStyleClass(2, 'bk-icon icon-angle-double-right-line')}></span>
+            <span class={this.getStepStyleClass(2, 'bk-icon icon-angle-double-right-line')} />
             <div class='step-item'>
               <div class='image-content'>
+                {/** biome-ignore lint/nursery/useImageSize: reason */}
+                {/** biome-ignore lint/performance/noImgElement: reason */}
                 <img
-                  alt=''
+                  alt='图片显示状态'
                   src={this.getImageSrc(3)}
                 />
               </div>

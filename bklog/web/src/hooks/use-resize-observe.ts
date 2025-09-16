@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, Ref, onBeforeUnmount, ref } from 'vue';
+import { onMounted, type Ref, onBeforeUnmount, ref } from 'vue';
 
 import { debounce, isElement } from 'lodash-es';
 
@@ -57,7 +57,7 @@ export default (
   const isStoped = ref(true);
 
   const observeElement = () => {
-    if (isStoped) {
+    if (isStoped.value) {
       isStoped.value = false;
       const cellElement = getTarget() as HTMLElement;
       resizeObserver?.observe(cellElement);
@@ -70,7 +70,7 @@ export default (
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
       resizeObserver = new ResizeObserver(entries => {
-        for (let entry of entries) {
+        for (const entry of entries) {
           if (delayCallback === false) {
             callbackFn?.(entry);
           }

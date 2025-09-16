@@ -453,7 +453,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
             # 如果前端传入了bk_topo_node维度， 则使用前端传入的维度。 主要是为了支持集群/模块维度的屏蔽
             bk_topo_node: list = data["dimension_config"].get("bk_topo_node", {}).get(str(alert.id), [])
             if bk_topo_node:
-                default_dimension_config["bk_topo_node"][str(alert.id)] = bk_topo_node
+                default_dimension_config["bk_topo_node"] = bk_topo_node
 
             dimension_config.update(default_dimension_config)
             alert_documents.append(AlertDocument(id=alert.id, is_shielded=True, update_time=now_time))

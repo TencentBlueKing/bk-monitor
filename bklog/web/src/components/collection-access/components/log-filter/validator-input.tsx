@@ -36,7 +36,7 @@ export default class LogFilter extends tsc<object> {
   @Prop({ type: String, default: '' }) activeType: string;
   @Prop({ type: String, default: 'text' }) inputType: string;
   @Prop({ type: Object, default: () => ({}) }) rowData: any;
-  @Prop({ type: Array, default: () => [] }) originalFilterItemSelect: Array<any>;
+  @Prop({ type: Array, default: () => [] }) originalFilterItemSelect: any[];
   @Ref('input') readonly inputRef: any;
   @Ref('validateForm') readonly validateFormRef: any;
 
@@ -84,7 +84,9 @@ export default class LogFilter extends tsc<object> {
 
   validate() {
     return new Promise(reject => {
-      if (!this.validateFormRef) reject(true);
+      if (!this.validateFormRef) {
+        reject(true);
+      }
       this.validateFormRef.validate().then(
         () => reject(true),
         () => reject(false),
@@ -105,8 +107,9 @@ export default class LogFilter extends tsc<object> {
 
   checkValidator() {
     const { fieldindex, word } = this.rowData;
-    if ((!fieldindex && !word) || (fieldindex && word) || this.formData.inputValue || this.activeType === 'match')
+    if (!(fieldindex || word) || (fieldindex && word) || this.formData.inputValue || this.activeType === 'match') {
       return true;
+    }
     return false;
   }
 
@@ -163,13 +166,7 @@ export default class LogFilter extends tsc<object> {
     );
     return (
       <div class='bklog-log-filter form-input'>
-        {!this.isShowSelect ? (
-          this.inputType !== 'number' ? (
-            formInput()
-          ) : (
-            inputTriggerSlot()
-          )
-        ) : (
+        {this.isShowSelect ? (
           <bk-select
             v-model={this.formData.inputValue}
             scopedSlots={{
@@ -182,6 +179,7 @@ export default class LogFilter extends tsc<object> {
             {this.originalFilterItemSelect.map(option => (
               <bk-option
                 id={option.id}
+                key={option.id}
                 name={option.name}
               >
                 <span
@@ -191,6 +189,10 @@ export default class LogFilter extends tsc<object> {
               </bk-option>
             ))}
           </bk-select>
+        ) : this.inputType !== 'number' ? (
+          formInput()
+        ) : (
+          inputTriggerSlot()
         )}
       </div>
     );

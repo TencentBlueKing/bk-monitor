@@ -40,6 +40,13 @@ export const NODE_TYPE_ICON = {
   async_backend: 'icon-renwu',
   all: 'icon-mc-service-all',
   other: 'icon-mc-service-unknown',
+  // python: '',
+  // go: '',
+  // '其他语言': '',
+  metric: 'icon-zhibiaojiansuo',
+  log: 'icon-a-logrizhi',
+  trace: 'icon-Tracing',
+  profiling: 'icon-Profiling',
 };
 
 export const getIconByNodeType = (nodeType?: string) => {

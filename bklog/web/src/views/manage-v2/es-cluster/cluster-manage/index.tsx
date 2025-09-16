@@ -25,15 +25,8 @@
  */
 
 import { defineComponent, ref, computed, onMounted, nextTick } from 'vue';
-import useStore from '@/hooks/use-store';
-import useRouter from '@/hooks/use-router';
-import useLocale from '@/hooks/use-locale';
-import http from '@/api';
-import EmptyStatus from '@/components/empty-status/index.vue';
-import IntroPanel from './intro-panel.tsx';
-import EsSlider from './es-slider.tsx';
+
 import * as authorityMap from '@/common/authority-map';
-import { InfoBox } from 'bk-magic-vue';
 import {
   formatFileSize,
   clearTableFilter,
@@ -41,9 +34,23 @@ import {
   getDefaultSettingSelectFiled,
   setDefaultSettingSelectFiled,
 } from '@/common/util';
+import EmptyStatus from '@/components/empty-status/index.vue';
+import useLocale from '@/hooks/use-locale';
+import useRouter from '@/hooks/use-router';
+import useStore from '@/hooks/use-store';
+import { InfoBox } from 'bk-magic-vue';
+
 import { useDrag } from '../../hooks/use-drag';
+import EsSlider from './es-slider.tsx';
+import IntroPanel from './intro-panel.tsx';
+import http from '@/api';
 
 import './index.scss';
+
+interface TText {
+  text: string;
+  value: string;
+}
 
 export default defineComponent({
   name: 'EsClusterMess',
@@ -74,7 +81,6 @@ export default defineComponent({
       keyword: '',
     });
     const isAllowedCreate = ref(null); // 是否有权限新建
-    const isRenderSlider = ref(true); // 渲染侧边栏组件
     const showSlider = ref(false); // 显示编辑或新建ES源侧边栏
     const editClusterId = ref(null); // 编辑ES源ID
     const isOpenWindow = ref(false); // 是否打开窗口
@@ -114,21 +120,21 @@ export default defineComponent({
       selectedFields: settingFields.value.slice(0, 10),
     });
 
-    const bkBizId = computed(() => store.getters.bkBizId); //业务ID
-    const spaceUid = computed(() => store.getters.spaceUid); //空间ID
+    const bkBizId = computed(() => store.getters.bkBizId); // 业务ID
+    const spaceUid = computed(() => store.getters.spaceUid); // 空间ID
     const globalsData = computed(() => store.getters.globalsData);
     const authorityMapComputed = computed(() => authorityMap); // 权限映射
 
     // 来源过滤器
     const sourceFilters = computed(() => {
       const { es_source_type: esSourceType } = globalsData.value;
-      const target = [];
-      esSourceType?.forEach(data => {
+      const target: TText[] = [];
+      for (const data of esSourceType ?? []) {
         target.push({
           text: data.name,
           value: data.id,
         });
-      });
+      }
       return target;
     });
 
@@ -162,7 +168,9 @@ export default defineComponent({
         });
         tableLoading.value = false;
         const list = tableRes.data;
-        if (!list.length) return;
+        if (!list.length) {
+          return;
+        }
         tableDataOrigin.value = list;
         tableDataSearched.value = list;
         pagination.value.count = list.length;
@@ -201,12 +209,12 @@ export default defineComponent({
         <div>
           {state === true && (
             <div class='state-container'>
-              <span class='bk-badge bk-danger'></span> 正常
+              <span class='bk-badge bk-danger' /> 正常
             </div>
           )}
           {state === false && (
             <div class='state-container'>
-              <span class='bk-badge bk-warning'></span> 失败
+              <span class='bk-badge bk-warning' /> 失败
             </div>
           )}
           {state !== true && state !== false && <div class='state-container'>--</div>}
@@ -216,7 +224,9 @@ export default defineComponent({
 
     // 页面变化处理
     const handlePageChange = page => {
-      if(pagination.value.current === page) return;
+      if (pagination.value.current === page) {
+        return;
+      }
       tableLoading.value = true;
       pagination.value.current = page;
       setTimeout(() => {
@@ -227,7 +237,9 @@ export default defineComponent({
 
     // 每页条数变化处理
     const handleLimitChange = limit => {
-      if(pagination.value.limit === limit) return;
+      if (pagination.value.limit === limit) {
+        return;
+      }
       tableLoading.value = true;
       pagination.value.current = 1;
       pagination.value.limit = limit;
@@ -295,7 +307,7 @@ export default defineComponent({
       return sections
         .map(section => {
           if (section.length < 4) {
-            section = '0'.repeat(4 - section.length) + section;
+            return '0'.repeat(4 - section.length) + section;
           }
           return section;
         })
@@ -327,7 +339,7 @@ export default defineComponent({
               },
             ],
           });
-          store.commit('updateAuthDialogData', res.data);
+          store.commit('updateState', { authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {
@@ -363,7 +375,7 @@ export default defineComponent({
           };
           tableLoading.value = true;
           const res = await store.dispatch('getApplyData', paramData);
-          store.commit('updateAuthDialogData', res.data);
+          store.commit('updateState', { authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {
@@ -392,7 +404,7 @@ export default defineComponent({
           };
           tableLoading.value = true;
           const res = await store.dispatch('getApplyData', paramData);
-          store.commit('updateAuthDialogData', res.data);
+          store.commit('updateState', { authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {
@@ -477,9 +489,9 @@ export default defineComponent({
 
     // 过滤变化处理
     const handleFilterChange = data => {
-      Object.entries(data).forEach(
-        ([key, value]) => (filterSearchObj.value[key] = Array.isArray(value) ? value.length : 0),
-      );
+      for (const [key, value] of Object.entries(data)) {
+        filterSearchObj.value[key] = Array.isArray(value) ? value.length : 0;
+      }
       isFilterSearch.value = !!Object.values(filterSearchObj.value).reduce((pre, cur) => Number(pre) + Number(cur), 0);
       searchCallback();
     };
@@ -526,37 +538,31 @@ export default defineComponent({
           <div class='main-operator-container'>
             <bk-button
               style='width: 120px'
-              vCursor={{ active: isAllowedCreate.value === false }}
-              disabled={isAllowedCreate.value === null || tableLoading.value}
               data-test-id='esAccessBox_button_addNewEsAccess'
+              disabled={isAllowedCreate.value === null || tableLoading.value}
               theme='primary'
+              vCursor={{ active: isAllowedCreate.value === false }}
               onClick={addDataSource}
             >
               {t('新建')}
             </bk-button>
             <bk-input
               style='float: right; width: 360px'
-              value={params.value.keyword}
               clearable={true}
-              placeholder={t('搜索ES源名称，地址，创建人')}
               data-test-id='esAccessBox_input_search'
+              placeholder={t('搜索ES源名称，地址，创建人')}
               right-icon='bk-icon icon-search'
+              value={params.value.keyword}
+              on-right-icon-click={handleSearch}
               onChange={val => (params.value.keyword = val)}
               onClear={handleSearch}
               onEnter={handleSearch}
-              on-right-icon-click={handleSearch}
             />
           </div>
           <bk-table
             ref={clusterTable}
             class='king-table'
             v-bkloading={{ isLoading: tableLoading.value }}
-            data={tableDataPaged.value}
-            pagination={pagination.value}
-            data-test-id='esAccessBox_table_esAccessTableBox'
-            onFilter-change={handleFilterChange}
-            onPage-change={handlePageChange}
-            onPage-limit-change={handleLimitChange}
             scopedSlots={{
               empty: () => (
                 <div>
@@ -567,40 +573,46 @@ export default defineComponent({
                 </div>
               ),
             }}
+            data={tableDataPaged.value}
+            data-test-id='esAccessBox_table_esAccessTableBox'
+            pagination={pagination.value}
+            onFilter-change={handleFilterChange}
+            onPage-change={handlePageChange}
+            onPage-limit-change={handleLimitChange}
           >
             <bk-table-column
               key='id'
-              renderHeader={renderHeader}
               label='ID'
               min-width='60'
               prop='cluster_config.cluster_id'
+              renderHeader={renderHeader}
             />
             <bk-table-column
               key='name'
               label={t('名称')}
-              renderHeader={renderHeader}
               min-width='170'
               prop='cluster_config.cluster_name'
+              renderHeader={renderHeader}
             />
             <bk-table-column
               key='address'
               label={t('地址')}
-              renderHeader={renderHeader}
               min-width='170'
+              renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => props.row.cluster_config.domain_name || '--' }}
             />
             {checkcFields('source_type') && (
               <bk-table-column
                 key='source_type'
+                class-name='filter-column'
+                column-key='source_type'
                 filter-method={sourceFilterMethod}
                 filter-multiple={false}
                 filters={sourceFilters.value}
                 label={t('来源')}
-                renderHeader={renderHeader}
-                class-name='filter-column'
-                column-key='source_type'
                 min-width='80'
                 prop='source_type'
+                renderHeader={renderHeader}
                 scopedSlots={{ default: (props: any) => props.row.source_name || '--' }}
               />
             )}
@@ -608,43 +620,43 @@ export default defineComponent({
               <bk-table-column
                 key='port'
                 label={t('端口')}
-                renderHeader={renderHeader}
                 min-width='80'
                 prop='cluster_config.port'
+                renderHeader={renderHeader}
               />
             )}
             {checkcFields('schema') && (
               <bk-table-column
                 key='schema'
                 label={t('协议')}
-                renderHeader={renderHeader}
                 min-width='80'
                 prop='cluster_config.schema'
+                renderHeader={renderHeader}
               />
             )}
             {checkcFields('cluster_config') && (
               <bk-table-column
                 key='status'
+                scopedSlots={{
+                  default: ({ row }: any) => getStateText(row.cluster_config.cluster_id),
+                }}
+                class-name='filter-column'
+                column-key='cluster_config.cluster_id'
                 filter-method={sourceStateFilterMethod}
                 filter-multiple={false}
                 filters={sourceStateFilters.value}
                 label={t('连接状态')}
-                renderHeader={renderHeader}
-                class-name='filter-column'
-                column-key='cluster_config.cluster_id'
                 min-width='110'
                 prop='cluster_config.cluster_id'
-                scopedSlots={{
-                  default: ({ row }: any) => getStateText(row.cluster_config.cluster_id),
-                }}
+                renderHeader={renderHeader}
               />
             )}
             {checkcFields('enable_hot_warm') && (
               <bk-table-column
                 key='hot_warm'
                 label={t('冷热数据')}
-                renderHeader={renderHeader}
                 min-width='80'
+                renderHeader={renderHeader}
                 scopedSlots={{ default: ({ row }: any) => (row.cluster_config.enable_hot_warm ? t('开') : t('关')) }}
               />
             )}
@@ -661,8 +673,6 @@ export default defineComponent({
               <bk-table-column
                 key='storage_usage'
                 width='110'
-                label={t('空闲率')}
-                renderHeader={renderHeader}
                 scopedSlots={{
                   default: ({ row }: any) => (
                     <div class='percent'>
@@ -677,33 +687,33 @@ export default defineComponent({
                     </div>
                   ),
                 }}
+                label={t('空闲率')}
+                renderHeader={renderHeader}
               />
             )}
             {checkcFields('creator') && (
               <bk-table-column
                 key='creator'
                 label={t('创建人')}
-                renderHeader={renderHeader}
                 min-width='80'
                 prop='cluster_config.creator'
+                renderHeader={renderHeader}
               />
             )}
             {checkcFields('create_time') && (
               <bk-table-column
                 key='create_time'
-                label={t('创建时间')}
-                renderHeader={renderHeader}
                 class-name='filter-column'
+                label={t('创建时间')}
                 min-width='170'
                 prop='cluster_config.create_time'
+                renderHeader={renderHeader}
                 sortable
               />
             )}
             <bk-table-column
               key='operate'
               width='180'
-              label={t('操作')}
-              renderHeader={renderHeader}
               scopedSlots={{
                 default: (props: any) => (
                   <div class='collect-table-operate'>
@@ -719,38 +729,36 @@ export default defineComponent({
                       theme='primary'
                       text
                       on-on-click={() => createIndexSet(props.row)}
-                    ></log-button>
+                    />
                     <log-button
                       class='mr10'
                       vCursor={{
-                        active: !(
-                          props.row.permission && props.row.permission[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]
-                        ),
+                        active: !props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH],
                       }}
-                      disabled={!props.row.is_editable}
-                      tips-conf={t('平台默认的集群不允许编辑和删除，请联系管理员。')}
                       button-text={t('编辑')}
+                      disabled={!props.row.is_editable}
                       theme='primary'
+                      tips-conf={t('平台默认的集群不允许编辑和删除，请联系管理员。')}
                       text
                       on-on-click={() => editDataSource(props.row)}
-                    ></log-button>
+                    />
                     <log-button
                       class='mr10'
                       vCursor={{
-                        active: !(
-                          props.row.permission && props.row.permission[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]
-                        ),
+                        active: !props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH],
                       }}
-                      disabled={!props.row.is_editable}
-                      tips-conf={t('平台默认的集群不允许编辑和删除，请联系管理员。')}
                       button-text={t('删除')}
+                      disabled={!props.row.is_editable}
                       theme='primary'
+                      tips-conf={t('平台默认的集群不允许编辑和删除，请联系管理员。')}
                       text
                       on-on-click={() => deleteDataSource(props.row)}
-                    ></log-button>
+                    />
                   </div>
                 ),
               }}
+              label={t('操作')}
+              renderHeader={renderHeader}
             />
             <bk-table-column
               key='setting'
@@ -791,8 +799,8 @@ export default defineComponent({
         </div>
 
         <EsSlider
-          showSlider={showSlider.value}
           editClusterId={editClusterId.value}
+          showSlider={showSlider.value}
           onHandleCancelSlider={handleSliderHidden}
           onHandleUpdatedTable={handleUpdated}
         />

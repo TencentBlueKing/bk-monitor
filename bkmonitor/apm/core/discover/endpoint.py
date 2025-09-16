@@ -32,11 +32,10 @@ class EndpointDiscover(DiscoverBase):
     model = Endpoint
 
     def list_exists(self):
-        res = {}
-        instance_data = []
         endpoints = Endpoint.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        exists_mapping = {}
         for e in endpoints:
-            res.setdefault(
+            exists_mapping.setdefault(
                 (
                     e.endpoint_name,
                     e.service_name,
@@ -45,10 +44,8 @@ class EndpointDiscover(DiscoverBase):
                     e.category_kind_value,
                     e.span_kind,
                 ),
-                dict(),
-            ).update({"id": e.id, "service_name": e.service_name, "endpoint_name": e.endpoint_name})
-
-            instance_data.append(
+                [],
+            ).append(
                 {
                     "id": e.id,
                     "service_name": e.service_name,
@@ -56,6 +53,37 @@ class EndpointDiscover(DiscoverBase):
                     "updated_at": e.updated_at,
                 }
             )
+
+        # 处理重复数据并构建最终结果
+        res = {}
+        need_delete_ids = []
+        instance_data = []
+
+        for key, records in exists_mapping.items():
+            records.sort(key=lambda x: x["id"])
+            keep_record = records[0]
+            # 收集需要删除的ID
+            if len(records) > 1:
+                need_delete_ids.extend([r["id"] for r in records[1:]])
+
+            # 保留的记录
+            res[key] = {
+                "id": keep_record["id"],
+                "service_name": keep_record["service_name"],
+                "endpoint_name": keep_record["endpoint_name"],
+            }
+            instance_data.append(
+                {
+                    "id": keep_record["id"],
+                    "service_name": keep_record["service_name"],
+                    "endpoint_name": keep_record["endpoint_name"],
+                    "updated_at": keep_record["updated_at"],
+                }
+            )
+
+        # 执行数据库删除操作
+        if need_delete_ids:
+            self.model.objects.filter(id__in=need_delete_ids).delete()
 
         return res, instance_data
 

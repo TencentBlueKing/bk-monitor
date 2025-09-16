@@ -91,6 +91,11 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   get commonOptions() {
     return this.panel?.options?.common || {};
   }
+  
+  @ProvideReactive('variablesData')
+  get variablesData() {
+    return this.commonOptions?.variables?.data || {};
+  }
 
   get supportedCalculationTypes() {
     return this.commonOptions?.group_by?.supported_calculation_types || [];

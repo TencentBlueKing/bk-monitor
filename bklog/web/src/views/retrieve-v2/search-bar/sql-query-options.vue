@@ -13,7 +13,7 @@
 
   import { excludesFields } from './const.common'; // @ts-ignore
   import FavoriteList from './favorite-list';
-  import useFieldEgges from './use-field-egges';
+  import useFieldEgges from '@/hooks/use-field-egges';
   import { FieldInfoItem } from '@/store/store.type';
 
 

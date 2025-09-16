@@ -73,7 +73,7 @@ export default defineComponent({
     };
 
     const handleFormatDate = val => {
-      store.commit('updateIsFormatDate', val);
+      store.commit('updateState', { isFormatDate: val });
     };
     const handleShowLogTimeChange = (e, sort) => {
       const target = e.target;
@@ -113,12 +113,12 @@ export default defineComponent({
               class={['bk-table-sort-caret', 'ascending', { active: ascShow.value }]}
               v-bk-tooltips={{ content: `${$t('升序')}`, placement: 'right' }}
               on-click={event => handleShowLogTimeChange(event, 'ascending')}
-            ></i>
+            />
             <i
               class={['bk-table-sort-caret', 'descending', { active: descShow.value }]}
               v-bk-tooltips={{ content: `${$t('降序')}`, placement: 'right' }}
               on-click={event => handleShowLogTimeChange(event, 'descending')}
-            ></i>
+            />
           </span>
         </div>
         <bk-checkbox
@@ -163,7 +163,7 @@ export default defineComponent({
             <span
               style='font-size:18px'
               class='bklog-icon bklog-more'
-            ></span>
+            />
           </div>
 
           <div
@@ -198,7 +198,7 @@ export default defineComponent({
                   type='number'
                   value={jsonFormatDeep.value}
                   on-change={handleJsonFormatDeepChange}
-                ></bk-input>
+                />
               )}
             </div>
             <bk-checkbox

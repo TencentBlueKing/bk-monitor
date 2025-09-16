@@ -26,10 +26,11 @@
 
 import deepMerge from 'deepmerge';
 
-import { getValueFormat, ValueFormatter } from '../value-formats-package';
+import { getValueFormat, type ValueFormatter } from '../value-formats-package';
 import MonitorBaseSeries from './base-chart-option';
 import { lineOrBarOptions } from './echart-options-config';
-import { ILegendItem, IChartInstance } from './type-interface';
+
+import type { ILegendItem, IChartInstance } from './type-interface';
 export default class MonitorLineSeries extends MonitorBaseSeries implements IChartInstance {
   public defaultOption: any;
   public constructor(props: any) {
@@ -136,7 +137,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
             const curValue = +seriesItem[1];
             legendItem.max = Math.max(legendItem.max, curValue);
             legendItem.min = legendItem.min === '' ? curValue : Math.min(+legendItem.min, curValue);
-            legendItem.total = legendItem.total + curValue;
+            legendItem.total += curValue;
           }
           if (item?.markPoints?.some((set: any) => set[1] === seriesItem[0])) {
             item.data[seriesIndex] = {
@@ -154,7 +155,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
             };
           } else {
             const hasNoBrother =
-              (!pre && !next) || (pre && next && pre.length && next.length && pre[1] === null && next[1] === null);
+              !(pre || next) || (pre && next && pre.length && next.length && pre[1] === null && next[1] === null);
             if (hasNoBrother) {
               showSymbol = true;
             }
@@ -175,7 +176,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       });
       legendItem.avg = +(legendItem.total / item.data.length).toFixed(2);
       legendItem.total = +legendItem.total.toFixed(2);
-      const seriesItem = {
+      const newSeriesItem = {
         ...item,
         type: this.chartType,
         showSymbol,
@@ -189,22 +190,22 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
         },
       };
       if (item?.markTimeRange?.length) {
-        seriesItem.markArea = this.handleSetThresholdBand(item.markTimeRange);
+        newSeriesItem.markArea = this.handleSetThresholdBand(item.markTimeRange);
       }
       if (item?.thresholds?.length) {
-        seriesItem.markLine = this.handleSetThresholdLine(item.thresholds);
-        seriesItem.markArea = deepMerge(seriesItem.markArea, this.handleSetThresholdArea(item.thresholds));
+        newSeriesItem.markLine = this.handleSetThresholdLine(item.thresholds);
+        newSeriesItem.markArea = deepMerge(newSeriesItem.markArea, this.handleSetThresholdArea(item.thresholds));
       }
       if (hasLegend) {
-        Object.keys(legendItem).forEach(key => {
+        for (const key of Object.keys(legendItem)) {
           if (['min', 'max', 'avg', 'total'].includes(key)) {
             const set = unitFormatter(legendItem[key], item.unit !== 'none' && precision < 1 ? 2 : precision);
             legendItem[key] = set.text + (set.suffix || '');
           }
-        });
+        }
         legendData.push(legendItem);
       }
-      return seriesItem;
+      return newSeriesItem;
     });
     return { legendData, series };
   }
@@ -266,12 +267,14 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     data.sort();
     const len = data.length;
     if (data[0] === data[len - 1]) {
-      if (unit === 'none') return 0;
+      if (unit === 'none') {
+        return 0;
+      }
       const setList = String(data[0]).split('.');
       return !setList || setList.length < 2 ? 2 : setList[1].length;
     }
     let precision = 0;
-    let sampling = [];
+    let sampling: number[] = [];
     const middle = Math.ceil(len / 2);
     sampling.push(data[0]);
     sampling.push(data[Math.ceil(middle / 2)]);
@@ -308,13 +311,13 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     const openInterval = ['gte', 'gt']; // 开区间
     const closedInterval = ['lte', 'lt']; // 闭区间
 
-    const data = [];
+    const data: any[] = [];
 
     for (let index = 0; index < threshold.length; index++) {
       const current = threshold[index];
       const nextThreshold = threshold[index + 1];
       // 判断是否为一个闭合区间
-      let yAxis = undefined;
+      let yAxis: any;
       if (
         openInterval.includes(current.method) &&
         nextThreshold &&

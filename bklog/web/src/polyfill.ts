@@ -24,3 +24,4 @@
  * IN THE SOFTWARE.
  */
 import 'scheduler-polyfill';
+import 'core-js/actual/structured-clone';

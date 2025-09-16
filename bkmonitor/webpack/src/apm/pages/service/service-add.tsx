@@ -78,7 +78,7 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
           routeList={this.routeList}
         >
           <div slot='custom'>
-            {this.$t('接入服务')}
+            {this.$t('Quick Start')}
             <div
               class='service-add-link'
               onClick={() => this.guideUrl && window.open(this.guideUrl)}
