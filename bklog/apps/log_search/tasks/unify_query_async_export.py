@@ -34,6 +34,7 @@ from django.utils.translation import gettext as _
 
 from apps.constants import RemoteStorageType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.log_search.constants import (
     ASYNC_APP_CODE,
     ASYNC_DIR,
@@ -108,6 +109,7 @@ def async_export(
             raise BaseException(f"Can not find this: id: {async_task_id} record")
 
         async_task.export_status = ExportStatus.DOWNLOAD_LOG
+        async_task.save()
         try:
             async_export_util.export_package()
         except Exception as e:  # pylint: disable=broad-except
@@ -117,6 +119,7 @@ def async_export(
         async_task.export_status = ExportStatus.EXPORT_PACKAGE
         async_task.file_name = tar_file_name
         async_task.file_size = async_export_util.get_file_size()
+        async_task.save()
         try:
             async_export_util.export_upload()
         except Exception as e:  # pylint: disable=broad-except
@@ -124,6 +127,7 @@ def async_export(
             raise
 
         async_task.export_status = ExportStatus.EXPORT_UPLOAD
+        async_task.save()
         try:
             url = async_export_util.generate_download_url(url_path=url_path)
         except Exception as e:  # pylint: disable=broad-except
@@ -212,6 +216,7 @@ def union_async_export(
             raise BaseException(f"Can not find this: id: {async_task_id} record")
 
         async_task.export_status = ExportStatus.DOWNLOAD_LOG
+        async_task.save()
         try:
             async_export_util.export_package()
         except Exception as e:  # pylint: disable=broad-except
@@ -221,6 +226,7 @@ def union_async_export(
         async_task.export_status = ExportStatus.EXPORT_PACKAGE
         async_task.file_name = tar_file_name
         async_task.file_size = async_export_util.get_file_size()
+        async_task.save()
         try:
             async_export_util.export_upload()
         except Exception as e:  # pylint: disable=broad-except
@@ -228,6 +234,7 @@ def union_async_export(
             raise
 
         async_task.export_status = ExportStatus.EXPORT_UPLOAD
+        async_task.save()
         try:
             url = async_export_util.generate_download_url(url_path=url_path)
         except Exception as e:  # pylint: disable=broad-except
@@ -377,7 +384,18 @@ class BaseExportUtils:
         for res in result:
             origin_result_list = res.get("origin_log_list")
             for item in origin_result_list:
-                f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
+
+    def fetch_data_and_package(self):
+        summary_file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
+
+        with open(summary_file_path, "a+", encoding="utf-8") as f:
+            generate_result = self.unify_query_handler.export_data(is_quick_export=self.is_quick_export)
+            self.write_file(f, generate_result)
+
+        with tarfile.open(self.tar_file_path, "w:gz") as tar:
+            tar.add(summary_file_path, arcname=os.path.basename(summary_file_path))
+            self.file_path_list.append(summary_file_path)
 
 
 class AsyncExportUtils(BaseExportUtils):
@@ -391,8 +409,11 @@ class AsyncExportUtils(BaseExportUtils):
         """
         if not (os.path.exists(ASYNC_DIR) and os.path.isdir(ASYNC_DIR)):
             os.makedirs(ASYNC_DIR)
-        export_method = self.quick_export if self.is_quick_export else self.async_export
-        export_method()
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.unify_query_handler.bk_biz_id):
+            self.fetch_data_and_package()
+        else:
+            export_method = self.quick_export if self.is_quick_export else self.async_export
+            export_method()
 
     def _async_export(self, file_path):
         try:
@@ -402,7 +423,7 @@ class AsyncExportUtils(BaseExportUtils):
             with open(file_path, "a+", encoding="utf-8") as f:
                 result_list = self.unify_query_handler._deal_query_result(result_dict=result).get("origin_log_list")
                 for item in result_list:
-                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
                 generate_result = self.unify_query_handler.search_after_result(result, self.sorted_fields)
                 self.write_file(f, generate_result)
         except Exception as e:  # pylint: disable=broad-except
@@ -430,7 +451,7 @@ class AsyncExportUtils(BaseExportUtils):
             with open(file_path, "a+", encoding="utf-8") as f:
                 result_list = self.unify_query_handler._deal_query_result(result_dict=result).get("origin_log_list")
                 for item in result_list:
-                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
                 generate_result = self.unify_query_handler.scroll_search(result)
                 self.write_file(f, generate_result)
         except Exception as e:  # pylint: disable=broad-except
@@ -506,7 +527,10 @@ class UnionAsyncExportUtils(BaseExportUtils):
         """
         if not (os.path.exists(ASYNC_DIR) and os.path.isdir(ASYNC_DIR)):
             os.makedirs(ASYNC_DIR)
-        self.async_export()
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.unify_query_handler.bk_biz_id):
+            self.fetch_data_and_package()
+        else:
+            self.async_export()
 
     def _async_export(self, file_path, unify_query_handler: UnifyQueryHandler):
         try:
@@ -516,7 +540,7 @@ class UnionAsyncExportUtils(BaseExportUtils):
             with open(file_path, "a+", encoding="utf-8") as f:
                 result_list = unify_query_handler._deal_query_result(result_dict=result).get("origin_log_list")
                 for item in result_list:
-                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
                 generate_result = unify_query_handler.search_after_result(result, self.sorted_fields)
                 self.write_file(f, generate_result)
         except Exception as e:  # pylint: disable=broad-except
@@ -567,7 +591,7 @@ class UnionAsyncExportUtils(BaseExportUtils):
             with open(file_path, "a+", encoding="utf-8") as f:
                 result_list = unify_query_handler._deal_query_result(result_dict=result).get("origin_log_list")
                 for item in result_list:
-                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
                 generate_result = unify_query_handler.scroll_search(result)
                 self.write_file(f, generate_result)
         except Exception as e:  # pylint: disable=broad-except
