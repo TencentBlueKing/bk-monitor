@@ -1765,3 +1765,14 @@ class RunSubscriptionTaskSerializer(serializers.Serializer):
     scope = ScopeParams(label="事件订阅监听的范围", required=False)
     action = serializers.CharField(label="操作", default="install")
     bk_biz_id = serializers.IntegerField(label="业务ID")
+
+
+class LogCollectorSerializer(serializers.Serializer):
+    class ConditionSerializer(serializers.Serializer):
+        key = serializers.CharField(required=True)
+        value = serializers.ListField(required=True)
+
+    space_uid = SpaceUIDField(label=_("空间唯一标识"))
+    page = serializers.IntegerField(label=_("分页"), min_value=1)
+    pagesize = serializers.IntegerField(label=_("分页大小"), min_value=1)
+    conditions = ConditionSerializer(label=_("过滤规则"), many=True, required=False)
