@@ -31,8 +31,10 @@ import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
 import AlarmTemplateSearch from './components/alarm-templte-search/alarm-template-search';
 import BatchOperations from './components/batch-operations/batch-operations';
+import EditTemplateSlider from './components/template-form/edit-template-slider';
 import { ALARM_TEMPLATE_QUICK_FILTER_LIST } from './constant';
-import { type AlarmTemplateConditionParamItem, type BatchOperationTypeEnumType } from './typeing';
+
+import type { AlarmTemplateConditionParamItem, BatchOperationTypeEnumType } from './typeing';
 
 import './alarm-template.scss';
 
@@ -44,6 +46,9 @@ export default class AlarmTemplate extends tsc<object> {
   searchKeyword: AlarmTemplateConditionParamItem[] = [];
   /** 表格已勾选的数据行id */
   selectedRowKeys: string[] = [];
+
+  editTemplateId = null;
+  editTemplateShow = false;
 
   /**
    * @description 模板类型快捷筛选值改变后回调
@@ -63,6 +68,11 @@ export default class AlarmTemplate extends tsc<object> {
     // this.setRouterParams();
   }
 
+  handleEditTemplate(id: number) {
+    this.editTemplateId = id;
+    this.editTemplateShow = true;
+  }
+
   render() {
     return (
       <div class='alarm-template'>
@@ -79,6 +89,7 @@ export default class AlarmTemplate extends tsc<object> {
               statusList={ALARM_TEMPLATE_QUICK_FILTER_LIST}
               onChange={this.handleQuickStatusChange}
             />
+            <bk-button onClick={() => this.handleEditTemplate(1)}>编辑模板</bk-button>
           </div>
           <div class='alarm-template-header-search'>
             <AlarmTemplateSearch
@@ -104,6 +115,15 @@ export default class AlarmTemplate extends tsc<object> {
             onSortChange={this.handleSortChange}
           /> */}
         </div>
+
+        <EditTemplateSlider
+          appName={'tilapia'}
+          isShow={this.editTemplateShow}
+          templateId={this.editTemplateId}
+          onShowChange={show => {
+            this.editTemplateShow = show;
+          }}
+        />
       </div>
     );
   }
