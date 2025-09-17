@@ -135,7 +135,7 @@ export default defineComponent({
 
     const selectedValues = computed(() =>
       props.indexSetValue
-        .map(v => props.indexSetList.find((i: any) => `${i.index_set_id}` === `${v}`))
+        .map(v => props.indexSetList.find((i: any) => `${i.unique_id}` === `${v}`))
         .filter(c => c !== undefined),
     );
 
