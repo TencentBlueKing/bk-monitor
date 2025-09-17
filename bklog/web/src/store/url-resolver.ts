@@ -220,6 +220,7 @@ class RouteUrlResolver {
     this.resolver.set('host_scopes', this.objectResolver.bind(this));
     this.resolver.set('ip_chooser', this.objectResolver.bind(this));
     this.resolver.set('clusterParams', this.objectResolver.bind(this));
+    this.resolver.set('pid', this.objectResolver.bind(this));
     this.resolver.set('timeRange', this.dateTimeRangeResolver.bind(this));
     this.resolver.set('search_mode', this.searchModeResolver.bind(this));
     this.resolver.set('format', this.timeFormatResolver.bind(this));

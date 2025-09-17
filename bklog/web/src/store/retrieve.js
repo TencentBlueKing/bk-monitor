@@ -43,7 +43,9 @@ const resolveIndexItemAttr = (indexSetList = [], pid = '#') => {
       unique_id: `${pid}_${item.index_set_id}`,
     });
 
-    resolveIndexItemAttr(item.children ?? [], item.unique_id);
+    // 这里只有两层，数据结构固定为 parent_id#child_id
+    // 如果是跟节点 数据结构为 #_child_id
+    resolveIndexItemAttr(item.children ?? [], item.index_set_id);
   });
 };
 

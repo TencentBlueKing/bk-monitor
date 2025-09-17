@@ -350,11 +350,6 @@ function handleIndexConfigSliderOpen() {
         class="custom-border-right" />
       <WarningSetting v-if="!isExternal" class="custom-border-right"></WarningSetting>
       <ClusterSetting class="custom-border-right" v-model="isShowClusterSetting"></ClusterSetting>
-      <!-- <div
-        v-if="!isExternal"
-      >
-        <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
-      </div> -->
       <BarGlobalSetting class="custom-border-right" @show-index-config-slider="handleIndexConfigSliderOpen">
       </BarGlobalSetting>
       <div v-if="!isExternal" class="more-setting">
