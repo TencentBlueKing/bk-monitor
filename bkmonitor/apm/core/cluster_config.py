@@ -43,6 +43,9 @@ class BkCollectorInstaller:
     @classmethod
     def generator(cls):
         # 避免重复创建连接
+        # fixme: 优化缓存, 考虑使用metadata的redis
+        # from metadata.utils.redis_tools import RedisTools
+        # cache = RedisTools().client
         cache = Cache("cache")
         while True:
             yield functools.partial(cls, cache=cache)
