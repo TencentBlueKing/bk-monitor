@@ -51,8 +51,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { CP_METHOD_LIST, METHOD_LIST } from '../../../../../constant/constant';
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
-import { CP_METHOD_LIST, METHOD_LIST } from '@/constant/constant';
 
 import type { MethodVariableModel } from '../../index';
 interface MethodDetailProps {
