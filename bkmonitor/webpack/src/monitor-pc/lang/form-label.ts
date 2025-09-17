@@ -1892,6 +1892,8 @@ export default {
   系统恢复: 'System recovery',
   系统关闭: 'System closed',
   生成告警级别: 'Generate alarm levels',
+  屏蔽选择: 'Shield selection',
+  选择屏蔽范围: 'Select shielding range',
   // 故障
   根因所属节点: 'Root Node',
   标准提示: 'Type',
@@ -1928,7 +1930,7 @@ export default {
   有效期: 'Validity period',
   创建者: 'Creator',
   告警历史: 'Alarm history',
-  上报配置: 'Upload configuration',
+  上报Demo: 'Upload Demo',
   '需先填写「服务名」，生成上报示例': 'Please fill in the service name first, and generate the reporting example',
   节点概览: 'Node overview',
   边概览: 'Edge overview',
@@ -1968,5 +1970,9 @@ export default {
   变量类型: 'Variable type',
   变量描述: 'Variable description',
   可选维度: 'Optional dimensions',
-  主调服务: 'Caller service'
+  上报地址: 'Reporting address',
+  上报token: 'Reporting token',
+  主调服务: 'Caller service',
+  '将根据「服务名」自动生成上报示例代码，你可以直接运行':
+    'The reporting example code will be automatically generated based on the service name, and you can run it directly',
 };

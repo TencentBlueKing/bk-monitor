@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, computed, watch, onMounted, nextTick, onUnmounted } from 'vue';
+import { defineComponent, ref, computed, watch, nextTick, onUnmounted } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import { useNavMenu } from '@/hooks/use-nav-menu';
@@ -67,7 +67,6 @@ export default defineComponent({
     const keyword = ref('');
     const searchTypeId = ref('');
     const exterlAuthSpaceName = ref('');
-    const spaceTypeIdList = ref<any[]>([]);
     const showDialog = ref(false);
     const defaultSpace = ref(null); // 当前弹窗中选中的业务
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
@@ -77,8 +76,8 @@ export default defineComponent({
 
     const isExternal = computed(() => store.state.isExternal);
     const demoUid = computed(() => store.getters.demoUid);
+    const demoId = computed(() => mySpaceList.value.find(item => item.space_uid === demoUid.value)?.id || '');
 
-    const demoId = ref('');
     const menuSearchInput = ref();
     const bizListRef = ref();
     const bizBoxWidth = ref(418);
@@ -97,9 +96,7 @@ export default defineComponent({
 
     // 是否展示空间类型列表
     const showSpaceTypeIdList = computed(() => !isExternal.value && spaceTypeIdList.value.length > 1);
-
-    // 初始化空间类型列表
-    onMounted(() => {
+    const spaceTypeIdList = computed(() => {
       const spaceTypeMap: Record<string, 1> = {};
       for (const item of mySpaceList.value) {
         spaceTypeMap[item.space_type_id] = 1;
@@ -107,12 +104,11 @@ export default defineComponent({
           spaceTypeMap.bcs = 1;
         }
       }
-      spaceTypeIdList.value = Object.keys(spaceTypeMap).map(key => ({
+      return Object.keys(spaceTypeMap).map(key => ({
         id: key,
         name: SPACE_TYPE_MAP[key]?.name || t('未知'),
         styles: (props.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
       }));
-      demoId.value = mySpaceList.value.find(item => item.space_uid === demoUid.value)?.id || '';
     });
 
     // 点击下拉框外内容，收起下拉框

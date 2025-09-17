@@ -668,7 +668,9 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   @Emit('columnSettingChange')
   handleSettingChange({ size, fields }) {
     this.tableSize = size;
-    this.tableColumns.forEach(item => (item.checked = fields.some(field => field.id === item.id)));
+    for (const item of this.tableColumns) {
+      item.checked = fields.some(field => field.id === item.id);
+    }
     const colList = this.tableColumns.filter(item => item.checked || item.disabled).map(item => item.id);
     this.storeKey && this.storage.set(this.storeKey, colList);
     this.tableKey = random(10);
@@ -685,13 +687,13 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   }
   @Emit('filterChange')
   handleFilterChange(filters: IFilterItem) {
-    Object.keys(filters).forEach(item => {
+    for (const item of Object.keys(filters)) {
       if (filters[item].length) {
         this.filterDict[item] = filters[item];
       } else if (this.filterDict[item]) {
         delete this.filterDict[item];
       }
-    });
+    }
     return this.filterDict;
   }
 

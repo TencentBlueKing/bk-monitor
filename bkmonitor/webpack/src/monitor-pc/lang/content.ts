@@ -344,4 +344,11 @@ export default {
   超时: 'Timeout',
   解码结果: 'Decode result',
   解码: 'Decode',
+  上报类型: 'Report type',
+  查询参数: 'Query parameters',
+  '请输入Profiling 查询参数': 'Please enter the Profiling query parameters',
+  'Profiling 助手': 'Profiling assistant',
+  'Profiling 查询参数': 'Profiling query parameters',
+  调用拓扑: 'Call topology',
+  查看指引: 'View guide',
 };

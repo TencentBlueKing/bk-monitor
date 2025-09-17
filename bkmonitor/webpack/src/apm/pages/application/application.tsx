@@ -41,6 +41,7 @@ import ApmCommonNavBar, {
 import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
 import AppAddForm from '../home/app-add-form';
+import ServiceAddSide from '../service/service-add-side';
 import * as authorityMap from './../home/authority-map';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -112,6 +113,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     },
   ];
   dashboardId = '';
+  isShowServiceAdd = false;
   get pluginsList() {
     return applicationStore.pluginsListGetter || [];
   }
@@ -131,7 +133,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     return `${this.tabName}：${value}`;
   }
 
-  beforeRouteEnter(to, from, next) {
+  beforeRouteEnter(to, _from, next) {
     const { query } = to;
     const appName = query['filter-app_name'] as string;
 
@@ -179,7 +181,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       vm.getServiceList();
     });
   }
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _fromm, next) {
     destroyTimezone();
     next();
   }
@@ -289,12 +291,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   }
   /** 跳转接入服务页面 */
   handleAddService() {
-    this.$router.push({
-      name: 'service-add',
-      params: {
-        appName: this.appName,
-      },
-    });
+    this.isShowServiceAdd = true;
   }
   handleSceneTypeChange(type) {
     this.sceneType = type;
@@ -325,12 +322,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   }
 
   handleGotoServiceApply() {
-    this.$router.push({
-      name: 'service-add',
-      params: {
-        appName: this.appName,
-      },
-    });
+    this.isShowServiceAdd = true;
   }
 
   render() {
@@ -419,6 +411,16 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           v-model={this.showAddDialog}
           pluginId={this.pluginId}
         />
+        {this.appInfo?.app_name && (
+          <ServiceAddSide
+            applicationId={this.appInfo.application_id}
+            appName={this.appInfo.app_name.toString()}
+            isShow={this.isShowServiceAdd}
+            onSidesliderShow={v => {
+              this.isShowServiceAdd = v;
+            }}
+          />
+        )}
       </div>
     );
   }
