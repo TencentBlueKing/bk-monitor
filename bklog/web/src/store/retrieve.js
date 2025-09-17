@@ -29,6 +29,24 @@ import { random } from '@/components/monitor-echarts/utils';
 
 import http from '@/api';
 
+/**
+ * 索引集列表初始化
+ * @param {*} indexSetList 索引集列表
+ * @param {*} pid 父节点id
+ */
+const resolveIndexItemAttr = (indexSetList = [], pid = '#') => {
+  indexSetList?.forEach(item => {
+    Object.assign(item, {
+      index_set_id: `${item.index_set_id}`,
+      indexName: item.index_set_name,
+      lightenName: ` (${item.indices.map(item => item.result_table_id).join(';')})`,
+      unique_id: `${pid}_${item.index_set_id}`,
+    });
+
+    resolveIndexItemAttr(item.children ?? [], item.unique_id);
+  });
+};
+
 export default {
   namespaced: true,
   state: {
@@ -148,11 +166,7 @@ export default {
 
             indexSetList = s1.concat(s2);
             // 索引集数据加工
-            indexSetList.forEach(item => {
-              item.index_set_id = `${item.index_set_id}`;
-              item.indexName = item.index_set_name;
-              item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
-            });
+            resolveIndexItemAttr(indexSetList);
             ctx.commit('updateIndexSetList', indexSetList);
           }
           return [res, indexSetList];

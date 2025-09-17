@@ -56,8 +56,20 @@
   // 索引集列表
   const indexSetList = computed(() => store.state.retrieve.indexSetList);
 
+  /**
+   * 索引ID所属父ID
+   */
+  const indexSetPid = computed(() => store.state.indexItem.pid);
+
   // 索引集选择结果
   const indexSetValue = computed(() => store.state.indexItem.ids);
+
+  /**
+   * 根据当前索引ID和pid生成唯一ID
+   */
+  const indexSetUid = computed(() => {
+    return indexSetValue.value.map((v, index) => `${indexSetPid.value[index] ?? '#'}_${v}`);
+  });
 
   // 索引集类型
   const indexSetType = computed(() => (store.state.indexItem.isUnionIndex ? 'union' : 'single'));

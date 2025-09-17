@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-// @ts-expect-error
 import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
 
 import { ConditionOperator } from './condition-operator';
@@ -110,6 +109,7 @@ class RouteUrlResolver {
       'spaceUid',
       'format',
       'index_id',
+      'pid',
       BK_LOG_STORAGE.FAVORITE_ID,
       BK_LOG_STORAGE.HISTORY_ID,
     ];
