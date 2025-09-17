@@ -103,9 +103,35 @@ export default defineComponent({
       return false;
     };
 
+    /**
+     * 推送消息
+     * @param msg
+     */
+    const sendMessage = (msg: string) => {
+      if (!isShow.value) {
+        aiBlueking.value?.handleShow();
+      }
+
+      aiBlueking.value?.handleSendMessage(msg);
+    };
+
+    /**
+     * 设置引用文本
+     * @param text
+     */
+    const setCiteText = (text: string) => {
+      if (!isShow.value) {
+        aiBlueking.value?.handleShow();
+      }
+
+      aiBlueking.value?.setCiteText(text);
+    };
+
     expose({
       open: showAiAssistant,
       close: hiddenAiAssistant,
+      sendMessage,
+      setCiteText,
     });
 
     return () => (

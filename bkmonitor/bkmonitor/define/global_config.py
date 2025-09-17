@@ -497,6 +497,10 @@ STANDARD_CONFIGS = OrderedDict(
         ("CUSTOM_REPORT_DEFAULT_PROXY_IP", slz.ListField(label=_("自定义上报默认服务器"), default=[])),
         ("CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN", slz.ListField(label=_("自定义上报默认服务器(域名显示)"), default=[])),
         ("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER", slz.ListField(label=_("自定义上报默认部署K8S集群"), default=[])),
+        (
+            "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE",
+            slz.CharField(label=_("集群内服务域名"), default="bkm-collector.bkmonitor-operator"),
+        ),
         ("PING_SERVER_TARGET_NUMBER_LIMIT", slz.IntegerField(label=_("单台机器Ping采集目标数量限制"), default=6000)),
         (
             "MAX_AVAILABLE_DURATION_LIMIT",
@@ -532,6 +536,7 @@ STANDARD_CONFIGS = OrderedDict(
         # 区别于 ECOSYSTEM_REPOSITORY_URL，每个 Git 对代码路径定义不同，同时可以控制展示分支
         ("ECOSYSTEM_CODE_ROOT_URL", slz.CharField(label=_("接入样例代码根 URL"), default="", allow_blank=True)),
         ("APM_ACCESS_URL", slz.CharField(label=_("APM接入链接"), default="", allow_blank=True)),
+        ("APM_DATA_PUSH_URL", slz.CharField(label=_("APM数据上报链接汇总"), default="", allow_blank=True)),
         ("APM_BEST_PRACTICE_URL", slz.CharField(label=_("APM最佳实践链接"), default="", allow_blank=True)),
         ("APM_METRIC_DESCRIPTION_URL", slz.CharField(label=_("APM指标说明"), default="", allow_blank=True)),
         ("APM_APDEX_T_VALUE", slz.IntegerField(label=_("APM平台apdex_t默认配置"), default=800)),

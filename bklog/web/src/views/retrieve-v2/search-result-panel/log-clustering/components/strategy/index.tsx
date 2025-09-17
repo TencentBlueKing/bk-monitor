@@ -27,7 +27,7 @@
 import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { From } from 'bk-magic-vue';
+import type { From } from 'bk-magic-vue';
 
 import './index.scss';
 
@@ -156,7 +156,9 @@ export default class Strategy extends tsc<object> {
   }
 
   mounted() {
-    if (!this.clusterSwitch || !this.isClusterActive) return;
+    if (!(this.clusterSwitch && this.isClusterActive)) {
+      return;
+    }
     this.baseAlarmFormData = structuredClone(this.alarmFormData);
     this.baseIncreaseFormData = structuredClone(this.increaseFormData);
     this.initStrategyInfo();
@@ -191,7 +193,7 @@ export default class Strategy extends tsc<object> {
         },
       });
       return { data: res.data, type: this.typeMapping[strategyType] ?? strategyType };
-    } catch (error) {
+    } catch {
       return { type: strategyType };
     }
   }
@@ -203,7 +205,7 @@ export default class Strategy extends tsc<object> {
     this.strategyFromRef.validate().then(() => {
       const submitPostStr = this.isAlarmType ? 'retrieve/newClsStrategy' : 'retrieve/normalStrategy';
       const data = this.isAlarmType ? this.alarmFormData : this.increaseFormData;
-      const { label_name, ...otherData } = data;
+      const { label_name: _labelName, ...otherData } = data;
       $http
         .request(submitPostStr, {
           params: {
@@ -293,7 +295,7 @@ export default class Strategy extends tsc<object> {
   initStrategyInfo() {
     Promise.all([this.requestStrategyInfo('new_cls_strategy'), this.requestStrategyInfo('normal_strategy')])
       .then(values => {
-        values.forEach(vItem => {
+        for (const vItem of values) {
           const isSubmit = JSON.stringify(vItem.data) !== '{}';
           this[this.infoKeyData[vItem.type].submit] = isSubmit;
           if (isSubmit) {
@@ -301,14 +303,18 @@ export default class Strategy extends tsc<object> {
           } else {
             this.resetFormData(vItem.type as FormType);
           }
-        });
+        }
       })
       .catch(error => {
         this.resetFormData(error.type);
-        this.labelName = [...new Set([...this.alarmFormData?.label_name, ...this.increaseFormData?.label_name])];
+        this.labelName = [
+          ...new Set([...(this.alarmFormData?.label_name ?? []), ...(this.increaseFormData?.label_name ?? [])]),
+        ];
       })
       .finally(() => {
-        this.labelName = [...new Set([...this.alarmFormData?.label_name, ...this.increaseFormData?.label_name])];
+        this.labelName = [
+          ...new Set([...(this.alarmFormData?.label_name ?? []), ...(this.increaseFormData?.label_name ?? [])]),
+        ];
       });
   }
   /** 重置表单参数 */
@@ -335,7 +341,7 @@ export default class Strategy extends tsc<object> {
   }
   render() {
     if (this.isExternal) {
-      return <div></div>;
+      return <div />;
     }
 
     const strategyDialog = () => (
@@ -399,7 +405,7 @@ export default class Strategy extends tsc<object> {
               placeholder={$i18n.t('每隔 n（整数）天数，再次产生的日志模式将视为新类')}
               show-controls={false}
               type='number'
-            ></bk-input>
+            />
           </bk-form-item>
           <bk-form-item
             v-show={this.isAlarmType}
@@ -414,7 +420,7 @@ export default class Strategy extends tsc<object> {
               placeholder={$i18n.t('新类对应日志触发告警的条数')}
               show-controls={false}
               type='number'
-            ></bk-input>
+            />
           </bk-form-item>
           <bk-form-item
             label={$i18n.t('告警级别')}
@@ -428,8 +434,9 @@ export default class Strategy extends tsc<object> {
               {this.levelSelectList.map(item => (
                 <bk-option
                   id={item.id}
+                  key={item.id}
                   name={item.name}
-                ></bk-option>
+                />
               ))}
             </bk-select>
           </bk-form-item>
@@ -475,15 +482,16 @@ export default class Strategy extends tsc<object> {
               {this.groupSelectList.map(item => (
                 <bk-option
                   id={item.id}
+                  key={item.id}
                   name={item.name}
-                ></bk-option>
+                />
               ))}
               <div
                 class='groups-btn'
                 slot='extension'
                 onClick={() => this.handleCreateUserGroups()}
               >
-                <i class='bk-icon icon-plus-circle'></i>
+                <i class='bk-icon icon-plus-circle' />
                 {$i18n.t('新增告警组')}
               </div>
             </bk-select>
@@ -502,7 +510,7 @@ export default class Strategy extends tsc<object> {
           class={['edit-strategy-box', type]}
           onClick={() => this.editStrategy(type)}
         >
-          <i class={['bklog-icon log-icon', type === 'alarm' ? 'bklog-new-alarm' : 'bklog-sudden-increase']}></i>
+          <i class={['bklog-icon log-icon', type === 'alarm' ? 'bklog-new-alarm' : 'bklog-sudden-increase']} />
           {/* <span class='num'>1</span> */}
         </div>
         <div slot='content'>
@@ -554,7 +562,7 @@ export default class Strategy extends tsc<object> {
             <i
               style={{ 'margin-left': '4px' }}
               class='bklog-icon bklog-jump'
-            ></i>
+            />
           </bk-button>
         )}
       </div>

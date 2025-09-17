@@ -23,14 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onMounted, onUnmounted, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, onUnmounted, type Ref, ref, watch } from 'vue';
+
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import { getCharLength } from '../../../common/util';
 import PopInstanceUtil from '../../../global/pop-instance-util';
 import useLocale from '../../../hooks/use-locale';
 import useResizeObserve from '../../../hooks/use-resize-observe';
 import { RetrieveEvent } from '../../retrieve-helper';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import './bklog-tag-choice.scss';
 
@@ -169,7 +170,7 @@ export default defineComponent({
     });
 
     const maxTagWidthNumber = computed(() => {
-      return parseFloat(props.valueTagMaxWidth.replace('px', ''));
+      return Number.parseFloat(props.valueTagMaxWidth.replace('px', ''));
     });
 
     const tagInputStyle = computed(() => {
@@ -301,10 +302,10 @@ export default defineComponent({
         return;
       }
 
-      const targetValue = [];
-      valueList.value.forEach(v => {
+      const targetValue: any[] = [];
+      for (const v of valueList.value) {
         targetValue.push(getListItemId(v));
-      });
+      }
 
       targetValue.push(getListItemId(value));
 
@@ -319,7 +320,7 @@ export default defineComponent({
         if (editItemOption.value.index !== null) {
           let isUpdate = false;
 
-          const targetValue = [];
+          const targetValue: any[] = [];
           valueList.value.forEach((v, index) => {
             if (index !== editItemOption.value.index) {
               targetValue.push(getListItemId(v));
@@ -367,12 +368,12 @@ export default defineComponent({
     };
 
     const emitDeleteItem = val => {
-      const targetValue = [];
-      valueList.value.forEach(v => {
+      const targetValue: any[] = [];
+      for (const v of valueList.value) {
         if (v !== val) {
           targetValue.push(getListItemId(v));
         }
-      });
+      }
 
       emit('change', targetValue);
     };
@@ -440,11 +441,9 @@ export default defineComponent({
 
       if (e.key === 'Backspace' && !props.foucsFixed) {
         const input = e.target as HTMLInputElement;
-        if (input.value.length === 0) {
-          if (isEmptyInput) {
-            const target = getDelTargetElement(valueList.value.length - 1);
-            handleDeleteItemClick({ target }, valueList.value.at(-1));
-          }
+        if (input.value.length === 0 && isEmptyInput) {
+          const target = getDelTargetElement(valueList.value.length - 1);
+          handleDeleteItemClick({ target }, valueList.value.at(-1));
         }
       }
     };
@@ -497,15 +496,15 @@ export default defineComponent({
     const setFixedValueContent = () => {
       const copyNode = refTagInputContainer.value.cloneNode(true) as HTMLElement;
       copyNode.style.width = `${refTagInputContainer.value.offsetWidth + 4}px`;
-      if (!focusFixedElement) {
+      if (focusFixedElement) {
+        focusFixedElement.childNodes[0].replaceWith(copyNode);
+      } else {
         focusFixedElement = document.createElement('div');
         focusFixedElement.classList.add('bklog-choice-fixed-content');
 
         focusFixedElement.appendChild(copyNode);
         focusFixedElement.appendChild(refChoiceList.value);
         setFocuseFixedPopEvent();
-      } else {
-        focusFixedElement.childNodes[0].replaceWith(copyNode);
       }
     };
 
@@ -535,7 +534,7 @@ export default defineComponent({
       // 点击进行编辑
       if (target?.classList.contains('bklog-choice-value-span')) {
         const index = target.parentElement.getAttribute('data-item-index');
-        editItemOption.value.index = parseInt(index);
+        editItemOption.value.index = Number.parseInt(index, 10);
         editItemOption.value.width = target.parentElement.offsetWidth;
         inputTagValue.value = target.innerText;
         updateFiexedInstanceContent().then(() => {
@@ -546,9 +545,9 @@ export default defineComponent({
 
       // 点击删除单个值
       if (target.hasAttribute('data-bklog-choice-item-del')) {
-        const index = parseInt(target.getAttribute('data-bklog-choice-item-del') ?? '-1', 10);
+        const index = Number.parseInt(target.getAttribute('data-bklog-choice-item-del') ?? '-1', 10);
         if (index >= 0) {
-          const targetValue = [];
+          const targetValue: any[] = [];
           valueList.value.forEach((v, idx) => {
             if (idx !== index) {
               targetValue.push(getListItemId(v));
@@ -603,13 +602,11 @@ export default defineComponent({
           });
         }
 
-        if (e.key === 'Backspace' && target.value === '') {
-          if (isEmptyInput) {
-            emitDeleteItem(valueList.value.at(-1));
-            target.closest('.bklog-choice-value-item')?.remove();
-            setFixedOverflowY();
-            setTimeout(autoFocusInput);
-          }
+        if (e.key === 'Backspace' && target.value === '' && isEmptyInput) {
+          emitDeleteItem(valueList.value.at(-1));
+          target.closest('.bklog-choice-value-item')?.remove();
+          setFixedOverflowY();
+          setTimeout(autoFocusInput);
         }
       }
     };
@@ -629,7 +626,7 @@ export default defineComponent({
     const hiddenItemIndex = ref([]);
     const getMaxWidth = () => {
       if (props.maxWidth) {
-        return parseFloat(props.maxWidth.replace('px', ''));
+        return Number.parseFloat(props.maxWidth.replace('px', ''));
       }
 
       return refRootElement.value?.offsetWidth ?? 0;
@@ -716,10 +713,8 @@ export default defineComponent({
 
       const { addEvent } = useRetrieveEvent();
       addEvent(RetrieveEvent.GLOBAL_SCROLL, () => {
-        if (isInputFocused.value) {
-          if (fixedInstance.isShown()) {
-            fixedInstance.hide();
-          }
+        if (isInputFocused.value && fixedInstance.isShown()) {
+          fixedInstance.hide();
         }
       });
     }
@@ -867,11 +862,12 @@ export default defineComponent({
         const name = getListItemName(item);
         return (
           <div
+            key={`${index}-${item}`}
             class={['bklog-choice-list-item', { 'is-selected': selected }]}
+            title={name}
             onClick={() => handleOptionItemClick(item)}
             onMouseenter={() => handleOptionItemMouseenter(index)}
             onMouseleave={() => handleOptionItemMouseleave()}
-            title={name}
           >
             {slots.item?.(item) ?? getListItemName(item)}
           </div>
@@ -887,24 +883,26 @@ export default defineComponent({
             class='bklog-choice-value-edit-input'
             value={getListItemId(item)}
             data-bklog-choice-value-edit-input
-          ></input>
+          />
         );
       }
 
       const name = getListItemName(item);
       return [
         <bdi
+          key={`${index}-${name}`}
           class='bklog-choice-value-span'
-          onClick={e => handleSelectedValueItemclick(e, item, index)}
           title={name}
+          onClick={e => handleSelectedValueItemclick(e, item, index)}
         >
           {name}
         </bdi>,
         <i
+          key={`${index}-${name}-close`}
           class='bklog-icon bklog-close'
           data-bklog-choice-item-del={index}
           onClick={e => handleDeleteItemClick(e, item)}
-        ></i>,
+        />,
       ];
     };
 
@@ -931,16 +929,16 @@ export default defineComponent({
                 type='text'
                 data-bklog-choice-text-input
                 onInput={handleInputValueChange}
-                onKeyup={handleInputKeyup}
                 onKeydown={handleInputKeydown}
-              ></input>
+                onKeyup={handleInputKeyup}
+              />
             </li>
           );
         }
 
         const tagAttrs = props.onTagRender?.(item, index) ?? {};
 
-        tagAttrs.style = Object.assign({}, tagAttrs.style, valueTagStyle.value);
+        tagAttrs.style = { ...tagAttrs.style, ...valueTagStyle.value };
         tagAttrs.class = [
           ...(tagAttrs.class ?? []),
           'bklog-choice-value-item',
@@ -971,6 +969,7 @@ export default defineComponent({
       return [
         renderInputTag(),
         <div
+          key='bklog-choice-value'
           class='bklog-choice-value-container'
           v-bkloading={{ isLoading: props.loading, size: 'small' }}
         >
@@ -981,7 +980,7 @@ export default defineComponent({
 
     const getDropdownRender = () => {
       if (props.template === 'tag-choice') {
-        return <span class={[dropdownIconName.value, 'bklog-choice-dropdown-icon']}></span>;
+        return <span class={[dropdownIconName.value, 'bklog-choice-dropdown-icon']} />;
       }
 
       return null;
@@ -1007,7 +1006,7 @@ export default defineComponent({
         <span
           ref={refFixedPointerElement}
           class='hidden-fixed-pointer'
-        ></span>
+        />
         <ul
           ref={refTagInputContainer}
           style={rootStyle.value}
@@ -1030,7 +1029,7 @@ export default defineComponent({
         <span
           class='bk-icon icon-close-circle-shape delete-all-tags'
           onClick={handleDeleteAllClick}
-        ></span>
+        />
         <div v-show={false}>
           <div
             ref={refChoiceList}

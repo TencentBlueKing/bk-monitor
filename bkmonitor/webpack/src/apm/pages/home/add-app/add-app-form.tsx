@@ -58,7 +58,7 @@ export default class AddAppForm extends tsc<IProps> {
       content: window.i18n.tc(
         '从用户发起请求到服务响应的全链路追踪，追踪请求在多个服务之间的调用情况，帮助业务识别性能瓶颈和延迟原因'
       ),
-      icon: 'icon-tiaoyonglian',
+      icon: 'icon-Tracing',
     },
     {
       id: ETelemetryDataType.profiling,
@@ -159,12 +159,8 @@ export default class AddAppForm extends tsc<IProps> {
   }
 
   /* 保存 */
-  async handleSave(isAccess = false) {
-    if (isAccess) {
-      this.saveToServiceLoading = true;
-    } else {
-      this.saveLoading = true;
-    }
+  async handleSave() {
+    this.saveLoading = true;
     await this.validateForm();
     if (!this.isVerifyFn()) {
       this.saveLoading = false;
@@ -182,23 +178,14 @@ export default class AddAppForm extends tsc<IProps> {
       es_storage_config: null,
     };
     const res = await createApplication(params)
-      .then(() => true)
+      .then(data => data)
       .catch(() => false);
     if (res) {
       this.$bkMessage({
         theme: 'success',
-        message: this.$t('保存成功'),
+        message: this.$t('应用创建成功，你可以继续接入服务。'),
       });
       this.$emit('success', params.app_name as string);
-      if (isAccess) {
-        // 跳转到接入服务页面
-        this.$router.push({
-          name: 'service-add',
-          params: {
-            appName: params.app_name as string,
-          },
-        });
-      }
       this.initForm();
     }
     this.saveLoading = false;
@@ -265,7 +252,7 @@ export default class AddAppForm extends tsc<IProps> {
               key={item.id}
               class='report-type-wrap'
             >
-              <div class='report-left-content'>
+              <div class={['report-left-content', { 'is-disabled': !this.formData[item.id] }]}>
                 <i class={['icon-monitor', item.icon]} />
               </div>
               <div class='report-middle-content'>
@@ -295,7 +282,7 @@ export default class AddAppForm extends tsc<IProps> {
             >
               {this.$t('保存')}
             </bk-button>
-            <bk-button
+            {/* <bk-button
               class='mr-8'
               disabled={!this.isVerify}
               loading={this.saveToServiceLoading}
@@ -303,7 +290,7 @@ export default class AddAppForm extends tsc<IProps> {
               onClick={() => this.handleSave(true)}
             >
               {this.$t('保存并接入服务')}
-            </bk-button>
+            </bk-button> */}
             <bk-button onClick={this.handleCancel}>{this.$t('取消')}</bk-button>
           </div>
         )}

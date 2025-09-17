@@ -66,7 +66,7 @@ export default defineComponent({
     });
 
     const refRoot = ref();
-    let interactjsInstance = null;
+    let interactjsInstance: any = null;
 
     const renderVNode = () => {
       return (
@@ -108,7 +108,7 @@ export default defineComponent({
                 setGuidLeft(event);
               },
               move(event) {
-                let { x, y } = event.target.dataset;
+                const { x, y } = event.target.dataset;
 
                 Object.assign(event.target.dataset, { x, y });
                 if (event.rect.width > 30) {
@@ -117,8 +117,8 @@ export default defineComponent({
               },
               end(event) {
                 let { x, y } = event.target.dataset;
-                x = (parseFloat(x) || 0) + event.deltaRect.left;
-                y = (parseFloat(y) || 0) + event.deltaRect.top;
+                x = (Number.parseFloat(x) || 0) + event.deltaRect.left;
+                y = (Number.parseFloat(y) || 0) + event.deltaRect.top;
 
                 Object.assign(event.target.style, {
                   width: `${event.rect.width}px`,
