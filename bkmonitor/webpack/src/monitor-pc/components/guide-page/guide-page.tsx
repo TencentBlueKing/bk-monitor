@@ -28,11 +28,11 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getDocLink } from 'monitor-api/modules/commons';
 
+import AddAppSide from '../../../apm/pages/home/add-app/add-app-side';
+import ServiceAddSide from '../../../apm/pages/service/service-add-side';
+
 import type { IBtnAndLinkItem, ISPaceIntroduceData, SpaceIntroduceKeys } from '../../types/common/common';
 import type { Route } from 'vue-router';
-
-import AddAppSide from '../../../apm/pages/home/add-app/add-app-side';
-import ServiceAddSide from '../../../apm/pages/service/service-add-side'
 
 import './guide-page.scss';
 
@@ -82,7 +82,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
   activated() {
     this.navId = this.$route.meta?.navId;
   }
-  beforeRouteEnter(to: Route, from: Route, next) {
+  beforeRouteEnter(to: Route, _from: Route, next) {
     next((vm: GuidePage) => {
       const { navId } = to.meta;
       vm.navId = navId;
@@ -93,6 +93,10 @@ export default class GuidePage extends tsc<IGuidePageProps> {
    * @param item 链接数据
    */
   handleGotoLink(item: IBtnAndLinkItem) {
+    if (item.url?.match?.(/^https?:\/\//)) {
+      window.open(item.url, '_blank');
+      return;
+    }
     getDocLink({ md_path: item.url })
       .then(data => {
         window.open(data, '_blank');
@@ -132,9 +136,9 @@ export default class GuidePage extends tsc<IGuidePageProps> {
   }
 
   // 新建应用成功
-  handleAddAppSuccess([appName, appId]) {
-    this.appName = appName;
+  handleAddAppSuccess(appName: string, appId: string) {
     this.appId = appId;
+    this.appName = appName;
     // 打开接入服务抽屉
     this.isShowServiceAdd = true;
   }
@@ -142,10 +146,6 @@ export default class GuidePage extends tsc<IGuidePageProps> {
   // 接入服务抽屉显隐
   handleServiceAddSideShow(v) {
     this.isShowServiceAdd = v;
-    // 跳转apm首页
-    // this.$router.push({
-    //   name: 'home',
-    // });
   }
 
   render() {
@@ -203,17 +203,21 @@ export default class GuidePage extends tsc<IGuidePageProps> {
             <div class={`guide-img-wrap img-${this.guideId ?? this.navId}`} />
           </div>
         </div>
-        <AddAppSide
-          isShow={this.isShowAppAdd}
-          onShowChange={v => this.handleToggleAppAdd(v)}
-          onSuccess={v => this.handleAddAppSuccess(v)}
-        />
-        <ServiceAddSide
-          isShow={this.isShowServiceAdd}
-          applicationId={this.appId}
-          appName={this.appName}
-          onSidesliderShow={v => this.handleServiceAddSideShow(v)}
-        />
+        {this.$route.name === 'apm-home' && [
+          <AddAppSide
+            key='add-app-side'
+            isShow={this.isShowAppAdd}
+            onShowChange={v => this.handleToggleAppAdd(v)}
+            onSuccess={this.handleAddAppSuccess}
+          />,
+          <ServiceAddSide
+            key='service-add-side'
+            applicationId={this.appId}
+            appName={this.appName}
+            isShow={this.isShowServiceAdd}
+            onSidesliderShow={v => this.handleServiceAddSideShow(v)}
+          />,
+        ]}
       </div>
     );
   }

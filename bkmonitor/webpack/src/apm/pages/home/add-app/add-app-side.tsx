@@ -32,7 +32,7 @@ import './add-app-side.scss';
 
 interface IEvent {
   onShowChange?: (show: boolean) => void;
-  onSuccess?: (appName: string) => void;
+  onSuccess?: (appName: string, appId: string) => void;
 }
 
 interface IProps {
@@ -49,10 +49,9 @@ export default class AddApplication extends tsc<IProps, IEvent> {
     return v;
   }
 
-  @Emit('success')
-  handleSuccess(v: string) {
+  handleSuccess(v: string, appId: string) {
     this.handleShowChange(false);
-    return v;
+    this.$emit('success', v, appId);
   }
 
   handleMoreClick() {

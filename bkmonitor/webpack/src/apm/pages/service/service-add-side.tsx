@@ -63,10 +63,10 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
   // 上报指引地址
   reportGuideUrl = '';
 
-  @Watch('isShow')
-  showSideslider(show) {
+  @Watch('appName', { immediate: true })
+  watchAppName() {
     this.resetData();
-    if (show) {
+    if (this.appName) {
       this.getToken();
       this.getPushUrl();
       this.getLinkData();
@@ -135,9 +135,8 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
   handleGoToLink(urlStr: string) {
     if (urlStr === 'Quick') {
       // 首次新建应用成功后，服务相关的动态路由 可能未加载，故直接使用拼接方式跳转
-      const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}service-add/${this.appName}`;
+      const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/apm/'}service-add/${this.appName}`;
       const url = location.href.replace(location.hash, hash);
-      console.log('url', url);
       window.open(url, '_blank');
       return;
     }
@@ -180,7 +179,7 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
             title={this.$t('上报token') as string}
             onCopy={() => this.handleCopy(this.token)}
           >
-            {this.token}
+            <span v-bk-tooltips={{ content: this.token }}>{this.token}</span>
           </ServiceAddSideItem>
           <ServiceAddSideItem
             title={this.$t('上报地址') as string}
@@ -213,7 +212,7 @@ export default class ServiceAddSide extends tsc<IProps, IEvent> {
               onClick={() => this.handleGoToLink(this.reportGuideUrl)}
             >
               <i class='icon-monitor icon-mc-detail' />
-              {this.$t('上报指引')}
+              {this.$t('接入指引')}
             </div>
             <div
               class='service-add-side__block'
