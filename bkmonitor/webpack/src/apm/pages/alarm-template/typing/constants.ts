@@ -24,36 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-export interface AlarmAlgorithmItem {
-  level: number;
-  method: string;
-  threshold: number;
-  type: string;
-}
+import type {
+  AlarmTemplateDetailTabEnum,
+  AlarmTemplateTypeEnum,
+  BatchOperationTypeEnum,
+  DetectionAlgorithmLevelEnum,
+} from '../constant';
+import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
 
-export interface AlarmTemplateConditionParamItem {
-  key: string;
-  value: string[];
-}
+/** apm 告警模板 详情侧边栏 tab Enum 枚举类型 */
+export type AlarmTemplateDetailTabEnumType = GetEnumTypeTool<typeof AlarmTemplateDetailTabEnum>;
 
-export interface AlarmTemplateListItem {
-  algorithms: AlarmAlgorithmItem[];
-  applied_service_names: string[];
-  category: string;
-  create_time: string;
-  create_user: string;
-  id: number;
-  is_auto_apply: boolean;
-  is_enabled: boolean;
-  name: string;
-  system: string;
-  type: string;
-  update_time: string;
-  update_user: string;
-  user_group_list: AlarmUserGroupItem[];
-}
+/** apm 告警模板类型 Enum 枚举类型 */
+export type AlarmTemplateTypeEnumType = GetEnumTypeTool<typeof AlarmTemplateTypeEnum>;
 
-export interface AlarmUserGroupItem {
-  id: number;
-  name: string;
-}
+/** 批量操作类型 Enum 枚举类型 */
+export type BatchOperationTypeEnumType = GetEnumTypeTool<typeof BatchOperationTypeEnum>;
+
+/** 检测算法级别 Enum 枚举类型 */
+export type DetectionAlgorithmLevelEnumType = GetEnumTypeTool<typeof DetectionAlgorithmLevelEnum>;
