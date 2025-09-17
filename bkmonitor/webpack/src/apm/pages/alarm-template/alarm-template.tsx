@@ -36,7 +36,12 @@ import EditTemplateSlider from './components/template-form/edit-template-slider'
 import { ALARM_TEMPLATE_QUICK_FILTER_LIST, AlarmTemplateTypeMap } from './constant';
 
 import type { AlarmDeleteConfirmEvent } from './components/alarm-delete-confirm/alarm-delete-confirm';
-import type { AlarmTemplateConditionParamItem, AlarmTemplateListItem, BatchOperationTypeEnumType } from './typing';
+import type {
+  AlarmTemplateConditionParamItem,
+  AlarmTemplateDetailTabEnumType,
+  AlarmTemplateListItem,
+  BatchOperationTypeEnumType,
+} from './typing';
 import type { SearchSelectItem } from 'monitor-pc/pages/query-template/typings';
 
 import './alarm-template.scss';
@@ -104,7 +109,11 @@ export default class AlarmTemplate extends tsc<object> {
           type: 'Threshold',
         },
       ],
-      user_group_list: [{ id: 1, name: '应用创建者' }],
+      user_group_list: [
+        { id: 1, name: '应用创建者' },
+        { id: 2, name: 'admin' },
+        { id: 3, name: 'ascasc' },
+      ],
       applied_service_names: [
         'activity-microservce.activities-10012',
         'example.greeter',
@@ -136,7 +145,12 @@ export default class AlarmTemplate extends tsc<object> {
       is_enabled: false,
       is_auto_apply: false,
       algorithms: [],
-      user_group_list: [{ id: 1, name: '应用创建者' }],
+      user_group_list: [
+        { id: 1, name: '应用创建者' },
+        { id: 2, name: 'admin' },
+        { id: 3, name: 'test' },
+        { id: 4, name: 'xxxxxxz' },
+      ],
       applied_service_names: ['activity-microservce.activities-10012', 'example.greeter', 'example.greeter'],
       create_user: 'admin',
       create_time: '2025-08-04 17:43:26+0800',
@@ -149,7 +163,7 @@ export default class AlarmTemplate extends tsc<object> {
   /** 搜索关键字 */
   searchKeyword: AlarmTemplateConditionParamItem[] = [];
   /** 表格已勾选的数据行id */
-  selectedRowKeys: string[] = [];
+  selectedRowKeys: AlarmTemplateListItem['id'][] = [];
   /** 搜索选择器选项(接口获取) */
   selectOptions: SearchSelectItem[] = [
     {
@@ -219,6 +233,21 @@ export default class AlarmTemplate extends tsc<object> {
   }
 
   /**
+   * @description 展示模板详情事件回调
+   */
+  handleShowDetail(id: AlarmTemplateListItem['id'], sliderActiveTab: AlarmTemplateDetailTabEnumType) {
+    console.log('================ 展示模板详情事件回调 ================', id, sliderActiveTab);
+  }
+
+  /**
+   * @description 表格行勾选事件回调
+   */
+  handleTableSelectedChange(selectedRowKeys: AlarmTemplateListItem['id'][]) {
+    this.selectedRowKeys = selectedRowKeys;
+    console.log('================ this.selectedRowKeys 表格行勾选事件回调 ================', this.selectedRowKeys);
+  }
+
+  /**
    * @description 批量/单个模板内属性更新事件回调
    */
   handleBatchUpdate(
@@ -241,7 +270,7 @@ export default class AlarmTemplate extends tsc<object> {
         <div class='alarm-template-header'>
           <div class='alarm-template-header-operations'>
             <BatchOperations
-              disabled={!!this.selectedRowKeys?.length}
+              disabled={!this.selectedRowKeys?.length}
               onOperationClick={this.handleBatchOperationClick}
             />
             <StatusTab
@@ -263,6 +292,7 @@ export default class AlarmTemplate extends tsc<object> {
         </div>
         <div class='alarm-template-main'>
           <AlarmTemplateTable
+            appName='tilapia'
             emptyType={this.searchKeyword?.length ? 'search-empty' : 'empty'}
             loading={this.tableLoading}
             tableData={this.tableData}
@@ -272,6 +302,8 @@ export default class AlarmTemplate extends tsc<object> {
             onDeleteTemplate={this.deleteTemplateById}
             onDispatch={this.handleDispatch}
             onEditTemplate={this.handleEditTemplate}
+            onSelectedChange={this.handleTableSelectedChange}
+            onShowDetail={this.handleShowDetail}
           />
         </div>
 

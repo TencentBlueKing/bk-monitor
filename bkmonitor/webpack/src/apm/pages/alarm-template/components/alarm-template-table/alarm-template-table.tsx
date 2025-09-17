@@ -29,12 +29,19 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
+import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 
-import { AlarmTemplateTypeEnum, AlarmTemplateTypeMap, TABLE_DEFAULT_DISPLAY_FIELDS } from '../../constant';
+import {
+  AlarmTemplateDetailTabEnum,
+  AlarmTemplateTypeEnum,
+  AlarmTemplateTypeMap,
+  TABLE_DEFAULT_DISPLAY_FIELDS,
+} from '../../constant';
 import AlarmDeleteConfirm, { type AlarmDeleteConfirmEvent } from '../alarm-delete-confirm/alarm-delete-confirm';
+import CollapseTags from '../collapse-tags/collapse-tags';
 import DetectionAlgorithmsGroup from '../detection-algorithms-group/detection-algorithms-group';
 
-import type { AlarmTemplateListItem } from '../../typing';
+import type { AlarmTemplateDetailTabEnumType, AlarmTemplateListItem } from '../../typing';
 
 import './alarm-template-table.scss';
 
@@ -55,9 +62,15 @@ interface AlarmTemplateTableEmits {
   onDispatch: (templateId: AlarmTemplateListItem['id']) => void;
   /** 编辑告警模板事件回调 */
   onEditTemplate: (templateId: AlarmTemplateListItem['id']) => void;
+  /** 行勾选事件回调 */
+  onSelectedChange: (selectedRowKeys: AlarmTemplateListItem['id'][]) => void;
+  /** 打开告警模板详情抽屉页 */
+  onShowDetail: (templateId: AlarmTemplateListItem['id'], sliderActiveTab) => void;
 }
 
 interface AlarmTemplateTableProps {
+  /** 当前应用名称 */
+  appName: string;
   /** 空数据类型 */
   emptyType: 'empty' | 'search-empty';
   /** 表格加载状态 */
@@ -71,6 +84,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   @Ref('tableRef') tableRef: Record<string, any>;
   @Ref('deleteConfirmTipRef') deleteConfirmTipRef: InstanceType<typeof AlarmDeleteConfirm>;
 
+  /** 当前应用名称 */
+  @Prop({ type: String }) appName: string;
   /** 表格加载状态 */
   @Prop({ type: Boolean }) loading: boolean;
   /** 表格数据 */
@@ -124,8 +139,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     user_group_list: {
       id: 'user_group_list',
       label: this.$t('告警组'),
-      width: 100,
-      // formatter: this.userColRenderer,
+      width: 180,
+      formatter: this.userGroupColRenderer,
     },
     is_enabled: {
       id: 'is_enabled',
@@ -159,6 +174,14 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   }
 
   /**
+   * @description 行勾选事件回调
+   */
+  @Emit('selectedChange')
+  handleSelectedChange(selectedRow: AlarmTemplateListItem[]) {
+    return selectedRow?.map(e => e?.id);
+  }
+
+  /**
    * @description 下发事件回调
    */
   @Emit('dispatch')
@@ -180,6 +203,14 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   @Emit('cloneTemplate')
   handleCloneTemplate(id: AlarmTemplateListItem['id']) {
     return id;
+  }
+
+  /**
+   * @description 打开告警模板详情抽屉页
+   */
+  @Emit('showDetail')
+  handleShowDetail(id: AlarmTemplateListItem['id'], sliderActiveTab: AlarmTemplateDetailTabEnumType) {
+    return { id, sliderActiveTab };
   }
 
   /**
@@ -319,6 +350,21 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   }
 
   /**
+   * @description: 跳转服务详情页
+   * @param serviceName 服务名
+   */
+  handleGoService(serviceName: string) {
+    const { from, to } = this.$route.query;
+    let urlStr = `${window.__BK_WEWEB_DATA__?.baseroute || ''}service/?filter-service_name=${serviceName}&filter-app_name=${this.appName}`;
+    urlStr += `&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
+    const { href } = this.$router.resolve({
+      path: urlStr,
+    });
+    const url = location.href.replace(location.pathname, '/').replace(location.hash, '') + href;
+    window.open(url);
+  }
+
+  /**
    * @description: 表格 模板名称 列渲染
    */
   nameColRenderer(row: AlarmTemplateListItem) {
@@ -333,12 +379,14 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         <div
           class='name-text'
           v-bk-overflow-tips
+          onClick={() => this.handleShowDetail(row.id, AlarmTemplateDetailTabEnum.BASE_INFO)}
         >
           <span>{row?.name}</span>
         </div>
         <div
           class='alarm-tag'
           v-bk-tooltips={{ content: this.$t('查看各服务告警情况') }}
+          onClick={() => this.handleShowDetail(row.id, AlarmTemplateDetailTabEnum.RELATE_SERVICE_ALARM)}
         >
           <i class='icon-monitor icon-gaojing3' />
           <span class='alarm-count'>2</span>
@@ -374,18 +422,21 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
    */
   appliedServiceNamesColRenderer(row: AlarmTemplateListItem) {
     if (!row?.applied_service_names?.length) return '--';
+    const firstServiceName = row?.applied_service_names?.[0];
     return (
       <div class='applied-service-name-col'>
         <div
           class='first-service-name'
           v-bk-overflow-tips
+          onClick={() => this.handleGoService(firstServiceName)}
         >
-          <span>{row?.applied_service_names?.[0] || '--'}</span>
+          <span>{firstServiceName || '--'}</span>
         </div>
         {row?.applied_service_names?.length > 1 && (
           <div
             class='service-name-ellipsis-tag'
             v-bk-tooltips={{ content: this.$t('查看全部关联服务') }}
+            onClick={() => this.handleShowDetail(row.id, AlarmTemplateDetailTabEnum.RELATE_SERVICE_ALARM)}
           >
             <span class='ellipsis-count'>{`+ ${row?.applied_service_names?.length - 1}`}</span>
           </div>
@@ -400,6 +451,18 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     return (
       <div class='algorithms-col'>
         <DetectionAlgorithmsGroup algorithms={row?.algorithms} />
+        <div class='edit-btn'>
+          <i class='icon-monitor icon-bianji' />
+        </div>
+      </div>
+    );
+  } /**
+   * @description: 表格 用户组 列渲染
+   */
+  userGroupColRenderer(row: AlarmTemplateListItem) {
+    return (
+      <div class='user-group-list-col'>
+        <CollapseTags data={row?.user_group_list?.map(e => e.name) || []} />
         <div class='edit-btn'>
           <i class='icon-monitor icon-bianji' />
         </div>
@@ -495,6 +558,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
           border={false}
           data={this.tableData}
           outer-border={false}
+          on-selection-change={this.handleSelectedChange}
         >
           <bk-table-column
             selectable={row => row?.is_enabled}
