@@ -23,12 +23,40 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import type { AlarmTemplateDetailTabEnum, BatchOperationTypeEnum } from '../constant';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
+import DetectionAlgorithm from './detection-algorithms';
 
-/** apm 告警模板 详情侧边栏 tab Enum 枚举类型 */
-export type AlarmTemplateDetailTabEnumType = GetEnumTypeTool<typeof AlarmTemplateDetailTabEnum>;
+import type { AlarmAlgorithmItem } from '../../typing';
 
-/** 批量操作类型 Enum 枚举类型 */
-export type BatchOperationTypeEnumType = GetEnumTypeTool<typeof BatchOperationTypeEnum>;
+import './detection-algorithms-group.scss';
+
+interface DetectionAlgorithmsGroupProps {
+  /** 检测算法数据数组 */
+  algorithms: AlarmAlgorithmItem[];
+  /** 传入为空数组时显示的占位符，默认为 -- */
+  placeholder?: string;
+}
+
+@Component
+export default class DetectionAlgorithmsGroup extends tsc<DetectionAlgorithmsGroupProps> {
+  /** 检测算法数据数组 */
+  @Prop({ type: Array, default: () => [] }) algorithms!: AlarmAlgorithmItem[];
+  /** 传入为空数组时显示的占位符，默认为 -- */
+  @Prop({ type: String, default: '--' }) placeholder: string;
+  render() {
+    return (
+      <div class='detection-algorithms-group'>
+        {this.algorithms?.length
+          ? this.algorithms.map((algorithm, index) => (
+              <DetectionAlgorithm
+                key={`${algorithm?.level}-${index}`}
+                algorithm={algorithm}
+              />
+            ))
+          : this.placeholder}
+      </div>
+    );
+  }
+}

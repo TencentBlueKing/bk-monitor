@@ -24,25 +24,48 @@
  * IN THE SOFTWARE.
  */
 
+import type { AlarmTemplateTypeEnumType, DetectionAlgorithmLevelEnumType } from './typing';
 import type { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
+/** apm 告警模板 侧弹详情抽屉面板 Tab Enum 枚举 */
+export const AlarmTemplateDetailTabEnum = {
+  /** 基础信息 */
+  BASE_INFO: 'base_info',
+  /** 关联服务&告警 */
+  RELATE_SERVICE_ALARM: 'relate_service_alarm',
+} as const;
+
+/** 告警模板类型 Enum 枚举 */
+export const AlarmTemplateTypeEnum = {
+  /** 内置模板 */
+  INNER: 'inner',
+  /** 克隆模板 */
+  APP: 'app',
+} as const;
+
+/** 批量操作类型 Enum 枚举 */
+export const BatchOperationTypeEnum = {
+  /** 开启自动下发 */
+  AUTO_APPLY: 'auto_apply',
+  /** 关闭自动下发 */
+  AUTO_CANCEL: 'auto_cancel',
+} as const;
+
+/** 检测算法级别 Enum 枚举 */
+export const DetectionAlgorithmLevelEnum = {
+  /** 致命 */
+  ERROR: 1,
+  /** 预警 */
+  WARNING: 2,
+  /** 提示 */
+  INFO: 3,
+} as const;
+
 /** 告警模板类型快速筛选 */
-export const ALARM_TEMPLATE_QUICK_FILTER_LIST: ITableFilterItem[] = [
-  {
-    icon: '',
-    id: 'all',
-    name: window.i18n.t('全部模板') as unknown as string,
-  },
-  {
-    icon: 'icon-neizhi',
-    id: 'inner',
-    name: window.i18n.t('内置模板') as unknown as string,
-  },
-  {
-    icon: 'icon-kelong',
-    id: 'app',
-    name: window.i18n.t('克隆模板') as unknown as string,
-  },
+export const ALARM_TEMPLATE_QUICK_FILTER_LIST: ('all' | AlarmTemplateTypeEnumType)[] = [
+  'all',
+  AlarmTemplateTypeEnum.INNER,
+  AlarmTemplateTypeEnum.APP,
 ];
 
 /** apm 告警模板列表-表格默认展示字段 */
@@ -58,21 +81,46 @@ export const TABLE_DEFAULT_DISPLAY_FIELDS = [
   'operator',
 ];
 
-/** 批量操作类型 Enum 枚举 */
-export const BatchOperationTypeEnum = {
-  /** 开启自动下发 */
-  AUTO_APPLY: 'auto_apply',
-  /** 关闭自动下发 */
-  AUTO_CANCEL: 'auto_cancel',
-} as const;
+/** 告警模板类型 Map */
+export const AlarmTemplateTypeMap: Record<'all' | AlarmTemplateTypeEnumType, ITableFilterItem> = {
+  all: {
+    icon: '',
+    id: 'all',
+    name: window.i18n.t('全部模板') as unknown as string,
+  },
+  [AlarmTemplateTypeEnum.INNER]: {
+    icon: 'icon-neizhi',
+    id: 'inner',
+    name: window.i18n.t('内置模板') as unknown as string,
+  },
+  [AlarmTemplateTypeEnum.APP]: {
+    icon: 'icon-kelong',
+    id: 'app',
+    name: window.i18n.t('克隆模板') as unknown as string,
+  },
+};
 
-/** apm 告警模板 侧弹详情抽屉面板 Tab 枚举 */
-export const AlarmTemplateDetailTabEnum = {
-  /** 基础信息 */
-  BASE_INFO: 'base_info',
-  /** 关联服务&告警 */
-  RELATE_SERVICE_ALARM: 'relate_service_alarm',
-} as const;
+/** 检测算法级别 Map */
+export const DetectionAlgorithmLevelMap: Record<
+  DetectionAlgorithmLevelEnumType,
+  Omit<ITableFilterItem, 'id'> & { id: number }
+> = {
+  [DetectionAlgorithmLevelEnum.ERROR]: {
+    icon: 'icon-danger',
+    id: DetectionAlgorithmLevelEnum.ERROR,
+    name: window.i18n.t('致命') as unknown as string,
+  },
+  [DetectionAlgorithmLevelEnum.WARNING]: {
+    icon: 'icon-mind-fill',
+    id: DetectionAlgorithmLevelEnum.WARNING,
+    name: window.i18n.t('预警') as unknown as string,
+  },
+  [DetectionAlgorithmLevelEnum.INFO]: {
+    icon: 'icon-tips',
+    id: DetectionAlgorithmLevelEnum.INFO,
+    name: window.i18n.t('提醒') as unknown as string,
+  },
+};
 
 /** 批量操作下拉列表 */
 export const BATCH_OPERATION_LIST = [
