@@ -38,7 +38,6 @@ METRIC_RPC_PANIC_STRATEGY_TEMPLATE: dict[str, Any] = {
     "algorithms": [
         utils.fatal_threshold_algorithm_config(method="gte", threshold=1),
     ],
-    "user_group_ids": [constants.BUILTIN_USER_GROUP_ID],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.CUSTOM_METRIC_PANIC.value},
     "context": {},
 }
@@ -49,4 +48,4 @@ class MetricStrategyTemplateSet(base.StrategyTemplateSet):
 
     ENABLED_CODES: list[str] = [MetricStrategyTemplateCode.METRIC_RPC_PANIC.value]
 
-    QUERY_TEMPLATES: list[dict[str, Any]] = [METRIC_RPC_PANIC_STRATEGY_TEMPLATE]
+    STRATEGY_TEMPLATES: list[dict[str, Any]] = [METRIC_RPC_PANIC_STRATEGY_TEMPLATE]

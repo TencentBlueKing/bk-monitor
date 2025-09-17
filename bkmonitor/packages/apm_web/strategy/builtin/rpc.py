@@ -61,7 +61,6 @@ RPC_CALLEE_SUCCESS_RATE_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.warning_threshold_algorithm_config(method="lte", threshold=95),
         utils.fatal_threshold_algorithm_config(method="lte", threshold=90),
     ],
-    "user_group_ids": [constants.BUILTIN_USER_GROUP_ID],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_SUCCESS_RATE.value},
     "context": _get_common_context(),
 }
@@ -76,7 +75,6 @@ RPC_CALLEE_AVG_TIME_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.warning_threshold_algorithm_config(method="gte", threshold=2000),
         utils.fatal_threshold_algorithm_config(method="gte", threshold=4000),
     ],
-    "user_group_ids": [constants.BUILTIN_USER_GROUP_ID],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_AVG_TIME.value},
     "context": _get_common_context(),
 }
@@ -91,7 +89,6 @@ RPC_CALLEE_P99_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.warning_threshold_algorithm_config(method="gte", threshold=3000),
         utils.fatal_threshold_algorithm_config(method="gte", threshold=5000),
     ],
-    "user_group_ids": [constants.BUILTIN_USER_GROUP_ID],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_P99.value},
     "context": _get_common_context(),
 }
@@ -106,7 +103,6 @@ RPC_CALLEE_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.warning_threshold_algorithm_config(method="gte", threshold=10),
         utils.fatal_threshold_algorithm_config(method="gte", threshold=50),
     ],
-    "user_group_ids": [constants.BUILTIN_USER_GROUP_ID],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_ERROR_CODE.value},
     "context": _get_common_context(),
 }
@@ -121,7 +117,6 @@ RPC_CALLER_SUCCESS_RATE_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.warning_threshold_algorithm_config(method="lte", threshold=95),
         utils.fatal_threshold_algorithm_config(method="lte", threshold=90),
     ],
-    "user_group_ids": [constants.BUILTIN_USER_GROUP_ID],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_SUCCESS_RATE.value},
     "context": _get_common_context(),
 }
@@ -136,7 +131,6 @@ RPC_CALLER_AVG_TIME_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.warning_threshold_algorithm_config(method="gte", threshold=2000),
         utils.fatal_threshold_algorithm_config(method="gte", threshold=4000),
     ],
-    "user_group_ids": [constants.BUILTIN_USER_GROUP_ID],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_AVG_TIME.value},
     "context": _get_common_context(),
 }
@@ -151,7 +145,6 @@ RPC_CALLER_P99_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.warning_threshold_algorithm_config(method="gte", threshold=3000),
         utils.fatal_threshold_algorithm_config(method="gte", threshold=5000),
     ],
-    "user_group_ids": [constants.BUILTIN_USER_GROUP_ID],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_P99.value},
     "context": _get_common_context(),
 }
@@ -166,7 +159,6 @@ RPC_CALLER_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.warning_threshold_algorithm_config(method="gte", threshold=10),
         utils.fatal_threshold_algorithm_config(method="gte", threshold=50),
     ],
-    "user_group_ids": [constants.BUILTIN_USER_GROUP_ID],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_ERROR_CODE.value},
     "context": _get_common_context(),
 }
@@ -183,7 +175,7 @@ class RPCStrategyTemplateSet(base.StrategyTemplateSet):
         RPCStrategyTemplateCode.RPC_CALLER_P99.value,
     ]
 
-    QUERY_TEMPLATES: list[dict[str, Any]] = [
+    STRATEGY_TEMPLATES: list[dict[str, Any]] = [
         RPC_CALLEE_SUCCESS_RATE_STRATEGY_TEMPLATE,
         RPC_CALLEE_AVG_TIME_STRATEGY_TEMPLATE,
         RPC_CALLEE_P99_STRATEGY_TEMPLATE,
