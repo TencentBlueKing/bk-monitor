@@ -100,10 +100,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   // 帮助文档弹窗数据
   apmIntroduceData = null;
 
+  // 用于接入服务抽屉的appName
+  serviceAddSideAppName = '';
+
   get appData() {
     return this.originalAppList?.find(item => item.app_name === this.appName);
   }
-
+  get serviceAddSideAppData() {
+    return this.originalAppList?.find(item => item.app_name === this.serviceAddSideAppName);
+  }
   get appList() {
     if (!this.searchCondition) return this.originalAppList;
     return this.originalAppList.filter(
@@ -278,12 +283,14 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   // 新建应用成功
   handleAddAppSuccess(appName: string) {
     this.appName = appName;
+    this.serviceAddSideAppName = appName;
     this.getAppList();
     this.isShowServiceAdd = true;
   }
 
   // 接入服务抽屉显隐
   handleServiceAddSideShow(v: boolean) {
+    this.serviceAddSideAppName = this.appName;
     this.isShowServiceAdd = v;
   }
 
@@ -360,14 +367,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
           active: id === 'noDataAlarm' ? 'dataStatus' : id,
         },
       });
-    } else if (id === 'accessService') {
-      this.$router.push({
-        name: 'service-add',
-        params: {
-          appName: row.app_name,
-        },
-      });
-    } else if (id === 'delete') {
+      return;
+    }
+
+    if (id === 'accessService') {
+      this.serviceAddSideAppName = row.app_name;
+      this.isShowServiceAdd = true;
+      return;
+    }
+    if (id === 'delete') {
       this.$bkInfo({
         type: 'warning',
         title: this.$t('确认删除应用？'),
@@ -447,12 +455,14 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                 onShowChange={v => this.handleToggleAppAdd(v)}
                 onSuccess={this.handleAddAppSuccess}
               />
-              <ServiceAddSide
-                applicationId={this.appData.application_id}
-                appName={this.appName}
-                isShow={this.isShowServiceAdd}
-                onSidesliderShow={v => this.handleServiceAddSideShow(v)}
-              />
+              {this.serviceAddSideAppData && (
+                <ServiceAddSide
+                  applicationId={this.serviceAddSideAppData.application_id}
+                  appName={this.serviceAddSideAppName.toString()}
+                  isShow={this.isShowServiceAdd}
+                  onSidesliderShow={v => this.handleServiceAddSideShow(v)}
+                />
+              )}
             </div>
             {this.loading ? (
               <ApmHomeSkeleton />
@@ -572,7 +582,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
             <AppHomeList
               key={this.refreshKey}
               appData={this.appData}
-              appName={this.appName}
+              appName={this.appName.toString()}
               authority={this.appData?.permission[authorityMap.VIEW_AUTH]}
               authorityDetail={authorityMap.VIEW_AUTH}
               timeRange={this.timeRange}
