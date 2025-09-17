@@ -170,7 +170,7 @@ class DataLink(models.Model):
         from metadata.models import ResultTableOption
 
         logger.info(
-            "compose_log_configs: data_link_name->[%s],bk_biz_id->[%s],data_source->[%s],table_id->[%s],storage_cluster_name->[%s]",
+            "compose_log_configs: data_link_name->[%s],bk_biz_id->[%s],data_source->[%s],table_id->[%s]",
             self.data_link_name,
             bk_biz_id,
             data_source,

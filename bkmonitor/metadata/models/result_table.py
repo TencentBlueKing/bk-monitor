@@ -2746,6 +2746,98 @@ class LogV4DataLinkOption(pydantic.BaseModel):
     es_storage_config: ESStorageConfig | None = pydantic.Field(description="ES存储配置")
     doris_storage_config: DorisStorageConfig | None = pydantic.Field(description="Doris存储配置")
 
+    config = {
+        "clean_rules": [
+            {
+                "input_id": "__raw_data",
+                "output_id": "json_data",
+                "operator": {"type": "json_de", "error_strategy": "drop"},
+            },
+            {
+                "input_id": "json_data",
+                "output_id": "gseIndex",
+                "operator": {
+                    "type": "assign",
+                    "key_index": "gseindex",
+                    "alias": "gseIndex",
+                    "output_type": "long",
+                },
+            },
+            {
+                "input_id": "json_data",
+                "output_id": "__ext",
+                "operator": {
+                    "type": "assign",
+                    "key_index": "ext",
+                    "alias": "__ext",
+                    "output_type": "dict",
+                },
+            },
+            {
+                "input_id": "json_data",
+                "output_id": "cloudId",
+                "operator": {"type": "assign", "key_index": "cloudid", "alias": "cloudid", "output_type": "long"},
+            },
+            {
+                "input_id": "json_data",
+                "output_id": "path",
+                "operator": {
+                    "type": "assign",
+                    "key_index": "filename",
+                    "alias": "filename",
+                },
+            },
+            {
+                "input_id": "json_data",
+                "output_id": "serverIp",
+                "operator": {
+                    "type": "assign",
+                    "key_index": "ip",
+                    "alias": "ip",
+                },
+            },
+            {
+                "input_id": "json_data",
+                "output_id": "items",
+                "operator": {"type": "get", "key_index": [{"type": "key", "value": "items"}], "missing_strategy": None},
+            },
+            {"input_id": "items", "output_id": "iter_item", "operator": {"type": "iter"}},
+            {
+                "input_id": "iter_item",
+                "output_id": "iterationIndex",
+                "operator": {
+                    "type": "assign",
+                    "key_index": "iterationindex",
+                    "alias": "iterationIndex",
+                },
+            },
+            {
+                "input_id": "iter_item",
+                "output_id": "log",
+                "operator": {
+                    "type": "assign",
+                    "key_index": "data",
+                    "alias": "log",
+                    "output_type": "string",
+                },
+            },
+            {"input_id": "iter_item", "output_id": "data", "operator": {"type": "json_de"}},
+        ],
+        "es_storage_config": {
+            "unique_field_list": [
+                "bk_host_id",
+                "cloudId",
+                "dtEventTimeStamp",
+                "gseIndex",
+                "iterationIndex",
+                "path",
+                "serverIp",
+            ],
+            "timezone": 8,
+        },
+        "doris_storage_config": None,
+    }
+
     @pydantic.model_validator(mode="after")
     def validate_config(self) -> Self:
         """额外校验"""
@@ -2774,11 +2866,6 @@ class ResultTableOption(OptionBase):
     TYPE_BOOL = "bool"
     TYPE_STRING = "string"
     TYPE_LIST = "list"
-
-    # 特定字段校验
-    field_validators: dict[str, type[pydantic.BaseModel]] = {
-        OPTION_V4_LOG_DATA_LINK: LogV4DataLinkOption,
-    }
 
     table_id = models.CharField("结果表ID", max_length=128, db_index=True)
     name = models.CharField(
@@ -2875,11 +2962,6 @@ class ResultTableOption(OptionBase):
                 f"table_id->[{table_id}] of bk_tenant_id->[{bk_tenant_id}] already has option->[{name}], maybe something go wrong?"
             )
             raise ValueError(_("结果表已存在[{}]选项").format(name))
-
-        # 校验字段内容
-        if name in cls.field_validators:
-            validator_cls = cls.field_validators[name]
-            validator_cls.model_validate_json(value)
 
         new_record = cls._create_option(value=value, creator=creator)
 

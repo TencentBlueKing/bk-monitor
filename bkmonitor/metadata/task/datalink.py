@@ -1,10 +1,13 @@
 import json
 import logging
+import random
+import string
 
 from pydantic import ValidationError
 
 from alarm_backends.service.scheduler.app import app
 from metadata.models import DataSource, DataSourceResultTable, ResultTable, ResultTableOption
+from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.result_table import LogV4DataLinkOption
@@ -77,13 +80,19 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
                 logger.error("apply_log_v4_datalink: tenant(%s) %s doris storage not found", bk_tenant_id, table_id)
                 raise ValueError(f"apply_log_v4_datalink: tenant({bk_tenant_id}) {table_id} doris storage not found")
 
-        # 创建V4链路配置
-        datalink, _ = DataLink.objects.get_or_create(
-            bk_tenant_id=bk_tenant_id,
-            data_link_name=table_id,
-            namespace="bklog",
-            data_link_strategy=DataLink.BK_LOG,
-        )
+        # 创建/更新V4链路配置
+        bkbase_rt = BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+        if not bkbase_rt:
+            # 生成链路名称，格式为bklog_{bk_biz_id}_{16位随机字符串}
+            random_str = "".join(random.choices(string.ascii_lowercase + string.digits, k=16))
+            datalink, _ = DataLink.objects.get_or_create(
+                bk_tenant_id=bk_tenant_id,
+                data_link_name=f"bklog_{rt.bk_biz_id}_{random_str}",
+                namespace="bklog",
+                data_link_strategy=DataLink.BK_LOG,
+            )
+        else:
+            datalink = DataLink.objects.get(bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name)
         datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
 
         # TODO: 清理多余的存储链路
