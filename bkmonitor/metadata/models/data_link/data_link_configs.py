@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.conf import settings
 from django.db import models
@@ -18,8 +18,12 @@ from django.db import models
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from metadata.models.data_link import constants, utils
 from metadata.models.data_link.constants import DataLinkKind
+from metadata.models.space.constants import LOG_EVENT_ETL_CONFIGS
 
 logger = logging.getLogger("metadata")
+
+if TYPE_CHECKING:
+    from metadata.models.data_source import DataSource
 
 
 class DataLinkResourceConfigBase(models.Model):
@@ -97,6 +101,65 @@ class DataIdConfig(DataLinkResourceConfigBase):
     class Meta:
         verbose_name = "数据源配置"
         verbose_name_plural = verbose_name
+
+    def componse_predefined_config(self, data_source: "DataSource") -> dict[str, Any]:
+        """
+        组装预定义数据源配置
+        """
+        tpl = """
+        {
+            "kind": "DataId",
+            "metadata": {
+                "name": "{{name}}",
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
+                "namespace": "{{namespace}}",
+                "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+            },
+            "spec": {
+                "alias": "{{name}}",
+                "bizId": {{monitor_biz_id}},
+                "description": "{{name}}",
+                "maintainers": {{maintainers}},
+                "predefined": {
+                    "dataId": {{bk_data_id}},
+                    "channel": {
+                        "kind": "KafkaChannel",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
+                        "namespace": "{{namespace}}",
+                        "name": "{{kafka_name}}"
+                    },
+                    "topic": "{{topic_name}}"
+                },
+                "eventType": "{{event_type}}"
+            }
+        }
+        """
+        maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
+            "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
+            "bk_data_id": data_source.bk_data_id,
+            "topic_name": data_source.mq_config.topic,
+            "kafka_name": data_source.mq_cluster.cluster_name,
+            "maintainers": json.dumps(maintainer),
+            "event_type": "log" if data_source.etl_config in LOG_EVENT_ETL_CONFIGS else "metric",
+        }
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            render_params["tenant"] = self.bk_tenant_id
+
+        return utils.compose_config(
+            tpl=tpl,
+            render_params=render_params,
+            err_msg_prefix="compose predefined data_id config",
+        )
 
     def compose_config(self, event_type="metric") -> dict:
         """

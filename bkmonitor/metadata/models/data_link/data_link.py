@@ -176,7 +176,7 @@ class DataLink(models.Model):
             data_source,
             table_id,
         )
-
+        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         es_storage = ESStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
         doris_storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
 
@@ -276,7 +276,7 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
                 name=self.data_link_name,
-                data_id_name=self.data_link_name,
+                data_id_name=bkbase_data_name,
             )
 
             # 组装配置
