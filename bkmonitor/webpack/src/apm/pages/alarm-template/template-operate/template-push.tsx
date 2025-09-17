@@ -27,10 +27,12 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { checkStrategyTemplate } from 'monitor-api/modules/model';
+import { checkStrategyTemplate, retrieveStrategyTemplate } from 'monitor-api/modules/model';
+import { random } from 'monitor-common/utils';
 
 import RelationServiceTable from './relation-service-table';
 
+import type { TemplateDetail } from '../components/template-form/typing';
 import type { IRelationService } from './typings';
 
 import './template-push.scss';
@@ -46,21 +48,9 @@ export default class TemplatePush extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
 
-  tabList = [
-    {
-      name: 'service',
-      label: '已关联的服务',
-      count: 0,
-    },
-    {
-      name: 'unservice',
-      label: '未关联的服务',
-      count: 0,
-    },
-  ];
-  activeTab = 'service';
-
   relationService: IRelationService[] = [];
+
+  strategyDetailMap = new Map<number, TemplateDetail>();
 
   @Watch('show')
   handleWatchShowChange(v: boolean) {
@@ -78,11 +68,37 @@ export default class TemplatePush extends tsc<IProps> {
   getCheckStrategyTemplate() {
     checkStrategyTemplate({
       strategy_template_ids: this.params?.strategy_template_ids,
-      service_names: this.params?.service_names,
+      // service_names: this.params?.service_names,
       app_name: this.params?.app_name,
     }).then(data => {
-      this.relationService = data?.list || [];
+      this.relationService = (data?.list || []).map(item => ({
+        ...item,
+        key: random(8),
+      }));
     });
+  }
+
+  async getStrategyDetails(ids: number[]) {
+    const fn = id => {
+      return new Promise((resolve, reject) => {
+        retrieveStrategyTemplate({
+          strategy_template_id: id,
+          app_name: this.params?.app_name,
+        })
+          .then(data => {
+            this.strategyDetailMap.set(id, data);
+            resolve(data);
+          })
+          .catch(reject);
+      });
+    };
+    const promiseList = [];
+    for (const id of ids) {
+      if (!this.strategyDetailMap.has(id)) {
+        promiseList.push(fn(id));
+      }
+    }
+    await Promise.all(promiseList);
   }
 
   render() {
@@ -110,19 +126,6 @@ export default class TemplatePush extends tsc<IProps> {
           class='template-push-content'
           slot='content'
         >
-          <bk-tab active={this.activeTab}>
-            {this.tabList.map(item => (
-              <bk-tab-panel
-                key={item.name}
-                name={item.name}
-              >
-                <template slot='label'>
-                  <span>{item.label}</span>
-                  <span>{`(${item.count})`}</span>
-                </template>
-              </bk-tab-panel>
-            ))}
-          </bk-tab>
           <RelationServiceTable relationService={this.relationService} />
         </div>
         <div

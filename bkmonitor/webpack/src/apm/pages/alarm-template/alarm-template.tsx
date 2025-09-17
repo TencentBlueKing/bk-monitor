@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
@@ -34,6 +34,7 @@ import AlarmTemplateSearch from './components/alarm-templte-search/alarm-templat
 import BatchOperations from './components/batch-operations/batch-operations';
 import EditTemplateSlider from './components/template-form/edit-template-slider';
 import { ALARM_TEMPLATE_QUICK_FILTER_LIST, AlarmTemplateTypeMap } from './constant';
+import TemplateDetails from './template-operate/template-details';
 
 import type { AlarmDeleteConfirmEvent } from './components/alarm-delete-confirm/alarm-delete-confirm';
 import type {
@@ -43,6 +44,7 @@ import type {
   BatchOperationTypeEnumType,
 } from './typing';
 import type { SearchSelectItem } from 'monitor-pc/pages/query-template/typings';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './alarm-template.scss';
 
@@ -176,6 +178,14 @@ export default class AlarmTemplate extends tsc<object> {
   editTemplateId = null;
   editTemplateShow = false;
 
+  /** 模板详情侧栏 */
+  templateDetailObj = {
+    show: false,
+    params: {},
+  };
+
+  @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+
   /**
    * @description 模板类型快捷筛选值改变后回调
    */
@@ -235,8 +245,15 @@ export default class AlarmTemplate extends tsc<object> {
   /**
    * @description 展示模板详情事件回调
    */
-  handleShowDetail(id: AlarmTemplateListItem['id'], sliderActiveTab: AlarmTemplateDetailTabEnumType) {
-    console.log('================ 展示模板详情事件回调 ================', id, sliderActiveTab);
+  handleShowDetail(obj: { id: AlarmTemplateListItem['id']; sliderActiveTab: AlarmTemplateDetailTabEnumType }) {
+    console.log('================ 展示模板详情事件回调 ================', obj);
+    this.templateDetailObj = {
+      show: true,
+      params: {
+        app_name: this.viewOptions.filters?.app_name,
+        ids: [obj.id],
+      },
+    };
   }
 
   /**
@@ -313,6 +330,13 @@ export default class AlarmTemplate extends tsc<object> {
           templateId={this.editTemplateId}
           onShowChange={show => {
             this.editTemplateShow = show;
+          }}
+        />
+        <TemplateDetails
+          params={this.templateDetailObj.params}
+          show={this.templateDetailObj.show}
+          onShowChange={show => {
+            this.templateDetailObj.show = show;
           }}
         />
       </div>
