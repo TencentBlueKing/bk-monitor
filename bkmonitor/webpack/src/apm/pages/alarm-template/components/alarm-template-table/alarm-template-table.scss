@@ -96,7 +96,6 @@
         width: 16px;
         height: 16px;
         color: #a3b1cc;
-        cursor: pointer;
         background: #f0f2f7;
         border-radius: 2px;
       }
@@ -172,6 +171,18 @@
       display: flex;
       column-gap: 10px;
       align-items: center;
+    }
+
+    .user-group-list-col {
+      display: flex;
+      column-gap: 10px;
+      align-items: center;
+
+      .bk-common-v2-tag-show {
+        .item-tags {
+          flex-wrap: nowrap;
+        }
+      }
     }
 
     .operator-col {
