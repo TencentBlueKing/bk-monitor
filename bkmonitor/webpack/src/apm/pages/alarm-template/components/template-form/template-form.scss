@@ -2,7 +2,7 @@
   .bk-form-item {
     .bk-label {
       font-size: 12px;
-      color: #4D4F56;
+      color: #4d4f56;
     }
 
     .text {
@@ -13,6 +13,30 @@
     .small-input {
       width: 64px;
       margin: 0 8px;
+    }
+
+    &.form-item-text {
+      .bk-label {
+        min-height: 20px;
+        line-height: 20px;
+      }
+
+      .bk-form-content {
+        min-height: 20px;
+        line-height: 20px;
+      }
+    }
+
+    &.submit-btns {
+      margin-top: 32px;
+      
+      .bk-button {
+        min-width: 88px;
+      }
+
+      .cancel-btn {
+        margin-left: 8px;
+      }
     }
   }
 

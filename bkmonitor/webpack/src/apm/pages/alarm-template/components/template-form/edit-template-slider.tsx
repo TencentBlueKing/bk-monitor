@@ -26,7 +26,13 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getFunctions } from 'monitor-api/modules/grafana';
 import { retrieveStrategyTemplate } from 'monitor-api/modules/model';
+import {
+  type VariableModelType,
+  getCreateVariableParams,
+  getVariableModel,
+} from 'monitor-pc/pages/query-template/variables';
 
 import TemplateForm from './template-form';
 
@@ -54,6 +60,10 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
 
   detailData: TemplateDetail = null;
 
+  variablesList: VariableModelType[] = [];
+
+  metricFunctions = [];
+
   @Watch('isShow')
   async handleIsShowChange(isShow: boolean) {
     if (isShow) {
@@ -62,10 +72,22 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
         strategy_template_id: this.templateId,
         app_name: this.appName,
       });
+      const createVariableParams = await getCreateVariableParams(this.detailData.query_template?.variables);
+      this.variablesList = createVariableParams.map(item =>
+        getVariableModel({ ...item, value: this.detailData.context[item.name.slice(2, item.name.length - 1)] })
+      );
       this.loading = false;
     } else {
       this.loading = false;
     }
+  }
+
+  async handleGetMetricFunctions() {
+    this.metricFunctions = await getFunctions().catch(() => []);
+  }
+
+  mounted() {
+    this.handleGetMetricFunctions();
   }
 
   @Emit('showChange')
@@ -95,7 +117,9 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
         >
           <TemplateForm
             data={this.detailData}
+            metricFunctions={this.metricFunctions}
             scene='edit'
+            variablesList={this.variablesList}
           />
         </div>
       </bk-sideslider>
