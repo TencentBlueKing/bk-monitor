@@ -115,6 +115,7 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
         key = serializers.ChoiceField(
             label=_("查询字段"),
             choices=[
+                "query",
                 "type",
                 "name",
                 "user_group_id",
