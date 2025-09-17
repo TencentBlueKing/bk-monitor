@@ -51,8 +51,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { fetchMetricDimensionValueList } from '../../../service';
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
-import { fetchMetricDimensionValueList } from '@/pages/query-template/service';
 
 import type { DimensionValueVariableModel } from '../../index';
 
