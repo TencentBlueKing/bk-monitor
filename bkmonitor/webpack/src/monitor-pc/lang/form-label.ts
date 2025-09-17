@@ -1892,6 +1892,8 @@ export default {
   系统恢复: 'System recovery',
   系统关闭: 'System closed',
   生成告警级别: 'Generate alarm levels',
+  屏蔽选择: 'Shield selection',
+  选择屏蔽范围: 'Select shielding range',
   // 故障
   根因所属节点: 'Root Node',
   标准提示: 'Type',
