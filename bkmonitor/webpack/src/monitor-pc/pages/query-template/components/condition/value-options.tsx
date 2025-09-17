@@ -29,11 +29,11 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce } from 'monitor-common/utils';
 import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 
+import EmptyStatus from '../../../../components/empty-status/empty-status';
+import TextHighlighter from '../../../../components/retrieval-filter/text-highlighter';
 import { isVariableName } from '../../variables/template/utils';
 import AddVariableOption from '../utils/add-variable-option';
 import VariableName from '../utils/variable-name';
-import EmptyStatus from '@/components/empty-status/empty-status';
-import TextHighlighter from '@/components/retrieval-filter/text-highlighter';
 
 import type { IFieldItem, TGetValueFn } from '@/components/retrieval-filter/value-selector-typing';
 

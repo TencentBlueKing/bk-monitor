@@ -51,8 +51,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { STRING_CONDITION_METHOD_LIST } from '../../../../../constant/constant';
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
-import { STRING_CONDITION_METHOD_LIST } from '@/constant/constant';
 
 import type { ConditionVariableModel } from '../../index';
 interface ConditionDetailProps {
