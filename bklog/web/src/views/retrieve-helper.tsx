@@ -195,16 +195,17 @@ class RetrieveHelper extends RetrieveBase {
       return;
     }
 
-    const { caseSensitive } = this.markInstance.getMarkOptions();
+    const { caseSensitive, regExpMark, accuracy } = this.markInstance.getMarkOptions();
     this.markInstance.setObserverConfig({ root: document.getElementById(this.logRowsContainerId) });
     this.markInstance.unmark();
+    const formatRegStr = !regExpMark;
     this.markInstance.highlight(
       (keywords ?? []).map((keyword, index) => {
         return {
           text: keyword,
           className: `highlight-${index}`,
           backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
-          textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', true),
+          textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', accuracy === 'exactly', formatRegStr),
         };
       }),
       reset,
