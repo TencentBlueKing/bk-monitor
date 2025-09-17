@@ -37,10 +37,10 @@ import {
   getTitleAndSubtitle,
   isNumeric,
 } from '../../../../components/retrieval-filter/utils';
+import AddVariableWrap from '../../components/utils/add-variable-wrap';
+import VariableName from '../../components/utils/variable-name';
 import { type IFieldItem, type IFilterField, type IFilterItem, EFieldType } from './typing';
 import ValueTagSelector, { type IValue } from './value-tag-selector';
-import AddVariableWrap from '@/pages/query-template/components/utils/add-variable-wrap';
-import VariableName from '@/pages/query-template/components/utils/variable-name';
 
 import type { TGetValueFn } from '../../../../components/retrieval-filter/value-selector-typing';
 
