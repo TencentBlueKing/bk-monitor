@@ -33,9 +33,10 @@ export interface IAlertStrategiesItem {
 export interface IRelationService {
   has_been_applied?: boolean;
   has_diff?: boolean;
-  same_origin_strategy_template?: { id: number | string; name: string }[];
+  key?: string;
+  same_origin_strategy_template?: { id: number | string; name: string };
   service_name?: string;
-  strategy?: { id: number | string; name: string }[];
+  strategy?: { id: number | string; name: string };
   strategy_template_id?: number | string;
 }
 
