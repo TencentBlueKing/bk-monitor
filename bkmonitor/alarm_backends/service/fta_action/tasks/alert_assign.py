@@ -175,7 +175,8 @@ class AlertAssigneeManager:
         if not self.match_manager:
             return notify_info, follow_notify_info
 
-        dimensions = self.match_manager.dimensions
+        # 实例化新的dict，避免告警订阅相关处理，影响告警分派
+        dimensions = dict(**self.match_manager.dimensions)
         # 新增告警级别支持（仅用于告警订阅匹配，告警分配不支持）
         dimensions.update(
             {
