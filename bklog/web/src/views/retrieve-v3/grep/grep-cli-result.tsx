@@ -85,7 +85,7 @@ export default defineComponent({
 
     const getExceptionMessage = () => {
       if (props.grepRequestResult.is_loading) {
-        return t('loading...'); // Loading message
+        return 'loading...'; // Loading message
       }
 
       return props.fieldName ? props.grepRequestResult.exception_msg || t('检索结果为空') : '请选择字段';

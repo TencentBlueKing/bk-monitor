@@ -1293,8 +1293,8 @@ class HostCollectorHandler(CollectorHandler):
             params["scope"] = scope
             params["scope"]["bk_biz_id"] = self.data.bk_biz_id
 
-        task_id = str(NodeApi.run_subscription_task(params)["task_id"])
-        if scope is None:
+        task_id = NodeApi.run_subscription_task(params).get("task_id")
+        if scope is None and task_id:
             self.data.task_id_list = [str(task_id)]
         self.data.save()
         return self.data.task_id_list

@@ -75,9 +75,9 @@ export default {
 
         const { bizId, spaceUid } = queryObj;
         const demoId = String(window.DEMO_BIZ_ID);
-        const demoProject = spaceList.find(item => item.bk_biz_id === demoId);
+        const demoProject = spaceList.find(item => `${item.bk_biz_id}` === demoId);
         const demoProjectUrl = demoProject ? this.getDemoProjectUrl(demoProject.space_uid) : '';
-        this.$store.commit('updateState', {'demoUid': demoProject ? demoProject.space_uid : ''});
+        this.$store.commit('updateState', { demoUid: demoProject ? demoProject.space_uid : '' });
         const isOnlyDemo = demoProject && spaceList.length === 1;
         if (!isHaveViewBusiness || isOnlyDemo) {
           // 没有一个业务或只有一个demo业务显示欢迎页面
@@ -114,7 +114,7 @@ export default {
             });
             args.getAccess.url = authRes.data.apply_url;
           }
-          this.$store.commit('updateState', {'pageLoading': false});
+          this.$store.commit('updateState', { pageLoading: false });
           this.checkSpaceChange();
           this.$emit('welcome', args);
         } else {
@@ -134,7 +134,7 @@ export default {
         }
       } catch (e) {
         console.warn(e);
-        this.$store.commit('updateState', {'pageLoading': false});
+        this.$store.commit('updateState', { pageLoading: false });
       }
     },
     getDemoProjectUrl(id) {
@@ -145,7 +145,7 @@ export default {
     },
     checkSpaceChange(spaceUid = '') {
       if (!this.isFirstLoad && this.$route.meta.needBack) {
-        this.$store.commit('updateState', {'showRouterLeaveTip': true});
+        this.$store.commit('updateState', { showRouterLeaveTip: true });
 
         this.$bkInfo({
           title: this.$t('是否放弃本次操作？'),
@@ -153,7 +153,7 @@ export default {
             this.spaceChange(spaceUid);
           },
           cancelFn: () => {
-            this.$store.commit('updateState', {'showRouterLeaveTip': false});
+            this.$store.commit('updateState', { showRouterLeaveTip: false });
           },
         });
         return;
@@ -226,7 +226,7 @@ export default {
           list.push('manage');
         }
       });
-      this.$store.commit('updateState', {'externalMenu': list});
+      this.$store.commit('updateState', { externalMenu: list });
     },
     async setRouter(spaceUid) {
       if (this.isExternal) {
@@ -266,7 +266,7 @@ export default {
               menuList.find(item => {
                 return matchedList.some(record => record.name === item.id);
               }) || {};
-            this.$store.commit('updateState', {'activeTopMenu': activeTopMenu} );
+            this.$store.commit('updateState', { activeTopMenu: activeTopMenu });
 
             const topMenuList = activeTopMenu.children?.length ? activeTopMenu.children : [];
             const topMenuChildren = topMenuList.reduce((pre, cur) => {
@@ -279,14 +279,14 @@ export default {
               topMenuChildren.find(item => {
                 return matchedList.some(record => record.name === item.id);
               }) || {};
-            this.$store.commit('updateState', {'activeManageNav': activeManageNav});
+            this.$store.commit('updateState', { activeManageNav: activeManageNav });
 
             const activeManageSubNav = activeManageNav.children
               ? activeManageNav.children.find(item => {
                   return matchedList.some(record => record.name === item.id);
                 })
               : {};
-            this.$store.commit('updateState', {'activeManageSubNav': activeManageSubNav});
+            this.$store.commit('updateState', { activeManageSubNav: activeManageSubNav });
           },
           {
             immediate: true,
@@ -320,7 +320,7 @@ export default {
             delete newQuery.bizId;
           }
           if (params.indexId) delete params.indexId;
-          this.$store.commit('updateState', {'pageLoading',value: true});
+          this.$store.commit('updateState', { pageLoading: true });
           this.$router.push({
             name: RoutingHop,
             params: {
@@ -330,9 +330,9 @@ export default {
           });
         }
         setTimeout(() => {
-          this.$store.commit('updateState', {'pageLoading',value: false});
+          this.$store.commit('updateState', { pageLoading: false });
           this.isFirstLoad = false;
-          this.$store.commit('updateState', {'showRouterLeaveTip': false});
+          this.$store.commit('updateState', { showRouterLeaveTip: false });
         }, 0);
       }
     },
