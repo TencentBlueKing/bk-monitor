@@ -219,6 +219,7 @@ export default {
   'button-执行中': 'Running',
   '执行中...': 'Executing...',
   下发中: 'Downloading', // 查看语境
+  下发: 'Download',
 
   // - Tab Text：选项卡文本，用于描述选项卡的作用，例如“基本信息”、“高级设置”等。
 
