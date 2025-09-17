@@ -5,12 +5,91 @@
   flex: 1;
   align-items: stretch;
 
+  .mt-14 {
+    margin-top: 14px;
+  }
+
   .left-table {
     flex: 1;
-    padding: 16px 24px;
+    padding: 0;
 
-    .search-input {
-      margin-bottom: 12px;
+    .bk-tab-header {
+      float: none;
+      display: block;
+      border-top: 1px solid #fafbfd !important;
+      border-right: none;
+    }
+
+    .bk-tab-section {
+      padding: 0;
+      border-bottom: none;
+    }
+
+   
+    .left-table-content {
+      padding: 0 24px;
+
+       .search-input {
+        margin-top: 16px;
+        margin-bottom: 12px;
+      }
+
+      .table-relation-header {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        color: #313238;
+
+        .icon-hint {
+          margin-right: 4px;
+          margin-left: 6px;
+          font-size: 14px;
+          color: #979BA5;
+        }
+
+        .tips {
+          font-size: 12px;
+          color: #979BA5;
+        }
+      }
+
+      .relation-strategy-content {
+        position: relative;
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+
+        .no-data {
+          color: #C4C6CC;
+        }
+
+        .strategy-name {
+          width: 65%;
+          max-width: 65%;
+          overflow: hidden;
+          color: #3A84FF;
+          cursor: pointer;
+        }
+
+        .strategy-link {
+          width: 15%;
+          max-width: 15%;
+          overflow: hidden;
+          color: #3A84FF;
+          cursor: pointer;
+        }
+
+        .diff-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 20%;
+          max-width: 20%;
+          overflow: hidden;
+          color: #3A84FF;
+          cursor: pointer;
+        }
+      }
     }
   }
 
