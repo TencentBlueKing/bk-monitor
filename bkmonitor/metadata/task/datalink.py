@@ -81,7 +81,7 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
                 raise ValueError(f"apply_log_v4_datalink: tenant({bk_tenant_id}) {table_id} doris storage not found")
 
         # 创建/更新V4链路配置
-        bkbase_rt = BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+        bkbase_rt = BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, monitor_table_id=table_id).first()
         if not bkbase_rt:
             # 生成链路名称，格式为bklog_{bk_biz_id}_{16位随机字符串}
             random_str = "".join(random.choices(string.ascii_lowercase + string.digits, k=16))
