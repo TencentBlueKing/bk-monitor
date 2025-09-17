@@ -38,6 +38,9 @@ import {
   TABLE_DEFAULT_DISPLAY_FIELDS,
 } from '../../constant';
 import AlarmDeleteConfirm, { type AlarmDeleteConfirmEvent } from '../alarm-delete-confirm/alarm-delete-confirm';
+import AlarmTemplateConfigDialog, {
+  type AlarmTemplateConfigDialogProps,
+} from '../alarm-template-config-dialog/alarm-template-config-dialog';
 import CollapseTags from '../collapse-tags/collapse-tags';
 import DetectionAlgorithmsGroup from '../detection-algorithms-group/detection-algorithms-group';
 
@@ -93,6 +96,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   /** 空数据类型 */
   @Prop({ type: String, default: 'empty' }) emptyType: 'empty' | 'search-empty';
 
+  /** dialog 弹窗所需配置项 */
+  templateDialogConfig: AlarmTemplateConfigDialogProps = null;
   /** 是否出于请求删除接口中状态 */
   isDeleteActive = false;
   /** 删除二次确认 popover 实例 */
@@ -350,6 +355,13 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   }
 
   /**
+   * @description : 打开/关闭 dialog 弹窗
+   */
+  handleDialogConfigChange(dialogConfig: AlarmTemplateConfigDialogProps) {
+    this.templateDialogConfig = dialogConfig;
+  }
+
+  /**
    * @description: 跳转服务详情页
    * @param serviceName 服务名
    */
@@ -447,11 +459,18 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   /**
    * @description: 表格 检测规则 列渲染
    */
-  algorithmsColRenderer(row: AlarmTemplateListItem) {
+  algorithmsColRenderer(row: AlarmTemplateListItem, column) {
+    const columnKey = column.columnKey;
+    const value = row[columnKey];
     return (
       <div class='algorithms-col'>
-        <DetectionAlgorithmsGroup algorithms={row?.algorithms} />
-        <div class='edit-btn'>
+        <DetectionAlgorithmsGroup algorithms={value} />
+        <div
+          class='edit-btn'
+          onClick={() =>
+            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+          }
+        >
           <i class='icon-monitor icon-bianji' />
         </div>
       </div>
@@ -459,11 +478,18 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   } /**
    * @description: 表格 用户组 列渲染
    */
-  userGroupColRenderer(row: AlarmTemplateListItem) {
+  userGroupColRenderer(row: AlarmTemplateListItem, column) {
+    const columnKey = column.columnKey;
+    const value = row[columnKey] || [];
     return (
       <div class='user-group-list-col'>
-        <CollapseTags data={row?.user_group_list?.map(e => e.name) || []} />
-        <div class='edit-btn'>
+        <CollapseTags data={value?.map(e => e.name) || []} />
+        <div
+          class='edit-btn'
+          onClick={() =>
+            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+          }
+        >
           <i class='icon-monitor icon-bianji' />
         </div>
       </div>
@@ -585,6 +611,13 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
             templateName={this.deletePopoverInstance?.deleteConfirmConfig?.templateName}
             onCancel={this.handlePopoverHide}
             onConfirm={this.handleDeleteTemplateConfirm}
+          />
+          <AlarmTemplateConfigDialog
+            activeType={this.templateDialogConfig?.activeType}
+            defaultValue={this.templateDialogConfig?.defaultValue}
+            templateId={this.templateDialogConfig?.templateId}
+            onCancel={() => this.handleDialogConfigChange(null)}
+            onConfirm={this.handleBatchUpdate}
           />
         </div>
       </div>
