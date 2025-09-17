@@ -113,7 +113,7 @@ class StrategyTemplateCategory(CachedEnum):
     def choices(cls) -> list[tuple[str, str]]:
         return [
             (cls.DEFAULT.value, cls.DEFAULT.label),
-            (cls.RPC_CALLEE.value, cls.RPC_CALLER.label),
+            (cls.RPC_CALLEE.value, cls.RPC_CALLEE.label),
             (cls.RPC_CALLER.value, cls.RPC_CALLER.label),
         ]
 
@@ -124,7 +124,7 @@ class StrategyTemplateCategory(CachedEnum):
         )
 
     @classmethod
-    def get_default(cls, value) -> "StrategyTemplateType":
+    def get_default(cls, value) -> "StrategyTemplateCategory":
         default = super().get_default(value)
         default.label = value
         return default
@@ -167,7 +167,7 @@ class StrategyTemplateMonitorType(CachedEnum):
         )
 
     @classmethod
-    def get_default(cls, value) -> "StrategyTemplateType":
+    def get_default(cls, value) -> "StrategyTemplateMonitorType":
         default = super().get_default(value)
         default.label = value
         return default
