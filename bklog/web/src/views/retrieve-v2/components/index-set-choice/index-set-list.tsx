@@ -461,7 +461,7 @@ export default defineComponent({
                 .filter(tag => tag?.tag_id !== 4)
                 .map((tag: any) => (
                   <span
-                    key={item}
+                    key={tag.tag_id}
                     class='index-set-tag-item'
                   >
                     {tag.name}

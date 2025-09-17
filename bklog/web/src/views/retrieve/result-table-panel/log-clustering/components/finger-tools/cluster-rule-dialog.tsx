@@ -181,7 +181,7 @@ export default class ClusterPopover extends tsc<IProps> {
         regex = new RegExp(regexStr, 'g');
       } catch (e) {
         console.error(`Invalid regular expression: ${regexStr}`, e);
-        return;
+        continue;
       }
 
       let match: any;
@@ -260,7 +260,7 @@ export default class ClusterPopover extends tsc<IProps> {
 
       if (start < lastIndex) {
         // 如果当前匹配项和上一个匹配项有重叠，跳过当前匹配项
-        return;
+        continue;
       }
 
       if (start > lastIndex) {

@@ -578,6 +578,11 @@ class BKBaseExportException(BaseException):
     MESSAGE = _("计算平台索引集暂不支持快速下载")
 
 
+class DuplicateUnifyQueryExportException(BaseException):
+    ERROR_CODE = "506"
+    MESSAGE = _("已有相同检索参数正在下载中，请勿重复下载")
+
+
 # =================================================
 # JWT
 # =================================================

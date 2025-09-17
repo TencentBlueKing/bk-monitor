@@ -110,12 +110,12 @@ export const charColor = (index: number) => {
 };
 
 export const OPERATE_OPTIONS: IOperateOption[] = [
-  // {
-  //   id: 'appDetails',
-  //   name: window.i18n.t('应用详情'),
-  //   authority: true,
-  //   iconClassName: '',
-  // },
+  {
+    id: 'appTopo',
+    name: window.i18n.t('调用拓扑'),
+    authority: true,
+    iconClassName: 'icon-mc-apm-topo',
+  },
   {
     id: 'appConfig',
     name: window.i18n.t('应用配置'),

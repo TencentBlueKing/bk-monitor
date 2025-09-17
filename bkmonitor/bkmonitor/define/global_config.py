@@ -539,6 +539,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_DATA_PUSH_URL", slz.CharField(label=_("APM数据上报链接汇总"), default="", allow_blank=True)),
         ("APM_BEST_PRACTICE_URL", slz.CharField(label=_("APM最佳实践链接"), default="", allow_blank=True)),
         ("APM_METRIC_DESCRIPTION_URL", slz.CharField(label=_("APM指标说明"), default="", allow_blank=True)),
+        ("APM_FUNC_INTRODUCTION_URL", slz.CharField(label=_("APM产品白皮书"), default="", allow_blank=True)),
         ("APM_APDEX_T_VALUE", slz.IntegerField(label=_("APM平台apdex_t默认配置"), default=800)),
         ("APM_SAMPLING_PERCENTAGE", slz.IntegerField(label=_("APM中默认采样比例"), default=100)),
         ("APM_APP_QPS", slz.IntegerField(label=_("APM中应用默认QPS"), default=500)),

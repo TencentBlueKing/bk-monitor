@@ -562,6 +562,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
     index_set_id = models.IntegerField("索引集id", null=True)
     index_set_name = models.CharField("索引集名称", max_length=512, null=True)
 
+    def to_json(self):
+        return {**super().to_json(), "index_set_id": self.index_set_id}
+
     @property
     def table_id(self) -> str:
         return self.get_table_id(int(self.bk_biz_id), self.app_name)

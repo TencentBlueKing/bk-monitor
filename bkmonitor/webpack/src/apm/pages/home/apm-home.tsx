@@ -41,8 +41,8 @@ import authorityMixinCreate from '../../../apm/mixins/authorityMixin';
 // import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 import * as authorityMap from '../home/authority-map';
-import AddAppSide from './add-app/add-app-side';
 import ServiceAddSide from '../service/service-add-side';
+import AddAppSide from './add-app/add-app-side';
 import AppHomeList from './components/apm-home-list';
 import ApmHomeResizeLayout from './components/apm-home-resize-layout';
 import NavBar from './nav-bar';
@@ -86,9 +86,6 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   refreshInstance = null;
   appName = '';
 
-  // 用于查询接入服务抽屉上报token
-  appId = '';
-
   showFilterPanel = true;
 
   isShowAppAdd = false;
@@ -103,10 +100,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   // 帮助文档弹窗数据
   apmIntroduceData = null;
 
+  // 用于接入服务抽屉的appName
+  serviceAddSideAppName = '';
+
   get appData() {
     return this.originalAppList?.find(item => item.app_name === this.appName);
   }
-
+  get serviceAddSideAppData() {
+    return this.originalAppList?.find(item => item.app_name === this.serviceAddSideAppName);
+  }
   get appList() {
     if (!this.searchCondition) return this.originalAppList;
     return this.originalAppList.filter(
@@ -279,15 +281,16 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   }
 
   // 新建应用成功
-  handleAddAppSuccess([ appName, appId ]) {
+  handleAddAppSuccess(appName: string) {
     this.appName = appName;
-    this.appId = appId;
+    this.serviceAddSideAppName = appName;
     this.getAppList();
     this.isShowServiceAdd = true;
   }
 
   // 接入服务抽屉显隐
-  handleServiceAddSideShow(v) {
+  handleServiceAddSideShow(v: boolean) {
+    this.serviceAddSideAppName = this.appName;
     this.isShowServiceAdd = v;
   }
 
@@ -313,43 +316,19 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   }
 
   /**
-   * @description 展示hover详情按钮的条件
-   * @param row
-   * @returns {boolean}
-   */
-  hoverDetailShow(row: IAppListItem) {
-    // 接入中
-    if (!row.metric_result_table_id || !row.trace_result_table_id) return false;
-    return true;
-  }
-
-
-  /**
-   * @description 应用列表内的详情点击
-   * @param row
-   */
-  handleAppDetail(row: IAppListItem, e: Event) {
-    e.stopPropagation();
-    // 权限判断
-    if (!row?.permission[authorityMap.VIEW_AUTH]) {
-      this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH)
-      return;
-    }
-    this.handleConfig('appDetails', row);
-  }
-
-  /**
    * @description 更多选项
    * @param id
    * @param row
    */
   handleConfig(id: string, row: IAppListItem) {
-    // 2025-09-09 popover内的应用详情已被调整为列表item在hover时直接展示
-    if (id === 'appDetails') {
+    if (id === 'appTopo') {
       this.$router.push({
         name: 'application',
         query: {
           'filter-app_name': row.app_name,
+          dashboardId: 'topo',
+          sceneId: 'apm_application',
+          sceneType: 'overview',
         },
       });
       return;
@@ -376,14 +355,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
           active: id === 'noDataAlarm' ? 'dataStatus' : id,
         },
       });
-    } else if (id === 'accessService') {
-      this.$router.push({
-        name: 'service-add',
-        params: {
-          appName: row.app_name,
-        },
-      });
-    } else if (id === 'delete') {
+      return;
+    }
+
+    if (id === 'accessService') {
+      this.serviceAddSideAppName = row.app_name;
+      this.isShowServiceAdd = true;
+      return;
+    }
+    if (id === 'delete') {
       this.$bkInfo({
         type: 'warning',
         title: this.$t('确认删除应用？'),
@@ -461,12 +441,12 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
               <AddAppSide
                 isShow={this.isShowAppAdd}
                 onShowChange={v => this.handleToggleAppAdd(v)}
-                onSuccess={v => this.handleAddAppSuccess(v)}
+                onSuccess={this.handleAddAppSuccess}
               />
               <ServiceAddSide
+                applicationId={this.serviceAddSideAppData?.application_id}
+                appName={this.serviceAddSideAppName?.toString()}
                 isShow={this.isShowServiceAdd}
-                applicationId={this.appId}
-                appName={this.appName}
                 onSidesliderShow={v => this.handleServiceAddSideShow(v)}
               />
             </div>
@@ -518,15 +498,6 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                     {item.metric_result_table_id || item.trace_result_table_id ? null : (
                       <bk-tag theme='info'>{this.$t('接入中')}...</bk-tag>
                     )}
-                    {this.hoverDetailShow(item) && (
-                      <div
-                      v-authority={{ active: !item?.permission[authorityMap.VIEW_AUTH] }}
-                      class='item-hover-detail'
-                      onClick={(e) => this.handleAppDetail(item, e)}
-                    >
-                      {this.$t('详情')}
-                    </div>
-                    ) }
                     <div class='item-content'>
                       <span class='item-service-count'>{item?.service_count}</span>
                       <OperateOptions
@@ -587,12 +558,13 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
             <AppHomeList
               key={this.refreshKey}
               appData={this.appData}
-              appName={this.appName}
+              appName={this.appName.toString()}
               authority={this.appData?.permission[authorityMap.VIEW_AUTH]}
               authorityDetail={authorityMap.VIEW_AUTH}
               timeRange={this.timeRange}
               onGoToServiceByLink={val => this.handleGotoService(val)}
               onRouteUrlChange={this.handleReplaceRouteUrl}
+              onServiceAddSideShow={v => this.handleServiceAddSideShow(v)}
             />
           </div>
         </ApmHomeResizeLayout>

@@ -512,5 +512,4 @@ export default {
   刷新列表: 'Refresh List',
   添加告警策略: 'Add Alert Policy',
   更多地址: 'More',
-  上报指引: 'Report Guide',
 };
