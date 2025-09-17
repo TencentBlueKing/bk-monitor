@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import type { AlgorithmType } from '../components/template-form/typing';
 import type { DetectionAlgorithmLevelEnumType } from './constants';
 
 export interface AlarmAlgorithmItem {
   level: DetectionAlgorithmLevelEnumType;
   method: string;
   threshold: number;
-  type: string;
+  type: AlgorithmType;
 }
 
 export interface AlarmTemplateConditionParamItem {
