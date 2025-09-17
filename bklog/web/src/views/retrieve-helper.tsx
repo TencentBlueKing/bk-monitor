@@ -195,16 +195,17 @@ class RetrieveHelper extends RetrieveBase {
       return;
     }
 
-    const { caseSensitive } = this.markInstance.getMarkOptions();
+    const { caseSensitive, regExpMark, accuracy } = this.markInstance.getMarkOptions();
     this.markInstance.setObserverConfig({ root: document.getElementById(this.logRowsContainerId) });
     this.markInstance.unmark();
+    const formatRegStr = !regExpMark;
     this.markInstance.highlight(
       (keywords ?? []).map((keyword, index) => {
         return {
           text: keyword,
           className: `highlight-${index}`,
           backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
-          textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', true),
+          textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', accuracy === 'exactly', formatRegStr),
         };
       }),
       reset,
@@ -553,7 +554,7 @@ class RetrieveHelper extends RetrieveBase {
 }
 
 const isFavoriteShow = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_SHOW) === 'true';
-const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) !== 'false';
+const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) === 'true';
 const favoriteWidth = Number(localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_WIDTH) ?? 240);
 
 export default new RetrieveHelper({ isFavoriteShow, favoriteWidth, isViewCurrentIndex });

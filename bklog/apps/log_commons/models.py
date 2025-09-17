@@ -83,7 +83,8 @@ class AuthorizerSettings:
     def get_or_create(cls):
         obj, __ = FeatureToggle.objects.get_or_create(
             name=EXTERNAL_AUTHORIZER_MAP,
-            defaults={"status": "debug", "is_viewed": False, "feature_config": {}, "biz_id_white_list": []},
+            defaults={"status": "debug", "is_viewed": False, "feature_config": {}, "biz_id_white_list": [],
+                      "biz_id_black_list": []},
         )
         return obj
 

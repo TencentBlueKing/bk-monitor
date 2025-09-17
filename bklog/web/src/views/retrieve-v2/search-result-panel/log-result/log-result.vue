@@ -182,7 +182,7 @@
         }
 
         if (event === 'add-to-ai') {
-          this.$refs.refAiAssitant.sendMessage(row);
+          this.$refs.refAiAssitant.setCiteText(row);
           return;
         }
         

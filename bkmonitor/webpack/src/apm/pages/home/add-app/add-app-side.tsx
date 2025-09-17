@@ -31,8 +31,8 @@ import AppAddForm from './add-app-form';
 import './add-app-side.scss';
 
 interface IEvent {
-  onShowChange?: (val: boolean) => void;
-  onSuccess?: (val: [string, string]) => void;
+  onShowChange?: (show: boolean) => void;
+  onSuccess?: (appName: string, appId: string) => void;
 }
 
 interface IProps {
@@ -45,14 +45,13 @@ export default class AddApplication extends tsc<IProps, IEvent> {
   // 指南页面首次新建应用
 
   @Emit('showChange')
-  handleShowChange(v) {
+  handleShowChange(v: boolean) {
     return v;
   }
 
-  @Emit('success')
-  handleSuccess(v) {
+  handleSuccess(v: string, appId: string) {
     this.handleShowChange(false);
-    return v;
+    this.$emit('success', v, appId);
   }
 
   handleMoreClick() {

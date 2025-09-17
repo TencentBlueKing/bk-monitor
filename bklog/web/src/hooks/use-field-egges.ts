@@ -111,9 +111,9 @@ export default () => {
         query_value: value,
       };
 
-      taskPool.forEach(task => {
+      for (const task of taskPool) {
         task.pending = false;
-      });
+      }
 
       taskPool.push(taskArgs);
       store

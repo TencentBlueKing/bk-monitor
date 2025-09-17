@@ -94,12 +94,12 @@ export default class AggChart extends tsc<object> {
         .filter(([key]) => !['__validCount', '__totalCount'].includes(key))
         .sort((a, b) => Number(b[1]) - Number(a[1]));
 
-      totalList.forEach(item => {
+      for (const item of totalList) {
         const markList = item[0].toString().match(/(<mark>).*?(<\/mark>)/g) || [];
         if (markList.length) {
           item[0] = markList.map(m => m.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
         }
-      });
+      }
 
       this.cachedTopFiveList = this.showAllList ? totalList : totalList.slice(0, 5);
     }
@@ -145,7 +145,9 @@ export default class AggChart extends tsc<object> {
 
   @Watch('watchQueryParams', { deep: true })
   watchPicker() {
-    if (this.isFrontStatistics) return;
+    if (this.isFrontStatistics) {
+      return;
+    }
     this.queryFieldFetchTopList(this.limitSize);
   }
 
@@ -169,7 +171,9 @@ export default class AggChart extends tsc<object> {
   }
 
   getPercentValue(count: number) {
-    if (!this.showTotalCount) return '0%';
+    if (!this.showTotalCount) {
+      return '0%';
+    }
     // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
     const percentage = (count / this.showTotalCount) * 100;
     return `${percentage}%`;
@@ -177,7 +181,9 @@ export default class AggChart extends tsc<object> {
 
   // 优化百分比计算
   computePercent(count: number) {
-    if (!this.showTotalCount) return '0%';
+    if (!this.showTotalCount) {
+      return '0%';
+    }
     // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
     const percentage = (count / this.showTotalCount) * 100;
     return percentage >= 1 ? `${Math.round(percentage)}%` : '<1%';
@@ -185,7 +191,9 @@ export default class AggChart extends tsc<object> {
 
   // 添加查询条件
   addCondition = (operator: string, value: any, fieldName: string) => {
-    if (this.fieldType === '__virtual__') return;
+    if (this.fieldType === '__virtual__') {
+      return;
+    }
 
     const router = this.$router;
     const route = this.$route;
@@ -218,26 +226,30 @@ export default class AggChart extends tsc<object> {
 
   // 获取工具提示内容
   getIconPopover = (operator: string, value: any, fieldName: string) => {
-    if (this.fieldType === '__virtual__') return this.t('该字段为平台补充 不可检索');
-    if (this.filterIsExist(operator, value, fieldName)) return this.t('已添加过滤条件');
+    if (this.fieldType === '__virtual__') {
+      return this.t('该字段为平台补充 不可检索');
+    }
+    if (this.filterIsExist(operator, value, fieldName)) {
+      return this.t('已添加过滤条件');
+    }
     return `${fieldName} ${operator} ${_escape(value)}`;
   };
 
   // 检查过滤条件是否已存在
   filterIsExist = (operator: string, value: any, fieldName: string) => {
-    if (this.fieldType === '__virtual__') return true;
+    if (this.fieldType === '__virtual__') {
+      return true;
+    }
 
     if (this.searchMode === 0) {
       const mappedOperator = OPERATOR_MAPPING[operator] || operator;
-      return (
-        store.getters.retrieveParams?.addition?.some(addition => {
-          return (
-            addition.field === fieldName &&
-            addition.operator === mappedOperator &&
-            addition.value.toString() === value.toString()
-          );
-        }) || false
-      );
+      return store.getters.retrieveParams?.addition?.some(addition => {
+        return (
+          addition.field === fieldName &&
+          addition.operator === mappedOperator &&
+          addition.value.toString() === value.toString()
+        );
+      });
     }
 
     const formatJsonString = formatResult => {
@@ -248,9 +260,11 @@ export default class AggChart extends tsc<object> {
       return formatResult;
     };
 
+    // biome-ignore lint/nursery/noShadow: reason
     const getSqlAdditionMappingOperator = ({ operator, field }) => {
       const textType = this.fieldType;
 
+      // biome-ignore lint/nursery/noShadow: reason
       const formatValue = value => {
         let formatResult = value;
         if (['text', 'string', 'keyword'].includes(textType)) {
@@ -264,7 +278,7 @@ export default class AggChart extends tsc<object> {
         return formatResult;
       };
 
-      let mappingKey = {
+      const mappingKey = {
         // is is not 值映射
         is: val => `${field}: "${formatValue(val)}"`,
         'is not': val => `NOT ${field}: "${formatValue(val)}"`,
@@ -279,7 +293,9 @@ export default class AggChart extends tsc<object> {
   };
   // 查询字段数据
   async queryFieldFetchTopList(limit = 5) {
-    if (this.listLoading) return;
+    if (this.listLoading) {
+      return;
+    }
     this.limitSize = limit;
     this.listLoading = true;
     this.resetCache();
@@ -339,7 +355,7 @@ export default class AggChart extends tsc<object> {
 
               return (
                 <li
-                  key={`${value}-${index}`}
+                  key={`${index}-${value}`}
                   style={this.getCssVar(index)}
                   class='chart-item'
                 >
@@ -348,12 +364,12 @@ export default class AggChart extends tsc<object> {
                       class={['bk-icon icon-enlarge-line', { disable: isFiltered }]}
                       v-bk-tooltips={this.getIconPopover('=', value, this.fieldName)}
                       onClick={() => !isFiltered && this.addCondition('is', value, this.fieldName)}
-                    ></span>
+                    />
                     <span
                       class={['bk-icon icon-narrow-line', { disable: isNotFiltered }]}
                       v-bk-tooltips={this.getIconPopover('!=', value, this.fieldName)}
                       onClick={() => !isNotFiltered && this.addCondition('is not', value, this.fieldName)}
-                    ></span>
+                    />
                   </div>
                   <div class='chart-content'>
                     <div class='text-container'>
@@ -375,7 +391,7 @@ export default class AggChart extends tsc<object> {
                       <div
                         style={{ width: percentValue }}
                         class='percent-bar'
-                      ></div>
+                      />
                     </div>
                   </div>
                 </li>
