@@ -34,7 +34,7 @@ from django.utils.translation import gettext as _
 
 from apps.constants import RemoteStorageType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH_EXPORT
 from apps.log_search.constants import (
     ASYNC_APP_CODE,
     ASYNC_DIR,
@@ -409,7 +409,7 @@ class AsyncExportUtils(BaseExportUtils):
         """
         if not (os.path.exists(ASYNC_DIR) and os.path.isdir(ASYNC_DIR)):
             os.makedirs(ASYNC_DIR)
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.unify_query_handler.bk_biz_id):
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.unify_query_handler.bk_biz_id):
             self.fetch_data_and_package()
         else:
             export_method = self.quick_export if self.is_quick_export else self.async_export
@@ -527,7 +527,7 @@ class UnionAsyncExportUtils(BaseExportUtils):
         """
         if not (os.path.exists(ASYNC_DIR) and os.path.isdir(ASYNC_DIR)):
             os.makedirs(ASYNC_DIR)
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.unify_query_handler.bk_biz_id):
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.unify_query_handler.bk_biz_id):
             self.fetch_data_and_package()
         else:
             self.async_export()
