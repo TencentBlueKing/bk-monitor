@@ -42,12 +42,14 @@ interface ConditionValueEvents {
 }
 
 interface ConditionValueProps {
+  showLabel?: boolean;
   variable: ConditionVariableModel;
 }
 
 @Component
 export default class EditConditionVariableValue extends tsc<ConditionValueProps, ConditionValueEvents> {
   @Prop({ type: Object, required: true }) variable!: ConditionVariableModel;
+  @Prop({ default: true }) showLabel!: boolean;
 
   @Emit('valueChange')
   handleValueChange(value: IConditionVariableModel['value']) {
@@ -67,6 +69,7 @@ export default class EditConditionVariableValue extends tsc<ConditionValueProps,
       <EditVariableValue
         class='condition-value'
         data={this.variable.data}
+        showLabel={this.showLabel}
       >
         <ConditionCreator
           hasVariableOperate={false}
