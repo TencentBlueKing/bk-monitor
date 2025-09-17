@@ -405,5 +405,10 @@ export default {
   '在各消费场景，选择 {0} 后，可填入 {1}': 'In various consumption scenarios, after selecting {0}, you can fill in {1}',
   '仪表盘 Panel 级别的定位，需要一定的时间同步，如有需要请点击':
     'The positioning at the panel level of the dashboard requires a certain amount of time to synchronize. If necessary, please click',
+
+  // APM-告警模板
+  查看各服务告警情况: 'View alarm situation of each service',
+  查看全部关联服务: 'View all related services',
+  '该模板已禁用，无法下发': 'This template has been disabled and cannot be issued',
   '可以通过 {0} 来关联更多的服务。': 'You can associate more services through {0}',
 };

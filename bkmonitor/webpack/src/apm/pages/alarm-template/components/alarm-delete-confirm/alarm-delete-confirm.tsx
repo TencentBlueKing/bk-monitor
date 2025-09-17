@@ -27,13 +27,13 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type AlarmTemplateListItem } from '../../typeing';
+import type { AlarmTemplateListItem } from '../../typing';
 
 import './alarm-delete-confirm.scss';
 
 export interface AlarmDeleteConfirmEvent {
   /** 确认删除的 Promise */
-  confirmPromise: Promise<any>;
+  promiseEvent: Promise<any>;
   /** 失败回调 */
   errorCallback: () => void;
   /** 成功回调 */
@@ -70,7 +70,7 @@ export default class AlarmDeleteConfirm extends tsc<AlarmDeleteConfirmProps, Ala
     this.loading = true;
     let successCallback = null;
     let errorCallback = null;
-    const confirmPromise = new Promise((res, rej) => {
+    const promiseEvent = new Promise((res, rej) => {
       successCallback = res;
       errorCallback = rej;
     })
@@ -82,7 +82,7 @@ export default class AlarmDeleteConfirm extends tsc<AlarmDeleteConfirmProps, Ala
       });
 
     this.$emit('confirm', this.templateId, {
-      confirmPromise,
+      promiseEvent,
       successCallback,
       errorCallback,
     });
