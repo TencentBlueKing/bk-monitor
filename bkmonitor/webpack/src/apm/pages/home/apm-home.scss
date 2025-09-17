@@ -139,10 +139,6 @@
           color: #313238;
           background-color: #ebedf5;
 
-          .item-hover-detail {
-            display: flex;
-          }
-
           .item-content {
             background-color: #a3b1cc;
 
@@ -306,23 +302,6 @@
           font-weight: 700;
           color: #3a84ff;
         }
-      }
-    }
-
-    .item-hover-detail {
-      position: absolute;
-      top: 0;
-      right: 37px; // 右侧more按钮宽度 + 1px间隙
-      display: none;
-      align-items: center;
-      justify-content: center;
-      width: 56px;
-      height: 100%;
-      color: #fff;
-      background-color: #3a84ff;
-
-      &:hover {
-        background-color: #699df4;
       }
     }
   }

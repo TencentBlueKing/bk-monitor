@@ -316,31 +316,19 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   }
 
   /**
-   * @description 应用列表内的详情点击
-   * @param row
-   */
-  handleAppDetail(row: IAppListItem, e: Event) {
-    e.stopPropagation();
-    // 权限判断
-    if (!row?.permission[authorityMap.VIEW_AUTH]) {
-      this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH);
-      return;
-    }
-    this.handleConfig('appDetails', row);
-  }
-
-  /**
    * @description 更多选项
    * @param id
    * @param row
    */
   handleConfig(id: string, row: IAppListItem) {
-    // 2025-09-09 popover内的应用详情已被调整为列表item在hover时直接展示
-    if (id === 'appDetails') {
+    if (id === 'appTopo') {
       this.$router.push({
         name: 'application',
         query: {
           'filter-app_name': row.app_name,
+          dashboardId: 'topo',
+          sceneId: 'apm_application',
+          sceneType: 'overview',
         },
       });
       return;
@@ -509,16 +497,6 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                     </div>
                     {item.metric_result_table_id || item.trace_result_table_id ? null : (
                       <bk-tag theme='info'>{this.$t('接入中')}...</bk-tag>
-                    )}
-                    {item.metric_result_table_id && item.trace_result_table_id && (
-                      <div
-                        class='item-hover-detail'
-                        v-authority={{ active: !item?.permission[authorityMap.VIEW_AUTH] }}
-                        onClick={e => this.handleAppDetail(item, e)}
-                      >
-                        <i class='icon-monitor icon-chakan' />
-                        {this.$t('详情')}
-                      </div>
                     )}
                     <div class='item-content'>
                       <span class='item-service-count'>{item?.service_count}</span>

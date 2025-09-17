@@ -54,7 +54,7 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
     return { application_name: this.$route.params?.appName || '' };
   }
 
-  beforeRouteEnter(from, to, next) {
+  beforeRouteEnter(_from, _too, next) {
     next((vm: ServiceAdd) => {
       vm.routeList = [
         {
@@ -73,6 +73,9 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
         <CommonNavBar
           class='service-configuration-nav'
           slot='nav'
+          callbackRouterBack={() => {
+            this.$router.push({ path: '/apm/home', query: { app_name: this.$route.params?.appName || '' } });
+          }}
           navMode={'display'}
           needBack={true}
           routeList={this.routeList}

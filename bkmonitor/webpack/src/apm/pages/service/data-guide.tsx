@@ -224,7 +224,7 @@ export default class ServiceApply extends tsc<
     return (
       <span class='service-add-info'>
         <i class='icon-monitor icon-hint' />
-        {this.$t('需先填写「服务名」，生成上报示例')}
+        {this.$t('将根据「服务名」自动生成上报示例代码，你可以直接运行')}
       </span>
     );
   }
@@ -251,7 +251,7 @@ export default class ServiceApply extends tsc<
       >
         <div class='row-content-wrap'>
           {rowContent(
-            this.$tc('上报配置'),
+            this.$tc('上报Demo'),
             1,
             <div class='select-config-wrap'>
               <bk-form
