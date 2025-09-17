@@ -29,7 +29,7 @@ from django.utils.http import urlencode
 from rest_framework.reverse import reverse
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH_EXPORT
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
@@ -87,7 +87,7 @@ class UnifyQueryAsyncExportHandlers:
 
     def async_export(self, is_quick_export: bool = False):
         # 判断是否存在 正在下载的相同检索参数的导出任务
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.bk_biz_id):
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
             if AsyncTask.objects.filter(
                 request_param=self.search_dict,
                 created_by=self.request_user,
@@ -319,7 +319,7 @@ class UnifyQueryUnionAsyncExportHandlers:
 
     def async_export(self, is_quick_export: bool = False):
         # 判断是否存在 正在下载的相同检索参数的导出任务
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.bk_biz_id):
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
             if AsyncTask.objects.filter(
                 request_param=self.search_dict,
                 created_by=self.request_user,
