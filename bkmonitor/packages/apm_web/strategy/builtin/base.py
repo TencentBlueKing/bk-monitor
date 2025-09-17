@@ -10,10 +10,14 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+from .. import constants
 
-class QueryTemplateSet:
-    """查询模板集合"""
 
-    NAMESPACE: str = ""
+class StrategyTemplateSet:
+    """策略模板集合"""
 
-    QUERY_TEMPLATES: list[dict[str, Any]] = []
+    SYSTEM: constants.StrategyTemplateSystem = None
+
+    ENABLED_CODES: list[str] = []
+
+    STRATEGY_TEMPLATES: list[dict[str, Any]] = []
