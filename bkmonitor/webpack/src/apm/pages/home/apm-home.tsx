@@ -455,14 +455,12 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                 onShowChange={v => this.handleToggleAppAdd(v)}
                 onSuccess={this.handleAddAppSuccess}
               />
-              {this.serviceAddSideAppData && (
-                <ServiceAddSide
-                  applicationId={this.serviceAddSideAppData.application_id}
-                  appName={this.serviceAddSideAppName.toString()}
-                  isShow={this.isShowServiceAdd}
-                  onSidesliderShow={v => this.handleServiceAddSideShow(v)}
-                />
-              )}
+              <ServiceAddSide
+                applicationId={this.serviceAddSideAppData?.application_id}
+                appName={this.serviceAddSideAppName?.toString()}
+                isShow={this.isShowServiceAdd}
+                onSidesliderShow={v => this.handleServiceAddSideShow(v)}
+              />
             </div>
             {this.loading ? (
               <ApmHomeSkeleton />
