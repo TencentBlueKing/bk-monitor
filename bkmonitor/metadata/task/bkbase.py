@@ -23,7 +23,7 @@ from alarm_backends.core.lock.service_lock import share_lock
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
-from metadata.models.space.constants import SpaceTypes, SpaceStatus
+from metadata.models.space.constants import SpaceStatus, SpaceTypes
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.tasks import sync_bkbase_v4_metadata
 from metadata.task.utils import chunk_list
@@ -219,19 +219,31 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
             cluster_metadata = cluster_data.get("metadata", {})
 
             # 动态获取字段映射（支持不同存储类型的字段差异）
+            cluster_name = cluster_metadata["name"]
             domain_name = cluster_auth_info.get(field_mappings["domain_name"])
-            if not models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, domain_name=domain_name).exists():
-                logger.info(f"sync_bkbase_cluster_info: create {cluster_type} cluster, domain_name->[{domain_name}]")
-                with transaction.atomic():
+            port = cluster_auth_info.get(field_mappings["port"])
+            username = cluster_auth_info.get(field_mappings["username"])
+            password = cluster_auth_info.get(field_mappings["password"])
+
+            with transaction.atomic():
+                cluster = models.ClusterInfo.objects.filter(
+                    bk_tenant_id=bk_tenant_id, cluster_type=cluster_type, cluster_name=cluster_name
+                ).first()
+                if cluster:
+                    cluster.domain_name = domain_name
+                    cluster.port = port
+                    cluster.username = username
+                    cluster.password = password
+                    cluster.save()
+                else:
                     models.ClusterInfo.objects.create(
                         bk_tenant_id=bk_tenant_id,
-                        domain_name=domain_name,
-                        port=cluster_auth_info.get(field_mappings["port"]),
-                        username=cluster_auth_info.get(field_mappings["username"]),
-                        password=cluster_auth_info.get(field_mappings["password"]),
-                        cluster_name=cluster_metadata.get("name"),
-                        is_default_cluster=False,
                         cluster_type=cluster_type,
+                        cluster_name=cluster_name,
+                        domain_name=domain_name,
+                        port=port,
+                        username=username,
+                        password=password,
                     )
         except Exception as e:
             logger.error(f"sync_bkbase_cluster_info: failed to sync {cluster_type} cluster info, error->[{e}]")
