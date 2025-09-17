@@ -102,7 +102,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
         verbose_name = "数据源配置"
         verbose_name_plural = verbose_name
 
-    def componse_predefined_config(self, data_source: "DataSource") -> dict[str, Any]:
+    def compose_predefined_config(self, data_source: "DataSource") -> dict[str, Any]:
         """
         组装预定义数据源配置
         """

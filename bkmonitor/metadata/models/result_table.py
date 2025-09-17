@@ -548,6 +548,11 @@ class ResultTable(models.Model):
                 bk_tenant_id=bk_tenant_id,
             )
 
+        # 判断是否需要进行数据接入，比如虚拟结果表
+        if not is_sync_db:
+            return result_table
+
+        # 判断是否需要刷新consul
         need_refresh_consul = True
         if default_storage == ClusterInfo.TYPE_INFLUXDB:
             # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
@@ -579,7 +584,7 @@ class ResultTable(models.Model):
 
                 # 不使用transfer
                 need_refresh_consul = False
-                apply_log_datalink.delay()
+                apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
             elif default_storage == ClusterInfo.TYPE_ES:
                 # 因为多个事务嵌套，针对 ES 的操作放在最后执行
                 try:

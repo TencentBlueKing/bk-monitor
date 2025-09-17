@@ -362,7 +362,7 @@ class DataSource(models.Model):
         data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
             name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=self.bk_tenant_id
         )
-        data_id_config = data_id_config_ins.componse_predefined_config(data_source=self)
+        data_id_config = data_id_config_ins.compose_predefined_config(data_source=self)
         api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)
 
     # TODO：多租户,需要等待BkBase接口协议,理论上需要补充租户ID,不再有默认接入者概念
