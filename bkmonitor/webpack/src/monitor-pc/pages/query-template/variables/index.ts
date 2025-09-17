@@ -157,7 +157,7 @@ export class ConstantVariableModel extends VariableBase {
   constructor(config: IConstantVariableModel) {
     super(config);
     this.defaultValue = config.defaultValue || '';
-    if (config.value) {
+    if (config.value !== undefined) {
       this.value = config.value;
     } else {
       this.value = this.defaultValue;
@@ -375,7 +375,7 @@ export async function getCreateVariableParams(
       defaultValue,
       metric,
       related_tag,
-      options: options ? (options.length ? options : ['all']) : [],
+      options: options ? (options.length ? options : ['all']) : undefined,
     };
   });
 }
