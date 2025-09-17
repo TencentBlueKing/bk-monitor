@@ -30,8 +30,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { alertsStrategyTemplate } from 'monitor-api/modules/model';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 
+import EditTemplateSlider from '../components/template-form/edit-template-slider';
 import AlertServiceTable from './alert-service-table';
-import TemplateEdit from './template-edit';
 import TemplatePush from './template-push';
 
 import type { IAlertStrategiesItem, IStrategiesItem } from './typings';
@@ -66,6 +66,7 @@ export default class TemplateDetails extends tsc<IProps> {
   };
   templateEdit = {
     show: false,
+    params: {},
   };
 
   alertStrategies: IAlertStrategiesItem[] = [];
@@ -215,8 +216,7 @@ export default class TemplateDetails extends tsc<IProps> {
           <div class='tab-content'>{tabContent()}</div>
           <TemplatePush
             params={{
-              strategy_template_ids: this.params?.strategy_template_ids,
-              service_names: [this.params?.service_name],
+              strategy_template_ids: this.params?.ids,
               app_name: this.params?.app_name,
             }}
             show={this.templatePush.show}
@@ -224,8 +224,10 @@ export default class TemplateDetails extends tsc<IProps> {
               this.templatePush.show = v;
             }}
           />
-          <TemplateEdit
-            show={this.templateEdit.show}
+          <EditTemplateSlider
+            appName={this.params?.app_name}
+            isShow={this.templateEdit.show}
+            templateId={this.params?.ids?.[0]}
             onShowChange={v => {
               this.templateEdit.show = v;
             }}
