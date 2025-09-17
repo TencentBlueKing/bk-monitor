@@ -27,9 +27,9 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
-import { type SearchSelectItem } from 'monitor-pc/pages/query-template/typings';
 
-import { type AlarmTemplateConditionParamItem } from '../../typeing';
+import type { AlarmTemplateConditionParamItem } from '../../typing';
+import type { SearchSelectItem } from 'monitor-pc/pages/query-template/typings';
 
 import '@blueking/search-select-v3/vue2/vue2.css';
 
@@ -38,6 +38,7 @@ interface AlarmTemplateSearchEmits {
 }
 type AlarmTemplateSearchProps = {
   searchKeyword: AlarmTemplateConditionParamItem[];
+  selectOptions: SearchSelectItem[];
 };
 
 @Component

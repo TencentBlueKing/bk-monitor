@@ -28,7 +28,8 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { BATCH_OPERATION_LIST } from '../../constant';
-import { type BatchOperationTypeEnumType } from '../../typeing';
+
+import type { BatchOperationTypeEnumType } from '../../typing';
 
 import './batch-operations.scss';
 
