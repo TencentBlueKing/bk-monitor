@@ -27,6 +27,7 @@ import { Component, Emit, Prop, Provide, Ref, Watch } from 'vue-property-decorat
 import { Component as tsc } from 'vue-tsx-support';
 
 import axios from 'axios';
+import { metaConfigInfo } from 'monitor-api/modules/apm_meta';
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
@@ -109,7 +110,10 @@ export default class ApmServiceList extends tsc<
   defaultActiveName = ['category', 'language', 'apply_module', 'have_data'];
   filterShow = true;
   filterLoading = true;
-
+  guideUrl = '';
+  created() {
+    this.getLinkData();
+  }
   get isConnecting() {
     return !this.appData.metric_result_table_id && !this.appData.trace_result_table_id;
   }
@@ -145,11 +149,24 @@ export default class ApmServiceList extends tsc<
       to: this.timeRange[1],
     };
   }
+  // 获取更多地址(上报地址)/上报指引地址
+  async getLinkData() {
+    const data = await metaConfigInfo()
+      .then(res => res)
+      .catch(() => ({}));
+    if (data.setup) {
+      const { access_url = '' } = data.setup?.guide_url || {};
+      this.guideUrl = access_url; // 指引地址
+    }
+  }
   handleGotoAppOverview() {
     this.$router.push({
       name: 'application',
       query: {
         'filter-app_name': this.appName,
+        dashboardId: 'topo',
+        sceneId: 'apm_application',
+        sceneType: 'overview',
       },
     });
   }
@@ -573,14 +590,15 @@ export default class ApmServiceList extends tsc<
                   class={['header-btn', { disabled: !this.authority }]}
                   v-authority={{ active: !this.authority }}
                   disabled={this.isConnecting}
+                  size='small'
                   theme='primary'
                   text
                   onClick={() =>
                     this.authority ? this.handleGotoAppOverview() : this.handleShowAuthorityDetail(this.authorityDetail)
                   }
                 >
-                  <i class='icon-monitor icon-chakan' />
-                  {this.$t('应用详情')}
+                  <i class='icon-monitor icon-mc-apm-topo' />
+                  {this.$t('调用拓扑')}
                 </bk-button>
               </div>
               <div
@@ -593,6 +611,7 @@ export default class ApmServiceList extends tsc<
                   class={['header-btn', { disabled: !this.authority }]}
                   v-authority={{ active: !this.authority }}
                   disabled={this.isConnecting}
+                  size='small'
                   text
                   onClick={() =>
                     this.authority ? this.handleGoToAppConfig() : this.handleShowAuthorityDetail(this.authorityDetail)
@@ -645,10 +664,17 @@ export default class ApmServiceList extends tsc<
               <div class='app-list-content'>
                 <div class='app-list-content-top'>
                   {this.filterLoading || !this.appData ? (
-                    <div
-                      style='height: 32px; width: 88px'
-                      class='skeleton-element'
-                    />
+                    [
+                      <div
+                        key='1'
+                        class='skeleton-element bts-skeleton'
+                      />,
+                      <div
+                        key='2'
+                        style='margin-right: 120px;'
+                        class='skeleton-element bts-skeleton'
+                      />,
+                    ]
                   ) : (
                     <div class='app-list-bts'>
                       <span
@@ -676,6 +702,18 @@ export default class ApmServiceList extends tsc<
                           <span>{this.$t('接入服务')}</span>
                         </span>
                       </bk-button>
+                      {this.guideUrl && (
+                        <bk-button
+                          style='margin-right: 120px;'
+                          class={[{ disabled: !this.authority }]}
+                          size='small'
+                          text
+                          onClick={() => this.guideUrl && window.open(this.guideUrl, '_blank')}
+                        >
+                          {this.$t('查看指引')}
+                          <i class='icon-monitor icon-mc-link link-icon' />
+                        </bk-button>
+                      )}
                     </div>
                   )}
 

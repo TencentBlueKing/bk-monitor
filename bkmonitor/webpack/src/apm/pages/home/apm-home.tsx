@@ -100,10 +100,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   // 帮助文档弹窗数据
   apmIntroduceData = null;
 
+  // 用于接入服务抽屉的appName
+  serviceAddSideAppName = '';
+
   get appData() {
     return this.originalAppList?.find(item => item.app_name === this.appName);
   }
-
+  get serviceAddSideAppData() {
+    return this.originalAppList?.find(item => item.app_name === this.serviceAddSideAppName);
+  }
   get appList() {
     if (!this.searchCondition) return this.originalAppList;
     return this.originalAppList.filter(
@@ -278,12 +283,14 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   // 新建应用成功
   handleAddAppSuccess(appName: string) {
     this.appName = appName;
+    this.serviceAddSideAppName = appName;
     this.getAppList();
     this.isShowServiceAdd = true;
   }
 
   // 接入服务抽屉显隐
   handleServiceAddSideShow(v: boolean) {
+    this.serviceAddSideAppName = this.appName;
     this.isShowServiceAdd = v;
   }
 
@@ -309,31 +316,19 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   }
 
   /**
-   * @description 应用列表内的详情点击
-   * @param row
-   */
-  handleAppDetail(row: IAppListItem, e: Event) {
-    e.stopPropagation();
-    // 权限判断
-    if (!row?.permission[authorityMap.VIEW_AUTH]) {
-      this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH);
-      return;
-    }
-    this.handleConfig('appDetails', row);
-  }
-
-  /**
    * @description 更多选项
    * @param id
    * @param row
    */
   handleConfig(id: string, row: IAppListItem) {
-    // 2025-09-09 popover内的应用详情已被调整为列表item在hover时直接展示
-    if (id === 'appDetails') {
+    if (id === 'appTopo') {
       this.$router.push({
         name: 'application',
         query: {
           'filter-app_name': row.app_name,
+          dashboardId: 'topo',
+          sceneId: 'apm_application',
+          sceneType: 'overview',
         },
       });
       return;
@@ -360,14 +355,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
           active: id === 'noDataAlarm' ? 'dataStatus' : id,
         },
       });
-    } else if (id === 'accessService') {
-      this.$router.push({
-        name: 'service-add',
-        params: {
-          appName: row.app_name,
-        },
-      });
-    } else if (id === 'delete') {
+      return;
+    }
+
+    if (id === 'accessService') {
+      this.serviceAddSideAppName = row.app_name;
+      this.isShowServiceAdd = true;
+      return;
+    }
+    if (id === 'delete') {
       this.$bkInfo({
         type: 'warning',
         title: this.$t('确认删除应用？'),
@@ -448,8 +444,8 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                 onSuccess={this.handleAddAppSuccess}
               />
               <ServiceAddSide
-                applicationId={this.appData.application_id}
-                appName={this.appName}
+                applicationId={this.serviceAddSideAppData?.application_id}
+                appName={this.serviceAddSideAppName?.toString()}
                 isShow={this.isShowServiceAdd}
                 onSidesliderShow={v => this.handleServiceAddSideShow(v)}
               />
@@ -501,16 +497,6 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                     </div>
                     {item.metric_result_table_id || item.trace_result_table_id ? null : (
                       <bk-tag theme='info'>{this.$t('接入中')}...</bk-tag>
-                    )}
-                    {item.metric_result_table_id && item.trace_result_table_id && (
-                      <div
-                        class='item-hover-detail'
-                        v-authority={{ active: !item?.permission[authorityMap.VIEW_AUTH] }}
-                        onClick={e => this.handleAppDetail(item, e)}
-                      >
-                        <i class='icon-monitor icon-chakan' />
-                        {this.$t('详情')}
-                      </div>
                     )}
                     <div class='item-content'>
                       <span class='item-service-count'>{item?.service_count}</span>
@@ -572,7 +558,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
             <AppHomeList
               key={this.refreshKey}
               appData={this.appData}
-              appName={this.appName}
+              appName={this.appName.toString()}
               authority={this.appData?.permission[authorityMap.VIEW_AUTH]}
               authorityDetail={authorityMap.VIEW_AUTH}
               timeRange={this.timeRange}
