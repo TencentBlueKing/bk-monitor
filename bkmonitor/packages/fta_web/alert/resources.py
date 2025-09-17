@@ -3246,5 +3246,5 @@ class EditDataMeaningResource(Resource):
 
         return {
             "alert_id": alert_id,
-            "description": data_meaning,
+            "data_meaning": data_meaning,
         }
