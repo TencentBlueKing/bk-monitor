@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, InjectReactive } from 'vue-property-decorator';
+import { Component, InjectReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { Debounce, random } from 'monitor-common/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
 import AlarmTemplateTable from './components/alarm-template-table/alarm-template-table';
@@ -34,11 +35,13 @@ import AlarmTemplateSearch from './components/alarm-templte-search/alarm-templat
 import BatchOperations from './components/batch-operations/batch-operations';
 import EditTemplateSlider from './components/template-form/edit-template-slider';
 import { ALARM_TEMPLATE_QUICK_FILTER_LIST, AlarmTemplateTypeMap } from './constant';
+import { destroyAlarmTemplateById, fetchAlarmTemplateList, updateAlarmTemplateByIds } from './service';
 import TemplateDetails from './template-operate/template-details';
 import TemplatePush from './template-operate/template-push';
 
 import type { AlarmDeleteConfirmEvent } from './components/alarm-delete-confirm/alarm-delete-confirm';
 import type {
+  AlarmListRequestParams,
   AlarmTemplateConditionParamItem,
   AlarmTemplateDetailTabEnumType,
   AlarmTemplateListItem,
@@ -51,116 +54,12 @@ import './alarm-template.scss';
 
 @Component
 export default class AlarmTemplate extends tsc<object> {
+  /** 下发重新请求接口数据标志 */
+  refreshKey = random(8);
   /** 列表请求状态 loading */
   tableLoading = false;
   /** 表格数据 */
-  tableData: AlarmTemplateListItem[] = [
-    {
-      id: 1,
-      name: '[调用分析] 主调平均耗时',
-      system: 'RPC',
-      category: 'RPC_CALLER',
-      type: 'app',
-      is_enabled: true,
-      is_auto_apply: true,
-      algorithms: [
-        {
-          level: 2,
-          method: 'lte',
-          threshold: 1000,
-          type: 'Threshold',
-        },
-        {
-          level: 1,
-          method: 'lte',
-          threshold: 3000,
-          type: 'Threshold',
-        },
-      ],
-      user_group_list: [{ id: 1, name: '应用创建者' }],
-      applied_service_names: ['example.greeter1', 'example.greeter'],
-      create_user: 'admin',
-      create_time: '2025-08-04 17:43:26+0800',
-      update_user: 'admin',
-      update_time: '2025-08-04 17:43:26+0800',
-    },
-    {
-      id: 2,
-      name: '[调用分析] 主调平均耗时',
-      system: 'RPC',
-      category: 'RPC_CALLER',
-      type: 'inner',
-      is_enabled: false,
-      is_auto_apply: false,
-      algorithms: [
-        {
-          level: 3,
-          method: 'lte',
-          threshold: 1000,
-          type: 'Threshold',
-        },
-        {
-          level: 2,
-          method: 'lte',
-          threshold: 1000,
-          type: 'Threshold',
-        },
-        {
-          level: 1,
-          method: 'lte',
-          threshold: 3000,
-          type: 'Threshold',
-        },
-      ],
-      user_group_list: [
-        { id: 1, name: '应用创建者' },
-        { id: 2, name: 'admin' },
-        { id: 3, name: 'ascasc' },
-      ],
-      applied_service_names: [
-        'activity-microservce.activities-10012',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-        'example.greeter',
-      ],
-      create_user: 'admin',
-      create_time: '2025-08-04 17:43:26+0800',
-      update_user: 'admin',
-      update_time: '2025-08-04 17:43:26+0800',
-    },
-    {
-      id: 3,
-      name: '[调用分析] 主调平均耗时',
-      system: 'RPC',
-      category: 'RPC_CALLER',
-      type: 'inner',
-      is_enabled: false,
-      is_auto_apply: false,
-      algorithms: [],
-      user_group_list: [
-        { id: 1, name: '应用创建者' },
-        { id: 2, name: 'admin' },
-        { id: 3, name: 'test' },
-        { id: 4, name: 'xxxxxxz' },
-      ],
-      applied_service_names: ['activity-microservce.activities-10012', 'example.greeter', 'example.greeter'],
-      create_user: 'admin',
-      create_time: '2025-08-04 17:43:26+0800',
-      update_user: 'admin',
-      update_time: '2025-08-04 17:43:26+0800',
-    },
-  ];
+  tableData: AlarmTemplateListItem[] = [];
   /** 模板类型快速筛选tab */
   quickStatus = 'all';
   /** 搜索关键字 */
@@ -175,6 +74,8 @@ export default class AlarmTemplate extends tsc<object> {
       multiple: false,
     },
   ];
+  /** 数据请求中止控制器 */
+  abortController: AbortController = null;
 
   editTemplateId = null;
   editTemplateShow = false;
@@ -191,6 +92,44 @@ export default class AlarmTemplate extends tsc<object> {
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
+  get requestParam() {
+    const param = {
+      refreshKey: this.refreshKey,
+      app_name: this.viewOptions.filters?.app_name,
+      conditions: this.searchKeyword,
+      simple: false,
+    };
+
+    delete param.refreshKey;
+    return param as unknown as AlarmListRequestParams;
+  }
+
+  @Debounce(200)
+  @Watch('requestParam')
+  async getQueryTemplateList() {
+    this.abortRequest();
+    this.tableLoading = true;
+    this.abortController = new AbortController();
+    const { templateList, isAborted } = await fetchAlarmTemplateList(this.requestParam, {
+      signal: this.abortController.signal,
+    });
+    if (isAborted) {
+      return;
+    }
+    this.tableData = templateList;
+    this.tableLoading = false;
+    this.selectedRowKeys = [];
+  }
+
+  /**
+   * @description 中止数据请求
+   */
+  abortRequest() {
+    if (!this.abortController) return;
+    this.abortController.abort();
+    this.abortController = null;
+  }
+
   /**
    * @description 模板类型快捷筛选值改变后回调
    */
@@ -201,13 +140,12 @@ export default class AlarmTemplate extends tsc<object> {
    * @description 批量操作按钮点击事件
    */
   handleBatchOperationClick(operationType: BatchOperationTypeEnumType) {
-    console.log('================ operationType ================', operationType);
+    this.handleBatchUpdate(this.selectedRowKeys, { is_auto_apply: operationType === 'auto_apply' });
   }
 
   /** 筛选值改变后回调（作用于 表格表头筛选 & 顶部筛选searchInput框） */
   handleSearchChange(keyword: AlarmTemplateConditionParamItem[]) {
     this.searchKeyword = keyword;
-    // this.setRouterParams();
   }
 
   /**
@@ -215,22 +153,22 @@ export default class AlarmTemplate extends tsc<object> {
    * @param templateId 模板Id
    */
   deleteTemplateById(templateId: AlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) {
-    // destroyQueryTemplateById(templateId)
-    //   .then(() => {
-    //     confirmEvent.successCallback();
-    //     this.$bkMessage({
-    //       message: this.$t('删除成功'),
-    //       theme: 'success',
-    //     });
-    //     this.handleRefresh();
-    //   })
-    //   .catch(() => {
-    //     confirmEvent.errorCallback();
-    //     this.$bkMessage({
-    //       message: this.$t('删除失败'),
-    //       theme: 'error',
-    //     });
-    //   });
+    destroyAlarmTemplateById({ strategy_template_id: templateId, app_name: this.viewOptions.filters?.app_name })
+      .then(() => {
+        confirmEvent.successCallback();
+        this.$bkMessage({
+          message: this.$t('删除成功'),
+          theme: 'success',
+        });
+        this.handleRefresh();
+      })
+      .catch(() => {
+        confirmEvent.errorCallback();
+        this.$bkMessage({
+          message: this.$t('删除失败'),
+          theme: 'error',
+        });
+      });
   }
 
   /**
@@ -275,7 +213,6 @@ export default class AlarmTemplate extends tsc<object> {
    */
   handleTableSelectedChange(selectedRowKeys: AlarmTemplateListItem['id'][]) {
     this.selectedRowKeys = selectedRowKeys;
-    console.log('================ this.selectedRowKeys 表格行勾选事件回调 ================', this.selectedRowKeys);
   }
 
   /**
@@ -287,7 +224,29 @@ export default class AlarmTemplate extends tsc<object> {
     promiseEvent?: AlarmDeleteConfirmEvent
   ) {
     const ids = Array.isArray(id) ? id : [id];
-    console.log('================ 批量/单个模板更新事件回调 ================', ids, updateValue);
+    updateAlarmTemplateByIds({ ids, app_name: this.viewOptions.filters?.app_name, edit_data: updateValue })
+      .then(() => {
+        promiseEvent?.successCallback?.();
+        this.$bkMessage({
+          message: this.$t('更新成功'),
+          theme: 'success',
+        });
+        this.handleRefresh();
+      })
+      .catch(() => {
+        promiseEvent?.errorCallback?.();
+        this.$bkMessage({
+          message: this.$t('更新失败'),
+          theme: 'error',
+        });
+      });
+  }
+
+  /**
+   * @description 刷新表格数据
+   */
+  handleRefresh() {
+    this.refreshKey = random(8);
   }
 
   handleEditTemplate(id: number) {
