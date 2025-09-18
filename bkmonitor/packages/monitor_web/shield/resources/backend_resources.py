@@ -418,7 +418,8 @@ class BulkAddAlertShieldResource(AddShieldResource):
     def handle_alerts(self, data):
         alert_ids = data["dimension_config"]["alert_ids"] or [data["dimension_config"]["alert_id"]]
         # dimension_config.dimensions 标记告警保留需要匹配的屏蔽维度
-        target_dimension_config = data["dimension_config"].get("dimensions", {})
+        target_dimension_config: dict = data["dimension_config"].get("dimensions", {})
+        target_bk_topo_node: dict = data["dimension_config"].get("bk_topo_node", {})
         alerts = AlertDocument.mget(ids=alert_ids)
         dimension_configs = []
 
@@ -426,36 +427,42 @@ class BulkAddAlertShieldResource(AddShieldResource):
         now_time = int(time.time())
 
         for alert in alerts:
-            # 未标记编辑维度， 则 dimension_config.dimensions没有对应告警的信息
-            target_dimensions = None
-            if str(alert.id) in target_dimension_config:
-                # 取需要匹配的维度列表
-                target_dimensions = target_dimension_config[str(alert.id)]
+            """
+            获取 bk_topo_node和 dimensions
+            if bk_topo_node 有值:
+                传入 bk_topo_node, 
+                并修改 屏蔽的category 要改成范围屏蔽 
+                # Shield.SHIELD_CATEGROY[0][0] -> "scope"
+            elif dimensions 有值:
+                按传入(维度)值处理
+            elif dimensions 无值:
+                按默认所有维度配置
+            """
 
-            dimension_config = {}
-            shield_dimensions = []
-            for dimension in alert.dimensions:
-                dimension_data = dimension.to_dict()
-                # 未标记编辑维度， 则所有维度都配置， 编辑了维度， 仅配置保留的维度。
-                if target_dimensions is None or dimension_data["key"] in target_dimensions:
-                    dimension_config[dimension_data["key"]] = dimension_data["value"]
-                    shield_dimensions.append(dimension)
-
-            default_dimension_config = {
+            dimension_config = {
                 # 下划线的配置，不参与屏蔽逻辑。
                 "_alert_id": alert.id,
                 "strategy_id": alert.strategy_id,
                 "_severity": alert.severity,
                 "_alert_message": getattr(alert.event, "description", ""),
-                "_dimensions": AlertDimensionFormatter.get_dimensions_str(shield_dimensions),
             }
 
-            # 如果前端传入了bk_topo_node维度， 则使用前端传入的维度。 主要是为了支持集群/模块维度的屏蔽
-            bk_topo_node: list = data["dimension_config"].get("bk_topo_node", {}).get(str(alert.id), [])
-            if bk_topo_node:
-                default_dimension_config["bk_topo_node"] = bk_topo_node
+            bk_topo_node: list = target_bk_topo_node.get(str(alert.id), [])
+            target_dimensions: list[str] | None = target_dimension_config.get(str(alert.id), None)
+            shield_dimensions = []
 
-            dimension_config.update(default_dimension_config)
+            if bk_topo_node:
+                dimension_config["bk_topo_node"] = bk_topo_node
+                data["category"] = "scope"
+            else:
+                for dimension in alert.dimensions:
+                    dimension_data: dict = dimension.to_dict()
+                    if target_dimensions is None or dimension_data["key"] in target_dimensions:
+                        dimension_config[dimension_data["key"]] = dimension_data["value"]
+                        shield_dimensions.append(dimension)
+
+            dimension_config["_dimensions"] = AlertDimensionFormatter.get_dimensions_str(shield_dimensions)
+
             alert_documents.append(AlertDocument(id=alert.id, is_shielded=True, update_time=now_time))
             dimension_configs.append(dimension_config)
 

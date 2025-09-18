@@ -142,6 +142,8 @@
       }
       .column-label {
         // min-width: 70px;
+        flex-shrink: 0;
+        // 修改宽度要注意调整屏蔽选择宽度计算方式（src\fta-solutions\pages\event\event-detail\quick-shield.tsx内的函数：targetOverviewCount函数）
         width: 70px;
         text-align: right;
         margin-right: 7px;
@@ -204,6 +206,10 @@
             margin-left: 12px;
           }
 
+          &.is-hidden {
+            visibility: hidden;
+          }
+
           &.is-absolute {
             position: absolute;
             right: -4px;
@@ -213,6 +219,7 @@
       }
     }
     .item-tips {
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       font-size: 12px;

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -14,7 +13,6 @@ import time
 
 from django.conf import settings
 from django.utils.translation import ngettext as _
-from six.moves import range
 
 from bkmonitor.views import serializers
 from core.drf_resource import api, resource
@@ -34,7 +32,7 @@ class IPListResponseSerializer(serializers.Serializer):
     bk_cloud_id = serializers.IntegerField(required=False, label="云区域ID", allow_null=True)
 
 
-class TaskResultMixin(object):
+class TaskResultMixin:
     # 重试次数
     RETRY_TIMES = 600
 
@@ -69,7 +67,7 @@ class GetInstanceLogResource(TaskResultMixin, Resource):
     根据作业实例ID查询作业执行状态
     """
 
-    class IpStatus(object):
+    class IpStatus:
         """
         IP状态对应的状态码
         """
@@ -120,7 +118,11 @@ class GetInstanceLogResource(TaskResultMixin, Resource):
 
         log_results = api.job.get_job_instance_ip_log(kwargs)
         if log_results and log_results.get("script_task_logs"):
-            log_content_map = {log["host_id"]: log["log_content"] for log in log_results["script_task_logs"]}
+            log_content_map = {
+                (log.get("host_id") or log.get("bk_host_id")): log["log_content"]
+                for log in log_results["script_task_logs"]
+                if log.get("host_id") or log.get("bk_host_id")
+            }
         else:
             return {}
 
