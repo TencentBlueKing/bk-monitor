@@ -101,6 +101,11 @@ export const TemplateCategoryMap = {
   [TemplateCategoryEnum.CALLEE]: window.i18n.tc('被调'),
 };
 
+export type EditTemplateFormData = Pick<
+  TemplateDetail,
+  'algorithms' | 'detect' | 'is_auto_apply' | 'name' | 'query_template' | 'system' | 'user_group_list'
+>;
+
 /** 策略模板详情 */
 export interface TemplateDetail {
   algorithms: AlgorithmItem[];
