@@ -27,7 +27,7 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFunctions } from 'monitor-api/modules/grafana';
-import { retrieveStrategyTemplate } from 'monitor-api/modules/model';
+import { retrieveStrategyTemplate, updateStrategyTemplate } from 'monitor-api/modules/model';
 import {
   type VariableModelType,
   getCreateVariableParams,
@@ -36,7 +36,7 @@ import {
 
 import TemplateForm from './template-form';
 
-import type { TemplateDetail } from './typing';
+import type { AlgorithmItem, DetectConfig, EditTemplateFormData, TemplateDetail, UserGroupItem } from './typing';
 
 import './edit-template-slider.scss';
 
@@ -60,6 +60,8 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
 
   detailData: TemplateDetail = null;
 
+  formData: EditTemplateFormData = null;
+
   variablesList: VariableModelType[] = [];
 
   metricFunctions = [];
@@ -72,6 +74,15 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
         strategy_template_id: this.templateId,
         app_name: this.appName,
       });
+      this.formData = {
+        name: this.detailData.name,
+        system: this.detailData.system,
+        algorithms: this.detailData.algorithms,
+        detect: this.detailData.detect,
+        user_group_list: this.detailData.user_group_list,
+        query_template: this.detailData.query_template,
+        is_auto_apply: this.detailData.is_auto_apply,
+      };
       const createVariableParams = await getCreateVariableParams(this.detailData.query_template?.variables);
       this.variablesList = createVariableParams.map(item =>
         getVariableModel({ ...item, value: this.detailData.context[item.name.slice(2, item.name.length - 1)] })
@@ -95,6 +106,56 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
     return isShow;
   }
 
+  handleNameChange(name: string) {
+    this.formData.name = name;
+  }
+
+  handleAlgorithmsChange(algorithms: AlgorithmItem[]) {
+    this.formData.algorithms = algorithms;
+  }
+
+  handleDetectChange(detect: DetectConfig) {
+    this.formData.detect = detect;
+  }
+
+  handleAlarmGroupChange(userGroupList: UserGroupItem[]) {
+    this.formData.user_group_list = userGroupList;
+  }
+
+  handleVariableValueChange(value, index: number) {
+    this.variablesList[index].value = value;
+  }
+
+  handleAutoApplyChange(isAutoApply: boolean) {
+    this.formData.is_auto_apply = isAutoApply;
+  }
+
+  handleSubmit() {
+    updateStrategyTemplate({
+      id: this.detailData.id,
+      app_name: this.appName,
+      name: this.formData.name,
+      algorithms: this.formData.algorithms,
+      detect: this.formData.detect,
+      user_group_list: this.formData.user_group_list,
+      context: this.variablesList.reduce((pre, cur) => {
+        pre[cur.variableName] = cur.value;
+        return pre;
+      }, {}),
+      is_auto_apply: this.formData.is_auto_apply,
+    }).then(() => {
+      this.$bkMessage({
+        message: this.$t('模板修改成功'),
+        theme: 'success',
+      });
+      this.handleShowChange(false);
+    });
+  }
+
+  handleCancel() {
+    this.handleShowChange(false);
+  }
+
   render() {
     return (
       <bk-sideslider
@@ -116,10 +177,18 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
           slot='content'
         >
           <TemplateForm
-            data={this.detailData}
+            data={this.formData}
             metricFunctions={this.metricFunctions}
             scene='edit'
             variablesList={this.variablesList}
+            onAlarmGroupChange={this.handleAlarmGroupChange}
+            onAlgorithmsChange={this.handleAlgorithmsChange}
+            onAutoApplyChange={this.handleAutoApplyChange}
+            onCancel={this.handleCancel}
+            onDetectChange={this.handleDetectChange}
+            onNameChange={this.handleNameChange}
+            onSubmit={this.handleSubmit}
+            onVariableValueChange={this.handleVariableValueChange}
           />
         </div>
       </bk-sideslider>
