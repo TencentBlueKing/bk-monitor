@@ -29,9 +29,40 @@ import type { DetectionAlgorithmLevelEnumType } from './constants';
 
 export interface AlarmAlgorithmItem {
   level: DetectionAlgorithmLevelEnumType;
-  method: string;
-  threshold: number;
   type: AlgorithmType;
+  config: {
+    method: string;
+    threshold: number;
+  };
+}
+
+export interface AlarmListRequestParams {
+  /** apm 应用名称 */
+  app_name?: string;
+  /** 业务ID */
+  bk_biz_id?: number;
+  /** 搜索，支持模板名称，模板说明，创建人，更新人 */
+  conditions?: { key: string; value: string[] }[];
+  simple?: boolean;
+}
+
+export interface AlarmTemplateAlertRequestParams {
+  app_name: string;
+  bk_biz_id?: number;
+  ids: AlarmTemplateListItem['id'][];
+  need_strategies: boolean;
+}
+
+export interface AlarmTemplateAlertsItem extends Pick<AlarmTemplateListItem, 'alert_number' | 'id'> {
+  strategies?: StrategiesItem[];
+}
+export interface AlarmTemplateBatchUpdateParams {
+  /** apm 应用名称 */
+  app_name?: string;
+  /** 更新的数据 */
+  edit_data: Partial<AlarmTemplateListItem>;
+  /** 需要更新的模板id数组 */
+  ids: AlarmTemplateListItem['id'][];
 }
 
 export interface AlarmTemplateConditionParamItem {
@@ -39,7 +70,16 @@ export interface AlarmTemplateConditionParamItem {
   value: string[];
 }
 
+export interface AlarmTemplateDestroyParams {
+  /** apm 应用名称 */
+  app_name: string;
+  /** 需要删除的模板id数组 */
+  strategy_template_id: AlarmTemplateListItem['id'];
+}
+
 export interface AlarmTemplateListItem {
+  /** 关联告警数 */
+  alert_number?: number;
   algorithms: AlarmAlgorithmItem[];
   applied_service_names: string[];
   category: string;
@@ -59,4 +99,17 @@ export interface AlarmTemplateListItem {
 export interface AlarmUserGroupItem {
   id: number;
   name: string;
+}
+
+export interface GetAlarmTemplateOptionsParams {
+  /** apm 应用名称 */
+  app_name: string;
+  /** 需要获取候选项值的字段 */
+  fields: string[];
+}
+
+export interface StrategiesItem {
+  alert_number: number;
+  service_name: string;
+  strategy_id: number;
 }
