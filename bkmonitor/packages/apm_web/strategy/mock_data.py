@@ -22,10 +22,13 @@ CALLEE_SUCCESS_RATE_STRATEGY_TEMPLATE = {
     "labels": ["APM-APP(demo)", "APM-SERVICE(example)", "APM-SYSTEM(RPC)"],
     "query_template": CALLEE_SUCCESS_RATE_QUERY_TEMPLATE,
     "algorithms": [
-        {"level": 2, "method": "lte", "threshold": 90, "type": "Threshold"},
-        {"level": 1, "method": "lte", "threshold": 99.9, "type": "Threshold"},
+        {"level": 2, "config": {"method": "lte", "threshold": 90}, "type": "Threshold"},
+        {"level": 1, "config": {"method": "lte", "threshold": 99.9}, "type": "Threshold"},
     ],
-    "detect": {"recovery_check_window": 5, "trigger_check_window": 5, "trigger_count": 3},
+    "detect": {
+        "type": "default",
+        "config": {"recovery_check_window": 5, "trigger_check_window": 5, "trigger_count": 3},
+    },
     "user_group_list": [{"id": 1, "name": "应用创建者"}],
     "context": {"GROUP_BY": ["service_name", "callee_service", "callee_method"], "ALARM_THRESHOLD_VALUE": 500},
     "create_user": "admin",
@@ -93,15 +96,25 @@ COMPARE_STRATEGY_INSTANCE = {
     "diff": [
         {
             "field": "detect",
-            "current": {"recovery_check_window": 5, "trigger_check_window": 5, "trigger_count": 5},
-            "applied": {"recovery_check_window": 5, "trigger_check_window": 5, "trigger_count": 3},
+            "current": {
+                "type": "default",
+                "config": {"recovery_check_window": 5, "trigger_check_window": 5, "trigger_count": 5},
+            },
+            "applied": {
+                "type": "default",
+                "config": {"recovery_check_window": 5, "trigger_check_window": 5, "trigger_count": 3},
+            },
         },
         {
             "field": "algorithms",
-            "current": [{"level": 2, "method": "lte", "threshold": 80, "type": "Threshold"}],
-            "applied": [{"level": 1, "method": "lte", "threshold": 89.9, "type": "Threshold"}],
+            "current": [{"level": 2, "config": {"method": "lte", "threshold": 80}, "type": "Threshold"}],
+            "applied": [{"level": 1, "config": {"method": "lte", "threshold": 89.9}, "type": "Threshold"}],
         },
-        {"field": "detect", "current": [{"id": 1, "name": "应用创建者"}], "applied": [{"id": 2, "name": "内置组"}]},
+        {
+            "field": "user_group_list",
+            "current": [{"id": 1, "name": "应用创建者"}],
+            "applied": [{"id": 2, "name": "内置组"}],
+        },
         {
             "field": "variables",
             "current": [
@@ -147,8 +160,8 @@ STRATEGY_TEMPLATE_LIST = [
         "is_enabled": True,
         "is_auto_apply": True,
         "algorithms": [
-            {"level": 2, "method": "lte", "threshold": 1000, "type": "Threshold"},
-            {"level": 1, "method": "lte", "threshold": 3000, "type": "Threshold"},
+            {"level": 2, "config": {"method": "lte", "threshold": 1000}, "type": "Threshold"},
+            {"level": 1, "config": {"method": "lte", "threshold": 3000}, "type": "Threshold"},
         ],
         "user_group_list": [{"id": 1, "name": "应用创建者"}],
         "applied_service_names": ["example.greeter1", "example.greeter"],
@@ -166,8 +179,8 @@ STRATEGY_TEMPLATE_LIST = [
         "is_enabled": True,
         "is_auto_apply": True,
         "algorithms": [
-            {"level": 2, "method": "lte", "threshold": 1000, "type": "Threshold"},
-            {"level": 1, "method": "lte", "threshold": 3000, "type": "Threshold"},
+            {"level": 2, "config": {"method": "lte", "threshold": 1000}, "type": "Threshold"},
+            {"level": 1, "config": {"method": "lte", "threshold": 3000}, "type": "Threshold"},
         ],
         "user_group_list": [{"id": 1, "name": "应用创建者"}],
         "applied_service_names": ["example.greeter1", "example.greeter"],
