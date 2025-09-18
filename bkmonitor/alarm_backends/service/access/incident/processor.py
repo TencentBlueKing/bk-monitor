@@ -103,6 +103,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 snapshot_info = {
                     "bk_biz_id": incident_info["bk_biz_id"],
                     "incident_alerts": [{"id": alert_id} for alert_id in sync_info.get("scope", {}).get("alerts", [])],
+                    "rca_summary": {"bk_biz_ids": [incident_info["bk_biz_id"]]},
                 }
             else:
                 snapshot_info = api.bkdata.get_incident_snapshot(snapshot_id=sync_info["fpp_snapshot_id"])

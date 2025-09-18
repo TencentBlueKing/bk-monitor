@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,16 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import time
-from typing import List
 
 from alarm_backends.constants import CONST_MINUTES
 from alarm_backends.core.storage.redis import Cache
 from bkmonitor.utils.common_utils import uniqid4
 
 
-class BaseLock(object):
+class BaseLock:
     def __init__(self, name, ttl=None):
         self.name = name
         # 默认60秒过期
@@ -42,8 +39,8 @@ class RedisLock(BaseLock):
     __token = None
 
     def __init__(self, name, ttl=None):
-        super(RedisLock, self).__init__(name, ttl)
-        self.client = Cache("service")
+        super().__init__(name, ttl)
+        self.client = Cache("service-lock")
 
     def acquire(self, _wait=0.001):
         token = uniqid4()
@@ -66,15 +63,15 @@ class RedisLock(BaseLock):
         return self.client.delete(self.name)
 
 
-class MultiRedisLock(object):
+class MultiRedisLock:
     """
     Redis 批量锁
     """
 
-    def __init__(self, keys: List[str], ttl: int = None):
+    def __init__(self, keys: list[str], ttl: int = None):
         self.keys = keys
         self.ttl = ttl or CONST_MINUTES
-        self.client = Cache("service")
+        self.client = Cache("service-lock")
         self._token = uniqid4()
         self._lock_success_keys = set()
 
