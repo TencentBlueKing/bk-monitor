@@ -40,7 +40,7 @@ import {
   getTargetDetail,
   strategyLabelList,
 } from 'monitor-api/modules/strategies';
-import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
+import { deepClone, random } from 'monitor-common/utils/utils';
 
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
@@ -66,7 +66,8 @@ import StrategyTemplatePreview from '../strategy-config-set/strategy-template-pr
 import StrategyVariateList from '../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 import DetectionRulesDisplay from './components/detection-rules-display';
-import MetricListItem from './components/metric-list-item';
+// import MetricListItem from './components/metric-list-item';
+import QueryConfigsMain from './components/query-configs-main';
 import StrategyTargetTable from './strategy-config-detail-table.vue';
 import { transformLogMetricId } from './utils';
 
@@ -155,17 +156,15 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   detailData: Record<string, any> = {};
   /** 监控目标 */
   targetDetail: Record<string, any> = {};
-  /** 选中的监控目标表格展示数据 */
-  targetsTableData: any[] = [];
 
   /** 展示选中的监控目标 */
   showTargetTable = false;
 
   /** 监控目标数据 */
-  targetsDesc = {
-    message: '',
-    subMessage: '',
-  };
+  // targetsDesc = {
+  //   message: '',
+  //   subMessage: '',
+  // };
 
   /** 告警等级 */
   alertLevel = 1;
@@ -460,7 +459,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     Promise.all(promiseList)
       .then(() => {
         this.handleDisplaybackDetail();
-        this.getTargetsTableData();
+        // this.getTargetsTableData();
       })
       .catch(err => {
         console.log(err);
@@ -967,9 +966,9 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   }
 
   /** 查看选中的监控目标 */
-  handleShowTargetTable() {
-    this.showTargetTable = true;
-  }
+  // handleShowTargetTable() {
+  //   this.showTargetTable = true;
+  // }
 
   /** 智能检测算法模型数据变更 */
   handleModelChange(data: IModelData) {
@@ -1133,98 +1132,16 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     onModelChange={val => this.handleModelChange(val[0])}
                   />
                 ) : (
-                  <div class='query-configs-main'>
-                    <div>
-                      {(() => {
-                        if (this.editMode === 'Edit') {
-                          return [
-                            this.metricData.map((metricItem, index) => (
-                              <MetricListItem
-                                key={index}
-                                metric={metricItem}
-                              />
-                            )),
-                            this.expression?.trim()?.length > 2 ? (
-                              <MetricListItem
-                                key='expression'
-                                expFunctions={this.expFunctions}
-                                expression={this.expression}
-                              />
-                            ) : undefined,
-                          ];
-                        }
-                        return (
-                          <div class='promql-content'>
-                            <div class='edit-wrap'>
-                              <promql-monaco-editor
-                                minHeight={160}
-                                readonly={true}
-                                value={this.sourceData.sourceCode}
-                              />
-                              {/* <PromqlEditor
-                                class='promql-editor'
-                                readonly={true}
-                                value={this.sourceData.sourceCode}
-                              ></PromqlEditor> */}
-                            </div>
-                            <div class='step-wrap'>
-                              <bk-input
-                                class='step-input'
-                                min={10}
-                                type='number'
-                                value={this.sourceData.step}
-                                disabled
-                              >
-                                <div
-                                  class='step-input-prepend'
-                                  slot='prepend'
-                                >
-                                  <span>{'Step'}</span>
-                                  <span
-                                    class='icon-monitor icon-hint'
-                                    v-bk-tooltips={{
-                                      content: this.$t('数据步长'),
-                                      placements: ['top'],
-                                    }}
-                                  />
-                                </div>
-                              </bk-input>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                    {this.targetDetailLoading ? (
-                      <div class='targets-desc skeleton-element' />
-                    ) : this.targetsDesc.message || this.targetsDesc.subMessage ? (
-                      <div class='targets-desc'>
-                        <span onClick={this.handleShowTargetTable}>
-                          <i class='icon-monitor icon-mc-tv' />
-                          <span class='targets-desc-text'>
-                            {this.targetsDesc.message}
-                            {this.targetsDesc.subMessage}
-                          </span>
-                        </span>
-                      </div>
-                    ) : undefined}
-                    {this.metricData
-                      .slice(0, 1)
-                      .find(item => item.metricMetaId === 'bk_monitor|event' || item.data_type_label === 'alert') ? (
-                      <div class='event-alert-level'>
-                        <span class='level-label'>{this.$t('告警级别')} : </span>
-                        <span class='level-content'>
-                          <i
-                            class={[
-                              'icon-monitor',
-                              this.currentAlertLevel.icon,
-                              `level-icon-${this.currentAlertLevel.id}`,
-                            ]}
-                          />
-                          <span class='level-text'>{this.currentAlertLevel.name}</span>
-                        </span>
-                      </div>
-                    ) : undefined}
-                  </div>
+                  <QueryConfigsMain
+                    strategyId={Number(this.strategyId)}
+                    metricData={this.metricData}
+                    editMode={this.editMode}
+                    expression={this.expression}
+                    expFunctions={this.expFunctions}
+                    sourceData={this.sourceData}
+                    detailData={this.detailData}
+                    onTargetDetailData={val => this.targetDetail = val}
+                  />
                 )
               )}
               {this.showDetectionConfig
@@ -1638,7 +1555,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
             </div>
           </div>
         </div>
-        {this.targetsTableData ? (
+        {/* {this.targetsTableData ? (
           <bk-dialog
             width='1100'
             ext-cls='target-table-wrap'
@@ -1655,7 +1572,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
               targetType={this.metricData[0]?.targetType || this.targetDetail?.node_type || ''}
             />
           </bk-dialog>
-        ) : undefined}
+        ) : undefined} */}
       </div>
     );
   }

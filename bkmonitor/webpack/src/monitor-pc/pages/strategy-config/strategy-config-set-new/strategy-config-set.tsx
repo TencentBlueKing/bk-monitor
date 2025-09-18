@@ -61,6 +61,8 @@ import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import IntelligentModelsStore, { type IntelligentModelsType } from '../../../store/modules/intelligent-models';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { HANDLE_HIDDEN_SETTING } from '../../nav-tools';
+import { handleSetTargetDesc as getTargetDesc } from '../common';
+import QueryConfigsMain from '../strategy-config-detail/components/query-configs-main';
 import { transformLogMetricId } from '../strategy-config-detail/utils';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 import { type IValue as IAlarmItem, type IAllDefense, actionConfigGroupList } from './alarm-handling/alarm-handling';
@@ -409,6 +411,20 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   stickyObserver: IntersectionObserver | null = null;
   /** 所有列表智能模型 Map */
   intelligentDetect: Map<IntelligentModelsType, Array<Record<string, any>>> = new Map();
+
+  /** panel有值时，监控数据模块启用预览模式 */
+  hasPanelVal = false;
+
+  targetsDesc: Record<string, string> = {
+    message: '',
+    subMessage: '',
+  };
+
+  /** 详情信息 */
+  detailData: Record<string, any> = {};
+
+  /** 监控目标 */
+  targetDetail: Record<string, any> = {};
 
   get isEdit(): boolean {
     return !!this.$route.params.id;
@@ -1126,17 +1142,20 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const strategyDetail = snapshotRes.name
       ? snapshotRes
       : await getStrategyV2({ id: this.strategyId }).catch(() => ({}));
+    this.detailData = strategyDetail;
     this.updateRouteNavName(strategyDetail.name);
     const strategyTarget = targetDetail?.[this.strategyId];
     const filed = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.field || '';
     const targetType = strategyTarget?.node_type || '';
     this.targetType = targetType;
+    this.hasPanelVal = !!strategyDetail.panel; // panel字段有值，则不允许编辑监控数据版块
     let targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
     // 对旧版的策略target进行特殊处理
     if (targetType === 'INSTANCE' && filed === 'bk_target_ip') {
       targetList = targetList.map(item => ({ ...item, ip: item.bk_target_ip, bk_cloud_id: item.bk_target_cloud_id }));
     }
     targetList.length && (targetList[0].instances_count = strategyTarget?.instance_count || 0);
+    this.targetDetail = { ...strategyTarget, detail: strategyTarget?.target_detail, target_detail: targetList };
     if (this.strategyId) {
       const algorithms = strategyDetail?.items?.[0]?.algorithms || [];
       this.editStrategyIntelligentDetectList = algorithms
@@ -1148,6 +1167,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (!snapshotRes.name) {
       this.editAllowed = !!strategyDetail?.edit_allowed;
     }
+    const objectType = this.metricData?.[0]?.objectType || this.defaultCheckedTarget?.instance_type || '';
+    const { message, subMessage } = getTargetDesc(targetList, targetType, objectType, 0, 0);
+    this.targetsDesc = {
+      message,
+      subMessage,
+    };
     await this.handleProcessData({
       ...strategyDetail,
       targetDetail: { ...strategyTarget, detail: strategyTarget?.target_detail, target_detail: targetList },
@@ -2419,7 +2444,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     };
     const res = await queryConfigToPromql('', param, { needMessage: false })
       .catch(err => {
-        this.metricDataErrorMsg = err.data.message || err.msg || '';
+        this.metricDataErrorMsg = err?.data?.message || err?.msg || '';
         return false;
       })
       .finally(() => {
@@ -2589,6 +2614,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           defaultCheckedTarget={this.defaultCheckedTarget}
           defaultScenario={this.baseConfig.scenario}
           isEdit={this.isEdit}
+          readonly={this.hasPanelVal}
           metricData={this.metricData as any}
           scenarioList={this.scenarioAllList}
           onChange={this.handleSceneConfigChange}
@@ -2596,6 +2622,20 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           onModelChange={this.handleModelChange}
           onTargetChange={this.handleTargetChange}
           onTargetTypeChange={this.handleTargetTypeChange}
+        />
+      );
+    }
+    if (this.hasPanelVal) {
+      const { sourceCode, step } = this.sourceData;
+      return (
+        <QueryConfigsMain
+          strategyId={Number(this.strategyId)}
+          metricData={this.metricData}
+          editMode={this.monitorDataEditMode}
+          expression={this.expression}
+          expFunctions={this.localExpFunctions}
+          sourceData={{ sourceCode, step }}
+          detailData={this.detailData}
         />
       );
     }
@@ -2718,7 +2758,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               class='mb10'
               title={this.$t('监控数据')}
             >
-              {!this.isDetailMode && (
+              {!this.isDetailMode && !this.hasPanelVal && (
                 <bk-button
                   style={{ paddingRight: 0, display: this.metricData.length ? 'inline-block' : 'none' }}
                   slot='tools'
