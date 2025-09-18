@@ -74,7 +74,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
     return THRESHOLD_METHOD_LIST.reduce((acc, cur) => {
       acc[cur.id] = cur.name;
       return acc;
-    });
+    }, {});
   }
 
   handleShowChange(item: ruleDataItem) {
@@ -93,8 +93,11 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
       this.localData
         .filter(item => item.show)
         .map(item => {
-          delete item.show;
-          return item;
+          return {
+            level: item.level,
+            type: item.type,
+            config: item.config,
+          };
         })
     );
   }
