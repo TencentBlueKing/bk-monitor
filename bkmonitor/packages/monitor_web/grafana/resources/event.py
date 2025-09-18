@@ -13,7 +13,7 @@ import re
 import time
 from typing import Any
 
-from django.db.models import Max, QuerySet, Q
+from django.db.models import Max, Q, QuerySet
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -65,14 +65,12 @@ class GetDataSourceConfigResource(Resource):
         )
         return cls._fetch_metrics(qs.filter(id__in=metric_row_ids))
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         bcs_cluster_id_match_regex = r"\((?P<bcs_cluster_id>BCS-K8S-\d{5})\)$"
-        data_source_label = params["data_source_label"]
-        data_type_label = params["data_type_label"]
-        bk_biz_id = params["bk_biz_id"]
-        target_cluster_ids = []
-
-        query_bk_biz_ids = [0, bk_biz_id]
+        data_source_label = validated_request_data["data_source_label"]
+        data_type_label = validated_request_data["data_type_label"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        target_cluster_ids: list[str] = []
 
         # 当且仅当空间为非业务空间，且查询事件数据源时，需要查询关联的bkcc业务下的指标，并按项目集群过滤
         related_bk_biz_id = None
@@ -98,9 +96,9 @@ class GetDataSourceConfigResource(Resource):
                 Q(bk_biz_id__in=[0, bk_biz_id]) | Q(bk_biz_id=related_bk_biz_id, result_table_name__contains="BCS-K8S-")
             )
         else:
-            qs = qs.filter(bk_biz_id__in=query_bk_biz_ids)
+            qs = qs.filter(bk_biz_id__in=[0, bk_biz_id])
 
-        if params.get("return_dimensions"):
+        if validated_request_data.get("return_dimensions"):
             metrics = self._fetch_metrics(qs)
         else:
             metrics = self._fetch_metrics_without_dimensions(qs)
@@ -168,12 +166,12 @@ class GetAlarmEventField(Resource):
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         now = int(time.time())
         handler = AlertQueryHandler(
-            bk_biz_ids=[params["bk_biz_id"]],
-            start_time=params.get("start_time", now - 3600 * 24 * 7),
-            end_time=params.get("end_time", now),
+            bk_biz_ids=[validated_request_data["bk_biz_id"]],
+            start_time=validated_request_data.get("start_time", now - 3600 * 24 * 7),
+            end_time=validated_request_data.get("end_time", now),
         )
         tags = handler.list_tags()
         for tag in tags:
@@ -201,14 +199,14 @@ class GetAlarmEventDimensionValue(Resource):
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         now = int(time.time())
         handler = AlertQueryHandler(
-            bk_biz_ids=[params["bk_biz_id"]],
-            start_time=params.get("start_time", now - 3600 * 24 * 7),
-            end_time=params.get("end_time", now),
+            bk_biz_ids=[validated_request_data["bk_biz_id"]],
+            start_time=validated_request_data.get("start_time", now - 3600 * 24 * 7),
+            end_time=validated_request_data.get("end_time", now),
         )
-        fields = handler.top_n(fields=[params["field"]], size=100, char_add_quotes=False)["fields"]
+        fields = handler.top_n(fields=[validated_request_data["field"]], size=100, char_add_quotes=False)["fields"]
         if not fields:
             return []
 
@@ -248,15 +246,15 @@ class QueryAlarmEventGraph(Resource):
                 attrs["interval"] = attrs["interval"] * 3600 * 24
             return attrs
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         handler = AlertQueryHandler(
-            bk_biz_ids=[params["bk_biz_id"]],
-            conditions=params["where"],
-            start_time=params["start_time"],
-            end_time=params["end_time"],
+            bk_biz_ids=[validated_request_data["bk_biz_id"]],
+            conditions=validated_request_data["where"],
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
         )
 
-        data = handler.date_histogram(params["interval"], params["group_by"])
+        data = handler.date_histogram(validated_request_data["interval"], validated_request_data["group_by"])
 
         series = []
         for dimension_tuple, status_mapping in data.items():
@@ -265,7 +263,7 @@ class QueryAlarmEventGraph(Resource):
                 datapoints = [[count, timestamp] for timestamp, count in value.items()]
                 dimensions = {k.replace(".", "__"): v for k, v in dimensions.items()}
 
-                if "status" in params["group_by"]:
+                if "status" in validated_request_data["group_by"]:
                     new_dimensions = {"status": status, **dimensions}
                 else:
                     new_dimensions = dimensions
