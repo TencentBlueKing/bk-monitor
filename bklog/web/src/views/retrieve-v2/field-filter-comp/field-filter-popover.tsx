@@ -70,7 +70,9 @@ export default class FieldAnalysis extends tsc<object> {
   };
 
   get showFieldTypeList() {
-    if (this.polymerizable === '1') return this.fieldTypeList.filter(item => item !== 'date');
+    if (this.polymerizable === '1') {
+      return this.fieldTypeList.filter(item => item !== 'date');
+    }
     return this.fieldTypeList;
   }
 
@@ -133,12 +135,13 @@ export default class FieldAnalysis extends tsc<object> {
         <div class='bk-button-group'>
           {this.showFieldTypeList.map(item => (
             <bk-button
+              key={item}
               class={this.fieldType === item ? 'is-selected' : ''}
               size='small'
               onClick={() => (this.fieldType = item)}
             >
               <div class='custom-button'>
-                <span class={['field-filter-option-icon', item === 'any' ? '' : this.fieldTypeMap[item].icon]}></span>
+                <span class={['field-filter-option-icon', item === 'any' ? '' : this.fieldTypeMap[item].icon]} />
                 <span class='bk-option-name'>{this.fieldTypeMap[item].name}</span>
               </div>
             </bk-button>

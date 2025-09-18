@@ -378,9 +378,6 @@ export default {
   用户指令: 'User Instruction',
   '请输入指标/PromQL语句': 'Please enter the metric/PromQL statement',
   请输入用户指令: 'Please enter the user instruction',
-  调试数据范围取当前时间窗口前1000条数据:
-    'The debugging data range takes the previous 1000 entries from the current time window',
-  只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
   请先打开事件分析: 'Please open event analysis first',
   暂无关联的事件数据: 'No related event data',
   '应安全需求，公共拨测节点需经过审核方可使用': 'The public testing nodes must undergo a review process before they can be used, in accordance with security requirements',
@@ -406,4 +403,8 @@ export default {
   '在各消费场景，选择 {0} 后，可填入 {1}': 'In various consumption scenarios, after selecting {0}, you can fill in {1}',
   '仪表盘 Panel 级别的定位，需要一定的时间同步，如有需要请点击':
     'The positioning at the panel level of the dashboard requires a certain amount of time to synchronize. If necessary, please click',
+  '应用一般是拥有独立的站点，由多个 Service 共同组成，提供完整的产品功能，拥有独立的软件架构。从技术方面来说应用是 Trace 数据的存储隔离，在同一个应用内的数据将进行统计和观测。{0}': 'An application generally has an independent site, composed of multiple services working together to provide complete product functionalities, with a standalone software architecture. From a technical perspective, an application represents the storage isolation of trace data, where data within the same application will be aggregated and observed.{0}',
+  '更多请': 'For more',
+  查看产品文档: 'please refer to the product documentation',
+  '配置修改保存后，需 5 分钟左右生效': 'After the configuration modification is saved, it will take about 5 minutes to take effect',
 };

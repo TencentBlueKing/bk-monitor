@@ -44,7 +44,7 @@ export function useSpaceSelector(visibleBkBiz: Ref<string[]>) {
   }
 
   // 空间选择器下拉选择面板渲染
-  function virtualscrollSpaceList(item: any, h: any) {
+  function virtualscrollSpaceList(item: any, h: (...args: any[]) => any) {
     return h(
       'div',
       {

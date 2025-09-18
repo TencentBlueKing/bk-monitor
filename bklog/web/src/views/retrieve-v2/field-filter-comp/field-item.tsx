@@ -42,10 +42,10 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
   @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
-  @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
+  @Prop({ type: Array, default: () => [] }) datePickerValue: any[];
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, required: true }) retrieveParams: any;
-  @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
+  @Prop({ type: Array, default: () => [] }) visibleFields: any[];
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: object;
   @Prop({ type: Boolean, required: true }) isFrontStatistics: boolean;
   @Prop({ type: Boolean, default: false }) isFieldObject: boolean;
@@ -78,12 +78,16 @@ export default class FieldItem extends tsc<object> {
     return this.$store.state.retrieve?.indexSetList ?? [];
   }
   get gatherFieldsCount() {
-    if (this.isFrontStatistics) return Object.keys(this.statisticalFieldData).length;
+    if (this.isFrontStatistics) {
+      return Object.keys(this.statisticalFieldData).length;
+    }
     return 0;
   }
   // 显示融合字段统计比例图表
   get showFieldsChart() {
-    if (this.fieldItem.field_type === 'text') return false;
+    if (this.fieldItem.field_type === 'text') {
+      return false;
+    }
     return this.isFrontStatistics ? !!this.gatherFieldsCount : this.isShowFieldsAnalysis;
   }
   get isShowFieldsCount() {
@@ -116,7 +120,7 @@ export default class FieldItem extends tsc<object> {
 
     if (this.isFieldObject) {
       const parts = name.split('.');
-      name = parts[parts.length - 1] || parts[0];
+      name = parts.at(-1) || parts[0];
     }
     return name;
   }
@@ -165,7 +169,9 @@ export default class FieldItem extends tsc<object> {
   }
   /** 点击查看图表分析 */
   handleClickAnalysisItem() {
-    if (!this.isShowFieldsAnalysis || this.isUnionSearch || this.isFrontStatistics) return;
+    if (!this.isShowFieldsAnalysis || this.isUnionSearch || this.isFrontStatistics) {
+      return;
+    }
 
     this.instanceDestroy();
     this.analysisActive = true;
@@ -185,7 +191,9 @@ export default class FieldItem extends tsc<object> {
 
     // 使用nextTick确保DOM更新
     this.$nextTick(() => {
-      if (!this.fieldChartRef) return;
+      if (!this.fieldChartRef) {
+        return;
+      }
 
       this.operationInstance = this.$bkPopover(this.$refs.operationRef, {
         content: this.fieldChartRef,
@@ -376,6 +384,7 @@ export default class FieldItem extends tsc<object> {
                   <span class='field-name'>{this.fieldItem?.field_name}</span>
                   <div class='col-line' />
                   <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
+                  <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
                 </div>
                 <div class='fnBtn'>
                   <bk-button

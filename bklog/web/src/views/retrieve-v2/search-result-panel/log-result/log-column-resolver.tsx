@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, CreateElement, watch, computed } from 'vue';
+import { defineComponent, ref, type CreateElement, watch, computed } from 'vue';
 
 import { formatDate, formatDateNanos, xssFilter } from '@/common/util';
 

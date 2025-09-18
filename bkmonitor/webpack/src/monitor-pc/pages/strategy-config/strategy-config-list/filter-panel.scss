@@ -88,6 +88,21 @@
         }
       }
 
+      .icon-monitor.css-icon {
+        margin: 0 8px 0 4px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        &.have_data-true {
+          border: 1px solid #2caf5e;
+          background-color: #cbf0da;
+        }
+        &.have_data-false {
+          border: 1px solid #ea3636;
+          background-color: #ffdddd;
+        }
+      }
+
       .label-text {
         flex: 1;
         overflow: hidden;

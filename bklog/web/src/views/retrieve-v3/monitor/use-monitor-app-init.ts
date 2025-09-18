@@ -26,6 +26,7 @@
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 
 import * as authorityMap from '@/common/authority-map';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -34,7 +35,6 @@ import useResizeObserve from '../../../hooks/use-resize-observe';
 import { getDefaultRetrieveParams, update_URL_ARGS } from '../../../store/default-values';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 export default indexSetApi => {
   const store = useStore();
@@ -105,17 +105,17 @@ export default indexSetApi => {
     store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
   };
 
-  const getApmIndexSetList = async () => {
+  const getApmIndexSetList = () => {
     store.commit('retrieve/updateIndexSetLoading', true);
     store.commit('retrieve/updateIndexSetList', []);
     return indexSetApi()
       .then(res => {
-        let indexSetList = [];
+        let indexSetList: Record<string, any>[] = [];
         if (res.length) {
           // 有索引集
           // 根据权限排序
-          const s1 = [];
-          const s2 = [];
+          const s1: Record<string, any>[] = [];
+          const s2: Record<string, any>[] = [];
           for (const item of res) {
             if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
               s1.push(item);
@@ -125,11 +125,11 @@ export default indexSetApi => {
           }
           indexSetList = s1.concat(s2);
           // 索引集数据加工
-          indexSetList.forEach(item => {
+          for (const item of indexSetList) {
             item.index_set_id = `${item.index_set_id}`;
             item.indexName = item.index_set_name;
-            item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
-          });
+            item.lightenName = ` (${item.indices.map(newItem => newItem.result_table_id).join(';')})`;
+          }
           store.commit('retrieve/updateIndexSetList', indexSetList);
           return indexSetList;
         }
@@ -143,18 +143,22 @@ export default indexSetApi => {
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
-    if (!indexSetApi) return;
+    if (!indexSetApi) {
+      return;
+    }
     return getApmIndexSetList().then(resp => {
       isPreApiLoaded.value = true;
 
-      if (!resp?.length) return;
+      if (!resp?.length) {
+        return;
+      }
 
       // 如果当前地址参数没有indexSetId，则默认取第一个索引集
       // 同时，更新索引信息到store中
       if (!indexSetIdList.value.length) {
         const defaultId = `${resp[0].index_set_id}`;
         store.commit('updateIndexItem', { ids: [defaultId], items: [resp[0]] });
-        store.commit('updateIndexId', defaultId);
+        store.commit('updateState', {'indexId': defaultId});
         router.replace({
           query: { ...route.query, indexId: defaultId, unionList: undefined },
         });
@@ -162,13 +166,13 @@ export default indexSetApi => {
       // 如果解析出来的索引集信息不为空
       // 需要检查索引集列表中是否包含解析出来的索引集信息
       // 避免索引信息不存在导致的频繁错误请求和异常提示
-      const emptyIndexSetList = [];
-      const indexSetItems = [];
-      const indexSetIds = [];
+      const emptyIndexSetList: string[] = [];
+      const indexSetItems: Record<string, any>[] = [];
+      const indexSetIds: string[] = [];
 
       if (indexSetIdList.value.length) {
-        indexSetIdList.value.forEach(id => {
-          const item = resp.find(item => `${item.index_set_id}` === `${id}`);
+        for (const id of indexSetIdList.value) {
+          const item = resp.find(indexItem => `${indexItem.index_set_id}` === `${id}`);
           if (!item) {
             emptyIndexSetList.push(id);
           }
@@ -177,11 +181,11 @@ export default indexSetApi => {
             indexSetItems.push(item);
             indexSetIds.push(id);
           }
-        });
+        }
 
         if (emptyIndexSetList.length) {
           store.commit('updateIndexItem', { ids: [], items: [] });
-          store.commit('updateIndexId', '');
+          store.commit('updateState', { 'indexId': ''});
           store.commit('updateIndexSetQueryResult', {
             is_error: true,
             exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
@@ -198,7 +202,7 @@ export default indexSetApi => {
       if (items.length === 1 && !addition.length && !keyword) {
         let searchMode = 'ui';
         let defaultKeyword = '';
-        let defaultAddition = [];
+        let defaultAddition: any[] = [];
         if (items[0]?.query_string) {
           defaultKeyword = items[0].query_string;
           searchMode = 'sql';

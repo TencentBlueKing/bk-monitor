@@ -1,18 +1,20 @@
 .app-nav-bar-wrap {
   position: relative;
-  display: flex;
-  padding: 0 24px;
-  height: 48px;
-  background-color: #fff;
-  box-shadow: 0 1px 0 0 #dcdee5, 0 3px 4px 0 rgba(64,112,203,.06);
   z-index: 1;
+  display: flex;
+  height: 48px;
+  padding: 0 24px;
+  background-color: #fff;
+  box-shadow: 0 3px 4px 0 #0000000a;
+
   .nav-route {
     min-width: 200px;
     height: 100%;
   }
+
   .app-nav-bar-handler {
-    flex: 1;
     display: flex;
+    flex: 1;
     align-items: center;
   }
 }

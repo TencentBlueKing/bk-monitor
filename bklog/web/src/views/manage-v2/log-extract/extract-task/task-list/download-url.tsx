@@ -25,9 +25,10 @@
  */
 
 import { defineComponent, ref } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
+
 import { copyMessage } from '@/common/util';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 
 export default defineComponent({
   name: 'DownloadUrl',
@@ -45,23 +46,25 @@ export default defineComponent({
     const buttonRef = ref<any>(null); // 按钮引用
 
     // 处理点击事件
-    const handleClick = async () => {
+    const handleClick = () => {
       try {
-          let urlPrefix = window.AJAX_URL_PREFIX;
-          if (!urlPrefix.endsWith('/')) urlPrefix += '/';
-          const { bkBizId } = store.state;
-
-          const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${props.taskId}&bk_biz_id=${bkBizId}`;
-          copyMessage(new URL(downloadUrl, window.location.origin).href, t('已复制到剪切板'));
-        } catch (e) {
-          console.warn(e);
+        let urlPrefix = window.AJAX_URL_PREFIX;
+        if (!urlPrefix.endsWith('/')) {
+          urlPrefix += '/';
         }
+        const { bkBizId } = store.state;
+
+        const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${props.taskId}&bk_biz_id=${bkBizId}`;
+        copyMessage(new URL(downloadUrl, window.location.origin).href, t('已复制到剪切板'));
+      } catch (e) {
+        console.warn(e);
+      }
     };
 
     return () => (
       <div class='list-box-container'>
         <div class='list-title'>
-          <span class='bk-icon icon-download'></span>
+          <span class='bk-icon icon-download' />
           <h2 class='text'>{t('下载链接')}</h2>
           <bk-button
             ref={buttonRef}

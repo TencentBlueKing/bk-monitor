@@ -26,9 +26,10 @@
 import useStore from '@/hooks/use-store';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import { ConsitionItem } from '../../store/store.type';
 import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
 import $http from '@/api';
+
+import type { ConsitionItem } from '../../store/store.type';
 
 export default () => {
   const store = useStore();

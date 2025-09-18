@@ -333,4 +333,5 @@ export default {
   '消费场景，hover 变量名 / 别名的 label，可以显示“变量描述”':
     'In consumption scenarios, hover over the label of the variable name / alias to display "Variable Description"',
   '该变量有被使用，暂不可删除': 'This variable is being used and cannot be deleted temporarily',
+  '多个返回码之间用“，”分割，数值区间用～连接，有前缀的需要把前缀带上，比如：error_4003,200,3001~3005': 'Multiple return codes are separated by ",". The numerical interval is connected by "~". If there is a prefix, the prefix needs to be included, such as: error_4003,200,3001~3005'
 };

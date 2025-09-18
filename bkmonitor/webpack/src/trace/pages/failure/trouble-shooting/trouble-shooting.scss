@@ -465,6 +465,7 @@
   padding: 0 !important;
   border: 1px solid #DCDEE5;
   box-shadow: 0 2px 6px 0 #0000001a !important;
+  max-height: 80vh;
 
   .bk-pop2-arrow {
     border-left: 1px solid #DCDEE5;
@@ -473,19 +474,25 @@
 
   .log-popover-content {
     margin: 8px;
-    max-height: 622px;
-    overflow: auto;
 
     .copy-icon {
       color: #4D4F56;
-      margin-right: 2px;
       cursor: pointer;
     }
 
     .log-pattern {
+      max-height: calc(80vh - 42px);
+      overflow: auto;
+      margin-top: 8px;
       color: #313238;
       line-height: 20px;
       font-family: Menlo, Monaco, Consolas, Courier, monospace;
+    }
+
+    &_json {
+      max-height: calc(80vh - 42px);
+      overflow: auto;
+      margin-top: 8px;
     }
 
 
@@ -501,7 +508,7 @@
 
       .item-value {
         color: #1F6D89;
-        word-break: break-word;
+        word-break: auto-phrase;
 
         .item-label {
           word-break: normal;

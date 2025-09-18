@@ -154,71 +154,6 @@ def add_aggs(agg_id_map: dict, result: dict, sliced_result: dict):
                         res_child["count"] += child["count"]
 
 
-def process_stage_string(query_string):
-    """
-    将query_string中的处理阶段信息替换为英文字段名
-    example:
-    >> process_stage_string('处理阶段 : 已通知 AND 告警名称 : "VMStorage内存使用率" OR 状态 : 未恢复')
-    >> '(is_handled : true AND is_shielded : false) AND 告警名称 : "VMStorage内存使用率" OR 状态 : 未恢复'
-    >>
-    >> process_stage_string('NOT 处理阶段 : 已通知 OR -处理阶段 : 已屏蔽 ')
-    >> 'NOT (is_handled : true AND is_shielded : false) OR -is_shielded : true'
-    """
-    stage_mapping = {
-        "已通知": "is_handled",
-        "已确认": "is_ack",
-        "已屏蔽": "is_shielded",
-        "已流控": "is_blocked",
-        "is_handled": "is_handled",
-        "is_ack": "is_ack",
-        "is_shielded": "is_shielded",
-        "is_blocked": "is_blocked",
-    }
-
-    pattern = rf"(处理阶段|stage)\s*:\s*(?P<stage>{'|'.join(stage_mapping.keys())})"
-    for _ in re.findall(pattern, query_string, re.IGNORECASE):
-        match = re.search(pattern, query_string, re.IGNORECASE)
-        stage = match.group("stage")
-        start, end = match.span()
-        # 当存在'处理阶段 : 已通知'时，加上 AND is_shielded : false，用于过滤掉已屏蔽的告警
-        if stage_mapping[stage] == "is_handled":
-            query_string = (
-                query_string[:start] + f"({stage_mapping[stage]} : true AND is_shielded : false) " + query_string[end:]
-            )
-        else:
-            query_string = query_string[:start] + f"{stage_mapping[stage]} : true " + query_string[end:]
-
-    # 去除查询字符串中的多余空白字符，并去除首尾的空白字符
-    query_string = re.sub(r"\s+", " ", query_string).strip()
-    return query_string
-
-
-def process_metric_string(query_string):
-    """
-    将query_string中的指标ID信息替换为event.metric，并给value加上*
-    """
-
-    def replacer(match):
-        value = strip_outer_quotes(match.group("value"))
-
-        if not value.startswith("*"):
-            value = "*" + value
-
-        if not value.endswith("*"):
-            value = value + "*"
-
-        return f"event.metric : {value}"
-
-    # 如果包含promql语句，则后面会在convert_metric_id方法中进行处理
-    if is_include_promql(query_string):
-        return query_string
-
-    pattern = r"(指标ID|event.metric)\s*:\s*(?P<value>[^\s+]*)"
-    query_string = re.sub(pattern, replacer, query_string, re.IGNORECASE)
-    query_string = re.sub(r"\s+", " ", query_string).strip()
-    return query_string
-
-
 def is_include_promql(query_string: str) -> bool:
     """
     判断是否包含promql 语句
@@ -294,30 +229,9 @@ def is_include_promql(query_string: str) -> bool:
     filter_condition_pattern = r"\{.*(=|~).*\}"
 
     if (
-        re.search(function_pattern, query_string)
-        or re.search(time_window_pattern, query_string)
-        or re.search(filter_condition_pattern, query_string)
+        re.search(function_pattern, query_string, flags=re.IGNORECASE)
+        or re.search(time_window_pattern, query_string, flags=re.IGNORECASE)
+        or re.search(filter_condition_pattern, query_string, flags=re.IGNORECASE)
     ):
         return True
     return False
-
-
-def strip_outer_quotes(s):
-    """安全移除外层引号
-
-    example:
-    >> strip_outer_quotes('"hello"')
-    'hello'
-    >> strip_outer_quotes("'world'")
-    'world'
-    >> strip_outer_quotes("\"'123'"\")
-    '123'
-    """
-    if not isinstance(s, str):
-        return s
-    s = s.strip()
-
-    while len(s) > 2 and s[0] == s[-1] and s[0] in ('"', "'"):
-        s = s[1:-1]
-
-    return s

@@ -857,4 +857,8 @@ export default {
   立即新建: '',
   平铺模式: '',
   分组模式: '',
+  AI助手: 'AI Assistant',
+  日志解读: 'Log interpretation',
+  请输入需要解读的内容: 'Please enter the content to be interpreted',
+  引用至小鲸: 'Quote to AI',
 };

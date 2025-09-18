@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any
 
 from django.conf import settings
 from django.utils.encoding import force_str
@@ -179,8 +180,6 @@ class DataAccessor:
         self.operator = operator
         self.etl_config = etl_config
         self.modify = False
-        # 获取table_id与table的映射关系
-        self.tables_info = {self.get_table_id(table): table for table in self.tables}
         self.type_label = type_label
         self.source_label = source_label
         self.label = label
@@ -189,19 +188,8 @@ class DataAccessor:
         except BKAPIError:
             self.data_id = None
 
-    def get_table_id(self, table):
-        """
-        table_id:库.表(system.cpu)
-        """
-        return f"{self.tsdb_name}.{table.table_name}"
-
-    @property
-    def tsdb_name(self):
-        return f"{self.bk_biz_id}_{self.db_name}" if self.bk_biz_id else self.db_name
-
     @property
     def data_name(self):
-        # TODO: 新规范是业务ID在后，这个要确定影响范围
         return f"{self.bk_biz_id}_{self.db_name}" if self.bk_biz_id else self.db_name
 
     def create_dataid(self):
@@ -228,20 +216,39 @@ class DataAccessor:
         self.data_id = api.metadata.create_data_id(param)["bk_data_id"]
         return self.data_id
 
-    def contrast_rt(self):
-        result_table_list = api.metadata.list_result_table(
+    def contrast_rt(self) -> tuple[dict[str, Any], dict[str, ResultTable]]:
+        """
+        Returns:
+            dict[str, Any]: 结果表信息
+            dict[str, ResultTable]: 结果表信息映射，包含表的详细信息
+        """
+        # 向前兼容，优先查询不带业务ID的结果表
+        without_biz_result_table_list = api.metadata.list_result_table(
             bk_tenant_id=self.bk_tenant_id,
-            datasource_type=self.tsdb_name,
+            datasource_type=self.db_name,
             is_config_by_user=True,
         )
-        new_table_id_set = {i for i in list(self.tables_info.keys())}
+        if without_biz_result_table_list or self.bk_biz_id == 0:
+            result_table_list = without_biz_result_table_list
+            table_infos = {f"{self.db_name}.{table.table_name}": table for table in self.tables}
+        else:
+            db_name_with_biz = f"{self.bk_biz_id}_{self.db_name}"
+            result_table_list = api.metadata.list_result_table(
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=self.bk_biz_id,
+                datasource_type=db_name_with_biz,
+                is_config_by_user=True,
+            )
+            table_infos = {f"{db_name_with_biz}.{table.table_name}": table for table in self.tables}
+
+        new_table_id_set = {i for i in list(table_infos.keys())}
 
         old_table_id_set = set()
         for old_table in result_table_list:
             old_table_id = old_table["table_id"]
             old_table_id_set.add(old_table_id)
             if old_table_id not in new_table_id_set:
-                self.tables_info[old_table_id] = ResultTable(
+                table_infos[old_table_id] = ResultTable(
                     table_name=old_table_id.split(".")[-1],
                     description=old_table["table_name_zh"],
                     fields=[],
@@ -251,14 +258,14 @@ class DataAccessor:
         modify_table_id_set = new_table_id_set & old_table_id_set
         for result_table in result_table_list:
             if result_table["table_id"] in modify_table_id_set:
-                if not self.check_table_modify(self.tables_info[result_table["table_id"]], result_table):
+                if not self.check_table_modify(table_infos[result_table["table_id"]], result_table):
                     modify_table_id_set.remove(result_table["table_id"])
 
         return {
             "create": new_table_id_set - old_table_id_set,
             "modify": modify_table_id_set,
             "clean": old_table_id_set - new_table_id_set,
-        }
+        }, table_infos
 
     def check_table_modify(self, new_table_info: ResultTable, old_result_table: dict) -> bool:
         """判断表配置是否修改
@@ -282,11 +289,7 @@ class DataAccessor:
                 continue
 
             # 有些属性的值虽然不想等，但是其实是同一个含义
-            special_value_mappings = {
-                "tag": {
-                    "group": "dimension",
-                }
-            }
+            special_value_mappings = {"tag": {"group": "dimension"}}
             old_field_info["field_type"] = old_field_info["type"]
             for field_key in ["field_type", "tag", "description", "unit", "is_config_by_user"]:
                 old_field_value = special_value_mappings.get(field_key, {}).get(
@@ -304,7 +307,7 @@ class DataAccessor:
         """
         创建结果表
         """
-        contrast_result = self.contrast_rt()
+        contrast_result, table_infos = self.contrast_rt()
         func_list = []
         params_list = []
 
@@ -327,10 +330,10 @@ class DataAccessor:
                     {
                         "bk_biz_id": self.bk_biz_id,
                         "table_id": table_id,
-                        "table_name_zh": self.tables_info[table_id].description,
+                        "table_name_zh": table_infos[table_id].description,
                         "field_list": [
                             field
-                            for field in self.tables_info[table_id].fields
+                            for field in table_infos[table_id].fields
                             if field["field_name"] not in ORIGIN_PLUGIN_EXCLUDE_DIMENSION
                         ],
                         "external_storage": external_storage,
@@ -368,9 +371,12 @@ class DataAccessor:
         """
         修改label
         """
-        result_table_list = api.metadata.list_result_table(
-            bk_tenant_id=self.bk_tenant_id, datasource_type=self.tsdb_name
-        )
+        result_table_list = api.metadata.list_result_table(bk_tenant_id=self.bk_tenant_id, datasource_type=self.db_name)
+        if not result_table_list and self.bk_biz_id != 0:
+            result_table_list = api.metadata.list_result_table(
+                bk_tenant_id=self.bk_tenant_id, datasource_type=f"{self.bk_biz_id}_{self.db_name}"
+            )
+
         params_list = []
         for table in result_table_list:
             external_storage = {"kafka": {"expired_time": 1800000}}

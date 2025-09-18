@@ -15,6 +15,8 @@
           <bk-select
             style="width: 174px"
             class="rtl-text"
+            ext-cls="bklog-v3-popover-tag"
+            ext-popover-cls="bklog-v3-popover-tag"
             v-model="sorts[0]"
             auto-focus
             searchable

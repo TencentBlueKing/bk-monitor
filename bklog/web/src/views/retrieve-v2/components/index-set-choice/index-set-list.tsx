@@ -110,13 +110,9 @@ export default defineComponent({
         }
 
         // 如果满足Tag标签或者当前条目为显示状态
-        if (is_shown_node) {
-          // 如果启用隐藏空数据
-          if (hiddenEmptyItem.value) {
-            if (!props.value.includes(`${node.index_set_id}`)) {
-              is_shown_node = !node.tags.some(tag => tag.tag_id === 4);
-            }
-          }
+        // 如果启用隐藏空数据
+        if (is_shown_node && hiddenEmptyItem.value && !props.value.includes(`${node.index_set_id}`)) {
+          is_shown_node = !node.tags.some(tag => tag.tag_id === 4);
         }
 
         // 继续判定检索匹配是否满足匹配条件
@@ -129,7 +125,9 @@ export default defineComponent({
 
       // 处理子节点
       const processChildren = (children: any[], parentNode) => {
-        if (!children?.length) return [];
+        if (!children?.length) {
+          return [];
+        }
 
         // 处理子节点的显示状态
         const processedChildren = children.map(child => ({
@@ -139,6 +137,7 @@ export default defineComponent({
         }));
 
         // 对子节点进行排序
+        // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
         return processedChildren.sort((a: any, b: any) => {
           // 单选模式下才进行特殊排序
           if (props.type === 'single') {
@@ -162,6 +161,7 @@ export default defineComponent({
       };
 
       // 处理根节点
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
       const processedList = props.list.map((item: any) => {
         const is_shown_node = checkNodeShouldShow(item);
 
@@ -175,16 +175,14 @@ export default defineComponent({
         const hasSelectedChild = item.children?.some(child => propValueStrList.value.includes(`${child.index_set_id}`));
 
         if (isOpenNode) {
-          item.children.forEach(child => {
+          for (const child of item.children) {
             child.is_shown_node = true;
 
-            // 如果启用隐藏空数据
-            if (hiddenEmptyItem.value) {
-              if (!props.value.includes(`${child.index_set_id}`)) {
-                child.is_shown_node = !child.tags.some(tag => tag.tag_id === 4);
-              }
+            if (hiddenEmptyItem.value && !props.value.includes(`${child.index_set_id}`)) {
+              // 如果启用隐藏空数据
+              child.is_shown_node = !child.tags.some(tag => tag.tag_id === 4);
             }
-          });
+          }
         }
 
         return {
@@ -198,6 +196,7 @@ export default defineComponent({
       });
 
       // 对根节点进行排序
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
       return processedList.sort((a: any, b: any) => {
         // 单选模式下才进行特殊排序
         if (props.type === 'single') {
@@ -245,7 +244,9 @@ export default defineComponent({
      * @param e
      * @param item
      */
-    const handleIndexSetItemClick = (e: MouseEvent, item: any, is_root_checked = false) => {
+
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
+    const handleIndexSetItemClick = (_e: MouseEvent, item: any, is_root_checked = false) => {
       if (!item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
         return;
       }
@@ -262,9 +263,9 @@ export default defineComponent({
 
         const indexSetId = `${item.index_set_id}`;
         const isChecked = !(propValueStrList.value.includes(indexSetId) || disableList.value.includes(indexSetId));
-        const list = [];
+        const list: string[] = [];
 
-        (item.children ?? []).forEach(child => {
+        for (const child of item.children ?? []) {
           if (child.is_shown_node) {
             const childId = `${child.index_set_id}`;
             if (propValueStrList.value.includes(childId) || disableList.value.includes(childId)) {
@@ -275,14 +276,14 @@ export default defineComponent({
                 disableList.value.push(id);
               } else {
                 // 如果是非选中，从 disableList 中移除
-                const index = disableList.value.findIndex(v => v === id);
+                const index = disableList.value.indexOf(id);
                 if (index >= 0) {
                   disableList.value.splice(index, 1);
                 }
               }
             }
           }
-        });
+        }
 
         handleIndexSetItemCheck(item, isChecked, list);
       }
@@ -372,7 +373,7 @@ export default defineComponent({
           style='margin-right: 4px'
           checked={propValueStrList.value.includes(item.index_set_id) || disableList.value.includes(item.index_set_id)}
           disabled={is_root_checked}
-        ></bk-checkbox>
+        />
       );
     };
 
@@ -431,7 +432,7 @@ export default defineComponent({
               <span
                 class={['favorite-icon bklog-icon bklog-lc-star-shape', { 'is-favorite': item.is_favorite }]}
                 onClick={e => handleFavoriteClick(e, item)}
-              ></span>
+              />
             )}
             <span
               class={[
@@ -442,14 +443,14 @@ export default defineComponent({
               ]}
               onClick={e => handleNodeOpenClick(e, item)}
             >
-              <i class='bklog-icon bklog-arrow-down-filled'></i>
+              <i class='bklog-icon bklog-arrow-down-filled' />
             </span>
 
             <bdi class={['index-set-name', { 'no-data': item.tags?.some(tag => tag.tag_id === 4) ?? false }]}>
               {getCheckBoxRender(item, is_root_checked)}
-              <span class={{ 'bklog-empty-icon': true, 'is-empty': isEmptyNode }}></span>
+              <span class={{ 'bklog-empty-icon': true, 'is-empty': isEmptyNode }} />
               <span class='group-icon'>
-                <i class='bklog-icon bklog-suoyin-mulu'></i>
+                <i class='bklog-icon bklog-suoyin-mulu' />
               </span>
               {item.index_set_name}
             </bdi>
@@ -458,7 +459,14 @@ export default defineComponent({
             {hasPermission ? (
               item.tags
                 .filter(tag => tag?.tag_id !== 4)
-                .map((tag: any) => <span class='index-set-tag-item'>{tag.name}</span>)
+                .map((tag: any) => (
+                  <span
+                    key={tag.tag_id}
+                    class='index-set-tag-item'
+                  >
+                    {tag.name}
+                  </span>
+                ))
             ) : (
               <span
                 class='index-set-tag-item'
@@ -481,7 +489,7 @@ export default defineComponent({
               style='margin-top: 50px'
               scene='part'
               type={type}
-            ></bk-exception>
+            />
           </div>
         );
       }
@@ -489,15 +497,15 @@ export default defineComponent({
       return (
         <div class='bklog-v3-index-set-list'>
           {filterList.value.map((item: any) => {
-            const result = [];
+            const result: any[] = [];
             const is_root_checked = propValueStrList.value.includes(item.index_set_id);
 
             if (!isClosedNode(item)) {
-              (item.children ?? []).forEach(child => {
+              for (const child of item.children ?? []) {
                 if (child.is_shown_node || disableList.value.includes(child.index_set_id)) {
                   result.push(renderNodeItem(child, true, false, is_root_checked, item.has_no_data_child));
                 }
-              });
+              }
             }
 
             result.unshift(renderNodeItem(item, false, item.children?.length > 0, false));
@@ -558,7 +566,7 @@ export default defineComponent({
                             <bk-input
                               value={favoriteFormData.value.name}
                               on-change={val => (favoriteFormData.value.name = val)}
-                            ></bk-input>
+                            />
                           </bk-form-item>
                           <bk-form-item style='text-align: right;'>
                             <bk-button
@@ -583,19 +591,22 @@ export default defineComponent({
                   <span
                     style='color: #DCDEE5; font-size: 14px; margin-right: 4px;'
                     class='bklog-icon bklog-lc-star-shape'
-                  ></span>
+                  />
                   <span style='font-size: 12px;color: #3A84FF;'>{$t('收藏该组合')}</span>
                 </BklogPopover>
               )}
             </div>
             <div class='row-item-list'>
               {valueList.value.map((item: any) => (
-                <span class='row-value-item'>
+                <span
+                  key={item}
+                  class='row-value-item'
+                >
                   {item.index_set_name}
                   <span
                     class='bklog-icon bklog-close'
                     onClick={e => handleDeleteCheckedItem(e, item)}
-                  ></span>
+                  />
                 </span>
               ))}
             </div>
@@ -628,11 +639,11 @@ export default defineComponent({
     const handleSearchTextChange = (val: string) => {
       searchText.value = val;
       if (searchText.value.length > 0) {
-        Object.keys(listNodeOpenManager.value).forEach(key => {
+        for (const key of Object.keys(listNodeOpenManager.value)) {
           if (listNodeOpenManager.value[key] === 'forceClosed') {
             delete listNodeOpenManager.value[key];
           }
-        });
+        }
       }
     };
 
@@ -647,14 +658,14 @@ export default defineComponent({
               value={searchText.value}
               clearable
               on-input={handleSearchTextChange}
-            ></bk-input>
+            />
             <bk-checkbox
               checked={hiddenEmptyItem.value}
               false-value={false}
               true-value={true}
               on-change={handleHiddenEmptyItemChange}
             >
-              <span class='hidden-empty-icon'></span>
+              <span class='hidden-empty-icon' />
               <span>{$t('隐藏无数据')}</span>
             </bk-checkbox>
           </div>
@@ -674,6 +685,7 @@ export default defineComponent({
             <div class='tag-scroll-container'>
               {indexSetTagList.value.map(item => (
                 <span
+                  key={item.tag_id}
                   class={['tag-item', { 'is-active': item.tag_id === tagItem.value.tag_id }]}
                   onClick={() => handleTagItemClick(item)}
                 >

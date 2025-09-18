@@ -111,6 +111,10 @@ class BkCollectorClusterConfig:
         from alarm_backends.core.storage.redis import Cache
 
         cache = Cache("cache")
+        # fixme: 优化缓存, 考虑使用metadata的redis
+        # from metadata.utils.redis_tools import RedisTools
+        # cache = RedisTools().client
+
         cluster_to_bk_biz_ids = cache.smembers(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
 
         res = {}
