@@ -23,13 +23,11 @@ class DetectSerializer(serializers.Serializer):
         trigger_check_window = serializers.IntegerField(label=_("触发检查窗口"), min_value=1)
         trigger_count = serializers.IntegerField(label=_("触发次数"), min_value=1)
 
-    type = serializers.ChoiceField(
-        label=_("类型"), choices=constants.DetectType.choices(), default=constants.DetectType.DEFAULT
-    )
+    type = serializers.CharField(label=_("类型"), default=constants.DEFAULT_DETECT_TYPE)
     config = serializers.DictField(label=_("判断条件配置"), default={})
 
     def validate(self, attrs: dict) -> dict:
-        if attrs["type"] == constants.DetectType.DEFAULT:
+        if attrs["type"] == constants.DEFAULT_DETECT_TYPE:
             s = self.DefaultDetectConfigSerializer(data=attrs["config"])
             s.is_valid(raise_exception=True)
             attrs["config"] = s.validated_data
