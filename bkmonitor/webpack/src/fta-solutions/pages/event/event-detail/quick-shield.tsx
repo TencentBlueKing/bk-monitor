@@ -156,7 +156,6 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
         shieldCheckedId, // 屏蔽选择单选框选中的值
         hideDimensionTagIndex: -1, // 开始隐藏维度屏蔽tag的索引
         hideBkTopoNodeTagIndex: -1, // 开始隐藏范围屏蔽tag的索引
-        // bkHostId: '',
         modified: false,
       };
     });
