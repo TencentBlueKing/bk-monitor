@@ -15,6 +15,7 @@ import logging
 from django.conf import settings
 from kubernetes import client
 
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.cache import using_cache, CacheType
@@ -109,18 +110,14 @@ class BkCollectorClusterConfig:
     @classmethod
     def get_cluster_mapping(cls):
         """获取由 apm_ebpf 模块发现的集群 id"""
-        from alarm_backends.core.storage.redis import Cache
-
-        cache = Cache("cache")
-        # fixme: 优化缓存, 考虑使用metadata的redis
-        # from metadata.utils.redis_tools import RedisTools
-        # cache = RedisTools().client
-
+        cache = ApmCacheHandler().get_redis_client()
         cluster_to_bk_biz_ids = cache.smembers(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
 
         res = {}
         for i in cluster_to_bk_biz_ids:
-            cluster_id, related_bk_biz_ids = cls._split_value(i)
+            # 将字节对象转换为字符串
+            value = i.decode("utf-8") if isinstance(i, bytes) else i
+            cluster_id, related_bk_biz_ids = cls._split_value(value)
             if cluster_id and related_bk_biz_ids:
                 res[cluster_id] = related_bk_biz_ids
 

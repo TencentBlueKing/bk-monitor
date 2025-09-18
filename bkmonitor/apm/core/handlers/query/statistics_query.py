@@ -24,9 +24,9 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from opentelemetry.trace import StatusCode
 
-from alarm_backends.core.storage.redis import Cache
 from apm import types
 from apm.constants import DISCOVER_BATCH_SIZE
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.query.base import BaseQuery, LogicSupportOperator
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.core.handlers.query.define import QueryStatisticsMode
@@ -39,7 +39,7 @@ logger = logging.getLogger("apm")
 
 AFTER_CACHE_KEY_EXPIRE = 60 * 60 * 24 * 1
 
-redis_cli = Cache("cache")
+redis_cli = ApmCacheHandler.get_redis_client()
 
 
 class Deque:
@@ -62,7 +62,20 @@ class Deque:
         self.redis_client.expire(self.cache_key, AFTER_CACHE_KEY_EXPIRE)
 
     def popleft(self):
-        self.redis_client.lpop(self.cache_key)
+        """删除并返回队列头部元素"""
+        item = self.redis_client.lpop(self.cache_key)
+        if item:
+            try:
+                # 安全地处理字节数据解码
+                if isinstance(item, bytes):
+                    decoded_item = item.decode("utf-8")
+                else:
+                    decoded_item = str(item)
+                return decoded_item
+            except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"[Deque] Failed to decode/parse popleft item: {item}, error: {e}")
+                return None
+        return None
 
     def pop_data(self, limit):
         list_data = []
@@ -74,7 +87,21 @@ class Deque:
             if item:
                 list_data.append(item)
 
-        return [json.loads(i) for i in list_data]
+        # 安全地处理字节数据解码
+        decoded_data = []
+        for i in list_data:
+            try:
+                # 如果是字节对象，先解码为字符串
+                if isinstance(i, bytes):
+                    decoded_item = i.decode("utf-8")
+                else:
+                    decoded_item = str(i)
+                decoded_data.append(json.loads(decoded_item))
+            except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"[Deque] Failed to decode/parse item: {i}, error: {e}")
+                continue
+
+        return decoded_data
 
 
 class StatisticsQuery(BaseQuery):
@@ -267,7 +294,16 @@ class StatisticsQuery(BaseQuery):
                 raise ValueError(_("参数丢失 需要重新从第一页获取"))
             cache_value = redis_cli.get(cache_key)
             if cache_value:
-                after_key = json.loads(cache_value)
+                try:
+                    # 安全地处理字节数据解码
+                    if isinstance(cache_value, bytes):
+                        decoded_value = cache_value.decode("utf-8")
+                    else:
+                        decoded_value = str(cache_value)
+                    after_key = json.loads(decoded_value)
+                except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as e:
+                    logger.warning(f"[StatisticsQuery] Failed to decode/parse cache_value: {cache_value}, error: {e}")
+                    raise ValueError(_("缓存数据格式错误"))
 
         return after_key or {}
 
