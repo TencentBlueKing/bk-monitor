@@ -35,6 +35,7 @@ import BatchOperations from './components/batch-operations/batch-operations';
 import EditTemplateSlider from './components/template-form/edit-template-slider';
 import { ALARM_TEMPLATE_QUICK_FILTER_LIST, AlarmTemplateTypeMap } from './constant';
 import TemplateDetails from './template-operate/template-details';
+import TemplatePush from './template-operate/template-push';
 
 import type { AlarmDeleteConfirmEvent } from './components/alarm-delete-confirm/alarm-delete-confirm';
 import type {
@@ -183,6 +184,10 @@ export default class AlarmTemplate extends tsc<object> {
     show: false,
     params: {},
   };
+  templatePushObj = {
+    show: false,
+    params: {},
+  };
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
@@ -233,6 +238,14 @@ export default class AlarmTemplate extends tsc<object> {
    */
   handleDispatch(id: AlarmTemplateListItem['id']) {
     console.log('================ 下发事件回调 ================', id);
+    this.templatePushObj = {
+      show: true,
+      params: {
+        strategy_template_ids: [id],
+        app_name: this.viewOptions.filters?.app_name,
+        name: this.tableData.find(item => item.id === id)?.name,
+      },
+    };
   }
 
   /**
@@ -252,6 +265,7 @@ export default class AlarmTemplate extends tsc<object> {
       params: {
         app_name: this.viewOptions.filters?.app_name,
         ids: [obj.id],
+        name: this.tableData.find(item => item.id === obj.id)?.name,
       },
     };
   }
@@ -337,6 +351,13 @@ export default class AlarmTemplate extends tsc<object> {
           show={this.templateDetailObj.show}
           onShowChange={show => {
             this.templateDetailObj.show = show;
+          }}
+        />
+        <TemplatePush
+          params={this.templatePushObj.params}
+          show={this.templatePushObj.show}
+          onShowChange={show => {
+            this.templatePushObj.show = show;
           }}
         />
       </div>
