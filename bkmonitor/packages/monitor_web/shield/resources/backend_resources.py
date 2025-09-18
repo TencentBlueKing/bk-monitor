@@ -454,6 +454,8 @@ class BulkAddAlertShieldResource(AddShieldResource):
             if bk_topo_node:
                 dimension_config["bk_topo_node"] = bk_topo_node
                 data["category"] = "scope"
+                # 维度范围不需要该字段
+                dimension_config.pop("strategy_id")
             else:
                 for dimension in alert.dimensions:
                     dimension_data: dict = dimension.to_dict()
@@ -484,6 +486,10 @@ class BulkAddAlertShieldResource(AddShieldResource):
         shields = []
         shield_operator = get_request_username()
         for dimension_config in dimension_configs:
+            scope_type = data["dimension_config"].get("scope_type", "")
+            if data["category"] == "scope":
+                scope_type = "node"
+
             shields.append(
                 Shield(
                     bk_biz_id=data["bk_biz_id"],
@@ -493,7 +499,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
                     begin_time=time_result["begin_time"],
                     end_time=time_result["end_time"],
                     failure_time=time_result["end_time"],
-                    scope_type=data["dimension_config"].get("scope_type", ""),
+                    scope_type=scope_type,
                     cycle_config=data.get("cycle_config", {}),
                     dimension_config=dimension_config,
                     notice_config=data["notice_config"] if data["shield_notice"] else {},
