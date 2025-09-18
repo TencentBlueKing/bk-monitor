@@ -13,7 +13,7 @@ import re
 import time
 from typing import Any
 
-from django.db.models import Max, QuerySet
+from django.db.models import Max, QuerySet, Q
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -73,21 +73,33 @@ class GetDataSourceConfigResource(Resource):
         target_cluster_ids = []
 
         query_bk_biz_ids = [0, bk_biz_id]
-        if bk_biz_id < 0:
+
+        # 当且仅当空间为非业务空间，且查询事件数据源时，需要查询关联的bkcc业务下的指标，并按项目集群过滤
+        related_bk_biz_id = None
+        if bk_biz_id < 0 and (data_source_label, data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            # 获取项目空间下的集群
             target_cluster_ids = list(
                 BCSCluster.objects.filter(space_uid=space_uid).values_list("bcs_cluster_id", flat=True)
             )
             space: Space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
             if space:
-                query_bk_biz_ids.append(space.bk_biz_id)
+                related_bk_biz_id = space.bk_biz_id
 
         qs = MetricListCache.objects.filter(
             data_type_label=data_type_label,
             data_source_label=data_source_label,
-            bk_biz_id__in=query_bk_biz_ids,
             bk_tenant_id=get_request_tenant_id(),
         )
+
+        # 过滤关联业务
+        if related_bk_biz_id:
+            qs = qs.filter(
+                Q(bk_biz_id__in=[0, bk_biz_id]) | Q(bk_biz_id=related_bk_biz_id, result_table_name__contains="BCS-K8S-")
+            )
+        else:
+            qs = qs.filter(bk_biz_id__in=query_bk_biz_ids)
+
         if params.get("return_dimensions"):
             metrics = self._fetch_metrics(qs)
         else:
@@ -105,10 +117,14 @@ class GetDataSourceConfigResource(Resource):
                     bk_data_id = table_id.split("_", -1)[-1]
                 elif (data_source_label, data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
                     name = metric["result_table_name"]
+                    bk_data_id = metric["extend_fields"].get("bk_data_id", "")
+
+                    # 过滤掉已经处理过的需要过滤的指标
                     if name in ignore_name_list:
                         continue
-                    bk_data_id = metric["extend_fields"].get("bk_data_id", "")
-                    if bk_biz_id < 0:
+
+                    # 如果是关联业务的指标，需要过滤掉非项目集群
+                    if metric["bk_biz_id"] == related_bk_biz_id:
                         # 项目空间， 仅列出项目集群， metrics包含关联业务的全部集群
                         if not target_cluster_ids:
                             ignore_name_list.append(name)
