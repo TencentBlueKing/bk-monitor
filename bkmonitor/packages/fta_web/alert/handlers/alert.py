@@ -1379,7 +1379,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         regex = r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])'
         special_chars = re.compile(regex)
         for field in result["fields"]:
-            if not field["field"] == "metric":
+            if field["field"] != "metric":
                 continue
 
             for bucket in field["buckets"]:
