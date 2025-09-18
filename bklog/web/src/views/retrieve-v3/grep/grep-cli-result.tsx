@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, ref } from 'vue';
+import { computed, defineComponent, type PropType, ref } from 'vue';
 
 import useIntersectionObserver from '@/hooks/use-intersection-observer';
 import useLocale from '@/hooks/use-locale';
@@ -32,7 +32,8 @@ import RetrieveHelper from '../../retrieve-helper';
 import ScrollTop from '../../retrieve-v2/components/scroll-top/index';
 import TextSegmentation from '../../retrieve-v2/components/text-segmentation/index';
 import useTextAction from '../../retrieve-v2/hooks/use-text-action';
-import { GrepRequestResult } from './types';
+
+import type { GrepRequestResult } from './types';
 
 import './grep-cli-result.scss';
 
@@ -107,7 +108,7 @@ export default defineComponent({
 
       return props.grepRequestResult.list.map((row, index) => (
         <div
-          key={index}
+          key={`${index}-${row}`}
           class='cli-result-line'
         >
           <span class='cli-result-line-number'>{index + 1}</span>
@@ -140,7 +141,7 @@ export default defineComponent({
             <div style={{ minHeight: '64px', fontSize: '12px', padding: '20px' }}>loading...</div>
           )}
         </div>
-        <ScrollTop></ScrollTop>
+        <ScrollTop />
       </div>
     );
   },

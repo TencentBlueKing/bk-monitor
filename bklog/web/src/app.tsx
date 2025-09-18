@@ -87,24 +87,24 @@ export default defineComponent({
           break;
         case 'off': {
           toggleList = [];
-          store.commit('updateState', {'globalSettingList' : []});
+          store.commit('updateState', { globalSettingList: [] });
           break;
         }
         default:
           break;
       }
-      store.commit('updateState', {'maskingToggle': {
-        toggleString: logDesensitize,
-        toggleList,
-      }});
+      store.commit('updateState', {
+        maskingToggle: {
+          toggleString: logDesensitize,
+          toggleList,
+        },
+      });
 
       // 更新全局操作列表
       const isShowSettingList = logDesensitize !== 'off';
-      store.commit(
-        'updateState', {
-          'globalSettingList': isShowSettingList ? [{ id: 'masking-setting', name: $t('全局脱敏') }] : []
-        }
-      );
+      store.commit('updateState', {
+        globalSettingList: isShowSettingList ? [{ id: 'masking-setting', name: $t('全局脱敏') }] : [],
+      });
     };
 
     /**
@@ -112,7 +112,7 @@ export default defineComponent({
      * @param v
      */
     const showAlertChange = (v: boolean) => {
-      store.commit('updateState', {'showAlert': v});
+      store.commit('updateState', { showAlert: v });
 
       if (refNoticeComponent.value) {
         noticeComponentHeight.value = refNoticeComponent.value.$el.offsetHeight;
@@ -186,7 +186,7 @@ export default defineComponent({
      * 更新全局弹窗的选项
      */
     const handleChangeMenu = (item: any) => {
-      store.commit('updateState', {'globalActiveLabel': item.id});
+      store.commit('updateState', { globalActiveLabel: item.id });
     };
 
     /**
@@ -224,10 +224,10 @@ export default defineComponent({
           ? 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif'
           : 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
       document.body.style['font-family'] = fontFamily;
-      store.commit('updateState', {'runVersion': window.RUN_VER || ''});
+      store.commit('updateState', { runVersion: window.RUN_VER || '' });
 
       const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
-      store.commit('updateState', {'isEnLanguage': isEnLanguage});
+      store.commit('updateState', { isEnLanguage: isEnLanguage });
       const languageClassName = isEnLanguage ? 'language-en' : 'language-zh';
       document.body.classList.add(languageClassName);
       // 初始化脱敏灰度相关的代码

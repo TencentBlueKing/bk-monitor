@@ -24,11 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, ref } from 'vue';
+import { defineComponent, type PropType, ref } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
 import { bkMessage } from 'bk-magic-vue';
+
 import $http from '@/api';
-import { type TemplateItem } from '../../../index';
+
+import type { TemplateItem } from '../../../index';
+
 import './index.scss';
 
 export default defineComponent({
@@ -92,17 +96,17 @@ export default defineComponent({
         </div>
         <div class='operate-btns'>
           <bk-button
-            theme='primary'
             class='confirm-btn'
-            size='small'
             loading={confirmLoading.value}
+            size='small'
+            theme='primary'
             on-click={handleConfirm}
           >
             {t('删除')}
           </bk-button>
           <bk-button
-            size='small'
             class='cancel-btn'
+            size='small'
             on-click={handleCancel}
           >
             {t('取消')}

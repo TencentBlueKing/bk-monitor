@@ -28,7 +28,6 @@ import { computed, defineComponent, provide, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
 
-import { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { updateTimezone } from '../../../language/dayjs';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
@@ -38,6 +37,8 @@ import V3Searchbar from '../search-bar';
 import V3SearchResult from '../search-result';
 import V3Toolbar from '../toolbar';
 import useMonitorAppInit from './use-monitor-app-init';
+
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 import '../../../static/font-face/index.css';
 import '../../../static/style.css';
@@ -94,7 +95,9 @@ export default defineComponent({
     watch(
       () => props.timeRange,
       async val => {
-        if (!val) return;
+        if (!val) {
+          return;
+        }
         getIndexSetList();
         store.commit('updateIsSetDefaultTableColumn', false);
         const result = handleTransformToTimestamp(val as TimeRangeType, store.getters.retrieveParams.format);
@@ -107,7 +110,9 @@ export default defineComponent({
     watch(
       () => props.timezone,
       val => {
-        if (!val) return;
+        if (!val) {
+          return;
+        }
         store.commit('updateIndexItemParams', { timezone: val });
         updateTimezone(val);
         store.dispatch('requestIndexSetQuery');
@@ -128,21 +133,21 @@ export default defineComponent({
             style='width: 100%'
             class='v3-bklog-content'
           >
-            <V3Toolbar></V3Toolbar>
+            <V3Toolbar />
             <V3Container>
               <V3Searchbar
                 class={{
                   'is-sticky-top': isSearchContextStickyTop.value,
                   'is-sticky-top-result': isSearchResultStickyTop.value,
                 }}
-              ></V3Searchbar>
-              <V3SearchResult></V3SearchResult>
+              />
+              <V3SearchResult />
             </V3Container>
           </div>
         );
       }
 
-      return <div style={{ minHeight: '50vh', width: '100%' }}></div>;
+      return <div style={{ minHeight: '50vh', width: '100%' }} />;
     };
 
     return () => (
@@ -159,7 +164,7 @@ export default defineComponent({
         ]}
         v-bkloading={{ isLoading: !isPreApiLoaded.value }}
       >
-        <V3Collection></V3Collection>
+        <V3Collection />
         {renderResultContent()}
       </div>
     );

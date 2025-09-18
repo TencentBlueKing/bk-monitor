@@ -27,17 +27,18 @@ import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { readBlobRespToJson } from '@/common/util';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
 import { debounce } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import GrepCli from './grep-cli';
 import GrepCliResult from './grep-cli-result';
-import { GrepRequestResult } from './types';
 import { axiosInstance } from '@/api';
+
+import type { GrepRequestResult } from './types';
 
 import './grep-cli.scss';
 
@@ -80,11 +81,11 @@ export default defineComponent({
      */
     const setDefaultFieldValue = () => {
       if (field.value === '' && store.state.indexFieldInfo.fields.length > 0) {
-        const logField = store.state.indexFieldInfo.fields.find(field => field.field_name === 'log');
+        const logField = store.state.indexFieldInfo.fields.find(fieldItem => fieldItem.field_name === 'log');
         if (logField) {
           field.value = logField.field_name;
         } else {
-          const textField = store.state.indexFieldInfo.fields.find(field => field.field_type === 'text');
+          const textField = store.state.indexFieldInfo.fields.find(fieldItem => fieldItem.field_type === 'text');
           if (textField) {
             field.value = textField.field_name;
           }

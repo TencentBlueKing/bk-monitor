@@ -24,8 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { Ref } from 'vue';
-
 import { parseTableRowData } from '@/common/util';
 
 import RetrieveBase from './retrieve-core/base';
@@ -34,13 +32,15 @@ import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
 import RetrieveEvent from './retrieve-core/retrieve-events';
 import { RouteQueryTab } from './retrieve-v3/index.type';
 
+import type { Ref } from 'vue';
+
 export enum STORAGE_KEY {
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
   STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE = 'STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE',
   STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
 }
 
-export { GradeConfiguration, GradeSetting, RetrieveEvent };
+export { type GradeConfiguration, type GradeSetting, RetrieveEvent };
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 class RetrieveHelper extends RetrieveBase {
@@ -250,6 +250,8 @@ class RetrieveHelper extends RetrieveBase {
    * @param options
    * @returns
    */
+
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   getLogLevel(field: any, options: GradeConfiguration) {
     if (options?.disabled) {
       return null;
@@ -258,23 +260,24 @@ class RetrieveHelper extends RetrieveBase {
     if ((options?.type ?? 'normal') === 'normal') {
       const str = this.convertToMatchableString(field?.log);
 
-      if (!str?.trim()) return null;
+      if (!str?.trim()) {
+        return null;
+      }
 
-      const levelRegExpList = [];
-      (
-        options?.settings ?? [
-          { id: 'level_1', enable: true },
-          { id: 'level_2', enable: true },
-          { id: 'level_3', enable: true },
-          { id: 'level_4', enable: true },
-          { id: 'level_5', enable: true },
-          { id: 'level_6', enable: true },
-        ]
-      ).forEach((item: GradeSetting) => {
+      const levelRegExpList: string[] = [];
+      const settings = options?.settings ?? [
+        { id: 'level_1', enable: true },
+        { id: 'level_2', enable: true },
+        { id: 'level_3', enable: true },
+        { id: 'level_4', enable: true },
+        { id: 'level_5', enable: true },
+        { id: 'level_6', enable: true },
+      ];
+      for (const item of settings) {
         if (item.enable && this.logLevelRegex[item.id]) {
           levelRegExpList.push(this.logLevelRegex[item.id]);
         }
-      });
+      }
 
       const levelRegExStr = `/${levelRegExpList.join('|')}/`;
       const levelRegExp = new RegExp(levelRegExStr, 'gi');
@@ -287,9 +290,11 @@ class RetrieveHelper extends RetrieveBase {
       // 收集所有匹配的日志级别
       for (const match of matches) {
         const groups = match.groups || {};
-        Object.keys(groups).forEach(level => {
-          if (groups[level]) levelSet.add(level.toUpperCase());
-        });
+        for (const level of Object.keys(groups)) {
+          if (groups[level]) {
+            levelSet.add(level.toUpperCase());
+          }
+        }
       }
 
       // 按优先级顺序查找最高级别
@@ -306,15 +311,15 @@ class RetrieveHelper extends RetrieveBase {
         return null;
       }
 
-      const levels = [];
+      const levels: string[] = [];
       // 截取前1000字符避免性能问题
       const logSegment = target.slice(0, 1000);
-      options.settings.forEach((item: GradeSetting) => {
+      for (const item of options.settings) {
         if (item.enable && item.id !== 'others') {
           this.isMatchedGroup(item, logSegment, options.valueType === GradeFieldValueType.VALUE) &&
             levels.push(item.id);
         }
-      });
+      }
 
       return levels[0] ?? 'others';
     }
@@ -371,7 +376,7 @@ class RetrieveHelper extends RetrieveBase {
    * @param type 检索类型：ui/sql/filter
    * @param value
    */
-  searchValueChange(type: 'filter' | 'sql' | 'ui', value: Array<any> | string) {
+  searchValueChange(type: 'filter' | 'sql' | 'ui', value: any[] | string) {
     this.runEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, { type, value });
   }
 
@@ -480,16 +485,12 @@ class RetrieveHelper extends RetrieveBase {
     const isChartEnable = () => indexSetItem?.support_doris && !isUnionSearch;
 
     if (indexSetItem) {
-      if (tabValue === RouteQueryTab.CLUSTERING) {
-        if (!isclusteringEnable()) {
-          return { tab: RouteQueryTab.ORIGIN };
-        }
+      if (tabValue === RouteQueryTab.CLUSTERING && !isclusteringEnable()) {
+        return { tab: RouteQueryTab.ORIGIN };
       }
 
-      if (tabValue === RouteQueryTab.GRAPH_ANALYSIS) {
-        if (!isChartEnable()) {
-          return { tab: RouteQueryTab.ORIGIN };
-        }
+      if (tabValue === RouteQueryTab.GRAPH_ANALYSIS && !isChartEnable()) {
+        return { tab: RouteQueryTab.ORIGIN };
       }
     }
 

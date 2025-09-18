@@ -24,16 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from "vue";
-import useStore from "@/hooks/use-store";
-import useLocale from "@/hooks/use-locale";
-import $http from "@/api";
+import { defineComponent, ref } from 'vue';
 
-import "./index.scss";
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+
+import $http from '@/api';
+
+import './index.scss';
 
 export default defineComponent({
-  name: "CreateTemplate",
-  setup(props, { slots, emit }) {
+  name: 'CreateTemplate',
+  setup(_props, { slots, emit }) {
     const { t } = useLocale();
     const store = useStore();
 
@@ -41,16 +43,16 @@ export default defineComponent({
     const formRef = ref<any>(null);
     const confirmLoading = ref(false);
     const formData = ref({
-      name: "",
+      name: '',
     });
 
     const rules = {
       name: [
         {
           required: true,
-          trigger: "blur",
+          trigger: 'blur',
           validator: (value: string) => !!value,
-          message: t("请输入模板名称"),
+          message: t('请输入模板名称'),
         },
       ],
     };
@@ -68,25 +70,25 @@ export default defineComponent({
     };
 
     const handleHide = () => {
-      formData.value.name = "";
+      formData.value.name = '';
     };
 
     const createTemplate = () => {
       confirmLoading.value = true;
       $http
-        .request("logClustering/createTemplate", {
+        .request('logClustering/createTemplate', {
           data: {
             space_uid: store.state.spaceUid,
             template_name: formData.value.name,
           },
         })
-        .then((res) => {
+        .then(res => {
           if (res.code === 0) {
-            emit("success", res.data.id);
+            emit('success', res.data.id);
             handleCancel();
           }
         })
-        .catch((err) => {
+        .catch(err => {
           console.error(err);
         })
         .finally(() => {
@@ -100,20 +102,20 @@ export default defineComponent({
         .then(() => {
           createTemplate();
         })
-        .catch((e) => console.error(e));
+        .catch(e => console.error(e));
     };
 
     return () => (
       <bk-popover
         ref={popoverRef}
         width={320}
-        ext-cls="create-template-popover"
-        trigger="manual"
+        ext-cls='create-template-popover'
         tippy-options={{
-          placement: "bottom",
-          theme: "light",
+          placement: 'bottom',
+          theme: 'light',
           interactive: true,
         }}
+        trigger='manual'
         on-hide={handleHide}
         on-show={handleShow}
       >
@@ -121,47 +123,53 @@ export default defineComponent({
           {slots.default ? (
             slots.default?.()
           ) : (
-            <div class="add-template-btn">
-              <log-icon type="plus" class="add-icon" />
+            <div class='add-template-btn'>
+              <log-icon
+                class='add-icon'
+                type='plus'
+              />
             </div>
           )}
         </div>
-        <div slot="content">
-          <div class="create-template-main">
+        <div slot='content'>
+          <div class='create-template-main'>
             <bk-form
-              class="setting-form"
               ref={formRef}
+              class='setting-form'
               {...{
                 props: {
                   model: formData.value,
                   rules,
                 },
               }}
-              form-type="vertical"
+              form-type='vertical'
             >
               <bk-form-item
-                label={t("模板名称")}
-                property="name"
+                error-display-type='normal'
+                label={t('模板名称')}
+                property='name'
                 required
-                error-display-type="normal"
               >
                 <bk-input
                   value={formData.value.name}
-                  on-change={(value) => (formData.value.name = value)}
+                  on-change={value => (formData.value.name = value)}
                 />
               </bk-form-item>
             </bk-form>
-            <div class="operate-btns">
+            <div class='operate-btns'>
               <bk-button
-                theme="primary"
                 loading={confirmLoading.value}
-                size="small"
+                size='small'
+                theme='primary'
                 on-click={handleConfirm}
               >
-                {t("确定")}
+                {t('确定')}
               </bk-button>
-              <bk-button size="small" on-click={handleCancel}>
-                {t("取消")}
+              <bk-button
+                size='small'
+                on-click={handleCancel}
+              >
+                {t('取消')}
               </bk-button>
             </div>
           </div>

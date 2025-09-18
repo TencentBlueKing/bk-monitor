@@ -25,11 +25,11 @@
  */
 import Vue, { defineComponent, nextTick, onMounted, ref } from 'vue';
 
-import { Instance } from 'tippy.js';
-
 import useLocale from '../../../hooks/use-locale';
 import useStore from '../../../hooks/use-store';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
+
+import type { Instance } from 'tippy.js';
 
 import './bar-global-setting.scss';
 

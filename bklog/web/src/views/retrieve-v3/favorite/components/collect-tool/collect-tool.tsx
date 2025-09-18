@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, onMounted, PropType } from 'vue';
+import { defineComponent, ref, onMounted, type PropType } from 'vue';
 
 import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
@@ -95,6 +95,8 @@ export default defineComponent({
         case 'sort':
           sortPopoverRef.value?.hide();
           break;
+        default:
+          break;
       }
     };
     /** 确定按钮 */
@@ -141,6 +143,7 @@ export default defineComponent({
         >
           {groupSortList.map(item => (
             <bk-radio
+              key={item.id}
               class='tool-sort-radio'
               value={item.id}
             >
@@ -176,14 +179,14 @@ export default defineComponent({
             <i
               class='bklog-icon bklog-xinjianwenjianjia tool-icon'
               v-bk-tooltips={t('新建收藏分组')}
-            ></i>
+            />
           </BklogPopover>
           {/* 全部收起/展开 */}
           <i
             class={`bklog-icon bklog-${props.collapseAll ? 'zhankai-2' : 'shouqi'} tool-icon`}
             v-bk-tooltips={props.collapseAll ? t('全部展开') : t('全部收起')}
             onClick={handleCollapseAll}
-          ></i>
+          />
 
           {/* 调整排序 */}
           <BklogPopover
@@ -197,7 +200,7 @@ export default defineComponent({
             <i
               class='bklog-icon bklog-paixu tool-icon'
               v-bk-tooltips={t('调整排序')}
-            ></i>
+            />
           </BklogPopover>
         </span>
       </div>

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, onMounted, onUnmounted, watch, PropType } from 'vue';
+import { defineComponent, ref, onMounted, onUnmounted, watch, type PropType } from 'vue';
 
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
@@ -210,7 +210,9 @@ export default defineComponent({
 
     // 初始化编辑器
     const initEditor = () => {
-      if (!editorRef.value) return;
+      if (!editorRef.value) {
+        return;
+      }
 
       const state = createState(props.value);
       editorView = new EditorView({
@@ -269,6 +271,7 @@ export default defineComponent({
           const state = createState(currentValue);
           editorView = new EditorView({
             state,
+            // biome-ignore lint/style/noNonNullAssertion: reason
             parent: editorRef.value!,
           });
 
@@ -325,7 +328,7 @@ export default defineComponent({
         ref='editorRef'
         style={{ height: this.autoHeight ? this.currentHeight : this.height }}
         class={['grep-cli-codemirror-editor', { 'auto-height': this.autoHeight }]}
-      ></div>
+      />
     );
   },
 });

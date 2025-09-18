@@ -24,16 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType } from "vue";
-import useLocale from "@/hooks/use-locale";
-import { type TemplateItem } from "../index";
-import "./index.scss";
+import { computed, defineComponent, type PropType } from 'vue';
+
+import useLocale from '@/hooks/use-locale';
+
+import type { TemplateItem } from '../index';
+
+import './index.scss';
 
 export default defineComponent({
-  name: "IndexSetList",
+  name: 'IndexSetList',
   props: {
     list: {
-      type: Array as PropType<TemplateItem["related_index_set_list"]>,
+      type: Array as PropType<TemplateItem['related_index_set_list']>,
       default: () => [],
     },
   },
@@ -49,35 +52,50 @@ export default defineComponent({
     };
 
     const handleRefresh = () => {
-      emit("refresh");
+      emit('refresh');
     };
 
     return () => (
-      <div class="index-set-list-main">
-        <div class="title-main">
-          <div class="title">{t("索引集列表")}</div>
+      <div class='index-set-list-main'>
+        <div class='title-main'>
+          <div class='title'>{t('索引集列表')}</div>
           {showList.value && (
-            <div class="refresh-main" on-click={handleRefresh}>
-              <log-icon type="log-refresh" />
+            <div
+              class='refresh-main'
+              on-click={handleRefresh}
+            >
+              <log-icon type='log-refresh' />
             </div>
           )}
         </div>
         {showList.value ? (
-          <div class="list-main">
-            {props.list.map((item) => (
-              <div class="item-main">
-                <div class="item-title" v-bk-overflow-tips>
+          <div class='list-main'>
+            {props.list.map(item => (
+              <div
+                key={item.index_set_id}
+                class='item-main'
+              >
+                <div
+                  class='item-title'
+                  v-bk-overflow-tips
+                >
                   {item.index_set_name}
                 </div>
                 <span on-click={() => openLinkUrl(item.index_set_id)}>
-                  <log-icon class="link-icon" type="tiaozhuan" />
+                  <log-icon
+                    class='link-icon'
+                    type='tiaozhuan'
+                  />
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <bk-exception type="empty" ext-cls="empty-tip-main">
-            <span style="font-size:12px">{t("暂无使用该模板的索引集")}</span>
+          <bk-exception
+            ext-cls='empty-tip-main'
+            type='empty'
+          >
+            <span style='font-size:12px'>{t('暂无使用该模板的索引集')}</span>
           </bk-exception>
         )}
       </div>

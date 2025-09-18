@@ -35,8 +35,9 @@ import CollectList from './components/collect-list/collect-list';
 import CollectTab from './components/collect-tab/collect-tab';
 import CollectTool from './components/collect-tool/collect-tool';
 import { useFavorite } from './hooks/use-favorite';
-import { ITabItem } from './types';
 import { getGroupNameRules } from './utils';
+
+import type { ITabItem } from './types';
 
 import './collect-main.scss';
 
@@ -150,6 +151,8 @@ export default defineComponent({
         case 'collapse':
           handleCollapseList(data);
           break;
+        default:
+          break;
       }
     };
 
@@ -217,21 +220,19 @@ export default defineComponent({
             on-handle={toolHandle}
           />
         </div>
-        {!isSearchEmpty.value ? (
-          filterDataList.value.length ? (
-            <CollectList
-              isCollapse={isCollapseList.value}
-              isSearch={!!searchValue.value}
-              list={filterDataList.value}
-              loading={favoriteLoading.value}
-              on-refresh={handleRefresh}
-              on-select-item={selectFavoriteItem}
-            />
-          ) : (
-            renderEmpty('empty')
-          )
-        ) : (
+        {isSearchEmpty.value ? (
           renderEmpty('search-empty')
+        ) : filterDataList.value.length ? (
+          <CollectList
+            isCollapse={isCollapseList.value}
+            isSearch={!!searchValue.value}
+            list={filterDataList.value}
+            loading={favoriteLoading.value}
+            on-refresh={handleRefresh}
+            on-select-item={selectFavoriteItem}
+          />
+        ) : (
+          renderEmpty('empty')
         )}
       </div>
     );

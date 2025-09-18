@@ -67,11 +67,11 @@ export default defineComponent({
           <span
             class='bklog-icon bklog-shezhi box-icon'
             onClick={handleFavoriteSettingClick}
-          ></span>
+          />
           <span
             class='bklog-icon bklog-collapse box-icon'
             onClick={handleCollapse}
-          ></span>
+          />
         </span>
         {/* 收藏管理弹框 */}
         <FavoriteManageDialog

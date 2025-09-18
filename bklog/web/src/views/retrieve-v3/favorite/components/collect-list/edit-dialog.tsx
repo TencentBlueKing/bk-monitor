@@ -30,9 +30,10 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
 import { useFavorite } from '../../hooks/use-favorite';
-import { IFavoriteItem, IGroupItem } from '../../types';
 import { getGroupNameRules } from '../../utils';
 import AddGroup from './add-group';
+
+import type { IFavoriteItem, IGroupItem } from '../../types';
 
 import './edit-dialog.scss';
 
@@ -81,6 +82,7 @@ export default defineComponent({
     const { getFavoriteData, requestGroupList, handleUpdateFavorite } = useFavorite();
 
     /** 获取组列表 */
+    // biome-ignore lint/suspicious/useAwait: reaosn
     const handleRequestGroupList = async () => {
       requestGroupList(spaceUid.value, res => {
         groupList.value = res.data.map(item => ({
@@ -110,7 +112,7 @@ export default defineComponent({
       emit('cancel', !props.isShow);
     };
     const currentParamsValue = computed(() => {
-      return isClickFavoriteEdit.value ? Object.assign({}, favoriteData.value, indexItem.value) : favoriteData.value;
+      return isClickFavoriteEdit.value ? { ...favoriteData.value, ...indexItem.value } : favoriteData.value;
     });
 
     /** 修改收藏 */
@@ -143,8 +145,8 @@ export default defineComponent({
     };
     /** 展示的索引集，当为多索引集时，展示index_set_names字段，反之展示index_set_name */
     const indexSetName = () => {
-      const { index_set_name: indexSetName, index_set_names: indexSetNames } = favoriteData.value;
-      return !isUnionSearch.value ? indexSetName : (indexSetNames || []).join(',');
+      const { index_set_name: newIndexSetName, index_set_names: indexSetNames } = favoriteData.value;
+      return isUnionSearch.value ? (indexSetNames || []).join(',') : newIndexSetName;
     };
 
     /** 成功添加分组 */
@@ -187,7 +189,7 @@ export default defineComponent({
             <bk-input
               value={favoriteData.value.name}
               onInput={val => (favoriteData.value.name = val)}
-            ></bk-input>
+            />
           </bk-form-item>
           <bk-form-item
             label={t('所属分组')}
@@ -205,7 +207,7 @@ export default defineComponent({
                   id={item.id}
                   key={item.id}
                   name={item.name}
-                ></bk-option>
+                />
               ))}
               <div
                 style={{ cursor: 'pointer' }}
@@ -222,14 +224,14 @@ export default defineComponent({
             <bk-input
               disabled={true}
               value={indexSetName()}
-            ></bk-input>
+            />
           </bk-form-item>
           <bk-form-item label={t('查询语句')}>
             <bk-input
               disabled={true}
               type='textarea'
               value={favoriteData.value.query_string}
-            ></bk-input>
+            />
           </bk-form-item>
         </bk-form>
       </bk-dialog>
