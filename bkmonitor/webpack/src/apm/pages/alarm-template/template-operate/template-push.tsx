@@ -27,7 +27,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { checkStrategyTemplate, retrieveStrategyTemplate } from 'monitor-api/modules/model';
+import { applyStrategyTemplate, checkStrategyTemplate, retrieveStrategyTemplate } from 'monitor-api/modules/model';
 import { random } from 'monitor-common/utils';
 
 import RelationServiceTable from './relation-service-table';
@@ -40,6 +40,7 @@ import './template-push.scss';
 interface IProps {
   params?: Record<string, any>;
   show?: boolean;
+  showAgain?: boolean;
   onShowChange?: (v: boolean) => void;
 }
 
@@ -47,10 +48,15 @@ interface IProps {
 export default class TemplatePush extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
+  /* 再次下发已关联的服务，相当于“同步”操作  模板保存成功后续下发步骤样式 */
+  @Prop({ type: Boolean, default: false }) showAgain: boolean;
 
   relationService: IRelationService[] = [];
 
   strategyDetailMap = new Map<number, TemplateDetail>();
+
+  selectKeys = [];
+  submitLoading = false;
 
   @Watch('show')
   handleWatchShowChange(v: boolean) {
@@ -63,7 +69,42 @@ export default class TemplatePush extends tsc<IProps> {
     this.$emit('showChange', v);
   }
 
-  handleSubmit() {}
+  handleSubmit() {
+    if (this.selectKeys.length) {
+      this.submitLoading = true;
+      const services = [];
+      const sets = new Set(this.selectKeys);
+      for (const item of this.relationService) {
+        if (sets.has(item.key)) {
+          services.push(item.service_name);
+        }
+      }
+      const params = {
+        app_name: this.params?.app_name,
+        service_names: Array.from(new Set(services)),
+        strategy_template_ids: this.params?.strategy_template_ids,
+        extra: [],
+        global: {},
+      };
+      applyStrategyTemplate(params)
+        .then(() => {
+          this.$bkMessage({
+            message: this.$t('下发成功'),
+            theme: 'success',
+          });
+          this.handleShowChange(false);
+        })
+        .catch(() => {
+          this.$bkMessage({
+            message: this.$t('下发失败'),
+            theme: 'error',
+          });
+        })
+        .finally(() => {
+          this.submitLoading = false;
+        });
+    }
+  }
 
   getCheckStrategyTemplate() {
     checkStrategyTemplate({
@@ -78,10 +119,10 @@ export default class TemplatePush extends tsc<IProps> {
     });
   }
 
-  async getStrategyDetails(ids: number[]) {
+  async getStrategyDetails(ids: (number | string)[]) {
     const fn = id => {
       return new Promise((resolve, reject) => {
-        retrieveStrategyTemplate({
+        retrieveStrategyTemplate(id, {
           strategy_template_id: id,
           app_name: this.params?.app_name,
         })
@@ -99,6 +140,11 @@ export default class TemplatePush extends tsc<IProps> {
       }
     }
     await Promise.all(promiseList);
+    return Promise.resolve(this.strategyDetailMap);
+  }
+
+  handleChangeCheckKeys(selectKeys: string[]) {
+    this.selectKeys = Array.from(new Set(selectKeys));
   }
 
   render() {
@@ -119,14 +165,19 @@ export default class TemplatePush extends tsc<IProps> {
           <span class='header-left'>
             <span class='header-title'>{this.$t('下发')}</span>
             <span class='split-line' />
-            <span class='header-desc'>主调成功率</span>
+            <span class='header-desc'>{this.params?.name || '--'}</span>
           </span>
         </div>
         <div
           class='template-push-content'
           slot='content'
         >
-          <RelationServiceTable relationService={this.relationService} />
+          <RelationServiceTable
+            getStrategyDetails={this.getStrategyDetails}
+            relationService={this.relationService}
+            showAgain={this.showAgain}
+            onChangeCheckKeys={this.handleChangeCheckKeys}
+          />
         </div>
         <div
           class='template-push-footer'
@@ -134,6 +185,8 @@ export default class TemplatePush extends tsc<IProps> {
         >
           <bk-button
             class='mr-8 ml-24'
+            disabled={!this.selectKeys.length}
+            loading={this.submitLoading}
             theme='primary'
             onClick={this.handleSubmit}
           >

@@ -31,14 +31,18 @@ import { Debounce, random } from 'monitor-common/utils';
 import AcrossPageSelection from 'monitor-pc/components/across-page-selection/across-page-selection';
 import { type SelectTypeEnum, SelectType } from 'monitor-pc/components/across-page-selection/typing';
 
+import DetectionAlgorithmsGroup from '../components/detection-algorithms-group/detection-algorithms-group';
+
+import type { TemplateDetail } from '../components/template-form/typing';
 import type { IRelationService } from './typings';
 
 import './relation-service-table.scss';
 
-const { i18n } = window;
-
 interface IProps {
   relationService: IRelationService[];
+  showAgain?: boolean;
+  getStrategyDetails?: (ids: (number | string)[]) => Promise<Map<number | string, TemplateDetail>>;
+  onChangeCheckKeys?: (selectKeys: string[]) => void;
 }
 
 const Columns = {
@@ -54,6 +58,11 @@ const RelationStatus = {
 @Component
 export default class RelationServiceTable extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) relationService: IRelationService[];
+  @Prop({ type: Function, default: () => Promise.resolve(new Map()) }) getStrategyDetails: (
+    ids: (number | string)[]
+  ) => Promise<Map<number | string, TemplateDetail>>;
+  /* 再次下发已关联的服务，相当于“同步”操作 */
+  @Prop({ type: Boolean, default: false }) showAgain: boolean;
 
   /* 搜索值 */
   searchValue = '';
@@ -62,7 +71,6 @@ export default class RelationServiceTable extends tsc<IProps> {
   activeTab: string = RelationStatus.relation;
   relationServiceObj = {
     list: [],
-    checked: [],
     selectKeys: new Set(),
     searchTableData: [],
     pagination: {
@@ -73,7 +81,6 @@ export default class RelationServiceTable extends tsc<IProps> {
   };
   unRelationServiceObj = {
     list: [],
-    checked: [],
     selectKeys: new Set(),
     searchTableData: [],
     pagination: {
@@ -86,7 +93,7 @@ export default class RelationServiceTable extends tsc<IProps> {
   tableData: IRelationService[] = [];
   tableColumns = [
     {
-      label: i18n.t('服务名称'),
+      label: window.i18n.t('服务名称'),
       prop: Columns.service_name,
       minWidth: 230,
       width: 230,
@@ -96,7 +103,7 @@ export default class RelationServiceTable extends tsc<IProps> {
       },
     },
     {
-      label: i18n.t('当前已关联其他模版'),
+      label: window.i18n.t('当前已关联其他模版'),
       prop: Columns.relation,
       minWidth: 150,
       width: null,
@@ -111,14 +118,34 @@ export default class RelationServiceTable extends tsc<IProps> {
   ];
   /* 标头跨页多选 */
   pageSelection: SelectTypeEnum = SelectType.UN_SELECTED;
-  selectionKey = random(8);
   /* 展开行 */
   expandRowKeys = [];
   /* 下发对象预览 */
   previewData: {
+    expand?: boolean;
     list: IRelationService[];
     type: (typeof RelationStatus)[keyof typeof RelationStatus];
+  }[] = [
+    {
+      list: [],
+      type: RelationStatus.relation,
+      expand: false,
+    },
+    {
+      list: [],
+      type: RelationStatus.unRelation,
+      expand: false,
+    },
+  ];
+  /* 展开差异对比数据 */
+  expandContent: {
+    algorithms: TemplateDetail['algorithms'][];
+    detect: TemplateDetail['detect'];
+    type: 'current' | 'relation';
   }[] = [];
+  expandContentLoading = false;
+
+  tableKey = random(8);
 
   @Watch('relationService', { immediate: true })
   handleWatchRelationService(newVal: IRelationService[]) {
@@ -178,6 +205,10 @@ export default class RelationServiceTable extends tsc<IProps> {
     this.getTableData();
   }
 
+  /**
+   * @description 标头跨页多选
+   * @param v
+   */
   handlePageSelectionChange(v: SelectTypeEnum) {
     this.pageSelection = v;
     switch (v) {
@@ -194,16 +225,29 @@ export default class RelationServiceTable extends tsc<IProps> {
         break;
       }
     }
+    this.getCheckedPreviewData();
+    this.handleChangeCheck();
+    this.tableKey = random(8);
   }
 
-  handleTableRowClick(row: IRelationService) {
+  /**
+   * @description 展开对比数据
+   * @param row
+   */
+  handleExpandClick(row: IRelationService) {
     if (this.expandRowKeys.includes(row.key)) {
       this.expandRowKeys = [];
     } else {
       this.expandRowKeys = [row.key];
+      this.getDiffData(row.strategy_template_id, row.same_origin_strategy_template.id);
     }
   }
 
+  /**
+   * @description 复选框选择服务
+   * @param v
+   * @param row
+   */
   handleCheckRow(v: boolean, row: IRelationService) {
     if (v) {
       this.getCurServiceObj().selectKeys.add(row.key);
@@ -221,17 +265,27 @@ export default class RelationServiceTable extends tsc<IProps> {
     }
   }
 
+  /**
+   * @description 切换tab
+   * @param v
+   */
   handleChangeTab(v: string) {
     this.activeTab = v;
     this.resetPageCurrent();
     this.getTableData();
-    this.selectionKey = random(8);
+    this.tableKey = random(8);
   }
 
+  /**
+   * @description 重置为第一页
+   */
   resetPageCurrent() {
     this.getCurServiceObj().pagination.current = 1;
   }
 
+  /**
+   * @description 表头跨页多选
+   */
   setAcrossPageSelection() {
     if (this.getCurServiceObj().selectKeys.size) {
       if (this.getCurServiceObj().selectKeys.size === this.tableData.length) {
@@ -245,12 +299,115 @@ export default class RelationServiceTable extends tsc<IProps> {
       this.pageSelection = SelectType.UN_SELECTED;
     }
     this.getCurServiceObj().pagination.current = 1;
+    this.getCheckedPreviewData();
+    this.handleChangeCheck();
+    this.tableKey = random(8);
+  }
+
+  /**
+   * @description 获取选中的服务对象预览数据
+   */
+  getCheckedPreviewData() {
+    const relationChecked = [];
+    const unRelationChecked = [];
+    for (const item of this.relationServiceObj.list) {
+      if (this.relationServiceObj.selectKeys.has(item.key)) {
+        relationChecked.push(item);
+      }
+    }
+    for (const item of this.unRelationServiceObj.list) {
+      if (this.unRelationServiceObj.selectKeys.has(item.key)) {
+        unRelationChecked.push(item);
+      }
+    }
+    for (const item of this.previewData) {
+      if (item.type === RelationStatus.relation) {
+        item.list = relationChecked;
+      }
+      if (item.type === RelationStatus.unRelation) {
+        item.list = unRelationChecked;
+      }
+    }
+  }
+
+  /**
+   * @description 获取差异对比数据
+   * @param current
+   * @param relation
+   */
+  async getDiffData(current: number | string, relation: number | string) {
+    const ids = Array.from(new Set([current, relation]));
+    this.expandContentLoading = true;
+    const strategyDetails = await this.getStrategyDetails(ids).catch(() => new Map());
+    this.expandContent = [
+      {
+        type: 'current',
+        algorithms: strategyDetails.get(current)?.algorithms || [],
+        detect: strategyDetails.get(current)?.detect || {},
+      },
+      {
+        type: 'relation',
+        algorithms: strategyDetails.get(relation)?.algorithms || [],
+        detect: strategyDetails.get(relation)?.detect || {},
+      },
+    ];
+    this.expandContentLoading = false;
+  }
+
+  /**
+   * @description 预览部分删除单个服务
+   * @param row
+   */
+  handlePreviewClose(row: IRelationService) {
+    this.getCurServiceObj().selectKeys.delete(row.key);
+    this.setAcrossPageSelection();
+  }
+
+  /**
+   * @description 预览部分删除所有服务
+   * @param type
+   */
+  handlePreviewClear(type) {
+    if (type === RelationStatus.relation) {
+      this.relationServiceObj.selectKeys.clear();
+    } else {
+      this.unRelationServiceObj.selectKeys.clear();
+    }
+    this.setAcrossPageSelection();
+  }
+
+  handleChangeCheck() {
+    this.$emit('changeCheckKeys', [
+      ...Array.from(this.relationServiceObj.selectKeys),
+      ...Array.from(this.unRelationServiceObj.selectKeys),
+    ]);
   }
 
   tableFormatter(row: IRelationService, prop: string) {
+    const diffBtn = () => {
+      return (
+        <span
+          key={'03'}
+          class='diff-btn'
+          onClick={() => this.handleExpandClick(row)}
+        >
+          <span>{this.$t('差异对比')}</span>
+          <span
+            class={['icon-monitor', this.expandRowKeys.includes(row.key) ? 'icon-double-up' : 'icon-double-down']}
+          />
+        </span>
+      );
+    };
     switch (prop) {
       case Columns.service_name:
-        return <span>{row.service_name}</span>;
+        return this.showAgain ? (
+          <span class='service-name'>
+            <span>{row.service_name}</span>
+            {diffBtn()}
+          </span>
+        ) : (
+          <span>{row.service_name}</span>
+        );
       case Columns.relation:
         return (
           <span class='relation-strategy-content'>
@@ -263,19 +420,15 @@ export default class RelationServiceTable extends tsc<IProps> {
                   >
                     {row.same_origin_strategy_template?.name}
                   </span>,
-                  <span
-                    key={'02'}
-                    class='strategy-link'
-                  >
-                    {this.$t('查看策略')}
-                  </span>,
-                  <span
-                    key={'03'}
-                    class='diff-btn'
-                  >
-                    <span>{this.$t('差异对比')}</span>
-                    <span class='icon-monitor icon-double-down' />
-                  </span>,
+                  row?.strategy?.id ? (
+                    <span
+                      key={'02'}
+                      class='strategy-link'
+                    >
+                      {this.$t('查看策略')}
+                    </span>
+                  ) : undefined,
+                  diffBtn(),
                 ];
               }
               return <span class='no-data'>{this.$t('暂无关联')}</span>;
@@ -303,6 +456,43 @@ export default class RelationServiceTable extends tsc<IProps> {
     }
   }
 
+  expandContentFormatter() {
+    return (
+      <div class='table-expand-content'>
+        {this.expandContentLoading ? (
+          <div class='skeleton-element expand-content-skeleton' />
+        ) : (
+          this.expandContent.map(item => (
+            <div
+              key={item.type}
+              class={item.type === 'current' ? 'left-content' : 'right-content'}
+            >
+              <div class='content-header'>{this.$t('当前策略')}</div>
+              <div class='content-content'>
+                <div class='title'>{this.$t('检测算法')}</div>
+                <div class='content'>
+                  <DetectionAlgorithmsGroup
+                    algorithms={item?.algorithms?.map(a => ({
+                      ...a,
+                      ...(a?.config || {}),
+                    }))}
+                  />
+                </div>
+                <div class='title'>{this.$t('判断条件')}</div>
+                <div class='content'>
+                  <i18n path='{0}个周期内累积满足{1}次检测算法'>
+                    <span class='light mr-2'>{item.detect?.config?.trigger_count}</span>
+                    <span class='light mr-2 ml-2'>{item.detect?.config?.trigger_check_window}</span>
+                  </i18n>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    );
+  }
+
   render() {
     return (
       <div class='template-details-relation-service-table'>
@@ -324,8 +514,16 @@ export default class RelationServiceTable extends tsc<IProps> {
             ))}
           </bk-tab>
           <div class='left-table-content'>
+            {this.showAgain && (
+              <bk-alert
+                class='mt-12'
+                title={this.$t('再次下发已关联的服务，相当于“同步”操作。')}
+                type='info'
+                closable
+              />
+            )}
             <bk-input
-              class='search-input'
+              class={['search-input', this.showAgain ? 'mt-12' : 'mt-16']}
               v-model={this.searchValue}
               placeholder={`${this.$t('搜索')} ${this.$t('服务名称')}`}
               right-icon='bk-icon icon-search'
@@ -333,12 +531,12 @@ export default class RelationServiceTable extends tsc<IProps> {
               onChange={this.handleSearchChange}
             />
             <bk-table
+              key={this.tableKey}
               data={this.tableData}
               expand-row-keys={this.expandRowKeys}
               header-border={false}
               outer-border={false}
               row-key={row => row.key}
-              on-row-click={this.handleTableRowClick}
             >
               <bk-table-column
                 width={50}
@@ -350,7 +548,6 @@ export default class RelationServiceTable extends tsc<IProps> {
                       }}
                     >
                       <bk-checkbox
-                        key={`${this.selectionKey}${row.key}`}
                         value={this.getCurServiceObj().selectKeys.has(row.key)}
                         onChange={v => this.handleCheckRow(v, row)}
                       />
@@ -360,7 +557,6 @@ export default class RelationServiceTable extends tsc<IProps> {
                 render-header={() => {
                   return (
                     <AcrossPageSelection
-                      key={`${this.selectionKey}`}
                       value={this.pageSelection}
                       onChange={this.handlePageSelectionChange}
                     />
@@ -371,23 +567,25 @@ export default class RelationServiceTable extends tsc<IProps> {
                 width={0}
                 scopedSlots={{
                   default: () => {
-                    return <div>xxxxxx</div>;
+                    return this.expandContentFormatter();
                   },
                 }}
                 type='expand'
               />
-              {this.tableColumns.map(item => (
-                <bk-table-column
-                  key={item.prop}
-                  label={item.label}
-                  prop={item.prop}
-                  {...{ props: item.props }}
-                  width={item.width}
-                  formatter={item.formatter}
-                  min-width={item.minWidth}
-                  render-header={item?.renderHeader}
-                />
-              ))}
+              {this.tableColumns
+                .filter(item => (item.prop === Columns.relation ? !this.showAgain : true))
+                .map(item => (
+                  <bk-table-column
+                    key={item.prop}
+                    label={item.label}
+                    prop={item.prop}
+                    {...{ props: item.props }}
+                    width={item.width}
+                    formatter={item.formatter}
+                    min-width={item.minWidth}
+                    render-header={item?.renderHeader}
+                  />
+                ))}
             </bk-table>
             <bk-pagination
               class='mt-14'
@@ -404,6 +602,65 @@ export default class RelationServiceTable extends tsc<IProps> {
         </div>
         <div class='right-preview'>
           <div class='right-preview-header'>{this.$t('下发对象预览')}</div>
+          {this.previewData.map(item => (
+            <div
+              key={item.type}
+              class='preview-expand-wrap'
+            >
+              <div
+                class='expand-wrap-header'
+                onClick={() => {
+                  item.expand = !item.expand;
+                }}
+              >
+                <span class={['icon-monitor icon-arrow-right', { expand: item.expand }]} />
+                <span class='head-title'>
+                  {item.type === RelationStatus.relation
+                    ? `${this.$t('已关联')}(${this.$t('同步')})`
+                    : this.$t('新关联')}
+                </span>
+                -
+                <span class='head-count'>
+                  <i18n path='共{0}个'>
+                    <span class='count-light'>{item.list.length}</span>
+                  </i18n>
+                </span>
+                <span
+                  class='clear-btn'
+                  v-bk-tooltips={{
+                    content: this.$t('清空'),
+                    placements: ['bottom'],
+                  }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.handlePreviewClear(item.type);
+                  }}
+                >
+                  <span class='icon-monitor icon-a-Clearqingkong clear-btn-icon' />
+                </span>
+              </div>
+              {item.expand && (
+                <div class='expand-wrap-content'>
+                  {item.list.map(row => (
+                    <div
+                      key={row.key}
+                      class='preview-item'
+                      v-bk-tooltips={{
+                        content: row.service_name,
+                        placements: ['right'],
+                      }}
+                    >
+                      <span class='preview-item-name'>{row.service_name}</span>
+                      <span
+                        class='icon-monitor icon-mc-close'
+                        onClick={() => this.handlePreviewClose(row)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     );
