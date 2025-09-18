@@ -23,32 +23,38 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listUserGroup } from 'monitor-api/modules/model';
 import VariablePanel from 'monitor-pc/pages/query-template/variables/components/variable-panel/variable-panel';
 
 import Threshold from './detect-rules/threshold';
-import { type AlgorithmItem, type TemplateDetail, TemplateTypeMap } from './typing';
+import {
+  type AlgorithmItem,
+  type DetectConfig,
+  type EditTemplateFormData,
+  type UserGroupItem,
+  TemplateTypeMap,
+} from './typing';
 
 import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
 
 import './template-form.scss';
 
 interface TemplateFormEvents {
+  onAlarmGroupChange: (alarmGroup: UserGroupItem[]) => void;
   onAlgorithmsChange: (algorithms: AlgorithmItem[]) => void;
   onAutoApplyChange: (autoApply: boolean) => void;
   onCancel: () => void;
+  onDetectChange: (detect: DetectConfig) => void;
   onNameChange: (name: string) => void;
   onSubmit: () => void;
-  onTriggerCountChange: (count: number) => void;
-  onTriggerWindowChange: (window: number) => void;
   onVariableValueChange: (value: any, index: number) => void;
 }
 
 interface TemplateFormProps {
-  data: TemplateDetail;
+  data: EditTemplateFormData;
   metricFunctions?: any[];
   scene: 'edit' | 'view';
   variablesList: VariableModelType[];
@@ -57,7 +63,7 @@ interface TemplateFormProps {
 @Component
 export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEvents> {
   @Prop({ default: 'edit' }) scene: 'edit' | 'view';
-  @Prop({ default: () => ({}) }) data: TemplateDetail;
+  @Prop({ default: () => ({}) }) data: EditTemplateFormData;
   @Prop({ default: () => [] }) variablesList: VariableModelType[];
   @Prop({ default: () => [] }) metricFunctions!: any[];
   @Ref('templateForm') templateFormRef;
@@ -96,14 +102,35 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
   handleTriggerWindowChange(value: number) {
     console.log(value, 'handleTriggerWindowChange');
     if (value !== this.data?.detect?.trigger_check_window) {
-      this.$emit('triggerWindowChange', value);
+      this.$emit('detectChange', {
+        ...this.data?.detect,
+        trigger_check_window: value,
+      });
     }
   }
 
   handleTriggerCountChange(value: number) {
     console.log(value, 'handleTriggerCountChange');
     if (value !== this.data?.detect?.trigger_count) {
-      this.$emit('triggerCountChange', value);
+      this.$emit('detectChange', {
+        ...this.data?.detect,
+        trigger_count: value,
+      });
+    }
+  }
+
+  handleUserGroupSelect(value: number[]) {
+    console.log(value, 'handleUserGroupSelect');
+    if (JSON.stringify(value) !== JSON.stringify(this.selectUserGroup)) {
+      this.$emit(
+        'alarmGroupChange',
+        value.map(id => {
+          return {
+            id,
+            name: this.alarmGroupList.find(item => item.id === id)?.name,
+          };
+        })
+      );
     }
   }
 
@@ -123,8 +150,9 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     });
   }
 
-  @Emit('cancel')
-  handleCancel() {}
+  handleCancel() {
+    this.$emit('cancel');
+  }
 
   // 获取告警组数据
   getAlarmGroupList() {
@@ -245,6 +273,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
             display-tag
             multiple
             searchable
+            onSelected={this.handleUserGroupSelect}
           >
             {this.alarmGroupList.map(item => (
               <bk-option
