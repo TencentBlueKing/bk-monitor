@@ -140,24 +140,24 @@ export default defineComponent({
       if (bool) {
         inheritCheckNode(nodes, bool);
       } else {
-        for (const node of nodes) {
+        nodes.forEach((node: any) => {
           if (node?.children?.length) {
             recursiveDealCheckedNode(node.children, node.checked);
           }
-        }
+        });
       }
     };
 
     // 找到模板节点并打平去重
     const filterList = (list: any[], dict: any = {}) => {
-      for (const item of list) {
+      list.forEach((item: any) => {
         if (item.bk_obj_id === 'module' && !dict[item.bk_inst_name]) {
           dict[item.bk_inst_name] = item;
         }
         if (item.children?.length) {
           filterList(item.children, dict);
         }
-      }
+      });
       return Object.values(dict);
     };
 
@@ -166,22 +166,21 @@ export default defineComponent({
       treeNodes: any[],
       parentNode: any,
       selectedNodes: any[],
-      newTopoCheckedNodes: string[] = [],
-      newTopoExpandNodes: string[] = [],
+      topoCheckedNodes: string[] = [],
+      topoExpandNodes: string[] = [],
       moduleCheckedMap: any = {},
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     ) => {
-      for (const treeNode of treeNodes) {
+      treeNodes.forEach((treeNode: any) => {
         treeNode.parentNode = parentNode || null;
 
         for (const selectedNode of selectedNodes) {
           if (selectedNode.bk_obj_id === treeNode.bk_obj_id && selectedNode.bk_inst_id === treeNode.bk_inst_id) {
-            newTopoCheckedNodes.push(treeNode.id);
+            topoCheckedNodes.push(treeNode.id);
             if (treeNode.bk_obj_id === 'module' && !moduleCheckedMap[treeNode.bk_inst_name]) {
               moduleCheckedMap[treeNode.bk_inst_name] = treeNode;
             }
             if (parentNode) {
-              newTopoExpandNodes.push(parentNode.id);
+              topoExpandNodes.push(parentNode.id);
             }
             break;
           }
@@ -192,50 +191,51 @@ export default defineComponent({
             treeNode.children,
             treeNode,
             selectedNodes,
-            newTopoCheckedNodes,
-            newTopoExpandNodes,
+            topoCheckedNodes,
+            topoExpandNodes,
             moduleCheckedMap,
           );
         }
-      }
+      });
+
       return {
         topoCheckedNodes,
-        topoExpandNodes: [...new Set(newTopoExpandNodes)],
+        topoExpandNodes: [...new Set(topoExpandNodes)],
         moduleCheckedItems: Object.values(moduleCheckedMap),
       };
     };
 
     // 按大区选择
-    const handleTopoNodeCheck = (_checkedId: string, checkedNode: any) => {
+    const handleTopoNodeCheck = (checkedId: string, checkedNode: any) => {
       checkedNode?.children?.length && inheritCheckNode(checkedNode.children, checkedNode.state.checked);
       selectedTopoList.value = recursiveFindTopoNodes(topoTreeRef.value.nodes[0]);
     };
 
     // 父亲勾选或取消勾选后，子孙跟随状态变化，且父亲勾选后子孙禁用勾选
     const inheritCheckNode = (nodes: any[], bool: boolean) => {
-      for (const node of nodes) {
+      nodes.forEach((node: any) => {
         node.checked = bool;
         node.disabled = bool;
         node.children?.length && inheritCheckNode(node.children, bool);
-      }
+      });
     };
 
     // 遍历树找到勾选的节点，如果父节点已勾选，子孙节点不算在列表内
-    const recursiveFindTopoNodes = (node: any, newSelectedTopoList: any[] = []) => {
+    const recursiveFindTopoNodes = (node: any, selectedTopoList: any[] = []) => {
       if (node.checked) {
         const { data } = node;
-        newSelectedTopoList.push({
+        selectedTopoList.push({
           bk_inst_id: data.bk_inst_id,
           bk_inst_name: data.bk_inst_name,
           bk_obj_id: data.bk_obj_id,
           bk_biz_id: data.bk_biz_id,
         });
       } else if (node.children?.length) {
-        for (const child of node.children) {
-          recursiveFindTopoNodes(child, newSelectedTopoList);
-        }
+        node.children.forEach((child: any) => {
+          recursiveFindTopoNodes(child, selectedTopoList);
+        });
       }
-      return newSelectedTopoList;
+      return selectedTopoList;
     };
 
     // 按模板选择
@@ -270,9 +270,9 @@ export default defineComponent({
       if (val) {
         indeterminate.value = false;
         isSelectAllModule.value = true;
-        for (const node of nodes) {
+        nodes.forEach((node: any) => {
           node.checked = true;
-        }
+        });
         selectedModuleList.value = nodes.map((node: any) => {
           const { data } = node;
           return {
@@ -285,9 +285,9 @@ export default defineComponent({
       } else {
         indeterminate.value = false;
         isSelectAllModule.value = false;
-        for (const node of nodes) {
+        nodes.forEach((node: any) => {
           node.checked = false;
-        }
+        });
         selectedModuleList.value = [];
       }
     };
