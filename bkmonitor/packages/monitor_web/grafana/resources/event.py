@@ -18,7 +18,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkm_space.api import SpaceApi
-from bkm_space.define import SpaceTypeEnum
+from bkm_space.define import Space, SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import BCSCluster, MetricListCache
 from bkmonitor.utils.request import get_request_tenant_id
@@ -71,19 +71,21 @@ class GetDataSourceConfigResource(Resource):
         data_type_label = params["data_type_label"]
         bk_biz_id = params["bk_biz_id"]
         target_cluster_ids = []
+
+        query_bk_biz_ids = [0, bk_biz_id]
         if bk_biz_id < 0:
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
             target_cluster_ids = list(
-                BCSCluster.objects.filter(space_uid=space_uid).values_list("bcs_cluster_id", flat=1)
+                BCSCluster.objects.filter(space_uid=space_uid).values_list("bcs_cluster_id", flat=True)
             )
-            space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+            space: Space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
             if space:
-                bk_biz_id = space.bk_biz_id
+                query_bk_biz_ids.append(space.bk_biz_id)
 
         qs = MetricListCache.objects.filter(
             data_type_label=data_type_label,
             data_source_label=data_source_label,
-            bk_biz_id__in=[0, bk_biz_id],
+            bk_biz_id__in=query_bk_biz_ids,
             bk_tenant_id=get_request_tenant_id(),
         )
         if params.get("return_dimensions"):
