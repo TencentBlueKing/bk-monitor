@@ -175,7 +175,7 @@ export default class TemplateDetails extends tsc<IProps> {
           <span class='header-left'>
             <span class='header-title'>{this.$t('模板详情')}</span>
             <span class='split-line' />
-            <span class='header-desc'>主调成功率</span>
+            <span class='header-desc'>{this.params?.name || '--'}</span>
           </span>
           <span class='header-right'>
             <bk-button
@@ -218,6 +218,7 @@ export default class TemplateDetails extends tsc<IProps> {
             params={{
               strategy_template_ids: this.params?.ids,
               app_name: this.params?.app_name,
+              name: this.params?.name,
             }}
             show={this.templatePush.show}
             onShowChange={v => {
