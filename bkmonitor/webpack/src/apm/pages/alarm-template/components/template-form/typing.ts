@@ -66,9 +66,11 @@ export const LevelMap = {
 /** 检测算法 */
 export interface AlgorithmItem {
   level: 1 | 2 | 3;
-  method: string;
-  threshold: number;
   type: AlgorithmType;
+  config: {
+    method: string;
+    threshold: number;
+  };
 }
 
 /** 触发条件 */
@@ -100,6 +102,11 @@ export const TemplateCategoryMap = {
   [TemplateCategoryEnum.CALLER]: window.i18n.tc('主调'),
   [TemplateCategoryEnum.CALLEE]: window.i18n.tc('被调'),
 };
+
+export type EditTemplateFormData = Pick<
+  TemplateDetail,
+  'algorithms' | 'detect' | 'is_auto_apply' | 'name' | 'query_template' | 'system' | 'user_group_list'
+>;
 
 /** 策略模板详情 */
 export interface TemplateDetail {
