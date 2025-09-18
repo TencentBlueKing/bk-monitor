@@ -1028,7 +1028,8 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
 
         return result
 
-    def translate_dimensions(self, params: dict, data: list):
+    @classmethod
+    def translate_dimensions(cls, params: dict, data: list):
         """
         维度翻译
         """
@@ -1316,6 +1317,7 @@ class GraphPromqlQueryResource(Resource):
         series = HeatMapProcessor.process_formatted_data(params, series)
         series = QueryTypeProcessor.process_formatted_data(params, series)
         series = AddNullDataProcessor.process_formatted_data(params, series)
+        series = GraphUnifyQueryResource.translate_dimensions(params, series)
         return {"metrics": [], "series": series}
 
 
