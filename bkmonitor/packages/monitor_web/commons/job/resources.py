@@ -119,7 +119,9 @@ class GetInstanceLogResource(TaskResultMixin, Resource):
         log_results = api.job.get_job_instance_ip_log(kwargs)
         if log_results and log_results.get("script_task_logs"):
             log_content_map = {
-                log.get("host_id", log["bk_host_id"]): log["log_content"] for log in log_results["script_task_logs"]
+                (log.get("host_id") or log.get("bk_host_id")): log["log_content"]
+                for log in log_results["script_task_logs"]
+                if log.get("host_id") or log.get("bk_host_id")
             }
         else:
             return {}
