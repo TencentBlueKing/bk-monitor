@@ -18,9 +18,20 @@ from . import constants
 
 
 class DetectSerializer(serializers.Serializer):
-    recovery_check_window = serializers.IntegerField(label=_("恢复检查窗口"), min_value=1, default=5)
-    trigger_check_window = serializers.IntegerField(label=_("触发检查窗口"), min_value=1)
-    trigger_count = serializers.IntegerField(label=_("触发次数"), min_value=1)
+    class DefaultDetectConfigSerializer(serializers.Serializer):
+        recovery_check_window = serializers.IntegerField(label=_("恢复检查窗口"), min_value=1, default=5)
+        trigger_check_window = serializers.IntegerField(label=_("触发检查窗口"), min_value=1)
+        trigger_count = serializers.IntegerField(label=_("触发次数"), min_value=1)
+
+    type = serializers.CharField(label=_("类型"), default=constants.DEFAULT_DETECT_TYPE)
+    config = serializers.DictField(label=_("判断条件配置"), default={})
+
+    def validate(self, attrs: dict) -> dict:
+        if attrs["type"] == constants.DEFAULT_DETECT_TYPE:
+            s = self.DefaultDetectConfigSerializer(data=attrs["config"])
+            s.is_valid(raise_exception=True)
+            attrs["config"] = s.validated_data
+        return attrs
 
 
 class UserGroupSerializer(serializers.Serializer):
@@ -29,14 +40,24 @@ class UserGroupSerializer(serializers.Serializer):
 
 
 class AlgorithmSerializer(serializers.Serializer):
+    class ThresholdAlgorithmConfigSerializer(serializers.Serializer):
+        method = serializers.ChoiceField(label=_("检测方法"), choices=allowed_threshold_method)
+        threshold = serializers.FloatField(label=_("阈值"))
+
     level = serializers.ChoiceField(label=_("级别"), choices=constants.ThresholdLevel.choices())
-    method = serializers.ChoiceField(label=_("检测方法"), choices=allowed_threshold_method)
-    threshold = serializers.FloatField(label=_("阈值"))
     type = serializers.ChoiceField(
         label=_("检测算法类型"),
         choices=AlgorithmModel.ALGORITHM_CHOICES,
         default=AlgorithmModel.AlgorithmChoices.Threshold,
     )
+    config = serializers.DictField(label=_("检测算法配置"), default={})
+
+    def validate(self, attrs: dict) -> dict:
+        if attrs["type"] == AlgorithmModel.AlgorithmChoices.Threshold:
+            s = self.ThresholdAlgorithmConfigSerializer(data=attrs["config"])
+            s.is_valid(raise_exception=True)
+            attrs["config"] = s.validated_data
+        return attrs
 
 
 class BaseAppStrategyTemplateRequestSerializer(serializers.Serializer):
@@ -58,11 +79,11 @@ class StrategyTemplateDetailRequestSerializer(BaseAppStrategyTemplateRequestSeri
 
 
 class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
-    class GlobalSerializer(serializers.Serializer):
+    class GlobalConfigSerializer(serializers.Serializer):
         detect = DetectSerializer(label=_("判断条件"), required=False)
         user_group_list = serializers.ListField(label=_("用户组列表"), child=UserGroupSerializer(), required=False)
 
-    class ExtraSerializer(GlobalSerializer):
+    class ExtraConfigSerializer(GlobalConfigSerializer):
         strategy_template_id = serializers.IntegerField(label=_("策略模板 ID"), min_value=1)
         service_name = serializers.CharField(label=_("服务名称"))
         context = serializers.DictField(label=_("查询模板的变量上下文"), required=False)
@@ -72,8 +93,10 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
     strategy_template_ids = serializers.ListField(
         label=_("策略模板 ID 列表"), child=serializers.IntegerField(min_value=1)
     )
-    extra = serializers.ListField(label=_("额外编辑的参数"), child=ExtraSerializer(), default=[], allow_empty=True)
-    _global = GlobalSerializer(label=_("批量修改的参数"), source="global", default={})
+    extra_configs = serializers.ListField(
+        label=_("额外编辑的配置"), child=ExtraConfigSerializer(), default=[], allow_empty=True
+    )
+    global_config = GlobalConfigSerializer(label=_("批量修改的配置"), default={})
 
 
 class StrategyTemplateCheckRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
@@ -87,10 +110,24 @@ class StrategyTemplateCheckRequestSerializer(BaseAppStrategyTemplateRequestSeria
 
 class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
     class ConditionSerializer(serializers.Serializer):
-        key = serializers.CharField(label="查询条件键")
-        value = serializers.ListField(label="查询条件值", child=serializers.CharField())
+        key = serializers.ChoiceField(
+            label=_("查询字段"),
+            choices=[
+                "query",
+                "type",
+                "name",
+                "user_group_id",
+                "system",
+                "update_user",
+                "applied_service_name",
+                "is_enabled",
+                "is_auto_apply",
+            ],
+        )
+        value = serializers.ListField(label=_("字段值"), child=serializers.JSONField())
 
-    conditions = serializers.ListField(label="查询条件", child=ConditionSerializer(), default=[], allow_empty=True)
+    conditions = serializers.ListField(label=_("查询条件"), child=ConditionSerializer(), default=[], allow_empty=True)
+    simple = serializers.BooleanField(label=_("是否仅返回概要信息"), default=False)
 
 
 class BaseStrategyTemplateUpdateSerializer(serializers.Serializer):
@@ -139,4 +176,11 @@ class StrategyTemplateDeleteRequestSerializer(BaseAppStrategyTemplateRequestSeri
 
 
 class StrategyTemplateOptionValuesRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
-    fields = serializers.ListField(label=_("字段列表"), child=serializers.CharField(), default=[], allow_empty=True)
+    fields = serializers.ListField(
+        label=_("字段列表"),
+        child=serializers.ChoiceField(
+            choices=["system", "update_user", "applied_service_name", "user_group_id", "is_enabled", "is_auto_apply"]
+        ),
+        default=[],
+        allow_empty=True,
+    )
