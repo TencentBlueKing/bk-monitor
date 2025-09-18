@@ -91,7 +91,7 @@ export default defineComponent({
           <div
             class={['drag-border', { 'drag-ing': isChangingWidth.value }]}
             onMousedown={dragBegin}
-          ></div>
+          />
         </div>
       );
     };

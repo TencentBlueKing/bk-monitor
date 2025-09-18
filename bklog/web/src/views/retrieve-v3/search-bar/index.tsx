@@ -34,7 +34,7 @@ import './index.scss';
 export default defineComponent({
   name: 'V3Searchbar',
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setup(_, {}) {
+  setup(_) {
     const searchBarHeight = ref(0);
     const handleHeightChange = height => {
       searchBarHeight.value = height;
@@ -45,7 +45,7 @@ export default defineComponent({
       <V2SearchBar
         class='v3-search-bar-root'
         on-height-change={handleHeightChange}
-      ></V2SearchBar>
+      />
     );
   },
 });

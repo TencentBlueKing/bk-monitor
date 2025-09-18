@@ -24,18 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, Ref, ref } from 'vue';
+import { computed, defineComponent, type Ref, ref } from 'vue';
 
 import http from '@/api/index';
 import { messageError } from '@/common/bkmagic';
 import { copyMessage } from '@/common/util';
 import BklogPopover from '@/components/bklog-popover';
-import { TimeRangeType } from '@/components/time-range/time-range';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
 import { useRoute } from 'vue-router/composables';
+
+import type { TimeRangeType } from '@/components/time-range/time-range';
 
 import './share-link.scss';
 export default defineComponent({
@@ -90,12 +91,14 @@ export default defineComponent({
     const getExpireEndTime = (expire: string) => {
       // expire = '1d' | '1w' | '1m' | '\d+(d|w|m)'
       const match = expire.match(/^(\d+)([dw]|m)$/);
-      if (!match) return dayjs().add(1, 'day').unix();
+      if (!match) {
+        return dayjs().add(1, 'day').unix();
+      }
 
-      const num = parseInt(match[1], 10);
+      const num = Number.parseInt(match[1], 10);
       const unit = match[2];
 
-      let duration;
+      let duration: number;
       switch (unit) {
         case 'd':
           duration = num * 24 * 60 * 60 * 1000; // days to milliseconds
@@ -198,7 +201,7 @@ export default defineComponent({
       // val = '\d+(d|w|m)'
       if (/^\d+(d|w|m)$/.test(val)) {
         expireTime.value = val;
-        const customNum = parseInt(val.slice(0, -1), 10);
+        const customNum = Number.parseInt(val.slice(0, -1), 10);
         const customUnit = val.slice(-1);
         const validUnits = {
           d: 1,
@@ -222,7 +225,7 @@ export default defineComponent({
       return (
         <div style='width: 600px; padding: 20px; display: flex; flex-direction: column; font-size: 12px;'>
           <div style='font-size: 20px; margin-bottom: 30px;'>
-            <span class='bklog-icon bklog-share'></span>
+            <span class='bklog-icon bklog-share' />
             <span style='margin-left: 6px;'>{t('临时分享')}</span>
           </div>
           {/* <div style='display: flex; align-items: center; margin-bottom: 10px;'>
@@ -296,17 +299,17 @@ export default defineComponent({
                   style='width: 100%; height: 28px; margin-left: 4px;'
                   placeholder='{number}d|w|m'
                   on-enter={val => handleCutomExpireTimeChange(val)}
-                ></bk-input>
+                />
               </div>
             </bk-select>
           </div>
 
           <div style='display: flex; width: 100%; margin-top: 12px;'>
             <bk-input
-              placeholder={`{SITE_URL}/share/{LINK_ID}`}
+              placeholder={'{SITE_URL}/share/{LINK_ID}'}
               readonly={true}
               value={link.value}
-            ></bk-input>
+            />
             <bk-button
               style='margin-left: -2px; border-radius: 0 2px 2px 0; min-width: fit-content;'
               theme='primary'
@@ -332,7 +335,7 @@ export default defineComponent({
           <span
             class='bklog-icon bklog-share'
             v-bk-tooltips={t('分享')}
-          ></span>
+          />
           <span
             style='margin-left: 6px;'
             class='popover-share-text'

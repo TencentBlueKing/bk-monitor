@@ -52,20 +52,20 @@ export default defineComponent({
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         return [
-          <V3Toolbar></V3Toolbar>,
-          <V3Container>
+          <V3Toolbar key='v3-toolbar' />,
+          <V3Container key='v3-container'>
             <V3Searchbar
               class={{
                 'is-sticky-top': isSearchContextStickyTop.value,
                 'is-sticky-top-result': isSearchResultStickyTop.value,
               }}
-            ></V3Searchbar>
-            <V3SearchResult></V3SearchResult>
+            />
+            <V3SearchResult />
           </V3Container>,
         ];
       }
 
-      return <div style={{ minHeight: '50vh', width: '100%' }}></div>;
+      return <div style={{ minHeight: '50vh', width: '100%' }} />;
     };
 
     return () => (
@@ -78,7 +78,7 @@ export default defineComponent({
         ]}
         v-bkloading={{ isLoading: !isPreApiLoaded.value }}
       >
-        <V3Collection></V3Collection>
+        <V3Collection />
         <div
           style={contentStyle.value}
           class='v3-bklog-content'

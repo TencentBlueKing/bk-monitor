@@ -24,14 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, reactive, watch, PropType } from 'vue';
+import { computed, defineComponent, ref, reactive, watch, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
 import { useFavorite } from '../../hooks/use-favorite';
-import { IFavoriteItem } from '../../types';
 import { handleApiError } from '../../utils';
+
+import type { IFavoriteItem } from '../../types';
 
 import './add-group.scss';
 
@@ -83,8 +84,10 @@ export default defineComponent({
     const handleCreateGroup = () => {
       checkInputFormRef.value
         ?.validate()
-        .then(async () => {
-          if (!formData.group_name.trim()) return;
+        .then(() => {
+          if (!formData.group_name.trim()) {
+            return;
+          }
           const { group_id } = props.data;
           const params = props.isCreate
             ? { group_new_name: formData.group_name }
@@ -108,14 +111,14 @@ export default defineComponent({
       emit('cancel', props.data);
     };
     const addRender = () => {
-      if (!props.isFormType && !isShowAddGroup.value) {
+      if (!(props.isFormType || isShowAddGroup.value)) {
         return (
           <div
             class='select-add-new-group'
             onClick={() => (isShowAddGroup.value = true)}
           >
             <div>
-              <i class='bk-icon icon-plus-circle'></i> {t('新建分组')}
+              <i class='bk-icon icon-plus-circle' /> {t('新建分组')}
             </div>
           </div>
         );
@@ -146,7 +149,7 @@ export default defineComponent({
                 value={formData.group_name}
                 clearable
                 onInput={val => (formData.group_name = val)}
-              ></bk-input>
+              />
             </bk-form-item>
           </bk-form>
           {props.isFormType ? (
@@ -171,11 +174,11 @@ export default defineComponent({
               <span
                 class='bk-icon icon-check-line submit-icon'
                 onClick={handleCreateGroup}
-              ></span>
+              />
               <span
                 class='bk-icon icon-close-line-2 close-icon'
                 onClick={handleCancel}
-              ></span>
+              />
             </div>
           )}
         </div>
