@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { THRESHOLD_METHOD_LIST } from 'monitor-pc/constant/constant';
@@ -47,14 +47,17 @@ interface ThresholdProps {
 @Component
 export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
   @Prop({ default: () => [] }) data: AlgorithmItem[];
+  @Ref('methodList') methodListRef;
 
   methodInstancePopover = null;
 
   localData: ruleDataItem[] = [
-    { level: 1, show: false, type: AlgorithmEnum.Threshold, method: 'lte', threshold: 0 },
-    { level: 2, show: false, type: AlgorithmEnum.Threshold, method: 'lte', threshold: 0 },
-    { level: 3, show: false, type: AlgorithmEnum.Threshold, method: 'lte', threshold: 0 },
+    { level: 1, show: false, type: AlgorithmEnum.Threshold, config: { method: 'lte', threshold: 0 } },
+    { level: 2, show: false, type: AlgorithmEnum.Threshold, config: { method: 'lte', threshold: 0 } },
+    { level: 3, show: false, type: AlgorithmEnum.Threshold, config: { method: 'lte', threshold: 0 } },
   ];
+
+  popoverIndex = 0;
 
   @Watch('data')
   watchData(val: AlgorithmItem[]) {
@@ -62,8 +65,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
       const data = val.find(i => i.level === item.level);
       if (data) {
         item.show = true;
-        item.method = data.method;
-        item.threshold = data.threshold;
+        item.config = data.config;
       }
     }
   }
@@ -81,7 +83,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
   }
 
   handleValueChange(item: ruleDataItem, value: number) {
-    item.threshold = value;
+    item.config.threshold = value;
     this.handleChange();
   }
 
@@ -97,14 +99,46 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
     );
   }
 
-  handleMethodClick(e: Event) {
+  handleMethodClick(e: Event, index: number) {
     e.stopPropagation();
+    if (this.methodInstancePopover) {
+      this.destroyPopover();
+    }
+    this.methodInstancePopover = this.$bkPopover(e.target, {
+      content: this.methodListRef,
+      trigger: 'click',
+      arrow: false,
+      placement: 'bottom-start',
+      theme: 'light common-monitor',
+      distance: 5,
+      duration: [275, 0],
+      followCursor: false,
+      flip: true,
+      flipBehavior: ['bottom', 'top'],
+      flipOnUpdate: true,
+      onHidden: () => {
+        this.destroyPopover();
+      },
+    });
+    this.popoverIndex = index;
+    this.methodInstancePopover.show(200);
+  }
+
+  handleMethodChange(id: string) {
+    this.localData[this.popoverIndex].config.method = id;
+    this.handleChange();
+  }
+
+  destroyPopover() {
+    this.methodInstancePopover?.hide();
+    this.methodInstancePopover?.destroy();
+    this.methodInstancePopover = null;
   }
 
   render() {
     return (
       <div class='threshold-wrapper'>
-        {this.localData.map(item => (
+        {this.localData.map((item, index) => (
           <div
             key={item.level}
             class='threshold-item'
@@ -125,9 +159,11 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
               <div
                 key='method'
                 class='method'
-                onClick={this.handleMethodClick}
+                onClick={e => {
+                  this.handleMethodClick(e, index);
+                }}
               >
-                {this.methodMap[item.method]}
+                {this.methodMap[item.config.method]}
               </div>,
               <bk-input
                 key='threshold'
@@ -137,7 +173,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
                 min={0}
                 show-controls={false}
                 type='number'
-                value={item.threshold}
+                value={item.config.threshold}
                 onBlur={value => {
                   this.handleValueChange(item, value);
                 }}
@@ -154,6 +190,25 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
             ]}
           </div>
         ))}
+
+        <div style='display: none'>
+          <div
+            ref='methodList'
+            class='method-list'
+          >
+            {THRESHOLD_METHOD_LIST.map(item => (
+              <div
+                key={item.id}
+                class='method-item'
+                onClick={() => {
+                  this.handleMethodChange(item.id);
+                }}
+              >
+                {item.name}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

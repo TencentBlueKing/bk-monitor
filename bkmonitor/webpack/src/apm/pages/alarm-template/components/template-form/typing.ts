@@ -66,9 +66,11 @@ export const LevelMap = {
 /** 检测算法 */
 export interface AlgorithmItem {
   level: 1 | 2 | 3;
-  method: string;
-  threshold: number;
   type: AlgorithmType;
+  config: {
+    method: string;
+    threshold: number;
+  };
 }
 
 /** 触发条件 */
