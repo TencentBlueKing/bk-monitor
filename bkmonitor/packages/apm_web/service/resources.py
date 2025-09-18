@@ -883,7 +883,22 @@ class SetCodeRedefinedRuleResource(Resource):
 
         username = get_request_username()
 
-        # 处理每个规则
+        # 获取当前数据库中的所有规则
+        base_filters = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "service_name": service_name,
+            "kind": kind,
+        }
+        existing_rules = CodeRedefinedConfigRelation.objects.filter(**base_filters)
+
+        # 构建前端传入规则的唯一标识集合
+        incoming_rule_keys = set()
+        for rule in rules:
+            rule_key = (rule["callee_server"], rule["callee_service"], rule["callee_method"])
+            incoming_rule_keys.add(rule_key)
+
+        # 处理每个传入的规则（新增/修改）
         for rule in rules:
             callee_server: str = rule["callee_server"]
             callee_service: str = rule["callee_service"]
@@ -893,10 +908,7 @@ class SetCodeRedefinedRuleResource(Resource):
 
             # 使用组合键进行 upsert
             filters = {
-                "bk_biz_id": bk_biz_id,
-                "app_name": app_name,
-                "service_name": service_name,
-                "kind": kind,
+                **base_filters,
                 "callee_server": callee_server,
                 "callee_service": callee_service,
                 "callee_method": callee_method,
@@ -912,6 +924,16 @@ class SetCodeRedefinedRuleResource(Resource):
             obj, created = CodeRedefinedConfigRelation.objects.update_or_create(defaults=defaults, **filters)
             if created:
                 CodeRedefinedConfigRelation.objects.filter(id=obj.id).update(created_by=username)
+
+        # 删除前端没有传递的规则
+        rules_to_delete = []
+        for existing_rule in existing_rules:
+            existing_key = (existing_rule.callee_server, existing_rule.callee_service, existing_rule.callee_method)
+            if existing_key not in incoming_rule_keys:
+                rules_to_delete.append(existing_rule.id)
+
+        if rules_to_delete:
+            CodeRedefinedConfigRelation.objects.filter(id__in=rules_to_delete).delete()
 
         # 同步下发：汇总整个应用的 code_relabel 列表并下发到 APM
         self.publish_code_relabel_to_apm(bk_biz_id, app_name)
