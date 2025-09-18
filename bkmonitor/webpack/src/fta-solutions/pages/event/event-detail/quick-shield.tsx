@@ -156,6 +156,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
         shieldCheckedId, // 屏蔽选择单选框选中的值
         hideDimensionTagIndex: -1, // 开始隐藏维度屏蔽tag的索引
         hideBkTopoNodeTagIndex: -1, // 开始隐藏范围屏蔽tag的索引
+        // bkHostId: '',
         modified: false,
       };
     });
@@ -346,6 +347,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
 
   // 编辑维度信息
   handleDimensionSelect(detail, idx) {
+    if (detail.shieldCheckedId !== 'dimensions') return;
     // 初始化穿梭框数据
     this.transferDimensionList = this.details[idx].dimension;
     // 选中的数据
@@ -386,7 +388,8 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
    * @param data 当前操作的屏蔽内容数据
    * @param idx 当前操作的屏蔽内容数据索引
    */
-  handleShieldEdit(data, idx) {
+  handleShieldEdit(detail, idx) {
+    if (detail.shieldCheckedId !== 'bkTopoNode') return;
     this.editIndex = idx;
     this.shieldTreeDialogShow = true;
   }
@@ -550,7 +553,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
 
                         {this.details[idx].dimension.length > 0 ? (
                           <span
-                            class='dimension-edit is-absolute'
+                            class={['dimension-edit is-absolute', {'is-hidden' : detail.shieldCheckedId !== 'dimensions'}]}
                             v-bk-tooltips={{ content: `${this.$t('编辑')}` }}
                             onClick={() => this.handleDimensionSelect(detail, idx)}
                           >
@@ -592,13 +595,12 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
                             ])
                           : undefined}
                           <span
-                            class='dimension-edit is-absolute'
+                            class={['dimension-edit is-absolute', { 'is-hidden': detail.shieldCheckedId !== 'bkTopoNode' }]}
                             v-bk-tooltips={{ content: `${this.$t('编辑')}` }}
                             onClick={() => this.handleShieldEdit(detail, idx)}
                           >
                             <i class='icon-monitor icon-bianji' />
                           </span>
-                        
                       </div>
                     )}
                   </bk-radio>
@@ -609,8 +611,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
         ) : (
           <div class='column-item'>
             <div class={`column-label ${this.details[idx].dimension.length ? 'is-special' : ''}`}>
-              {' '}
-              {`${this.$t('维度信息')}：`}{' '}
+              {`${this.$t('维度屏蔽')}：`}
             </div>
             <div class='column-content'>
               {detail.dimension?.map((dem, dimensionIndex) => (
