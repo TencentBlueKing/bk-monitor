@@ -7,6 +7,10 @@
     .level-icon {
       margin-left: 8px;
 
+      .icon-monitor {
+        margin-right: 5px;
+      }
+
       .icon-danger {
         color: #e71818;
       }
@@ -45,6 +49,27 @@
 
     & + .threshold-item {
       margin-top: 12px;
+    }
+  }
+}
+
+.method-list {
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  .method-item {
+    display: flex;
+    flex: 0 0 32px;
+    align-items: center;
+    padding: 0 15px;
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+      background-color: #e1ecff;
     }
   }
 }
