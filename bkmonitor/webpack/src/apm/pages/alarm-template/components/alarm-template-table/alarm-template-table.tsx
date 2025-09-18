@@ -68,7 +68,10 @@ interface AlarmTemplateTableEmits {
   /** 行勾选事件回调 */
   onSelectedChange: (selectedRowKeys: AlarmTemplateListItem['id'][]) => void;
   /** 打开告警模板详情抽屉页 */
-  onShowDetail: (templateId: AlarmTemplateListItem['id'], sliderActiveTab) => void;
+  onShowDetail: (showDetailEvent: {
+    id: AlarmTemplateListItem['id'];
+    sliderActiveTab: AlarmTemplateDetailTabEnumType;
+  }) => void;
 }
 
 interface AlarmTemplateTableProps {
@@ -109,7 +112,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     name: {
       id: 'name',
       label: this.$t('模板名称'),
-      minWidth: 180,
+      minWidth: 220,
       fixed: 'left',
       showOverflowTooltip: false,
       formatter: this.nameColRenderer,
@@ -395,14 +398,16 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         >
           <span>{row?.name}</span>
         </div>
-        <div
-          class='alarm-tag'
-          v-bk-tooltips={{ content: this.$t('查看各服务告警情况') }}
-          onClick={() => this.handleShowDetail(row.id, AlarmTemplateDetailTabEnum.RELATE_SERVICE_ALARM)}
-        >
-          <i class='icon-monitor icon-gaojing3' />
-          <span class='alarm-count'>2</span>
-        </div>
+        {row?.alert_number ? (
+          <div
+            class='alarm-tag'
+            v-bk-tooltips={{ content: this.$t('查看各服务告警情况') }}
+            onClick={() => this.handleShowDetail(row.id, AlarmTemplateDetailTabEnum.RELATE_SERVICE_ALARM)}
+          >
+            <i class='icon-monitor icon-gaojing3' />
+            <span class='alarm-count'>{row?.alert_number}</span>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -544,7 +549,30 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         >
           {this.$t('克隆')}
         </bk-button>
-        <i class='more-btn icon-monitor icon-gengduo1' />
+        <bk-popover
+          tippy-options={{
+            theme: 'light padding-0 apm-alarm-template-popover',
+            arrow: false,
+            distance: 6,
+            onHide: () => this.deletePopoverInstance?.deleteConfirmConfig?.id !== row?.id,
+          }}
+          placement='bottom-end'
+        >
+          <i class='more-btn icon-monitor icon-gengduo1' />
+          <div slot='content'>
+            <ul class='more-btn-list'>
+              <li
+                class={[
+                  'more-btn-item delete-btn',
+                  { 'is-active': this.deletePopoverInstance?.deleteConfirmConfig?.id === row?.id },
+                ]}
+                onClick={e => this.handleDeletePopoverShow(e, row)}
+              >
+                {this.$t('删除')}
+              </li>
+            </ul>
+          </div>
+        </bk-popover>
       </div>
     );
   }

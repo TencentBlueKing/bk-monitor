@@ -29,11 +29,11 @@ import { Component as tsc } from 'vue-tsx-support';
 import { listUserGroup } from 'monitor-api/modules/model';
 import AlarmGroup from 'monitor-pc/pages/strategy-config/strategy-config-set-new/components/alarm-group';
 
-import { type AlarmDeleteConfirmEvent } from '../alarm-delete-confirm/alarm-delete-confirm';
 import Threshold from '../template-form/detect-rules/threshold';
 
 import type { IAlarmGroupList } from '../../quick-add-strategy/typing';
 import type { AlarmTemplateListItem } from '../../typing';
+import type { AlarmDeleteConfirmEvent } from '../alarm-delete-confirm/alarm-delete-confirm';
 
 import './alarm-template-config-dialog.scss';
 
@@ -132,6 +132,7 @@ export default class AlarmTemplateConfigDialog extends tsc<
     })
       .then(() => {
         this.loading = false;
+        this.handleCancel();
       })
       .catch(() => {
         this.loading = false;
