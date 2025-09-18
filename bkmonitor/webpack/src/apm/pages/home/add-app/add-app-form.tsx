@@ -185,7 +185,7 @@ export default class AddAppForm extends tsc<IProps> {
         theme: 'success',
         message: this.$t('应用创建成功，你可以继续接入服务。'),
       });
-      this.$emit('success', params.app_name as string);
+      this.$emit('success', params.app_name as string, res.application_id || '');
       this.initForm();
     }
     this.saveLoading = false;

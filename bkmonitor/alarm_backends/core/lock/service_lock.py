@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import functools
 import time
@@ -30,7 +28,7 @@ def service_lock(key_instance, **kwargs):
         if lock.acquire(0.1):
             yield lock
         else:
-            raise LockError(msg="{} is already locked".format(lock_key))
+            raise LockError(msg=f"{lock_key} is already locked")
     except LockError as err:
         raise err
 
@@ -60,7 +58,7 @@ def share_lock(ttl=600, identify=None):
             # 例如，可以为`${module}_${method_used_for}`
             name = func.__name__ if identify is None else identify
             cache_key = f"{get_cluster().name}_celery_lock_{name}"
-            client = Cache("cache")
+            client = Cache("service-lock")
             lock_success = client.set(cache_key, token, ex=ttl, nx=True)
             if not lock_success:
                 return
@@ -84,7 +82,7 @@ def refresh_service_lock(key_instance: RedisDataKey, token: str, **kwargs):
     :param token: 标记，一般用时间
     """
     lock_key = key_instance.get_key(**kwargs)
-    client = Cache("cache")
+    client = Cache("service-lock")
     client.set(lock_key, token, ex=key_instance.ttl)
 
     yield
@@ -101,7 +99,7 @@ def check_lock_updated(key_instance: RedisDataKey, token: str = None, **kwargs) 
     :param token: 标记，一般用时间
     """
     lock_key = key_instance.get_key(**kwargs)
-    client = Cache("cache")
+    client = Cache("service-lock")
     last_token = client.get(lock_key)
     if last_token == str(token):
         return False
