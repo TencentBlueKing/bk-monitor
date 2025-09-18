@@ -117,6 +117,7 @@ export default class AiBluekingWrapper extends tsc<object> {
           }}
           enablePopup={true}
           hideNimbus={true}
+          loadRecentSessionOnMount={true}
           prompts={[]}
           shortcutFilter={this.handleShortcutFilter}
           shortcuts={this.shortcuts}

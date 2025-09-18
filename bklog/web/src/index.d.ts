@@ -24,13 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import Vue from "vue";
-export {};
+import VueType from 'vue';
 
 declare global {
   interface Window {
     mainComponent: any;
-    bus: Vue;
+    bus: VueType;
     timezone: string;
     MONITOR_URL: string;
     BK_LOGIN_URL: string;
@@ -38,11 +37,11 @@ declare global {
     VERSION: string;
     AJAX_URL_PREFIX: string;
     FEATURE_TOGGLE_WHITE_LIST: Record<string, (number | string)[]>;
-    FEATURE_TOGGLE: Record<string, "debug" | "off" | "on">;
+    FEATURE_TOGGLE: Record<string, 'debug' | 'off' | 'on'>;
     __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
     __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
     __IS_MONITOR_APM__?: boolean; // 是否是监控APM组件
-    IS_EXTERNAL: string | boolean; // 开发环境是 'false'，生产环境是 boolean
+    IS_EXTERNAL: boolean | string; // 开发环境是 'false'，生产环境是 boolean
     bk_log_search_url: string;
     BKDATA_URL: string;
     $t: (key: string, params?: Record<string, any>) => string;
@@ -51,20 +50,17 @@ declare global {
   }
 
   interface Scheduler {
-    postTask(
-      callback: () => void,
-      options?: SchedulerPostTaskOptions
-    ): SchedulerTask;
+    postTask(callback: () => void, options?: SchedulerPostTaskOptions): SchedulerTask;
   }
 
   interface SchedulerPostTaskOptions {
-    priority?: "background" | "user-blocking" | "user-visible";
+    priority?: 'background' | 'user-blocking' | 'user-visible';
     delay?: number;
     signal?: AbortSignal;
   }
 
   interface SchedulerTask {
-    readonly priority: "background" | "user-blocking" | "user-visible";
+    readonly priority: 'background' | 'user-blocking' | 'user-visible';
     abort(): void;
   }
 
@@ -73,9 +69,9 @@ declare global {
   }
 }
 
-declare module "vue/types/vue" {
+declare module 'vue/types/vue' {
   interface Vue {
     $bkMessage?: (p: Partial<object>) => void;
-    $bkPopover?: (...Object) => void;
+    $bkPopover?: (...args: any[]) => void;
   }
 }

@@ -30,6 +30,7 @@ import { getDashboardList } from 'monitor-api/modules/grafana';
 import { addAccessRecord } from 'monitor-api/modules/overview';
 import { skipToDocsLink } from 'monitor-common/utils/docs';
 import bus from 'monitor-common/utils/event-bus';
+import { paramsToObject } from 'monitor-common/utils/url';
 
 import { DASHBOARD_ID_KEY, UPDATE_GRAFANA_KEY } from '../../constant/constant';
 import { getDashboardCache } from './utils';
@@ -149,10 +150,18 @@ export default class MyComponent extends tsc<object> {
   getUrlParamsString() {
     const str = Object.entries({
       ...(this.$route.query || {}),
-      ...Object.fromEntries(new URLSearchParams(location.search)),
+      ...paramsToObject(new URLSearchParams(location.search)),
     })
       .filter(([key]) => !['orgName', 'orgId'].includes(key)) // 移除 orgName/orgId 参数
-      .map(entry => entry.join('='))
+      .map(([key, value]) => {
+        if (Array.isArray(value)) {
+          return value
+            .filter(Boolean)
+            .map(item => `${key}=${item}`)
+            .join('&');
+        }
+        return `${key}=${value}`;
+      })
       .join('&');
     if (str.length) return `&${str}`;
     return '';
@@ -230,14 +239,14 @@ export default class MyComponent extends tsc<object> {
             url: dashboardId,
           },
           query: {
-            ...Object.fromEntries(new URLSearchParams(e.data?.search || '')),
+            ...paramsToObject(new URLSearchParams(e.data?.search || '')),
           },
         });
         this.handleSetDashboardCache(dashboardId);
       } else {
         this.$router.replace({
           query: {
-            ...Object.fromEntries(new URLSearchParams(e.data?.search || '')),
+            ...paramsToObject(new URLSearchParams(e.data?.search || '')),
           },
         });
       }

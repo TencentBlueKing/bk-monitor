@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, computed, PropType } from 'vue';
+import { defineComponent, computed, type PropType } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
 
 import './index.scss';
@@ -40,7 +41,7 @@ export default defineComponent({
         op: string;
         values: string[];
       }>,
-      default: () => undefined,
+      default: () => {},
     },
     isCreate: {
       type: Boolean,
@@ -92,14 +93,17 @@ export default defineComponent({
               >
                 <log-icon
                   class='close-icon'
-                  common
                   type='close-circle-shape'
+                  common
                 />
               </div>
             </div>
             <div class='value-display'>
               {displayValueList.value.map((item, index) => (
-                <div class='combine-main'>
+                <div
+                  key={item}
+                  class='combine-main'
+                >
                   <div
                     class='value-item'
                     v-bk-overflow-tips

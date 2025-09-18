@@ -38,15 +38,18 @@ class ReportLogStore extends VuexModule {
   reportRouteLog(params: Record<string, any>) {
     const { isAppFirstLoad, bkBizId, spaceUid, mySpaceList: spaceList } = store.state;
 
-    if (!bkBizId && !spaceUid) return;
+    if (!(bkBizId || spaceUid)) {
+      return;
+    }
 
     if (
       !isAppFirstLoad &&
       oldspaceUid === spaceUid &&
       params.nav_name !== '日志聚类' &&
       (oldRouteId === params.route_id || oldNavId === params.nav_id)
-    )
+    ) {
       return;
+    }
 
     oldRouteId = params.route_id;
     oldNavId = params.nav_id;

@@ -5,7 +5,7 @@ ujson==5.9.0
 Django==4.2.22
 # 单元测试
 fakeredis==2.26.0
-requests==2.32.4
+requests==2.32.5
 celery==5.4.0
 redis==4.4.4
 redis-py-cluster==1.3.5
@@ -128,7 +128,7 @@ apigw-manager==3.0.2
 jieba-fast==0.53
 
 # bkaidev
-aidev-agent==1.0.0b35
+aidev-agent==1.0.0b39
 langfuse==2.60.5
 
 # 各自环境所需的不同依赖, 通过 sites/${env}/deploy/requirements_env.txt得到

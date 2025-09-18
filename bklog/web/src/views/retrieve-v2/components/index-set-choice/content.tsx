@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, PropType } from 'vue';
+import { computed, defineComponent, onMounted, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import { useRoute } from 'vue-router/composables';
@@ -36,7 +36,7 @@ import CommonList from './common-list';
 // #code const CommonList = () => null;
 // #endif
 import IndexSetList from './index-set-list';
-import useChoice, { IndexSetType } from './use-choice';
+import useChoice, { type IndexSetType } from './use-choice';
 
 import './content.scss';
 
@@ -158,7 +158,7 @@ export default defineComponent({
           on-auth-request={item => emit('auth-request', item)}
           on-favorite-change={handleFavoriteChange}
           on-value-change={handleValueChange}
-        ></IndexSetList>
+        />
       );
     };
 
@@ -173,7 +173,7 @@ export default defineComponent({
         value={historyId.value}
         on-delete={handleDeleteHistory}
         on-value-click={handleHistoryItemClick}
-      ></CommonList>
+      />
     );
 
     /**
@@ -198,7 +198,7 @@ export default defineComponent({
         value={favoriteId.value}
         on-delete={() => alert('API not support')}
         on-value-click={handleFavoriteItemClick}
-      ></CommonList>
+      />
     );
     // #endif
 
@@ -212,7 +212,7 @@ export default defineComponent({
     ]);
 
     const activeTab = computed(() => tabList.value.find(item => item.id === props.activeId));
-    const handleTabItemClick = (e: MouseEvent, item: { name: string; id: string }) => {
+    const handleTabItemClick = (_e: MouseEvent, item: { name: string; id: string }) => {
       if (item.id === 'history') {
         requestHistoryList();
       }

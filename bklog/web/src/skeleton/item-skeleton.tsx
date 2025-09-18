@@ -59,17 +59,19 @@ export default defineComponent({
   setup(props) {
     // 缓存宽度配置计算
     const computedWidths = computed(() => {
-      if (props.widths.length > 0) return props.widths;
+      if (props.widths.length > 0) {
+        return props.widths;
+      }
 
       // 使用映射表替代switch-case
       const widthMap = {
         text: ['100%', '80%', '60%', '90%'],
         card: ['100%'],
         list: ['70px', '1fr', '100px'],
-        grid: Array(props.columns).fill('1fr'),
+        grid: new Array(props.columns).fill('1fr'),
       };
 
-      return widthMap[props.type] || Array(props.columns).fill('1fr');
+      return widthMap[props.type] || new Array(props.columns).fill('1fr');
     });
 
     // 预定义样式对象
@@ -88,14 +90,14 @@ export default defineComponent({
 
     // 优化渲染函数
     return () => {
-      const rows = [];
+      const rows: any[] = [];
       const { rows: rowCount, columns } = props;
       const widths = computedWidths.value;
       const rowStyle = rowBaseStyle.value;
       const skeletonBaseStyle = skeletonStyle.value;
 
       for (let i = 0; i < rowCount; i++) {
-        const cols = [];
+        const cols: any[] = [];
 
         for (let j = 0; j < columns; j++) {
           const width = widths[j] || widths[0] || '100%';

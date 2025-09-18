@@ -46,7 +46,7 @@ export default defineComponent({
   props: {
     data: {
       type: Object,
-      default: () => undefined,
+      default: () => {},
     },
     isCreate: {
       type: Boolean,
@@ -58,6 +58,7 @@ export default defineComponent({
     const store = useStore();
     const { isRequesting, isValidateItem, requestFieldEgges, setIsRequesting, isValidateEgges } = useFieldEgges();
 
+    const fieldListMainRef = ref(null);
     const popoverRef = ref(null);
     const formRef = ref(null);
     const controlOperateRef = ref(null);
@@ -79,7 +80,7 @@ export default defineComponent({
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
     const isFieldListEmpty = computed(() => !indexFieldInfo.value.fields.length);
-    const isSearchEmpty = computed(() => !isFieldListEmpty.value && !filterFieldList.value.length);
+    const isSearchEmpty = computed(() => !(isFieldListEmpty.value || filterFieldList.value.length));
     const exceptionType = computed(() => (isFieldListEmpty.value ? 'empty' : 'search-empty'));
     const textDir = computed(() => {
       const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
@@ -127,28 +128,33 @@ export default defineComponent({
       ],
     };
 
+    const initData = () => {
+      if (props.data && filterFieldList.value.length) {
+        activeIndex.value =
+          filterFieldList.value.findIndex(
+            item => item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
+          ) || 0;
+
+        hoverIndex.value = activeIndex.value;
+        formData.value = {
+          op: props.data.op,
+          values: props.data.value,
+        };
+
+        const fieldInfo = filterFieldList.value[activeIndex.value];
+        localFormData.value = {
+          op: props.data.op,
+          values: props.data.value,
+          field_name: fieldInfo.field_name,
+          field_alias: fieldInfo.field_alias,
+        };
+      }
+    };
+
     watch(
       () => [props.data, filterFieldList.value],
       () => {
-        if (props.data && filterFieldList.value.length) {
-          activeIndex.value =
-            filterFieldList.value.findIndex(
-              item => item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
-            ) || 0;
-          hoverIndex.value = activeIndex.value;
-          formData.value = {
-            op: props.data.op,
-            values: props.data.value,
-          };
-
-          const fieldInfo = filterFieldList.value[activeIndex.value];
-          localFormData.value = {
-            op: props.data.op,
-            values: props.data.value,
-            field_name: fieldInfo.field_name,
-            field_alias: fieldInfo.field_alias,
-          };
-        }
+        initData();
       },
       { immediate: true },
     );
@@ -209,13 +215,13 @@ export default defineComponent({
 
     const handleClickKeyUp = () => {
       if (hoverIndex.value > 0) {
-        hoverIndex.value = hoverIndex.value - 1;
+        hoverIndex.value -= 1;
       }
     };
 
     const handleClickKeyDown = () => {
       if (hoverIndex.value < filterFieldList.value.length - 1) {
-        hoverIndex.value = hoverIndex.value + 1;
+        hoverIndex.value += 1;
       }
     };
 
@@ -242,6 +248,13 @@ export default defineComponent({
     const handlePopoverShow = () => {
       formRef.value?.clearError();
       controlOperateRef.value.bindKeyEvent();
+      initData();
+      setTimeout(() => {
+        const selectItemDom = fieldListMainRef.value.querySelector('.is-active');
+        if (selectItemDom) {
+          selectItemDom.scrollIntoView();
+        }
+      });
     };
 
     const handlePopoverHide = () => {
@@ -249,7 +262,7 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      handleFieldItemClick(0);
+      handleFieldItemClick(activeIndex.value);
     });
 
     expose({
@@ -293,7 +306,10 @@ export default defineComponent({
                     }}
                   />
                 </div>
-                <div class='field-list-main'>
+                <div
+                  ref={fieldListMainRef}
+                  class='field-list-main'
+                >
                   {filterFieldList.value.map((item, index) => (
                     <div
                       key={item.field_name}
@@ -316,7 +332,7 @@ export default defineComponent({
                           color: getFieldIconTextColor(item.field_type),
                         }}
                         class={[getFieldIcon(item.field_type), 'field-type-icon']}
-                      ></span>
+                      />
                       <div
                         class='display-container rtl-text'
                         dir={textDir.value}
@@ -388,10 +404,12 @@ export default defineComponent({
                         clearable={false}
                         content-width={232}
                         placeholder={t('请输入')}
+                        separator=' '
                         trigger='focus'
                         value={formData.value.values}
                         allow-auto-match
                         allow-create
+                        free-paste
                         on-change={value => {
                           formData.value.values = value;
                         }}

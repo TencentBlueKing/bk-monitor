@@ -73,15 +73,13 @@ export default defineComponent({
       const timeFields = result_schema.filter(item => /^date/.test(item.field_type));
       return {
         list: list.map(item => {
-          return Object.assign(
-            {},
-            item,
-            timeFields.reduce((acc, cur) => {
-              return Object.assign({}, acc, {
-                [cur.field_alias]: formatDateTimeField(item[cur.field_alias], cur.field_type),
-              });
+          return {
+            ...item,
+            ...timeFields.reduce((acc, cur) => {
+              acc[cur.field_alias] = formatDateTimeField(item[cur.field_alias], cur.field_type);
+              return acc;
             }, {}),
-          );
+          };
         }),
         result_schema,
         select_fields_order,
@@ -89,7 +87,7 @@ export default defineComponent({
       };
     });
 
-    let updateTimer = null;
+    let updateTimer: any = null;
     const debounceUpdateChartOptions = (xFields, yFields, dimensions, type) => {
       updateTimer && clearTimeout(updateTimer);
       updateTimer = setTimeout(() => {
@@ -110,12 +108,15 @@ export default defineComponent({
       return parent;
     };
 
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const setTableData = () => {
       if (showTable.value || showNumber.value) {
         if (props.chartOptions.category === 'table') {
           tableData.value.length = 0;
           tableData.value = [];
-          (formatListData.value?.list ?? []).forEach(t => tableData.value.push(t));
+          for (const t of formatListData.value?.list ?? []) {
+            tableData.value.push(t);
+          }
           return;
         }
 
@@ -126,7 +127,8 @@ export default defineComponent({
               return (formatListData.value?.list ?? []).map(row => {
                 const targetValue = [timeField, xField, yField].reduce((acc, cur) => {
                   if (cur && row[cur]) {
-                    return Object.assign(acc, { [cur]: row[cur] });
+                    acc[cur] = row[cur];
+                    return acc;
                   }
 
                   return acc;
@@ -217,7 +219,7 @@ export default defineComponent({
       searchValue.value = value;
     };
 
-    const replacer = (key, value) => {
+    const replacer = (_key, value) => {
       // 处理undefined或null等特殊值，转化为字符串
       return value === null ? '' : value;
     };
@@ -248,9 +250,15 @@ export default defineComponent({
         return (
           <div class='bklog-chart-number-container'>
             {tableData.value.map(row => (
-              <div class='bklog-chart-number-list'>
+              <div
+                key={row}
+                class='bklog-chart-number-list'
+              >
                 {props.chartOptions.yFields?.map(yField => (
-                  <div class='bklog-chart-number-item'>
+                  <div
+                    key={yField}
+                    class='bklog-chart-number-item'
+                  >
                     <div class='bklog-chart-number-label'>{yField}</div>
                     <div class='bklog-chart-number-value'>{row[yField]}</div>
                   </div>
@@ -266,7 +274,10 @@ export default defineComponent({
           return '';
         }
         return [
-          <div class='bklog-chart-result-table'>
+          <div
+            key='table-search'
+            class='bklog-chart-result-table'
+          >
             <bk-input
               style='width: 500px;'
               clearable={true}
@@ -274,7 +285,7 @@ export default defineComponent({
               right-icon='bk-icon icon-search'
               value={searchValue.value}
               onChange={handleSearchClick}
-            ></bk-input>
+            />
             <div>
               {tableData.value.length > 0 ? (
                 <span
@@ -284,7 +295,7 @@ export default defineComponent({
                   <i
                     style='font-size: 14px;'
                     class='bklog-icon bklog-download'
-                  ></i>
+                  />
                   {$t('下载')}
                 </span>
               ) : null}
@@ -300,22 +311,25 @@ export default defineComponent({
                 small={true}
                 onChange={handlePageChange}
                 onLimit-change={handlePageLimitChange}
-              ></bk-pagination>
+              />
             </div>
           </div>,
-          <bk-table data={filterTableData.value}>
+          <bk-table
+            key='table-result'
+            data={filterTableData.value}
+          >
             <bk-table-column
               width='60'
               label={$t('行号')}
               type='index'
-            ></bk-table-column>
+            />
             {columns.value.map(col => (
               <bk-table-column
                 key={col}
                 label={col}
                 prop={col}
                 sortable={true}
-              ></bk-table-column>
+              />
             ))}
           </bk-table>,
         ];
@@ -326,7 +340,7 @@ export default defineComponent({
           ref={refRootElement}
           class='chart-canvas'
           on-resize={handleChartRootResize}
-        ></ChartRoot>
+        />
       );
     };
 

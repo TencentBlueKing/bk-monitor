@@ -46,7 +46,8 @@ def feature_switch(featue):
 
 class Toggle(object):
     def __init__(
-        self, name="", status="", alias="", description="", is_viewed=True, feature_config=None, biz_id_white_list=None
+        self, name="", status="", alias="", description="", is_viewed=True, feature_config=None, biz_id_white_list=None,
+            biz_id_black_list=None
     ):
         self.name = name
         self.status = status
@@ -55,6 +56,7 @@ class Toggle(object):
         self.is_viewed = is_viewed
         self.feature_config = feature_config
         self.biz_id_white_list = biz_id_white_list
+        self.biz_id_black_list = biz_id_black_list
 
 
 class FeatureToggleObject(object):
@@ -91,6 +93,10 @@ class FeatureToggleObject(object):
             else:
                 return False
 
+        if toggle.status == "debug" and toggle.biz_id_black_list:
+            if biz_id and biz_id in toggle.biz_id_black_list:
+                return False
+
         if toggle.status == "debug" and settings.ENVIRONMENT not in ["dev", "stag"]:
             return False
 
@@ -116,6 +122,7 @@ class FeatureToggleObject(object):
             param["is_viewed"] = True
             param["feature_config"] = None
             param["biz_id_white_list"] = None
+            param["biz_id_black_list"] = None
 
         with ignored(Exception, log_exception=True):
             feature_toggle = FeatureToggle.objects.filter(name=name).first()
@@ -127,6 +134,7 @@ class FeatureToggleObject(object):
                 param["is_viewed"] = feature_toggle.is_viewed
                 param["feature_config"] = feature_toggle.feature_config
                 param["biz_id_white_list"] = feature_toggle.biz_id_white_list
+                param["biz_id_black_list"] = feature_toggle.biz_id_black_list
 
         if not param:
             return None
@@ -185,6 +193,7 @@ class FeatureToggleObject(object):
                 "is_viewed": True,
                 "feature_config": None,
                 "biz_id_white_list": None,
+                "biz_id_black_list": None,
             }
 
         for feature_toggle in FeatureToggle.objects.all():
@@ -196,6 +205,7 @@ class FeatureToggleObject(object):
                 "is_viewed": feature_toggle.is_viewed,
                 "feature_config": feature_toggle.feature_config,
                 "biz_id_white_list": feature_toggle.biz_id_white_list,
+                "biz_id_black_list": feature_toggle.biz_id_black_list,
             }
 
         for name, param in params.items():
@@ -242,4 +252,5 @@ class FeatureToggleObject(object):
             is_viewed=result["is_viewed"],
             feature_config=result["feature_config"],
             biz_id_white_list=result["biz_id_white_list"],
+            biz_id_black_list=result["biz_id_black_list"],
         )
