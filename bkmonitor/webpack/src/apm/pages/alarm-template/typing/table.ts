@@ -77,6 +77,8 @@ export interface AlarmTemplateDestroyParams {
   strategy_template_id: AlarmTemplateListItem['id'];
 }
 
+export type AlarmTemplateField = string;
+
 export interface AlarmTemplateListItem {
   /** 关联告警数 */
   alert_number?: number;
@@ -97,8 +99,8 @@ export interface AlarmTemplateListItem {
 }
 
 export interface AlarmTemplateOptionsItem {
-  alias: string;
-  value: string;
+  id: string;
+  name: string;
 }
 
 export interface AlarmUserGroupItem {
