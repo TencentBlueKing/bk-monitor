@@ -404,7 +404,7 @@ export default defineComponent({
                         clearable={false}
                         content-width={232}
                         placeholder={t('请输入')}
-                        separator=' '
+                        separator='\n'
                         trigger='focus'
                         value={formData.value.values}
                         allow-auto-match
