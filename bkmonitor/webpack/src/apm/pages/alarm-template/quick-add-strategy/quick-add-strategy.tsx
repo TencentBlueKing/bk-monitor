@@ -31,7 +31,6 @@ import { listUserGroup, searchStrategyTemplate } from 'monitor-api/modules/model
 import authorityMixinCreate from 'monitor-pc/mixins/authorityMixin';
 import { MANAGE_AUTH as MANAGE } from 'monitor-pc/pages/alarm-group/authority-map';
 
-import TemplateDetails from '../template-operate/template-details';
 import JudgmentConditions from './judgment-conditions';
 import TemplateList from './template-list';
 
@@ -61,9 +60,7 @@ class QuickAddStrategy extends Mixins(
   cursorItem: ITempLateItem = null;
   checkedList = [];
 
-  templateDetails = {
-    show: false,
-  };
+  globalParams = null;
 
   @Watch('show')
   handleWatchShowChange(v: boolean) {
@@ -77,7 +74,7 @@ class QuickAddStrategy extends Mixins(
   }
 
   handleShowTemplateDetails() {
-    this.templateDetails.show = true;
+    // todo
   }
 
   handleShowChange(v: boolean) {
@@ -115,10 +112,17 @@ class QuickAddStrategy extends Mixins(
     this.$bkInfo({
       type: 'success',
       title: this.$t('批量创建策略成功'),
-      okText: '留在当前页',
+      okText: this.$t('留在当前页'),
       width: 480,
       confirmFn: () => {
-        console.log('confirmFn');
+        const params = {
+          app_name: this.params?.app_name,
+          service_names: [this.params?.service_name],
+          strategy_template_ids: this.checkedList,
+          extra: [],
+          global: this.globalParams,
+        };
+        console.log('confirmFn', params);
       },
       cancelFn: () => {
         console.log('cancelFn');
@@ -149,6 +153,10 @@ class QuickAddStrategy extends Mixins(
     });
   }
 
+  handleJudgmentConditionsChange(params) {
+    this.globalParams = params;
+  }
+
   render() {
     return (
       <bk-sideslider
@@ -173,7 +181,10 @@ class QuickAddStrategy extends Mixins(
               onCheckedChange={this.handleCheckedChange}
               onCursorChange={this.handleCursorChange}
             />
-            <JudgmentConditions userList={this.alarmGroupList} />
+            <JudgmentConditions
+              userList={this.alarmGroupList}
+              onChange={this.handleJudgmentConditionsChange}
+            />
           </div>
 
           <div class='template-preview'>
@@ -192,18 +203,6 @@ class QuickAddStrategy extends Mixins(
               </div>
             )}
           </div>
-          <TemplateDetails
-            params={{
-              app_name: this.params?.app_name || '',
-              service_name: this.params?.service_name,
-              strategy_template_ids: [this.cursorId],
-              ids: [this.cursorId],
-            }}
-            show={this.templateDetails.show}
-            onShowChange={v => {
-              this.templateDetails.show = v;
-            }}
-          />
         </div>
         <div
           class='quick-add-strategy-footer'

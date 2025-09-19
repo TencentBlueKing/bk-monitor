@@ -1,18 +1,10 @@
 .across-page-selection-component {
-  .all-checked {
+  .bk-form-checkbox.all-checked {
     .bk-checkbox {
       background-color: #fff;
 
       &::after {
         border-color: #3a84ff;
-      }
-    }
-  }
-
-  .indeterminate {
-    .bk-checkbox {
-      &::after {
-        background: #3a84ff;
       }
     }
   }

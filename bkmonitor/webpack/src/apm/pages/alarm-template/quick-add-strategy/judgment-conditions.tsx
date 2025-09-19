@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AlarmGroup from 'monitor-pc/pages/strategy-config/strategy-config-set-new/components/alarm-group';
@@ -33,8 +33,22 @@ import type { IAlarmGroupList } from './typing';
 
 import './judgment-conditions.scss';
 
+interface IConfig {
+  detect: IDetectConfig;
+  user_group_list: {
+    id: string;
+    name: string;
+  }[];
+}
+interface IDetectConfig {
+  recovery_check_window: number;
+  trigger_check_window: number;
+  trigger_count: number;
+}
+
 interface IProps {
   userList?: IAlarmGroupList[];
+  onChange?: (v: IConfig) => void;
 }
 
 @Component
@@ -46,15 +60,43 @@ export default class JudgmentConditions extends tsc<IProps> {
   };
 
   userGroups = [];
+  userParams = [];
+
+  userListMap = new Map();
 
   isExpand = false;
 
-  emitValueChange() {
-    this.$emit('valueChange', this.detectConfig);
+  @Watch('userList', { immediate: true })
+  handleUserGroupChange() {
+    if (this.userList.length) {
+      for (const item of this.userList) {
+        this.userListMap.set(item.id, item);
+      }
+    }
+  }
+
+  handleChange() {
+    const params = {
+      detect: {
+        recovery_check_window: this.detectConfig.checkWindow,
+        trigger_check_window: this.detectConfig.checkWindow,
+        trigger_count: this.detectConfig.count,
+      },
+      user_group_list: this.userParams,
+    };
+    this.$emit('change', params);
   }
 
   handleUserGroup(data) {
+    this.userParams = data.map(id => {
+      const name = this.userListMap.get(id)?.name || '';
+      return {
+        id: id,
+        name: name,
+      };
+    });
     this.userGroups = data;
+    this.handleChange();
   }
 
   handleExpand() {
@@ -87,7 +129,7 @@ export default class JudgmentConditions extends tsc<IProps> {
                   show-controls={false}
                   size='small'
                   type='number'
-                  on-change={this.emitValueChange}
+                  on-change={this.handleChange}
                 />
                 <bk-input
                   class='small-input'
@@ -97,7 +139,7 @@ export default class JudgmentConditions extends tsc<IProps> {
                   show-controls={false}
                   size='small'
                   type='number'
-                  on-change={this.emitValueChange}
+                  on-change={this.handleChange}
                 />
               </i18n>
             </div>
@@ -105,6 +147,8 @@ export default class JudgmentConditions extends tsc<IProps> {
               <div class='judgment-content-title'>{this.$t('告警组')}</div>
               <AlarmGroup
                 class='alarm-group'
+                isOpenNewPage={true}
+                isSimple={true}
                 list={this.userList}
                 readonly={false}
                 showAddTip={false}

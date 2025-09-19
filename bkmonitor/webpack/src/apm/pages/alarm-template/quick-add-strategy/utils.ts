@@ -23,33 +23,29 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import base64Svg from 'monitor-common/svg/base64';
+const templateIconEnum = {
+  DEFAULT: 'DEFAULT',
+  P99: 'P99',
+  AVG: 'AVG',
+  SUCCESS_RATE: 'SUCCESS_RATE',
+  CICD: 'CICD',
+};
 
-export interface IAlarmGroupList {
-  id: number | string;
-  name: string;
-  receiver: string[];
-}
-export interface ICategoryItem {
-  category: string;
-  checked: boolean;
-  children?: ITempLateItem[];
-  system: string;
-}
-export interface ITempLateItem {
-  category: string;
-  checked?: boolean;
-  has_been_applied?: boolean; // 是否已配置
-  icon?: string;
-  id: string;
-  monitor_type?: string;
-  name: string;
-  system: string;
-  type: string;
-}
+export const templateIconMap = {
+  [templateIconEnum.DEFAULT]: 'icon-gaojing',
+  [templateIconEnum.P99]: 'icon-a-99haoshi',
+  [templateIconEnum.AVG]: 'icon-pingjunhaoshi',
+  [templateIconEnum.SUCCESS_RATE]: 'icon-check',
+  [templateIconEnum.CICD]: base64Svg.bkci,
+};
 
-export type TTemplateList<T = ITempLateItem> = {
-  category?: boolean;
-  children?: T[];
-  name: string;
-  system: string;
+export const systemMap = {
+  RPC: window.i18n.t('调用分析模板'),
+  RPC_CALLEE: window.i18n.t('主调'),
+  RPC_CALLER: window.i18n.t('被调'),
+  K8S: window.i18n.t('容器'),
+  LOG: window.i18n.t('日志'),
+  TRACE: window.i18n.t('调用链'),
+  EVENT: window.i18n.t('事件'),
 };

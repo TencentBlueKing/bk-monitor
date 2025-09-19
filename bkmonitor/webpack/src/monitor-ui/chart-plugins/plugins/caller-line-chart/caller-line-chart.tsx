@@ -49,6 +49,7 @@ import { downFile, fitPosition, handleRelateAlert, reviewInterval } from '../../
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
+import CodeRedefineSlider from '../apm-service-caller-callee/components/code/code-redefine-slider';
 import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
@@ -81,7 +82,6 @@ import type { CallOptions, IFilterCondition } from '../apm-service-caller-callee
 import type { IPosition } from 'CustomEventMenu';
 
 import './caller-line-chart.scss';
-import CodeRedefineSlider from '../apm-service-caller-callee/components/code/code-redefine-slider';
 
 interface IProps {
   panel: PanelModel;
@@ -139,6 +139,10 @@ class CallerLineChart extends CommonSimpleChart {
   cacheEventConfig: Partial<EventTagConfig> = {};
 
   codeRedefineShow = false;
+
+  quickAddStrategyObj = {
+    show: false,
+  };
 
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
@@ -1431,15 +1435,15 @@ class CallerLineChart extends CommonSimpleChart {
         />
         {this.isCodeRedefine && (
           <CodeRedefineSlider
+            appName={this.viewOptions?.app_name}
+            callOptions={this.callOptions}
             isShow={this.codeRedefineShow}
+            service={this.viewOptions?.service_name}
+            type={this.callOptions.kind}
+            variablesData={this.variablesData}
             onShowChange={show => {
               this.codeRedefineShow = show;
             }}
-            type={this.callOptions.kind}
-            appName={this.viewOptions?.app_name}
-            callOptions={this.callOptions}
-            variablesData={this.variablesData}
-            service={this.viewOptions?.service_name}
           />
         )}
       </div>
