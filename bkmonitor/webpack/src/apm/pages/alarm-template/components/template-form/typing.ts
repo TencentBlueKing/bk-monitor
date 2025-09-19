@@ -75,9 +75,12 @@ export interface AlgorithmItem {
 
 /** 触发条件 */
 export interface DetectConfig {
-  recovery_check_window: number;
-  trigger_check_window: number;
-  trigger_count: number;
+  type: string;
+  config: {
+    recovery_check_window: number;
+    trigger_check_window: number;
+    trigger_count: number;
+  };
 }
 
 /** 策略模板分类 */

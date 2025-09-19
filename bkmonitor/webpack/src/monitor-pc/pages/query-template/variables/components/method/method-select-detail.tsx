@@ -23,6 +23,29 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-export * from './detail';
-export * from './table';
+import { CP_METHOD_LIST, METHOD_LIST } from '../../../../../constant/constant';
+
+import type { MethodVariableModel } from '../../index';
+
+interface MethodSelectDetailProps {
+  variable: MethodVariableModel;
+}
+
+/** 维度变量已选值详情 */
+@Component
+export default class MethodSelectDetail extends tsc<MethodSelectDetailProps> {
+  @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
+
+  get methodList() {
+    return [...METHOD_LIST, ...CP_METHOD_LIST];
+  }
+
+  render() {
+    return (
+      this.methodList.find(item => item.id === this.variable.defaultValue)?.name || this.variable.defaultValue || '--'
+    );
+  }
+}

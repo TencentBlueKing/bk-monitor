@@ -23,6 +23,39 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-export * from './detail';
-export * from './table';
+import type { DimensionVariableModel } from '../../index';
+
+interface DimensionSelectDetailProps {
+  variable: DimensionVariableModel;
+}
+
+@Component
+export default class DimensionSelectDetail extends tsc<DimensionSelectDetailProps> {
+  @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
+
+  get defaultValueMap() {
+    return this.variable.data.defaultValue.map(
+      item => this.variable.dimensionOptionsMap.find(i => i.id === item) || { id: item, name: item }
+    );
+  }
+
+  render() {
+    return (
+      <div class='tag-list'>
+        {this.defaultValueMap.length
+          ? this.defaultValueMap.map(item => (
+              <div
+                key={item.id}
+                class='tag-item'
+              >
+                {item.name}
+              </div>
+            ))
+          : '--'}
+      </div>
+    );
+  }
+}
