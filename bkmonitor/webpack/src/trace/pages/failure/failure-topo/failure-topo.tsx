@@ -1960,8 +1960,7 @@ export default defineComponent({
           const edge = edges.find(edge => {
             const model = edge.getModel();
             return (
-              sourceNode.find(f => f.entity.entity_id === model.source) &&
-              sourceNode.find(f => f.entity.entity_id === model.target)
+              model.source === sourceNode?.[0]?.entity?.entity_id && model.target === sourceNode?.[1]?.entity?.entity_id
             );
           });
           if (!edge.hasState('highlight')) {
@@ -2487,8 +2486,10 @@ export default defineComponent({
 
     /** 点击节点概览中的关联边，画布中对应的边高亮 */
     const handleHighlightEdge = (edge: ITopoNode) => {
-      const sourceId = edge.source;
-      const targetId = edge.target;
+      // 对于聚合边，每个边上会携带当前最外层作为容器变的属性，聚合边需要高亮的是容器边
+      const isAggregated = edge?.properties?.aggregated_by?.length > 0;
+      const sourceId = isAggregated ? edge.properties.aggregated_by[0] : edge.source;
+      const targetId = isAggregated ? edge.properties.aggregated_by[1] : edge.target;
       resourceEdgeId.value = `${sourceId}-${targetId}`;
       graph.setAutoPaint(false);
       // biome-ignore lint/complexity/noForEach: <explanation>

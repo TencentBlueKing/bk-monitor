@@ -196,6 +196,9 @@ export interface ITopoNode extends ModelConfig {
     alert_id: string;
     alert_name: string;
   };
+  properties: {
+    aggregated_by?: string[];
+  };
 }
 
 // 事件数据，用于构造散点图
