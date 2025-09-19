@@ -22,8 +22,10 @@ from apm_web.models import StrategyTemplate, StrategyInstance
 
 
 def get_user_groups(user_group_ids: Iterable[int]) -> dict[int, dict[str, int | str]]:
-    user_groups = UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
-    return {user_group["id"]: user_group for user_group in user_groups}
+    return {
+        user_group["id"]: user_group
+        for user_group in UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
+    }
 
 
 class DetectSerializer(serializers.Serializer):
