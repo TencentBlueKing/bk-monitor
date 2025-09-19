@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
 from collections.abc import Iterable
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -18,6 +19,13 @@ from bkmonitor.strategy.serializers import allowed_threshold_method
 
 from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
+
+
+def get_user_groups(user_group_ids: Iterable[int]) -> dict[int, dict[str, int | str]]:
+    return {
+        user_group["id"]: user_group
+        for user_group in UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
+    }
 
 
 class DetectSerializer(serializers.Serializer):
@@ -178,7 +186,18 @@ class BaseStrategyTemplateUpdateSerializer(serializers.Serializer):
 class StrategyTemplateUpdateRequestSerializer(
     BaseStrategyTemplateUpdateSerializer, BaseAppStrategyTemplateRequestSerializer
 ):
-    pass
+    def validate(self, attrs: dict) -> dict:
+        if not attrs["is_enabled"] and attrs["is_auto_apply"]:
+            raise serializers.ValidationError(_("策略模板禁用时，不允许配置自动下发"))
+
+        user_group_list: list[dict[str, int | str]] = attrs["user_group_list"]
+        user_groups = get_user_groups([user_group["id"] for user_group in user_group_list])
+        not_exist_names = [user_group["name"] for user_group in user_group_list if user_group["id"] not in user_groups]
+        if not_exist_names:
+            raise serializers.ValidationError(
+                _("不存在名称为 {names} 的告警组").format(names=", ".join(not_exist_names))
+            )
+        return attrs
 
 
 class StrategyTemplateCloneRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
@@ -242,8 +261,7 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
         user_group_ids = set(
             user_group_id for obj in self._strategy_template_objs for user_group_id in obj.user_group_ids
         )
-        user_groups = UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
-        return {user_group["id"]: user_group for user_group in user_groups}
+        return get_user_groups(user_group_ids)
 
     @cached_property
     def _strategy_instances(self) -> list[dict[str, int | str]]:
@@ -277,7 +295,26 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
 class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
     class Meta:
         model = StrategyTemplate
-        fields = "__all__"
+        fields = [
+            "id",
+            "code",
+            "name",
+            "type",
+            "is_enabled",
+            "is_auto_apply",
+            "system",
+            "category",
+            "detect",
+            "algorithms",
+            "user_group_list",
+            "query_template",
+            "context",
+            "applied_service_names",
+        ]
+
+    def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
+        validated_data["user_group_ids"] = [user_group["id"] for user_group in validated_data.pop("user_group_list")]
+        return super().update(instance, validated_data)
 
 
 class StrategyTemplateSearchModelSerializer(StrategyTemplateBaseModelSerializer):
