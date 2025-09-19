@@ -196,6 +196,9 @@ class Command(BaseCommand):
                 "refresh": dashboard_detail.get("dashboard", {}).get("refresh", ""),
                 "tags": dashboard_detail.get("dashboard", {}).get("tags", []),
                 "timezone": dashboard_detail.get("dashboard", {}).get("timezone", "browser"),
+                "templating": dashboard_detail.get("dashboard", {}).get("templating", []),
+                "time": dashboard_detail.get("dashboard", {}).get("time", {}),
+                "timepicker": dashboard_detail.get("dashboard", {}).get("timepicker", {}),
             }
             folder_item[folder_title]["dashboards"].append(dashboard_data)
 
@@ -237,6 +240,9 @@ class Command(BaseCommand):
                 for panel in dashboard["panels"]:
                     self.update_panel_datasource(panel, bk_log_datasource_uid)
 
+                for template in dashboard["templating"].get("list", []):
+                    self.update_template_datasource(template, bk_log_datasource_uid)
+
     def ensure_datasource(self, grafana_url, biz_id, biz_to_org_mapping, failed_biz):
         """确保数据源存在及获取 uid, 以及必要时新建组织"""
         if biz_id in biz_to_org_mapping:
@@ -277,6 +283,16 @@ class Command(BaseCommand):
             self.show_error(f"failed create organization for biz_id {biz_id}: {resp.json()}")
             self.record_error(failed_biz, biz_id, f"failed create organization: {resp.json()}")
             return None
+
+    def update_template_datasource(self, template, bk_log_datasource_uid):
+        """更新模板变量的数据源信息"""
+        datasource_config = {
+            "type": "bk_log_datasource",
+            "uid": bk_log_datasource_uid,
+        }
+
+        if "datasource" in template:
+            template["datasource"] = datasource_config
 
     def update_panel_datasource(self, panel, bk_log_datasource_uid):
         """为单一面板更新数据源信息"""
@@ -355,47 +371,46 @@ class Command(BaseCommand):
         folder_title = folder["folder_title"]
         parent_uid = folder.get("parent_uid", None)
 
-        if folder_title != "General":
-            resp = grafana_client.create_folder(org_id, folder_title, parent_uid, grafana_url)
-            if resp.status_code == 200:
-                folder_uid = resp.json()["uid"]
+        if folder_title == "General":
+            folder_title = "[bklog] 迁移目录"
+
+        resp = grafana_client.create_folder(org_id, folder_title, parent_uid, grafana_url)
+        if resp.status_code == 200:
+            folder_uid = resp.json()["uid"]
+            self.stdout.write(f"create folder success in org {org_id} with folder_title {folder_title}")
+            return folder_title, folder_uid
+        elif not folder_title.endswith("_bklog") and f"{folder_title}_bklog" not in all_folders:
+            folder_title = folder_title + "_bklog"
+            resp_copy = grafana_client.create_folder(org_id, folder_title, parent_uid, grafana_url)
+            if resp_copy.status_code == 200:
+                folder_uid = resp_copy.json()["uid"]
                 self.stdout.write(f"create folder success in org {org_id} with folder_title {folder_title}")
                 return folder_title, folder_uid
-            elif not folder_title.endswith("_bklog") and f"{folder_title}_bklog" not in all_folders:
-                folder_title = folder_title + "_bklog"
-                resp_copy = grafana_client.create_folder(org_id, folder_title, parent_uid, grafana_url)
-                if resp_copy.status_code == 200:
-                    folder_uid = resp_copy.json()["uid"]
-                    self.stdout.write(f"create folder success in org {org_id} with folder_title {folder_title}")
-                    return folder_title, folder_uid
-                else:
-                    self.show_error(
-                        f"create folder failed in org {org_id} with folder_title {folder_title}: {resp_copy.json()}"
-                    )
-                    self.record_error(failed_biz, biz_id, f"create folder failed: {resp_copy.json()}")
-                    return "", None
             else:
                 self.show_error(
-                    f"folder_title {folder_title} and {folder_title}_bklog both already exists in org {org_id}"
+                    f"create folder failed in org {org_id} with folder_title {folder_title}: {resp_copy.json()}"
                 )
-                self.record_error(
-                    failed_biz,
-                    biz_id,
-                    f"folder_title {folder_title} and {folder_title}_bklog both already exists in org {org_id}",
-                )
+                self.record_error(failed_biz, biz_id, f"create folder failed: {resp_copy.json()}")
                 return "", None
         else:
-            general_id = "1"
-            # General 文件夹无 uid, 只有固定的 id 1
-            return "General", general_id
+            self.show_error(f"folder_title {folder_title} and {folder_title}_bklog both already exists in org {org_id}")
+            self.record_error(
+                failed_biz,
+                biz_id,
+                f"folder_title {folder_title} and {folder_title}_bklog both already exists in org {org_id}",
+            )
+            return "", None
 
     def create_dashboard(self, grafana_url, biz_id, org_id, dashboard, folder_title, folder_uid, failed_biz):
         """创建仪表盘"""
         dashboard_info = {
-            "title": dashboard["dashboard_title"],
+            "title": f"[bklog] {dashboard['dashboard_title']}",
             "tags": dashboard["tags"],
             "timezone": dashboard["timezone"],
             "refresh": dashboard["refresh"],
+            "templating": dashboard["templating"],
+            "time": dashboard["time"],
+            "timepicker": dashboard["timepicker"],
         }
         resp = grafana_client.create_dashboard(org_id, dashboard_info, dashboard["panels"], folder_uid, grafana_url)
         if resp.status_code == 200:
