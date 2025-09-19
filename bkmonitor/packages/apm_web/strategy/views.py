@@ -66,9 +66,8 @@ class StrategyTemplateViewSet(GenericViewSet):
         return Response({})
 
     def update(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response(mock_data.CALLEE_SUCCESS_RATE_STRATEGY_TEMPLATE)
-        return Response({})
+        instance = self.serializer_class().update(self.get_object(), self.query_data)
+        return Response(self.serializer_class(instance).data)
 
     def _filter_by_conditions(
         self, queryset: QuerySet[StrategyTemplate], conditions: list[dict[str, Any]]
