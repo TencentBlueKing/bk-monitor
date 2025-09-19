@@ -40,11 +40,11 @@ import type {
   AlarmTemplateBatchUpdateParams,
   AlarmTemplateDestroyParams,
   AlarmTemplateListItem,
+  AlarmTemplateOptionsItem,
   GetAlarmTemplateOptionsParams,
 } from '../typing';
 
 /**
- *
  * @description
  * 处理告警模板列表接口返回数据
  * 由于告警模板接口直接返回的数据是没有 alert_number 关联告警数字段的，需要另外请求接口异步获取
@@ -67,8 +67,8 @@ const formatTemplateList = (
 
 /**
  * @description 请求错误时消息提示处理逻辑（ cancel 类型报错不进行提示）
- * @param err
- *
+ * @param err 错误对象
+ * @returns {boolean} 是否是由中止控制器中止导致的错误
  */
 const requestErrorMessage = err => {
   const message = makeMessage(err.error_details || err.message);
@@ -84,7 +84,10 @@ const requestErrorMessage = err => {
 /**
  * @description 获取告警模板列表
  * @param {AlarmListRequestParams} 告警参数
- * @returns {AlarmTemplateListItem[]} 告警模板列表数据
+ * @param {RequestConfig} 请求配置(选填)
+ * @returns {Number} result.total 告警模板总数
+ * @returns {AlarmTemplateListItem[]} result.templateList 告警模板列表数据
+ * @returns {boolean} result.isAborted 是否由中止控制器中止
  */
 export const fetchAlarmTemplateList = async (param: AlarmListRequestParams, requestConfig = {}) => {
   const config = { needMessage: false, ...requestConfig };
@@ -99,7 +102,12 @@ export const fetchAlarmTemplateList = async (param: AlarmListRequestParams, requ
       list: [] as AlarmTemplateListItem[],
     };
   });
+  // 1.转换数据结构，增加 alert_number 字段，用于存放关联告警数（兼容 vue2 响应式机制，提前预设好属性）
+  // 2. 获取需要获取关联告警数的 id 数组
   const ids = formatTemplateList(templateList);
+  // 判断需要获取关联告警数的 id 长度是否为 0 || 是否由中止控制器中止导致的错误
+  // => true 不执行以下逻辑
+  // => false 执行以下逻辑
   if (ids?.length && !isAborted) {
     fetchAlarmTemplateAlarmNumber({ ids, app_name: param.app_name, need_strategies: false }, requestConfig).then(
       res => {
@@ -117,8 +125,10 @@ export const fetchAlarmTemplateList = async (param: AlarmListRequestParams, requ
 
 /**
  * @description 获取告警模板关联告警数量
- * @param {AlarmTemplateAlertRequestParams} 告警参数
- * @returns {number} 关联数量
+ * @param {AlarmTemplateAlertRequestParams} 请求 告警模板关联告警数量 接口参数
+ * @param {RequestConfig} 请求配置(选填)
+ * @returns {AlarmTemplateAlertsItem[]} result.list 告警模板关联告警数量信息数组
+ * @returns {boolean} result.isAborted 是否由中止控制器中止
  */
 export const fetchAlarmTemplateAlarmNumber = async (param: AlarmTemplateAlertRequestParams, requestConfig = {}) => {
   const config = { needMessage: false, ...requestConfig };
@@ -132,7 +142,7 @@ export const fetchAlarmTemplateAlarmNumber = async (param: AlarmTemplateAlertReq
 
 /**
  * @description 删除告警模板
- * @param {string} id 告警模板 id
+ * @param {AlarmTemplateDestroyParams} 删除接口所需参数
  */
 export const destroyAlarmTemplateById = async (params: AlarmTemplateDestroyParams) => {
   return destroyStrategyTemplate(params);
@@ -149,7 +159,8 @@ export const updateAlarmTemplateByIds = async (params: AlarmTemplateBatchUpdateP
 /**
  * @description 获取告警模板候选项值
  * @param {GetAlarmTemplateOptionsParams}
+ * @returns {Record<string, AlarmTemplateOptionsItem>} 告警模板候选项值
  */
 export const getSelectOptions = async (params: GetAlarmTemplateOptionsParams) => {
-  return optionValuesStrategyTemplate(params);
+  return optionValuesStrategyTemplate<Record<string, AlarmTemplateOptionsItem>>(params);
 };
