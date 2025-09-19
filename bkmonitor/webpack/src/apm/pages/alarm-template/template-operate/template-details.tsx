@@ -31,14 +31,18 @@ import { alertsStrategyTemplate } from 'monitor-api/modules/model';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 
 import EditTemplateSlider from '../components/template-form/edit-template-slider';
+import TemplateFormDetail from '../components/template-form/template-form-detail';
+import { getAlarmTemplateDetail } from '../service';
 import AlertServiceTable from './alert-service-table';
 import TemplatePush from './template-push';
 
 import type { IAlertStrategiesItem, IStrategiesItem } from './typings';
+import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
 
 import './template-details.scss';
 
 interface IProps {
+  metricFunctions?: any[];
   params?: Record<string, any>;
   show?: boolean;
   onShowChange?: (v: boolean) => void;
@@ -47,6 +51,7 @@ interface IProps {
 @Component
 export default class TemplateDetails extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
+  @Prop({ default: () => [] }) metricFunctions!: any[];
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
 
   tabList = [
@@ -60,6 +65,10 @@ export default class TemplateDetails extends tsc<IProps> {
     },
   ];
   tabActive = 'basic';
+
+  templateDetail = null;
+
+  variablesList: VariableModelType[] = [];
 
   templatePush = {
     show: false,
@@ -76,6 +85,7 @@ export default class TemplateDetails extends tsc<IProps> {
   handleWatchShowChange(v: boolean) {
     if (v) {
       this.getAlertsStrategyTemplate();
+      this.getAlarmTemplateDetail();
     }
   }
 
@@ -102,6 +112,13 @@ export default class TemplateDetails extends tsc<IProps> {
     }).then(data => {
       this.alertStrategies = data?.list || [];
       this.getStrategies();
+    });
+  }
+
+  getAlarmTemplateDetail() {
+    getAlarmTemplateDetail({ id: this.params?.ids?.[0], app_name: this.params?.app_name }).then(data => {
+      this.templateDetail = data.detailData;
+      this.variablesList = data?.variablesList || [];
     });
   }
 
@@ -141,7 +158,13 @@ export default class TemplateDetails extends tsc<IProps> {
     const tabContent = () => {
       switch (this.tabActive) {
         case 'basic':
-          return <div>基本信息</div>;
+          return (
+            <TemplateFormDetail
+              data={this.templateDetail}
+              metricFunctions={this.metricFunctions}
+              variablesList={this.variablesList}
+            />
+          );
         case 'service':
           return (
             <div class='relation-service-alarm'>
