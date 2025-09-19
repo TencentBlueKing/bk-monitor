@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@blueking/fork-resize-detector": "^0.0.2",
-    "dayjs": "^1.11.13",
+    "dayjs": "^1.11.18",
     "deepmerge": "^4.3.1",
     "monitor-common": "workspace:*",
     "monitor-static": "workspace:*",

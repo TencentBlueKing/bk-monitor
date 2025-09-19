@@ -33,7 +33,7 @@
     "d3-selection": "^3.0.0",
     "d3-shape": "^3.2.0",
     "d3-transition": "^3.0.1",
-    "dayjs": "^1.11.13",
+    "dayjs": "^1.11.18",
     "deepmerge": "^4.3.1",
     "echarts": "^5.6.0",
     "html-to-image": "^1.11.13",
