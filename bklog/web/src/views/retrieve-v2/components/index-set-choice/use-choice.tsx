@@ -31,6 +31,16 @@ import { messageError, messageSuccess } from '@/common/bkmagic';
 import $http from '../../../../api';
 export type IndexSetType = 'single' | 'union';
 export type IndexSetTabList = 'favorite' | 'history' | 'single' | 'union';
+export type TagItem = {
+  tag_id: number;
+  tag_name: string;
+};
+export type IndexSetItem = {
+  [key: string]: TagItem[] | boolean | number | string;
+  index_set_id: string;
+  unique_id: string;
+  tags: TagItem[];
+};
 
 export default (props, { emit }) => {
   const historyLoading = ref(false);
@@ -246,11 +256,11 @@ export default (props, { emit }) => {
    * @description 该方法用于在单选情况下设置索引集的收藏状态
    */
   const setSingleFavorite = (id: string, is_favorite = false) => {
-    const target = props.list.find(item => item.index_set_id === id);
+    const target = props.list.find(item => (item.unique_id ?? item.index_set_id) === id);
     if (target) {
       set(target, 'is_favorite', is_favorite);
       if (target.parent_node) {
-        const sourceNode = target.parent_node.children.find(child => child.index_set_id === id);
+        const sourceNode = target.parent_node.children.find(child => (child.unique_id ?? child.index_set_id) === id);
         if (sourceNode) {
           set(sourceNode, 'is_favorite', is_favorite);
         }
@@ -298,11 +308,11 @@ export default (props, { emit }) => {
         .then(resp => {
           if (resp.result) {
             if (from === 'single') {
-              setSingleFavorite(favorite.index_set_id, false);
+              setSingleFavorite(favorite.unique_id ?? favorite.index_set_id, false);
             }
 
             if (from === 'favorite') {
-              setSingleFavorite(favorite.index_set_id, false);
+              setSingleFavorite(favorite.unique_id ?? favorite.index_set_id, false);
             }
             return;
           }
@@ -365,7 +375,7 @@ export default (props, { emit }) => {
         },
       })
       .then(() => {
-        setSingleFavorite(item.index_set_id, true);
+        setSingleFavorite(item.unique_id ?? item.index_set_id, true);
       });
   };
 

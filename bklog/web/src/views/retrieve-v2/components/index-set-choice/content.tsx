@@ -36,7 +36,7 @@ import CommonList from './common-list';
 // #code const CommonList = () => null;
 // #endif
 import IndexSetList from './index-set-list';
-import useChoice, { type IndexSetType } from './use-choice';
+import useChoice, { IndexSetItem, type IndexSetType } from './use-choice';
 
 import './content.scss';
 
@@ -55,7 +55,7 @@ export default defineComponent({
       default: 'single',
     },
     value: {
-      type: Array,
+      type: Array as PropType<IndexSetItem[]>,
       default: () => [],
     },
     textDir: {
@@ -110,11 +110,9 @@ export default defineComponent({
         if (props.value.length > 1) {
           return [];
         }
-
-        return (props.value ?? []).map((t: any) => t.unique_id ?? t.index_set_id);
       }
 
-      return unionListValue.value;
+      return props.value;
     });
 
     const handleFavoriteItemClick = favorite => {

@@ -30,6 +30,7 @@ import useLocale from '@/hooks/use-locale';
 
 import * as authorityMap from '../../../../common/authority-map';
 import BklogPopover from '../../../../components/bklog-popover';
+import { IndexSetItem } from './use-choice';
 import useIndexSetList from './use-index-set-list';
 
 import './index-set-list.scss';
@@ -45,7 +46,7 @@ export default defineComponent({
       default: 'single',
     },
     value: {
-      type: Array as PropType<string[]>,
+      type: Array as PropType<IndexSetItem[]>,
       default: () => [],
     },
     textDir: {
@@ -82,17 +83,15 @@ export default defineComponent({
       color: undefined,
     });
 
-    const isIncludesItem = (item: any) => {
+    const isIncludesItem = (item: IndexSetItem) => {
       return props.value.some(v => {
-        if (v.startsWith('#_') && !item.unique_id.startsWith('#_')) {
-          return v === `#_${item.index_set_id}`;
+        if (v.unique_id.startsWith('#_') && !item.unique_id.startsWith('#_')) {
+          return v.unique_id === `#_${item.index_set_id}`;
         }
 
-        return v === item.unique_id;
+        return v.unique_id === item.unique_id;
       });
     };
-
-    const valueList = computed(() => props.list.filter(isIncludesItem));
 
     const formatList = computed(() => {
       const filterFn = node => {
@@ -103,7 +102,7 @@ export default defineComponent({
         );
       };
       // 检查节点是否应该显示
-      const checkNodeShouldShow = (node: any, defaultIsShown = true) => {
+      const checkNodeShouldShow = (node: IndexSetItem, defaultIsShown = true) => {
         // 如果当前节点在选中列表中，直接返回 true
         if (isIncludesItem(node) && searchText.value.length === 0) {
           return true;
@@ -249,8 +248,6 @@ export default defineComponent({
      * @param e
      * @param item
      */
-
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const handleIndexSetItemClick = (_e: MouseEvent, item: any, is_root_checked = false) => {
       if (!item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
         return;
@@ -599,7 +596,7 @@ export default defineComponent({
               )}
             </div>
             <div class='row-item-list'>
-              {valueList.value.map((item: any, index: number) => (
+              {props.value.map((item: any, index: number) => (
                 <span
                   key={`${item.unique_id}-${index}`}
                   class='row-value-item'
