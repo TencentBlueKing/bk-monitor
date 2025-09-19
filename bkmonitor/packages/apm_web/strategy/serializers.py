@@ -112,8 +112,6 @@ class StrategyTemplateCheckRequestSerializer(BaseAppStrategyTemplateRequestSeria
 
 
 class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
-    is_mock = serializers.BooleanField(label=_("是否为 mock 数据"), default=False)
-
     class ConditionSerializer(serializers.Serializer):
         FIELD_TYPE_VALIDATION_RULES = [
             {

@@ -111,13 +111,6 @@ class StrategyTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateSearchRequestSerializer)
     def search(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response(
-                {
-                    "total": 1,
-                    "list": mock_data.STRATEGY_TEMPLATE_LIST,
-                }
-            )
         queryset = self._filter_by_conditions(self.get_queryset(), self.query_data["conditions"])
         total = queryset.count()
         if self.query_data["simple"]:
