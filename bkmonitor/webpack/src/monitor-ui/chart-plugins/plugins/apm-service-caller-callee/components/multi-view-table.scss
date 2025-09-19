@@ -59,6 +59,18 @@
     }
   }
 
+  .tab-row-icon {
+    flex-shrink: 0;
+    display: none;
+    font-size: 13px;
+    color: #63656e;
+    margin-left: 6px;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
   .multi-view-table,
   .multi-view-tab-table {
     .hover-row {
@@ -124,18 +136,6 @@
       }
     }
 
-    .tab-row-icon {
-      flex-shrink: 0;
-      display: none;
-      font-size: 13px;
-      color: #63656e;
-      margin-left: 6px;
-
-      &:hover {
-        color: #3a84ff;
-      }
-    }
-
     .multi-view-table-txt {
       color: #63656e;
 
@@ -162,6 +162,7 @@
     .multi-view-table-link {
       position: relative;
       display: flex;
+      align-items: center;
       width: 100%;
       color: #3a84ff;
       cursor: pointer;
@@ -185,7 +186,7 @@
 
       .remark-text {
         margin-left: 8px;
-        color: #979BA5;
+        color: #979ba5;
       }
     }
 
@@ -217,8 +218,8 @@
     width: 640px;
     height: 48px;
     padding-left: 24px;
-    background: #ffffff;
-    box-shadow: 0px 1px 1px 2px rgba(0, 0, 0, 0.05);
+    background: #fff;
+    box-shadow: 0 1px 1px 2px rgb(0 0 0 / 5%);
 
     .filter-title {
       margin-right: 12px;
@@ -323,7 +324,7 @@
     }
 
     .monitor-chart-tooltips {
-      background: #000000cc;
+      background: #000c;
     }
 
     .chart-base {

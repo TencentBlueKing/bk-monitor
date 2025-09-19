@@ -29,8 +29,6 @@ from constants.alert import EventTargetType
 from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.translator import AbstractTranslator
-from fta_web.alert.utils import process_metric_string, process_stage_string, is_include_promql, strip_outer_quotes
-import re
 
 
 class QueryField:
@@ -129,7 +127,12 @@ class BaseQueryTransformer(BaseTreeTransformer):
 
             context.update({"search_field_name": node.name, "search_field_origin_name": origin_node_name})
 
-            yield from self.generic_visit(node, context)
+            # 忽略ignore_generic_visit时，直接返回node,context
+            # 这样做是为了方便子类可以调用当前类的visit_search_field方法，并获取到node,context
+            if context.get("ignore_generic_visit", False):
+                yield node, context
+            else:
+                yield from self.generic_visit(node, context)
 
     @classmethod
     def transform_query_string(cls, query_string: str, context=None):
@@ -143,10 +146,6 @@ class BaseQueryTransformer(BaseTreeTransformer):
         if not query_string:
             return ""
         transform_obj = cls()
-
-        if is_include_promql(query_string):
-            # 包含promql语句，可能会报语法错误，需要尝试转换
-            query_string = cls.convert_metric_id(query_string)
         query_tree = parse_query_string_node(transform_obj, query_string, context)
 
         if getattr(transform_obj, "has_nested_field", False) and cls.doc_cls:
@@ -160,77 +159,6 @@ class BaseQueryTransformer(BaseTreeTransformer):
         query_tree = auto_head_tail(query_tree)
 
         return str(query_tree)
-
-    @classmethod
-    def convert_metric_id(cls, query_string: str) -> str:
-        """
-        当指定了指标ID时，且指标ID值是一个promql，比如"sum(sum_over_time({__name__="custom::bk_apm_count"}[1m])) or vector(0)"
-        此时需要对指标ID进行转义，并在前后加上“*”，用于支持模糊查询
-
-        '+ - = && || > < ! ( ) { } [ ] ^ " ~ * ? : \ /' 字符串在query string中具有特殊含义，需要转义
-        参考文档： https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-query-string-query
-        """
-
-        def convert_metric(match):
-            value = match.group(0)
-            value = strip_outer_quotes(value.split(":", 1)[1])
-
-            value = re.sub(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])', lambda match: "\\" + match.group(0), value.strip())
-
-            # 给value前后加上“*”，用于支持模糊匹配
-            if not value.startswith("*"):
-                value = "*" + value
-            if not value.endswith("*"):
-                value = value + "*"
-            return f"{target_type} : {value}"
-
-        def add_quote(match):
-            value = match.group("value")
-            value = f'"{value}"' if value else value
-            return f"{target_type} : {value}"
-
-        target_type = "指标ID"
-
-        # 如果匹配上，则指标ID是被截断过的
-        if re.match(r'(指标ID|event.metric)\s*:.*\.{3}"', query_string, flags=re.IGNORECASE):
-            query_string = re.sub(
-                r'(指标ID|event.metric)\s*:.*\.{3}"', convert_metric, query_string, flags=re.IGNORECASE
-            )
-            return query_string
-
-        # 指标ID: "sum(sum_over_time({__name__=\"custom::bk_apm_count\"}[1m])) or vector(0)"
-        # 匹配需要被转义的promql语句，是根据`指标ID:"{promql}"`的格式进行匹配
-        #  - 如果promql本身就已经具有引号，会导致匹配失败，需要到promql中的引号提前处理，这里是将其转为“#”号。
-        #  - 如果指标格式为`指标ID:{promql}`，也会匹配失败，需要转变为`指标ID:"{promql}"`
-        query_string = cls.process_label_filter(query_string)
-        query_string = re.sub(
-            r'(指标ID|event.metric)\s*:\s*(?P<value>[^\s+\'"]*)', add_quote, query_string, re.IGNORECASE
-        )
-        query_string = re.sub(
-            r'(指标ID|event.metric)\s*:\s*("[^"]*"*|\'[^\']*\'*)', convert_metric, query_string, re.IGNORECASE
-        )
-
-        # 还原process_label_filter函数中处理的双引号，并做转义
-        query_string = query_string.replace("###", r"\~\"")
-        query_string = query_string.replace("##", r"\=\"")
-        query_string = query_string.replace("#", r"\"")
-
-        return query_string
-
-    @classmethod
-    def process_label_filter(cls, query_string: str) -> str:
-        """处理promql语句中的过滤条件，对双引号进行提前处理，否则会导致转义失败"""
-
-        def replace(match):
-            value = match.group(0)
-            # 将{__name__="custom::bk_apm_count"}[1m]) 替换为 {__name__##custom::bk_apm_count#}
-            value = value.replace('~"', "###").replace('="', "##").replace('"', "#")
-            return value
-
-        # 匹配promql中的过滤条件,比如：{__name__="custom::bk_apm_count"}
-        pattern = r"\{.*(=|~).*\}"
-        query_string = re.sub(pattern, replace, query_string)
-        return query_string
 
     @classmethod
     def get_field_info(cls, field: str) -> QueryField | None:
@@ -375,8 +303,6 @@ class BaseQueryHandler:
         处理 query_string
         """
         query_string = self.query_string if query_string is None else query_string
-        query_string = process_stage_string(query_string)
-        query_string = process_metric_string(query_string)
 
         if query_string.strip():
             query_dsl = self.query_transformer.transform_query_string(query_string, context)
@@ -595,7 +521,9 @@ class BaseQueryHandler:
             agg_field = self.query_transformer.transform_field_to_es_field(actual_field, for_agg=True)
             search_object.bucket(f"{field}{bucket_count_suffix}", "cardinality", field=agg_field)
 
-    def top_n(self, fields: list, size=10, translators: dict[str, AbstractTranslator] = None, char_add_quotes=True):
+    def top_n(
+        self, fields: list, size=10, translators: dict[str, AbstractTranslator] = None, char_add_quotes=True
+    ) -> dict:
         """
         字段值 TOP N 统计
         :param fields: 需要统计的字段，"+abc" 为升序排列，"-abc" 为降序排列，默认降序排列

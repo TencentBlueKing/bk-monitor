@@ -101,6 +101,7 @@ StrategySchema = Schema(
             r"\d{2}:\d{2} *-- *\d{2}:\d{2}(,\d{2}:\d{2} *-- *\d{2}:\d{2})*"
         ),
         Optional("priority", default=None): Or(And(int, lambda p: 10000 >= p >= 0), None),
+        "priority_group_key": str,
         Optional("active_calendars", default=lambda: []): [int],  # deprecated
         Optional("calendars", default=lambda: {"active": [], "not_active": []}): dict,
         "query": QuerySchema({}),

@@ -568,6 +568,10 @@ const store = new Vuex.Store({
               : [defaultTag],
         };
       });
+
+      const demoId = String(window.DEMO_BIZ_ID);
+      const demoProject = spaceList.find(item => `${item.bk_biz_id}` === demoId);
+      state.demoUid = demoProject ? demoProject.space_uid : '';
     },
     updateUnionIndexList(state, unionIndexList) {
       const updateIndexItem = unionIndexList.updateIndexItem ?? true;

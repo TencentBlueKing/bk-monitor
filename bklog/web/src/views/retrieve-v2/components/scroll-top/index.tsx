@@ -28,8 +28,8 @@ import { computed, defineComponent, ref } from 'vue';
 import { getTargetElement } from '@/hooks/hooks-helper';
 import useLocale from '@/hooks/use-locale';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
-import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 
 import './index.scss';
 
@@ -41,6 +41,7 @@ export default defineComponent({
     const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
 
     const { addEvent } = useRetrieveEvent();
+
     addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
       if (event.target) {
         offsetTop.value = (event.target as HTMLElement).scrollTop;

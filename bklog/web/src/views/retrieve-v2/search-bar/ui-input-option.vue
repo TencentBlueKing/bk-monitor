@@ -251,8 +251,8 @@
         return Object.assign({}, item, {
           first_name: item.query_alias || item.field_name,
           last_name: item.field_name,
-          matchIndex: fullText.indexOf(searchText),
-          matchType: fullText === searchText ? 2 : 1,
+          matchIndex: item.field_name === '*' ? 0 : fullText.indexOf(searchText),
+          matchType: item.field_name === '*' ? 2 : fullText === searchText ? 2 : 1,
         });
       }
      

@@ -15,7 +15,6 @@ from django.conf import settings
 from kafka import KafkaConsumer, TopicPartition
 
 from alarm_backends.core.cache.key import REAL_TIME_HOST_TOPIC_KEY
-from alarm_backends.core.storage.redis import Cache
 from alarm_backends.management.story.base import (
     BaseStory,
     CheckStep,
@@ -77,8 +76,8 @@ class RealTimeTopicStatus(CheckStep):
 
     def check(self):
         threshold = 10000
-        cache = Cache("service")
-        ip_topics = cache.hgetall(REAL_TIME_HOST_TOPIC_KEY.get_key())
+        client = REAL_TIME_HOST_TOPIC_KEY.client
+        ip_topics = client.hgetall(REAL_TIME_HOST_TOPIC_KEY.get_key())
         topics = []
         for value in ip_topics.values():
             topics.extend(json.loads(value).keys())

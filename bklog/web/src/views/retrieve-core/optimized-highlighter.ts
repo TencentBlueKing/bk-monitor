@@ -286,7 +286,7 @@ export default class OptimizedHighlighter {
       const chunkId = Number.parseInt(wrapper.dataset.chunkId, 10);
 
       if (chunkId === -1) {
-        return;
+        continue;
       }
 
       if (entry.isIntersecting) {
@@ -335,7 +335,10 @@ export default class OptimizedHighlighter {
 
   private instanceExecMark(instance: Mark, resolve?: () => void): void {
     if (this.regExpMark) {
-      const regList = this.markKeywords.map(keyword => StaticUtil.getRegExp(keyword, this.caseSensitive ? 'g' : 'gi'));
+      const flag = this.caseSensitive ? 'g' : 'gi';
+      const fullMatch = this.accuracy === 'exactly';
+      const formatRegStr = false;
+      const regList = this.markKeywords.map(keyword => StaticUtil.getRegExp(keyword, flag, fullMatch, formatRegStr));
       instance.markRegExp(regList[0], {
         element: 'mark',
         exclude: ['mark'],

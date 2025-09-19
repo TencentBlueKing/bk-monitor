@@ -97,8 +97,8 @@ class MonitorEventDelayCheck(CheckStep):
     name = "check AlertPoller delay"
 
     def check(self):
-        cache = Cache("service")
-        ip_topics = cache.hgetall(ALERT_HOST_DATA_ID_KEY.get_key())
+        client = ALERT_HOST_DATA_ID_KEY.client
+        ip_topics = client.hgetall(ALERT_HOST_DATA_ID_KEY.get_key())
         topics = []
         for value in ip_topics.values():
             topics.extend(json.loads(value))

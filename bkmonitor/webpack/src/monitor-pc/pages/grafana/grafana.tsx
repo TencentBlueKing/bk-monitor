@@ -153,7 +153,15 @@ export default class MyComponent extends tsc<object> {
       ...paramsToObject(new URLSearchParams(location.search)),
     })
       .filter(([key]) => !['orgName', 'orgId'].includes(key)) // 移除 orgName/orgId 参数
-      .map(entry => entry.join('='))
+      .map(([key, value]) => {
+        if (Array.isArray(value)) {
+          return value
+            .filter(Boolean)
+            .map(item => `${key}=${item}`)
+            .join('&');
+        }
+        return `${key}=${value}`;
+      })
       .join('&');
     if (str.length) return `&${str}`;
     return '';

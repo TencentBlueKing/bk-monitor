@@ -7,6 +7,9 @@
     display: flex;
     flex-direction: column;
     margin-bottom: 20px;
+    padding: 0 0 0 1px;
+    max-height: 500px;
+    overflow-y: auto;
     &.m0 {
       margin-bottom: 0;
     }
@@ -57,6 +60,13 @@
 
     &.left-custom::after {
       left: 93.7%;
+    }
+
+    .bk-tag {
+      max-width: 448px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .item-label {
@@ -122,11 +132,23 @@
           position: relative;
           top: 3px;
         }
+
+        &.column-item-select {
+          margin: 6px 0;
+          .column-label {
+            padding-top: 5px;
+          }
+        }
       }
       .column-label {
-        min-width: 70px;
+        // min-width: 70px;
+        flex-shrink: 0;
+        // 修改宽度要注意调整屏蔽选择宽度计算方式（src\fta-solutions\pages\event\event-detail\quick-shield.tsx内的函数：targetOverviewCount函数）
+        width: 70px;
         text-align: right;
         margin-right: 7px;
+        word-wrap: break-word;
+        word-break: break-all;
 
         &.is-special {
           padding-top: 5px;
@@ -167,9 +189,11 @@
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          margin: 2px 0;
           width: 22px;
           height: 22px;
           overflow: hidden;
+          vertical-align: top;
           cursor: pointer;
 
           .icon-bianji {
@@ -181,10 +205,21 @@
           & + .reset {
             margin-left: 12px;
           }
+
+          &.is-hidden {
+            visibility: hidden;
+          }
+
+          &.is-absolute {
+            position: absolute;
+            right: -4px;
+            top: 1px;
+          }
         }
       }
     }
     .item-tips {
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       font-size: 12px;
@@ -215,6 +250,49 @@
   .bk-dialog-wrapper .bk-dialog-body {
     padding: 1px 24px 4px;
   }
+
+  .shield-radio-item {
+    display: flex;
+    align-items: center;
+    line-height: 26px;
+    & + .shield-radio-item {
+      margin-top: 5px;
+    }
+
+    input[type=radio] {
+      flex-shrink: 0;
+      margin-right: 6px;
+    }
+
+    .shield-radio-content {
+      position: relative;
+      margin-left: 15px;
+      // margin-right: -15px;
+      padding-right: 15px;
+      display: inline-block;
+      vertical-align: middle;
+      max-width: 530px;
+      height: 30px;
+      overflow: hidden;
+    }
+
+    .hide-count {
+      margin: 2px 6px 2px 0;
+      display: inline-block;
+      vertical-align: top;
+      width: 32px;
+      height: 22px;
+      text-align: center;
+      line-height: 22px;
+      border: 1px solid #DCDEE5;
+      background-color: #fff;
+      & ~ .bk-tag {
+        display: none;
+      }
+    }
+  }
+  
+  
 }
 .quick-shield-dialog {
   .monitor-dialog {

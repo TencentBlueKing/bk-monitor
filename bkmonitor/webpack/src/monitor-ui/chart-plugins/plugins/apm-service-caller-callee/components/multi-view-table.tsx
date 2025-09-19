@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import { simpleServiceList } from 'monitor-api/modules/apm_meta';
 import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
+import { getCodeRemarks } from 'monitor-api/modules/apm_service';
 import { copyText } from 'monitor-common/utils/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -37,6 +38,8 @@ import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-p
 
 import { CHART_TYPE, TAB_TABLE_TYPE } from '../utils';
 import { formatDateRange } from '../utils';
+import CodeRedefineSlider from './code/code-redefine-slider';
+import CodeRemarksDialog from './code/code-remarks-dialog';
 import TabBtnGroup from './tab-btn-group';
 
 import type { PanelModel } from '../../../typings';
@@ -44,9 +47,6 @@ import type { CallOptions, DimensionItem, IColumn, IDataItem, IDimensionChartOpt
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './multi-view-table.scss';
-import CodeRedefineSlider from './code/code-redefine-slider';
-import CodeRemarksDialog from './code/code-remarks-dialog';
-import { getCodeRemarks } from 'monitor-api/modules/apm_service';
 
 interface IMultiViewTableEvent {
   onDimensionKeyChange?: (key: string) => void;
@@ -277,8 +277,8 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   mounted() {
     TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
     setTimeout(() => {
-      this.getServiceList()
-      this.getCodeRemarks()
+      this.getServiceList();
+      this.getCodeRemarks();
     });
     window.addEventListener('resize', this.handleResize);
   }
@@ -431,7 +431,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.handleRawCallOptionsChange();
   }
 
-  handleDimension(row, key) {
+  handleDimension(_row, key) {
     this.isShowDimension = true;
     this.drillFilterData = [];
     this.drillGroupBy = [];
@@ -581,7 +581,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       service_name: this.serviceName,
       kind: this.currentKind,
     }).catch(() => ({}));
-    this.codeRemarks = data
+    this.codeRemarks = data;
   }
 
   handleCodeRemarksSuccess() {
@@ -630,7 +630,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     const remark = this.codeRemarks[data[item.value]];
     return (
       <span
-        class={['multi-view-table-link', 'code-column', { 'block-link': data?.isTotal || item.value === 'time' || !data[item.value] }]}
+        class={[
+          'multi-view-table-link',
+          'code-column',
+          { 'block-link': data?.isTotal || item.value === 'time' || !data[item.value] },
+        ]}
       >
         <span
           class='item-txt'
@@ -642,18 +646,21 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         {remark && <span class='remark-text'>{remark}</span>}
         {!data?.isTotal && data[item.value] && (
           <i
+            v-bk-tooltips={{content: this.$t('复制')}}
             class='icon-monitor icon-mc-copy tab-row-icon'
             onClick={() => this.copyValue(data[item.value])}
           />
         )}
         {data[item.value] && (
           <i
+            v-bk-tooltips={{content: this.$t('返回码重定义')}}
             class='icon-monitor icon-zhongdingyi tab-row-icon'
             onClick={this.handleCodeRedefine}
           />
         )}
         {data[item.value] && (
           <i
+            v-bk-tooltips={{content: this.$t('备注')}}
             class='icon-monitor icon-beizhu1 tab-row-icon'
             onClick={() => this.handleEditCodeRemark(data[item.value])}
           />
@@ -844,6 +851,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     </span>
                     {!a.row?.isTotal && a.row[item.value] && (
                       <i
+                        v-bk-tooltips={{content: this.$tc('复制')}}
                         class='icon-monitor icon-mc-copy tab-row-icon'
                         onClick={() => this.copyValue(a.row[item.value])}
                       />
@@ -882,7 +890,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     return value;
   }
 
-  renderHeader(h, { column }: any, item: any) {
+  renderHeader(_h, { column }: any, item: any) {
     const { pointTime } = this.dimensionParam;
     let tips = this.timeStrShow[item.prop.slice(-2)];
     if (pointTime?.startTime) {
@@ -911,7 +919,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         </span>
         {!hasPrefix(item.prop) && (
           <i
-            class='icon-monitor icon-bingtu tab-row-icon'
+            class='icon-monitor icon-bingtu'
             onClick={e => {
               e.stopPropagation();
               this.handleDimension(column, item.prop);
@@ -1033,8 +1041,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       this.drillGroupBy.splice(ind, 1);
     }
     this.drillGroupBy.push(dimensionKey);
-
-    Object.keys(dimensions || {}).map(key => {
+    for (const key of Object.keys(dimensions || {})) {
       const ind = this.drillFilterData.findIndex(item => item.key === key);
       /** 图表下钻带有时间特殊处理 */
       if (key === 'time') {
@@ -1050,7 +1057,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           value: [dimensions[key]],
         });
       }
-    });
+    }
     this.dimensionChartOpt.drillFilterData = this.drillFilterData.filter(item => item.key !== 'time');
     this.dimensionChartOpt.drillGroupBy = this.drillGroupBy;
   }
@@ -1293,26 +1300,26 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         </bk-dialog>
 
         <CodeRedefineSlider
+          appName={this.appName}
+          callOptions={this.callOptions}
           isShow={this.codeRedefineShow}
+          service={this.serviceName}
+          type={this.currentKind}
+          variablesData={this.variablesData}
           onShowChange={show => {
             this.codeRedefineShow = show;
           }}
-          type={this.currentKind}
-          appName={this.appName}
-          callOptions={this.callOptions}
-          variablesData={this.variablesData}
-          service={this.serviceName}
         />
 
         <CodeRemarksDialog
-          isShow={this.codeRemarksShow}
-          code={this.code}
-          value={this.codeRemarks[this.code]}
           params={{
             app_name: this.appName,
             service_name: this.serviceName,
-            kind: this.currentKind
+            kind: this.currentKind,
           }}
+          code={this.code}
+          isShow={this.codeRemarksShow}
+          value={this.codeRemarks[this.code]}
           onShowChange={show => {
             this.codeRemarksShow = show;
           }}
