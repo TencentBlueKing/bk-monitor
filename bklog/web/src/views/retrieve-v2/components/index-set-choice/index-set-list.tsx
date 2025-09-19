@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, set } from 'vue';
+import { computed, defineComponent, PropType, ref, set } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -45,7 +45,7 @@ export default defineComponent({
       default: 'single',
     },
     value: {
-      type: Array,
+      type: Array as PropType<string[]>,
       default: () => [],
     },
     textDir: {
@@ -82,10 +82,17 @@ export default defineComponent({
       color: undefined,
     });
 
-    const propValueStrList = computed(() => props.value.map(id => `${id}`));
-    const valueList = computed(() =>
-      props.list.filter((item: any) => propValueStrList.value.includes(`${item.unique_id}`)),
-    );
+    const isIncludesItem = (item: any) => {
+      return props.value.some(v => {
+        if (v.startsWith('#_') && !item.unique_id.startsWith('#_')) {
+          return v === `#_${item.index_set_id}`;
+        }
+
+        return v === item.unique_id;
+      });
+    };
+
+    const valueList = computed(() => props.list.filter(isIncludesItem));
 
     const formatList = computed(() => {
       const filterFn = node => {
@@ -98,7 +105,7 @@ export default defineComponent({
       // 检查节点是否应该显示
       const checkNodeShouldShow = (node: any, defaultIsShown = true) => {
         // 如果当前节点在选中列表中，直接返回 true
-        if (propValueStrList.value.includes(`${node.unique_id}`) && searchText.value.length === 0) {
+        if (isIncludesItem(node) && searchText.value.length === 0) {
           return true;
         }
 
@@ -111,7 +118,7 @@ export default defineComponent({
 
         // 如果满足Tag标签或者当前条目为显示状态
         // 如果启用隐藏空数据
-        if (is_shown_node && hiddenEmptyItem.value && !props.value.includes(`${node.unique_id}`)) {
+        if (is_shown_node && hiddenEmptyItem.value && !isIncludesItem(node)) {
           is_shown_node = !node.tags.some(tag => tag.tag_id === 4);
         }
 
@@ -141,8 +148,8 @@ export default defineComponent({
           // 单选模式下才进行特殊排序
           if (props.type === 'single') {
             // 如果节点在选中列表中，优先级最高
-            const aIsSelected = propValueStrList.value.includes(`${a.unique_id}`);
-            const bIsSelected = propValueStrList.value.includes(`${b.unique_id}`);
+            const aIsSelected = isIncludesItem(a);
+            const bIsSelected = isIncludesItem(b);
             if (aIsSelected !== bIsSelected) {
               return aIsSelected ? -1 : 1;
             }
@@ -171,13 +178,13 @@ export default defineComponent({
 
         const isOpenNode = item.children?.some(child => child.is_shown_node);
         // 检查是否有子节点被选中
-        const hasSelectedChild = item.children?.some(child => propValueStrList.value.includes(`${child.unique_id}`));
+        const hasSelectedChild = item.children?.some(child => isIncludesItem(child));
 
         if (isOpenNode) {
           for (const child of item.children) {
             child.is_shown_node = true;
 
-            if (hiddenEmptyItem.value && !props.value.includes(`${child.unique_id}`)) {
+            if (hiddenEmptyItem.value && !isIncludesItem(child)) {
               // 如果启用隐藏空数据
               child.is_shown_node = !child.tags.some(tag => tag.tag_id === 4);
             }
@@ -199,8 +206,8 @@ export default defineComponent({
         // 单选模式下才进行特殊排序
         if (props.type === 'single') {
           // 如果节点在选中列表中，优先级最高
-          const aIsSelected = propValueStrList.value.includes(`${a.unique_id}`);
-          const bIsSelected = propValueStrList.value.includes(`${b.unique_id}`);
+          const aIsSelected = isIncludesItem(a);
+          const bIsSelected = isIncludesItem(b);
           if (aIsSelected !== bIsSelected) {
             return aIsSelected ? -1 : 1;
           }
@@ -259,22 +266,19 @@ export default defineComponent({
           return;
         }
 
-        const indexSetId = `${item.unique_id}`;
-        const isChecked = !(propValueStrList.value.includes(indexSetId) || disableList.value.includes(indexSetId));
+        const isChecked = !(isIncludesItem(item) || disableList.value.includes(item.unique_id));
         const list: string[] = [];
 
         for (const child of item.children ?? []) {
           if (child.is_shown_node) {
-            const childId = `${child.unique_id}`;
-            if (propValueStrList.value.includes(childId) || disableList.value.includes(childId)) {
-              const id = `${child.unique_id}`;
-              list.push(id);
+            if (isIncludesItem(child) || disableList.value.includes(child.unique_id)) {
+              list.push(child.unique_id);
               // 如果当前为选中操作，检查所有子节点是否有选中态，选中节点会被放置到 disableList
               if (isChecked) {
-                disableList.value.push(id);
+                disableList.value.push(child.unique_id);
               } else {
                 // 如果是非选中，从 disableList 中移除
-                const index = disableList.value.indexOf(id);
+                const index = disableList.value.indexOf(child.unique_id);
                 if (index >= 0) {
                   disableList.value.splice(index, 1);
                 }
@@ -369,7 +373,7 @@ export default defineComponent({
       return (
         <bk-checkbox
           style='margin-right: 4px'
-          checked={propValueStrList.value.includes(item.unique_id) || disableList.value.includes(item.unique_id)}
+          checked={isIncludesItem(item) || disableList.value.includes(item.unique_id)}
           disabled={is_root_checked}
         />
       );
@@ -420,7 +424,7 @@ export default defineComponent({
               'has-child': has_child,
               // 'is-empty': isEmptyNode,
               'has-no-data-child': has_no_data_child,
-              active: propValueStrList.value.includes(item.unique_id),
+              active: isIncludesItem(item),
             },
           ]}
           onClick={e => handleIndexSetItemClick(e, item, is_root_checked)}
@@ -496,7 +500,7 @@ export default defineComponent({
         <div class='bklog-v3-index-set-list'>
           {filterList.value.map((item: any) => {
             const result: any[] = [];
-            const is_root_checked = propValueStrList.value.includes(item.unique_id);
+            const is_root_checked = isIncludesItem(item);
 
             if (!isClosedNode(item)) {
               for (const child of item.children ?? []) {
@@ -595,9 +599,9 @@ export default defineComponent({
               )}
             </div>
             <div class='row-item-list'>
-              {valueList.value.map((item: any) => (
+              {valueList.value.map((item: any, index: number) => (
                 <span
-                  key={item}
+                  key={`${item.unique_id}-${index}`}
                   class='row-value-item'
                 >
                   {item.index_set_name}

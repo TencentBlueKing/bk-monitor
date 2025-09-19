@@ -38,7 +38,7 @@ export default (props, { emit }) => {
   const favoriteLoading = ref(false);
 
   // 联合查询本地存储数据
-  const unionListValue = ref(props.value);
+  const unionListValue = ref((props.value ?? []).map(v => v.unique_id ?? v.index_set_id));
 
   const unionFavoriteList = ref([]);
   const singleFavoriteList = computed(() => {
@@ -149,12 +149,12 @@ export default (props, { emit }) => {
    */
   const handleHistoryItemClick = (item: any) => {
     if (item.index_set_type === 'single') {
-      unionListValue.value = [`${item.index_set_id}`];
-      emit('value-change', [`${item.index_set_id}`], 'single', item.id);
+      unionListValue.value = [`#_${item.index_set_id}`];
+      emit('value-change', [`#_${item.index_set_id}`], 'single', item.id);
       return;
     }
 
-    unionListValue.value = item.index_set_ids.map(id => `${id}`);
+    unionListValue.value = item.index_set_ids.map(id => `#_${id}`);
     emit('value-change', unionListValue.value, 'union', item.id);
   };
 
@@ -357,7 +357,7 @@ export default (props, { emit }) => {
   };
 
   /** 单选情况下的收藏 */
-  const singleFavorite = item => {
+  const singleFavorite = (item: any) => {
     $http
       .request('/indexSet/mark', {
         params: {
