@@ -23,6 +23,32 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-export * from './detail';
-export * from './table';
+import FunctionTag from './function-tag';
+
+import type { FunctionVariableModel } from '../../index';
+
+interface FunctionSelectDetailProps {
+  metricFunctions: any[];
+  variable: FunctionVariableModel;
+}
+
+@Component
+export default class FunctionSelectDetail extends tsc<FunctionSelectDetailProps> {
+  @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
+  @Prop({ default: () => [] }) metricFunctions!: any[];
+
+  render() {
+    return this.variable.defaultValue.length
+      ? this.variable.defaultValue.map(item => (
+          <FunctionTag
+            key={item.id}
+            data={item}
+            metricFunctions={this.metricFunctions}
+          />
+        ))
+      : '--';
+  }
+}

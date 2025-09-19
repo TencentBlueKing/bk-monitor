@@ -26,17 +26,13 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getFunctions } from 'monitor-api/modules/grafana';
-import { retrieveStrategyTemplate, updateStrategyTemplate } from 'monitor-api/modules/model';
-import {
-  type VariableModelType,
-  getCreateVariableParams,
-  getVariableModel,
-} from 'monitor-pc/pages/query-template/variables';
+import { updateStrategyTemplate } from 'monitor-api/modules/model';
 
+import { getAlarmTemplateDetail } from '../../service';
 import TemplateForm from './template-form';
 
 import type { AlgorithmItem, DetectConfig, EditTemplateFormData, TemplateDetail, UserGroupItem } from './typing';
+import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
 
 import './edit-template-slider.scss';
 
@@ -47,6 +43,7 @@ interface EditTemplateSliderEvents {
 interface EditTemplateSliderProps {
   appName: string;
   isShow: boolean;
+  metricFunctions?: any[];
   templateId: number;
 }
 
@@ -55,6 +52,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
   @Prop({ default: false }) isShow!: boolean;
   @Prop({ required: true }) templateId!: number;
   @Prop({ required: true }) appName!: string;
+  @Prop({ default: () => [] }) metricFunctions!: any[];
 
   loading = false;
 
@@ -64,41 +62,30 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
 
   variablesList: VariableModelType[] = [];
 
-  metricFunctions = [];
-
   @Watch('isShow')
   async handleIsShowChange(isShow: boolean) {
     if (isShow) {
       this.loading = true;
-      this.detailData = await retrieveStrategyTemplate({
-        strategy_template_id: this.templateId,
+      const { detailData, variablesList } = await getAlarmTemplateDetail({
+        id: this.templateId,
         app_name: this.appName,
-      });
+      }).catch(() => ({ detailData: null, variablesList: [] }));
+      console.log(detailData, variablesList);
+      this.detailData = detailData;
       this.formData = {
-        name: this.detailData.name,
-        system: this.detailData.system,
-        algorithms: this.detailData.algorithms,
-        detect: this.detailData.detect,
-        user_group_list: this.detailData.user_group_list,
-        query_template: this.detailData.query_template,
-        is_auto_apply: this.detailData.is_auto_apply,
+        name: this.detailData?.name,
+        system: this.detailData?.system,
+        algorithms: this.detailData?.algorithms,
+        detect: this.detailData?.detect,
+        user_group_list: this.detailData?.user_group_list,
+        query_template: this.detailData?.query_template,
+        is_auto_apply: this.detailData?.is_auto_apply,
       };
-      const createVariableParams = await getCreateVariableParams(this.detailData.query_template?.variables);
-      this.variablesList = createVariableParams.map(item =>
-        getVariableModel({ ...item, value: this.detailData.context[item.name.slice(2, item.name.length - 1)] })
-      );
+      this.variablesList = variablesList;
       this.loading = false;
     } else {
       this.loading = false;
     }
-  }
-
-  async handleGetMetricFunctions() {
-    this.metricFunctions = await getFunctions().catch(() => []);
-  }
-
-  mounted() {
-    this.handleGetMetricFunctions();
   }
 
   @Emit('showChange')
@@ -162,6 +149,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
         width={800}
         class='edit-template-slider'
         is-show={this.isShow}
+        zIndex={977}
         quick-close
         {...{ on: { 'update:isShow': this.handleShowChange } }}
       >
