@@ -29,6 +29,29 @@ import { random } from '@/components/monitor-echarts/utils';
 
 import http from '@/api';
 
+/**
+ * 索引集列表初始化
+ * @param {*} indexSetList 索引集列表
+ * @param {*} pid 父节点id
+ */
+const resolveIndexItemAttr = (indexSetList = [], parent_node = null) => {
+  return indexSetList?.map(item => {
+    const copyItem = structuredClone(item);
+    Object.assign(copyItem, {
+      index_set_id: `${item.index_set_id}`,
+      indexName: item.index_set_name,
+      lightenName: ` (${item.indices.map(item => item.result_table_id).join(';')})`,
+      unique_id: `${parent_node?.index_set_id ?? '#'}_${item.index_set_id}`,
+      parent_node,
+    });
+
+    // 这里只有两层，数据结构固定为 parent_id#child_id
+    // 如果是跟节点 数据结构为 #_child_id
+    copyItem.children = resolveIndexItemAttr(item.children ?? [], copyItem);
+    return copyItem;
+  });
+};
+
 export default {
   namespaced: true,
   state: {
@@ -123,6 +146,7 @@ export default {
         })
         .then(res => {
           let indexSetList = [];
+          let processedIndexSetList = [];
           if (res.data.length) {
             // 有索引集
             // 根据权限排序
@@ -148,14 +172,10 @@ export default {
 
             indexSetList = s1.concat(s2);
             // 索引集数据加工
-            indexSetList.forEach(item => {
-              item.index_set_id = `${item.index_set_id}`;
-              item.indexName = item.index_set_name;
-              item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
-            });
-            ctx.commit('updateIndexSetList', indexSetList);
+            processedIndexSetList = resolveIndexItemAttr(indexSetList);
+            ctx.commit('updateIndexSetList', processedIndexSetList);
           }
-          return [res, indexSetList];
+          return [res, processedIndexSetList];
         })
         .finally(() => {
           ctx.commit('updateIndexSetLoading', false);

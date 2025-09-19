@@ -66,14 +66,14 @@ export default (props, { emit }) => {
           targetValue.push(v);
         }
       }
-      targetValue.push(item.index_set_id);
+      targetValue.push(item.unique_id);
       emit('value-change', targetValue);
       return;
     }
 
     // 如果是取消选中
     for (const v of props.value) {
-      if (v !== item.index_set_id) {
+      if (v !== item.unique_id) {
         targetValue.push(v);
       }
     }

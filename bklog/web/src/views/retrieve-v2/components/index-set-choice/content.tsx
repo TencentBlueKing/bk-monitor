@@ -36,7 +36,7 @@ import CommonList from './common-list';
 // #code const CommonList = () => null;
 // #endif
 import IndexSetList from './index-set-list';
-import useChoice, { type IndexSetType } from './use-choice';
+import useChoice, { IndexSetItem, type IndexSetType } from './use-choice';
 
 import './content.scss';
 
@@ -55,7 +55,7 @@ export default defineComponent({
       default: 'single',
     },
     value: {
-      type: Array,
+      type: Array as PropType<IndexSetItem[]>,
       default: () => [],
     },
     textDir: {
@@ -110,23 +110,22 @@ export default defineComponent({
         if (props.value.length > 1) {
           return [];
         }
-
-        return props.value;
       }
 
-      return unionListValue.value;
+      return props.value;
     });
 
-    const handleFavoriteItemClick = item => {
-      if (item.index_set_type === 'single') {
-        handleValueChange([`${item.index_set_id}`], 'single', item.index_set_id);
+    const handleFavoriteItemClick = favorite => {
+      if (favorite.index_set_type === 'single') {
+        const { item } = favorite;
+        handleValueChange([`${item.unique_id ?? item.index_set_id}`], 'single', item.unique_id ?? item.index_set_id);
         return;
       }
 
       handleValueChange(
-        item.index_set_ids.map(id => `${id}`),
+        favorite.index_set_ids.map(id => `#_${id}`),
         'union',
-        item.id,
+        favorite.id,
       );
     };
 
@@ -235,7 +234,7 @@ export default defineComponent({
     });
 
     expose({
-      resetUnionList: () => (unionListValue.value = [...props.value]),
+      resetUnionList: () => (unionListValue.value = (props.value ?? []).map((t: any) => t.unique_id ?? t.index_set_id)),
     });
 
     return () => (

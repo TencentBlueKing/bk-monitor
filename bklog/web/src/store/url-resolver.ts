@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-// @ts-expect-error
 import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
 
 import { ConditionOperator } from './condition-operator';
@@ -110,6 +109,7 @@ class RouteUrlResolver {
       'spaceUid',
       'format',
       'index_id',
+      'pid',
       BK_LOG_STORAGE.FAVORITE_ID,
       BK_LOG_STORAGE.HISTORY_ID,
     ];
@@ -220,6 +220,7 @@ class RouteUrlResolver {
     this.resolver.set('host_scopes', this.objectResolver.bind(this));
     this.resolver.set('ip_chooser', this.objectResolver.bind(this));
     this.resolver.set('clusterParams', this.objectResolver.bind(this));
+    this.resolver.set('pid', this.objectResolver.bind(this));
     this.resolver.set('timeRange', this.dateTimeRangeResolver.bind(this));
     this.resolver.set('search_mode', this.searchModeResolver.bind(this));
     this.resolver.set('format', this.timeFormatResolver.bind(this));

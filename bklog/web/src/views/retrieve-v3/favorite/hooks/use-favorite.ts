@@ -172,6 +172,7 @@ export const useFavorite = () => {
     const clusterParams = store.state.clusterParams;
     const { start_time, end_time, addition, begin, size, ip_chooser, host_scopes, interval, sort_list } =
       store.getters.retrieveParams;
+    const pid = item.pid;
 
     const routeParams = {
       addition,
@@ -189,6 +190,7 @@ export const useFavorite = () => {
       isUnionIndex,
       unionList,
       clusterParams,
+      pid,
     };
 
     const params = isUnionIndex
@@ -236,7 +238,7 @@ export const useFavorite = () => {
 
     // 重置状态
     store.commit('resetIndexsetItemParams');
-    store.commit('updateState', { 'indexId': cloneValue.index_set_id});
+    store.commit('updateState', { indexId: cloneValue.index_set_id, pid: cloneValue.pid ?? [] });
     store.commit('updateIsSetDefaultTableColumn', false);
     store.commit('updateStorage', {
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: item.index_set_type,
@@ -350,13 +352,14 @@ export const useFavorite = () => {
       spaceUid: item.space_uid,
       unionList: item.index_set_ids.map((newItem: string) => String(newItem)),
       isUnionIndex: item.index_set_type === 'union',
+      pid: item.pid ?? [],
     });
 
     const routeData = {
       name: 'retrieve',
       params,
       query: resolver.resolveParamsToUrl(),
-    };
+    } as any;
 
     let shareUrl = (window as any).SITE_URL;
     if (!shareUrl.startsWith('/')) {
