@@ -99,7 +99,7 @@ export interface IEventItem {
   assignees?: string[];
   begin_time: number;
   bizName: string;
-  bk_biz_id: number;
+  bk_biz_id: string;
   bk_biz_name: string;
   bk_cloud_id: number;
   bk_host_id: number | string;

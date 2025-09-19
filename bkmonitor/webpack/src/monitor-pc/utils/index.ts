@@ -163,9 +163,9 @@ export interface IAddition {
 export interface ILogUrlParams {
   addition: IAddition[]; // 搜索条件 即监控的汇聚条件
   bizId: string;
-  end_time?: string; // 终止时间
+  end_time?: number | string; // 终止时间
   keyword: string; // 搜索关键字
-  start_time?: string; // 起始时间
+  start_time?: number | string; // 起始时间
   time_range?: 'customized'; // 带了时间start_time end_time必填
 }
 /**
