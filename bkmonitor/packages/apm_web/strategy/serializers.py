@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
 from collections.abc import Iterable
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -178,7 +179,10 @@ class BaseStrategyTemplateUpdateSerializer(serializers.Serializer):
 class StrategyTemplateUpdateRequestSerializer(
     BaseStrategyTemplateUpdateSerializer, BaseAppStrategyTemplateRequestSerializer
 ):
-    pass
+    def validate(self, attrs: dict) -> dict:
+        if not attrs["is_enabled"] and attrs["is_auto_apply"]:
+            raise serializers.ValidationError(_("策略模板禁用时，不允许配置自动下发"))
+        return attrs
 
 
 class StrategyTemplateCloneRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
@@ -278,6 +282,10 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
     class Meta:
         model = StrategyTemplate
         fields = "__all__"
+
+    def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
+        validated_data["user_group_ids"] = [user_group["id"] for user_group in validated_data.pop("user_group_list")]
+        return super().update(instance, validated_data)
 
 
 class StrategyTemplateSearchModelSerializer(StrategyTemplateBaseModelSerializer):
