@@ -62,18 +62,54 @@ interface TemplateFormProps {
 
 @Component
 export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEvents> {
+  /** 场景类别 编辑 或者 预览编辑 */
   @Prop({ default: 'edit' }) scene: 'edit' | 'view';
+  /** 表单数据 */
   @Prop({ default: () => ({}) }) data: EditTemplateFormData;
+  /** 变量列表 */
   @Prop({ default: () => [] }) variablesList: VariableModelType[];
+  /** 函数列表 */
   @Prop({ default: () => [] }) metricFunctions!: any[];
+  /** 模板表单 */
   @Ref('templateForm') templateFormRef;
 
+  /** 用户组列表loading */
   alarmGroupLoading = false;
-
+  /** 用户组列表 */
   alarmGroupList = [];
+  /** 校验规则 */
+  rules = {
+    name: [
+      {
+        required: true,
+        message: this.$tc('模板名称必填'),
+        trigger: 'blur',
+      },
+    ],
+    algorithms: [
+      {
+        required: true,
+        message: this.$tc('检测规则必须开启一个级别'),
+        trigger: 'change',
+      },
+    ],
+    detect: [
+      {
+        validator: this.validateDetect,
+        message: this.$tc('触发周期数 >=1 且 >= 检测数'),
+        trigger: 'change',
+      },
+    ],
+    selectUserGroup: [
+      {
+        required: true,
+        message: this.$tc('告警组必填'),
+        trigger: 'blur',
+      },
+    ],
+  };
 
-  rules = {};
-
+  /** 监控指标 */
   get monitorData() {
     if (this.data?.query_template?.alias) {
       return `${this.data.query_template.alias}(${this.data.query_template.name})`;
@@ -81,46 +117,75 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     return this.data?.query_template?.name;
   }
 
+  /** 已选择的用户组id */
   get selectUserGroup() {
     return this.data?.user_group_list?.map(item => item.id) || [];
   }
 
+  validateDetect(val: DetectConfig) {
+    return true;
+  }
+
+  /**
+   * @description 修改模板名称
+   * @param value 模板名称
+   */
   handleNameChange(value: string) {
-    console.log(value, 'handleNameChange');
     if (value !== this.data?.name) {
       this.$emit('nameChange', value);
     }
   }
 
+  /**
+   * @description 修改检测规则
+   * @param value 检测规则
+   */
   handleAlgorithmsChange(value: AlgorithmItem[]) {
-    console.log(value, 'handleAlgorithmsChange');
     if (JSON.stringify(value) !== JSON.stringify(this.data.algorithms)) {
       this.$emit('algorithmsChange', value);
+      this.$nextTick(() => {
+        this.templateFormRef?.validateField('algorithms');
+      });
     }
   }
 
+  /**
+   * @description 修改判断窗口
+   * @param value 窗口次数
+   */
   handleTriggerWindowChange(value: number) {
-    console.log(value, 'handleTriggerWindowChange');
-    if (value !== this.data?.detect?.trigger_check_window) {
+    if (value !== this.data?.detect?.config.trigger_check_window) {
       this.$emit('detectChange', {
-        ...this.data?.detect,
-        trigger_check_window: value,
+        type: this.data?.detect?.type,
+        config: {
+          ...this.data?.detect?.config,
+          trigger_count: value,
+        },
       });
     }
   }
 
+  /**
+   * @description 修改触发次数
+   * @param value 触发次数
+   */
   handleTriggerCountChange(value: number) {
-    console.log(value, 'handleTriggerCountChange');
-    if (value !== this.data?.detect?.trigger_count) {
+    if (value !== this.data?.detect?.config.trigger_count) {
       this.$emit('detectChange', {
-        ...this.data?.detect,
-        trigger_count: value,
+        type: this.data?.detect?.type,
+        config: {
+          ...this.data?.detect?.config,
+          trigger_count: value,
+        },
       });
     }
   }
 
+  /**
+   * @description 修改用户组
+   * @param value 用户组
+   */
   handleUserGroupSelect(value: number[]) {
-    console.log(value, 'handleUserGroupSelect');
     if (JSON.stringify(value) !== JSON.stringify(this.selectUserGroup)) {
       this.$emit(
         'alarmGroupChange',
@@ -134,16 +199,24 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     }
   }
 
+  /**
+   * @description 修改变量值
+   * @param value 新变量值
+   * @param index 变量索引
+   */
   handleVariableValueChange(value: any, index: number) {
-    console.log(value, index, 'handleVariableValueChange');
     this.$emit('variableValueChange', value, index);
   }
 
+  /**
+   * 修改下发状态
+   * @param value 是否下发
+   */
   handleChangeAutoApply(value: boolean) {
-    console.log(value, 'handleChangeAutoApply');
     this.$emit('autoApplyChange', value);
   }
 
+  /** 提交 */
   handleSubmit() {
     this.templateFormRef.validate().then(() => {
       this.$emit('submit');
@@ -206,6 +279,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         </bk-form-item>
         <bk-form-item
           class='mt16'
+          error-display-type='normal'
           label={this.$tc('模板名称')}
           property='name'
           required
@@ -222,6 +296,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         </bk-form-item>
         <bk-form-item
           class='mt24'
+          error-display-type='normal'
           label={this.$tc('检测规则')}
           property='algorithms'
           required
@@ -233,6 +308,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         </bk-form-item>
         <bk-form-item
           class='mt24'
+          error-display-type='normal'
           label={this.$tc('判断条件')}
           property='detect'
           required
@@ -244,7 +320,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
               show-controls={false}
               size='small'
               type='number'
-              value={this.data?.detect?.trigger_check_window}
+              value={this.data?.detect?.config.trigger_check_window}
               onBlur={this.handleTriggerWindowChange}
               onEnter={this.handleTriggerWindowChange}
             />
@@ -254,7 +330,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
               show-controls={false}
               size='small'
               type='number'
-              value={this.data?.detect?.trigger_count}
+              value={this.data?.detect?.config.trigger_count}
               onBlur={this.handleTriggerCountChange}
               onEnter={this.handleTriggerCountChange}
             />
@@ -262,6 +338,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         </bk-form-item>
         <bk-form-item
           class='mt24'
+          error-display-type='normal'
           label={this.$tc('告警组')}
           property='selectUserGroup'
           required
