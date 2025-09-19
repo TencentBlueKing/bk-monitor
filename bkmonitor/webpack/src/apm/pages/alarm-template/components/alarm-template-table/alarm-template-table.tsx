@@ -488,15 +488,21 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     const value = row[columnKey] || [];
     return (
       <div class='user-group-list-col'>
-        <CollapseTags data={value?.map(e => e.name) || []} />
-        <div
-          class='edit-btn'
-          onClick={() =>
-            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
-          }
-        >
-          <i class='icon-monitor icon-bianji' />
-        </div>
+        <CollapseTags
+          scopedSlots={{
+            after: () => (
+              <div
+                class='edit-btn'
+                onClick={() =>
+                  this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+                }
+              >
+                <i class='icon-monitor icon-bianji' />
+              </div>
+            ),
+          }}
+          data={value?.map(e => e.name) || []}
+        />
       </div>
     );
   }
@@ -526,6 +532,9 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
    * @description: 表格 操作 列渲染
    */
   operatorColRenderer(row: AlarmTemplateListItem) {
+    // 1. 内置策略不可删除
+    // 2. 克隆策略，已下发，不可以删除
+    const deleteDisabled = row?.type === AlarmTemplateTypeEnum.INNER || row?.applied_service_names?.length > 0;
     return (
       <div class='operator-col'>
         <span v-bk-tooltips={{ content: this.$t('该模板已禁用，无法下发'), disabled: row?.is_enabled }}>
@@ -565,8 +574,11 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
                 class={[
                   'more-btn-item delete-btn',
                   { 'is-active': this.deletePopoverInstance?.deleteConfirmConfig?.id === row?.id },
+                  {
+                    'is-disabled': row?.type === AlarmTemplateTypeEnum.INNER || row?.applied_service_names?.length > 0,
+                  },
                 ]}
-                onClick={e => this.handleDeletePopoverShow(e, row)}
+                onClick={e => !deleteDisabled && this.handleDeletePopoverShow(e, row)}
               >
                 {this.$t('删除')}
               </li>
