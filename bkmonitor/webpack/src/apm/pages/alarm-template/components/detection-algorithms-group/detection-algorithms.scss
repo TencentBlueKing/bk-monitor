@@ -1,0 +1,35 @@
+.detection-algorithms {
+  display: flex;
+  column-gap: 4px;
+  align-items: center;
+  line-height: 20px;
+
+  .detection-algorithms-content {
+    .method {
+      margin-right: 4px;
+    }
+
+    .threshold {
+      font-weight: 700;
+    }
+  }
+
+  .detection-algorithms-lever {
+    .icon-monitor {
+      margin-right: 2px;
+      font-size: 14px;
+
+      &.icon-danger {
+        color: #e71818;
+      }
+
+      &.icon-mind-fill {
+        color: #f59500;
+      }
+
+      &.icon-tips {
+        color: #3a84ff;
+      }
+    }
+  }
+}

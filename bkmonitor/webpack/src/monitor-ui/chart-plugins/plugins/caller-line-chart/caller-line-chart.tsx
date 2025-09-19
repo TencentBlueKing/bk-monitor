@@ -27,6 +27,7 @@
 import { Component, Emit, Inject, InjectReactive, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import QuickAddStrategy from 'apm/pages/alarm-template/quick-add-strategy/quick-add-strategy';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
@@ -989,13 +990,14 @@ class CallerLineChart extends CommonSimpleChart {
    * @return {*}
    */
   handleAllMetricClick() {
-    const configs = this.panel.toStrategy(null);
-    if (configs) {
-      this.handleAddStrategy(this.panel, null, {});
-      return;
-    }
-    const copyPanel = this.getCopyPanel();
-    this.handleAddStrategy(copyPanel as any, null, {}, true);
+    this.quickAddStrategyObj.show = true;
+    // const configs = this.panel.toStrategy(null);
+    // if (configs) {
+    //   this.handleAddStrategy(this.panel, null, {});
+    //   return;
+    // }
+    // const copyPanel = this.getCopyPanel();
+    // this.handleAddStrategy(copyPanel as any, null, {}, true);
   }
 
   getTimeShiftCompareValue() {
@@ -1212,6 +1214,11 @@ class CallerLineChart extends CommonSimpleChart {
       message: success ? this.$t('保存成功') : this.$t('保存失败'),
     });
   }
+
+  handleQuickAddStrategyShowChange(v: boolean) {
+    this.quickAddStrategyObj.show = v;
+  }
+
   render() {
     return (
       <div
@@ -1414,6 +1421,14 @@ class CallerLineChart extends CommonSimpleChart {
             position={this.customMenuPosition}
           />
         )}
+        <QuickAddStrategy
+          params={{
+            app_name: this.viewOptions.filters?.app_name,
+            service_name: this.viewOptions.filters?.service_name,
+          }}
+          show={this.quickAddStrategyObj.show}
+          onShowChange={this.handleQuickAddStrategyShowChange}
+        />
         {this.isCodeRedefine && (
           <CodeRedefineSlider
             isShow={this.codeRedefineShow}

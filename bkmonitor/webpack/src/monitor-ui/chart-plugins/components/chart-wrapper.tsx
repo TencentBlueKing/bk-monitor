@@ -26,6 +26,7 @@
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import AlarmTemplate from 'apm/pages/alarm-template/alarm-template';
 // import ViewDetail from 'monitor-pc/pages/view-detail/view-detail.vue';
 import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 
@@ -621,6 +622,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         );
       case 'event-explore':
         return <apm-event-explore />;
+      case 'alarm_template':
+        return <AlarmTemplate />;
       // 不需要报错显示
       // case 'graph':
       default:

@@ -351,4 +351,6 @@ export default {
   'Profiling 查询参数': 'Profiling query parameters',
   调用拓扑: 'Call topology',
   查看指引: 'View guide',
+  '共{0}个': '{0} items in total',
+  '{0}个周期内累积满足{1}次检测算法': '{0} periods of time, cumulative {1} times of detection algorithm',
 };

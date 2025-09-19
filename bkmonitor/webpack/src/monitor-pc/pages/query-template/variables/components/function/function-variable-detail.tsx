@@ -52,7 +52,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
-import FunctionTag from './function-tag';
+import VariableValueDetail from '../variable-panel/variable-value-detail';
 
 import type { FunctionVariableModel } from '../../index';
 
@@ -75,15 +75,10 @@ export default class FunctionVariableDetail extends tsc<FunctionDetailProps> {
           <div class='form-item default-value-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
             <div class='form-item-value'>
-              {this.variable.defaultValue.length
-                ? this.variable.defaultValue.map(item => (
-                    <FunctionTag
-                      key={item.id}
-                      data={item}
-                      metricFunctions={this.metricFunctions}
-                    />
-                  ))
-                : '--'}
+              <VariableValueDetail
+                metricFunctions={this.metricFunctions}
+                variable={this.variable}
+              />
             </div>
           </div>
         </VariableCommonFormDetail>

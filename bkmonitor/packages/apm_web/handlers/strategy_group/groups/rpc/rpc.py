@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import copy
 import datetime
 import json
 import logging
@@ -18,7 +17,6 @@ from functools import partial
 from typing import Any
 from collections.abc import Callable
 
-import six
 from django.conf import settings
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -34,11 +32,10 @@ from apm_web.handlers.metric_group import MetricHelper, TrpcMetricGroup
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import CodeRedefinedConfigRelation
-from bkmonitor.action.serializers import UserGroupDetailSlz
+from apm_web.strategy.builtin.registry import BuiltinStrategyTemplateRegistry
 from bkmonitor.data_source import q_to_dict
-from bkmonitor.models import UserGroup
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, PUBLIC_NOTICE_CONFIG
+from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
 from constants.apm import MetricTemporality, RPCMetricTag
 from core.drf_resource import resource
 
@@ -113,7 +110,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         # 策略告警组 ID 列表
         self.notice_group_ids: list[int] = notice_group_ids
         if not self.notice_group_ids:
-            self.notice_group_ids = [self._apply_default_notice_group()]
+            self.notice_group_ids = [BuiltinStrategyTemplateRegistry.apply_default_notice_group(self.application)]
 
         # 策略标签，目前的管理范围是一个具体的 APM 应用（APP）的某个场景（RPC）
         self.scene_label: str = define.StrategyLabelType.scene_label(app_name)
@@ -232,63 +229,6 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             message_templates=DEFAULT_NOTICE_MESSAGE_TEMPLATE,
             **conf,
         ).build()
-
-    @classmethod
-    def _add_member_to_notice_group(
-        cls, bk_biz_id: int, user_id: str, group_name: str, notice_ways: list[str] | None = None
-    ) -> int:
-        """增加成员到告警组，告警组不存在时默认创建
-        :param bk_biz_id: 业务 ID
-        :param user_id: 用户 ID
-        :param group_name: 告警组名称
-        :param notice_ways: 通知方式
-        :return:
-        """
-        user_group_inst: UserGroup | None = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=group_name).first()
-        if user_group_inst is None:
-            notice_config: dict[str, Any] = copy.deepcopy(PUBLIC_NOTICE_CONFIG)
-            for notice_way_config in (
-                notice_config["alert_notice"][0]["notify_config"] + notice_config["action_notice"][0]["notify_config"]
-            ):
-                notice_way_config["type"] = notice_ways or ["rtx"]
-
-            user_group: dict[str, Any] = {
-                "name": group_name,
-                "notice_receiver": [{"id": user_id, "type": "user"}],
-                **notice_config,
-            }
-            user_group_serializer: UserGroupDetailSlz = UserGroupDetailSlz(
-                data={
-                    "bk_biz_id": bk_biz_id,
-                    "name": six.text_type(user_group["name"]),
-                    "duty_arranges": [{"users": user_group["notice_receiver"]}],
-                    "desc": user_group["message"],
-                    "alert_notice": user_group["alert_notice"],
-                    "action_notice": user_group["action_notice"],
-                }
-            )
-        else:
-            # 检索用户是否已经存在在当前告警组，存在则跳过添加步骤
-            duty_arranges: list[dict[str, Any]] = UserGroupDetailSlz(user_group_inst).data["duty_arranges"]
-            current_users: list[dict[str, Any]] = duty_arranges[0]["users"]
-            if user_id in {user["id"] for user in current_users if user["type"] == "user"}:
-                # 已存在，无需重复添加
-                return user_group_inst.id
-
-            current_users.append({"id": user_id, "type": "user"})
-            user_group_serializer = UserGroupDetailSlz(
-                user_group_inst, data={"duty_arranges": [{"users": current_users}]}, partial=True
-            )
-
-        user_group_serializer.is_valid(raise_exception=True)
-        return user_group_serializer.save().id
-
-    def _apply_default_notice_group(self) -> int:
-        return self._add_member_to_notice_group(
-            bk_biz_id=self.bk_biz_id,
-            user_id=self.application.update_user,
-            group_name=_("【APM】{app_name} 告警组".format(app_name=self.app_name)),
-        )
 
     def _fetch_service_infos(self) -> list[dict[str, Any]]:
         service_config: dict[str, Any] = (
