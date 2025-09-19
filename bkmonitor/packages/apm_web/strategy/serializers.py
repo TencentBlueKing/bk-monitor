@@ -192,9 +192,11 @@ class StrategyTemplateUpdateRequestSerializer(
 
         user_group_list: list[dict[str, int | str]] = attrs["user_group_list"]
         user_groups = get_user_groups([user_group["id"] for user_group in user_group_list])
-        for user_group in user_group_list:
-            if user_group["id"] not in user_groups:
-                raise serializers.ValidationError(_("不存在名称为{name}的告警组").format(name=user_group["name"]))
+        not_exist_names = [user_group["name"] for user_group in user_group_list if user_group["id"] not in user_groups]
+        if not_exist_names:
+            raise serializers.ValidationError(
+                _("不存在名称为 {names} 的告警组").format(names=", ".join(not_exist_names))
+            )
         return attrs
 
 
