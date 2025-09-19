@@ -409,6 +409,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   stickyObserver: IntersectionObserver | null = null;
   /** 所有列表智能模型 Map */
   intelligentDetect: Map<IntelligentModelsType, Array<Record<string, any>>> = new Map();
+  /** 优先级组key 只有编辑策略的时候 才会有 从 API 获取  前端无需配置*/
+  priority_group_key = '';
 
   get isEdit(): boolean {
     return !!this.$route.params.id;
@@ -627,8 +629,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       let condition: any = getUrlParam('condition');
       let dimension: any = getUrlParam('dimension');
       try {
-        dimension && (dimension = JSON.parse(dimension));
-        condition && (condition = JSON.parse(condition));
+        if (dimension) {
+          dimension = JSON.parse(dimension);
+        }
+        if (condition) {
+          condition = JSON.parse(condition);
+        }
       } catch {
         dimension = [];
         condition = [];
@@ -682,23 +688,27 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             }
             let conditions = [];
             if (item.metric_id) {
-              conditions = [{
-                key: 'metric_id',
-                value: item.metric_id || '',
-              }]
+              conditions = [
+                {
+                  key: 'metric_id',
+                  value: item.metric_id || '',
+                },
+              ];
             } else {
-              conditions = metricFields.map(field => {
-                if (field === 'data_source_label') {
+              conditions = metricFields
+                .map(field => {
+                  if (field === 'data_source_label') {
+                    return {
+                      key: field,
+                      value: Array.isArray(item[field]) ? item[field] : [item[field]],
+                    };
+                  }
                   return {
                     key: field,
-                    value: Array.isArray(item[field]) ? item[field] : [item[field]],
+                    value: item[field] ?? '',
                   };
-                }
-                return {
-                  key: field,
-                  value: item[field] ?? '',
-                };
-              }).filter(set => set.key !== 'data_label' || set.value);
+                })
+                .filter(set => set.key !== 'data_label' || set.value);
             }
             return getMetricListV2({
               bk_biz_id: this.bizId,
@@ -958,6 +968,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     // 监控数据模式 converge: 汇聚 realtime: 实时
     this.dataMode = 'converge';
     this.metricTipType = '';
+    this.priority_group_key = '';
   }
   /**
    * @description: 获取指标函数列表
@@ -1136,7 +1147,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (targetType === 'INSTANCE' && filed === 'bk_target_ip') {
       targetList = targetList.map(item => ({ ...item, ip: item.bk_target_ip, bk_cloud_id: item.bk_target_cloud_id }));
     }
-    targetList.length && (targetList[0].instances_count = strategyTarget?.instance_count || 0);
+    if (targetList.length) {
+      targetList[0].instances_count = strategyTarget?.instance_count || 0;
+    }
+    // targetList.length && (targetList[0].instances_count = strategyTarget?.instance_count || 0);
     if (this.strategyId) {
       const algorithms = strategyDetail?.items?.[0]?.algorithms || [];
       this.editStrategyIntelligentDetectList = algorithms
@@ -1152,6 +1166,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       ...strategyDetail,
       targetDetail: { ...strategyTarget, detail: strategyTarget?.target_detail, target_detail: targetList },
     });
+    this.priority_group_key = strategyDetail?.priority_group_key || '';
   }
 
   /* 返回包含DimensionName 的 AggCondition */
@@ -1504,7 +1519,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       this.detectionConfig.unitType = '';
     } else {
       this.detectionConfig.unitType = this.metricData[0].unit;
-      !this.detectionConfig.unitType && (this.detectionConfig.unit = '');
+      if (!this.detectionConfig.unitType) {
+        this.detectionConfig.unit = '';
+      }
     }
   }
 
@@ -1908,6 +1925,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           user_groups: this.noticeData.user_groups.filter(u => ['string', 'number'].includes(typeof u)),
         },
         metric_type: this.metricSelector.type || this.selectMetricData?.[0]?.metric_type || MetricType.TimeSeries,
+        priority_group_key: this.priority_group_key || '', // 优先级组key 只有编辑策略的时候 才会有 从 API 获取  前端无需配置
       };
       this.loading = true;
 
@@ -2235,7 +2253,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   // 选择监控目标时需切换target_type
   handleTargetTypeChange(v: string) {
     this.targetType = v;
-    this.metricData.forEach(item => (item.targetType = v));
+    for (const item of this.metricData) {
+      item.targetType = v;
+    }
   }
   // 切换监控对象
   changeScenario(v) {
@@ -2423,7 +2443,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         return false;
       })
       .finally(() => {
-        setTimeout(() => (this.monitorDataLoading = false), 0);
+        setTimeout(() => {
+          this.monitorDataLoading = false;
+        }, 0);
       });
     if (!res) return false;
     this.sourceData.sourceCode = res.promql;
@@ -2620,7 +2642,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         sourceStep={this.sourceData.step}
         onAddMetric={this.handleShowMetricContinue}
         onAddNullMetric={this.handleAddNullMetric}
-        onclearErr={() => (this.metricDataErrorMsg = '')}
+        onclearErr={() => {
+          this.metricDataErrorMsg = '';
+        }}
         onDelete={this.handleDeleteMetric}
         onEditModeChange={this.handleEditModeChange}
         onExpFunctionsChange={this.handleExpFunctionsChange}
@@ -2663,7 +2687,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             <bk-button
               style='margin-left: 8px'
               text
-              onClick={() => (this.record.show = true)}
+              onClick={() => {
+                this.record.show = true;
+              }}
             >
               {this.$t('查看变更记录')}
             </bk-button>
@@ -2685,7 +2711,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               delay: 200,
               appendTo: () => document.body,
             }}
-            onClick={() => (this.strategyView.show = !this.strategyView.show)}
+            onClick={() => {
+              this.strategyView.show = !this.strategyView.show;
+            }}
           />
         </CommonNavBar>
         <div
@@ -2817,8 +2845,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 readonly={this.isDetailMode}
                 strategyId={this.id ? +this.id : ''}
                 value={this.actionsData}
-                onAddMeal={(v: number) => (this.actionIndex = v)}
-                onChange={v => (this.actionsData = v)}
+                onAddMeal={(v: number) => {
+                  this.actionIndex = v;
+                }}
+                onChange={v => {
+                  this.actionsData = v;
+                }}
               />
             </GroupPanel>
             <GroupPanel
@@ -2842,7 +2874,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   strategyId={this.id ? +this.id : ''}
                   userList={this.alarmGroupList}
                   value={this.noticeData}
-                  onChange={(data: INoticeValue) => (this.noticeData = data)}
+                  onChange={(data: INoticeValue) => {
+                    this.noticeData = data;
+                  }}
                 />
               )}
             </GroupPanel>
@@ -2919,7 +2953,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           type={this.metricSelector.type}
           // defaultScenario={this.baseConfig.scenario}
           onSelected={this.handleAddMetric}
-          onShowChange={val => (this.metricSelector.show = val)}
+          onShowChange={val => {
+            this.metricSelector.show = val;
+          }}
         />
         {/* <StrategyMetricSelector
           type={this.metricSelector.type}
@@ -2937,7 +2973,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         <ChangeRcord
           recordData={this.record.data}
           show={this.record.show}
-          onUpdateShow={v => (this.record.show = v)}
+          onUpdateShow={v => {
+            this.record.show = v;
+          }}
         />
       </div>
     );
