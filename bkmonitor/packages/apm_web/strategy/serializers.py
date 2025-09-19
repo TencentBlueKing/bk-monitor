@@ -8,13 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from collections.abc import Iterable
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
+from django.utils.functional import cached_property
 
-from bkmonitor.models.strategy import AlgorithmModel
+from bkmonitor.models import UserGroup, AlgorithmModel
 from bkmonitor.strategy.serializers import allowed_threshold_method
 
 from . import constants
+from apm_web.models import StrategyTemplate, StrategyInstance
 
 
 class DetectSerializer(serializers.Serializer):
@@ -110,6 +113,23 @@ class StrategyTemplateCheckRequestSerializer(BaseAppStrategyTemplateRequestSeria
 
 class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
     class ConditionSerializer(serializers.Serializer):
+        FIELD_TYPE_VALIDATION_RULES = [
+            {
+                "type": str,
+                "type_alias": _("字符串"),
+                "fields": {"query", "type", "name", "system", "update_user", "applied_service_name"},
+            },
+            {
+                "type": bool,
+                "type_alias": _("布尔值"),
+                "fields": {"is_enabled", "is_auto_apply"},
+            },
+            {
+                "type": int,
+                "type_alias": _("整数"),
+                "fields": {"user_group_id"},
+            },
+        ]
         key = serializers.ChoiceField(
             label=_("查询字段"),
             choices=[
@@ -126,7 +146,22 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
         )
         value = serializers.ListField(label=_("字段值"), child=serializers.JSONField())
 
+        def validate(self, attrs: dict) -> dict:
+            error_message: str = _("查询字段为 {key} 时，字段值类型必须为 {value_type}")
+            for rule in self.FIELD_TYPE_VALIDATION_RULES:
+                if attrs["key"] not in rule["fields"]:
+                    continue
+                for v in attrs["value"]:
+                    if not isinstance(v, rule["type"]):
+                        raise serializers.ValidationError(
+                            error_message.format(key=attrs["key"], value_type=rule["type_alias"])
+                        )
+                break
+            return attrs
+
     conditions = serializers.ListField(label=_("查询条件"), child=ConditionSerializer(), default=[], allow_empty=True)
+    page = serializers.IntegerField(label=_("页码"), min_value=1, default=1)
+    page_size = serializers.IntegerField(label=_("分页大小"), min_value=1, default=50)
     simple = serializers.BooleanField(label=_("是否仅返回概要信息"), default=False)
 
 
@@ -184,3 +219,96 @@ class StrategyTemplateOptionValuesRequestSerializer(BaseAppStrategyTemplateReque
         default=[],
         allow_empty=True,
     )
+
+
+class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
+    user_group_list = serializers.SerializerMethodField()
+    applied_service_names = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StrategyTemplate
+        fields = "__all__"
+
+    @cached_property
+    def _strategy_template_objs(self) -> Iterable[StrategyTemplate]:
+        if isinstance(self.instance, Iterable):
+            return self.instance
+        elif self.instance is None:
+            return []
+        return [self.instance]
+
+    @cached_property
+    def _user_groups(self) -> dict[int, dict[str, int | str]]:
+        user_group_ids = set(
+            user_group_id for obj in self._strategy_template_objs for user_group_id in obj.user_group_ids
+        )
+        user_groups = UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
+        return {user_group["id"]: user_group for user_group in user_groups}
+
+    @cached_property
+    def _strategy_instances(self) -> list[dict[str, int | str]]:
+        strategy_template_ids = set(obj.pk for obj in self._strategy_template_objs)
+        return list(
+            StrategyInstance.objects.filter(strategy_template_id__in=strategy_template_ids).values(
+                "strategy_template_id", "service_name"
+            )
+        )
+
+    @cached_property
+    def _applied_service_names_by_id(self) -> dict[int, list[str]]:
+        applied_service_names_by_id = {}
+        for instance in self._strategy_instances:
+            applied_service_names_by_id.setdefault(instance["strategy_template_id"], []).append(
+                instance["service_name"]
+            )
+        return applied_service_names_by_id
+
+    def get_user_group_list(self, obj: StrategyTemplate) -> list[dict[str, int | str]]:
+        return [
+            self._user_groups[user_group_id]
+            for user_group_id in obj.user_group_ids
+            if user_group_id in self._user_groups
+        ]
+
+    def get_applied_service_names(self, obj) -> list[str]:
+        return self._applied_service_names_by_id.get(obj.pk, [])
+
+
+class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
+    class Meta:
+        model = StrategyTemplate
+        fields = "__all__"
+
+
+class StrategyTemplateSearchModelSerializer(StrategyTemplateBaseModelSerializer):
+    class Meta:
+        model = StrategyTemplate
+        fields = [
+            "id",
+            "name",
+            "system",
+            "category",
+            "monitor_type",
+            "type",
+            "is_enabled",
+            "is_auto_apply",
+            "algorithms",
+            "user_group_list",
+            "applied_service_names",
+            "create_user",
+            "create_time",
+            "update_user",
+            "update_time",
+        ]
+
+
+class StrategyTemplateSimpleSearchModelSerializer(StrategyTemplateBaseModelSerializer):
+    class Meta:
+        model = StrategyTemplate
+        fields = [
+            "id",
+            "name",
+            "system",
+            "category",
+            "monitor_type",
+        ]
