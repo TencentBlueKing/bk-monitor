@@ -52,8 +52,9 @@ class StrategyTemplateViewSet(GenericViewSet):
         }
         return action_serializer_map.get(self.action) or self.serializer_class
 
-    def filter_queryset(self, queryset: QuerySet[StrategyTemplate]) -> QuerySet[StrategyTemplate]:
-        return self.get_queryset().filter(bk_biz_id=self.query_data["bk_biz_id"], app_name=self.query_data["app_name"])
+    def get_queryset(self) -> QuerySet[StrategyTemplate]:
+        queryset = super().get_queryset()
+        return queryset.filter(bk_biz_id=self.query_data["bk_biz_id"], app_name=self.query_data["app_name"])
 
     def retrieve(self, *args, **kwargs) -> Response:
         if self.query_data.get("is_mock"):
@@ -70,7 +71,7 @@ class StrategyTemplateViewSet(GenericViewSet):
             return Response(mock_data.CALLEE_SUCCESS_RATE_STRATEGY_TEMPLATE)
         return Response({})
 
-    def _search_filter_by_condition(
+    def _filter_by_conditions(
         self, queryset: QuerySet[StrategyTemplate], conditions: list[dict[str, Any]]
     ) -> QuerySet[StrategyTemplate]:
         bk_biz_id = self.query_data["bk_biz_id"]
@@ -101,6 +102,12 @@ class StrategyTemplateViewSet(GenericViewSet):
             queryset = queryset.filter(q)
         return queryset
 
+    @staticmethod
+    def _search_page(queryset: QuerySet[StrategyTemplate], page: int, page_size: int) -> QuerySet[StrategyTemplate]:
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+        return queryset[start_index:end_index]
+
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateSearchRequestSerializer)
     def search(self, *args, **kwargs) -> Response:
         if self.query_data.get("is_mock"):
@@ -110,17 +117,17 @@ class StrategyTemplateViewSet(GenericViewSet):
                     "list": mock_data.STRATEGY_TEMPLATE_LIST,
                 }
             )
-        queryset = self.filter_queryset(self.get_queryset())
-        queryset = self._search_filter_by_condition(queryset, self.query_data["conditions"])
+        queryset = self._filter_by_conditions(self.get_queryset(), self.query_data["conditions"])
         total = queryset.count()
         if self.query_data["simple"]:
-            result_list = serializers.StrategyTemplateSimpleSearchModelSerializer(queryset, many=True).data
+            strategy_template_list = serializers.StrategyTemplateSimpleSearchModelSerializer(queryset, many=True).data
         else:
-            result_list = serializers.StrategyTemplateSearchModelSerializer(queryset, many=True).data
+            queryset = self._search_page(queryset, self.query_data["page"], self.query_data["page_size"])
+            strategy_template_list = serializers.StrategyTemplateSearchModelSerializer(queryset, many=True).data
         return Response(
             {
                 "total": total,
-                "list": result_list,
+                "list": strategy_template_list,
             }
         )
 

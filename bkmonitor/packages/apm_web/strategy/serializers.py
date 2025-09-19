@@ -115,6 +115,23 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
     is_mock = serializers.BooleanField(label=_("是否为 mock 数据"), default=False)
 
     class ConditionSerializer(serializers.Serializer):
+        FIELD_TYPE_VALIDATION_RULES = [
+            {
+                "type": str,
+                "type_alias": _("字符串"),
+                "fields": {"query", "type", "name", "system", "update_user", "applied_service_name"},
+            },
+            {
+                "type": bool,
+                "type_alias": _("布尔值"),
+                "fields": {"is_enabled", "is_auto_apply"},
+            },
+            {
+                "type": int,
+                "type_alias": _("整数"),
+                "fields": {"user_group_id"},
+            },
+        ]
         key = serializers.ChoiceField(
             label=_("查询字段"),
             choices=[
@@ -133,26 +150,20 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
 
         def validate(self, attrs: dict) -> dict:
             error_message: str = _("查询字段为 {key} 时，字段值类型必须为 {value_type}")
-            str_keys = {"query", "type", "name", "system", "update_user", "applied_service_name"}
-            bool_keys = {"is_enabled", "is_auto_apply"}
-            int_keys = {"user_group_id"}
-            value_type_map = {
-                "string": (str, str_keys),
-                "bool": (bool, bool_keys),
-                "int": (int, int_keys),
-            }
-
-            for value_type, (_type, keys) in value_type_map.items():
-                if attrs["key"] in keys:
-                    for v in attrs["value"]:
-                        if not isinstance(v, _type):
-                            raise serializers.ValidationError(
-                                error_message.format(key=attrs["key"], value_type=value_type)
-                            )
-                    break
+            for rule in self.FIELD_TYPE_VALIDATION_RULES:
+                if attrs["key"] not in rule["fields"]:
+                    continue
+                for v in attrs["value"]:
+                    if not isinstance(v, rule["type"]):
+                        raise serializers.ValidationError(
+                            error_message.format(key=attrs["key"], value_type=rule["type_alias"])
+                        )
+                break
             return attrs
 
     conditions = serializers.ListField(label=_("查询条件"), child=ConditionSerializer(), default=[], allow_empty=True)
+    page = serializers.IntegerField(label=_("页码"), min_value=1, default=1)
+    page_size = serializers.IntegerField(label=_("分页大小"), min_value=1, default=50)
     simple = serializers.BooleanField(label=_("是否仅返回概要信息"), default=False)
 
 
@@ -221,7 +232,7 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     @cached_property
-    def _get_strategy_template_qs(self) -> Iterable[StrategyTemplate]:
+    def _strategy_template_objs(self) -> Iterable[StrategyTemplate]:
         if isinstance(self.instance, Iterable):
             return self.instance
         elif self.instance is None:
@@ -229,36 +240,43 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
         return [self.instance]
 
     @cached_property
-    def user_group_qs_by_id(self) -> dict[int, UserGroup]:
-        all_user_group_ids: set = set()
-        for strategy_template_obj in self._get_strategy_template_qs:
-            all_user_group_ids.update(strategy_template_obj.user_group_ids)
-        user_group_qs = UserGroup.objects.filter(id__in=all_user_group_ids).only("id", "name")
-        return {user_group.id: user_group for user_group in user_group_qs}
+    def _user_groups(self) -> list[dict[str, int | str]]:
+        user_group_ids = set(
+            user_group_id for obj in self._strategy_template_objs for user_group_id in obj.user_group_ids
+        )
+        return list(UserGroup.objects.filter(id__in=user_group_ids).values("id", "name"))
 
     @cached_property
-    def strategy_instance_qs_by_strategy_template_id(self) -> dict[int, list[StrategyInstance]]:
-        all_strategy_template_ids: set = set()
-        for strategy_template_obj in self._get_strategy_template_qs:
-            all_strategy_template_ids.add(strategy_template_obj.pk)
-        strategy_instance_qs = StrategyInstance.objects.filter(strategy_template_id__in=all_strategy_template_ids).only(
-            "strategy_template_id", "service_name"
+    def _user_group_by_id(self) -> dict[int, dict[str, int | str]]:
+        return {user_group["id"]: user_group for user_group in self._user_groups}
+
+    @cached_property
+    def _strategy_instances(self) -> list[dict[str, int | str]]:
+        strategy_template_ids = set(obj.pk for obj in self._strategy_template_objs)
+        return list(
+            StrategyInstance.objects.filter(strategy_template_id__in=strategy_template_ids).values(
+                "strategy_template_id", "service_name"
+            )
         )
-        result_dict = {}
-        for strategy_instance_obj in strategy_instance_qs:
-            result_dict.setdefault(strategy_instance_obj.strategy_template_id, []).append(strategy_instance_obj)
-        return result_dict
+
+    @cached_property
+    def _applied_service_names_by_id(self) -> dict[int, list[str]]:
+        applied_service_names_by_id = {}
+        for instance in self._strategy_instances:
+            applied_service_names_by_id.setdefault(instance["strategy_template_id"], []).append(
+                instance["service_name"]
+            )
+        return applied_service_names_by_id
 
     def get_user_group_list(self, obj: StrategyTemplate) -> list[dict[str, int | str]]:
-        user_group_list: list[dict[str, int | str]] = []
-        for user_group_id in obj.user_group_ids:
-            user_group_obj = self.user_group_qs_by_id.get(user_group_id, None)
-            if user_group_obj:
-                user_group_list.append({"id": user_group_id, "name": user_group_obj.name})
-        return user_group_list
+        return [
+            self._user_group_by_id[user_group_id]
+            for user_group_id in obj.user_group_ids
+            if user_group_id in self._user_group_by_id
+        ]
 
     def get_applied_service_names(self, obj) -> list[str]:
-        return [instance.service_name for instance in self.strategy_instance_qs_by_strategy_template_id.get(obj.pk, [])]
+        return self._applied_service_names_by_id.get(obj.pk, [])
 
 
 class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
