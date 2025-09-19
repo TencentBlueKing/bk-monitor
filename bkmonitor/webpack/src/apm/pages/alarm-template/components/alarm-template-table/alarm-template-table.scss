@@ -48,6 +48,7 @@
       .bk-table-row {
         .edit-btn {
           visibility: hidden;
+          flex-shrink: 0;
           width: 20px;
           height: 20px;
           color: #979ba5;
@@ -255,7 +256,7 @@
         background: #e1ecff;
       }
 
-      &.disabled {
+      &.is-disabled {
         color: #c4c6cc;
         cursor: not-allowed;
       }
