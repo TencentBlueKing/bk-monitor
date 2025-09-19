@@ -43,8 +43,14 @@ import AlarmTemplateConfigDialog, {
 } from '../alarm-template-config-dialog/alarm-template-config-dialog';
 import CollapseTags from '../collapse-tags/collapse-tags';
 import DetectionAlgorithmsGroup from '../detection-algorithms-group/detection-algorithms-group';
+import { TemplateTypeMap } from '../template-form/typing';
 
-import type { AlarmTemplateDetailTabEnumType, AlarmTemplateListItem } from '../../typing';
+import type {
+  AlarmTemplateDetailTabEnumType,
+  AlarmTemplateField,
+  AlarmTemplateListItem,
+  AlarmTemplateOptionsItem,
+} from '../../typing';
 
 import './alarm-template-table.scss';
 
@@ -81,6 +87,8 @@ interface AlarmTemplateTableProps {
   emptyType: 'empty' | 'search-empty';
   /** 表格加载状态 */
   loading: boolean;
+  /** 候选值映射表 */
+  selectOptionMap: Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>;
   /** 表格数据 */
   tableData: AlarmTemplateListItem[];
 }
@@ -98,6 +106,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   @Prop({ type: Array, default: () => [] }) tableData: AlarmTemplateListItem[];
   /** 空数据类型 */
   @Prop({ type: String, default: 'empty' }) emptyType: 'empty' | 'search-empty';
+  /** 候选值映射表 */
+  @Prop({ type: Object, default: () => {} }) selectOptionMap: Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>;
 
   /** dialog 弹窗所需配置项 */
   templateDialogConfig: AlarmTemplateConfigDialogProps = null;
@@ -117,10 +127,13 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       showOverflowTooltip: false,
       formatter: this.nameColRenderer,
     },
-    category: {
-      id: 'category',
+    system: {
+      id: 'system',
       label: this.$t('模板类型'),
       minWidth: 110,
+      filters: [],
+      filterMultiple: true,
+      formatter: row => TemplateTypeMap[row.system] || '--',
     },
     update_time: {
       id: 'update_time',
@@ -147,19 +160,23 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     user_group_list: {
       id: 'user_group_list',
       label: this.$t('告警组'),
-      width: 180,
+      width: 200,
+      filters: [],
+      filterMultiple: true,
       formatter: this.userGroupColRenderer,
     },
     is_enabled: {
       id: 'is_enabled',
       label: this.$t('启用 / 禁用'),
       width: 120,
+      filters: [],
       formatter: this.switcherColRenderer,
     },
     is_auto_apply: {
       id: 'is_auto_apply',
       label: this.$t('自动下发'),
       width: 120,
+      filters: [],
       formatter: this.switcherColRenderer,
     },
     operator: {
@@ -178,7 +195,18 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   }
   /** 表格展示的列配置数组 */
   get tableColumns() {
-    return TABLE_DEFAULT_DISPLAY_FIELDS.map(field => this.allTableColumns[field]);
+    return TABLE_DEFAULT_DISPLAY_FIELDS.map(field => {
+      const columnItem = { ...this.allTableColumns[field] };
+      if (columnItem?.filters) {
+        const selectOptionsItem = this.selectOptionMap?.[field];
+        columnItem.filters =
+          selectOptionsItem?.map?.(e => ({
+            text: e.name,
+            value: e.id,
+          })) || columnItem?.filters;
+      }
+      return columnItem;
+    });
   }
 
   /**
@@ -488,21 +516,15 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     const value = row[columnKey] || [];
     return (
       <div class='user-group-list-col'>
-        <CollapseTags
-          scopedSlots={{
-            after: () => (
-              <div
-                class='edit-btn'
-                onClick={() =>
-                  this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
-                }
-              >
-                <i class='icon-monitor icon-bianji' />
-              </div>
-            ),
-          }}
-          data={value?.map(e => e.name) || []}
-        />
+        <CollapseTags data={value?.map(e => e.name) || []} />
+        <div
+          class='edit-btn'
+          onClick={() =>
+            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+          }
+        >
+          <i class='icon-monitor icon-bianji' />
+        </div>
       </div>
     );
   }
@@ -600,6 +622,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         width={column.width}
         align={column.align}
         column-key={column.id}
+        filter-multiple={column.filterMultiple}
+        filters={column.filters}
         fixed={column.fixed}
         formatter={column.formatter || this.defaultRenderer}
         label={column.label}
