@@ -21,6 +21,11 @@ from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
 
 
+def get_user_groups(user_group_ids: Iterable[int]) -> dict[int, dict[str, int | str]]:
+    user_groups = UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
+    return {user_group["id"]: user_group for user_group in user_groups}
+
+
 class DetectSerializer(serializers.Serializer):
     class DefaultDetectConfigSerializer(serializers.Serializer):
         recovery_check_window = serializers.IntegerField(label=_("恢复检查窗口"), min_value=1, default=5)
@@ -182,6 +187,12 @@ class StrategyTemplateUpdateRequestSerializer(
     def validate(self, attrs: dict) -> dict:
         if not attrs["is_enabled"] and attrs["is_auto_apply"]:
             raise serializers.ValidationError(_("策略模板禁用时，不允许配置自动下发"))
+
+        user_group_list: list[dict[str, int | str]] = attrs["user_group_list"]
+        user_groups = get_user_groups([user_group["id"] for user_group in user_group_list])
+        for user_group in user_group_list:
+            if user_group["id"] not in user_groups:
+                raise serializers.ValidationError(_("不存在名称为{name}的告警组").format(name=user_group["name"]))
         return attrs
 
 
@@ -246,8 +257,7 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
         user_group_ids = set(
             user_group_id for obj in self._strategy_template_objs for user_group_id in obj.user_group_ids
         )
-        user_groups = UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
-        return {user_group["id"]: user_group for user_group in user_groups}
+        return get_user_groups(user_group_ids)
 
     @cached_property
     def _strategy_instances(self) -> list[dict[str, int | str]]:
@@ -281,7 +291,21 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
 class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
     class Meta:
         model = StrategyTemplate
-        fields = "__all__"
+        fields = [
+            "id",
+            "code",
+            "name",
+            "type",
+            "is_enabled",
+            "is_auto_apply",
+            "system",
+            "category",
+            "detectalgorithms",
+            "user_group_list",
+            "query_template",
+            "context",
+            "applied_service_names",
+        ]
 
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
         validated_data["user_group_ids"] = [user_group["id"] for user_group in validated_data.pop("user_group_list")]
