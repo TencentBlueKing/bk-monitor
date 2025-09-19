@@ -14,6 +14,10 @@ from rest_framework.viewsets import GenericViewSet
 
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.models.strategy import StrategyModel
+from bkmonitor.documents.alert import AlertDocument
+from constants.alert import EventStatus
+from apm_web.models.strategy import StrategyTemplate, StrategyInstance
 
 from . import mock_data, serializers
 
@@ -45,6 +49,7 @@ class StrategyTemplateViewSet(GenericViewSet):
             "retrieve": serializers.StrategyTemplateDetailRequestSerializer,
             "destroy": serializers.StrategyTemplateDeleteRequestSerializer,
             "update": serializers.StrategyTemplateUpdateRequestSerializer,
+            "status": serializers.StrategyTemplateStatusRequestSerializer,
         }
         return action_serializer_map.get(self.action) or self.serializer_class
 
@@ -136,3 +141,84 @@ class StrategyTemplateViewSet(GenericViewSet):
         if self.query_data.get("is_mock"):
             return Response(mock_data.STRATEGY_TEMPLATE_OPTION_VALUES)
         return Response({})
+
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateStatusRequestSerializer)
+    def status(self, *args, **kwargs) -> Response:
+        if self.query_data.get("is_mock"):
+            return Response({"list": []})
+
+        bk_biz_id = self.query_data["bk_biz_id"]
+        app_name = self.query_data["app_name"]
+        template_ids = self.query_data["ids"]
+        need_strategies = self.query_data["need_strategies"]
+
+        # 查询启用的策略模板
+        enabled_templates = StrategyTemplate.objects.filter(
+            id__in=template_ids, bk_biz_id=bk_biz_id, app_name=app_name, is_enabled=True
+        ).values_list("id", flat=True)
+
+        # 查询策略实例，关联启用的策略模板
+        strategy_instances = StrategyInstance.objects.filter(
+            strategy_template_id__in=enabled_templates, bk_biz_id=bk_biz_id, app_name=app_name
+        ).select_related()
+
+        # 获取启用的策略ID
+        strategy_ids = []
+        template_strategy_map = {}
+
+        for instance in strategy_instances:
+            # 检查策略是否启用
+            strategy = StrategyModel.objects.get(id=instance.strategy_id)
+            if strategy.is_enabled:
+                strategy_ids.append(instance.strategy_id)
+                if instance.strategy_template_id not in template_strategy_map:
+                    template_strategy_map[instance.strategy_template_id] = []
+                template_strategy_map[instance.strategy_template_id].append(
+                    {"strategy_id": instance.strategy_id, "service_name": instance.service_name}
+                )
+
+        # 查询告警数量
+        alert_counts = {}
+        if strategy_ids:
+            search_object = (
+                AlertDocument.search(all_indices=True)
+                .filter("term", **{"event.bk_biz_id": bk_biz_id})
+                .filter("term", status=EventStatus.ABNORMAL)
+                .filter("terms", strategy_id=strategy_ids)[:0]
+            )
+            search_object.aggs.bucket("strategy_id", "terms", field="strategy_id", size=10000)
+            search_result = search_object.execute()
+
+            if search_result.aggs:
+                for bucket in search_result.aggs.strategy_id.buckets:
+                    alert_counts[int(bucket.key)] = bucket.doc_count
+
+        # 构建响应数据
+        result_list = []
+
+        for template_id in template_ids:
+            if template_id not in template_strategy_map:
+                continue
+
+            template_alert_count = 0
+            strategies_data = []
+
+            for strategy_info in template_strategy_map[template_id]:
+                strategy_id = strategy_info["strategy_id"]
+                service_name = strategy_info["service_name"]
+                strategy_alert_count = alert_counts.get(strategy_id, 0)
+                template_alert_count += strategy_alert_count
+
+                if need_strategies:
+                    strategies_data.append(
+                        {"strategy_id": strategy_id, "alert_number": strategy_alert_count, "service_name": service_name}
+                    )
+
+            template_data = {"id": template_id, "alert_number": template_alert_count}
+
+            if need_strategies:
+                template_data["strategies"] = strategies_data
+
+            result_list.append(template_data)
+
+        return Response({"list": result_list})
