@@ -184,3 +184,8 @@ class StrategyTemplateOptionValuesRequestSerializer(BaseAppStrategyTemplateReque
         default=[],
         allow_empty=True,
     )
+
+
+class StrategyTemplateStatusRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
+    ids = serializers.ListField(label=_("策略模板 ID 列表"), child=serializers.IntegerField(min_value=1))
+    need_strategies = serializers.BooleanField(label=_("是否需要策略列表"), default=False)
