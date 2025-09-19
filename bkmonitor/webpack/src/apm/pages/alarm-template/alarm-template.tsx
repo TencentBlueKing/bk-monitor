@@ -27,6 +27,7 @@
 import { Component, InjectReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getFunctions } from 'monitor-api/modules/grafana';
 import { Debounce, random } from 'monitor-common/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
@@ -91,6 +92,8 @@ export default class AlarmTemplate extends tsc<object> {
     params: {},
   };
 
+  metricFunctions = [];
+
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
   /** 告警列表接口请求参数 */
@@ -124,6 +127,14 @@ export default class AlarmTemplate extends tsc<object> {
     this.tableData = templateList;
     this.tableLoading = false;
     this.selectedRowKeys = [];
+  }
+  /** 获取函数列表 */
+  async handleGetMetricFunctions() {
+    this.metricFunctions = await getFunctions().catch(() => []);
+  }
+
+  mounted() {
+    this.handleGetMetricFunctions();
   }
 
   /**
@@ -319,12 +330,14 @@ export default class AlarmTemplate extends tsc<object> {
         <EditTemplateSlider
           appName={'tilapia'}
           isShow={this.editTemplateShow}
+          metricFunctions={this.metricFunctions}
           templateId={this.editTemplateId}
           onShowChange={show => {
             this.editTemplateShow = show;
           }}
         />
         <TemplateDetails
+          metricFunctions={this.metricFunctions}
           params={this.templateDetailObj.params}
           show={this.templateDetailObj.show}
           onShowChange={show => {
