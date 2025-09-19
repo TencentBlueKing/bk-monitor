@@ -160,7 +160,15 @@ class StrategyTemplateViewSet(GenericViewSet):
         # 查询策略实例，关联启用的策略模板
         strategy_instances = StrategyInstance.objects.filter(
             strategy_template_id__in=enabled_templates, bk_biz_id=bk_biz_id, app_name=app_name
-        ).select_related()
+        )
+
+        # 批量查询启用的策略
+        strategy_ids_from_instances = [instance.strategy_id for instance in strategy_instances]
+        enabled_strategies = set(
+            StrategyModel.objects.filter(id__in=strategy_ids_from_instances, is_enabled=True).values_list(
+                "id", flat=True
+            )
+        )
 
         # 获取启用的策略ID
         strategy_ids = []
@@ -168,8 +176,7 @@ class StrategyTemplateViewSet(GenericViewSet):
 
         for instance in strategy_instances:
             # 检查策略是否启用
-            strategy = StrategyModel.objects.get(id=instance.strategy_id)
-            if strategy.is_enabled:
+            if instance.strategy_id in enabled_strategies:
                 strategy_ids.append(instance.strategy_id)
                 if instance.strategy_template_id not in template_strategy_map:
                     template_strategy_map[instance.strategy_template_id] = []
