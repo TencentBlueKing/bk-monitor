@@ -241,6 +241,7 @@ export default class CollapseTags extends tsc<CollapseTagsProps> {
         style={this.cssVars}
         class='bk-common-v2-tag-show'
       >
+        {(this.$scopedSlots as any)?.before?.()}
         <span
           ref='sectionRef'
           class='item-tags'
@@ -267,6 +268,7 @@ export default class CollapseTags extends tsc<CollapseTagsProps> {
         >
           +{dataLen}
         </span>
+        {(this.$scopedSlots as any)?.after?.()}
       </span>
     );
   }

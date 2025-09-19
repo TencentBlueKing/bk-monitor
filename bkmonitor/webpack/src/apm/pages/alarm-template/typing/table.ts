@@ -96,6 +96,11 @@ export interface AlarmTemplateListItem {
   user_group_list: AlarmUserGroupItem[];
 }
 
+export interface AlarmTemplateOptionsItem {
+  alias: string;
+  value: string;
+}
+
 export interface AlarmUserGroupItem {
   id: number;
   name: string;
