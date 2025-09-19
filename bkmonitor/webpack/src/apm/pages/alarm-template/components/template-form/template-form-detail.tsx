@@ -23,12 +23,97 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import VariableValueDetail from 'monitor-pc/pages/query-template/variables/components/variable-panel/variable-value-detail';
+
+import DetectionAlgorithmsGroup from '../detection-algorithms-group/detection-algorithms-group';
+import { type TemplateDetail, TemplateTypeMap } from './typing';
+
+import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
+
+import './template-form-detail.scss';
+interface TemplateFormDetailProps {
+  data: TemplateDetail;
+  metricFunctions: any[];
+  variablesList: VariableModelType[];
+}
+
 @Component
-export default class TemplateFormDetail extends tsc<object> {
+export default class TemplateFormDetail extends tsc<TemplateFormDetailProps> {
+  /** 表单数据 */
+  @Prop({ default: () => ({}) }) data: TemplateDetail;
+  /** 变量列表 */
+  @Prop({ default: () => [] }) variablesList: VariableModelType[];
+  /** 函数列表 */
+  @Prop({ default: () => [] }) metricFunctions!: any[];
+
+  /** 监控指标 */
+  get monitorData() {
+    if (this.data?.query_template?.alias) {
+      return `${this.data.query_template.alias}(${this.data.query_template.name})`;
+    }
+    return this.data?.query_template?.name;
+  }
+
+  formItem(label: string, content) {
+    return (
+      <div class='form-item'>
+        <div class='label'>{label}</div>
+        <div class='content'>{content}</div>
+      </div>
+    );
+  }
+
   render() {
-    return <div class='template-form-detail' />;
+    return (
+      <div class='template-form-detail'>
+        {this.formItem(this.$tc('监控数据'), <span>{this.monitorData}</span>)}
+        {this.formItem(this.$tc('模板类型'), <span>{TemplateTypeMap[this.data?.system]}</span>)}
+        {this.formItem(this.$tc('检测算法'), <DetectionAlgorithmsGroup algorithms={this.data?.algorithms} />)}
+        {this.formItem(
+          this.$tc('判断条件'),
+          <i18n
+            class='detect-text'
+            path='在{0}个周期内累计满足{1}次检测算法'
+          >
+            <span class='value'>{this.data?.detect?.config.trigger_check_window}</span>
+            <span class='value'>{this.data?.detect?.config.trigger_count}</span>
+          </i18n>
+        )}
+        {this.formItem(
+          this.$tc('告警组'),
+          <div class='tag-list'>
+            {this.data?.user_group_list.map(item => (
+              <div
+                key={item.id}
+                class='tag-item'
+              >
+                {item.name}
+              </div>
+            ))}
+          </div>
+        )}
+        {this.variablesList.map(item =>
+          this.formItem(
+            item.alias || item.name,
+            <VariableValueDetail
+              key={item.id}
+              metricFunctions={this.metricFunctions}
+              variable={item}
+            />
+          )
+        )}
+        {this.formItem(
+          this.$tc('自动下发'),
+          <bk-switcher
+            theme='primary'
+            value={this.data?.is_auto_apply}
+            disabled
+          />
+        )}
+      </div>
+    );
   }
 }
