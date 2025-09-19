@@ -301,6 +301,7 @@ class CustomReportSubscription(models.Model):
             if str(bk_biz_id) not in cc_bk_biz_ids and int(bk_biz_id) not in cc_bk_biz_ids:
                 continue
 
+            config_map = {}
             try:
                 for config_context, protocol in data_id_configs:
                     tpl_name = BkCollectorComp.CONFIG_MAP_NAME_MAP.get(protocol)
@@ -315,9 +316,11 @@ class CustomReportSubscription(models.Model):
                     config_id = int(config_context.get("bk_data_id"))
                     config_context.setdefault("bk_biz_id", bk_biz_id)
                     config_content = Environment().from_string(tpl).render(config_context)
-                    BkCollectorClusterConfig.deploy_to_k8s(cluster_id, config_id, protocol, config_content)
+                    config_map[config_id] = (protocol, config_content)
+
+                BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, config_map)
             except Exception as e:  # pylint: disable=broad-except
-                logger.info(f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}) error({e})")
+                logger.exception(f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}) error({e})")
 
     @classmethod
     def _refresh_collect_custom_config_by_biz(
