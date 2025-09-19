@@ -58,9 +58,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         )
 
     def retrieve(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response(mock_data.CALLEE_SUCCESS_RATE_STRATEGY_TEMPLATE)
-        return Response({})
+        return Response(self.serializer_class(self.get_object()).data)
 
     def destroy(self, *args, **kwargs) -> Response:
         if self.query_data.get("is_mock"):
