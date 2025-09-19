@@ -53,8 +53,9 @@ class StrategyTemplateViewSet(GenericViewSet):
         return action_serializer_map.get(self.action) or self.serializer_class
 
     def get_queryset(self) -> QuerySet[StrategyTemplate]:
-        queryset = super().get_queryset()
-        return queryset.filter(bk_biz_id=self.query_data["bk_biz_id"], app_name=self.query_data["app_name"])
+        return (
+            super().get_queryset().filter(bk_biz_id=self.query_data["bk_biz_id"], app_name=self.query_data["app_name"])
+        )
 
     def retrieve(self, *args, **kwargs) -> Response:
         if self.query_data.get("is_mock"):

@@ -240,15 +240,12 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
         return [self.instance]
 
     @cached_property
-    def _user_groups(self) -> list[dict[str, int | str]]:
+    def _user_groups(self) -> dict[int, dict[str, int | str]]:
         user_group_ids = set(
             user_group_id for obj in self._strategy_template_objs for user_group_id in obj.user_group_ids
         )
-        return list(UserGroup.objects.filter(id__in=user_group_ids).values("id", "name"))
-
-    @cached_property
-    def _user_group_by_id(self) -> dict[int, dict[str, int | str]]:
-        return {user_group["id"]: user_group for user_group in self._user_groups}
+        user_groups = UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
+        return {user_group["id"]: user_group for user_group in user_groups}
 
     @cached_property
     def _strategy_instances(self) -> list[dict[str, int | str]]:
@@ -270,9 +267,9 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
 
     def get_user_group_list(self, obj: StrategyTemplate) -> list[dict[str, int | str]]:
         return [
-            self._user_group_by_id[user_group_id]
+            self._user_groups[user_group_id]
             for user_group_id in obj.user_group_ids
-            if user_group_id in self._user_group_by_id
+            if user_group_id in self._user_groups
         ]
 
     def get_applied_service_names(self, obj) -> list[str]:
