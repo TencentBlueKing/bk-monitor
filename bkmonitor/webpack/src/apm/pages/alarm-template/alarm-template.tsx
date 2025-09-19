@@ -45,6 +45,7 @@ import type {
   AlarmTemplateConditionParamItem,
   AlarmTemplateDetailTabEnumType,
   AlarmTemplateListItem,
+  AlarmTemplateTypeEnumType,
   BatchOperationTypeEnumType,
 } from './typing';
 import type { SearchSelectItem } from 'monitor-pc/pages/query-template/typings';
@@ -92,6 +93,7 @@ export default class AlarmTemplate extends tsc<object> {
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
+  /** 告警列表接口请求参数 */
   get requestParam() {
     const param = {
       refreshKey: this.refreshKey,
@@ -104,6 +106,9 @@ export default class AlarmTemplate extends tsc<object> {
     return param as unknown as AlarmListRequestParams;
   }
 
+  /**
+   * @description 获取告警列表数据
+   */
   @Debounce(200)
   @Watch('requestParam')
   async getQueryTemplateList() {
@@ -132,18 +137,23 @@ export default class AlarmTemplate extends tsc<object> {
 
   /**
    * @description 模板类型快捷筛选值改变后回调
+   * @param {AlarmTemplateTypeEnumType | 'all'} status 当前选中的模板类型快捷筛选值
    */
-  handleQuickStatusChange(status: string) {
+  handleQuickStatusChange(status: 'all' | AlarmTemplateTypeEnumType) {
     this.quickStatus = status;
   }
   /**
    * @description 批量操作按钮点击事件
+   * @param {BatchOperationTypeEnumType} operationType 批量操作类型
    */
   handleBatchOperationClick(operationType: BatchOperationTypeEnumType) {
     this.handleBatchUpdate(this.selectedRowKeys, { is_auto_apply: operationType === 'auto_apply' });
   }
 
-  /** 筛选值改变后回调（作用于 表格表头筛选 & 顶部筛选searchInput框） */
+  /**
+   * @description 筛选值改变后回调（作用于 表格表头筛选 & 顶部筛选searchInput框）
+   * @param {AlarmTemplateConditionParamItem[]} keyword 筛选值改变后的值
+   **/
   handleSearchChange(keyword: AlarmTemplateConditionParamItem[]) {
     this.searchKeyword = keyword;
   }
@@ -151,6 +161,9 @@ export default class AlarmTemplate extends tsc<object> {
   /**
    * @description 删除查询模板
    * @param templateId 模板Id
+   * @param {AlarmDeleteConfirmEvent['promiseEvent']} promiseEvent.promiseEvent Promise 对象，用于告诉 操作发起者 接口请求状态
+   * @param {AlarmDeleteConfirmEvent['errorCallback']} promiseEvent.errorCallback Promise.reject 方法，用于告诉 操作发起者 接口请求失败
+   * @param {AlarmDeleteConfirmEvent['successCallback']} promiseEvent.successCallback Promise 对象，用于告诉 操作发起者 接口请求成功
    */
   deleteTemplateById(templateId: AlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) {
     destroyAlarmTemplateById({ strategy_template_id: templateId, app_name: this.viewOptions.filters?.app_name })
@@ -210,6 +223,7 @@ export default class AlarmTemplate extends tsc<object> {
 
   /**
    * @description 表格行勾选事件回调
+   * @param {AlarmTemplateListItem['id'][]} selectedRowKeys 当前表格选中的行id数组
    */
   handleTableSelectedChange(selectedRowKeys: AlarmTemplateListItem['id'][]) {
     this.selectedRowKeys = selectedRowKeys;
@@ -217,6 +231,11 @@ export default class AlarmTemplate extends tsc<object> {
 
   /**
    * @description 批量/单个模板内属性更新事件回调
+   * @param {AlarmTemplateListItem['id'] | AlarmTemplateListItem['id'][]} id 需要进行更新数据的 模板id 或 模板id数组
+   * @param {Partial<AlarmTemplateListItem>} updateValue 需要更新的数据
+   * @param {AlarmDeleteConfirmEvent['promiseEvent']} promiseEvent.promiseEvent Promise 对象，用于告诉 操作发起者 接口请求状态
+   * @param {AlarmDeleteConfirmEvent['errorCallback']} promiseEvent.errorCallback Promise.reject 方法，用于告诉 操作发起者 接口请求失败
+   * @param {AlarmDeleteConfirmEvent['successCallback']} promiseEvent.successCallback Promise 对象，用于告诉 操作发起者 接口请求成功
    */
   handleBatchUpdate(
     id: AlarmTemplateListItem['id'] | AlarmTemplateListItem['id'][],
