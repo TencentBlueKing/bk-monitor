@@ -1131,7 +1131,12 @@ export default defineComponent({
             top += 22;
             nodeDetailTips.value.push({ label: t('所属服务'), value: model.entity?.tags?.BcsService?.name });
           }
-          nodeDetailTipsRef.value.style.top = `-${top}px`;
+
+          // 动态计算提示窗y轴偏移，保证提示窗不盖住节点
+          const tooltipEl = document.querySelector('.node-message-tooltip');
+          if (tooltipEl) {
+            tooltipEl.style.setProperty('--offset', `-${top}px`);
+          }
           return nodeDetailTipsRef.value as HTMLDivElement;
         },
       });
