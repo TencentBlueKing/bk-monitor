@@ -39,6 +39,7 @@ import type {
   AlarmTemplateAlertsItem,
   AlarmTemplateBatchUpdateParams,
   AlarmTemplateDestroyParams,
+  AlarmTemplateField,
   AlarmTemplateListItem,
   AlarmTemplateOptionsItem,
   GetAlarmTemplateOptionsParams,
@@ -158,9 +159,17 @@ export const updateAlarmTemplateByIds = async (params: AlarmTemplateBatchUpdateP
 
 /**
  * @description 获取告警模板候选项值
- * @param {GetAlarmTemplateOptionsParams}
- * @returns {Record<string, AlarmTemplateOptionsItem>} 告警模板候选项值
+ * @param {GetAlarmTemplateOptionsParams} 获取告警模板候选项值 接口参数
+ * @returns {Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>} 告警模板候选项值映射表
  */
-export const getSelectOptions = async (params: GetAlarmTemplateOptionsParams) => {
-  return optionValuesStrategyTemplate<Record<string, AlarmTemplateOptionsItem>>(params);
+export const getAlarmSelectOptions = async (params: GetAlarmTemplateOptionsParams) => {
+  const result = await optionValuesStrategyTemplate<Record<AlarmTemplateField, { alias: string; value: string }[]>>(
+    params
+  ).catch(() => ({}));
+  // 将接口返回的值转换为兼容searchSearch组件需要的格式
+  const transformObj = Object.entries(result).map(([key, value]) => [
+    key,
+    value.map(item => ({ id: item.value, name: item.alias })),
+  ]);
+  return Object.fromEntries(transformObj);
 };

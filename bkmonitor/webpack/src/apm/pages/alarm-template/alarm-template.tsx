@@ -35,8 +35,13 @@ import AlarmTemplateTable from './components/alarm-template-table/alarm-template
 import AlarmTemplateSearch from './components/alarm-templte-search/alarm-template-search';
 import BatchOperations from './components/batch-operations/batch-operations';
 import EditTemplateSlider from './components/template-form/edit-template-slider';
-import { ALARM_TEMPLATE_QUICK_FILTER_LIST, AlarmTemplateTypeMap } from './constant';
-import { destroyAlarmTemplateById, fetchAlarmTemplateList, updateAlarmTemplateByIds } from './service';
+import { ALARM_TEMPLATE_OPTIONS_FIELDS, ALARM_TEMPLATE_QUICK_FILTER_LIST, AlarmTemplateTypeMap } from './constant';
+import {
+  destroyAlarmTemplateById,
+  fetchAlarmTemplateList,
+  getAlarmSelectOptions,
+  updateAlarmTemplateByIds,
+} from './service';
 import TemplateDetails from './template-operate/template-details';
 import TemplatePush from './template-operate/template-push';
 
@@ -45,11 +50,12 @@ import type {
   AlarmListRequestParams,
   AlarmTemplateConditionParamItem,
   AlarmTemplateDetailTabEnumType,
+  AlarmTemplateField,
   AlarmTemplateListItem,
+  AlarmTemplateOptionsItem,
   AlarmTemplateTypeEnumType,
   BatchOperationTypeEnumType,
 } from './typing';
-import type { SearchSelectItem } from 'monitor-pc/pages/query-template/typings';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './alarm-template.scss';
@@ -68,14 +74,8 @@ export default class AlarmTemplate extends tsc<object> {
   searchKeyword: AlarmTemplateConditionParamItem[] = [];
   /** 表格已勾选的数据行id */
   selectedRowKeys: AlarmTemplateListItem['id'][] = [];
-  /** 搜索选择器选项(接口获取) */
-  selectOptions: SearchSelectItem[] = [
-    {
-      name: window.i18n.t('全文检索') as unknown as string,
-      id: 'query',
-      multiple: false,
-    },
-  ];
+  /** 候选值映射表 */
+  selectOptionsMap: Record<AlarmTemplateField, AlarmTemplateOptionsItem[]> = null;
   /** 数据请求中止控制器 */
   abortController: AbortController = null;
 
@@ -98,10 +98,17 @@ export default class AlarmTemplate extends tsc<object> {
 
   /** 告警列表接口请求参数 */
   get requestParam() {
+    const conditions = [...this.searchKeyword];
+    if (this.quickStatus !== 'all') {
+      conditions.push({
+        key: 'type',
+        value: [this.quickStatus],
+      });
+    }
     const param = {
       refreshKey: this.refreshKey,
       app_name: this.viewOptions.filters?.app_name,
-      conditions: this.searchKeyword,
+      conditions,
       simple: false,
     };
 
@@ -137,6 +144,10 @@ export default class AlarmTemplate extends tsc<object> {
     this.handleGetMetricFunctions();
   }
 
+  beforeMount() {
+    this.getSelectOptions();
+  }
+
   /**
    * @description 中止数据请求
    */
@@ -144,6 +155,17 @@ export default class AlarmTemplate extends tsc<object> {
     if (!this.abortController) return;
     this.abortController.abort();
     this.abortController = null;
+  }
+
+  /**
+   * @description 获取搜索选择器候选值选项数据
+   */
+  async getSelectOptions() {
+    const result = await getAlarmSelectOptions({
+      app_name: this.viewOptions.filters?.app_name,
+      fields: ALARM_TEMPLATE_OPTIONS_FIELDS,
+    });
+    this.selectOptionsMap = result || {};
   }
 
   /**
@@ -174,7 +196,7 @@ export default class AlarmTemplate extends tsc<object> {
    * @param templateId 模板Id
    * @param {AlarmDeleteConfirmEvent['promiseEvent']} promiseEvent.promiseEvent Promise 对象，用于告诉 操作发起者 接口请求状态
    * @param {AlarmDeleteConfirmEvent['errorCallback']} promiseEvent.errorCallback Promise.reject 方法，用于告诉 操作发起者 接口请求失败
-   * @param {AlarmDeleteConfirmEvent['successCallback']} promiseEvent.successCallback Promise 对象，用于告诉 操作发起者 接口请求成功
+   * @param {AlarmDeleteConfirmEvent['successCallback']} promiseEvent.successCallback Promise.result 方法，用于告诉 操作发起者 接口请求成功
    */
   deleteTemplateById(templateId: AlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) {
     destroyAlarmTemplateById({ strategy_template_id: templateId, app_name: this.viewOptions.filters?.app_name })
@@ -246,7 +268,7 @@ export default class AlarmTemplate extends tsc<object> {
    * @param {Partial<AlarmTemplateListItem>} updateValue 需要更新的数据
    * @param {AlarmDeleteConfirmEvent['promiseEvent']} promiseEvent.promiseEvent Promise 对象，用于告诉 操作发起者 接口请求状态
    * @param {AlarmDeleteConfirmEvent['errorCallback']} promiseEvent.errorCallback Promise.reject 方法，用于告诉 操作发起者 接口请求失败
-   * @param {AlarmDeleteConfirmEvent['successCallback']} promiseEvent.successCallback Promise 对象，用于告诉 操作发起者 接口请求成功
+   * @param {AlarmDeleteConfirmEvent['successCallback']} promiseEvent.successCallback Promise.result 方法，用于告诉 操作发起者 接口请求成功
    */
   handleBatchUpdate(
     id: AlarmTemplateListItem['id'] | AlarmTemplateListItem['id'][],
@@ -305,7 +327,7 @@ export default class AlarmTemplate extends tsc<object> {
             <AlarmTemplateSearch
               class='search-input'
               searchKeyword={this.searchKeyword}
-              selectOptions={this.selectOptions}
+              selectOptionMap={this.selectOptionsMap}
               onChange={this.handleSearchChange}
             />
           </div>
@@ -315,6 +337,7 @@ export default class AlarmTemplate extends tsc<object> {
             appName='tilapia'
             emptyType={this.searchKeyword?.length ? 'search-empty' : 'empty'}
             loading={this.tableLoading}
+            selectOptionMap={this.selectOptionsMap}
             tableData={this.tableData}
             onBatchUpdate={this.handleBatchUpdate}
             onClearSearch={() => this.handleSearchChange([])}

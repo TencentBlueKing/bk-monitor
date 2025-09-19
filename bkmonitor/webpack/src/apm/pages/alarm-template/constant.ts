@@ -71,7 +71,7 @@ export const ALARM_TEMPLATE_QUICK_FILTER_LIST: ('all' | AlarmTemplateTypeEnumTyp
 /** apm 告警模板列表-表格默认展示字段 */
 export const TABLE_DEFAULT_DISPLAY_FIELDS = [
   'name',
-  'category',
+  'system',
   'update_time',
   'applied_service_names',
   'algorithms',
@@ -79,6 +79,64 @@ export const TABLE_DEFAULT_DISPLAY_FIELDS = [
   'is_enabled',
   'is_auto_apply',
   'operator',
+];
+
+/** 需要获取告警模板候选项值的字段 */
+export const ALARM_TEMPLATE_OPTIONS_FIELDS = [
+  'system',
+  'update_user',
+  'applied_service_name',
+  'user_group_id',
+  'is_enabled',
+  'is_auto_apply',
+];
+
+/** 告警模板列表-搜索组件下拉选项 */
+export const SEARCH_SELECT_OPTIONS = [
+  {
+    name: window.i18n.t('全文检索'),
+    id: 'query',
+    multiable: true,
+  },
+  {
+    name: window.i18n.t('模板名称'),
+    id: 'name',
+    multiable: false,
+    children: [],
+  },
+  {
+    name: window.i18n.t('模板类型'),
+    id: 'system',
+    multiable: true,
+    onlyRecommendChildren: true,
+    children: [],
+  },
+  {
+    name: window.i18n.t('最近更新人'),
+    id: 'update_user',
+    multiable: true,
+    children: [],
+  },
+  {
+    name: window.i18n.t('关联服务'),
+    id: 'applied_service_names',
+    multiable: true,
+    children: [],
+  },
+  {
+    name: window.i18n.t('告警组'),
+    id: 'user_group_list',
+    multiable: true,
+    onlyRecommendChildren: true,
+    children: [],
+  },
+  {
+    name: window.i18n.t('启停'),
+    id: 'is_enabled',
+    multiable: false,
+    onlyRecommendChildren: true,
+    children: [],
+  },
 ];
 
 /** 告警模板类型 Map */
