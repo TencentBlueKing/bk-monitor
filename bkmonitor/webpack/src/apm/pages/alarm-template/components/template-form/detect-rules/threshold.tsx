@@ -59,7 +59,11 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
 
   popoverIndex = 0;
 
-  @Watch('data')
+  /**
+   * @description 监听 data 变化，用于控制各个级别开关是否开启
+   * @param val 已选择的检测规则
+   */
+  @Watch('data', { immediate: true })
   watchData(val: AlgorithmItem[]) {
     for (const item of this.localData) {
       const data = val.find(i => i.level === item.level);
