@@ -25,7 +25,7 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.constants import SeriesAliasType
-from apm_web.models import Application, CodeRedefinedConfigRelation
+from apm_web.models import Application
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
@@ -142,14 +142,6 @@ def discover_caller_callee(
     ) or discover_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
     if not server_config:
         return discover_result
-
-    code_redefined_config = CodeRedefinedConfigRelation.objects.filter(
-        bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-    ).first()
-    if code_redefined_config:
-        server_config["ret_code_as_exception"] = code_redefined_config.ret_code_as_exception
-    else:
-        server_config["ret_code_as_exception"] = False
 
     # 模调指标可能来源于用户自定义，因为框架/协议原因无法补充「服务」字段，此处允许动态设置「服务」配置以满足该 case。
     server_config.update(settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{bk_biz_id}-{app_name}") or {})
@@ -394,39 +386,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 view_config, "${server_filter_method}", server_config["server_filter_method"]
             )
 
-            ret_code_as_exception: bool = server_config.get("ret_code_as_exception", False)
-            if ret_code_as_exception:
-                success_rate_panel_data: dict[str, Any] = view_config["overview_panels"][0]["extra_panels"][1][
-                    "targets"
-                ][0]["data"]
-                code_condition: dict[str, Any] = {
-                    "key": "code",
-                    "method": "eq",
-                    "value": ["0", "ret_0"],
-                    "condition": "and",
-                }
-                success_rate_panel_data["query_configs"][0]["where"][1] = code_condition
-                success_rate_panel_data["unify_query_param"]["query_configs"][0]["where"][1] = code_condition
-
-                view_config["overview_panels"][0]["extra_panels"][2]["options"]["child_panels_selector_variables"][0][
-                    "variables"
-                ] = {
-                    "code_field": "code",
-                    "code_values": ["0", "ret_0"],
-                    "code_method": "neq",
-                    # 排除非 0 返回码可能是 timeout 的情况
-                    "code_extra_where": {
-                        "key": "code_type",
-                        "method": "neq",
-                        "value": ["timeout"],
-                        "condition": "and",
-                    },
-                }
-
-            view_config = cls._replace_variable(
-                view_config, "${ret_code_as_exception}", ("false", "true")[ret_code_as_exception]
-            )
-
         # APM自定义指标
         if builtin_view == "apm_service-service-default-custom_metric" and app_name:
             try:
@@ -473,7 +432,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     "server": server_config["server_field"],
                     "service_name": server_config["service_field"],
                     "server_filter_method": server_config["server_filter_method"],
-                    "ret_code_as_exception": server_config.get("ret_code_as_exception", False),
                 }
 
             if metric_count > 0:
