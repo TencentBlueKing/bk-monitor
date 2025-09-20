@@ -112,7 +112,7 @@ class ServiceDiscover(Discover):
             # 如何确定一个服务是否为 RPC（tRPC 或其他）类型？
             # - 通过调用分析指标发现。
             # - 自定义指标携带 rpc_system 维度。
-            is_rpc: bool = rpc_system or service.get("is_rpc", False)
+            is_rpc: bool = bool(rpc_system) or service.get("is_rpc", False)
             if is_rpc:
                 # 标记为 RPC 服务时，才设置 system。
                 system.append({"name": "trpc", "extra_data": {}})
