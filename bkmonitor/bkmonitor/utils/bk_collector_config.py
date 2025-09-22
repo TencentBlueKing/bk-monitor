@@ -17,7 +17,8 @@ from kubernetes import client
 
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bcs import BcsKubeClient
-from bkmonitor.utils.common_utils import safe_int
+from bkmonitor.utils.cache import using_cache, CacheType
+from bkmonitor.utils.common_utils import safe_int, count_md5
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -150,6 +151,7 @@ class BkCollectorClusterConfig:
             )
 
     @classmethod
+    @using_cache(CacheType.BCS(60 * 5))
     def sub_config_tpl(cls, cluster_id: str, sub_config_tpl_name: str):
         bcs_client = BcsKubeClient(cluster_id)
         config_maps = bcs_client.client_request(
@@ -287,3 +289,156 @@ class BkCollectorClusterConfig:
                     body=sec,
                 )
                 logger.info(f"{cluster_id} {protocol} config ({config_id}) update successful.")
+
+    @classmethod
+    def deploy_to_k8s_with_hash(cls, cluster_id: str, config_map: dict, protocol: str):
+        """
+        Args:
+            cluster_id: 集群ID
+            config_map: 配置映射，格式为 {config_id: config_content}
+            protocol: 协议, json or prometheus
+        """
+        if not config_map:
+            logger.info(f"cluster({cluster_id}) config_map is empty, skip deployment")
+            return
+        secret_config = BkCollectorComp.SECRET_SUBCONFIG_MAP.get(protocol)
+        # 按secret分组配置
+        secret_groups = {}
+
+        for config_id, sub_config in config_map.items():
+            if secret_config is None:
+                logger.info(f"protocol({protocol}) has no secret config, skip config_id({config_id})")
+                continue
+
+            # 先计算MD5哈希值，转换为整数再取模，确保分布更均匀
+            secret_index = int(count_md5(config_id), 16) % secret_config["secret_data_max_count"]
+
+            # 生成secret名称
+            secret_subconfig_name = secret_config["secret_name_hash_tpl"].format(secret_index)
+
+            # 计算 secret 中 key 的名字
+            subconfig_filename = secret_config["secret_data_key_tpl"].format(config_id)
+
+            # 编码配置内容
+            gzip_content = gzip.compress(sub_config.encode())
+            b64_content = base64.b64encode(gzip_content).decode()
+
+            secret_groups.setdefault(
+                secret_subconfig_name,
+                {
+                    "secret_config": secret_config,
+                    "configs": {},
+                },
+            )["configs"][subconfig_filename] = {
+                "config_id": config_id,
+                "content": b64_content,
+                "raw_content": sub_config,
+            }
+
+        # 批量处理每个secret
+        bcs_client = BcsKubeClient(cluster_id)
+        namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
+
+        # 一次性查询所有相关的secret
+        existing_secrets = {}
+        try:
+            secrets_list = bcs_client.client_request(
+                bcs_client.core_api.list_namespaced_secret,
+                namespace=namespace,
+                label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_SUB_CONFIG}",
+            )
+            if secrets_list and secrets_list.items:
+                for secret in secrets_list.items:
+                    existing_secrets[secret.metadata.name] = secret
+        except Exception as e:
+            logger.warning(f"Failed to list secrets in namespace {namespace}: {e}")
+            existing_secrets = {}
+
+        for secret_name, group_info in secret_groups.items():
+            configs = group_info["configs"]
+
+            label_source = BkCollectorComp.LABEL_SOURCE_MAP.get(protocol, BkCollectorComp.LABEL_SOURCE_DEFAULT)
+
+            # 从已查询的secret中获取
+            sec = existing_secrets.get(secret_name)
+
+            if sec is None:
+                # 不存在，则创建
+                logger.info(
+                    f"{cluster_id} {protocol} secret({secret_name}) not exists, create it with {len(configs)} configs."
+                )
+
+                secret_data = {}
+                for filename, config_info in configs.items():
+                    secret_data[filename] = config_info["content"]
+
+                sec = client.V1Secret(
+                    type="Opaque",
+                    metadata=client.V1ObjectMeta(
+                        name=secret_name,
+                        namespace=namespace,
+                        labels={
+                            "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
+                            "type": BkCollectorComp.LABEL_TYPE_SUB_CONFIG,
+                            "template": "false",
+                            "source": label_source,
+                        },
+                    ),
+                    data=secret_data,
+                )
+
+                bcs_client.client_request(
+                    bcs_client.core_api.create_namespaced_secret,
+                    namespace=namespace,
+                    body=sec,
+                )
+                logger.info(
+                    f"{cluster_id} {protocol} secret({secret_name}) create successful with {len(configs)} configs."
+                )
+            else:
+                # 存在，检查是否需要更新
+                logger.info(f"{cluster_id} {protocol} secret({secret_name}) already exists, checking for updates.")
+                need_update = False
+
+                if not isinstance(sec.data, dict):
+                    sec.data = {}
+                    need_update = True
+
+                # 检查每个配置是否需要更新
+                for filename, config_info in configs.items():
+                    config_id = config_info["config_id"]
+                    new_content = config_info["content"]
+                    raw_content = config_info["raw_content"]
+
+                    if filename not in sec.data:
+                        logger.info(f"{cluster_id} {protocol} config({config_id}) not exists in secret, adding it.")
+                        sec.data[filename] = new_content
+                        need_update = True
+                    else:
+                        # 比较内容是否有变化
+                        try:
+                            old_content = sec.data.get(filename, "")
+                            old_raw_content = gzip.decompress(base64.b64decode(old_content)).decode()
+                            if old_raw_content != raw_content:
+                                logger.info(f"{cluster_id} {protocol} config({config_id}) has changed, updating it.")
+                                sec.data[filename] = new_content
+                                need_update = True
+                        except Exception as e:
+                            logger.warning(f"Failed to decode old content for config({config_id}): {e}, updating it.")
+                            sec.data[filename] = new_content
+                            need_update = True
+
+                if need_update:
+                    bcs_client.client_request(
+                        bcs_client.core_api.patch_namespaced_secret,
+                        name=sec.metadata.name,
+                        namespace=namespace,
+                        body=sec,
+                    )
+                    logger.info(f"{cluster_id} {protocol} secret({secret_name}) update successful.")
+                else:
+                    logger.info(f"{cluster_id} {protocol} secret({secret_name}) no changes needed.")
+
+        logger.info(
+            f"cluster({cluster_id}) batch deployment completed, processed {len(secret_groups)} secrets with total {len(config_map)} configs."
+        )
