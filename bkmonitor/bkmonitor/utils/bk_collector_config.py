@@ -105,8 +105,6 @@ class BkCollectorConfig:
 
 class BkCollectorClusterConfig:
     GLOBAL_CONFIG_BK_BIZ_ID = 0
-    # 固定1000个secret配置
-    TOTAL_SECRETS = 1000
 
     @classmethod
     def get_cluster_mapping(cls):
@@ -293,30 +291,30 @@ class BkCollectorClusterConfig:
                 logger.info(f"{cluster_id} {protocol} config ({config_id}) update successful.")
 
     @classmethod
-    def deploy_to_k8s_with_hash(cls, cluster_id: str, config_map: dict):
+    def deploy_to_k8s_with_hash(cls, cluster_id: str, config_map: dict, protocol: str):
         """
         Args:
             cluster_id: 集群ID
-            config_map: 配置映射，格式为 {config_id: (protocol, config_content)}
+            config_map: 配置映射，格式为 {config_id: config_content}
+            protocol: 协议, json or prometheus
         """
         if not config_map:
             logger.info(f"cluster({cluster_id}) config_map is empty, skip deployment")
             return
-
+        secret_config = BkCollectorComp.SECRET_SUBCONFIG_MAP.get(protocol)
         # 按secret分组配置
         secret_groups = {}
 
-        for config_id, (protocol, sub_config) in config_map.items():
-            secret_config = BkCollectorComp.SECRET_SUBCONFIG_MAP.get(protocol)
+        for config_id, sub_config in config_map.items():
             if secret_config is None:
                 logger.info(f"protocol({protocol}) has no secret config, skip config_id({config_id})")
                 continue
 
             # 先计算MD5哈希值，转换为整数再取模，确保分布更均匀
-            secret_index = int(count_md5(config_id), 16) % cls.TOTAL_SECRETS
+            secret_index = int(count_md5(config_id), 16) % secret_config["secret_data_max_count"]
 
-            # 生成secret名称，使用固定格式：protocol-secret-{index}
-            secret_subconfig_name = f"bk-collector-subconfig-{protocol}-{secret_index:04d}"
+            # 生成secret名称
+            secret_subconfig_name = secret_config["secret_name_hash_tpl"].format(f"{secret_index:04d}")
 
             # 计算 secret 中 key 的名字
             subconfig_filename = secret_config["secret_data_key_tpl"].format(config_id)
@@ -325,15 +323,13 @@ class BkCollectorClusterConfig:
             gzip_content = gzip.compress(sub_config.encode())
             b64_content = base64.b64encode(gzip_content).decode()
 
-            # 按secret分组
-            if secret_subconfig_name not in secret_groups:
-                secret_groups[secret_subconfig_name] = {
-                    "protocol": protocol,
+            secret_groups.setdefault(
+                secret_subconfig_name,
+                {
                     "secret_config": secret_config,
                     "configs": {},
-                }
-
-            secret_groups[secret_subconfig_name]["configs"][subconfig_filename] = {
+                },
+            )["configs"][subconfig_filename] = {
                 "config_id": config_id,
                 "content": b64_content,
                 "raw_content": sub_config,
@@ -359,7 +355,6 @@ class BkCollectorClusterConfig:
             existing_secrets = {}
 
         for secret_name, group_info in secret_groups.items():
-            protocol = group_info["protocol"]
             configs = group_info["configs"]
 
             label_source = BkCollectorComp.LABEL_SOURCE_MAP.get(protocol, BkCollectorComp.LABEL_SOURCE_DEFAULT)
