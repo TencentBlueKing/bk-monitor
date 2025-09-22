@@ -45,3 +45,10 @@ export interface IStrategiesItem {
   service_name?: string;
   strategy_id?: number | string;
 }
+
+export const detailsTabColumn = {
+  basic: 'basic',
+  service: 'service',
+} as const;
+
+export type TDetailsTabValue = (typeof detailsTabColumn)[keyof typeof detailsTabColumn];
