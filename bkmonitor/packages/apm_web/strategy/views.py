@@ -168,14 +168,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         edit_data: dict = self.query_data["edit_data"]
         serializers.StrategyTemplateModelSerializer().base_update_validate(edit_data)
         strategy_template_qs = self.get_queryset().filter(id__in=self.query_data["ids"])
-        for obj in strategy_template_qs:
-            obj.user_group_ids = edit_data.get("user_group_ids", obj.user_group_ids)
-            obj.algorithms = edit_data.get("algorithms", obj.algorithms)
-            obj.is_enabled = edit_data.get("is_enabled", obj.is_enabled)
-            obj.is_auto_apply = edit_data.get("is_auto_apply", obj.is_auto_apply)
-        StrategyTemplate.objects.bulk_update(
-            strategy_template_qs, ["user_group_ids", "algorithms", "is_enabled", "is_auto_apply"]
-        )
+        strategy_template_qs.update(**edit_data)
         return Response({"ids": [obj.id for obj in strategy_template_qs]})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)
