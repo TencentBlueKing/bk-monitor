@@ -27,6 +27,8 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { systemMap, templateIconMap } from './utils';
+
 import type { ICategoryItem, ITempLateItem, TTemplateList } from './typing';
 
 import './template-list.scss';
@@ -59,11 +61,15 @@ export default class TemplateList extends tsc<IProps> {
     this.getTemplateTree();
   }
 
+  /**
+   * @description 生成模板树
+   */
   getTemplateTree() {
+    const iconFn = (id: string) => templateIconMap?.[id] || 'icon-gaojing';
     const checkedSet = new Set(this.checked);
     const templateTree: TTemplateList[] = [];
     for (const item of this.templateList) {
-      if (item.category) {
+      if (item.category && item.category !== 'DEFAULT') {
         const systemItem = templateTree.find(child => child.system === item.system);
         if (systemItem?.children) {
           const secondChild = systemItem.children.find(child => child.category === item.category);
@@ -71,12 +77,19 @@ export default class TemplateList extends tsc<IProps> {
             (secondChild as ICategoryItem).children.push({
               ...item,
               checked: checkedSet.has(item.id),
+              icon: iconFn(item.monitor_type),
             });
           } else {
             (systemItem as TTemplateList<ICategoryItem>).children.push({
               category: item.category,
               system: item.system,
-              children: [item],
+              children: [
+                {
+                  ...item,
+                  checked: checkedSet.has(item.id),
+                  icon: iconFn(item.monitor_type),
+                },
+              ],
               checked: false,
             });
           }
@@ -88,7 +101,13 @@ export default class TemplateList extends tsc<IProps> {
               {
                 category: item.category,
                 system: item.system,
-                children: [item],
+                children: [
+                  {
+                    ...item,
+                    checked: checkedSet.has(item.id),
+                    icon: iconFn(item.monitor_type),
+                  },
+                ],
                 checked: false,
               },
             ],
@@ -105,12 +124,19 @@ export default class TemplateList extends tsc<IProps> {
           systemItem.children.push({
             ...item,
             checked: checkedSet.has(item.id),
+            icon: iconFn(item.monitor_type),
           });
         } else {
           templateTree.push({
             name: item.system,
             system: item.system,
-            children: [item],
+            children: [
+              {
+                ...item,
+                checked: checkedSet.has(item.id),
+                icon: iconFn(item.monitor_type),
+              },
+            ],
           });
         }
       }
@@ -175,7 +201,14 @@ export default class TemplateList extends tsc<IProps> {
               onChange={v => this.handleChangeChecked(item, v)}
             />
           </span>
-          <span class='template-item-icon icon-monitor icon-check' />
+          {item.icon.length > 100 ? (
+            <span
+              style={{ backgroundImage: `url(${item.icon})` }}
+              class='template-item-icon'
+            />
+          ) : (
+            <span class={['template-item-icon icon-monitor', item.icon]} />
+          )}
           <div class='template-item-desc'>{item.name}</div>
           {item?.has_been_applied ? (
             <div class='template-item-status'>
@@ -194,7 +227,7 @@ export default class TemplateList extends tsc<IProps> {
             key={item.system}
             class='system-item'
           >
-            <div class='system-name'>{item.name}</div>
+            <div class='system-name'>{systemMap?.[item.system] || item.name}</div>
             {item.children.map(child => {
               if ((child as ICategoryItem)?.children) {
                 return (
@@ -209,7 +242,9 @@ export default class TemplateList extends tsc<IProps> {
                         this.handleChangeCategoryChecked(child as ICategoryItem, v);
                       }}
                     >
-                      {child.category}
+                      {systemMap?.[child.category] || child.category}(
+                      {`${(child as ICategoryItem).children.filter(c => c.checked).length} / ${(child as ICategoryItem).children.length}`}
+                      )
                     </bk-checkbox>
                     {(child as ICategoryItem).children.map(c => renderTemplateItem(c))}
                   </div>

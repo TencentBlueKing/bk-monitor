@@ -184,7 +184,7 @@ export default class TemplatePush extends tsc<IProps> {
           slot='footer'
         >
           <bk-button
-            class='mr-8 ml-24'
+            class='mr-8'
             disabled={!this.selectKeys.length}
             loading={this.submitLoading}
             theme='primary'
