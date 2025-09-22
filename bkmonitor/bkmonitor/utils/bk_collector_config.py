@@ -343,23 +343,29 @@ class BkCollectorClusterConfig:
         bcs_client = BcsKubeClient(cluster_id)
         namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
 
+        # 一次性查询所有相关的secret
+        existing_secrets = {}
+        try:
+            secrets_list = bcs_client.client_request(
+                bcs_client.core_api.list_namespaced_secret,
+                namespace=namespace,
+                label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_SUB_CONFIG}",
+            )
+            if secrets_list and secrets_list.items:
+                for secret in secrets_list.items:
+                    existing_secrets[secret.metadata.name] = secret
+        except Exception as e:
+            logger.warning(f"Failed to list secrets in namespace {namespace}: {e}")
+            existing_secrets = {}
+
         for secret_name, group_info in secret_groups.items():
             protocol = group_info["protocol"]
             configs = group_info["configs"]
 
             label_source = BkCollectorComp.LABEL_SOURCE_MAP.get(protocol, BkCollectorComp.LABEL_SOURCE_DEFAULT)
 
-            try:
-                # 查找指定名称的secret
-                sec = bcs_client.client_request(
-                    bcs_client.core_api.read_namespaced_secret,
-                    name=secret_name,
-                    namespace=namespace,
-                )
-            except Exception as e:
-                # Secret不存在时会抛出异常
-                sec = None
-                logger.debug(f"Secret {secret_name} not found: {e}")
+            # 从已查询的secret中获取
+            sec = existing_secrets.get(secret_name)
 
             if sec is None:
                 # 不存在，则创建
