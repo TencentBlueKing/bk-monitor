@@ -165,9 +165,10 @@ class StrategyTemplateViewSet(GenericViewSet):
         methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateBatchPartialUpdateRequestSerializer
     )
     def batch_partial_update(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response({"ids": [1, 2]})
-        return Response({})
+        query_set = self.get_queryset().filter(id__in=self.query_data["ids"])
+        for obj in query_set:
+            serializers.StrategyTemplateModelSerializer().update(obj, self.query_data["edit_data"])
+        return Response({"ids": [obj.id for obj in query_set]})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)
     def compare(self, *args, **kwargs) -> Response:

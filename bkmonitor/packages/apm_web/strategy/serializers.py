@@ -21,13 +21,6 @@ from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
 
 
-def get_user_groups(user_group_ids: Iterable[int]) -> dict[int, dict[str, int | str]]:
-    return {
-        user_group["id"]: user_group
-        for user_group in UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
-    }
-
-
 class DetectSerializer(serializers.Serializer):
     class DefaultDetectConfigSerializer(serializers.Serializer):
         recovery_check_window = serializers.IntegerField(label=_("恢复检查窗口"), min_value=1, default=5)
@@ -186,18 +179,7 @@ class BaseStrategyTemplateUpdateSerializer(serializers.Serializer):
 class StrategyTemplateUpdateRequestSerializer(
     BaseStrategyTemplateUpdateSerializer, BaseAppStrategyTemplateRequestSerializer
 ):
-    def validate(self, attrs: dict) -> dict:
-        if not attrs["is_enabled"] and attrs["is_auto_apply"]:
-            raise serializers.ValidationError(_("策略模板禁用时，不允许配置自动下发"))
-
-        user_group_list: list[dict[str, int | str]] = attrs["user_group_list"]
-        user_groups = get_user_groups([user_group["id"] for user_group in user_group_list])
-        not_exist_names = [user_group["name"] for user_group in user_group_list if user_group["id"] not in user_groups]
-        if not_exist_names:
-            raise serializers.ValidationError(
-                _("不存在名称为 {names} 的告警组").format(names=", ".join(not_exist_names))
-            )
-        return attrs
+    pass
 
 
 class StrategyTemplateCloneRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
@@ -256,12 +238,19 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
             return []
         return [self.instance]
 
+    @staticmethod
+    def get_user_groups(user_group_ids: Iterable[int]) -> dict[int, dict[str, int | str]]:
+        return {
+            user_group["id"]: user_group
+            for user_group in UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
+        }
+
     @cached_property
     def _user_groups(self) -> dict[int, dict[str, int | str]]:
         user_group_ids = set(
             user_group_id for obj in self._strategy_template_objs for user_group_id in obj.user_group_ids
         )
-        return get_user_groups(user_group_ids)
+        return self.get_user_groups(user_group_ids)
 
     @cached_property
     def _strategy_instances(self) -> list[dict[str, int | str]]:
@@ -312,8 +301,32 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
             "applied_service_names",
         ]
 
+    @staticmethod
+    def _base_validate(validated_data: dict[str, Any]) -> None:
+        if validated_data.get("is_enabled") is False:
+            if validated_data.get("is_auto_apply") is True:
+                raise serializers.ValidationError(_("策略模板禁用时，不允许配置自动下发"))
+            validated_data["is_auto_apply"] = False
+
+    @classmethod
+    def _base_update_validate(cls, validated_data: dict[str, Any]) -> None:
+        cls._base_validate(validated_data)
+        user_group_list: list[dict[str, int | str]] | None = validated_data.pop("user_group_list", None)
+        if user_group_list is not None:
+            user_groups = cls.get_user_groups([user_group_dict["id"] for user_group_dict in user_group_list])
+            not_exist_names = [
+                user_group_dict["name"]
+                for user_group_dict in user_group_list
+                if user_group_dict["id"] not in user_groups
+            ]
+            if not_exist_names:
+                raise serializers.ValidationError(
+                    _("不存在名称为 {names} 的告警组").format(names=", ".join(not_exist_names))
+                )
+            validated_data["user_group_ids"] = [user_group_dict["id"] for user_group_dict in user_group_list]
+
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
-        validated_data["user_group_ids"] = [user_group["id"] for user_group in validated_data.pop("user_group_list")]
+        self._base_update_validate(validated_data)
         return super().update(instance, validated_data)
 
 
