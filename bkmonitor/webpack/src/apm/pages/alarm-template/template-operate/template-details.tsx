@@ -27,21 +27,22 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { alertsStrategyTemplate } from 'monitor-api/modules/model';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 
 import EditTemplateSlider from '../components/template-form/edit-template-slider';
 import TemplateFormDetail from '../components/template-form/template-form-detail';
-import { getAlarmTemplateDetail } from '../service';
+import { getAlarmTemplateDetail, getAlertsStrategyTemplate } from '../service';
 import AlertServiceTable from './alert-service-table';
 import TemplatePush from './template-push';
+import { type IAlertStrategiesItem, type IStrategiesItem, type TDetailsTabValue, detailsTabColumn } from './typings';
 
-import type { IAlertStrategiesItem, IStrategiesItem } from './typings';
 import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
 
 import './template-details.scss';
 
 interface IProps {
+  defaultTab?: TDetailsTabValue;
   metricFunctions?: any[];
   params?: Record<string, any>;
   show?: boolean;
@@ -53,39 +54,48 @@ export default class TemplateDetails extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ default: () => [] }) metricFunctions!: any[];
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
+  @Prop({ default: detailsTabColumn.basic }) defaultTab?: TDetailsTabValue;
 
   tabList = [
     {
-      label: '基本信息',
-      name: 'basic',
+      label: window.i18n.t('基本信息'),
+      name: detailsTabColumn.basic,
     },
     {
-      label: '关联服务 & 告警',
-      name: 'service',
+      label: `${window.i18n.t('关联服务')} & ${window.i18n.t('告警')}`,
+      name: detailsTabColumn.service,
     },
   ];
-  tabActive = 'basic';
+  tabActive: TDetailsTabValue = detailsTabColumn.basic;
 
   templateDetail = null;
 
   variablesList: VariableModelType[] = [];
-
+  // 下发侧栏
   templatePush = {
     show: false,
   };
+  // 编辑侧栏
   templateEdit = {
     show: false,
     params: {},
   };
 
+  // 关联服务 & 告警 数据
   alertStrategies: IAlertStrategiesItem[] = [];
+  // 关联服务 & 告警 表格数据
   strategies: IStrategiesItem[] = [];
+  // 关联服务 & 告警 表格数据加载状态
+  serviceLoading = false;
+  // 基本信息加载状态
+  basicLoading = false;
 
   @Watch('show')
   handleWatchShowChange(v: boolean) {
     if (v) {
       this.getAlertsStrategyTemplate();
       this.getAlarmTemplateDetail();
+      this.tabActive = this.defaultTab;
     }
   }
 
@@ -105,21 +115,31 @@ export default class TemplateDetails extends tsc<IProps> {
   }
 
   getAlertsStrategyTemplate() {
-    alertsStrategyTemplate({
+    this.serviceLoading = true;
+    getAlertsStrategyTemplate({
       app_name: this.params?.app_name,
       ids: this.params?.ids,
       need_strategies: true,
-    }).then(data => {
-      this.alertStrategies = data?.list || [];
-      this.getStrategies();
-    });
+    })
+      .then(data => {
+        this.alertStrategies = data?.list || [];
+        this.getStrategies();
+      })
+      .finally(() => {
+        this.serviceLoading = false;
+      });
   }
 
   getAlarmTemplateDetail() {
-    getAlarmTemplateDetail({ id: this.params?.ids?.[0], app_name: this.params?.app_name }).then(data => {
-      this.templateDetail = data.detailData;
-      this.variablesList = data?.variablesList || [];
-    });
+    this.basicLoading = true;
+    getAlarmTemplateDetail({ id: this.params?.ids?.[0], app_name: this.params?.app_name })
+      .then(data => {
+        this.templateDetail = data.detailData;
+        this.variablesList = data?.variablesList || [];
+      })
+      .finally(() => {
+        this.basicLoading = false;
+      });
   }
 
   getStrategies() {
@@ -157,23 +177,39 @@ export default class TemplateDetails extends tsc<IProps> {
   render() {
     const tabContent = () => {
       switch (this.tabActive) {
-        case 'basic':
-          return (
+        case detailsTabColumn.basic:
+          return this.basicLoading ? (
+            <div class='basic-loading'>
+              {new Array(6).fill(0).map((_, index) => (
+                <div
+                  key={index}
+                  class='basic-loading-item'
+                >
+                  <div class='skeleton-element item-top' />
+                  <div class='skeleton-element item-bottom' />
+                </div>
+              ))}
+            </div>
+          ) : (
             <TemplateFormDetail
               data={this.templateDetail}
               metricFunctions={this.metricFunctions}
               variablesList={this.variablesList}
             />
           );
-        case 'service':
+        case detailsTabColumn.service:
           return (
             <div class='relation-service-alarm'>
-              <AlertServiceTable
-                strategies={this.strategies}
-                onGoAlarm={this.handleGoAlarm}
-                onGoService={this.handleGoService}
-                onGoTemplatePush={this.handleShowTemplatePush}
-              />
+              {this.serviceLoading ? (
+                <TableSkeleton type={4} />
+              ) : (
+                <AlertServiceTable
+                  strategies={this.strategies}
+                  onGoAlarm={this.handleGoAlarm}
+                  onGoService={this.handleGoService}
+                  onGoTemplatePush={this.handleShowTemplatePush}
+                />
+              )}
             </div>
           );
         default:
