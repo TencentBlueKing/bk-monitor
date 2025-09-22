@@ -318,7 +318,7 @@ class CustomReportSubscription(models.Model):
                     config_context.setdefault("bk_biz_id", bk_biz_id)
                     config_content = Environment().from_string(tpl).render(config_context)
 
-                    protocol_config_maps.setdefault(protocol, {})[config_id] = (protocol, config_content)
+                    protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
 
                 # 分别按协议调用deploy_to_k8s_with_hash
                 for protocol, config_map in protocol_config_maps.items():
