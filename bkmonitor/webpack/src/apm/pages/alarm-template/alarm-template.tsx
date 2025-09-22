@@ -44,6 +44,7 @@ import {
 } from './service';
 import TemplateDetails from './template-operate/template-details';
 import TemplatePush from './template-operate/template-push';
+import { type TDetailsTabValue, detailsTabColumn } from './template-operate/typings';
 
 import type { AlarmDeleteConfirmEvent } from './components/alarm-delete-confirm/alarm-delete-confirm';
 import type {
@@ -85,6 +86,7 @@ export default class AlarmTemplate extends tsc<object> {
   /** 模板详情侧栏 */
   templateDetailObj = {
     show: false,
+    tabActive: detailsTabColumn.basic as TDetailsTabValue,
     params: {},
   };
   templatePushObj = {
@@ -246,6 +248,7 @@ export default class AlarmTemplate extends tsc<object> {
     console.log('================ 展示模板详情事件回调 ================', obj);
     this.templateDetailObj = {
       show: true,
+      tabActive: obj.sliderActiveTab === 'base_info' ? detailsTabColumn.basic : detailsTabColumn.service,
       params: {
         app_name: this.viewOptions.filters?.app_name,
         ids: [obj.id],
@@ -360,6 +363,7 @@ export default class AlarmTemplate extends tsc<object> {
           }}
         />
         <TemplateDetails
+          defaultTab={this.templateDetailObj.tabActive}
           metricFunctions={this.metricFunctions}
           params={this.templateDetailObj.params}
           show={this.templateDetailObj.show}
