@@ -299,6 +299,9 @@ class K8sCollectorHandler(CollectorHandler):
             logger.warning(f"collector config name duplicate => [{data['collector_config_name']}]")
             raise CollectorConfigNameDuplicateException()
 
+        # 更新归属索引集
+        index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id)
+        index_set.update_belonging_set(data.get("belong_index_set_id"))
         # collector_config_name更改后更新索引集名称
         if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
             index_set_name = _("[采集项]") + self.data.collector_config_name
@@ -533,6 +536,10 @@ class K8sCollectorHandler(CollectorHandler):
         with transaction.atomic():
             try:
                 self.data = CollectorConfig.objects.create(**collector_config_params)
+                # 创建索引集，并添加到归属索引集中
+                index_set = self.data.create_index_set()
+                if data.get("belong_index_set_id"):
+                    index_set.add_to_belonging_set(data["belong_index_set_id"])
             except IntegrityError:
                 logger.warning(f"collector config name duplicate => [{data['collector_config_name']}]")
                 raise CollectorConfigNameDuplicateException()

@@ -71,6 +71,7 @@ from apps.log_search.constants import (
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
     TimeZoneEnum,
+    IndexSetDataType,
 )
 from apps.log_search.exceptions import (
     CouldNotFindTemplateException,
@@ -390,6 +391,8 @@ class LogIndexSet(SoftDeleteModel):
 
     query_alias_settings = models.JSONField(_("查询别名配置"), null=True, blank=True)
 
+    is_group = models.BooleanField(_("是否索引组"), default=False)
+
     def get_name(self):
         return self.index_set_name
 
@@ -449,6 +452,55 @@ class LogIndexSet(SoftDeleteModel):
             return ""
 
         return BkDataAuthHandler.get_auth_url(not_applied_indices)
+
+    @property
+    def belong_index_set(self):
+        index_data = LogIndexSetData.objects.filter(
+            result_table_id=self.index_set_id,
+            type=IndexSetDataType.INDEX_SET.value,
+        ).first()
+        if index_data:
+            return (
+                LogIndexSet.objects.filter(index_set_id=index_data.index_set_id)
+                .values("index_set_id", "index_set_name")
+                .first()
+            )
+        return None
+
+    def add_to_belonging_set(self, belong_index_set_id):
+        """
+        添加到归属索引集中
+        """
+        log_index_set_data = LogIndexSetData.objects.create(
+            index_set_id=belong_index_set_id,
+            result_table_id=self.index_set_id,
+            scenario_id=self.scenario_id,
+            bk_biz_id=space_uid_to_bk_biz_id(self.space_uid),
+            type=IndexSetDataType.INDEX_SET.value,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        return log_index_set_data
+
+    def remove_from_belonging_set(self, belong_index_set_id):
+        LogIndexSetData.objects.filter(
+            index_set_id=belong_index_set_id,
+            result_table_id=self.index_set_id,
+            bk_biz_id=space_uid_to_bk_biz_id(self.space_uid),
+        ).delete()
+
+    def update_belonging_set(self, belong_index_set_id):
+        # 旧的归属索引集
+        old_belong_index_set_id = None
+        if self.belong_index_set:
+            old_belong_index_set_id = self.belong_index_set.get("index_set_id")
+
+        if old_belong_index_set_id != belong_index_set_id:
+            # 旧的归属索引集中删除当前索引
+            if old_belong_index_set_id:
+                self.remove_from_belonging_set(old_belong_index_set_id)
+            # 添加到新的归属索引集中
+            if belong_index_set_id:
+                self.add_to_belonging_set(belong_index_set_id)
 
     @staticmethod
     def no_data_check_time(index_set_id: str):
@@ -683,6 +735,10 @@ class LogIndexSetData(SoftDeleteModel):
     storage_cluster_id = models.IntegerField(_("存储集群ID"), default=None, null=True, blank=True)
     time_field_type = models.CharField(_("时间字段类型"), max_length=32, default=None, null=True)
     time_field_unit = models.CharField(_("时间字段单位"), max_length=32, default=None, null=True)
+
+    type = models.CharField(
+        _("类型"), max_length=64, choices=IndexSetDataType.get_choices(), default=IndexSetDataType.RESULT_TABLE.value
+    )
 
     def list_operate(self):
         return format_html(_('<a href="../logindexset/?index_set_id=%s">索引集</a>&nbsp;&nbsp;') % self.index_set_id)

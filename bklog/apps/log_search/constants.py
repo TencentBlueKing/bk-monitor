@@ -1434,6 +1434,17 @@ class IndexSetType(ChoicesEnum):
     _choices_labels = ((SINGLE, _("单索引集")), (UNION, _("联合索引集")))
 
 
+class IndexSetDataType(ChoicesEnum):
+    """
+    索引类型
+    """
+
+    RESULT_TABLE = "result_table"
+    INDEX_SET = "index_set"
+
+    _choices_labels = ((RESULT_TABLE, _("结果表")), (INDEX_SET, _("索引集")))
+
+
 class SearchMode(ChoicesEnum):
     """
     检索模式

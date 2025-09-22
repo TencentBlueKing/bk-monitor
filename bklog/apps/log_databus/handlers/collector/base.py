@@ -514,6 +514,7 @@ class CollectorHandler:
         is_display=True,
         sort_fields=None,
         target_fields=None,
+        belong_index_set_id=None,
     ):
         collector_config_update = {
             "collector_config_name": collector_config_name,
@@ -1233,6 +1234,7 @@ class CollectorHandler:
         is_display=True,
         sort_fields=None,
         target_fields=None,
+        belong_index_set_id=None,
     ):
         collector_config_params = {
             "bk_biz_id": bk_biz_id,
@@ -1290,6 +1292,11 @@ class CollectorHandler:
                 encoding=META_DATA_ENCODING,
             )
             self.data.save()
+
+            # 创建相应的索引集，并添加到归属索引集中
+            index_set = self.data.create_index_set()
+            if belong_index_set_id:
+                index_set.add_to_belonging_set(belong_index_set_id)
 
         # add user_operation_record
         operation_record = {

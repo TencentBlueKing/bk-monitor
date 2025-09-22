@@ -5,7 +5,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 
 from apps.log_databus.handlers.collector import CollectorHandler
-from apps.log_search.constants import CollectorScenarioEnum
+from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, AccessSourceConfig, Scenario
 from apps.log_databus.models import CollectorConfig
@@ -13,9 +13,10 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class LogCollectorHandler:
-    def __init__(self, space_uid):
+    def __init__(self, space_uid, belong_index_set_id=None):
         self.space_uid = space_uid
         self.bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
+        self.belong_index_set_id = belong_index_set_id
 
     @staticmethod
     def fetch_log_collector_data(result: list[dict]):
@@ -97,7 +98,28 @@ class LogCollectorHandler:
         if scenario_id_list and Scenario.LOG not in scenario_id_list:
             # 非日志采集查询，直接返回
             return []
+
         qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id)
+
+        # 先查询索引组下的索引集，再查询索引集对应的采集项
+        if self.belong_index_set_id:
+            index_set_id_list = LogIndexSetData.objects.filter(
+                index_set_id=self.belong_index_set_id, type=IndexSetDataType.INDEX_SET.value
+            ).values_list("result_table_id", flat=True)
+            if not index_set_id_list:
+                return []
+            collector_config_list = (
+                LogIndexSet.objects.filter(
+                    index_set_id__in=index_set_id_list,
+                    collector_config_id__isnull=False,
+                )
+                .distinct()
+                .values_list("collector_config_id", flat=True)
+            )
+            if not collector_config_list:
+                return []
+            qs = qs.filter(collector_config_id__in=collector_config_list)
+
         if collector_config_name_list:
             qs = qs.filter(collector_config_name__in=collector_config_name_list)
         if collector_scenario_id_list:
@@ -152,7 +174,7 @@ class LogCollectorHandler:
         """
          获取索引集内容
         :param scenario_id_list: 接入情景
-        :param index_set_name_list: 索引集名名称
+        :param index_set_name_list: 索引集名称
         :param result_table_id_list: 结果表ID
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
@@ -161,6 +183,14 @@ class LogCollectorHandler:
         log_index_sets = LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid).exclude(
             scenario_id=Scenario.LOG
         )
+        if self.belong_index_set_id:
+            index_set_id_list = LogIndexSetData.objects.filter(
+                index_set_id=self.belong_index_set_id, type=IndexSetDataType.INDEX_SET.value
+            ).values_list("result_table_id", flat=True)
+            if not index_set_id_list:
+                return []
+            log_index_sets = log_index_sets.filter(index_set_id__in=index_set_id_list)
+
         if scenario_id_list:
             log_index_sets = log_index_sets.filter(scenario_id__in=scenario_id_list)
         if index_set_name_list:

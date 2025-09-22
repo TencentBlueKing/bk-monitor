@@ -137,6 +137,7 @@ class IndexSetViewSet(ModelViewSet):
             space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
             bkdata_auth_url = serializers.ReadOnlyField()
             is_editable = serializers.BooleanField(required=False, default=True)
+            belong_index_set_id = serializers.IntegerField(label=_("归属索引集"), required=False, default=None)
 
             def validate(self, attrs):
                 attrs = super().validate(attrs)
@@ -153,6 +154,7 @@ class IndexSetViewSet(ModelViewSet):
             category_id = serializers.CharField(required=True)
             space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
             bkdata_auth_url = serializers.ReadOnlyField()
+            belong_index_set_id = serializers.IntegerField(label=_("归属索引集"), required=False, default=None)
 
         class ShowMoreSerializer(CustomSerializer):
             source_name = serializers.CharField(read_only=True)
@@ -628,6 +630,7 @@ class IndexSetViewSet(ModelViewSet):
             is_editable=data.get("is_editable"),
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
+            belong_index_set_id=data["belong_index_set_id"],
         )
 
         return Response(self.get_serializer_class()(instance=index_set).data)
@@ -697,6 +700,7 @@ class IndexSetViewSet(ModelViewSet):
             time_field_unit=data["time_field_unit"],
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
+            belong_index_set_id=data.get("belong_index_set_id"),
         )
 
         return Response(self.get_serializer_class()(instance=index_set).data)

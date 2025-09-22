@@ -289,6 +289,10 @@ class HostCollectorHandler(CollectorHandler):
                     model_fields["collector_scenario_id"] = params["collector_scenario_id"]
                     self.data = CollectorConfig.objects.create(**model_fields)
                     is_create = True
+                    # 创建索引集，并添加到归属索引集中
+                    index_set = self.data.create_index_set()
+                    if params.get("belong_index_set_id"):
+                        index_set.add_to_belonging_set(params["belong_index_set_id"])
                 else:
                     _collector_config_name = copy.deepcopy(self.data.collector_config_name)
                     if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
@@ -309,6 +313,9 @@ class HostCollectorHandler(CollectorHandler):
                         setattr(self.data, key, value)
                     self.data.save()
 
+                    # 更新归属索引集
+                    index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id)
+                    index_set.update_belonging_set(params.get("belong_index_set_id"))
                     # collector_config_name更改后更新索引集名称
                     if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
                         index_set_name = _("[采集项]") + self.data.collector_config_name
