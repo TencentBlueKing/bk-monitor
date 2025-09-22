@@ -19,6 +19,7 @@ from rest_framework.serializers import Serializer, ValidationError
 
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.utils.user import get_global_user
 
 from . import mock_data, serializers
 from apm_web.models import StrategyTemplate, StrategyInstance
@@ -165,10 +166,9 @@ class StrategyTemplateViewSet(GenericViewSet):
         methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateBatchPartialUpdateRequestSerializer
     )
     def batch_partial_update(self, *args, **kwargs) -> Response:
-        edit_data: dict = self.query_data["edit_data"]
-        serializers.StrategyTemplateModelSerializer().base_update_validate(edit_data)
+        self.query_data["edit_data"]["update_user"] = get_global_user() or "unknown"
         strategy_template_qs = self.get_queryset().filter(id__in=self.query_data["ids"])
-        strategy_template_qs.update(**edit_data)
+        strategy_template_qs.update(**self.query_data["edit_data"])
         return Response({"ids": [obj.id for obj in strategy_template_qs]})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)

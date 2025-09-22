@@ -21,6 +21,13 @@ from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
 
 
+def get_user_groups(user_group_ids: Iterable[int]) -> dict[int, dict[str, int | str]]:
+    return {
+        user_group["id"]: user_group
+        for user_group in UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
+    }
+
+
 class DetectSerializer(serializers.Serializer):
     class DefaultDetectConfigSerializer(serializers.Serializer):
         recovery_check_window = serializers.IntegerField(label=_("恢复检查窗口"), min_value=1, default=5)
@@ -72,6 +79,28 @@ class BaseAppStrategyTemplateRequestSerializer(serializers.Serializer):
 
 class BaseServiceStrategyTemplateRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
     service_name = serializers.CharField(label=_("服务名称"))
+
+
+class BaseStrategyTemplateValidateSerializer(serializers.Serializer):
+    def validate(self, attrs: dict) -> dict:
+        if attrs.get("is_enabled") is False:
+            if attrs.get("is_auto_apply") is True:
+                raise serializers.ValidationError(_("策略模板禁用时，不允许配置自动下发"))
+            attrs["is_auto_apply"] = False
+        user_group_list: list[dict[str, int | str]] | None = attrs.pop("user_group_list", None)
+        if user_group_list is not None:
+            user_groups = get_user_groups([user_group_dict["id"] for user_group_dict in user_group_list])
+            not_exist_names = [
+                user_group_dict["name"]
+                for user_group_dict in user_group_list
+                if user_group_dict["id"] not in user_groups
+            ]
+            if not_exist_names:
+                raise serializers.ValidationError(
+                    _("不存在名称为 {names} 的告警组").format(names=", ".join(not_exist_names))
+                )
+            attrs["user_group_ids"] = [user_group_dict["id"] for user_group_dict in user_group_list]
+        return super().validate(attrs)
 
 
 class StrategyTemplatePreviewRequestSerializer(BaseServiceStrategyTemplateRequestSerializer):
@@ -166,7 +195,7 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
     simple = serializers.BooleanField(label=_("是否仅返回概要信息"), default=False)
 
 
-class BaseStrategyTemplateUpdateSerializer(serializers.Serializer):
+class BaseStrategyTemplateUpdateSerializer(BaseStrategyTemplateValidateSerializer):
     name = serializers.CharField(label=_("策略模板名称"))
     algorithms = serializers.ListField(label=_("检测算法列表"), child=AlgorithmSerializer())
     detect = DetectSerializer(label=_("判断条件"))
@@ -188,7 +217,7 @@ class StrategyTemplateCloneRequestSerializer(BaseAppStrategyTemplateRequestSeria
 
 
 class StrategyTemplateBatchPartialUpdateRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
-    class EditDataSerializer(serializers.Serializer):
+    class EditDataSerializer(BaseStrategyTemplateValidateSerializer):
         user_group_list = serializers.ListField(label=_("用户组列表"), child=UserGroupSerializer(), required=False)
         algorithms = serializers.ListField(label=_("检测算法列表"), child=AlgorithmSerializer(), required=False)
         is_enabled = serializers.BooleanField(label=_("是否启用"), required=False)
@@ -237,13 +266,6 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
         elif self.instance is None:
             return []
         return [self.instance]
-
-    @staticmethod
-    def get_user_groups(user_group_ids: Iterable[int]) -> dict[int, dict[str, int | str]]:
-        return {
-            user_group["id"]: user_group
-            for user_group in UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
-        }
 
     @cached_property
     def _user_groups(self) -> dict[int, dict[str, int | str]]:
@@ -301,33 +323,7 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
             "applied_service_names",
         ]
 
-    @staticmethod
-    def _base_validate(validated_data: dict[str, Any]) -> None:
-        if validated_data.get("is_enabled") is False:
-            if validated_data.get("is_auto_apply") is True:
-                raise serializers.ValidationError(_("策略模板禁用时，不允许配置自动下发"))
-            validated_data["is_auto_apply"] = False
-
-    @classmethod
-    def base_update_validate(cls, validated_data: dict[str, Any]) -> None:
-        """更新接口 / 批量更新接口统一校验"""
-        cls._base_validate(validated_data)
-        user_group_list: list[dict[str, int | str]] | None = validated_data.pop("user_group_list", None)
-        if user_group_list is not None:
-            user_groups = cls.get_user_groups([user_group_dict["id"] for user_group_dict in user_group_list])
-            not_exist_names = [
-                user_group_dict["name"]
-                for user_group_dict in user_group_list
-                if user_group_dict["id"] not in user_groups
-            ]
-            if not_exist_names:
-                raise serializers.ValidationError(
-                    _("不存在名称为 {names} 的告警组").format(names=", ".join(not_exist_names))
-                )
-            validated_data["user_group_ids"] = [user_group_dict["id"] for user_group_dict in user_group_list]
-
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
-        self.base_update_validate(validated_data)
         return super().update(instance, validated_data)
 
 
