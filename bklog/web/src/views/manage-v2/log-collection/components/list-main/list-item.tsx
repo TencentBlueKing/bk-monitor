@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref, type PropType, type ExtractPropTypes } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash';

@@ -36,9 +36,15 @@
   .v2-log-collection-table-main {
     width: 100%;
     padding: 0 16px;
+    position: relative;
+    height: calc(100% - 96px);
     .link {
       cursor: pointer;
       color: #3a84ff;
+    }
+    .disabled {
+      cursor: not-allowed;
+      color: #c4c6cc;
     }
     .mr-6 {
       margin-right: 6px;
@@ -64,6 +70,7 @@
     .collection-table-box {
       margin-top: 6px;
       width: calc(100% - 1px);
+      height: calc(100% - 66px);
       border: none;
       .cell {
         display: flex;
@@ -123,12 +130,33 @@
         }
       }
     }
+    .table-skeleton-box {
+      background: #fff;
+      width: calc(100% - 32px);
+      height: calc(100% - 110px);
+      position: absolute;
+      top: 43px;
+      left: 16px;
+      z-index: 6;
+    }
+    .table-pagination-box {
+      padding: 12px 16px;
+      .bk-select {
+        border: none;
+        background: #F0F1F5;
+        .icon-angle-down {
+          color: #979BA5;
+        }
+      }
+    }
   }
+  
 }
 .tippy-tooltip.light-theme.bk-table-setting-popover-content-theme {
-  padding: 10px 0 0;
+  padding: 10px 0 0 !important;
 }
 .tippy-tooltip.light-theme.bk-search-select-theme-theme {
+  padding: 10px 0 0 !important;
   .bk-search-list {
     margin: -0.3rem 0;
   }

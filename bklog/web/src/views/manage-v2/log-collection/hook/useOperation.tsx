@@ -25,8 +25,12 @@
  */
 
 /**
- * 采集列表的自定义 Hook
+ * 新建采集的自定义 Hook
  */
+import { computed, ref } from 'vue';
+
+import $http from '@/api';
+// import useStore from '@/hooks/use-store';
 export type CardItem = {
   key: number | string;
   title: string;
@@ -34,6 +38,10 @@ export type CardItem = {
 };
 
 export const useOperation = () => {
+  // const store = useStore();
+  // const spaceUid = computed(() => store.getters.spaceUid);
+  // const bkBizId = computed(() => store.getters.bkBizId);
+  const tableLoading = ref(false);
   const cardRender = (cardConfig: CardItem[]) => (
     <div class='classify-main-box'>
       {cardConfig.map(item => (
@@ -47,8 +55,29 @@ export const useOperation = () => {
       ))}
     </div>
   );
+  /**
+   * 选择采集项获取字段列表
+   * @param params
+   * @param isList 是否返回list
+   * @returns
+   */
+  const handleMultipleSelected = async (params, isList = false, callback) => {
+    try {
+      tableLoading.value = true;
+      const res = await $http.request('/resultTables/info', params);
+      const data = callback?.(res) || res.data?.fields || [];
+      return isList ? res : data;
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      tableLoading.value = false;
+    }
+  };
 
   return {
+    tableLoading,
+    // 具体的方法
     cardRender,
+    handleMultipleSelected,
   };
 };

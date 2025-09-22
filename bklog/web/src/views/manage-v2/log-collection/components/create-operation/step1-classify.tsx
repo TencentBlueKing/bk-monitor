@@ -34,25 +34,29 @@ import './step1-classify.scss';
 
 export default defineComponent({
   name: 'StepClassify',
+  props: {
+    scenarioId: {
+      type: String,
+      default: 'host_log',
+    },
+  },
 
-  emits: ['next'],
+  emits: ['next', 'handle'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const activeKey = ref('host_log');
-    console.log(props);
     const list = [
       {
-        name: '主机采集',
+        name: t('主机采集'),
         value: 'host',
         children: [
           {
-            name: '主机日志',
+            name: t('主机日志'),
             value: 'host_log',
             icon: 'host_log',
           },
           {
-            name: 'windows events 日志',
+            name: t('windows events 日志'),
             value: 'windows_events',
             icon: 'windows',
           },
@@ -64,37 +68,37 @@ export default defineComponent({
         ],
       },
       {
-        name: '容器采集',
+        name: t('容器采集'),
         value: 'container',
         children: [
           {
-            name: '文件采集',
+            name: t('文件采集'),
             value: 'file',
             icon: 'file',
           },
           {
-            name: '标准输出',
+            name: t('标准输出'),
             value: 'stdout',
             icon: 'IO',
           },
         ],
       },
       {
-        name: '第三方日志',
+        name: t('第三方日志'),
         value: 'third_party',
         children: [
           {
-            name: '计算平台日志接入',
-            value: 'compute_platform',
+            name: t('计算平台日志接入'),
+            value: 'bkdata',
             icon: 'compute_platform',
           },
           {
-            name: '第三方 ES 日志接入',
-            value: 'third_party_es',
+            name: t('第三方 ES 日志接入'),
+            value: 'es',
             icon: 'third_party_es',
           },
           {
-            name: '自定义上报日志',
+            name: t('自定义上报日志'),
             value: 'custom_report',
             icon: 'custom_report',
           },
@@ -102,7 +106,7 @@ export default defineComponent({
       },
     ];
     const handleChoose = data => {
-      activeKey.value = data.value;
+      emit('handle', 'choose', data);
     };
     return () => (
       <div class='operation-step1-classify'>
@@ -117,7 +121,7 @@ export default defineComponent({
                 {item.children.map(child => (
                   <ClassifyCard
                     key={child.value}
-                    activeKey={activeKey.value}
+                    activeKey={props.scenarioId}
                     data={child}
                     on-choose={handleChoose}
                   />

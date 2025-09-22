@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -42,8 +42,30 @@ export default defineComponent({
     console.log(props, 'props');
     const { t } = useLocale();
     const { cardRender } = useOperation();
+    const configData = ref({
+      bk_data_id: '',
+      collector_config_name: 'test0922-custom',
+      collector_config_name_en: 'test0922_custom',
+      custom_type: 'log',
+      data_link_id: 6,
+      storage_cluster_id: 21,
+      retention: 7,
+      allocation_min_days: 0,
+      storage_replies: 1,
+      category_id: 'host_process',
+      description: '',
+      es_shards: 3,
+      bk_biz_id: 100605,
+      sort_fields: [],
+      target_fields: [],
+    });
     /** 基本信息 */
-    const renderBaseInfo = () => <BaseInfo typeKey='custom' />;
+    const renderBaseInfo = () => (
+      <BaseInfo
+        data={configData.value}
+        typeKey='custom'
+      />
+    );
 
     const cardConfig = [
       {

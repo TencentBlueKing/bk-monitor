@@ -177,7 +177,9 @@ export default defineComponent({
             <div class='example-box'>
               <span
                 class='form-link'
-                on-click={() => (showReportLogSlider.value = true)}
+                on-click={() => {
+                  showReportLogSlider.value = true;
+                }}
               >
                 <i class='bklog-icon bklog-audit link-icon' />
                 {t('上报日志')}
@@ -317,7 +319,9 @@ export default defineComponent({
       <div class='operation-step3-clean'>
         <div
           class='status-box loading'
-          on-Click={() => (showCollectIssuedSlider.value = true)}
+          on-Click={() => {
+            showCollectIssuedSlider.value = true;
+          }}
         >
           <span class='status-icon-box' />
           <i class='bklog-icon bklog-caijixiafazhong status-icon' />
@@ -329,11 +333,16 @@ export default defineComponent({
         <CollectIssuedSlider
           data={log}
           isShow={showCollectIssuedSlider.value}
+          on-change={value => {
+            showCollectIssuedSlider.value = value;
+          }}
         />
         <ReportLogSlider
           isShow={showReportLogSlider.value}
           jsonText={jsonText.value}
-          on-change={value => (showReportLogSlider.value = value)}
+          on-change={value => {
+            showReportLogSlider.value = value;
+          }}
         />
         <div class='classify-btns-fixed'>
           <bk-button

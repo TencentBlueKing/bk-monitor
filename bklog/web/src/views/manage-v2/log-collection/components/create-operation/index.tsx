@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { defineComponent, onBeforeUnmount, onMounted, ref, computed } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
 import StepClassify from './step1-classify';
-// import StepBkDataCollection from './step2-bk-data-collection';
+import StepBkDataCollection from './step2-bk-data-collection';
 import StepConfiguration from './step2-configuration';
-// import StepCustomReport from './step2-custom-report';
+import StepCustomReport from './step2-custom-report';
 import StepClean from './step3-clean';
 import StepStorage from './step4-storage';
 
@@ -43,15 +43,41 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const mainRef = ref<HTMLDivElement>();
-    const DEFAULT_STEP = 3;
+    const DEFAULT_STEP = 1;
     const step = ref(DEFAULT_STEP);
+    const typeKey = ref('es');
+    const firstStep = { title: t('索引集分类'), icon: 1, components: StepClassify };
 
     const stepDesc = [
-      { title: t('索引集分类'), icon: 1, components: StepClassify },
+      firstStep,
       { title: t('采集配置'), icon: 2, components: StepConfiguration },
       { title: t('字段清洗'), icon: 3, components: StepClean },
       { title: t('存储'), icon: 4, components: StepStorage },
     ];
+    /**
+     * 第三方日志新建流程 （计算平台、第三方ES接入)流程
+     */
+    const thirdLogStep = [firstStep, { title: t('采集配置'), icon: 2, components: StepBkDataCollection }];
+    /**
+     * 自定义日志新建流程
+     */
+    const customReportStep = [
+      firstStep,
+      { title: t('采集配置'), icon: 2, components: StepCustomReport },
+      { title: t('存储'), icon: 3, components: StepStorage },
+    ];
+    /**
+     * 当前步骤流程
+     */
+    const currentStep = computed(() => {
+      if (['bkdata', 'es'].includes(typeKey.value)) {
+        return thirdLogStep;
+      }
+      if (typeKey.value === 'custom_report') {
+        return customReportStep;
+      }
+      return stepDesc;
+    });
 
     const containerWidth = ref(0);
     let resizeObserver: ResizeObserver | null = null;
@@ -74,9 +100,25 @@ export default defineComponent({
         resizeObserver = null;
       }
     });
+    /**
+     * 选择具体的索引集分类
+     */
+    const chooseType = data => {
+      console.log('chooseType', data);
+      typeKey.value = data.value;
+    };
+    /**
+     * 相关操作项
+     */
+    const handleFunction = (type: string, data?: any) => {
+      const functionMap = {
+        choose: chooseType,
+      };
+      functionMap[type]?.(data);
+    };
 
     return () => {
-      const Component = stepDesc.find(item => item.icon === step.value).components;
+      const Component = currentStep.value.find(item => item.icon === step.value).components;
       return (
         <div
           ref={mainRef}
@@ -87,14 +129,14 @@ export default defineComponent({
             class='create-step'
           >
             <div
-              style={{ width: `${stepDesc.length * 200}px` }}
+              style={{ width: `${currentStep.value.length * 200}px` }}
               class='step-main'
             >
               <bk-steps
                 ext-cls='custom-icon'
                 cur-step={step.value}
                 line-type={'solid'}
-                steps={stepDesc}
+                steps={currentStep.value}
               />
             </div>
             <span class='step-tips'>
@@ -103,6 +145,8 @@ export default defineComponent({
             </span>
           </div>
           <Component
+            scenarioId={typeKey.value}
+            on-handle={handleFunction}
             on-next={() => step.value++}
             on-prev={() => step.value--}
           />

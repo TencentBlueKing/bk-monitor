@@ -77,6 +77,14 @@ export default defineComponent({
       type: Array,
       default: () => [],
     },
+    nameKey: {
+      type: String,
+      default: 'name',
+    },
+    idKey: {
+      type: String,
+      default: 'id',
+    },
   },
 
   emits: ['input', 'add', 'remove', 'change', 'custom-add'],
@@ -237,11 +245,12 @@ export default defineComponent({
     /** 下拉选中 */
     const handleAddSortFields = value => {
       const options = props.selectList.find(item => item.id === value);
-      tagList.value.push(options);
+      tagList.value.push(options.id);
+      emitChange();
     };
 
     const isDisabled = (id: string) => {
-      return tagList.value.some(item => item.id === id);
+      return tagList.value.some(item => item === id);
     };
 
     const renderSelect = () => (
@@ -260,8 +269,8 @@ export default defineComponent({
           <bk-option
             id={item.id}
             key={item.id}
-            disabled={isDisabled(item.id)}
-            name={item.label}
+            disabled={isDisabled(item)}
+            name={item.name}
           />
         ))}
       </bk-select>
@@ -285,11 +294,11 @@ export default defineComponent({
         >
           {tagList.value.map((tag, index) => (
             <div
-              key={tag.id}
+              key={tag[props.idKey] ? tag[props.idKey] : tag}
               class={getTagClass()}
             >
               {props.sortable && <span class='bklog-icon drag-icon bklog-ketuodong' />}
-              <span class='tag-label'>{tag.label}</span>
+              <span class='tag-label'>{tag[props.nameKey] || tag}</span>
               {props.editable && props.closable && (
                 <span
                   class='bk-icon icon-close tag-close'

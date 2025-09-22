@@ -1,9 +1,21 @@
 .operation-step2-bk-data-collection {
   width: 100%;
   height: 100%;
-  .base-info-form,
-  .data-source-box {
+  .w-40 {
+    width: 40.8%;
+  }
+  .base-info-form {
     width: 45%;
+  }
+  .data-source-box {
+    width: 100%;
+    .data-source-table {
+      width: 45%;
+    }
+    .time-field {
+      line-height: 30px;
+      color: #63656e;
+    }
   }
   .field-setting-box {
     width: 100%;

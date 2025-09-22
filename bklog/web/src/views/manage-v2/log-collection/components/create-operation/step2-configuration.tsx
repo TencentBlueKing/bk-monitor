@@ -52,7 +52,7 @@ export default defineComponent({
     const { cardRender } = useOperation();
     const logTypeList = [
       { text: t('行日志'), value: 'row' },
-      { text: t('段日志'), value: 'segment' },
+      { text: t('段日志'), value: 'section' },
     ];
     const showMultilineRegDialog = ref(false);
     const paths = ref<string[]>(['']);
@@ -212,7 +212,7 @@ export default defineComponent({
                 </bk-button>
               ))}
             </div>
-            {logType.value === 'segment' && renderSegment()}
+            {logType.value === 'section' && renderSegment()}
           </div>
         </div>
         <div class='label-form-box'>

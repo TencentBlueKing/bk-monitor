@@ -51,9 +51,9 @@ export default defineComponent({
     },
   },
 
-  emits: [''],
+  emits: ['change'],
 
-  setup(props) {
+  setup(props, { emit }) {
     const { t } = useLocale();
     const collectionName = ref();
 
@@ -75,7 +75,10 @@ export default defineComponent({
 
     const renderContent = () => (
       <div class='collect-issued-slider-content'>
-        <div class='collect-issued-slider-alert'>{t('采集下发存在失败，请点击 重试，如再次失败请 联系助手。')}</div>
+        <div class='collect-issued-slider-alert'>
+          <i class='bklog-icon bklog-alert alert-icon' />
+          {t('采集下发存在失败，请点击 重试，如再次失败请 联系助手。')}
+        </div>
         <HostDetail log={props.data} />
       </div>
     );
@@ -84,12 +87,15 @@ export default defineComponent({
       <bk-sideslider
         width={960}
         ext-cls='collect-issued-slider-main'
+        before-close={() => {
+          emit('change', false);
+        }}
         scopedSlots={{
           header: renderHeader,
           content: renderContent,
         }}
         is-show={props.isShow}
-        quick-close={true}
+        quick-close
         transfer
         // @animation-end="closeSlider"
         // @shown="showSlider"

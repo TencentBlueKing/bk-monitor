@@ -228,6 +228,13 @@ const getStorageUsage = {
   url: '/index_set/storage_usage/',
   method: 'post',
 };
+/**
+ * 新版采集列表接口
+ */
+const newCollectList = {
+  url: '/databus/log_access/collector/',
+  method: 'post',
+};
 
 export {
   getStorage,
@@ -269,4 +276,5 @@ export {
   getCheckInfos,
   reviewToken,
   getStorageUsage,
+  newCollectList,
 };

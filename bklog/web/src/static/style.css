@@ -347,6 +347,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-log-remark:before {
 	content: "\e187";
 }
+.bklog-alert:before {
+	content: "\e235";
+}
 .bklog-back2:before {
 	content: "\e1ec";
 }

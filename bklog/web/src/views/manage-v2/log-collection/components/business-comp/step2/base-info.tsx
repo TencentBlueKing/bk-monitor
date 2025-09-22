@@ -24,14 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, computed, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 
 import InfoTips from '../../common-comp/info-tips';
 import IndexSetSelect from './index-set-select';
 
 import './base-info.scss';
+
+export type IBaseInfo = { index_set_name: string; custom_type?: string };
 
 export default defineComponent({
   name: 'BaseInfo',
@@ -40,34 +43,88 @@ export default defineComponent({
       type: String,
       default: 'default',
     },
+    data: {
+      type: Object,
+      default: () => ({}),
+    },
   },
-  emits: [],
+  emits: ['change'],
 
-  setup(props) {
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const formData = ref({ name: '' });
+    const store = useStore();
+    const formData = ref<IBaseInfo>({ index_set_name: '' });
     /** 展示数据名的key */
     const showNameKey = ['default', 'custom'];
     /** 展示备注说明的key */
     const showDescKey = ['default', 'custom'];
     /** 展示数据分类的key */
     const showCategoryKey = ['custom'];
+    const formRef = ref();
+    // 获取全局数据
+    const globalsData = computed(() => store.getters['globals/globalsData']);
+
+    const ruleData = ref({
+      index_set_name: [
+        {
+          required: true,
+          message: t('必填项'),
+          trigger: 'blur',
+        },
+      ],
+    });
+
+    watch(
+      () => props.typeKey,
+      val => {
+        if (val === 'custom') {
+          formData.value = {
+            ...formData.value,
+            custom_type: 'log',
+          };
+        }
+      },
+      { immediate: true },
+    );
+
+    const handleChange = () => {
+      emit('change', formData.value);
+    };
+
+    const validate = () => {
+      return formRef.value.validate();
+    };
+
+    const handleChangeType = id => {
+      formData.value.custom_type = id;
+    };
+
+    expose({ validate });
+
     const renderBaseInfo = () => (
       <bk-form
+        ref={formRef}
         class='base-info-form'
         label-width={100}
-        // model={formData.value}
+        {...{
+          props: {
+            model: formData.value,
+            rules: ruleData.value,
+          },
+        }}
       >
         <bk-form-item
           label={t('采集名')}
-          property='name'
+          property='index_set_name'
           required={true}
         >
           <bk-input
             maxlength={50}
-            value={formData.value.name}
-            clearable
-            onInput={val => (formData.value.name = val)}
+            value={props.data.index_set_name}
+            onInput={val => {
+              formData.value.index_set_name = val;
+              handleChange();
+            }}
           />
         </bk-form-item>
         {showCategoryKey.includes(props.typeKey) && (
@@ -78,8 +135,17 @@ export default defineComponent({
             required={true}
           >
             <div class='bk-button-group'>
-              <bk-button class='is-selected'>{t('容器日志上报')}</bk-button>
-              <bk-button>{t('otlp 日志上报')}</bk-button>
+              {globalsData.value.databus_custom.map(item => (
+                <bk-button
+                  // :disabled="isEdit"
+                  key={item.id}
+                  // data-test-id="`addNewCustomBox_button_typeTo${item.id}`"
+                  class={`${formData.value.custom_type === item.id ? 'is-selected' : ''}`}
+                  on-click={() => handleChangeType(item.id)}
+                >
+                  {item.name}
+                </bk-button>
+              ))}
             </div>
             <InfoTips
               class='block'
@@ -98,10 +164,10 @@ export default defineComponent({
               maxlength={50}
               minlength={5}
               placeholder={t('用于索引和数据源，仅支持数字、字母、下划线，5～50 字符')}
-              value={formData.value.name}
+              value={formData.value.index_set_name}
               clearable
               onInput={val => {
-                formData.value.name = val;
+                formData.value.index_set_name = val;
               }}
             />
           </bk-form-item>
@@ -118,10 +184,10 @@ export default defineComponent({
             <bk-input
               maxlength={100}
               type='textarea'
-              value={formData.value.name}
+              value={formData.value.index_set_name}
               clearable
               onInput={val => {
-                formData.value.name = val;
+                formData.value.index_set_name = val;
               }}
             />
           </bk-form-item>

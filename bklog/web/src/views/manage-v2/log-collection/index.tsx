@@ -30,7 +30,8 @@ import useLocale from '@/hooks/use-locale';
 
 import LeftList from './components/list-main/left-list';
 import TableList from './components/list-main/table-list';
-import { mockList } from './data.ts';
+// import { mockList } from './data.ts';
+// import $http from '@/api';
 
 import './index.scss';
 
@@ -45,7 +46,6 @@ export default defineComponent({
     const isShowLeft = ref(true);
     const listLoading = ref(false);
     const currentIndexSet = ref({ label: t('全部采集项'), count: 1124, key: 'all' });
-    const tableList = ref(mockList);
     const list = [
       { label: 'bk_apm_trace', count: 11, key: 'bk_apm_trace', isDelete: false },
       { label: 'bk_aiop', count: 23, key: 'bk_apm_trace1', isDelete: true },
@@ -88,11 +88,7 @@ export default defineComponent({
           >
             <i class={`bk-icon icon-angle-${isShowLeft.value ? 'left' : 'right'} right-btn`} />
           </span>
-          <TableList
-            data={tableList.value}
-            indexSet={currentIndexSet.value}
-            loading={listLoading.value}
-          />
+          <TableList indexSet={currentIndexSet.value} />
         </div>
       </div>
     );

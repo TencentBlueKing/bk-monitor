@@ -102,12 +102,26 @@
                     color: #4D4F56;
                     height: 42px;
                     line-height: 42px;
+                    border-top: 1px solid #fff;
                     border-bottom: 1px solid #DCDEE5;
                     padding: 0 10px 0 16px;
                     cursor: pointer;
                     &.active {
                         background: #F0F5FF;
-                        border: 1px solid #3A84FF;
+                        position: relative;
+                        z-index: 1;
+                        border-top-color: transparent;
+                        border-bottom-color: transparent;
+                        &::before {
+                            content: '';
+                            position: absolute;
+                            top: -1px;
+                            right: 0;
+                            bottom: -1px;
+                            left: 0;
+                            border: 1px solid #3A84FF;
+                            pointer-events: none;
+                        }
                     }
                     .item-circle {
                         display: inline-block;
@@ -131,7 +145,6 @@
             flex: 1;
             height: 100%;
             background: #1A1A1A;
-            overflow-y: auto;
             .content-right-title {
                 height: 42px;
                 line-height: 42px;
@@ -148,11 +161,28 @@
                     right: 18px;
                     top: 14px;
                 }
+                .status-icon {
+                    font-size: 14px;
+                    margin-right: 6px;
+                    &.SUCCESS {
+                        color: #1CAB88;
+                    }
+                    &.FAILED {
+                        color: #EA3636;
+                    }
+                }
             }
             .content-box {
                 color: #C4C6CC;
                 font-size: 12px;
                 padding: 14px 18px;
+                white-space: pre-wrap;
+                overflow-y: auto;
+                height: calc(100% - 42px);
+                line-height: 20px;
+                a {
+                    color: #3a84ff;
+                }
             }
         }
     }

@@ -46,6 +46,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const activeKey = ref('all');
+    const itemKey = ref(2000058532);
     const tabList = computed(() => [
       {
         key: 'all',
@@ -68,12 +69,16 @@ export default defineComponent({
         count: 0,
       },
     ]);
-    console.log(t('v2.logCollection.title'), props, emit);
 
     const handleTabClick = item => {
       if (item.count !== 0) {
         activeKey.value = item.key;
       }
+    };
+
+    const handleItemClick = item => {
+      console.log(item);
+      itemKey.value = item.host_id;
     };
 
     return () => (
@@ -102,7 +107,8 @@ export default defineComponent({
               {contents[0].child.map(item => (
                 <div
                   key={item.host_id}
-                  class='left-item'
+                  class={{ 'left-item': true, active: itemKey.value === item.host_id }}
+                  on-click={() => handleItemClick(item)}
                 >
                   {item.status === 'running' ? <i class='running' /> : <span class={`item-circle ${item.status}`} />}
                   {item.ip}
@@ -112,11 +118,14 @@ export default defineComponent({
           </div>
           <div class='content-right'>
             <div class='content-right-title'>
-              <i class='bklog-icon bklog-circle-correct-filled link-icon' />
+              <i class={`bklog-icon bklog-circle-correct-filled status-icon ${props.log.log_result.status}`} />
               {t('采集详情 ')}
               <i class='bklog-icon bklog-refresh2 refresh-icon' />
             </div>
-            <div class='content-box'>{props.log?.log_detail ?? ''}</div>
+            <div
+              class='content-box'
+              domPropsInnerHTML={xssFilter(props.log?.log_detail ?? '')}
+            />
           </div>
         </div>
       </div>
