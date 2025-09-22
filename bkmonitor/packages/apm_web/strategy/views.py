@@ -11,16 +11,18 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from django.db.models import Q, QuerySet
+from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
-from rest_framework.serializers import Serializer
+from rest_framework.serializers import Serializer, ValidationError
 
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 
 from . import mock_data, serializers
 from apm_web.models import StrategyTemplate, StrategyInstance
+from apm_web.strategy.constants import StrategyTemplateType
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -61,8 +63,12 @@ class StrategyTemplateViewSet(GenericViewSet):
         return Response(self.serializer_class(self.get_object()).data)
 
     def destroy(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response({})
+        strategy_template_obj: StrategyTemplate = self.get_object()
+        if strategy_template_obj.type == StrategyTemplateType.BUILTIN_TEMPLATE.value:
+            raise ValidationError(_("内置模板不允许删除"))
+        if StrategyInstance.objects.filter(strategy_template_id=strategy_template_obj.id).exists():
+            raise ValidationError(_("已下发的模板不允许删除"))
+        strategy_template_obj.delete()
         return Response({})
 
     def update(self, *args, **kwargs) -> Response:
