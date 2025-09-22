@@ -30,7 +30,7 @@ import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import { getDefaultRetrieveParams, update_URL_ARGS } from '@/store/default-values';
-import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '@/store/store.type';
+import { BK_LOG_STORAGE, type RouteParams, SEARCH_MODE_DIC } from '@/store/store.type';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -144,6 +144,7 @@ export default () => {
     return { width: '100%' };
   });
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   const setSearchMode = () => {
     const { search_mode, addition, keyword } = route.query;
 
@@ -214,188 +215,193 @@ export default () => {
       is_error: false,
     });
 
-    return store
-      .dispatch('retrieve/getIndexSetList', {
-        spaceUid: spaceUid.value,
-        bkBizId: bkBizId.value,
-        is_group: true,
-      })
-      .then(resp => {
-        isPreApiLoaded.value = true;
+    return (
+      store
+        .dispatch('retrieve/getIndexSetList', {
+          spaceUid: spaceUid.value,
+          bkBizId: bkBizId.value,
+          is_group: true,
+        })
+        // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
+        .then(resp => {
+          isPreApiLoaded.value = true;
 
-        // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
-        // tags 是 BCS索引集注入内置标签特殊检索
-        if (!indexSetIdList.value.length && route.query.tags?.length) {
-          const tagList = Array.isArray(route.query.tags) ? route.query.tags : route.query.tags.split(',');
-          const indexSetMatch = resp[1]
-            .filter(item => item.tags.some(tag => tagList.includes(tag.name)))
-            .map(val => val.index_set_id);
-          if (indexSetMatch.length) {
-            store.commit('updateIndexItem', { ids: indexSetMatch, isUnionIndex: true, selectIsUnionSearch: true });
-            store.commit('updateState', {
-              unionIndexItemList: tagList,
-            });
-            store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'union' });
-          }
-        }
-
-        // 如果当前地址参数没有indexSetId，则默认取缓存中的索引信息
-        // 同时，更新索引信息到store中
-        if (!indexSetIdList.value.length) {
-          const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
-          if (lastIndexSetIds?.length) {
-            const validateIndexSetIds = lastIndexSetIds.filter(id =>
-              resp[1].some(item => `${item.index_set_id}` === `${id}`),
-            );
-            if (validateIndexSetIds.length) {
-              store.commit('updateIndexItem', { ids: validateIndexSetIds });
-              store.commit('updateStorage', {
-                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: validateIndexSetIds.length > 1 ? 'union' : 'single',
+          // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
+          // tags 是 BCS索引集注入内置标签特殊检索
+          if (!indexSetIdList.value.length && route.query.tags?.length) {
+            const tagList = Array.isArray(route.query.tags) ? route.query.tags : route.query.tags.split(',');
+            const indexSetMatch = resp[1]
+              .filter(item => item.tags.some(tag => tagList.includes(tag.name)))
+              .map(val => val.index_set_id);
+            if (indexSetMatch.length) {
+              store.commit('updateIndexItem', { ids: indexSetMatch, isUnionIndex: true, selectIsUnionSearch: true });
+              store.commit('updateState', {
+                unionIndexItemList: tagList,
               });
-            } else {
-              store.commit('updateStorage', {
-                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'single',
+              store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'union' });
+            }
+          }
+
+          // 如果当前地址参数没有indexSetId，则默认取缓存中的索引信息
+          // 同时，更新索引信息到store中
+          if (!indexSetIdList.value.length) {
+            const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
+            if (lastIndexSetIds?.length) {
+              const validateIndexSetIds = lastIndexSetIds.filter(id =>
+                resp[1].some(item => `${item.index_set_id}` === `${id}`),
+              );
+              if (validateIndexSetIds.length) {
+                store.commit('updateIndexItem', { ids: validateIndexSetIds });
+                store.commit('updateStorage', {
+                  [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: validateIndexSetIds.length > 1 ? 'union' : 'single',
+                });
+              } else {
+                store.commit('updateStorage', {
+                  [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'single',
+                });
+              }
+            }
+          }
+
+          // 如果解析出来的索引集信息不为空
+          // 需要检查索引集列表中是否包含解析出来的索引集信息
+          // 避免索引信息不存在导致的频繁错误请求和异常提示
+          const emptyIndexSetList: string[] = [];
+          const indexSetItems: any[] = [];
+          const indexSetIds: string[] = [];
+
+          if (indexSetIdList.value.length) {
+            for (const id of indexSetIdList.value) {
+              const item = resp[1].find(rItem => `${rItem.index_set_id}` === `${id}`);
+              if (!item) {
+                emptyIndexSetList.push(id);
+              }
+
+              if (item) {
+                indexSetItems.push(item);
+                indexSetIds.push(id);
+              }
+            }
+
+            if (emptyIndexSetList.length) {
+              store.commit('updateIndexItem', { ids: [], items: [] });
+              store.commit('updateState', { indexId: '' });
+              store.commit('updateIndexSetQueryResult', {
+                is_error: true,
+                exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
+              });
+            }
+
+            if (indexSetItems.length) {
+              store.commit('updateIndexItem', {
+                ids: [...indexSetIds],
+                items: [...indexSetItems],
               });
             }
           }
-        }
 
-        // 如果解析出来的索引集信息不为空
-        // 需要检查索引集列表中是否包含解析出来的索引集信息
-        // 避免索引信息不存在导致的频繁错误请求和异常提示
-        const emptyIndexSetList = [];
-        const indexSetItems = [];
-        const indexSetIds = [];
+          // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
+          if (!indexSetIdList.value.length) {
+            const respIndexSetList = resp[1];
+            const defIndexItem =
+              respIndexSetList.find(
+                item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
+              ) ?? respIndexSetList[0];
+            const defaultId = [defIndexItem?.index_set_id].filter(Boolean);
 
-        if (indexSetIdList.value.length) {
-          indexSetIdList.value.forEach(id => {
-            const item = resp[1].find(item => `${item.index_set_id}` === `${id}`);
-            if (!item) {
-              emptyIndexSetList.push(id);
+            if (defaultId) {
+              const strId = `${defaultId}`;
+              store.commit('updateIndexItem', { ids: [strId], items: [defIndexItem].filter(Boolean) });
+              store.commit('updateState', { indexId: strId });
+            }
+          }
+
+          const indexId =
+            store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+              ? store.state.indexItem.ids[0]
+              : undefined;
+          const unionList =
+            store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union'
+              ? store.state.indexItem.ids
+              : undefined;
+
+          if (emptyIndexSetList.length === 0) {
+            RetrieveHelper.setSearchingValue(true);
+
+            const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
+            if (indexId && type === 'single') {
+              store.commit('updateState', { indexId });
+              store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
             }
 
-            if (item) {
-              indexSetItems.push(item);
-              indexSetIds.push(id);
+            if (type === 'union') {
+              store.commit('updateUnionIndexList', {
+                updateIndexItem: false,
+                list: [...(unionList ?? [])],
+              });
             }
-          });
 
-          if (emptyIndexSetList.length) {
-            store.commit('updateIndexItem', { ids: [], items: [] });
-            store.commit('updateState', { indexId: '' });
-            store.commit('updateIndexSetQueryResult', {
-              is_error: true,
-              exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
-            });
-          }
+            store.commit('updateIndexItem', { isUnionIndex: type === 'union' });
 
-          if (indexSetItems.length) {
-            store.commit('updateIndexItem', {
-              ids: [...indexSetIds],
-              items: [...indexSetItems],
-            });
-          }
-        }
+            RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
-        // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
-        if (!indexSetIdList.value.length) {
-          const respIndexSetList = resp[1];
-          const defIndexItem =
-            respIndexSetList.find(
-              item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
-            ) ?? respIndexSetList[0];
-          const defaultId = [defIndexItem?.index_set_id].filter(Boolean);
+            store.dispatch('requestIndexSetFieldInfo').then(newResp => {
+              RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+              RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
-          if (defaultId) {
-            const strId = `${defaultId}`;
-            store.commit('updateIndexItem', { ids: [strId], items: [defIndexItem].filter(Boolean) });
-            store.commit('updateState', { indexId: strId });
-          }
-        }
+              if (
+                route.query.tab === 'origin' ||
+                route.query.tab === undefined ||
+                route.query.tab === null ||
+                route.query.tab === ''
+              ) {
+                if (newResp?.data?.fields?.length) {
+                  store.dispatch('requestIndexSetQuery').then(() => {
+                    RetrieveHelper.setSearchingValue(false);
+                  });
+                }
 
-        let indexId =
-          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
-            ? store.state.indexItem.ids[0]
-            : undefined;
-        const unionList =
-          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
-
-        if (emptyIndexSetList.length === 0) {
-          RetrieveHelper.setSearchingValue(true);
-
-          const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
-          if (indexId && type === 'single') {
-            store.commit('updateState', { indexId: indexId });
-            store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
-          }
-
-          if (type === 'union') {
-            store.commit('updateUnionIndexList', {
-              updateIndexItem: false,
-              list: [...(unionList ?? [])],
-            });
-          }
-
-          store.commit('updateIndexItem', { isUnionIndex: type === 'union' });
-
-          RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
-
-          store.dispatch('requestIndexSetFieldInfo').then(resp => {
-            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-            RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
-
-            if (
-              route.query.tab === 'origin' ||
-              route.query.tab === undefined ||
-              route.query.tab === null ||
-              route.query.tab === ''
-            ) {
-              if (resp?.data?.fields?.length) {
-                store.dispatch('requestIndexSetQuery').then(() => {
+                if (!newResp?.data?.fields?.length) {
+                  store.commit('updateIndexSetQueryResult', {
+                    is_error: true,
+                    exception_msg: 'index-set-field-not-found',
+                  });
                   RetrieveHelper.setSearchingValue(false);
-                });
+                }
+
+                return;
               }
 
-              if (!resp?.data?.fields?.length) {
-                store.commit('updateIndexSetQueryResult', {
-                  is_error: true,
-                  exception_msg: 'index-set-field-not-found',
-                });
-                RetrieveHelper.setSearchingValue(false);
-              }
-
-              return;
-            }
-
-            RetrieveHelper.setSearchingValue(false);
-          });
-        }
-
-        if (!indexSetIdList.value.length) {
-          const defaultId = [resp[1][0]?.index_set_id];
-
-          if (defaultId) {
-            const strId = `${defaultId}`;
-            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
-            store.commit('updateState', { indexId: strId });
+              RetrieveHelper.setSearchingValue(false);
+            });
           }
-        }
 
-        const queryTab = RetrieveHelper.routeQueryTabValueFix(
-          store.state.indexItem.items?.[0],
-          route.query.tab,
-          store.getters.isUnionSearch,
-        );
+          if (!indexSetIdList.value.length) {
+            const defaultId = [resp[1][0]?.index_set_id];
 
-        router.replace({
-          params: { ...route.params, indexId },
-          query: {
-            ...route.query,
-            ...queryTab,
-            unionList: unionList ? JSON.stringify(unionList) : undefined,
-          },
-        });
-      });
+            if (defaultId) {
+              const strId = `${defaultId}`;
+              store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+              store.commit('updateState', { indexId: strId });
+            }
+          }
+
+          const queryTab = RetrieveHelper.routeQueryTabValueFix(
+            store.state.indexItem.items?.[0],
+            route.query.tab,
+            store.getters.isUnionSearch,
+          );
+
+          router.replace({
+            params: { ...route.params, indexId },
+            query: {
+              ...route.query,
+              ...queryTab,
+              unionList: unionList ? JSON.stringify(unionList) : undefined,
+            },
+          });
+        })
+    );
   };
 
   // 解析默认URL为前端参数
@@ -501,7 +507,7 @@ export default () => {
     return searchResultTop.value === subBarHeight.value + trendGraphHeight.value;
   });
 
-  /** * 结束计算 ***/
+  /** * 结束计算 */
   onMounted(() => {
     RetrieveHelper.onMounted();
     store.dispatch('requestFavoriteList');

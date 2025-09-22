@@ -32,10 +32,11 @@ import useStore from '@/hooks/use-store';
 
 import { utcFormatDate } from '../../../../../common/util';
 import { useFavorite } from '../../hooks/use-favorite';
-import { IFavoriteItem, IGroupItem, IMenuItem } from '../../types';
 import { getGroupNameRules } from '../../utils';
 import AddGroup from './add-group';
 import EditDialog from './edit-dialog';
+
+import type { IFavoriteItem, IGroupItem, IMenuItem } from '../../types';
 
 import './collect-list.scss';
 
@@ -206,9 +207,9 @@ export default defineComponent({
     /** 展开所有 */
     const handleCollapse = () => {
       const map = {};
-      props.list.forEach(item => {
+      for (const item of props.list) {
         map[item.group_id] = true;
-      });
+      }
       expandedMap.value = map;
     };
     /** 选中某个节点 */
@@ -249,7 +250,7 @@ export default defineComponent({
     };
 
     /** 修改分组 */
-    const updateFavorite = async (item: IFavoriteItem, tips: string) => {
+    const updateFavorite = (item: IFavoriteItem, tips: string) => {
       handleUpdateFavorite(
         item,
         () => {
@@ -283,11 +284,11 @@ export default defineComponent({
           { delete: isPoint && menu.key !== 'reset-group-name', 'no-border': item?.id && isFailFavorite(item) },
         ]}
         onClick={() => {
-          !isPoint ? handleMenuClick(menu.key, item) : handleDelClick(menu.key, item);
+          isPoint ? handleDelClick(menu.key, item) : handleMenuClick(menu.key, item);
         }}
       >
         {menu.label}
-        {menu.key === 'move-group' && <span class='bk-icon icon-angle-right move-icon'></span>}
+        {menu.key === 'move-group' && <span class='bk-icon icon-angle-right move-icon' />}
       </span>
     );
     /** 操作菜单删除类显示的Item */
@@ -337,6 +338,7 @@ export default defineComponent({
             .filter(group => group.group_id !== item.group_id)
             .map(group => (
               <div
+                key={group.group_id}
                 class='list-item'
                 onClick={() => {
                   const newItem = { ...item };
@@ -360,7 +362,7 @@ export default defineComponent({
     const renderMenu = (list: IMenuItem[], item: IFavoriteItem, isChild = true) => {
       const isDataExist = isChild && isFailFavorite(item);
       /** 数据源不存在的情况下，只支持删除操作 */
-      const showList = isDataExist ? list.filter(item => item.key === 'delete') : list;
+      const showList = isDataExist ? list.filter(litem => litem.key === 'delete') : list;
       return (
         <div class='collect-list-menu-popover'>
           {showList.map(menu => {
@@ -396,8 +398,8 @@ export default defineComponent({
                             isCreate={false}
                             isFormType={true}
                             rules={ruleData.value}
-                            on-cancel={item => {
-                              listMenuPopoverMap.value[item.group_id]?.hide();
+                            on-cancel={newItem => {
+                              listMenuPopoverMap.value[newItem.group_id]?.hide();
                             }}
                             on-submit={() => handleMenuClick(menu.key, item)}
                           />
@@ -436,19 +438,19 @@ export default defineComponent({
         <div class='collect-list-child-tips'>
           {isMultiIndex(item) && (
             <div class='no-data-item'>
-              <span class='bk-icon icon-panels item-icon blue-icon'></span>
+              <span class='bk-icon icon-panels item-icon blue-icon' />
               {t('多索引集')}
             </div>
           )}
           {isFailFavorite(item) && (
             <div class='no-data-item'>
-              <span class='bklog-icon bklog-shixiao item-icon'></span>
+              <span class='bklog-icon bklog-shixiao item-icon' />
               {t('数据源不存在')}
             </div>
           )}
-          {tipsData.map((tips, ind) => (
+          {tipsData.map(tips => (
             <div
-              key={ind}
+              key={tips.title}
               class='tips-item'
             >
               {`${tips.title}：${tips.value || '--'}`}
@@ -474,7 +476,7 @@ export default defineComponent({
             >
               <span
                 class={`bklog-icon item-icon bklog-${item.group_type === 'private' ? 'file-personal' : showIcon(item)}`}
-              ></span>
+              />
               <span class='item-name'>{item.group_name}</span>
               <span
                 class={[
@@ -495,7 +497,7 @@ export default defineComponent({
                     scopedSlots: { content: () => renderMenu(groupMenu.value, item, false) },
                   }}
                 >
-                  <span class='bklog-icon bklog-more icon-more'></span>
+                  <span class='bklog-icon bklog-more icon-more' />
                 </BklogPopover>
               )}
             </div>
@@ -504,6 +506,7 @@ export default defineComponent({
               <div class='collect-list-item-child'>
                 {item.favorites.map(child => (
                   <BklogPopover
+                    key={child.id}
                     class='child-item-name'
                     options={{ offset: [10, 12], placement: 'right', appendTo: document.body, theme: 'dark' } as any}
                     trigger='hover'
@@ -521,8 +524,8 @@ export default defineComponent({
                     >
                       <span class='child-name'>
                         {child.name}
-                        {isFailFavorite(child) && <span class='bklog-icon bklog-shixiao child-icon'></span>}
-                        {isMultiIndex(child) && <span class='bk-icon icon-panels blue-icon'></span>}
+                        {isFailFavorite(child) && <span class='bklog-icon bklog-shixiao child-icon' />}
+                        {isMultiIndex(child) && <span class='bk-icon icon-panels blue-icon' />}
                       </span>
 
                       {/* 数据源不存在 */}
@@ -536,7 +539,7 @@ export default defineComponent({
                           scopedSlots: { content: () => renderMenu(childMenu.value, child) },
                         }}
                       >
-                        <span class='bklog-icon bklog-more icon-more'></span>
+                        <span class='bklog-icon bklog-more icon-more' />
                       </BklogPopover>
                     </div>
                   </BklogPopover>

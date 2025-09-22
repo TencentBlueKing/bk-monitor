@@ -26,7 +26,7 @@
 
 import { defineComponent, onMounted, ref } from 'vue';
 
-import { ITabItem } from '../../types';
+import type { ITabItem } from '../../types';
 
 import './collect-tab.scss';
 
@@ -67,7 +67,7 @@ export default defineComponent({
             ]}
             onClick={() => handleTabClick(item.key)}
           >
-            <i class={`bklog-icon ${item.icon} tab-icon`}></i>
+            <i class={`bklog-icon ${item.icon} tab-icon`} />
             {item.name}
             <span class='tab-count'>{item.count}</span>
           </span>

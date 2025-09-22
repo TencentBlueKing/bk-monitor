@@ -26,14 +26,16 @@
 
 import { defineComponent, ref } from 'vue';
 
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import SubBar from '../../retrieve-v2/sub-bar/index.vue';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
+
 import './index.scss';
 
 export default defineComponent({
   name: 'V3Toolbar',
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   setup() {
     const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
     const onFavoriteShowChange = (val: boolean) => {
@@ -58,11 +60,11 @@ export default defineComponent({
             <span
               style={{ color: isFavoriteShown.value ? '#3A84FF' : '' }}
               class='bklog-icon bklog-shoucangjia'
-            ></span>
+            />
           </div>
         )}
 
-        <SubBar></SubBar>
+        <SubBar />
       </div>
     );
   },

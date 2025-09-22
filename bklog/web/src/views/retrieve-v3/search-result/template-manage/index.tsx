@@ -24,26 +24,29 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted } from "vue";
-import useLocale from "@/hooks/use-locale";
-import $http from "@/api";
-import dayjs from "dayjs";
-import { useRoute, useRouter } from "vue-router/composables";
-import CreateTemplate from "./create-template";
-import { type RuleTemplate } from "@/services/log-clustering";
-import RuleConfigOperate from "@/components/rule-config-operate";
-import RuleTable from "@/components/rule-table";
-import { bkMessage } from "bk-magic-vue";
-import OtherImport from "@/components/import-from-other-index-set";
-import IndexSetList from "./index-set-list";
-import TemplateList from "./template-list";
+import { defineComponent, ref, onMounted } from 'vue';
 
-import "./index.scss";
+import OtherImport from '@/components/import-from-other-index-set';
+import RuleConfigOperate from '@/components/rule-config-operate';
+import RuleTable from '@/components/rule-table';
+import useLocale from '@/hooks/use-locale';
+import { bkMessage } from 'bk-magic-vue';
+import dayjs from 'dayjs';
+import { useRoute, useRouter } from 'vue-router/composables';
+
+import CreateTemplate from './create-template';
+import IndexSetList from './index-set-list';
+import TemplateList from './template-list';
+import $http from '@/api';
+
+import type { RuleTemplate } from '@/services/log-clustering';
+
+import './index.scss';
 
 export type TemplateItem = RuleTemplate & { ruleList: Record<string, any>[] };
 
 export default defineComponent({
-  name: "TemplateManage",
+  name: 'TemplateManage',
   components: {
     CreateTemplate,
     RuleConfigOperate,
@@ -61,8 +64,8 @@ export default defineComponent({
     const ruleConfigOperateRef = ref<any>(null);
     const ruleTableRef = ref<any>(null);
     const isShowOtherImport = ref(false);
-    const searchPlaceholderValue = ref("");
-    const currentRuleList = ref<TemplateItem["ruleList"]>([]);
+    const searchPlaceholderValue = ref('');
+    const currentRuleList = ref<TemplateItem['ruleList']>([]);
     const currentTemplate = ref<TemplateItem>();
 
     const { collectorConfigId, templateId } = route.query;
@@ -76,27 +79,29 @@ export default defineComponent({
 
     const inputFileEvent = () => {
       // 检查文件是否选择:
-      if (!inputDocument.value) return;
+      if (!inputDocument.value) {
+        return;
+      }
+      // biome-ignore lint/style/noNonNullAssertion: reason
       const file = inputDocument.files![0];
       // 读取文件:
       const reader = new FileReader();
       reader.onload = (e: any) => {
         try {
-          const list = Object.values(JSON.parse(e.target.result)).map(
-            (item: any, index: number) => {
-              if (!item.placeholder || !String(item.rule))
-                throw new Error("无效的json");
-              return {
-                [item.placeholder]: String([item.rule]),
-                __Index__: index,
-              };
+          const list = Object.values(JSON.parse(e.target.result)).map((item: any, index: number) => {
+            if (!(item.placeholder && String(item.rule))) {
+              throw new Error('无效的json');
             }
-          );
+            return {
+              [item.placeholder]: String([item.rule]),
+              __Index__: index,
+            };
+          });
           currentRuleList.value = list;
-        } catch (err) {
+        } catch {
           bkMessage({
-            theme: "error",
-            message: t("不是有效的json文件"),
+            theme: 'error',
+            message: t('不是有效的json文件'),
           });
         }
       };
@@ -109,6 +114,7 @@ export default defineComponent({
     };
 
     const handleReset = () => {
+      // biome-ignore lint/style/noNonNullAssertion: reason
       currentRuleList.value = currentTemplate.value!.ruleList;
     };
 
@@ -117,15 +123,15 @@ export default defineComponent({
       const ruleList = ruleTableRef.value.getRuleList();
       if (!ruleList.length) {
         bkMessage({
-          theme: "error",
-          message: t("聚类规则为空，无法导出规则"),
+          theme: 'error',
+          message: t('聚类规则为空，无法导出规则'),
         });
         return;
       }
-      const eleLink = document.createElement("a");
-      const time = `${dayjs().format("YYYYMMDDHHmmss")}`;
+      const eleLink = document.createElement('a');
+      const time = `${dayjs().format('YYYYMMDDHHmmss')}`;
       eleLink.download = `bk_log_search_download_${time}.json`;
-      eleLink.style.display = "none";
+      eleLink.style.display = 'none';
       const jsonStr = ruleList.reduce((pre, cur, index) => {
         const entriesArr = Object.entries(cur);
         pre[index] = {
@@ -144,10 +150,10 @@ export default defineComponent({
     };
 
     const initInputType = () => {
-      const uploadEl = document.createElement("input");
-      uploadEl.type = "file";
-      uploadEl.style.display = "none";
-      uploadEl.addEventListener("change", inputFileEvent);
+      const uploadEl = document.createElement('input');
+      uploadEl.type = 'file';
+      uploadEl.style.display = 'none';
+      uploadEl.addEventListener('change', inputFileEvent);
       inputDocument = uploadEl;
     };
 
@@ -157,16 +163,16 @@ export default defineComponent({
 
     const handleClickRouteBack = () => {
       router.push({
-        name: "retrieve",
+        name: 'retrieve',
         query: {
-          tab: "clustering",
+          tab: 'clustering',
         },
       });
     };
 
     const handleSubmit = () => {
       $http
-        .request("logClustering/updateTemplateName", {
+        .request('logClustering/updateTemplateName', {
           params: {
             regex_template_id: currentTemplate.value?.id,
           },
@@ -175,16 +181,16 @@ export default defineComponent({
             template_name: currentTemplate.value?.template_name,
           },
         })
-        .then((res) => {
+        .then(res => {
           if (res.code === 0) {
             bkMessage({
-              message: t("更新成功"),
-              theme: "success",
+              message: t('更新成功'),
+              theme: 'success',
             });
             handleTemplateListRefresh();
           }
         })
-        .catch((err) => {
+        .catch(err => {
           console.error(err);
         })
         .finally(() => {
@@ -201,81 +207,87 @@ export default defineComponent({
     });
 
     return () => (
-      <div class="retrieve-template-manage-page">
-        <div class="header-main">
+      <div class='retrieve-template-manage-page'>
+        <div class='header-main'>
           <span on-click={handleClickRouteBack}>
-            <log-icon common class="back-icon" type="arrows-left" />
+            <log-icon
+              class='back-icon'
+              type='arrows-left'
+              common
+            />
           </span>
-          <span class="title">{t("模板管理")}</span>
+          <span class='title'>{t('模板管理')}</span>
         </div>
-        <div class="content-main">
+        <div class='content-main'>
           <TemplateList
             ref={templateListRef}
             defaultId={Number(templateId)}
             on-choose-template={handleChooseTemplate}
           />
-          <div class="config-main">
-            <div class="template-config-main">
-              <div class="rule-config-main">
-                <div class="config-title">
-                  <div class="title">{t("模板配置")}</div>
-                  <div class="split-line"></div>
-                  <div class="template-name">
-                    {currentTemplate.value?.template_name}
-                  </div>
+          <div class='config-main'>
+            <div class='template-config-main'>
+              <div class='rule-config-main'>
+                <div class='config-title'>
+                  <div class='title'>{t('模板配置')}</div>
+                  <div class='split-line' />
+                  <div class='template-name'>{currentTemplate.value?.template_name}</div>
                 </div>
-                <div class="rule-operate-main">
-                  <div class="operate-btns">
+                <div class='rule-operate-main'>
+                  <div class='operate-btns'>
                     <bk-dropdown-menu>
-                      <div slot="dropdown-trigger">
+                      <div slot='dropdown-trigger'>
                         <bk-button
-                          class="operate-btn"
-                          data-test-id="LogCluster_button_addNewRules"
+                          class='operate-btn'
+                          data-test-id='LogCluster_button_addNewRules'
                         >
-                          {t("导入")}
+                          {t('导入')}
                         </bk-button>
                       </div>
-                      <ul class="bk-dropdown-list" slot="dropdown-content">
+                      <ul
+                        class='bk-dropdown-list'
+                        slot='dropdown-content'
+                      >
                         <li>
                           <a
-                            href="javascript:;"
+                            href='javascript:;'
                             on-click={() => inputDocument.click()}
                           >
-                            {t("本地导入")}
+                            {t('本地导入')}
                           </a>
                         </li>
                         <li>
                           <a
-                            href="javascript:;"
+                            href='javascript:;'
                             on-click={() => (isShowOtherImport.value = true)}
                           >
-                            {t("其他索引集导入")}
+                            {t('其他索引集导入')}
                           </a>
                         </li>
                       </ul>
                     </bk-dropdown-menu>
-                    <bk-button class="operate-btn" on-click={handleExportRule}>
-                      {t("导出")}
+                    <bk-button
+                      class='operate-btn'
+                      on-click={handleExportRule}
+                    >
+                      {t('导出')}
                     </bk-button>
                   </div>
                   <bk-input
-                    clearable
-                    style="width: 480px"
-                    placeholder={t("搜索 占位符")}
-                    right-icon="bk-icon icon-search"
+                    style='width: 480px'
+                    placeholder={t('搜索 占位符')}
+                    right-icon='bk-icon icon-search'
                     value={searchPlaceholderValue.value}
-                    on-change={(value) =>
-                      (searchPlaceholderValue.value = value)
-                    }
-                    on-enter={handleSearchPlaceholder}
+                    clearable
+                    on-change={value => (searchPlaceholderValue.value = value)}
                     on-clear={handleSearchPlaceholder}
+                    on-enter={handleSearchPlaceholder}
                     on-right-icon-click={handleSearchPlaceholder}
                   />
                 </div>
                 <rule-table
                   ref={ruleTableRef}
                   ruleList={currentRuleList.value}
-                  on-rule-list-change={(list) => (currentRuleList.value = list)}
+                  on-rule-list-change={list => (currentRuleList.value = list)}
                 />
               </div>
               <index-set-list
@@ -285,8 +297,8 @@ export default defineComponent({
             </div>
             <rule-config-operate
               ref={ruleConfigOperateRef}
-              ruleList={currentRuleList.value}
               collectorConfigId={collectorConfigId}
+              ruleList={currentRuleList.value}
               on-reset={handleReset}
               on-submit={handleSubmit}
             />
@@ -294,8 +306,8 @@ export default defineComponent({
         </div>
         <other-import
           isShow={isShowOtherImport.value}
+          on-show-change={value => (isShowOtherImport.value = value)}
           on-success={handleConfirmFromOtherIndexSet}
-          on-show-change={(value) => (isShowOtherImport.value = value)}
         />
       </div>
     );
