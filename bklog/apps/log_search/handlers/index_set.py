@@ -1942,12 +1942,10 @@ class BkDataIndexSetHandler(BaseIndexSetHandler):
 
     def pre_create(self):
         super().pre_create()
-        self.check_rt_authorization_for_user()
         self.auto_authorize_rt()
 
     def pre_update(self):
         super().pre_update()
-        self.check_rt_authorization_for_user()
         self.auto_authorize_rt()
 
     def auto_authorize_rt(self):
