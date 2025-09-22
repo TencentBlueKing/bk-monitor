@@ -198,7 +198,7 @@ export default class AlarmTemplate extends tsc<object> {
    * @param templateId 模板Id
    * @param {AlarmDeleteConfirmEvent['promiseEvent']} promiseEvent.promiseEvent Promise 对象，用于告诉 操作发起者 接口请求状态
    * @param {AlarmDeleteConfirmEvent['errorCallback']} promiseEvent.errorCallback Promise.reject 方法，用于告诉 操作发起者 接口请求失败
-   * @param {AlarmDeleteConfirmEvent['successCallback']} promiseEvent.successCallback Promise.result 方法，用于告诉 操作发起者 接口请求成功
+   * @param {AlarmDeleteConfirmEvent['successCallback']} promiseEvent.successCallback Promise.resolve 方法，用于告诉 操作发起者 接口请求成功
    */
   deleteTemplateById(templateId: AlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) {
     destroyAlarmTemplateById({ strategy_template_id: templateId, app_name: this.viewOptions.filters?.app_name })
@@ -271,7 +271,7 @@ export default class AlarmTemplate extends tsc<object> {
    * @param {Partial<AlarmTemplateListItem>} updateValue 需要更新的数据
    * @param {AlarmDeleteConfirmEvent['promiseEvent']} promiseEvent.promiseEvent Promise 对象，用于告诉 操作发起者 接口请求状态
    * @param {AlarmDeleteConfirmEvent['errorCallback']} promiseEvent.errorCallback Promise.reject 方法，用于告诉 操作发起者 接口请求失败
-   * @param {AlarmDeleteConfirmEvent['successCallback']} promiseEvent.successCallback Promise.result 方法，用于告诉 操作发起者 接口请求成功
+   * @param {AlarmDeleteConfirmEvent['successCallback']} promiseEvent.successCallback Promise.resolve 方法，用于告诉 操作发起者 接口请求成功
    */
   handleBatchUpdate(
     id: AlarmTemplateListItem['id'] | AlarmTemplateListItem['id'][],
@@ -340,6 +340,7 @@ export default class AlarmTemplate extends tsc<object> {
             appName='tilapia'
             emptyType={this.searchKeyword?.length ? 'search-empty' : 'empty'}
             loading={this.tableLoading}
+            searchKeyword={this.searchKeyword}
             selectOptionMap={this.selectOptionsMap}
             tableData={this.tableData}
             onBatchUpdate={this.handleBatchUpdate}
@@ -348,6 +349,7 @@ export default class AlarmTemplate extends tsc<object> {
             onDeleteTemplate={this.deleteTemplateById}
             onDispatch={this.handleDispatch}
             onEditTemplate={this.handleEditTemplate}
+            onFilterChange={this.handleSearchChange}
             onSelectedChange={this.handleTableSelectedChange}
             onShowDetail={this.handleShowDetail}
           />
