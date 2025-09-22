@@ -309,7 +309,8 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
             validated_data["is_auto_apply"] = False
 
     @classmethod
-    def _base_update_validate(cls, validated_data: dict[str, Any]) -> None:
+    def base_update_validate(cls, validated_data: dict[str, Any]) -> None:
+        """更新接口 / 批量更新接口统一校验"""
         cls._base_validate(validated_data)
         user_group_list: list[dict[str, int | str]] | None = validated_data.pop("user_group_list", None)
         if user_group_list is not None:
@@ -326,7 +327,7 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
             validated_data["user_group_ids"] = [user_group_dict["id"] for user_group_dict in user_group_list]
 
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
-        self._base_update_validate(validated_data)
+        self.base_update_validate(validated_data)
         return super().update(instance, validated_data)
 
 
