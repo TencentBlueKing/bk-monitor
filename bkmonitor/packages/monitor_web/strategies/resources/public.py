@@ -243,16 +243,29 @@ class FetchItemStatus(Resource):
         "monitor_type",
     }
 
+    # 通用标签前缀到告警事件 tags.key 的映射（用于 labels 过滤）
+    LABEL_PREFIX_TO_EVENT_TAG_KEY = {
+        "APM-SERVICE": "service_name",
+        "APM-APP": "app_name",
+    }
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         metric_ids = serializers.ListField(required=True, label="指标ID")
         target = serializers.DictField(required=False, default={}, label="当前目标")
+        labels = serializers.ListField(
+            required=False,
+            default=[],
+            label="标签过滤",
+            child=serializers.CharField(allow_blank=False),
+        )
 
     @classmethod
     def get_alarm_event_num(cls, validated_request_data: dict) -> dict:
         """获得告警事件数量 ."""
         bk_biz_id = validated_request_data["bk_biz_id"]
         target = validated_request_data["target"]
+        labels = validated_request_data.get("labels", [])
         ip = target.get("bk_target_ip")
         bk_cloud_id = target.get("bk_target_cloud_id", 0)
         bk_service_instance_id = target.get("bk_service_instance_id")
@@ -270,6 +283,8 @@ class FetchItemStatus(Resource):
             search_object = search_object.filter("term", **{"event.bk_service_instance_id": bk_service_instance_id})
         # 添加event.tags查询
         search_object = cls.add_event_tags_query(search_object, target)
+        # 添加 labels 过滤
+        search_object = cls.add_labels_query(search_object, labels)
         # 获得告警策略关联的告警事件的数量
         search_object = search_object[:0]
         search_object.aggs.bucket("strategy_id", "terms", field="strategy_id", size=10000)
@@ -324,6 +339,42 @@ class FetchItemStatus(Resource):
         query = Q("bool", must=nested_list)
 
         return query
+
+    @classmethod
+    def add_labels_query(cls, search_object, labels: list[str]):
+        """基于通用 labels 追加 event.tags 的 nested 过滤"""
+        if not labels:
+            return search_object
+        nested_list = []
+        for label_str in labels:
+            if not isinstance(label_str, str):
+                continue
+            # 解析标签 eg. APM-APP(应用名称)
+            left = label_str.find("(")
+            right = label_str.rfind(")")
+            if left <= 0 or right <= left + 1:
+                continue
+            prefix = label_str[:left]
+            value = label_str[left + 1 : right]
+            tag_key = cls.LABEL_PREFIX_TO_EVENT_TAG_KEY.get(prefix)
+            if not tag_key or not value:
+                continue
+            nested_list.append(
+                Q(
+                    "nested",
+                    path="event.tags",
+                    query=Q(
+                        "bool",
+                        must=[
+                            Q("term", **{"event.tags.key": {"value": tag_key}}),
+                            Q("match_phrase", **{"event.tags.value": {"query": value}}),
+                        ],
+                    ),
+                )
+            )
+        if nested_list:
+            search_object = search_object.query(Q("bool", must=nested_list))
+        return search_object
 
     @staticmethod
     def get_strategy_numbers(bk_biz_id: int, metric_ids: list, target: dict = None) -> dict:
