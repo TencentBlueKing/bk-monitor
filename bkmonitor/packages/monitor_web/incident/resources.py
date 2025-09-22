@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -759,7 +759,7 @@ class IncidentTopologyMenuResource(IncidentBaseResource):
         default_aggregated_config = {}
         for menu in topology_menu:
             default_aggregated_config[menu["entity_type"]] = [
-                item["aggregate_key"] for item in menu["aggregate_bys"] if not item["is_anomaly"]
+                item["aggregate_key"] for item in menu["aggregate_bys"] if item["aggregate_key"]
             ]
 
         return {
@@ -821,7 +821,7 @@ class IncidentTopologyMenuResource(IncidentBaseResource):
 
             aggregate_keys = [{"count": 0, "aggregate_key": key, "is_anomaly": False} for key in list(neighbors)]
             if has_anomaly:
-                aggregate_keys.append({"count": 0, "aggregate_key": None, "is_anomaly": True})
+                aggregate_keys.append({"count": 0, "aggregate_key": entity_type, "is_anomaly": True})
 
             if len(aggregate_keys) > 0:
                 menu_data[entity_type] = {

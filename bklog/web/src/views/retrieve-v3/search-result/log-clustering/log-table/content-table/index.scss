@@ -104,6 +104,12 @@
               }
             }
 
+            .principal-tag-input {
+              .bk-tag-input {
+                background: #f5f7fa;
+              }
+            }
+
             .ai-assist-column {
               .ai-icon {
                 display: none;
@@ -194,7 +200,7 @@
             .show-whole-btn {
               position: absolute;
               top: 100px;
-              width: 100%;
+              right: 0;
               height: 24px;
               font-size: 12px;
               color: #3a84ff;
@@ -204,7 +210,6 @@
             }
 
             .hide-whole-btn {
-              margin-top: 2px;
               line-height: 14px;
               color: #3a84ff;
               cursor: pointer;
@@ -235,6 +240,20 @@
                 }
               }
             }
+
+            .principal-tag-input {
+              .bk-tag-input {
+                border-color: transparent;
+
+                &:hover {
+                  background: #eaebf0;
+                }
+                &.active {
+                  border-color: #3a84ff;
+                  background: #fff;
+                }
+              }
+            }
           }
 
           .create-strategy-main {
@@ -251,10 +270,12 @@
           .remark-column {
             width: 100%;
             height: 26px;
+            line-height: 26px;
             border-radius: 2px;
-            display: flex;
-            align-items: center;
             padding-left: 8px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
 
             &:hover {
               background: #eaebf0;
@@ -277,6 +298,11 @@
           }
         }
       }
+    }
+
+    &.is-scroll-mode {
+      max-height: 600px;
+      overflow-y: auto;
     }
   }
 }

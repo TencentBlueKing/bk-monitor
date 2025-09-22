@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -17,7 +17,7 @@ from django.conf import settings
 from django.db.models import Q
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, get_tenant_datalink_biz_id
+from bkmonitor.utils.tenant import get_tenant_datalink_biz_id, get_tenant_default_biz_id
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -495,6 +495,11 @@ def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_i
 
     from metadata.models import AccessVMRecord, DataSource, Space, SpaceVMInfo
 
+    # 如果 bk_biz_id 为 0，则使用 tenant 默认的业务ID
+    bk_biz_id = int(bk_biz_id)
+    if bk_biz_id == 0:
+        bk_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+
     # 0. 确认空间信息
     # NOTE: 0 业务没有空间信息，不需要查询或者创建空间及空间关联的 vm
     space_data = {}
@@ -506,7 +511,7 @@ def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_i
 
     # 1，获取VM集群信息
     vm_cluster = get_vm_cluster_id_name(
-        bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
+        bk_tenant_id=bk_tenant_id,
         space_type=space_data.get("space_type", ""),
         space_id=space_data.get("space_id", ""),
     )

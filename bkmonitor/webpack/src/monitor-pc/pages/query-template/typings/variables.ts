@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -27,7 +27,7 @@
 import type { VariableTypeEnum } from '../constants';
 import type { GetEnumTypeTool } from './constants';
 import type { MetricDetailV2 } from './metric';
-import type { AggCondition } from './query-config';
+import type { AggCondition, AggFunction } from './query-config';
 
 export interface ICommonVariableModel<T extends VariableTypeEnumType> {
   alias?: string;
@@ -67,9 +67,11 @@ export type IDimensionVariableModel = ICommonVariableModel<typeof VariableTypeEn
   value?: string[];
 };
 
-export type IFunctionVariableModel = ICommonVariableModel<typeof VariableTypeEnum.FUNCTIONS> & {
-  defaultValue?: any;
-  value?: any;
+export type IFunctionVariableModel = ICommonVariableModel<
+  typeof VariableTypeEnum.EXPRESSION_FUNCTIONS | typeof VariableTypeEnum.FUNCTIONS
+> & {
+  defaultValue?: AggFunction[];
+  value?: AggFunction[];
 };
 
 export type IMethodVariableModel = ICommonVariableModel<typeof VariableTypeEnum.METHOD> & {
@@ -77,7 +79,7 @@ export type IMethodVariableModel = ICommonVariableModel<typeof VariableTypeEnum.
   value?: string;
 };
 
-export type IVariableData = Required<IVariableModel & { variableName: string }>;
+export type IVariableData = IVariableModel & { variableName: string };
 
 export interface IVariableFormEvents {
   onAliasChange: (val: string) => void;

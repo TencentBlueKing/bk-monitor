@@ -345,8 +345,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 1.2.4-beta.5
-        version: 1.2.4-beta.5(bkui-vue@2.0.2-beta.50(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+        specifier: 1.2.5-beta.4
+        version: 1.2.5-beta.4(bkui-vue@2.0.2-beta.50(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
       '@blueking/bk-user-display-name':
         specifier: 1.0.3-beta.5
         version: 1.0.3-beta.5
@@ -1458,15 +1458,15 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@1.2.4-beta.5':
-    resolution: {integrity: sha512-1qx/9fIYjHzO1zXreb+q5W5R+t1Tme9pM+oLOxT4x7QfTiV1tF91iZWGPg+bVrAZyD2QdxDru9vw6YD3r5ztkA==}
+  '@blueking/ai-blueking@1.2.5-beta.4':
+    resolution: {integrity: sha512-e+FAPtiKT1+KA0pKR/vBP/FEFljO0F5GTnCM/7K6UtYoYPo7aUPpHR0UtdxOOcpZGYJmoYMDZC9PDnicqGKbjg==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
       markdown-it: ^13.0.1
 
-  '@blueking/ai-ui-sdk@0.1.12-beta.44':
-    resolution: {integrity: sha512-258Cq2LDy3/msilQ3afMBwP7d4qCvGox68YBGC5T0cR7tOIya4f2XLUuP+MFa2zbJJ0IvgVge5UZUuAM+BwZXg==}
+  '@blueking/ai-ui-sdk@0.1.12-beta.53':
+    resolution: {integrity: sha512-KDKFcDgqiNBGBM9ftaRV55owZ6T3JYl4DV8daH66ZdmUb6xbqFxI98fq9aAs2Irg+1YW950117pojh/X/V89dQ==}
     peerDependencies:
       bkui-vue: '*'
       dayjs: ^1.11.13
@@ -9543,9 +9543,9 @@ snapshots:
   '@biomejs/cli-win32-x64@2.1.2':
     optional: true
 
-  '@blueking/ai-blueking@1.2.4-beta.5(bkui-vue@2.0.2-beta.50(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-blueking@1.2.5-beta.4(bkui-vue@2.0.2-beta.50(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.13)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
-      '@blueking/ai-ui-sdk': 0.1.12-beta.44(bkui-vue@2.0.2-beta.50(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.13)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+      '@blueking/ai-ui-sdk': 0.1.12-beta.53(bkui-vue@2.0.2-beta.50(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.13)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
       '@blueking/bkui-library': 0.0.0-beta.6
       dayjs: 1.11.13
       dompurify: 3.2.6
@@ -9567,7 +9567,7 @@ snapshots:
       - vue
       - vue-router
 
-  '@blueking/ai-ui-sdk@0.1.12-beta.44(bkui-vue@2.0.2-beta.50(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.13)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-ui-sdk@0.1.12-beta.53(bkui-vue@2.0.2-beta.50(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.13)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       bkui-vue: 2.0.2-beta.50(highlight.js@10.7.3)(vue@2.7.16)
       dayjs: 1.11.13

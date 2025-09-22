@@ -27,6 +27,7 @@ import { Component, Vue } from 'vue-property-decorator';
 // import * as authorityMap from '../common/authority-map';
 
 // import { createUserConfig, listUserConfig, partialUpdateUserConfig } from 'monitor-api/modules/model';
+/** biome-ignore-start lint/suspicious/useAwait: reason */
 // 1、函数作用：创建一组新的个性化配置项（增）
 const createUserConfig = async (...args: any[]) => {
   console.warn('createUserConfig函数暂未实现', args);
@@ -42,7 +43,7 @@ const partialUpdateUserConfig = async (...args: any[]) => {
   console.warn('partialUpdateUserConfig函数暂未实现:', args);
   return true;
 };
-
+/** biome-ignore-end lint/suspicious/useAwait: reason */
 @Component
 // 设置全局通用的Loading
 export default class UserConfigMixin extends Vue {
@@ -54,7 +55,7 @@ export default class UserConfigMixin extends Vue {
   // }
   // if (!space.permission?.[authorityMap.VIEW_BUSINESS]) return;
 
-  /**1
+  /** 1
    * @description: 获取用户个性化配置
    * @param {string} key key
    * @return {*}
@@ -70,24 +71,24 @@ export default class UserConfigMixin extends Vue {
     if (!userConfig?.[0]?.id) {
       const { id } = await createUserConfig({ key, value: '""' }, config);
       this.storeId = id;
-      return undefined;
+      return;
     }
     // 若配置项存在，则设置storeId
     this.storeId = userConfig[0].id;
     try {
       return JSON.parse(userConfig[0].value);
-    } catch (_) {
+    } catch {
       console.error('parse user stiky note error');
     }
-    return undefined;
+    return;
   }
   /**
    * @description: 设置用户配置
-   * @param {string} key
+   * @param {string} _key
    * @param {string} value
    * @return {*}
    */
-  public async handleSetUserConfig(key: string, value: string, configId?: string): Promise<boolean> {
+  public async handleSetUserConfig(_key: string, value: string, configId?: string): Promise<boolean> {
     // console.log('handleSetUserConfig:', key, value);
     // if (!this.hasBusinessAuth) return false;
     return await partialUpdateUserConfig(this.storeId || configId, { value }, { reject403: true })

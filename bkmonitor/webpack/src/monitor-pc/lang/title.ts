@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -204,6 +204,7 @@ export default {
   维度值变量: 'Dimension Value Variable',
   汇聚变量: 'Aggregation Variable',
   条件变量: 'Condition Variable',
+  表达式函数变量: 'Expression Function Variable',
   常规变量: 'General Variable',
   变量管理: 'Variable Management',
   如何使用变量: 'How to use variables',
@@ -215,4 +216,8 @@ export default {
   查询模板: 'Query template',
   变量值: 'Variable value',
   模板配置预览: 'Template configuration preview',
+  '应用一般是拥有独立的站点，由多个 Service 共同组成，提供完整的产品功能，拥有独立的软件架构。从技术方面来说应用是 Trace 数据的存储隔离，在同一个应用内的数据将进行统计和观测。':
+    'An application typically has an independent site, composed of multiple services, providing complete product functionality with its own software architecture. From a technical perspective, an application is a storage isolation for Trace data, where data within the same application is aggregated and monitored.',
+  返回码重定义: 'Redefine return code',
+  返回码备注说明: 'Return code remark description',
 };

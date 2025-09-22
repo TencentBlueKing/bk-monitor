@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -26,6 +26,7 @@
 import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
+import { VariableTypeEnum } from '../../../../query-template/constants';
 import FunctionCreator from '../../../components/function/function-creator';
 import VariableFormMixin from '../../mixins/VariableFormMixin';
 import VariableCommonForm from '../common-form/variable-common-form';
@@ -46,6 +47,10 @@ class CreateFunctionVariable extends Mixins(VariableFormMixin) {
   @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
   @Prop({ default: () => [] }) metricFunctions!: any[];
   @Ref() variableCommonForm!: VariableCommonForm;
+
+  get isUseExpression() {
+    return this.variable.type === VariableTypeEnum.EXPRESSION_FUNCTIONS;
+  }
 
   defaultValueChange(defaultValue: AggFunction[]) {
     let value = this.variable.value || [];
@@ -75,6 +80,7 @@ class CreateFunctionVariable extends Mixins(VariableFormMixin) {
             property='defaultValue'
           >
             <FunctionCreator
+              isExpSupport={this.isUseExpression}
               needClear={false}
               options={this.metricFunctions}
               showLabel={false}

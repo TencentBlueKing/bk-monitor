@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, Ref, ref } from 'vue';
+import { computed, onMounted, type Ref, ref } from 'vue';
 
 // import useResizeObserve from '@/hooks/use-resize-observe';
 import { debounce } from 'lodash-es';
@@ -35,15 +35,19 @@ function deepQueryShadowSelector(selector) {
   const searchInRoot = (root: HTMLElement | ShadowRoot) => {
     // 尝试直接查找
     const el = root.querySelector(selector);
-    if (el) return el;
+    if (el) {
+      return el;
+    }
 
     // 查找当前根下所有可能的 Shadow Host
-    const shadowHosts = Array.from(root.querySelectorAll('*')).filter(el => el.shadowRoot);
+    const shadowHosts = Array.from(root.querySelectorAll('*')).filter(newEl => newEl.shadowRoot);
 
     // 递归穿透每个 Shadow Host
     for (const host of shadowHosts) {
       const result = searchInRoot(host.shadowRoot);
-      if (result) return result;
+      if (result) {
+        return result;
+      }
     }
 
     return null;
@@ -95,7 +99,7 @@ export default ({
   };
 
   const scrollToTop = (top = 0, smooth = true) => {
-    getScrollElement()?.scrollTo({ left: 0, top: top, behavior: smooth ? 'smooth' : 'instant' });
+    getScrollElement()?.scrollTo({ left: 0, top, behavior: smooth ? 'smooth' : 'instant' });
   };
 
   const hasScrollX = computed(() => scrollWidth.value > offsetWidth.value);

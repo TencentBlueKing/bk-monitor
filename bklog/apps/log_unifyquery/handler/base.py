@@ -35,6 +35,7 @@ from apps.log_search.constants import (
     MAX_ASYNC_COUNT,
     SCROLL,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException, TokenInvalidException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -271,12 +272,14 @@ class UnifyQueryHandler:
             return "1m"
 
         # 兼容毫秒查询
-        hour_interval = (arrow.get(int(self.end_time)) - arrow.get(int(self.start_time))).total_seconds() / 3600
-        if hour_interval <= 1:
+        hour_interval = (arrow.get(int(self.end_time)) - arrow.get(int(self.start_time))).total_seconds()
+        if hour_interval <= 1 * 60:
+            return "1s"
+        if hour_interval <= 1 * 3600:
             return "1m"
-        elif hour_interval <= 6:
+        elif hour_interval <= 6 * 3600:
             return "5m"
-        elif hour_interval <= 24 * 3:
+        elif hour_interval <= 24 * 3 * 3600:
             return "1h"
         else:
             return "1d"
@@ -591,7 +594,7 @@ class UnifyQueryHandler:
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "down_sample_range": "",
-            "timezone": "UTC",  # 仅用于提供给 unify-query 生成读别名，对应存储入库时区
+            "timezone": self.search_params.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE),
             "bk_biz_id": self.bk_biz_id,
         }
 
@@ -849,7 +852,6 @@ class UnifyQueryHandler:
             q["time_aggregation"] = {}
         params["step"] = interval
         params["order_by"] = []
-        params["timezone"] = get_local_param("time_zone", settings.TIME_ZONE)
         response = self.query_ts_reference(params)
         return_data = {"aggs": {}}
         if not response["series"]:
@@ -989,6 +991,33 @@ class UnifyQueryHandler:
                 from_favorite_id=self.search_params.get("from_favorite_id", 0),
             )
 
+    def scroll_search(self, scroll_result, scroll=SCROLL):
+        """
+        scroll_result
+        @param scroll_result:
+        @param scroll:
+        @return:
+        """
+        # 获取scroll对应的esquery方法
+        scroll_size = len(scroll_result["list"])
+        result_size = scroll_size
+        index_set = self.index_info_list[0]["index_set_obj"]
+        max_result_window = index_set.result_window
+        # 参数补充
+        search_dict = copy.deepcopy(self.base_dict)
+        search_dict["from"] = self.search_params["begin"]
+        search_dict["limit"] = max_result_window
+        search_dict["trace_id"] = scroll_result["trace_id"]
+        search_dict["scroll"] = scroll
+        while scroll_size >= max_result_window and result_size < max(
+            index_set.max_async_count, MAX_QUICK_EXPORT_ASYNC_COUNT
+        ):
+            search_dict["result_table_options"] = scroll_result["result_table_options"]
+            scroll_result = UnifyQueryApi.query_ts_raw(search_dict)
+            scroll_size = len(scroll_result["list"])
+            result_size += scroll_size
+            yield self._deal_query_result(scroll_result)
+
     def pre_get_result(self, sorted_fields: list, size: int, scroll=None):
         """
         pre_get_result
@@ -1011,8 +1040,41 @@ class UnifyQueryHandler:
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = size
         search_dict["scroll"] = scroll
+        search_dict["is_search_after"] = True
         result = UnifyQueryApi.query_ts_raw(search_dict)
         return result
+
+    def search_after_result(self, search_result, sorted_fields):
+        """
+        search_after_result
+        @param search_result:
+        @param sorted_fields:
+        @return:
+        """
+        search_dict = copy.deepcopy(self.base_dict)
+        if self.search_params["scenario_id"] != Scenario.ES:
+            order_by = []
+            for param in sorted_fields:
+                if param[1] == "asc":
+                    order_by.append(param[0])
+                elif param[1] == "desc":
+                    order_by.append(f"-{param[0]}")
+            search_dict["order_by"] = order_by
+
+        index_set = self.index_info_list[0]["index_set_obj"]
+        search_after_size = len(search_result["list"])
+        result_size = search_after_size
+        max_result_window = index_set.result_window
+        # 参数补充
+        search_dict["from"] = self.search_params["begin"]
+        search_dict["limit"] = max_result_window
+        search_dict["is_search_after"] = True
+        while search_after_size >= max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
+            search_dict["result_table_options"] = search_result["result_table_options"]
+            search_result = UnifyQueryApi.query_ts_raw(search_dict)
+            search_after_size = len(search_result["list"])
+            result_size += search_after_size
+            yield self._deal_query_result(search_result)
 
     def export_data(self, is_quick_export: bool = False):
         """
@@ -1021,6 +1083,8 @@ class UnifyQueryHandler:
         search_params = copy.deepcopy(self.base_dict)
         search_params["limit"] = MAX_RESULT_WINDOW
         search_params["scroll"] = SCROLL
+        # 全文下载不分片
+        search_params["slice_max"] = MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT if is_quick_export else 0
 
         max_result_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
         total_count = 0
@@ -1031,7 +1095,7 @@ class UnifyQueryHandler:
             if not search_result.get("list"):
                 break
 
-            yield self._deal_query_result(search_result)["origin_log_list"]
+            yield self._deal_query_result(search_result)
 
             total_count += len(search_result["list"])
 

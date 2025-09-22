@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -344,4 +344,6 @@ export default {
     'Case-sensitive characters, numbers, underscores, and dots (.), up to 50 characters',
   '1～50 字符，仅支持 英文小写、数字、下划线（保存后不可修改）':
     '1-50 characters, only support lowercase English, numbers, and underscores (cannot be modified after saving)',
+  '请选择或输入': 'Please select or enter',
+  
 };

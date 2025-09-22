@@ -25,8 +25,10 @@
  */
 
 import { defineComponent, ref, onMounted, nextTick } from 'vue';
-import useStore from '@/hooks/use-store';
+
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+
 import http from '@/api';
 
 import './module-select.scss';
@@ -85,14 +87,14 @@ export default defineComponent({
         });
         topoList.value = res.data;
         moduleList.value = filterList(res.data);
-        
+
         // 数据回填
-        const { topoExpandNodes: expandNodes, topoCheckedNodes: checkedNodes, moduleCheckedItems } = recursiveFindDefault(
-          res.data,
-          null,
-          props.selectedModules,
-        );
-        
+        const {
+          topoExpandNodes: expandNodes,
+          topoCheckedNodes: checkedNodes,
+          moduleCheckedItems,
+        } = recursiveFindDefault(res.data, null, props.selectedModules);
+
         // 回填已选择的模块
         selectedModuleList.value = moduleCheckedItems.map((item: any) => ({
           bk_inst_id: item.bk_inst_id,
@@ -101,23 +103,23 @@ export default defineComponent({
           bk_biz_id: item.bk_biz_id,
         }));
         moduleCheckedNodes.value = moduleCheckedItems.map((item: any) => item.id);
-        
+
         if (moduleCheckedNodes.value.length === moduleList.value.length) {
           isSelectAllModule.value = true;
         } else if (moduleCheckedNodes.value.length !== 0) {
           indeterminate.value = true;
         }
-        
+
         // 保证根节点默认展开
         const rootId = res.data[0]?.id;
         if (rootId && !expandNodes.includes(rootId)) {
           expandNodes.push(rootId);
         }
-        
+
         // 回填已选择的大区
         topoExpandNodes.value = expandNodes;
         topoCheckedNodes.value = checkedNodes;
-        
+
         if (checkedNodes.length) {
           // 父亲勾选后子孙禁用勾选
           await nextTick();
@@ -309,11 +311,11 @@ export default defineComponent({
     // 主渲染函数
     return () => (
       <bk-dialog
+        width={680}
         closeIcon={false}
         confirmFn={handleConfirm}
         maskClose={false}
         value={props.showSelectDialog}
-        width={680}
         on-value-change={handleValueChange}
       >
         <div
@@ -323,7 +325,7 @@ export default defineComponent({
           <bk-radio-group
             style='margin-bottom: 20px'
             value={selectedTypeData.value}
-            onChange={(val: string) => selectedTypeData.value = val}
+            onChange={(val: string) => (selectedTypeData.value = val)}
           >
             <bk-radio
               style='margin-right: 16px'
@@ -333,7 +335,7 @@ export default defineComponent({
             </bk-radio>
             <bk-radio value='module'>{t('按模块选择')}</bk-radio>
           </bk-radio-group>
-          
+
           {/* 按大区选择 */}
           <div
             class='tree-container'
@@ -349,7 +351,7 @@ export default defineComponent({
               on-check-change={handleTopoNodeCheck}
             />
           </div>
-          
+
           {/* 按模块选择 */}
           <div
             class='tree-container'
@@ -360,8 +362,8 @@ export default defineComponent({
                 indeterminate={indeterminate.value}
                 value={isSelectAllModule.value}
                 onChange={val => {
-                    isSelectAllModule.value = val;
-                    handleSelectAllChange(val);
+                  isSelectAllModule.value = val;
+                  handleSelectAllChange(val);
                 }}
               >
                 {t('全选')}
@@ -379,4 +381,4 @@ export default defineComponent({
       </bk-dialog>
     );
   },
-}); 
+});

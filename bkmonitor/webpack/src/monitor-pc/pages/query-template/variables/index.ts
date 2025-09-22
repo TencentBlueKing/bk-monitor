@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -81,7 +81,7 @@ abstract class VariableBase {
     this.isValueEditable = config.isValueEditable || false;
   }
 
-  abstract get data(): Required<IVariableData>;
+  abstract get data(): IVariableData;
 
   get scopedVars(): ScopedVars {
     return {
@@ -283,7 +283,7 @@ export class FunctionVariableModel extends VariableBase {
   get data() {
     return {
       id: this.id,
-      type: VariableTypeEnum.FUNCTIONS,
+      type: this.type as typeof VariableTypeEnum.EXPRESSION_FUNCTIONS | typeof VariableTypeEnum.FUNCTIONS,
       isValueEditable: this.isValueEditable,
       name: this.name,
       alias: this.alias,
@@ -389,6 +389,7 @@ export function getVariableModel(config: IVariableModel): VariableModelType {
     case VariableTypeEnum.TAG_VALUES:
       return new DimensionValueVariableModel(config);
     case VariableTypeEnum.FUNCTIONS:
+    case VariableTypeEnum.EXPRESSION_FUNCTIONS:
       return new FunctionVariableModel(config);
     case VariableTypeEnum.CONDITIONS:
       return new ConditionVariableModel(config);

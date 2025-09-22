@@ -27,15 +27,17 @@
 import { computed, ref } from 'vue';
 
 import useStore from '@/hooks/use-store';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { debounce } from 'lodash-es';
-import { useRouter, useRoute } from 'vue-router/composables';
+import { useRoute, useRouter } from 'vue-router/composables';
 
 import { copyMessage } from '../../../../common/util';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../../store/store.type';
 import RetrieveHelper from '../../../retrieve-helper';
-import { IFavoriteItem, IGroupItem, SearchMode } from '../types';
-import { showMessage, handleApiError } from '../utils';
+import { handleApiError, showMessage } from '../utils';
 import $http from '@/api';
+
+import type { IFavoriteItem, IGroupItem, SearchMode } from '../types';
 
 /**
  * 收藏功能的自定义 Hook
@@ -86,7 +88,7 @@ export const useFavorite = () => {
 
     // 排序逻辑
     const provideFavorite = data[0];
-    const publicFavorite = data[data.length - 1];
+    const publicFavorite = data.at(-1);
     const sortFavoriteList = data.slice(1, data.length - 1).sort((a, b) => a.group_name.localeCompare(b.group_name));
 
     return [provideFavorite, ...sortFavoriteList, publicFavorite].filter(Boolean);
@@ -196,7 +198,7 @@ export const useFavorite = () => {
     const query = { ...route.query };
 
     // 使用 URL 解析器
-    const { RetrieveUrlResolver } = require('@/store/url-resolver');
+    // const { RetrieveUrlResolver } = require('@/store/url-resolver');
     const resolver = new RetrieveUrlResolver({
       ...routeParams,
       datePickerValue: store.state.indexItem.datePickerValue,
@@ -234,7 +236,7 @@ export const useFavorite = () => {
 
     // 重置状态
     store.commit('resetIndexsetItemParams');
-    store.commit('updateIndexId', cloneValue.index_set_id);
+    store.commit('updateState', { 'indexId': cloneValue.index_set_id});
     store.commit('updateIsSetDefaultTableColumn', false);
     store.commit('updateStorage', {
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: item.index_set_type,
@@ -242,11 +244,11 @@ export const useFavorite = () => {
     });
 
     // 处理 IP 选择器
-    const ip_chooser = Object.assign({}, cloneValue.params?.ip_chooser ?? {});
+    const ip_chooser = { ...(cloneValue.params?.ip_chooser ?? {}) };
     if (isUnionIndex) {
       store.commit(
         'updateUnionIndexList',
-        cloneValue.index_set_ids.map(item => String(item)),
+        cloneValue.index_set_ids.map(newItem => String(newItem)),
       );
     }
 
@@ -265,7 +267,7 @@ export const useFavorite = () => {
       ip_chooser,
       index_set_id: cloneValue.index_set_id,
       ids,
-      items: ids.map(id => indexSetList.value.find(item => item.index_set_id === `${id}`)),
+      items: ids.map(id => indexSetList.value.find(newItem => newItem.index_set_id === `${id}`)),
       isUnionIndex,
       search_mode,
     });
@@ -330,7 +332,7 @@ export const useFavorite = () => {
 
       await $http.request(`favorite/${requestStr}`, { params, data }).then(res => {
         showMessage(window.$t('操作成功'));
-        callback && callback(res.data || {});
+        callback?.(res.data || {});
       });
     } catch (error) {
       handleApiError(error, window.$t('操作失败'));
@@ -339,14 +341,14 @@ export const useFavorite = () => {
   };
   /** 获取当前的跳转链接 */
   const handleNewLink = (item: IFavoriteItem, type: string) => {
-    const { RetrieveUrlResolver } = require('@/store/url-resolver');
+    // const { RetrieveUrlResolver } = require('@/store/url-resolver');
     const params = { indexId: item.index_set_id };
     const resolver = new RetrieveUrlResolver({
       ...item.params,
       addition: item.params.addition,
       search_mode: item.search_mode,
       spaceUid: item.space_uid,
-      unionList: item.index_set_ids.map((item: string) => String(item)),
+      unionList: item.index_set_ids.map((newItem: string) => String(newItem)),
       isUnionIndex: item.index_set_type === 'union',
     });
 
@@ -357,8 +359,12 @@ export const useFavorite = () => {
     };
 
     let shareUrl = (window as any).SITE_URL;
-    if (!shareUrl.startsWith('/')) shareUrl = `/${shareUrl}`;
-    if (!shareUrl.endsWith('/')) shareUrl += '/';
+    if (!shareUrl.startsWith('/')) {
+      shareUrl = `/${shareUrl}`;
+    }
+    if (!shareUrl.endsWith('/')) {
+      shareUrl += '/';
+    }
 
     shareUrl = `${window.location.origin + shareUrl}${router.resolve(routeData).href}`;
     if (type === 'new-link') {
@@ -378,7 +384,7 @@ export const useFavorite = () => {
       })
       .then(() => {
         showMessage(isDel ? window.$t('删除成功') : window.$t('该分组已成功解散，相关收藏项已移动到 [未分组]。'));
-        callback && callback();
+        callback?.();
       })
       .catch(err => {
         handleApiError(err, window.$t('操作失败'));
@@ -423,7 +429,7 @@ export const useFavorite = () => {
       .request('favorite/createFavorite', { data })
       .then(() => {
         showMessage(window.$t('创建成功'));
-        callback && callback();
+        callback?.();
       })
       .catch(err => {
         handleApiError(err, window.$t('操作失败'));
@@ -450,7 +456,7 @@ export const useFavorite = () => {
           space_uid: spaceUid,
         },
       });
-      callback && callback(res || {});
+      callback?.(res || {});
     } catch (error) {
       handleApiError(error, '获取组列表失败');
     }
@@ -504,7 +510,7 @@ export const useFavorite = () => {
       });
       if (res.result) {
         showMessage(tips || window.$t('保存成功'));
-        callback && callback(res.result);
+        callback?.(res.result);
       }
     } catch (error) {
       handleApiError(error, '更新收藏失败');

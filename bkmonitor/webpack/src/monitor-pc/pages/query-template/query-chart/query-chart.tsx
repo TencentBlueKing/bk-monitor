@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -204,7 +204,7 @@ export default class QueryChart extends tsc<{
     return (
       <div class='query-chart'>
         <div class='query-chart-header'>
-          <div class='query-chart-header-title'>{this.title}</div>
+          <div class='query-chart-header-title'>{this.$slots.title || this.title}</div>
           <div class='query-chart-header-limit'>
             <span style='margin-right: 8px;'>Limit</span>
             <bk-input

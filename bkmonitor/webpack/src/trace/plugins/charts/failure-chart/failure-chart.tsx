@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -1083,7 +1083,10 @@ export default defineComponent({
               v-slots={{
                 title: () => (
                   <div class='root-head'>
-                    <span class='txt'>{this.$props.title}</span>
+                    <span class='txt'>
+                      {this.$props.detail?.alert_name ? `${this.$props.detail.alert_name}：` : ''}
+                      {this.$props.title}
+                    </span>
                     {(this.isRoot || this.isRootCause) && (
                       <label class={['root', { 'is-root-cause': this.isRootCause }, { 'is-root': this.isRoot }]}>
                         {this.t('根因')}
@@ -1118,11 +1121,15 @@ export default defineComponent({
                   </div>
                 ),
               }}
+              title={
+                this.$props.detail?.alert_name
+                  ? `${this.$props.detail?.alert_name}：${this.$props.title}`
+                  : this.$props.title
+              }
               isShowAlarm={true}
               menuList={this.chartOption.tool.list || []}
               showMore={true}
               subtitle={this.$props.subtitle || ''}
-              title={this.$props.title}
               onMenuClick={this.handleMoreToolItemSet}
               onSelectChild={this.handleSelectChildMenu}
               onSuccessLoad={this.handleSuccessLoad}
@@ -1175,7 +1182,7 @@ export default defineComponent({
                     legend-data={this.legend.list}
                     legend-type={this.chartOption.legend.asTable ? 'table' : 'common'}
                     to-the-right={this.chartOption.legend.toTheRight}
-                    onLegendEvent={this.handleLegendEvent}
+                    onSelectLegend={this.handleLegendEvent}
                   />
                 )}
               </div>

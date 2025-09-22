@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -48,6 +48,7 @@ from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import DEFAULT_CONVERGE_CONFIG, NoticeChannel, NoticeWay
 from constants.common import DutyCategory, DutyGroupType
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.strategy import CUSTOM_PRIORITY_GROUP_PREFIX
 
 LEVEL_NAME_TO_ID = {"fatal": 1, "warning": 2, "remind": 3}
 LEVEL_ID_TO_NAME = {v: k for k, v in LEVEL_NAME_TO_ID.items()}
@@ -480,6 +481,10 @@ class StrategyConfigParser(BaseConfigParser):
                 }
             )
 
+        # 策略优先级分组自定义判定:
+        priority_group_key = ""
+        if config["priority_group_key"].startswith(CUSTOM_PRIORITY_GROUP_PREFIX):
+            priority_group_key = config["priority_group_key"]
         strategy = {
             "bk_biz_id": self.bk_biz_id,
             "scenario": scenario,
@@ -487,6 +492,7 @@ class StrategyConfigParser(BaseConfigParser):
             "labels": config["labels"],
             "name": config["name"],
             "priority": config["priority"],
+            "priority_group_key": priority_group_key,
             "items": [item],
             "detects": detects,
             "notice": notice,
@@ -675,6 +681,11 @@ class StrategyConfigParser(BaseConfigParser):
 
         if config["priority"] is not None:
             code_config["priority"] = config["priority"]
+
+        priority_group_key = config["priority_group_key"]
+        if not priority_group_key.startswith(CUSTOM_PRIORITY_GROUP_PREFIX):
+            priority_group_key = ""
+        code_config["priority_group_key"] = priority_group_key
 
         if config["labels"]:
             code_config["labels"] = config["labels"]

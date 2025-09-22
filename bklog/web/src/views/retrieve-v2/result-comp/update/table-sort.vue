@@ -7,43 +7,7 @@
     >
       <transition-group>
         <li
-          class="custom-select-item"
-          :key="dtEventTimeStampSort?.key"
-        >
-          <span style="width:18px"></span>
-          <div 
-            v-bk-tooltips="{
-              allowHTML:true,
-              placement:'top',
-              content: $t('综合时间排序,是基于：dtEventTimeStamp、gesIndex、iterationIndex 3个字段的排序结果'),
-            }" 
-            class="table-sort-option-time"
-          >
-            <span>
-              {{$t('综合时间排序')}}
-              <span class="badge" >{{ totalTimeCount }}</span>
-            </span>
-          </div>
-          <bk-select
-            style="width: 77px"
-            v-model="dtEventTimeStampSort.sorts[1]"
-            :placeholder="$t('请选择')"
-          >
-            <bk-option
-              v-for="option in orderList"
-              class="bklog-v3-popover-tag"
-              :id="option.id"
-              :key="option.id"
-              :name="option.name"
-            >
-            </bk-option>
-          </bk-select>
-          <span
-            style="width: 14px"
-          ></span>
-        </li>
-        <li
-          v-for="({ key, sorts }, index) in showFieldList"
+          v-for="({ key, sorts }, index) in sortList"
           class="custom-select-item"
           :key="key"
         >
@@ -51,6 +15,8 @@
           <bk-select
             style="width: 174px"
             class="rtl-text"
+            ext-cls="bklog-v3-popover-tag"
+            ext-popover-cls="bklog-v3-popover-tag"
             v-model="sorts[0]"
             auto-focus
             searchable
@@ -161,35 +127,20 @@
   const store = useStore();
 
   /** 新增变量处理v-for时需要使用的 key 字段，避免重复新建 VNode */
-  const sortList = ref<{ key: string; sorts: string[] }[]>([]);
+  const sortList = ref<{ key: string; sorts: string[] }[]>([{ key: random(8), sorts: ['', ''] }]);
 
-  const shadowSort = computed(() => sortList.value.map(e => e.sorts));
+  const shadowSort = computed(() => sortList.value.map(e => e.sorts).filter(e => e[0] !== '' && e[1] !== ''));
   const fieldList = computed(() => store.state.indexFieldInfo.fields);
-  const dtEventTimeStampSort = computed(() => {
-    return sortList.value.find(e => e.sorts[0] === 'dtEventTimeStamp') || { key: random(8), sorts: ['dtEventTimeStamp', 'desc'] };
-  });
-  const showFieldList = computed(() => {
-    return sortList.value.filter( e =>{
-      return  isFieldHidden(e.sorts[0])
-    })
-  });
+
   const selectList = computed(() => {
-    const filterFn = field => field.field_type !== '__virtual__' && field.field_type !== 'flattened' && isFieldHidden(field.field_name);
+    const filterFn = field => field.field_type !== '__virtual__' && field.field_type !== 'flattened';
     return fieldList.value.filter(filterFn).map(field => {
       return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
     });
   });
-  const totalTimeCount = computed(()=>{
-    const requiredFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
-    return fieldList.value.filter(field =>{
-      if (requiredFields.includes(field.field_name)) {
-        return true;
-      }
-    }).length;
-  })
+
   const deleteTableItem = (val: string) => {
     sortList.value = sortList.value.filter(item => item.key !== val);
-    // sortList.value = sortList.value.slice(0, val).concat(sortList.value.slice(val + 1));
   };
   const addTableItem = () => {
     sortList.value.push({ key: random(8), sorts: ['', ''] });
@@ -203,19 +154,17 @@
   const getFieldIcon = fieldType => {
     return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
   };
-  const isFieldHidden = (fieldName) => {
-    const hiddenFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
-    return !hiddenFields.includes(fieldName);
-  };
+
   watch(
     () => [props.initData, props.shouldRefresh],
-    ([newInitData, newShouldRefresh]) => {
+    ([newInitData]) => {
       // 当有初始数据时，直接更新
       if (Array.isArray(newInitData) && newInitData.length) {
-        sortList.value = structuredClone(newInitData).map(sorts => ({ key: random(8), sorts })) as { key: string; sorts: string[] }[]
-      } else {
-        sortList.value = [];
-      }
+        const filterList = newInitData;
+        if (filterList.length) {
+          sortList.value = structuredClone(filterList).map(sorts => ({ key: random(8), sorts })) as { key: string; sorts: string[] }[]
+        }
+      } 
     },
     { immediate: true, deep: true },
   );

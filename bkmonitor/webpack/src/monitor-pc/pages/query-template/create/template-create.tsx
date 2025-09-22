@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -208,7 +208,6 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleCreateVariable(val: IVariableModel) {
-    console.log(val);
     if (this.variablesList.find(item => item.name === val.name)) {
       return;
     }
@@ -258,36 +257,29 @@ export default class TemplateCreate extends tsc<object> {
   }
 
   handleChangeMethod(val: { index: number; value: string }) {
-    console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_method = value;
   }
   handleDimensionChange(val: { index: number; value: string[] }) {
-    console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_dimension = value;
   }
   handleChangeFunction(val: { index: number; value: AggFunction[] }) {
-    console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].functions = value;
   }
   handleChangeInterval(val: { index: number; value: number | string }) {
-    console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_interval = value;
   }
   handleChangeCondition(val: { index: number; value: AggCondition[] }) {
-    console.log(val);
     const { value, index } = val;
     this.queryConfigs[index].agg_condition = value;
   }
   handleChangeExpression(val: string) {
-    console.log(val);
     this.expressionConfig.expression = val;
   }
   handleChangeExpressionFunction(val: AggFunction[]) {
-    console.log(val);
     this.expressionConfig.functions = val;
   }
 
@@ -411,7 +403,7 @@ export default class TemplateCreate extends tsc<object> {
             />
           ) : (
             <QueryTemplateView
-              chartTitle={this.basicInfoData.name}
+              basicInfo={this.basicInfoData}
               expressionConfig={this.expressionConfig}
               metricFunctions={this.metricFunctions}
               queryConfigs={this.queryConfigs.filter(item => !!item.metricDetail)}

@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
 import logging
-import typing
 
 from bkm_ipchooser import constants, exceptions, types
 from bkm_ipchooser.api import BkApi
@@ -11,7 +9,7 @@ logger = logging.getLogger("app")
 
 class ResourceQueryHelper:
     @staticmethod
-    def fetch_biz_list(bk_biz_ids: typing.Optional[typing.List[int]] = None) -> typing.List[typing.Dict]:
+    def fetch_biz_list(bk_biz_ids: list[int] | None = None) -> list[dict]:
         """
         查询业务列表
         :param bk_biz_ids: 业务 ID 列表
@@ -21,18 +19,21 @@ class ResourceQueryHelper:
             # "no_request": True,
             "fields": ["bk_biz_id", "bk_biz_name", "bk_biz_maintainer"],
         }
-        biz_infos: typing.List[typing.Dict] = BkApi.search_business(search_business_params)["info"]
+        biz_infos: list[dict] = BkApi.search_business(search_business_params)["info"]
         if not bk_biz_ids:
             return biz_infos
 
         # 转为 set，避免 n^2 查找
-        bk_biz_ids: typing.Set[int] = set(bk_biz_ids)
+        bk_biz_ids: set[int] = set(bk_biz_ids)
         return [biz_info for biz_info in biz_infos if biz_info["bk_biz_id"] in bk_biz_ids]
 
     @staticmethod
     def get_topo_tree(bk_biz_id: int, return_all=False) -> types.TreeNode:
-        internal_set_info: typing.Dict = BkApi.get_biz_internal_module({"bk_biz_id": bk_biz_id, "no_request": True})
-        internal_topo: typing.Dict = {
+        internal_set_info: dict = BkApi.get_biz_internal_module({"bk_biz_id": bk_biz_id, "no_request": True})
+        if not internal_set_info:
+            return {}
+
+        internal_topo: dict = {
             "bk_obj_name": constants.ObjectType.get_member_value__alias_map().get(constants.ObjectType.SET.value, ""),
             "bk_obj_id": constants.ObjectType.SET.value,
             "bk_inst_id": internal_set_info["bk_set_id"],
@@ -67,8 +68,8 @@ class ResourceQueryHelper:
         return internal_topo
 
     @staticmethod
-    def fetch_host_topo_relations(bk_biz_id: int) -> typing.List[typing.Dict]:
-        host_topo_relations: typing.List[typing.Dict] = batch_request(
+    def fetch_host_topo_relations(bk_biz_id: int) -> list[dict]:
+        host_topo_relations: list[dict] = batch_request(
             func=BkApi.find_host_topo_relation,
             params={"bk_biz_id": bk_biz_id, "no_request": True},
             get_data=lambda x: x["data"],
@@ -78,12 +79,11 @@ class ResourceQueryHelper:
     @staticmethod
     def fetch_biz_hosts(
         bk_biz_id: int,
-        fields: typing.List[str] = None,
-        filter_obj_id: typing.Optional[str] = None,
-        filter_inst_ids: typing.Optional[typing.List[int]] = None,
-        host_property_filter: typing.Optional[typing.Dict] = None,
-    ) -> typing.List[types.HostInfo]:
-
+        fields: list[str] = None,
+        filter_obj_id: str | None = None,
+        filter_inst_ids: list[int] | None = None,
+        host_property_filter: dict | None = None,
+    ) -> list[types.HostInfo]:
         CC_HOST_FIELDS = [
             "bk_host_id",
             "bk_agent_id",
@@ -109,7 +109,7 @@ class ResourceQueryHelper:
             "bk_supplier_account",
         ]
 
-        query_params: typing.Dict[str, typing.Union[int, typing.Dict, typing.List[int]]] = {
+        query_params: dict[str, int | dict | list[int]] = {
             "bk_biz_id": bk_biz_id,
             "fields": fields or CC_HOST_FIELDS,
             "no_request": True,

@@ -231,10 +231,10 @@ function handleResponse({ config, response, resolve, reject, status }) {
   } else {
     if (code === '9900403') {
       reject({ message: response.message, code, data: response.data || {} });
-      store.commit('updateAuthDialogData', {
+      store.commit('updateState', {'authDialogData': {
         apply_url: response.data.apply_url,
         apply_data: response.permission,
-      });
+      }});
     } else if (code !== 0 && config.globalError) {
       handleReject({ message: response.message, code, data: response.data || {} }, config, reject);
     } else {

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -22,8 +22,11 @@ import arrow
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from rest_framework import serializers
+from django.db.models import Q
+from django.db.models.functions import Length
 
 from api.cmdb.define import Business
+
 from apm_web.constants import (
     CategoryEnum,
     CMDBCategoryIconMap,
@@ -41,17 +44,27 @@ from apm_web.models import (
     CMDBServiceRelation,
     EventServiceRelation,
     LogServiceRelation,
+    CodeRedefinedConfigRelation,
     UriServiceRelation,
 )
 from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.serializers import ApplicationListSerializer, ServiceApdexConfigSerializer
-from apm_web.service.mock_data import API_PIPELINE_OVERVIEW_RESPONSE, API_LIST_PIPELINE_RESPONSE
+from apm_web.service.mock_data import (
+    API_PIPELINE_OVERVIEW_RESPONSE,
+    API_LIST_PIPELINE_RESPONSE,
+    API_CODE_REDEFINED_RULE_LIST_RESPONSE,
+)
 from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
     ServiceConfigSerializer,
     PipelineOverviewRequestSerializer,
     ListPipelineRequestSerializer,
+    ListCodeRedefinedRuleRequestSerializer,
+    SetCodeRedefinedRuleRequestSerializer,
+    SetCodeRemarkRequestSerializer,
+    BaseCodeRedefinedRequestSerializer,
+    DeleteCodeRedefinedRuleRequestSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkm_space.errors import NoRelatedResourceError
@@ -131,6 +144,11 @@ class ServiceInfoResource(Resource):
             return LogServiceRelationOutputSerializer(instance=query.first()).data
 
         return {}
+
+    @classmethod
+    def get_log_relation_info_list(cls, bk_biz_id, app_name, service_name):
+        relations = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
+        return LogServiceRelationOutputSerializer(instance=relations, many=True).data
 
     @classmethod
     def get_app_relation_info(cls, bk_biz_id, app_name, service_name):
@@ -221,7 +239,7 @@ class ServiceInfoResource(Resource):
         )
         instance_res = pool.apply_async(RelationMetricHandler.list_instances, kwds=query_instance_param)
         app_relation = pool.apply_async(self.get_app_relation_info, args=(bk_biz_id, app_name, service_name))
-        log_relation = pool.apply_async(self.get_log_relation_info, args=(bk_biz_id, app_name, service_name))
+        log_relation_list = pool.apply_async(self.get_log_relation_info_list, args=(bk_biz_id, app_name, service_name))
         cmdb_relation = pool.apply_async(self.get_cmdb_relation_info, args=(bk_biz_id, app_name, service_name))
         event_relation = pool.apply_async(self.get_event_relation_info, args=(bk_biz_id, app_name, service_name))
         uri_relation = pool.apply_async(self.get_uri_relation_info, args=(bk_biz_id, app_name, service_name))
@@ -244,7 +262,7 @@ class ServiceInfoResource(Resource):
                 service_info.update(service)
 
         app_relation_info = app_relation.get()
-        log_relation_info = log_relation.get()
+        log_relation_info_list = log_relation_list.get()
         cmdb_relation_info = cmdb_relation.get()
         event_relation_info = event_relation.get()
         uri_relation_info = uri_relation.get()
@@ -254,7 +272,7 @@ class ServiceInfoResource(Resource):
             [
                 apdex_info,
                 app_relation_info,
-                log_relation_info,
+                log_relation_info_list[0] if log_relation_info_list else {},
                 cmdb_relation_info,
                 *event_relation_info,
                 *uri_relation_info,
@@ -267,7 +285,7 @@ class ServiceInfoResource(Resource):
 
         service_info["relation"] = {
             "app_relation": app_relation_info,
-            "log_relation": log_relation_info,
+            "log_relation_list": log_relation_info_list,
             "cmdb_relation": cmdb_relation_info,
             "event_relation": event_relation_info,
             "uri_relation": uri_relation_info,
@@ -438,7 +456,7 @@ class ServiceConfigResource(Resource):
         update_relation = functools.partial(self.update, bk_biz_id, app_name, service_name)
 
         update_relation(validated_request_data.get("cmdb_relation"), CMDBServiceRelation)
-        update_relation(validated_request_data.get("log_relation"), LogServiceRelation)
+        self.update_log_relations(bk_biz_id, app_name, service_name, validated_request_data.get("log_relation_list"))
         update_relation(validated_request_data.get("app_relation"), AppServiceRelation)
 
         if validated_request_data.get("apdex_relation"):
@@ -482,6 +500,77 @@ class ServiceConfigResource(Resource):
                 UriServiceRelation.objects.create(uri=item, rank=index, **filter_params)
 
         UriServiceRelation.objects.filter(id__in=itertools.chain(*[ids for _, ids in delete_uris.items()])).delete()
+
+    @classmethod
+    def update_log_relations(cls, bk_biz_id: int, app_name: str, service_name: str, log_relation_list: list):
+        if not log_relation_list:
+            LogServiceRelation.objects.filter(
+                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+            ).delete()
+            return
+
+        # 检查是否有重复的related_bk_biz_id，并合并value_list
+        unique_relations = {}
+        for request_relation in log_relation_list:
+            related_bk_biz_id = request_relation.get("related_bk_biz_id")
+            if related_bk_biz_id in unique_relations:
+                # 合并value_list
+                existing_value_list = unique_relations[related_bk_biz_id].get("value_list", [])
+                new_value_list = request_relation.get("value_list", [])
+                unique_relations[related_bk_biz_id]["value_list"] = existing_value_list + new_value_list
+            else:
+                unique_relations[related_bk_biz_id] = request_relation
+
+        # 将合并后的结果转换为列表
+        log_relation_list = list(unique_relations.values())
+
+        # 获取现有记录的主键映射
+        existing_relations = LogServiceRelation.objects.filter(
+            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+        ).values_list("related_bk_biz_id", "id")
+
+        existing_id_map = {related_bk_biz_id: id for related_bk_biz_id, id in existing_relations}
+
+        to_update = []
+        to_create = []
+        to_delete = [id for _, id in existing_relations]
+        username = get_request_username()
+        update_time = arrow.now().datetime
+
+        for request_relation in log_relation_list:
+            related_bk_biz_id = request_relation.get("related_bk_biz_id")
+            if related_bk_biz_id in existing_id_map:
+                if request_relation.get("value_list"):
+                    # 否则更新记录
+                    instance = LogServiceRelation(
+                        id=existing_id_map[related_bk_biz_id],
+                        updated_by=username,
+                        updated_at=update_time,
+                        **request_relation,
+                    )
+                    to_update.append(instance)
+                    # 如果记录不需要更新或者 value_list 为空，则需要删除记录
+                    to_delete.remove(existing_id_map[related_bk_biz_id])
+            else:
+                # 创建记录
+                instance = LogServiceRelation(
+                    bk_biz_id=bk_biz_id,
+                    app_name=app_name,
+                    service_name=service_name,
+                    updated_by=username,
+                    created_by=username,
+                    **request_relation,
+                )
+                to_create.append(instance)
+
+        if to_update:
+            LogServiceRelation.objects.bulk_update(
+                to_update, fields=["updated_by", "updated_at", "value_list"], batch_size=100
+            )
+        if to_create:
+            LogServiceRelation.objects.bulk_create(to_create, batch_size=100)
+        if to_delete:
+            LogServiceRelation.objects.filter(id__in=to_delete).delete()
 
     @classmethod
     def update_event_relations(
@@ -606,9 +695,7 @@ class AppQueryByIndexSetResource(Resource):
         index_set_id = serializers.IntegerField()
 
     def perform_request(self, data):
-        relations = LogServiceRelation.objects.filter(
-            log_type=ServiceRelationLogTypeChoices.BK_LOG, value=data["index_set_id"]
-        )
+        relations = LogServiceRelation.filter_by_index_set_id(data["index_set_id"])
         res = []
         for relation in relations:
             res.append({"bk_biz_id": relation.bk_biz_id, "app_name": relation.app_name})
@@ -722,3 +809,319 @@ class ListPipelineResource(Resource):
             for pipeline in pipelines["records"]
         ]
         return {"count": pipelines["count"], "items": processed_pipelines}
+
+
+class ListCodeRedefinedRuleResource(Resource):
+    RequestSerializer = ListCodeRedefinedRuleRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        if validated_request_data.get("is_mock", False):
+            return API_CODE_REDEFINED_RULE_LIST_RESPONSE
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        service_name: str = validated_request_data["service_name"]
+        kind: str = validated_request_data["kind"]
+
+        requested_callee_server: str | None = validated_request_data.get("callee_server")
+        requested_callee_service: str | None = validated_request_data.get("callee_service")
+        requested_callee_method: str | None = validated_request_data.get("callee_method")
+
+        # 基础精确过滤
+        q = Q(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name, kind=kind)
+
+        # 对传入的维度，匹配该值或空串；未传的不加过滤
+        if requested_callee_server is not None:
+            if requested_callee_server == "":
+                q &= Q(callee_server="")
+            else:
+                q &= Q(callee_server__in=[requested_callee_server, ""])  # type: ignore
+        if requested_callee_service is not None:
+            if requested_callee_service == "":
+                q &= Q(callee_service="")
+            else:
+                q &= Q(callee_service__in=[requested_callee_service, ""])  # type: ignore
+        if requested_callee_method is not None:
+            if requested_callee_method == "":
+                q &= Q(callee_method="")
+            else:
+                q &= Q(callee_method__in=[requested_callee_method, ""])  # type: ignore
+
+        queryset = (
+            CodeRedefinedConfigRelation.objects.filter(q)
+            .annotate(
+                method_len=Length("callee_method"),
+                service_len=Length("callee_service"),
+                server_len=Length("callee_server"),
+            )
+            .order_by("-method_len", "-service_len", "-server_len")
+        )
+        return list(
+            queryset.values(
+                "id",
+                "kind",
+                "service_name",
+                "callee_server",
+                "callee_service",
+                "callee_method",
+                "code_type_rules",
+                "enabled",
+                "updated_at",
+                "updated_by",
+            )
+        )
+
+
+class SetCodeRedefinedRuleResource(Resource):
+    RequestSerializer = SetCodeRedefinedRuleRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        service_name: str = validated_request_data["service_name"]
+        kind: str = validated_request_data["kind"]
+        rules: list = validated_request_data["rules"]
+
+        username = get_request_username()
+
+        # 获取当前数据库中的所有规则
+        base_filters = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "service_name": service_name,
+            "kind": kind,
+        }
+        existing_rules = CodeRedefinedConfigRelation.objects.filter(**base_filters)
+
+        # 构建前端传入规则的唯一标识集合
+        incoming_rule_keys = set()
+        for rule in rules:
+            rule_key = (rule["callee_server"], rule["callee_service"], rule["callee_method"])
+            incoming_rule_keys.add(rule_key)
+
+        # 处理每个传入的规则（新增/修改）
+        for rule in rules:
+            callee_server: str = rule["callee_server"]
+            callee_service: str = rule["callee_service"]
+            callee_method: str = rule["callee_method"]
+            code_type_rules = rule["code_type_rules"]
+            enabled: bool = rule.get("enabled", True)
+
+            # 使用组合键进行 upsert
+            filters = {
+                **base_filters,
+                "callee_server": callee_server,
+                "callee_service": callee_service,
+                "callee_method": callee_method,
+            }
+
+            # 只更新必要字段，不更新组合键字段
+            defaults = {
+                "code_type_rules": code_type_rules,
+                "enabled": enabled,
+                "updated_by": username,
+            }
+
+            obj, created = CodeRedefinedConfigRelation.objects.update_or_create(defaults=defaults, **filters)
+            if created:
+                CodeRedefinedConfigRelation.objects.filter(id=obj.id).update(created_by=username)
+
+        # 删除前端没有传递的规则
+        rules_to_delete = []
+        for existing_rule in existing_rules:
+            existing_key = (existing_rule.callee_server, existing_rule.callee_service, existing_rule.callee_method)
+            if existing_key not in incoming_rule_keys:
+                rules_to_delete.append(existing_rule.id)
+
+        if rules_to_delete:
+            CodeRedefinedConfigRelation.objects.filter(id__in=rules_to_delete).delete()
+
+        # 同步下发：汇总整个应用的 code_relabel 列表并下发到 APM
+        self.publish_code_relabel_to_apm(bk_biz_id, app_name)
+
+        return {}
+
+    @classmethod
+    def publish_code_relabel_to_apm(cls, bk_biz_id: int, app_name: str) -> None:
+        code_relabel_config = cls.build_code_relabel_config(bk_biz_id, app_name)
+
+        # 下发到 APM 模块
+        api.apm_api.release_app_config(
+            {
+                "bk_biz_id": bk_biz_id,
+                "app_name": app_name,
+                "code_relabel_config": code_relabel_config,
+            }
+        )
+
+    @classmethod
+    def build_code_relabel_config(cls, bk_biz_id: int, app_name: str) -> list[dict[str, Any]]:
+        """将 DB 规则聚合为 collector 的 code_relabel 列表结构。
+
+        规则：
+        - kind=caller → metrics: [定义指标名]
+        - kind=callee → metrics: [定义指标名]
+        - source = service_name（本服务）
+        - services[].name = "callee_server;callee_service;callee_method"；空串/空行统一转 "*"
+        - codes[].rule 透传；codes[].target 固定 {action:"upsert", label:"code_type", value in [success,exception,timeout]}
+        """
+        metrics_map = {
+            "caller": [
+                "rpc_client_handled_total",
+                "rpc_client_handled_seconds_bucket",
+                "rpc_client_handled_seconds_count",
+                "rpc_client_handled_seconds_sum",
+            ],
+            "callee": [
+                "rpc_server_handled_total",
+                "rpc_server_handled_seconds_bucket",
+                "rpc_server_handled_seconds_count",
+                "rpc_server_handled_seconds_sum",
+            ],
+        }
+
+        def star_if_empty(value: str | None) -> str:
+            if value is None:
+                return "*"
+            text = str(value).strip()
+            return text if text else "*"
+
+        queryset = CodeRedefinedConfigRelation.objects.filter(
+            bk_biz_id=bk_biz_id, app_name=app_name, enabled=True
+        ).order_by("service_name", "kind", "callee_server", "callee_service", "callee_method")
+
+        grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        for item in queryset:
+            name = ";".join(
+                [
+                    star_if_empty(item.callee_server),
+                    star_if_empty(item.callee_service),
+                    star_if_empty(item.callee_method),
+                ]
+            )
+
+            codes: list[dict[str, Any]] = []
+            for code_type_key in ("success", "exception", "timeout"):
+                rule_val = (item.code_type_rules or {}).get(code_type_key)
+                if rule_val is None:
+                    continue
+                rule_text = str(rule_val).strip()
+                if not rule_text:
+                    continue
+                codes.append(
+                    {
+                        "rule": rule_text,
+                        "target": {"action": "upsert", "label": "code_type", "value": code_type_key},
+                    }
+                )
+
+            if not codes:
+                continue
+
+            entry = {"name": name, "codes": codes}
+            group_key = (item.service_name, item.kind)
+            grouped.setdefault(group_key, []).append(entry)
+
+        # 组装最终列表
+        code_relabel: list[dict[str, Any]] = []
+        for (service_name, kind), services in grouped.items():
+            metrics = metrics_map.get(kind)
+            if not metrics:
+                continue
+            code_relabel.append({"metrics": metrics, "source": service_name, "services": services})
+
+        return code_relabel
+
+
+class DeleteCodeRedefinedRuleResource(Resource):
+    RequestSerializer = DeleteCodeRedefinedRuleRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        service_name: str = validated_request_data["service_name"]
+        kind: str = validated_request_data["kind"]
+
+        # 构建精确匹配条件
+        filters = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "service_name": service_name,
+            "kind": kind,
+        }
+
+        # 添加可选的被调字段进行精确匹配
+        if "callee_server" in validated_request_data:
+            filters["callee_server"] = validated_request_data["callee_server"]
+        if "callee_service" in validated_request_data:
+            filters["callee_service"] = validated_request_data["callee_service"]
+        if "callee_method" in validated_request_data:
+            filters["callee_method"] = validated_request_data["callee_method"]
+
+        try:
+            instance = CodeRedefinedConfigRelation.objects.get(**filters)
+        except CodeRedefinedConfigRelation.DoesNotExist:
+            # 按需求可以视为已删除
+            return
+
+        instance.delete()
+
+        # 同步下发删除后的配置
+        SetCodeRedefinedRuleResource.publish_code_relabel_to_apm(bk_biz_id, app_name)
+        return
+
+
+class GetCodeRemarksResource(Resource):
+    """
+    获取返回码备注
+
+    维度：业务 + 应用 + 服务 + 调用类型(kind)
+    存储：ApmMetaConfig ，config_key 随 kind 变化
+    """
+
+    RequestSerializer = BaseCodeRedefinedRequestSerializer
+
+    CONFIG_KEY_MAP = {"caller": "code_remarks_caller", "callee": "code_remarks_callee"}
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        service_name: str = validated_request_data["service_name"]
+        kind: str = validated_request_data["kind"]
+
+        config_key = self.CONFIG_KEY_MAP.get(kind)
+        if not config_key:
+            return {}
+
+        instance = ApmMetaConfig.get_service_config_value(bk_biz_id, app_name, service_name, config_key)
+        return instance.config_value if instance else {}
+
+
+class SetCodeRemarkResource(Resource):
+    RequestSerializer = SetCodeRemarkRequestSerializer
+
+    CONFIG_KEY_MAP = {"caller": "code_remarks_caller", "callee": "code_remarks_callee"}
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        service_name: str = validated_request_data["service_name"]
+        kind: str = validated_request_data["kind"]
+        code: str = str(validated_request_data["code"]).strip()
+        remark: str = str(validated_request_data.get("remark", "")).strip()
+
+        config_key = self.CONFIG_KEY_MAP.get(kind)
+        if not config_key:
+            return {}
+
+        exists = ApmMetaConfig.get_service_config_value(bk_biz_id, app_name, service_name, config_key)
+        data = (exists.config_value if exists else {}) or {}
+
+        # 设置/覆盖/删除（空串即删除该码的备注）
+        if remark:
+            data[code] = remark
+        else:
+            if code in data:
+                del data[code]
+
+        ApmMetaConfig.service_config_setup(bk_biz_id, app_name, service_name, config_key, data)
+        return {}

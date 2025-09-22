@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -566,11 +566,10 @@ class IncidentSnapshot:
                     entity.entity_type,
                     entity.logic_key(),
                     entity_id
-                    if entity.is_anomaly
-                    or entity.is_on_alert
+                    if entity.is_on_alert
                     or entity.is_root
                     or getattr(incident.feedback, "incident_root", None) == entity.entity_id
-                    else "normal",
+                    else ("anomaly" if entity.is_anomaly else "normal"),
                 )
             else:
                 # 按照聚合配置进行聚合

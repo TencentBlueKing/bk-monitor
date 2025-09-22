@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -596,14 +596,14 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
                     )
                     raise e
 
+        # 清理data_label下多余的配置
+        if data_label:
+            self._cleanup_excess_data_label_config(bk_tenant_id, data_label, processed_table_ids)
+
         # 统一推送路由信息
         self._push_routes(
             bk_tenant_id, space_type, space_id, es_table_ids, doris_table_ids, data_label, need_refresh_data_label
         )
-
-        # 清理data_label下多余的配置
-        if data_label:
-            self._cleanup_excess_data_label_config(bk_tenant_id, data_label, processed_table_ids)
 
         logger.info(
             "CreateOrUpdateLogDataLink: successfully processed all %d table(s) for space [%s:%s]",

@@ -23,17 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, watch } from "vue";
-import useLocale from "@/hooks/use-locale";
-import EmptyStatus from "@/components/empty-status/index.vue";
-import VueDraggable from "vuedraggable";
-import Regexopover from "./regex-popover";
-import { copyMessage, base64Encode } from "@/common/util";
-import AddRule from "./add-rule";
-import "./index.scss";
+import { defineComponent, ref, watch } from 'vue';
+
+import { copyMessage, base64Encode } from '@/common/util';
+import EmptyStatus from '@/components/empty-status/index.vue';
+import useLocale from '@/hooks/use-locale';
+import VueDraggable from 'vuedraggable';
+
+import AddRule from './add-rule';
+import Regexopover from './regex-popover';
+
+import './index.scss';
 
 export default defineComponent({
-  name: "RuleTable",
+  name: 'RuleTable',
   components: {
     EmptyStatus,
     VueDraggable,
@@ -58,7 +61,7 @@ export default defineComponent({
     const isEditRow = ref(false);
     const ruleList = ref<any[]>([]);
     const currentRowData = ref({});
-    const searchValue = ref("");
+    const searchValue = ref('');
 
     let currentRowIndex = 0;
     let localRuleList: any[] = [];
@@ -73,7 +76,7 @@ export default defineComponent({
       () => {
         initTableList();
       },
-      { immediate: true }
+      { immediate: true },
     );
 
     const handleDragChange = (data: {
@@ -90,10 +93,10 @@ export default defineComponent({
       tmpList.splice(newIndex, 0, oldItem);
       ruleList.value = tmpList;
       localRuleList = structuredClone(ruleList.value);
-      emit("rule-list-change", ruleList.value);
+      emit('rule-list-change', ruleList.value);
     };
 
-    const handleMenuClick = (item) => {
+    const handleMenuClick = item => {
       copyMessage(Object.values(item)[0]);
     };
 
@@ -107,19 +110,19 @@ export default defineComponent({
     const handleAddRule = (item: any) => {
       ruleList.value.splice(currentRowIndex + 1, 0, item);
       localRuleList = structuredClone(ruleList.value);
-      emit("rule-list-change", ruleList.value);
+      emit('rule-list-change', ruleList.value);
     };
 
     const handleEditRule = (item: any) => {
       ruleList.value[currentRowIndex] = item;
       localRuleList = structuredClone(ruleList.value);
-      emit("rule-list-change", ruleList.value);
+      emit('rule-list-change', ruleList.value);
     };
 
     const handleClickRemoveRule = (index: number) => {
       ruleList.value.splice(index, 1);
       localRuleList = structuredClone(ruleList.value);
-      emit("rule-list-change", ruleList.value);
+      emit('rule-list-change', ruleList.value);
     };
 
     const ruleArrToBase64 = () => {
@@ -131,10 +134,10 @@ export default defineComponent({
           pre.push(rulesStr);
           return pre;
         }, []);
-        const ruleArrStr = `[${ruleNewList.join(" ,")}]`;
+        const ruleArrStr = `[${ruleNewList.join(' ,')}]`;
         return base64Encode(ruleArrStr);
-      } catch (error) {
-        return "";
+      } catch {
+        return '';
       }
     };
 
@@ -145,10 +148,8 @@ export default defineComponent({
         return;
       }
 
-      const searchRegExp = new RegExp(keyword, "i");
-      ruleList.value = localRuleList.filter((item) =>
-        searchRegExp.test(Object.keys(item)[0] as string)
-      );
+      const searchRegExp = new RegExp(keyword, 'i');
+      ruleList.value = localRuleList.filter(item => searchRegExp.test(Object.keys(item)[0] as string));
     };
 
     expose({
@@ -159,12 +160,12 @@ export default defineComponent({
     });
 
     return () => (
-      <div class="rule-table-main">
-        <div class={["table-row-header", { "is-readonly": props.readonly }]}>
-          <div class="index-column">{t("生效顺序")}</div>
-          <div class="regular-column">{t("正则表达式")}</div>
-          <div class="placement-column">{t("占位符")}</div>
-          {!props.readonly && <div class="operate-column">{t("操作")}</div>}
+      <div class='rule-table-main'>
+        <div class={['table-row-header', { 'is-readonly': props.readonly }]}>
+          <div class='index-column'>{t('生效顺序')}</div>
+          <div class='regular-column'>{t('正则表达式')}</div>
+          <div class='placement-column'>{t('占位符')}</div>
+          {!props.readonly && <div class='operate-column'>{t('操作')}</div>}
         </div>
 
         {ruleList.value.length > 0 ? (
@@ -173,9 +174,9 @@ export default defineComponent({
               disabled={props.readonly}
               {...{
                 animation: 150,
-                tag: "ul",
-                handle: ".bklog-drag-dots",
-                "ghost-class": "sortable-ghost-class",
+                tag: 'ul',
+                handle: '.bklog-drag-dots',
+                'ghost-class': 'sortable-ghost-class',
               }}
               value={ruleList.value}
               on-change={handleDragChange}
@@ -183,64 +184,62 @@ export default defineComponent({
               <transition-group>
                 {ruleList.value.map((item, index) => (
                   <li
-                    class={[
-                      "table-row-content",
-                      { "is-readonly": props.readonly },
-                    ]}
                     key={item.__Index__}
+                    class={['table-row-content', { 'is-readonly': props.readonly }]}
                   >
-                    <div class="index-column">
+                    <div class='index-column'>
                       {!props.readonly && (
-                        <log-icon type="drag-dots" class="icon" />
+                        <log-icon
+                          class='icon'
+                          type='drag-dots'
+                        />
                       )}
                       <span>{index + 1}</span>
                     </div>
-                    <div class="regular-column">
+                    <div class='regular-column'>
                       <Regexopover
                         is-cluster={false}
-                        placement="top"
+                        placement='top'
                         on-event-click={() => handleMenuClick(item)}
                       >
-                        <span class="row-left-regular">
-                          {" "}
-                          {Object.values(item)[0]}
-                        </span>
+                        <span class='row-left-regular'> {Object.values(item)[0]}</span>
                       </Regexopover>
                     </div>
-                    <div class="placement-column">{Object.keys(item)[0]}</div>
+                    <div class='placement-column'>{Object.keys(item)[0]}</div>
                     {!props.readonly && (
-                      <div class="operate-column">
+                      <div class='operate-column'>
                         <bk-button
                           text
                           on-click={() => handleClickEditRule(item, index)}
                         >
-                          <log-icon type="edit" class="opt-icon" />
+                          <log-icon
+                            class='opt-icon'
+                            type='edit'
+                          />
                         </bk-button>
                         <bk-button
                           text
-                          on-click={() =>
-                            handleClickEditRule(item, index, true)
-                          }
+                          on-click={() => handleClickEditRule(item, index, true)}
                         >
                           <log-icon
+                            class='opt-icon'
+                            type='plus-circle'
                             common
-                            type="plus-circle"
-                            class="opt-icon"
                           />
                         </bk-button>
                         <bk-popconfirm
-                          title={t("确认删除该规则？")}
-                          trigger="click"
-                          placement="bottom"
-                          content={t("删除操作无法撤回，请谨慎操作！")}
                           width={280}
+                          content={t('删除操作无法撤回，请谨慎操作！')}
+                          placement='bottom'
+                          title={t('确认删除该规则？')}
+                          trigger='click'
                           on-confirm={() => handleClickRemoveRule(index)}
                         >
                           <bk-button text>
                             <log-icon
+                              class='opt-icon'
+                              type='minus-circle'
                               common
-                              type="minus-circle"
-                              class="opt-icon"
                             />
                           </bk-button>
                         </bk-popconfirm>
@@ -252,35 +251,43 @@ export default defineComponent({
             </vue-draggable>
           </div>
         ) : (
-          <div class="no-cluster-rule">
+          <div class='no-cluster-rule'>
             {searchValue.value ? (
-              <bk-exception type="search-empty" scene="part">
-                <span style="font-size:12px;">{t("搜索为空")}</span>
+              <bk-exception
+                scene='part'
+                type='search-empty'
+              >
+                <span style='font-size:12px;'>{t('搜索为空')}</span>
               </bk-exception>
             ) : (
-              <bk-exception type="empty" scene="part">
-                <span style="font-size:12px;">{t("暂无聚类规则")}，</span>
+              <bk-exception
+                scene='part'
+                type='empty'
+              >
+                <span style='font-size:12px;'>{t('暂无聚类规则')}，</span>
                 <bk-button
+                  style='padding:0;'
+                  size='small'
+                  theme='primary'
                   text
-                  theme="primary"
-                  size="small"
-                  style="padding:0;"
                   on-click={() => handleClickEditRule(null, -1, true)}
                 >
-                  {t("立即新建")}
+                  {t('立即新建')}
                 </bk-button>
               </bk-exception>
             )}
           </div>
         )}
         <add-rule
-          isShow={isShowAddRule.value}
-          isEdit={isEditRow.value}
-          ruleList={props.ruleList}
           data={currentRowData.value}
-          on-show-change={(val) => (isShowAddRule.value = val)}
+          isEdit={isEditRow.value}
+          isShow={isShowAddRule.value}
+          ruleList={props.ruleList}
           on-add={handleAddRule}
           on-edit={handleEditRule}
+          on-show-change={val => {
+            isShowAddRule.value = val;
+          }}
         />
       </div>
     );

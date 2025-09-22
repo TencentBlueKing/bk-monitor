@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -128,7 +128,7 @@ class QueryTemplateModelSerializer(QueryTemplateBaseModelSerializer):
             raise serializers.ValidationError(_("生效范围必须包含当前业务 ID"))
 
         # 校验该用户是否有业务范围的权限
-        cls._is_allowed_by_bk_biz_ids([validated_data["space_scope"]])
+        cls._is_allowed_by_bk_biz_ids(validated_data["space_scope"])
 
         if QueryTemplate.origin_objects.filter(bk_biz_id=bk_biz_id, name=validated_data["name"]).exists():
             raise serializers.ValidationError(_("同一业务下查询模板名称不能重复"))

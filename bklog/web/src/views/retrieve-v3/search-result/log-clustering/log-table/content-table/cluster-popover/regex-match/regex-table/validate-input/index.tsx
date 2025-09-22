@@ -25,7 +25,9 @@
  */
 
 import { computed, defineComponent, ref } from 'vue';
-import useValidtor, { type Rules } from './useValidtor';
+
+import useValidtor, { type Rules } from './use-validtor';
+
 import './index.scss';
 
 export default defineComponent({
@@ -176,9 +178,9 @@ export default defineComponent({
           class='input-box'
           clearable={false}
           disabled={props.disabled}
-          value={localValue.value}
           placeholder={props.placeholder}
           type={props.type}
+          value={localValue.value}
           on-blur={handleBlur}
           on-change={handleChange}
           on-focus={handleFocus}

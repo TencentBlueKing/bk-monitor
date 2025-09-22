@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -1131,7 +1131,12 @@ export default defineComponent({
             top += 22;
             nodeDetailTips.value.push({ label: t('所属服务'), value: model.entity?.tags?.BcsService?.name });
           }
-          nodeDetailTipsRef.value.style.top = `-${top}px`;
+
+          // 动态计算提示窗y轴偏移，保证提示窗不盖住节点
+          const tooltipEl = document.querySelector('.node-message-tooltip');
+          if (tooltipEl) {
+            tooltipEl.style.setProperty('--offset', `-${top}px`);
+          }
           return nodeDetailTipsRef.value as HTMLDivElement;
         },
       });
@@ -1955,8 +1960,7 @@ export default defineComponent({
           const edge = edges.find(edge => {
             const model = edge.getModel();
             return (
-              sourceNode.find(f => f.entity.entity_id === model.source) &&
-              sourceNode.find(f => f.entity.entity_id === model.target)
+              model.source === sourceNode?.[0]?.entity?.entity_id && model.target === sourceNode?.[1]?.entity?.entity_id
             );
           });
           if (!edge.hasState('highlight')) {
@@ -2482,8 +2486,10 @@ export default defineComponent({
 
     /** 点击节点概览中的关联边，画布中对应的边高亮 */
     const handleHighlightEdge = (edge: ITopoNode) => {
-      const sourceId = edge.source;
-      const targetId = edge.target;
+      // 对于聚合边，每个边上会携带当前最外层作为容器变的属性，聚合边需要高亮的是容器边
+      const isAggregated = edge?.properties?.aggregated_by?.length > 0;
+      const sourceId = isAggregated ? edge.properties.aggregated_by[0] : edge.source;
+      const targetId = isAggregated ? edge.properties.aggregated_by[1] : edge.target;
       resourceEdgeId.value = `${sourceId}-${targetId}`;
       graph.setAutoPaint(false);
       // biome-ignore lint/complexity/noForEach: <explanation>

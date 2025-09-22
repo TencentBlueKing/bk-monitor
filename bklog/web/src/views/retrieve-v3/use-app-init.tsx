@@ -23,28 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
-import { VIEW_BUSINESS } from "@/common/authority-map";
-import useStore from "@/hooks/use-store";
-import { useRoute, useRouter } from "vue-router/composables";
+import { VIEW_BUSINESS } from '@/common/authority-map';
+import useResizeObserve from '@/hooks/use-resize-observe';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import useStore from '@/hooks/use-store';
+import { getDefaultRetrieveParams, update_URL_ARGS } from '@/store/default-values';
+import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '@/store/store.type';
+import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import { useRoute, useRouter } from 'vue-router/composables';
 
-import useResizeObserve from "../../hooks/use-resize-observe";
-import {
-  getDefaultRetrieveParams,
-  update_URL_ARGS,
-} from "../../store/default-values";
-import {
-  BK_LOG_STORAGE,
-  RouteParams,
-  SEARCH_MODE_DIC,
-} from "../../store/store.type";
-import RouteUrlResolver, {
-  RetrieveUrlResolver,
-} from "../../store/url-resolver";
-import RetrieveHelper, { RetrieveEvent } from "../retrieve-helper";
-import $http from "@/api";
-import useRetrieveEvent from "@/hooks/use-retrieve-event";
+import $http from '@/api';
 
 export default () => {
   const store = useStore();
@@ -72,11 +63,9 @@ export default () => {
     const routeParams = getDefaultRetrieveParams({
       spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
       bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-      search_mode:
-        SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ??
-        "ui",
+      search_mode: SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
     });
-    let activeTab = "single";
+    let activeTab = 'single';
     Object.assign(routeParams, { ids: [] });
 
     if (/^-?\d+$/.test(routeParams.index_id)) {
@@ -85,7 +74,7 @@ export default () => {
         isUnionIndex: false,
         selectIsUnionSearch: false,
       });
-      activeTab = "single";
+      activeTab = 'single';
     }
 
     if (routeParams.unionList?.length) {
@@ -94,32 +83,30 @@ export default () => {
         isUnionIndex: true,
         selectIsUnionSearch: true,
       });
-      activeTab = "union";
+      activeTab = 'union';
     }
 
-    store.commit("updateIndexItem", routeParams);
-    store.commit("updateSpace", routeParams.spaceUid);
-    store.commit("updateIndexId", routeParams.index_id);
-    store.commit("updateStorage", {
-      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
-    });
+    store.commit('updateIndexItem', routeParams);
+    store.commit('updateSpace', routeParams.spaceUid);
+    store.commit('updateState', { indexId: routeParams.index_id });
+    store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
   };
 
-  RetrieveHelper.setScrollSelector(".v3-bklog-content");
+  RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
-  const handleSearchBarHeightChange = (height) => {
+  const handleSearchBarHeightChange = height => {
     searchBarHeight.value = height;
   };
 
-  const handleFavoriteWidthChange = (width) => {
+  const handleFavoriteWidthChange = width => {
     favoriteWidth.value = width;
   };
 
-  const hanldeFavoriteShown = (isShown) => {
+  const hanldeFavoriteShown = isShown => {
     isFavoriteShown.value = isShown;
   };
 
-  const handleGraphHeightChange = (height) => {
+  const handleGraphHeightChange = height => {
     trendGraphHeight.value = height;
   };
 
@@ -132,20 +119,16 @@ export default () => {
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
 
-  const indexSetIdList = computed(() =>
-    store.state.indexItem.ids.filter((id) => id?.length ?? false)
-  );
-  const fromMonitor = computed(() => route.query.from === "monitor");
+  const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
+  const fromMonitor = computed(() => route.query.from === 'monitor');
 
   const stickyStyle = computed(() => {
     return {
-      "--top-searchbar-height": `${searchBarHeight.value}px`,
-      "--left-field-setting-width": `${leftFieldSettingWidth.value}px`,
-      "--left-collection-width": `${
-        isFavoriteShown.value ? favoriteWidth.value : 0
-      }px`,
-      "--trend-graph-height": `${trendGraphHeight.value}px`,
-      "--header-height": fromMonitor.value ? "0px" : "52px",
+      '--top-searchbar-height': `${searchBarHeight.value}px`,
+      '--left-field-setting-width': `${leftFieldSettingWidth.value}px`,
+      '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
+      '--trend-graph-height': `${trendGraphHeight.value}px`,
+      '--header-height': fromMonitor.value ? '0px' : '52px',
     };
   });
 
@@ -158,7 +141,7 @@ export default () => {
       return { width: `calc(100% - ${favoriteWidth.value}px)` };
     }
 
-    return { width: "100%" };
+    return { width: '100%' };
   });
 
   const setSearchMode = () => {
@@ -171,31 +154,31 @@ export default () => {
       if (addition?.length > 4 && keyword?.length > 0) {
         // 这里不好做同步请求，所以直接设置 search_mode 为 sql
         router.push({
-          query: { ...route.query, search_mode: "sql", addition: "[]" },
+          query: { ...route.query, search_mode: 'sql', addition: '[]' },
         });
         const resolver = new RouteUrlResolver({
           route,
-          resolveFieldList: ["addition"],
+          resolveFieldList: ['addition'],
         });
         const target = resolver.convertQueryToStore<RouteParams>();
 
         if (target.addition?.length) {
           $http
-            .request("retrieve/generateQueryString", {
+            .request('retrieve/generateQueryString', {
               data: {
                 addition: target.addition,
               },
             })
-            .then((res) => {
+            .then(res => {
               if (res.result) {
                 const newKeyword = `${keyword} AND ${res.data?.querystring}`;
                 router.replace({
                   query: { ...route.query, keyword: newKeyword, addition: [] },
                 });
-                store.commit("updateIndexItemParams", { keyword: newKeyword });
+                store.commit('updateIndexItemParams', { keyword: newKeyword });
               }
             })
-            .catch((err) => {
+            .catch(err => {
               console.error(err);
             });
         }
@@ -204,17 +187,14 @@ export default () => {
       }
 
       if (keyword?.length > 0) {
-        router.push({ query: { ...route.query, search_mode: "sql" } });
+        router.push({ query: { ...route.query, search_mode: 'sql' } });
         return;
       }
 
       router.push({
         query: {
           ...route.query,
-          search_mode:
-            store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1
-              ? "sql"
-              : "ui",
+          search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
         },
       });
     }
@@ -227,66 +207,54 @@ export default () => {
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
-    store.commit("updateIndexSetQueryResult", {
+    store.commit('updateIndexSetQueryResult', {
       origin_log_list: [],
       list: [],
-      exception_msg: "",
+      exception_msg: '',
       is_error: false,
     });
 
     return store
-      .dispatch("retrieve/getIndexSetList", {
+      .dispatch('retrieve/getIndexSetList', {
         spaceUid: spaceUid.value,
         bkBizId: bkBizId.value,
         is_group: true,
       })
-      .then((resp) => {
+      .then(resp => {
         isPreApiLoaded.value = true;
 
         // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
         // tags 是 BCS索引集注入内置标签特殊检索
         if (!indexSetIdList.value.length && route.query.tags?.length) {
-          const tagList = Array.isArray(route.query.tags)
-            ? route.query.tags
-            : route.query.tags.split(",");
+          const tagList = Array.isArray(route.query.tags) ? route.query.tags : route.query.tags.split(',');
           const indexSetMatch = resp[1]
-            .filter((item) =>
-              item.tags.some((tag) => tagList.includes(tag.name))
-            )
-            .map((val) => val.index_set_id);
+            .filter(item => item.tags.some(tag => tagList.includes(tag.name)))
+            .map(val => val.index_set_id);
           if (indexSetMatch.length) {
-            store.commit("updateIndexItem", {
-              ids: indexSetMatch,
-              isUnionIndex: true,
-              selectIsUnionSearch: true,
+            store.commit('updateIndexItem', { ids: indexSetMatch, isUnionIndex: true, selectIsUnionSearch: true });
+            store.commit('updateState', {
+              unionIndexItemList: tagList,
             });
-            store.commit("updateUnionIndexItemList", tagList);
-            store.commit("updateStorage", {
-              [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: "union",
-            });
+            store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'union' });
           }
         }
 
         // 如果当前地址参数没有indexSetId，则默认取缓存中的索引信息
         // 同时，更新索引信息到store中
         if (!indexSetIdList.value.length) {
-          const lastIndexSetIds =
-            store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[
-              spaceUid.value
-            ];
+          const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
           if (lastIndexSetIds?.length) {
-            const validateIndexSetIds = lastIndexSetIds.filter((id) =>
-              resp[1].some((item) => `${item.index_set_id}` === `${id}`)
+            const validateIndexSetIds = lastIndexSetIds.filter(id =>
+              resp[1].some(item => `${item.index_set_id}` === `${id}`),
             );
             if (validateIndexSetIds.length) {
-              store.commit("updateIndexItem", { ids: validateIndexSetIds });
-              store.commit("updateStorage", {
-                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]:
-                  validateIndexSetIds.length > 1 ? "union" : "single",
+              store.commit('updateIndexItem', { ids: validateIndexSetIds });
+              store.commit('updateStorage', {
+                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: validateIndexSetIds.length > 1 ? 'union' : 'single',
               });
             } else {
-              store.commit("updateStorage", {
-                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: "single",
+              store.commit('updateStorage', {
+                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'single',
               });
             }
           }
@@ -300,10 +268,8 @@ export default () => {
         const indexSetIds = [];
 
         if (indexSetIdList.value.length) {
-          indexSetIdList.value.forEach((id) => {
-            const item = resp[1].find(
-              (item) => `${item.index_set_id}` === `${id}`
-            );
+          indexSetIdList.value.forEach(id => {
+            const item = resp[1].find(item => `${item.index_set_id}` === `${id}`);
             if (!item) {
               emptyIndexSetList.push(id);
             }
@@ -315,18 +281,16 @@ export default () => {
           });
 
           if (emptyIndexSetList.length) {
-            store.commit("updateIndexItem", { ids: [], items: [] });
-            store.commit("updateIndexId", "");
-            store.commit("updateIndexSetQueryResult", {
+            store.commit('updateIndexItem', { ids: [], items: [] });
+            store.commit('updateState', { indexId: '' });
+            store.commit('updateIndexSetQueryResult', {
               is_error: true,
-              exception_msg: `index-set-not-found:(${emptyIndexSetList.join(
-                ","
-              )})`,
+              exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
             });
           }
 
           if (indexSetItems.length) {
-            store.commit("updateIndexItem", {
+            store.commit('updateIndexItem', {
               ids: [...indexSetIds],
               items: [...indexSetItems],
             });
@@ -338,74 +302,64 @@ export default () => {
           const respIndexSetList = resp[1];
           const defIndexItem =
             respIndexSetList.find(
-              (item) =>
-                item.permission?.[VIEW_BUSINESS] &&
-                item.tags.every((tag) => tag.tag_id !== 4)
+              item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
             ) ?? respIndexSetList[0];
           const defaultId = [defIndexItem?.index_set_id].filter(Boolean);
 
           if (defaultId) {
             const strId = `${defaultId}`;
-            store.commit("updateIndexItem", {
-              ids: [strId],
-              items: [defIndexItem].filter(Boolean),
-            });
-            store.commit("updateIndexId", strId);
+            store.commit('updateIndexItem', { ids: [strId], items: [defIndexItem].filter(Boolean) });
+            store.commit('updateState', { indexId: strId });
           }
         }
 
         let indexId =
-          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === "single"
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
             ? store.state.indexItem.ids[0]
             : undefined;
         const unionList =
-          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === "union"
-            ? store.state.indexItem.ids
-            : undefined;
+          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
 
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
-          const type = indexId ?? route.params.indexId ? "single" : "union";
-          if (indexId && type === "single") {
-            store.commit("updateIndexId", indexId);
-            store.commit("updateUnionIndexList", {
-              updateIndexItem: false,
-              list: [],
-            });
+          const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
+          if (indexId && type === 'single') {
+            store.commit('updateState', { indexId: indexId });
+            store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
           }
 
-          if (type === "union") {
-            store.commit("updateUnionIndexList", {
+          if (type === 'union') {
+            store.commit('updateUnionIndexList', {
               updateIndexItem: false,
               list: [...(unionList ?? [])],
             });
           }
 
-          store.commit("updateIndexItem", { isUnionIndex: type === "union" });
+          store.commit('updateIndexItem', { isUnionIndex: type === 'union' });
 
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
-          store.dispatch("requestIndexSetFieldInfo").then((resp) => {
+          store.dispatch('requestIndexSetFieldInfo').then(resp => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
             RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
             if (
-              route.query.tab === "origin" ||
+              route.query.tab === 'origin' ||
               route.query.tab === undefined ||
               route.query.tab === null ||
-              route.query.tab === ""
+              route.query.tab === ''
             ) {
               if (resp?.data?.fields?.length) {
-                store.dispatch("requestIndexSetQuery").then(() => {
+                store.dispatch('requestIndexSetQuery').then(() => {
                   RetrieveHelper.setSearchingValue(false);
                 });
               }
 
               if (!resp?.data?.fields?.length) {
-                store.commit("updateIndexSetQueryResult", {
+                store.commit('updateIndexSetQueryResult', {
                   is_error: true,
-                  exception_msg: "index-set-field-not-found",
+                  exception_msg: 'index-set-field-not-found',
                 });
                 RetrieveHelper.setSearchingValue(false);
               }
@@ -422,18 +376,15 @@ export default () => {
 
           if (defaultId) {
             const strId = `${defaultId}`;
-            store.commit("updateIndexItem", {
-              ids: [strId],
-              items: [resp[1][0]],
-            });
-            store.commit("updateIndexId", strId);
+            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateState', { indexId: strId });
           }
         }
 
         const queryTab = RetrieveHelper.routeQueryTabValueFix(
           store.state.indexItem.items?.[0],
           route.query.tab,
-          store.getters.isUnionSearch
+          store.getters.isUnionSearch,
         );
 
         router.replace({
@@ -470,20 +421,19 @@ export default () => {
   beforeMounted();
 
   const handleSpaceIdChange = () => {
-    const { start_time, end_time, timezone, datePickerValue } =
-      store.state.indexItem;
-    store.commit("resetIndexsetItemParams", {
+    const { start_time, end_time, timezone, datePickerValue } = store.state.indexItem;
+    store.commit('resetIndexsetItemParams', {
       start_time,
       end_time,
       timezone,
       datePickerValue,
     });
-    store.commit("updateIndexId", "");
-    store.commit("updateUnionIndexList", []);
+    store.commit('updateState', { indexId: '' });
+    store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);
 
     getIndexSetList();
-    store.dispatch("requestFavoriteList");
+    store.dispatch('requestFavoriteList');
   };
 
   watch(spaceUid, () => {
@@ -498,14 +448,7 @@ export default () => {
           indexId: undefined,
         },
         query: {
-          ...resolver.getDefUrlQuery([
-            "start_time",
-            "end_time",
-            "format",
-            "interval",
-            "search_mode",
-            "timezone",
-          ]),
+          ...resolver.getDefUrlQuery(['start_time', 'end_time', 'format', 'interval', 'search_mode', 'timezone']),
           spaceUid: spaceUid.value,
           bizId: bkBizId.value,
         },
@@ -528,10 +471,9 @@ export default () => {
   // 滚动时，检索结果距离顶部高度
   const searchResultTop = ref(0);
 
-  addEvent(RetrieveEvent.GLOBAL_SCROLL, (event) => {
+  addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
-    paddingTop.value =
-      scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+    paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 
     const diff = subBarHeight.value + trendGraphHeight.value;
     searchResultTop.value = scrollTop > diff ? diff : scrollTop;
@@ -539,10 +481,10 @@ export default () => {
 
   useResizeObserve(
     RetrieveHelper.getScrollSelector(),
-    (entry) => {
+    entry => {
       scrollContainerHeight.value = (entry.target as HTMLElement).offsetHeight;
     },
-    0
+    0,
   );
 
   /**
@@ -556,25 +498,23 @@ export default () => {
    * 计算检索结果列表的滚动位置，监听是否滚动到顶部
    */
   const isSearchResultStickyTop = computed(() => {
-    return (
-      searchResultTop.value === subBarHeight.value + trendGraphHeight.value
-    );
+    return searchResultTop.value === subBarHeight.value + trendGraphHeight.value;
   });
 
   /** * 结束计算 ***/
   onMounted(() => {
     RetrieveHelper.onMounted();
-    store.dispatch("requestFavoriteList");
+    store.dispatch('requestFavoriteList');
   });
 
   onUnmounted(() => {
     RetrieveHelper.destroy();
     // 清理掉当前查询结果，避免下次进入空白展示
-    store.commit("updateIndexSetQueryResult", {
+    store.commit('updateIndexSetQueryResult', {
       origin_log_list: [],
       list: [],
       is_error: false,
-      exception_msg: "",
+      exception_msg: '',
     });
   });
 

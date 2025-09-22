@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -134,19 +134,16 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
         for e in self.record_list:
             dimension_groups.setdefault(e.md5_dimension, []).append(e)
 
-        # 每组只保留优先级最高的记录
-        filtered_records = []
         for dimension, records in dimension_groups.items():
-            # 按策略优先级排序，取最高优先级的记录
-            records.sort(key=lambda record: max(item.strategy.priority or 0 for item in record.items), reverse=True)
-            filtered_records.append(records[0])
+            if len(records) > 1:
+                logger.warning(f"the same event has {len(records)} records, record: {records[0].raw_data}")
 
         # 进行优先级检查
-        PriorityChecker.check_records(filtered_records)
+        PriorityChecker.check_records(self.record_list)
 
         # 1. split by strategy_id
         pending_to_push = {}
-        for e in filtered_records:
+        for e in self.record_list:
             data_str = e.to_str()
             for item in e.items:
                 strategy_id = item.strategy.id
