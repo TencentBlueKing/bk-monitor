@@ -29,7 +29,7 @@ import { computed, reactive, ref } from 'vue';
 import { type DateValue, DateRange } from '@blueking/date-picker/vue3';
 import { Button } from 'bkui-vue';
 import { getUrlHashValue } from 'monitor-common/utils/url';
-import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
+import { AI_BLUEKING_SHORTCUTS_ID, getAIBluekingShortcutTips } from 'monitor-pc/components/ai-whale/types';
 import { useI18n } from 'vue-i18n';
 
 import ProfilingGraph from '../../../plugins/charts/profiling-graph/profiling-graph';
@@ -246,7 +246,7 @@ export default defineComponent({
               display: this.graphQueryParams.is_compared ? 'none' : 'flex',
             }}
             shortcutId={AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS}
-            tips=''
+            tips={getAIBluekingShortcutTips(AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS)}
             title={this.t('AI 小鲸帮你分析')}
             onGetFillBackFieldMap={this.getAiBluekingFillBackFieldMap}
           />
