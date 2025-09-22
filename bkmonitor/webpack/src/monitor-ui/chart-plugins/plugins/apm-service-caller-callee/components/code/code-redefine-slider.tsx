@@ -121,7 +121,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
 
   addRow(params?: CodeRedefineItem) {
     this.data.push({
-      callee_server: params?.callee_server || this.type === 'callee' ? this.service : '',
+      callee_server: params?.callee_server || (this.type === 'callee' ? this.service : ''),
       callee_service: params?.callee_service || '',
       callee_method: params?.callee_method || '',
       code_type_rules: {
@@ -173,7 +173,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                   {this.repeatRulesIndex.has($index) && item.prop === 'callee_method' && (
                     <i
                       class='icon-monitor icon-mind-fill'
-                      v-bk-tooltips={{ content: this.$tc('被调service、被调接口、返回码的组合值须唯一') }}
+                      v-bk-tooltips={{ content: this.$tc('被调服务、被调service、被调接口组合值唯一') }}
                     />
                   )}
                 </div>
@@ -281,7 +281,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
     const data = await getFieldOptionValues({
       ...newParams,
       where: [...newParams.where],
-    }).catch(() => false);
+    }).catch(() => []);
     curOption.loading = false;
     curOption.options = data;
   }
