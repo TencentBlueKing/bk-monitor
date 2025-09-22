@@ -314,7 +314,7 @@ class BkCollectorClusterConfig:
             secret_index = int(count_md5(config_id), 16) % secret_config["secret_data_max_count"]
 
             # 生成secret名称
-            secret_subconfig_name = secret_config["secret_name_hash_tpl"].format(f"{secret_index:04d}")
+            secret_subconfig_name = secret_config["secret_name_hash_tpl"].format(secret_index)
 
             # 计算 secret 中 key 的名字
             subconfig_filename = secret_config["secret_data_key_tpl"].format(config_id)
