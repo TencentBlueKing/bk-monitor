@@ -62,7 +62,12 @@ export default class TemplateList extends tsc<IProps> {
   }
 
   /**
-   * @description 生成模板树
+   * 获取模板树结构
+   * 将模板列表按系统和分类组织成树形结构，用于界面展示
+   * 处理分类模板和非分类模板的不同组织方式，并设置选中状态
+   * 分类模板：按系统->分类->模板的三级结构组织
+   * 非分类模板：按系统->模板的二级结构组织
+   * 同时更新分类级别的选中状态（全选/部分选中）
    */
   getTemplateTree() {
     const iconFn = (id: string) => templateIconMap?.[id] || 'icon-gaojing';
