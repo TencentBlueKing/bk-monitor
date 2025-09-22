@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { retrieveStrategyTemplate } from 'monitor-api/modules/model';
+import { alertsStrategyTemplate, retrieveStrategyTemplate } from 'monitor-api/modules/model';
 import { getCreateVariableParams, getVariableModel } from 'monitor-pc/pages/query-template/variables';
 
 import type { TemplateDetail } from '../components/template-form/typing';
@@ -44,4 +44,13 @@ export const getAlarmTemplateDetail = async (params: { app_name: string; id: num
     detailData,
     variablesList,
   };
+};
+
+export const getAlertsStrategyTemplate = async (params: {
+  app_name: string;
+  ids: number[];
+  need_strategies?: boolean;
+}) => {
+  const data = await alertsStrategyTemplate(params).catch(() => ({ list: [] }));
+  return data;
 };
