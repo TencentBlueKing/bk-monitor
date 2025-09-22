@@ -49,6 +49,8 @@ export default class CollapseTags extends tsc<CollapseTagsProps> {
   @Ref('sectionRef') sectionRef: Record<string, any>;
   /** 最大折叠数字渲染元素实例 */
   @Ref('maxCountCollectTagRef') maxCountCollectTagRef: Record<string, any>;
+  /** 后置插槽容器实例 */
+  @Ref('afterSlotContainerRef') afterSlotContainerRef: Record<string, any>;
 
   /** 需要渲染的tag数组 */
   @Prop({ type: Array, default: () => [] }) data!: string[] | unknown[];
@@ -118,8 +120,12 @@ export default class CollapseTags extends tsc<CollapseTagsProps> {
       const tagsList = this.sectionRef?.children || [];
       // 缓存当前帧中tag元素的宽高信息对象，避免频繁调用getBoundingClientRect影响性能
       const tagElBoundingClientRectMap = new WeakMap();
+      // 获取后置插槽宽度(包括渲染后置插槽元素时多出的间隔宽度)
+      const afterSlotContainerWidth = (this.$scopedSlots as any)?.after
+        ? this.afterSlotContainerRef?.getBoundingClientRect?.()?.width + this.tagColGap
+        : 0;
       // 获取容器宽度
-      const containerWidth = this.sectionRef?.parentNode?.getBoundingClientRect?.().width;
+      const containerWidth = this.sectionRef?.parentNode?.getBoundingClientRect?.().width - afterSlotContainerWidth;
       let totalWidth = 0;
       let visibleCount = 0;
 
@@ -253,7 +259,7 @@ export default class CollapseTags extends tsc<CollapseTagsProps> {
           <span
             class='collapse-tag'
             v-bk-tooltips={{
-              content: this.ellipsisTip ? this.ellipsisTip(ellipsisList) : ellipsisList.join(','),
+              content: this.ellipsisTip ? this.ellipsisTip(ellipsisList) : ellipsisList.join(', '),
               theme: 'dark text-wrap max-width-50vw',
               delay: 300,
             }}
@@ -261,6 +267,14 @@ export default class CollapseTags extends tsc<CollapseTagsProps> {
             +{collapseCount}
           </span>
         )}
+        {(this.$scopedSlots as any)?.after ? (
+          <span
+            ref='afterSlotContainerRef'
+            class='after-slot-container'
+          >
+            {(this.$scopedSlots as any)?.after(this.data, ellipsisList)}
+          </span>
+        ) : null}
         <span
           ref='maxCountCollectTagRef'
           class='collapse-tag collapse-tag-fill'
