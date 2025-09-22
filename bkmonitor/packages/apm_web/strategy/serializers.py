@@ -272,7 +272,7 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
         user_group_ids = set(
             user_group_id for obj in self._strategy_template_objs for user_group_id in obj.user_group_ids
         )
-        return self.get_user_groups(user_group_ids)
+        return get_user_groups(user_group_ids)
 
     @cached_property
     def _strategy_instances(self) -> list[dict[str, int | str]]:
