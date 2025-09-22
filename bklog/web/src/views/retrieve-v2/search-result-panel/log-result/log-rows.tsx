@@ -102,7 +102,7 @@ export default defineComponent({
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
       stopPropagation: true,
-      onclick: args => {
+      onclick: (...args) => {
         const type = args[1];
         handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
         popInstanceUtil.hide();
