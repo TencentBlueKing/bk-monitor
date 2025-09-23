@@ -64,5 +64,5 @@ class QueryTemplateWrapperFactory(BaseQueryTemplateWrapperFactory):
 
         miss_keys: set[tuple[int, str]] = set(keys) - set(wrappers.keys())
         if miss_keys:
-            wrappers.update(cls._LOCAL_FACTORY.get_wrappers(list(miss_keys)))
+            wrappers.update(QueryTemplateWrapper.from_unique_keys(list(miss_keys)))
         return wrappers
