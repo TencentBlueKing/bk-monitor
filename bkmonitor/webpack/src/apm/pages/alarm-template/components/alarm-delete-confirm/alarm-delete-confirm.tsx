@@ -40,22 +40,32 @@ export interface AlarmDeleteConfirmEvent {
   successCallback: () => void;
 }
 interface AlarmDeleteConfirmEmit {
+  /** 取消按钮点击事件 */
   onCancel: () => void;
+  /** 确认按钮点击事件 */
   onConfirm: (templateId: AlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) => void;
 }
 
 interface AlarmDeleteConfirmProps {
+  /** 想要删除的 告警模板ID */
   templateId: AlarmTemplateListItem['id'];
+  /** 想要删除的 告警模板名称 */
   templateName: AlarmTemplateListItem['name'];
 }
 
 @Component
 export default class AlarmDeleteConfirm extends tsc<AlarmDeleteConfirmProps, AlarmDeleteConfirmEmit> {
+  /** 想要删除的 告警模板ID */
   @Prop({ type: [String, Number] }) templateId: AlarmTemplateListItem['id'];
+  /** 想要删除的 告警模板名称 */
   @Prop({ type: String }) templateName: AlarmTemplateListItem['name'];
+
   /** 是否在请求删除状态中 */
   loading = false;
 
+  /**
+   * @description 点击取消按钮，触发取消操作
+   */
   @Emit('cancel')
   cancel() {
     return;
