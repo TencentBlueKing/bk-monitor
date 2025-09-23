@@ -678,7 +678,6 @@ export default defineComponent({
     };
 
     const handleInputChange = (e: any) => {
-      console.log('handleInputChange', e);
       bizInputStr.value = e?.data ?? '';
     };
 
@@ -1041,7 +1040,6 @@ export default defineComponent({
                           multiple
                           searchable
                           onChange={v => {
-                            console.log('---', v);
                             visibleBkBiz.value = v;
                           }}
                         ></bk-select>
@@ -1058,7 +1056,6 @@ export default defineComponent({
                             value={bkBizLabelsList.value}
                             clearable
                             onChange={(val: any[]) => {
-                              console.log('onChange', val);
                               bkBizLabelsList.value = val;
                             }}
                             onInput-change={handleInputChange}
