@@ -55,6 +55,7 @@ interface TemplateFormEvents {
 
 interface TemplateFormProps {
   data: EditTemplateFormData;
+  labelWidth?: number;
   metricFunctions?: any[];
   scene: 'edit' | 'view';
   variablesList: VariableModelType[];
@@ -70,6 +71,8 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
   @Prop({ default: () => [] }) variablesList: VariableModelType[];
   /** 函数列表 */
   @Prop({ default: () => [] }) metricFunctions!: any[];
+  @Prop({ default: 122 }) labelWidth!: number;
+
   /** 模板表单 */
   @Ref('templateForm') templateFormRef;
 
@@ -159,7 +162,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         type: this.data?.detect?.type,
         config: {
           ...this.data?.detect?.config,
-          trigger_count: value,
+          trigger_check_window: value,
         },
       });
     }
@@ -263,7 +266,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
             rules: this.rules,
           },
         }}
-        label-width={122}
+        label-width={this.labelWidth}
       >
         <bk-form-item
           class='form-item-text'
@@ -378,17 +381,20 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
             />
           </bk-form-item>
         ))}
-        <bk-form-item
-          class='mt24'
-          label={this.$tc('自动下发')}
-          property='is_auto_apply'
-        >
-          <bk-switcher
-            theme='primary'
-            value={this.data?.is_auto_apply}
-            onChange={this.handleChangeAutoApply}
-          />
-        </bk-form-item>
+        {this.scene === 'edit' && (
+          <bk-form-item
+            class='mt24'
+            label={this.$tc('自动下发')}
+            property='is_auto_apply'
+          >
+            <bk-switcher
+              theme='primary'
+              value={this.data?.is_auto_apply}
+              onChange={this.handleChangeAutoApply}
+            />
+          </bk-form-item>
+        )}
+
         {this.scene === 'edit' && (
           <bk-form-item
             class='submit-btns'

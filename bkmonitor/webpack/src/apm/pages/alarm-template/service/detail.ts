@@ -1,3 +1,4 @@
+import { CancelToken } from 'monitor-api/cancel';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { alertsStrategyTemplate, retrieveStrategyTemplate } from 'monitor-api/modules/model';
+import { alertsStrategyTemplate, previewStrategyTemplate, retrieveStrategyTemplate } from 'monitor-api/modules/model';
 import { getCreateVariableParams, getVariableModel } from 'monitor-pc/pages/query-template/variables';
 
 import type { TemplateDetail } from '../components/template-form/typing';
@@ -36,11 +37,48 @@ import type { TemplateDetail } from '../components/template-form/typing';
 export const getAlarmTemplateDetail = async (params: { app_name: string; id: number }) => {
   const detailData: TemplateDetail = await retrieveStrategyTemplate(params.id, { app_name: params.app_name });
   const createVariableParams = await getCreateVariableParams(detailData.query_template?.variables || []);
-  console.log(detailData, createVariableParams);
   const variablesList = createVariableParams.map(item =>
     getVariableModel({ ...item, value: detailData.context[item.name.slice(2, item.name.length - 1)] })
   );
   return {
+    detailData,
+    variablesList,
+  };
+};
+
+let templateCancelFn = null;
+let templateRequestCount = 0;
+export const getTemplatePreview = async (params: {
+  app_name: string;
+  service_name: string;
+  strategy_template_id: number;
+}) => {
+  templateRequestCount += 1;
+  const count = templateRequestCount;
+  templateCancelFn?.();
+  let success = true;
+  const detailData: TemplateDetail = await previewStrategyTemplate(params, {
+    cancelToken: new CancelToken(c => {
+      templateCancelFn = c;
+    }),
+  }).catch(() => {
+    success = false;
+    return false;
+  });
+
+  let variablesList = [];
+  if (success) {
+    const createVariableParams = await getCreateVariableParams(detailData.query_template?.variables || []).catch(() => {
+      success = false;
+      return [];
+    });
+    variablesList = createVariableParams.map(item =>
+      getVariableModel({ ...item, value: detailData.context[item.name.slice(2, item.name.length - 1)] })
+    );
+  }
+  return {
+    success,
+    isCancel: count !== templateRequestCount,
     detailData,
     variablesList,
   };
