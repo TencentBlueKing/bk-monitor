@@ -24,14 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { random } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 
 import {
+  ALARM_TEMPLATE_TABLE_FILTER_FIELDS,
   AlarmTemplateDetailTabEnum,
   AlarmTemplateTypeEnum,
   AlarmTemplateTypeMap,
@@ -46,6 +48,7 @@ import DetectionAlgorithmsGroup from '../detection-algorithms-group/detection-al
 import { TemplateTypeMap } from '../template-form/typing';
 
 import type {
+  AlarmTemplateConditionParamItem,
   AlarmTemplateDetailTabEnumType,
   AlarmTemplateField,
   AlarmTemplateListItem,
@@ -71,6 +74,8 @@ interface AlarmTemplateTableEmits {
   onDispatch: (templateId: AlarmTemplateListItem['id']) => void;
   /** 编辑告警模板事件回调 */
   onEditTemplate: (templateId: AlarmTemplateListItem['id']) => void;
+  /** 筛选条件变更事件回调 */
+  onFilterChange: (filters: AlarmTemplateConditionParamItem[]) => void;
   /** 行勾选事件回调 */
   onSelectedChange: (selectedRowKeys: AlarmTemplateListItem['id'][]) => void;
   /** 打开告警模板详情抽屉页 */
@@ -87,6 +92,8 @@ interface AlarmTemplateTableProps {
   emptyType: 'empty' | 'search-empty';
   /** 表格加载状态 */
   loading: boolean;
+  /** 搜索关键字 */
+  searchKeyword: AlarmTemplateConditionParamItem[];
   /** 候选值映射表 */
   selectOptionMap: Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>;
   /** 表格数据 */
@@ -106,9 +113,13 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   @Prop({ type: Array, default: () => [] }) tableData: AlarmTemplateListItem[];
   /** 空数据类型 */
   @Prop({ type: String, default: 'empty' }) emptyType: 'empty' | 'search-empty';
+  /** 搜索关键字 */
+  @Prop({ type: Array, default: () => [] }) searchKeyword!: AlarmTemplateConditionParamItem[];
   /** 候选值映射表 */
   @Prop({ type: Object, default: () => {} }) selectOptionMap: Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>;
 
+  /** 强制刷新表格(主要处理表格表头筛选没有响应式问题) */
+  refreshKey = random(8);
   /** dialog 弹窗所需配置项 */
   templateDialogConfig: AlarmTemplateConfigDialogProps = null;
   /** 是否出于请求删除接口中状态 */
@@ -160,7 +171,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     user_group_list: {
       id: 'user_group_list',
       label: this.$t('告警组'),
-      width: 200,
+      width: 258,
       filters: [],
       filterMultiple: true,
       formatter: this.userGroupColRenderer,
@@ -170,6 +181,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       label: this.$t('启用 / 禁用'),
       width: 120,
       filters: [],
+      // filterMultiple: false,
+      filterMultiple: true,
       formatter: this.switcherColRenderer,
     },
     is_auto_apply: {
@@ -177,6 +190,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       label: this.$t('自动下发'),
       width: 120,
       filters: [],
+      // filterMultiple: false,
+      filterMultiple: true,
       formatter: this.switcherColRenderer,
     },
     operator: {
@@ -216,7 +231,27 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   handleSelectedChange(selectedRow: AlarmTemplateListItem[]) {
     return selectedRow?.map(e => e?.id);
   }
-
+  /**
+   * @description 表格列筛选事件回调
+   */
+  @Emit('filterChange')
+  handleFilterChange(filter: Record<string, string[]>) {
+    const filters = structuredClone(this.searchKeyword || []);
+    const targetItem = Object.entries(filter)[0];
+    const targetKey = targetItem[0];
+    const targetValue = targetItem[1];
+    const targetIndex = filters.findIndex(e => e.key === targetKey);
+    if (targetIndex > -1) {
+      if (targetValue?.length === 0) {
+        filters.splice(targetIndex, 1);
+      } else {
+        filters[targetIndex].value = targetValue;
+      }
+    } else if (targetValue?.length > 0) {
+      filters.push({ key: targetKey, value: targetValue });
+    }
+    return filters;
+  }
   /**
    * @description 下发事件回调
    */
@@ -263,6 +298,11 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   @Emit('clearSearch')
   clearSearch() {
     return;
+  }
+
+  @Watch('tableData')
+  handleDataChange() {
+    this.refreshKey = random(8);
   }
 
   /**
@@ -516,15 +556,21 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     const value = row[columnKey] || [];
     return (
       <div class='user-group-list-col'>
-        <CollapseTags data={value?.map(e => e.name) || []} />
-        <div
-          class='edit-btn'
-          onClick={() =>
-            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
-          }
-        >
-          <i class='icon-monitor icon-bianji' />
-        </div>
+        <CollapseTags
+          scopedSlots={{
+            after: () => (
+              <div
+                class='edit-btn'
+                onClick={() =>
+                  this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+                }
+              >
+                <i class='icon-monitor icon-bianji' />
+              </div>
+            ),
+          }}
+          data={value?.map(e => e.name) || []}
+        />
       </div>
     );
   }
@@ -541,7 +587,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         <bk-switcher
           v-bk-tooltips={{ content: this.$t('该模板已禁用，无法下发'), disabled: !switcherDisabled }}
           disabled={switcherDisabled}
-          pre-check={() => this.handleSwitcherChange(row.id, value, columnKey)}
+          pre-check={lastValue => this.handleSwitcherChange(row.id, lastValue, columnKey)}
           size='small'
           theme='primary'
           value={value}
@@ -616,6 +662,10 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   }
 
   transformColumn(column) {
+    let filteredValue = null;
+    if (ALARM_TEMPLATE_TABLE_FILTER_FIELDS.has(column.id)) {
+      filteredValue = this.searchKeyword.find(item => item.key === column.id)?.value || [];
+    }
     return (
       <bk-table-column
         key={`column_${column.id}`}
@@ -623,6 +673,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         align={column.align}
         column-key={column.id}
         filter-multiple={column.filterMultiple}
+        filtered-value={filteredValue}
         filters={column.filters}
         fixed={column.fixed}
         formatter={column.formatter || this.defaultRenderer}
@@ -641,6 +692,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     return (
       <div class='alarm-template-container'>
         <bk-table
+          key={this.refreshKey}
           ref='tableRef'
           height='100%'
           class={`alarm-template-table ${this.tableLoadingActiveClassConfig}`}
@@ -648,6 +700,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
           border={false}
           data={this.tableData}
           outer-border={false}
+          on-filter-change={this.handleFilterChange}
           on-selection-change={this.handleSelectedChange}
         >
           <bk-table-column
