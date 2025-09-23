@@ -194,7 +194,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         # 批量查询启用的策略
         applied_strategy_ids = [instance.strategy_id for instance in strategy_instances]
         enabled_strategies_data = resource.strategies.plain_strategy_list_v2(
-            bk_biz_id=bk_biz_id, ids=applied_strategy_ids, is_enabled=True
+            bk_biz_id=bk_biz_id, ids=applied_strategy_ids
         )
         enabled_strategies_ids = set(strategy["id"] for strategy in enabled_strategies_data)
 
