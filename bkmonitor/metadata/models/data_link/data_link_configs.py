@@ -360,7 +360,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
         storage_cluster_name,
         write_alias_format,
         unique_field_list,
-        json_field_list: list[str] | None,
+        json_field_list: list[str] | None = None,
     ):
         """
         结果表- ES存储关联关系

@@ -55,6 +55,7 @@ class DataLink(models.Model):
     涵盖资源配置按需组装 -> 下发配置申请链路 ->同步元数据 全流程
     """
 
+    BK_STANDARD_V2_EVENT = "bk_standard_v2_event"
     BK_STANDARD_V2_TIME_SERIES = "bk_standard_v2_time_series"  # 标准单指标单表时序链路
     BK_EXPORTER_TIME_SERIES = "bk_exporter_time_series"  # 采集插件 -- 固定指标单表(metric_name)时序链路
     BK_STANDARD_TIME_SERIES = "bk_standard_time_series"  # 采集插件 -- 固定指标单表(metric_name)时序链路
@@ -67,6 +68,7 @@ class DataLink(models.Model):
     BK_LOG = "bk_log"  # 日志链路
 
     DATA_LINK_STRATEGY_CHOICES = (
+        (BK_STANDARD_V2_EVENT, "标准自定义事件链路"),
         (BK_STANDARD_V2_TIME_SERIES, "标准单指标单表时序数据链路"),
         (BK_EXPORTER_TIME_SERIES, "采集插件时序数据链路"),
         (BK_STANDARD_TIME_SERIES, "STANDARD采集插件时序数据链路"),
@@ -96,6 +98,7 @@ class DataLink(models.Model):
         SYSTEM_PROC_PERF: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PORT: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
         BK_LOG: [LogResultTableConfig, ESStorageBindingConfig, LogDataBusConfig],
+        BK_STANDARD_V2_EVENT: [LogResultTableConfig, ESStorageBindingConfig, LogDataBusConfig],
     }
 
     STORAGE_TYPE_MAP = {
@@ -109,6 +112,7 @@ class DataLink(models.Model):
         SYSTEM_PROC_PERF: ClusterInfo.TYPE_VM,
         SYSTEM_PROC_PORT: ClusterInfo.TYPE_VM,
         BK_LOG: ClusterInfo.TYPE_ES,
+        BK_STANDARD_V2_EVENT: ClusterInfo.TYPE_ES,
     }
 
     DATABUS_TRANSFORMER_FORMAT = {
@@ -150,8 +154,100 @@ class DataLink(models.Model):
                 self.compose_system_proc_configs, data_link_strategy=DataLink.SYSTEM_PROC_PORT
             ),
             DataLink.BK_LOG: self.compose_log_configs,
+            DataLink.BK_STANDARD_V2_EVENT: self.compose_custom_event_configs,
         }
         return switcher[self.data_link_strategy](*args, **kwargs)
+
+    def compose_custom_event_configs(
+        self,
+        bk_biz_id: int,
+        data_source: "DataSource",
+        table_id: str,
+    ) -> list[dict[str, Any]]:
+        """生成自定义事件链路
+
+        Args:
+            bk_biz_id: 业务ID
+            data_source: 数据源
+            table_id: 结果表ID
+        """
+        from metadata.models import ResultTableOption
+
+        logger.info(
+            "compose_custom_event_configs: data_link_name->[%s],bk_biz_id->[%s],data_source->[%s],table_id->[%s]",
+            self.data_link_name,
+            bk_biz_id,
+            data_source,
+            table_id,
+        )
+
+        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
+        es_storage = ESStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
+        if not es_storage:
+            raise ValueError("compose_custom_event_configs: lack storage config")
+
+        config_list = []
+        with transaction.atomic():
+            es_table_ins, _ = LogResultTableConfig.objects.get_or_create(
+                name=self.data_link_name,
+                namespace=self.namespace,
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                data_link_name=self.data_link_name,
+            )
+
+            es_storage_ins, _ = ESStorageBindingConfig.objects.get_or_create(
+                name=self.data_link_name,
+                namespace=self.namespace,
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                data_link_name=self.data_link_name,
+                es_cluster_name=es_storage.storage_cluster.cluster_name,
+                timezone=es_storage.time_zone,  # 时区,默认0时区
+            )
+
+            fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
+            index_name = table_id.replace(".", "_")
+            write_alias = f"write_%Y%m%d_{index_name}"
+            unique_field_list = json.loads(
+                ResultTableOption.objects.get(table_id=table_id, name="es_unique_field_list").value
+            )
+
+            databus_ins, _ = LogDataBusConfig.objects.get_or_create(
+                name=self.data_link_name,
+                namespace=self.namespace,
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                data_link_name=self.data_link_name,
+                data_id_name=bkbase_data_name,
+            )
+
+            es_rt_config = es_table_ins.compose_config(fields=fields)
+            es_binding_config = es_storage_ins.compose_config(
+                storage_cluster_name=es_storage.storage_cluster.cluster_name,
+                write_alias_format=write_alias,
+                unique_field_list=unique_field_list,
+            )
+            databus_config = databus_ins.compose_config(
+                sinks=[
+                    {
+                        "kind": DataLinkKind.ESSTORAGEBINDING.value,
+                        "name": es_storage_ins.name,
+                        "namespace": self.namespace,
+                    }
+                ],
+                # todo: 自定义事件清洗逻辑
+                rules=[],
+            )
+
+            config_list.extend([es_rt_config, es_binding_config, databus_config])
+            logger.info(
+                "compose_base_event_configs: data_link_name->[%s] composed configs successfully,config_list->[%s]",
+                self.data_link_name,
+                config_list,
+            )
+
+        return []
 
     def compose_log_configs(
         self,
