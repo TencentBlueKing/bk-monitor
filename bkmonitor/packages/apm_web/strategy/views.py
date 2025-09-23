@@ -8,10 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import datetime
 from typing import Any
 
 from django.db.models import Q, QuerySet
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -167,12 +167,12 @@ class StrategyTemplateViewSet(GenericViewSet):
         methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateBatchPartialUpdateRequestSerializer
     )
     def batch_partial_update(self, *args, **kwargs) -> Response:
-        update_user = get_global_user()
+        update_user: str | None = get_global_user()
         if not update_user:
             raise ValueError(_("未获取到用户信息"))
-        edit_data = self.query_data["edit_data"]
+        edit_data: dict[str, Any] = self.query_data["edit_data"]
         edit_data["update_user"] = update_user
-        edit_data["update_time"] = datetime.datetime.now()
+        edit_data["update_time"] = timezone.now()
         strategy_template_qs = self.get_queryset().filter(id__in=self.query_data["ids"])
         strategy_template_qs.update(**edit_data)
         return Response({"ids": list(strategy_template_qs.values_list("id", flat=True))})
