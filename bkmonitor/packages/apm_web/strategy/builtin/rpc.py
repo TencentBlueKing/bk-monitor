@@ -15,6 +15,8 @@ from constants.apm import CachedEnum
 from constants.query_template import GLOBAL_BIZ_ID
 from bkmonitor.query_template.builtin.apm import APMQueryTemplateName
 
+from apm_web.strategy.query_template.local import LocalQueryTemplateName
+
 from django.utils.translation import gettext as _
 
 from . import base, utils
@@ -34,6 +36,8 @@ class RPCStrategyTemplateCode(CachedEnum):
     RPC_CALLER_AVG_TIME = "rpc_caller_avg_time"
     RPC_CALLER_P99 = "rpc_caller_p99"
     RPC_CALLER_ERROR_CODE = "rpc_caller_error_code"
+    RPC_ERROR_METRIC_PANIC = "rpc_error_metric_panic"
+    RPC_ERROR_LOG_PANIC = "rpc_error_log_panic"
 
     @cached_property
     def label(self) -> str:
@@ -47,6 +51,8 @@ class RPCStrategyTemplateCode(CachedEnum):
                 self.RPC_CALLER_AVG_TIME: _("主调平均耗时告警"),
                 self.RPC_CALLER_P99: _("主调 P99 耗时告警"),
                 self.RPC_CALLER_ERROR_CODE: _("主调错误码告警"),
+                self.RPC_ERROR_METRIC_PANIC: _("Panic 指标告警"),
+                self.RPC_ERROR_LOG_PANIC: _("Panic 日志关键字告警"),
             }.get(self, self.value)
         )
 
@@ -163,6 +169,32 @@ RPC_CALLER_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
     "context": _get_common_context(),
 }
 
+RPC_ERROR_METRIC_PANIC_STRATEGY_TEMPLATE: dict[str, Any] = {
+    "code": RPCStrategyTemplateCode.RPC_ERROR_METRIC_PANIC.value,
+    "name": RPCStrategyTemplateCode.RPC_ERROR_METRIC_PANIC.label,
+    "category": constants.StrategyTemplateCategory.RPC_ERROR.value,
+    "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
+    "detect": utils.detect_config(5, 1, 1),
+    "algorithms": [
+        utils.fatal_threshold_algorithm_config(method="gte", threshold=1),
+    ],
+    "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.CUSTOM_METRIC_PANIC.value},
+    "context": {},
+}
+
+RPC_ERROR_LOG_PANIC_STRATEGY_TEMPLATE: dict[str, Any] = {
+    "code": RPCStrategyTemplateCode.RPC_ERROR_LOG_PANIC.value,
+    "name": RPCStrategyTemplateCode.RPC_ERROR_LOG_PANIC.label,
+    "category": constants.StrategyTemplateCategory.RPC_ERROR.value,
+    "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
+    "detect": utils.detect_config(5, 1, 1),
+    "algorithms": [
+        utils.fatal_threshold_algorithm_config(method="gte", threshold=1),
+    ],
+    "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": LocalQueryTemplateName.RPC_PANIC_LOG.value},
+    "context": {},
+}
+
 
 class RPCStrategyTemplateSet(base.StrategyTemplateSet):
     SYSTEM: constants.StrategyTemplateSystem = constants.StrategyTemplateSystem.RPC
@@ -173,6 +205,8 @@ class RPCStrategyTemplateSet(base.StrategyTemplateSet):
         RPCStrategyTemplateCode.RPC_CALLEE_P99.value,
         RPCStrategyTemplateCode.RPC_CALLER_SUCCESS_RATE.value,
         RPCStrategyTemplateCode.RPC_CALLER_P99.value,
+        RPCStrategyTemplateCode.RPC_ERROR_LOG_PANIC.value,
+        RPCStrategyTemplateCode.RPC_ERROR_METRIC_PANIC.value,
     ]
 
     STRATEGY_TEMPLATES: list[dict[str, Any]] = [
@@ -184,4 +218,6 @@ class RPCStrategyTemplateSet(base.StrategyTemplateSet):
         RPC_CALLER_AVG_TIME_STRATEGY_TEMPLATE,
         RPC_CALLER_P99_STRATEGY_TEMPLATE,
         RPC_CALLER_ERROR_CODE_STRATEGY_TEMPLATE,
+        RPC_ERROR_LOG_PANIC_STRATEGY_TEMPLATE,
+        RPC_ERROR_METRIC_PANIC_STRATEGY_TEMPLATE,
     ]

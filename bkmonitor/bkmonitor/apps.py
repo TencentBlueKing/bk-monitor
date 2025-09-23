@@ -107,6 +107,6 @@ def _migrate_iam(sender, **kwargs):
 
 
 def _register_builtin_templates(sender, **kwargs):
-    from bkmonitor.query_template.builtin.registry import register_builtin_templates
+    from bkmonitor.query_template.builtin import register_builtin_templates
 
     register_builtin_templates()
