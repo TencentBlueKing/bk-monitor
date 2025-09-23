@@ -66,12 +66,12 @@ class QuickAddStrategy extends Mixins(
   templateList = [];
   alarmGroupList: IAlarmGroupList[] = [];
   alarmGroupLoading = false;
-  cursorId = '';
+  cursorId: number = undefined;
   cursorItem: ITempLateItem = null;
   /** 模板详情 */
   templateDetail: Record<number, EditTemplateFormData> = {};
   /** 修改模板的某些值 */
-  editTemplateFormData: Record<number, Partial<EditTemplateFormData>> = {};
+  editTemplateFormData: Record<number, Partial<EditTemplateFormData & { context: Record<string, any> }>> = {};
   /** 模板变量列表 */
   variablesList: Record<number, VariableModelType[]> = {};
   /** 模板详情loading */
@@ -204,7 +204,14 @@ class QuickAddStrategy extends Mixins(
       app_name: this.params?.app_name,
       service_names: [this.params?.service_name],
       strategy_template_ids: this.checkedList,
-      extra: [],
+      extra: Object.keys(this.editTemplateFormData).reduce((pre, cur) => {
+        pre.push({
+          ...this.editTemplateFormData[cur],
+          strategy_template_id: cur,
+          service_name: this.params?.service_name,
+        });
+        return pre;
+      }, []),
       global: this.globalParams || undefined,
     };
     const res = await applyStrategyTemplate(params)
@@ -250,23 +257,6 @@ class QuickAddStrategy extends Mixins(
       title: this.$t('批量创建策略成功'),
       okText: this.$t('留在当前页'),
       width: 480,
-      confirmFn: () => {
-        const params = {
-          app_name: this.params?.app_name,
-          service_names: [this.params?.service_name],
-          strategy_template_ids: this.checkedList,
-          extra: Object.keys(this.editTemplateFormData).reduce((pre, cur) => {
-            pre.push({
-              ...this.editTemplateFormData[cur],
-              strategy_template_id: cur,
-              service_name: this.params?.service_name,
-            });
-            return pre;
-          }, []),
-          global: this.globalParams,
-        };
-        console.log('confirmFn', params);
-      },
       cancelFn: () => {
         window.open(location.href.replace(location.hash, '#/strategy-config'));
         return true;
@@ -393,6 +383,7 @@ class QuickAddStrategy extends Mixins(
                     onAlarmGroupChange={this.handleAlarmGroupChange}
                     onAlgorithmsChange={this.handleAlgorithmsChange}
                     onDetectChange={this.handleDetectChange}
+                    onVariableValueChange={this.handleVariableValueChange}
                   />
                 )}
               </div>,
