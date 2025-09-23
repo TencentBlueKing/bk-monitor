@@ -96,48 +96,51 @@ export const SEARCH_SELECT_OPTIONS = [
   {
     name: window.i18n.t('全文检索'),
     id: 'query',
-    multiable: true,
+    multiple: true,
   },
   {
     name: window.i18n.t('模板名称'),
     id: 'name',
-    multiable: false,
+    multiple: true,
     children: [],
   },
   {
     name: window.i18n.t('模板类型'),
     id: 'system',
-    multiable: true,
+    multiple: true,
     onlyRecommendChildren: true,
     children: [],
   },
   {
     name: window.i18n.t('最近更新人'),
     id: 'update_user',
-    multiable: true,
+    multiple: true,
     children: [],
   },
   {
     name: window.i18n.t('关联服务'),
     id: 'applied_service_names',
-    multiable: true,
+    multiple: true,
     children: [],
   },
   {
     name: window.i18n.t('告警组'),
     id: 'user_group_list',
-    multiable: true,
+    multiple: true,
     onlyRecommendChildren: true,
     children: [],
   },
   {
     name: window.i18n.t('启停'),
     id: 'is_enabled',
-    multiable: false,
+    multiple: true,
     onlyRecommendChildren: true,
     children: [],
   },
 ];
+
+/** 告警模板列表-表格表头允许筛选操作的字段 */
+export const ALARM_TEMPLATE_TABLE_FILTER_FIELDS = new Set(['system', 'user_group_list', 'is_enabled', 'is_auto_apply']);
 
 /** 告警模板类型 Map */
 export const AlarmTemplateTypeMap: Record<'all' | AlarmTemplateTypeEnumType, ITableFilterItem> = {
