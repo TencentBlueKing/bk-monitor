@@ -44,8 +44,8 @@ export default class AIWhaleIcon extends tsc<AIWhaleIconProps> {
   @Prop({ default: '' }) tip?: string; // 提示信息
   // 是否显示AI智能助手
   get enableAiAssistant() {
-    // return false; // 暂时不上线 等ai小鲸新模型调试好后
-    return aiWhaleStore.enableAiAssistant;
+    return false; // 暂时不上线 等ai小鲸新模型调试好后
+    // return aiWhaleStore.enableAiAssistant;
   }
   /* 图标点击事件 */
   handleClick() {
