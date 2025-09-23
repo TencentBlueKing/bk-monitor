@@ -17,8 +17,11 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.serializers import Serializer, ValidationError
 
+from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
+from constants.alert import EventStatus
+from core.drf_resource import resource
 
 from . import mock_data, serializers
 from apm_web.models import StrategyTemplate, StrategyInstance
@@ -177,13 +180,79 @@ class StrategyTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateAlertsRequestSerializer)
     def alerts(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response(
-                {
-                    "list": mock_data.STRATEGY_TEMPLATE_RELATION_ALERTS,
-                }
+        bk_biz_id = self.query_data.get("bk_biz_id")
+        app_name = self.query_data.get("app_name")
+        template_ids = self.query_data.get("template_ids", [])
+        need_strategies = self.query_data.get("need_strategies", False)
+
+        # 查询启用的策略模板
+        enabled_templates = self.get_queryset()
+        # 查询策略实例，关联启用的策略模板
+        strategy_instances = StrategyInstance.objects.filter(
+            strategy_template_id__in=enabled_templates, bk_biz_id=bk_biz_id, app_name=app_name
+        )
+        # 批量查询启用的策略
+        applied_strategy_ids = [instance.strategy_id for instance in strategy_instances]
+        enabled_strategies_data = resource.strategies.plain_strategy_list_v2(
+            bk_biz_id=bk_biz_id, ids=applied_strategy_ids, is_enabled=True
+        )
+        enabled_strategies_ids = set(strategy["id"] for strategy in enabled_strategies_data)
+
+        # 获取启用的策略ID和模板映射
+        enabled_template_strategy_map = {}
+        for instance in strategy_instances:
+            # 只处理启用的策略实例
+            if instance.strategy_id not in enabled_strategies_ids:
+                continue
+            enabled_template_strategy_map.setdefault(instance.strategy_template_id, []).append(
+                {"strategy_id": instance.strategy_id, "service_name": instance.service_name}
             )
-        return Response({})
+
+        # 查询告警数量
+        alert_numbers = {}
+        if enabled_strategies_ids:
+            search_object = (
+                AlertDocument.search(all_indices=True)
+                .filter("term", **{"event.bk_biz_id": bk_biz_id})
+                .filter("term", status=EventStatus.ABNORMAL)
+                .filter("terms", strategy_id=enabled_strategies_ids)[:0]
+            )
+            search_object.aggs.bucket("strategy_id", "terms", field="strategy_id", size=10000)
+            search_result = search_object.execute()
+
+            if search_result.aggs:
+                for bucket in search_result.aggs.strategy_id.buckets:
+                    alert_numbers[int(bucket.key)] = bucket.doc_count
+
+        # 构建响应数据
+        result_list = []
+        for template_id in template_ids:
+            if template_id not in enabled_template_strategy_map:
+                template_alert_info = {"id": template_id, "alert_number": 0}
+                if need_strategies:
+                    template_alert_info["strategies"] = []
+                result_list.append(template_alert_info)
+                continue
+
+            template_alert_number = 0
+            strategies_data = []
+            for strategy_info in enabled_template_strategy_map[template_id]:
+                strategy_id = strategy_info["strategy_id"]
+                service_name = strategy_info["service_name"]
+                alert_number = alert_numbers.get(strategy_id, 0)
+                template_alert_number += alert_number
+
+                if need_strategies:
+                    strategies_data.append(
+                        {"strategy_id": strategy_id, "alert_number": alert_number, "service_name": service_name}
+                    )
+
+            template_alert_info = {"id": template_id, "alert_number": template_alert_number}
+            if need_strategies:
+                template_alert_info["strategies"] = strategies_data
+            result_list.append(template_alert_info)
+
+        return Response({"list": result_list})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateOptionValuesRequestSerializer)
     def option_values(self, *args, **kwargs) -> Response:
