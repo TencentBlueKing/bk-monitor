@@ -14,18 +14,12 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from django.utils.functional import cached_property
 
-from bkmonitor.models import UserGroup, AlgorithmModel
+from bkmonitor.models import AlgorithmModel
 from bkmonitor.strategy.serializers import allowed_threshold_method
 
 from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
-
-
-def get_user_groups(user_group_ids: Iterable[int]) -> dict[int, dict[str, int | str]]:
-    return {
-        user_group["id"]: user_group
-        for user_group in UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
-    }
+from apm_web.strategy.handler import get_user_groups
 
 
 class DetectSerializer(serializers.Serializer):
