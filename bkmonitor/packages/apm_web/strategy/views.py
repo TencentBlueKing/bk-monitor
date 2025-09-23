@@ -25,6 +25,7 @@ from bkmonitor.utils.user import get_global_user
 from . import mock_data, serializers
 from apm_web.models import StrategyTemplate, StrategyInstance
 from apm_web.strategy.constants import StrategyTemplateType
+from apm_web.handlers.strategy_handler.option_values import StrategyTemplateOptionValues, StrategyInstanceOptionValues
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -195,6 +196,23 @@ class StrategyTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateOptionValuesRequestSerializer)
     def option_values(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response(mock_data.STRATEGY_TEMPLATE_OPTION_VALUES)
-        return Response({})
+        template_fields = []
+        instance_fields = []
+        for field_name in self.query_data["fields"]:
+            if field_name in StrategyTemplateOptionValues.SUPPORT_FIELDS:
+                template_fields.append(field_name)
+            elif field_name in StrategyInstanceOptionValues.SUPPORT_FIELDS:
+                instance_fields.append(field_name)
+
+        strategy_template_qs = self.get_queryset()
+        strategy_instance_qs = StrategyInstance.objects.filter(strategy_template_id__in=strategy_template_qs)
+
+        option_values = {}
+        option_values.update(
+            StrategyTemplateOptionValues(strategy_template_qs).get_fields_option_values(template_fields)
+        )
+        option_values.update(
+            StrategyInstanceOptionValues(strategy_instance_qs).get_fields_option_values(instance_fields)
+        )
+
+        return Response(option_values)
