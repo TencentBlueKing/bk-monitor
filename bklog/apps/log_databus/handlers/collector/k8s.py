@@ -300,8 +300,9 @@ class K8sCollectorHandler(CollectorHandler):
             raise CollectorConfigNameDuplicateException()
 
         # 更新归属索引集
-        index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id)
-        index_set.update_belonging_set(data.get("belong_index_set_id"))
+        index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
+        if index_set:
+            index_set.update_belonging_set(data.get("belong_index_set_id"))
         # collector_config_name更改后更新索引集名称
         if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
             index_set_name = _("[采集项]") + self.data.collector_config_name

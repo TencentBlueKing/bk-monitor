@@ -508,7 +508,7 @@ class UpdateContainerCollectorSerializer(serializers.Serializer):
     extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
-    belong_index_set_id = serializers.IntegerField(label=_("归属索引集"), default=None)
+    belong_index_set_id = serializers.IntegerField(label=_("归属索引集"), default=None, allow_null=True)
 
     def validate_yaml_config(self, value):
         try:
@@ -1778,7 +1778,7 @@ class LogCollectorSerializer(serializers.Serializer):
         key = serializers.CharField(required=True)
         value = serializers.ListField(required=True)
 
-    belong_index_set_id = serializers.IntegerField(label=_("归属索引集(索引组)ID"), required=False)
+    belong_index_set_id = serializers.IntegerField(label=_("归属索引集(索引组)ID"), default=None, allow_null=True)
     space_uid = SpaceUIDField(label=_("空间唯一标识"))
     page = serializers.IntegerField(label=_("分页"), min_value=1)
     pagesize = serializers.IntegerField(label=_("分页大小"), min_value=1)
