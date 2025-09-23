@@ -81,6 +81,28 @@ class BaseServiceStrategyTemplateRequestSerializer(BaseAppStrategyTemplateReques
     service_name = serializers.CharField(label=_("服务名称"))
 
 
+class BaseEditDataSerializer(serializers.Serializer):
+    def validate(self, attrs: dict) -> dict:
+        if attrs.get("is_enabled") is False:
+            if attrs.get("is_auto_apply") is True:
+                raise serializers.ValidationError(_("策略模板禁用时，不允许配置自动下发"))
+            attrs["is_auto_apply"] = False
+        user_group_list: list[dict[str, int | str]] | None = attrs.pop("user_group_list", None)
+        if user_group_list is not None:
+            user_groups = get_user_groups([user_group_dict["id"] for user_group_dict in user_group_list])
+            not_exist_names = [
+                user_group_dict["name"]
+                for user_group_dict in user_group_list
+                if user_group_dict["id"] not in user_groups
+            ]
+            if not_exist_names:
+                raise serializers.ValidationError(
+                    _("不存在名称为 {names} 的告警组").format(names=", ".join(not_exist_names))
+                )
+            attrs["user_group_ids"] = [user_group_dict["id"] for user_group_dict in user_group_list]
+        return super().validate(attrs)
+
+
 class StrategyTemplatePreviewRequestSerializer(BaseServiceStrategyTemplateRequestSerializer):
     strategy_template_id = serializers.IntegerField(label=_("策略模板 ID"), min_value=1)
 
@@ -173,7 +195,7 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
     simple = serializers.BooleanField(label=_("是否仅返回概要信息"), default=False)
 
 
-class BaseStrategyTemplateUpdateSerializer(serializers.Serializer):
+class BaseStrategyTemplateUpdateSerializer(BaseEditDataSerializer):
     name = serializers.CharField(label=_("策略模板名称"))
     algorithms = serializers.ListField(label=_("检测算法列表"), child=AlgorithmSerializer())
     detect = DetectSerializer(label=_("判断条件"))
@@ -186,18 +208,7 @@ class BaseStrategyTemplateUpdateSerializer(serializers.Serializer):
 class StrategyTemplateUpdateRequestSerializer(
     BaseStrategyTemplateUpdateSerializer, BaseAppStrategyTemplateRequestSerializer
 ):
-    def validate(self, attrs: dict) -> dict:
-        if not attrs["is_enabled"] and attrs["is_auto_apply"]:
-            raise serializers.ValidationError(_("策略模板禁用时，不允许配置自动下发"))
-
-        user_group_list: list[dict[str, int | str]] = attrs["user_group_list"]
-        user_groups = get_user_groups([user_group["id"] for user_group in user_group_list])
-        not_exist_names = [user_group["name"] for user_group in user_group_list if user_group["id"] not in user_groups]
-        if not_exist_names:
-            raise serializers.ValidationError(
-                _("不存在名称为 {names} 的告警组").format(names=", ".join(not_exist_names))
-            )
-        return attrs
+    pass
 
 
 class StrategyTemplateCloneRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
@@ -206,7 +217,7 @@ class StrategyTemplateCloneRequestSerializer(BaseAppStrategyTemplateRequestSeria
 
 
 class StrategyTemplateBatchPartialUpdateRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
-    class EditDataSerializer(serializers.Serializer):
+    class EditDataSerializer(BaseEditDataSerializer):
         user_group_list = serializers.ListField(label=_("用户组列表"), child=UserGroupSerializer(), required=False)
         algorithms = serializers.ListField(label=_("检测算法列表"), child=AlgorithmSerializer(), required=False)
         is_enabled = serializers.BooleanField(label=_("是否启用"), required=False)
@@ -313,7 +324,6 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         ]
 
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
-        validated_data["user_group_ids"] = [user_group["id"] for user_group in validated_data.pop("user_group_list")]
         return super().update(instance, validated_data)
 
 
