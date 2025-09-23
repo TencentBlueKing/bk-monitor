@@ -44,7 +44,7 @@ class StrategyTemplateOptionValues(OptionValues):
     }
 
     def get_user_group_id(self) -> list[dict[str, str]]:
-        ids_list = self.queryset.values_list("user_group_id", flat=True).distinct()
+        ids_list = self.queryset.values_list("user_group_ids", flat=True).distinct()
         flat_ids = set([_id for ids in ids_list for _id in ids])
         return [
             {"value": _id, "alias": user_group_dict["name"]}
