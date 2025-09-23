@@ -36,7 +36,8 @@ import type { SearchSelectItem } from 'monitor-pc/pages/query-template/typings';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface AlarmTemplateSearchEmits {
-  onChange: (list: AlarmTemplateConditionParamItem[]) => void;
+  /** 搜索选择器值变化时触发 */
+  onChange: (keyword: AlarmTemplateConditionParamItem[]) => void;
 }
 type AlarmTemplateSearchProps = {
   /** 搜索关键字 */
@@ -91,11 +92,17 @@ export default class AlarmTemplateSearch extends tsc<AlarmTemplateSearchProps, A
     }));
   }
 
+  /**
+   * @description 搜索选择器值变化时触发(将搜索选择器值转换为外层接口所需结构)
+   * @param {SearchSelectItem[]} list
+   * @returns {AlarmTemplateConditionParamItem[]} keyword-外层请求接口时筛选值属性所需结构
+   */
   @Emit('change')
-  handleSearchChange(list: SearchSelectItem[]) {
+  handleSearchChange(list: SearchSelectItem[]): AlarmTemplateConditionParamItem[] {
     if (!list?.length) {
       return [];
     }
+    // 利用Map结构key重复值覆盖特性，进行去重并保证值为最新值
     const map = new Map(
       list.map(item => {
         let key = item.id;
@@ -111,19 +118,21 @@ export default class AlarmTemplateSearch extends tsc<AlarmTemplateSearchProps, A
         return [key, val];
       })
     );
+
+    // 开始转换为所需数据结构
     const keys = map.keys();
-    const search = [];
+    const keyword = [];
     for (const key of keys) {
       const item = map.get(key);
       if (!item) {
         continue;
       }
-      search.push({
+      keyword.push({
         key: item.id,
         value: item.values.map(v => v.id),
       });
     }
-    return search;
+    return keyword;
   }
 
   render() {
@@ -134,6 +143,7 @@ export default class AlarmTemplateSearch extends tsc<AlarmTemplateSearchProps, A
         data={this.searchSelectData}
         modelValue={this.searchSelectValue}
         placeholder={this.$t('搜索 模板名称、模板类型、最近更新人、关联服务、告警组、启停')}
+        uniqueSelect={true}
         onChange={this.handleSearchChange}
       />
     );
