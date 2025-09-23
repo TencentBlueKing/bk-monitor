@@ -38,11 +38,12 @@ export interface ICategoryItem {
 export interface ITempLateItem {
   category: string;
   checked?: boolean;
-  has_been_applied?: boolean; // 是否已配置
+  has_been_applied?: boolean; // 已配置
   icon?: string;
-  id: string;
+  id: number;
   monitor_type?: string;
   name: string;
+  strategy?: { id: string; name: string }; // 已配置策略
   system: string;
   type: string;
 }
