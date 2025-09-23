@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 from typing import Any
 
 from django.db.models import Q, QuerySet
@@ -166,10 +167,15 @@ class StrategyTemplateViewSet(GenericViewSet):
         methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateBatchPartialUpdateRequestSerializer
     )
     def batch_partial_update(self, *args, **kwargs) -> Response:
-        self.query_data["edit_data"]["update_user"] = get_global_user() or "unknown"
+        update_user = get_global_user()
+        if not update_user:
+            raise ValueError(_("未获取到用户信息"))
+        edit_data = self.query_data["edit_data"]
+        edit_data["update_user"] = update_user
+        edit_data["update_time"] = datetime.datetime.now()
         strategy_template_qs = self.get_queryset().filter(id__in=self.query_data["ids"])
-        strategy_template_qs.update(**self.query_data["edit_data"])
-        return Response({"ids": [obj.id for obj in strategy_template_qs]})
+        strategy_template_qs.update(**edit_data)
+        return Response({"ids": list(strategy_template_qs.values_list("id", flat=True))})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)
     def compare(self, *args, **kwargs) -> Response:

@@ -81,7 +81,7 @@ class BaseServiceStrategyTemplateRequestSerializer(BaseAppStrategyTemplateReques
     service_name = serializers.CharField(label=_("服务名称"))
 
 
-class BaseStrategyTemplateValidateSerializer(serializers.Serializer):
+class BaseEditDataSerializer(serializers.Serializer):
     def validate(self, attrs: dict) -> dict:
         if attrs.get("is_enabled") is False:
             if attrs.get("is_auto_apply") is True:
@@ -195,7 +195,7 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
     simple = serializers.BooleanField(label=_("是否仅返回概要信息"), default=False)
 
 
-class BaseStrategyTemplateUpdateSerializer(BaseStrategyTemplateValidateSerializer):
+class BaseStrategyTemplateUpdateSerializer(BaseEditDataSerializer):
     name = serializers.CharField(label=_("策略模板名称"))
     algorithms = serializers.ListField(label=_("检测算法列表"), child=AlgorithmSerializer())
     detect = DetectSerializer(label=_("判断条件"))
@@ -217,7 +217,7 @@ class StrategyTemplateCloneRequestSerializer(BaseAppStrategyTemplateRequestSeria
 
 
 class StrategyTemplateBatchPartialUpdateRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
-    class EditDataSerializer(BaseStrategyTemplateValidateSerializer):
+    class EditDataSerializer(BaseEditDataSerializer):
         user_group_list = serializers.ListField(label=_("用户组列表"), child=UserGroupSerializer(), required=False)
         algorithms = serializers.ListField(label=_("检测算法列表"), child=AlgorithmSerializer(), required=False)
         is_enabled = serializers.BooleanField(label=_("是否启用"), required=False)
