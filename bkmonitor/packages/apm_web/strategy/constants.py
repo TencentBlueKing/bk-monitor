@@ -171,3 +171,61 @@ class StrategyTemplateMonitorType(CachedEnum):
         default = super().get_default(value)
         default.label = value
         return default
+
+
+class StrategyTemplateIsEnabled(CachedEnum):
+    """策略模板启用状态"""
+
+    ENABLED = True
+    DISABLED = False
+
+    @classmethod
+    def choices(cls) -> list[tuple[bool, str]]:
+        return [
+            (cls.ENABLED.value, cls.ENABLED.label),
+            (cls.DISABLED.value, cls.DISABLED.label),
+        ]
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.ENABLED: _("启用"),
+                self.DISABLED: _("禁用"),
+            }.get(self, str(self.value))
+        )
+
+    @classmethod
+    def get_default(cls, value) -> "StrategyTemplateIsEnabled":
+        default = super().get_default(value)
+        default.label = value
+        return default
+
+
+class StrategyTemplateIsAutoApply(CachedEnum):
+    """新服务自动下发状态"""
+
+    ENABLED = True
+    DISABLED = False
+
+    @classmethod
+    def choices(cls) -> list[tuple[bool, str]]:
+        return [
+            (cls.ENABLED.value, cls.ENABLED.label),
+            (cls.DISABLED.value, cls.DISABLED.label),
+        ]
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.ENABLED: _("已启用新服务自动下发"),
+                self.DISABLED: _("未启用新服务自动下发"),
+            }.get(self, str(self.value))
+        )
+
+    @classmethod
+    def get_default(cls, value) -> "StrategyTemplateIsAutoApply":
+        default = super().get_default(value)
+        default.label = value
+        return default
