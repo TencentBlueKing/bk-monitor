@@ -1357,6 +1357,7 @@ class PlainStrategyListV2Resource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        ids = serializers.ListField(child=serializers.IntegerField(), required=False, label="策略ID列表")
 
     @staticmethod
     def get_label_msg(scenario: str, labels: list) -> dict:
@@ -1379,13 +1380,15 @@ class PlainStrategyListV2Resource(Resource):
         }
 
     def perform_request(self, validated_request_data):
-        # 获取指定业务下启用的策略
+        # 获取指定业务下启动的策略
         bk_biz_id = validated_request_data.get("bk_biz_id")
-        strategies = (
-            StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
-            .values("id", "name", "scenario", "is_enabled")
-            .order_by("-is_enabled", "-update_time")
-        )
+        ids = validated_request_data.get("ids")
+
+        query = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+        if ids:
+            query = query.filter(id__in=ids)
+
+        strategies = query.values("id", "name", "scenario", "is_enabled").order_by("-is_enabled", "-update_time")
         # 获取分类标签
         labels = resource.commons.get_label()
 
