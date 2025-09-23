@@ -9,7 +9,7 @@
 
   .quick-add-strategy-content {
     display: flex;
-    min-height: calc(-100px + 100vh);
+    height: calc(-100px + 100vh);
 
     .template-list {
       width: 449px;
@@ -18,7 +18,7 @@
 
     .template-preview {
       flex: 1;
-      padding: 12px 24px;
+      padding: 12px 0;
       overflow: hidden;
       background: #FAFBFD;
       border-left: 1px solid #DCDEE5;
@@ -26,6 +26,7 @@
       .template-preview-header {
         display: flex;
         align-items: center;
+        padding: 0 24px;
 
         .header-title {
           font-size: 14px;
@@ -61,6 +62,24 @@
           .icon-fenxiang {
             margin-left: 5px;
             font-size: 12px;
+          }
+        }
+      }
+
+      .template-preview-content {
+        height: calc(100% - 20px);
+        margin-top: 19px;
+        overflow: auto;
+
+        .skeleton-wrap {
+          padding: 0 24px;
+
+          .skeleton-element {
+            height: 20px;
+
+            &+.skeleton-element {
+              margin-top: 16px;
+            }
           }
         }
       }

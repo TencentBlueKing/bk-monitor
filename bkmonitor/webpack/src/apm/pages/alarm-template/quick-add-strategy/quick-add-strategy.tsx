@@ -27,14 +27,24 @@
 import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import { getFunctions } from 'monitor-api/modules/grafana';
 import { listUserGroup, searchStrategyTemplate } from 'monitor-api/modules/model';
 import authorityMixinCreate from 'monitor-pc/mixins/authorityMixin';
 import { MANAGE_AUTH as MANAGE } from 'monitor-pc/pages/alarm-group/authority-map';
 
+import TemplateForm from '../components/template-form/template-form';
+import { getTemplatePreview } from '../service';
 import JudgmentConditions from './judgment-conditions';
 import TemplateList from './template-list';
 
+import type {
+  AlgorithmItem,
+  DetectConfig,
+  EditTemplateFormData,
+  UserGroupItem,
+} from '../components/template-form/typing';
 import type { IAlarmGroupList, ITempLateItem } from './typing';
+import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
 
 import './quick-add-strategy.scss';
 
@@ -58,6 +68,17 @@ class QuickAddStrategy extends Mixins(
   alarmGroupLoading = false;
   cursorId = '';
   cursorItem: ITempLateItem = null;
+  /** 模板详情 */
+  templateDetail: Record<number, EditTemplateFormData> = {};
+  /** 修改模板的某些值 */
+  editTemplateFormData: Record<number, Partial<EditTemplateFormData>> = {};
+  /** 模板变量列表 */
+  variablesList: Record<number, VariableModelType[]> = {};
+  /** 模板详情loading */
+  templateDetailLoading = false;
+  /** 函数列表 */
+  metricFunctions = [];
+
   checkedList = [];
 
   globalParams = null;
@@ -71,6 +92,7 @@ class QuickAddStrategy extends Mixins(
 
   created() {
     this.getAlarmGroupList();
+    this.getFunctions();
   }
 
   handleShowTemplateDetails() {
@@ -98,13 +120,70 @@ class QuickAddStrategy extends Mixins(
       });
   }
 
+  getFunctions() {
+    getFunctions().then(data => {
+      this.metricFunctions = data;
+    });
+  }
+
   handleCursorChange(id) {
     this.cursorId = id;
     this.cursorItem = this.templateList.find(item => item.id === id);
+    this.getTemplatePreview(id);
+  }
+
+  async getTemplatePreview(id: number) {
+    if (!this.templateDetail[id]) {
+      this.templateDetailLoading = true;
+      const data = await getTemplatePreview({
+        strategy_template_id: id,
+        app_name: this.params?.app_name,
+        service_name: this.params?.service_name,
+      });
+      if (data.isCancel) return;
+      this.templateDetailLoading = false;
+      if (data.success) {
+        this.$set(this.templateDetail, id, {
+          name: data.detailData.name,
+          algorithms: data.detailData.algorithms,
+          detect: data.detailData.detect,
+          is_auto_apply: data.detailData.is_auto_apply,
+          query_template: data.detailData.query_template,
+          system: data.detailData.system,
+          user_group_list: data.detailData.user_group_list,
+        });
+        this.$set(this.variablesList, id, data.variablesList);
+        this.$set(this.editTemplateFormData, id, {});
+      }
+    }
   }
 
   handleCheckedChange(checked) {
     this.checkedList = checked;
+  }
+
+  handleAlgorithmsChange(val: AlgorithmItem[]) {
+    this.templateDetail[this.cursorId].algorithms = val;
+    this.editTemplateFormData[this.cursorId].algorithms = val;
+  }
+
+  handleDetectChange(val: DetectConfig) {
+    this.templateDetail[this.cursorId].detect = val;
+    this.editTemplateFormData[this.cursorId].detect = val;
+  }
+
+  handleAlarmGroupChange(val: UserGroupItem[]) {
+    this.templateDetail[this.cursorId].user_group_list = val;
+    this.editTemplateFormData[this.cursorId].user_group_list = val;
+  }
+
+  handleVariableValueChange(value: any, index: number) {
+    const currentVariable: VariableModelType = this.variablesList[this.cursorId][index];
+    currentVariable.value = value;
+    if (!this.editTemplateFormData[this.cursorId].context) {
+      this.editTemplateFormData[this.cursorId].context = {};
+    }
+    this.editTemplateFormData[this.cursorId].context[currentVariable.variableName] = value;
   }
 
   handleSubmit() {
@@ -119,7 +198,14 @@ class QuickAddStrategy extends Mixins(
           app_name: this.params?.app_name,
           service_names: [this.params?.service_name],
           strategy_template_ids: this.checkedList,
-          extra: [],
+          extra: Object.keys(this.editTemplateFormData).reduce((pre, cur) => {
+            pre.push({
+              ...this.editTemplateFormData[cur],
+              strategy_template_id: cur,
+              service_name: this.params?.service_name,
+            });
+            return pre;
+          }, []),
           global: this.globalParams,
         };
         console.log('confirmFn', params);
@@ -188,8 +274,11 @@ class QuickAddStrategy extends Mixins(
           </div>
 
           <div class='template-preview'>
-            {!!this.cursorId && (
-              <div class='template-preview-header'>
+            {!!this.cursorId && [
+              <div
+                key='template-preview-header'
+                class='template-preview-header'
+              >
                 <span class='header-title'>{this.$t('预览')}</span>
                 <span class='split-line' />
                 <span class='header-desc'>{this.cursorItem?.name || '--'}</span>
@@ -200,8 +289,33 @@ class QuickAddStrategy extends Mixins(
                   <span>{this.$t('模板详情')}</span>
                   <span class='icon-monitor icon-fenxiang' />
                 </span>
-              </div>
-            )}
+              </div>,
+              <div
+                key='template-preview-content'
+                class='template-preview-content'
+              >
+                {this.templateDetailLoading ? (
+                  <div class='skeleton-wrap'>
+                    <div class='skeleton-element' />
+                    <div class='skeleton-element' />
+                    <div class='skeleton-element' />
+                    <div class='skeleton-element' />
+                    <div class='skeleton-element' />
+                  </div>
+                ) : (
+                  <TemplateForm
+                    data={this.templateDetail[this.cursorId]}
+                    labelWidth={94}
+                    metricFunctions={this.metricFunctions}
+                    scene='view'
+                    variablesList={this.variablesList[this.cursorId]}
+                    onAlarmGroupChange={this.handleAlarmGroupChange}
+                    onAlgorithmsChange={this.handleAlgorithmsChange}
+                    onDetectChange={this.handleDetectChange}
+                  />
+                )}
+              </div>,
+            ]}
           </div>
         </div>
         <div
