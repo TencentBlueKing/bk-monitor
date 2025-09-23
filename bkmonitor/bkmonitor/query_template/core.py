@@ -13,6 +13,7 @@ import copy
 import json
 from typing import Any
 
+
 from bkmonitor.models import query_template as models
 
 from . import constants, serializers
@@ -317,3 +318,30 @@ class QueryTemplateWrapper(BaseQuery):
                 "variables": obj.variables,
             }
         )
+
+    @classmethod
+    def from_unique_key(cls, bk_biz_id: int, name: str) -> "QueryTemplateWrapper | None":
+        try:
+            obj: models.QueryTemplate = models.QueryTemplate.objects.get(bk_biz_id=bk_biz_id, name=name)
+        except models.QueryTemplate.DoesNotExist:
+            return None
+
+        return cls.from_obj(obj)
+
+    @classmethod
+    def from_unique_keys(cls, keys: list[tuple[int, str]]) -> dict[tuple[int, str], "QueryTemplateWrapper"]:
+        if not keys:
+            return {}
+
+        key_qtw_map: dict[tuple[int, str], QueryTemplateWrapper] = {}
+        for query_template_obj in models.QueryTemplate.objects.filter(
+            bk_biz_id__in={key[0] for key in keys},
+            name__in={key[1] for key in keys},
+        ):
+            unique_key: tuple[int, str] = (query_template_obj.bk_biz_id, query_template_obj.name)
+            if unique_key not in keys:
+                continue
+
+            key_qtw_map[unique_key] = cls.from_obj(query_template_obj)
+
+        return key_qtw_map
