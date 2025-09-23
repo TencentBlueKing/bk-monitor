@@ -14,6 +14,16 @@
     .template-list {
       width: 449px;
       padding: 12px 24px 0;
+
+      .template-list-loading {
+        margin-bottom: 24px;
+
+        .template-list-loading-item {
+          width: auto;
+          height: 32px;
+          margin-bottom: 4px;
+        }
+      }
     }
 
     .template-preview {

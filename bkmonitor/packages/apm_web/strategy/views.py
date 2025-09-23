@@ -11,16 +11,20 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from django.db.models import Q, QuerySet
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
-from rest_framework.serializers import Serializer
+from rest_framework.serializers import Serializer, ValidationError
 
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.utils.user import get_global_user
 
 from . import mock_data, serializers
 from apm_web.models import StrategyTemplate, StrategyInstance
+from apm_web.strategy.constants import StrategyTemplateType
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -61,8 +65,12 @@ class StrategyTemplateViewSet(GenericViewSet):
         return Response(self.serializer_class(self.get_object()).data)
 
     def destroy(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response({})
+        strategy_template_obj: StrategyTemplate = self.get_object()
+        if strategy_template_obj.type == StrategyTemplateType.BUILTIN_TEMPLATE.value:
+            raise ValidationError(_("内置模板不允许删除"))
+        if StrategyInstance.objects.filter(strategy_template_id=strategy_template_obj.id).exists():
+            raise ValidationError(_("已下发的模板不允许删除"))
+        strategy_template_obj.delete()
         return Response({})
 
     def update(self, *args, **kwargs) -> Response:
@@ -159,9 +167,15 @@ class StrategyTemplateViewSet(GenericViewSet):
         methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateBatchPartialUpdateRequestSerializer
     )
     def batch_partial_update(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response({"ids": [1, 2]})
-        return Response({})
+        update_user: str | None = get_global_user()
+        if not update_user:
+            raise ValueError(_("未获取到用户信息"))
+        edit_data: dict[str, Any] = self.query_data["edit_data"]
+        edit_data["update_user"] = update_user
+        edit_data["update_time"] = timezone.now()
+        strategy_template_qs = self.get_queryset().filter(id__in=self.query_data["ids"])
+        strategy_template_qs.update(**edit_data)
+        return Response({"ids": list(strategy_template_qs.values_list("id", flat=True))})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)
     def compare(self, *args, **kwargs) -> Response:

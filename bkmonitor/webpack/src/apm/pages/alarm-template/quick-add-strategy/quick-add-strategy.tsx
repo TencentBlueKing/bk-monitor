@@ -28,7 +28,7 @@ import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import { getFunctions } from 'monitor-api/modules/grafana';
-import { listUserGroup, searchStrategyTemplate } from 'monitor-api/modules/model';
+import { applyStrategyTemplate, listUserGroup, searchStrategyTemplate } from 'monitor-api/modules/model';
 import authorityMixinCreate from 'monitor-pc/mixins/authorityMixin';
 import { MANAGE_AUTH as MANAGE } from 'monitor-pc/pages/alarm-group/authority-map';
 
@@ -83,6 +83,8 @@ class QuickAddStrategy extends Mixins(
 
   globalParams = null;
 
+  templateListLoading = false;
+
   @Watch('show')
   handleWatchShowChange(v: boolean) {
     if (v) {
@@ -126,7 +128,12 @@ class QuickAddStrategy extends Mixins(
     });
   }
 
-  handleCursorChange(id) {
+  /**
+   * 处理光标选择变化
+   * 根据传入的模板ID更新当前选中的模板项
+   * @param {number} id - 选中的模板ID
+   */
+  handleCursorChange(id: number) {
     this.cursorId = id;
     this.cursorItem = this.templateList.find(item => item.id === id);
     this.getTemplatePreview(id);
@@ -186,8 +193,58 @@ class QuickAddStrategy extends Mixins(
     this.editTemplateFormData[this.cursorId].context[currentVariable.variableName] = value;
   }
 
-  handleSubmit() {
+  /**
+   * 应用策略模板
+   * 异步方法，用于批量应用选中的策略模板
+   * 构建请求参数并调用后端接口，处理成功和失败情况
+   * @returns {Promise<boolean>} 返回Promise，true表示应用成功，false表示失败
+   */
+  async applyStrategyTemplate() {
+    const params = {
+      app_name: this.params?.app_name,
+      service_names: [this.params?.service_name],
+      strategy_template_ids: this.checkedList,
+      extra: [],
+      global: this.globalParams || undefined,
+    };
+    const res = await applyStrategyTemplate(params)
+      .then(() => {
+        return true;
+      })
+      .catch(() => {
+        return false;
+      });
+    if (res) {
+      this.$bkMessage({
+        message: this.$t('生成成功'),
+        theme: 'success',
+      });
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * 处理表单提交
+   * 异步方法，用于处理一键生成策略的提交操作
+   * 1. 首先调用应用策略模板方法
+   * 2. 检查是否有已应用的模板需要警告用户
+   * 3. 显示成功信息弹窗，提供用户操作选项
+   * @returns {Promise<void>} 无返回值
+   */
+  async handleSubmit() {
     const h = this.$createElement;
+
+    const isSuccess = await this.applyStrategyTemplate();
+    if (!isSuccess) {
+      return;
+    }
+
+    const hasBeenApplied = this.checkedList.some(id => {
+      const templateItem = this.templateList.find(item => item.id === id);
+      return !!templateItem?.has_been_applied;
+    });
+
     this.$bkInfo({
       type: 'success',
       title: this.$t('批量创建策略成功'),
@@ -211,32 +268,45 @@ class QuickAddStrategy extends Mixins(
         console.log('confirmFn', params);
       },
       cancelFn: () => {
-        console.log('cancelFn');
+        window.open(location.href.replace(location.hash, '#/strategy-config'));
+        return true;
       },
-      subHeader: h(
-        'div',
-        {
-          style: {
-            height: '46px',
-            background: '#F5F7FA',
-            display: 'flex',
-            alignItems: 'center',
-            color: '#4D4F56',
-            justifyContent: 'center',
-          },
-        },
-        this.$t('已配置策略重新下发会被覆盖') as string
-      ),
-      cancelText: '前往策略列表',
+      subHeader: hasBeenApplied
+        ? h(
+            'div',
+            {
+              style: {
+                height: '46px',
+                background: '#F5F7FA',
+                display: 'flex',
+                alignItems: 'center',
+                color: '#4D4F56',
+                justifyContent: 'center',
+              },
+            },
+            this.$t('已配置策略重新下发会被覆盖') as string
+          )
+        : undefined,
+      cancelText: this.$t('前往策略列表'),
     });
   }
 
   getTemplateList() {
+    this.templateListLoading = true;
     searchStrategyTemplate({
-      ...this.params,
-    }).then(data => {
-      this.templateList = data?.list || [];
-    });
+      app_name: this.params?.app_name,
+      conditions: [],
+      simple: true,
+    })
+      .then(data => {
+        this.templateList = data?.list || [];
+        if (this.templateList.length) {
+          this.handleCursorChange(this.templateList[0].id);
+        }
+      })
+      .finally(() => {
+        this.templateListLoading = false;
+      });
   }
 
   handleJudgmentConditionsChange(params) {
@@ -260,13 +330,24 @@ class QuickAddStrategy extends Mixins(
           slot='content'
         >
           <div class='template-list'>
-            <TemplateList
-              checked={this.checkedList}
-              cursorId={this.cursorId}
-              templateList={this.templateList}
-              onCheckedChange={this.handleCheckedChange}
-              onCursorChange={this.handleCursorChange}
-            />
+            {this.templateListLoading ? (
+              <div class='template-list-loading'>
+                {new Array(10).fill(0).map((_, index) => (
+                  <div
+                    key={index}
+                    class='template-list-loading-item skeleton-element'
+                  />
+                ))}
+              </div>
+            ) : (
+              <TemplateList
+                checked={this.checkedList}
+                cursorId={this.cursorId}
+                templateList={this.templateList}
+                onCheckedChange={this.handleCheckedChange}
+                onCursorChange={this.handleCursorChange}
+              />
+            )}
             <JudgmentConditions
               userList={this.alarmGroupList}
               onChange={this.handleJudgmentConditionsChange}
@@ -324,6 +405,7 @@ class QuickAddStrategy extends Mixins(
         >
           <bk-button
             class='mr-8 ml-24'
+            disabled={!this.checkedList.length}
             theme='primary'
             onClick={this.handleSubmit}
           >

@@ -24,7 +24,7 @@ import { CancelToken } from 'monitor-api/cancel';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { previewStrategyTemplate, retrieveStrategyTemplate } from 'monitor-api/modules/model';
+import { alertsStrategyTemplate, previewStrategyTemplate, retrieveStrategyTemplate } from 'monitor-api/modules/model';
 import { getCreateVariableParams, getVariableModel } from 'monitor-pc/pages/query-template/variables';
 
 import type { TemplateDetail } from '../components/template-form/typing';
@@ -82,4 +82,13 @@ export const getTemplatePreview = async (params: {
     detailData,
     variablesList,
   };
+};
+
+export const getAlertsStrategyTemplate = async (params: {
+  app_name: string;
+  ids: number[];
+  need_strategies?: boolean;
+}) => {
+  const data = await alertsStrategyTemplate(params).catch(() => ({ list: [] }));
+  return data;
 };

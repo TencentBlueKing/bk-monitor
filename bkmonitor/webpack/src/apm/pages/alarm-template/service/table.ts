@@ -72,12 +72,13 @@ const formatTemplateList = (
  * @returns {boolean} 是否是由中止控制器中止导致的错误
  */
 const requestErrorMessage = err => {
-  const message = makeMessage(err.error_details || err.message);
+  const item = err?.data;
+  const message = makeMessage(item?.error_details || item?.message);
   let isAborted = false;
-  if (message && err?.message !== 'canceled' && err?.message !== 'aborted') {
-    bkMessage(message);
-  } else {
+  if (item?.message === 'canceled' || item?.message === 'aborted') {
     isAborted = true;
+  } else if (message) {
+    bkMessage(message);
   }
   return isAborted;
 };
@@ -146,7 +147,9 @@ export const fetchAlarmTemplateAlarmNumber = async (param: AlarmTemplateAlertReq
  * @param {AlarmTemplateDestroyParams} 删除接口所需参数
  */
 export const destroyAlarmTemplateById = async (params: AlarmTemplateDestroyParams) => {
-  return destroyStrategyTemplate(params);
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  const { strategy_template_id, ...rest } = params;
+  return destroyStrategyTemplate(strategy_template_id, rest);
 };
 
 /**
@@ -162,7 +165,9 @@ export const updateAlarmTemplateByIds = async (params: AlarmTemplateBatchUpdateP
  * @param {GetAlarmTemplateOptionsParams} 获取告警模板候选项值 接口参数
  * @returns {Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>} 告警模板候选项值映射表
  */
-export const getAlarmSelectOptions = async (params: GetAlarmTemplateOptionsParams) => {
+export const getAlarmSelectOptions = async (
+  params: GetAlarmTemplateOptionsParams
+): Promise<Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>> => {
   const result = await optionValuesStrategyTemplate<Record<AlarmTemplateField, { alias: string; value: string }[]>>(
     params
   ).catch(() => ({}));
