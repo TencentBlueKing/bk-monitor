@@ -34,6 +34,8 @@ class RPCStrategyTemplateCode(CachedEnum):
     RPC_CALLER_AVG_TIME = "rpc_caller_avg_time"
     RPC_CALLER_P99 = "rpc_caller_p99"
     RPC_CALLER_ERROR_CODE = "rpc_caller_error_code"
+    RPC_METRIC_PANIC = "rpc_metric_panic"
+    RPC_LOG_PANIC = "rpc_log_panic"
 
     @cached_property
     def label(self) -> str:
@@ -47,6 +49,8 @@ class RPCStrategyTemplateCode(CachedEnum):
                 self.RPC_CALLER_AVG_TIME: _("主调平均耗时告警"),
                 self.RPC_CALLER_P99: _("主调 P99 耗时告警"),
                 self.RPC_CALLER_ERROR_CODE: _("主调错误码告警"),
+                self.RPC_METRIC_PANIC: _("Panic 指标告警"),
+                self.RPC_LOG_PANIC: _("Panic 日志关键字告警"),
             }.get(self, self.value)
         )
 
@@ -161,6 +165,19 @@ RPC_CALLER_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_ERROR_CODE.value},
     "context": _get_common_context(),
+}
+
+METRIC_RPC_PANIC_STRATEGY_TEMPLATE: dict[str, Any] = {
+    "code": RPCStrategyTemplateCode.RPC_METRIC_PANIC.value,
+    "name": RPCStrategyTemplateCode.RPC_METRIC_PANIC.label,
+    "category": constants.StrategyTemplateCategory.DEFAULT.value,
+    "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
+    "detect": utils.detect_config(5, 1, 1),
+    "algorithms": [
+        utils.fatal_threshold_algorithm_config(method="gte", threshold=1),
+    ],
+    "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.CUSTOM_METRIC_PANIC.value},
+    "context": {},
 }
 
 
