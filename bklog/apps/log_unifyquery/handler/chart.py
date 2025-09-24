@@ -60,7 +60,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
 
         return {
             "list": result["list"],
-            "total_records": result["total"],
+            "total_records": result.get("total", 0),
             "time_taken": time.time() - start_time,
             "result_schema": result_schema,
             "select_fields_order": [field["field_alias"] for field in result_schema],
