@@ -22,9 +22,12 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.utils.user import get_global_user
 
+from constants.query_template import GLOBAL_BIZ_ID
+
 from . import mock_data, serializers
 from apm_web.models import StrategyTemplate, StrategyInstance
 from apm_web.strategy.constants import StrategyTemplateType
+from apm_web.strategy.query_template.core import QueryTemplateWrapperFactory
 from apm_web.strategy.handler import StrategyTemplateOptionValues, StrategyInstanceOptionValues
 
 
@@ -63,7 +66,14 @@ class StrategyTemplateViewSet(GenericViewSet):
         )
 
     def retrieve(self, *args, **kwargs) -> Response:
-        return Response(self.serializer_class(self.get_object()).data)
+        strategy_template_data: dict[str, Any] = self.serializer_class(self.get_object()).data
+        query_template_data: dict[str, Any] = strategy_template_data["query_template"]
+        qtw = QueryTemplateWrapperFactory.get_wrapper(
+            query_template_data.get("bk_biz_id", GLOBAL_BIZ_ID), query_template_data.get("name", "")
+        )
+        if qtw is not None:
+            query_template_data.update(qtw.to_dict())
+        return Response(strategy_template_data)
 
     def destroy(self, *args, **kwargs) -> Response:
         strategy_template_obj: StrategyTemplate = self.get_object()
