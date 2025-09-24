@@ -34,4 +34,10 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.grafana.get_directory_tree, endpoint="get_directory_tree"),
         ResourceRoute("GET", resource.grafana.get_dashboard_detail, endpoint="get_dashboard_detail"),
         ResourceRoute("GET", resource.grafana.get_data_source_config, endpoint="get_data_source_config"),
+        # 告警事件查询
+        ResourceRoute("POST", resource.grafana.query_alarm_event_graph, endpoint="query_alarm_event_graph"),
+        ResourceRoute("GET", resource.grafana.get_alarm_event_field, endpoint="get_alarm_event_field"),
+        ResourceRoute(
+            "GET", resource.grafana.get_alarm_event_dimension_value, endpoint="get_alarm_event_dimension_value"
+        ),
     ]
