@@ -155,7 +155,6 @@ const setRouteQuery = () => {
 };
 
 const handleIndexSetSelected = async payload => {
-  debugger;
   if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
     /** 索引集默认条件 */
     let indexSetDefaultCondition = {};

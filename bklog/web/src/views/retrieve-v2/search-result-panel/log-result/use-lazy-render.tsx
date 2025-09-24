@@ -114,7 +114,6 @@ export default ({
 
   useIntersectionObserver(refLoadMoreElement, inter => {
     if (inter.isIntersecting) {
-      console.log('----11111');
       loadMoreFn?.();
     }
   });
