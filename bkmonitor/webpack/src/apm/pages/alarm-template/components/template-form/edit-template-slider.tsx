@@ -38,6 +38,7 @@ import './edit-template-slider.scss';
 
 interface EditTemplateSliderEvents {
   onShowChange: (isShow: boolean) => void;
+  onSuccess: () => void;
 }
 
 interface EditTemplateSliderProps {
@@ -118,8 +119,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
   }
 
   handleSubmit() {
-    updateStrategyTemplate({
-      id: this.detailData.id,
+    updateStrategyTemplate(this.detailData.id, {
       app_name: this.appName,
       name: this.formData.name,
       algorithms: this.formData.algorithms,
@@ -135,6 +135,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
         message: this.$t('模板修改成功'),
         theme: 'success',
       });
+      this.$emit('success');
       this.handleShowChange(false);
     });
   }
