@@ -35,7 +35,12 @@ import AlarmTemplateTable from './components/alarm-template-table/alarm-template
 import AlarmTemplateSearch from './components/alarm-templte-search/alarm-template-search';
 import BatchOperations from './components/batch-operations/batch-operations';
 import EditTemplateSlider from './components/template-form/edit-template-slider';
-import { ALARM_TEMPLATE_OPTIONS_FIELDS, ALARM_TEMPLATE_QUICK_FILTER_LIST, AlarmTemplateTypeMap } from './constant';
+import {
+  ALARM_TEMPLATE_OPTIONS_FIELDS,
+  ALARM_TEMPLATE_QUICK_FILTER_LIST,
+  AlarmTemplateTypeMap,
+  TEMPLATE_DETAILS_ROUTER_QUERY_KEY,
+} from './constant';
 import {
   destroyAlarmTemplateById,
   fetchAlarmTemplateList,
@@ -142,8 +147,12 @@ export default class AlarmTemplate extends tsc<object> {
     this.metricFunctions = await getFunctions().catch(() => []);
   }
 
-  mounted() {
-    this.handleGetMetricFunctions();
+  async mounted() {
+    await this.handleGetMetricFunctions();
+    const detailsId = this.$route.query?.[TEMPLATE_DETAILS_ROUTER_QUERY_KEY];
+    if (detailsId) {
+      this.handleShowDetail({ id: Number(detailsId), sliderActiveTab: 'base_info' });
+    }
   }
 
   beforeMount() {
