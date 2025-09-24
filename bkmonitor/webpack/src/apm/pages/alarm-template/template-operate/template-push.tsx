@@ -27,13 +27,13 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { applyStrategyTemplate, checkStrategyTemplate, retrieveStrategyTemplate } from 'monitor-api/modules/model';
+import { applyStrategyTemplate } from 'monitor-api/modules/model';
 import { random } from 'monitor-common/utils';
 
+import { getCheckStrategyTemplate, getCompareStrategyTemplate } from '../service/detail';
 import RelationServiceTable from './relation-service-table';
 
-import type { TemplateDetail } from '../components/template-form/typing';
-import type { IRelationService } from './typings';
+import type { IRelationService, TCompareData } from './typings';
 
 import './template-push.scss';
 
@@ -53,7 +53,8 @@ export default class TemplatePush extends tsc<IProps> {
 
   relationService: IRelationService[] = [];
 
-  strategyDetailMap = new Map<number, TemplateDetail>();
+  // strategyDetailMap = new Map<number, TemplateDetail>();
+  compareDataMap = new Map<string, TCompareData>();
 
   selectKeys = [];
   submitLoading = false;
@@ -107,9 +108,8 @@ export default class TemplatePush extends tsc<IProps> {
   }
 
   getCheckStrategyTemplate() {
-    checkStrategyTemplate({
+    getCheckStrategyTemplate({
       strategy_template_ids: this.params?.strategy_template_ids,
-      // service_names: this.params?.service_names,
       app_name: this.params?.app_name,
     }).then(data => {
       this.relationService = (data?.list || []).map(item => ({
@@ -119,29 +119,44 @@ export default class TemplatePush extends tsc<IProps> {
     });
   }
 
-  async getStrategyDetails(ids: (number | string)[]) {
-    const fn = id => {
-      return new Promise((resolve, reject) => {
-        retrieveStrategyTemplate(id, {
-          strategy_template_id: id,
-          app_name: this.params?.app_name,
-        })
-          .then(data => {
-            this.strategyDetailMap.set(id, data);
-            resolve(data);
-          })
-          .catch(reject);
-      });
-    };
-    const promiseList = [];
-    for (const id of ids) {
-      if (!this.strategyDetailMap.has(id)) {
-        promiseList.push(fn(id));
-      }
+  async getCompareStrategyTemplate(params: { service_name: string; strategy_template_id: number }) {
+    const key = `${params.service_name}_____${params.strategy_template_id}`;
+    if (this.compareDataMap.has(key)) {
+      return this.compareDataMap.get(key);
     }
-    await Promise.all(promiseList);
-    return Promise.resolve(this.strategyDetailMap);
+    const data = await getCompareStrategyTemplate({
+      app_name: this.params?.app_name,
+      ...params,
+    }).catch(() => null);
+    if (data) {
+      this.compareDataMap.set(key, data);
+    }
+    return data;
   }
+
+  // async getStrategyDetails(ids: (number | string)[]) {
+  //   const fn = id => {
+  //     return new Promise((resolve, reject) => {
+  //       retrieveStrategyTemplate(id, {
+  //         strategy_template_id: id,
+  //         app_name: this.params?.app_name,
+  //       })
+  //         .then(data => {
+  //           this.strategyDetailMap.set(id, data);
+  //           resolve(data);
+  //         })
+  //         .catch(reject);
+  //     });
+  //   };
+  //   const promiseList = [];
+  //   for (const id of ids) {
+  //     if (!this.strategyDetailMap.has(id)) {
+  //       promiseList.push(fn(id));
+  //     }
+  //   }
+  //   await Promise.all(promiseList);
+  //   return Promise.resolve(this.strategyDetailMap);
+  // }
 
   handleChangeCheckKeys(selectKeys: string[]) {
     this.selectKeys = Array.from(new Set(selectKeys));
@@ -173,7 +188,7 @@ export default class TemplatePush extends tsc<IProps> {
           slot='content'
         >
           <RelationServiceTable
-            getStrategyDetails={this.getStrategyDetails}
+            getCompareData={this.getCompareStrategyTemplate}
             relationService={this.relationService}
             showAgain={this.showAgain}
             onChangeCheckKeys={this.handleChangeCheckKeys}
