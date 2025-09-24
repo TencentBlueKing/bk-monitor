@@ -482,7 +482,7 @@ export default class RelationServiceTable extends tsc<IProps> {
               key={item.type}
               class={item.type === 'current' ? 'left-content' : 'right-content'}
             >
-              <div class='content-header'>{this.$t('当前策略')}</div>
+              <div class='content-header'>{item.type === 'current' ? this.$t('当前策略') : this.$t('已关联策略')}</div>
               <div class='content-content'>
                 <div class='title'>{this.$t('检测算法')}</div>
                 <div class='content'>
