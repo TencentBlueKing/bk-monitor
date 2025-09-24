@@ -71,7 +71,6 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
         id: this.templateId,
         app_name: this.appName,
       }).catch(() => ({ detailData: null, variablesList: [] }));
-      console.log(detailData, variablesList);
       this.detailData = detailData;
       this.formData = {
         name: this.detailData?.name,

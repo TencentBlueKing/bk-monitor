@@ -100,14 +100,14 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
       {
         validator: this.validateDetect,
         message: this.$tc('触发周期数 >=1 且 >= 检测数'),
-        trigger: 'change',
+        trigger: 'blur',
       },
     ],
     selectUserGroup: [
       {
         required: true,
         message: this.$tc('告警组必填'),
-        trigger: 'blur',
+        trigger: 'change',
       },
     ],
   };
@@ -126,7 +126,13 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
   }
 
   validateDetect(val: DetectConfig) {
-    return true;
+    return !(
+      val.config.trigger_check_window < 1 ||
+      val.config.trigger_count < 1 ||
+      `${val.config.trigger_check_window}`.match(/\./) ||
+      `${val.config.trigger_count}`.match(/\./) ||
+      +val.config.trigger_check_window < +val.config.trigger_count
+    );
   }
 
   /**

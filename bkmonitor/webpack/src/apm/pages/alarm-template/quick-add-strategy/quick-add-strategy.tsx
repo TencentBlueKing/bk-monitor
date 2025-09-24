@@ -397,6 +397,7 @@ class QuickAddStrategy extends Mixins(
           this.handleShowChange(false);
         }}
         isShow={this.show}
+        zIndex={977}
         quick-close
       >
         <div slot='header'>{this.$t('一键添加策略')}</div>
