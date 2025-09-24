@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -226,7 +226,7 @@ def test_push_space_to_rt_router_for_bkcc(create_or_delete_records):
             client = SpaceTableIDRedis()
             client.push_space_table_ids(space_type="bkcc", space_id="1", is_publish=True)
 
-            expected = '{"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},"1001_bkmonitor_time_series_50010.__default__":{"filters":[{"dimensions.bk_biz_id":"1"}]},"bkm_1_record_rule.__default__":{"filters":[]}}'
+            expected = '{"bkmonitor_event_60010.__default__":{"filters":[{"dimensions.project_id":"1"}]},"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},"1001_bkmonitor_time_series_50010.__default__":{"filters":[{"dimensions.bk_biz_id":"1"}]},"bkm_1_record_rule.__default__":{"filters":[]}}'
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             # 获取实际的调用参数
@@ -250,7 +250,8 @@ def test_push_space_to_rt_router_for_bkcc(create_or_delete_records):
             client.push_space_table_ids(space_type="bkcc", space_id="1", is_publish=True)
 
             expected = (
-                '{"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},'
+                '{"bkmonitor_event_60010.__default__":{"filters":[{"dimensions.project_id":"1"}]},'
+                '"1001_bklog.stdout":{"filters":[{"bk_biz_id":"1"}]},'
                 '"1001_bkmonitor_time_series_50010.__default__":{"filters":[{"dimensions.bk_biz_id":"1"}]},'
                 '"bkm_1_record_rule.__default__":{"filters":[]}}'
             )
@@ -277,7 +278,7 @@ def test_push_space_to_rt_router_for_bkci(create_or_delete_records):
             client = SpaceTableIDRedis()
             client.push_space_table_ids(space_type="bkci", space_id="bkmonitor", is_publish=True)
 
-            expected = '{"custom_report_aggate.base":{"filters":[{"dimensions.bk_biz_id":"-10000"}]},"bkm_statistics.base":{"filters":[{"bk_biz_id":"-10000"}]},"apm_global.precalculate_storage_1":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_2":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_3":{"filters":[{"biz_id":"-10000"}]}}'
+            expected = '{"bkmonitor_event_60010.__default__":{"filters":[{"projectId":"bkmonitor"}]},"custom_report_aggate.base":{"filters":[{"dimensions.bk_biz_id":"-10000"}]},"bkm_statistics.base":{"filters":[{"bk_biz_id":"-10000"}]},"apm_global.precalculate_storage_1":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_2":{"filters":[{"biz_id":"-10000"}]},"apm_global.precalculate_storage_3":{"filters":[{"biz_id":"-10000"}]}}'
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             args, kwargs = mock_hmset_to_redis.call_args

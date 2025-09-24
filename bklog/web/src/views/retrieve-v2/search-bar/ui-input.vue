@@ -5,7 +5,6 @@
   import useFieldNameHook from '@/hooks/use-field-name';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { cloneDeep } from 'lodash';
 
   import {
     getInputQueryDefaultItem,
@@ -231,7 +230,7 @@
       return;
     }
     const { changeFieldName } = useFieldNameHook({ store });
-    const itemCopy = cloneDeep(item);
+    const itemCopy = structuredClone(item);
     itemCopy.field = changeFieldName(itemCopy.field);
     queryItem.value = {};
     setIsInputTextFocus(false);
@@ -398,17 +397,19 @@
     if (item.hidden_values.includes(child)) {
       const index = item.hidden_values.indexOf(child);
       item.hidden_values.splice(index, 1);
+      item.disabled = false;
     } else {
       item.hidden_values.push(child);
     }
 
-    emitChange(cloneDeep(modelValue.value));
+    emitChange(structuredClone(modelValue.value));
     const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
     popover?.hideHandler()
   }
   const onlyOptionShow =  (item, child, parentIndex, childIndex)=>{
    item.hidden_values.length = 0;
    item.hidden_values = [];
+   item.disabled = false;
 
    item.value.forEach(v => {
     if (v !== child) {
@@ -416,7 +417,7 @@
     }
    });
 
-    emitChange(cloneDeep(modelValue.value));
+    emitChange(structuredClone(modelValue.value));
     const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`)
     popover?.hideHandler()
   }
@@ -682,20 +683,24 @@
       text-decoration: line-through;
     }
   }
+
   .match-value-content{
     display: flex;
     flex-direction: column;
+
     .bk-tooltip-ref{
       width: 100%;
       cursor: pointer;
     }
+
     .match-value-child{
       font-size: 12px;
       line-height: 32px;
     }
   }
+
   .match-value-popover{
     // eslint-disable-next-line
-    left: 15px !important;
+    left: 15px;
   }
 </style>

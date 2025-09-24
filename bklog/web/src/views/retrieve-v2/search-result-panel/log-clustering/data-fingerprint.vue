@@ -436,7 +436,7 @@
 <script>
   import TextHighlight from 'vue-text-highlight';
 
-  import { copyMessage, formatDate, deepClone, deepEqual } from '@/common/util';
+  import { copyMessage, formatDate, deepEqual } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import ClusteringLoader from '@/skeleton/clustering-loader';
   import BkUserSelector from '@blueking/user-selector';
@@ -681,13 +681,13 @@
         // 聚类下钻只能使用ui模式
         this.$store.commit('updateIndexItem', { search_mode: 'ui' });
         // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
-        this.$store.commit('updateClusterParams', null);
+        this.$store.commit('updateState', {'clusterParams': null});
         this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
             window.open(openUrl, '_blank');
             // 新开页后当前页面回填聚类参数
-            this.$store.commit('updateClusterParams', this.requestData);
+            this.$store.commit('updateState', {'clusterParams': this.requestData});
             return
           } else {
             this.$emit('show-change', 'origin');
@@ -1120,7 +1120,7 @@
        */
       getUserList() {
         this.ownerLoading = true;
-        const cloneOwnerBase = deepClone(this.ownerBaseList);
+        const cloneOwnerBase = structuredClone(this.ownerBaseList);
         this.$http
           .request('/logClustering/getOwnerList', {
             params: {

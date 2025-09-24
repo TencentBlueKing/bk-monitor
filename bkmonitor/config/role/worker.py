@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -57,7 +57,7 @@ INSTALLED_APPS += (  # noqa: F405
     "apm",
     "apm_ebpf",
     "core.drf_resource",
-    "ai_agents",
+    "ai_whale",
 )
 
 # 系统名称
@@ -130,6 +130,7 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
     ("alarm_backends.core.cache.assign", "* * * * *", "global"),
     ("alarm_backends.core.cache.calendar", "* * * * *", "global"),
+    ("alarm_backends.core.cache.subscribe", "* * * * *", "global"),
     # api cache
     ("alarm_backends.core.cache.result_table", "*/10 * * * *", "global"),
     # delay queue
@@ -244,7 +245,7 @@ DEFAULT_CRONTAB += [
     ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
     ("metadata.task.bcs.discover_bcs_clusters", "*/5 * * * *", "global"),
     # BkBase信息同步,一小时一次
-    ("metadata.task.bkbase.sync_bkbase_cluster_info", "0 */1 * * *", "global"),
+    ("metadata.task.bkbase.sync_all_bkbase_cluster_info", "0 */1 * * *", "global"),
     # 检查并执行接入vm命令, 每5分钟执行一次
     ("metadata.task.vm.check_access_vm_task", "*/5 * * * *", "global"),
     # 同步空间信息

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -43,6 +43,9 @@ class BkCollectorInstaller:
     @classmethod
     def generator(cls):
         # 避免重复创建连接
+        # fixme: 优化缓存, 考虑使用metadata的redis
+        # from metadata.utils.redis_tools import RedisTools
+        # cache = RedisTools().client
         cache = Cache("cache")
         while True:
             yield functools.partial(cls, cache=cache)

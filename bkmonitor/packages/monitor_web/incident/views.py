@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -13,6 +13,8 @@ from django.conf import settings
 from bkmonitor.iam.drf import ViewBusinessPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from packages.monitor_web.incident.metrics.views import IncidentMetricsViewSet  # noqa
+from packages.monitor_web.incident.events.views import IncidentEventsViewSet  # noqa
 
 
 class IncidentViewSet(ResourceViewSet):

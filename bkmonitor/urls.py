@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -75,7 +75,7 @@ urlpatterns = [
     re_path(r"^metrics/$", metrics),
     # env: `BK_API_URL_TMPL` must be set
     re_path(r"^notice/", include(("bk_notice_sdk.urls", "notice"), namespace="notice")),
-    re_path(r"^ai_agents/", include("ai_agents.urls")),
+    re_path(r"^ai_whale/", include("ai_whale.urls")),
 ]
 
 # 添加API访问子路径

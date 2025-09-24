@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, nextTick, Ref } from 'vue';
 
   // @ts-ignore
   import { getCharLength, getRegExp, formatDateTimeField, getOsCommandLabel } from '@/common/util';
@@ -14,8 +14,8 @@
   import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import { translateKeys } from './const-values';
-  import useFieldEgges from './use-field-egges';
-  import { BK_LOG_STORAGE } from '../../../store/store.type';
+  import useFieldEgges from '@/hooks/use-field-egges';
+  import { BK_LOG_STORAGE, FieldInfoItem } from '../../../store/store.type';
   import BatchInput from '../components/batch-input';
   const INPUT_MIN_WIDTH = 12;
 
@@ -45,15 +45,15 @@
   const store = useStore();
   const { t } = useLocale();
   const searchValue = ref('');
-  const refConditionInput = ref(null);
-  const refFullTexarea = ref(null);
-  const refUiValueOperator = ref(null);
-  const refUiValueOperatorList = ref(null);
-  const activeIndex = ref(0);
-  const refSearchResultList = ref(null);
-  const refFilterInput = ref(null);
+  const refConditionInput: Ref<HTMLInputElement | null> = ref(null);
+  const refFullTexarea: Ref<HTMLElement | null> = ref(null);
+  const refUiValueOperator: Ref<HTMLElement | null> = ref(null);
+  const refUiValueOperatorList: Ref<HTMLElement | null> = ref(null);
+  const activeIndex: Ref<number> = ref(0);
+  const refSearchResultList: Ref<HTMLElement | null> = ref(null);
+  const refFilterInput: Ref<HTMLElement | null> = ref(null);
   // 条件Value选择列表
-  const refValueTagInputOptionList = ref(null);
+  const refValueTagInputOptionList: Ref<HTMLElement | null> = ref(null);
 
   // 操作符下拉当前激活Index
   const operatorActiveIndex = ref(0);
@@ -164,7 +164,11 @@
 
   const { requestFieldEgges, isRequesting, setIsRequesting, isValidateEgges } = useFieldEgges();
 
-  const getFieldWeight = field => {
+  const getFieldWeight = (field: FieldInfoItem) => {
+    if (field.is_virtual_alias_field) {
+      return 102;
+    }
+
     if (field.field_name === '*') {
       return 101;
     }
@@ -182,7 +186,7 @@
 
   const fieldList = computed(() => {
     let list = [fullTextField.value];
-    list = list.concat(indexFieldInfo.value.fields);
+    list = list.concat(indexFieldInfo.value.fields, indexFieldInfo.value.alias_field_list ?? []);
     if (!isNotIpSelectShow.value) {
       list.push({
         field_name: '_ip-select_',
@@ -193,7 +197,7 @@
         field_operator: [],
       });
     }
-    return list.map(field => ({ ...field, weight: getFieldWeight(field) })).sort((a, b) => b.weight - a.weight);
+    return list.map((field: any) => ({ ...field, weight: getFieldWeight(field) })).sort((a, b) => b.weight - a.weight);
   });
 
   const textDir = computed(() => {
@@ -247,8 +251,8 @@
         return Object.assign({}, item, {
           first_name: item.query_alias || item.field_name,
           last_name: item.field_name,
-          matchIndex: fullText.indexOf(searchText),
-          matchType: fullText === searchText ? 2 : 1,
+          matchIndex: item.field_name === '*' ? 0 : fullText.indexOf(searchText),
+          matchType: item.field_name === '*' ? 2 : fullText === searchText ? 2 : 1,
         });
       }
      
@@ -437,7 +441,7 @@
     }
 
     if (activeCondition) {
-      handleConditionValueClick({ target: refConditionInput.value }, true);
+      handleConditionValueClick({ target: refConditionInput.value } as any, true);
 
       if (isValidateEgges(item)) {
         setIsRequesting(true);
@@ -504,7 +508,7 @@
     }
 
     const isFulltextValue = activeFieldItem.value.field_name === '*';
-    let result = {
+    let result: any = {
       ...condition.value,
       field: activeFieldItem.value.field_name,
     };
@@ -536,9 +540,9 @@
     emit('save', result);
   };
 
-  const refValueTagInput = ref(null);
+  const refValueTagInput: Ref<HTMLInputElement | null> = ref(null);
   const isConditionValueInputFocus = ref(false);
-  const conditionValueActiveIndex = ref(-1);
+  const conditionValueActiveIndex: Ref<number | null> = ref(-1);
   const conditionValueInputVal = ref('');
 
   /**
@@ -566,7 +570,7 @@
     return 'empty';
   });
 
-  const currentEditTagIndex = ref(null);
+  const currentEditTagIndex: Ref<number | null> = ref(null);
 
   const handleConditonValueTagItemClick = () => {
     isConditionValueInputFocus.value = true;
@@ -586,13 +590,13 @@
     }, 500);
   };
 
-  const handleConditionValueClick = (e = null, autoFocus = false) => {
+  const handleConditionValueClick = (e?: MouseEvent, autoFocus = false) => {
     conditionValueInstance.cancelHide();
     conditionBlurTimer && clearTimeout(conditionBlurTimer);
     conditionBlurTimer = null;
 
     // tag-item-input edit-input
-    if (!e || e.target?.classList?.contains('edit-input')) {
+    if (!e || (e.target as HTMLElement)?.classList?.contains('edit-input')) {
       return;
     }
 
@@ -605,16 +609,16 @@
 
     if (activeItemMatchList.value.length > 0) {
       if (!conditionValueInstance.isShown()) {
-        const target = refConditionInput.value.parentNode;
+        const target = refConditionInput.value?.parentNode;
         conditionValueInstance.show(target, true);
       }
     }
   };
 
-  let tagInputTimer = null;
+  let tagInputTimer: NodeJS.Timeout | null = null;
 
   const handleTagInputBlur = () => {
-    currentEditTagIndex.value = '';
+    currentEditTagIndex.value = null;
 
     tagInputTimer = setTimeout(() => {
       isConditionValueInputFocus.value = false;
@@ -622,7 +626,7 @@
   };
 
   const handleTagInputEnter = () => {
-    currentEditTagIndex.value = '';
+    currentEditTagIndex.value = null;
   };
   /**
    * 当前快捷键操作是否命中条件相关弹出
@@ -812,7 +816,7 @@
 
       // 如果当前没有自动focus条件选择
       if (!isConditionValueInputFocus.value) {
-        handleConditionValueClick({ target: refConditionInput.value }, true);
+        handleConditionValueClick({ target: refConditionInput.value } as any, true);
         return;
       }
 
@@ -835,7 +839,7 @@
       // 如果有可以自动联想的内容 & 没有自动展开下拉提示
       // 此时，自动展开下拉提示
       if (!instance?.state.isShown && activeItemMatchList.value.length) {
-        handleConditionValueClick({ target: refConditionInput.value });
+        handleConditionValueClick({ target: refConditionInput.value } as any);
       }
 
       // 如果是条件输入框内有数据执行数据填入操作

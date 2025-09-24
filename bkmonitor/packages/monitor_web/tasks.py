@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -57,7 +57,7 @@ from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerialize
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
-from bkmonitor.utils.user import get_global_user, set_local_username
+from bkmonitor.utils.user import get_admin_username, get_global_user, set_local_username
 from constants.aiops import SCENE_NAME_MAPPING
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -216,6 +216,7 @@ def update_metric_list():
         )
 
         # 刷新指定租户的指标列表结果表
+        set_local_username(get_admin_username(bk_tenant_id=bk_tenant_id))
         _update_metric_list(bk_tenant_id, period, offset)
 
         # 更新此轮分发任务时间戳
@@ -256,8 +257,6 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
                 f"{bk_tenant_id}_{bk_biz_id}_{_source_type}",
                 e,
             )
-
-    set_local_username(settings.COMMON_USERNAME)
 
     # 记录任务开始时间
     start = time.time()
@@ -415,9 +414,11 @@ def soft_delete_expired_shields():
     """
     软删除失效且创建时间在1个月前的屏蔽记录
     """
-    from django.utils import timezone
-    from bkmonitor.models import Shield
     from datetime import timedelta
+
+    from django.utils import timezone
+
+    from bkmonitor.models import Shield
 
     one_month_ago = timezone.now() - timedelta(days=30)
     updated_count = Shield.objects.filter(failure_time__lte=one_month_ago).update(is_enabled=False, is_deleted=True)

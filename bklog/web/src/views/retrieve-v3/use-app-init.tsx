@@ -26,14 +26,15 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { VIEW_BUSINESS } from '@/common/authority-map';
+import useResizeObserve from '@/hooks/use-resize-observe';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
+import { getDefaultRetrieveParams, update_URL_ARGS } from '@/store/default-values';
+import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '@/store/store.type';
+import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import useResizeObserve from '../../hooks/use-resize-observe';
-import { getDefaultRetrieveParams, update_URL_ARGS } from '../../store/default-values';
-import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '../../store/store.type';
-import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
-import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
 import $http from '@/api';
 
 export default () => {
@@ -68,18 +69,26 @@ export default () => {
     Object.assign(routeParams, { ids: [] });
 
     if (/^-?\d+$/.test(routeParams.index_id)) {
-      Object.assign(routeParams, { ids: [`${routeParams.index_id}`], isUnionIndex: false, selectIsUnionSearch: false });
+      Object.assign(routeParams, {
+        ids: [`${routeParams.index_id}`],
+        isUnionIndex: false,
+        selectIsUnionSearch: false,
+      });
       activeTab = 'single';
     }
 
     if (routeParams.unionList?.length) {
-      Object.assign(routeParams, { ids: [...routeParams.unionList], isUnionIndex: true, selectIsUnionSearch: true });
+      Object.assign(routeParams, {
+        ids: [...routeParams.unionList],
+        isUnionIndex: true,
+        selectIsUnionSearch: true,
+      });
       activeTab = 'union';
     }
 
     store.commit('updateIndexItem', routeParams);
     store.commit('updateSpace', routeParams.spaceUid);
-    store.commit('updateIndexId', routeParams.index_id);
+    store.commit('updateState', { indexId: routeParams.index_id });
     store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
   };
 
@@ -101,10 +110,11 @@ export default () => {
     trendGraphHeight.value = height;
   };
 
-  RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, handleSearchBarHeightChange)
-    .on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, handleFavoriteWidthChange)
-    .on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, hanldeFavoriteShown)
-    .on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, handleGraphHeightChange);
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, handleSearchBarHeightChange);
+  addEvent(RetrieveEvent.FAVORITE_WIDTH_CHANGE, handleFavoriteWidthChange);
+  addEvent(RetrieveEvent.FAVORITE_SHOWN_CHANGE, hanldeFavoriteShown);
+  addEvent(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, handleGraphHeightChange);
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
@@ -143,8 +153,13 @@ export default () => {
     if (!search_mode) {
       if (addition?.length > 4 && keyword?.length > 0) {
         // 这里不好做同步请求，所以直接设置 search_mode 为 sql
-        router.push({ query: { ...route.query, search_mode: 'sql', addition: '[]' } });
-        const resolver = new RouteUrlResolver({ route, resolveFieldList: ['addition'] });
+        router.push({
+          query: { ...route.query, search_mode: 'sql', addition: '[]' },
+        });
+        const resolver = new RouteUrlResolver({
+          route,
+          resolveFieldList: ['addition'],
+        });
         const target = resolver.convertQueryToStore<RouteParams>();
 
         if (target.addition?.length) {
@@ -157,12 +172,14 @@ export default () => {
             .then(res => {
               if (res.result) {
                 const newKeyword = `${keyword} AND ${res.data?.querystring}`;
-                router.replace({ query: { ...route.query, keyword: newKeyword, addition: [] } });
+                router.replace({
+                  query: { ...route.query, keyword: newKeyword, addition: [] },
+                });
                 store.commit('updateIndexItemParams', { keyword: newKeyword });
               }
             })
             .catch(err => {
-              console.log(err);
+              console.error(err);
             });
         }
 
@@ -175,7 +192,10 @@ export default () => {
       }
 
       router.push({
-        query: { ...route.query, search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui' },
+        query: {
+          ...route.query,
+          search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
+        },
       });
     }
   };
@@ -195,7 +215,11 @@ export default () => {
     });
 
     return store
-      .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value, is_group: true })
+      .dispatch('retrieve/getIndexSetList', {
+        spaceUid: spaceUid.value,
+        bkBizId: bkBizId.value,
+        is_group: true,
+      })
       .then(resp => {
         isPreApiLoaded.value = true;
 
@@ -208,7 +232,9 @@ export default () => {
             .map(val => val.index_set_id);
           if (indexSetMatch.length) {
             store.commit('updateIndexItem', { ids: indexSetMatch, isUnionIndex: true, selectIsUnionSearch: true });
-            store.commit('updateUnionIndexItemList', tagList);
+            store.commit('updateState', {
+              unionIndexItemList: tagList,
+            });
             store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'union' });
           }
         }
@@ -256,7 +282,7 @@ export default () => {
 
           if (emptyIndexSetList.length) {
             store.commit('updateIndexItem', { ids: [], items: [] });
-            store.commit('updateIndexId', '');
+            store.commit('updateState', { indexId: '' });
             store.commit('updateIndexSetQueryResult', {
               is_error: true,
               exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
@@ -264,7 +290,10 @@ export default () => {
           }
 
           if (indexSetItems.length) {
-            store.commit('updateIndexItem', { ids: [...indexSetIds], items: [...indexSetItems] });
+            store.commit('updateIndexItem', {
+              ids: [...indexSetIds],
+              items: [...indexSetItems],
+            });
           }
         }
 
@@ -273,14 +302,14 @@ export default () => {
           const respIndexSetList = resp[1];
           const defIndexItem =
             respIndexSetList.find(
-              item => item.permission?.[VIEW_BUSINESS] && !item.tags.some(tag => tag.tag_id === 4),
+              item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
             ) ?? respIndexSetList[0];
           const defaultId = [defIndexItem?.index_set_id].filter(Boolean);
 
           if (defaultId) {
             const strId = `${defaultId}`;
             store.commit('updateIndexItem', { ids: [strId], items: [defIndexItem].filter(Boolean) });
-            store.commit('updateIndexId', strId);
+            store.commit('updateState', { indexId: strId });
           }
         }
 
@@ -296,12 +325,15 @@ export default () => {
 
           const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
           if (indexId && type === 'single') {
-            store.commit('updateIndexId', indexId);
+            store.commit('updateState', { indexId: indexId });
             store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
           }
 
           if (type === 'union') {
-            store.commit('updateUnionIndexList', { updateIndexItem: false, list: [...(unionList ?? [])] });
+            store.commit('updateUnionIndexList', {
+              updateIndexItem: false,
+              list: [...(unionList ?? [])],
+            });
           }
 
           store.commit('updateIndexItem', { isUnionIndex: type === 'union' });
@@ -345,7 +377,7 @@ export default () => {
           if (defaultId) {
             const strId = `${defaultId}`;
             store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
-            store.commit('updateIndexId', strId);
+            store.commit('updateState', { indexId: strId });
           }
         }
 
@@ -357,7 +389,11 @@ export default () => {
 
         router.replace({
           params: { ...route.params, indexId },
-          query: { ...route.query, ...queryTab, unionList: unionList ? JSON.stringify(unionList) : undefined },
+          query: {
+            ...route.query,
+            ...queryTab,
+            unionList: unionList ? JSON.stringify(unionList) : undefined,
+          },
         });
       });
   };
@@ -372,7 +408,9 @@ export default () => {
       spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
     });
 
-    router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
+    router.replace({
+      query: { ...route.query, ...resolver.resolveParamsToUrl() },
+    });
   };
 
   const beforeMounted = () => {
@@ -390,7 +428,7 @@ export default () => {
       timezone,
       datePickerValue,
     });
-    store.commit('updateIndexId', '');
+    store.commit('updateState', { indexId: '' });
     store.commit('updateUnionIndexList', []);
     RetrieveHelper.setIndexsetId([], null);
 
@@ -405,7 +443,6 @@ export default () => {
     if (routeQuery.spaceUid !== spaceUid.value) {
       const resolver = new RouteUrlResolver({ route });
 
-      const {} = store.state.indexItem;
       router.replace({
         params: {
           indexId: undefined,
@@ -434,7 +471,7 @@ export default () => {
   // 滚动时，检索结果距离顶部高度
   const searchResultTop = ref(0);
 
-  RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
+  addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -10,10 +10,12 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-import pytest
 from unittest import mock
-from metadata.resources.bkdata_link import QueryDataLinkInfoResource
+
+import pytest
+
 from metadata.models import DataSource
+from metadata.resources.bkdata_link import QueryDataLinkInfoResource
 
 logger = logging.getLogger("metadata")
 
@@ -36,11 +38,12 @@ def mock_data_source():
     return ds
 
 
-@pytest.mark.django_db(databases=["monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_complete_info_query(mocker, mock_data_source):
     """测试is_complete为True时完整信息查询"""
-    resource = QueryDataLinkInfoResource()
-    result = resource.perform_request({"bk_data_id": mock_data_source.bk_data_id, "is_complete": True})
+    result = QueryDataLinkInfoResource().request(
+        {"bk_tenant_id": "test", "bk_data_id": mock_data_source.bk_data_id, "is_complete": True}
+    )
 
     # 验证返回的是有效的JSON字符串
     assert isinstance(result, str)
@@ -56,11 +59,12 @@ def test_complete_info_query(mocker, mock_data_source):
     assert "space_to_result_table_router_infos" in result_data
 
 
-@pytest.mark.django_db(databases=["monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_basic_info_query(mocker, mock_data_source):
     """测试is_complete为False时基础信息查询"""
-    resource = QueryDataLinkInfoResource()
-    result = resource.perform_request({"bk_data_id": mock_data_source.bk_data_id, "is_complete": False})
+    result = QueryDataLinkInfoResource().request(
+        {"bk_tenant_id": "system", "bk_data_id": mock_data_source.bk_data_id, "is_complete": False}
+    )
 
     # 验证返回的是有效的JSON字符串
     assert isinstance(result, str)
@@ -77,11 +81,10 @@ def test_basic_info_query(mocker, mock_data_source):
     assert "space_to_result_table_router_infos" not in result_data
 
 
-@pytest.mark.django_db(databases=["monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_query_with_exception(mocker, mock_data_source):
     """测试查询过程中出现异常的情况"""
-    resource = QueryDataLinkInfoResource()
-    result = resource.perform_request({"bk_data_id": 9999})
+    result = QueryDataLinkInfoResource().request({"bk_tenant_id": "system", "bk_data_id": 9999})
     # 验证错误信息格式是否匹配实际抛出的格式
     assert isinstance(result, str)
     result_data = json.loads(result)

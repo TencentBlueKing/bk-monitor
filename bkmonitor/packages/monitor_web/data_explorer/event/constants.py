@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -79,6 +79,15 @@ class EventSource(CachedEnum):
         )
 
     @classmethod
+    def label_mapping(self):
+        return {
+            self.BKCI.value: str(_("蓝盾")),
+            self.BCS.value: str(_("BCS")),
+            self.HOST.value: str(_("主机")),
+            self.DEFAULT.value: str(_("业务上报")),
+        }
+
+    @classmethod
     def get_default(cls, value):
         default = super().get_default(value)
         default.label = value
@@ -109,10 +118,17 @@ class EventType(CachedEnum):
             {
                 self.Normal: self.Normal.value,
                 self.Warning: self.Warning.value,
-                self.Default: self.Default.value,
                 self.EMPTY_DEFAULT: self.Default.value,
             }.get(self, self.value)
         )
+
+    @classmethod
+    def label_mapping(self):
+        return {
+            self.Normal.value: self.Normal.value,
+            self.Warning.value: self.Warning.value,
+            self.Default.value: self.Default.value,
+        }
 
     @classmethod
     def get_default(cls, value):

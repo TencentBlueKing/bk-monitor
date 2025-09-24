@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -396,7 +396,11 @@ class BulkAddAlertShieldResource(AddShieldResource):
           "111", "100"
         ]
         # 编辑了维度后， 则将告警对应的剩下的维度的key放进来。 作为字典， key是告警id， value是剩下的维度key列表
-        "dimensions": {"111": ["xxx", "yyy"], "100": ["xxx", "yyy"]
+        "dimensions": {"111": ["xxx", "yyy"], "100": ["xxx", "yyy"],
+        "bk_topo_node": {
+            "111": [{"bk_obj_id": "set","bk_inst_id": 3}, {"bk_obj_id": "module","bk_inst_id": 4}]
+            "100": [{"bk_obj_id": "set","bk_inst_id": 3}, {"bk_obj_id": "module","bk_inst_id": 4}]
+            }
         },
       },
       "shield_notice": false,
@@ -414,7 +418,8 @@ class BulkAddAlertShieldResource(AddShieldResource):
     def handle_alerts(self, data):
         alert_ids = data["dimension_config"]["alert_ids"] or [data["dimension_config"]["alert_id"]]
         # dimension_config.dimensions 标记告警保留需要匹配的屏蔽维度
-        target_dimension_config = data["dimension_config"].get("dimensions", {})
+        target_dimension_config: dict = data["dimension_config"].get("dimensions", {})
+        target_bk_topo_node: dict = data["dimension_config"].get("bk_topo_node", {})
         alerts = AlertDocument.mget(ids=alert_ids)
         dimension_configs = []
 
@@ -422,30 +427,44 @@ class BulkAddAlertShieldResource(AddShieldResource):
         now_time = int(time.time())
 
         for alert in alerts:
-            # 未标记编辑维度， 则 dimension_config.dimensions没有对应告警的信息
-            target_dimensions = None
-            if str(alert.id) in target_dimension_config:
-                # 取需要匹配的维度列表
-                target_dimensions = target_dimension_config[str(alert.id)]
+            """
+            获取 bk_topo_node和 dimensions
+            if bk_topo_node 有值:
+                传入 bk_topo_node, 
+                并修改 屏蔽的category 要改成范围屏蔽 
+                # Shield.SHIELD_CATEGROY[0][0] -> "scope"
+            elif dimensions 有值:
+                按传入(维度)值处理
+            elif dimensions 无值:
+                按默认所有维度配置
+            """
 
-            dimension_config = {}
-            shield_dimensions = []
-            for dimension in alert.dimensions:
-                dimension_data = dimension.to_dict()
-                # 未标记编辑维度， 则所有维度都配置， 编辑了维度， 仅配置保留的维度。
-                if target_dimensions is None or dimension_data["key"] in target_dimensions:
-                    dimension_config[dimension_data["key"]] = dimension_data["value"]
-                    shield_dimensions.append(dimension)
-            dimension_config.update(
+            dimension_config = {
                 # 下划线的配置，不参与屏蔽逻辑。
-                {
-                    "_alert_id": alert.id,
-                    "strategy_id": alert.strategy_id,
-                    "_severity": alert.severity,
-                    "_alert_message": getattr(alert.event, "description", ""),
-                    "_dimensions": AlertDimensionFormatter.get_dimensions_str(shield_dimensions),
-                }
-            )
+                "_alert_id": alert.id,
+                "strategy_id": alert.strategy_id,
+                "_severity": alert.severity,
+                "_alert_message": getattr(alert.event, "description", ""),
+            }
+
+            bk_topo_node: list = target_bk_topo_node.get(str(alert.id), [])
+            target_dimensions: list[str] | None = target_dimension_config.get(str(alert.id), None)
+            shield_dimensions = []
+
+            if bk_topo_node:
+                dimension_config["bk_topo_node"] = bk_topo_node
+                data["category"] = "scope"
+                # 维度范围不需要该字段
+                dimension_config.pop("strategy_id")
+            else:
+                for dimension in alert.dimensions:
+                    dimension_data: dict = dimension.to_dict()
+                    if target_dimensions is None or dimension_data["key"] in target_dimensions:
+                        dimension_config[dimension_data["key"]] = dimension_data["value"]
+                        shield_dimensions.append(dimension)
+
+            dimension_config["_dimensions"] = AlertDimensionFormatter.get_dimensions_str(shield_dimensions)
+
             alert_documents.append(AlertDocument(id=alert.id, is_shielded=True, update_time=now_time))
             dimension_configs.append(dimension_config)
 
@@ -467,6 +486,10 @@ class BulkAddAlertShieldResource(AddShieldResource):
         shields = []
         shield_operator = get_request_username()
         for dimension_config in dimension_configs:
+            scope_type = data["dimension_config"].get("scope_type", "")
+            if data["category"] == "scope":
+                scope_type = "node"
+
             shields.append(
                 Shield(
                     bk_biz_id=data["bk_biz_id"],
@@ -476,7 +499,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
                     begin_time=time_result["begin_time"],
                     end_time=time_result["end_time"],
                     failure_time=time_result["end_time"],
-                    scope_type=data["dimension_config"].get("scope_type", ""),
+                    scope_type=scope_type,
                     cycle_config=data.get("cycle_config", {}),
                     dimension_config=dimension_config,
                     notice_config=data["notice_config"] if data["shield_notice"] else {},

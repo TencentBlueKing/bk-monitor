@@ -1,25 +1,26 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import time
 
 import pytz
 from opentelemetry.semconv.resource import ResourceAttributes
 
+from apm.constants import DEFAULT_TOPO_INSTANCE_EXPIRE
 from apm.core.discover.base import (
     DiscoverBase,
     extract_field_value,
     get_topo_instance_key,
 )
-from apm.core.handlers.instance_handlers import InstanceHandler
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.models import ApmTopoDiscoverRule, TopoInstance
 from constants.apm import OtlpKey
 
@@ -267,8 +268,8 @@ class InstanceDiscover(DiscoverBase):
         now = int(time.time())
         old_cache_data.update({i: now for i in (create_instance_keys | update_instance_keys)})
         cache_data = {i: old_cache_data[i] for i in (set(old_cache_data.keys()) - delete_instance_keys)}
-        name = InstanceHandler.get_topo_instance_cache_key(self.bk_biz_id, self.app_name)
-        InstanceHandler().refresh_data(name, cache_data)
+        name = ApmCacheHandler.get_topo_instance_cache_key(self.bk_biz_id, self.app_name)
+        ApmCacheHandler().refresh_data(name, cache_data, DEFAULT_TOPO_INSTANCE_EXPIRE)
 
     def query_cache_and_instance_data(self):
         """
@@ -276,8 +277,8 @@ class InstanceDiscover(DiscoverBase):
         """
 
         # 查询应用下的缓存数据
-        name = InstanceHandler.get_topo_instance_cache_key(self.bk_biz_id, self.app_name)
-        cache_data = InstanceHandler().get_cache_data(name)
+        name = ApmCacheHandler.get_topo_instance_cache_key(self.bk_biz_id, self.app_name)
+        cache_data = ApmCacheHandler().get_cache_data(name)
 
         # 查询应用下的实例数据
         filter_params = {"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}

@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -93,7 +92,7 @@ class CollectorMetaSerializer(serializers.ModelSerializer, CollectorPluginMixin)
     COLLECTOR_PLUGIN_META_FIELDS = ["plugin_id", "plugin_type", "bk_biz_id", "bk_supplier_id", "tag", "label"]
 
     plugin_id = serializers.RegexField(required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=30, label="插件ID")
-    data_label = serializers.CharField(required=False, default="", label="数据标签")
+    data_label = serializers.CharField(required=False, default="", label="数据标签", allow_blank=True)
     bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
     bk_supplier_id = serializers.IntegerField(required=False, default=0, label="供应商ID")
     plugin_type = serializers.ChoiceField(

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -205,7 +205,24 @@ class PluginFileManager(BaseFileManager):
     @classmethod
     def extract_file(cls, file_data, file_path):
         with tarfile.open(fileobj=file_data, mode="r:gz") as tar:
-            tar.extractall(file_path, filter="data")
+            for member in tar.getmembers():
+                # 只处理普通文件，避免符号链接等特殊文件类型带来的安全风险
+                if not member.isreg():
+                    continue
+                # 规范化路径并检查安全性，防止路径遍历攻击
+                member_path = os.path.normpath(member.name)
+                if member_path.startswith("..") or member_path.startswith("/"):
+                    continue
+                # 通过TarInfo对象安全地提取文件内容
+                with tar.extractfile(member) as f:
+                    target_path = os.path.join(file_path, member_path)
+                    # 确保解压路径在预期的临时目录内
+                    if not os.path.realpath(target_path).startswith(os.path.realpath(file_path)):
+                        continue
+                    # 确保目标目录存在
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    with open(target_path, "wb") as target_file:
+                        target_file.write(f.read())
         return file_path
 
     @classmethod

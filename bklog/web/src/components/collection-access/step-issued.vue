@@ -407,11 +407,11 @@
         }
         this.curTab = tab.type;
         if (this.curTab === 'all') {
-          this.tableList = JSON.parse(JSON.stringify(this.tableListAll));
+          this.tableList = structuredClone(this.tableListAll);
         } else {
           const child = [];
           this.tableListAll.forEach(item => {
-            const copyItem = JSON.parse(JSON.stringify(item));
+            const copyItem = structuredClone(item);
             copyItem.child = copyItem.child.filter(row => row.status === this.curTab);
             if (copyItem.child.length) {
               child.push(copyItem);
@@ -428,7 +428,7 @@
       },
       prevHandler() {
         if (this.operateType === 'add') {
-          this.$store.commit('updateRouterLeaveTip', true);
+          this.$store.commit('updateState', {'showRouterLeaveTip': true});
           this.$router.replace({
             name: 'collectEdit',
             params: {

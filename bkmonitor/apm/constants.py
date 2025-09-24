@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -544,6 +544,7 @@ class ConfigTypes:
     DB_SLOW_COMMAND_CONFIG = "db_slow_command_config"
     DB_CONFIG = "db_config"
     ATTRIBUTES_CONFIG_LOGS = "attributes_config_logs"
+    CODE_RELABEL_CONFIG = "code_relabel_config"
 
     @classmethod
     def choices(cls):
@@ -555,6 +556,7 @@ class ConfigTypes:
             (cls.DB_SLOW_COMMAND_CONFIG, _("db慢命令配置")),
             (cls.DB_CONFIG, _("db配置")),
             (cls.ATTRIBUTES_CONFIG_LOGS, _("attributes 配置(logs)")),
+            (cls.CODE_RELABEL_CONFIG, _("返回码重定义配置")),
         ]
 
 
@@ -566,8 +568,12 @@ PLATFORM_METRIC_DIMENSION_FILED = [
 ]
 
 APM_TOPO_INSTANCE = "BKMONITOR_{}_{}_APM_TOPO_INSTANCE_HEARTBEAT_{}_{}"
+APM_ENDPOINT = "BKMONITOR_{}_{}_APM_ENDPOINT_HEARTBEAT_{}_{}"
 
+# 针对高频修改字段 updated_at 的过期清理时间
+DEFAULT_APM_CACHE_EXPIRE = 7 * 24 * 60 * 60
 DEFAULT_TOPO_INSTANCE_EXPIRE = 7 * 24 * 60 * 60
+DEFAULT_ENDPOINT_EXPIRE = 7 * 24 * 60 * 60
 
 
 class ProfileApiType:

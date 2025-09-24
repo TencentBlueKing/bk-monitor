@@ -1,7 +1,6 @@
 import logging
 import re
 from collections import defaultdict
-from functools import reduce
 
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -13,7 +12,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.data_source import load_data_source
-from bkmonitor.models import QueryConfigModel, StrategyModel
+from bkmonitor.models import QueryConfigModel
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.time_tools import date_convert, parse_time_range
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -131,38 +130,6 @@ class QueryCustomEventGroup(Resource):
         is_platform = serializers.BooleanField(required=False)
         table_id = serializers.CharField(label="结果表 ID", required=False)
 
-    @classmethod
-    def get_strategy_count_for_each_group(cls, table_ids, request_bk_biz_id: int | None = None):
-        """
-        获取事件分组绑定的策略数
-        """
-        if not table_ids:
-            return {}
-
-        query_configs = (
-            QueryConfigModel.objects.annotate(result_table_id=models.F("config__result_table_id"))
-            .filter(
-                reduce(lambda x, y: x | y, (Q(result_table_id=table_id) for table_id in table_ids)),
-                data_source_label=DataSourceLabel.CUSTOM,
-                data_type_label=DataTypeLabel.EVENT,
-            )
-            .values("result_table_id", "strategy_id")
-        )
-
-        strategy_ids = []
-        if request_bk_biz_id:
-            strategy_ids = StrategyModel.objects.filter(bk_biz_id=request_bk_biz_id).values_list("pk", flat=True)
-
-        table_id_strategy_mapping = defaultdict(set)
-        for query_config in query_configs:
-            # 当存在 biz 请求条件且策略 id 未命中时不纳入统计
-            if request_bk_biz_id and query_config["strategy_id"] not in strategy_ids:
-                continue
-
-            table_id_strategy_mapping[query_config["result_table_id"]].add(query_config["strategy_id"])
-
-        return {key: len(value) for key, value in table_id_strategy_mapping.items()}
-
     def perform_request(self, params: dict):
         queryset = CustomEventGroup.objects.filter(
             type=EVENT_TYPE.CUSTOM_EVENT,
@@ -197,7 +164,14 @@ class QueryCustomEventGroup(Resource):
         groups = serializer.data
 
         table_ids = [group["table_id"] for group in groups]
-        strategy_count_mapping = self.get_strategy_count_for_each_group(table_ids, params.get("bk_biz_id"))
+        from monitor_web.custom_report.resources import count_rt_bound_strategies
+
+        strategy_count_mapping = count_rt_bound_strategies(
+            table_ids,
+            data_source_label=DataSourceLabel.CUSTOM,
+            data_type_label=DataTypeLabel.EVENT,
+            bk_biz_id=params.get("bk_biz_id"),
+        )
 
         label_display_dict = get_label_display_dict()
         for group in groups:
@@ -294,6 +268,7 @@ class GetCustomEventGroup(Resource):
         start, end = parse_time_range(time_range)
         data_source = load_data_source(DataSourceLabel.CUSTOM, DataTypeLabel.EVENT)(table=result_table_id)
         q = data_source._get_queryset(
+            bk_tenant_id=get_request_tenant_id(),
             metrics=[
                 {"field": "target", "method": "distinct", "alias": "target_count"},
                 {"field": "time", "method": "max", "alias": "last_change_timestamp"},

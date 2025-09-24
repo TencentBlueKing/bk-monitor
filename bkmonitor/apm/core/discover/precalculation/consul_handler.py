@@ -1,7 +1,7 @@
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
-Copyright (C) 2022 THL A29 Limited,
+Copyright (C) 2017-2025 Tencent,
 a Tencent company. All rights reserved.
 Licensed under the MIT License (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ to the current version of the project delivered to anyone in the future.
 import logging
 import traceback
 from dataclasses import asdict, dataclass
+from typing import TYPE_CHECKING
 from urllib.parse import urlunparse
 
 from django.conf import settings
@@ -32,6 +33,9 @@ logger = logging.getLogger("apm")
 CONSUL_PATH = "{}_{}_{}/{}/data_id/{{data_id}}".format(
     settings.APP_CODE, settings.PLATFORM, settings.ENVIRONMENT, "apm"
 )
+
+if TYPE_CHECKING:
+    from apm.models import ApmApplication
 
 
 @dataclass
@@ -86,7 +90,7 @@ class ConsulHandler:
         logger.info("check all consul update finished")
 
     @classmethod
-    def _get_info(cls, space_mapping, application, trace_datasource):
+    def _get_info(cls, space_mapping, application: "ApmApplication", trace_datasource):
         from apm.core.discover.precalculation.storage import PrecalculateStorage
 
         data_id = trace_datasource.bk_data_id
@@ -97,7 +101,9 @@ class ConsulHandler:
         result_table_config = datasource_info["result_table_list"][0]["shipper_list"][0]
         result_table_cluster_config = result_table_config["cluster_config"]
         save_storage = PrecalculateStorage(application.bk_biz_id, application.app_name)
-        save_storage_info = ClusterInfo.objects.get(cluster_id=save_storage.storage_cluster_id)
+        save_storage_info = ClusterInfo.objects.get(
+            bk_tenant_id=application.bk_tenant_id, cluster_id=save_storage.storage_cluster_id
+        )
 
         return ConsulData(
             data_id=data_id,
@@ -107,7 +113,7 @@ class ConsulHandler:
             bk_biz_name=space_mapping[str(application.bk_biz_id)]["space_name"]
             if str(application.bk_biz_id) in space_mapping
             else application.bk_biz_id,
-            app_id=application.id,
+            app_id=application.pk,
             app_name=application.app_name,
             kafka_info=ConsulKafkaInfo(
                 host=f"{datasource_info['mq_config']['cluster_config']['domain_name']}"

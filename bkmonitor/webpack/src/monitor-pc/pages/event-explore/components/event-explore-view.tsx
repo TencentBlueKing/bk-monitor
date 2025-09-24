@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -55,6 +55,7 @@ interface IEventExploreViewEvents {
   onSearch: () => void;
   onSetRouteParams(otherQuery: Record<string, any>): void;
   onShowEventSourcePopover(event: Event): void;
+  onIntervalChange: (interval: IntervalType) => void;
 }
 
 interface IEventExploreViewProps {
@@ -322,6 +323,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     }
     this.chartInterval = interval;
     this.updatePanelConfig();
+    this.sendInterval();
   }
 
   /**
@@ -329,6 +331,11 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
    */
   handleShowLegendChange(legends: ILegendItem[]) {
     this.showLegendList = legends.filter(v => v.show).map(v => v.name) as DimensionsTypeEnum[];
+  }
+
+  @Emit('intervalChange')
+  sendInterval() {
+    return this.chartInterval;
   }
 
   @Emit('showEventSourcePopover')

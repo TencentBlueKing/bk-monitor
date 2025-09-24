@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -24,6 +24,42 @@
  * IN THE SOFTWARE.
  */
 import type { ModelConfig } from '@antv/g6';
+
+// 节点概览页类型切换tab，linkedEdge-关联边，metric-指标
+export type ActiveTab = 'linkedEdge' | 'metric';
+
+// 事件分析弹窗列配置
+export interface EventColumnConfig {
+  alias: string;
+  list: EventColumnItem[];
+  name: string;
+}
+
+export interface EventColumnItem {
+  alias: string;
+  count: number;
+  value: string;
+}
+
+// 事件分析弹窗选中数据配置
+export interface EventConfig {
+  [key: string]: EventConfigItem;
+}
+export interface EventSeries {
+  alias?: string;
+  datapoints: Array<[number, number]>;
+  dimensions?: Record<string, any>;
+  dimensions_translation?: Record<string, any>;
+  metric_field?: string;
+  target?: string;
+  type?: string;
+  unit?: string;
+}
+
+export interface EventStatistics {
+  event_level: Record<string, number>;
+  event_source: Record<string, number>;
+}
 
 export interface IEdge {
   [key: string]: any;
@@ -68,13 +104,37 @@ export interface IEntityTag {
   name: string;
   namespace: string;
 }
+
+// 事件详情菜单项
+export interface IEventTagsItem {
+  bk_biz_id: number | string;
+  end_time: number; // 故障结束时间/当前时间
+  index_info: Record<string, any>;
+  interval: number;
+  start_time: number; // 当前点击的事件的时间戳
+}
+
+export interface IMetricItem {
+  display_by_dimensions: boolean; // 是否为多维度指标
+  metric_alias: string;
+  metric_name: string;
+  metric_type: string;
+  time_series: Record<string, ITimeSeries>;
+}
+
 export interface IncidentDetailData {
+  begin_time?: number;
   bk_biz_id: string;
   create_time: number;
   current_snapshot?: any;
   end_time: number;
   id: string;
   incident_id: string;
+}
+
+export interface IPosition {
+  left: number;
+  top: number;
 }
 
 export interface IRank {
@@ -90,6 +150,12 @@ export interface IRank {
     category_id: number;
     category_name: string;
   };
+}
+
+export interface ITimeSeries {
+  [key: string]: any;
+  datapoints: Array<[number, number, number]>; // 指标数据
+  unit: string;
 }
 
 export interface ITopoCombo extends ModelConfig {
@@ -130,6 +196,18 @@ export interface ITopoNode extends ModelConfig {
     alert_id: string;
     alert_name: string;
   };
+  properties: {
+    aggregated_by?: string[];
+  };
+}
+
+// 事件数据，用于构造散点图
+export interface MetricEvent {
+  event_alias?: string;
+  event_level: string;
+  event_name: string;
+  event_source: string;
+  series: EventSeries[];
 }
 
 export interface TopoRawData {
@@ -137,4 +215,9 @@ export interface TopoRawData {
   create_time: number;
   fpp_snapshot_id: string;
   incident_id: string;
+}
+
+interface EventConfigItem {
+  is_select_all: boolean;
+  list: string[];
 }

@@ -67,14 +67,14 @@ export default defineComponent({
       shouldShow.value && (
         <div class='list-box-container'>
           <div class={['list-title', props.mark && 'mark']}>
-            <span class={props.icon}></span>
+            <span class={props.icon} />
             <h2 class='text'>{props.title}</h2>
           </div>
           <ul class='list-box'>
             {listData.value.map((item, index) => (
               <li
+                key={`${index}-${item}`}
                 class='list-item'
-                key={index}
               >
                 {item}
               </li>

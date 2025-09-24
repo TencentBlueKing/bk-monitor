@@ -39,7 +39,7 @@ type logicOpType = 'and' | 'or';
 export type btnType = 'match' | 'none' | 'separator';
 
 /** 操作符列表 */
-export const operatorSelectList: Array<ISelectItem> = [
+export const operatorSelectList: ISelectItem[] = [
   {
     id: 'eq',
     name: window.mainComponent.$t('等于'),
@@ -67,7 +67,7 @@ export const operatorSelectList: Array<ISelectItem> = [
 ];
 
 /** 过滤类型 */
-export const btnGroupList: Array<ISelectItem> = [
+export const btnGroupList: ISelectItem[] = [
   {
     id: 'match',
     name: window.mainComponent.$t('字符串'),

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -842,7 +842,9 @@ class DataLink(models.Model):
         storage_type = ClusterInfo.TYPE_VM
 
         try:
-            storage_cluster_id = ClusterInfo.objects.get(cluster_name=storage_cluster_name).cluster_id
+            storage_cluster_id = ClusterInfo.objects.get(
+                bk_tenant_id=self.bk_tenant_id, cluster_name=storage_cluster_name
+            ).cluster_id
         except ClusterInfo.DoesNotExist:
             logger.error("sync_metadata: storage_cluster_name->[%s] not exist!", storage_cluster_name)
             return
@@ -874,7 +876,9 @@ class DataLink(models.Model):
         from metadata.models import AccessVMRecord, ClusterInfo
 
         try:
-            storage_cluster_id = ClusterInfo.objects.get(cluster_name=storage_cluster_name).cluster_id
+            storage_cluster_id = ClusterInfo.objects.get(
+                bk_tenant_id=self.bk_tenant_id, cluster_name=storage_cluster_name
+            ).cluster_id
         except ClusterInfo.DoesNotExist:
             logger.error("sync_metadata: storage_cluster_name->[%s] not exist!", storage_cluster_name)
             return

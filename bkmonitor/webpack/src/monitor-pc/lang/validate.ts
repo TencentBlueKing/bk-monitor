@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -284,4 +284,19 @@ export default {
   必填: 'Required',
   当前未配置URI信息: 'Currently unconfigured URI information',
   添加方式必填: 'Addition method is required',
+  模板名称必填: 'Template name is required',
+  生效范围必填: 'Effective range is required',
+  变量名必填: 'Variable name is required',
+  变量名不能重复: 'Variable name cannot be duplicated',
+  可选维度值必选: 'Optional dimension value must be selected',
+  变量名不能包含非法字符: 'Variable name cannot contain illegal characters',
+  '1～50 字符，仅支持 英文小写、数字、下划线':
+    '1-50 characters, and only lowercase letters, numbers, and _ are supported',
+  '1～50 字符，仅支持 大小写字母、数字、下划线、点':
+    '1-50 characters, and only uppercase and lowercase letters, numbers, _ and . are supported',
+  '变量名仅支持大小写字符、数字、下划线、点（.），50个字符以内':
+    'Variable name only supports case-sensitive characters, numbers, underscores, and dots (.), up to 50 characters',
+  请输入业务ID: 'Please enter the business ID',
+  '被调服务、被调service、被调接口组合值唯一': 'The combination value of the called service, called service, and called interface is unique',
+  返回码格式错误: 'Return code format error',
 };

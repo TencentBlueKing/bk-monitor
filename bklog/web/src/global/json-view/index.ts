@@ -25,6 +25,7 @@
  * IN THE SOFTWARE.
  */
 import { copyMessage, xssFilter } from '@/common/util';
+import RetrieveHelper from '@/views/retrieve-helper';
 import JSONBig from 'json-bigint';
 
 export type JsonViewConfig = {
@@ -43,7 +44,7 @@ export default class JsonView {
 
   rootElClick?: (...args) => void;
   constructor(target: HTMLElement, options: JsonViewConfig) {
-    this.options = Object.assign({}, { depth: 1, isExpand: false }, options);
+    this.options = { depth: 1, isExpand: false, ...options };
     this.targetEl = target;
     this.jsonNodeMap = new WeakMap();
     this.JSONBigInstance = JSONBig({ useNativeBigInt: true });
@@ -86,7 +87,7 @@ export default class JsonView {
       return node;
     }
 
-    Object.keys(target ?? {}).forEach(key => {
+    for (const key of Object.keys(target ?? {})) {
       const row = document.createElement('div');
       row.classList.add('bklog-json-view-row');
       row.setAttribute('data-field-name', key);
@@ -95,7 +96,7 @@ export default class JsonView {
       row.append(this.createJsonNodeElment(target[key], depth));
 
       node.append(row);
-    });
+    }
 
     return node;
   }
@@ -180,17 +181,15 @@ export default class JsonView {
 
   private setNodeExpand = (jsonNode: HTMLElement, isExpand: boolean, target: any) => {
     let childNode = jsonNode.querySelector('.bklog-json-view-child');
-    if (isExpand) {
-      if (!childNode) {
-        const leafNode = jsonNode.closest('.bklog-json-view-node');
-        const depth = Number(leafNode.getAttribute('data-depth') ?? 1);
-        childNode = this.createObjectChildNode(target, depth + 1);
-        jsonNode.append(childNode);
-      }
+    if (isExpand && !childNode) {
+      const leafNode = jsonNode.closest('.bklog-json-view-node');
+      const depth = Number(leafNode.getAttribute('data-depth') ?? 1);
+      childNode = this.createObjectChildNode(target, depth + 1);
+      jsonNode.append(childNode);
     }
 
     const collapseClassName = isExpand ? 'is-collapse' : 'is-expand';
-    const expandClassName = !isExpand ? 'is-collapse' : 'is-expand';
+    const expandClassName = isExpand ? 'is-expand' : 'is-collapse';
 
     childNode.classList.remove(collapseClassName);
     childNode.classList.add(expandClassName);
@@ -208,6 +207,7 @@ export default class JsonView {
     ) {
       const storeNode = targetNode.closest('.bklog-json-view-object') as HTMLElement;
       if (this.jsonNodeMap.get(storeNode)) {
+        RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
         const { isExpand, target } = this.jsonNodeMap.get(storeNode) ?? {};
         this.jsonNodeMap.get(storeNode).isExpand = !isExpand;
         this.setNodeExpand(storeNode, !isExpand, target);
@@ -232,6 +232,11 @@ export default class JsonView {
     this.rootElClick?.(e);
   }
 
+  private handleMouseUp(e: MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+
   public setValue(val: any) {
     this.options.jsonValue = val;
     this.setJsonViewSchema(val);
@@ -240,10 +245,11 @@ export default class JsonView {
   public initClickEvent(fn?: (...args) => void) {
     this.rootElClick = fn;
     this.targetEl.addEventListener('click', this.handleTargetElementClick.bind(this));
+    this.targetEl.addEventListener('mouseup', this.handleMouseUp.bind(this));
   }
 
   public expand(depth: number) {
-    this.targetEl.querySelectorAll('[data-depth]').forEach(element => {
+    for (const element of this.targetEl.querySelectorAll('[data-depth]')) {
       const elementDepth = element.getAttribute('data-depth');
       const objectElement = element.children[0] as HTMLElement;
 
@@ -256,13 +262,14 @@ export default class JsonView {
           this.jsonNodeMap.get(objectElement).isExpand = isNextExpand;
         }
       }
-    });
+    }
   }
 
   public destroy() {
     if (this.targetEl.querySelector('.bklog-json-view-node')) {
       this.targetEl.innerHTML = '';
       this.targetEl.removeEventListener('click', this.handleTargetElementClick.bind(this));
+      this.targetEl.removeEventListener('mouseup', this.handleMouseUp.bind(this));
     }
   }
 }

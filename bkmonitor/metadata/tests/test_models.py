@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -20,6 +20,7 @@ from django.db.models import Q
 from mockredis.redis import mock_redis_client
 
 from bkmonitor.utils import consul
+from constants.common import DEFAULT_TENANT_ID
 from metadata import config, models
 
 from ..utils import consul_tools
@@ -993,6 +994,7 @@ class TestDataSource:
         try:
             # 类型不支持
             cluster = models.ClusterInfo.create_cluster(
+                bk_tenant_id="system",
                 cluster_name="test_cluster",
                 cluster_type="influxdb",
                 domain_name="haha.domain",
@@ -1008,6 +1010,7 @@ class TestDataSource:
             with pytest.raises(ValueError):
                 # 类型不支持
                 models.ClusterInfo.create_cluster(
+                    bk_tenant_id="system",
                     cluster_name="test_cluster",
                     cluster_type="influxDB",
                     domain_name="haha.domain",
@@ -1019,6 +1022,7 @@ class TestDataSource:
             with pytest.raises(ValueError):
                 # 重复的集群名
                 models.ClusterInfo.create_cluster(
+                    bk_tenant_id="system",
                     cluster_name="test_cluster",
                     cluster_type="influxdb",
                     domain_name="haha.domain",
@@ -1030,6 +1034,7 @@ class TestDataSource:
             with pytest.raises(ValueError):
                 # 重复的域名端口信息
                 models.ClusterInfo.create_cluster(
+                    bk_tenant_id="system",
                     cluster_name="test_cluster123",
                     cluster_type="influxdb",
                     domain_name="haha.domain",
@@ -1092,6 +1097,7 @@ class TestDataSource:
                     "dimension_list": ["dimension_one", "dimension_one", "dimension_two"],
                 }
             ],
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 判断是否正确的获取事件信息
@@ -1206,6 +1212,7 @@ class TestDataSource:
                         "dimension_list": ["dimension_one", "dimension_one", "dimension_two"],
                     }
                 ],
+                bk_tenant_id=DEFAULT_TENANT_ID,
             )
 
         # 检查全业务的事件源table_id是否符合预期
@@ -1239,6 +1246,7 @@ class TestDataSource:
                     "dimension_list": ["dimension_one", "dimension_one", "dimension_two"],
                 }
             ],
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         assert new_group.table_id == f"bkmonitor_event_{new_group.bk_data_id}"
@@ -1261,6 +1269,7 @@ class TestDataSource:
             custom_group_name="test_group_name",
             label="applications",
             operator="admin",
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
 
         # 判断是否正确的获取事件信息
@@ -1305,6 +1314,7 @@ class TestDataSource:
             custom_group_name="test_group_name",
             label="applications",
             operator="admin",
+            bk_tenant_id=DEFAULT_TENANT_ID,
         )
         assert new_group.table_id == f"bkmonitor_time_series_{new_group.bk_data_id}.__default__"
 

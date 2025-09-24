@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -20,6 +20,7 @@ from metadata import models
 from metadata.models.bcs.resource import BCSClusterInfo
 from metadata.task.bcs import discover_bcs_clusters, update_bcs_cluster_cloud_id_config
 from metadata.tests.common_utils import consul_client
+from constants.common import DEFAULT_TENANT_ID
 
 logger = logging.getLogger("metadata")
 
@@ -210,6 +211,7 @@ class TestOperateConsulConfig:
 
         c = models.BCSClusterInfo.register_cluster(
             bk_biz_id=2,
+            bk_tenant_id=DEFAULT_TENANT_ID,
             cluster_id="test_cluster_id",
             project_id="test_project",
             creator="system",

@@ -19,7 +19,6 @@ from django.db.models import Count, ExpressionWrapper, F, Q, QuerySet, fields
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-
 from api.cmdb.define import Host, Module, Set, TopoTree
 from bkm_ipchooser.handlers import template_handler
 from bkmonitor.action.utils import get_strategy_user_group_dict
@@ -48,7 +47,7 @@ from bkmonitor.models import (
     StrategyModel,
     UserGroup,
 )
-from bkmonitor.models.strategy import AlgorithmChoiceConfig
+from bkmonitor.models.strategy import AlgorithmChoiceConfig, NoticeSubscribe
 from bkmonitor.strategy.new_strategy import (
     ActionRelation,
     Algorithm,
@@ -63,6 +62,7 @@ from bkmonitor.utils.request import get_request_tenant_id, get_request_username,
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
+from constants.action import UserGroupType
 from constants.aiops import SDKDetectStatus
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
@@ -3608,3 +3608,118 @@ class GetDevopsStrategyListResource(Resource):
             {"optionId": str(strategy["id"]), "optionName": strategy["name"]} for strategy in strategies
         ]
         return {"result": True, "status": 0, "data": strategy_list, "message": "success"}
+
+
+class SaveStrategySubscribeResource(Resource):
+    """
+    新增/保存策略订阅
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        id = serializers.IntegerField(required=False)
+        username = serializers.CharField(required=True)
+        bk_biz_id = serializers.IntegerField(required=True)
+        conditions = serializers.ListField(required=True, child=serializers.DictField())
+        notice_ways = serializers.ListField(required=True, child=serializers.CharField())
+        priority = serializers.IntegerField(required=False, default=-1)
+        user_type = serializers.ChoiceField(
+            required=False, choices=UserGroupType.CHOICE, default=UserGroupType.FOLLOWER
+        )
+        is_enable = serializers.BooleanField(required=False, default=True)
+
+    def perform_request(self, params):
+        sub_id = params.get("id")
+        bk_biz_id = params["bk_biz_id"]
+        if sub_id:
+            try:
+                instance = NoticeSubscribe.objects.get(id=sub_id, bk_biz_id=bk_biz_id)
+                for k, v in params.items():
+                    setattr(instance, k, v)
+                instance.save()
+            except NoticeSubscribe.DoesNotExist:
+                raise ValidationError(_(f"订阅ID：{sub_id} 在业务[{bk_biz_id}] 下不存在"))
+        else:
+            instance = NoticeSubscribe.objects.create(**params)
+
+        return {
+            "id": instance.id,
+            "username": instance.username,
+            "bk_biz_id": instance.bk_biz_id,
+            "conditions": instance.conditions,
+            "notice_ways": instance.notice_ways,
+            "priority": instance.priority,
+            "user_type": instance.user_type,
+            "is_enable": instance.is_enable,
+        }
+
+
+class DeleteStrategySubscribeResource(Resource):
+    """
+    删除/取消策略订阅
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        id = serializers.IntegerField(required=True)
+        bk_biz_id = serializers.IntegerField(required=True)
+
+    def perform_request(self, params):
+        qs = NoticeSubscribe.objects.filter(id=params["id"], bk_biz_id=params["bk_biz_id"])
+
+        deleted = qs.delete()[0]
+        if deleted == 0:
+            raise ValidationError(_("删除失败：未找到符合条件的订阅"))
+        return True
+
+
+class ListStrategySubscribeResource(Resource):
+    """
+    策略订阅列表
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        username = serializers.CharField(required=True)
+        bk_biz_id = serializers.IntegerField(required=True)
+
+    def perform_request(self, params):
+        qs = NoticeSubscribe.objects.filter(username=params["username"], bk_biz_id=params["bk_biz_id"]).order_by(
+            "priority", "id"
+        )
+        return [
+            {
+                "id": obj.id,
+                "username": obj.username,
+                "bk_biz_id": obj.bk_biz_id,
+                "conditions": obj.conditions,
+                "notice_ways": obj.notice_ways,
+                "priority": obj.priority,
+                "user_type": obj.user_type,
+                "is_enable": obj.is_enable,
+            }
+            for obj in qs
+        ]
+
+
+class DetailStrategySubscribeResource(Resource):
+    """
+    策略订阅详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        id = serializers.IntegerField(required=True)
+        bk_biz_id = serializers.IntegerField(required=True)
+
+    def perform_request(self, params):
+        bk_biz_id = params["bk_biz_id"]
+        obj = NoticeSubscribe.objects.filter(id=params["id"], bk_biz_id=bk_biz_id).first()
+        if not obj:
+            raise ValidationError(_(f"[{bk_biz_id}]下未找到符合条件的订阅"))
+        return {
+            "id": obj.id,
+            "username": obj.username,
+            "bk_biz_id": obj.bk_biz_id,
+            "conditions": obj.conditions,
+            "notice_ways": obj.notice_ways,
+            "priority": obj.priority,
+            "user_type": obj.user_type,
+            "is_enable": obj.is_enable,
+        }

@@ -3,14 +3,15 @@
 .data-retrieval-view {
   .view-header-wrapper {
     .tool-icon {
-      width: 48px;
-      height: 52px;
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 48px;
+      height: 52px;
       font-size: 14px;
       color: #979ba5;
       cursor: pointer;
+
       // border-left: 1px solid #f0f1f5;
       &.right {
         // border-right: 1px solid #f0f1f5;
@@ -84,11 +85,11 @@
 
     .total-tips {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
+      padding: 0 0 8px;
       font-size: 12px;
       line-height: 20px;
-      padding: 0 0 8px 0;
 
       .split-btn-wrapper {
         display: flex;
@@ -101,6 +102,7 @@
 
       .tips-text {
         .add-strategy-btn {
+          margin-left: 4px;
           color: #3a84ff;
           cursor: pointer;
         }
@@ -117,8 +119,8 @@
       }
 
       .charts-view-right {
-        height: 100%;
         width: 0;
+        height: 100%;
         will-change: width;
 
         .bk-monitor-drag {
@@ -150,10 +152,10 @@
             align-items: center;
             justify-content: space-between;
             height: 20px;
+            padding-right: 16px;
+            margin-bottom: 24px;
             line-height: 20px;
             color: #313238;
-            margin-bottom: 24px;
-            padding-right: 16px;
 
             .icon-mc-close {
               display: none;
@@ -169,8 +171,8 @@
 
           .charts-view-right-list {
             height: calc(100% - 44px);
-            overflow-y: auto;
             padding-right: 16px;
+            overflow-y: auto;
 
             &::-webkit-scrollbar {
               display: none;
@@ -180,14 +182,13 @@
       }
 
       .charts-view-left {
+        min-width: 600px;
         height: 100%;
         padding-right: 16px;
-        min-width: 600px;
 
         .dashboard-panels-list {
           height: calc(100% - 56px);
-          overflow-y: auto;
-          overflow-x: hidden;
+          overflow: hidden auto;
         }
       }
     }
@@ -205,9 +206,9 @@
       @include tool-icon(28px, 12px);
 
       &.disabled {
-        border-radius: 50%;
-        background-color: #f0f1f5;
         cursor: not-allowed;
+        background-color: #f0f1f5;
+        border-radius: 50%;
       }
     }
   }

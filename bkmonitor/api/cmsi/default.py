@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -192,6 +192,11 @@ class GetMsgType(CMSIBaseResource):
     def render_response_data(self, validated_request_data, response_data):
         for msg_type in response_data:
             msg_type["channel"] = "user"
+
+            # 网关接口返回的是name而不是label
+            if "label" not in msg_type:
+                msg_type["label"] = msg_type["name"]
+
         if settings.WXWORK_BOT_WEBHOOK_URL:
             response_data.append(
                 {

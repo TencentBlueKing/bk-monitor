@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -12,7 +12,6 @@ import copy
 import logging
 import re
 
-from django.conf import settings
 from django.db import transaction
 from django.utils.translation import gettext as _
 
@@ -522,13 +521,9 @@ def get_strategy_config(bk_biz_id: int, strategy_ids: list[int]) -> list[dict]:
 
                 # 处理数据标签导出配置（自定义上报和插件采集类型）
                 data_label = query_config.get("data_label", None)
-                if (
-                    settings.ENABLE_DATA_LABEL_EXPORT
-                    and data_label
-                    and (
-                        query_config.get("data_source_label", None)
-                        in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
-                    )
+                if data_label and (
+                    query_config.get("data_source_label", None)
+                    in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
                 ):
                     # 替换结果表ID为数据标签
                     query_config["metric_id"] = re.sub(

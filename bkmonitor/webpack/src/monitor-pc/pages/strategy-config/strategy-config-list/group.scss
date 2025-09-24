@@ -48,6 +48,11 @@
       font-size: 12px;
       color: #979ba5;
     }
+
+    .icon-a-Clearqingkong {
+      font-size: 13px;
+      line-height: 1;
+    }
   }
   &.bold {
     .icon-angle-right {
@@ -62,6 +67,16 @@
     transition: transform .2s ease-in-out;
     &.expand {
       transform: rotate(90deg);
+    }
+  }
+
+  .icon-mc-arrow-down {
+    margin-right: 4px;
+    font-size: 12px;
+    transition: transform .2s ease-in-out;
+    transform: rotate(-90deg) scale3d(.8, .8, .8);
+    &.expand {
+      transform: rotate(0) scale3d(.8, .8, .8);
     }
   }
 }

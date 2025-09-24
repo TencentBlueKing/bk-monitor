@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -51,6 +51,7 @@ import {
   RelationEventType,
 } from '../../../typings';
 import * as authorityMap from '../../home/authority-map';
+import LogRelationList, { type ILogRelation } from './components/log_relation-list';
 import PipelineSelectPanel from './components/pipeline-select-panel';
 import RelationSelectPanel from './components/relation-select-panel';
 import DebuggerDialog from './debugger-dialog';
@@ -60,7 +61,7 @@ import './basic-info.scss';
 
 @Component
 export default class BasicInfo extends tsc<object> {
-  @Ref() logForm: any;
+  @Ref('logRelationListRef') logRelationListRef: any;
   @Ref() appForm: any;
   @Ref() apdexForm: any;
 
@@ -203,6 +204,10 @@ export default class BasicInfo extends tsc<object> {
     relationPipeline: [],
   };
 
+  // 关联日志列表
+  logRelationList: ILogRelation[] = [];
+  indexSetListMap = new Map();
+
   get bizSelectList() {
     return this.$store.getters.bizList.map(el => ({
       id: el.id,
@@ -283,10 +288,10 @@ export default class BasicInfo extends tsc<object> {
   /**
    * @desc: 切换关联日志
    */
-  handleRelationLogChange() {
-    this.localRelationInfo.logValue = '';
-    this.logForm.clearError();
-  }
+  // handleRelationLogChange() {
+  //   this.localRelationInfo.logValue = '';
+  //   this.logForm.clearError();
+  // }
   /**
    * @desc: 切换关联业务
    */
@@ -331,7 +336,8 @@ export default class BasicInfo extends tsc<object> {
   async setRelationInfo() {
     const {
       cmdb_relation: cmdbRelation,
-      log_relation: logRelation,
+      // log_relation: logRelation,
+      log_relation_list: logRelationList,
       app_relation: appRelation,
       apdex_relation: apdexRelation,
       event_relation: eventRelation,
@@ -342,18 +348,29 @@ export default class BasicInfo extends tsc<object> {
       this.localRelationInfo.cmdb = cmdbRelation.template_id;
       this.handleCmdbChange(this.localRelationInfo.cmdb);
     }
-    if (logRelation.log_type) {
-      this.localRelationInfo.logType = logRelation.log_type;
-      // 关联日志
-      if (logRelation.log_type === 'bk_log') {
-        this.localRelationInfo.relatedBizId = logRelation.related_bk_biz_id;
-        await this.handleLogBizChange(logRelation.related_bk_biz_id);
-        this.localRelationInfo.logValue = logRelation.value;
-      } else {
-        this.localRelationInfo.logValue = '';
-        this.localRelationInfo.relatedBizId = '';
+    const tempLogRelationList = [];
+    for (const item of logRelationList) {
+      if (item.log_type === 'bk_log') {
+        tempLogRelationList.push({
+          related_bk_biz_id: item.related_bk_biz_id,
+          value_list: item.value_list.map(v => v.value),
+        });
       }
     }
+    await this.getIndexSetList(tempLogRelationList.map(item => item.related_bk_biz_id));
+    this.logRelationList = tempLogRelationList;
+    // if (logRelation.log_type) {
+    //   this.localRelationInfo.logType = logRelation.log_type;
+    //   // 关联日志
+    //   if (logRelation.log_type === 'bk_log') {
+    //     this.localRelationInfo.relatedBizId = logRelation.related_bk_biz_id;
+    //     await this.handleLogBizChange(logRelation.related_bk_biz_id);
+    //     this.localRelationInfo.logValue = logRelation.value;
+    //   } else {
+    //     this.localRelationInfo.logValue = '';
+    //     this.localRelationInfo.relatedBizId = '';
+    //   }
+    // }
     if (appRelation.relate_bk_biz_id) {
       // 关联应用
       this.localRelationInfo.bizId = appRelation.relate_bk_biz_id;
@@ -430,16 +447,16 @@ export default class BasicInfo extends tsc<object> {
    * @desc 切换关联日志应用
    * @param { number } v
    */
-  async handleLogBizChange(v) {
-    this.localRelationInfo.logValue = '';
-    this.logForm?.clearError();
-    this.indexSetList = [];
-    if (!v) return;
-    const data = await logServiceRelationBkLogIndexSet({
-      bk_biz_id: v,
-    }).catch(() => []);
-    this.indexSetList = data;
-  }
+  // async handleLogBizChange(v) {
+  //   this.localRelationInfo.logValue = '';
+  //   this.logForm?.clearError();
+  //   this.indexSetList = [];
+  //   if (!v) return;
+  //   const data = await logServiceRelationBkLogIndexSet({
+  //     bk_biz_id: v,
+  //   }).catch(() => []);
+  //   this.indexSetList = data;
+  // }
   /** 增/删URI */
   handleChangeUri(handle: string, index: number) {
     if (handle === 'add') {
@@ -537,7 +554,7 @@ export default class BasicInfo extends tsc<object> {
   }
   /** 获取提交参数 */
   getParams() {
-    const { logValue, relatedBizId, apdex, cmdb, bizId, appId } = this.localRelationInfo;
+    const { apdex, cmdb, bizId, appId } = this.localRelationInfo;
     const params: any = {
       ...this.params,
       ...this.formData,
@@ -554,12 +571,14 @@ export default class BasicInfo extends tsc<object> {
     }
 
     // 关联日志
-    if (logValue && relatedBizId) {
-      params.log_relation = {
-        log_type: 'bk_log',
-        value: logValue,
-        related_bk_biz_id: relatedBizId,
-      };
+    if (this.logRelationList.length) {
+      params.log_relation_list = this.logRelationList
+        .filter(item => item.related_bk_biz_id && item.value_list.length)
+        .map(item => ({
+          log_type: 'bk_log',
+          value_list: item.value_list,
+          related_bk_biz_id: item.related_bk_biz_id,
+        }));
     }
     // 关联应用
     if (bizId) {
@@ -611,7 +630,10 @@ export default class BasicInfo extends tsc<object> {
   }
   /** 提交保存 */
   async handleSubmit() {
-    const promiseList = ['logForm', 'appForm', 'apdexForm'].map(item => this[item]?.validate());
+    const promiseList = ['logRelationListRef', 'appForm', 'apdexForm'].map(item => {
+      return this[item]?.validate();
+    });
+
     await Promise.all(promiseList)
       .then(async () => {
         const params = this.getParams();
@@ -641,6 +663,27 @@ export default class BasicInfo extends tsc<object> {
 
   handlePipelineChange(pipelineList: string[]) {
     this.eventRelation.relationPipeline = pipelineList || [];
+  }
+
+  handleChangeLogRelation(val: ILogRelation[]) {
+    this.logRelationList = val;
+  }
+
+  async getIndexSetList(bkBizIds: (number | string)[]) {
+    const promiseList = [];
+    for (const id of bkBizIds) {
+      if (this.indexSetListMap.has(id)) {
+        continue;
+      }
+      promiseList.push(
+        logServiceRelationBkLogIndexSet({
+          bk_biz_id: id,
+        }).then(data => {
+          this.indexSetListMap.set(id, data);
+        })
+      );
+    }
+    await Promise.all(promiseList);
   }
 
   /** 渲染基础信息 */
@@ -862,9 +905,9 @@ export default class BasicInfo extends tsc<object> {
   /** 数据关联 */
   renderDataLink() {
     const {
-      log_relation: logRelation,
       app_relation: appRelation,
       cmdb_relation: cmdbRelation,
+      log_relation_list: logRelationList,
     } = this.serviceInfo.relation;
     return (
       <div
@@ -918,67 +961,44 @@ export default class BasicInfo extends tsc<object> {
                     />
                   ))}
                 </bk-select> */}
-                <bk-form
-                  ref='logForm'
-                  {...{
-                    props: {
-                      model: this.localRelationInfo,
-                      rules: this.rules,
-                    },
-                  }}
-                >
-                  <div class='relation-log-select relation-log-form-item'>
-                    <bk-form-item property='relatedBizId'>
-                      <bk-select
-                        vModel={this.localRelationInfo.relatedBizId}
-                        display-key='name'
-                        id-Key='id'
-                        list={this.bizSelectList}
-                        enable-virtual-scroll
-                        searchable
-                        onChange={v => this.handleLogBizChange(v)}
-                      />
-                    </bk-form-item>
-                    <bk-form-item property='logValue'>
-                      <bk-select
-                        style='width:290px'
-                        vModel={this.localRelationInfo.logValue}
-                        searchable
-                      >
-                        {this.indexSetList.map(option => (
-                          <bk-option
-                            id={option.id}
-                            key={option.id}
-                            name={option.name}
-                          />
-                        ))}
-                      </bk-select>
-                    </bk-form-item>
-                  </div>
+                <bk-form>
+                  <LogRelationList
+                    ref='logRelationListRef'
+                    bizSelectList={this.bizSelectList}
+                    indexSetListMap={this.indexSetListMap}
+                    value={this.logRelationList}
+                    onChange={v => this.handleChangeLogRelation(v)}
+                    onSetIndexSetListMap={obj => {
+                      this.indexSetListMap.set(obj.related_bk_biz_id, obj.indexSetList);
+                    }}
+                  />
                 </bk-form>
               </div>
             ) : (
               <section>
-                {logRelation?.value ? (
-                  <section>
-                    {logRelation?.log_type === 'bk_log' ? (
-                      <section>
-                        <bk-tag class='relation-info-tag'>
-                          <span>{`${logRelation.log_type_alias} : ${logRelation.related_bk_biz_name}`}</span>
-                        </bk-tag>
-                        <bk-tag class='relation-info-tag'>
-                          <span>{`${this.$t('索引集')}:${logRelation.value_alias}`}</span>
-                        </bk-tag>
-                      </section>
-                    ) : (
-                      <bk-tag class='relation-info-tag'>
-                        <span>{`${logRelation.log_type_alias} : ${logRelation.value}`}</span>
-                      </bk-tag>
-                    )}
-                  </section>
-                ) : (
-                  '--'
-                )}
+                {logRelationList?.length
+                  ? logRelationList.map((item, index) => (
+                      <div
+                        key={index}
+                        class='info-log-row'
+                      >
+                        {item?.log_type === 'bk_log' ? (
+                          <section>
+                            <bk-tag class='relation-info-tag'>
+                              <span>{`${item.log_type_alias} : ${item.related_bk_biz_name}`}</span>
+                            </bk-tag>
+                            <bk-tag class='relation-info-tag'>
+                              <span>{`${this.$t('索引集')}:${item.value_list.map(v => v.value_alias).join(',')}`}</span>
+                            </bk-tag>
+                          </section>
+                        ) : (
+                          <bk-tag class='relation-info-tag'>
+                            <span>{`${item.log_type_alias} : ${item.value_alias}`}</span>
+                          </bk-tag>
+                        )}
+                      </div>
+                    ))
+                  : '--'}
               </section>
             )}
           </div>
@@ -1396,7 +1416,9 @@ export default class BasicInfo extends tsc<object> {
           <div
             class='history-btn'
             v-bk-tooltips={{ content: this.$t('变更记录') }}
-            onClick={() => (this.record.show = true)}
+            onClick={() => {
+              this.record.show = true;
+            }}
           >
             <i class='icon-monitor icon-lishijilu' />
           </div>
@@ -1433,7 +1455,9 @@ export default class BasicInfo extends tsc<object> {
         <ChangeRecord
           recordData={this.record.data}
           show={this.record.show}
-          onUpdateShow={v => (this.record.show = v)}
+          onUpdateShow={v => {
+            this.record.show = v;
+          }}
         />
         <DebuggerDialog v-model={this.showDebuggerDialog} />
       </div>

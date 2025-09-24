@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -143,6 +143,10 @@ def bkbase_redis_client():
     bkbase_redis_host = settings.BKBASE_REDIS_HOST
     bkbase_redis_port = settings.BKBASE_REDIS_PORT
     bkbase_redis_pwd = settings.BKBASE_REDIS_PASSWORD
+
+    # 检查bkbase redis配置是否存在
+    if not bkbase_redis_host or not bkbase_redis_port:
+        return None
 
     configs = {
         "host": bkbase_redis_host,

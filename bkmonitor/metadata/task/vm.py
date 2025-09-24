@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -88,9 +87,9 @@ def check_access_vm_task():
             # Note: 应根据data_id的来源决定接入链路的版本是V3还是V4
             ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
             if ds.created_from == DataIdCreatedFromSystem.BKGSE.value:
-                access_bkdata(bk_biz_id, rt, bk_data_id)
+                access_bkdata(ds.bk_tenant_id, bk_biz_id, rt, bk_data_id)
             if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
-                access_v2_bkdata_vm(bk_biz_id, rt, bk_data_id)
+                access_v2_bkdata_vm(ds.bk_tenant_id, bk_biz_id, rt, bk_data_id)
         except Exception as e:
             logger.error("access bkdata vm error, error: %s", e)
 

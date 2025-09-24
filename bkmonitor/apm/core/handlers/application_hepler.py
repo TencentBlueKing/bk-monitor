@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
-Copyright (C) 2022 THL A29 Limited,
+Copyright (C) 2017-2025 Tencent,
 a Tencent company. All rights reserved.
 Licensed under the MIT License (the "License");
 you may not use this file except in compliance with the License.
@@ -15,9 +14,11 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 
 from apm.models import DataLink
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import resource
 
 
@@ -38,6 +39,7 @@ class ApplicationHelper:
             return datalink.elasticsearch_cluster_id
 
         clusters = resource.metadata.query_cluster_info(
+            bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
             cluster_type=cls.DEFAULT_CLUSTER_TYPE,
             # 兼容metadata逻辑
             registered_system=settings.APP_CODE,

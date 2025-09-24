@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -48,7 +48,7 @@ def test_get_or_create_agent_event_data_id_resource(mocker):
     # mock两个方法
     mocker.patch("core.drf_resource.api.bkdata.apply_data_link", return_value=None)
     mocker.patch("core.drf_resource.api.bkdata.get_data_link", return_value=expected)
-    settings.ENABLE_V2_BKDATA_GSE_RESOURCE = True
+    settings.ENABLE_V2_VM_DATA_LINK = True
 
     data = GetOrCreateAgentEventDataIdResource().request(bk_biz_id=7)
 

@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, ref } from 'vue';
+
 import BkUserSelector from '@blueking/user-selector';
 
 import './validate-user-selector.scss';
@@ -57,25 +58,17 @@ export default defineComponent({
     },
     onChange: { type: Function },
   },
-  emits: ['change'],
+  emits: ['change', 'update'],
 
   setup(props, { emit }) {
     const isError = ref(false); // 是否显示错误状态
-
-    // 校验初始值
-    const validateInitValue = () => {
-      if (props.value.length) {
-        isError.value = false;
-      } else {
-        isError.value = true;
-      }
-    };
 
     // 处理选择变化
     const handleChange = (val: any[]) => {
       const realVal = val.filter(item => item !== undefined);
       isError.value = !realVal.length;
       emit('change', realVal);
+      emit('update', realVal);
     };
 
     // 失焦时校验
@@ -87,8 +80,8 @@ export default defineComponent({
       <div class='validate-user-selector'>
         <BkUserSelector
           style='width: 400px'
-          api={props.api}
           class={isError.value ? 'is-error' : ''}
+          api={props.api}
           disabled={props.disabled}
           empty-text='无匹配人员'
           placeholder={props.placeholder}

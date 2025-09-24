@@ -70,12 +70,24 @@
           ></span>
         </div>
         <div class="content">
-          <validate-user-selector
+          <!-- <validate-user-selector
             v-model="manageStrategyData.user_list"
             :allow-create="allowCreate"
             :api="userApi"
             :placeholder="allowCreate ? $t('请输入QQ并按Enter结束（可多次添加）') : ''"
-          />
+          /> -->
+          <bk-user-selector
+            style="width: 400px"
+            :class="isError && 'is-error'"
+            :placeholder="$t('请选择群成员')"
+            :disabled="isExternal"
+            :api="userApi"
+            :empty-text="$t('无匹配人员')"
+            :value="manageStrategyData.user_list"
+            @blur="handleBlur()"
+            @change="val => handleChangePrincipal(val)"
+          >
+          </bk-user-selector>
         </div>
       </div>
 
@@ -244,14 +256,16 @@
   // import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import ModuleSelect from './module-select';
   import ValidateInput from './validate-input';
-  import ValidateUserSelector from './validate-user-selector';
+  // import ValidateUserSelector from './validate-user-selector';
+  import BkUserSelector from '@blueking/user-selector';
 
   export default {
     components: {
       // LogIpSelector,
       ModuleSelect,
       ValidateInput,
-      ValidateUserSelector,
+      // ValidateUserSelector,
+      BkUserSelector
     },
     mixins: [SidebarDiffMixin],
     props: {
@@ -278,7 +292,7 @@
     },
     data() {
       // 避免后台造的数据为空数组
-      const strategyData = JSON.parse(JSON.stringify(this.strategyData));
+      const strategyData = structuredCloney(this.strategyData);
       if (!strategyData.visible_dir?.length) {
         strategyData.visible_dir = [''];
       }
@@ -290,6 +304,7 @@
         isChangeOperatorLoading: false,
         showSelectDialog: false,
         manageStrategyData: strategyData,
+        isError: false,
       };
     },
     computed: {
@@ -306,6 +321,9 @@
       // 侧边栏需要对比的formData
       _watchFormData_({ manageStrategyData }) {
         return { manageStrategyData };
+      },
+      isExternal() {
+        return this.$store.state.isExternal;
       },
     },
     mounted() {
@@ -367,7 +385,7 @@
         try {
           this.isChangeOperatorLoading = true;
           const res = await this.$http.request('userInfo/getUsername');
-          this.$store.commit('updateUserMeta', res.data);
+          this.$store.commit('updateState', { 'userMeta': res.data});
           this.manageStrategyData.operator = res.data.operator;
         } catch (e) {
           console.warn(e);
@@ -380,6 +398,13 @@
       },
       handleConfirm() {
         this.$emit('confirm', this.manageStrategyData);
+      },
+      handleChangePrincipal(val){
+        this.isError = !val.length;
+        this.manageStrategyData.user_list = val;
+      },
+      handleBlur() {
+        this.isError = !this.manageStrategyData.user_list.length;
       },
     },
   };
@@ -468,6 +493,10 @@
       padding-right: 24px;
       background: #fff;
       border-top: 1px solid #dcdee5;
+    }
+
+    :deep(.is-error .user-selector-container) {
+      border-color:#ff5656;
     }
   }
 </style>
