@@ -51,4 +51,12 @@ export const detailsTabColumn = {
   service: 'service',
 } as const;
 
+export type TCompareData<T = any> = {
+  diff: {
+    applied: T;
+    current: T;
+    field: string;
+  }[];
+};
+
 export type TDetailsTabValue = (typeof detailsTabColumn)[keyof typeof detailsTabColumn];
