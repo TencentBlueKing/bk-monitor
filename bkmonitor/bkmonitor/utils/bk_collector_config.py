@@ -206,8 +206,8 @@ class BkCollectorClusterConfig:
 
     @classmethod
     def deploy_to_k8s(cls, cluster_id: str, config_id: int, protocol: str, sub_config: str):
-        secret_config = BkCollectorComp.SECRET_SUBCONFIG_MAP.get(protocol)
-        if secret_config is None:
+        secret_config = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, protocol)
+        if not secret_config:
             logger.info(f"protocol{protocol} has no secret config, do nothing")
             return
 
@@ -229,11 +229,11 @@ class BkCollectorClusterConfig:
         # 下发
         bcs_client = BcsKubeClient(cluster_id)
         namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
-        label_source = BkCollectorComp.LABEL_SOURCE_MAP.get(protocol, BkCollectorComp.LABEL_SOURCE_DEFAULT)
+        secret_label_selector = f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_config.get('secret_extra_label')}"
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,
-            label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_SUB_CONFIG},source={label_source}",
+            label_selector=secret_label_selector,
         )
         sec = cls._find_secrets_in_boundary(secrets, config_id)
         if sec is None:
@@ -244,12 +244,7 @@ class BkCollectorClusterConfig:
                 metadata=client.V1ObjectMeta(
                     name=secret_subconfig_name,
                     namespace=namespace,
-                    labels={
-                        "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
-                        "type": BkCollectorComp.LABEL_TYPE_SUB_CONFIG,
-                        "template": "false",
-                        "source": label_source,
-                    },
+                    labels=BkCollectorComp.label_selector_to_dict(secret_label_selector),
                 ),
                 data={subconfig_filename: b64_content},
             )
@@ -299,17 +294,17 @@ class BkCollectorClusterConfig:
             protocol: 协议, json or prometheus
         """
         if not config_map:
-            logger.info(f"cluster({cluster_id}) config_map is empty, skip deployment")
+            logger.info(f"deploy to cluster_id({cluster_id}), but config is empty, skip deployment")
             return
-        secret_config = BkCollectorComp.SECRET_SUBCONFIG_MAP.get(protocol)
+
+        secret_config = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, protocol)
+        if not secret_config:
+            logger.info(f"protocol({protocol}) has no secret config, please check if your config has been initialized")
+            return
+
         # 按secret分组配置
         secret_groups = {}
-
         for config_id, sub_config in config_map.items():
-            if secret_config is None:
-                logger.info(f"protocol({protocol}) has no secret config, skip config_id({config_id})")
-                continue
-
             # 先计算MD5哈希值，转换为整数再取模，确保分布更均匀
             secret_index = int(count_md5(config_id), 16) % secret_config["secret_data_max_count"]
 
@@ -338,6 +333,7 @@ class BkCollectorClusterConfig:
         # 批量处理每个secret
         bcs_client = BcsKubeClient(cluster_id)
         namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
+        secret_label_selector = f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_config.get('secret_extra_label')}"
 
         # 一次性查询所有相关的secret
         existing_secrets = {}
@@ -345,7 +341,7 @@ class BkCollectorClusterConfig:
             secrets_list = bcs_client.client_request(
                 bcs_client.core_api.list_namespaced_secret,
                 namespace=namespace,
-                label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_SUB_CONFIG}",
+                label_selector=secret_label_selector,
             )
             if secrets_list and secrets_list.items:
                 for secret in secrets_list.items:
@@ -356,8 +352,6 @@ class BkCollectorClusterConfig:
 
         for secret_name, group_info in secret_groups.items():
             configs = group_info["configs"]
-
-            label_source = BkCollectorComp.LABEL_SOURCE_MAP.get(protocol, BkCollectorComp.LABEL_SOURCE_DEFAULT)
 
             # 从已查询的secret中获取
             sec = existing_secrets.get(secret_name)
@@ -377,12 +371,7 @@ class BkCollectorClusterConfig:
                     metadata=client.V1ObjectMeta(
                         name=secret_name,
                         namespace=namespace,
-                        labels={
-                            "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
-                            "type": BkCollectorComp.LABEL_TYPE_SUB_CONFIG,
-                            "template": "false",
-                            "source": label_source,
-                        },
+                        labels=BkCollectorComp.label_selector_to_dict(secret_label_selector),
                     ),
                     data=secret_data,
                 )
@@ -424,7 +413,7 @@ class BkCollectorClusterConfig:
                                 sec.data[filename] = new_content
                                 need_update = True
                         except Exception as e:
-                            logger.warning(f"Failed to decode old content for config({config_id}): {e}, updating it.")
+                            logger.warning(f"failed to decode old content for config({config_id}): {e}, updating it.")
                             sec.data[filename] = new_content
                             need_update = True
 
@@ -437,7 +426,7 @@ class BkCollectorClusterConfig:
                     )
                     logger.info(f"{cluster_id} {protocol} secret({secret_name}) update successful.")
                 else:
-                    logger.info(f"{cluster_id} {protocol} secret({secret_name}) no changes needed.")
+                    logger.info(f"{cluster_id} {protocol} secret({secret_name}) has not been modified.")
 
         logger.info(
             f"cluster({cluster_id}) batch deployment completed, processed {len(secret_groups)} secrets with total {len(config_map)} configs."

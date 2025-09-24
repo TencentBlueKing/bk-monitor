@@ -501,6 +501,10 @@ STANDARD_CONFIGS = OrderedDict(
             "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE",
             slz.CharField(label=_("集群内服务域名"), default="bkm-collector.bkmonitor-operator"),
         ),
+        (
+            "CUSTOM_REPORT_K8S_SECRETS_CONFIG",
+            slz.DictField(label=_("自定义上报K8S集群中 Secrets 分配逻辑"), default={}),
+        ),
         ("PING_SERVER_TARGET_NUMBER_LIMIT", slz.IntegerField(label=_("单台机器Ping采集目标数量限制"), default=6000)),
         (
             "MAX_AVAILABLE_DURATION_LIMIT",
