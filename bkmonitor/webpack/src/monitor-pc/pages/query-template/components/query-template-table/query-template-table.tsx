@@ -53,6 +53,8 @@ interface QueryTemplateTableEmits {
   onCurrentPageChange: (currentPage: number) => void;
   /** 删除查询模板事件回调 */
   onDeleteTemplate: (templateId: string, confirmEvent: DeleteConfirmEvent) => void;
+  /** 将url中自动显示详情侧弹抽屉的参数配置清除 */
+  onDisabledAutoShowSlider: () => void;
   /** 表格每页条数变化时的回调 */
   onPageSizeChange: (pageSize: number) => void;
   /** 表格排序变化后回调 */
@@ -96,8 +98,6 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   /** 空数据类型 */
   @Prop({ type: String, default: 'empty' }) emptyType: 'empty' | 'search-empty';
 
-  /** 模板详情 - id */
-  detailId = '';
   /** 模板详情 - 侧弹抽屉显示状态 */
   sliderShow = false;
   /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
@@ -238,7 +238,13 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   handlePageSizeChange(pageSize: number) {
     return pageSize;
   }
-
+  /**
+   * @description 将url中自动显示详情侧弹抽屉的参数配置清除
+   */
+  @Emit('disabledAutoShowSlider')
+  handleDisabledAutoShowSlider() {
+    return;
+  }
   /**
    * @description: 清空筛选条件
    */
@@ -249,9 +255,21 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
 
   mounted() {
     this.tableRef?.$el.addEventListener('wheel', this.handlePopoverHide);
+    this.handleAutoShowSliderForMounted();
   }
   beforeDestroy() {
     this.tableRef?.$el.removeEventListener('wheel', this.handlePopoverHide);
+  }
+
+  /**
+   * @description: 挂载时期校验url是否需要显示侧弹抽屉
+   */
+  handleAutoShowSliderForMounted() {
+    const { sliderShow, sliderActiveId } = this.$route.query;
+    if (!sliderShow || !sliderActiveId) return;
+    this.sliderActiveTab = TemplateDetailTabEnum.CONFIG;
+    this.sliderActiveId = sliderActiveId as string;
+    this.sliderShow = Boolean(sliderShow);
   }
 
   /**
@@ -347,15 +365,17 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   handleSliderShowChange(
     isShow: boolean,
     showEvent?: {
-      columnKey: string;
+      columnKey?: string;
       id: string;
     }
   ) {
+    const { sliderShow, sliderActiveId } = this.$route.query;
     let sliderTab = null;
     if (isShow) {
       sliderTab = showEvent?.columnKey === 'name' ? TemplateDetailTabEnum.CONFIG : TemplateDetailTabEnum.CONSUME;
+    } else if (sliderShow && sliderActiveId) {
+      this.handleDisabledAutoShowSlider();
     }
-    this.detailId = showEvent?.id;
     this.sliderActiveTab = sliderTab;
     this.sliderActiveId = showEvent?.id;
     this.sliderShow = isShow;
