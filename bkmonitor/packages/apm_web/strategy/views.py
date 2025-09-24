@@ -180,9 +180,12 @@ class StrategyTemplateViewSet(GenericViewSet):
                 "app_name": self.query_data["app_name"],
                 "parent_id": source_obj.id,
                 "type": StrategyTemplateType.APP_TEMPLATE.value,
+                "root_id": source_obj.id
+                if source_obj.type == StrategyTemplateType.BUILTIN_TEMPLATE.value
+                else source_obj.root_id,
             }
         )
-        copy_field_names: list[str] = ["code", "root_id", "system", "category", "monitor_type", "query_template"]
+        copy_field_names: list[str] = ["code", "system", "category", "monitor_type", "query_template"]
         for field_name in copy_field_names:
             edit_data[field_name] = getattr(source_obj, field_name)
         return Response({"id": serializers.StrategyTemplateModelSerializer().create(edit_data).id})
