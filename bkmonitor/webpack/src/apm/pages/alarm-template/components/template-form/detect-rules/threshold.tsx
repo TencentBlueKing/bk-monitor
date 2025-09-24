@@ -69,7 +69,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
       const data = val.find(i => i.level === item.level);
       if (data) {
         item.show = true;
-        item.config = data.config;
+        item.config = JSON.parse(JSON.stringify(data.config));
       }
     }
   }
