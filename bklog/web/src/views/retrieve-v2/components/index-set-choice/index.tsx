@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, type PropType, type Ref, ref, watch } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch, type PropType, type Ref } from 'vue';
 
 import { getOsCommandLabel } from '../../../../common/util';
 import BklogPopover from '../../../../components/bklog-popover';
@@ -154,7 +154,6 @@ export default defineComponent({
         return target;
       });
 
-      debugger;
       return values;
     };
 
