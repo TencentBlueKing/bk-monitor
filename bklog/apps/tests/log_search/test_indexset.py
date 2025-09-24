@@ -28,7 +28,7 @@ from blueapps.account.models import User
 from django.conf import settings
 from django.test import TestCase, override_settings
 
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Scenario
 from apps.tests.utils import FakeRedis
 
 BK_BIZ_ID = 1
@@ -799,3 +799,62 @@ class TestIndexSet(TestCase):
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         self.maxDiff = 100000
         self.assertEqual(content["data"], RETRIEVE_LIST)
+
+
+class IndexGroupViewSetTestCase(TestCase):
+    def setUp(self):
+        # 创建测试数据
+        self.index_group = LogIndexSet.objects.create(
+            index_set_name="test_group", space_uid=SPACE_UID, scenario_id=Scenario.LOG, is_group=True
+        )
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_list_index_groups(self):
+        path = "/api/v1/index_group/"
+        data = {"space_uid": SPACE_UID}
+
+        response = self.client.get(path, data)
+        content = json.loads(response.content)
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+        self.assertEqual(len(content["data"]), 1)
+        self.assertEqual(content["data"][0]["index_set_id"], self.index_group.index_set_id)
+        self.assertEqual(content["data"][0]["index_set_name"], "test_group")
+        self.assertEqual(content["data"][0]["index_count"], 0)
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_create_index_group(self):
+        path = "/api/v1/index_group/"
+        data = {"space_uid": SPACE_UID, "index_set_name": "new_group"}
+        response = self.client.post(path, data)
+        content = json.loads(response.content)
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+        self.assertIn("index_set_id", content["data"])
+
+        # 验证数据库
+        new_group = LogIndexSet.objects.get(index_set_id=content["data"]["index_set_id"])
+        self.assertEqual(new_group.index_set_name, "new_group")
+        self.assertEqual(new_group.space_uid, SPACE_UID)
+        self.assertTrue(new_group.is_group)
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_update_index_group(self):
+        path = f"/api/v1/index_group/{self.index_group.index_set_id}/"
+        data = {"index_set_name": "updated_group"}
+        response = self.client.put(path, data, content_type="application/json")
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        # 验证数据库
+        updated_group = LogIndexSet.objects.get(index_set_id=self.index_group.index_set_id)
+        self.assertEqual(updated_group.index_set_name, "updated_group")
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_delete_index_group(self):
+        path = f"/api/v1/index_group/{self.index_group.index_set_id}/"
+        response = self.client.delete(path)
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+        # 验证数据库
+        self.assertFalse(LogIndexSet.objects.filter(index_set_id=self.index_group.index_set_id).exists())
