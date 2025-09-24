@@ -431,3 +431,96 @@ class BkCollectorClusterConfig:
         logger.info(
             f"cluster({cluster_id}) batch deployment completed, processed {len(secret_groups)} secrets with total {len(config_map)} configs."
         )
+
+        # 该逻辑会需要保留一段时间后清理  2025-09-24，半年后可删除该逻辑
+        cls.clean_dup_secrets(cluster_id, protocol)
+
+    @classmethod
+    def clean_dup_secrets(cls, cluster_id: str, protocol: str):
+        """
+        - 根据 protocol 查到集群内所有的 secrets
+            - 转换为 子配置文件  -> secrets 的对应关系
+            - 如果同一个子配置同时存在多个 secrets 中，则执行清理动作
+                - 只保留最新的 secrets 记录，清理掉其他 secrets 中的单个子配置记录
+            - 如果一个 secrets 中所有的子记录都被清理了。则该 secrets 可以被整体删除
+        """
+
+        secret_config = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, protocol)
+        if not secret_config:
+            logger.info(f"protocol({protocol}) has no secret config, please check if your config has been initialized")
+            return
+
+        # 查询集群内所有 secrets
+        bcs_client = BcsKubeClient(cluster_id)
+        namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
+        secret_label_selector = f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_config.get('secret_extra_label')}"
+
+        try:
+            exists_secrets_obj = bcs_client.client_request(
+                bcs_client.core_api.list_namespaced_secret,
+                namespace=namespace,
+                label_selector=secret_label_selector,
+            )
+        except Exception as e:
+            logger.warning(f"[clean dup secrets] failed to list secrets in namespace {namespace}: {e}")
+            return
+
+        if not exists_secrets_obj or not exists_secrets_obj.items:
+            logger.info(f"[clean dup secrets] cluster_id {cluster_id} has no secrets")
+            return
+
+        # 构造 配置文件 -> secrets 的对应关系
+        secret_file_to_secret = {}
+        sub_config_file_to_secrets = {}
+        for secret in exists_secrets_obj.items:
+            secret_name = secret.metadata.name
+            secret_create_timestamp = secret.metadata.creation_timestamp
+            secret_file_to_secret[secret_name] = secret
+
+            if not secret.data or not isinstance(secret.data, dict):
+                continue
+
+            for config_file in secret.data:
+                sub_config_file_to_secrets.setdefault(config_file, []).append((secret_name, secret_create_timestamp))
+
+        # do clean
+        need_update_secrets = {}
+        for sub_config_file, secrets in sub_config_file_to_secrets.items():
+            if len(secrets) <= 1:
+                continue
+
+            sort_secrets = sorted(secrets, key=lambda x: x[1])
+            for secret_name, secret_create_timestamp in sort_secrets[:-1]:
+                need_update_secrets[secret_name] = True
+                del secret_file_to_secret[secret_name].data[sub_config_file]
+
+        logger.info(
+            f"[clean dup secrets] cluster_id({cluster_id}) protocol({protocol}) delete {len(need_update_secrets)} secrets"
+        )
+        if len(need_update_secrets) > 10:
+            logger.error(
+                f"[clean dup secrets] cluster_id {cluster_id} delete {len(need_update_secrets)} secrets more than 10. do nothing"
+            )
+            return
+
+        for need_update_sec_file in need_update_secrets.keys():
+            secret = secret_file_to_secret[need_update_sec_file]
+            if not secret.data:
+                # delete secret
+                logger.info(f"[clean dup secrets] cluster_id {cluster_id} delete secret {need_update_sec_file} start")
+                bcs_client.client_request(
+                    bcs_client.core_api.delete_namespaced_secret,
+                    name=secret.metadata.name,
+                    namespace=namespace,
+                    body=secret,
+                )
+                logger.info(f"[clean dup secrets] cluster_id {cluster_id} delete secret {need_update_sec_file} ok")
+            else:
+                # update secret
+                bcs_client.client_request(
+                    bcs_client.core_api.patch_namespaced_secret,
+                    name=secret.metadata.name,
+                    namespace=namespace,
+                    body=secret,
+                )
+                logger.info(f"[clean dup secrets] cluster_id {cluster_id} update secret {need_update_sec_file}")
