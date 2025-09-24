@@ -1406,7 +1406,8 @@ class IndexSetHandler(APIModel):
 
     @transaction.atomic()
     def update_alias_settings(self, alias_settings):
-        is_doris = IndexSetTag.objects.filter(index_set_id=self.index_set_id, name="Doris").exists()
+        tag_ids = list(self.data.tag_ids)
+        is_doris = IndexSetTag.objects.filter(tag_id__in=tag_ids, name="Doris").exists()
         multi_execute_func = MultiExecuteFunc()
         if not is_doris:
             search_handler_esquery = SearchHandler(self.index_set_id, {})
@@ -1734,7 +1735,8 @@ class BaseIndexSetHandler:
             multi_execute_func = MultiExecuteFunc()
             objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
             # 是否为Doris存储路由，一期不做刷新，仅支持手动配置。
-            is_doris = IndexSetTag.objects.filter(index_set_id=index_set.index_set_id, name="Doris").exists()
+            tag_ids = list(index_set.tag_ids)
+            is_doris = IndexSetTag.objects.filter(tag_id__in=tag_ids, name="Doris").exists()
             if is_doris:
                 return True
             for obj in objs:
