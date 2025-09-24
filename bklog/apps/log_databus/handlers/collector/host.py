@@ -319,7 +319,9 @@ class HostCollectorHandler(CollectorHandler):
                     # 更新归属索引集
                     index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
                     if index_set:
-                        IndexSetHandler(index_set.index_set_id).update_parent_index_sets(params["parent_index_set_ids"])
+                        IndexSetHandler(index_set.index_set_id).update_parent_index_sets(
+                            params.get("parent_index_set_ids", [])
+                        )
 
                     # collector_config_name更改后更新索引集名称
                     if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
