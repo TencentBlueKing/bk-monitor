@@ -96,6 +96,8 @@ class FeatureToggleObject(object):
         if toggle.status == "debug" and toggle.biz_id_black_list:
             if biz_id and biz_id in toggle.biz_id_black_list:
                 return False
+            else:
+                return True
 
         if toggle.status == "debug" and settings.ENVIRONMENT not in ["dev", "stag"]:
             return False

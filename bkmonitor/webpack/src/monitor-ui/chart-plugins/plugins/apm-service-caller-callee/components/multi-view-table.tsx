@@ -646,18 +646,21 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         {remark && <span class='remark-text'>{remark}</span>}
         {!data?.isTotal && data[item.value] && (
           <i
+            v-bk-tooltips={{content: this.$t('复制')}}
             class='icon-monitor icon-mc-copy tab-row-icon'
             onClick={() => this.copyValue(data[item.value])}
           />
         )}
         {data[item.value] && (
           <i
+            v-bk-tooltips={{content: this.$t('返回码重定义')}}
             class='icon-monitor icon-zhongdingyi tab-row-icon'
             onClick={this.handleCodeRedefine}
           />
         )}
         {data[item.value] && (
           <i
+            v-bk-tooltips={{content: this.$t('备注')}}
             class='icon-monitor icon-beizhu1 tab-row-icon'
             onClick={() => this.handleEditCodeRemark(data[item.value])}
           />
@@ -848,6 +851,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     </span>
                     {!a.row?.isTotal && a.row[item.value] && (
                       <i
+                        v-bk-tooltips={{content: this.$tc('复制')}}
                         class='icon-monitor icon-mc-copy tab-row-icon'
                         onClick={() => this.copyValue(a.row[item.value])}
                       />

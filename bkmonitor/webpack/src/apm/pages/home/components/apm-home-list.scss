@@ -119,7 +119,8 @@
 
       .app-list-search {
         flex: 1;
-        min-width: 426px;
+        min-width: 240px;
+        max-width: 426px;
         background: #fff;
 
         .bk-loading {

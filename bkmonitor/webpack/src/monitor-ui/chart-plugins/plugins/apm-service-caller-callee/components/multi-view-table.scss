@@ -59,6 +59,18 @@
     }
   }
 
+  .tab-row-icon {
+    flex-shrink: 0;
+    display: none;
+    font-size: 13px;
+    color: #63656e;
+    margin-left: 6px;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
   .multi-view-table,
   .multi-view-tab-table {
     .hover-row {
@@ -124,18 +136,6 @@
       }
     }
 
-    .tab-row-icon {
-      display: none;
-      flex-shrink: 0;
-      margin-left: 6px;
-      font-size: 13px;
-      color: #63656e;
-
-      &:hover {
-        color: #3a84ff;
-      }
-    }
-
     .multi-view-table-txt {
       color: #63656e;
 
@@ -162,6 +162,7 @@
     .multi-view-table-link {
       position: relative;
       display: flex;
+      align-items: center;
       width: 100%;
       color: #3a84ff;
       cursor: pointer;
