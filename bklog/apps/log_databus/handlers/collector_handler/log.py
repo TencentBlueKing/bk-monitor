@@ -13,10 +13,9 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class LogCollectorHandler:
-    def __init__(self, space_uid, belong_index_set_id=None):
+    def __init__(self, space_uid):
         self.space_uid = space_uid
         self.bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
-        self.belong_index_set_id = belong_index_set_id
 
     @staticmethod
     def fetch_log_collector_data(result: list[dict]):
@@ -61,6 +60,7 @@ class LogCollectorHandler:
                     "scenario_id": scenario_id,
                     "scenario_name": scenario_choices.get(scenario_id, ""),
                     "status_name": item.get("status_name", ""),
+                    "parent_index_sets": item.get("parent_index_sets", []),
                 }
             )
         return result_list
@@ -73,8 +73,38 @@ class LogCollectorHandler:
             collector_status_mappings[item["collector_id"]] = item
         return collector_status_mappings
 
+    @staticmethod
+    def fill_parent_index_sets_info(data):
+        """补充归属索引集信息"""
+
+        # 查询索引集ID及其归属索引集ID
+        index_set_ids = [item["index_set_id"] for item in data if item.get("index_set_id")]
+        index_data = LogIndexSetData.objects.filter(
+            type=IndexSetDataType.INDEX_SET.value,
+            result_table_id__in=index_set_ids,
+        ).values("index_set_id", "result_table_id")
+
+        # 查询归属索引集信息
+        index_group_ids = list({item["index_set_id"] for item in index_data if item.get("index_set_id")})
+        index_group_list = LogIndexSet.objects.filter(index_set_id__in=index_group_ids, is_group=True).values(
+            "index_set_id", "index_set_name"
+        )
+        index_group_map = {index_group["index_set_id"]: index_group for index_group in index_group_list}
+
+        # 构建归属索引集映射
+        parent_index_group_map = defaultdict(list)
+        for item in index_data:
+            parent_index_group = index_group_map.get(item["index_set_id"])
+            if parent_index_group:
+                parent_index_group_map[item["result_table_id"]].append(parent_index_group)
+
+        # 添加归属索引集信息
+        for item in data:
+            item["parent_index_sets"] = parent_index_group_map.get(str(item["index_set_id"]), [])
+
     def get_collector_config_info(
         self,
+        parent_index_set_id: int = None,
         scenario_id_list: list = None,
         collector_config_name_list: list = None,
         table_id_list: list = None,
@@ -86,6 +116,7 @@ class LogCollectorHandler:
     ) -> list[dict]:
         """
          获取采集项信息
+        :param parent_index_set_id: 归属索引集ID
         :param scenario_id_list: 接入情景
         :param collector_config_name_list: 采集名称
         :param table_id_list: 结果表ID
@@ -102,9 +133,9 @@ class LogCollectorHandler:
         qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id)
 
         # 先查询索引组下的索引集，再查询索引集对应的采集项
-        if self.belong_index_set_id:
+        if parent_index_set_id:
             index_set_id_list = LogIndexSetData.objects.filter(
-                index_set_id=self.belong_index_set_id, type=IndexSetDataType.INDEX_SET.value
+                index_set_id=parent_index_set_id, type=IndexSetDataType.INDEX_SET.value
             ).values_list("result_table_id", flat=True)
             if not index_set_id_list:
                 return []
@@ -164,6 +195,7 @@ class LogCollectorHandler:
 
     def get_log_index_set_info(
         self,
+        parent_index_set_id: int = None,
         scenario_id_list: list = None,
         index_set_name_list: list = None,
         result_table_id_list: list = None,
@@ -173,6 +205,7 @@ class LogCollectorHandler:
     ) -> list[dict]:
         """
          获取索引集内容
+        :param parent_index_set_id: 归属索引集ID
         :param scenario_id_list: 接入情景
         :param index_set_name_list: 索引集名称
         :param result_table_id_list: 结果表ID
@@ -183,9 +216,9 @@ class LogCollectorHandler:
         log_index_sets = LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid).exclude(
             scenario_id=Scenario.LOG
         )
-        if self.belong_index_set_id:
+        if parent_index_set_id:
             index_set_id_list = LogIndexSetData.objects.filter(
-                index_set_id=self.belong_index_set_id, type=IndexSetDataType.INDEX_SET.value
+                index_set_id=parent_index_set_id, type=IndexSetDataType.INDEX_SET.value
             ).values_list("result_table_id", flat=True)
             if not index_set_id_list:
                 return []
@@ -307,6 +340,7 @@ class LogCollectorHandler:
 
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
+            parent_index_set_id=data.get("parent_index_set_id"),
             scenario_id_list=scenario_id_list,
             collector_config_name_list=name_list,
             table_id_list=bk_data_name_list,
@@ -327,6 +361,7 @@ class LogCollectorHandler:
         else:
             # 获取索引集信息
             log_index_sets = self.get_log_index_set_info(
+                parent_index_set_id=data.get("parent_index_set_id"),
                 scenario_id_list=scenario_id_list,
                 index_set_name_list=name_list,
                 result_table_id_list=bk_data_name_list,
@@ -336,6 +371,7 @@ class LogCollectorHandler:
             )
 
         combined_data = collector_configs + log_index_sets
+        self.fill_parent_index_sets_info(combined_data)
         combined_data = self.fetch_log_collector_data(combined_data)
         # 分页
         paginator = Paginator(combined_data, data["pagesize"])

@@ -102,7 +102,7 @@ CREATE_SUCCESS = {
         "tag_ids": [],
         "is_editable": True,
         "is_group": False,
-        "belong_index_set_id": None,
+        "parent_index_set_ids": [],
         "sort_fields": [],
         "target_fields": [],
         "result_window": 10000,

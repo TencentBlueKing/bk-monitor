@@ -382,17 +382,19 @@ class CollectorConfig(CollectorBase):
 
     def create_index_set(self):
         """
-        创建相应的索引集，is_active先设置为False
+        创建相应的索引集，is_active先设置为False，如果已存在则直接返回
         """
-        index_set = LogIndexSet.objects.create(
-            index_set_name=_("[采集项]") + self.collector_config_name,
-            collector_config_id=self.collector_config_id,
-            space_uid=bk_biz_id_to_space_uid(self.bk_biz_id),
-            scenario_id=Scenario.LOG,
-            is_active=False,
-        )
-        self.index_set_id = index_set.index_set_id
-        self.save()
+        index_set = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
+        if not index_set:
+            index_set = LogIndexSet.objects.create(
+                index_set_name=_("[采集项]") + self.collector_config_name,
+                collector_config_id=self.collector_config_id,
+                space_uid=bk_biz_id_to_space_uid(self.bk_biz_id),
+                scenario_id=Scenario.LOG,
+                is_active=False,
+            )
+            self.index_set_id = index_set.index_set_id
+            self.save(update_fields=["index_set_id"])
         return index_set
 
 

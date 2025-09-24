@@ -19,10 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from django.db.models import Count
-
 from apps.generic import APIViewSet
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
+from apps.log_search.handlers.index_group import IndexGroupHandler
 from rest_framework.response import Response
 
 from apps.log_search.serializers import IndexGroupListSerializer, CreateIndexGroupSerializer, UpdateIndexGroupSerializer
@@ -58,23 +56,7 @@ class IndexGroupViewSet(APIViewSet):
         }
         """
         params = self.params_valid(IndexGroupListSerializer)
-        index_groups = (
-            LogIndexSet.objects.filter(is_group=True, space_uid=params["space_uid"])
-            .values("index_set_id", "index_set_name")
-            .order_by("index_set_name")
-        )
-        # 补充索引数量字段
-        index_set_ids = [x["index_set_id"] for x in index_groups]
-        index_counts = (
-            LogIndexSetData.objects.filter(index_set_id__in=index_set_ids)
-            .values("index_set_id")
-            .annotate(count=Count("index_id"))
-        )
-        index_counts_dict = {x["index_set_id"]: x["count"] for x in index_counts}
-        for x in index_groups:
-            x["index_count"] = index_counts_dict.get(x["index_set_id"], 0)
-
-        return Response(index_groups)
+        return Response(IndexGroupHandler.list_index_groups(params))
 
     def create(self, request, *args, **kwargs):
         """
@@ -95,12 +77,7 @@ class IndexGroupViewSet(APIViewSet):
         }
         """
         params = self.params_valid(CreateIndexGroupSerializer)
-        index_group = LogIndexSet.objects.create(
-            index_set_name=params["index_set_name"],
-            space_uid=params["space_uid"],
-            scenario_id=Scenario.LOG,
-            is_group=True,
-        )
+        index_group = IndexGroupHandler.create_index_groups(params)
         return Response({"index_set_id": index_group.index_set_id})
 
     def update(self, request, index_set_id):
@@ -118,10 +95,7 @@ class IndexGroupViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UpdateIndexGroupSerializer)
-        index_group = LogIndexSet.objects.filter(is_group=True, index_set_id=index_set_id).first()
-        if index_group:
-            index_group.index_set_name = params["index_set_name"]
-            index_group.save()
+        IndexGroupHandler(index_set_id).update_index_groups(params)
         return Response()
 
     def destroy(self, request, index_set_id):
@@ -137,8 +111,5 @@ class IndexGroupViewSet(APIViewSet):
             "result": true
         }
         """
-        index_group = LogIndexSet.objects.filter(is_group=True, index_set_id=index_set_id).first()
-        if index_group:
-            LogIndexSetData.objects.filter(index_set_id=index_group.index_set_id).delete()
-            index_group.delete()
+        IndexGroupHandler(index_set_id).delete_index_groups()
         return Response()

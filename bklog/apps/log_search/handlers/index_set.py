@@ -61,6 +61,7 @@ from apps.log_search.constants import (
     SearchScopeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
+    IndexSetDataType,
 )
 from apps.log_search.exceptions import (
     DesensitizeConfigCreateOrUpdateException,
@@ -83,6 +84,7 @@ from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
     DataIDNotExistException,
     IndexSetAliasSettingsException,
+    ParentIndexSetNotExistException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
@@ -400,7 +402,7 @@ class IndexSetHandler(APIModel):
         target_fields=None,
         sort_fields=None,
         bcs_cluster_id=None,
-        belong_index_set_id=None,
+        parent_index_set_ids=None,
     ):
         # 创建索引
         index_set_handler = cls.get_index_set_handler(scenario_id)
@@ -426,7 +428,7 @@ class IndexSetHandler(APIModel):
             target_fields=target_fields,
             sort_fields=sort_fields,
             bcs_cluster_id=bcs_cluster_id,
-            belong_index_set_id=belong_index_set_id,
+            parent_index_set_ids=parent_index_set_ids,
         ).create_index_set()
 
         # add user_operation_record
@@ -476,7 +478,7 @@ class IndexSetHandler(APIModel):
         target_fields=None,
         sort_fields=None,
         bcs_cluster_id=None,
-        belong_index_set_id=None,
+        parent_index_set_ids=None,
     ):
         index_set_handler = self.get_index_set_handler(self.scenario_id)
         view_roles = []
@@ -496,7 +498,7 @@ class IndexSetHandler(APIModel):
             target_fields=target_fields,
             sort_fields=sort_fields,
             bcs_cluster_id=bcs_cluster_id,
-            belong_index_set_id=belong_index_set_id,
+            parent_index_set_ids=parent_index_set_ids,
         ).update_index_set(self.data)
 
         # add user_operation_record
@@ -1125,6 +1127,10 @@ class IndexSetHandler(APIModel):
         return self.data.storage_cluster_id
 
     @property
+    def space_uid(self):
+        return self.data.space_uid
+
+    @property
     def source_object(self):
         if not self.storage_cluster_id:
             return None
@@ -1514,6 +1520,63 @@ class IndexSetHandler(APIModel):
                 )
         return {"index_set_id": self.index_set_id}
 
+    def add_to_parent_index_set(self, parent_index_set_id: int):
+        """
+        添加到归属索引集中
+        """
+        parent_index_set = LogIndexSet.objects.filter(index_set_id=parent_index_set_id, is_group=True).first()
+        if not parent_index_set:
+            raise ParentIndexSetNotExistException(
+                ParentIndexSetNotExistException.MESSAGE.format(parent_index_set_id=parent_index_set_id)
+            )
+
+        log_index_set_data = LogIndexSetData.objects.create(
+            index_set_id=parent_index_set_id,
+            result_table_id=self.index_set_id,
+            scenario_id=self.scenario_id,
+            bk_biz_id=space_uid_to_bk_biz_id(self.space_uid),
+            type=IndexSetDataType.INDEX_SET.value,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        return log_index_set_data
+
+    def add_to_parent_index_set_list(self, parent_index_set_list: list):
+        """
+        批量添加到归属索引集中
+        """
+        for parent_index_set_id in parent_index_set_list:
+            self.add_to_parent_index_set(parent_index_set_id)
+
+    def remove_from_parent_index_set(self, parent_index_set_id: int):
+        """
+        从归属索引集中移除
+        """
+        LogIndexSetData.objects.filter(
+            index_set_id=parent_index_set_id,
+            result_table_id=self.index_set_id,
+            bk_biz_id=space_uid_to_bk_biz_id(self.space_uid),
+        ).delete()
+
+    def remove_from_parent_index_set_list(self, parent_index_set_list: list):
+        """
+        批量从归属索引集中移除
+        """
+        for parent_index_set_id in parent_index_set_list:
+            self.remove_from_parent_index_set(parent_index_set_id)
+
+    def update_parent_index_sets(self, new_parent_index_set_ids: list):
+        """
+        更新归属索引集
+        """
+        current_parent_index_set_ids = set(self.data.get_parent_index_set_ids())
+        new_parent_index_set_ids = set(new_parent_index_set_ids)
+
+        to_create = new_parent_index_set_ids - current_parent_index_set_ids
+        to_delete = current_parent_index_set_ids - new_parent_index_set_ids
+
+        self.remove_from_parent_index_set_list(list(to_delete))
+        self.add_to_parent_index_set_list(list(to_create))
+
 
 class BaseIndexSetHandler:
     scenario_id = None
@@ -1539,7 +1602,7 @@ class BaseIndexSetHandler:
         target_fields=None,
         sort_fields=None,
         bcs_cluster_id=None,
-        belong_index_set_id=None,
+        parent_index_set_ids=None,
     ):
         super().__init__()
 
@@ -1562,7 +1625,7 @@ class BaseIndexSetHandler:
         self.bcs_project_id = bcs_project_id
         self.is_editable = is_editable
         self.bcs_cluster_id = bcs_cluster_id
-        self.belong_index_set_id = belong_index_set_id
+        self.parent_index_set_ids = parent_index_set_ids
 
         # time_field
         self.time_field, self.time_field_type, self.time_field_unit = self.init_time_field(
@@ -1695,8 +1758,10 @@ class BaseIndexSetHandler:
             )
 
         # 将索引集添加到归属索引集(索引组)中
-        if self.belong_index_set_id:
-            self.index_set_obj.add_to_belonging_set(self.belong_index_set_id)
+        if self.parent_index_set_ids:
+            IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).add_to_parent_index_set_list(
+                self.parent_index_set_ids
+            )
 
         # 更新字段快照
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
@@ -1894,7 +1959,9 @@ class BaseIndexSetHandler:
                 time_field_unit=index.get("time_field_unit") or self.time_field_unit,
             )
         # 更新归属索引集
-        self.index_set_obj.update_belonging_set(self.belong_index_set_id)
+        IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).update_parent_index_sets(
+            self.parent_index_set_ids
+        )
 
         # 更新字段快照
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
@@ -1913,8 +1980,9 @@ class BaseIndexSetHandler:
 
     def delete(self):
         # 归属索引集中删除该索引
-        if self.index_set_obj.belong_index_set:
-            self.index_set_obj.remove_from_belonging_set(self.index_set_obj.belong_index_set.get("index_set_id"))
+        parent_index_set_ids = self.index_set_obj.get_parent_index_set_ids()
+        if parent_index_set_ids:
+            IndexSetHandler(self.index_set_obj.index_set_id).remove_from_parent_index_set_list(parent_index_set_ids)
 
         self.index_set_obj.delete()
         StorageClusterRecord.objects.filter(index_set_id=self.index_set_obj.index_set_id).delete()

@@ -453,54 +453,22 @@ class LogIndexSet(SoftDeleteModel):
 
         return BkDataAuthHandler.get_auth_url(not_applied_indices)
 
-    @property
-    def belong_index_set(self):
+    def get_parent_index_set_ids(self) -> list:
+        """
+        获取当前索引集的归属索引集ID列表
+        """
         index_data = LogIndexSetData.objects.filter(
             result_table_id=self.index_set_id,
             type=IndexSetDataType.INDEX_SET.value,
-        ).first()
+        ).all()
+
         if index_data:
-            return (
-                LogIndexSet.objects.filter(index_set_id=index_data.index_set_id)
-                .values("index_set_id", "index_set_name")
-                .first()
+            index_set_ids = [index.index_set_id for index in index_data]
+            return list(
+                LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values_list("index_set_id", flat=True).all()
             )
-        return None
 
-    def add_to_belonging_set(self, belong_index_set_id):
-        """
-        添加到归属索引集中
-        """
-        log_index_set_data = LogIndexSetData.objects.create(
-            index_set_id=belong_index_set_id,
-            result_table_id=self.index_set_id,
-            scenario_id=self.scenario_id,
-            bk_biz_id=space_uid_to_bk_biz_id(self.space_uid),
-            type=IndexSetDataType.INDEX_SET.value,
-            apply_status=LogIndexSetData.Status.NORMAL,
-        )
-        return log_index_set_data
-
-    def remove_from_belonging_set(self, belong_index_set_id):
-        LogIndexSetData.objects.filter(
-            index_set_id=belong_index_set_id,
-            result_table_id=self.index_set_id,
-            bk_biz_id=space_uid_to_bk_biz_id(self.space_uid),
-        ).delete()
-
-    def update_belonging_set(self, belong_index_set_id):
-        # 旧的归属索引集
-        old_belong_index_set_id = None
-        if self.belong_index_set:
-            old_belong_index_set_id = self.belong_index_set.get("index_set_id")
-
-        if old_belong_index_set_id != belong_index_set_id:
-            # 旧的归属索引集中删除当前索引
-            if old_belong_index_set_id:
-                self.remove_from_belonging_set(old_belong_index_set_id)
-            # 添加到新的归属索引集中
-            if belong_index_set_id:
-                self.add_to_belonging_set(belong_index_set_id)
+        return []
 
     @staticmethod
     def no_data_check_time(index_set_id: str):

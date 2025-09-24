@@ -415,7 +415,7 @@ class CollectorCreateSerializer(serializers.Serializer):
         label=_("环境"), default=Environment.LINUX, choices=[Environment.LINUX, Environment.WINDOWS]
     )
     params = PluginParamSerializer()
-    belong_index_set_id = serializers.IntegerField(label=_("归属索引集"), default=None)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -459,7 +459,7 @@ class CreateContainerCollectorSerializer(serializers.Serializer):
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
     platform_username = serializers.CharField(label=_("平台用户"), required=False)
-    belong_index_set_id = serializers.IntegerField(label=_("归属索引集"), default=None)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
     def validate_yaml_config(self, value):
         try:
@@ -490,7 +490,7 @@ class CollectorUpdateSerializer(serializers.Serializer):
         label=_("环境"), required=False, choices=[Environment.LINUX, Environment.WINDOWS]
     )
     params = PluginParamSerializer()
-    belong_index_set_id = serializers.IntegerField(label=_("归属索引集"), default=None)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
 
 class UpdateContainerCollectorSerializer(serializers.Serializer):
@@ -508,7 +508,7 @@ class UpdateContainerCollectorSerializer(serializers.Serializer):
     extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
-    belong_index_set_id = serializers.IntegerField(label=_("归属索引集"), default=None, allow_null=True)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
     def validate_yaml_config(self, value):
         try:
@@ -1481,6 +1481,7 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True
     )
     is_display = serializers.BooleanField(label=_("是否展示"), default=True, required=False)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
     def validate(self, attrs: dict) -> dict:
         # 先进行校验
@@ -1506,7 +1507,6 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer):
     custom_type = serializers.ChoiceField(label=_("日志类型"), choices=CustomTypeEnum.get_choices())
     sort_fields = serializers.ListField(label=_("排序字段"), required=False, allow_empty=True)
     target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
-    belong_index_set_id = serializers.IntegerField(label=_("归属索引集"), required=False, default=None)
 
     def validate(self, attrs: dict) -> dict:
         attrs = super().validate(attrs)
@@ -1521,7 +1521,6 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer):
 class CustomUpdateSerializer(CustomCollectorBaseSerializer):
     sort_fields = serializers.ListField(label=_("排序字段"), required=False, allow_empty=True)
     target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
-    belong_index_set_id = serializers.IntegerField(label=_("归属索引集"), required=False, default=None)
 
 
 class FastContainerCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
@@ -1778,7 +1777,7 @@ class LogCollectorSerializer(serializers.Serializer):
         key = serializers.CharField(required=True)
         value = serializers.ListField(required=True)
 
-    belong_index_set_id = serializers.IntegerField(label=_("归属索引集(索引组)ID"), default=None, allow_null=True)
+    parent_index_set_id = serializers.IntegerField(label=_("归属索引集ID"), default=None, allow_null=True)
     space_uid = SpaceUIDField(label=_("空间唯一标识"))
     page = serializers.IntegerField(label=_("分页"), min_value=1)
     pagesize = serializers.IntegerField(label=_("分页大小"), min_value=1)

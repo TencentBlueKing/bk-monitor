@@ -496,6 +496,8 @@ class CollectorHandler:
             collector_config.update(
                 {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
             )
+            parent_index_set_ids = log_index_set_obj.get_parent_index_set_ids()
+            collector_config.update({"parent_index_set_ids": parent_index_set_ids})
         return collector_config
 
     def custom_update(
@@ -514,7 +516,7 @@ class CollectorHandler:
         is_display=True,
         sort_fields=None,
         target_fields=None,
-        belong_index_set_id=None,
+        parent_index_set_ids=None,
     ):
         collector_config_update = {
             "collector_config_name": collector_config_name,
@@ -546,6 +548,9 @@ class CollectorHandler:
         if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
             index_set_name = _("[采集项]") + self.data.collector_config_name
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
+
+        # 更新归属索引集
+        IndexSetHandler(self.data.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
         custom_config = get_custom(self.data.custom_type)
         if etl_params and fields:
@@ -1234,7 +1239,7 @@ class CollectorHandler:
         is_display=True,
         sort_fields=None,
         target_fields=None,
-        belong_index_set_id=None,
+        parent_index_set_ids=None,
     ):
         collector_config_params = {
             "bk_biz_id": bk_biz_id,
@@ -1293,10 +1298,10 @@ class CollectorHandler:
             )
             self.data.save()
 
-            # 创建相应的索引集，并添加到归属索引集中
+            # 创建索引集，并添加到归属索引集中
             index_set = self.data.create_index_set()
-            if belong_index_set_id:
-                index_set.add_to_belonging_set(belong_index_set_id)
+            if parent_index_set_ids:
+                IndexSetHandler(index_set.index_set_id).add_to_parent_index_set_list(parent_index_set_ids)
 
         # add user_operation_record
         operation_record = {

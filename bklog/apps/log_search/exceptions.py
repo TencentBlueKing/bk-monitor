@@ -258,6 +258,11 @@ class IndexSetAliasSettingsException(BaseIndexSetException):
     MESSAGE = _("别名冲突: {conflict_info}")
 
 
+class ParentIndexSetNotExistException(BaseIndexSetException):
+    ERROR_CODE = "331"
+    MESSAGE = _("归属索引集 [ID:{parent_index_set_id}] 不存在")
+
+
 # =================================================
 # 管理-检索
 # =================================================

@@ -46,5 +46,5 @@ class LogAccessViewSet(APIViewSet):
     @list_route(methods=["POST"], url_path="collector")
     def collector(self, request):
         data = self.params_valid(LogCollectorSerializer)
-        result = LogCollectorHandler(data["space_uid"], data["belong_index_set_id"]).get_log_collectors(data)
+        result = LogCollectorHandler(data["space_uid"]).get_log_collectors(data)
         return Response(result)
