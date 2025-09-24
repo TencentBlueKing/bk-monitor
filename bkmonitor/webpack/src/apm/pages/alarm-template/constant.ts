@@ -38,7 +38,7 @@ export const AlarmTemplateDetailTabEnum = {
 /** 告警模板类型 Enum 枚举 */
 export const AlarmTemplateTypeEnum = {
   /** 内置模板 */
-  INNER: 'inner',
+  INNER: 'builtin',
   /** 克隆模板 */
   APP: 'app',
 } as const;
@@ -151,12 +151,12 @@ export const AlarmTemplateTypeMap: Record<'all' | AlarmTemplateTypeEnumType, ITa
   },
   [AlarmTemplateTypeEnum.INNER]: {
     icon: 'icon-neizhi',
-    id: 'inner',
+    id: AlarmTemplateTypeEnum.INNER,
     name: window.i18n.t('内置模板') as unknown as string,
   },
   [AlarmTemplateTypeEnum.APP]: {
     icon: 'icon-kelong',
-    id: 'app',
+    id: AlarmTemplateTypeEnum.APP,
     name: window.i18n.t('克隆模板') as unknown as string,
   },
 };
