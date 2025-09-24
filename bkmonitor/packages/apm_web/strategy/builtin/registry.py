@@ -16,6 +16,7 @@ from typing import Any
 from django.utils import timezone
 
 from . import rpc, metric, base
+from .. import constants
 
 from apm_web.models import Application
 from apm_web.models.strategy import StrategyTemplate
@@ -125,7 +126,11 @@ class BuiltinStrategyTemplateRegistry:
                 if template["code"] not in builtin.ENABLED_CODES:
                     continue
 
-                obj: StrategyTemplate = StrategyTemplate(**template, user_group_ids=[user_group_id])
+                obj: StrategyTemplate = StrategyTemplate(
+                    **template,
+                    user_group_ids=[user_group_id],
+                    type=constants.StrategyTemplateType.BUILTIN_TEMPLATE.value,
+                )
                 obj.bk_biz_id, obj.app_name, obj.system = self.bk_biz_id, self.app_name, builtin.SYSTEM.value
                 if obj.code in tmpl_code__id_map:
                     # TODO 被用户更新过的，不再进行更新
@@ -146,6 +151,7 @@ class BuiltinStrategyTemplateRegistry:
                 to_be_updated,
                 fields=[
                     "name",
+                    "type",
                     "root_id",
                     "parent_id",
                     "category",
