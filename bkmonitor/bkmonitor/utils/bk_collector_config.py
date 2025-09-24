@@ -17,7 +17,6 @@ from kubernetes import client
 
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bcs import BcsKubeClient
-from bkmonitor.utils.cache import using_cache, CacheType
 from bkmonitor.utils.common_utils import safe_int, count_md5
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
@@ -151,7 +150,6 @@ class BkCollectorClusterConfig:
             )
 
     @classmethod
-    @using_cache(CacheType.BCS(60 * 5))
     def sub_config_tpl(cls, cluster_id: str, sub_config_tpl_name: str):
         bcs_client = BcsKubeClient(cluster_id)
         config_maps = bcs_client.client_request(
@@ -162,7 +160,7 @@ class BkCollectorClusterConfig:
         if config_maps is None or len(config_maps.items) == 0:
             return None
 
-        content = ""
+        content = b""
         for item in config_maps.items:
             if not item.data:
                 continue

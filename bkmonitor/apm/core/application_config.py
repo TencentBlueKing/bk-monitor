@@ -106,7 +106,7 @@ class ApplicationConfig(BkCollectorConfig):
                     application_tpl = BkCollectorClusterConfig.sub_config_tpl(
                         cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
                     )
-                    if application_tpl is None:
+                    if not application_tpl:
                         continue
 
                     application_config_context = self.get_application_config()
