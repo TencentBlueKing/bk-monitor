@@ -25,9 +25,11 @@
  */
 
 import { computed, defineComponent, ref } from "vue";
-import useLocale from "@/hooks/use-locale";
 import TextHighlight from "vue-text-highlight";
+
 import { base64Encode } from "@/common/util";
+import useLocale from "@/hooks/use-locale";
+
 import $http from "@/api";
 import { type RowData } from "../regex-table";
 import CustomHighlight from "./custom-highlight";
@@ -80,7 +82,8 @@ export default defineComponent({
         }, []);
         const ruleArrStr = `[${ruleNewList.join(" ,")}]`;
         return base64Encode(ruleArrStr);
-      } catch (error) {
+      } catch (err) {
+        console.error(err);
         return "";
       }
     };
@@ -113,7 +116,7 @@ export default defineComponent({
 
     return () => (
       <div style="display:none">
-        <div class="regex-preview-main" ref={regexPreviewRef}>
+        <div ref={regexPreviewRef} class="regex-preview-main">
           <div class="header-main">
             <div class="title-main">{t("预览结果")}</div>
             <div class="close-main" on-click={handleClose}>
