@@ -22,15 +22,44 @@ the project delivered to anyone in the future.
 from django.db.models import Count
 
 from apps.generic import APIViewSet
-from apps.log_search.models import LogIndexSet, LogIndexSetData
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from rest_framework.response import Response
+
+from apps.log_search.serializers import IndexGroupListSerializer, CreateIndexGroupSerializer, UpdateIndexGroupSerializer
 
 
 class IndexGroupViewSet(APIViewSet):
+    """
+    索引组（新的索引集概念）
+    """
+
+    lookup_field = "index_set_id"
+
     def list(self, request, *args, **kwargs):
-        # TODO 补充接口文档注释
+        """
+        @api {get} /index_group/ 索引组列表
+        @apiName list_index_group
+        @apiGroup index_group
+        @apiParam {String} space_uid 空间唯一标识
+        @apiParam {String} keyword 关键字
+        @apiSuccess {Int} data.index_set_id 索引组id
+        @apiSuccess {Int} data.index_set_name 索引组名称
+        @apiSuccess {Int} data.index_count 索引数量
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": [{
+                "index_set_id": 899,
+                "index_set_name": "first_group",
+                "index_count": 3
+            }],
+            "result": true
+        }
+        """
+        params = self.params_valid(IndexGroupListSerializer)
         index_groups = (
-            LogIndexSet.objects.filter(is_group=True)
+            LogIndexSet.objects.filter(is_group=True, space_uid=params["space_uid"])
             .values("index_set_id", "index_set_name")
             .order_by("index_set_name")
         )
@@ -47,22 +76,69 @@ class IndexGroupViewSet(APIViewSet):
 
         return Response(index_groups)
 
-    def destroy(self, request, *args, **kwargs):
-        index_group = LogIndexSet.objects.filter(is_group=True, index_set_id=kwargs["index_set_id"]).first()
-        LogIndexSetData.objects.filter(index_set_id=index_group.index_set_id).delete()
-        index_group.delete()
-
     def create(self, request, *args, **kwargs):
-        LogIndexSet.objects.create(
-            index_set_name=request.data["index_set_name"],
-            space_uid=request.data["space_uid"],
-            scenario_id=request.data["scenario_id"],
+        """
+        @api {post} /index_group/ 创建索引组
+        @apiName create_index_group
+        @apiGroup index_group
+        @apiParam {String} space_uid 空间唯一标识
+        @apiParam {String} index_set_name 索引组名称
+        @apiSuccess {Int} data.index_set_id 索引组id
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": {
+                "index_set_id": 899
+            },
+            "result": true
+        }
+        """
+        params = self.params_valid(CreateIndexGroupSerializer)
+        index_group = LogIndexSet.objects.create(
+            index_set_name=params["index_set_name"],
+            space_uid=params["space_uid"],
+            scenario_id=Scenario.LOG,
             is_group=True,
         )
+        return Response({"index_set_id": index_group.index_set_id})
+
+    def update(self, request, index_set_id):
+        """
+        @api {put} /index_group/$index_set_id 更新索引组（目前只能修改名称）
+        @apiName update_index_group
+        @apiGroup index_group
+        @apiParam {String} index_set_name 索引组名称
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": null,
+            "result": true
+        }
+        """
+        params = self.params_valid(UpdateIndexGroupSerializer)
+        index_group = LogIndexSet.objects.filter(is_group=True, index_set_id=index_set_id).first()
+        if index_group:
+            index_group.index_set_name = params["index_set_name"]
+            index_group.save()
         return Response()
 
-    def update(self, request, *args, **kwargs):
-        index_group = LogIndexSet.objects.filter(is_group=True, index_set_id=kwargs["index_set_id"]).first()
-        index_group.index_name = request.data["index_set_name"]
-        index_group.save()
+    def destroy(self, request, index_set_id):
+        """
+        @api {delete} /index_group/$index_set_id 删除索引组
+        @apiName delete_index_group
+        @apiGroup index_group
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": null,
+            "result": true
+        }
+        """
+        index_group = LogIndexSet.objects.filter(is_group=True, index_set_id=index_set_id).first()
+        if index_group:
+            LogIndexSetData.objects.filter(index_set_id=index_group.index_set_id).delete()
+            index_group.delete()
         return Response()

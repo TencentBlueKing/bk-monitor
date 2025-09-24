@@ -1203,3 +1203,29 @@ class SpaceListSerializer(serializers.Serializer):
     has_permission = serializers.BooleanField(label=_("仅获取有权限的空间"), default=False)
     page = serializers.IntegerField(label=_("页数"), required=False, min_value=1)
     page_size = serializers.IntegerField(label=_("每页条数"), required=False, min_value=1)
+
+
+class IndexGroupListSerializer(serializers.Serializer):
+    """
+    索引组列表
+    """
+
+    keyword = serializers.CharField(label=_("关键字"), default=None, allow_null=True)
+    space_uid = SpaceUIDField(label=_("空间唯一标识"))
+
+
+class CreateIndexGroupSerializer(serializers.Serializer):
+    """
+    创建索引组
+    """
+
+    index_set_name = serializers.CharField(label=_("索引组名称"), required=True)
+    space_uid = SpaceUIDField(label=_("空间唯一标识"))
+
+
+class UpdateIndexGroupSerializer(serializers.Serializer):
+    """
+    更新索引组
+    """
+
+    index_set_name = serializers.CharField(label=_("索引组名称"), required=True)
