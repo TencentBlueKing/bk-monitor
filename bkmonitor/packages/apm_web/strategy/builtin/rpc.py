@@ -15,7 +15,7 @@ from constants.apm import CachedEnum
 from constants.query_template import GLOBAL_BIZ_ID
 from bkmonitor.query_template.builtin.apm import APMQueryTemplateName
 
-from apm_web.strategy.query_template.local import LocalQueryTemplateName
+from apm_web.strategy.query_template import LocalQueryTemplateName
 
 from django.utils.translation import gettext as _
 
