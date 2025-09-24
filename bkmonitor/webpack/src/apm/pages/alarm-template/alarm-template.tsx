@@ -365,6 +365,7 @@ export default class AlarmTemplate extends tsc<object> {
           onShowChange={show => {
             this.editTemplateShow = show;
           }}
+          onSuccess={this.getQueryTemplateList}
         />
         <TemplateDetails
           defaultTab={this.templateDetailObj.tabActive}
