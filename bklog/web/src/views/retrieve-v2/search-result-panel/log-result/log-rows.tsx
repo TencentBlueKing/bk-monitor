@@ -130,7 +130,7 @@ export default defineComponent({
     // 前端本地分页loadmore触发器
     // renderList 没有使用响应式，这里需要手动触发更新，所以这里使用一个计数器来触发更新
     const localUpdateCounter = ref(0);
-
+    const hasMoreList = ref(true);
     let renderList = Object.freeze([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
@@ -152,9 +152,6 @@ export default defineComponent({
     // 检索第一页数据时，loading状态
     const isFirstPageLoading = computed(() => isLoading.value && !isRequesting.value);
 
-    const hasMoreList = computed(() => {
-      return indexSetQueryResult.value.total > tableDataSize.value;
-    });
     const exceptionMsg = computed(() => {
       if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
         return $t('检索结果为空');
@@ -704,6 +701,7 @@ export default defineComponent({
       }
 
       if (pageIndex.value * pageSize.value < tableDataSize.value) {
+        hasMoreList.value = true;
         isRequesting.value = true;
         pageIndex.value++;
         const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
@@ -719,10 +717,13 @@ export default defineComponent({
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(resp => {
-            if (resp?.size === 50) {
+            if (resp?.data?.list?.length === pageSize.value) {
               pageIndex.value++;
+              handleResultBoxResize();
+              return;
             }
 
+            hasMoreList.value = false;
             handleResultBoxResize(false);
           })
           .finally(() => {
