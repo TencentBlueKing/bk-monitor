@@ -48,6 +48,7 @@ from apps.log_databus.constants import (
     SyslogProtocolEnum,
     TopoType,
     VisibleEnum,
+    DEFAULT_CATEGORY_ID,
 )
 from apps.log_databus.models import CleanTemplate, CollectorConfig, CollectorPlugin
 from apps.log_search.constants import (
@@ -403,7 +404,7 @@ class CollectorCreateSerializer(serializers.Serializer):
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
-    category_id = serializers.CharField(label=_("分类ID"))
+    category_id = serializers.CharField(label=_("分类ID"), default=DEFAULT_CATEGORY_ID)
     target_object_type = serializers.CharField(label=_("目标类型"))
     target_node_type = serializers.CharField(label=_("节点类型"))
     target_nodes = TargetNodeSerializer(label=_("目标节点"), many=True)
@@ -446,7 +447,7 @@ class CreateContainerCollectorSerializer(serializers.Serializer):
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
-    category_id = serializers.CharField(label=_("分类ID"))
+    category_id = serializers.CharField(label=_("分类ID"), default=DEFAULT_CATEGORY_ID)
     description = serializers.CharField(
         label=_("备注说明"), max_length=100, required=False, allow_null=True, allow_blank=True
     )
@@ -1460,7 +1461,7 @@ class ContainerCollectorYamlSerializer(serializers.Serializer):
 
 class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
-    category_id = serializers.CharField(label=_("分类ID"))
+    category_id = serializers.CharField(label=_("分类ID"), default=DEFAULT_CATEGORY_ID)
     # 清洗配置
     etl_config = serializers.CharField(label=_("清洗类型"), required=False, default=EtlConfig.BK_LOG_TEXT)
     # 存储配置
@@ -1527,7 +1528,7 @@ class FastContainerCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
-    category_id = serializers.CharField(label=_("分类ID"))
+    category_id = serializers.CharField(label=_("分类ID"), default=DEFAULT_CATEGORY_ID)
     description = serializers.CharField(
         label=_("备注说明"), max_length=100, required=False, allow_null=True, allow_blank=True
     )
@@ -1573,7 +1574,7 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
-    category_id = serializers.CharField(label=_("分类ID"))
+    category_id = serializers.CharField(label=_("分类ID"), default=DEFAULT_CATEGORY_ID)
     target_object_type = serializers.CharField(label=_("目标类型"))
     target_node_type = serializers.CharField(label=_("节点类型"))
     target_nodes = TargetNodeSerializer(label=_("目标节点"), many=True)
@@ -1765,3 +1766,14 @@ class RunSubscriptionTaskSerializer(serializers.Serializer):
     scope = ScopeParams(label="事件订阅监听的范围", required=False)
     action = serializers.CharField(label="操作", default="install")
     bk_biz_id = serializers.IntegerField(label="业务ID")
+
+
+class LogCollectorSerializer(serializers.Serializer):
+    class ConditionSerializer(serializers.Serializer):
+        key = serializers.CharField(required=True)
+        value = serializers.ListField(required=True)
+
+    space_uid = SpaceUIDField(label=_("空间唯一标识"))
+    page = serializers.IntegerField(label=_("分页"), min_value=1)
+    pagesize = serializers.IntegerField(label=_("分页大小"), min_value=1)
+    conditions = ConditionSerializer(label=_("过滤规则"), many=True, required=False)
