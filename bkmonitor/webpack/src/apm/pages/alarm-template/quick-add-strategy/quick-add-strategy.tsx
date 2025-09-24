@@ -33,7 +33,7 @@ import authorityMixinCreate from 'monitor-pc/mixins/authorityMixin';
 import { MANAGE_AUTH as MANAGE } from 'monitor-pc/pages/alarm-group/authority-map';
 
 import TemplateForm from '../components/template-form/template-form';
-import { getTemplatePreview } from '../service';
+import { getCheckStrategyTemplate, getTemplatePreview } from '../service';
 import JudgmentConditions from './judgment-conditions';
 import TemplateList from './template-list';
 
@@ -63,7 +63,7 @@ class QuickAddStrategy extends Mixins(
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
 
-  templateList = [];
+  templateList: ITempLateItem[] = [];
   alarmGroupList: IAlarmGroupList[] = [];
   alarmGroupLoading = false;
   cursorId: number = undefined;
@@ -281,26 +281,67 @@ class QuickAddStrategy extends Mixins(
     });
   }
 
-  getTemplateList() {
+  /**
+   * 获取模板列表
+   * 异步方法，用于查询并加载策略模板列表
+   * 1. 设置加载状态为 true
+   * 2. 调用接口搜索策略模板
+   * 3. 检查模板应用状态并更新列表
+   * 4. 如果有模板，默认选中第一个
+   * 5. 设置加载状态为 false
+   * @returns {Promise<void>} 无返回值
+   */
+  async getTemplateList() {
     this.templateListLoading = true;
-    searchStrategyTemplate({
+    const data = await searchStrategyTemplate({
       app_name: this.params?.app_name,
       conditions: [],
       simple: true,
-    })
-      .then(data => {
-        this.templateList = data?.list || [];
-        if (this.templateList.length) {
-          this.handleCursorChange(this.templateList[0].id);
-        }
-      })
-      .finally(() => {
-        this.templateListLoading = false;
-      });
+    }).catch(() => ({ list: [] }));
+    this.templateList = await this.checkTemplateList(data?.list || []);
+    if (this.templateList.length) {
+      this.handleCursorChange(this.templateList[0].id);
+    }
+    this.templateListLoading = false;
+  }
+
+  /**
+   * 检查模板列表中的应用状态
+   * 异步方法，用于批量检查策略模板是否已被应用
+   * 1. 调用接口查询模板的应用状态
+   * 2. 将查询结果映射到模板列表中
+   * 3. 更新模板的 has_been_applied 和 strategy 属性
+   * @param {ITempLateItem[]} list - 需要检查的模板列表
+   * @returns {Promise<ITempLateItem[]>} 返回更新后的模板列表
+   */
+  async checkTemplateList(list: ITempLateItem[]) {
+    const data = await getCheckStrategyTemplate({
+      strategy_template_ids: list.map(item => item.id),
+      app_name: this.params?.app_name,
+      service_names: [this.params?.service_name],
+    }).catch(() => ({ list: [] }));
+    const temp = new Map();
+    for (const item of data?.list || []) {
+      temp.set(item.strategy_template_id, item);
+    }
+    for (const item of list) {
+      const checkItem = temp.get(item.id);
+      if (checkItem) {
+        item.has_been_applied = !!checkItem?.has_been_applied;
+        item.strategy = checkItem?.strategy;
+      }
+    }
+    return list;
   }
 
   handleJudgmentConditionsChange(params) {
     this.globalParams = params;
+  }
+
+  handleGoStrategy(id) {
+    if (id) {
+      window.open(location.href.replace(location.hash, `#/strategy-config/detail/${id}`));
+    }
   }
 
   render() {
@@ -336,6 +377,7 @@ class QuickAddStrategy extends Mixins(
                 templateList={this.templateList}
                 onCheckedChange={this.handleCheckedChange}
                 onCursorChange={this.handleCursorChange}
+                onGoStrategy={this.handleGoStrategy}
               />
             )}
             <JudgmentConditions
