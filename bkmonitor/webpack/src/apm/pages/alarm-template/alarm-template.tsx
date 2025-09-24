@@ -147,8 +147,8 @@ export default class AlarmTemplate extends tsc<object> {
     this.metricFunctions = await getFunctions().catch(() => []);
   }
 
-  async mounted() {
-    await this.handleGetMetricFunctions();
+  mounted() {
+    this.handleGetMetricFunctions();
     const detailsId = this.$route.query?.[TEMPLATE_DETAILS_ROUTER_QUERY_KEY];
     if (detailsId) {
       this.handleShowDetail({ id: Number(detailsId), sliderActiveTab: 'base_info' });
