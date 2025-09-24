@@ -145,15 +145,16 @@ export default defineComponent({
      */
     const getSelectedValues = () => {
       const flatList = getFlatList();
-      let values = props.indexSetValue
-        .map(v => flatList.find((i: any) => `${i.unique_id}` === `${v}`))
-        .filter(c => c !== undefined);
+      let values = props.indexSetValue.map(v => {
+        const target = flatList.find((i: any) => `${i.unique_id}` === `${v}`);
+        if (!target) {
+          return flatList.find((i: any) => `${i.index_set_id}` === `${v.split('_').at(-1)}`);
+        }
 
-      if (!values.length) {
-        values = props.indexSetValue
-          .map(v => flatList.find((i: any) => `${i.index_set_id}` === `${v.split('_').at(-1)}`))
-          .filter(c => c !== undefined);
-      }
+        return target;
+      });
+
+      debugger;
       return values;
     };
 
