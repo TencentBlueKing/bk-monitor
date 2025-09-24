@@ -16,6 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
+from rest_framework.generics import get_object_or_404
 from rest_framework.serializers import Serializer, ValidationError
 
 from bkmonitor.iam import ActionEnum
@@ -170,9 +171,17 @@ class StrategyTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCloneRequestSerializer)
     def clone(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response({"id": 2})
-        return Response({})
+        # TODO 比较两个模板是否一致
+        source_obj = get_object_or_404(self.get_queryset(), id=self.query_data["source_id"])
+        edit_data: dict[str, Any] = self.query_data["edit_data"]
+        edit_data["bk_biz_id"] = self.query_data["bk_biz_id"]
+        edit_data["app_name"] = self.query_data["app_name"]
+        edit_data["parent_id"] = source_obj.id
+        edit_data["type"] = StrategyTemplateType.APP_TEMPLATE.value
+        update_field_names: list[str] = ["code", "root_id", "system", "category", "monitor_type", "query_template"]
+        for field_name in update_field_names:
+            edit_data[field_name] = getattr(source_obj, field_name)
+        return Response({"id": serializers.StrategyTemplateModelSerializer().create(edit_data).id})
 
     @action(
         methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateBatchPartialUpdateRequestSerializer
