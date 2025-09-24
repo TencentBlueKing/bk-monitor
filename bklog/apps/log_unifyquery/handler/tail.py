@@ -74,6 +74,7 @@ class UnifyQueryTailHandler(UnifyQueryHandler):
                 container_id=self.container_id,
                 logfile=self.logfile,
                 zero=self.zero,
+                base_params=base_params,
             ).body
         elif self.scenario_id == Scenario.LOG:
             body: Dict = CreateSearchTailBodyScenarioLog(
