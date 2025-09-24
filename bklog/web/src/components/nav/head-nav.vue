@@ -486,26 +486,7 @@
             }
             return;
           }
-          if (menu.id === 'dashboard') {
-            // if (this.$route.query.manageAction) {
-            //   const newQuery = { ...this.$route.query };
-            //   delete newQuery.manageAction;
-            //   this.$router.push({
-            //     name: 'dashboard',
-            //     query: newQuery,
-            //   });
-            // }
-            // this.$emit('reload-router');
-            // return;
-            this.$router.push({
-              name: menu.id,
-              query: {
-                spaceUid: this.$store.state.spaceUid,
-              },
-            });
-            this.$emit('reload-router');
-            return;
-          }
+
           if (menu.id === 'manage') {
             if (this.$route.name !== 'collection-item') {
               this.$router.push({
@@ -522,6 +503,12 @@
           this.$emit('reload-router');
           return;
         }
+
+        if (menu.id === 'dashboard') {
+          window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/grafana`, '_blank');
+          return;
+        }
+
         if (menu.id === 'monitor') {
           window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/strategy-config`, '_blank');
         } else if (menu.id === 'trace') {
