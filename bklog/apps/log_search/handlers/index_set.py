@@ -1737,7 +1737,8 @@ class BaseIndexSetHandler:
             # 是否为Doris存储路由，一期不做刷新，仅支持手动配置。
             tag_ids = list(index_set.tag_ids)
             is_doris = IndexSetTag.objects.filter(tag_id__in=tag_ids, name="Doris").exists()
-            if is_doris:
+            doris_table_id = index_set.doris_table_id
+            if is_doris and doris_table_id:
                 return True
             for obj in objs:
                 time_field = obj.time_field or index_set.time_field
@@ -1778,7 +1779,7 @@ class BaseIndexSetHandler:
                 func=TransferApi.bulk_create_or_update_log_router,
                 params=request_params,
             )
-            if doris_table_id := index_set.doris_table_id:
+            if doris_table_id:
                 doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
                 doris_params = {
                     "space_type": index_set.space_uid.split("__")[0],
