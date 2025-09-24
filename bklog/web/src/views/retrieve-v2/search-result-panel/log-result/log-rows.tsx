@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, type Ref, onBeforeUnmount, nextTick } from 'vue';
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue';
 
 import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -51,8 +51,8 @@ import {
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
   ROW_KEY,
-  SECTION_SEARCH_INPUT,
   ROW_SOURCE,
+  SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
 import ScrollXBar from './scroll-x-bar';
@@ -595,10 +595,12 @@ export default defineComponent({
       },
     );
 
-    const handleResultBoxResize = () => {
+    const handleResultBoxResize = (resetScroll = true) => {
       if (!RetrieveHelper.jsonFormatter.isExpandNodeClick) {
-        scrollXOffsetLeft = 0;
-        refScrollXBar.value?.scrollLeft(0);
+        if (resetScroll) {
+          scrollXOffsetLeft = 0;
+          refScrollXBar.value?.scrollLeft(0);
+        }
       }
 
       computeRect(refResultRowBox.value);
@@ -721,7 +723,7 @@ export default defineComponent({
               pageIndex.value++;
             }
 
-            handleResultBoxResize();
+            handleResultBoxResize(false);
           })
           .finally(() => {
             debounceSetLoading(0);
