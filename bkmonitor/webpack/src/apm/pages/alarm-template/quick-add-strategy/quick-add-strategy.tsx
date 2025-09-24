@@ -41,6 +41,7 @@ import type {
   AlgorithmItem,
   DetectConfig,
   EditTemplateFormData,
+  TemplateDetail,
   UserGroupItem,
 } from '../components/template-form/typing';
 import type { IAlarmGroupList, ITempLateItem } from './typing';
@@ -66,11 +67,13 @@ class QuickAddStrategy extends Mixins(
   templateList: ITempLateItem[] = [];
   alarmGroupList: IAlarmGroupList[] = [];
   alarmGroupLoading = false;
-  cursorId: number = undefined;
+  cursorId: number = null;
   cursorItem: ITempLateItem = null;
   /** 模板详情 */
-  templateDetail: Record<number, EditTemplateFormData> = {};
-  /** 修改模板的某些值 */
+  templateDetail: Record<number, TemplateDetail> = {};
+  /** 模板表单值 */
+  templateFormData: Record<number, EditTemplateFormData> = {};
+  /** 记录哪些模板修改了哪些值 */
   editTemplateFormData: Record<number, Partial<EditTemplateFormData & { context: Record<string, any> }>> = {};
   /** 模板变量列表 */
   variablesList: Record<number, VariableModelType[]> = {};
@@ -140,7 +143,7 @@ class QuickAddStrategy extends Mixins(
   }
 
   async getTemplatePreview(id: number) {
-    if (!this.templateDetail[id]) {
+    if (!this.templateFormData[id]) {
       this.templateDetailLoading = true;
       const data = await getTemplatePreview({
         strategy_template_id: id,
@@ -150,7 +153,10 @@ class QuickAddStrategy extends Mixins(
       if (data.isCancel) return;
       this.templateDetailLoading = false;
       if (data.success) {
-        this.$set(this.templateDetail, id, {
+        /** 不需要响应式 */
+        this.templateDetail[id] = JSON.parse(JSON.stringify(data.detailData));
+        this.editTemplateFormData[id] = {};
+        this.$set(this.templateFormData, id, {
           name: data.detailData.name,
           algorithms: data.detailData.algorithms,
           detect: data.detailData.detect,
@@ -160,7 +166,6 @@ class QuickAddStrategy extends Mixins(
           user_group_list: data.detailData.user_group_list,
         });
         this.$set(this.variablesList, id, data.variablesList);
-        this.$set(this.editTemplateFormData, id, {});
       }
     }
   }
@@ -169,28 +174,65 @@ class QuickAddStrategy extends Mixins(
     this.checkedList = checked;
   }
 
+  /** 检测规则修改 */
   handleAlgorithmsChange(val: AlgorithmItem[]) {
-    this.templateDetail[this.cursorId].algorithms = val;
-    this.editTemplateFormData[this.cursorId].algorithms = val;
+    const currentTemplateData = this.templateFormData[this.cursorId];
+    const detailData = this.templateDetail[this.cursorId];
+    currentTemplateData.algorithms = val;
+    /** 判断当前编辑的检测规则是否和详情的检测规则一致 */
+    if (
+      val.length === detailData.algorithms.length &&
+      val.every(item => {
+        const detail = detailData.algorithms.find(detail => detail.level === item.level);
+        return detail && JSON.stringify(item.config) === JSON.stringify(detail.config);
+      })
+    ) {
+      delete this.editTemplateFormData[this.cursorId].algorithms;
+    } else {
+      this.editTemplateFormData[this.cursorId].algorithms = val;
+    }
   }
 
+  /** 判断条件修改 */
   handleDetectChange(val: DetectConfig) {
-    this.templateDetail[this.cursorId].detect = val;
-    this.editTemplateFormData[this.cursorId].detect = val;
+    const currentTemplateData = this.templateFormData[this.cursorId];
+    const detailData = this.templateDetail[this.cursorId];
+    currentTemplateData.detect = val;
+    if (
+      val.type === detailData.detect.type &&
+      Object.keys(val.config).every(key => val.config[key] === detailData.detect.config[key])
+    ) {
+      delete this.editTemplateFormData[this.cursorId].detect;
+    } else {
+      this.editTemplateFormData[this.cursorId].detect = val;
+    }
   }
 
+  /** 修改告警组  */
   handleAlarmGroupChange(val: UserGroupItem[]) {
-    this.templateDetail[this.cursorId].user_group_list = val;
-    this.editTemplateFormData[this.cursorId].user_group_list = val;
+    const currentTemplateData = this.templateFormData[this.cursorId];
+    const detailData = this.templateDetail[this.cursorId];
+    currentTemplateData.user_group_list = val;
+    if (val.every(item => detailData.user_group_list.find(detail => detail.id === item.id))) {
+      delete this.editTemplateFormData[this.cursorId].user_group_list;
+    } else {
+      this.editTemplateFormData[this.cursorId].user_group_list = val;
+    }
   }
 
+  /** 修改变量 */
   handleVariableValueChange(value: any, index: number) {
     const currentVariable: VariableModelType = this.variablesList[this.cursorId][index];
+    const detailData = this.templateDetail[this.cursorId];
     currentVariable.value = value;
-    if (!this.editTemplateFormData[this.cursorId].context) {
-      this.editTemplateFormData[this.cursorId].context = {};
+    if (JSON.stringify(value) === JSON.stringify(detailData.context[currentVariable.variableName])) {
+      delete this.editTemplateFormData[this.cursorId].context?.[currentVariable.variableName];
+    } else {
+      this.editTemplateFormData[this.cursorId].context = {
+        ...(this.editTemplateFormData[this.cursorId].context || {}),
+        [currentVariable.variableName]: value,
+      };
     }
-    this.editTemplateFormData[this.cursorId].context[currentVariable.variableName] = value;
   }
 
   /**
@@ -205,11 +247,13 @@ class QuickAddStrategy extends Mixins(
       service_names: [this.params?.service_name],
       strategy_template_ids: this.checkedList,
       extra: Object.keys(this.editTemplateFormData).reduce((pre, cur) => {
-        pre.push({
-          ...this.editTemplateFormData[cur],
-          strategy_template_id: cur,
-          service_name: this.params?.service_name,
-        });
+        if (Object.keys(this.editTemplateFormData[cur]).length > 0) {
+          pre.push({
+            ...this.editTemplateFormData[cur],
+            strategy_template_id: cur,
+            service_name: this.params?.service_name,
+          });
+        }
         return pre;
       }, []),
       global: this.globalParams || undefined,
@@ -417,7 +461,7 @@ class QuickAddStrategy extends Mixins(
                   </div>
                 ) : (
                   <TemplateForm
-                    data={this.templateDetail[this.cursorId]}
+                    data={this.templateFormData[this.cursorId]}
                     labelWidth={94}
                     metricFunctions={this.metricFunctions}
                     scene='view'
