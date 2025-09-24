@@ -77,14 +77,14 @@ class BkCollectorComp:
     CACHE_KEY_CLUSTER_IDS = "bk-collector:clusters"
 
     @classmethod
-    def get_secrets_config_map_by_protocol(cls, cluster_id: str, protocol: str) -> dict:
+    def get_secrets_config_map_by_protocol(cls, cluster_id: str, protocol: str):
         from django.conf import settings
 
         special_secrets_config = settings.CUSTOM_REPORT_K8S_SECRETS_CONFIG.get(cluster_id)
         merged_secrets_config = copy.deepcopy(cls.SECRET_SUBCONFIG_MAP)
         if special_secrets_config:
             merged_secrets_config.update(special_secrets_config)
-        return merged_secrets_config
+        return merged_secrets_config.get(protocol)
 
     @classmethod
     def label_selector_to_dict(cls, label_selector: str) -> dict[str, str]:

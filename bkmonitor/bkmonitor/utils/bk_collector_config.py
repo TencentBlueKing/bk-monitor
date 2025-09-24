@@ -207,7 +207,7 @@ class BkCollectorClusterConfig:
     @classmethod
     def deploy_to_k8s(cls, cluster_id: str, config_id: int, protocol: str, sub_config: str):
         secret_config = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, protocol)
-        if secret_config is None:
+        if not secret_config:
             logger.info(f"protocol{protocol} has no secret config, do nothing")
             return
 
@@ -298,7 +298,7 @@ class BkCollectorClusterConfig:
             return
 
         secret_config = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, protocol)
-        if secret_config is None:
+        if not secret_config:
             logger.info(f"protocol({protocol}) has no secret config, please check if your config has been initialized")
             return
 
