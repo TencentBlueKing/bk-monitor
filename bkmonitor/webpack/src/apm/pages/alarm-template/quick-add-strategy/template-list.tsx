@@ -39,6 +39,7 @@ interface IProps {
   templateList?: ITempLateItem[];
   onCheckedChange?: (checked: (number | string)[]) => void;
   onCursorChange?: (id: number | string) => void;
+  onGoStrategy?: (id: number | string) => void;
 }
 
 @Component
@@ -187,6 +188,10 @@ export default class TemplateList extends tsc<IProps> {
     this.handleChange();
   }
 
+  handleClickGoStrategy(item: ITempLateItem) {
+    this.$emit('goStrategy', item?.strategy?.id);
+  }
+
   render() {
     const renderTemplateItem = (item: ITempLateItem) => {
       return (
@@ -216,7 +221,13 @@ export default class TemplateList extends tsc<IProps> {
           )}
           <div class='template-item-desc'>{item.name}</div>
           {item?.has_been_applied ? (
-            <div class='template-item-status'>
+            <div
+              class='template-item-status'
+              onClick={e => {
+                e.stopPropagation();
+                this.handleClickGoStrategy(item);
+              }}
+            >
               <span>{this.$t('已配置')}</span>
               <span class='icon-monitor icon-mc-goto' />
             </div>
