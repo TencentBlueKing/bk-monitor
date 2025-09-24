@@ -34,14 +34,15 @@ import { type SelectTypeEnum, SelectType } from 'monitor-pc/components/across-pa
 import DetectionAlgorithmsGroup from '../components/detection-algorithms-group/detection-algorithms-group';
 
 import type { TemplateDetail } from '../components/template-form/typing';
-import type { IRelationService } from './typings';
+import type { IRelationService, TCompareData } from './typings';
 
 import './relation-service-table.scss';
 
 interface IProps {
   relationService: IRelationService[];
   showAgain?: boolean;
-  getStrategyDetails?: (ids: (number | string)[]) => Promise<Map<number | string, TemplateDetail>>;
+  getCompareData?: (params: { service_name: string; strategy_template_id: number }) => Promise<TCompareData>;
+  // getStrategyDetails?: (ids: (number | string)[]) => Promise<Map<number | string, TemplateDetail>>;
   onChangeCheckKeys?: (selectKeys: string[]) => void;
 }
 
@@ -58,11 +59,15 @@ const RelationStatus = {
 @Component
 export default class RelationServiceTable extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) relationService: IRelationService[];
-  @Prop({ type: Function, default: () => Promise.resolve(new Map()) }) getStrategyDetails: (
-    ids: (number | string)[]
-  ) => Promise<Map<number | string, TemplateDetail>>;
+  // @Prop({ type: Function, default: () => Promise.resolve(new Map()) }) getStrategyDetails: (
+  //   ids: (number | string)[]
+  // ) => Promise<Map<number | string, TemplateDetail>>;
   /* 再次下发已关联的服务，相当于“同步”操作 */
   @Prop({ type: Boolean, default: false }) showAgain: boolean;
+  @Prop({ type: Function, default: () => Promise.resolve({ diff: [] }) }) getCompareData: (params: {
+    service_name: string;
+    strategy_template_id: number;
+  }) => Promise<TCompareData>;
 
   /* 搜索值 */
   searchValue = '';
@@ -239,7 +244,7 @@ export default class RelationServiceTable extends tsc<IProps> {
       this.expandRowKeys = [];
     } else {
       this.expandRowKeys = [row.key];
-      this.getDiffData(row.strategy_template_id, row.same_origin_strategy_template.id);
+      this.getDiffData(row);
     }
   }
 
@@ -335,22 +340,32 @@ export default class RelationServiceTable extends tsc<IProps> {
    * @param current
    * @param relation
    */
-  async getDiffData(current: number | string, relation: number | string) {
-    const ids = Array.from(new Set([current, relation]));
+  async getDiffData(row: IRelationService) {
     this.expandContentLoading = true;
-    const strategyDetails = await this.getStrategyDetails(ids).catch(() => new Map());
-    this.expandContent = [
-      {
-        type: 'current',
-        algorithms: strategyDetails.get(current)?.algorithms || [],
-        detect: strategyDetails.get(current)?.detect || {},
-      },
-      {
-        type: 'relation',
-        algorithms: strategyDetails.get(relation)?.algorithms || [],
-        detect: strategyDetails.get(relation)?.detect || {},
-      },
-    ];
+    const data = await this.getCompareData({
+      service_name: row.service_name,
+      strategy_template_id: row.strategy_template_id as number,
+    }).catch(() => ({ diff: [] }));
+    if (data) {
+      const diffData = data.diff;
+      const detectData = diffData.find(d => d.field === 'detect');
+      const algorithms = diffData.find(d => d.field === 'algorithms');
+      this.expandContent = [
+        {
+          type: 'current',
+          algorithms: algorithms?.current || [],
+          detect: detectData?.current || {},
+        },
+        {
+          type: 'relation',
+          algorithms: algorithms?.applied || [],
+          detect: detectData?.applied || {},
+        },
+      ];
+    } else {
+      this.expandContent = [];
+    }
+
     this.expandContentLoading = false;
   }
 
@@ -467,7 +482,7 @@ export default class RelationServiceTable extends tsc<IProps> {
               key={item.type}
               class={item.type === 'current' ? 'left-content' : 'right-content'}
             >
-              <div class='content-header'>{this.$t('当前策略')}</div>
+              <div class='content-header'>{item.type === 'current' ? this.$t('当前策略') : this.$t('已关联策略')}</div>
               <div class='content-content'>
                 <div class='title'>{this.$t('检测算法')}</div>
                 <div class='content'>
