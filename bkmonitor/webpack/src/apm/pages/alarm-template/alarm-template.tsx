@@ -101,8 +101,6 @@ export default class AlarmTemplate extends tsc<object> {
 
   metricFunctions = [];
 
-  isInit = true;
-
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
   /** 告警列表接口请求参数 */
@@ -143,13 +141,6 @@ export default class AlarmTemplate extends tsc<object> {
     this.tableData = templateList;
     this.tableLoading = false;
     this.selectedRowKeys = [];
-    if (this.isInit) {
-      const detailsId = this.$route.query?.[TEMPLATE_DETAILS_ROUTER_QUERY_KEY];
-      if (detailsId) {
-        this.handleShowDetail({ id: Number(detailsId), sliderActiveTab: 'base_info' });
-        this.isInit = false;
-      }
-    }
   }
   /** 获取函数列表 */
   async handleGetMetricFunctions() {
@@ -158,6 +149,10 @@ export default class AlarmTemplate extends tsc<object> {
 
   mounted() {
     this.handleGetMetricFunctions();
+    const detailsId = this.$route.query?.[TEMPLATE_DETAILS_ROUTER_QUERY_KEY];
+    if (detailsId) {
+      this.handleShowDetail({ id: Number(detailsId), sliderActiveTab: 'base_info' });
+    }
   }
 
   beforeMount() {
