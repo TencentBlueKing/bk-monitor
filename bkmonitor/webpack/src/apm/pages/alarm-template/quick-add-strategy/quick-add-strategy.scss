@@ -81,16 +81,8 @@
         margin-top: 19px;
         overflow: auto;
 
-        .skeleton-wrap {
-          padding: 0 24px;
-
-          .skeleton-element {
-            height: 20px;
-
-            &+.skeleton-element {
-              margin-top: 16px;
-            }
-          }
+        .template-form-skeleton-wrap {
+          padding: 0 20px;
         }
       }
     }

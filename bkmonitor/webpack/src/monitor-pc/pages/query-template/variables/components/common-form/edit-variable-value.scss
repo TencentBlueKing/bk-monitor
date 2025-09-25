@@ -1,6 +1,10 @@
 .edit-variable-value {
   min-width: 240px;
 
+  .bk-tooltip-ref {
+    height: 100%;
+  }
+
   .variable-value {
     display: flex;
     width: 100%;
