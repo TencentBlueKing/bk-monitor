@@ -107,5 +107,7 @@ def load_domains(settings):
     domains = env.get("domains", {})
     result_domains = {}
     for key, value in domains.items():
+        if os.getenv(f"BKAPP_DOMAINS_{key}"):
+            value = os.getenv(f"BKAPP_DOMAINS_{key}")
         result_domains[key] = value.format(**context)
     return result_domains
