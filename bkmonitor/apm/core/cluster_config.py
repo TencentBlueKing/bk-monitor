@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import functools
 import logging
 
-from alarm_backends.core.storage.redis import Cache
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig
 from constants.bk_collector import BkCollectorComp
@@ -43,10 +43,7 @@ class BkCollectorInstaller:
     @classmethod
     def generator(cls):
         # 避免重复创建连接
-        # fixme: 优化缓存, 考虑使用metadata的redis
-        # from metadata.utils.redis_tools import RedisTools
-        # cache = RedisTools().client
-        cache = Cache("cache")
+        cache = ApmCacheHandler().get_redis_client()
         while True:
             yield functools.partial(cls, cache=cache)
 
