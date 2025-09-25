@@ -801,12 +801,16 @@ class TestIndexSet(TestCase):
         self.assertEqual(content["data"], RETRIEVE_LIST)
 
 
+@patch("apps.iam.handlers.drf.BusinessActionPermission.has_permission", return_value=True)
+@patch("apps.iam.handlers.drf.InstanceActionPermission.has_permission", return_value=True)
+@patch("apps.iam.handlers.drf.ViewBusinessPermission.has_permission", return_value=True)
+@patch("apps.iam.handlers.permission.Permission.batch_is_allowed", return_value=Dummy())
 class IndexGroupViewSetTestCase(TestCase):
     def setUp(self):
         self.do_create_index_group()
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
-    def do_create_index_group(self):
+    def do_create_index_group(self, *args, **kwargs):
         path = "/api/v1/index_group/"
         data = {"space_uid": SPACE_UID, "index_set_name": "new_group"}
         response = self.client.post(path, data)
@@ -823,7 +827,7 @@ class IndexGroupViewSetTestCase(TestCase):
         self.index_group = new_group
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
-    def test_list_index_groups(self):
+    def test_list_index_groups(self, *args, **kwargs):
         path = "/api/v1/index_group/"
         data = {"space_uid": SPACE_UID}
 
@@ -837,7 +841,7 @@ class IndexGroupViewSetTestCase(TestCase):
         self.assertEqual(content["data"][0]["index_count"], 0)
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
-    def test_update_index_group(self):
+    def test_update_index_group(self, *args, **kwargs):
         path = f"/api/v1/index_group/{self.index_group.index_set_id}/"
         data = {"index_set_name": "updated_group"}
         response = self.client.put(path, data, content_type="application/json")
@@ -849,7 +853,7 @@ class IndexGroupViewSetTestCase(TestCase):
         self.assertEqual(updated_group.index_set_name, "updated_group")
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
-    def test_delete_index_group(self):
+    def test_delete_index_group(self, *args, **kwargs):
         path = f"/api/v1/index_group/{self.index_group.index_set_id}/"
         response = self.client.delete(path)
 
