@@ -349,10 +349,10 @@ class Sender(BaseSender):
         # receiver__username 对应用户名, 使用这个字段，不需要关注用户敏感信息, 邮箱地址由邮件发送网关处理(esb[cmsi]/apigw[bk-cmsi])
         if self.context.get("external_email"):
             params["receiver"] = ",".join(notice_receivers)
-            params["receiver__username"] = ""
+            params.pop("receiver__username", None)
         else:
             params["receiver__username"] = ",".join(notice_receivers)
-            params["receiver"] = ""
+            params.pop("receiver", None)
 
         # 添加附件参数
         if self.context.get("attachments"):
