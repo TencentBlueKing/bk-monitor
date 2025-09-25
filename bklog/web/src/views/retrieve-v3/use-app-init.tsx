@@ -215,6 +215,14 @@ export default () => {
       is_error: false,
     });
 
+    const filterFn = (id: string, item: Record<string, unknown>) => {
+      if (id.indexOf('_') > 0) {
+        return `${item.unique_id ?? item.index_set_id}` === `${id}`;
+      }
+
+      return `${item.index_set_id}` === `${id}`;
+    };
+
     return store
       .dispatch('retrieve/getIndexSetList', {
         spaceUid: spaceUid.value,
@@ -246,10 +254,25 @@ export default () => {
           const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
           if (lastIndexSetIds?.length) {
             const validateIndexSetIds = lastIndexSetIds.filter(id =>
-              flatIndexSetList.value.some(item => `${item.index_set_id}` === `${id}`),
+              flatIndexSetList.value.some(item => filterFn(id, item)),
             );
             if (validateIndexSetIds.length) {
-              store.commit('updateIndexItem', { ids: validateIndexSetIds });
+              const [pid, ids] = validateIndexSetIds.reduce(
+                (out, cur) => {
+                  if (cur.indexOf('_') > 0) {
+                    const [p_id, id] = cur.split('_');
+                    out[0].push(p_id);
+                    out[1].push(id);
+                    return out;
+                  }
+
+                  out[0].push('#');
+                  out[1].push(cur);
+                  return out;
+                },
+                [[], []],
+              );
+              store.commit('updateIndexItem', { ids, pid });
               store.commit('updateStorage', {
                 [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: validateIndexSetIds.length > 1 ? 'union' : 'single',
               });
@@ -270,7 +293,7 @@ export default () => {
 
         if (indexSetIdList.value.length) {
           indexSetIdList.value.forEach(id => {
-            const item = flatIndexSetList.value.find(item => `${item.index_set_id}` === `${id}`);
+            const item = flatIndexSetList.value.find(item => filterFn(id, item));
             if (!item) {
               emptyIndexSetList.push(id);
             }
