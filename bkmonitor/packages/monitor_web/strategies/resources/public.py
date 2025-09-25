@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import defaultdict
-from typing import Any
+from typing import Any, Optional
 
 import six
 from django.utils.translation import gettext as _
@@ -242,12 +242,6 @@ class FetchItemStatus(Resource):
         "monitor_type",
     }
 
-    # 通用标签前缀到告警事件 tags.key 的映射（用于 labels 过滤）
-    LABEL_PREFIX_TO_EVENT_TAG_KEY = {
-        "APM-SERVICE": "service_name",
-        "APM-APP": "app_name",
-    }
-
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         metric_ids = serializers.ListField(required=True, label="指标ID")
@@ -282,7 +276,7 @@ class FetchItemStatus(Resource):
             search_object = search_object.filter("term", **{"event.bk_service_instance_id": bk_service_instance_id})
         # 添加event.tags查询
         search_object = cls.add_event_tags_query(search_object, target)
-        # 添加 labels 过滤
+        # 添加策略标签过滤
         search_object = cls.add_labels_query(search_object, labels)
         # 获得告警策略关联的告警事件的数量
         search_object = search_object[:0]
@@ -308,7 +302,7 @@ class FetchItemStatus(Resource):
         return search_object
 
     @classmethod
-    def transform_target_to_dsl(cls, target: dict) -> Q | None:
+    def transform_target_to_dsl(cls, target: dict) -> Optional[Q]:  # noqa
         """将target转换为es dsl ."""
         if not target:
             return None
@@ -341,38 +335,12 @@ class FetchItemStatus(Resource):
 
     @classmethod
     def add_labels_query(cls, search_object, labels: list[str]):
-        """基于通用 labels 追加 event.tags 的 nested 过滤"""
+        """基于策略标签过滤告警"""
         if not labels:
             return search_object
-        nested_list = []
-        for label_str in labels:
-            if not isinstance(label_str, str):
-                continue
-            # 解析标签 eg. APM-APP(应用名称)
-            left = label_str.find("(")
-            right = label_str.rfind(")")
-            if left <= 0 or right <= left + 1:
-                continue
-            prefix = label_str[:left]
-            value = label_str[left + 1 : right]
-            tag_key = cls.LABEL_PREFIX_TO_EVENT_TAG_KEY.get(prefix)
-            if not tag_key or not value:
-                continue
-            nested_list.append(
-                Q(
-                    "nested",
-                    path="event.tags",
-                    query=Q(
-                        "bool",
-                        must=[
-                            Q("term", **{"event.tags.key": {"value": tag_key}}),
-                            Q("match_phrase", **{"event.tags.value": {"query": value}}),
-                        ],
-                    ),
-                )
-            )
-        if nested_list:
-            search_object = search_object.query(Q("bool", must=nested_list))
+
+        # 直接使用策略标签进行过滤，如 ["APM-APP(trpc_demo)", "APM-SERVICE(example.greeter)"]
+        search_object = search_object.filter("terms", labels=labels)
         return search_object
 
     @staticmethod
