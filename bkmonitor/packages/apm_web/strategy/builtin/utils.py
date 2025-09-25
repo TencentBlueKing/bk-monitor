@@ -29,11 +29,12 @@ def detect_config(recovery_check_window: int, trigger_check_window: int, trigger
     }
 
 
-def _threshold_algorithm_config(method: str, threshold: float, level: str) -> dict[str, Any]:
+def _threshold_algorithm_config(method: str, threshold: float, level: str, suffix: str | None = "") -> dict[str, Any]:
     return {
         "level": level,
         "type": AlgorithmModel.AlgorithmChoices.Threshold,
         "config": {"method": method, "threshold": threshold},
+        "unit_prefix": suffix or "",
     }
 
 
