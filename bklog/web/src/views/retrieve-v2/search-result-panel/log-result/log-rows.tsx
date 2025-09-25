@@ -163,12 +163,15 @@ export default defineComponent({
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
 
-    const handleSearchingChange = isSearching => {
-      isPageLoading.value = isSearching;
-    };
-
     const { addEvent } = useRetrieveEvent();
-    addEvent(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+    addEvent(RetrieveEvent.SEARCHING_CHANGE, isSearching => {
+      isPageLoading.value = isSearching;
+    });
+
+    addEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
+      hasMoreList.value = true;
+      pageIndex.value = 1;
+    });
 
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];
@@ -717,14 +720,12 @@ export default defineComponent({
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(resp => {
-            if (resp?.length === pageSize.value) {
-              pageIndex.value++;
-              handleResultBoxResize(false);
-              return;
-            }
-
-            hasMoreList.value = false;
+            pageIndex.value++;
             handleResultBoxResize(false);
+
+            if (resp?.length !== pageSize.value) {
+              hasMoreList.value = false;
+            }
           })
           .finally(() => {
             debounceSetLoading(0);
@@ -746,6 +747,7 @@ export default defineComponent({
       pageIndex.value = 1;
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
       renderList = renderList.slice(0, maxLength);
+      localUpdateCounter.value++;
     };
 
     // 监听滚动条滚动位置
