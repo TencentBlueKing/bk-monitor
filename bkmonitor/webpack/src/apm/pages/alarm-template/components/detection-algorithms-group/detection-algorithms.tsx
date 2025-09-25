@@ -49,7 +49,10 @@ export default class DetectionAlgorithm extends tsc<DetectionAlgorithmProps> {
         <div class='detection-algorithms-label'>{this.$t('静态阈值')},</div>
         <div class='detection-algorithms-content'>
           <span class='method'>{ConditionMethodAliasMap[this.algorithm?.config?.method]}</span>
-          <span class='threshold'>{this.algorithm?.config?.threshold}%</span>
+          <span class='threshold'>
+            {this.algorithm?.config?.threshold}
+            {this.algorithm?.unit_prefix || '%'}
+          </span>
           <span>,</span>
         </div>
         <div class='detection-algorithms-lever'>
