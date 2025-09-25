@@ -20,6 +20,8 @@ the project delivered to anyone in the future.
 """
 
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import insert_permission_field, BusinessActionPermission, InstanceActionPermission
 from apps.log_search.handlers.index_group import IndexGroupHandler
 from rest_framework.response import Response
 
@@ -33,6 +35,18 @@ class IndexGroupViewSet(APIViewSet):
 
     lookup_field = "index_set_id"
 
+    def get_permissions(self):
+        if self.action in ["create"]:
+            return [BusinessActionPermission([ActionEnum.CREATE_INDICES])]
+        if self.action in ["update", "destroy"]:
+            return [InstanceActionPermission([ActionEnum.MANAGE_INDICES], ResourceEnum.INDICES)]
+        return []
+
+    @insert_permission_field(
+        id_field=lambda d: d.get("index_set_id"),
+        actions=[ActionEnum.MANAGE_INDICES],
+        resource_meta=ResourceEnum.INDICES,
+    )
     def list(self, request, *args, **kwargs):
         """
         @api {get} /index_group/ 索引组列表

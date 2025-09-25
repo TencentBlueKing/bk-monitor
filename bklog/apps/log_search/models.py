@@ -457,18 +457,15 @@ class LogIndexSet(SoftDeleteModel):
         """
         获取当前索引集的归属索引集ID列表
         """
-        index_data = LogIndexSetData.objects.filter(
+        parent_ids = LogIndexSetData.objects.filter(
             result_table_id=self.index_set_id,
             type=IndexSetDataType.INDEX_SET.value,
-        ).all()
+        ).values_list("index_set_id", flat=True)
 
-        if index_data:
-            index_set_ids = [index.index_set_id for index in index_data]
-            return list(
-                LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values_list("index_set_id", flat=True).all()
-            )
+        if not parent_ids.exists():
+            return []
 
-        return []
+        return list(LogIndexSet.objects.filter(index_set_id__in=parent_ids).values_list("index_set_id", flat=True))
 
     @staticmethod
     def no_data_check_time(index_set_id: str):

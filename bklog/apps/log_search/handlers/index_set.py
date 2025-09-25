@@ -1520,49 +1520,57 @@ class IndexSetHandler(APIModel):
                 )
         return {"index_set_id": self.index_set_id}
 
-    def add_to_parent_index_set(self, parent_index_set_id: int):
-        """
-        添加到归属索引集中
-        """
-        parent_index_set = LogIndexSet.objects.filter(index_set_id=parent_index_set_id, is_group=True).first()
-        if not parent_index_set:
-            raise ParentIndexSetNotExistException(
-                ParentIndexSetNotExistException.MESSAGE.format(parent_index_set_id=parent_index_set_id)
-            )
-
-        log_index_set_data = LogIndexSetData.objects.create(
-            index_set_id=parent_index_set_id,
-            result_table_id=self.index_set_id,
-            scenario_id=self.scenario_id,
-            bk_biz_id=space_uid_to_bk_biz_id(self.space_uid),
-            type=IndexSetDataType.INDEX_SET.value,
-            apply_status=LogIndexSetData.Status.NORMAL,
-        )
-        return log_index_set_data
-
-    def add_to_parent_index_set_list(self, parent_index_set_list: list):
+    def add_to_parent_index_set_list(self, parent_index_set_ids: list[int]):
         """
         批量添加到归属索引集中
         """
-        for parent_index_set_id in parent_index_set_list:
-            self.add_to_parent_index_set(parent_index_set_id)
+        # 检查所有父索引集是否存在
+        existing_parent_sets = set(
+            LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True).values_list(
+                "index_set_id", flat=True
+            )
+        )
 
-    def remove_from_parent_index_set(self, parent_index_set_id: int):
-        """
-        从归属索引集中移除
-        """
-        LogIndexSetData.objects.filter(
-            index_set_id=parent_index_set_id,
-            result_table_id=self.index_set_id,
-            bk_biz_id=space_uid_to_bk_biz_id(self.space_uid),
-        ).delete()
+        # 找出不存在的父索引集
+        missing_parents = set(parent_index_set_ids) - existing_parent_sets
+        if missing_parents:
+            raise ParentIndexSetNotExistException(
+                ParentIndexSetNotExistException.MESSAGE.format(
+                    parent_index_set_id=",".join(str(pid) for pid in missing_parents)
+                )
+            )
 
-    def remove_from_parent_index_set_list(self, parent_index_set_list: list):
+        # 检查是否已经存在归属关系
+        existing_relations = set(
+            LogIndexSetData.objects.filter(
+                index_set_id__in=parent_index_set_ids, result_table_id=self.index_set_id
+            ).values_list("index_set_id", flat=True)
+        )
+
+        to_create = [
+            LogIndexSetData(
+                index_set_id=pid,
+                result_table_id=self.index_set_id,
+                scenario_id=self.scenario_id,
+                bk_biz_id=space_uid_to_bk_biz_id(self.space_uid),
+                type=IndexSetDataType.INDEX_SET.value,
+                apply_status=LogIndexSetData.Status.NORMAL,
+            )
+            for pid in parent_index_set_ids
+            if pid not in existing_relations
+        ]
+
+        if to_create:
+            LogIndexSetData.objects.bulk_create(to_create)
+
+    def remove_from_parent_index_set_list(self, parent_index_set_ids: list[int]):
         """
         批量从归属索引集中移除
         """
-        for parent_index_set_id in parent_index_set_list:
-            self.remove_from_parent_index_set(parent_index_set_id)
+        LogIndexSetData.objects.filter(
+            index_set_id__in=parent_index_set_ids,
+            result_table_id=self.index_set_id,
+        ).delete()
 
     def update_parent_index_sets(self, new_parent_index_set_ids: list):
         """
@@ -1574,8 +1582,10 @@ class IndexSetHandler(APIModel):
         to_create = new_parent_index_set_ids - current_parent_index_set_ids
         to_delete = current_parent_index_set_ids - new_parent_index_set_ids
 
-        self.remove_from_parent_index_set_list(list(to_delete))
-        self.add_to_parent_index_set_list(list(to_create))
+        if to_create:
+            self.add_to_parent_index_set_list(list(to_create))
+        if to_delete:
+            self.remove_from_parent_index_set_list(list(to_delete))
 
 
 class BaseIndexSetHandler:

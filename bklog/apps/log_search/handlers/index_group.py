@@ -19,9 +19,11 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.db import transaction
 from django.db.models import Count
 
-from apps.log_search.exceptions import IndexSetDoseNotExistException
+from apps.iam import Permission, ResourceEnum
+from apps.log_search.exceptions import IndexGroupNotExistException, DuplicateIndexGroupException
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.utils import APIModel
 
@@ -35,7 +37,7 @@ class IndexGroupHandler(APIModel):
         """重写父类方法"""
         index_group = LogIndexSet.objects.filter(is_group=True, index_set_id=self.index_set_id).first()
         if not index_group:
-            raise IndexSetDoseNotExistException()
+            raise IndexGroupNotExistException()
         return index_group
 
     @staticmethod
@@ -59,18 +61,31 @@ class IndexGroupHandler(APIModel):
         for x in index_groups:
             x["index_count"] = index_counts_dict.get(x["index_set_id"], 0)
 
-        return index_groups
+        return list(index_groups)
 
     @staticmethod
     def create_index_groups(params: dict) -> LogIndexSet:
         """
-        创建索引集组
+        创建索引组
         """
-        index_group = LogIndexSet.objects.create(
+        index_group, created = LogIndexSet.objects.get_or_create(
             index_set_name=params["index_set_name"],
             space_uid=params["space_uid"],
             scenario_id=Scenario.LOG,
             is_group=True,
+            is_deleted=False,
+        )
+        if not created:
+            raise DuplicateIndexGroupException(
+                DuplicateIndexGroupException.MESSAGE.format(index_set_name=params["index_set_name"])
+            )
+
+        # 授权
+        Permission().grant_creator_action(
+            resource=ResourceEnum.INDICES.create_simple_instance(
+                index_group.index_set_id, attribute={"name": index_group.index_set_name}
+            ),
+            creator=index_group.created_by,
         )
         return index_group
 
@@ -82,6 +97,7 @@ class IndexGroupHandler(APIModel):
         self.data.save(update_fields=["index_set_name"])
         return self.data
 
+    @transaction.atomic
     def delete_index_groups(self):
         """
         删除索引集组
