@@ -55,7 +55,7 @@
           :data-test-id="`topNavBox_li_${menu.id}`"
           :id="`${menu.id}MenuGuide`"
           :key="menu.id"
-          @click="routerHandler(menu)"
+          @click="() => routerHandler(menu)"
         >
           <template>
             {{ menu.name }}
@@ -263,6 +263,7 @@
   import LogVersion from './log-version';
   import BizMenuSelect from '@/global/bk-space-choice/index';
   import { bkDropdownMenu } from 'bk-magic-vue';
+  import { BK_LOG_STORAGE } from '@/store/store.type'
 
   export default {
     name: 'HeaderNav',
@@ -309,7 +310,8 @@
         isShowGlobalDialog: state => state.isShowGlobalDialog,
         globalSettingList: state => state.globalSettingList,
         externalMenu: state => state.externalMenu,
-        spaceListLoaded: state => state.spaceListLoaded
+        spaceListLoaded: state => state.spaceListLoaded,
+        bkBizId: state => state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
       }),
       ...mapGetters('globals', ['globalsData']),
       platformData() {
@@ -572,7 +574,7 @@
       handleGoToMyApplication() {
         this.showGlobalDialog = false;
         this.$nextTick(() => {
-          const bizId = this.$store.state.bkBizId;
+          const bizId = this.bkBizId;
           const host =
             process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
           const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-applied-report`;
@@ -585,7 +587,7 @@
       handleGoToMyReport() {
         this.showGlobalDialog = false;
         this.$nextTick(() => {
-          const bizId = this.$store.state.bkBizId;
+          const bizId = this.bkBizId;
           const host =
             process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
           const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-report`;
