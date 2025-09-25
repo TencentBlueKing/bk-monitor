@@ -27,6 +27,7 @@
 import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS } from 'apm/pages/alarm-template/constant';
 import { isEqual } from 'lodash';
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import bus from 'monitor-common/utils/event-bus';
@@ -151,6 +152,7 @@ const customRouterQueryKeys = [
   'sliceStartTime',
   'sliceEndTime',
   'callOptions',
+  ...APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS,
   // log-retrieve图所需的路由参数
   ...APM_LOG_ROUTER_QUERY_KEYS,
   ...Event_EXPORT_QUERY_KEYS,

@@ -234,7 +234,7 @@ export default class TemplateDetails extends tsc<IProps> {
           <span class='header-left'>
             <span class='header-title'>{this.$t('模板详情')}</span>
             <span class='split-line' />
-            <span class='header-desc'>{this.params?.name || '--'}</span>
+            <span class='header-desc'>{this.templateDetail?.name || this.params?.name || '--'}</span>
           </span>
           <span class='header-right'>
             <bk-button
