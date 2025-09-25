@@ -153,6 +153,7 @@ def _cpu_usage_templ(usage_type: str) -> dict[str, Any]:
             group_by_options=["bcs_cluster_id", "namespace", "pod_name", "container_name"],
             conditions_options=["bcs_cluster_id", "namespace", "pod_name", "container_name"],
         ),
+        "unit": "percent",
     }
 
 
@@ -182,6 +183,7 @@ def _memory_usage_templ(usage_type: str) -> dict[str, Any]:
             group_by_options=["bcs_cluster_id", "namespace", "pod_name", "container_name"],
             conditions_options=["bcs_cluster_id", "namespace", "pod_name", "container_name"],
         ),
+        "unit": "percent",
     }
 
 
@@ -228,6 +230,7 @@ CPU_USAGE: dict[str, Any] = {
             "container_name",
         ],
     ),
+    "unit": "",
 }
 
 MEMORY_USAGE: dict[str, Any] = {
@@ -265,6 +268,7 @@ MEMORY_USAGE: dict[str, Any] = {
             "container_name",
         ],
     ),
+    "unit": "bytes",
 }
 
 TERMINATE_REASON: dict[str, Any] = {
@@ -292,6 +296,7 @@ TERMINATE_REASON: dict[str, Any] = {
             options=["bcs_cluster_id", "namespace", "pod_name", "container_name", "reason"],
         ),
     ],
+    "unit": "",
 }
 
 ABNORMAL_RESTART: dict[str, Any] = {
@@ -319,6 +324,7 @@ ABNORMAL_RESTART: dict[str, Any] = {
             options=["bcs_cluster_id", "namespace", "pod_name", "container_name"],
         ),
     ],
+    "unit": "",
 }
 
 

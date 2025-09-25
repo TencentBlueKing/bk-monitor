@@ -180,6 +180,7 @@ class QueryTemplateSerializer(serializers.Serializer):
     )
     functions = MixedTypeListField(label=_("函数"), required=False, default=[], allowed_types=[dict, str])
     variables = serializers.ListField(label=_("查询模板变量"), required=False, default=[], child=VariableSerializer())
+    unit = serializers.CharField(label=_("单位"), allow_blank=True, default="")
 
     @staticmethod
     def validate_variables(variables: list[dict[str, Any]]) -> list[dict[str, Any]]:

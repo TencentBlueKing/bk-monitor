@@ -14,7 +14,8 @@ from constants.apm import CachedEnum
 
 from constants.query_template import GLOBAL_BIZ_ID
 from bkmonitor.query_template.builtin.apm import APMQueryTemplateName
-
+from bkmonitor.models.query_template import QueryTemplate
+from core.unit import load_unit
 from apm_web.strategy.query_template import LocalQueryTemplateName
 
 from django.utils.translation import gettext as _
@@ -25,6 +26,20 @@ from .. import constants
 
 def _get_common_context() -> dict[str, Any]:
     return {"ALARM_THRESHOLD_VALUE": 10}
+
+
+def _get_suffix_map() -> dict[str, str]:
+    template_names = [name.value for name in APMQueryTemplateName]
+    query_templates = QueryTemplate.objects.filter(bk_biz_id=GLOBAL_BIZ_ID, name__in=template_names).values(
+        "name", "unit"
+    )
+    suffix_map = {}
+    for query_template in query_templates:
+        suffix_map[query_template["name"]] = load_unit(query_template["unit"]).suffix or ""
+    return suffix_map
+
+
+_APM_QUERY_TEMPLATE_SUFFIX_MAP = _get_suffix_map()
 
 
 class RPCStrategyTemplateCode(CachedEnum):
@@ -64,8 +79,16 @@ RPC_CALLEE_SUCCESS_RATE_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.SUCCESS_RATE.value,
     "detect": utils.detect_config(5, 5, 3),
     "algorithms": [
-        utils.warning_threshold_algorithm_config(method="lte", threshold=95),
-        utils.fatal_threshold_algorithm_config(method="lte", threshold=90),
+        utils.warning_threshold_algorithm_config(
+            method="lte",
+            threshold=95,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLEE_SUCCESS_RATE.value),
+        ),
+        utils.fatal_threshold_algorithm_config(
+            method="lte",
+            threshold=90,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLEE_SUCCESS_RATE.value),
+        ),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_SUCCESS_RATE.value},
     "context": _get_common_context(),
@@ -78,8 +101,16 @@ RPC_CALLEE_AVG_TIME_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.AVG.value,
     "detect": utils.detect_config(5, 5, 3),
     "algorithms": [
-        utils.warning_threshold_algorithm_config(method="gte", threshold=2000),
-        utils.fatal_threshold_algorithm_config(method="gte", threshold=4000),
+        utils.warning_threshold_algorithm_config(
+            method="gte",
+            threshold=2000,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLEE_AVG_TIME.value),
+        ),
+        utils.fatal_threshold_algorithm_config(
+            method="gte",
+            threshold=4000,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLEE_AVG_TIME.value),
+        ),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_AVG_TIME.value},
     "context": _get_common_context(),
@@ -92,8 +123,16 @@ RPC_CALLEE_P99_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.P99.value,
     "detect": utils.detect_config(5, 5, 3),
     "algorithms": [
-        utils.warning_threshold_algorithm_config(method="gte", threshold=3000),
-        utils.fatal_threshold_algorithm_config(method="gte", threshold=5000),
+        utils.warning_threshold_algorithm_config(
+            method="gte",
+            threshold=3000,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLEE_P99.value),
+        ),
+        utils.fatal_threshold_algorithm_config(
+            method="gte",
+            threshold=5000,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLEE_P99.value),
+        ),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_P99.value},
     "context": _get_common_context(),
@@ -106,8 +145,16 @@ RPC_CALLEE_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
     "detect": utils.detect_config(5, 5, 3),
     "algorithms": [
-        utils.warning_threshold_algorithm_config(method="gte", threshold=10),
-        utils.fatal_threshold_algorithm_config(method="gte", threshold=50),
+        utils.warning_threshold_algorithm_config(
+            method="gte",
+            threshold=10,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLEE_ERROR_CODE.value),
+        ),
+        utils.fatal_threshold_algorithm_config(
+            method="gte",
+            threshold=50,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLEE_ERROR_CODE.value),
+        ),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_ERROR_CODE.value},
     "context": _get_common_context(),
@@ -120,8 +167,16 @@ RPC_CALLER_SUCCESS_RATE_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.SUCCESS_RATE.value,
     "detect": utils.detect_config(5, 5, 3),
     "algorithms": [
-        utils.warning_threshold_algorithm_config(method="lte", threshold=95),
-        utils.fatal_threshold_algorithm_config(method="lte", threshold=90),
+        utils.warning_threshold_algorithm_config(
+            method="lte",
+            threshold=95,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLER_SUCCESS_RATE.value),
+        ),
+        utils.fatal_threshold_algorithm_config(
+            method="lte",
+            threshold=90,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLER_SUCCESS_RATE.value),
+        ),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_SUCCESS_RATE.value},
     "context": _get_common_context(),
@@ -134,8 +189,16 @@ RPC_CALLER_AVG_TIME_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.AVG.value,
     "detect": utils.detect_config(5, 5, 3),
     "algorithms": [
-        utils.warning_threshold_algorithm_config(method="gte", threshold=2000),
-        utils.fatal_threshold_algorithm_config(method="gte", threshold=4000),
+        utils.warning_threshold_algorithm_config(
+            method="gte",
+            threshold=2000,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLER_AVG_TIME.value),
+        ),
+        utils.fatal_threshold_algorithm_config(
+            method="gte",
+            threshold=4000,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLER_AVG_TIME.value),
+        ),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_AVG_TIME.value},
     "context": _get_common_context(),
@@ -148,8 +211,16 @@ RPC_CALLER_P99_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.P99.value,
     "detect": utils.detect_config(5, 5, 3),
     "algorithms": [
-        utils.warning_threshold_algorithm_config(method="gte", threshold=3000),
-        utils.fatal_threshold_algorithm_config(method="gte", threshold=5000),
+        utils.warning_threshold_algorithm_config(
+            method="gte",
+            threshold=3000,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLER_P99.value),
+        ),
+        utils.fatal_threshold_algorithm_config(
+            method="gte",
+            threshold=5000,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLER_P99.value),
+        ),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_P99.value},
     "context": _get_common_context(),
@@ -162,8 +233,16 @@ RPC_CALLER_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
     "detect": utils.detect_config(5, 5, 3),
     "algorithms": [
-        utils.warning_threshold_algorithm_config(method="gte", threshold=10),
-        utils.fatal_threshold_algorithm_config(method="gte", threshold=50),
+        utils.warning_threshold_algorithm_config(
+            method="gte",
+            threshold=10,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLER_ERROR_CODE.value),
+        ),
+        utils.fatal_threshold_algorithm_config(
+            method="gte",
+            threshold=50,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.RPC_CALLER_ERROR_CODE.value),
+        ),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_ERROR_CODE.value},
     "context": _get_common_context(),
@@ -176,7 +255,11 @@ RPC_ERROR_METRIC_PANIC_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
     "detect": utils.detect_config(5, 1, 1),
     "algorithms": [
-        utils.fatal_threshold_algorithm_config(method="gte", threshold=1),
+        utils.fatal_threshold_algorithm_config(
+            method="gte",
+            threshold=1,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.CUSTOM_METRIC_PANIC.value),
+        ),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.CUSTOM_METRIC_PANIC.value},
     "context": {},
@@ -189,7 +272,11 @@ RPC_ERROR_LOG_PANIC_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
     "detect": utils.detect_config(5, 1, 1),
     "algorithms": [
-        utils.fatal_threshold_algorithm_config(method="gte", threshold=1),
+        utils.fatal_threshold_algorithm_config(
+            method="gte",
+            threshold=1,
+            suffix=_APM_QUERY_TEMPLATE_SUFFIX_MAP.get(APMQueryTemplateName.CUSTOM_METRIC_PANIC.value),
+        ),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": LocalQueryTemplateName.RPC_PANIC_LOG.value},
     "context": {},
