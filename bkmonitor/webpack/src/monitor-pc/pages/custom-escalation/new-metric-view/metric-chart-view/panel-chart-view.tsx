@@ -90,6 +90,8 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   /** 过滤条件发生改变的时候重新拉取数据 */
   @Watch('config', { deep: true })
   handleConfigChange(val) {
+    // 后端返回'$interval'，interval的赋值生效
+    this.viewOptions.interval = Number.isNaN(+val.interval) ? val.interval || 'auto' : +val.interval;
     this.filterOption = deepClone(val);
     // this.timeRange = [val.start_time, val.end_time];
     val && this.getGroupList();
