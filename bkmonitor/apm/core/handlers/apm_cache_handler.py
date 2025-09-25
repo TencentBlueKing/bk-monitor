@@ -27,50 +27,17 @@ class ApmCacheHandler:
         return RedisTools().client
 
     @staticmethod
-    def safe_decode_redis_value(value, default=None):
+    def decode_redis_value(value):
         """
-        安全地解码Redis返回的值，统一处理bytes到string的转换
-
-        Args:
-            value: Redis返回的值，可能是bytes、str或None
-            default: 当value为None或解码失败时的默认值
-
-        Returns:
-            解码后的字符串或默认值
+        解码后的字符串或默认值
         """
         if value is None:
-            return default
+            return None
 
-        try:
-            if isinstance(value, bytes):
-                return value.decode("utf-8")
-            else:
-                return str(value)
-        except (UnicodeDecodeError, AttributeError) as e:
-            logger.warning(f"[ApmCacheHandler] Failed to decode redis value: {value}, error: {e}")
-            return default
-
-    @staticmethod
-    def safe_decode_json_from_redis(value, default=None):
-        """
-        安全地从Redis值中解码JSON数据
-
-        Args:
-            value: Redis返回的值，可能是bytes、str或None
-            default: 当value为None或解码失败时的默认值
-
-        Returns:
-            解码后的JSON对象或默认值
-        """
-        decoded_value = ApmCacheHandler.safe_decode_redis_value(value)
-        if decoded_value is None:
-            return default
-
-        try:
-            return json.loads(decoded_value)
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.warning(f"[ApmCacheHandler] Failed to decode JSON from redis value: {decoded_value}, error: {e}")
-            return default
+        if isinstance(value, bytes):
+            return value.decode("utf-8")
+        else:
+            return str(value)
 
     def get_cache_data(self, name: str) -> dict:
         """
@@ -178,7 +145,7 @@ class ApmLock:
             # 锁已经不存在（可能已过期），直接返回True
             return True
 
-        token_str = ApmCacheHandler.safe_decode_redis_value(token)
+        token_str = ApmCacheHandler.decode_redis_value(token)
         if token_str is None or token_str != self.__token:
             return False
 

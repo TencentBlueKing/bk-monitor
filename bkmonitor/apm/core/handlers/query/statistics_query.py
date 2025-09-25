@@ -63,7 +63,7 @@ class Deque:
         """删除并返回队列头部元素"""
         item = self.redis_client.lpop(self.cache_key)
         if item:
-            return ApmCacheHandler.safe_decode_redis_value(item)
+            return ApmCacheHandler.decode_redis_value(item)
         return None
 
     def pop_data(self, limit):
@@ -78,8 +78,8 @@ class Deque:
 
         decoded_data = []
         for i in list_data:
-            decoded_json = ApmCacheHandler.safe_decode_json_from_redis(i)
-            decoded_data.append(decoded_json)
+            decoded_value = ApmCacheHandler.decode_redis_value(i)
+            decoded_data.append(json.loads(decoded_value))
 
         return decoded_data
 
@@ -276,7 +276,7 @@ class StatisticsQuery(BaseQuery):
                 raise ValueError(_("参数丢失 需要重新从第一页获取"))
             cache_value = redis_cli.get(cache_key)
             if cache_value:
-                after_key = ApmCacheHandler.safe_decode_json_from_redis(cache_value)
+                after_key = json.loads(ApmCacheHandler.decode_redis_value(cache_value))
 
         return after_key or {}
 

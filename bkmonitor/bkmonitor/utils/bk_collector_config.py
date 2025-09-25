@@ -115,7 +115,7 @@ class BkCollectorClusterConfig:
 
         res = {}
         for i in cluster_to_bk_biz_ids:
-            value = ApmCacheHandler.safe_decode_redis_value(i)
+            value = ApmCacheHandler.decode_redis_value(i)
             if value is not None:
                 cluster_id, related_bk_biz_ids = cls._split_value(value)
                 if cluster_id and related_bk_biz_ids:
