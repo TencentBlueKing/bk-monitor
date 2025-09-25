@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from collections import defaultdict
+
+from elasticsearch_dsl import Search
 
 from monitor_web.strategies.resources.public import FetchItemStatus
 
@@ -28,45 +30,45 @@ class TestFetchItemStatus:
         dsl = FetchItemStatus.transform_target_to_dsl(target)
         actual = dsl.to_dict()
         expect = {
-            'bool': {
-                'must': [
+            "bool": {
+                "must": [
                     {
-                        'nested': {
-                            'path': 'event.tags',
-                            'query': {
-                                'bool': {
-                                    'must': [
-                                        {'term': {'event.tags.key': {'value': 'bcs_cluster_id'}}},
-                                        {'match_phrase': {'event.tags.value': {'query': 'BCS-K8S-00000'}}},
+                        "nested": {
+                            "path": "event.tags",
+                            "query": {
+                                "bool": {
+                                    "must": [
+                                        {"term": {"event.tags.key": {"value": "bcs_cluster_id"}}},
+                                        {"match_phrase": {"event.tags.value": {"query": "BCS-K8S-00000"}}},
                                     ]
                                 }
                             },
                         }
                     },
                     {
-                        'nested': {
-                            'path': 'event.tags',
-                            'query': {
-                                'bool': {
-                                    'must': [
-                                        {'term': {'event.tags.key': {'value': 'namespace'}}},
-                                        {'match_phrase': {'event.tags.value': {'query': 'thanos'}}},
+                        "nested": {
+                            "path": "event.tags",
+                            "query": {
+                                "bool": {
+                                    "must": [
+                                        {"term": {"event.tags.key": {"value": "namespace"}}},
+                                        {"match_phrase": {"event.tags.value": {"query": "thanos"}}},
                                     ]
                                 }
                             },
                         }
                     },
                     {
-                        'nested': {
-                            'path': 'event.tags',
-                            'query': {
-                                'bool': {
-                                    'must': [
-                                        {'term': {'event.tags.key': {'value': 'pod_name'}}},
+                        "nested": {
+                            "path": "event.tags",
+                            "query": {
+                                "bool": {
+                                    "must": [
+                                        {"term": {"event.tags.key": {"value": "pod_name"}}},
                                         {
-                                            'match_phrase': {
-                                                'event.tags.value': {
-                                                    'query': 'prometheus-po-kube-prometheus-stack-prometheus-0'
+                                            "match_phrase": {
+                                                "event.tags.value": {
+                                                    "query": "prometheus-po-kube-prometheus-stack-prometheus-0"
                                                 }
                                             }
                                         },
@@ -97,7 +99,7 @@ class TestFetchItemStatus:
             FetchItemStatus,
             "get_strategy_numbers",
             lambda _, bk_biz_id, metric_ids: defaultdict(
-                list, {'bk_monitor..container_cpu_usage_seconds_total': [55686, 55691]}
+                list, {"bk_monitor..container_cpu_usage_seconds_total": [55686, 55691]}
             ),
         )
 
@@ -105,7 +107,7 @@ class TestFetchItemStatus:
         params = {"metric_ids": ["bk_monitor..container_cpu_usage_seconds_total"], "bk_biz_id": 2}
         actual = resource.strategies.fetch_item_status(params)
         expect = {
-            'bk_monitor..container_cpu_usage_seconds_total': {'alert_number': 2, 'status': 2, 'strategy_number': 2}
+            "bk_monitor..container_cpu_usage_seconds_total": {"alert_number": 2, "status": 2, "strategy_number": 2}
         }
         assert actual == expect
 
@@ -121,7 +123,7 @@ class TestFetchItemStatus:
         }
         actual = resource.strategies.fetch_item_status(params)
         expect = {
-            'bk_monitor..container_cpu_usage_seconds_total': {'alert_number': 1, 'status': 2, 'strategy_number': 2}
+            "bk_monitor..container_cpu_usage_seconds_total": {"alert_number": 1, "status": 2, "strategy_number": 2}
         }
         assert actual == expect
 
@@ -137,6 +139,17 @@ class TestFetchItemStatus:
         }
         actual = resource.strategies.fetch_item_status(params)
         expect = {
-            'bk_monitor..container_cpu_usage_seconds_total': {'alert_number': 0, 'status': 1, 'strategy_number': 2}
+            "bk_monitor..container_cpu_usage_seconds_total": {"alert_number": 0, "status": 1, "strategy_number": 2}
         }
+        assert actual == expect
+
+    def test_add_labels_query(self):
+        """测试基于策略标签过滤告警的功能"""
+
+        search_object = Search()
+        labels = ["APM-APP(trpc_demo)", "APM-SERVICE(example.greeter)"]
+        result = FetchItemStatus.add_labels_query(search_object, labels)
+
+        actual = result.to_dict()
+        expect = {"query": {"bool": {"filter": [{"terms": {"labels": labels}}]}}}
         assert actual == expect
