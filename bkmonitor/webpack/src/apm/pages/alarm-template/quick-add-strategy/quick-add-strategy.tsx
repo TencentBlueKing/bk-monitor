@@ -29,6 +29,7 @@ import { ofType } from 'vue-tsx-support';
 
 import { getFunctions } from 'monitor-api/modules/grafana';
 import { applyStrategyTemplate, listUserGroup, searchStrategyTemplate } from 'monitor-api/modules/model';
+import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import authorityMixinCreate from 'monitor-pc/mixins/authorityMixin';
 import { MANAGE_AUTH as MANAGE } from 'monitor-pc/pages/alarm-group/authority-map';
 
@@ -102,6 +103,15 @@ class QuickAddStrategy extends Mixins(
 
   handleShowTemplateDetails() {
     // todo
+    const { app_name: appName } = this.params;
+    const { from, to } = this.$route.query;
+    let urlStr = `${window.__BK_WEWEB_DATA__?.baseroute || ''}application/?filter-app_name=${appName}&dashboardId=alarm_template&strategy_template_details_id=${this.cursorId}`;
+    urlStr += `&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
+    const { href } = this.$router.resolve({
+      path: urlStr,
+    });
+    const url = location.href.replace(location.pathname, '/').replace(location.hash, '') + href;
+    window.open(url);
   }
 
   handleShowChange(v: boolean) {
