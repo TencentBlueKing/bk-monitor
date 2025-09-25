@@ -31,6 +31,7 @@ class BaseQuery:
         expression: str | None = None,
         space_scope: list[str] | None = None,
         functions: list[dict[str, Any] | str] | None = None,
+        unit: str | None = None,
         **kwargs,
     ):
         self.name: str = name
@@ -42,6 +43,7 @@ class BaseQuery:
         self.expression: str = expression or ""
         self.space_scope: list[str] = space_scope or []
         self.functions: list[dict[str, Any] | str] = functions or []
+        self.unit = unit or ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -54,6 +56,7 @@ class BaseQuery:
             "expression": self.expression,
             "space_scope": self.space_scope,
             "functions": self.functions,
+            "unit": self.unit,
         }
 
 
@@ -259,6 +262,7 @@ class QueryTemplateWrapper(BaseQuery):
         space_scope: list[str] | None = None,
         functions: list[dict[str, Any] | str] | None = None,
         variables: list[dict[str, Any]] | None = None,
+        unit: str | None = None,
         **kwargs,
     ):
         self.variables: list[dict[str, Any]] = variables or []
@@ -276,6 +280,7 @@ class QueryTemplateWrapper(BaseQuery):
             expression=expression,
             space_scope=space_scope,
             functions=functions,
+            unit=unit,
             **kwargs,
         )
 
@@ -316,6 +321,7 @@ class QueryTemplateWrapper(BaseQuery):
                 "space_scope": obj.space_scope,
                 "functions": obj.functions,
                 "variables": obj.variables,
+                "unit": obj.unit,
             }
         )
 
