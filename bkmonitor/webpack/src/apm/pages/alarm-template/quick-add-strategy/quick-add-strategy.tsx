@@ -407,6 +407,7 @@ class QuickAddStrategy extends Mixins(
           this.handleShowChange(false);
         }}
         isShow={this.show}
+        zIndex={977}
         quick-close
       >
         <div slot='header'>{this.$t('一键添加策略')}</div>
@@ -461,27 +462,18 @@ class QuickAddStrategy extends Mixins(
                 key='template-preview-content'
                 class='template-preview-content'
               >
-                {this.templateDetailLoading ? (
-                  <div class='skeleton-wrap'>
-                    <div class='skeleton-element' />
-                    <div class='skeleton-element' />
-                    <div class='skeleton-element' />
-                    <div class='skeleton-element' />
-                    <div class='skeleton-element' />
-                  </div>
-                ) : (
-                  <TemplateForm
-                    data={this.templateFormData[this.cursorId]}
-                    labelWidth={94}
-                    metricFunctions={this.metricFunctions}
-                    scene='view'
-                    variablesList={this.variablesList[this.cursorId]}
-                    onAlarmGroupChange={this.handleAlarmGroupChange}
-                    onAlgorithmsChange={this.handleAlgorithmsChange}
-                    onDetectChange={this.handleDetectChange}
-                    onVariableValueChange={this.handleVariableValueChange}
-                  />
-                )}
+                <TemplateForm
+                  data={this.templateFormData[this.cursorId]}
+                  labelWidth={94}
+                  loading={this.templateDetailLoading}
+                  metricFunctions={this.metricFunctions}
+                  scene='view'
+                  variablesList={this.variablesList[this.cursorId]}
+                  onAlarmGroupChange={this.handleAlarmGroupChange}
+                  onAlgorithmsChange={this.handleAlgorithmsChange}
+                  onDetectChange={this.handleDetectChange}
+                  onVariableValueChange={this.handleVariableValueChange}
+                />
               </div>,
             ]}
           </div>
