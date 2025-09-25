@@ -354,4 +354,13 @@ export default {
   查看指引: 'View guide',
   '共{0}个': '{0} items in total',
   '{0}个周期内累积满足{1}次检测算法': '{0} periods of time, cumulative {1} times of detection algorithm',
+  启停: 'Start/Stop',
+  调用分析: 'Call analysis',
+  调用分析模板: 'Call analysis template',
+  一键添加策略: 'Add policy in one click',
+  一键生成: 'Generate in one click',
+  检测规则必须开启一个级别: 'Detection rules must enable at least one level',
+  '触发周期数 >=1 且 >= 检测数': 'Trigger period number >= 1 and >= detection number',
+  告警组必填: 'Alarm group is required',
+  编辑模板: 'Edit template',
 };
