@@ -302,7 +302,7 @@ class FetchItemStatus(Resource):
         return search_object
 
     @classmethod
-    def transform_target_to_dsl(cls, target: Dict) -> Optional[Q]:  # noqa
+    def transform_target_to_dsl(cls, target: dict) -> Optional[Q]:  # noqa
         """将target转换为es dsl ."""
         if not target:
             return None
