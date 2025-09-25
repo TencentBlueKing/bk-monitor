@@ -2284,7 +2284,7 @@ class Strategy(AbstractConfig):
             update_user=self._get_username(),
             priority=self.priority,
             priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
-            if self.priority
+            if self.priority is not None
             else "",
         )
         self.id = strategy.id
@@ -2414,7 +2414,7 @@ class Strategy(AbstractConfig):
                 strategy.priority = self.priority
                 strategy.priority_group_key = (
                     self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
-                    if self.priority
+                    if self.priority is not None
                     else ""
                 )
                 strategy.save()

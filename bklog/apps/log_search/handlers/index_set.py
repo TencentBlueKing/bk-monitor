@@ -1406,87 +1406,85 @@ class IndexSetHandler(APIModel):
 
     @transaction.atomic()
     def update_alias_settings(self, alias_settings):
-        search_handler_esquery = SearchHandler(self.index_set_id, {})
-        multi_result = search_handler_esquery.get_all_fields_by_index_id(need_merge=False)
-        result_table_mappings = defaultdict(list)
-        field_name_mappings = {}
-        for result_table_id, (field_result, display_fields) in multi_result.items():
-            field_name_list = []
-            for i in field_result:
-                _filed_name = i["field_name"]
-                field_name_list.append(_filed_name)
-                result_table_mappings[_filed_name].append(result_table_id)
-            field_name_mappings[result_table_id] = field_name_list
-
-        # 存储别名对应的字段及其所属rt列表
-        alias_field_map = defaultdict(list)
-        query_alias_mappings = defaultdict(list)
-        query_alias_to_rt_mappings = defaultdict(list)
-
-        for alias_setting in alias_settings:
-            field_name = alias_setting["field_name"]
-            query_alias = alias_setting["query_alias"]
-
-            # 存储别名对应的字段和rt列表
-            rt_list = result_table_mappings.get(field_name, [])
-            alias_field_map[query_alias].append({
-                "field_name": field_name,
-                "rt_list": rt_list
-            })
-
-            # 为当前字段所属的所有rt添加别名配置
-            for _result_table_id, _field_name_list in field_name_mappings.items():
-                if field_name in _field_name_list:
-                    query_alias_mappings[_result_table_id].append(alias_setting)
-                    query_alias_to_rt_mappings[query_alias].append(_result_table_id)
-
-        # 检查同名别名的字段rt列表是否有交集
-        for query_alias, fields in alias_field_map.items():
-            if len(fields) <= 1:
-                continue  # 单个字段无需检查
-
-            # 使用集合操作检查所有rt列表是否有交集
-            all_rt_sets = [set(field["rt_list"]) for field in fields]
-            union_rt = set().union(*all_rt_sets)
-
-            # 如果所有rt集合的总大小小于各集合大小的总和，说明有交集
-            if len(union_rt) < sum(len(rt_set) for rt_set in all_rt_sets):
-                conflict_info = []
-                for field in fields:
-                    conflict_info.append({
-                        "field_name": field["field_name"],
-                        "query_alias": query_alias,
-                        "result_tables": field["rt_list"],
-                    })
-                raise IndexSetAliasSettingsException(
-                    IndexSetAliasSettingsException.MESSAGE.format(conflict_info=conflict_info)
-                )
-
-        self.data.query_alias_settings = alias_settings
-        self.data.save()
+        is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.data.tag_ids)
         multi_execute_func = MultiExecuteFunc()
-        objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
-        for obj in objs:
-            result_table_id = obj.result_table_id
-            multi_execute_func.append(
-                result_key=result_table_id,
-                func=TransferApi.create_or_update_log_router,
-                params={
-                    "table_id": BaseIndexSetHandler.get_rt_id(self.index_set_id, result_table_id.replace(".", "_")),
-                    "query_alias_settings": query_alias_mappings.get(result_table_id, []),
-                    "space_type": self.data.space_uid.split("__")[0],
-                    "space_id": self.data.space_uid.split("__")[-1],
-                    "data_label": BaseIndexSetHandler.get_data_label(self.index_set_id),
-                },
-            )
+        if not is_doris:
+            search_handler_esquery = SearchHandler(self.index_set_id, {})
+            multi_result = search_handler_esquery.get_all_fields_by_index_id(need_merge=False)
+            result_table_mappings = defaultdict(list)
+            field_name_mappings = {}
+            for result_table_id, (field_result, display_fields) in multi_result.items():
+                field_name_list = []
+                for i in field_result:
+                    _filed_name = i["field_name"]
+                    field_name_list.append(_filed_name)
+                    result_table_mappings[_filed_name].append(result_table_id)
+                field_name_mappings[result_table_id] = field_name_list
+
+            # 存储别名对应的字段及其所属rt列表
+            alias_field_map = defaultdict(list)
+            query_alias_mappings = defaultdict(list)
+            query_alias_to_rt_mappings = defaultdict(list)
+
+            for alias_setting in alias_settings:
+                field_name = alias_setting["field_name"]
+                query_alias = alias_setting["query_alias"]
+
+                # 存储别名对应的字段和rt列表
+                rt_list = result_table_mappings.get(field_name, [])
+                alias_field_map[query_alias].append({
+                    "field_name": field_name,
+                    "rt_list": rt_list
+                })
+
+                # 为当前字段所属的所有rt添加别名配置
+                for _result_table_id, _field_name_list in field_name_mappings.items():
+                    if field_name in _field_name_list:
+                        query_alias_mappings[_result_table_id].append(alias_setting)
+                        query_alias_to_rt_mappings[query_alias].append(_result_table_id)
+
+            # 检查同名别名的字段rt列表是否有交集
+            for query_alias, fields in alias_field_map.items():
+                if len(fields) <= 1:
+                    continue  # 单个字段无需检查
+
+                # 使用集合操作检查所有rt列表是否有交集
+                all_rt_sets = [set(field["rt_list"]) for field in fields]
+                union_rt = set().union(*all_rt_sets)
+
+                # 如果所有rt集合的总大小小于各集合大小的总和，说明有交集
+                if len(union_rt) < sum(len(rt_set) for rt_set in all_rt_sets):
+                    conflict_info = []
+                    for field in fields:
+                        conflict_info.append({
+                            "field_name": field["field_name"],
+                            "query_alias": query_alias,
+                            "result_tables": field["rt_list"],
+                        })
+                    raise IndexSetAliasSettingsException(
+                        IndexSetAliasSettingsException.MESSAGE.format(conflict_info=conflict_info)
+                    )
+
+            self.data.query_alias_settings = alias_settings
+            self.data.save()
+            objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+            for obj in objs:
+                result_table_id = obj.result_table_id
+                multi_execute_func.append(
+                    result_key=result_table_id,
+                    func=TransferApi.create_or_update_log_router,
+                    params={
+                        "table_id": BaseIndexSetHandler.get_rt_id(self.index_set_id, result_table_id.replace(".", "_")),
+                        "query_alias_settings": query_alias_mappings.get(result_table_id, []),
+                        "space_type": self.data.space_uid.split("__")[0],
+                        "space_id": self.data.space_uid.split("__")[-1],
+                        "data_label": BaseIndexSetHandler.get_data_label(self.index_set_id),
+                    },
+                )
 
         if doris_table_id := self.data.doris_table_id:
             doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
-            # Doris接入
-            multi_execute_func.append(
-                result_key=self.data.index_set_id,
-                func=TransferApi.create_or_update_log_router,
-                params={
+            analysis_params = {
                     "query_alias_settings": alias_settings,
                     "space_type": self.data.space_uid.split("__")[0],
                     "space_id": self.data.space_uid.split("__")[-1],
@@ -1496,8 +1494,23 @@ class IndexSetHandler(APIModel):
                     "data_label": f"bklog_index_set_{self.index_set_id}_analysis",
                     "table_id": f"bklog_index_set_{self.index_set_id}_{doris_result_table}.__analysis__",
                     "need_create_index": False,
-                },
+                }
+            # Doris图表分析路由接入
+            multi_execute_func.append(
+                result_key=self.data.index_set_id,
+                func=TransferApi.create_or_update_log_router,
+                params=analysis_params,
             )
+            if is_doris:
+                doris_params = analysis_params.copy()
+                doris_params["data_label"] = f"bklog_index_set_{self.index_set_id}"
+                doris_params["table_id"] = f"bklog_index_set_{self.index_set_id}_{doris_result_table}.__doris__"
+                # Doris存储路由接入
+                multi_execute_func.append(
+                    result_key=self.data.index_set_id,
+                    func=TransferApi.create_or_update_log_router,
+                    params=doris_params,
+                )
         multi_result = multi_execute_func.run(return_exception=True)
         for ret in multi_result.values():
             if isinstance(ret, Exception):
@@ -1720,6 +1733,11 @@ class BaseIndexSetHandler:
             }
             multi_execute_func = MultiExecuteFunc()
             objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
+            # 是否为Doris存储路由，一期不做刷新，仅支持手动配置。
+            is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
+            doris_table_id = index_set.doris_table_id
+            if is_doris and doris_table_id:
+                return True
             for obj in objs:
                 time_field = obj.time_field or index_set.time_field
                 time_field_type = obj.time_field_type or index_set.time_field_type
@@ -1759,7 +1777,7 @@ class BaseIndexSetHandler:
                 func=TransferApi.bulk_create_or_update_log_router,
                 params=request_params,
             )
-            if doris_table_id := index_set.doris_table_id:
+            if doris_table_id:
                 doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
                 doris_params = {
                     "space_type": index_set.space_uid.split("__")[0],
