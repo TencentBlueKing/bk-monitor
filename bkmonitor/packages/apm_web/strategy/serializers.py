@@ -56,6 +56,7 @@ class AlgorithmSerializer(serializers.Serializer):
         default=AlgorithmModel.AlgorithmChoices.Threshold,
     )
     config = serializers.DictField(label=_("检测算法配置"), default={})
+    unit_prefix = serializers.CharField(label=_("单位前缀"), default="", allow_blank=True)
 
     def validate(self, attrs: dict) -> dict:
         if attrs["type"] == AlgorithmModel.AlgorithmChoices.Threshold:
