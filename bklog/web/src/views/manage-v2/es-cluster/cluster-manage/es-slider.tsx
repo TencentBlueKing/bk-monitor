@@ -443,8 +443,8 @@ export default defineComponent({
         }
 
         // 可见范围：多业务
-        if (visibleList.value.length) {
-          postData.visible_config.visible_bk_biz = visibleList.value.map(item => item.id);
+        if (visibleBkBiz.value.length) {
+          postData.visible_config.visible_bk_biz = visibleBkBiz.value;
         } else {
           postData.visible_config.visible_bk_biz = [];
         }
@@ -498,7 +498,8 @@ export default defineComponent({
     const checkSelectItem = () => {
       let messageType = '';
       const { visible_type: visibleType } = formData.value.visible_config;
-      if (visibleType === 'multi_biz' && !visibleList.value.length) {
+      // visibleBkBiz
+      if (visibleType === 'multi_biz' && !visibleBkBiz.value.length) {
         messageType = t('可见类型为多业务时，可见业务范围不能为空');
       }
       if (visibleType === 'biz_attr' && !bkBizLabelsList.value.length) {
@@ -1038,6 +1039,9 @@ export default defineComponent({
                           enable-virtual-scroll
                           multiple
                           searchable
+                          onChange={v => {
+                            visibleBkBiz.value = v;
+                          }}
                         ></bk-select>
 
                         {/* 按照空间属性选择 */}
@@ -1051,7 +1055,9 @@ export default defineComponent({
                             show-popover-tag-change={false}
                             value={bkBizLabelsList.value}
                             clearable
-                            onChange={(val: any[]) => (bkBizLabelsList.value = val)}
+                            onChange={(val: any[]) => {
+                              bkBizLabelsList.value = val;
+                            }}
                             onInput-change={handleInputChange}
                             onInput-click-outside={handleClickOutside}
                             onMenu-child-select={handleChildMenuSelect}
