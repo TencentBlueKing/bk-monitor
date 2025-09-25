@@ -71,7 +71,6 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
         id: this.templateId,
         app_name: this.appName,
       }).catch(() => ({ detailData: null, variablesList: [] }));
-      console.log(detailData, variablesList);
       this.detailData = detailData;
       this.formData = {
         name: this.detailData?.name,
@@ -130,6 +129,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
         return pre;
       }, {}),
       is_auto_apply: this.formData.is_auto_apply,
+      is_enabled: this.detailData.is_enabled,
     }).then(() => {
       this.$bkMessage({
         message: this.$t('模板修改成功'),
@@ -167,6 +167,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
         >
           <TemplateForm
             data={this.formData}
+            loading={this.loading}
             metricFunctions={this.metricFunctions}
             scene='edit'
             variablesList={this.variablesList}
