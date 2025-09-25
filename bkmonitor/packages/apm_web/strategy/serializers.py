@@ -246,6 +246,8 @@ class StrategyTemplateOptionValuesRequestSerializer(BaseAppStrategyTemplateReque
 
 
 class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
+    system = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
     user_group_list = serializers.SerializerMethodField()
     applied_service_names = serializers.SerializerMethodField()
 
@@ -293,8 +295,16 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
             if user_group_id in self._user_groups
         ]
 
-    def get_applied_service_names(self, obj) -> list[str]:
+    def get_applied_service_names(self, obj: StrategyTemplate) -> list[str]:
         return self._applied_service_names_by_id.get(obj.pk, [])
+
+    @staticmethod
+    def get_system(obj: StrategyTemplate):
+        return {"value": obj.system, "alias": constants.StrategyTemplateSystem.from_value(obj.system).label}
+
+    @staticmethod
+    def get_category(obj: StrategyTemplate):
+        return {"value": obj.category, "alias": constants.StrategyTemplateCategory.from_value(obj.category).label}
 
 
 class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
