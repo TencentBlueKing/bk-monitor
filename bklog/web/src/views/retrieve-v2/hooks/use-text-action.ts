@@ -91,6 +91,7 @@ export default (emit?: (event: string, ...args: any[]) => void, from?: string) =
         setRouteParams();
         if (from === 'origin') {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+          RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
         }
         if (isLink) {
           const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
