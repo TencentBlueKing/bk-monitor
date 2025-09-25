@@ -129,6 +129,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
         return pre;
       }, {}),
       is_auto_apply: this.formData.is_auto_apply,
+      is_enabled: this.detailData.is_enabled,
     }).then(() => {
       this.$bkMessage({
         message: this.$t('模板修改成功'),
@@ -166,6 +167,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
         >
           <TemplateForm
             data={this.formData}
+            loading={this.loading}
             metricFunctions={this.metricFunctions}
             scene='edit'
             variablesList={this.variablesList}
