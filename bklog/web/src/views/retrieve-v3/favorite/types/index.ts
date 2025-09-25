@@ -51,12 +51,13 @@ export interface IParams {
   addition: Array<{
     field: string;
     operator: string;
-    value: number[];
+    value: { [x: string]: any }[] | number[];
   }>;
   chart_params: Record<string, any>;
   ip_chooser: Record<string, any>;
   keyword: string;
   search_fields: any[];
+  host_scopes?: any[];
 }
 
 // 收藏分组类型
