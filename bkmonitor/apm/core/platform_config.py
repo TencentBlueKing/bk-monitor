@@ -86,37 +86,18 @@ class PlatformConfig(BkCollectorConfig):
                 cluster_mapping[cluster_id] = [0]
 
         for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
-            with tracer.start_as_current_span(
-                f"cluster-id: {cluster_id}", attributes={"bk_biz_ids": cc_bk_biz_ids}
-            ) as s:
-                try:
-                    platform_config_tpl = BkCollectorClusterConfig.platform_config_tpl(cluster_id)
-                    if platform_config_tpl is None:
-                        # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
-                        continue
+            try:
+                platform_config_tpl = BkCollectorClusterConfig.platform_config_tpl(cluster_id)
+                if platform_config_tpl is None:
+                    # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
+                    continue
 
-                    # bk_biz_id = cc_bk_biz_ids[0]
-                    # if len(cc_bk_biz_ids) != 1:
-                    #     logger.warning(
-                    #         f"[post-deploy-bk_collector] cluster_id: {cluster_id} record multiple bk_biz_id!",
-                    #     )
+                platform_config_context = PlatformConfig.get_platform_config(cluster_id)
 
-                    # Step1: 创建默认应用
-                    # default_application = ApplicationHelper.create_default_application(bk_biz_id)
-
-                    # Step2: 往集群的 bk-collector 下发配置
-                    platform_config_context = PlatformConfig.get_platform_config(cluster_id)
-
-                    platform_config = Environment().from_string(platform_config_tpl).render(platform_config_context)
-                    PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
-
-                    # s.add_event("default_application", attributes={"id": default_application.id})
-                    s.add_event("platform_secret", attributes={"name": BkCollectorComp.SECRET_PLATFORM_NAME})
-                    s.set_status(trace.StatusCode.OK)
-                except Exception as e:  # pylint: disable=broad-except
-                    # 仅记录异常
-                    s.record_exception(exception=e)
-                    logger.error(f"refresh platform config to cluster: {cluster_id} failed, error: {e}")
+                platform_config = Environment().from_string(platform_config_tpl).render(platform_config_context)
+                PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(f"refresh platform config to cluster: {cluster_id} failed, error: {e}")
 
     @classmethod
     def get_platform_config(cls, bcs_cluster_id=None):
@@ -488,15 +469,25 @@ class PlatformConfig(BkCollectorConfig):
 
     @classmethod
     def deploy_to_k8s(cls, cluster_id, platform_config):
+        secret_info_platform = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, "platform") or {}
+        secret_name = secret_info_platform.get("secret_name_tpl") or secret_info_platform.get("secret_name_hash_tpl")
+        secret_data_key = secret_info_platform.get("secret_data_key_tpl")
+        if not secret_name or not secret_data_key:
+            logger.info("has no secret platform config, please check if your platform config has been initialized")
+            return
+
         gzip_content = gzip.compress(platform_config.encode())
         b64_content = base64.b64encode(gzip_content).decode()
 
         bcs_client = BcsKubeClient(cluster_id)
         namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
+        secret_label_selector = (
+            f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_info_platform.get('secret_extra_label')}"
+        )
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,
-            label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG}",
+            label_selector=secret_label_selector,
         )
         if len(secrets.items) > 0:
             # 存在，且与已有的数据不一致，则更新
@@ -504,7 +495,7 @@ class PlatformConfig(BkCollectorConfig):
             need_update = False
             sec = secrets.items[0]
             if isinstance(sec.data, dict):
-                old_content = sec.data.get(BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME, "")
+                old_content = sec.data.get(secret_data_key, "")
                 old_platform_config = gzip.decompress(base64.b64decode(old_content)).decode()
                 if old_platform_config != platform_config:
                     need_update = True
@@ -513,10 +504,10 @@ class PlatformConfig(BkCollectorConfig):
 
             if need_update:
                 logger.info(f"{cluster_id} apm platform config has changed, update it.")
-                sec.data = {BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content}
+                sec.data = {secret_data_key: b64_content}
                 bcs_client.client_request(
                     bcs_client.core_api.patch_namespaced_secret,
-                    name=BkCollectorComp.SECRET_PLATFORM_NAME,
+                    name=secret_name,
                     namespace=namespace,
                     body=sec,
                 )
@@ -527,15 +518,11 @@ class PlatformConfig(BkCollectorConfig):
             sec = client.V1Secret(
                 type="Opaque",
                 metadata=client.V1ObjectMeta(
-                    name=BkCollectorComp.SECRET_PLATFORM_NAME,
+                    name=secret_name,
                     namespace=namespace,
-                    labels={
-                        "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
-                        "type": BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
-                        "template": "false",
-                    },
+                    labels=BkCollectorComp.label_selector_to_dict(secret_label_selector),
                 ),
-                data={BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content},
+                data={secret_data_key: b64_content},
             )
 
             bcs_client.client_request(

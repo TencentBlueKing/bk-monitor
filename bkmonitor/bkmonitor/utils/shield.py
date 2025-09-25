@@ -319,7 +319,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
 
             return f"{day}{' ' if day else ''}{hour} {minute}"
 
-    def get_category_name(self, shield):
+    def get_category_name(self, shield: dict) -> str:
         """
         获取屏蔽的分类
         """

@@ -671,7 +671,7 @@ export default class ApmServiceList extends tsc<
                       />,
                       <div
                         key='2'
-                        style='margin-right: 120px;'
+                        style='margin-right: auto;min-width: 88px;'
                         class='skeleton-element bts-skeleton'
                       />,
                     ]
@@ -704,7 +704,7 @@ export default class ApmServiceList extends tsc<
                       </bk-button>
                       {this.guideUrl && (
                         <bk-button
-                          style='margin-right: 120px;'
+                          style='margin-right: auto;min-width: 88px;'
                           class={[{ disabled: !this.authority }]}
                           size='small'
                           text

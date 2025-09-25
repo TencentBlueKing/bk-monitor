@@ -194,3 +194,9 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
   //   ],
   // },
 ];
+
+export const getAIBluekingShortcutTips = (id: AIBluekingShortcutId) => {
+  return (
+    AI_BLUEKING_SHORTCUTS.find(shortcut => shortcut.id === id)?.name.toString() || window.i18n.t('AI 小鲸').toString()
+  );
+};
