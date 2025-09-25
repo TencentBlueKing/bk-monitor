@@ -174,6 +174,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       width: 258,
       filters: [],
       filterMultiple: true,
+      showOverflowTooltip: false,
       formatter: this.userGroupColRenderer,
     },
     is_enabled: {
@@ -567,6 +568,15 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
               >
                 <i class='icon-monitor icon-bianji' />
               </div>
+            ),
+            customTag: (tag, index) => (
+              <bk-tag
+                key={index}
+                class='user-group-item'
+                v-bk-overflow-tips
+              >
+                {tag}
+              </bk-tag>
             ),
           }}
           data={value?.map(e => e.name) || []}
