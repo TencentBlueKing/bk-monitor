@@ -52,6 +52,15 @@ export interface IDetail {
     name?: string;
   };
   bkHostId?: number | string;
+  shieldRadioData?: IshieldRadioDataItem[]
+  shieldCheckedId?: string;
+  hideDimensionTagIndex?: number;
+  hideBkTopoNodeTagIndex?: number;
+}
+
+interface IshieldRadioDataItem {
+  id: string;
+  name: string;
 }
 
 interface DimensionConfig {
@@ -118,6 +127,17 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
 
   shieldTreeDialogShow = false;
 
+  // 每个告警屏蔽选择的选项（只在bkHostId存在时才使用）
+  shieldRadioData = [{
+    id: 'dimensions',
+    name: i18n.t('维度屏蔽') as string,
+  }, {
+    id: 'bkTopoNode',
+    name: i18n.t('范围屏蔽') as string,
+  }]
+  // 每个告警屏蔽选择的值（只在bkHostId存在时才可能改变，默认dimensions兼容无bkHostId的情况）
+  shieldCheckedId = 'dimensions'
+
   @Watch('ids', { immediate: true, deep: true })
   handleShow(newIds, oldIds) {
     if (`${JSON.stringify(newIds)}` !== `${JSON.stringify(oldIds)}`) {
@@ -127,13 +147,19 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
 
   @Watch('details', { immediate: true })
   handleDetailsChange() {
+    const { shieldRadioData, shieldCheckedId } = this;
     const data = structuredClone(this.details || []);
     this.backupDetails = data.map(detail => {
       return {
         ...detail,
+        shieldRadioData: structuredClone(shieldRadioData), // 屏蔽选择单选内容
+        shieldCheckedId, // 屏蔽选择单选框选中的值
+        hideDimensionTagIndex: -1, // 开始隐藏维度屏蔽tag的索引
+        hideBkTopoNodeTagIndex: -1, // 开始隐藏范围屏蔽tag的索引
         modified: false,
       };
     });
+    this.overviewCount();
   }
 
   handleDialogShow() {
@@ -229,8 +255,10 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
       tims.forEach(item => {
         toTime = toTime.replace(item[0], item[1]);
       });
-      // 当修改维度信息时，调整入参
-      const changedDetails = this.backupDetails.filter(item => item.isModified);
+
+      // 当修改维度信息且单选框选择的是维度屏蔽时，调整入参
+      // 默认选中维度屏蔽，所以不需要判断是否有bkHostid
+      const changedDetails = this.backupDetails.filter(item => item.isModified && item.shieldCheckedId === 'dimensions');
       if (changedDetails.length) {
         (params.dimension_config as DimensionConfig).dimensions = changedDetails.reduce((pre, item) => {
           if (item.isModified) {
@@ -241,8 +269,11 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
           return pre;
         }, {});
       }
-      // 屏蔽范围不存在回显，有值则推上去；使用alertId做key，兼容单个与批量操作(与上方维度信息类似方式）
-      const topoNodeDataArr = this.backupDetails.filter(item => item.bkTopoNode && item.bkTopoNode.length > 0)
+      
+      // 屏蔽范围不存在回显，有值且单选框选择了范围屏蔽则推上去；使用alertId做key，兼容单个与批量操作(与上方维度信息类似方式）
+      const topoNodeDataArr = this.backupDetails.filter(
+        item => item.bkTopoNode && item.bkTopoNode.length > 0 && item.shieldCheckedId === 'bkTopoNode'
+      );
       if (topoNodeDataArr.length) {
         (params.dimension_config as DimensionConfig).bk_topo_node = topoNodeDataArr.reduce((pre, item) => {
           pre[item.alertId.toString()] = item.bkTopoNode.map(item => ({
@@ -252,6 +283,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
           return pre;
         }, {});
       }
+      
       bulkAddAlertShield(params)
         .then(() => {
           this.handleSucces(true);
@@ -314,6 +346,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
 
   // 编辑维度信息
   handleDimensionSelect(detail, idx) {
+    if (detail.shieldCheckedId !== 'dimensions') return;
     // 初始化穿梭框数据
     this.transferDimensionList = this.details[idx].dimension;
     // 选中的数据
@@ -354,7 +387,8 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
    * @param data 当前操作的屏蔽内容数据
    * @param idx 当前操作的屏蔽内容数据索引
    */
-  handleShieldEdit(data, idx) {
+  handleShieldEdit(detail, idx) {
+    if (detail.shieldCheckedId !== 'bkTopoNode') return;
     this.editIndex = idx;
     this.shieldTreeDialogShow = true;
   }
@@ -368,12 +402,62 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
     backupDetails[idx].bkTopoNode = checkedIds;
     this.shieldTreeDialogShow = false;
     this.editIndex = -1;
+    backupDetails[idx].hideBkTopoNodeTagIndex = -1;
+    // tag是否溢出样式
+    this.$nextTick(()=>{
+      const nodeTagWrap = this.$el.querySelector(`.toponode-sel-${idx}`) as any;
+      this.targetOverviewCount(nodeTagWrap, idx);
+    })
   }
 
   // 取消屏蔽范围选择弹窗
   handleShieldCancel() {
     this.shieldTreeDialogShow = false;
     this.editIndex = -1;
+  }
+
+  // 计算维度与范围屏蔽超出的tag索引，用于展示被省略的tag数量和tooltip
+  // 维度信息回显即为最大展示tag，只需要在第一次渲染时计算
+  overviewCount() {
+    this.$nextTick(() => {
+      for (let i = 0; i < this.backupDetails.length; i++) {
+        const dimensionTagWrap = this.$el.querySelector(`.dimension-sel-${i}`) as any;
+        // const nodeTagWrap = this.$el.querySelector(`.toponode-sel-${i}`) as any;
+        if (!!dimensionTagWrap) {
+          this.targetOverviewCount(dimensionTagWrap, i);
+        }
+        // 屏蔽范围没有回显，只在用户操作增删时才需要计算（屏蔽范围的点击确认事件）
+        // if (!!nodeTagWrap) {
+        //   this.targetOverviewCount(nodeTagWrap, i);
+        // }
+      }
+    });
+  }
+
+  // 单独计算指定告警内的维度屏蔽或告警屏蔽溢出
+  targetOverviewCount(target, index) {
+    if (target) {
+      const targetIndex = target.className.includes('dimension-sel') ? 'hideDimensionTagIndex' : 'hideBkTopoNodeTagIndex';
+      let hasHide = false;
+      let idx = -1;
+      for (const el of Array.from(target.children)) {
+        if (el.className.includes('bk-tag')) {
+          idx += 1;
+          if ((el as any).offsetTop > 22) {
+            hasHide = true;
+            break;
+          }
+        }
+      }
+      if (hasHide && idx > 1) {
+        const preItem = target.children[idx - 1] as any;
+        if (preItem.offsetLeft + preItem.offsetWidth + 6 > target.offsetWidth - 53) {
+          this.backupDetails[index][targetIndex] = idx - 1;
+          return;
+        }
+      }
+      this.backupDetails[index][targetIndex] = hasHide ? idx : -1;
+    }
   }
 
   getInfoCompnent() {
@@ -398,41 +482,8 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
           <div class='column-label'> {`${this.$t('告警级别')}：`} </div>
           <div class='column-content'>{this.levelMap[detail.severity]}</div>
         </div> */}
-        <div class='column-item'>
-          <div class={`column-label ${this.details[idx].dimension.length ? 'is-special' : ''}`}> {`${this.$t('维度信息')}：`} </div>
-          <div class='column-content'>
-            {detail.dimension?.map((dem, dimensionIndex) => (
-              <bk-tag
-                key={dem.key + dimensionIndex}
-                ext-cls='tag-theme'
-                type='stroke'
-                // closable
-                // on-close={() => this.handleTagClose(detail, dimensionIndex)}
-              >
-                {`${dem.display_key || dem.key}(${dem.display_value || dem.value})`}
-              </bk-tag>
-            ))}
-            {this.details[idx].dimension.length > 0 ? (
-              <span
-                class='dimension-edit'
-                v-bk-tooltips={{ content: `${this.$t('编辑')}` }}
-                onClick={() => this.handleDimensionSelect(detail, idx)}
-              >
-                <i class='icon-monitor icon-bianji' />
-              </span>
-            ) : '-'}
-            {/* {detail.isModified && (
-              <span
-                class='reset'
-                v-bk-tooltips={{ content: `${this.$t('重置')}` }}
-                onClick={() => this.handleReset(idx)}
-              >
-                <i class='icon-monitor icon-zhongzhi1' />
-              </span>
-            )} */}
-          </div>
-        </div>
-        <div class='column-item'>
+        
+        {/* <div class='column-item'>
           <div class={`column-label ${detail?.bkTopoNode?.length ? 'is-special' : ''}`}> {`${this.$t('屏蔽范围')}：`} </div>
           <div class='column-content'>
             {detail?.bkTopoNode?.length ? detail.bkTopoNode.map(node => (
@@ -454,7 +505,148 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
               </span>
             )}
           </div>
-        </div>
+        </div> */}
+        {/* 告警没有bkHostId时，无法进行范围屏蔽，此时按照旧样式仅展示维度屏蔽。如果有bkHostId，则按照新版样式进行单选 */}
+        {detail?.bkHostId ? (
+          <div class='column-item column-item-select'>
+            <div class='column-label'>{`${this.$t('屏蔽选择')}：`} </div>
+            <div class='column-content'>
+              <bk-radio-group v-model={detail.shieldCheckedId}>
+                {detail.shieldRadioData.map(item => (
+                  <bk-radio
+                    class='shield-radio-item'
+                    key={item.id}
+                    value={item.id}
+                  >
+                    {`${item.name}:`}
+                    {/* 维度屏蔽 */}
+                    {item.id === 'dimensions' && (
+                      <div class={`shield-radio-content dimension-sel-${idx}`}>
+                        {detail.dimension?.map((dem, dimensionIndex) => [
+                          detail.hideDimensionTagIndex === dimensionIndex ? (
+                            <span
+                              key={'count'}
+                              class='hide-count'
+                              v-bk-tooltips={{
+                                content: detail.dimension
+                                  .slice(dimensionIndex)
+                                  .map(d => `${d.display_key || d.key}(${d.display_value || d.value})`)
+                                  .join('、'),
+                                delay: 300,
+                                theme: 'light',
+                              }}
+                            >
+                              <span>{`+${detail.dimension.length - dimensionIndex}`}</span>
+                            </span>
+                          ) : undefined,
+                          <bk-tag
+                            key={dem.key + dimensionIndex}
+                            ext-cls='tag-theme'
+                            type='stroke'
+                            // closable
+                            // on-close={() => this.handleTagClose(detail, dimensionIndex)}
+                          >
+                            {`${dem.display_key || dem.key}(${dem.display_value || dem.value})`}
+                          </bk-tag>,
+                        ])}
+
+                        {this.details[idx].dimension.length > 0 ? (
+                          <span
+                            class={['dimension-edit is-absolute', {'is-hidden' : detail.shieldCheckedId !== 'dimensions'}]}
+                            v-bk-tooltips={{ content: `${this.$t('编辑')}` }}
+                            onClick={() => this.handleDimensionSelect(detail, idx)}
+                          >
+                            <i class='icon-monitor icon-bianji' />
+                          </span>
+                        ) : (
+                          '-'
+                        )}
+                      </div>
+                    )}
+                    {/* 范围屏蔽 */}
+                    {item.id === 'bkTopoNode' && (
+                      <div class={`shield-radio-content toponode-sel-${idx}`}>
+                        {detail?.bkTopoNode?.length
+                          ? detail.bkTopoNode.map((node, nodeIdx) => [
+                              detail.hideBkTopoNodeTagIndex === nodeIdx ? (
+                                <span
+                                  key={'count'}
+                                  class='hide-count'
+                                  v-bk-tooltips={{
+                                    content: detail.bkTopoNode
+                                      .slice(nodeIdx)
+                                      .map(n => n.node_name)
+                                      .join('、'),
+                                    delay: 300,
+                                    theme: 'light',
+                                  }}
+                                >
+                                  <span>{`+${detail.bkTopoNode.length - nodeIdx}`}</span>
+                                </span>
+                              ) : undefined,
+                              <bk-tag
+                                key={`${node.bk_inst_id}_${node.bk_obj_id}`}
+                                ext-cls='tag-theme'
+                                type='stroke'
+                              >
+                                {node.node_name}
+                              </bk-tag>,
+                            ])
+                          : undefined}
+                          <span
+                            class={['dimension-edit is-absolute', { 'is-hidden': detail.shieldCheckedId !== 'bkTopoNode' }]}
+                            v-bk-tooltips={{ content: `${this.$t('编辑')}` }}
+                            onClick={() => this.handleShieldEdit(detail, idx)}
+                          >
+                            <i class='icon-monitor icon-bianji' />
+                          </span>
+                      </div>
+                    )}
+                  </bk-radio>
+                ))}
+              </bk-radio-group>
+            </div>
+          </div>
+        ) : (
+          <div class='column-item'>
+            <div class={`column-label ${this.details[idx].dimension.length ? 'is-special' : ''}`}>
+              {`${this.$t('维度屏蔽')}：`}
+            </div>
+            <div class='column-content'>
+              {detail.dimension?.map((dem, dimensionIndex) => (
+                <bk-tag
+                  key={dem.key + dimensionIndex}
+                  ext-cls='tag-theme'
+                  type='stroke'
+                  // closable
+                  // on-close={() => this.handleTagClose(detail, dimensionIndex)}
+                >
+                  {`${dem.display_key || dem.key}(${dem.display_value || dem.value})`}
+                </bk-tag>
+              ))}
+              {this.details[idx].dimension.length > 0 ? (
+                <span
+                  class='dimension-edit'
+                  v-bk-tooltips={{ content: `${this.$t('编辑')}` }}
+                  onClick={() => this.handleDimensionSelect(detail, idx)}
+                >
+                  <i class='icon-monitor icon-bianji' />
+                </span>
+              ) : (
+                '-'
+              )}
+              {/* {detail.isModified && (
+              <span
+                class='reset'
+                v-bk-tooltips={{ content: `${this.$t('重置')}` }}
+                onClick={() => this.handleReset(idx)}
+              >
+                <i class='icon-monitor icon-zhongzhi1' />
+              </span>
+            )} */}
+            </div>
+          </div>
+        )}
         <div
           style='margin-bottom: 18px'
           class='column-item'

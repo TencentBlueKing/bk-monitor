@@ -78,7 +78,13 @@ export const SET_APP_STATE = 'SET_APP_STATE';
 let dateFieldSortList = [];
 
 const stateTpl = {
-  userMeta: {}, // /meta/mine
+  userMeta: {
+    chname: '',
+    language: '',
+    operator: '',
+    time_zone: '',
+    username: '',
+  }, // /meta/mine
   pageLoading: true,
   authDialogData: null,
   // 是否将unix时间戳格式化
@@ -535,15 +541,6 @@ const store = new Vuex.Store({
       });
     },
 
-    /**
-     * 更新当前用户 user
-     *
-     * @param {Object} state store state
-     * @param {Object} user user 对象
-     */
-    updateUser(state, user) {
-      state.user = Object.assign({}, user);
-    },
     updateSpace(state, spaceUid) {
       if (typeof spaceUid === 'string') {
         state.space = state.mySpaceList.find(item => item.space_uid === spaceUid) || {};
@@ -571,6 +568,10 @@ const store = new Vuex.Store({
               : [defaultTag],
         };
       });
+
+      const demoId = String(window.DEMO_BIZ_ID);
+      const demoProject = spaceList.find(item => `${item.bk_biz_id}` === demoId);
+      state.demoUid = demoProject ? demoProject.space_uid : '';
     },
     updateUnionIndexList(state, unionIndexList) {
       const updateIndexItem = unionIndexList.updateIndexItem ?? true;
@@ -749,9 +750,9 @@ const store = new Vuex.Store({
             const currentValue = state[key];
             if (Array.isArray(currentValue) && Array.isArray(value)) {
               state[key].length = 0;
-              state[key] = value; 
-            } else {
               state[key] = value;
+            } else {
+              set(state, key, value);
             }
           }
         });
@@ -805,7 +806,7 @@ const store = new Vuex.Store({
           })
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
-      store.commit('updateState', {'isNotVisibleFieldsShow': !visibleFields.length} );
+      store.commit('updateState', { isNotVisibleFieldsShow: !visibleFields.length });
 
       // if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
@@ -869,7 +870,7 @@ const store = new Vuex.Store({
     userInfo({ commit }, params, config = {}) {
       return http.request('userInfo/getUserInfo', { query: params, config }).then(response => {
         const userData = response.data || {};
-        commit('updateUser', userData);
+        commit('updateState', { user: userData });
         return userData;
       });
     },
@@ -957,8 +958,8 @@ const store = new Vuex.Store({
               deepUpdateMenu(menu, child);
             }
           });
-          commit('updateState', {'topMenu': menuList});
-          commit('updateState', {'menuProject': res.data || []});
+          commit('updateState', { topMenu: menuList });
+          commit('updateState', { menuProject: res.data || [] });
 
           return menuList;
         });
@@ -1095,7 +1096,6 @@ const store = new Vuex.Store({
           commit('updateIndexFieldInfo', { is_loading: false });
         });
     },
-
 
     /**
      * 执行查询
@@ -1289,7 +1289,6 @@ const store = new Vuex.Store({
         });
     },
 
-
     /**
      * 索引集选择改变事件
      * 更新索引集相关缓存 & 发起当前索引集所需字段信息请求
@@ -1301,7 +1300,7 @@ const store = new Vuex.Store({
       commit('resetIndexSetQueryResult', { search_count: 0, is_loading: true });
 
       if (!payload.isUnionIndex) {
-        commit('updateState', {'indexId': payload.ids[0]});
+        commit('updateState', { indexId: payload.ids[0] });
       }
 
       return dispatch('requestIndexSetFieldInfo');

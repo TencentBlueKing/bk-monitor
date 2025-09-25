@@ -58,6 +58,7 @@ export default defineComponent({
     const store = useStore();
     const { isRequesting, isValidateItem, requestFieldEgges, setIsRequesting, isValidateEgges } = useFieldEgges();
 
+    const fieldListMainRef = ref(null);
     const popoverRef = ref(null);
     const formRef = ref(null);
     const controlOperateRef = ref(null);
@@ -127,28 +128,33 @@ export default defineComponent({
       ],
     };
 
+    const initData = () => {
+      if (props.data && filterFieldList.value.length) {
+        activeIndex.value =
+          filterFieldList.value.findIndex(
+            item => item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
+          ) || 0;
+
+        hoverIndex.value = activeIndex.value;
+        formData.value = {
+          op: props.data.op,
+          values: props.data.value,
+        };
+
+        const fieldInfo = filterFieldList.value[activeIndex.value];
+        localFormData.value = {
+          op: props.data.op,
+          values: props.data.value,
+          field_name: fieldInfo.field_name,
+          field_alias: fieldInfo.field_alias,
+        };
+      }
+    };
+
     watch(
       () => [props.data, filterFieldList.value],
       () => {
-        if (props.data && filterFieldList.value.length) {
-          activeIndex.value =
-            filterFieldList.value.findIndex(
-              item => item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
-            ) || 0;
-          hoverIndex.value = activeIndex.value;
-          formData.value = {
-            op: props.data.op,
-            values: props.data.value,
-          };
-
-          const fieldInfo = filterFieldList.value[activeIndex.value];
-          localFormData.value = {
-            op: props.data.op,
-            values: props.data.value,
-            field_name: fieldInfo.field_name,
-            field_alias: fieldInfo.field_alias,
-          };
-        }
+        initData();
       },
       { immediate: true },
     );
@@ -242,6 +248,13 @@ export default defineComponent({
     const handlePopoverShow = () => {
       formRef.value?.clearError();
       controlOperateRef.value.bindKeyEvent();
+      initData();
+      setTimeout(() => {
+        const selectItemDom = fieldListMainRef.value.querySelector('.is-active');
+        if (selectItemDom) {
+          selectItemDom.scrollIntoView();
+        }
+      });
     };
 
     const handlePopoverHide = () => {
@@ -249,7 +262,7 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      handleFieldItemClick(0);
+      handleFieldItemClick(activeIndex.value);
     });
 
     expose({
@@ -293,7 +306,10 @@ export default defineComponent({
                     }}
                   />
                 </div>
-                <div class='field-list-main'>
+                <div
+                  ref={fieldListMainRef}
+                  class='field-list-main'
+                >
                   {filterFieldList.value.map((item, index) => (
                     <div
                       key={item.field_name}
@@ -388,10 +404,12 @@ export default defineComponent({
                         clearable={false}
                         content-width={232}
                         placeholder={t('请输入')}
+                        separator='\n'
                         trigger='focus'
                         value={formData.value.values}
                         allow-auto-match
                         allow-create
+                        free-paste
                         on-change={value => {
                           formData.value.values = value;
                         }}

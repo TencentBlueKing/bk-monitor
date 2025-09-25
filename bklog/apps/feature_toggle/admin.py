@@ -37,6 +37,7 @@ do_action.short_description = "do feature toggle action"
 
 @admin.register(FeatureToggle)
 class FeatureToggleAdmin(AppModelAdmin):
-    list_display = ["name", "alias", "status", "description", "is_viewed", "feature_config", "biz_id_white_list"]
+    list_display = ["name", "alias", "status", "description", "is_viewed", "feature_config", "biz_id_white_list",
+                    "biz_id_black_list"]
     search_fields = ["name", "alias"]
     actions = [do_action]

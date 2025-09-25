@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
-from typing import Dict, List, Set
 
 from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
 
@@ -21,11 +20,11 @@ class TargetCondition:
     监控目标条件匹配
     """
 
-    def __init__(self, target: List[List[Dict]]):
+    def __init__(self, target: list[list[dict]]):
         self.conditions_list = self.load_target_condition(target)
 
     @staticmethod
-    def load_target_condition(target: List[List[Dict]]):
+    def load_target_condition(target: list[list[dict]]):
         """
         加载监控目标条件
         """
@@ -76,11 +75,14 @@ class TargetCondition:
                         if dynamic_group_id:
                             dynamic_group_ids.add(dynamic_group_id)
 
-                    # todo: 目前仅支持host动态分组
+                    # 目前仅支持host动态分组
+                    # 动态分组对应主机不存在， 此时也需要保证动态分组目标有效，补充一个 0 作为 bk_insta_id
                     dynamic_groups = DynamicGroupManager.multi_get(list(dynamic_group_ids))
                     for dynamic_group in dynamic_groups:
                         if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
                             target_keys.update([str(bk_inst_id) for bk_inst_id in dynamic_group.get("bk_inst_ids", [])])
+                    if not target_keys:
+                        target_keys.add(0)
                     field = "bk_target_ip"
 
                 if not target_keys:
@@ -92,7 +94,7 @@ class TargetCondition:
                 conditions_list.append(conditions)
         return conditions_list
 
-    def is_match(self, data: Dict):
+    def is_match(self, data: dict):
         """
         判断数据是否匹配监控目标
         """
@@ -100,7 +102,7 @@ class TargetCondition:
             for condition in conditions:
                 field = condition["field"]
                 method = condition["method"]
-                values: Set = condition["target_keys"]
+                values: set = condition["target_keys"]
 
                 target_keys = set()
                 if field in ["ip", "bk_target_ip"]:
@@ -124,7 +126,7 @@ class TargetCondition:
                     if "bk_topo_node" in data:
                         topo_nodes = data["bk_topo_node"]
                     elif "bk_obj_id" in data and "bk_inst_id" in data:
-                        topo_nodes = [f'{data["bk_obj_id"]}|{data["bk_inst_id"]}']
+                        topo_nodes = [f"{data['bk_obj_id']}|{data['bk_inst_id']}"]
                     else:
                         # 这里topo_node是基于主机信息full出来的，如果数据中不存在topo信息，则表示主机信息无效
                         # 可能原因：

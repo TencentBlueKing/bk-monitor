@@ -114,11 +114,11 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
     return (
       <div class='group-title filter'>
         <div class='title-left'>
-          <i class={['bk-icon icon-angle-right', { expand: this.activeName.includes(item.id) }]} />
+          <i class={['icon-monitor icon-mc-arrow-down', { expand: this.activeName.includes(item.id) }]} />
           <span class='name'>{item.name}</span>
         </div>
         <i
-          class='icon-monitor icon-mc-clear'
+          class='icon-monitor icon-a-Clearqingkong'
           v-bk-tooltips={{ content: this.$t('清除已勾选') }}
           onClick={event => this.handleClearChecked(event, item)}
         />

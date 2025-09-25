@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, ref, computed } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
 
 import './file-date-picker.scss';
@@ -134,17 +135,6 @@ export default defineComponent({
     return () => (
       <bk-date-picker
         class='king-date-picker'
-        clearable={false}
-        open={showDatePicker.value}
-        shortcuts={shortcuts.value}
-        value={props.timeValue}
-        format='yyyy-MM-dd HH:mm:ss'
-        type='datetimerange'
-        shortcut-close
-        use-shortcut-text
-        onChange={handleDateChange}
-        on-open-change={handleOpenChange}
-        on-shortcut-change={handleShortcutChange}
         scopedSlots={{
           trigger: () =>
             props.timeRange !== 'custom' ? (
@@ -159,11 +149,22 @@ export default defineComponent({
                   {shortTextEnum.value[props.timeRange]}
                 </div>
                 <div class='icon-wrapper'>
-                  <span class='bklog-icon bklog-date-picker'></span>
+                  <span class='bklog-icon bklog-date-picker' />
                 </div>
               </div>
             ) : null,
         }}
+        clearable={false}
+        format='yyyy-MM-dd HH:mm:ss'
+        open={showDatePicker.value}
+        shortcuts={shortcuts.value}
+        type='datetimerange'
+        value={props.timeValue}
+        shortcut-close
+        use-shortcut-text
+        on-open-change={handleOpenChange}
+        on-shortcut-change={handleShortcutChange}
+        onChange={handleDateChange}
       />
     );
   },

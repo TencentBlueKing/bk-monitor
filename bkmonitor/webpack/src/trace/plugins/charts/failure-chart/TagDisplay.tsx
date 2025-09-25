@@ -50,21 +50,6 @@ export default defineComponent({
     const isAllShown = ref(true);
     const tagContainerWidth = ref(0);
 
-    const displayedTags = computed(() => {
-      if (isAllShown.value) {
-        return tags.value;
-      }
-      return tags.value.slice(0, visibleTagCount.value);
-    });
-
-    const showMoreIndicator = computed(() => {
-      return tags.value.length > visibleTagCount.value;
-    });
-
-    const remainingCount = computed(() => {
-      return tags.value.length - visibleTagCount.value;
-    });
-
     const visibleTagCount = computed(() => {
       const containerWidth = tagContainerWidth.value || tagContainer.value?.offsetWidth || 0;
       const tagsWidths = tags.value.map(tag => {
@@ -86,6 +71,18 @@ export default defineComponent({
         count++;
       }
       return count;
+    });
+
+    const displayedTags = computed(() => {
+      return tags.value;
+    });
+
+    const showMoreIndicator = computed(() => {
+      return tags.value.length > visibleTagCount.value;
+    });
+
+    const remainingCount = computed(() => {
+      return tags.value.length - visibleTagCount.value;
     });
 
     const tagContainer = ref(null);
@@ -110,7 +107,10 @@ export default defineComponent({
           {props.tipsName}
           <br />
           {list.map(item => (
-            <div style={{ marginTop: '5px' }}>
+            <div
+              key={item.display_key}
+              style={{ marginTop: '5px' }}
+            >
               {item.display_key} = {item.display_value}
             </div>
           ))}
@@ -134,6 +134,7 @@ export default defineComponent({
       >
         {this.displayedTags.slice(0, this.visibleTagCount).map(item => (
           <span
+            key={item.display_key}
             class='tag-item'
             v-bk-tooltips={{
               content: this.renderTagToolTips([item]),

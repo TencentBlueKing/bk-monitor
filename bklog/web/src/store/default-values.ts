@@ -25,7 +25,6 @@
  */
 import VueRouter from 'vue-router';
 
-// @ts-expect-error
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
 import { type RouteParams, BK_LOG_STORAGE, FieldInfoItemArgs } from './store.type';

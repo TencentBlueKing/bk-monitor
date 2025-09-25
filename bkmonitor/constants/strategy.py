@@ -319,3 +319,7 @@ class StrategySyncType(CustomEnum):
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
+
+
+# 自定义优先级分组前缀
+CUSTOM_PRIORITY_GROUP_PREFIX = "PGK:"
