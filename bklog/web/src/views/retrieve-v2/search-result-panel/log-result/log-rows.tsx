@@ -719,7 +719,7 @@ export default defineComponent({
           .then(resp => {
             if (resp?.length === pageSize.value) {
               pageIndex.value++;
-              handleResultBoxResize();
+              handleResultBoxResize(false);
               return;
             }
 
