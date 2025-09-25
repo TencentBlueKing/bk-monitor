@@ -184,6 +184,13 @@
       .bk-common-v2-tag-show {
         .item-tags {
           flex-wrap: nowrap;
+
+          .user-group-item {
+            max-width: 160px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
         }
       }
     }
