@@ -304,14 +304,18 @@ class CustomReportSubscription(models.Model):
             # 按协议分组收集配置
             protocol_config_maps = {}
             try:
+                protocol_tpl = {}
                 for config_context, protocol in data_id_configs:
                     tpl_name = BkCollectorComp.CONFIG_MAP_NAME_MAP.get(protocol)
                     if tpl_name is None:
                         logger.info(f"can not find protocol({protocol}) sub config template name")
                         continue
 
-                    tpl = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
-                    if tpl is None:
+                    if protocol not in protocol_tpl:
+                        protocol_tpl[protocol] = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+
+                    tpl = protocol_tpl.get(protocol)
+                    if not tpl:
                         continue
 
                     config_id = int(config_context.get("bk_data_id"))
@@ -571,7 +575,7 @@ class LogSubscriptionConfig(models.Model):
                 tpl = BkCollectorClusterConfig.sub_config_tpl(
                     cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
                 )
-                if tpl is None:
+                if not tpl:
                     continue
 
                 config_context = cls.get_log_config(log_group)

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import useStore from '@/hooks/use-store';
 import { ConditionOperator } from '@/store/condition-operator';
@@ -16,12 +16,12 @@ import QueryHistory from './query-history';
 // #code const QueryHistory = () => null;
 // #endif
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import TimeSetting from './time-setting';
 import FieldSetting from '@/global/field-setting.vue';
 import VersionSwitch from '@/global/version-switch.vue';
 import ClusterSetting from '../setting-modal/index.vue';
 import BarGlobalSetting from './bar-global-setting.tsx';
 import MoreSetting from './more-setting.vue';
+import TimeSetting from './time-setting';
 import WarningSetting from './warning-setting.vue';
 // #else
 // #code const TimeSetting = () => null;
@@ -56,13 +56,13 @@ const indexSetParams = computed(() => store.state.indexItem);
 // 索引集列表
 const indexSetList = computed(() => store.state.retrieve.indexSetList);
 
+// 索引集选择结果
+const indexSetValue = computed(() => store.state.indexItem.ids);
+
 /**
  * 索引ID所属父ID
  */
 const indexSetPid = computed(() => store.state.indexItem.pid ?? []);
-
-// 索引集选择结果
-const indexSetValue = computed(() => store.state.indexItem.ids);
 
 /**
  * 根据当前索引ID和pid生成唯一ID
@@ -212,6 +212,21 @@ const handleIndexSetSelected = async payload => {
     });
 
     setRouteParams(payload.ids, payload.isUnionIndex, payload.pid);
+  } else {
+    if (payload.pid?.length && !isEqual(payload.pid, indexSetPid.value)) {
+      store.commit('updateIndexItem', { pid: payload.pid });
+      router.replace({
+    // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+    params: {
+      ...route.params,
+    },
+    // #endif
+    query: {
+      ...route.query,
+      pid: JSON.stringify(payload.pid)
+    },
+  });
+    }
   }
 };
 
