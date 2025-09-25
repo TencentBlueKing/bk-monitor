@@ -91,11 +91,14 @@ export interface AlarmTemplateListItem {
   is_auto_apply: boolean;
   is_enabled: boolean;
   name: string;
-  system: string;
   type: string;
   update_time: string;
   update_user: string;
   user_group_list: AlarmUserGroupItem[];
+  system: {
+    alias: string;
+    value: string;
+  };
 }
 
 export interface AlarmTemplateOptionsItem {

@@ -35,6 +35,7 @@ import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import {
   ALARM_TEMPLATE_TABLE_FILTER_FIELDS,
   AlarmTemplateDetailTabEnum,
+  AlarmTemplateTableFieldToFilterFieldMap,
   AlarmTemplateTypeEnum,
   AlarmTemplateTypeMap,
   TABLE_DEFAULT_DISPLAY_FIELDS,
@@ -45,7 +46,6 @@ import AlarmTemplateConfigDialog, {
 } from '../alarm-template-config-dialog/alarm-template-config-dialog';
 import CollapseTags from '../collapse-tags/collapse-tags';
 import DetectionAlgorithmsGroup from '../detection-algorithms-group/detection-algorithms-group';
-import { TemplateTypeMap } from '../template-form/typing';
 
 import type {
   AlarmTemplateConditionParamItem,
@@ -144,7 +144,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       minWidth: 110,
       filters: [],
       filterMultiple: true,
-      formatter: row => TemplateTypeMap[row.system] || '--',
+      formatter: (row, column) => row?.[column.id]?.value ?? '--',
     },
     update_time: {
       id: 'update_time',
@@ -214,7 +214,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     return TABLE_DEFAULT_DISPLAY_FIELDS.map(field => {
       const columnItem = { ...this.allTableColumns[field] };
       if (columnItem?.filters) {
-        const selectOptionsItem = this.selectOptionMap?.[field];
+        const selectOptionsItem = this.selectOptionMap?.[AlarmTemplateTableFieldToFilterFieldMap?.[field] ?? field];
         columnItem.filters =
           selectOptionsItem?.map?.(e => ({
             text: e.name,
@@ -239,7 +239,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   handleFilterChange(filter: Record<string, string[]>) {
     const filters = structuredClone(this.searchKeyword || []);
     const targetItem = Object.entries(filter)[0];
-    const targetKey = targetItem[0];
+    const targetKey = AlarmTemplateTableFieldToFilterFieldMap?.[targetItem[0]] ?? targetItem[0];
     const targetValue = targetItem[1];
     const targetIndex = filters.findIndex(e => e.key === targetKey);
     if (targetIndex > -1) {
@@ -674,7 +674,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   transformColumn(column) {
     let filteredValue = null;
     if (ALARM_TEMPLATE_TABLE_FILTER_FIELDS.has(column.id)) {
-      filteredValue = this.searchKeyword.find(item => item.key === column.id)?.value || [];
+      const filterField = AlarmTemplateTableFieldToFilterFieldMap?.[column.id] ?? column.id;
+      filteredValue = this.searchKeyword.find(item => item.key === filterField)?.value || [];
     }
     return (
       <bk-table-column
