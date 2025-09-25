@@ -31,12 +31,14 @@ import { useJSONP } from '@/common/jsonp';
 // 全局弹窗（受控组件：value/onChange），用于“我申请的 / 我的订阅”内嵌页面
 import GlobalDialog from '@/components/global-dialog';
 import BizMenuSelect from '@/global/bk-space-choice/index';
+import useLocale from '@/hooks/use-locale';
 // 统一的导航/空间切换逻辑，避免重复代码
 import { useNavMenu } from '@/hooks/use-nav-menu';
 import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
 import logoImg from '@/images/log-logo.png';
 import platformConfigStore from '@/store/modules/platform-config';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { bkDropdownMenu } from 'bk-magic-vue';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
@@ -75,8 +77,10 @@ export default defineComponent({
       );
     });
 
+    const bkBizId = computed(() => store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID]);
+
     // i18n 函数：优先使用全局 $t，兜底返回原文
-    const t = (msg: string) => ((window as any).$t ? (window as any).$t(msg) : msg);
+    const { t } = useLocale();
 
     // 复用组合式导航逻辑（含空间切换、菜单高亮、外部版菜单计算等）
     const navMenu = useNavMenu({
@@ -215,7 +219,7 @@ export default defineComponent({
       // 不同菜单跳转时的处理策略
       const navigateHandlers: Record<string, () => void> = {
         monitor: () => {
-          const url = `${(window as any).MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config`;
+          const url = `${(window as any).MONITOR_URL}/?bizId=${bkBizId.value}#/strategy-config`;
           window.open(url, '_blank');
         },
         trace: () => {
@@ -297,12 +301,11 @@ export default defineComponent({
      */
     function handleGoToMyApplication() {
       state.showGlobalDialog = false;
-      const bizId = store.state.bkBizId;
       const host =
         process.env.NODE_ENV === 'development'
           ? `http://${(process as any).env.devHost}:7001`
           : (window as any).MONITOR_URL;
-      const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-applied-report`;
+      const targetSrc = `${host}/?bizId=${bkBizId.value}&needMenu=false#/trace/report/my-applied-report`;
       state.globalDialogTitle = t('我申请的');
       state.showGlobalDialog = true;
       state.targetSrc = targetSrc;
@@ -313,12 +316,11 @@ export default defineComponent({
      */
     function handleGoToMyReport() {
       state.showGlobalDialog = false;
-      const bizId = store.state.bkBizId;
       const host =
         process.env.NODE_ENV === 'development'
           ? `http://${(process as any).env.devHost}:7001`
           : (window as any).MONITOR_URL;
-      const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-report`;
+      const targetSrc = `${host}/?bizId=${bkBizId.value}&needMenu=false#/trace/report/my-report`;
       state.globalDialogTitle = t('我的订阅');
       state.showGlobalDialog = true;
       state.targetSrc = targetSrc;
