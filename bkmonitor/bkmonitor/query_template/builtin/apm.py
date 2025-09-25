@@ -141,6 +141,7 @@ RPC_CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLER_SERVICE, RPCMetricTag.CALLEE_METHOD],
         related_metric_fields=["rpc_server_handled_total"],
     ),
+    "unit": "percent",
 }
 
 RPC_CALLEE_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
@@ -158,6 +159,7 @@ RPC_CALLEE_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLER_SERVICE, RPCMetricTag.CALLEE_METHOD],
         related_metric_fields=["rpc_server_handled_seconds_count"],
     ),
+    "unit": "ms",
 }
 
 
@@ -181,6 +183,7 @@ RPC_CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLER_SERVICE, RPCMetricTag.CALLEE_METHOD],
         related_metric_fields=["rpc_server_handled_total"],
     ),
+    "unit": "ms",
 }
 
 RPC_CALLEE_REQ_TOTAL_TEMPLATE: dict[str, Any] = {
@@ -196,6 +199,7 @@ RPC_CALLEE_REQ_TOTAL_TEMPLATE: dict[str, Any] = {
     "variables": _get_common_variables(
         group_by=[RPCMetricTag.SERVICE_NAME], related_metric_fields=["rpc_server_handled_total"]
     ),
+    "unit": "",
 }
 
 RPC_CALLEE_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
@@ -216,6 +220,7 @@ RPC_CALLEE_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
     "variables": _get_common_variables(
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CODE], related_metric_fields=["rpc_server_handled_total"]
     ),
+    "unit": "",
 }
 
 RPC_CALLER_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
@@ -237,6 +242,7 @@ RPC_CALLER_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLEE_SERVICE, RPCMetricTag.CALLEE_METHOD],
         related_metric_fields=["rpc_client_handled_total"],
     ),
+    "unit": "percent",
 }
 
 RPC_CALLER_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
@@ -254,6 +260,7 @@ RPC_CALLER_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLEE_SERVICE, RPCMetricTag.CALLEE_METHOD],
         related_metric_fields=["rpc_client_handled_seconds_count"],
     ),
+    "unit": "ms",
 }
 
 RPC_CALLER_P99_QUERY_TEMPLATE: dict[str, Any] = {
@@ -276,6 +283,7 @@ RPC_CALLER_P99_QUERY_TEMPLATE: dict[str, Any] = {
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLEE_SERVICE, RPCMetricTag.CALLEE_METHOD],
         related_metric_fields=["rpc_client_handled_total"],
     ),
+    "unit": "ms",
 }
 
 RPC_CALLER_REQ_TOTAL_TEMPLATE: dict[str, Any] = {
@@ -291,6 +299,7 @@ RPC_CALLER_REQ_TOTAL_TEMPLATE: dict[str, Any] = {
     "variables": _get_common_variables(
         group_by=[RPCMetricTag.SERVICE_NAME], related_metric_fields=["rpc_client_handled_total"]
     ),
+    "unit": "",
 }
 
 RPC_CALLER_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
@@ -311,6 +320,7 @@ RPC_CALLER_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
     "variables": _get_common_variables(
         group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CODE], related_metric_fields=["rpc_client_handled_total"]
     ),
+    "unit": "",
 }
 
 CUSTOM_METRIC_PANIC_QUERY_TEMPLATE: dict[str, Any] = {
@@ -328,6 +338,7 @@ CUSTOM_METRIC_PANIC_QUERY_TEMPLATE: dict[str, Any] = {
         related_metric_fields=["trpc_PanicNum"],
         is_need_threshold_value=False,
     ),
+    "unit": "",
 }
 
 
