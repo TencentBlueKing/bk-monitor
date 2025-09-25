@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, type Ref, ref } from 'vue';
+import { computed, onMounted, ref, type Ref } from 'vue';
 
 // import useResizeObserve from '@/hooks/use-resize-observe';
 import { debounce } from 'lodash-es';

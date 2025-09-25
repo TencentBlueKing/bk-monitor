@@ -85,10 +85,6 @@ export default defineComponent({
 
     const isIncludesItem = (item: IndexSetItem) => {
       return props.value.some(v => {
-        if (v.unique_id.startsWith('#_') && !item.unique_id.startsWith('#_')) {
-          return v.unique_id === `#_${item.index_set_id}`;
-        }
-
         return v.unique_id === item.unique_id;
       });
     };
