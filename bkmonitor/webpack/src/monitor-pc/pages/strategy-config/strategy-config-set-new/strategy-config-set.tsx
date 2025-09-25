@@ -1191,7 +1191,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       name: this.isClone ? `${data.name}_copy` : data.name,
       labels: data.labels || [],
       isEnabled: data.is_enabled,
-      priority: data.priority || null,
+      priority: data.priority ?? null,
     };
     const { triggerConfig, recoveryConfig, noDataConfig } = this.analyzingConditions;
     const {
