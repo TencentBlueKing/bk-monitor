@@ -717,7 +717,7 @@ export default defineComponent({
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(resp => {
-            if (resp?.data?.list?.length === pageSize.value) {
+            if (resp?.length === pageSize.value) {
               pageIndex.value++;
               handleResultBoxResize();
               return;
