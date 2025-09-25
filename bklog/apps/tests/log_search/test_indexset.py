@@ -28,7 +28,7 @@ from blueapps.account.models import User
 from django.conf import settings
 from django.test import TestCase, override_settings
 
-from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.models import LogIndexSet
 from apps.tests.utils import FakeRedis
 
 BK_BIZ_ID = 1
@@ -803,27 +803,10 @@ class TestIndexSet(TestCase):
 
 class IndexGroupViewSetTestCase(TestCase):
     def setUp(self):
-        # 创建测试数据
-        self.index_group = LogIndexSet.objects.create(
-            index_set_name="test_group", space_uid=SPACE_UID, scenario_id=Scenario.LOG, is_group=True
-        )
+        self.do_create_index_group()
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
-    def test_list_index_groups(self):
-        path = "/api/v1/index_group/"
-        data = {"space_uid": SPACE_UID}
-
-        response = self.client.get(path, data)
-        content = json.loads(response.content)
-
-        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
-        self.assertEqual(len(content["data"]), 1)
-        self.assertEqual(content["data"][0]["index_set_id"], self.index_group.index_set_id)
-        self.assertEqual(content["data"][0]["index_set_name"], "test_group")
-        self.assertEqual(content["data"][0]["index_count"], 0)
-
-    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
-    def test_create_index_group(self):
+    def do_create_index_group(self):
         path = "/api/v1/index_group/"
         data = {"space_uid": SPACE_UID, "index_set_name": "new_group"}
         response = self.client.post(path, data)
@@ -837,6 +820,21 @@ class IndexGroupViewSetTestCase(TestCase):
         self.assertEqual(new_group.index_set_name, "new_group")
         self.assertEqual(new_group.space_uid, SPACE_UID)
         self.assertTrue(new_group.is_group)
+        self.index_group = new_group
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_list_index_groups(self):
+        path = "/api/v1/index_group/"
+        data = {"space_uid": SPACE_UID}
+
+        response = self.client.get(path, data)
+        content = json.loads(response.content)
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+        self.assertEqual(len(content["data"]), 1)
+        self.assertEqual(content["data"][0]["index_set_id"], self.index_group.index_set_id)
+        self.assertEqual(content["data"][0]["index_set_name"], "new_group")
+        self.assertEqual(content["data"][0]["index_count"], 0)
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def test_update_index_group(self):
