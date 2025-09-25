@@ -56,6 +56,7 @@ interface TemplateFormEvents {
 interface TemplateFormProps {
   data: EditTemplateFormData;
   labelWidth?: number;
+  loading?: boolean;
   metricFunctions?: any[];
   scene: 'edit' | 'view';
   variablesList: VariableModelType[];
@@ -71,7 +72,10 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
   @Prop({ default: () => [] }) variablesList: VariableModelType[];
   /** 函数列表 */
   @Prop({ default: () => [] }) metricFunctions!: any[];
+
   @Prop({ default: 122 }) labelWidth!: number;
+
+  @Prop({ default: false }) loading!: boolean;
 
   /** 模板表单 */
   @Ref('templateForm') templateFormRef;
@@ -100,17 +104,21 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
       {
         validator: this.validateDetect,
         message: this.$tc('触发周期数 >=1 且 >= 检测数'),
-        trigger: 'change',
+        trigger: 'blur',
       },
     ],
     selectUserGroup: [
       {
         required: true,
         message: this.$tc('告警组必填'),
-        trigger: 'blur',
+        trigger: 'change',
       },
     ],
   };
+
+  get showAlarmGroupList() {
+    return this.alarmGroupList.length > 0 ? this.alarmGroupList : this.data?.user_group_list || [];
+  }
 
   /** 监控指标 */
   get monitorData() {
@@ -126,7 +134,13 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
   }
 
   validateDetect(val: DetectConfig) {
-    return true;
+    return !(
+      val.config.trigger_check_window < 1 ||
+      val.config.trigger_count < 1 ||
+      `${val.config.trigger_check_window}`.match(/\./) ||
+      `${val.config.trigger_count}`.match(/\./) ||
+      +val.config.trigger_check_window < +val.config.trigger_count
+    );
   }
 
   /**
@@ -230,6 +244,12 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     this.$emit('cancel');
   }
 
+  handleUserGroupToggle(show: boolean) {
+    if (show && !this.alarmGroupList.length) {
+      this.getAlarmGroupList();
+    }
+  }
+
   // 获取告警组数据
   getAlarmGroupList() {
     this.alarmGroupLoading = true;
@@ -248,11 +268,19 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
       });
   }
 
-  mounted() {
-    this.getAlarmGroupList();
-  }
-
   render() {
+    if (this.loading)
+      return (
+        <div class='template-form-skeleton-wrap'>
+          {new Array(10).fill(0).map((_, ind) => (
+            <div
+              key={ind}
+              class='skeleton-element'
+            />
+          ))}
+        </div>
+      );
+
     return (
       <bk-form
         ref='templateForm'
@@ -354,8 +382,9 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
             multiple
             searchable
             onSelected={this.handleUserGroupSelect}
+            onToggle={this.handleUserGroupToggle}
           >
-            {this.alarmGroupList.map(item => (
+            {this.showAlarmGroupList.map(item => (
               <bk-option
                 id={item.id}
                 key={item.id}
