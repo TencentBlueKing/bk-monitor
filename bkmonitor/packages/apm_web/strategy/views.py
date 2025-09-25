@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from collections import defaultdict
 from typing import Any
 
 from django.db.models import Q, QuerySet
@@ -19,9 +20,11 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.generics import get_object_or_404
 from rest_framework.serializers import Serializer, ValidationError
 
+from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.utils.user import get_global_user
+from constants.alert import EventStatus
 
 from constants.query_template import GLOBAL_BIZ_ID
 
@@ -212,13 +215,67 @@ class StrategyTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateAlertsRequestSerializer)
     def alerts(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response(
+        bk_biz_id = self.query_data.get("bk_biz_id")
+        app_name = self.query_data.get("app_name")
+        template_ids = self.query_data.get("ids", [])
+        need_strategies = self.query_data.get("need_strategies", False)
+
+        # 使用指定的模板ID查询策略实例
+        strategy_instances = StrategyInstance.objects.filter(
+            strategy_template_id__in=template_ids, bk_biz_id=bk_biz_id, app_name=app_name
+        ).values("strategy_template_id", "strategy_id", "service_name")
+
+        # 构建策略ID和模板映射集
+        template_strategy_instance_map = defaultdict(list)
+        strategy_ids = []
+        for instance in strategy_instances:
+            strategy_ids.append(instance["strategy_id"])
+            template_strategy_instance_map.setdefault(instance["strategy_template_id"], []).append(
+                {k: v for k, v in instance.items() if k != "strategy_template_id"}
+            )
+
+        # 查询告警数量
+        alert_numbers = {}
+        if strategy_ids:
+            search_object = (
+                AlertDocument.search(all_indices=True)
+                .filter("term", **{"event.bk_biz_id": bk_biz_id})
+                .filter("term", status=EventStatus.ABNORMAL)
+                .filter("terms", strategy_id=strategy_ids)[:0]
+            )
+            search_object.aggs.bucket("strategy_id", "terms", field="strategy_id", size=10000)
+            search_result = search_object.execute()
+
+            if search_result.aggs:
+                for bucket in search_result.aggs.strategy_id.buckets:
+                    alert_numbers[int(bucket.key)] = bucket.doc_count
+
+        # 构建响应数据
+        alert_list = []
+        for template_id in template_ids:
+            if template_id not in template_strategy_instance_map:
+                alert_list.append(
+                    {"id": template_id, "alert_number": 0, **({"strategies": []} if need_strategies else {})}
+                )
+                continue
+
+            strategies_data = []
+            template_alert_number = 0
+            for strategy_instance in template_strategy_instance_map[template_id]:
+                alert_number = alert_numbers.get(strategy_instance["strategy_id"], 0)
+                template_alert_number += alert_number
+                if need_strategies:
+                    strategies_data.append({"alert_number": alert_number, **strategy_instance})
+
+            alert_list.append(
                 {
-                    "list": mock_data.STRATEGY_TEMPLATE_RELATION_ALERTS,
+                    "id": template_id,
+                    "alert_number": template_alert_number,
+                    **({"strategies": strategies_data} if need_strategies else {}),
                 }
             )
-        return Response({})
+
+        return Response({"list": alert_list})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateOptionValuesRequestSerializer)
     def option_values(self, *args, **kwargs) -> Response:
