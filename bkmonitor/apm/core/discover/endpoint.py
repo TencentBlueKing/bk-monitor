@@ -99,7 +99,7 @@ class EndpointDiscover(DiscoverBase):
         cls, endpoint_name, service_name, category_id, category_kind_key, category_kind_value, span_kind
     ):
         """修改为基于六元组的key生成"""
-        return f"{service_name}:{category_id}:{category_kind_key}:{category_kind_value}:{span_kind}:{endpoint_name}"
+        return f"{span_kind}:{category_kind_value}:{category_kind_key}:{category_id}:{service_name}:{endpoint_name}"
 
     @classmethod
     def _extract_instance_key_params(cls, inst):
