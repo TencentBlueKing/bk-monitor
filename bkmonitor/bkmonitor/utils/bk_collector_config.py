@@ -115,11 +115,11 @@ class BkCollectorClusterConfig:
 
         res = {}
         for i in cluster_to_bk_biz_ids:
-            # 将字节对象转换为字符串
-            value = i.decode("utf-8") if isinstance(i, bytes) else i
-            cluster_id, related_bk_biz_ids = cls._split_value(value)
-            if cluster_id and related_bk_biz_ids:
-                res[cluster_id] = related_bk_biz_ids
+            value = ApmCacheHandler.safe_decode_redis_value(i)
+            if value is not None:
+                cluster_id, related_bk_biz_ids = cls._split_value(value)
+                if cluster_id and related_bk_biz_ids:
+                    res[cluster_id] = related_bk_biz_ids
 
         return res
 

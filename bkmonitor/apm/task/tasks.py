@@ -47,9 +47,6 @@ from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
 
-# 创建全局的ApmCacheHandler实例，用于需要缓存操作的地方
-apm_cache_handler = ApmCacheHandler()
-
 
 @app.task(ignore_result=True, queue="celery_cron")
 def handler(bk_biz_id, app_name):
@@ -76,6 +73,7 @@ def topo_discover_cron():
     for application in to_be_refreshed:
         bk_biz_id, app_name, app_id, create_time = application
         try:
+            apm_cache_handler = ApmCacheHandler()
             with apm_cache_handler.distributed_lock("topo_discover", app_id=app_id):
                 # 在 settings.APM_APPLICATION_QUICK_REFRESH_DELTA 时间内新创建的应用，每 interval_quick 分钟执行一次拓扑发现
                 if (current_time - create_time) < datetime.timedelta(
@@ -139,6 +137,7 @@ def datasource_discover_cron():
     for k, v in datasource_mapping.items():
         app_id = valid_application_mapping[k]["id"]
         try:
+            apm_cache_handler = ApmCacheHandler()
             with apm_cache_handler.distributed_lock("datasource_discover", app_id=app_id):
                 if app_id % interval == slug:
                     logger.info(f"[datasource_discover_cron] delay task for app_id: {app_id}")

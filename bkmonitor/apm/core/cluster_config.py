@@ -43,9 +43,9 @@ class BkCollectorInstaller:
     @classmethod
     def generator(cls):
         # 避免重复创建连接
-        cache_handler = ApmCacheHandler()
+        cache = ApmCacheHandler().get_redis_client()
         while True:
-            yield functools.partial(cls, cache=cache_handler.get_redis_client())
+            yield functools.partial(cls, cache=cache)
 
     @property
     def _generate_value(self):

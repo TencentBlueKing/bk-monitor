@@ -39,14 +39,12 @@ logger = logging.getLogger("apm")
 
 AFTER_CACHE_KEY_EXPIRE = 60 * 60 * 24 * 1
 
-redis_cli = ApmCacheHandler.get_redis_client()
-
 
 class Deque:
     def __init__(self, params_md5):
         deque_key = f"monitor:apm:statistics:deque:{params_md5}"
         self.cache_key = deque_key
-        self.redis_client = redis_cli
+        self.redis_client = ApmCacheHandler.get_redis_client()
 
     @property
     def length(self):
@@ -65,16 +63,7 @@ class Deque:
         """删除并返回队列头部元素"""
         item = self.redis_client.lpop(self.cache_key)
         if item:
-            try:
-                # 安全地处理字节数据解码
-                if isinstance(item, bytes):
-                    decoded_item = item.decode("utf-8")
-                else:
-                    decoded_item = str(item)
-                return decoded_item
-            except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as e:
-                logger.warning(f"[Deque] Failed to decode/parse popleft item: {item}, error: {e}")
-                return None
+            return ApmCacheHandler.safe_decode_redis_value(item)
         return None
 
     def pop_data(self, limit):
@@ -87,19 +76,10 @@ class Deque:
             if item:
                 list_data.append(item)
 
-        # 安全地处理字节数据解码
         decoded_data = []
         for i in list_data:
-            try:
-                # 如果是字节对象，先解码为字符串
-                if isinstance(i, bytes):
-                    decoded_item = i.decode("utf-8")
-                else:
-                    decoded_item = str(i)
-                decoded_data.append(json.loads(decoded_item))
-            except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as e:
-                logger.warning(f"[Deque] Failed to decode/parse item: {i}, error: {e}")
-                continue
+            decoded_json = ApmCacheHandler.safe_decode_json_from_redis(i)
+            decoded_data.append(decoded_json)
 
         return decoded_data
 
@@ -260,6 +240,7 @@ class StatisticsQuery(BaseQuery):
             return []
 
         if after_key:
+            redis_cli = ApmCacheHandler.get_redis_client()
             cache_key: str = f"{params_key}:{offset + queryset.query.high_mark}"
             redis_cli.set(cache_key, json.dumps(after_key), AFTER_CACHE_KEY_EXPIRE)
             logger.info("[StatisticsQuery] set cache: cache_key -> %s, after_key -> %s", cache_key, after_key)
@@ -288,22 +269,14 @@ class StatisticsQuery(BaseQuery):
     def _get_after_key_param(cls, offset: int, params_key: str) -> dict[str, Any]:
         after_key = None
         if offset != 0:
+            redis_cli = ApmCacheHandler.get_redis_client()
             cache_key: str = f"{params_key}:{offset}"
             if not redis_cli.exists(cache_key):
                 logger.warning("[StatisticsQuery] lost cache_key -> %s", cache_key)
                 raise ValueError(_("参数丢失 需要重新从第一页获取"))
             cache_value = redis_cli.get(cache_key)
             if cache_value:
-                try:
-                    # 安全地处理字节数据解码
-                    if isinstance(cache_value, bytes):
-                        decoded_value = cache_value.decode("utf-8")
-                    else:
-                        decoded_value = str(cache_value)
-                    after_key = json.loads(decoded_value)
-                except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as e:
-                    logger.warning(f"[StatisticsQuery] Failed to decode/parse cache_value: {cache_value}, error: {e}")
-                    raise ValueError(_("缓存数据格式错误"))
+                after_key = ApmCacheHandler.safe_decode_json_from_redis(cache_value)
 
         return after_key or {}
 

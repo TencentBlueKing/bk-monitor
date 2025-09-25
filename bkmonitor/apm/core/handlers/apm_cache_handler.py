@@ -26,6 +26,52 @@ class ApmCacheHandler:
 
         return RedisTools().client
 
+    @staticmethod
+    def safe_decode_redis_value(value, default=None):
+        """
+        安全地解码Redis返回的值，统一处理bytes到string的转换
+
+        Args:
+            value: Redis返回的值，可能是bytes、str或None
+            default: 当value为None或解码失败时的默认值
+
+        Returns:
+            解码后的字符串或默认值
+        """
+        if value is None:
+            return default
+
+        try:
+            if isinstance(value, bytes):
+                return value.decode("utf-8")
+            else:
+                return str(value)
+        except (UnicodeDecodeError, AttributeError) as e:
+            logger.warning(f"[ApmCacheHandler] Failed to decode redis value: {value}, error: {e}")
+            return default
+
+    @staticmethod
+    def safe_decode_json_from_redis(value, default=None):
+        """
+        安全地从Redis值中解码JSON数据
+
+        Args:
+            value: Redis返回的值，可能是bytes、str或None
+            default: 当value为None或解码失败时的默认值
+
+        Returns:
+            解码后的JSON对象或默认值
+        """
+        decoded_value = ApmCacheHandler.safe_decode_redis_value(value)
+        if decoded_value is None:
+            return default
+
+        try:
+            return json.loads(decoded_value)
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(f"[ApmCacheHandler] Failed to decode JSON from redis value: {decoded_value}, error: {e}")
+            return default
+
     def get_cache_data(self, name: str) -> dict:
         """
         获取应用 topoinstance 缓存数据
@@ -89,17 +135,14 @@ class ApmCacheHandler:
         try:
             lock = ApmLock(lock_key, ttl, self.redis_client)
             if lock.acquire(0.1):
-                logger.info(f"[ApmCacheHandler] acquired lock: {lock_key}")
                 yield lock
             else:
                 raise LockError(msg=f"{lock_key} is already locked")
         except LockError as err:
-            logger.warning(f"[ApmCacheHandler] failed to acquire lock: {lock_key}")
             raise err
         finally:
             if lock is not None:
                 lock.release()
-                logger.info(f"[ApmCacheHandler] released lock: {lock_key}")
 
 
 class ApmLock:
@@ -135,14 +178,8 @@ class ApmLock:
             # 锁已经不存在（可能已过期），直接返回True
             return True
 
-        # 安全地处理字节数据解码
-        try:
-            token_str = token.decode("utf-8") if isinstance(token, bytes) else str(token)
-        except (UnicodeDecodeError, AttributeError):
-            # 如果解码失败，认为token不匹配
-            return False
-
-        if token_str != self.__token:
+        token_str = ApmCacheHandler.safe_decode_redis_value(token)
+        if token_str is None or token_str != self.__token:
             return False
 
         return self.redis_client.delete(self.name)
