@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import VariableValueDetail from 'monitor-pc/pages/query-template/variables/components/variable-panel/variable-value-detail';
 
 import DetectionAlgorithmsGroup from '../detection-algorithms-group/detection-algorithms-group';
-import { type TemplateDetail, TemplateTypeMap } from './typing';
 
+import type { TemplateDetail } from './typing';
 import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
 
 import './template-form-detail.scss';
@@ -70,7 +70,7 @@ export default class TemplateFormDetail extends tsc<TemplateFormDetailProps> {
     return (
       <div class='template-form-detail'>
         {this.formItem(this.$tc('监控数据'), <span>{this.monitorData}</span>)}
-        {this.formItem(this.$tc('模板类型'), <span>{TemplateTypeMap[this.data?.system]}</span>)}
+        {this.formItem(this.$tc('模板类型'), <span>{this.data?.system.alias}</span>)}
         {this.formItem(this.$tc('检测算法'), <DetectionAlgorithmsGroup algorithms={this.data?.algorithms} />)}
         {this.formItem(
           this.$tc('判断条件'),

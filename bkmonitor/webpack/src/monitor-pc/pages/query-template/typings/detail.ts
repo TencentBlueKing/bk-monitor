@@ -57,5 +57,6 @@ export interface QueryTemplateDetail {
   name: string;
   query_configs: IQueryConfig[];
   space_scope: number[];
+  unit: string;
   variables: IVariableSubmitParams[];
 }
