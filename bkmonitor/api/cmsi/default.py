@@ -359,6 +359,57 @@ class SendWeixin(CheckCMSIResource):
         return super().perform_request(validated_request_data)
 
 
+communication_type = {
+    "mail": ["receiver__username", "cc__username", "cc", "receiver"],
+    "sms": ["receiver__username", "receiver"],
+    "voice": ["receiver__username", "receiver"],
+}
+
+
+def handle_external_users(resource, validated_request_data: dict[str, Any], receiver_fields: list[str]):
+    # 如果使用 apigw，则需要将接收方转换为列表
+    if resource.use_apigw():
+        for field in receiver_fields:
+            if validated_request_data.get(field):
+                validated_request_data[field] = validated_request_data[field].split(",")
+
+    # 如果直接指定地址，则直接发送
+    if validated_request_data.get("receiver"):
+        return super(type(resource), resource).perform_request(validated_request_data)
+
+    # 区分内外部用户
+    internal_users: list[str] = []
+    external_users: list[str] = []
+
+    # 兼容不同类型
+    usernames: list[str] = validated_request_data["receiver__username"]
+    if isinstance(usernames, str):
+        usernames = usernames.split(",")
+
+    for username in usernames:
+        # 通过是否以 "@tai" 结尾判断是否是内外部用户
+        if username.endswith("@tai"):
+            external_users.append(username)
+        else:
+            internal_users.append(username)
+
+    response_data = {
+        # invalid: 通知失败的用户名列表
+        "username_check": {"invalid": []},
+        "message": "发送成功",
+    }
+    if internal_users:
+        validated_request_data["receiver__username"] = ",".join(internal_users)
+        response_data = super(type(resource), resource).perform_request(validated_request_data)
+    if external_users:
+        # 外部用户通知
+        resource.switch_apigw()
+        external_response_data = super(type(resource), resource).perform_request(validated_request_data)
+        resource.switch_default()
+        response_data["username_check"]["invalid"] += external_response_data["username_check"]["invalid"]
+    return response_data
+
+
 class SendMail(CheckCMSIResource):
     """
     发送邮件消息
@@ -402,53 +453,8 @@ class SendMail(CheckCMSIResource):
 
         针对内部用户和外部用户做一个额外判断处理
         """
-        # 如果使用 apigw，则需要将 receiver__username, cc__username, cc, receiver 字段转换为列表
-        if self.use_apigw():
-            for field in ["receiver__username", "cc__username", "cc", "receiver"]:
-                if validated_request_data.get(field):
-                    validated_request_data[field] = validated_request_data[field].split(",")
-
-        self.message_detail = {}
-
-        # 如果直接指定邮箱地址，则直接发送
-        if validated_request_data.get("receiver"):
-            return super().perform_request(validated_request_data)
-
-        # 区分内外部用户
-        internal_users: list[str] = []
-        external_users: list[str] = []
-
-        # 兼容不同类型
-        usernames: list[str] = validated_request_data["receiver__username"]
-        if isinstance(usernames, str):
-            usernames = usernames.split(",")
-
-        for username in usernames:
-            # 通过是否以 "@tai" 结尾判断是否是内外部用户
-            if self.is_external_user(username):
-                external_users.append(username)
-            else:
-                internal_users.append(username)
-
-        response_data = {
-            # invalid: 通知失败的用户名列表
-            "username_check": {"invalid": []},
-            "message": "发送成功",
-        }
-        if internal_users:
-            validated_request_data["receiver__username"] = ",".join(internal_users)
-            response_data = super().perform_request(validated_request_data)
-        if external_users:
-            # 外部用户通知
-            self.switch_apigw()
-            external_response_data = super().perform_request(validated_request_data)
-            self.switch_default()
-            response_data["username_check"]["invalid"] += external_response_data["username_check"]["invalid"]
+        response_data = handle_external_users(self, validated_request_data, communication_type["mail"])
         return response_data
-
-    @classmethod
-    def is_external_user(cls, username: str) -> bool:
-        return username.endswith("@tai")
 
 
 class SendSms(CheckCMSIResource):
@@ -477,12 +483,8 @@ class SendSms(CheckCMSIResource):
         """
         发送请求
         """
-        # 如果使用 apigw，则需要将 receiver__username, receiver 字段转换为列表
-        if self.use_apigw():
-            for field in ["receiver__username", "receiver"]:
-                if validated_request_data.get(field):
-                    validated_request_data[field] = validated_request_data[field].split(",")  # type: ignore
-        return super().perform_request(validated_request_data)
+        response_data = handle_external_users(self, validated_request_data, communication_type["sms"])
+        return response_data
 
 
 class SendVoice(CMSIBaseResource):
@@ -504,9 +506,8 @@ class SendVoice(CMSIBaseResource):
         """
         发送请求
         """
-        if self.use_apigw():
-            validated_request_data["receiver__username"] = validated_request_data["receiver__username"].split(",")  # type: ignore
-        return super().perform_request(validated_request_data)
+        response_data = handle_external_users(self, validated_request_data, communication_type["voice"])
+        return response_data
 
 
 class SendWecomRobot(CheckCMSIResource):
