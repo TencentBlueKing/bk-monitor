@@ -79,7 +79,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
       }).catch(() => ({ detailData: null, variablesList: [] }));
       this.detailData = detailData;
       this.formData = {
-        name: `${this.detailData?.name} copy`,
+        name: `${this.detailData?.name}_copy`,
         system: this.detailData?.system,
         algorithms: this.detailData?.algorithms,
         detect: this.detailData?.detect,
@@ -140,15 +140,12 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
       }
       return true;
     });
-    return (
-      variableIsEdit ||
-      validTemplateDataIsEdit(this.formData, { ...this.detailData, name: `${this.detailData.name} copy` }).isEdit
-    );
+    return variableIsEdit || validTemplateDataIsEdit(this.formData, this.detailData).isEdit;
   }
 
   /** 克隆 */
   handleCloneSubmit() {
-    if (!this.validFormIsEdit()) {
+    if (!this.validFormIsEdit() || this.formData.name === this.detailData.name) {
       this.$bkMessage({
         message: this.$t('克隆配置不能和源模板一致'),
         theme: 'error',

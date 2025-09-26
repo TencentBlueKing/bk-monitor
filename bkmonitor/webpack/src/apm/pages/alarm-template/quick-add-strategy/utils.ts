@@ -49,16 +49,13 @@ export const templateIconMap = {
  * @returns 数据是否有修改，以及哪些字段被修改
  */
 export const validTemplateDataIsEdit = (newData: EditTemplateFormData, oldData: EditTemplateFormData) => {
-  const { name, algorithms, detect, user_group_list, is_auto_apply } = newData;
+  const { algorithms, detect, user_group_list, is_auto_apply } = newData;
   const {
-    name: oldName,
     algorithms: oldAlgorithms,
     detect: oldDetect,
     user_group_list: oldUserGroupList,
     is_auto_apply: oldIsAutoApply,
   } = oldData;
-
-  const nameIsEdit = name !== oldName;
 
   /** 检测规则是否修改 */
   let algorithmsIsEdit = true;
@@ -94,8 +91,7 @@ export const validTemplateDataIsEdit = (newData: EditTemplateFormData, oldData: 
   const isAutoApplyIsEdit = is_auto_apply !== oldIsAutoApply;
 
   return {
-    isEdit: nameIsEdit || algorithmsIsEdit || detectIsEdit || alarmGroupIsEdit || isAutoApplyIsEdit,
-    nameIsEdit,
+    isEdit: algorithmsIsEdit || detectIsEdit || alarmGroupIsEdit || isAutoApplyIsEdit,
     algorithmsIsEdit,
     detectIsEdit,
     alarmGroupIsEdit,

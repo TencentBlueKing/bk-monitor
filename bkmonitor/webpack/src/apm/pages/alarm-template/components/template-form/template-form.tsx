@@ -328,6 +328,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         >
           <Threshold
             data={this.data?.algorithms}
+            defaultUnit={this.data?.query_template?.unit}
             onChange={this.handleAlgorithmsChange}
           />
         </bk-form-item>

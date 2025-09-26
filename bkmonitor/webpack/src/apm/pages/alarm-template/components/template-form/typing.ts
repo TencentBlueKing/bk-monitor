@@ -67,6 +67,7 @@ export const LevelMap = {
 export interface AlgorithmItem {
   level: 1 | 2 | 3;
   type: AlgorithmType;
+  unit_prefix: string;
   config: {
     method: string;
     threshold: number;
