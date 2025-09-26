@@ -51,14 +51,12 @@ class BkCollectorComp:
         },
         "json": {
             "secret_name_tpl": "bk-collector-subconfig-json-{}-{}",
-            "secret_name_hash_tpl": "bk-collector-subconfig-json-{}",
             "secret_data_key_tpl": "report-v2-{}.conf",
             "secret_data_max_count": 100,  # 这个数值不能随意变动，如需变更，需先清理所有json的secrets再重新下发
             "secret_extra_label": "type=subconfig,source=custom_report_v2_json",
         },
         "prometheus": {
             "secret_name_tpl": "bk-collector-subconfig-prometheus-{}-{}",
-            "secret_name_hash_tpl": "bk-collector-subconfig-prometheus-{}",
             "secret_data_key_tpl": "application-{}.conf",
             "secret_data_max_count": 100,  # 这个数值不能随意变动，如需变更，需先清理所有prometheus的secrets再重新下发
             "secret_extra_label": "type=subconfig,source=custom_report_prometheus",
