@@ -71,11 +71,6 @@ export default class TemplateDetails extends tsc<IProps> {
   templateDetail = null;
 
   variablesList: VariableModelType[] = [];
-  // 编辑侧栏
-  templateEdit = {
-    show: false,
-    params: {},
-  };
 
   // 关联服务 & 告警 数据
   alertStrategies: IAlertStrategiesItem[] = [];
@@ -111,7 +106,6 @@ export default class TemplateDetails extends tsc<IProps> {
     });
   }
   handleShowTemplateEdit() {
-    this.templateEdit.show = true;
     this.$emit('showEdit', {
       app_name: this.params?.app_name,
       id: this.params?.ids?.[0],

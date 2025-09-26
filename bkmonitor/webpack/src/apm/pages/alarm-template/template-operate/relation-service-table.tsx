@@ -208,9 +208,6 @@ export default class RelationServiceTable extends tsc<IProps> {
   handlePageChange(v: number) {
     this.getCurServiceObj().pagination.current = v;
     this.getTableData();
-    setTimeout(() => {
-      console.log(this.getCurServiceObj().pagination.current, v);
-    }, 1000);
   }
   handleLimitChange(v: number) {
     this.getCurServiceObj().pagination.current = 1;
