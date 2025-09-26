@@ -50,7 +50,7 @@ class IndexGroupViewSet(APIViewSet):
     def get_permissions(self):
         if self.action in ["create"]:
             return [BusinessActionPermission([ActionEnum.CREATE_INDICES])]
-        if self.action in ["update", "destroy"]:
+        if self.action in ["update", "destroy", "add_child_index_sets", "remove_child_index_sets"]:
             return [InstanceActionPermission([ActionEnum.MANAGE_INDICES], ResourceEnum.INDICES)]
         return [ViewBusinessPermission()]
 

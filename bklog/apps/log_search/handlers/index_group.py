@@ -29,7 +29,7 @@ from apps.log_search.exceptions import (
     DuplicateIndexGroupException,
     ChildIndexSetNotExistException,
 )
-from apps.log_search.models import LogIndexSet, LogIndexSetData
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.utils import APIModel
 from bkm_space.utils import space_uid_to_bk_biz_id
 
@@ -78,6 +78,10 @@ class IndexGroupHandler(APIModel):
             index_set_name=params["index_set_name"],
             space_uid=params["space_uid"],
             is_deleted=False,
+            defaults={
+                "is_group": True,
+                "scenario_id": Scenario.LOG,
+            },
         )
         if not created:
             raise DuplicateIndexGroupException(
