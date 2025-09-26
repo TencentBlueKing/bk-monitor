@@ -363,4 +363,9 @@ export default {
   '触发周期数 >=1 且 >= 检测数': 'Trigger period number >= 1 and >= detection number',
   告警组必填: 'Alarm group is required',
   编辑模板: 'Edit template',
+  差异对比: 'Difference comparison',
+  当前策略: 'Current strategy',
+  已关联策略: 'Associated strategies',
+  下发对象预览: 'Push object preview',
+  新关联: 'New relation',
 };
