@@ -303,8 +303,14 @@ class BkCollectorClusterConfig:
             # 先计算MD5哈希值，转换为整数再取模，确保分布更均匀
             secret_index = int(count_md5(config_id), 16) % secret_config["secret_data_max_count"]
 
+            # 根据secret_data_max_count的位数计算需要补零的位数
+            max_count = secret_config["secret_data_max_count"]
+            zero_padding_width = len(str(max_count))
+
             # 生成secret名称
-            secret_subconfig_name = secret_config["secret_name_hash_tpl"].format(secret_index)
+            secret_subconfig_name = secret_config["secret_name_tpl"].format(
+                str(secret_index).zfill(zero_padding_width), max_count
+            )
 
             # 计算 secret 中 key 的名字
             subconfig_filename = secret_config["secret_data_key_tpl"].format(config_id)
