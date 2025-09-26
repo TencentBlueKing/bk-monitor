@@ -1,0 +1,51 @@
+.template-form-detail {
+  padding: 24px 40px;
+
+  .form-item {
+    line-height: 20px;
+
+    .label {
+      font-size: 12px;
+      color: #979ba5;
+    }
+
+    .content {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #313238;
+
+      .detect-text {
+        font-weight: 700;
+        color: #313238;
+
+        .value {
+          margin: 0 2px;
+          color: #3a84ff;
+        }
+      }
+
+      .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+
+        .tag-item {
+          height: 22px;
+          padding: 0 8px;
+          font-size: 12px;
+          line-height: 22px;
+          color: #4d4f56;
+          background: #f0f1f5;
+          border-radius: 2px;
+
+          & + .tag-item {
+            margin-left: 4px;
+          }
+        }
+      }
+    }
+
+    & + .form-item {
+      margin-top: 24px;
+    }
+  }
+}

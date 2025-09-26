@@ -1975,4 +1975,9 @@ export default {
   主调服务: 'Caller service',
   '将根据「服务名」自动生成上报示例代码，你可以直接运行':
     'The reporting example code will be automatically generated based on the service name, and you can run it directly',
+
+  // APM-告警模板
+  全部模板: 'All templates',
+  内置模板: 'Built-in templates',
+  克隆模板: 'Clone template',
 };

@@ -13,6 +13,7 @@ import copy
 import json
 from typing import Any
 
+
 from bkmonitor.models import query_template as models
 
 from . import constants, serializers
@@ -30,6 +31,7 @@ class BaseQuery:
         expression: str | None = None,
         space_scope: list[str] | None = None,
         functions: list[dict[str, Any] | str] | None = None,
+        unit: str | None = None,
         **kwargs,
     ):
         self.name: str = name
@@ -41,6 +43,7 @@ class BaseQuery:
         self.expression: str = expression or ""
         self.space_scope: list[str] = space_scope or []
         self.functions: list[dict[str, Any] | str] = functions or []
+        self.unit = unit or ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -53,6 +56,7 @@ class BaseQuery:
             "expression": self.expression,
             "space_scope": self.space_scope,
             "functions": self.functions,
+            "unit": self.unit,
         }
 
 
@@ -258,6 +262,7 @@ class QueryTemplateWrapper(BaseQuery):
         space_scope: list[str] | None = None,
         functions: list[dict[str, Any] | str] | None = None,
         variables: list[dict[str, Any]] | None = None,
+        unit: str | None = None,
         **kwargs,
     ):
         self.variables: list[dict[str, Any]] = variables or []
@@ -275,6 +280,7 @@ class QueryTemplateWrapper(BaseQuery):
             expression=expression,
             space_scope=space_scope,
             functions=functions,
+            unit=unit,
             **kwargs,
         )
 
@@ -315,5 +321,33 @@ class QueryTemplateWrapper(BaseQuery):
                 "space_scope": obj.space_scope,
                 "functions": obj.functions,
                 "variables": obj.variables,
+                "unit": obj.unit,
             }
         )
+
+    @classmethod
+    def from_unique_key(cls, bk_biz_id: int, name: str) -> "QueryTemplateWrapper | None":
+        try:
+            obj: models.QueryTemplate = models.QueryTemplate.objects.get(bk_biz_id=bk_biz_id, name=name)
+        except models.QueryTemplate.DoesNotExist:
+            return None
+
+        return cls.from_obj(obj)
+
+    @classmethod
+    def from_unique_keys(cls, keys: list[tuple[int, str]]) -> dict[tuple[int, str], "QueryTemplateWrapper"]:
+        if not keys:
+            return {}
+
+        key_qtw_map: dict[tuple[int, str], QueryTemplateWrapper] = {}
+        for query_template_obj in models.QueryTemplate.objects.filter(
+            bk_biz_id__in={key[0] for key in keys},
+            name__in={key[1] for key in keys},
+        ):
+            unique_key: tuple[int, str] = (query_template_obj.bk_biz_id, query_template_obj.name)
+            if unique_key not in keys:
+                continue
+
+            key_qtw_map[unique_key] = cls.from_obj(query_template_obj)
+
+        return key_qtw_map

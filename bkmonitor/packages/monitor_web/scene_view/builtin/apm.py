@@ -164,6 +164,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     filenames = [
         # ⬇️ APM观测场景视图
+        "apm_application-alarm_template",
         "apm_application-endpoint",
         "apm_application-error",
         "apm_application-overview",
@@ -726,7 +727,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 bk_biz_id=bk_biz_id,
                 scene_id=scene_id,
                 type="",
-                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error"]},
+                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error", "alarm_template"]},
             )
         if scene_id == f"{cls.SCENE_ID}_service":
             SceneViewOrderModel.objects.update_or_create(
