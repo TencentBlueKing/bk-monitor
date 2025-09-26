@@ -447,6 +447,7 @@ export default defineComponent({
 
     // 替换原有的handleMenuClick
     const handleMenuClick = (option, isLink, fieldOption?: { row: any; field: any }) => {
+      console.log('handleMenuClick = ', option);
       const timeTypes = ['date', 'date_nanos'];
 
       handleOperation(option.operation, {

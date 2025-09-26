@@ -1,0 +1,78 @@
+.fields-config-tippy {
+  width: 376px;
+  .config-title {
+    padding: 20px 24px 0;
+    font-size: 20px;
+    font-weight: normal;
+    line-height: 28px;
+    color: #313238;
+  }
+
+  .field-list-container {
+    max-height: 400px;
+    padding: 10px 24px;
+    overflow: auto;
+    color: #63656e;
+
+    .field-list {
+      .list-title,
+      .list-item,
+      .operate-button {
+        line-height: 32px;
+      }
+
+      .list-item {
+        position: relative;
+        display: flex;
+        align-items: center;
+        padding-left: 12px;
+        margin-bottom: 2px;
+        background-color: #f5f6fa;
+
+        &.display-item {
+          .bklog-drag-dots {
+            width: 16px;
+            font-size: 14px;
+            color: #979ba5;
+            text-align: left;
+            cursor: move;
+            transition: opacity 0.2s linear;
+          }
+        }
+
+        .operate-button {
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 40px;
+          text-align: center;
+          cursor: pointer;
+
+          &:hover {
+            color: #3a84ff;
+          }
+
+          &.disabled {
+            color: #dcdee5;
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+  }
+
+  .config-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 50px;
+    background: #fafbfd;
+    border-top: 1px solid #dcdee5;
+  }
+}
+
+.tippy-box[data-theme~='field-config-popover'] {
+  .tippy-content {
+    padding: 0 !important;
+  }
+}
