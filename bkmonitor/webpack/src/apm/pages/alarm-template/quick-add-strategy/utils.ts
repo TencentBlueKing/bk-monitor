@@ -39,13 +39,3 @@ export const templateIconMap = {
   [templateIconEnum.SUCCESS_RATE]: 'icon-check',
   [templateIconEnum.CICD]: base64Svg.bkci,
 };
-
-export const systemMap = {
-  RPC: window.i18n.t('调用分析模板'),
-  RPC_CALLEE: window.i18n.t('主调'),
-  RPC_CALLER: window.i18n.t('被调'),
-  K8S: window.i18n.t('容器'),
-  LOG: window.i18n.t('日志'),
-  TRACE: window.i18n.t('调用链'),
-  EVENT: window.i18n.t('事件'),
-};
