@@ -24,15 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, nextTick } from 'vue';
+import { defineComponent, ref, nextTick } from 'vue';
 
+import ValidateUserSelector from '@/components/user-selector';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import BkUserSelector from '@blueking/user-selector';
 
 import ModuleSelect from './module-select.tsx';
 import ValidateInput from './validate-input.tsx';
-import ValidateUserSelector from './validate-user-selector.tsx';
 import http from '@/api';
 
 import './config-slider.scss';
@@ -43,7 +42,6 @@ export default defineComponent({
     ModuleSelect,
     ValidateInput,
     ValidateUserSelector,
-    BkUserSelector,
   },
   props: {
     // 策略数据
@@ -81,7 +79,6 @@ export default defineComponent({
     const isChangeOperatorLoading = ref(false); // 修改执行人加载状态
     const showSelectDialog = ref(false); // 是否显示选择对话框
     const manageStrategyData = ref(structuredClone(props.strategyData)); // 管理策略数据
-    const isError = ref(false);
 
     // 初始化数据，避免后台造的数据为空数组
     if (!manageStrategyData.value.visible_dir?.length) {
@@ -100,10 +97,9 @@ export default defineComponent({
         manageStrategyData.value.visible_dir.every((item: string) => Boolean(validateVisibleDir(item))) &&
         manageStrategyData.value.file_type.every((item: string) => Boolean(validateFileExtension(item))) &&
         manageStrategyData.value.modules.length &&
-        manageStrategyData.value.operator;
+        manageStrategyData.value?.operator;
+      console.log('isValidated = ', manageStrategyData.value);
     };
-
-    const isExternal = computed(() => store.state.isExternal);
 
     // 校验授权目录
     const validateVisibleDir = (val: string) => {
@@ -246,16 +242,6 @@ export default defineComponent({
       ));
     };
 
-    const handleBlur = () => {
-      isError.value = !manageStrategyData.value.user_list.length;
-    };
-
-    const handleChangePrincipal = val => {
-      isError.value = !val.length;
-      manageStrategyData.value.user_list = val;
-      isValidatedComputed();
-    };
-
     // 主渲染函数
     return () => (
       <div
@@ -301,25 +287,12 @@ export default defineComponent({
               />
             </div>
             <div class='content'>
-              {/* <ValidateUserSelector
+              <ValidateUserSelector
                 value={manageStrategyData.value.user_list}
-                onChange={(val: any[]) => {
+                onChange={(val: string[]) => {
                   manageStrategyData.value.user_list = val;
+                  isValidatedComputed();
                 }}
-                // allowCreate={props.allowCreate}
-                api={props.userApi}
-                // placeholder={props.allowCreate ? t('请输入QQ并按Enter结束（可多次添加）') : ''}
-              /> */}
-              <BkUserSelector
-                style='width: 400px'
-                class={isError.value ? 'is-error' : ''}
-                api={props.userApi}
-                disabled={isExternal.value}
-                empty-text={t('无匹配人员')}
-                placeholder={t('请选择群成员')}
-                value={manageStrategyData.value.user_list}
-                on-blur={handleBlur}
-                on-change={val => handleChangePrincipal(val)}
               />
             </div>
           </div>
@@ -399,12 +372,16 @@ export default defineComponent({
             </div>
             <div class='content'>
               <div class='flex-box'>
-                <bk-input
+                {/* <bk-input
                   style='width: 256px; margin-right: 10px'
                   class={!manageStrategyData.value.operator && 'is-input-error'}
                   value={manageStrategyData.value.operator}
                   readonly
-                />
+                /> */}
+                <bk-user-display-name
+                  class='execute-people'
+                  user-id={manageStrategyData.value?.operator}
+                ></bk-user-display-name>
                 <bk-button
                   loading={isChangeOperatorLoading.value}
                   size='small'
