@@ -223,7 +223,10 @@ class QuickAddStrategy extends Mixins(
     const currentTemplateData = this.templateFormData[this.cursorId];
     const detailData = this.templateDetail[this.cursorId];
     currentTemplateData.user_group_list = val;
-    if (val.every(item => detailData.user_group_list.find(detail => detail.id === item.id))) {
+    if (
+      val.every(item => detailData.user_group_list.find(detail => detail.id === item.id)) &&
+      val.length === detailData.user_group_list.length
+    ) {
       delete this.editTemplateFormData[this.cursorId].user_group_list;
     } else {
       this.editTemplateFormData[this.cursorId].user_group_list = val;
