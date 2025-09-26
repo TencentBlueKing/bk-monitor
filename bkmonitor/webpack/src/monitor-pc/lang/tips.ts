@@ -409,6 +409,8 @@ export default {
   // APM-告警模板
   查看各服务告警情况: 'View alarm situation of each service',
   查看全部关联服务: 'View all related services',
+  内置策略不可删除: 'Built-in policies cannot be deleted',
+  '该模板已下发服务，不可删除': 'This template has been issued to services and cannot be deleted',
   '该模板已禁用，无法下发': 'This template has been disabled and cannot be issued',
   '可以通过 {0} 来关联更多的服务。': 'You can associate more services through {0}',
   '应用一般是拥有独立的站点，由多个 Service 共同组成，提供完整的产品功能，拥有独立的软件架构。从技术方面来说应用是 Trace 数据的存储隔离，在同一个应用内的数据将进行统计和观测。{0}':
