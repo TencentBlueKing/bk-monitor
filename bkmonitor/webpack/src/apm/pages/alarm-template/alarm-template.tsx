@@ -348,7 +348,7 @@ export default class AlarmTemplate extends tsc<object> {
         </div>
         <div class='alarm-template-main'>
           <AlarmTemplateTable
-            appName='tilapia'
+            appName={this.viewOptions.filters?.app_name}
             emptyType={this.searchKeyword?.length ? 'search-empty' : 'empty'}
             loading={this.tableLoading}
             searchKeyword={this.searchKeyword}
@@ -367,7 +367,7 @@ export default class AlarmTemplate extends tsc<object> {
         </div>
 
         <EditTemplateSlider
-          appName={'tilapia'}
+          appName={this.viewOptions.filters?.app_name}
           isShow={this.editTemplateShow}
           metricFunctions={this.metricFunctions}
           templateId={this.editTemplateId}
@@ -384,12 +384,25 @@ export default class AlarmTemplate extends tsc<object> {
           onShowChange={show => {
             this.templateDetailObj.show = show;
           }}
+          onShowEdit={params => {
+            this.editTemplateId = params.id;
+            this.editTemplateShow = true;
+          }}
+          onShowPush={params => {
+            this.templatePushObj = {
+              show: true,
+              params,
+            };
+          }}
         />
         <TemplatePush
           params={this.templatePushObj.params}
           show={this.templatePushObj.show}
           onShowChange={show => {
             this.templatePushObj.show = show;
+          }}
+          onShowDetails={params => {
+            this.handleShowDetail({ id: params.id, sliderActiveTab: 'base_info' });
           }}
         />
       </div>

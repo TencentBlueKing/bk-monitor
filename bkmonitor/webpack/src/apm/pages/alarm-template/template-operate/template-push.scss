@@ -2,6 +2,7 @@
   .mr-8 {
     margin-right: 8px;
   }
+
   .template-push-header {
     display: flex;
     align-items: center;
@@ -29,10 +30,15 @@
     }
   }
 
+  .bk-sideslider-content {
+    overflow: hidden !important;
+  }
+
   .template-push-content {
+    position: relative;
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - 100px);
+    height: calc(100vh - 100px);
   }
 
   .template-push-footer {

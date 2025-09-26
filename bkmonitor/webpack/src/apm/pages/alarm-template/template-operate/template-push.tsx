@@ -42,6 +42,7 @@ interface IProps {
   show?: boolean;
   showAgain?: boolean;
   onShowChange?: (v: boolean) => void;
+  onShowDetails?: (v: Record<string, any>) => void;
 }
 
 @Component
@@ -53,7 +54,6 @@ export default class TemplatePush extends tsc<IProps> {
 
   relationService: IRelationService[] = [];
 
-  // strategyDetailMap = new Map<number, TemplateDetail>();
   compareDataMap = new Map<string, TCompareData>();
 
   selectKeys = [];
@@ -84,8 +84,6 @@ export default class TemplatePush extends tsc<IProps> {
         app_name: this.params?.app_name,
         service_names: Array.from(new Set(services)),
         strategy_template_ids: this.params?.strategy_template_ids,
-        extra: [],
-        global: {},
       };
       applyStrategyTemplate(params)
         .then(() => {
@@ -134,32 +132,21 @@ export default class TemplatePush extends tsc<IProps> {
     return data;
   }
 
-  // async getStrategyDetails(ids: (number | string)[]) {
-  //   const fn = id => {
-  //     return new Promise((resolve, reject) => {
-  //       retrieveStrategyTemplate(id, {
-  //         strategy_template_id: id,
-  //         app_name: this.params?.app_name,
-  //       })
-  //         .then(data => {
-  //           this.strategyDetailMap.set(id, data);
-  //           resolve(data);
-  //         })
-  //         .catch(reject);
-  //     });
-  //   };
-  //   const promiseList = [];
-  //   for (const id of ids) {
-  //     if (!this.strategyDetailMap.has(id)) {
-  //       promiseList.push(fn(id));
-  //     }
-  //   }
-  //   await Promise.all(promiseList);
-  //   return Promise.resolve(this.strategyDetailMap);
-  // }
-
   handleChangeCheckKeys(selectKeys: string[]) {
     this.selectKeys = Array.from(new Set(selectKeys));
+  }
+
+  handleGoStrategy(id) {
+    if (id) {
+      window.open(location.href.replace(location.hash, `#/strategy-config/detail/${id}`));
+    }
+  }
+
+  handleShowDetails(id: number) {
+    this.$emit('showDetails', {
+      id,
+      app_name: this.params?.app_name,
+    });
   }
 
   render() {
@@ -192,6 +179,8 @@ export default class TemplatePush extends tsc<IProps> {
             relationService={this.relationService}
             showAgain={this.showAgain}
             onChangeCheckKeys={this.handleChangeCheckKeys}
+            onGoStrategy={this.handleGoStrategy}
+            onShowDetails={this.handleShowDetails}
           />
         </div>
         <div
