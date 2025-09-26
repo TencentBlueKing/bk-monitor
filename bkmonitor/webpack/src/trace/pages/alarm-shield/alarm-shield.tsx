@@ -761,11 +761,18 @@ export default defineComponent({
                     : undefined,
                   cell: (_, { row }) => this.handleSetFormat(row, item.id),
                 }))}
+                headerAffixedTop={{
+                  container: '.alarm-shield-page',
+                }}
+                horizontalScrollAffixedBottom={{
+                  container: '.alarm-shield-page',
+                }}
                 pagination={{
                   total: this.pagination.count,
                 }}
                 data={this.tableList}
                 filterValue={this.filterValue}
+                needCustomScroll={false}
                 rowKey='id'
                 showSortColumnBgColor={true}
                 sort={this.sort}

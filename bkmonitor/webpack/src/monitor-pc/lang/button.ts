@@ -112,6 +112,7 @@ export default {
   修改后重试: 'Retry after modification',
   设为默认: 'Set as default',
   取消默认: 'Remove default',
+  取消选择: 'Cancel Selection',
 
   // 规范：平台特性 术语
   新建节点: 'New Probe',

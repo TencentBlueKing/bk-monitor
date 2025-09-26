@@ -66,6 +66,7 @@ export default {
   数据采样: 'Data Sampling',
   数据量趋势: 'Data Volume Trend',
   告警策略: 'Alert Rules',
+  '告警 ID': 'Alert ID',
   查询设置: 'Query Settings',
   分享链接: 'Copy Link',
   数据来源: 'Data Source',
@@ -193,6 +194,10 @@ export default {
     'After association, related observation data will be automatically obtained, including events, etc. Note: After the pipeline is selected, the startup parameters must be synchronized to configure.',
   新增流水线: 'Add Pipeline',
   批量编辑通知对象: 'Batch edit notification object',
+  快捷筛选: 'Quick filter',
+  告警分析设置: 'Alarm Analysis Settings',
+  与我相关: 'Related to me',
+  事件分析: 'Event Analysis',
   // 指标模版
   函数变量: 'Function Variable',
   维度变量: 'Dimension Variable',
@@ -211,7 +216,8 @@ export default {
   查询模板: 'Query template',
   变量值: 'Variable value',
   模板配置预览: 'Template configuration preview',
-  '应用一般是拥有独立的站点，由多个 Service 共同组成，提供完整的产品功能，拥有独立的软件架构。从技术方面来说应用是 Trace 数据的存储隔离，在同一个应用内的数据将进行统计和观测。': 'An application typically has an independent site, composed of multiple services, providing complete product functionality with its own software architecture. From a technical perspective, an application is a storage isolation for Trace data, where data within the same application is aggregated and monitored.',
+  '应用一般是拥有独立的站点，由多个 Service 共同组成，提供完整的产品功能，拥有独立的软件架构。从技术方面来说应用是 Trace 数据的存储隔离，在同一个应用内的数据将进行统计和观测。':
+    'An application typically has an independent site, composed of multiple services, providing complete product functionality with its own software architecture. From a technical perspective, an application is a storage isolation for Trace data, where data within the same application is aggregated and monitored.',
   返回码重定义: 'Redefine return code',
-  返回码备注说明: 'Return code remark description'
+  返回码备注说明: 'Return code remark description',
 };

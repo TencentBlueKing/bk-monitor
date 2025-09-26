@@ -1,0 +1,17 @@
+/* stylelint-disable selector-class-pattern */
+.alarm-center__alarm-retrieval-filter-component {
+  .vue3__space-select-component {
+    align-self: stretch;
+    width: auto;
+    height: auto;
+    min-height: 48px;
+    border: none;
+  }
+
+  .selector-trigger-space-select {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+  }
+}
