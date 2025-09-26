@@ -56,6 +56,10 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: ['choose'],
@@ -123,6 +127,7 @@ export default defineComponent({
       >
         <bk-table
           class='cluster-table'
+          v-bkloading={{ isLoading: props.loading }}
           data={props.clusterList}
           on-row-click={handleSelectCluster}
         >
@@ -207,7 +212,7 @@ export default defineComponent({
         <div class='desc-content'>
           {clusterDesc.value.map(item => (
             <div
-              key={item.value}
+              key={`${item.label}-${item.value}`}
               class='desc-content-item'
             >
               <span class='item-title'>{item.label}：</span>

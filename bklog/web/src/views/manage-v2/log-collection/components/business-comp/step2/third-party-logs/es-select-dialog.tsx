@@ -56,12 +56,11 @@ export default defineComponent({
     },
   },
 
-  emits: ['cancel'],
+  emits: ['cancel', 'selected', 'timeIndex'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
-    const indexName = ref('');
     const tableData = ref([]);
     const { handleMultipleSelected, tableLoading } = useOperation();
     // const tableLoading = ref(false);
@@ -69,16 +68,60 @@ export default defineComponent({
     const searchLoading = ref(false);
     const matchedTableIds = ref([]);
     const timeFields = ref([]);
+    const basicLoading = ref(false);
     const bkBizId = computed(() => store.getters.bkBizId);
+    const formData = ref({
+      resultTableId: '',
+    });
+    const timeUnits = [
+      { name: t('秒（second）'), id: 'second' },
+      { name: t('毫秒（millisecond）'), id: 'millisecond' },
+      { name: t('微秒（microsecond）'), id: 'microsecond' },
+    ];
+
+    const formRules = {
+      resultTableId: [
+        {
+          required: true,
+          trigger: 'blur',
+        },
+        {
+          validator: val => val && val !== '*',
+          trigger: 'blur',
+        },
+      ],
+      time_field: [
+        {
+          required: true,
+          trigger: 'change',
+        },
+        {
+          validator: val => {
+            if (!props.timeIndex) {
+              return true;
+            }
+            return props.timeIndex.time_field === val;
+          },
+          message: t('时间字段需要保持一致'),
+          trigger: 'change',
+        },
+      ],
+      time_field_unit: [
+        {
+          required: true,
+          trigger: 'change',
+        },
+      ],
+    };
 
     const fetchList = async () => {
       try {
         const res = await $http.request('/resultTables/list', {
           query: {
             scenario_id: props.scenarioId,
-            bk_biz_id: bkBizId,
+            bk_biz_id: bkBizId.value,
             storage_cluster_id: props.configData.storage_cluster_id,
-            result_table_id: indexName.value,
+            result_table_id: formData.value.resultTableId,
           },
         });
         return res.data;
@@ -90,10 +133,11 @@ export default defineComponent({
       }
     };
 
-    const fetchInfo = () => {
+    const fetchInfo = async () => {
+      basicLoading.value = true;
       const param = {
         params: {
-          result_table_id: indexName.value,
+          result_table_id: formData.value.resultTableId,
         },
         query: {
           scenario_id: props.scenarioId,
@@ -101,17 +145,19 @@ export default defineComponent({
           storage_cluster_id: props.configData.storage_cluster_id,
         },
       };
-      handleMultipleSelected(param, false, res => {
-        const timeFields = res.data.fields.filter(item => item.field_type === 'date' || item.field_type === 'long');
+      const result = await handleMultipleSelected(param, false, res => {
+        basicLoading.value = false;
+        const fields = res.data.fields.filter(item => item.field_type === 'date' || item.field_type === 'long');
         // 如果已经添加了索引，回填三个字段（禁止更改字段名）
         if (props.timeIndex) {
-          const find = timeFields.find(item => item.field_name === props.timeIndex.time_field);
+          const find = fields.find(item => item.field_name === props.timeIndex.time_field);
           if (find) {
-            // Object.assign(this.formData, props.timeIndex);
+            Object.assign(formData.value, props.timeIndex);
           }
         }
-        return timeFields;
+        return fields;
       });
+      return result;
     };
 
     const handleSearch = async () => {
@@ -119,9 +165,21 @@ export default defineComponent({
       tableLoading.value = true;
       const [idRes, fieldRes] = await Promise.all([fetchList(), fetchInfo()]);
       matchedTableIds.value = idRes;
-      timeFields.value = fieldRes;
+      tableData.value = idRes;
+      timeFields.value = fieldRes as any;
       searchLoading.value = false;
       tableLoading.value = false;
+    };
+
+    // 选择时间字段
+    const handleSelectedTimeField = fieldName => {
+      const timeFieldType = timeFields.value.find(item => item.field_name === fieldName)?.field_type;
+      formData.value = {
+        ...formData.value,
+        time_field_type: timeFieldType,
+        time_field: fieldName,
+      };
+      console.log(formData.value);
     };
     /**
      * 关闭新增索引弹窗
@@ -130,7 +188,42 @@ export default defineComponent({
       emit('cancel', false);
     };
 
-    const handleConfirm = () => {};
+    const handleConfirm = async () => {
+      try {
+        // await this.$refs.formRef.validate();
+        confirmLoading.value = true;
+        const data = {
+          scenario_id: props.scenarioId,
+          storage_cluster_id: props.configData.storage_cluster_id,
+          basic_indices: props.configData.indexes.map(item => ({
+            index: item.result_table_id,
+            time_field: formData.value.time_field,
+            time_field_type: formData.value.time_field_type,
+          })),
+          append_index: {
+            index: formData.value.resultTableId,
+            time_field: formData.value.time_field,
+            time_field_type: formData.value.time_field_type,
+          },
+        };
+        console.log(data, 'data');
+        await $http.request('/resultTables/adapt', { data });
+        emit('selected', {
+          bk_biz_id: bkBizId.value,
+          result_table_id: formData.value.resultTableId,
+        });
+        emit('timeIndex', {
+          time_field: formData.value.time_field,
+          time_field_type: formData.value.time_field_type,
+          time_field_unit: formData.value.time_field_unit,
+        });
+        handleCancel();
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        confirmLoading.value = false;
+      }
+    };
     return () => (
       <bk-dialog
         width={680}
@@ -144,22 +237,31 @@ export default defineComponent({
         // on-cancel={handleCancel}
         // on-confirm={handleConfirm}
       >
-        <bk-form label-width={80}>
+        {String(formData.value.time_field_type === 'long')}
+        <bk-form
+          label-width={80}
+          {...{
+            props: {
+              model: formData.value,
+              rules: formRules,
+            },
+          }}
+        >
           <bk-form-item
             label={t('索引')}
-            property={'name'}
+            property={'resultTableId'}
             required={true}
           >
             <bk-input
               class='input-box'
               placeholder='log_search_*'
-              value={indexName.value}
+              value={formData.value.resultTableId}
               on-input={val => {
-                indexName.value = val;
+                formData.value.resultTableId = val;
               }}
             />
             <bk-button
-              disabled={!indexName.value}
+              disabled={!formData.value.resultTableId}
               on-click={handleSearch}
             >
               {t('搜索')}
@@ -167,7 +269,13 @@ export default defineComponent({
             <InfoTips tips={t('支持“ * ”匹配，不支持其他特殊符号')} />
           </bk-form-item>
 
-          <bk-form-item class='mt-12'>
+          <bk-form-item class='table-item-box mt-12'>
+            {tableData.value.length > 0 && (
+              <div class='result-tips'>
+                <i class='bk-icon icon-check-circle-shape' />
+                {t('成功匹配 {x} 条索引', { x: tableData.value.length })}
+              </div>
+            )}
             <bk-table
               key={props.isShowDialog}
               height={320}
@@ -176,7 +284,7 @@ export default defineComponent({
             >
               <bk-table-column
                 label={t('索引')}
-                prop='field_name'
+                prop='result_table_id'
               />
             </bk-table>
           </bk-form-item>
@@ -186,26 +294,50 @@ export default defineComponent({
             required={true}
           >
             <bk-select
-              // loading={basicLoading.value}
-              value={indexName.value}
+              clearable={false}
+              loading={basicLoading.value}
+              value={formData.value.time_field}
               searchable
-              // on-selected={handleChoose}
+              on-selected={handleSelectedTimeField}
             >
-              {/* {(collectionList.value || []).map(item => (
+              {(timeFields.value || []).map(item => (
                 <bk-option
-                  id={item.result_table_id}
-                  key={item.result_table_id}
-                  disabled={isSetDisabled(item.result_table_id)}
-                  name={item.result_table_name_alias}
+                  id={item.field_name}
+                  key={item.field_name}
+                  name={item.field_name}
                 />
-              ))} */}
+              ))}
             </bk-select>
           </bk-form-item>
+          {formData.value.time_field_type === 'long' && (
+            <bk-form-item
+              label={t('时间精度')}
+              property='time_field_unit'
+              required
+            >
+              <bk-select
+                clearable={false}
+                value={formData.value.time_field_unit}
+                searchable
+                on-selected={val => {
+                  formData.value.time_field_unit = val;
+                }}
+              >
+                {timeUnits.map(item => (
+                  <bk-option
+                    id={item.id}
+                    key={item.id}
+                    name={item.name}
+                  />
+                ))}
+              </bk-select>
+            </bk-form-item>
+          )}
         </bk-form>
         <div slot='footer'>
           <bk-button
             class='mr-8'
-            disabled={!indexName.value}
+            disabled={!(formData.value.resultTableId && formData.value.time_field)}
             loading={confirmLoading.value}
             theme='primary'
             on-click={handleConfirm}

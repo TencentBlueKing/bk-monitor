@@ -43,7 +43,7 @@ import './step2-configuration.scss';
 export default defineComponent({
   name: 'StepConfiguration',
 
-  emits: ['next', 'prev'],
+  emits: ['next', 'prev', 'cancel'],
 
   setup(props, { emit }) {
     console.log('props', props);
@@ -370,7 +370,13 @@ export default defineComponent({
           >
             {t('下一步')}
           </bk-button>
-          <bk-button>{t('取消')}</bk-button>
+          <bk-button
+            on-click={() => {
+              emit('cancel');
+            }}
+          >
+            {t('取消')}
+          </bk-button>
         </div>
       </div>
     );

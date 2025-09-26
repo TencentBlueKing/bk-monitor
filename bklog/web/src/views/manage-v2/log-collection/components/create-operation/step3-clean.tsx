@@ -43,7 +43,7 @@ import './step3-clean.scss';
 export default defineComponent({
   name: 'StepClean',
 
-  emits: ['next', 'prev'],
+  emits: ['next', 'prev', 'cancel'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -364,7 +364,13 @@ export default defineComponent({
           </bk-button>
           <bk-button class='template-btn'>{t('另存为模板')}</bk-button>
           <bk-button class='mr-8'>{t('重置')}</bk-button>
-          <bk-button>{t('取消')}</bk-button>
+          <bk-button
+            on-click={() => {
+              emit('cancel');
+            }}
+          >
+            {t('取消')}
+          </bk-button>
         </div>
       </div>
     );

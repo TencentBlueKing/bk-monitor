@@ -41,7 +41,7 @@ export default defineComponent({
     },
   },
 
-  emits: ['next', 'handle'],
+  emits: ['next', 'handle', 'cancel'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -140,7 +140,13 @@ export default defineComponent({
           >
             {t('下一步')}
           </bk-button>
-          <bk-button>{t('取消')}</bk-button>
+          <bk-button
+            on-click={() => {
+              emit('cancel');
+            }}
+          >
+            {t('取消')}
+          </bk-button>
         </div>
       </div>
     );

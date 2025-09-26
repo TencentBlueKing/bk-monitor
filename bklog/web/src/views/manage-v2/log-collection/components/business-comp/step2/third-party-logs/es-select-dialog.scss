@@ -10,4 +10,19 @@
         display: inline-block;
         margin-right: 20px;
     }
+    .table-item-box {
+        position: relative;
+    }
+    .result-tips {
+        color: #2CAF5E;
+        position: absolute;
+        top: 8px;
+        font-size: 12px;   
+        right: 14px;
+        z-index: 1;
+        .icon-check-circle-shape {
+            margin-right: 4px;
+            font-size: 14px;
+        }
+    }
 }

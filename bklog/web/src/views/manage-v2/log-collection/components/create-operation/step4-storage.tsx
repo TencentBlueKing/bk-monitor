@@ -24,45 +24,87 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
+import { useCollectList } from '../../hook/useCollectList';
 import { useOperation } from '../../hook/useOperation';
+import { showMessage } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
-import { step4Data } from './data';
+// import { step4Data } from './data';
+import $http from '@/api';
 
 import './step4-storage.scss';
 
 export default defineComponent({
   name: 'StepStorage',
+  props: {
+    configData: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
 
-  emits: ['prev'],
+  emits: ['prev', 'cancel'],
 
   setup(props, { emit }) {
-    console.log('props', props);
     const { t } = useLocale();
-    const { cardRender } = useOperation();
+    const { cardRender, sortByPermission } = useOperation();
     const activeName = ref(['shared', 'exclusive']);
-    const data = step4Data;
-    const clusterSelect = ref(null);
+    const storageList = ref([]);
+    const clusterSelect = ref();
+    const loading = ref(false);
+    const submitLoading = ref(false);
+    const formData = ref({});
+    // 是否是编辑
+    const isEdit = ref(false);
+    const { bkBizId, spaceUid, goListPage } = useCollectList();
     const collapseList = computed(() => [
       {
         title: t('共享集群'),
         key: 'shared',
-        data: data.filter(item => item.is_platform),
+        data: storageList.value.filter(item => item.is_platform),
       },
       {
         title: t('业务独享集群'),
         key: 'exclusive',
         tips: t('你可以随时切换所选集群，切换集群后，不会造成数据丢失。原数据将在新集群存储时长到期后自动清除。'),
-        data: data.filter(item => !item.is_platform),
+        data: storageList.value.filter(item => !item.is_platform),
       },
     ]);
+
+    const showGroupText = computed(() => {
+      return Number(bkBizId.value) > 0 ? `${bkBizId.value}_bklog_` : `space_${Math.abs(Number(bkBizId.value))}_bklog_`;
+    });
+    /**
+     * 异步获取存储列表并按权限排序
+     * 功能：请求存储数据，将有管理权限的存储项优先展示，处理加载状态和错误提示
+     */
+    const getStorage = async () => {
+      const queryParams = { bk_biz_id: bkBizId.value };
+
+      try {
+        loading.value = true;
+        const response = await $http.request('collect/getStorage', { query: queryParams });
+
+        if (response.data) {
+          // 调用通用排序函数处理数据
+          storageList.value = sortByPermission(response.data);
+        }
+      } catch (error) {
+        showMessage(error.message, 'error');
+      } finally {
+        loading.value = false;
+      }
+    };
 
     const handleChooseCluster = row => {
       clusterSelect.value = row.storage_cluster_id;
     };
+    onMounted(() => {
+      getStorage();
+    });
 
     /** rCollapseItem的渲染 */
     const renderCollapseItem = item => (
@@ -87,6 +129,7 @@ export default defineComponent({
           <ClusterTable
             clusterList={item.data}
             clusterSelect={clusterSelect.value}
+            loading={loading.value}
             name={item.title}
             showBizCount={item.key === 'shared'}
             on-choose={handleChooseCluster}
@@ -107,9 +150,13 @@ export default defineComponent({
       <div class='storage-box'>
         <div class='link-config label-form-box'>
           <span class='label-title'>{t('索引名')}</span>
-          <bk-input class='storage-input'>
+          <bk-input
+            class='storage-input'
+            disabled={true}
+            value={props.configData.collector_config_name_en}
+          >
             <template slot='prepend'>
-              <div class='group-text'>5000140_bklog_</div>
+              <div class='group-text'>{showGroupText.value}</div>
             </template>
           </bk-input>
         </div>
@@ -118,6 +165,10 @@ export default defineComponent({
           <bk-input
             class='min-width'
             type='number'
+            value={props.configData.retention}
+            on-input={val => {
+              formData.value.retention = val;
+            }}
           >
             <template slot='append'>
               <div class='group-text'>{t('天')}</div>
@@ -129,6 +180,10 @@ export default defineComponent({
           <bk-input
             class='min-width'
             type='number'
+            value={props.configData.storage_replies}
+            on-input={val => {
+              formData.value.storage_replies = val;
+            }}
           />
         </div>
         <div class='link-config label-form-box'>
@@ -136,6 +191,10 @@ export default defineComponent({
           <bk-input
             class='min-width'
             type='number'
+            value={props.configData.es_shards}
+            on-input={val => {
+              formData.value.es_shards = val;
+            }}
           />
         </div>
       </div>
@@ -152,6 +211,36 @@ export default defineComponent({
         renderFn: renderStorage,
       },
     ];
+    const handleSubmit = () => {
+      if (!clusterSelect.value) {
+        showMessage(t('请选择集群'), 'error');
+        return;
+      }
+      submitLoading.value = true;
+      $http.request(`custom/${isEdit.value ? 'setCustom' : 'createCustom'}`, {
+          params: {
+            collector_config_id: props.configData.collectorId,
+          },
+          data: {
+            ...props.configData,
+            ...formData.value,
+            collector_config_name: props.configData.index_set_name,
+            bk_biz_id: Number(bkBizId.value),
+            // storage_replies: Number(formData.value.storage_replies),
+            // allocation_min_days: Number(formData.value.allocation_min_days),
+            // es_shards: Number(formData.value.es_shards),
+            // sort_fields: this.fieldSettingData.sortFields || [],
+            // target_fields: this.fieldSettingData.targetFields || [],
+          },
+        })
+        .then(res => {
+          res.result && showMessage(t('保存成功'));
+          emit('cancel');
+        })
+        .finally(() => {
+          submitLoading.value = false;
+        });
+    };
     return () => (
       <div class='operation-step4-storage'>
         {cardRender(cardConfig)}
@@ -166,13 +255,21 @@ export default defineComponent({
           </bk-button>
           <bk-button
             class='width-88 mr-8'
+            loading={submitLoading.value}
             theme='primary'
+            on-click={handleSubmit}
           >
             {t('提交')}
           </bk-button>
-          <bk-button>{t('取消')}</bk-button>
+          <bk-button
+            on-click={() => {
+              emit('cancel');
+            }}
+          >
+            {t('取消')}
+          </bk-button>
         </div>
       </div>
-    );
+    )
   },
 });

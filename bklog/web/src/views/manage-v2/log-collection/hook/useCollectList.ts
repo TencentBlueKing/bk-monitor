@@ -54,14 +54,24 @@ export const useCollectList = () => {
   const spaceUid = computed(() => store.getters.spaceUid);
   const bkBizId = computed(() => store.getters.bkBizId);
   const authGlobalInfo = computed(
-    () => store.getters["globals/authContainerInfo"],
+    () => store.getters["globals/authContainerInfo"]
   );
   const isShowMaskingTemplate = computed(
-    () => store.getters.isShowMaskingTemplate,
+    () => store.getters.isShowMaskingTemplate
   );
   const collectProject = computed(() =>
-    projectManages(store.state.topMenu, "collection-item"),
+    projectManages(store.state.topMenu, "collection-item")
   );
+
+  const goListPage = () => {
+    router.push({
+      name: "collection-item-list",
+      query: {
+        bizId: bkBizId.value,
+        spaceUid: spaceUid.value,
+      },
+    });
+  };
 
   /** 是否有创建权限 */
   const checkCreateAuth = async () => {
@@ -320,5 +330,6 @@ export const useCollectList = () => {
 
     checkCreateAuth,
     operateHandler,
+    goListPage,
   };
 };

@@ -75,3 +75,27 @@ export const add = {
   },
   bk_biz_id: "100605",
 };
+// {
+//   "view_roles": [],
+//   "space_uid": "bkcc__100605",
+//   "scenario_id": "es",
+//   "index_set_name": "ts0924",
+//   "category_id": "host_process",
+//   "storage_cluster_id": 48,
+//   "indexes": [
+//       {
+//           "bk_biz_id": "100605",
+//           "result_table_id": "*bklog*",
+//           "scenarioId": "es"
+//       }
+//   ],
+//   "target_fields": [
+//       "ad"
+//   ],
+//   "sort_fields": [
+//       "__ext_json"
+//   ],
+//   "time_field": "dtEventTimeStamp",
+//   "time_field_type": "date",
+//   "time_field_unit": "microsecond"
+// }

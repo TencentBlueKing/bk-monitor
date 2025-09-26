@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch } from 'vue';
+import { defineComponent, ref, watch, computed } from 'vue';
 
-import * as authorityMap from '@/common/authority-map';
 import useLocale from '@/hooks/use-locale';
 import { useRouter, useRoute } from 'vue-router/composables';
 
 import { useCollectList } from '../../hook/useCollectList';
 import { useOperation } from '../../hook/useOperation';
+import { showMessage } from '../../utils';
 import BaseInfo from '../business-comp/step2/base-info';
 import BkdataSelectDialog from '../business-comp/step2/third-party-logs/bkdata-select-dialog';
 import EsSelectDialog from '../business-comp/step2/third-party-logs/es-select-dialog';
@@ -56,8 +56,8 @@ export default defineComponent({
     const { t } = useLocale();
     const router = useRouter();
     const route = useRoute();
-    const { bkBizId, spaceUid } = useCollectList();
-    const { cardRender, handleMultipleSelected, tableLoading } = useOperation();
+    const { bkBizId, spaceUid, goListPage } = useCollectList();
+    const { cardRender, handleMultipleSelected, tableLoading, sortByPermission } = useOperation();
     const isShowDialog = ref(false);
     const currentActiveShowID = ref('');
     const baseInfoRef = ref();
@@ -71,6 +71,7 @@ export default defineComponent({
     const targetFieldSelectList = ref<{ id: string; name: string }[]>([]);
     const selectCollectionRef = ref();
     const isEdit = ref(false);
+    const timeIndex = ref(null);
     const configData = ref({
       view_roles: [],
       index_set_name: '',
@@ -97,6 +98,8 @@ export default defineComponent({
       // sort_fields: ['container_id', 'log'],
     });
 
+    const getTimeFiled = computed(() => timeIndex.value?.time_field || '--');
+
     /** 基本信息Render */
     const renderBaseInfo = () => (
       <BaseInfo
@@ -117,6 +120,7 @@ export default defineComponent({
             <div class='form-box'>
               <bk-select
                 class='w-40'
+                clearable={false}
                 loading={clusterLoading.value}
                 value={configData.value.storage_cluster_id}
                 on-selected={val => {
@@ -182,7 +186,7 @@ export default defineComponent({
           <div class='label-form-box'>
             <span class='label-title no-require'>{t('时间字段')}</span>
             <div class='form-box'>
-              <span class='time-field'>--</span>
+              <span class='time-field'>{getTimeFiled.value}</span>
             </div>
           </div>
         )}
@@ -263,15 +267,12 @@ export default defineComponent({
     ];
 
     /**
-     * 异步获取集群列表数据并处理
-     * 功能：请求ES集群列表，按权限排序，过滤平台集群，根据路由参数设置默认集群
+     * 获取集群列表数据
+     * 功能：请求集群数据，按权限排序，过滤平台集群，处理路由参数
      */
     const fetchPageData = async () => {
       try {
-        // 显示加载状态
         clusterLoading.value = true;
-
-        // 请求集群列表数据
         const clusterRes = await $http.request('/source/logList', {
           query: {
             bk_biz_id: bkBizId.value,
@@ -279,47 +280,24 @@ export default defineComponent({
           },
         });
 
-        /**
-         * 判断集群是否有管理权限
-         * @param {Object} cluster - 集群对象
-         * @returns {boolean} 是否有管理权限
-         */
-        const hasManagePermission = cluster => {
-          return cluster.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH];
-        };
+        if (clusterRes.data) {
+          // 调用通用排序函数并过滤非平台集群
+          clusterList.value = sortByPermission(clusterRes.data).filter(cluster => !cluster.is_platform);
 
-        // 按权限拆分集群：有管理权限的优先展示
-        const clustersWithPermission = [];
-        const clustersWithoutPermission = [];
+          // 处理路由参数设置默认集群
+          const targetClusterId = route.query.cluster;
+          if (targetClusterId) {
+            const numericClusterId = Number(targetClusterId);
+            const isClusterValid = clusterList.value.some(cluster => cluster.storage_cluster_id === numericClusterId);
 
-        for (const cluster of clusterRes.data) {
-          if (hasManagePermission(cluster)) {
-            clustersWithPermission.push(cluster);
-          } else {
-            clustersWithoutPermission.push(cluster);
-          }
-        }
-
-        // 合并并过滤非平台集群
-        clusterList.value = [...clustersWithPermission, ...clustersWithoutPermission].filter(
-          cluster => !cluster.is_platform,
-        );
-
-        // 处理路由中的集群ID参数，设置默认选中的集群
-        const targetClusterId = route.query.cluster;
-        if (targetClusterId) {
-          const numericClusterId = Number(targetClusterId);
-          // 检查目标集群是否在有效列表中
-          const isClusterValid = clusterList.value.some(cluster => cluster.storage_cluster_id === numericClusterId);
-
-          if (isClusterValid) {
-            configData.value.storage_cluster_id = numericClusterId;
+            if (isClusterValid) {
+              configData.value.storage_cluster_id = numericClusterId;
+            }
           }
         }
       } catch (error) {
         console.warn('获取集群列表失败:', error);
       } finally {
-        // 无论成功失败，都关闭加载状态
         clusterLoading.value = false;
       }
     };
@@ -328,6 +306,10 @@ export default defineComponent({
      * 显示新增索引弹窗
      */
     const handleAddDataSource = () => {
+      if (props.scenarioId === 'es' && !configData.value?.storage_cluster_id) {
+        showMessage(t('请先选择集群'), 'error');
+        return;
+      }
       isShowDialog.value = true;
     };
     /**
@@ -351,78 +333,61 @@ export default defineComponent({
      * @param {string} params.bkdata_auth_url - 数据平台授权地址
      * @param {string} params.index_set_id - 索引集ID
      */
-    const handleCreateSuccess = ({ bkdata_auth_url: authUrl, index_set_id: indexSetId }) => {
-      // 如果没有授权URL，直接返回索引列表
-      if (!authUrl) {
-        returnIndexList();
-        return;
-      }
-
-      /**
-       * 规范化站点URL，确保格式正确
-       * @param {string} url - 原始站点URL
-       * @returns {string} 规范化后的站点URL
-       */
-      const normalizeSiteUrl = (url: string) => {
-        // 处理非HTTP开头的URL，添加协议和主机
-        if (!url.startsWith('http')) {
-          // 确保以斜杠开头
-          if (!url.startsWith('/')) {
-            url = `/${url}`;
+    const handleCreateSuccess = ({ bkdata_auth_url: authUrl, index_set_id: id }) => {
+      if (authUrl) {
+        let redirectUrl = ''; // 数据平台授权地址
+        if (process.env.NODE_ENV === 'development') {
+          redirectUrl = `${authUrl}&redirect_url=${window.origin}/static/auth.html`;
+        } else {
+          let siteUrl = window.SITE_URL;
+          if (siteUrl.startsWith('http')) {
+            if (!siteUrl.endsWith('/')) {
+              siteUrl += '/';
+            }
+            redirectUrl = `${authUrl}&redirect_url=${siteUrl}bkdata_auth/`;
+          } else {
+            if (!siteUrl.startsWith('/')) {
+              siteUrl = `/${siteUrl}`;
+            }
+            if (!siteUrl.endsWith('/')) {
+              siteUrl += '/';
+            }
+            redirectUrl = `${authUrl}&redirect_url=${window.origin}${siteUrl}bkdata_auth/`;
           }
-          url = `${window.origin}${url}`;
         }
-
-        // 确保以斜杠结尾
-        return url.endsWith('/') ? url : `${url}/`;
-      };
-
-      /**
-       * 构建完整的URL
-       * @param {string} baseUrl - 基础URL
-       * @param {string} path - 路径
-       * @returns {string} 完整的URL
-       */
-      const buildFullUrl = (baseUrl, path) => {
-        const normalizedBase = normalizeSiteUrl(baseUrl);
-        return `${normalizedBase}${path}`;
-      };
-
-      // 获取站点URL
-      const siteUrl = window.SITE_URL;
-
-      // 构建重定向URL
-      let redirectUrl;
-      if (process.env.NODE_ENV === 'development') {
-        redirectUrl = `${authUrl}&redirect_url=${window.origin}/static/auth.html`;
+        // auth.html 返回索引集管理的路径
+        let indexSetPath = '';
+        const { href } = router.resolve({
+          name: `${props.scenarioId}-index-set-list`,
+        });
+        let siteUrl = window.SITE_URL;
+        if (siteUrl.startsWith('http')) {
+          if (!siteUrl.endsWith('/')) {
+            siteUrl += '/';
+          }
+          indexSetPath = siteUrl + href;
+        } else {
+          if (!siteUrl.startsWith('/')) {
+            siteUrl = `/${siteUrl}`;
+          }
+          if (!siteUrl.endsWith('/')) {
+            siteUrl += '/';
+          }
+          indexSetPath = window.origin + siteUrl + href;
+        }
+        // auth.html 需要使用的数据
+        const urlComponent = `?indexSetId=${id}&ajaxUrl=${window.AJAX_URL_PREFIX}&redirectUrl=${indexSetPath}`;
+        redirectUrl += encodeURIComponent(urlComponent);
+        if (self !== top) {
+          // 当前页面是 iframe
+          window.open(redirectUrl);
+          returnIndexList();
+        } else {
+          window.location.assign(redirectUrl);
+        }
       } else {
-        redirectUrl = `${authUrl}&redirect_url=${buildFullUrl(siteUrl, 'bkdata_auth/')}`;
-      }
-
-      // 构建索引集路径
-      const { href: indexSetHref } = router.resolve({
-        name: `${props.scenarioId}-index-set-list`,
-      });
-      const indexSetPath = buildFullUrl(siteUrl, indexSetHref);
-
-      // 构建并编码URL参数
-      const urlParams = new URLSearchParams({
-        indexSetId,
-        ajaxUrl: window.AJAX_URL_PREFIX,
-        redirectUrl: indexSetPath,
-      }).toString();
-
-      // 完成重定向URL的构建
-      redirectUrl += encodeURIComponent(`?${urlParams}`);
-
-      // 根据是否在iframe中采取不同的跳转方式
-      if (self !== top) {
-        // 在iframe中，打开新窗口
-        window.open(redirectUrl);
+        showMessage(isEdit.value ? t('设置成功') : t('创建成功'));
         returnIndexList();
-      } else {
-        // 在顶层窗口，直接重定向
-        window.location.assign(redirectUrl);
       }
     };
 
@@ -432,7 +397,8 @@ export default defineComponent({
     const handleSave = () => {
       try {
         if (!configData.value.indexes.length) {
-          // return this.messageError(t('请选择索引'));
+          showMessage(t('请选择索引'), 'error');
+          return;
         }
         baseInfoRef.value
           .validate()
@@ -442,7 +408,9 @@ export default defineComponent({
               space_uid: spaceUid.value,
               ...configData.value,
             };
-            if (props.scenarioId !== 'es' && 'storage_cluster_id' in params) {
+            if (props.scenarioId === 'es') {
+              Object.assign(params, timeIndex.value);
+            } else {
               params.storage_cluster_id = undefined;
             }
             const res = isEdit.value
@@ -453,16 +421,20 @@ export default defineComponent({
                   data: params,
                 })
               : await $http.request('/indexSet/create', { data: params });
-            console.log(res, 'save');
-            handleCreateSuccess(res.data);
+            if (props.scenarioId === 'es') {
+              goListPage();
+            } else {
+              handleCreateSuccess(res.data);
+            }
           })
           .catch(err => {
             console.log(err, 'validate');
+          })
+          .finally(() => {
+            submitLoading.value = false;
           });
       } catch (e) {
         console.log(e);
-      } finally {
-        submitLoading.value = false;
       }
     };
 
@@ -553,7 +525,7 @@ export default defineComponent({
 
       // 根据场景类型生成对应的请求Promise数组
       const fetchPromises = isEsScenario
-        ? fieldQueries.map(query => selectCollectionRef.value.fetchInfo(query))
+        ? fieldQueries.map(query => handleMultipleSelected(query, true))
         : fieldQueries.map(query => handleMultipleSelected(query, true));
 
       // 等待所有请求完成
@@ -601,6 +573,10 @@ export default defineComponent({
     const handleSelect = data => {
       configData.value.indexes.push(data);
       handleChangeShowTableList(data.result_table_id, true);
+    };
+
+    const handleTimeIndex = data => {
+      timeIndex.value = data;
     };
     /**
      * 取消
@@ -655,6 +631,9 @@ export default defineComponent({
             configData={configData.value}
             isShowDialog={isShowDialog.value}
             scenarioId={props.scenarioId}
+            on-cancel={handleCancel}
+            on-selected={handleSelect}
+            on-timeIndex={handleTimeIndex}
           />
         )}
       </div>

@@ -28,6 +28,7 @@ import { defineComponent, onBeforeUnmount, onMounted, ref, computed } from 'vue'
 
 import useLocale from '@/hooks/use-locale';
 
+import { useCollectList } from '../../hook/useCollectList';
 import StepClassify from './step1-classify';
 import StepBkDataCollection from './step2-bk-data-collection';
 import StepConfiguration from './step2-configuration';
@@ -47,6 +48,8 @@ export default defineComponent({
     const step = ref(DEFAULT_STEP);
     const typeKey = ref('es');
     const firstStep = { title: t('索引集分类'), icon: 1, components: StepClassify };
+    const { goListPage } = useCollectList();
+    const dataConfig = ref({});
 
     const stepDesc = [
       firstStep,
@@ -117,6 +120,10 @@ export default defineComponent({
       functionMap[type]?.(data);
     };
 
+    const handleCancel = () => {
+      goListPage();
+    };
+
     return () => {
       const Component = currentStep.value.find(item => item.icon === step.value).components;
       return (
@@ -145,9 +152,14 @@ export default defineComponent({
             </span>
           </div>
           <Component
+            configData={dataConfig.value}
             scenarioId={typeKey.value}
+            on-cancel={handleCancel}
             on-handle={handleFunction}
-            on-next={() => step.value++}
+            on-next={data => {
+              dataConfig.value = data;
+              step.value++;
+            }}
             on-prev={() => step.value--}
           />
         </div>

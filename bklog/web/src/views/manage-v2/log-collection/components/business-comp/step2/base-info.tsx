@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch } from 'vue';
+import { defineComponent, ref, computed, watch, nextTick } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -61,14 +61,42 @@ export default defineComponent({
     /** 展示数据分类的key */
     const showCategoryKey = ['custom'];
     const formRef = ref();
+    const isTextValid = ref(true);
     // 获取全局数据
     const globalsData = computed(() => store.getters['globals/globalsData']);
-
+    const enNameRegex = /^[A-Za-z0-9_]+$/;
+    const checkEnNameValidator = val => {
+      isTextValid.value = enNameRegex.test(val);
+      console.log(val, isTextValid.value, 'eeeeee');
+      return isTextValid.value;
+    };
     const ruleData = ref({
       index_set_name: [
         {
           required: true,
           message: t('必填项'),
+          trigger: 'blur',
+        },
+      ],
+      collector_config_name_en: [
+        // 采集数据名称
+        {
+          required: true,
+          trigger: 'blur',
+        },
+        {
+          max: 50,
+          message: t('不能多于{n}个字符', { n: 50 }),
+          trigger: 'blur',
+        },
+        {
+          min: 5,
+          message: t('不能少于5个字符'),
+          trigger: 'blur',
+        },
+        {
+          validator: checkEnNameValidator,
+          message: t('只支持输入字母，数字，下划线'),
           trigger: 'blur',
         },
       ],
@@ -97,6 +125,46 @@ export default defineComponent({
 
     const handleChangeType = id => {
       formData.value.custom_type = id;
+      handleChange();
+    };
+    /**
+     * 数据名
+     */
+    const handleCollectorConfigNameEnChange = (val: string) => {
+      const data = { ...formData.value, collector_config_name_en: val };
+      formData.value = data;
+    };
+    /**
+     * 格式转换
+     */
+    const handleEnConvert = () => {
+      const str = formData.value.collector_config_name_en;
+      const convertStr = str.split('').reduce((pre, cur) => {
+        let newCur = cur;
+        if (newCur === '-') {
+          newCur = '_';
+        }
+        if (!/\w/.test(newCur)) {
+          newCur = '';
+        }
+        return pre + newCur;
+      }, '');
+      handleCollectorConfigNameEnChange(convertStr);
+      handleChange();
+      nextTick(() => {
+        formRef.value
+          .validate()
+          .then(() => {
+            isTextValid.value = true;
+            console.log('success');
+          })
+          .catch(() => {
+            console.log('fail');
+            if (convertStr.length < 5) {
+              isTextValid.value = true;
+            }
+          });
+      });
     };
 
     expose({ validate });
@@ -158,18 +226,29 @@ export default defineComponent({
         {showNameKey.includes(props.typeKey) && (
           <bk-form-item
             label={t('数据名')}
+            property='collector_config_name_en'
             required={true}
           >
             <bk-input
               maxlength={50}
               minlength={5}
               placeholder={t('用于索引和数据源，仅支持数字、字母、下划线，5～50 字符')}
-              value={formData.value.index_set_name}
-              clearable
+              value={formData.value.collector_config_name_en}
               onInput={val => {
-                formData.value.index_set_name = val;
+                formData.value.collector_config_name_en = val;
+                handleChange();
               }}
             />
+            {!isTextValid.value && (
+              <span v-bk-tooltips={{ content: t('自动转换成正确的数据名格式') }}>
+                <span
+                  class='auto-convert'
+                  on-click={handleEnConvert}
+                >
+                  {t('自动转换')}
+                </span>
+              </span>
+            )}
           </bk-form-item>
         )}
         <bk-form-item label={t('所属索引集')}>
@@ -184,10 +263,11 @@ export default defineComponent({
             <bk-input
               maxlength={100}
               type='textarea'
-              value={formData.value.index_set_name}
+              value={formData.value.description}
               clearable
               onInput={val => {
-                formData.value.index_set_name = val;
+                formData.value.description = val;
+                handleChange();
               }}
             />
           </bk-form-item>

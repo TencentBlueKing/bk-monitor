@@ -164,3 +164,15 @@ export const MENU_LIST = [
     key: "one_key_check",
   },
 ];
+
+/**
+ * 显示消息提示
+ * @param message 消息内容
+ * @param theme 主题类型
+ */
+export const showMessage = (
+  message: string,
+  theme: "error" | "success" | "warning" = "success"
+): void => {
+  window.mainComponent?.$bkMessage({ message, theme });
+};

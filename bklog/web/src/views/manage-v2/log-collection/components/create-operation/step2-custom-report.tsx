@@ -29,6 +29,7 @@ import { defineComponent, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
 
 import { useOperation } from '../../hook/useOperation';
+import { showMessage } from '../../utils';
 import BaseInfo from '../business-comp/step2/base-info';
 
 import './step2-custom-report.scss';
@@ -36,34 +37,38 @@ import './step2-custom-report.scss';
 export default defineComponent({
   name: 'StepCustomReport',
 
-  emits: ['next', 'prev'],
+  emits: ['next', 'prev', 'cancel'],
 
   setup(props, { emit }) {
     console.log(props, 'props');
     const { t } = useLocale();
     const { cardRender } = useOperation();
+    const baseInfoRef = ref();
     const configData = ref({
-      bk_data_id: '',
-      collector_config_name: 'test0922-custom',
-      collector_config_name_en: 'test0922_custom',
+      // bk_data_id: '',
+      // collector_config_name: '',
+      collector_config_name_en: '',
       custom_type: 'log',
       data_link_id: 6,
-      storage_cluster_id: 21,
       retention: 7,
       allocation_min_days: 0,
       storage_replies: 1,
-      category_id: 'host_process',
+      category_id: 'application_check',
       description: '',
       es_shards: 3,
-      bk_biz_id: 100605,
       sort_fields: [],
       target_fields: [],
     });
     /** 基本信息 */
     const renderBaseInfo = () => (
       <BaseInfo
+        ref={baseInfoRef}
         data={configData.value}
         typeKey='custom'
+        on-change={data => {
+          console.log(data, 'data');
+          configData.value = { ...configData.value, ...data };
+        }}
       />
     );
 
@@ -90,12 +95,25 @@ export default defineComponent({
             class='width-88 mr-8'
             theme='primary'
             on-click={() => {
-              emit('next');
+              baseInfoRef.value
+                .validate()
+                .then(() => {
+                  emit('next', configData.value);
+                })
+                .catch(() => {
+                  showMessage(t('请完善基本信息'), 'error');
+                });
             }}
           >
             {t('下一步')}
           </bk-button>
-          <bk-button>{t('取消')}</bk-button>
+          <bk-button
+            on-click={() => {
+              emit('cancel');
+            }}
+          >
+            {t('取消')}
+          </bk-button>
         </div>
       </div>
     );
