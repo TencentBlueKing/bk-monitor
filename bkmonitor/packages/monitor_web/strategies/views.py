@@ -161,4 +161,8 @@ class StrategiesViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.strategies.list_strategy_subscribe, endpoint="subscribe/list"),
         # 获取策略订阅详情
         ResourceRoute("GET", resource.strategies.detail_strategy_subscribe, endpoint="subscribe/detail"),
+        # 批量新增/保存策略订阅
+        ResourceRoute("POST", resource.strategies.bulk_save_strategy_subscribe, endpoint="subscribe/bulk_save"),
+        # 批量删除策略订阅
+        ResourceRoute("POST", resource.strategies.bulk_delete_strategy_subscribe, endpoint="subscribe/bulk_delete"),
     ]

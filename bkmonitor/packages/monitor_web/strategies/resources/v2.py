@@ -3781,7 +3781,7 @@ class ListStrategySubscribeResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
         is_enable = serializers.BooleanField(required=False)
         page = serializers.IntegerField(required=False, default=1, min_value=1)
-        page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100)
+        page_size = serializers.IntegerField(required=False, default=100, min_value=1, max_value=500)
 
     def perform_request(self, params):
         # 只使用经过验证的字段进行过滤，避免潜在的安全风险
@@ -3796,7 +3796,7 @@ class ListStrategySubscribeResource(Resource):
 
         # 分页参数
         page = params.get("page", 1)
-        page_size = params.get("page_size", 20)
+        page_size = params.get("page_size", 100)
         offset = (page - 1) * page_size
 
         # 查询数据
