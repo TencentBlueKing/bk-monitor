@@ -359,4 +359,9 @@ export default {
   一键添加策略: 'Add policy in one click',
   一键生成: 'Generate in one click',
   编辑模板: 'Edit template',
+  差异对比: 'Difference comparison',
+  当前策略: 'Current strategy',
+  已关联策略: 'Associated strategies',
+  下发对象预览: 'Push object preview',
+  新关联: 'New relation',
 };

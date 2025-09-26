@@ -102,7 +102,6 @@ interface AlarmTemplateTableProps {
 
 @Component
 export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, AlarmTemplateTableEmits> {
-  @Ref('tableRef') tableRef: Record<string, any>;
   @Ref('deleteConfirmTipRef') deleteConfirmTipRef: InstanceType<typeof AlarmDeleteConfirm>;
 
   /** 当前应用名称 */
@@ -301,11 +300,6 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     return;
   }
 
-  @Watch('tableData')
-  handleDataChange() {
-    this.refreshKey = random(8);
-  }
-
   /**
    * @description 批量/单个模板内属性更新事件回调
    */
@@ -317,11 +311,16 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     this.$emit('batchUpdate', templateId, updateValue, promiseEvent);
   }
 
+  @Watch('tableData')
+  handleDataChange() {
+    this.refreshKey = random(8);
+  }
+
   mounted() {
-    this.tableRef?.$el.addEventListener('wheel', this.handlePopoverHide);
+    this.$el.addEventListener('wheel', this.handleDeletePopoverHide);
   }
   beforeDestroy() {
-    this.tableRef?.$el.removeEventListener('wheel', this.handlePopoverHide);
+    this.$el.removeEventListener('wheel', this.handleDeletePopoverHide);
   }
 
   /**
@@ -331,7 +330,10 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   handleDeletePopoverShow(e: MouseEvent, row: AlarmTemplateListItem) {
     if (this.isDeleteActive) return;
     if (this.deletePopoverInstance || this.deletePopoverDelayTimer) {
-      this.handlePopoverHide();
+      this.handleDeletePopoverHide();
+    }
+    if (this.deletePopoverInstance?.deleteConfirmConfig?.id === row.id) {
+      return;
     }
     const instance = this.$bkPopover(e.currentTarget, {
       content: this.deleteConfirmTipRef.$el,
@@ -347,7 +349,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         return !this.isDeleteActive;
       },
       onHidden: () => {
-        this.handlePopoverHide();
+        this.handleDeletePopoverHide();
       },
     });
     // @ts-ignore
@@ -370,7 +372,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   /**
    * @description: 清除popover
    */
-  handlePopoverHide() {
+  handleDeletePopoverHide() {
     if (this.isDeleteActive) return;
     this.handleClearTimer();
     this.deletePopoverInstance?.hide?.(0);
@@ -394,7 +396,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     confirmEvent?.promiseEvent
       ?.then(() => {
         this.isDeleteActive = false;
-        this.handlePopoverHide();
+        this.handleDeletePopoverHide();
       })
       .catch(() => {
         this.isDeleteActive = false;
@@ -446,6 +448,19 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     });
     const url = location.href.replace(location.pathname, '/').replace(location.hash, '') + href;
     window.open(url);
+  }
+
+  /**
+   * @description: 当删除按钮不可操作时，获取删除提示文案
+   */
+  getDeleteTip(row: AlarmTemplateListItem) {
+    if (row?.type === AlarmTemplateTypeEnum.INNER) {
+      return this.$t('内置策略不可删除') as string;
+    }
+    if (row?.applied_service_names?.length > 0) {
+      return this.$t('该模板已下发服务，不可删除') as string;
+    }
+    return '';
   }
 
   /**
@@ -612,7 +627,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   operatorColRenderer(row: AlarmTemplateListItem) {
     // 1. 内置策略不可删除
     // 2. 克隆策略，已下发，不可以删除
-    const deleteDisabled = row?.type === AlarmTemplateTypeEnum.INNER || row?.applied_service_names?.length > 0;
+    const deleteDisabledTip = this.getDeleteTip(row);
     return (
       <div class='operator-col'>
         <span v-bk-tooltips={{ content: this.$t('该模板已禁用，无法下发'), disabled: row?.is_enabled }}>
@@ -642,6 +657,10 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
             arrow: false,
             distance: 6,
             onHide: () => this.deletePopoverInstance?.deleteConfirmConfig?.id !== row?.id,
+            // onHidden: () => this.handleAllPopoverHide(),
+            // onShown: instance => {
+            //   this.moreOperationPopoverInstance = instance;
+            // },
           }}
           placement='bottom-end'
         >
@@ -653,12 +672,12 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
                   'more-btn-item delete-btn',
                   { 'is-active': this.deletePopoverInstance?.deleteConfirmConfig?.id === row?.id },
                   {
-                    'is-disabled': row?.type === AlarmTemplateTypeEnum.INNER || row?.applied_service_names?.length > 0,
+                    'is-disabled': deleteDisabledTip,
                   },
                 ]}
-                onClick={e => !deleteDisabled && this.handleDeletePopoverShow(e, row)}
+                v-bk-tooltips={{ content: deleteDisabledTip, disabled: !deleteDisabledTip }}
               >
-                {this.$t('删除')}
+                <div onClick={e => !deleteDisabledTip && this.handleDeletePopoverShow(e, row)}>{this.$t('删除')}</div>
               </li>
             </ul>
           </div>
@@ -704,7 +723,6 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       <div class='alarm-template-container'>
         <bk-table
           key={this.refreshKey}
-          ref='tableRef'
           height='100%'
           class={`alarm-template-table ${this.tableLoadingActiveClassConfig}`}
           auto-scroll-to-top={true}
@@ -737,7 +755,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
             ref='deleteConfirmTipRef'
             templateId={this.deletePopoverInstance?.deleteConfirmConfig?.id}
             templateName={this.deletePopoverInstance?.deleteConfirmConfig?.templateName}
-            onCancel={this.handlePopoverHide}
+            onCancel={this.handleDeletePopoverHide}
             onConfirm={this.handleDeleteTemplateConfirm}
           />
           <AlarmTemplateConfigDialog
