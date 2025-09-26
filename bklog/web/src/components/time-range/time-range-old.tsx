@@ -102,7 +102,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
   /** 面板选择时间范围 */
   dateTimeChange(date: [string, string]) {
-    this.timestamp = date.map((item, index) => `${item} ${!index ? '00:00:00' : '23:59:59'}`) as TimeRangeType;
+    this.timestamp = date.map((item, index) => `${item} ${index ? '23:59:59' : '00:00:00'}`) as TimeRangeType;
     this.localValue = [...this.timestamp];
     this.isPanelTimeRange = true;
   }
@@ -147,7 +147,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
   /** 点击快捷时间选项 */
   handleShortcutChange(data) {
-    if (!!data?.value) {
+    if (data?.value) {
       this.isPanelTimeRange = false;
       const value = [...data.value] as TimeRangeType;
       this.handleTransformTime(value);
@@ -160,19 +160,23 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   handleValidateTimeRange(): boolean {
     const timeRange = handleTransformToTimestamp(this.localValue);
     /** 时间格式错误 */
-    if (timeRange.some(item => !item)) return false;
+    if (timeRange.some(item => !item)) {
+      return false;
+    }
     /** 时间范围有误 */
-    if (timeRange[0] > timeRange[1]) return false;
+    if (timeRange[0] > timeRange[1]) {
+      return false;
+    }
     return true;
   }
   /** 确认操作 */
   handleConfirm() {
     const pass = this.handleValidateTimeRange();
-    if (!pass) {
+    if (pass) {
+      this.handleTimeRangeChange();
+    } else {
       this.localValue = [...this.value];
       this.isShow = false;
-    } else {
-      this.handleTimeRangeChange();
     }
   }
 
@@ -211,9 +215,9 @@ export default class TimeRange extends tsc<IProps, IEvents> {
               ]}
               onClick={() => (this.isShow = true)}
             >
-              <span class='bk-icon icon-clock'></span>
+              <span class='bk-icon icon-clock' />
               {this.type !== 'simple' && <span class='time-range-text'>{this.timeDisplay}</span>}
-              {this.type !== 'normal' && <i class='bk-icon icon-angle-down'></i>}
+              {this.type !== 'normal' && <i class='bk-icon icon-angle-down' />}
             </div>
             <div
               class='time-range-tips-content'
@@ -256,8 +260,9 @@ export default class TimeRange extends tsc<IProps, IEvents> {
             class='shortcuts-list'
             slot='shortcuts'
           >
-            {this.shortcuts.map(item => (
+            {this.shortcuts.map((item, index) => (
               <li
+                key={`${index}-${item}`}
                 class='shortcuts-item title-overflow'
                 v-bk-overflow-tips
                 onClick={() => this.handleShortcutChange(item)}

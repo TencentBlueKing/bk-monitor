@@ -344,4 +344,6 @@ export default {
     'Case-sensitive characters, numbers, underscores, and dots (.), up to 50 characters',
   '1～50 字符，仅支持 英文小写、数字、下划线（保存后不可修改）':
     '1-50 characters, only support lowercase English, numbers, and underscores (cannot be modified after saving)',
+  '请选择或输入': 'Please select or enter',
+  
 };

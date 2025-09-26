@@ -28,9 +28,10 @@ import { Component, Emit, Ref, Watch, Model } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { xssFilter } from '@/common/util';
-import { Popover, Form } from 'bk-magic-vue';
 
 import xiaojingAI from '../../../../../../images/xiaojingAI.svg';
+
+import type { Popover, Form } from 'bk-magic-vue';
 
 import './cluster-rule-dialog.scss';
 const { $i18n } = window.mainComponent;
@@ -50,7 +51,7 @@ export default class ClusterPopover extends tsc<IProps> {
   isShowRuleDialog = false;
 
   ruleList = [{ ruleStr: '', originStr: '', occupy: '', isChecked: false }];
-  checkedRuleList: Array<string> = [];
+  checkedRuleList: string[] = [];
   occupyData = {
     textInputStr: '',
   };
@@ -84,9 +85,11 @@ export default class ClusterPopover extends tsc<IProps> {
   }
 
   checkName() {
-    if (this.occupyData.textInputStr.trim() === '') return true;
+    if (this.occupyData.textInputStr.trim() === '') {
+      return true;
+    }
 
-    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
       this.occupyData.textInputStr.trim(),
     );
   }
@@ -166,21 +169,22 @@ export default class ClusterPopover extends tsc<IProps> {
     parent.removeChild(wrapper);
   }
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   findMatches(regexArray) {
     const text = this.sampleRef.innerText;
-    let matches = [];
+    const matches: Record<string, any>[] = [];
 
     // 对所有正则表达式进行匹配
-    regexArray.forEach(regexStr => {
-      let regex;
+    for (const regexStr of regexArray) {
+      let regex: RegExp;
       try {
         regex = new RegExp(regexStr, 'g');
       } catch (e) {
         console.error(`Invalid regular expression: ${regexStr}`, e);
-        return;
+        continue;
       }
 
-      let match;
+      let match: any;
       while ((match = regex.exec(text)) !== null) {
         matches.push({
           start: match.index,
@@ -189,19 +193,19 @@ export default class ClusterPopover extends tsc<IProps> {
           regex: regexStr,
         });
       }
-    });
+    }
 
     // 按起始位置和长度排序，以便于检测冲突
     matches.sort((a, b) => a.start - b.start || b.end - b.start - (a.end - a.start));
 
-    let finalMatches = [];
-    let conflicts = [];
+    const finalMatches: Record<string, any>[] = [];
+    const conflicts: Record<string, any>[] = [];
 
-    matches.forEach(match => {
+    for (const match of matches) {
       let conflict = false;
-      let conflictRegexes = [];
+      const conflictRegexes: string[] = [];
 
-      for (let existingMatch of finalMatches) {
+      for (const existingMatch of finalMatches) {
         if (match.start < existingMatch.end && match.end > existingMatch.start) {
           conflict = true;
           if (!conflictRegexes.includes(existingMatch.regex)) {
@@ -223,7 +227,7 @@ export default class ClusterPopover extends tsc<IProps> {
       } else {
         finalMatches.push(match);
       }
-    });
+    }
 
     // 按起始位置排序
     finalMatches.sort((a, b) => a.start - b.start);
@@ -235,32 +239,32 @@ export default class ClusterPopover extends tsc<IProps> {
   async addLightTags(matches, conflicts) {
     const text = this.sampleRef.innerText;
     // 合并 matches 和 conflicts，并按起始位置排序
-    let allMatches = [...matches, ...conflicts];
+    const allMatches = [...matches, ...conflicts];
     // 按匹配的起始位置排序
     allMatches.sort((a, b) => a.start - b.start);
 
     let result = '';
     let lastIndex = 0;
 
-    allMatches.forEach(match => {
-      let start = match.start;
-      let end = match.end;
-      let conflict = conflicts.find(conflict => conflict.start === start && conflict.end === end);
+    for (const match of allMatches) {
+      const start = match.start;
+      const end = match.end;
+      const conflict = conflicts.find(newConflict => newConflict.start === start && newConflict.end === end);
       const className = `${conflict ? 'conflict' : ''} ${this.checkedRuleList.includes(match.regex) ? 'hit' : ''}`;
       const showTitleRegexes = conflict?.conflictRegexes
         .concat(match.regex)
         .map(item => item.replace(/'/g, '&apos;').replace(/"/g, '&quot;')); // 把单引号双引号换成转义字符
-      let conflictRegexesStr = conflict
+      const conflictRegexesStr = conflict
         ? `${showTitleRegexes.join(` ${$i18n.t('与')} `)} ${$i18n.t('存在冲突匹配结果')}`
         : '';
 
-      // 如果当前匹配项和上一个匹配项有重叠，跳过当前匹配项
       if (start < lastIndex) {
-        return;
+        // 如果当前匹配项和上一个匹配项有重叠，跳过当前匹配项
+        continue;
       }
 
-      // 添加普通文本
       if (start > lastIndex) {
+        // 添加普通文本
         result += text.slice(lastIndex, start);
       }
 
@@ -268,7 +272,7 @@ export default class ClusterPopover extends tsc<IProps> {
       result += `<span class="${className}" data-index="${conflictRegexesStr}">${text.slice(start, end)}</span>`;
 
       lastIndex = end;
-    });
+    }
 
     // 添加剩余的普通文本
     if (lastIndex < text.length) {
@@ -277,7 +281,8 @@ export default class ClusterPopover extends tsc<IProps> {
 
     this.sampleRef.innerHTML = xssFilter(result);
     await this.$nextTick();
-    document.querySelectorAll('span.conflict').forEach(el => {
+    const spanList = document.querySelectorAll('span.conflict');
+    for (const el of spanList) {
       el.addEventListener('mouseenter', e => {
         const instance = this.$bkPopover(e.target, {
           content: el.getAttribute('data-index'),
@@ -291,18 +296,19 @@ export default class ClusterPopover extends tsc<IProps> {
         }) as Popover;
         instance?.show();
       });
-    });
+    }
   }
 
   handleChangeRuleHighlight() {
-    const ruleStrList: Array<string> = [];
+    const ruleStrList: string[] = [];
     this.checkedRuleList = [];
-    this.ruleList
-      .filter(item => !!item.ruleStr)
-      .forEach(item => {
-        ruleStrList.push(item.ruleStr);
-        if (item.isChecked) this.checkedRuleList.push(item.ruleStr);
-      });
+    const filterRuleList = this.ruleList.filter(item => !!item.ruleStr);
+    for (const item of filterRuleList) {
+      ruleStrList.push(item.ruleStr);
+      if (item.isChecked) {
+        this.checkedRuleList.push(item.ruleStr);
+      }
+    }
     const { matches, conflicts } = this.findMatches(ruleStrList);
     this.addLightTags(matches, conflicts);
   }
@@ -352,7 +358,7 @@ export default class ClusterPopover extends tsc<IProps> {
                 v-model={this.occupyData.textInputStr}
                 placeholder={$i18n.t('请输入')}
                 onEnter={this.handleSubmitOccupy}
-              ></bk-input>
+              />
             </bk-form-item>
             <div class='btn-box'>
               <bk-button
@@ -389,9 +395,9 @@ export default class ClusterPopover extends tsc<IProps> {
               ref='sample'
               class='sample-content'
               onMouseup={this.handleMouseUpSample}
-            ></div>
+            />
             <div class='tips'>
-              <i class='log-icon icon-info-fill'></i>
+              <i class='log-icon icon-info-fill' />
               <span>{$i18n.t('左键框选字段，可提取并生成正则表达式')}</span>
             </div>
           </div>
@@ -403,33 +409,39 @@ export default class ClusterPopover extends tsc<IProps> {
               </div>
             )}
             {this.ruleList.map((item, index) => (
-              <div class='rule-item'>
+              <div
+                key={`${index}-${item}`}
+                class='rule-item'
+              >
                 <div class='left'>
                   <div class='input-content'>
                     <bk-checkbox
                       v-model={item.isChecked}
                       onChange={this.handleChangeRuleHighlight}
-                    ></bk-checkbox>
+                    />
                     <bk-input
                       v-model={item.ruleStr}
                       onBlur={this.handleChangeRuleHighlight}
                       onEnter={this.handleChangeRuleHighlight}
-                    ></bk-input>
+                    />
                   </div>
                   <div class='btn-content'>
-                    <i class='icon bk-icon icon-right-turn-line'></i>
+                    <i class='icon bk-icon icon-right-turn-line' />
+                    {/** biome-ignore lint/nursery/useImageSize: reason */}
+                    {/** biome-ignore lint/performance/noImgElement: reason */}
                     <img
                       class='xiaojing-AI'
+                      alt='小鲸AI'
                       src={xiaojingAI}
                     />
                   </div>
                 </div>
                 <div class='right'>
-                  <bk-input v-model={item.occupy}></bk-input>
+                  <bk-input v-model={item.occupy} />
                   <i
                     class='bk-icon icon-minus-circle-shape icon'
                     onClick={() => this.handleDeleteRuleItem(index)}
-                  ></i>
+                  />
                 </div>
               </div>
             ))}

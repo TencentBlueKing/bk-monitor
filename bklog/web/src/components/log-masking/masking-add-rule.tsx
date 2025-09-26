@@ -58,7 +58,7 @@ interface IProps {
 
 interface IEditAccessValue {
   accessNum: number;
-  accessInfo: Array<any>;
+  accessInfo: any[];
 }
 
 interface IAddRuleFieldValue {
@@ -71,7 +71,7 @@ export default class MaskingAddRule extends tsc<IProps> {
   @Model('change', { type: Boolean, default: false }) value: IProps['value'];
   @Prop({ type: Boolean, default: false }) isEdit: boolean;
   @Prop({ type: Boolean, default: true }) isPublicRule: boolean;
-  @Prop({ type: Array, default: () => [] }) tableStrList: Array<string>;
+  @Prop({ type: Array, default: () => [] }) tableStrList: string[];
   @Prop({ type: Number, default: 0 }) ruleID: number | string;
   @Prop({
     type: Object,
@@ -212,7 +212,9 @@ export default class MaskingAddRule extends tsc<IProps> {
 
   @Watch('logOriginal')
   watchOriginStr(val: string) {
-    if (!val) this.debugLog = '';
+    if (!val) {
+      this.debugLog = '';
+    }
   }
 
   @Emit('submit-rule')
@@ -236,8 +238,12 @@ export default class MaskingAddRule extends tsc<IProps> {
   /** 打开侧边栏 */
   showSlider() {
     this.baseFromData = structuredClone(this.formData);
-    if (this.addRuleFieldValue.field) this.initFiledValue();
-    if (this.isEdit) this.initFormState();
+    if (this.addRuleFieldValue.field) {
+      this.initFiledValue();
+    }
+    if (this.isEdit) {
+      this.initFormState();
+    }
     this.activeCollapse = ['1'];
   }
 
@@ -251,21 +257,25 @@ export default class MaskingAddRule extends tsc<IProps> {
 
   get isCanClickDebugBtn() {
     // 脱敏正则，脱敏算子，原始日志，且选中脱敏正则checkBox才可点击调试
-    return (
-      !this.matchExpressionCheckValue ||
-      !this.formData.match_pattern ||
-      !this.logOriginal ||
-      !this.checkOperatorParams()
+    return !(
+      this.matchExpressionCheckValue &&
+      this.formData.match_pattern &&
+      this.logOriginal &&
+      this.checkOperatorParams()
     );
   }
 
   checkFieldsMatch() {
-    if (!this.matchFieldCheckValue) return true;
+    if (!this.matchFieldCheckValue) {
+      return true;
+    }
     return !!this.formData.match_fields.length;
   }
 
   checkExpressionMatch() {
-    if (!this.matchExpressionCheckValue) return true;
+    if (!this.matchExpressionCheckValue) {
+      return true;
+    }
     return !!this.formData.match_pattern;
   }
 
@@ -278,7 +288,9 @@ export default class MaskingAddRule extends tsc<IProps> {
 
   checkRuleName() {
     // 编辑状态，且规则名未变动 返回正确的规则
-    if (this.isEdit && this.cacheRuleName === this.formData.rule_name) return true;
+    if (this.isEdit && this.cacheRuleName === this.formData.rule_name) {
+      return true;
+    }
     // 判断是否规则名是否重复
     return !this.tableStrList.includes(this.formData.rule_name);
   }
@@ -290,10 +302,11 @@ export default class MaskingAddRule extends tsc<IProps> {
         params: { rule_id: this.ruleID },
       });
       Object.assign(this.formData, (resData as any).data);
-      if (this.isEdit) this.cacheRuleName = this.formData.rule_name;
+      if (this.isEdit) {
+        this.cacheRuleName = this.formData.rule_name;
+      }
       this.matchFieldCheckValue = !!this.formData.match_fields.length;
       this.matchExpressionCheckValue = !!this.formData.match_pattern;
-    } catch (err) {
     } finally {
       this.formLoading = false;
     }
@@ -402,13 +415,17 @@ export default class MaskingAddRule extends tsc<IProps> {
 
   handleChangeFieldCheck(newValue: boolean) {
     this.matchFieldCheckValue = newValue;
-    if (!newValue) this.formData.match_fields = [];
+    if (!newValue) {
+      this.formData.match_fields = [];
+    }
   }
 
   handleChangeExpressionCheck(newValue: boolean) {
     this.matchExpressionCheckValue = newValue;
     this.activeCollapse = newValue ? ['1'] : [];
-    if (!newValue) this.formData.match_pattern = '';
+    if (!newValue) {
+      this.formData.match_pattern = '';
+    }
   }
 
   getShowRowStyle(row: any) {
@@ -440,8 +457,8 @@ export default class MaskingAddRule extends tsc<IProps> {
     const {
       params: { preserve_head: preserveHead, preserve_tail: preserveTail },
     } = this.formData;
-    this.formData.params.preserve_head = !!preserveHead ? preserveHead : 0;
-    this.formData.params.preserve_tail = !!preserveHead ? preserveTail : 0;
+    this.formData.params.preserve_head = preserveHead ? preserveHead : 0;
+    this.formData.params.preserve_tail = preserveHead ? preserveTail : 0;
   }
 
   render() {
@@ -460,7 +477,7 @@ export default class MaskingAddRule extends tsc<IProps> {
           key={'scenario_name'}
           label={this.$t('日志来源')}
           prop={'scenario_name'}
-        ></TableColumn>
+        />
 
         <TableColumn
           key={'ids'}
@@ -479,7 +496,7 @@ export default class MaskingAddRule extends tsc<IProps> {
           label={this.$t('应用次数')}
           prop={'ids'}
           sortable
-        ></TableColumn>
+        />
       </Table>
     );
 
@@ -519,7 +536,7 @@ export default class MaskingAddRule extends tsc<IProps> {
               property='rule_name'
               required
             >
-              <Input v-model={this.formData.rule_name}></Input>
+              <Input v-model={this.formData.rule_name} />
             </FormItem>
             <FormItem
               label={this.$t('匹配项')}
@@ -542,7 +559,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                   allow-create
                   free-paste
                   onBlur={this.handleValueBlur}
-                ></TagInput>
+                />
               </div>
               <div
                 class='left-and'
@@ -557,7 +574,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                 <i
                   class='bklog-icon bklog-info-fill'
                   v-bk-tooltips={{ content: this.$t('字段名与表达式至少填写 1 个') }}
-                ></i>
+                />
               </div>
             </FormItem>
             <FormItem property='match_pattern'>
@@ -574,7 +591,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                   <Input
                     v-model={this.formData.match_pattern}
                     disabled={!this.matchExpressionCheckValue}
-                  ></Input>
+                  />
                 </div>
               </div>
             </FormItem>
@@ -595,12 +612,15 @@ export default class MaskingAddRule extends tsc<IProps> {
                       allowHtml: true,
                       content: '#rule-tips',
                     }}
-                  ></i>
+                  />
                   <div id='rule-tips'>
                     <span>
                       {`${this.$t('支持引用正则表达式中的命名分组。如正则表达式为 ')}(?P<` +
                         'phone' +
-                        `>\\w{6,16})${this.$t('，可通过 ${phone} 进行引用')}`}
+                        `>\\w{6,16})${
+                          // biome-ignore lint/suspicious/noTemplateCurlyInString: reason
+                          this.$t('，可通过 ${phone} 进行引用')
+                        }`}
                     </span>
                   </div>
                 </div>
@@ -615,7 +635,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                   <Input
                     style='flex: 1;'
                     v-model={this.formData.params.template_string}
-                  ></Input>
+                  />
                 </div>
               ) : (
                 <i18n
@@ -627,13 +647,13 @@ export default class MaskingAddRule extends tsc<IProps> {
                     min={0}
                     type='number'
                     onBlur={() => this.handleChangeCoverNumber()}
-                  ></Input>
+                  />
                   <Input
                     v-model={this.formData.params.preserve_tail}
                     min={0}
                     type='number'
                     onBlur={() => this.handleChangeCoverNumber()}
-                  ></Input>
+                  />
                 </i18n>
               )}
             </FormItem>
@@ -662,7 +682,7 @@ export default class MaskingAddRule extends tsc<IProps> {
               name='1'
             >
               <div class='debugging-title'>
-                <i class={{ 'bk-icon icon-play-shape': true, 'is-active': this.activeCollapse.length }}></i>
+                <i class={{ 'bk-icon icon-play-shape': true, 'is-active': this.activeCollapse.length }} />
                 <span>{this.$t('脱敏结果预览')}</span>
               </div>
               <div
@@ -679,7 +699,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                       placeholder={this.$t('请输入')}
                       rows={3}
                       type='textarea'
-                    ></Input>
+                    />
                     {!!this.debugErrorTipsStr && <span class='debug-error'>{this.debugErrorTipsStr}</span>}
                   </div>
                 </div>

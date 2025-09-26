@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, Ref, ref } from 'vue';
-
-import { Props } from 'tippy.js';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch, type PropType, type Ref } from 'vue';
 
 import { getOsCommandLabel } from '../../../../common/util';
 import BklogPopover from '../../../../components/bklog-popover';
 import EllipsisTagList from '../../../../components/ellipsis-tag-list';
 import Content from './content';
-import { IndexSetTabList, IndexSetType } from './use-choice';
+
+import type { IndexSetTabList, IndexSetType } from './use-choice';
+import type { Props } from 'tippy.js';
 
 import './index.scss';
 
@@ -74,7 +74,7 @@ export default defineComponent({
     },
     // 索引集值
     indexSetValue: {
-      type: Array,
+      type: Array as PropType<string[]>,
       default: () => [],
     },
     // 索引集列表
@@ -99,8 +99,9 @@ export default defineComponent({
     const refRootElement: Ref<any | null> = ref(null);
     const shortcutKey = `${getOsCommandLabel()}+O`;
     const refContentObject: Ref<any | null> = ref(null);
+    const selectedValues = ref([]);
 
-    let unionListValue = [];
+    let unionListValue: any[] = [];
 
     const tippyOptions: Props = {
       hideOnClick: false,
@@ -133,12 +134,40 @@ export default defineComponent({
       };
     });
 
-    const selectedValues = computed(() =>
-      props.indexSetValue
-        .map(v => props.indexSetList.find((i: any) => `${i.index_set_id}` === `${v}`))
-        .filter(c => c !== undefined),
+    /**
+     * 扁平化树形列表
+     */
+    const getFlatList = () => (props.indexSetList ?? []).map((t: any) => [t, t.children]).flat(3);
+
+    /**
+     * 查询选中结果值，新版索引ID格式为： pid_childId, 如果为根节点，格式为： #_childId
+     * 兼容旧版本索引ID格式, 旧版本只有 index_set_id, 适配逻辑为：v.split('_').at(-1) === index_set_id
+     */
+    const getSelectedValues = () => {
+      const flatList = getFlatList();
+      let values = props.indexSetValue.map(v => {
+        const target = flatList.find((i: any) => `${i.unique_id}` === `${v}`);
+        if (!target) {
+          return flatList.find((i: any) => `${i.index_set_id}` === `${v.split('_').at(-1)}`);
+        }
+
+        return target;
+      });
+
+      return values;
+    };
+
+    watch(
+      () => props.indexSetValue,
+      () => {
+        selectedValues.value = getSelectedValues();
+      },
+      { immediate: true },
     );
 
+    /**
+     * 处理tab切换事件
+     */
     const handleTabChange = (type: string) => {
       emit('type-change', type);
     };
@@ -220,12 +249,12 @@ export default defineComponent({
                   list={props.indexSetList}
                   spaceUid={props.spaceUid}
                   type={props.activeType}
-                  value={props.indexSetValue}
+                  value={selectedValues.value}
                   zIndex={props.zIndex}
                   on-auth-request={handleAuthRequest}
                   on-type-change={handleTabChange}
                   on-value-change={handleValueChange}
-                ></Content>
+                />
               ),
             },
           }}
@@ -245,8 +274,8 @@ export default defineComponent({
                 ),
               },
             }}
-          ></EllipsisTagList>
-          <span class='bklog-icon bklog-arrow-down-filled-2'></span>
+          />
+          <span class='bklog-icon bklog-arrow-down-filled-2' />
         </BklogPopover>
       );
     };

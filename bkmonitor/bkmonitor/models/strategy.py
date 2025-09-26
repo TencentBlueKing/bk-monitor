@@ -392,6 +392,7 @@ class StrategyModel(Model):
 
     priority = models.IntegerField("优先级", null=True)
     # 在配置优先级的情况下，去除条件，根据查询配置生成优先级分组key
+    # 自动算的是16位uuid，用户指定带固定前缀 PGK:
     priority_group_key = models.CharField("优先级分组", max_length=64, default=None, blank=True, null=True)
 
     class Meta:

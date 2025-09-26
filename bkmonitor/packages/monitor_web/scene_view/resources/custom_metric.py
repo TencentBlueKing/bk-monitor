@@ -273,7 +273,7 @@ class GetCustomTsGraphConfig(Resource):
                     "metrics": [
                         {"field": metric.name, "method": metric.config.get("aggregate_method") or "AVG", "alias": "a"}
                     ],
-                    "interval": metric.config.get("interval") or "auto",
+                    "interval": "$interval",
                     "table": table.table_id,
                     "data_label": table.data_label.split(",")[0],
                     "data_source_label": DataSourceLabel.CUSTOM,
@@ -366,7 +366,7 @@ class GetCustomTsGraphConfig(Resource):
                                 "alias": "a",
                             }
                         ],
-                        "interval": metric.config.get("interval") or "auto",
+                        "interval": "$interval",
                         "table": table.table_id,
                         "data_label": table.data_label.split(",")[0],
                         "data_source_label": DataSourceLabel.CUSTOM,

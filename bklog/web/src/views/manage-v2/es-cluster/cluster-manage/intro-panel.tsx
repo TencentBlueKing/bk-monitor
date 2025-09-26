@@ -25,12 +25,14 @@
  */
 
 import { defineComponent, ref, computed } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import BkUserSelector from '@blueking/user-selector';
-import http from '@/api';
+
 import { xssFilter } from '@/common/util';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import BkUserSelector from '@blueking/user-selector';
 import { Message } from 'bk-magic-vue';
+
+import http from '@/api';
 
 import './intro-panel.scss';
 
@@ -122,7 +124,7 @@ export default defineComponent({
             <span
               style={props.isOpenWindow ? 'color:#3A84FF;' : ''}
               class='bk-icon icon-text-file'
-            ></span>
+            />
           </div>
           <div class='top-title'>
             <p>{t('说明文档')}</p>
@@ -130,40 +132,40 @@ export default defineComponent({
               class='create-btn close'
               onClick={() => handleActiveDetails(false)}
             >
-              <span class='bk-icon icon-minus-line'></span>
+              <span class='bk-icon icon-minus-line' />
             </div>
           </div>
           <div class='help-main'>
             {customTypeIntro.value.map((item, index) => (
               <div
+                key={`${index}-${item}`}
                 class='help-md-container'
-                key={index}
               >
                 <div
                   class='help-md'
-                  // @ts-ignore
+                  // @ts-expect-error
                   domPropsInnerHTML={xssFilter(item.help_md)}
-                ></div>
+                />
                 {!!item.button_list.length &&
                   item.button_list.map((sItem, sIndex) =>
                     sItem.type === 'blank' ? (
                       <a
+                        key={`${sIndex}-${sItem}`}
                         class='help-a-link'
                         href={sItem.url}
                         target='_blank'
-                        key={sIndex}
                       >
                         {t('跳转至')}
                         {item.name}
-                        <span class='bklog-icon bklog-tiaozhuan'></span>
+                        <span class='bklog-icon bklog-tiaozhuan' />
                       </a>
                     ) : (
                       <bk-button
+                        key={`${sIndex}-${sItem}`}
+                        class='wx-button'
                         outline={true}
                         size='small'
                         theme='primary'
-                        class='wx-button'
-                        key={sIndex}
                         onClick={() => handleCreateAGroup(sItem)}
                       >
                         {t('一键拉群')}
@@ -176,18 +178,18 @@ export default defineComponent({
         </div>
         <bk-dialog
           width={600}
-          value={isShowDialog.value}
-          maskClose={false}
-          title={t('一键拉群')}
           headerPosition='left'
+          maskClose={false}
           theme='primary'
+          title={t('一键拉群')}
+          value={isShowDialog.value}
           onCancel={handleCancelQWGroup}
           onConfirm={handleSubmitQWGroup}
         >
           <div class='group-container'>
             <div class='group-title-container'>
               <div class='qw-icon'>
-                <span class='bklog-icon bklog-qiyeweixin'></span>
+                <span class='bklog-icon bklog-qiyeweixin' />
               </div>
               <div class='hint'>
                 <p>{t('一键拉群功能')}</p>

@@ -440,10 +440,11 @@ export default defineComponent({
       </span>
     );
 
-    const renderLogJSONTips = (log: any, isChild = false) => {
+    const renderLogJSONTips = (log: any, isChild = false, isArray = false) => {
+      if (!log) return 'null';
       return (
         <>
-          <span style='color: #9D694C;'>{'{'}</span>
+          <span style='color: #9D694C;'>{`${isArray ? '[' : '{'}`}</span>
           {Object.entries(log).map(([key, value]) => (
             <div
               key={key}
@@ -455,12 +456,12 @@ export default defineComponent({
                 {typeof value === 'number'
                   ? value
                   : typeof value === 'object'
-                    ? renderLogJSONTips(value, true)
+                    ? renderLogJSONTips(value, true, Array.isArray(value))
                     : `"${value}"`}
               </span>
             </div>
           ))}
-          <span style='color: #9D694C;'>{'}'}</span>
+          <span style='color: #9D694C;'>{`${isArray ? ']' : '}'}`}</span>
         </>
       );
     };
@@ -495,7 +496,7 @@ export default defineComponent({
                       class={['icon-monitor', 'copy-icon', 'icon-mc-copy']}
                       onClick={handleCopy.bind(this, item.pattern)}
                     />
-                    <span class='log-pattern'>{item.pattern}</span>
+                    <div class='log-pattern'>{item.pattern}</div>
                   </div>
                 ),
                 default: () => (
@@ -537,7 +538,7 @@ export default defineComponent({
                       class={['icon-monitor', 'copy-icon', 'icon-mc-copy']}
                       onClick={handleCopy.bind(this, item.demo_log)}
                     />
-                    {renderLogJSONTips(JSON.parse(item.demo_log))}
+                    <div class='log-popover-content_json'>{renderLogJSONTips(JSON.parse(item.demo_log))}</div>
                   </div>
                 ),
                 default: () => (
@@ -587,7 +588,7 @@ export default defineComponent({
         class='exception-wrap-item'
         description={data.message}
         scene='part'
-        title={t('超时错误')}
+        title={t('查询异常')}
         type='500'
       />
     );

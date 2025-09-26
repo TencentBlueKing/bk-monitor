@@ -286,13 +286,13 @@ export default defineComponent({
       // 聚类下钻只能使用ui模式
       store.commit('updateIndexItem', { search_mode: 'ui' });
       // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
-      store.commit('updateClusterParams', null);
+      store.commit('updateState', {key: 'clusterParams', value: null});
       store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
         if (isLink) {
           const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
           window.open(openUrl, '_blank');
           // 新开页后当前页面回填聚类参数
-          store.commit('updateClusterParams', props.requestData);
+          store.commit('updateState', {key: 'clusterParams', value: props.requestData});
           return;
         } else {
           emit('show-change', 'origin');

@@ -258,15 +258,17 @@ export default class GroupDialog extends tsc<IProps> {
     if (status) {
       this.selectFavoriteList.push(row.id);
     } else {
-      const index = this.selectFavoriteList.findIndex(item => item === row.id);
+      const index = this.selectFavoriteList.indexOf(row.id);
       this.selectFavoriteList.splice(index, 1);
     }
   }
   /** 搜索 */
   handleSearchFilter() {
-    if (this.tableLoading) return;
+    if (this.tableLoading) {
+      return;
+    }
     this.tableLoading = true;
-    let searchList;
+    let searchList: IFavoriteItem[] = [];
     if (this.searchValue !== '') {
       searchList = this.operateTableList.filter(item => item.name.includes(this.searchValue));
       this.emptyType = 'search-empty';
@@ -295,7 +297,9 @@ export default class GroupDialog extends tsc<IProps> {
     }
   }
   handleInputSearchFavorite() {
-    if (this.searchValue === '') this.handleSearchFilter();
+    if (this.searchValue === '') {
+      this.handleSearchFilter();
+    }
   }
   /** 全选操作 */
   handleSelectionChange(value) {
@@ -303,9 +307,9 @@ export default class GroupDialog extends tsc<IProps> {
   }
   /** 多选移动至分组操作 */
   handleClickMoveGroup(value) {
-    this.selectFavoriteList.forEach(item => {
+    for (const item of this.selectFavoriteList) {
       this.operateListChange({ id: item }, { group_id: value.group_id, is_group_disabled: false });
-    });
+    }
   }
   /** 获取字段下拉框列表请求 */
   async getSearchFieldsList(keyword: string) {
@@ -327,18 +331,20 @@ export default class GroupDialog extends tsc<IProps> {
       const localLanguage = jsCookie.get('blueking_language') || 'zh-cn';
       const initList = res.data.map(item => {
         const visible_option = item.created_by === this.getUserName ? this.allOptionList : this.unPrivateOptionList;
-        const search_fields_select_list = item.search_fields.map(item => ({
+        const search_fields_select_list = item.search_fields.map(newItem => ({
           name:
             localLanguage === 'en'
-              ? item.replace(/^全文检索(\(\d\))?$/, (item, p1) => {
-                  return `${this.$t('全文检索')}${!!p1 ? p1 : ''}`;
+              ? newItem.replace(/^全文检索(\(\d\))?$/, (_item, p1) => {
+                  return `${this.$t('全文检索')}${p1 ? p1 : ''}`;
                 })
-              : item,
-          chName: item,
+              : newItem,
+          chName: newItem,
         })); // 初始化表单字段
 
         const is_group_disabled = item.visible_type === 'private';
-        if (!updateSourceFiltersSet.has(item.updated_by)) updateSourceFiltersSet.add(item.updated_by);
+        if (!updateSourceFiltersSet.has(item.updated_by)) {
+          updateSourceFiltersSet.add(item.updated_by);
+        }
         return {
           ...item,
           search_fields_select_list,
@@ -355,7 +361,7 @@ export default class GroupDialog extends tsc<IProps> {
       this.tableList = res.data;
       this.operateTableList = initList;
       this.searchAfterList = initList;
-    } catch (error) {
+    } catch {
       this.emptyType = '500';
     } finally {
       this.tableLoading = false;
@@ -381,7 +387,7 @@ export default class GroupDialog extends tsc<IProps> {
         text: this.groupNameMap[item.group_type] ?? item.name,
         value: item.name,
       }));
-      this.unknownGroupID = this.groupList[this.groupList.length - 1]?.group_id;
+      this.unknownGroupID = this.groupList.at(-1)?.group_id;
       this.privateGroupID = this.groupList[0]?.group_id;
     } catch (error) {
       console.warn(error);
@@ -421,7 +427,6 @@ export default class GroupDialog extends tsc<IProps> {
         });
         this.getGroupList(true);
       }
-    } catch (error) {
     } finally {
       this.isShowAddGroup = true;
       this.groupName = '';
@@ -435,7 +440,7 @@ export default class GroupDialog extends tsc<IProps> {
         const list = res.data.map(item => ({
           ...item,
           name: item.is_full_text_field
-            ? `${this.$t('全文检索')}${!!item.repeat_count ? `(${item.repeat_count})` : ''}`
+            ? `${this.$t('全文检索')}${item.repeat_count ? `(${item.repeat_count})` : ''}`
             : item.name,
           chName: item.name,
         }));
@@ -464,13 +469,19 @@ export default class GroupDialog extends tsc<IProps> {
   }
   /** 用户操作 */
   operateListChange(row, operateObj = {}) {
-    if (this.isCannotValueChange) return;
+    if (this.isCannotValueChange) {
+      return;
+    }
 
     // 搜索展示用的列表和操作缓存的列表同时更新数据
     for (const listName of ['searchAfterList', 'operateTableList']) {
       const index = this[listName].findIndex(item => item.id === row.id);
-      if (index >= 0) Object.assign(this[listName][index], row, operateObj);
-      if (listName === 'operateTableList') this.submitDataCompared(row, index, operateObj);
+      if (index >= 0) {
+        Object.assign(this[listName][index], row, operateObj);
+      }
+      if (listName === 'operateTableList') {
+        this.submitDataCompared(row, index, operateObj);
+      }
     }
   }
   /** 提交数据对比 */
@@ -498,7 +509,9 @@ export default class GroupDialog extends tsc<IProps> {
   }
   /** 删除不做对比的参数 */
   deleteSubmitData(data: object, list: string[]) {
-    list.forEach(item => delete data[item]);
+    for (const item of list) {
+      delete data[item];
+    }
   }
 
   handleDeleteFavorite(row) {
@@ -510,11 +523,15 @@ export default class GroupDialog extends tsc<IProps> {
         // 删除收藏 把展示的表格, 操作表格, 提交表格, 以及基础表格统一删除
         for (const listName of ['searchAfterList', 'operateTableList', 'submitTableList', 'tableList']) {
           const index = this[listName].findIndex(item => item.id === row.id);
-          if (index >= 0) this[listName].splice(index, 1);
+          if (index >= 0) {
+            this[listName].splice(index, 1);
+          }
         }
         // 当前选中选择删除
-        const index = this.selectFavoriteList.findIndex(item => item === row.id);
-        if (index >= 0) this.selectFavoriteList.splice(index, 1);
+        const index = this.selectFavoriteList.indexOf(row.id);
+        if (index >= 0) {
+          this.selectFavoriteList.splice(index, 1);
+        }
         $http.request('favorite/deleteFavorite', {
           params: { favorite_id: row.id },
         });
@@ -536,20 +553,24 @@ export default class GroupDialog extends tsc<IProps> {
   async batchDeleteFavorite() {
     // 删除接口
     // 若没有删除则不请求
-    if (!this.deleteTableIDList.length) return;
+    if (!this.deleteTableIDList.length) {
+      return;
+    }
     try {
       await $http.request('favorite/batchFavoriteDelete', {
         data: {
           id_list: this.deleteTableIDList,
         },
       });
-    } catch (error) {}
+    } catch {}
   }
 
   async batchUpdateFavorite() {
     // 更新收藏接口
     // 若没有更新收藏则不请求
-    if (!this.submitTableList.length) return;
+    if (!this.submitTableList.length) {
+      return;
+    }
     const params = this.submitTableList.map(item => ({
       id: item.id,
       name: item.name,
@@ -569,7 +590,7 @@ export default class GroupDialog extends tsc<IProps> {
           params,
         },
       });
-    } catch (error) {}
+    } catch {}
   }
   /** 所属组和变更人分组操作 */
   sourceFilterMethod(value, row, column) {
@@ -592,7 +613,9 @@ export default class GroupDialog extends tsc<IProps> {
   }
 
   getGroupName(row) {
-    if (row.group_id === this.unknownGroupID) return this.groupNameMap.unknown;
+    if (row.group_id === this.unknownGroupID) {
+      return this.groupNameMap.unknown;
+    }
     return row.group_name;
   }
 
@@ -669,8 +692,8 @@ export default class GroupDialog extends tsc<IProps> {
 
   render() {
     const indexSetName = row => {
-      const { index_set_name: indexSetName, index_set_names: indexSetNames } = row;
-      return !this.isUnionSearch ? indexSetName : indexSetNames?.map(item => <Tag>{item}</Tag>) || '';
+      const { index_set_name: newIndexSetName, index_set_names: indexSetNames } = row;
+      return this.isUnionSearch ? indexSetNames?.map(item => <Tag key={item}>{item}</Tag>) || '' : newIndexSetName;
     };
     const expandSlot = {
       default: ({ row }) => (
@@ -687,7 +710,7 @@ export default class GroupDialog extends tsc<IProps> {
           <div class='expand-information'>
             <span>{this.$t('查询显示字段')}:</span>
             {row.display_fields.map(item => (
-              <Tag>{item}</Tag>
+              <Tag key={item}>{item}</Tag>
             ))}
           </div>
         </div>
@@ -695,22 +718,26 @@ export default class GroupDialog extends tsc<IProps> {
     };
     const nameSlot = {
       default: ({ row }) => [
-        <div class='group-container'>
+        <div
+          key={row.id}
+          class='group-container'
+        >
           <Checkbox
             class='group-check-box'
             checked={this.getCheckedStatus(row)}
             on-change={status => this.handleRowCheckChange(row, status)}
-          ></Checkbox>
+          />
           <ManageInput
             favorite-data={row}
             on-change={val => this.handleChangeFavoriteName(row, val)}
-          ></ManageInput>
+          />
         </div>,
       ],
     };
     const groupSlot = {
       default: ({ row }) => [
         <Select
+          key={row.id}
           vModel={row.group_id}
           clearable={false}
           disabled={row.is_group_disabled}
@@ -733,7 +760,7 @@ export default class GroupDialog extends tsc<IProps> {
               id={item.group_id}
               key={item.group_id}
               name={item.group_name}
-            ></Option>
+            />
           ))}
           <div slot='extension'>
             {this.isShowAddGroup ? (
@@ -742,7 +769,7 @@ export default class GroupDialog extends tsc<IProps> {
                 onClick={() => (this.isShowAddGroup = false)}
               >
                 <div>
-                  <i class='bk-icon icon-plus-circle'></i>
+                  <i class='bk-icon icon-plus-circle' />
                   {this.$t('新增')}
                 </div>
               </div>
@@ -752,19 +779,19 @@ export default class GroupDialog extends tsc<IProps> {
                   vModel={this.groupName}
                   behavior={'simplicity'}
                   maxlength={30}
-                ></Input>
+                />
                 <div class='operate-button'>
                   <span
                     class='bk-icon icon-check-line'
                     onClick={() => this.handleAddGroupName()}
-                  ></span>
+                  />
                   <span
                     class='bk-icon icon-close-line-2'
                     onClick={() => {
                       this.isShowAddGroup = true;
                       this.groupName = '';
                     }}
-                  ></span>
+                  />
                 </div>
               </li>
             )}
@@ -824,12 +851,15 @@ export default class GroupDialog extends tsc<IProps> {
     // };
     const deleteSlot = {
       default: ({ row }) => [
-        <div class='switcher-box'>
+        <div
+          key={row.id}
+          class='switcher-box'
+        >
           <div
             class='delete'
             onClick={() => this.handleDeleteFavorite(row)}
           >
-            <span class='bk-icon icon-delete'></span>
+            <span class='bk-icon icon-delete' />
           </div>
         </div>,
       ],
@@ -859,7 +889,7 @@ export default class GroupDialog extends tsc<IProps> {
             on-enter={this.handleSearchFilter}
             on-right-icon-click={this.handleSearchFilter}
             onKeyup={this.handleInputSearchFavorite}
-          ></Input>
+          />
         </div>
         {this.selectCount ? (
           <div class='table-top-operate'>
@@ -875,7 +905,7 @@ export default class GroupDialog extends tsc<IProps> {
               >
                 <span class='operate-click'>
                   ，&nbsp;{this.$t('移至分组')}
-                  <span class='bk-icon icon-down-shape'></span>
+                  <span class='bk-icon icon-down-shape' />
                 </span>
               </div>
               <div
@@ -884,7 +914,12 @@ export default class GroupDialog extends tsc<IProps> {
               >
                 <ul class='search-li'>
                   {this.unPrivateList.map(item => (
-                    <li onClick={() => this.handleClickMoveGroup(item)}>{item.group_name}</li>
+                    <li
+                      key={item}
+                      onClick={() => this.handleClickMoveGroup(item)}
+                    >
+                      {item.group_name}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -907,7 +942,7 @@ export default class GroupDialog extends tsc<IProps> {
             render-header={this.renderHeader}
             scopedSlots={expandSlot}
             type='expand'
-          ></TableColumn>
+          />
 
           <TableColumn
             key={'column_name'}
@@ -917,7 +952,7 @@ export default class GroupDialog extends tsc<IProps> {
             prop={'name'}
             render-header={this.$renderHeader}
             scopedSlots={nameSlot}
-          ></TableColumn>
+          />
 
           {this.checkFields('group_name') ? (
             <TableColumn
@@ -932,7 +967,7 @@ export default class GroupDialog extends tsc<IProps> {
               prop={'group_name'}
               render-header={this.$renderHeader}
               scopedSlots={groupSlot}
-            ></TableColumn>
+            />
           ) : undefined}
 
           {/* {this.checkFields('visible_type') ? (
@@ -966,6 +1001,7 @@ export default class GroupDialog extends tsc<IProps> {
               scopedSlots={{
                 default: ({ row }) => [
                   <span
+                    key={row.id}
                     class='overflow-tips'
                     v-bk-overflow-tips
                   >
@@ -979,7 +1015,7 @@ export default class GroupDialog extends tsc<IProps> {
               label={this.$t('变更人')}
               prop={'updated_by'}
               render-header={this.$renderHeader}
-            ></TableColumn>
+            />
           ) : undefined}
 
           {this.checkFields('updated_at') ? (
@@ -988,6 +1024,7 @@ export default class GroupDialog extends tsc<IProps> {
               scopedSlots={{
                 default: ({ row }) => [
                   <span
+                    key={row.id}
                     class='overflow-tips'
                     v-bk-overflow-tips
                   >
@@ -998,7 +1035,7 @@ export default class GroupDialog extends tsc<IProps> {
               label={this.$t('变更时间')}
               prop={'updated_at'}
               render-header={this.$renderHeader}
-            ></TableColumn>
+            />
           ) : undefined}
 
           {/* {this.checkFields('is_show_switch') ? (
@@ -1017,7 +1054,7 @@ export default class GroupDialog extends tsc<IProps> {
             key={'column_delete'}
             width='0'
             scopedSlots={deleteSlot}
-          ></TableColumn>
+          />
 
           <TableColumn type='setting'>
             <TableSettingContent
@@ -1027,7 +1064,7 @@ export default class GroupDialog extends tsc<IProps> {
               selected={this.tableSetting.selectedFields}
               size={this.tableSetting.size}
               on-setting-change={this.handleSettingChange}
-            ></TableSettingContent>
+            />
           </TableColumn>
 
           <div slot='empty'>

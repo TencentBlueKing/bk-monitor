@@ -371,7 +371,8 @@ class ReportHandler:
         # 渲染邮件模板
         render_args = {}
         render_args["is_link_enabled"] = is_link_enabled
-        render_args["is_external"] = bool(channel_name == ReportItems.Channel.EMAIL)
+        # 是否是外部邮件
+        render_args["external_email"] = bool(channel_name == ReportItems.Channel.EMAIL)
         render_args["sensitive_message"] = _("请遵守公司规范，切勿泄露敏感信息，后果自负!")
         render_args["redirect_url"] = settings.MAIL_REPORT_URL if is_link_enabled else ""
         render_args["mail_title"] = mail_title

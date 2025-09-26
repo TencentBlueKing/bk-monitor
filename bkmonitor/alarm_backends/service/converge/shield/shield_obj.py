@@ -130,12 +130,12 @@ class ShieldObj:
                     DynamicGroupManager.mget(bk_tenant_id=bk_tenant_id, dynamic_group_ids=dynamic_group_ids).values()
                 )
 
-            bk_host_ids = set()
+            bk_host_ids: set = {0}
             for dynamic_group in dynamic_groups:
                 if dynamic_group.get("bk_obj_id") == "host":
                     bk_host_ids.update(dynamic_group["bk_inst_ids"])
-            if bk_host_ids:
-                clean_dimension["bk_host_id"] = list(bk_host_ids)
+            # 动态分组所属的主机为空，则表示屏蔽规则失效，依然需要将bk_host_id: [0] 设置到待匹配维度中
+            clean_dimension["bk_host_id"] = list(bk_host_ids)
 
         for k, v in list(clean_dimension.items()):
             field = load_field_instance(k, v)

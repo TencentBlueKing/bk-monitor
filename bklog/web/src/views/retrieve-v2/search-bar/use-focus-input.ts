@@ -1,4 +1,3 @@
-import RetrieveHelper from '@/views/retrieve-helper';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,11 +23,14 @@ import RetrieveHelper from '@/views/retrieve-helper';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, watch, onMounted, getCurrentInstance, onUnmounted } from 'vue';
 
-// @ts-ignore
+import { getCurrentInstance, onMounted, onUnmounted, ref, watch } from 'vue';
+
+// @ts-expect-error
 import { getCharLength } from '@/common/util';
+import RetrieveHelper from '@/views/retrieve-helper';
 import { isElement } from 'lodash-es';
+
 import PopInstanceUtil from '../../../global/pop-instance-util';
 
 export default (
@@ -45,9 +47,9 @@ export default (
     tippyOptions = {},
     onHeightChange,
     addInputListener = true,
-    handleWrapperClick = undefined,
-    onInputFocus = undefined,
-    afterShowKeyEnter = undefined,
+    handleWrapperClick,
+    onInputFocus,
+    afterShowKeyEnter,
   },
 ) => {
   const modelValue = ref([]);
@@ -58,7 +60,7 @@ export default (
   const isDocumentMousedown = ref(false);
 
   // 表示是否聚焦input输入框，如果聚焦在 input输入框，再次点击弹出内容不会重复渲染
-  let isInputTextFocus = ref(false);
+  const isInputTextFocus = ref(false);
 
   let resizeObserver: ResizeObserver = null;
   const INPUT_MIN_WIDTH = 12;
@@ -88,7 +90,7 @@ export default (
     modelValue.value = formatModelValueItem(val);
   };
 
-  let instance = undefined;
+  let instance: any;
   const getRoot = () => {
     return instance?.proxy?.$el;
   };
@@ -159,7 +161,7 @@ export default (
 
     // 创建一个 ResizeObserver 实例
     resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         // 获取元素的新高度
         const newHeight = entry.contentRect.height;
 
@@ -274,6 +276,6 @@ export default (
     handleInputBlur,
     delayShowInstance,
     isInstanceShown,
-    getTippyUtil
+    getTippyUtil,
   };
 };

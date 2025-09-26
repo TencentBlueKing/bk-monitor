@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, ref } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
 
 export default defineComponent({
@@ -60,10 +61,10 @@ export default defineComponent({
         <div class='list-box-container'>
           {/* 标题 */}
           <div class='list-title'>
-            <span class='bk-icon icon-exclamation-circle'></span>
+            <span class='bk-icon icon-exclamation-circle' />
             <h2 class='text'>{t('任务状态')}</h2>
           </div>
-          
+
           {/* 表格 */}
           <bk-table data={props.statusData}>
             {/* 步骤列 */}
@@ -84,18 +85,15 @@ export default defineComponent({
             {/* 耗时列 */}
             <bk-table-column
               width='100'
-              label={t('耗时(s)')}
-              renderHeader={renderHeader}
               scopedSlots={{
                 default: ({ row }: any) => <span>{calculateDuration(row)}</span>,
               }}
+              label={t('耗时(s)')}
+              renderHeader={renderHeader}
             />
 
             {/* 执行情况列 */}
             <bk-table-column
-              label={t('执行情况')}
-              prop='state_display'
-              renderHeader={renderHeader}
               scopedSlots={{
                 default: ({ row }: any) => (
                   <div>
@@ -109,6 +107,9 @@ export default defineComponent({
                   </div>
                 ),
               }}
+              label={t('执行情况')}
+              prop='state_display'
+              renderHeader={renderHeader}
             />
           </bk-table>
         </div>

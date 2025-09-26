@@ -112,10 +112,10 @@ export default defineComponent({
       const popover = e.target.closest('.config-rule-content');
       const otherPopover = e.target.closest('.tippy-popper');
       const isActiveOtherPopover = otherPopover?.className && !otherPopover.className.includes('config-rule-trigger');
-      if (!popoverTriger && !popover && !isActiveOtherPopover) {
-        configRulesRef.value.forEach(item => {
+      if (!(popoverTriger || popover || isActiveOtherPopover)) {
+        for (const item of configRulesRef.value) {
           item?.hide();
-        });
+        }
         addConfigRuleRef.value?.hide();
       }
     };
@@ -152,6 +152,7 @@ export default defineComponent({
                 {comparedList.map(option => (
                   <bk-option
                     id={option.id}
+                    key={option.id}
                     name={option.name}
                   />
                 ))}

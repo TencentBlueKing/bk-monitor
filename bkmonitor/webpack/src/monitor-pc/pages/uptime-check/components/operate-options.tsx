@@ -37,6 +37,8 @@ export interface IOperateOption {
   id: string;
   name?: string | TranslateResult;
   tip?: string;
+  iconClassName?: string;
+  isDanger?: boolean;
 }
 interface IOperateOptionsEvents {
   onOptionClick?: string;
@@ -62,6 +64,8 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
   @Prop({ type: Object, default: () => ({}) }) options: IOptions;
   @Prop({ type: Boolean, default: false }) isMouseOverShow: boolean;
   @Prop({ type: Boolean, default: true }) isClickShow: boolean;
+  // 文字左边展示icon
+  @Prop({ type: Boolean, default: false }) isIconShow: boolean;
 
   @Ref('moreItems') moreItemsRef: HTMLDivElement;
 
@@ -153,7 +157,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
             {this.options?.popover?.map(item => (
               <span
                 key={item.id}
-                class={['more-item', { authority: !item.authority }]}
+                class={['more-item', { authority: !item.authority }, { 'is-danger': item.isDanger}]}
                 v-authority={{ active: !item.authority }}
                 onClick={() =>
                   item.authority
@@ -161,6 +165,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
                     : this.handleShowAuthorityDetail(item.authorityDetail)
                 }
               >
+                {item.iconClassName && <i class={['icon-monitor', item.iconClassName]} />}
                 {item.name}
               </span>
             ))}

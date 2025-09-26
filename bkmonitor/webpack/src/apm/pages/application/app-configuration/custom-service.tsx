@@ -94,7 +94,9 @@ export default class CustomService extends tsc<IProps> {
         this.serviceList = res.data || [];
         this.pagination.count = res.total || 0;
       })
-      .finally(() => (this.tableLoading = false));
+      .finally(() => {
+        this.tableLoading = false;
+      });
   }
   /**
    * @desc 列表排序
@@ -273,7 +275,7 @@ export default class CustomService extends tsc<IProps> {
 
         <AddServiceDialog
           v-model={this.showAddDialog}
-          appName={this.appInfo.app_name}
+          appName={this.appInfo?.app_name?.toString()}
           serviceInfo={this.curServiceInfo}
           onRefresh={() => this.getServiceList()}
         />

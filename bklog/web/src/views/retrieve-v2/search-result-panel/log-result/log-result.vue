@@ -180,22 +180,21 @@
           });
           return;
         }
+
+        if (event === 'add-to-ai') {
+          this.$refs.refAiAssitant.setCiteText(row);
+          return;
+        }
+        
         if (['realTimeLog', 'contextLog'].includes(event)) {
           const contextFields = config.contextAndRealtime.extra?.context_fields;
           const timeField = this.$store.state.indexFieldInfo.time_field;
           const dialogNewParams = {};
           const { targetFields = [], sortFields = [] } = config.indexSetValue;
 
-          // const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
           this.targetFields = targetFields ?? [];
-
           Object.assign(dialogNewParams, { dtEventTimeStamp: row.dtEventTimeStamp });
-          // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
-          // if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
-          //   fieldParamsKey.forEach(field => {
-          //     dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
-          //   });
-          // } else 
+
           if (Array.isArray(contextFields) && contextFields.length) {
             // 传参配置指定字段
             contextFields.push(timeField);

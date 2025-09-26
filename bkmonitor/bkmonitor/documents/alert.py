@@ -108,7 +108,7 @@ class AlertDocument(BaseDocument):
         display_key = field.Keyword()
         display_value = field.Keyword()
 
-        def to_dict(self):
+        def to_dict(self) -> dict:
             return super().to_dict(skip_empty=False)
 
     dimensions = field.Object(enabled=False, multi=True, doc_class=Dimension)

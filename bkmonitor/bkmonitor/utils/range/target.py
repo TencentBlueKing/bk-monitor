@@ -77,13 +77,16 @@ class TargetCondition:
                         if dynamic_group_id:
                             dynamic_group_ids.add(dynamic_group_id)
 
-                    # todo: 目前仅支持host动态分组
+                    # 目前仅支持host动态分组
+                    # 动态分组对应主机不存在， 此时也需要保证动态分组目标有效，补充一个 0 作为 bk_insta_id
                     dynamic_groups = DynamicGroupManager.mget(
                         bk_tenant_id=self.bk_tenant_id, dynamic_group_ids=list(dynamic_group_ids)
                     )
                     for dynamic_group in dynamic_groups.values():
                         if dynamic_group.get("bk_obj_id") == "host":
                             target_keys.update([str(bk_inst_id) for bk_inst_id in dynamic_group.get("bk_inst_ids", [])])
+                    if not target_keys:
+                        target_keys.add(0)
                     field = "bk_target_ip"
 
                 if not target_keys:

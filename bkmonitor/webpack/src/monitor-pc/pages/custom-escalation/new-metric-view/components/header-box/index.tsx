@@ -31,6 +31,7 @@ import _ from 'lodash';
 import CompareType from './components/compare-type';
 import GroupBy from './components/group-by';
 import LimitFunction from './components/limit-function';
+import IntervalCreator from './components/interval/index';
 import WhereCondition from './components/where-condition';
 
 import './index.scss';
@@ -72,6 +73,7 @@ interface IResult {
     method: string;
     value: string[];
   }[];
+  interval: number | string;
 }
 
 export const createDefaultParams = (): IResult => ({
@@ -87,6 +89,7 @@ export const createDefaultParams = (): IResult => ({
     type: '',
     offset: [],
   },
+  interval: 'auto',
 });
 
 @Component
@@ -151,6 +154,12 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
     this.isExpaned = !this.isExpaned;
   }
 
+  // 改变配置周期时间
+  handleChangeInterval(payload: IResult['interval']) {
+    this.params.interval = payload;
+    this.triggerChange();
+  }
+
   created() {
     this.calcLableWidth = _.throttle(() => {
       const rootElLeft = this.rootRef.getBoundingClientRect().left;
@@ -204,6 +213,10 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
               <LimitFunction
                 value={this.params.limit}
                 onChange={this.handleLimitChange}
+              />
+              <IntervalCreator
+                value={this.params.interval}
+                onChange={this.handleChangeInterval}
               />
               {/* )} */}
               <CompareType

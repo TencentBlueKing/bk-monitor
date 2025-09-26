@@ -25,13 +25,15 @@
  */
 
 import { defineComponent, ref, computed, onMounted } from 'vue';
-import useStore from '@/hooks/use-store';
-import useRouter from '@/hooks/use-router';
-import useLocale from '@/hooks/use-locale';
-import http from '@/api';
-import EmptyStatus from '@/components/empty-status/index.vue';
+
 import * as authorityMap from '@/common/authority-map';
+import EmptyStatus from '@/components/empty-status/index.vue';
+import useLocale from '@/hooks/use-locale';
+import useRouter from '@/hooks/use-router';
+import useStore from '@/hooks/use-store';
 import { Message, InfoBox } from 'bk-magic-vue';
+
+import http from '@/api';
 
 import './link-list.scss';
 
@@ -44,7 +46,7 @@ export default defineComponent({
 
     const isLoading = ref(true); // 加载状态
     const extractLinkList = ref<any[]>([]); // 链路数据
-    const isAllowedManage = ref<null | boolean>(null); // 是否有管理权限
+    const isAllowedManage = ref<boolean | null>(null); // 是否有管理权限
     const isButtonLoading = ref(false); // 新增按钮 loading
     const emptyType = ref('empty'); // 空状态类型
     const linkNameMap = computed(() => ({
@@ -107,7 +109,7 @@ export default defineComponent({
       }
     };
 
-        // 处理分页变化
+    // 处理分页变化
     const handlePageChange = (page: number) => {
       if (pagination.value.current !== page) {
         pagination.value.current = page;
@@ -124,7 +126,14 @@ export default defineComponent({
 
     // 新增链路
     const handleCreate = async () => {
-      if (!isAllowedManage.value) {
+      if (isAllowedManage.value) {
+        router.push({
+          name: 'extract-link-create',
+          query: {
+            spaceUid: spaceUid.value,
+          },
+        });
+      } else {
         try {
           isButtonLoading.value = true;
           const res = await store.dispatch('getApplyData', {
@@ -136,19 +145,12 @@ export default defineComponent({
               },
             ],
           });
-          store.commit('updateAuthDialogData', res.data);
+          store.commit('updateState', { authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {
           isButtonLoading.value = false;
         }
-      } else {
-        router.push({
-          name: 'extract-link-create',
-          query: {
-            spaceUid: spaceUid.value,
-          },
-        });
       }
     };
 
@@ -224,9 +226,9 @@ export default defineComponent({
             style='width: 120px; margin: 20px 0'
             class='king-button'
             v-cursor={{ active: isAllowedManage.value === false }}
+            data-test-id='extractLinkListBox_button_addNewLinkList'
             disabled={isAllowedManage.value === null || isLoading.value}
             loading={isButtonLoading.value}
-            data-test-id='extractLinkListBox_button_addNewLinkList'
             theme='primary'
             onClick={handleCreate}
           >
@@ -236,12 +238,6 @@ export default defineComponent({
         {/* 链路表格 */}
         <bk-table
           class='king-table'
-          data={extractLinkList.value}
-          data-test-id='extractLinkListBox_table_LinkListTableBox'
-          row-key='strategy_id'
-          pagination={pagination.value}
-          onPage-change={handlePageChange}
-          onPage-limit-change={handleLimitChange}
           scopedSlots={{
             empty: () => (
               <div>
@@ -252,10 +248,14 @@ export default defineComponent({
               </div>
             ),
           }}
+          data={extractLinkList.value}
+          data-test-id='extractLinkListBox_table_LinkListTableBox'
+          pagination={pagination.value}
+          row-key='strategy_id'
+          onPage-change={handlePageChange}
+          onPage-limit-change={handleLimitChange}
         >
           <bk-table-column
-            label={t('链路名称')}
-            renderHeader={renderHeader}
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
@@ -263,19 +263,19 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('链路名称')}
+            renderHeader={renderHeader}
           />
           <bk-table-column
-            label={t('链路类型')}
-            renderHeader={renderHeader}
-            prop='created_at'
             scopedSlots={{
               default: ({ row }: any) => <div>{linkNameMap.value[row.link_type]}</div>,
             }}
+            label={t('链路类型')}
+            prop='created_at'
+            renderHeader={renderHeader}
           />
           <bk-table-column
             width='200'
-            label={t('操作')}
-            renderHeader={renderHeader}
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='task-operation-container'>
@@ -294,6 +294,8 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('操作')}
+            renderHeader={renderHeader}
           />
         </bk-table>
       </div>
