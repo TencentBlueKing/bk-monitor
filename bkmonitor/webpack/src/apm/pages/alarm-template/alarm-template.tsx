@@ -87,6 +87,8 @@ export default class AlarmTemplate extends tsc<object> {
 
   editTemplateId = null;
   editTemplateShow = false;
+  /** 编辑模板场景 */
+  editTemplateSliderScene: 'clone' | 'edit' = 'edit';
 
   /** 模板详情侧栏 */
   templateDetailObj = {
@@ -94,6 +96,7 @@ export default class AlarmTemplate extends tsc<object> {
     tabActive: detailsTabColumn.basic as TDetailsTabValue,
     params: {},
   };
+
   templatePushObj = {
     show: false,
     params: {},
@@ -250,6 +253,7 @@ export default class AlarmTemplate extends tsc<object> {
     console.log('================ 克隆事件回调 ================', id);
     this.editTemplateId = id;
     this.editTemplateShow = true;
+    this.editTemplateSliderScene = 'clone';
   }
 
   /**
@@ -318,6 +322,7 @@ export default class AlarmTemplate extends tsc<object> {
   handleEditTemplate(id: number) {
     this.editTemplateId = id;
     this.editTemplateShow = true;
+    this.editTemplateSliderScene = 'edit';
   }
 
   render() {
@@ -367,9 +372,10 @@ export default class AlarmTemplate extends tsc<object> {
         </div>
 
         <EditTemplateSlider
-          appName={'tilapia'}
+          appName={this.requestParam.app_name}
           isShow={this.editTemplateShow}
           metricFunctions={this.metricFunctions}
+          scene={this.editTemplateSliderScene}
           templateId={this.editTemplateId}
           onShowChange={show => {
             this.editTemplateShow = show;

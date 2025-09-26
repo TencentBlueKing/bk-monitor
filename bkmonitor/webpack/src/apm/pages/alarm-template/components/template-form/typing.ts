@@ -124,6 +124,9 @@ export interface TemplateDetail {
   labels: string[];
   name: string;
   query_template: QueryTemplateDetail;
-  system: TemplateType;
   user_group_list: UserGroupItem[];
+  system: {
+    alias: string;
+    value: TemplateType;
+  };
 }

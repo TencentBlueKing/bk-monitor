@@ -30,14 +30,8 @@ import { listUserGroup } from 'monitor-api/modules/model';
 import VariablePanel from 'monitor-pc/pages/query-template/variables/components/variable-panel/variable-panel';
 
 import Threshold from './detect-rules/threshold';
-import {
-  type AlgorithmItem,
-  type DetectConfig,
-  type EditTemplateFormData,
-  type UserGroupItem,
-  TemplateTypeMap,
-} from './typing';
 
+import type { AlgorithmItem, DetectConfig, EditTemplateFormData, UserGroupItem } from './typing';
 import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
 
 import './template-form.scss';
@@ -306,7 +300,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
           class='form-item-text mt16'
           label={this.$tc('模板类型')}
         >
-          <span class='text'>{TemplateTypeMap[this.data?.system]}</span>
+          <span class='text'>{this.data?.system.alias}</span>
         </bk-form-item>
         <bk-form-item
           class='mt16'
