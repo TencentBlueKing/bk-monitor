@@ -30,6 +30,7 @@ import type { DetectionAlgorithmLevelEnumType } from './constants';
 export interface AlarmAlgorithmItem {
   level: DetectionAlgorithmLevelEnumType;
   type: AlgorithmType;
+  unit_prefix?: string;
   config: {
     method: string;
     threshold: number;
@@ -84,18 +85,24 @@ export interface AlarmTemplateListItem {
   alert_number?: number;
   algorithms: AlarmAlgorithmItem[];
   applied_service_names: string[];
-  category: string;
   create_time: string;
   create_user: string;
   id: number;
   is_auto_apply: boolean;
   is_enabled: boolean;
   name: string;
-  system: string;
   type: string;
   update_time: string;
   update_user: string;
   user_group_list: AlarmUserGroupItem[];
+  category: {
+    alias: string;
+    value: string;
+  };
+  system: {
+    alias: string;
+    value: string;
+  };
 }
 
 export interface AlarmTemplateOptionsItem {

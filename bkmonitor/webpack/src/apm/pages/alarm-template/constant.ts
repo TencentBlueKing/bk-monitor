@@ -125,7 +125,7 @@ export const SEARCH_SELECT_OPTIONS = [
   },
   {
     name: window.i18n.t('告警组'),
-    id: 'user_group_list',
+    id: 'user_group_id',
     multiple: true,
     onlyRecommendChildren: true,
     children: [],
@@ -141,6 +141,14 @@ export const SEARCH_SELECT_OPTIONS = [
 
 /** 告警模板列表-表格表头允许筛选操作的字段 */
 export const ALARM_TEMPLATE_TABLE_FILTER_FIELDS = new Set(['system', 'user_group_list', 'is_enabled', 'is_auto_apply']);
+
+/** 告警模板列表-表格表头字段与筛选字段的映射 */
+export const AlarmTemplateTableFieldToFilterFieldMap: Record<string, string> = {
+  system: 'system',
+  user_group_list: 'user_group_id',
+  is_enabled: 'is_enabled',
+  is_auto_apply: 'is_auto_apply',
+};
 
 /** 告警模板类型 Map */
 export const AlarmTemplateTypeMap: Record<'all' | AlarmTemplateTypeEnumType, ITableFilterItem> = {
