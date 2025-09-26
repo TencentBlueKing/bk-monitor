@@ -653,6 +653,25 @@
       font-size: 14px;
     }
   }
+  .bk-table-row {
+    &.hover-row {
+      .strategy-list-overflow-tags {
+        .overflow-tag-item,.overflow-count {
+          background: #fff;
+          .item-name  {
+            color: #3A84FF;
+          }
+          &:hover {
+            cursor: pointer;
+            background: #E1ECFF;
+            .item-name {
+              color: #1768EF;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 .bk-dialog-wrapper {
