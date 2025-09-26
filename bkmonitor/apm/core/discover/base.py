@@ -366,9 +366,17 @@ class TopoHandler:
             self.datasource.es_client.clear_scroll(scroll_id=scroll_id)
             return res
 
-    def _discover_handle(self, discover, spans, handle_type):
+    def _discover_handle(self, discover, spans, handle_type, handler_instance_map=None):
         def _topo_handle():
-            discover(self.bk_biz_id, self.app_name).discover(spans)
+            instance = None
+            if handler_instance_map is not None and discover in handler_instance_map:
+                instance = handler_instance_map[discover]
+            elif handler_instance_map is not None:
+                # 如果缓存中没有，则调用 get_remain_data 方法获取并缓存
+                instance = discover(self.bk_biz_id, self.app_name)
+                handler_instance_map[discover] = instance
+
+            instance.discover(spans)
 
         def _pre_calculate_handle():
             discover.handle(spans)
@@ -439,6 +447,9 @@ class TopoHandler:
             )
             return
 
+        # 创建顶级的局部 map，用于存储 handler类型：实例 的 KV
+        handler_instance_map = {}
+
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:
                 continue
@@ -472,9 +483,9 @@ class TopoHandler:
             filter_span_count += len(filter_spans)
             for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
                 if c.DISCOVERY_ALL_SPANS:
-                    topo_params.append((c, all_spans, "topo"))
+                    topo_params.append((c, all_spans, "topo", handler_instance_map))
                 else:
-                    topo_params.append((c, filter_spans, "topo"))
+                    topo_params.append((c, filter_spans, "topo", handler_instance_map))
 
             pool.map_ignore_exception(self._discover_handle, topo_params)
 
