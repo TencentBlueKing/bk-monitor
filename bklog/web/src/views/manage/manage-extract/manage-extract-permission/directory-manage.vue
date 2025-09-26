@@ -292,7 +292,7 @@
     },
     data() {
       // 避免后台造的数据为空数组
-      const strategyData = JSON.parse(JSON.stringify(this.strategyData));
+      const strategyData = structuredCloney(this.strategyData);
       if (!strategyData.visible_dir?.length) {
         strategyData.visible_dir = [''];
       }
@@ -385,7 +385,7 @@
         try {
           this.isChangeOperatorLoading = true;
           const res = await this.$http.request('userInfo/getUsername');
-          this.$store.commit('updateUserMeta', res.data);
+          this.$store.commit('updateState', { 'userMeta': res.data});
           this.manageStrategyData.operator = res.data.operator;
         } catch (e) {
           console.warn(e);

@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -84,7 +83,10 @@ class Config(AppConfig):
                         },
                     )
                 except Exception as err:  # pylint: disable=broad-except
-                    print("start continues profiling failed: %s" % err)
+                    print(f"start continues profiling failed: {err}")
+
+        # 注册内置查询模板
+        post_migrate.connect(_register_builtin_templates, sender=self, dispatch_uid="bkmonitor query template")
 
 
 def _refresh_cache_node(sender, **kwargs):
@@ -102,3 +104,9 @@ def _migrate_iam(sender, **kwargs):
     if settings.RUN_MODE == "DEVELOP":
         return
     Migrator("iam", "bkmonitor.iam.migrations").migrate()
+
+
+def _register_builtin_templates(sender, **kwargs):
+    from bkmonitor.query_template.builtin.registry import register_builtin_templates
+
+    register_builtin_templates()

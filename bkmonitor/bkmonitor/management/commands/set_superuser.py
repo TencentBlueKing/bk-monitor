@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -9,8 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-from django.contrib.auth import get_user_model
+from blueapps.account.models import User
 from django.core.management.base import BaseCommand
 
 
@@ -25,10 +23,8 @@ class Command(BaseCommand):
         parser.add_argument("args", metavar="username", nargs="+", help="username to be set superuser")
 
     def handle(self, *usernames, **kwargs):
-        user_model = get_user_model()
-
         for username in usernames:
-            user, is_created = user_model.objects.update_or_create(
+            user, is_created = User.objects.update_or_create(
                 username=username,
                 defaults={
                     "is_superuser": True,
@@ -36,6 +32,6 @@ class Command(BaseCommand):
                 },
             )
             if is_created:
-                print("User({}) is created as superuser.".format(user.username))
+                print(f"User({user.username}) is created as superuser.")
             else:
-                print("User({}) is updated as superuser.".format(user.username))
+                print(f"User({user.username}) is updated as superuser.")

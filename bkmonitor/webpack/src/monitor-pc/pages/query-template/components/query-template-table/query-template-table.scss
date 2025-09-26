@@ -1,0 +1,129 @@
+.query-template-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  .query-template-table {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
+    .bk-table-fixed,
+    .bk-table-fixed-right {
+      border-bottom: 0;
+    }
+
+    .bk-table-body-wrapper {
+      border-bottom: 1px solid #dfe0e5;
+    }
+
+    &.table-loading-active {
+      .bk-table-body-wrapper,
+      .bk-table-fixed,
+      .bk-table-fixed-right,
+      .bk-table-pagination-wrapper {
+        display: none;
+      }
+    }
+
+    .bk-table-fixed-body-wrapper,
+    /* stylelint-disable-next-line no-descending-specificity */
+    .bk-table-body-wrapper {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+
+      .bk-table-row-last {
+        td {
+          border-bottom: 0;
+        }
+      }
+
+      // .right-align-cell {
+      //   .cell {
+      //     padding-right: calc(15px + 20px);
+      //   }
+      // }
+
+      .cell {
+        &:has(.click-show-slicer-col) {
+          color: #3a84ff;
+        }
+      }
+    }
+
+    /* stylelint-disable-next-line no-descending-specificity */
+    .bk-table-pagination-wrapper {
+      color: #4d4f56;
+      border-top: 0;
+
+      .bk-page-total-count {
+        color: #4d4f56;
+
+        .stress {
+          color: #4d4f56;
+        }
+      }
+
+      .bk-page-count {
+        .bk-select {
+          margin: 0 8px;
+          background: #f0f1f5;
+          border: 0;
+        }
+      }
+
+      .bk-page-list-wrapper {
+        .bk-page-list {
+          .page-item {
+            .page-button {
+              background-color: transparent;
+              border: 0;
+            }
+
+            &.cur-page {
+              .page-button {
+                background-color: #e1ecff;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .click-show-slicer-col {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .relation-count-col {
+      .loading-svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+    .operator-col {
+      display: flex;
+      column-gap: 16px;
+    }
+  }
+
+  .query-template-table-skeleton {
+    position: absolute;
+    top: 48px;
+    visibility: hidden;
+
+    &.table-loading-active {
+      visibility: visible;
+    }
+
+    .common-table-skeleton-row {
+      &:nth-child(1) {
+        display: none;
+      }
+    }
+  }
+}

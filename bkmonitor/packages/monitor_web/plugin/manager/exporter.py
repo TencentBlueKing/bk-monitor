@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -237,7 +237,7 @@ class ExporterPluginManager(PluginManager):
             if any([collector_path in str(i) for i in self.filename_list]):
                 # 读取文件内容
                 collector_file[sys_name] = self.CollectorFile(
-                    data=self._decode_file(self.plugin_configs[Path(self.plugin.plugin_id, collector_path)]),
+                    data=self._decode_file(self.plugin_configs[Path(collector_path)]),
                     name=collector_name,
                 )
 

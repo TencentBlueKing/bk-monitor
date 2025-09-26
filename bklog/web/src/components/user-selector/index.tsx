@@ -23,13 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import _ from 'lodash';
-import { computed, defineComponent, ref, watch } from 'vue';
-import BkUserSelector from '@blueking/bk-user-selector/vue2';
-import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
 
-import './index.scss';
+import { defineComponent, ref } from 'vue';
+
+import BkUserSelector from '@blueking/user-selector';
+
+import './validate-user-selector.scss';
 
 export default defineComponent({
   name: 'ValidateUserSelector',
@@ -39,7 +38,7 @@ export default defineComponent({
   props: {
     // 输入值
     value: {
-      type: Array<string>,
+      type: Array,
       default: () => [],
     },
     // 占位符
@@ -57,45 +56,16 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    multiple: {
-      type: Boolean,
-      default: true,
-    },
-    customStyle: {
-      type: String,
-      default: 'width: 400px',
-    },
     onChange: { type: Function },
   },
   emits: ['change', 'update'],
 
   setup(props, { emit }) {
-    const { t } = useLocale();
-    const store = useStore();
-
-    const localValue = ref<string[]>([]);
     const isError = ref(false); // 是否显示错误状态
 
-    const tenantId = computed(() => store.state.userMeta.bk_tenant_id);
-
-    // 开发环境放自己的本地测试地址即可
-    const apiBaseUrl = process.env.NODE_ENV === 'development' ? '' : window.BK_LOGIN_URL;
-
-    watch(
-      () => props.value,
-      () => {
-        localValue.value = _.cloneDeep(props.value);
-      },
-      {
-        immediate: true,
-        deep: true,
-      },
-    );
-
     // 处理选择变化
-    const handleChange = (val: string[]) => {
+    const handleChange = (val: any[]) => {
       const realVal = val.filter(item => item !== undefined);
-      localValue.value = realVal;
       isError.value = !realVal.length;
       emit('change', realVal);
       emit('update', realVal);
@@ -109,16 +79,13 @@ export default defineComponent({
     return () => (
       <div class='validate-user-selector'>
         <BkUserSelector
-          style={props.customStyle}
+          style='width: 400px'
           class={isError.value ? 'is-error' : ''}
-          api-base-url={apiBaseUrl}
+          api={props.api}
           disabled={props.disabled}
-          empty-text={t('无匹配人员')}
-          enableMultiTenantMode={!!tenantId.value}
-          modelValue={localValue.value}
-          multiple={props.multiple}
+          empty-text='无匹配人员'
           placeholder={props.placeholder}
-          tenant-id={tenantId.value}
+          value={props.value}
           onBlur={handleBlur}
           onChange={handleChange}
         />

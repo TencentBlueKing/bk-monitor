@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -101,7 +101,7 @@ class DataDogPluginManager(PluginManager):
 
         for sys_name, sys_dir in list(OS_TYPE_TO_DIRNAME.items()):
             # 获取不同操作系统下的文件名
-            tmp_sys_plugin_path = os.path.join(self.plugin.plugin_id, sys_dir, self.plugin.plugin_id)
+            tmp_sys_plugin_path = os.path.join(sys_dir, self.plugin.plugin_id)
             if not any([tmp_sys_plugin_path in str(i) for i in self.filename_list]):
                 continue
 

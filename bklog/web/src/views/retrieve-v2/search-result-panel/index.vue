@@ -2,7 +2,7 @@
   import { computed, ref } from 'vue';
 
   import useStore from '@/hooks/use-store';
-  import { throttle } from 'lodash';
+  import { throttle } from 'lodash-es';
   import { getCommonFilterAdditionWithValues } from '@/store/helper'
 
   import RetrieveHelper from '../../retrieve-helper';

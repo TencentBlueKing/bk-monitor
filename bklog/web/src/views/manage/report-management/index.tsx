@@ -40,10 +40,11 @@ class ReportManagement extends tsc<object> {
   render() {
     return (
       <div>
+        {/** biome-ignore lint/a11y/useIframeTitle: reason */}
         <iframe
           style='width: 100%;height: calc(100vh - 106px);border: none;'
           src={this.src}
-        ></iframe>
+        />
       </div>
     );
   }

@@ -256,7 +256,6 @@
 </template>
 
 <script>
-  import { deepClone } from '@/components/monitor-echarts/utils';
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
 
@@ -629,8 +628,8 @@
       /** 初始化显示字段 */
       initShadowFields() {
         this.activeConfigTab = this.currentClickConfigData.name;
-        this.shadowTotal = deepClone(this.shadowAllTotal);
-        this.shadowSort = deepClone(this.currentClickConfigData.sort_list);
+        this.shadowTotal = structuredClone(this.shadowAllTotal);
+        this.shadowSort = structuredClone(this.currentClickConfigData.sort_list);
         this.shadowTotal.forEach(fieldInfo => {
           this.shadowSort.forEach(item => {
             if (fieldInfo.field_name === item[0]) {

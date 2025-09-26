@@ -25,6 +25,7 @@
  */
 
 import { defineComponent } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
 
 import './text-filter-detail.scss';
@@ -44,7 +45,7 @@ export default defineComponent({
       <div class='text-filter-detail'>
         {/* 标题区域 */}
         <div class='title'>
-          <span class='bk-icon icon-work-manage'></span>
+          <span class='bk-icon icon-work-manage' />
           <h2 class='text'>{t('文本过滤')}</h2>
         </div>
         {/* 关键字过滤类型 */}
@@ -59,8 +60,18 @@ export default defineComponent({
           <div class='content'>
             <span>
               {t('关键字范围: 从匹配{0}开始到匹配{1}之间的所有行', [
-                <span class='match'>{props.data.filter_content.start}</span>,
-                <span class='match'>{props.data.filter_content.end}</span>,
+                <span
+                  key='start'
+                  class='match'
+                >
+                  {props.data.filter_content.start}
+                </span>,
+                <span
+                  key='end'
+                  class='match'
+                >
+                  {props.data.filter_content.end}
+                </span>,
               ])}
             </span>
           </div>
@@ -77,8 +88,18 @@ export default defineComponent({
           <div class='content'>
             <span>
               {t('按行过滤: 从第{0}行到第{1}行', [
-                <span class='match'>{props.data.filter_content.start_line}</span>,
-                <span class='match'>{props.data.filter_content.end_line}</span>,
+                <span
+                  key='start-line'
+                  class='match'
+                >
+                  {props.data.filter_content.start_line}
+                </span>,
+                <span
+                  key='end-line'
+                  class='match'
+                >
+                  {props.data.filter_content.end_line}
+                </span>,
               ])}
             </span>
           </div>

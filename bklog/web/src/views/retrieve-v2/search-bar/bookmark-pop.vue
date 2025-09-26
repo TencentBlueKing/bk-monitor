@@ -256,6 +256,7 @@
       index_set_ids: [],
       index_set_names: [],
       space_uid: spaceUid.value,
+      pid: store.state.indexItem.pid,
       ...searchParams,
     };
     if (indexSetItem.value.isUnionIndex) {
@@ -314,7 +315,7 @@
     verifyData.value.groupName = '';
     emit('instanceShow',false);
     nextTick(() => {
-      popoverContentRef.value?.clearError();
+      popoverContentRef.value?.clearError?.();
     });
   };
   // popover组件Ref

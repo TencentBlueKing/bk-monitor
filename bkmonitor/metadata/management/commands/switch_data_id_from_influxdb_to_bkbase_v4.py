@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -78,7 +78,9 @@ class Command(BaseCommand):
         self.stdout.write(
             f"use bk_data_id->{bk_data_id},bk_biz_id->{bk_biz_id},table_id->{table_id} to access bkbase v4"
         )
-        access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=bk_data_id)
+        access_v2_bkdata_vm(
+            bk_tenant_id=datasource.bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=bk_data_id
+        )
 
         # Step6. 验证此前接入的资源是否畅通
         self.stdout.write(f"bk_data_id->{bk_data_id}, bkbase component config->{data_id_ins.component_config}")

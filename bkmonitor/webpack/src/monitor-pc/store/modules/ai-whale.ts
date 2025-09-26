@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -32,10 +32,13 @@ import store from '../store';
 import type { AIBluekingShortcut } from '@/components/ai-whale/types';
 
 const AI_USER_LIST = 'AI_USER_LIST';
+const AI_BIZ_LIST = 'AI_BIZ_LIST';
 
 // 定义模块
 @Module({ name: 'aiWhale', dynamic: true, namespaced: true, store })
 class AiWhaleStore extends VuexModule {
+  aiBizList: string[] = null; // AI业务列表
+  aiUserList: string[] = null; // AI用户列表
   customFallbackShortcut: Partial<AIBluekingShortcut> = {}; // 自定义快捷方式
   enableAiAssistant = false; // 初始化 enableAiAssistant 状态
   message = ''; // 会话内容
@@ -46,6 +49,16 @@ class AiWhaleStore extends VuexModule {
   sendMessage(message: string) {
     this.message = message;
     this.showAIBlueking = true;
+  }
+
+  @Mutation
+  setAiBizList(value: string[]) {
+    this.aiBizList = value;
+  }
+
+  @Mutation
+  setAiUserList(value: string[]) {
+    this.aiUserList = value;
   }
 
   @Mutation
@@ -68,9 +81,22 @@ class AiWhaleStore extends VuexModule {
     }
     // 获取全局配置中的 AI 用户列表
     const globalConfigModal = new GlobalConfigMixin();
-    const list: string[] = await globalConfigModal.handleGetGlobalConfig<string[]>(AI_USER_LIST);
+    const list = this.aiBizList ? this.aiBizList : await globalConfigModal.handleGetGlobalConfig<string[]>(AI_BIZ_LIST);
+    !this.aiBizList && this.context.commit('setAiBizList', list);
+    let userList = [];
     // 检查当前用户是否在 AI 用户列表中
-    const isEnabled = list.includes(window.username || window.user_name);
+    let isEnabled = this.context.rootGetters.bizId && list.some(item => +item === +this.context.rootGetters.bizId);
+    if (!isEnabled) {
+      userList = this.aiUserList
+        ? this.aiUserList
+        : await globalConfigModal.handleGetGlobalConfig<string[]>(AI_USER_LIST);
+      isEnabled = userList.some(user => user === window.username || user === window.user_name);
+      !this.aiUserList && this.context.commit('setAiUserList', userList);
+    }
+    // 如果 务列表和用户列表都为空，则默认开启
+    if (!isEnabled && this.aiBizList?.length < 1 && this.aiUserList?.length < 1) {
+      isEnabled = true;
+    }
     // 通过 Mutation 设置 enableAiAssistant 的值
     this.context.commit('setEnableAiAssistant', isEnabled);
   }

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -41,6 +41,7 @@ import authorityMixinCreate from '../../../apm/mixins/authorityMixin';
 // import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 import * as authorityMap from '../home/authority-map';
+import ServiceAddSide from '../service/service-add-side';
 import AddAppSide from './add-app/add-app-side';
 import AppHomeList from './components/apm-home-list';
 import ApmHomeResizeLayout from './components/apm-home-resize-layout';
@@ -89,6 +90,9 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
 
   isShowAppAdd = false;
 
+  // 展示接入服务抽屉
+  isShowServiceAdd = false;
+
   searchCondition = '';
 
   /** 仪表盘工具栏 策略和告警panel */
@@ -96,10 +100,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   // 帮助文档弹窗数据
   apmIntroduceData = null;
 
+  // 用于接入服务抽屉的appName
+  serviceAddSideAppName = '';
+
   get appData() {
     return this.originalAppList?.find(item => item.app_name === this.appName);
   }
-
+  get serviceAddSideAppData() {
+    return this.originalAppList?.find(item => item.app_name === this.serviceAddSideAppName);
+  }
   get appList() {
     if (!this.searchCondition) return this.originalAppList;
     return this.originalAppList.filter(
@@ -271,6 +280,20 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
     this.isShowAppAdd = v;
   }
 
+  // 新建应用成功
+  handleAddAppSuccess(appName: string) {
+    this.appName = appName;
+    this.serviceAddSideAppName = appName;
+    this.getAppList();
+    this.isShowServiceAdd = true;
+  }
+
+  // 接入服务抽屉显隐
+  handleServiceAddSideShow(v: boolean) {
+    this.serviceAddSideAppName = this.appName;
+    this.isShowServiceAdd = v;
+  }
+
   /** 设置打开帮助文档 */
   handleSettingsMenuSelect(option) {
     if (option.id === 'help-docs') {
@@ -298,11 +321,14 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
    * @param row
    */
   handleConfig(id: string, row: IAppListItem) {
-    if (id === 'appDetails') {
+    if (id === 'appTopo') {
       this.$router.push({
         name: 'application',
         query: {
           'filter-app_name': row.app_name,
+          dashboardId: 'topo',
+          sceneId: 'apm_application',
+          sceneType: 'overview',
         },
       });
       return;
@@ -329,14 +355,15 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
           active: id === 'noDataAlarm' ? 'dataStatus' : id,
         },
       });
-    } else if (id === 'accessService') {
-      this.$router.push({
-        name: 'service-add',
-        params: {
-          appName: row.app_name,
-        },
-      });
-    } else if (id === 'delete') {
+      return;
+    }
+
+    if (id === 'accessService') {
+      this.serviceAddSideAppName = row.app_name;
+      this.isShowServiceAdd = true;
+      return;
+    }
+    if (id === 'delete') {
       this.$bkInfo({
         type: 'warning',
         title: this.$t('确认删除应用？'),
@@ -414,10 +441,13 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
               <AddAppSide
                 isShow={this.isShowAppAdd}
                 onShowChange={v => this.handleToggleAppAdd(v)}
-                onSuccess={v => {
-                  this.appName = v;
-                  this.getAppList();
-                }}
+                onSuccess={this.handleAddAppSuccess}
+              />
+              <ServiceAddSide
+                applicationId={this.serviceAddSideAppData?.application_id}
+                appName={this.serviceAddSideAppName?.toString()}
+                isShow={this.isShowServiceAdd}
+                onSidesliderShow={v => this.handleServiceAddSideShow(v)}
               />
             </div>
             {this.loading ? (
@@ -528,12 +558,13 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
             <AppHomeList
               key={this.refreshKey}
               appData={this.appData}
-              appName={this.appName}
+              appName={this.appName.toString()}
               authority={this.appData?.permission[authorityMap.VIEW_AUTH]}
               authorityDetail={authorityMap.VIEW_AUTH}
               timeRange={this.timeRange}
               onGoToServiceByLink={val => this.handleGotoService(val)}
               onRouteUrlChange={this.handleReplaceRouteUrl}
+              onServiceAddSideShow={v => this.handleServiceAddSideShow(v)}
             />
           </div>
         </ApmHomeResizeLayout>

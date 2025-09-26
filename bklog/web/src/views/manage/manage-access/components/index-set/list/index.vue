@@ -318,7 +318,7 @@
         this.isTableLoading = true;
         const { ids } = this.$route.query; // 根据id来检索
         const indexSetIDList = ids ? decodeURIComponent(ids) : [];
-        const query = JSON.parse(JSON.stringify(this.searchParams));
+        const query = structuredClone(this.searchParams);
         query.page = this.pagination.current;
         query.pagesize = this.pagination.limit;
         query.space_uid = this.spaceUid;
@@ -411,7 +411,7 @@
                 },
               ],
             });
-            this.$store.commit('updateAuthDialogData', res.data);
+            this.$store.commit('updateState', {'authDialogData': res.data});
           } catch (err) {
             console.warn(err);
           } finally {
@@ -440,7 +440,7 @@
                 },
               ],
             });
-            this.$store.commit('updateAuthDialogData', res.data);
+            this.$store.commit('updateState', {'authDialogData': res.data});
           } catch (err) {
             console.warn(err);
           } finally {

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,15 +18,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 import os
 import socket
 import threading
-from typing import Collection
+from collections.abc import Collection
+from typing import Any
 
 import MySQLdb
 from celery.signals import worker_process_init
 from django.conf import settings
+from django.http import HttpRequest
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation import dbapi
@@ -46,13 +48,52 @@ from opentelemetry.trace import Span, Status, StatusCode
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_trace.trace.elastic import BkElasticsearchInstrumentor
 from apps.utils import get_local_ip
+from apps.utils.local import get_request_username
+
+# 参数最大字符限制
+MAX_PARAMS_SIZE = 10000
 
 
-def requests_callback(span: Span, response):
+def jsonify(data: Any) -> str:
+    """尝试将数据转为 JSON 字符串"""
+    try:
+        return json.dumps(data)
+    except (TypeError, ValueError):
+        if isinstance(data, dict):
+            return json.dumps({k: v for k, v in data.items() if not v or isinstance(v, str | int | float | bool)})
+        if isinstance(data, bytes):
+            try:
+                return data.decode("utf-8")
+            except UnicodeDecodeError:
+                return str(data)
+        return str(data)
+
+
+def requests_callback(span: Span, request, response):
     """处理蓝鲸格式返回码"""
 
+    body = request.body
+
+    try:
+        authorization_header = request.headers.get("x-bkapi-authorization")
+        if authorization_header:
+            username = json.loads(authorization_header).get("bk_username")
+            if username:
+                span.set_attribute("user.username", username)
+    except (TypeError, json.JSONDecodeError):
+        if body:
+            try:
+                username = json.loads(body).get("bk_username")
+                if username:
+                    span.set_attribute("user.username", username)
+            except (TypeError, json.JSONDecodeError):
+                pass
+
+    span.set_attribute("request.body", jsonify(body)[:MAX_PARAMS_SIZE])
+
+    # 仅统计 JSON 请求
     # 流式请求不统计，避免流式失效
-    if hasattr(response.raw, "stream"):
+    if "application/json" not in response.headers.get("Content-Type", ""):
         return
 
     try:
@@ -64,9 +105,9 @@ def requests_callback(span: Span, response):
 
     # NOTE: esb got a result, but apigateway  /iam backend / search-engine got not result
     code = json_result.get("code", 0)
-    span.set_attribute("result_code", code)
-    span.set_attribute("result_message", json_result.get("message", ""))
-    span.set_attribute("result_errors", str(json_result.get("errors", "")))
+    span.set_attribute("http.response.code", code)
+    span.set_attribute("http.response.message", json_result.get("message", ""))
+    span.set_attribute("http.response.errors", str(json_result.get("errors", "")))
     try:
         request_id = (
             # new esb and apigateway
@@ -87,6 +128,26 @@ def requests_callback(span: Span, response):
         span.set_status(Status(StatusCode.ERROR))
 
 
+def django_request_hook(span: Span, request: HttpRequest):
+    """将请求中的 GET、BODY 参数记录在 span 中"""
+
+    if not request:
+        return
+    try:
+        if getattr(request, "FILES", None) and request.method.upper() == "POST":
+            # 请求中如果包含了文件 不取 Body 内容
+            carrier = jsonify(request.POST)
+        else:
+            carrier = request.body.decode("utf-8")
+    except Exception:  # noqa
+        carrier = ""
+
+    param_str = jsonify(dict(request.GET)) if request.GET else ""
+
+    span.set_attribute("request.body", carrier[:MAX_PARAMS_SIZE])
+    span.set_attribute("request.params", param_str[:MAX_PARAMS_SIZE])
+
+
 def django_response_hook(span, request, response):
     if hasattr(response, "data"):
         result = response.data
@@ -97,19 +158,24 @@ def django_response_hook(span, request, response):
             return
     if not isinstance(result, dict):
         return
-    span.set_attribute("result_code", result.get("code", 0))
-    span.set_attribute("result_message", result.get("message", ""))
-    span.set_attribute("result_errors", result.get("errors", ""))
-    result = result.get("result", True)
-    if result:
+
+    is_success = result.get("result", True)
+    span.set_attribute("user.username", get_request_username())
+    span.set_attribute("http.response.code", result.get("code", 0))
+    span.set_attribute("http.response.message", result.get("message", ""))
+    span.set_attribute("http.response.errors", str(result.get("errors", "")))
+    span.set_attribute("http.response.result", str(is_success))
+
+    if is_success:
         span.set_status(Status(StatusCode.OK))
         return
     span.set_status(Status(StatusCode.ERROR))
+    span.record_exception(exception=Exception(result.get("message")))
 
 
 class LazyBatchSpanProcessor(BatchSpanProcessor):
     def __init__(self, *args, **kwargs):
-        super(LazyBatchSpanProcessor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # 停止默认线程
         self.done = True
         with self.condition:
@@ -122,7 +188,7 @@ class LazyBatchSpanProcessor(BatchSpanProcessor):
         if self.worker_thread is None:
             self.worker_thread = threading.Thread(target=self.worker, daemon=True)
             self.worker_thread.start()
-        super(LazyBatchSpanProcessor, self).on_end(span)
+        super().on_end(span)
 
     def shutdown(self) -> None:
         # signal the worker thread to finish and then wait for it
@@ -194,10 +260,10 @@ class BluekingInstrumentor(BaseInstrumentor):
 
         tracer_provider.add_span_processor(span_processor)
         trace.set_tracer_provider(tracer_provider)
-        DjangoInstrumentor().instrument(response_hook=django_response_hook)
+        DjangoInstrumentor().instrument(request_hook=django_request_hook, response_hook=django_response_hook)
         RedisInstrumentor().instrument()
         BkElasticsearchInstrumentor().instrument()
-        RequestsInstrumentor().instrument(tracer_provider=tracer_provider, span_callback=requests_callback)
+        RequestsInstrumentor().instrument(tracer_provider=tracer_provider, response_hook=requests_callback)
         CeleryInstrumentor().instrument(tracer_provider=tracer_provider)
         LoggingInstrumentor().instrument()
         dbapi.wrap_connect(

@@ -24,14 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch, nextTick } from 'vue';
+import { defineComponent, ref, computed, nextTick } from 'vue';
 
-import ValidateUserSelector from '@/components/user-selector';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import BkUserSelector from '@blueking/user-selector';
 
 import ModuleSelect from './module-select.tsx';
 import ValidateInput from './validate-input.tsx';
+import ValidateUserSelector from './validate-user-selector.tsx';
 import http from '@/api';
 
 import './config-slider.scss';
@@ -42,6 +43,7 @@ export default defineComponent({
     ModuleSelect,
     ValidateInput,
     ValidateUserSelector,
+    BkUserSelector,
   },
   props: {
     // 策略数据
@@ -98,8 +100,7 @@ export default defineComponent({
         manageStrategyData.value.visible_dir.every((item: string) => Boolean(validateVisibleDir(item))) &&
         manageStrategyData.value.file_type.every((item: string) => Boolean(validateFileExtension(item))) &&
         manageStrategyData.value.modules.length &&
-        manageStrategyData.value?.operator;
-      console.log('isValidated = ', manageStrategyData.value);
+        manageStrategyData.value.operator;
     };
 
     const isExternal = computed(() => store.state.isExternal);
@@ -110,7 +111,7 @@ export default defineComponent({
       // 不得出现 ./
       // 必须以 / 开头
       // 必须以 / 结尾
-      return !/[^\w\-\.\/]/.test(val) && !/\.\//.test(val) && val.startsWith('/') && val.endsWith('/');
+      return !(/[^\w\-./]/.test(val) || /\.\//.test(val)) && val.startsWith('/') && val.endsWith('/');
     };
 
     // 校验文件后缀
@@ -124,6 +125,7 @@ export default defineComponent({
       nextTick(() => {
         const inputList = document.querySelectorAll('.visible-dir input');
         if (inputList.length > 0) {
+          // biome-ignore lint/style/useAtIndex: reason
           (inputList[inputList.length - 1] as HTMLInputElement).focus();
         }
       });
@@ -135,6 +137,7 @@ export default defineComponent({
       nextTick(() => {
         const inputList = document.querySelectorAll('.file-type input');
         if (inputList.length > 0) {
+          // biome-ignore lint/style/useAtIndex: reason
           (inputList[inputList.length - 1] as HTMLInputElement).focus();
         }
       });
@@ -166,7 +169,7 @@ export default defineComponent({
       try {
         isChangeOperatorLoading.value = true;
         const res = await http.request('userInfo/getUsername');
-        store.commit('updateUserMeta', res.data);
+        store.commit('updateState', { userMeta: res.data });
         manageStrategyData.value.operator = res.data.operator;
       } catch (e) {
         console.warn(e);
@@ -189,8 +192,8 @@ export default defineComponent({
     const renderVisibleDirList = () => {
       return manageStrategyData.value.visible_dir.map((item: string, index: number) => (
         <div
-          key={index}
-          class='flex-box add-minus-component visible-dir'
+          key={`${index}-${item}`}
+          class='add-minus-component visible-dir flex-box'
         >
           <ValidateInput
             style='width: 256px; margin-right: 4px'
@@ -218,8 +221,8 @@ export default defineComponent({
     const renderFileTypeList = () => {
       return manageStrategyData.value.file_type.map((item: string, index: number) => (
         <div
-          key={index}
-          class='flex-box add-minus-component file-type'
+          key={`${index}-${item}`}
+          class='add-minus-component file-type flex-box'
         >
           <ValidateInput
             style='width: 256px; margin-right: 4px'
@@ -298,12 +301,25 @@ export default defineComponent({
               />
             </div>
             <div class='content'>
-              <ValidateUserSelector
+              {/* <ValidateUserSelector
                 value={manageStrategyData.value.user_list}
                 onChange={(val: any[]) => {
                   manageStrategyData.value.user_list = val;
-                  isValidatedComputed();
                 }}
+                // allowCreate={props.allowCreate}
+                api={props.userApi}
+                // placeholder={props.allowCreate ? t('请输入QQ并按Enter结束（可多次添加）') : ''}
+              /> */}
+              <BkUserSelector
+                style='width: 400px'
+                class={isError.value ? 'is-error' : ''}
+                api={props.userApi}
+                disabled={isExternal.value}
+                empty-text={t('无匹配人员')}
+                placeholder={t('请选择群成员')}
+                value={manageStrategyData.value.user_list}
+                on-blur={handleBlur}
+                on-change={val => handleChangePrincipal(val)}
               />
             </div>
           </div>
@@ -383,16 +399,12 @@ export default defineComponent({
             </div>
             <div class='content'>
               <div class='flex-box'>
-                {/* <bk-input
+                <bk-input
                   style='width: 256px; margin-right: 10px'
                   class={!manageStrategyData.value.operator && 'is-input-error'}
                   value={manageStrategyData.value.operator}
                   readonly
-                /> */}
-                <bk-user-display-name
-                  class='execute-people'
-                  user-id={manageStrategyData.value?.operator}
-                ></bk-user-display-name>
+                />
                 <bk-button
                   loading={isChangeOperatorLoading.value}
                   size='small'

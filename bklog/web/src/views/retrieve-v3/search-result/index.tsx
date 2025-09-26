@@ -24,39 +24,41 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, type ComputedRef, defineComponent, onUnmounted } from 'vue';
+import { computed, type ComputedRef, defineComponent } from "vue";
 
-import useStore from '@/hooks/use-store';
-import { debounce } from 'lodash';
-import { useRoute, useRouter } from 'vue-router/composables';
+import { debounce } from "lodash-es";
+import { useRoute, useRouter } from "vue-router/composables";
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
+import GraphAnalysis from "../../retrieve-v2/search-result-panel/graph-analysis";
 // #else
 // #code const GraphAnalysis = () => null
 // #endif
-import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
+import SearchResultPanel from "../../retrieve-v2/search-result-panel/index.vue";
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
+import SearchResultTab from "../../retrieve-v2/search-result-tab/index.vue";
 // #else
 // #code const SearchResultTab = () => null;
 
 // #endif
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import Grep from '../grep';
-import { MSearchResultTab } from '../type';
+import RetrieveHelper, { RetrieveEvent } from "../../retrieve-helper";
+import Grep from "../grep";
+import { MSearchResultTab } from "../type";
+import useStore from "@/hooks/use-store";
+import LogClustering from "./log-clustering";
+import useRetrieveEvent from "@/hooks/use-retrieve-event";
 
-import './index.scss';
+import "./index.scss";
 
 export default defineComponent({
-  name: 'V3ResultContainer',
+  name: "V3ResultContainer",
   setup() {
     const router = useRouter();
     const route = useRoute();
     const store = useStore();
 
-    const debounceUpdateTabValue = debounce(value => {
-      const isClustering = value === 'clustering';
+    const debounceUpdateTabValue = debounce((value) => {
+      const isClustering = value === "clustering";
       router.replace({
         params: { ...(route.params ?? {}) },
         query: {
@@ -66,29 +68,29 @@ export default defineComponent({
         },
       });
     }, 60);
-
-    const activeTab = computed(() => route.query.tab ?? 'origin') as ComputedRef<string>;
+    const activeTab = computed(
+      () => route.query.tab ?? "origin"
+    ) as ComputedRef<string>;
 
     const handleTabChange = (tab: string, triggerTrend = false) => {
       debounceUpdateTabValue(tab);
 
       if (triggerTrend) {
-        store.dispatch('requestIndexSetQuery');
+        store.dispatch("requestIndexSetQuery");
         setTimeout(() => {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
         }, 300);
       }
     };
 
-    const handleFavoriteChange = item => {
-      debounceUpdateTabValue(item.favorite_type === 'chart' ? 'graphAnalysis' : 'origin');
+    const handleFavoriteChange = (item) => {
+      debounceUpdateTabValue(
+        item.favorite_type === "chart" ? "graphAnalysis" : "origin"
+      );
     };
 
-    RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
-
-    onUnmounted(() => {
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
-    });
+    const { addEvent } = useRetrieveEvent();
+    addEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
 
     const renderTabContent = () => {
       if (activeTab.value === MSearchResultTab.GRAPH_ANALYSIS) {
@@ -97,6 +99,10 @@ export default defineComponent({
 
       if (activeTab.value === MSearchResultTab.GREP) {
         return <Grep></Grep>;
+      }
+
+      if (activeTab.value === MSearchResultTab.CLUSTERING) {
+        return <LogClustering />;
       }
 
       return (
@@ -108,7 +114,7 @@ export default defineComponent({
     };
 
     return () => (
-      <div class='v3-bklog-body'>
+      <div class="v3-bklog-body">
         <SearchResultTab
           value={activeTab.value}
           on-input={handleTabChange}

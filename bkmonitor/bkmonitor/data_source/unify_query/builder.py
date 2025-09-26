@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -55,6 +55,7 @@ class QueryConfig(Query):
     def __init__(self, using: tuple[str, str], where: type[WhereNode] = WhereNode):
         super().__init__(using, where)
 
+        self.data_label: str = ""
         self.reference_name: str = ""
         # unit：seconds
         self.interval: int | None = None
@@ -65,6 +66,7 @@ class QueryConfig(Query):
 
     def clone(self) -> "QueryConfig":
         obj: QueryConfig = super().clone()
+        obj.data_label = self.data_label
         obj.reference_name = self.reference_name
         obj.interval = self.interval
         obj.metrics = self.metrics[:]
@@ -72,6 +74,10 @@ class QueryConfig(Query):
         obj.conditions = self.conditions[:]
         obj.dimension_fields = self.dimension_fields[:]
         return obj
+
+    def set_data_label(self, data_label: str | None):
+        if data_label:
+            self.data_label = data_label
 
     def set_reference_name(self, reference_name: str | None):
         if reference_name:
@@ -96,6 +102,11 @@ class QueryConfig(Query):
 
 class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
     QUERY_CLASS = QueryConfig
+
+    def data_label(self, data_label: str | None) -> "QueryConfigBuilder":
+        clone = self._clone()
+        clone.query.set_data_label(data_label)
+        return clone
 
     def alias(self, alias: str | None) -> "QueryConfigBuilder":
         clone = self._clone()
@@ -262,6 +273,7 @@ class UnifyQueryCompiler(SQLCompiler):
         query_configs: list[dict[str, Any]] = []
         for query_config_obj in self.query.query_configs:
             query_config = {
+                "data_label": query_config_obj.data_label or "",
                 "data_type_label": query_config_obj.using[0],
                 "data_source_label": query_config_obj.using[1],
                 "reference_name": query_config_obj.reference_name or "a",
@@ -430,6 +442,7 @@ class CompilerMixin:
         for query_config in params["query_configs"]:
             query_configs.append(
                 {
+                    "data_label": query_config["data_label"],
                     "data_source_label": query_config["data_source_label"],
                     "data_type_label": query_config["data_type_label"],
                     "agg_condition": filter_dict_to_conditions(query_config["filter_dict"], []),

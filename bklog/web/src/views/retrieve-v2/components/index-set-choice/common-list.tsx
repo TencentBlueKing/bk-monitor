@@ -25,9 +25,12 @@
  */
 
 import { computed, defineComponent, ref } from 'vue';
-import './common-list.scss';
-import EllipsisTagList from '../../../../components/ellipsis-tag-list';
+
 import useLocale from '@/hooks/use-locale';
+
+import EllipsisTagList from '../../../../components/ellipsis-tag-list';
+
+import './common-list.scss';
 export default defineComponent({
   props: {
     list: {
@@ -130,7 +133,7 @@ export default defineComponent({
               item: v => <span class='row-item'>{v}</span>,
             },
           }}
-        ></EllipsisTagList>
+        />
       );
     };
 
@@ -143,19 +146,19 @@ export default defineComponent({
           >
             <span class='row-left'>
               <span
-                class={['bklog-icon', props.itemIcon?.icon ?? activeMap.value.itemIcon]}
                 style={{
                   color: props.itemIcon?.color,
                 }}
+                class={['bklog-icon', props.itemIcon?.icon ?? activeMap.value.itemIcon]}
                 onClick={e => handleItemIconClick(e, item)}
-              ></span>
+              />
               <span class='row-item-list'>{getEllipsisItem(item)}</span>
             </span>
             {props.showDelItem && (
               <span
                 class='bklog-icon bklog-log-delete'
                 onClick={e => handleDeleteItem(e, item)}
-              ></span>
+              />
             )}
           </div>
         );
@@ -168,19 +171,19 @@ export default defineComponent({
         >
           <span class='row-left'>
             <span
-              class={['bklog-icon', props.itemIcon?.icon ?? activeMap.value.itemIcon]}
               style={{
                 color: props.itemIcon?.color,
               }}
+              class={['bklog-icon', props.itemIcon?.icon ?? activeMap.value.itemIcon]}
               onClick={e => handleItemIconClick(e, item)}
-            ></span>
+            />
             <span class='row-item'>{item[getFuncionalPropVal(props.nameField, [item])]}</span>
           </span>
           {props.showDelItem && (
             <span
               class='bklog-icon bklog-log-delete'
               onClick={e => handleDeleteItem(e, item)}
-            ></span>
+            />
           )}
         </div>
       );
@@ -190,9 +193,9 @@ export default defineComponent({
       if (props.list.length === 0 && !props.isLoading) {
         return (
           <bk-exception
-            type='empty'
             scene='part'
-          ></bk-exception>
+            type='empty'
+          />
         );
       }
 
@@ -209,9 +212,9 @@ export default defineComponent({
             {activeMap.value.title}（{props.list.length}/20）
           </span>
           <span
+            style={{ display: activeMap.value.delAll ? 'block' : 'none' }}
             class='bklog-icon bklog-saoba'
             onClick={e => handleDeleteItem(e, null)}
-            style={{ display: activeMap.value.delAll ? 'block' : 'none' }}
           >
             {activeMap.value.delLable}
           </span>

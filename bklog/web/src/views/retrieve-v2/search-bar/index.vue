@@ -17,7 +17,7 @@
   import { bkMessage } from 'bk-magic-vue';
 
   import $http from '../../../api';
-  import { deepClone, copyMessage } from '../../../common/util';
+  import { copyMessage } from '../../../common/util';
   import useResizeObserve from '../../../hooks/use-resize-observe';
   import CommonFilterSelect from './common-filter-select.vue';
   import { withoutValueConditionList } from './const.common';
@@ -27,7 +27,7 @@
   import { getCommonFilterAddition, clearStorageCommonFilterAddition } from '../../../store/helper';
   import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
   import { handleTransformToTimestamp } from '@/components/time-range/utils';
-
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
   const props = defineProps({
     // activeFavorite: {
@@ -302,13 +302,14 @@
   const sourceUISQLAddition = ref([]);
   const initSourceSQLStr = (params, search_mode) => {
     if (search_mode === 'ui') {
-      sourceUISQLAddition.value = formatAddition(deepClone(params.addition));
+      sourceUISQLAddition.value = formatAddition(structuredClone(params.addition));
     } else {
       sourceSQLStr.value = params?.keyword ?? '';
     }
   };
 
-  RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, val => {
     activeFavorite.value = val;
     const type = queryParams.findIndex(idx => idx === activeFavorite.value.search_mode) ?? 0;
 

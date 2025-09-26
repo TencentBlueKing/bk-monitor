@@ -1,17 +1,16 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List
 
 import arrow
 from django.utils.translation import gettext as _
@@ -20,6 +19,7 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.data_source import load_data_source
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
 
@@ -55,9 +55,9 @@ class LogQueryResource(ApiAuthResource):
         @classmethod
         def to_str(cls, value):
             if isinstance(value, list):
-                return [cls.to_str(v) for v in value if v or not isinstance(v, (dict, list))]
+                return [cls.to_str(v) for v in value if v or not isinstance(v, dict | list)]
             elif isinstance(value, dict):
-                return {k: cls.to_str(v) for k, v in value.items() if v or not isinstance(v, (dict, list))}
+                return {k: cls.to_str(v) for k, v in value.items() if v or not isinstance(v, dict | list)}
             else:
                 return str(value)
 
@@ -66,7 +66,7 @@ class LogQueryResource(ApiAuthResource):
             return attrs
 
     @staticmethod
-    def table_format(data: List[Dict], total: int, data_format: str = ""):
+    def table_format(data: list[dict], total: int, data_format: str = ""):
         """
         生成grafana table格式
         """
@@ -101,7 +101,7 @@ class LogQueryResource(ApiAuthResource):
             ]
 
     @staticmethod
-    def get_time(record: Dict, time_field: str) -> int:
+    def get_time(record: dict, time_field: str) -> int:
         time_value = record.pop(time_field)
 
         # 带毫秒的时间戳处理
@@ -148,6 +148,7 @@ class LogQueryResource(ApiAuthResource):
         data_source_class = load_data_source(params["data_source_label"], params["data_type_label"])
 
         kwargs = dict(
+            bk_tenant_id=get_request_tenant_id(),
             table=params["result_table_id"],
             index_set_id=params["index_set_id"],
             where=params["where"],

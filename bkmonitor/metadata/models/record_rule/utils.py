@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import re
-from typing import Dict, List
 
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -76,12 +75,12 @@ def transform_record_to_metric_name(record: str) -> str:
     return "_".join(record.strip(":").split(":")).strip("_")
 
 
-def refine_bk_sql_and_metrics(promql: str, all_rule_record: List[str]) -> Dict:
+def refine_bk_sql_and_metrics(promql: str, all_rule_record: list[str]) -> dict:
     """转换promql为sql语句，并且提取指标"""
     # 去掉注释
     promql_without_comment = re.sub(r"#.*", "", promql)
     # 去掉换行符
-    _promql = promql_without_comment.replace("\n", "")
+    _promql = promql_without_comment.replace("\n", " ")
     # 查找替换为新的指标
     for record in all_rule_record:
         if record not in _promql:

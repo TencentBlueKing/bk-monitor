@@ -1,0 +1,59 @@
+.email-config-container {
+  padding: 16px 24px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px 0 #1919290d;
+
+  &:nth-of-type(n + 2) {
+    margin-top: 16px;
+  }
+
+  .email-config-form {
+    .bk-form-item {
+      margin-top: 10px;
+    }
+    .bk-form-content {
+      margin-left: 96px !important;
+      min-height: 20px;
+    }
+    .bk-label {
+      width: 72px !important;
+      padding: 0;
+      min-height: 20px !important;
+      height: 30px !important;
+    }
+  }
+
+  .title {
+    margin-bottom: 22px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #63656e;
+  }
+
+  .bk-form-radio {
+    margin-right: 10px;
+    line-height: 30px;
+  }
+}
+
+.text-content {
+  font-size: 12px;
+  color: #63656e;
+}
+
+.bk-form-radio {
+  font-size: 12px;
+}
+
+.bk-label-text {
+  font-size: 12px;
+}
+
+.bk-radio-button-text {
+  font-size: 12px;
+}
+
+.bk-checkbox-text {
+  font-size: 12px;
+}

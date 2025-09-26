@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -85,7 +85,6 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         super().__init__(bk_biz_id, app_name, group_by, filter_dict, **kwargs)
         self.kind: str = kwargs.get("kind") or SeriesAliasType.CALLER.value
         self.temporality: str = kwargs.get("temporality") or MetricTemporality.CUMULATIVE
-        self.ret_code_as_exception: bool = kwargs.get("ret_code_as_exception") or False
         self.time_shift: str | None = kwargs.get("time_shift")
         # 预留 interval 可配置入口
         self.interval = self.DEFAULT_INTERVAL
@@ -260,17 +259,6 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     ) -> list[dict[str, Any]]:
         return list(self._histogram_quantile_duration_qs(scalar, start_time, end_time))
 
-    def _code_redefined(self, code_type: str, q: QueryConfigBuilder) -> QueryConfigBuilder:
-        if not self.ret_code_as_exception:
-            return q.filter(code_type__eq=code_type)
-
-        if code_type == CodeType.EXCEPTION:
-            return q.filter(code__neq=SUCCESS_CODES, code_type__neq=CodeType.TIMEOUT)
-        elif code_type == CodeType.SUCCESS:
-            return q.filter(code__eq=SUCCESS_CODES)
-
-        return q.filter(code_type__eq=code_type)
-
     def _request_code_rate_qs(
         self, code_type: str, start_time: int | None = None, end_time: int | None = None
     ) -> UnifyQuerySet:
@@ -281,8 +269,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             alias="a",
             start_time=start_time,
             end_time=end_time,
-        )
-        code_q: QueryConfigBuilder = self._code_redefined(code_type, code_q)
+        ).filter(code_type__eq=code_type)
 
         total_q: QueryConfigBuilder = self._add_metric(
             q=self.q(start_time, end_time),

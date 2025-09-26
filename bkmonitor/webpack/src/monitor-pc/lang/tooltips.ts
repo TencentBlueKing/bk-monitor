@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -125,8 +125,8 @@ export default {
     'By default, the host entered into the BlueKing configuration platform will collect metric data and event data related to the operating system and process, so enabling host monitoring requires associated business resources.',
   '默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。':
     'It is enabled by default, and the same content will be aggregated into one and counted by default in the collection cycle. ',
-  '默认是所有时间都生效，日历中添加的为不生效时间段':
-    'By default, all times are effective, and the ones added in the calendar are ineffective time periods.',
+  '默认所有日期都生效，可关联日历来“包含”或“排除”哪些日期':
+    'By default, all dates are active. You can associate a calendar to "include" or "exclude" specific dates.',
   '提示：通过 {0} 未找到对应的索引集。如果要采集日志可以前往日志平台。':
     'Prompt: No corresponding Indices can be found through {0}. If you want to collect logs, you can go to the log platform. ',
   注意在仪表盘和策略中使用了修改前的指标将失效:
@@ -328,4 +328,10 @@ export default {
     'New version event search has not fully covered the old version features yet. If needed, you can switch to the old version to view them',
   布尔: 'Boolean',
   请先勾选告警组: 'Please check the alarm group first',
+  '消费场景优先显示“变量别名”': 'Consumption scenarios prefer to display "Variable Alias"',
+  '变量别名留空，则显示“变量名”': 'If the variable alias is left blank, the "Variable Name" will be displayed',
+  '消费场景，hover 变量名 / 别名的 label，可以显示“变量描述”':
+    'In consumption scenarios, hover over the label of the variable name / alias to display "Variable Description"',
+  '该变量有被使用，暂不可删除': 'This variable is being used and cannot be deleted temporarily',
+  '多个返回码之间用“，”分割，数值区间用～连接，有前缀的需要把前缀带上，比如：error_4003,200,3001~3005': 'Multiple return codes are separated by ",". The numerical interval is connected by "~". If there is a prefix, the prefix needs to be included, such as: error_4003,200,3001~3005'
 };

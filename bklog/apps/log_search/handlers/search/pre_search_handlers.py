@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -27,7 +26,7 @@ from apps.log_trace.handlers.trace_field_handlers import TraceMappingAdapter
 from apps.utils.cache import cache_one_day
 
 
-class PreSearchHandlers(object):
+class PreSearchHandlers:
     def __init__(self):
         pass
 
@@ -38,9 +37,7 @@ class PreSearchHandlers(object):
         if not indices:
             return {"default_sort_tag": default_sort_tag, "trace_type": trace_type}
         # get fields from cache
-        fields = cls._get_fields(
-            indices=indices, scenario_id=scenario_id, storage_cluster_id=storage_cluster_id
-        )
+        fields = cls._get_fields(indices=indices, scenario_id=scenario_id, storage_cluster_id=storage_cluster_id)
         # 是否包含嵌套字段
         include_nested_fields: bool = [x["field_type"] for x in fields].count(FieldDataTypeEnum.NESTED.value) > 0
         # Trace type
@@ -58,7 +55,7 @@ class PreSearchHandlers(object):
         }
 
     @staticmethod
-    @cache_one_day("fields_{indices}")
+    @cache_one_day("fields_{indices}", need_md5=True)
     def _get_fields(*, indices, scenario_id, storage_cluster_id):
         mapping_from_es = BkLogApi.mapping(
             {"indices": indices, "scenario_id": scenario_id, "storage_cluster_id": storage_cluster_id}

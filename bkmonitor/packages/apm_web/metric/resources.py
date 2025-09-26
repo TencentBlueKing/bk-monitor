@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -3447,9 +3447,6 @@ class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMi
                 temporality = serializers.ChoiceField(
                     label="时间性", required=True, choices=MetricTemporality.choices()
                 )
-                ret_code_as_exception = serializers.BooleanField(
-                    label="非 0 返回码是否当成异常", required=False, default=False
-                )
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)
 
@@ -3630,9 +3627,6 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHe
                 )
                 temporality = serializers.ChoiceField(
                     label="时间性", required=True, choices=MetricTemporality.choices()
-                )
-                ret_code_as_exception = serializers.BooleanField(
-                    label="非 0 返回码是否当成异常", required=False, default=False
                 )
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)

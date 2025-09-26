@@ -35,6 +35,8 @@
         <img
           class="logo-image"
           :src="platformData.logo"
+          width="40px"
+          height="40px"
           alt="logo"
         />
         <span class="logo-text">{{ platformData.name }}</span>
@@ -53,7 +55,7 @@
           :data-test-id="`topNavBox_li_${menu.id}`"
           :id="`${menu.id}MenuGuide`"
           :key="menu.id"
-          @click="routerHandler(menu)"
+          @click="() => routerHandler(menu)"
         >
           <template>
             {{ menu.name }}
@@ -66,7 +68,7 @@
       v-show="usernameRequested"
     >
       <!-- 全局设置 -->
-      <bk-dropdown-menu
+      <bkDropdownMenu
         v-if="isShowGlobalSetIcon"
         align="center"
         @hide="isShowGlobalDropdown = false"
@@ -98,9 +100,9 @@
             </li>
           </ul>
         </template>
-      </bk-dropdown-menu>
+      </bkDropdownMenu>
       <!-- 语言 -->
-      <bk-dropdown-menu
+      <bkDropdownMenu
         align="center"
         @hide="isShowLanguageDropdown = false"
         @show="isShowLanguageDropdown = true"
@@ -138,9 +140,9 @@
             </li>
           </ul>
         </template>
-      </bk-dropdown-menu>
+      </bkDropdownMenu>
       <!-- 版本日志和产品文档 -->
-      <bk-dropdown-menu
+      <bkDropdownMenu
         ref="dropdownHelp"
         align="center"
         @hide="isShowHelpDropdown = false"
@@ -184,9 +186,9 @@
             </li>
           </ul>
         </template>
-      </bk-dropdown-menu>
+      </bkDropdownMenu>
       <log-version :dialog-show.sync="showLogVersion" />
-      <bk-dropdown-menu
+      <bkDropdownMenu
         align="center"
         @hide="isShowLogoutDropdown = false"
         @show="isShowLogoutDropdown = true"
@@ -200,7 +202,7 @@
               v-if="username"
               class="username"
             >
-              <bk-user-display-name :user-id="username"></bk-user-display-name>
+              {{ username }}
               <i class="bk-icon icon-down-shape"></i>
             </span>
           </div>
@@ -233,7 +235,7 @@
             </li>
           </ul>
         </template>
-      </bk-dropdown-menu>
+      </bkDropdownMenu>
     </div>
 
     <GlobalDialog
@@ -260,6 +262,8 @@
   import { menuArr } from './complete-menu';
   import LogVersion from './log-version';
   import BizMenuSelect from '@/global/bk-space-choice/index';
+  import { bkDropdownMenu } from 'bk-magic-vue';
+  import { BK_LOG_STORAGE } from '@/store/store.type'
 
   export default {
     name: 'HeaderNav',
@@ -267,6 +271,7 @@
       LogVersion,
       GlobalDialog,
       BizMenuSelect,
+      bkDropdownMenu
     },
     props: {
       welcomeData: {
@@ -300,12 +305,13 @@
       ...mapState({
         currentMenu: state => state.currentMenu,
         errorPage: state => state.errorPage,
-        asIframe: state => state.asIframe,
         iframeQuery: state => state.iframeQuery,
         isExternal: state => state.isExternal,
         isShowGlobalDialog: state => state.isShowGlobalDialog,
         globalSettingList: state => state.globalSettingList,
         externalMenu: state => state.externalMenu,
+        spaceListLoaded: state => state.spaceListLoaded,
+        bkBizId: state => state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
       }),
       ...mapGetters('globals', ['globalsData']),
       platformData() {
@@ -360,20 +366,26 @@
         /** 当路由改变时应该把 dialog 关闭掉 */
         this.showGlobalDialog = false;
       },
+      spaceListLoaded: {
+        handler(value) {
+          if (value) {
+            this.navMenu.requestMySpaceList();
+          }
+        },
+        immediate: true
+      }
     },
     async created() {
       this.language = jsCookie.get('blueking_language') || 'zh-cn';
-      this.$store.commit('updateMenuList', menuArr);
+      this.$store.commit('updateState', { 'menuList': menuArr});
 
       // 初始化 navMenu 并保存到组件数据
       this.navMenu = useNavMenu({
         t: $t,
         bkInfo: window.$bkInfo,
         http: window.$http,
-        emit: window.$emit,
+        emit: window.$emit
       });
-
-      this.navMenu.requestMySpaceList();
 
       this.getGlobalsData();
       this.getUserInfo();
@@ -413,7 +425,7 @@
         //   });
       },
       jumpToHome() {
-        this.$store.commit('updateIsShowGlobalDialog', false);
+        this.$store.commit('updateState', {'isShowGlobalDialog': false});
 
         if (window.IS_EXTERNAL) {
           this.$router.push({
@@ -438,7 +450,7 @@
       },
       routerHandler(menu) {
         // 关闭全局设置弹窗
-        this.$store.commit('updateIsShowGlobalDialog', false);
+        this.$store.commit('updateState', {'isShowGlobalDialog': false});
         if (menu.id === this.navMenu.activeTopMenu.id) {
           if (menu.id === 'retrieve') {
             this.$router.push({
@@ -476,26 +488,7 @@
             }
             return;
           }
-          if (menu.id === 'dashboard') {
-            // if (this.$route.query.manageAction) {
-            //   const newQuery = { ...this.$route.query };
-            //   delete newQuery.manageAction;
-            //   this.$router.push({
-            //     name: 'dashboard',
-            //     query: newQuery,
-            //   });
-            // }
-            // this.$emit('reload-router');
-            // return;
-            this.$router.push({
-              name: menu.id,
-              query: {
-                spaceUid: this.$store.state.spaceUid,
-              },
-            });
-            this.$emit('reload-router');
-            return;
-          }
+
           if (menu.id === 'manage') {
             if (this.$route.name !== 'collection-item') {
               this.$router.push({
@@ -512,6 +505,12 @@
           this.$emit('reload-router');
           return;
         }
+
+        if (menu.id === 'dashboard') {
+          window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/grafana`, '_blank');
+          return;
+        }
+
         if (menu.id === 'monitor') {
           window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/strategy-config`, '_blank');
         } else if (menu.id === 'trace') {
@@ -575,7 +574,7 @@
       handleGoToMyApplication() {
         this.showGlobalDialog = false;
         this.$nextTick(() => {
-          const bizId = this.$store.state.bkBizId;
+          const bizId = this.bkBizId;
           const host =
             process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
           const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-applied-report`;
@@ -588,7 +587,7 @@
       handleGoToMyReport() {
         this.showGlobalDialog = false;
         this.$nextTick(() => {
-          const bizId = this.$store.state.bkBizId;
+          const bizId = this.bkBizId;
           const host =
             process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
           const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-report`;
@@ -603,8 +602,8 @@
       },
       handleClickGlobalDialog(id) {
         // 打开全局设置弹窗
-        this.$store.commit('updateGlobalActiveLabel', id);
-        this.$store.commit('updateIsShowGlobalDialog', true);
+        this.$store.commit('updateState', {'globalActiveLabel': id});
+        this.$store.commit('updateState', {'isShowGlobalDialog': true});
       },
       getLanguageClass(language) {
         return language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese';

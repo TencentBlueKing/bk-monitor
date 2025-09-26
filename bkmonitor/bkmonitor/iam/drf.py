@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -9,17 +9,15 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-
 from typing import Literal
 
-from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 
 """
 DRF 插件
 """
-from functools import wraps
 from collections.abc import Callable
+from functools import wraps
 
 from iam import Resource
 from rest_framework import permissions
@@ -124,9 +122,9 @@ class InstanceActionPermission(IAMPermission):
         lookup_url_kwarg = view.lookup_url_kwarg or view.lookup_field
 
         assert lookup_url_kwarg in view.kwargs, (
-            "Expected view %s to be called with a URL keyword argument "
-            'named "%s". Fix your URL conf, or set the `.lookup_field` '
-            "attribute on the view correctly." % (self.__class__.__name__, lookup_url_kwarg)
+            f"Expected view {self.__class__.__name__} to be called with a URL keyword argument "
+            f'named "{lookup_url_kwarg}". Fix your URL conf, or set the `.lookup_field` '
+            "attribute on the view correctly."
         )
         return lookup_url_kwarg
 
@@ -274,9 +272,10 @@ def extract_attribute(item):
 
 
 def filter_data_by_permission(
+    bk_tenant_id: str,
     data: list[dict] | dict,
     actions: list[ActionMeta],
-    resource_meta: ResourceMeta,
+    resource_meta: type[ResourceMeta],
     id_field: Callable[[dict], str] = lambda item: item["id"],
     always_allowed: Callable[[dict], bool] = lambda item: False,
     instance_create_func: Callable[[dict], Resource] | None = None,
@@ -305,9 +304,7 @@ def filter_data_by_permission(
         return []
 
     # 批量鉴权
-    permission_result = Permission(username=username, bk_tenant_id=get_request_tenant_id()).batch_is_allowed(
-        actions, resources
-    )
+    permission_result = Permission(username=username, bk_tenant_id=bk_tenant_id).batch_is_allowed(actions, resources)
 
     allowed_data = []
     for item in data:

@@ -515,7 +515,7 @@
 </template>
 
 <script>
-  import { projectManages, random, deepEqual, deepClone } from '@/common/util';
+  import { projectManages, random, deepEqual } from '@/common/util';
   import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector';
   import ContainerSvg from '@/images/container-icons/Container.svg';
   import LinuxSvg from '@/images/container-icons/Linux.svg';
@@ -909,12 +909,12 @@
     },
     created() {
       this.isClone = this.$route.query?.type === 'clone';
-      this.$store.commit('updateRouterLeaveTip', false);
-      this.configBaseObj = deepClone(this.formData.configs[0]); // 生成配置项的基础对象
+      this.$store.commit('updateState', { 'showRouterLeaveTip': false});
+      this.configBaseObj = structuredClone(this.formData.configs[0]); // 生成配置项的基础对象
       this.getLinkData();
       // 克隆与编辑均进行数据回填
       if (this.isUpdate || this.isClone) {
-        const cloneCollect = deepClone(this.curCollect);
+        const cloneCollect = structuredClone(this.curCollect);
         this.initFromData(cloneCollect);
         if (!this.isPhysicsEnvironment) {
           const initFormData = this.initContainerFormData(cloneCollect);
@@ -976,7 +976,7 @@
        * @returns { Object } 返回初始化后的Form表单
        */
       initContainerFormData(formData, initType = 'all', isYamlData = false) {
-        const curFormData = deepClone(formData);
+        const curFormData = structuredClone(formData);
         if (!curFormData.extra_labels.length && initType !== 'collect') {
           curFormData.extra_labels = [
             {
@@ -1090,7 +1090,7 @@
        * @returns { Object } 返回初始化后的Form表单
        */
       getInitFormData(formData) {
-        const curFormData = deepClone(formData);
+        const curFormData = structuredClone(formData);
         // win_event类型不需要初始化分隔符的过滤条件
         if (!curFormData.params.conditions?.separator_filters && curFormData.collector_scenario_id !== 'wineventlog') {
           curFormData.params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
@@ -1299,7 +1299,7 @@
        * @returns {Object} 返回提交参数数据
        */
       handleParams() {
-        const formData = deepClone(this.formData);
+        const formData = structuredClone(this.formData);
         const {
           collector_config_name,
           collector_config_name_en,
@@ -1355,7 +1355,7 @@
               item.container.workload_type = '';
               item.container.workload_name = '';
             }
-            const cloneNamespaces = deepClone(item.namespaces);
+            const cloneNamespaces = structuredClone(item.namespaces);
             delete item.namespaces;
             item[namespacesKey] = cloneNamespaces;
             item.label_selector = this.getSelectorQueryParams(item.labelSelector, {
@@ -1414,7 +1414,7 @@
        * @param { Object } passParams
        */
       filterParams(passParams) {
-        let params = deepClone(passParams);
+        let params = structuredClone(passParams);
         if (!this.isWinEventLog) {
           if (!this.hasMultilineReg) {
             // 行首正则未开启
@@ -1582,7 +1582,7 @@
       },
       handleAddNewContainerConfig() {
         // 添加配置项
-        const newContainerConfig = deepClone(this.configBaseObj);
+        const newContainerConfig = structuredClone(this.configBaseObj);
         this.publicLetterIndex += 1;
         newContainerConfig.noQuestParams.letterIndex = this.publicLetterIndex;
         this.formData.configs.push(newContainerConfig);

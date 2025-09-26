@@ -8,6 +8,8 @@ from core.drf_resource import api
 from metadata.models import ClusterInfo
 from metadata.task.bkbase import sync_bkbase_cluster_info
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
+from metadata.task.sync_space import sync_bkcc_space
+from metadata.utils.gse import KafkaGseSyncer
 
 logger = logging.getLogger(__name__)
 
@@ -20,25 +22,31 @@ def _init_kafka_cluster(bk_tenant_id: str):
 
     # 如果有默认的kafka集群，则不再初始化
     if kafka_cluster_query.filter(bk_tenant_id=bk_tenant_id, is_default_cluster=True).exists():
+        cluster = kafka_cluster_query.get(bk_tenant_id=bk_tenant_id, is_default_cluster=True)
         logger.info("Kafka cluster already exists for tenant %s, skipping initialization.", bk_tenant_id)
-        return
+    else:
+        # 创建默认的kafka集群
+        kafka_host = os.environ.get("BK_MONITOR_KAFKA_HOST", None)
+        kafka_port = os.environ.get("BK_MONITOR_KAFKA_PORT", None)
+        if not kafka_host or not kafka_port:
+            logger.error("BK_MONITOR_KAFKA_HOST and BK_MONITOR_KAFKA_PORT must be set in environment variables")
+            raise ValueError("BK_MONITOR_KAFKA_HOST and BK_MONITOR_KAFKA_PORT must be set in environment variables")
 
-    # 创建默认的kafka集群
-    kafka_host = os.environ.get("BK_MONITOR_KAFKA_HOST", None)
-    kafka_port = os.environ.get("BK_MONITOR_KAFKA_PORT", None)
-    if not kafka_host or not kafka_port:
-        logger.error("BK_MONITOR_KAFKA_HOST and BK_MONITOR_KAFKA_PORT must be set in environment variables")
-        raise ValueError("BK_MONITOR_KAFKA_HOST and BK_MONITOR_KAFKA_PORT must be set in environment variables")
+        cluster = ClusterInfo.objects.create(
+            bk_tenant_id=bk_tenant_id,
+            cluster_type=ClusterInfo.TYPE_KAFKA,
+            cluster_name="kafka_cluster1",
+            domain_name=kafka_host,
+            port=kafka_port,
+            is_default_cluster=True,
+        )
 
-    ClusterInfo.objects.create(
-        bk_tenant_id=bk_tenant_id,
-        cluster_type=ClusterInfo.TYPE_KAFKA,
-        cluster_name="kafka_cluster1",
-        domain_name=kafka_host,
-        port=kafka_port,
-        is_default_cluster=True,
-    )
-    logger.info("Kafka cluster created for tenant %s", bk_tenant_id)
+        logger.info("Kafka cluster created for tenant %s", bk_tenant_id)
+
+    # 注册到GSE
+    KafkaGseSyncer.register_to_gse(mq_cluster=cluster)
+
+    logger.info("Kafka cluster registered to GSE for tenant %s", bk_tenant_id)
 
 
 def _init_es_cluster(bk_tenant_id: str):
@@ -162,14 +170,24 @@ def init_tenant(bk_tenant_id: str):
     logger.info(f"start init tenant({bk_tenant_id})")
 
     logger.info(f"init cluster for tenant({bk_tenant_id})")
+
+    logger.info(f"start init kafka cluster for tenant({bk_tenant_id})")
     _init_kafka_cluster(bk_tenant_id)
+
+    logger.info(f"start init es cluster for tenant({bk_tenant_id})")
     _init_es_cluster(bk_tenant_id)
+
+    logger.info(f"start init bkbase cluster for tenant({bk_tenant_id})")
     _init_bkbase_cluster(bk_tenant_id)
+
+    logger.info(f"start sync bkcc space for tenant({bk_tenant_id})")
+    sync_bkcc_space(bk_tenant_id=bk_tenant_id)
     logger.info(f"init cluster for tenant({bk_tenant_id}) done.")
 
     # 标记已初始化的租户
     if bk_tenant_id not in settings.INITIALIZED_TENANT_LIST:
         logger.info(f"tenant({bk_tenant_id}) is initialized.")
-        settings.INITIALIZED_TENANT_LIST.append(bk_tenant_id)
+        settings.INITIALIZED_TENANT_LIST = settings.INITIALIZED_TENANT_LIST + [bk_tenant_id]
+
     else:
         logger.info(f"tenant({bk_tenant_id}) is already initialized")

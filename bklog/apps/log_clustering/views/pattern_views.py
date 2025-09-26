@@ -18,11 +18,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from rest_framework import serializers
 from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import ViewBusinessPermission
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.handlers.pattern import PatternHandler
 from apps.log_clustering.models import ClusteringConfig
@@ -36,7 +38,10 @@ from apps.log_clustering.serializers import (
     UpdateGroupFieldsSerializer,
     UpdateRemarkSerializer,
 )
-from apps.utils.drf import detail_route
+from apps.log_commons.models import ApiAuthToken
+from apps.log_commons.token import CodeccTokenHandler
+from apps.log_search.exceptions import TokenMissingException, TokenInvalidException
+from apps.utils.drf import detail_route, list_route
 
 
 class PatternViewSet(APIViewSet):
@@ -44,6 +49,9 @@ class PatternViewSet(APIViewSet):
     serializer_class = serializers.Serializer
 
     def get_permissions(self):
+        if self.action in ["search_for_code"]:
+            return [ViewBusinessPermission()]
+
         return [PatternPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
     @detail_route(methods=["POST"])
@@ -396,3 +404,29 @@ class PatternViewSet(APIViewSet):
         """
         params = self.params_valid(PatternStrategySerializer)
         return Response(ClusteringMonitorHandler(index_set_id=index_set_id).create_or_update_pattern_strategy(params))
+
+    @list_route(methods=["POST"], url_path="search_for_code")
+    def search_for_code(self, request):
+        """
+        @api {post} /pattern/search_for_code/ CodeCC日志搜索
+        @apiDescription 根据 CodeCC token 进行日志搜索，需要在请求头中传入 X-BKLOG-TOKEN
+        @apiParam 接口参数参考 pattern search 接口
+        """
+        query_data = self.params_valid(PatternSearchSerlaizer)
+
+        # 1. 根据token查询record
+        token = getattr(request, "token")
+        if not token:
+            raise TokenMissingException()
+        try:
+            record = ApiAuthToken.objects.get(token=token)
+        except ApiAuthToken.DoesNotExist:
+            raise TokenInvalidException()
+
+        # 2. 从token记录中解析参数
+        index_set_id = record.params.get("index_set_id")
+
+        # 3. 权限验证
+        CodeccTokenHandler.check_index_set_search_permission(record.created_by, index_set_id)
+
+        return Response(PatternHandler(index_set_id, query_data).pattern_search())

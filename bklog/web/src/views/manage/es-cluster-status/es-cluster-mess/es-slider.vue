@@ -861,12 +861,12 @@
           if (val !== 'multi_biz') {
             this.visibleList = [];
           } else {
-            this.visibleList = JSON.parse(JSON.stringify(this.cacheVisibleList));
+            this.visibleList = structuredClone(this.cacheVisibleList);
           }
           if (val !== 'biz_attr') {
             this.bkBizLabelsList = [];
           } else {
-            this.bkBizLabelsList = JSON.parse(JSON.stringify(this.cacheBkBizLabelsList));
+            this.bkBizLabelsList = structuredClone(this.cacheBkBizLabelsList);
           }
         },
       },
@@ -979,7 +979,7 @@
             pre.push(obj);
             return pre;
           }, []);
-          this.cacheBkBizLabelsList = JSON.parse(JSON.stringify(this.bkBizLabelsList));
+          this.cacheBkBizLabelsList = structuredClone(this.bkBizLabelsList);
           this.$nextTick(() => {
             // 编辑的时候直接联通测试 通过则展开ES集群管理
             this.handleTestConnect();
@@ -1094,7 +1094,7 @@
             bk_biz_id: this.bkBizId,
           };
           Object.assign(this.formData, this.basicFormData);
-          const postData = JSON.parse(JSON.stringify(this.formData));
+          const postData = structuredClone(this.formData);
           postData.bk_biz_id = this.bkBizId;
           if (!postData.enable_hot_warm) {
             delete postData.hot_attr_name;
@@ -1150,7 +1150,7 @@
           return item.id;
         });
         this.retentionDaysList = retentionDaysList;
-        this.maxDaysList = JSON.parse(JSON.stringify(retentionDaysList));
+        this.maxDaysList = structuredClone(retentionDaysList);
         this.daySelectAddToDisable();
       },
       /**

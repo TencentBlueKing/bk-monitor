@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -19,6 +19,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.serializers import TenantIdField
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import Resource
 from metadata import config, models
@@ -29,6 +30,7 @@ from metadata.service.vm_storage import (
     query_bcs_cluster_vm_rts,
     query_vm_datalink_all,
 )
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 logger = logging.getLogger("metadata")
 
@@ -238,3 +240,50 @@ class QueryMetaInfoByVmrt(Resource):
             "vm_result_table_id": vmrt,
             "bk_biz_id": result_table.bk_biz_id,
         }
+
+
+class ModifyClusterByVmrts(Resource):
+    """
+    根据VMRT批量修改存储集群
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        vmrts = serializers.ListField(required=True, label="VM结果表ID列表")
+        cluster_name = serializers.CharField(required=True, label="集群名称")
+        bk_tenant_id = TenantIdField(label="租户ID")
+
+    def perform_request(self, validated_request_data):
+        vmrts = validated_request_data["vmrts"]
+        cluster_name = validated_request_data["cluster_name"]
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
+
+        logger.info("ModifyClusterByVmrts: vmrts->[%s] will change to cluster->[%s]", vmrts, cluster_name)
+
+        try:
+            vm_cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=cluster_name)
+        except models.ClusterInfo.DoesNotExist:
+            logger.error("ModifyClusterByVmrts: can't find vm cluster name [%s]", cluster_name)
+            raise ValidationError(f"can't find vm cluster name [{cluster_name}]")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("ModifyClusterByVmrts: get vm cluster name [%s] error: %s", cluster_name, e)
+            raise ValidationError(f"get vm cluster name [{cluster_name}] error: {e}")
+
+        # 查找关联的VM接入记录
+        vm_queryset = models.AccessVMRecord.objects.filter(vm_result_table_id__in=vmrts, bk_tenant_id=bk_tenant_id)
+
+        # 事务操作,批量更新集群ID
+        with transaction.atomic():
+            vm_queryset.update(vm_cluster_id=vm_cluster.cluster_id)
+
+        logger.info("ModifyClusterByVmrts: vmrts->[%s] has changed to cluster->[%s]", vmrts, cluster_name)
+
+        # 统计监控侧RT列表,执行更新
+        result_table_ids = list(vm_queryset.values_list("result_table_id", flat=True))
+
+        # 推送路由
+        client = SpaceTableIDRedis()
+        client.push_table_id_detail(table_id_list=result_table_ids, is_publish=True, bk_tenant_id=bk_tenant_id)
+
+        logger.info("ModifyClusterByVmrts: vmrts->[%s] push router successfully", vmrts)
+
+        return True

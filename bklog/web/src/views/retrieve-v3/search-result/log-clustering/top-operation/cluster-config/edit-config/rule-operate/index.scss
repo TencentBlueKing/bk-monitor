@@ -1,0 +1,64 @@
+.rule-operate-main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+
+  .type-choose-main {
+    width: 120px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .right-oprate-main {
+    flex: 1;
+
+    .custom-operate-main {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+
+      .operate-btn {
+        font-size: 12px;
+      }
+    }
+
+    .template-operate-main {
+      width: 100%;
+      display: flex;
+      margin-left: 12px;
+      align-items: center;
+
+      .template-select {
+        width: 320px;
+      }
+    }
+  }
+}
+
+.rule-template-unbind-main {
+  .warn-title {
+    font-size: 16px;
+    color: #313238;
+    margin-bottom: 16px;
+  }
+
+  .template-name {
+    margin-bottom: 12px;
+  }
+
+  .tip-display {
+    margin-bottom: 16px;
+  }
+}
+
+.template-select-popover {
+  .template-manage-extension {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+}

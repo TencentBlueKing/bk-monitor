@@ -106,6 +106,7 @@ module.exports = async (baseConfig, { production, app }) => {
   if (['apm', 'fta', 'pc', 'mobile'].includes(app)) {
     vueAlias = {
       vue$: path.resolve(`./src/${appDirName}/node_modules/vue/dist/vue.runtime.common.js`),
+      'vue-i18n': path.resolve(__dirname, `./src/${appDirName}/node_modules/vue-i18n/dist/vue-i18n.esm.js`),
     };
   } else if (app === 'trace') {
     vueAlias = {

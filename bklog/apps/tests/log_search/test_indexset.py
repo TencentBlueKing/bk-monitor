@@ -29,6 +29,7 @@ from django.conf import settings
 from django.test import TestCase, override_settings
 
 from apps.log_search.models import LogIndexSet
+from apps.tests.utils import FakeRedis
 
 BK_BIZ_ID = 1
 SPACE_UID = "bkcc__2"
@@ -128,6 +129,8 @@ UPDATE_INDEX_SET = {
             "source_id": None,
             "source_name": "--",
             "result_table_id": "log_xxx",
+            "scenario_id": "es",
+            "storage_cluster_id": 3,
             "time_field": "timestamp",
             "result_table_name": None,
             "apply_status": "normal",
@@ -141,6 +144,8 @@ UPDATE_INDEX_SET = {
             "source_id": None,
             "source_name": "--",
             "result_table_id": "591_xx",
+            "scenario_id": "log",
+            "storage_cluster_id": 6,
             "time_field": "timestamp",
             "result_table_name": None,
             "apply_status": "normal",
@@ -209,6 +214,8 @@ INDEX_SET_LISTS = {
                     "source_id": None,
                     "source_name": "--",
                     "result_table_id": "log_xxx",
+                    "scenario_id": "es",
+                    "storage_cluster_id": 3,
                     "time_field": "timestamp",
                     "result_table_name": None,
                     "apply_status": "normal",
@@ -222,6 +229,8 @@ INDEX_SET_LISTS = {
                     "source_id": None,
                     "source_name": "--",
                     "result_table_id": "591_xx",
+                    "scenario_id": "log",
+                    "storage_cluster_id": 6,
                     "time_field": "timestamp",
                     "result_table_name": None,
                     "apply_status": "normal",
@@ -311,6 +320,8 @@ SYSC_AUTH_STATUS_RESULT = [
         "source_id": None,
         "source_name": "--",
         "result_table_id": "log_xxx",
+        "scenario_id": "es",
+        "storage_cluster_id": 6,
         "time_field": "timestamp",
         "result_table_name": None,
         "apply_status": "normal",
@@ -324,6 +335,8 @@ SYSC_AUTH_STATUS_RESULT = [
         "source_id": None,
         "source_name": "--",
         "result_table_id": "591_xx",
+        "scenario_id": "log",
+        "storage_cluster_id": 6,
         "time_field": "timestamp",
         "result_table_name": None,
         "apply_status": "normal",
@@ -354,6 +367,8 @@ RETRIEVE_LIST = {
             "source_id": None,
             "source_name": "--",
             "result_table_id": "log_xxx",
+            "scenario_id": "es",
+            "storage_cluster_id": 3,
             "time_field": "timestamp",
             "result_table_name": None,
             "apply_status": "normal",
@@ -367,6 +382,8 @@ RETRIEVE_LIST = {
             "source_id": None,
             "source_name": "--",
             "result_table_id": "591_xx",
+            "scenario_id": "log",
+            "storage_cluster_id": 6,
             "time_field": "timestamp",
             "result_table_name": None,
             "apply_status": "normal",
@@ -409,6 +426,27 @@ RETRIEVE_LIST = {
     "doris_table_id": None,
     "support_doris": False,
 }
+MULTI_RESULT = {}
+FIELDS_LIST = [
+    {
+        "field_type": "keyword",
+        "field_name": "a",
+        "field_alias": "",
+        "is_display": False,
+        "is_editable": True,
+        "tag": "dimension",
+        "origin_field": "",
+        "es_doc_values": True,
+        "is_analyzed": False,
+        "field_operator": [
+            {"operator": "=", "label": "=", "placeholder": "请选择或直接输入，Enter分隔", "wildcard_operator": "=~"},
+        ],
+        "is_built_in": False,
+        "is_case_sensitive": False,
+        "tokenize_on_chars": "",
+        "description": "",
+    }
+]
 
 
 class Dummy(dict):
@@ -595,8 +633,17 @@ class TestIndexSet(TestCase):
         response = self.client.post(path=path, data=json.dumps(data), content_type="application/json")
         return response
 
+    @patch(
+        "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler.get_all_fields_by_index_id",
+        return_value=MULTI_RESULT,
+    )
+    @patch(
+        "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler._set_time_filed_type", return_value=""
+    )
+    @patch("apps.api.BkLogApi.mapping", return_value=[])
     @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    @FakeRedis("apps.utils.cache.cache")
     def do_update_alias_settings(self, *args, **kwargs):
         """
         更新别名配置
@@ -627,6 +674,7 @@ class TestIndexSet(TestCase):
         self.assertEqual(content, CREATE_SUCCESS)
 
         # 验证别名配置
+        MULTI_RESULT.update({index_set_id: (FIELDS_LIST, [])})
         response = self.do_update_alias_settings(index_set_id=index_set_id)
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         ALIAS_SETTINGS_RESULT["data"].update({"index_set_id": str(index_set_id)})

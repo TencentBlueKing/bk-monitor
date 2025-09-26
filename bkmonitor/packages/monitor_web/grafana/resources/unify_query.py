@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -11,12 +11,12 @@ specific language governing permissions and limitations under the License.
 import logging
 import re
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import asdict
 from functools import reduce
 from itertools import chain
-from typing import Any
-from collections.abc import Callable
 from re import Pattern
+from typing import Any
 
 import arrow
 from django.conf import settings
@@ -41,7 +41,7 @@ from bkmonitor.models import BCSCluster, MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
-from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_tools import (
     hms_string,
     parse_time_compare_abbreviation,
@@ -646,9 +646,11 @@ class UnifyQueryRawResource(ApiAuthResource):
             return []
 
         metrics = MetricListCache.objects.filter(
-            reduce(lambda x, y: x | y, metric_queries), bk_tenant_id=get_request_tenant_id()
+            reduce(lambda x, y: x | y, metric_queries),
+            bk_tenant_id=bk_biz_id_to_bk_tenant_id(params["bk_biz_id"]),
+            bk_biz_id__in=[params["bk_biz_id"], 0],
         )
-        metric_infos = cls.transfer_metric(metrics=metrics, bk_biz_id=params["bk_biz_id"])
+        metric_infos = cls.transfer_metric(bk_biz_id=params["bk_biz_id"], metrics=metrics)
         return metric_infos
 
     @staticmethod
@@ -1026,7 +1028,8 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
 
         return result
 
-    def translate_dimensions(self, params: dict, data: list):
+    @classmethod
+    def translate_dimensions(cls, params: dict, data: list):
         """
         维度翻译
         """
@@ -1314,6 +1317,7 @@ class GraphPromqlQueryResource(Resource):
         series = HeatMapProcessor.process_formatted_data(params, series)
         series = QueryTypeProcessor.process_formatted_data(params, series)
         series = AddNullDataProcessor.process_formatted_data(params, series)
+        series = GraphUnifyQueryResource.translate_dimensions(params, series)
         return {"metrics": [], "series": series}
 
 

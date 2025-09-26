@@ -1,7 +1,7 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community
 Edition) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 http://opensource.org/licenses/MIT
@@ -40,6 +40,7 @@ from .tools.mysql import (
     get_backend_mysql_settings,
     get_grafana_mysql_settings,
     get_saas_mysql_settings,
+    get_backend_alert_mysql_settings,
 )
 from .tools.service import get_service_url
 
@@ -326,6 +327,7 @@ ACTIVE_VIEWS = {
         "new_report": "monitor_web.new_report.views",
         "incident": "monitor_web.incident.views",
         "k8s": "monitor_web.k8s.views",
+        "query_template": "monitor_web.query_template.views",
     },
     "weixin": {"mobile_event": "weixin.event.views"},
     "fta_web": {
@@ -479,7 +481,12 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 CUSTOM_REPORT_DEFAULT_PROXY_IP = []
 CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
 CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = []  # 当接收端为 k8s 集群部署时，需要配置这个，支持部署在多个集群内
+CUSTOM_REPORT_K8S_SECRETS_CONFIG = {}  # 自定义上报 K8S 集群中 Secrets 分配逻辑默认配置
+
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
+
+# 集群内上报固定域名
+CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE = "bkm-collector.bkmonitor-operator"
 
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
 BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
@@ -492,8 +499,10 @@ ECOSYSTEM_CODE_ROOT_URL = ""
 
 # APM config
 APM_ACCESS_URL = ""
+APM_DATA_PUSH_URL = ""
 APM_BEST_PRACTICE_URL = ""
 APM_METRIC_DESCRIPTION_URL = ""
+APM_FUNC_INTRODUCTION_URL = ""
 
 APM_APDEX_T_VALUE = 800
 APM_SAMPLING_PERCENTAGE = 100
@@ -736,6 +745,7 @@ if os.getenv("ENABLE_TABLE_VISIT_COUNT", "false").lower() == "true":
     DATABASE_ROUTERS.append("bkmonitor.db_routers.TableVisitCountRouter")
 
 # 数据库配置
+# 后台DB配置
 (
     BACKEND_MYSQL_NAME,
     BACKEND_MYSQL_HOST,
@@ -743,7 +753,16 @@ if os.getenv("ENABLE_TABLE_VISIT_COUNT", "false").lower() == "true":
     BACKEND_MYSQL_USER,
     BACKEND_MYSQL_PASSWORD,
 ) = get_backend_mysql_settings()
+# SaaS DB配置
 SAAS_MYSQL_NAME, SAAS_MYSQL_HOST, SAAS_MYSQL_PORT, SAAS_MYSQL_USER, SAAS_MYSQL_PASSWORD = get_saas_mysql_settings()
+# 后台DB扩展配置
+(
+    BACKEND_ALERT_MYSQL_NAME,
+    BACKEND_ALERT_MYSQL_HOST,
+    BACKEND_ALERT_MYSQL_PORT,
+    BACKEND_ALERT_MYSQL_USER,
+    BACKEND_ALERT_MYSQL_PASSWORD,
+) = get_backend_alert_mysql_settings()
 
 # 判断前后台DB配置是否相同，如果不同则需要使用路由
 if SAAS_MYSQL_NAME != BACKEND_MYSQL_NAME or SAAS_MYSQL_HOST != BACKEND_MYSQL_HOST:
@@ -754,6 +773,7 @@ else:
     BACKEND_DATABASE_NAME = "default"
     MIGRATE_MONITOR_API = False
 
+# Grafana DB配置
 (
     GRAFANA_MYSQL_NAME,
     GRAFANA_MYSQL_HOST,
@@ -784,7 +804,7 @@ DATABASES = {
             "MAX_OVERFLOW": -1,
             "RECYCLE": 600,
         },
-        "OPTIONS": {"charset": "utf8mb4"},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",
@@ -793,7 +813,7 @@ DATABASES = {
         "PASSWORD": BACKEND_MYSQL_PASSWORD,
         "HOST": BACKEND_MYSQL_HOST,
         "PORT": BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4"},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
     },
     "bk_dataview": {
         "ENGINE": "django.db.backends.mysql",
@@ -802,9 +822,23 @@ DATABASES = {
         "PASSWORD": GRAFANA_MYSQL_PASSWORD or BACKEND_MYSQL_PASSWORD,
         "HOST": GRAFANA_MYSQL_HOST or BACKEND_MYSQL_HOST,
         "PORT": GRAFANA_MYSQL_PORT or BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4"},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
     },
 }
+
+if BACKEND_ALERT_MYSQL_HOST == BACKEND_MYSQL_HOST:
+    DATABASES["backend_alert"] = {}
+    DATABASES["backend_alert"].update(DATABASES["monitor_api"])
+else:
+    DATABASES["backend_alert"] = {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": BACKEND_ALERT_MYSQL_NAME,
+        "USER": BACKEND_ALERT_MYSQL_USER,
+        "PASSWORD": BACKEND_ALERT_MYSQL_PASSWORD,
+        "HOST": BACKEND_ALERT_MYSQL_HOST,
+        "PORT": BACKEND_ALERT_MYSQL_PORT,
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+    }
 
 # ES7 config
 ES7_HOST, ES7_REST_PORT, ES7_TRANSPORT_PORT, ES7_USER, ES7_PASSWORD = get_es7_settings(fta=True)
@@ -1356,6 +1390,12 @@ ALARM_BACKEND_CLUSTER_NAME = os.getenv("BK_MONITOR_ALARM_BACKEND_CLUSTER_NAME", 
 ALARM_BACKEND_CLUSTER_CODE = os.getenv("BK_MONITOR_ALARM_BACKEND_CLUSTER_CODE", 0)
 ALARM_BACKEND_CLUSTER_ROUTING_RULES = []
 
+# 是否开启Consul Lite 模式，精简非必要字段
+ENABLE_CONSUL_LITE_MODE = False
+
+# AI小鲸灰度业务名单
+AI_BIZ_LIST = []
+
 # AIDEV配置
 AIDEV_AGENT_APP_CODE = os.getenv("BK_AIDEV_AGENT_APP_CODE")
 AIDEV_AGENT_APP_SECRET = os.getenv("BK_AIDEV_AGENT_APP_SECRET")
@@ -1367,6 +1407,11 @@ AIDEV_COMMAND_AGENT_MAPPING = {}  # 快捷指令<->Agent映射
 AIDEV_AGENT_ENABLE_LANGFUSE = False  # 是否开启langfuse上报
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
+# 是否开启AI RENAME
+ENABLE_AI_RENAME = False
+
+# 场景-Agent映射配置,用于实现Agent路由
+AIDEV_SCENE_AGENT_CODE_MAPPING = {}
 
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True

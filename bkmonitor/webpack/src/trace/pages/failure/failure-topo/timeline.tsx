@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -40,10 +40,6 @@ const refreshList = [
     name: 'off',
     label: '关闭（off）',
     id: -1,
-  },
-  {
-    name: '1m',
-    id: 60 * 1000,
   },
   {
     name: '5m',
@@ -92,7 +88,7 @@ export default defineComponent({
     });
     const timelinePosition = ref(0); // 时间轴位置
     const time = ref(new Date());
-    const refreshTime = ref('1m'); // 自动刷新时间
+    const refreshTime = ref('5m'); // 自动刷新时间
     const isShow = ref(false);
     const isPlay = ref(false);
     /** 拖动轴变化 */

@@ -30,28 +30,29 @@ import Vue from 'vue';
 import VueVirtualScroller from 'vue-virtual-scroller';
 
 import LogButton from '@/components/log-button';
+import LogIcon from '@/components/log-icon';
 import i18n from '@/language/i18n';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
-import App from './App';
 import http from './api';
+import App from './app.tsx';
 import { bus } from './common/bus';
+import './common/preload-import.ts';
 import { renderHeader, xssFilter } from './common/util';
 import './directives/index';
 import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
-import preload, { getExternalMenuListBySpace } from './preload';
+import preload, { getAllSpaceList, getExternalMenuListBySpace } from './preload';
 import getRouter from './router';
 import store from './store';
 import { BK_LOG_STORAGE } from './store/store.type';
 
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 import './scss/theme/theme-dark.scss';
 import './scss/theme/theme-light.scss';
 import './static/font-face/index.css';
 import './static/style.css';
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
-import '@blueking/bk-user-selector/vue2/vue2.css';
 
 Vue.prototype.$renderHeader = renderHeader;
 Vue.prototype.$xss = xssFilter;
@@ -69,6 +70,7 @@ const setRouterErrorHandle = router => {
 
 Vue.component('JsonFormatWrapper', JsonFormatWrapper);
 Vue.component('LogButton', LogButton);
+Vue.component('LogIcon', LogIcon);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 Vue.use(VueVirtualScroller);
@@ -79,14 +81,15 @@ const mountedVueInstance = () => {
       return i18n.t(key, params);
     },
   };
-  preload({ http, store }).then(([space]) => {
+  preload({ http, store }).then(([spaceRequest]) => {
+    const space = spaceRequest.value;
     const spaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
 
     let externalMenu = [];
     if (window.IS_EXTERNAL && space) {
       externalMenu = getExternalMenuListBySpace(space) ?? [];
-      store.commit('updateExternalMenu', externalMenu);
+      store.commit('updateState', {'externalMenu': externalMenu});
     }
 
     store.dispatch('requestMenuList', spaceUid);
@@ -104,6 +107,7 @@ const mountedVueInstance = () => {
       mounted() {
         // 对于手动输入URL，直接刷新页面重置所有参数和状态
         window.addEventListener('hashchange', this.reset);
+        getAllSpaceList(http, store);
       },
       beforeUnmount() {
         window.removeEventListener('hashchange', this.reset);
@@ -137,8 +141,8 @@ if (process.env.NODE_ENV === 'development') {
   Vue.config.devtools = true;
 }
 
-const _ResizeObserver = window.ResizeObserver;
-window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
+const BaseResizeObserver = window.ResizeObserver;
+window.ResizeObserver = class ResizeObserver extends BaseResizeObserver {
   constructor(callback) {
     callback = debounce(callback);
     super(callback);

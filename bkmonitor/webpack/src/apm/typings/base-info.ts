@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -146,6 +146,15 @@ export interface ILogRelation {
   value_alias?: string;
 }
 
+export interface ILogRelationListItem {
+  log_type: string;
+  log_type_alias: string;
+  related_bk_biz_id?: number;
+  related_bk_biz_name?: string;
+  value_alias?: string;
+  value_list: { value: number; value_alias?: string }[];
+}
+
 export interface ILogsInfoList {
   editValue: string;
   id?: number;
@@ -182,6 +191,7 @@ export interface IServiceRelation {
   app_relation?: IAppRelation;
   cmdb_relation?: ICmdbRelation;
   log_relation?: ILogRelation;
+  log_relation_list?: ILogRelationListItem[];
   uri_relation?: IUriRelation[];
   event_relation?: {
     options: {
