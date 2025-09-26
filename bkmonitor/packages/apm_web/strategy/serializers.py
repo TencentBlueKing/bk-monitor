@@ -309,6 +309,8 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
 
 
 class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
+    _DUPLICATE_NAME_ERROR = serializers.ValidationError(_("同一应用下策略模板名称不能重复"))
+
     class Meta:
         model = StrategyTemplate
         fields = [
@@ -329,7 +331,14 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         ]
 
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
+        if StrategyTemplate.objects.filter(name=validated_data["name"]).exclude(pk=instance.pk).exists():
+            raise self._DUPLICATE_NAME_ERROR
         return super().update(instance, validated_data)
+
+    def create(self, validated_data: dict[str, Any]) -> StrategyTemplate:
+        if StrategyTemplate.objects.filter(name=validated_data["name"]).exists():
+            raise self._DUPLICATE_NAME_ERROR
+        return super().create(validated_data)
 
 
 class StrategyTemplateSearchModelSerializer(StrategyTemplateBaseModelSerializer):
