@@ -71,6 +71,7 @@ from apps.log_search.constants import (
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
     TimeZoneEnum,
+    IndexSetDataType,
 )
 from apps.log_search.exceptions import (
     CouldNotFindTemplateException,
@@ -390,6 +391,8 @@ class LogIndexSet(SoftDeleteModel):
 
     query_alias_settings = models.JSONField(_("查询别名配置"), null=True, blank=True)
 
+    is_group = models.BooleanField(_("是否索引组"), default=False)
+
     def get_name(self):
         return self.index_set_name
 
@@ -449,6 +452,28 @@ class LogIndexSet(SoftDeleteModel):
             return ""
 
         return BkDataAuthHandler.get_auth_url(not_applied_indices)
+
+    def get_parent_index_set_ids(self) -> list:
+        """
+        获取当前索引集的归属索引集ID列表
+        """
+        parent_ids = LogIndexSetData.objects.filter(
+            result_table_id=self.index_set_id,
+            type=IndexSetDataType.INDEX_SET.value,
+        ).values_list("index_set_id", flat=True)
+
+        return list(parent_ids)
+
+    def get_child_index_set_ids(self) -> list:
+        """
+        获取当前索引集的子索引集ID列表
+        """
+        child_ids = LogIndexSetData.objects.filter(
+            index_set_id=self.index_set_id,
+            type=IndexSetDataType.INDEX_SET.value,
+        ).values_list("result_table_id", flat=True)
+
+        return list(child_ids)
 
     @staticmethod
     def no_data_check_time(index_set_id: str):
@@ -677,12 +702,16 @@ class LogIndexSetData(SoftDeleteModel):
     bk_biz_id = models.IntegerField(_("业务ID"), null=True, default=None)
     result_table_id = models.CharField(_("结果表"), max_length=255)
     result_table_name = models.CharField(_("结果表名称"), max_length=255, null=True, default=None, blank=True)
-    time_field = models.CharField(_("时间字段"), max_length=64, null=True, default=True, blank=True)
+    time_field = models.CharField(_("时间字段"), max_length=64, null=True, default=None, blank=True)
     apply_status = models.CharField(_("审核状态"), max_length=64, choices=Status.StatusChoices, default=Status.PENDING)
     scenario_id = models.CharField(_("接入场景"), max_length=64, null=True, blank=True)
     storage_cluster_id = models.IntegerField(_("存储集群ID"), default=None, null=True, blank=True)
     time_field_type = models.CharField(_("时间字段类型"), max_length=32, default=None, null=True)
     time_field_unit = models.CharField(_("时间字段单位"), max_length=32, default=None, null=True)
+
+    type = models.CharField(
+        _("类型"), max_length=64, choices=IndexSetDataType.get_choices(), default=IndexSetDataType.RESULT_TABLE.value
+    )
 
     def list_operate(self):
         return format_html(_('<a href="../logindexset/?index_set_id=%s">索引集</a>&nbsp;&nbsp;') % self.index_set_id)

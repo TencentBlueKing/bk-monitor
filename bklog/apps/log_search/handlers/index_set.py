@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 import re
 from collections import defaultdict
@@ -60,6 +61,7 @@ from apps.log_search.constants import (
     SearchScopeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
+    IndexSetDataType,
 )
 from apps.log_search.exceptions import (
     DesensitizeConfigCreateOrUpdateException,
@@ -82,6 +84,7 @@ from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
     DataIDNotExistException,
     IndexSetAliasSettingsException,
+    ParentIndexSetNotExistException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
@@ -399,6 +402,7 @@ class IndexSetHandler(APIModel):
         target_fields=None,
         sort_fields=None,
         bcs_cluster_id=None,
+        parent_index_set_ids=None,
     ):
         # 创建索引
         index_set_handler = cls.get_index_set_handler(scenario_id)
@@ -424,6 +428,7 @@ class IndexSetHandler(APIModel):
             target_fields=target_fields,
             sort_fields=sort_fields,
             bcs_cluster_id=bcs_cluster_id,
+            parent_index_set_ids=parent_index_set_ids,
         ).create_index_set()
 
         # add user_operation_record
@@ -473,6 +478,7 @@ class IndexSetHandler(APIModel):
         target_fields=None,
         sort_fields=None,
         bcs_cluster_id=None,
+        parent_index_set_ids=None,
     ):
         index_set_handler = self.get_index_set_handler(self.scenario_id)
         view_roles = []
@@ -492,6 +498,7 @@ class IndexSetHandler(APIModel):
             target_fields=target_fields,
             sort_fields=sort_fields,
             bcs_cluster_id=bcs_cluster_id,
+            parent_index_set_ids=parent_index_set_ids,
         ).update_index_set(self.data)
 
         # add user_operation_record
@@ -1120,6 +1127,10 @@ class IndexSetHandler(APIModel):
         return self.data.storage_cluster_id
 
     @property
+    def space_uid(self):
+        return self.data.space_uid
+
+    @property
     def source_object(self):
         if not self.storage_cluster_id:
             return None
@@ -1429,10 +1440,7 @@ class IndexSetHandler(APIModel):
 
             # 存储别名对应的字段和rt列表
             rt_list = result_table_mappings.get(field_name, [])
-            alias_field_map[query_alias].append({
-                "field_name": field_name,
-                "rt_list": rt_list
-            })
+            alias_field_map[query_alias].append({"field_name": field_name, "rt_list": rt_list})
 
             # 为当前字段所属的所有rt添加别名配置
             for _result_table_id, _field_name_list in field_name_mappings.items():
@@ -1453,11 +1461,13 @@ class IndexSetHandler(APIModel):
             if len(union_rt) < sum(len(rt_set) for rt_set in all_rt_sets):
                 conflict_info = []
                 for field in fields:
-                    conflict_info.append({
-                        "field_name": field["field_name"],
-                        "query_alias": query_alias,
-                        "result_tables": field["rt_list"],
-                    })
+                    conflict_info.append(
+                        {
+                            "field_name": field["field_name"],
+                            "query_alias": query_alias,
+                            "result_tables": field["rt_list"],
+                        }
+                    )
                 raise IndexSetAliasSettingsException(
                     IndexSetAliasSettingsException.MESSAGE.format(conflict_info=conflict_info)
                 )
@@ -1510,6 +1520,67 @@ class IndexSetHandler(APIModel):
                 )
         return {"index_set_id": self.index_set_id}
 
+    def add_to_parent_index_sets(self, parent_index_set_ids: list[int]):
+        """
+        批量添加到归属索引集中
+        """
+
+        # 检查所有父索引集是否存在
+        existing_parent_sets = set(
+            LogIndexSet.objects.filter(
+                index_set_id__in=parent_index_set_ids,
+                is_group=True,
+            ).values_list("index_set_id", flat=True)
+        )
+        missing_parents = set(parent_index_set_ids) - existing_parent_sets
+        if missing_parents:
+            raise ParentIndexSetNotExistException(
+                ParentIndexSetNotExistException.MESSAGE.format(
+                    parent_index_set_id=",".join(str(pid) for pid in missing_parents)
+                )
+            )
+
+        # 创建关联关系，排除已存在的
+        created_parent_ids = set(self.data.get_parent_index_set_ids())
+        to_create = [
+            LogIndexSetData(
+                index_set_id=pid,
+                result_table_id=self.index_set_id,
+                scenario_id=self.scenario_id,
+                bk_biz_id=space_uid_to_bk_biz_id(self.space_uid),
+                type=IndexSetDataType.INDEX_SET.value,
+                apply_status=LogIndexSetData.Status.NORMAL,
+            )
+            for pid in parent_index_set_ids
+            if pid not in created_parent_ids
+        ]
+        if to_create:
+            LogIndexSetData.objects.bulk_create(to_create)
+
+    def remove_from_parent_index_sets(self, parent_index_set_ids: list[int]):
+        """
+        批量从归属索引集中移除
+        """
+        LogIndexSetData.objects.filter(
+            index_set_id__in=parent_index_set_ids,
+            result_table_id=self.index_set_id,
+        ).delete()
+
+    def update_parent_index_sets(self, new_parent_index_set_ids: list):
+        """
+        更新归属索引集
+        """
+        current_parent_index_set_ids = set(self.data.get_parent_index_set_ids())
+        new_parent_index_set_ids = set(new_parent_index_set_ids)
+
+        to_create = new_parent_index_set_ids - current_parent_index_set_ids
+        to_delete = current_parent_index_set_ids - new_parent_index_set_ids
+
+        if to_create:
+            self.add_to_parent_index_sets(list(to_create))
+        if to_delete:
+            self.remove_from_parent_index_sets(list(to_delete))
+
 
 class BaseIndexSetHandler:
     scenario_id = None
@@ -1535,6 +1606,7 @@ class BaseIndexSetHandler:
         target_fields=None,
         sort_fields=None,
         bcs_cluster_id=None,
+        parent_index_set_ids=None,
     ):
         super().__init__()
 
@@ -1557,6 +1629,7 @@ class BaseIndexSetHandler:
         self.bcs_project_id = bcs_project_id
         self.is_editable = is_editable
         self.bcs_cluster_id = bcs_cluster_id
+        self.parent_index_set_ids = parent_index_set_ids
 
         # time_field
         self.time_field, self.time_field_type, self.time_field_unit = self.init_time_field(
@@ -1686,6 +1759,12 @@ class BaseIndexSetHandler:
                 time_field=index.get("time_field") or self.time_field,
                 time_field_type=index.get("time_field_type") or self.time_field_type,
                 time_field_unit=index.get("time_field_unit") or self.time_field_unit,
+            )
+
+        # 将索引集添加到归属索引集(索引组)中
+        if self.parent_index_set_ids:
+            IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).add_to_parent_index_sets(
+                self.parent_index_set_ids
             )
 
         # 更新字段快照
@@ -1850,11 +1929,7 @@ class BaseIndexSetHandler:
 
         # 需更新的索引
         existing_rt_ids = {item["result_table_id"] for item in self.index_set_obj.indexes}
-        to_update_indexes = [
-            index
-            for index in self.indexes
-            if index.get("result_table_id") in existing_rt_ids
-        ]
+        to_update_indexes = [index for index in self.indexes if index.get("result_table_id") in existing_rt_ids]
         for index in to_update_indexes:
             update_params = {}
             if _scenario_id := index.get("scenario_id"):
@@ -1887,6 +1962,10 @@ class BaseIndexSetHandler:
                 time_field_type=index.get("time_field_type") or self.time_field_type,
                 time_field_unit=index.get("time_field_unit") or self.time_field_unit,
             )
+        # 更新归属索引集
+        IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).update_parent_index_sets(
+            self.parent_index_set_ids
+        )
 
         # 更新字段快照
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
@@ -1904,6 +1983,11 @@ class BaseIndexSetHandler:
         pass
 
     def delete(self):
+        # 归属索引集中删除该索引
+        parent_index_set_ids = self.index_set_obj.get_parent_index_set_ids()
+        if parent_index_set_ids:
+            IndexSetHandler(self.index_set_obj.index_set_id).remove_from_parent_index_sets(parent_index_set_ids)
+
         self.index_set_obj.delete()
         StorageClusterRecord.objects.filter(index_set_id=self.index_set_obj.index_set_id).delete()
 
