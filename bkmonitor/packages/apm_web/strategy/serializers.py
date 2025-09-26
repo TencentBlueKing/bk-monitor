@@ -331,12 +331,20 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         ]
 
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
-        if StrategyTemplate.objects.filter(name=validated_data["name"]).exclude(pk=instance.pk).exists():
+        if (
+            StrategyTemplate.objects.filter(
+                bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"], name=validated_data["name"]
+            )
+            .exclude(pk=instance.pk)
+            .exists()
+        ):
             raise self._DUPLICATE_NAME_ERROR
         return super().update(instance, validated_data)
 
     def create(self, validated_data: dict[str, Any]) -> StrategyTemplate:
-        if StrategyTemplate.objects.filter(name=validated_data["name"]).exists():
+        if StrategyTemplate.objects.filter(
+            bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"], name=validated_data["name"]
+        ).exists():
             raise self._DUPLICATE_NAME_ERROR
         return super().create(validated_data)
 
