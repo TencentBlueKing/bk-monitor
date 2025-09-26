@@ -25,10 +25,10 @@
  */
 import { defineComponent, ref, computed, onMounted } from 'vue';
 
+import ValidateUserSelector from '@/components/user-selector';
 import useLocale from '@/hooks/use-locale';
 import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
-import BkUserSelector from '@blueking/user-selector';
 
 import http from '@/api';
 
@@ -305,7 +305,7 @@ export default defineComponent({
               property='operator'
               required
             >
-              <BkUserSelector
+              <ValidateUserSelector
                 class={isAdminError.value ? 'is-error' : ''}
                 api={userApi}
                 data-test-id='basicInformation_input_executive'

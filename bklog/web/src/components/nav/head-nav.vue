@@ -202,7 +202,7 @@
               v-if="username"
               class="username"
             >
-              {{ username }}
+              <bk-user-display-name :user-id="username"></bk-user-display-name>
               <i class="bk-icon icon-down-shape"></i>
             </span>
           </div>
@@ -384,8 +384,10 @@
         t: $t,
         bkInfo: window.$bkInfo,
         http: window.$http,
-        emit: window.$emit
+        emit: window.$emit,
       });
+
+      this.navMenu.requestMySpaceList();
 
       this.getGlobalsData();
       this.getUserInfo();

@@ -53,6 +53,8 @@ import './scss/theme/theme-dark.scss';
 import './scss/theme/theme-light.scss';
 import './static/font-face/index.css';
 import './static/style.css';
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
+import '@blueking/bk-user-selector/vue2/vue2.css';
 
 Vue.prototype.$renderHeader = renderHeader;
 Vue.prototype.$xss = xssFilter;
