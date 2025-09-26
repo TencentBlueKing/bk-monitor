@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 import base64Svg from 'monitor-common/svg/base64';
+
+import type { EditTemplateFormData } from '../components/template-form/typing';
 const templateIconEnum = {
   DEFAULT: 'DEFAULT',
   P99: 'P99',
@@ -38,4 +40,61 @@ export const templateIconMap = {
   [templateIconEnum.AVG]: 'icon-pingjunhaoshi',
   [templateIconEnum.SUCCESS_RATE]: 'icon-check',
   [templateIconEnum.CICD]: base64Svg.bkci,
+};
+
+/**
+ * 判断模板表单数据是否被修改
+ * @param newData 当前数据
+ * @param oldData 原始数据
+ * @returns 数据是否有修改，以及哪些字段被修改
+ */
+export const validTemplateDataIsEdit = (newData: EditTemplateFormData, oldData: EditTemplateFormData) => {
+  const { algorithms, detect, user_group_list, is_auto_apply } = newData;
+  const {
+    algorithms: oldAlgorithms,
+    detect: oldDetect,
+    user_group_list: oldUserGroupList,
+    is_auto_apply: oldIsAutoApply,
+  } = oldData;
+
+  /** 检测规则是否修改 */
+  let algorithmsIsEdit = true;
+  if (
+    algorithms.length === oldAlgorithms.length &&
+    algorithms.every(item => {
+      const detail = oldAlgorithms.find(detail => detail.level === item.level);
+      return detail && JSON.stringify(item.config) === JSON.stringify(detail.config);
+    })
+  ) {
+    algorithmsIsEdit = false;
+  }
+
+  /** 判断条件是否修改 */
+  let detectIsEdit = true;
+  if (
+    detect.type === oldDetect.type &&
+    Object.keys(detect.config).every(key => detect.config[key] === oldDetect.config[key])
+  ) {
+    detectIsEdit = false;
+  }
+
+  /** 判断告警组是否修改 */
+  let alarmGroupIsEdit = true;
+  if (
+    user_group_list.every(item => oldUserGroupList.find(detail => detail.id === item.id)) &&
+    user_group_list.length === oldUserGroupList.length
+  ) {
+    alarmGroupIsEdit = false;
+  }
+
+  /** 判断自动下发是否修改 */
+  const isAutoApplyIsEdit = is_auto_apply !== oldIsAutoApply;
+
+  return {
+    isEdit: algorithmsIsEdit || detectIsEdit || alarmGroupIsEdit || isAutoApplyIsEdit,
+    algorithmsIsEdit,
+    detectIsEdit,
+    alarmGroupIsEdit,
+    isAutoApplyIsEdit,
+  };
 };

@@ -303,4 +303,5 @@ export default {
   检测规则必须开启一个级别: 'The detection rule must be enabled at one level',
   '触发周期数 >=1 且 >= 检测数': 'Trigger cycle number >=1 and >= detection number',
   告警组必填: 'Alarm group is required',
+  克隆配置不能和源模板一致: 'Cloned configuration cannot be consistent with the source template',
 };
