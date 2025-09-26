@@ -1237,7 +1237,7 @@ class AddChildIndexSetsSerializer(serializers.Serializer):
     """
 
     child_index_set_ids = serializers.ListField(
-        label=_("子索引集ID列表"), child=serializers.IntegerField(), default=list
+        label=_("子索引集ID列表"), child=serializers.IntegerField(), min_length=1
     )
 
 
@@ -1247,5 +1247,5 @@ class RemoveChildIndexSetsSerializer(serializers.Serializer):
     """
 
     child_index_set_ids = serializers.ListField(
-        label=_("子索引集ID列表"), child=serializers.IntegerField(), default=list
+        label=_("子索引集ID列表"), child=serializers.IntegerField(), min_length=1
     )
