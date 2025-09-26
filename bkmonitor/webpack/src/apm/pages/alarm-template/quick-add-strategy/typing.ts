@@ -31,12 +31,15 @@ export interface IAlarmGroupList {
 }
 export interface ICategoryItem {
   category: string;
+  category_alias?: string;
   checked: boolean;
   children?: ITempLateItem[];
   system: string;
+  system_alias?: string;
 }
 export interface ITempLateItem {
   category: string;
+  category_alias?: string;
   checked?: boolean;
   has_been_applied?: boolean; // 已配置
   icon?: string;
@@ -45,12 +48,15 @@ export interface ITempLateItem {
   name: string;
   strategy?: { id: string; name: string }; // 已配置策略
   system: string;
+  system_alias?: string;
   type: string;
 }
 
 export type TTemplateList<T = ITempLateItem> = {
   category?: boolean;
+  category_alias?: string;
   children?: T[];
   name: string;
   system: string;
+  system_alias?: string;
 };
