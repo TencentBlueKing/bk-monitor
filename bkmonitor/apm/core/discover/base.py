@@ -13,6 +13,7 @@ import datetime
 import itertools
 import logging
 import traceback
+import threading
 from abc import ABC
 from collections import defaultdict
 from typing import NamedTuple
@@ -276,6 +277,8 @@ class TopoHandler:
         self.app_name = app_name
         self.datasource = TraceDataSource.objects.filter(app_name=app_name, bk_biz_id=bk_biz_id).first()
         self.application = ApmApplication.get_application(self.bk_biz_id, self.app_name)
+        # 添加实例创建锁
+        self._instance_creation_lock = threading.Lock()
 
     def __str__(self):
         return f"bk_biz_id: {self.bk_biz_id} app_name: {self.app_name}"
@@ -366,9 +369,23 @@ class TopoHandler:
             self.datasource.es_client.clear_scroll(scroll_id=scroll_id)
             return res
 
-    def _discover_handle(self, discover, spans, handle_type):
+    def _discover_handle(self, discover, spans, handle_type, handler_instance_map):
         def _topo_handle():
-            discover(self.bk_biz_id, self.app_name).discover(spans)
+            instance = None
+            if discover in handler_instance_map:
+                instance = handler_instance_map[discover]
+            else:
+                # 使用锁来避免并发创建实例
+                with self._instance_creation_lock:
+                    # 双重检查锁定模式
+                    if discover not in handler_instance_map:
+                        instance = discover(self.bk_biz_id, self.app_name)
+                        handler_instance_map[discover] = instance
+                    else:
+                        instance = handler_instance_map[discover]
+
+            if instance:
+                instance.discover(spans)
 
         def _pre_calculate_handle():
             discover.handle(spans)
@@ -439,6 +456,9 @@ class TopoHandler:
             )
             return
 
+        # 创建顶级的局部 map，用于存储 handler类型：实例 的 KV
+        handler_instance_map = {}
+
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:
                 continue
@@ -472,9 +492,9 @@ class TopoHandler:
             filter_span_count += len(filter_spans)
             for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
                 if c.DISCOVERY_ALL_SPANS:
-                    topo_params.append((c, all_spans, "topo"))
+                    topo_params.append((c, all_spans, "topo", handler_instance_map))
                 else:
-                    topo_params.append((c, filter_spans, "topo"))
+                    topo_params.append((c, filter_spans, "topo", handler_instance_map))
 
             pool.map_ignore_exception(self._discover_handle, topo_params)
 
