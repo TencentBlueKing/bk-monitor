@@ -121,7 +121,7 @@ class IndexGroupViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UpdateIndexGroupSerializer)
-        IndexGroupHandler(index_set_id).update_index_groups(params)
+        IndexGroupHandler(index_set_id).update_index_group(params)
         return Response()
 
     def destroy(self, request, index_set_id):
@@ -137,7 +137,7 @@ class IndexGroupViewSet(APIViewSet):
             "result": true
         }
         """
-        IndexGroupHandler(index_set_id).delete_index_groups()
+        IndexGroupHandler(index_set_id).delete_index_group()
         return Response()
 
     @detail_route(methods=["POST"], url_path="add_index_sets")

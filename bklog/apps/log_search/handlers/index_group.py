@@ -29,7 +29,7 @@ from apps.log_search.exceptions import (
     DuplicateIndexGroupException,
     ChildIndexSetNotExistException,
 )
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
+from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.utils import APIModel
 from bkm_space.utils import space_uid_to_bk_biz_id
 
@@ -77,8 +77,6 @@ class IndexGroupHandler(APIModel):
         index_group, created = LogIndexSet.objects.get_or_create(
             index_set_name=params["index_set_name"],
             space_uid=params["space_uid"],
-            scenario_id=Scenario.LOG,
-            is_group=True,
             is_deleted=False,
         )
         if not created:
@@ -95,7 +93,7 @@ class IndexGroupHandler(APIModel):
         )
         return index_group
 
-    def update_index_groups(self, params: dict):
+    def update_index_group(self, params: dict):
         """
         更新索引组
         """
@@ -104,7 +102,7 @@ class IndexGroupHandler(APIModel):
         return self.data
 
     @transaction.atomic
-    def delete_index_groups(self):
+    def delete_index_group(self):
         """
         删除索引组
         """
