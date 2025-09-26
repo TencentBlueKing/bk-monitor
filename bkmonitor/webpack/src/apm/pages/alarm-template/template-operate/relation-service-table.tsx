@@ -30,11 +30,13 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce, random } from 'monitor-common/utils';
 import AcrossPageSelection from 'monitor-pc/components/across-page-selection/across-page-selection';
 import { type SelectTypeEnum, SelectType } from 'monitor-pc/components/across-page-selection/typing';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
 import DetectionAlgorithmsGroup from '../components/detection-algorithms-group/detection-algorithms-group';
 
 import type { TemplateDetail } from '../components/template-form/typing';
 import type { IRelationService, TCompareData } from './typings';
+import type { EmptyStatusOperationType } from 'monitor-pc/components/empty-status/types';
 
 import './relation-service-table.scss';
 
@@ -44,6 +46,8 @@ interface IProps {
   getCompareData?: (params: { service_name: string; strategy_template_id: number }) => Promise<TCompareData>;
   // getStrategyDetails?: (ids: (number | string)[]) => Promise<Map<number | string, TemplateDetail>>;
   onChangeCheckKeys?: (selectKeys: string[]) => void;
+  onGoStrategy?: (id: number) => void;
+  onShowDetails?: (id: number) => void;
 }
 
 const Columns = {
@@ -185,6 +189,7 @@ export default class RelationServiceTable extends tsc<IProps> {
       });
     }
     this.getCurServiceObj().searchTableData = [...tableData];
+    this.getCurServiceObj().pagination.count = this.getCurServiceObj().searchTableData.length;
     tableData = tableData.slice(
       this.getCurServiceObj().pagination.current * this.getCurServiceObj().pagination.limit -
         this.getCurServiceObj().pagination.limit,
@@ -203,6 +208,9 @@ export default class RelationServiceTable extends tsc<IProps> {
   handlePageChange(v: number) {
     this.getCurServiceObj().pagination.current = v;
     this.getTableData();
+    setTimeout(() => {
+      console.log(this.getCurServiceObj().pagination.current, v);
+    }, 1000);
   }
   handleLimitChange(v: number) {
     this.getCurServiceObj().pagination.current = 1;
@@ -293,17 +301,16 @@ export default class RelationServiceTable extends tsc<IProps> {
    */
   setAcrossPageSelection() {
     if (this.getCurServiceObj().selectKeys.size) {
-      if (this.getCurServiceObj().selectKeys.size === this.tableData.length) {
-        this.pageSelection = SelectType.SELECTED;
-      } else if (this.getCurServiceObj().selectKeys.size === this.getCurServiceObj().searchTableData.length) {
+      if (this.getCurServiceObj().selectKeys.size === this.getCurServiceObj().searchTableData.length) {
         this.pageSelection = SelectType.ALL_SELECTED;
+      } else if (this.tableData.every(item => this.getCurServiceObj().selectKeys.has(item.key))) {
+        this.pageSelection = SelectType.SELECTED;
       } else {
         this.pageSelection = SelectType.HALF_SELECTED;
       }
     } else {
       this.pageSelection = SelectType.UN_SELECTED;
     }
-    this.getCurServiceObj().pagination.current = 1;
     this.getCheckedPreviewData();
     this.handleChangeCheck();
     this.tableKey = random(8);
@@ -398,6 +405,22 @@ export default class RelationServiceTable extends tsc<IProps> {
     ]);
   }
 
+  handleGoStrategy(id: number) {
+    this.$emit('goStrategy', id);
+  }
+
+  handleOperation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      this.searchValue = '';
+      this.resetPageCurrent();
+      this.getTableData();
+    }
+  }
+
+  handleShowDetails(row: IRelationService) {
+    this.$emit('showDetails', row.same_origin_strategy_template.id);
+  }
+
   tableFormatter(row: IRelationService, prop: string) {
     const diffBtn = () => {
       return (
@@ -426,28 +449,34 @@ export default class RelationServiceTable extends tsc<IProps> {
       case Columns.relation:
         return (
           <span class='relation-strategy-content'>
-            {(() => {
-              if (row.same_origin_strategy_template) {
-                return [
-                  <span
-                    key={'01'}
-                    class='strategy-name'
-                  >
-                    {row.same_origin_strategy_template?.name}
-                  </span>,
-                  row?.strategy?.id ? (
-                    <span
-                      key={'02'}
-                      class='strategy-link'
-                    >
-                      {this.$t('查看策略')}
-                    </span>
-                  ) : undefined,
-                  diffBtn(),
-                ];
-              }
-              return <span class='no-data'>{this.$t('暂无关联')}</span>;
-            })()}
+            {[
+              row.same_origin_strategy_template ? (
+                <span
+                  key={'01'}
+                  class='strategy-name'
+                  onClick={() => this.handleShowDetails(row)}
+                >
+                  {row.same_origin_strategy_template?.name}
+                </span>
+              ) : (
+                <span
+                  key={'01'}
+                  class='no-data'
+                >
+                  {this.$t('暂无关联')}
+                </span>
+              ),
+              row?.strategy?.id ? (
+                <span
+                  key={'02'}
+                  class='strategy-link'
+                  onClick={() => this.handleGoStrategy(row.strategy.id as number)}
+                >
+                  {this.$t('查看策略')}
+                </span>
+              ) : undefined,
+              row.has_diff ? diffBtn() : undefined,
+            ]}
           </span>
         );
       default:
@@ -553,6 +582,12 @@ export default class RelationServiceTable extends tsc<IProps> {
               outer-border={false}
               row-key={row => row.key}
             >
+              <div slot='empty'>
+                <EmptyStatus
+                  type={this.searchValue ? 'search-empty' : 'empty'}
+                  onOperation={this.handleOperation}
+                />
+              </div>
               <bk-table-column
                 width={50}
                 formatter={row => {

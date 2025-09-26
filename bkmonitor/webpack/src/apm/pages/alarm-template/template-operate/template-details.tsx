@@ -30,11 +30,9 @@ import { Component as tsc } from 'vue-tsx-support';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 
-import EditTemplateSlider from '../components/template-form/edit-template-slider';
 import TemplateFormDetail from '../components/template-form/template-form-detail';
 import { getAlarmTemplateDetail, getAlertsStrategyTemplate } from '../service';
 import AlertServiceTable from './alert-service-table';
-import TemplatePush from './template-push';
 import { type IAlertStrategiesItem, type IStrategiesItem, type TDetailsTabValue, detailsTabColumn } from './typings';
 
 import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
@@ -47,6 +45,8 @@ interface IProps {
   params?: Record<string, any>;
   show?: boolean;
   onShowChange?: (v: boolean) => void;
+  onShowEdit?: (v: Record<string, any>) => void;
+  onShowPush?: (v: Record<string, any>) => void;
 }
 
 @Component
@@ -71,10 +71,6 @@ export default class TemplateDetails extends tsc<IProps> {
   templateDetail = null;
 
   variablesList: VariableModelType[] = [];
-  // 下发侧栏
-  templatePush = {
-    show: false,
-  };
   // 编辑侧栏
   templateEdit = {
     show: false,
@@ -108,10 +104,18 @@ export default class TemplateDetails extends tsc<IProps> {
   }
 
   handleShowTemplatePush() {
-    this.templatePush.show = true;
+    this.$emit('showPush', {
+      strategy_template_ids: this.params?.ids,
+      app_name: this.params?.app_name,
+      name: this.params?.name,
+    });
   }
   handleShowTemplateEdit() {
     this.templateEdit.show = true;
+    this.$emit('showEdit', {
+      app_name: this.params?.app_name,
+      id: this.params?.ids?.[0],
+    });
   }
 
   getAlertsStrategyTemplate() {
@@ -273,25 +277,6 @@ export default class TemplateDetails extends tsc<IProps> {
             ))}
           </div>
           <div class='tab-content'>{tabContent()}</div>
-          <TemplatePush
-            params={{
-              strategy_template_ids: this.params?.ids,
-              app_name: this.params?.app_name,
-              name: this.params?.name,
-            }}
-            show={this.templatePush.show}
-            onShowChange={v => {
-              this.templatePush.show = v;
-            }}
-          />
-          <EditTemplateSlider
-            appName={this.params?.app_name}
-            isShow={this.templateEdit.show}
-            templateId={this.params?.ids?.[0]}
-            onShowChange={v => {
-              this.templateEdit.show = v;
-            }}
-          />
         </div>
       </bk-sideslider>
     );
