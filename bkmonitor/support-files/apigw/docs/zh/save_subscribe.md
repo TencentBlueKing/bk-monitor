@@ -29,7 +29,7 @@ POST
 |----------|-----------|----|------------------------------------|
 | field    | string    | 是  | 过滤字段，例如 `alert.strategy_id`         |
 | value    | list      | 是  | 取值列表，例如 `[15070, 16763]`            |
-| method   | string    | 是  | 匹配方式，例如 `include`                   |
+| method   | string    | 是  | 匹配方式，例如 `eq`                   |
 | condition| string    | 是  | 条件连接符，`and` 或 `or`                 |
 
 #### 请求示例
@@ -40,8 +40,8 @@ POST
   "username": "admin",
   "bk_biz_id": 2,
   "conditions": [
-    {"field": "alert.strategy_id", "value": [15070, 16763], "method": "include", "condition": "and"},
-    {"field": "alert.strategy_id", "value": [15111, 16763], "method": "include", "condition": "and"}
+    {"field": "alert.strategy_id", "value": [15070, 16763], "method": "eq", "condition": "and"},
+    {"field": "alert.severity", "value": [1, 2], "method": "eq", "condition": "and"}
   ],
   "notice_ways": ["rtx", "mail"],
   "priority": 111,
@@ -85,8 +85,8 @@ POST
     "username": "admin",
     "bk_biz_id": 2,
     "conditions": [
-      {"field": "alert.strategy_id", "value": [15070, 16763], "method": "include", "condition": "and"},
-      {"field": "alert.strategy_id", "value": [15111, 16763], "method": "include", "condition": "and"}
+      {"field": "alert.strategy_id", "value": [15070, 16763], "method": "eq", "condition": "and"},
+      {"field": "alert.severity", "value": [1, 2], "method": "eq", "condition": "and"}
     ],
     "notice_ways": ["rtx", "mail"],
     "priority": 111,
