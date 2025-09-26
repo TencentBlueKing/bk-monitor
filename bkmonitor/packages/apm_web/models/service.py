@@ -127,7 +127,6 @@ class ApdexServiceRelation(ServiceBase):
 
 
 class CodeRedefinedConfigRelation(ServiceBase):
-    ret_code_as_exception = models.BooleanField("非 0 返回码是否当成异常", default=False)  # 待新下发实现后旧逻辑移除！
     # 类型：caller / callee
     kind = models.CharField("类型", max_length=16, choices=[("caller", "主调"), ("callee", "被调")])
     # 被调服务（caller 时必填；callee 时必须与 service_name 一致）

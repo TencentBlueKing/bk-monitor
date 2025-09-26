@@ -32,6 +32,7 @@ import { random } from 'monitor-common/utils/utils';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
 import { type AIBluekingShortcut, AI_BLUEKING_SHORTCUTS, AI_BLUEKING_SHORTCUTS_ID } from './types';
+import { isPromQL } from '@/utils/promql-detector';
 
 import '@blueking/ai-blueking/dist/vue2/style.css';
 
@@ -83,6 +84,11 @@ export default class AiBluekingWrapper extends tsc<object> {
     }
     if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS) {
       return false;
+    }
+    if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.PROMQL_HELPER && selectedText?.length) {
+      if (!isPromQL(selectedText)) {
+        return false;
+      }
     }
     return true;
   }

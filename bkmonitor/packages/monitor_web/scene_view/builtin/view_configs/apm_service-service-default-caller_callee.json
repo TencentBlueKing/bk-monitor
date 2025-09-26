@@ -69,8 +69,7 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}",
-                      "ret_code_as_exception": "${ret_code_as_exception}"
+                      "temporality": "${temporality}"
                     }
                   }
                 },
@@ -232,8 +231,7 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}",
-                      "ret_code_as_exception": "${ret_code_as_exception}"
+                      "temporality": "${temporality}"
                     }
                   }
                 },
@@ -492,8 +490,7 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}",
-                      "ret_code_as_exception": "${ret_code_as_exception}"
+                      "temporality": "${temporality}"
                     }
                   }
                 },
@@ -540,8 +537,7 @@
                         "method": "${code_method}",
                         "value": "${code_values}",
                         "condition": "and"
-                      },
-                      "${code_extra_where}"
+                      }
                     ]
                   },
                   {
@@ -631,8 +627,7 @@
                           "method": "${code_method}",
                           "value": "${code_values}",
                           "condition": "and"
-                        },
-                        "${code_extra_where}"
+                        }
                       ]
                     },
                     {
@@ -696,8 +691,7 @@
                   "code_method": "eq",
                   "code_values": [
                     "exception"
-                  ],
-                  "code_extra_where": {}
+                  ]
                 },
                 "is_code_redefine": true
               },
@@ -709,8 +703,7 @@
                   "code_method": "eq",
                   "code_values": [
                     "timeout"
-                  ],
-                  "code_extra_where": {}
+                  ]
                 },
                 "is_code_redefine": true
               }
@@ -770,8 +763,7 @@
                   "options": {
                     "trpc": {
                       "kind": "${kind}",
-                      "temporality": "${temporality}",
-                      "ret_code_as_exception": "${ret_code_as_exception}"
+                      "temporality": "${temporality}"
                     }
                   }
                 },
@@ -1560,8 +1552,7 @@
                 "options": {
                   "trpc": {
                     "kind": "${kind}",
-                    "temporality": "${temporality}",
-                    "ret_code_as_exception": "${ret_code_as_exception}"
+                    "temporality": "${temporality}"
                   }
                 }
               }
@@ -1602,8 +1593,7 @@
                 "options": {
                   "trpc": {
                     "kind": "${kind}",
-                    "temporality": "${temporality}",
-                    "ret_code_as_exception": "${ret_code_as_exception}"
+                    "temporality": "${temporality}"
                   }
                 }
               }
@@ -2057,8 +2047,7 @@
               "options": {
                 "trpc": {
                   "kind": "${kind}",
-                  "temporality": "${temporality}",
-                  "ret_code_as_exception": "${ret_code_as_exception}"
+                  "temporality": "${temporality}"
                 }
               }
             }
@@ -2118,8 +2107,7 @@
               "options": {
                 "trpc": {
                   "kind": "${kind}",
-                  "temporality": "${temporality}",
-                  "ret_code_as_exception": "${ret_code_as_exception}"
+                  "temporality": "${temporality}"
                 }
               }
             }

@@ -32,7 +32,8 @@
           :data-with-intersection="true"
           :data-field-name="item.name"
           :ref="item.formatter.ref"
-        >{{ item.formatter.stringValue }}</span>
+          >{{ item.formatter.stringValue }}</span
+        >
       </span>
     </template>
     <template v-if="showMoreTextAction && hasScrollY">
@@ -158,8 +159,7 @@
   let mousedownItem = null;
   const handleMouseDown = e => {
     mousedownItem = e.target;
-  }
-
+  };
 
   const handleMouseUp = e => {
     e.stopPropagation();
@@ -170,7 +170,7 @@
     }
 
     mousedownItem = null;
-  }
+  };
 
   const onSegmentClick = args => {
     emit('menu-click', args);
@@ -219,7 +219,6 @@
       }
 
       return [props.jsonValue, props.jsonValue];
-
     }
 
     if (typeof props.jsonValue === 'object') {
@@ -279,6 +278,7 @@
   });
 
   const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
+
   const debounceUpdate = debounce(() => {
     updateRootFieldOperator(rootList.value as any, depth.value);
     setEditor(depth.value);

@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import operator
 import time
+import re
 from datetime import datetime, timezone
 from collections import defaultdict
 from functools import reduce
@@ -30,6 +31,7 @@ from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import hms_string
+from fta_web.alert.utils import is_include_promql
 from constants.action import ConvergeStatus
 from constants.alert import (
     EVENT_SEVERITY,
@@ -60,7 +62,6 @@ from fta_web.alert.handlers.translator import (
     StrategyTranslator,
 )
 from fta_web.alert.handlers.action import ActionQueryHandler
-from fta_web.alert.utils import process_stage_string, process_metric_string
 
 logger = logging.getLogger(__name__)
 
@@ -246,6 +247,25 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("module_id", _lazy("模块ID"), es_field="event.bk_topo_node"),
         QueryField("set_id", _lazy("集群ID"), es_field="event.bk_topo_node"),
     ]
+
+    def visit_search_field(self, node: SearchField, context: dict):
+        if context.get("ignore_search_field"):
+            yield from self.generic_visit(node, context)
+        else:
+            context["ignore_generic_visit"] = True
+            node, context = list(super().visit_search_field(node, context))[0]
+
+            process_fun_list = [
+                self._process_stage_field,
+                self._process_metric_field,
+            ]
+
+            for fun in process_fun_list:
+                new_node, new_context = fun(node, context)
+                if new_node is not None:
+                    node, context = new_node, new_context
+                    break
+            yield from self.generic_visit(node, context)
 
     def visit_word(self, node: Word, context: dict):
         if context.get("ignore_word"):
@@ -458,6 +478,64 @@ class AlertQueryTransformer(BaseQueryTransformer):
             node.value = f"set|{node.value}"
 
         context.update({"ignore_search_field": True, "ignore_word": True})
+        return node, context
+
+    def _process_stage_field(self, node: SearchField, context: dict) -> tuple:
+        """
+        处理阶段字段：
+            1、将处理阶段的中文描述转换为对应的英文字段名
+            2、如果是已通知状态，添加已屏蔽过滤条件
+        """
+
+        # 阶段值映射表
+        stage_mapping = {
+            "已通知": "is_handled",
+            "已确认": "is_ack",
+            "已屏蔽": "is_shielded",
+            "已流控": "is_blocked",
+            "is_handled": "is_handled",
+            "is_ack": "is_ack",
+            "is_shielded": "is_shielded",
+            "is_blocked": "is_blocked",
+        }
+
+        # 判断是否为处理阶段字段查询
+        value = str(node.expr)
+        is_stage_field = node.name in ["处理阶段", "stage"] and value in list(stage_mapping.keys())
+
+        if not is_stage_field:
+            return None, None
+
+        mapped_field = stage_mapping[value]
+        # 对于"已通知"状态，需要额外过滤已屏蔽的告警
+        if mapped_field == "is_handled":
+            from luqum.tree import AndOperation
+
+            # 构建组合条件：(is_handled: true AND is_shielded: false)
+            node = FieldGroup(
+                AndOperation(SearchField("is_handled", Word("true")), SearchField("is_shielded", Word("false")))
+            )
+        else:
+            # 构建单一条件：{field}: true
+            node = SearchField(mapped_field, Word("true"))
+
+        context.update({"ignore_search_field": True})
+        return node, context
+
+    def _process_metric_field(self, node: SearchField, context: dict) -> tuple:
+        """
+        处理指标字段：将指标ID查询转换为event.metric字段，并添加通配符支持模糊查询
+        """
+        if node.name not in ["指标ID", "metric", "event.metric"]:
+            return None, None
+
+        # 处理指标值：移除外层引号并添加通配符
+        value = str(node.expr).strip("\"'*")
+        if value.endswith("..."):
+            value = value[:-3]
+        node = SearchField("event.metric", Word(f"*{value}*"))
+
+        context.update({"ignore_search_field": True})
         return node, context
 
 
@@ -837,8 +915,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
         elif condition["key"] == "query_string":
             con_q = None
             for query_string in condition["value"]:
-                query_string = process_stage_string(query_string)
-                query_string = process_metric_string(query_string)
                 if query_string.strip():
                     query_dsl = self.query_transformer.transform_query_string(query_string, self.query_context)
                     if isinstance(query_dsl, str):
@@ -1292,7 +1368,28 @@ class AlertQueryHandler(BaseBizQueryHandler):
             "category": CategoryTranslator(),
             "plugin_id": PluginTranslator(),
         }
-        return super().top_n(fields, size, translators, char_add_quotes)
+
+        result = super().top_n(fields, size, translators, char_add_quotes)
+
+        # 对metric字段进行特殊处理
+        # metric对应的id可能是promql语句，需要进行转义
+        if "metric" not in fields:
+            return result
+
+        regex = r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])'
+        special_chars = re.compile(regex)
+        for field in result["fields"]:
+            if field["field"] != "metric":
+                continue
+
+            for bucket in field["buckets"]:
+                bucket_id = bucket["id"]
+                if not is_include_promql(bucket_id):
+                    continue
+                bucket_id = bucket_id.strip("'\"")
+                bucket["id"] = special_chars.sub(r"\\\1", bucket_id)
+
+        return result
 
     def list_tags(self):
         """

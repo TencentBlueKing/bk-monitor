@@ -91,6 +91,7 @@ export default (emit?: (event: string, ...args: any[]) => void, from?: string) =
         setRouteParams();
         if (from === 'origin') {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+          RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
         }
         if (isLink) {
           const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
@@ -153,7 +154,7 @@ export default (emit?: (event: string, ...args: any[]) => void, from?: string) =
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
     }
-
+    console.log('type==', type, actualValue);
     // 处理不同类型的操作
     switch (type) {
       case 'highlight':

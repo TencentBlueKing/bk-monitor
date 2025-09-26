@@ -27,7 +27,7 @@ import { defineComponent } from 'vue';
 
 import { Message, Popover } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
-import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
+import { AI_BLUEKING_SHORTCUTS_ID, getAIBluekingShortcutTips } from 'monitor-pc/components/ai-whale/types';
 // import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
 import { useI18n } from 'vue-i18n';
 
@@ -134,6 +134,7 @@ export default defineComponent({
               bk_biz_id: (window.bk_biz_id || window.cc_biz_id) as string,
             }}
             shortcutId={AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS}
+            tips={getAIBluekingShortcutTips(AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS)}
           />
         </div>
 

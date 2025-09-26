@@ -28,10 +28,7 @@
 
     .header-right {
       display: flex;
-
-      & > div {
-        margin-left: 24px;
-      }
+      margin-right: -12px;
 
       .header-btn span {
         display: flex;
@@ -103,6 +100,7 @@
       .app-add-btn-style {
         width: 100px;
         padding: 0 6px;
+        font-size: 12px;
       }
 
       .app-add-btn {
@@ -111,9 +109,18 @@
         line-height: 24px;
       }
 
+      .link-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 4px;
+        font-size: 12px;
+      }
+
       .app-list-search {
         flex: 1;
-        min-width: 426px;
+        min-width: 240px;
+        max-width: 426px;
         background: #fff;
 
         .bk-loading {
@@ -125,6 +132,12 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+
+        .bts-skeleton {
+          width: 88px;
+          height: 32px;
+          margin-right: 8px;
+        }
 
         .app-list-bts {
           display: flex;

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, type Ref, onBeforeUnmount, nextTick } from 'vue';
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue';
 
 import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -51,8 +51,8 @@ import {
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
   ROW_KEY,
-  SECTION_SEARCH_INPUT,
   ROW_SOURCE,
+  SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
 import ScrollXBar from './scroll-x-bar';
@@ -130,7 +130,7 @@ export default defineComponent({
     // 前端本地分页loadmore触发器
     // renderList 没有使用响应式，这里需要手动触发更新，所以这里使用一个计数器来触发更新
     const localUpdateCounter = ref(0);
-
+    const hasMoreList = ref(true);
     let renderList = Object.freeze([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
@@ -152,9 +152,6 @@ export default defineComponent({
     // 检索第一页数据时，loading状态
     const isFirstPageLoading = computed(() => isLoading.value && !isRequesting.value);
 
-    const hasMoreList = computed(() => {
-      return indexSetQueryResult.value.total > tableDataSize.value;
-    });
     const exceptionMsg = computed(() => {
       if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
         return $t('检索结果为空');
@@ -166,12 +163,15 @@ export default defineComponent({
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
 
-    const handleSearchingChange = isSearching => {
-      isPageLoading.value = isSearching;
-    };
-
     const { addEvent } = useRetrieveEvent();
-    addEvent(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+    addEvent(RetrieveEvent.SEARCHING_CHANGE, isSearching => {
+      isPageLoading.value = isSearching;
+    });
+
+    addEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
+      hasMoreList.value = true;
+      pageIndex.value = 1;
+    });
 
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];
@@ -447,6 +447,7 @@ export default defineComponent({
 
     // 替换原有的handleMenuClick
     const handleMenuClick = (option, isLink, fieldOption?: { row: any; field: any }) => {
+      console.log('handleMenuClick = ', option);
       const timeTypes = ['date', 'date_nanos'];
 
       handleOperation(option.operation, {
@@ -595,10 +596,12 @@ export default defineComponent({
       },
     );
 
-    const handleResultBoxResize = () => {
+    const handleResultBoxResize = (resetScroll = true) => {
       if (!RetrieveHelper.jsonFormatter.isExpandNodeClick) {
-        scrollXOffsetLeft = 0;
-        refScrollXBar.value?.scrollLeft(0);
+        if (resetScroll) {
+          scrollXOffsetLeft = 0;
+          refScrollXBar.value?.scrollLeft(0);
+        }
       }
 
       computeRect(refResultRowBox.value);
@@ -702,6 +705,7 @@ export default defineComponent({
       }
 
       if (pageIndex.value * pageSize.value < tableDataSize.value) {
+        hasMoreList.value = true;
         isRequesting.value = true;
         pageIndex.value++;
         const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
@@ -717,11 +721,12 @@ export default defineComponent({
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(resp => {
-            if (resp?.size === 50) {
-              pageIndex.value++;
-            }
+            pageIndex.value++;
+            handleResultBoxResize(false);
 
-            handleResultBoxResize();
+            if (resp?.length !== pageSize.value) {
+              hasMoreList.value = false;
+            }
           })
           .finally(() => {
             debounceSetLoading(0);
@@ -743,6 +748,7 @@ export default defineComponent({
       pageIndex.value = 1;
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
       renderList = renderList.slice(0, maxLength);
+      localUpdateCounter.value++;
     };
 
     // 监听滚动条滚动位置
