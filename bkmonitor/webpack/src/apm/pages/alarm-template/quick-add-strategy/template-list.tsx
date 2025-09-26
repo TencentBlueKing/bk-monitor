@@ -27,7 +27,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { systemMap, templateIconMap } from './utils';
+import { templateIconMap } from './utils';
 
 import type { ICategoryItem, ITempLateItem, TTemplateList } from './typing';
 
@@ -89,6 +89,8 @@ export default class TemplateList extends tsc<IProps> {
             (systemItem as TTemplateList<ICategoryItem>).children.push({
               category: item.category,
               system: item.system,
+              system_alias: item.system_alias,
+              category_alias: item.category_alias,
               children: [
                 {
                   ...item,
@@ -103,10 +105,13 @@ export default class TemplateList extends tsc<IProps> {
           (templateTree as TTemplateList<ICategoryItem>[]).push({
             name: item.system,
             system: item.system,
+            system_alias: item.system_alias,
             children: [
               {
                 category: item.category,
+                category_alias: item.category_alias,
                 system: item.system,
+                system_alias: item.system_alias,
                 children: [
                   {
                     ...item,
@@ -136,6 +141,7 @@ export default class TemplateList extends tsc<IProps> {
           templateTree.push({
             name: item.system,
             system: item.system,
+            system_alias: item.system_alias,
             children: [
               {
                 ...item,
@@ -243,7 +249,7 @@ export default class TemplateList extends tsc<IProps> {
             key={item.system}
             class='system-item'
           >
-            <div class='system-name'>{systemMap?.[item.system] || item.name}</div>
+            <div class='system-name'>{item?.system_alias || item.name}</div>
             {item.children.map(child => {
               if ((child as ICategoryItem)?.children) {
                 return (
@@ -258,7 +264,7 @@ export default class TemplateList extends tsc<IProps> {
                         this.handleChangeCategoryChecked(child as ICategoryItem, v);
                       }}
                     >
-                      {systemMap?.[child.category] || child.category}(
+                      {child?.category_alias || child.category}(
                       {`${(child as ICategoryItem).children.filter(c => c.checked).length} / ${(child as ICategoryItem).children.length}`}
                       )
                     </bk-checkbox>
