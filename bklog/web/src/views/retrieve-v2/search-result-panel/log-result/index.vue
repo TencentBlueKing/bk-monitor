@@ -68,7 +68,10 @@
       </div>
     </div>
 
-    <table-log :content-type="contentType" :retrieve-params="retrieveParams" />
+    <TableLog
+      :content-type="contentType"
+      :retrieve-params="retrieveParams"
+    />
   </div>
 </template>
 

@@ -30,6 +30,7 @@ import _ from 'lodash';
 
 import CompareType from '../components/header-box/components/compare-type';
 import GroupBy from '../components/header-box/components/group-by';
+import IntervalCreator from '../components/header-box/components/interval';
 import LimitFunction from '../components/header-box/components/limit-function';
 import WhereCondition from '../components/header-box/components/where-condition';
 import { refreshList } from './utils';
@@ -44,6 +45,7 @@ interface IEmit {
   onConditionChange: (value: { custom_data: IResultItem['common_conditions']; where: IResultItem['where'] }) => void;
   onGroupByChange: (value: IResultItem['group_by']) => void;
   onImmediateRefresh: () => void;
+  onIntervalChange: (value: number | string) => void;
   onLimitChange: (value: IResultItem['limit']) => void;
   onRefreshInterval: (value: number) => void;
   onTimeRangeChange: (value: TimeRangeType) => void;
@@ -51,6 +53,7 @@ interface IEmit {
 }
 
 interface IProps {
+  interval: number | string;
   isHaveGroupBy?: boolean;
   refreshInterval: number;
   timeRange: TimeRangeType;
@@ -86,6 +89,7 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
   @Prop({ type: Array, required: true }) readonly timeRange: IProps['timeRange'];
   @Prop({ type: Number, required: true }) readonly refreshInterval: IProps['refreshInterval'];
   @Prop({ type: Boolean, required: false }) readonly isHaveGroupBy: boolean;
+  @Prop({ type: [String, Number], required: true }) readonly interval: IProps['interval'];
 
   @Ref('rootRef') rootRef: HTMLElement;
 
@@ -130,7 +134,9 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
       }
     }, 300);
   }
-
+  handleChangeInterval(value: number | string) {
+    this.$emit('intervalChange', value);
+  }
   mounted() {
     const resizeObserver = new ResizeObserver(this.calcLableWidth);
     resizeObserver.observe(this.rootRef);
@@ -163,6 +169,10 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
           <LimitFunction
             value={this.filterConfig.limit}
             onChange={this.handleLimitChange}
+          />
+          <IntervalCreator
+            value={this.interval}
+            onChange={this.handleChangeInterval}
           />
           {/* )} */}
           <CompareType
