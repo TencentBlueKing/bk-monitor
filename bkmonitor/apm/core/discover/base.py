@@ -369,12 +369,12 @@ class TopoHandler:
             self.datasource.es_client.clear_scroll(scroll_id=scroll_id)
             return res
 
-    def _discover_handle(self, discover, spans, handle_type, handler_instance_map=None):
+    def _discover_handle(self, discover, spans, handle_type, handler_instance_map):
         def _topo_handle():
             instance = None
-            if handler_instance_map is not None and discover in handler_instance_map:
+            if discover in handler_instance_map:
                 instance = handler_instance_map[discover]
-            elif handler_instance_map is not None:
+            else:
                 # 使用锁来避免并发创建实例
                 with self._instance_creation_lock:
                     # 双重检查锁定模式
