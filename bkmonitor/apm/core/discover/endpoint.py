@@ -12,7 +12,7 @@ import time
 from datetime import datetime, timedelta
 
 import pytz
-from cachetools import cached
+from cachetools import cached, TTLCache
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -57,7 +57,7 @@ class EndpointDiscover(DiscoverBase):
 
         return base_dict
 
-    @cached
+    @cached(cache=TTLCache(maxsize=1000, ttl=10))
     def list_exists(self):
         endpoints = Endpoint.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         exists_mapping = {}
