@@ -3660,7 +3660,7 @@ class BulkSaveStrategySubscribeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
-        subscriptions = serializers.ListField(required=True, child=SaveStrategySubscribeResource.RequestSerializer)
+        subscriptions = serializers.ListField(required=True, child=SaveStrategySubscribeResource.RequestSerializer())
 
     def perform_request(self, params):
         subscriptions = params["subscriptions"]
