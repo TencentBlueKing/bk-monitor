@@ -3,6 +3,14 @@
   gap: 4px;
   align-items: center;
   padding-right: 4px;
+
+  &.border {
+    background-color: #f0f1f5;
+    border: solid 1px #c4c6cc;
+    border-left: none;
+    border-top-right-radius: 2px;
+    border-bottom-right-radius: 2px;
+  }
 }
 
 .bklog-g_components-match-mode-icon {
