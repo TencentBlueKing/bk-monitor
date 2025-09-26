@@ -30,10 +30,21 @@ from config.domains import LOG_SEARCH_APIGATEWAY_ROOT
 class _BkLogApi:
     MODULE = _("log_search元数据")
 
+    @property
+    def use_apigw(self):
+        return settings.ENABLE_MULTI_TENANT_MODE
+
+    def _build_url(self, new_path, old_path):
+        return (
+            f"{settings.PAAS_API_HOST}/api/bk-log-search/{settings.ENVIRONMENT}/{new_path}"
+            if self.use_apigw
+            else f"{LOG_SEARCH_APIGATEWAY_ROOT}{old_path}"
+        )
+
     def __init__(self):
         self.search = DataAPI(
             method="POST",
-            url=LOG_SEARCH_APIGATEWAY_ROOT + "esquery_search/",
+            url=self._build_url("esquery_search/", "esquery_search/"),
             module=self.MODULE,
             description=_("查询数据"),
             before_request=add_esb_info_before_request,
@@ -42,7 +53,7 @@ class _BkLogApi:
 
         self.mapping = DataAPI(
             method="POST",
-            url=LOG_SEARCH_APIGATEWAY_ROOT + "esquery_mapping/",
+            url=self._build_url("esquery_mapping/", "esquery_mapping/"),
             module=self.MODULE,
             description=_("拉取索引mapping"),
             before_request=add_esb_info_before_request,
@@ -50,7 +61,7 @@ class _BkLogApi:
 
         self.dsl = DataAPI(
             method="POST",
-            url=LOG_SEARCH_APIGATEWAY_ROOT + "esquery_dsl/",
+            url=self._build_url("esquery_dsl/", "esquery_dsl/"),
             module=self.MODULE,
             description=_("查询数据DSL模式"),
             before_request=add_esb_info_before_request,
@@ -58,7 +69,7 @@ class _BkLogApi:
 
         self.scroll = DataAPI(
             method="POST",
-            url=LOG_SEARCH_APIGATEWAY_ROOT + "esquery_scroll/",
+            url=self._build_url("esquery_scroll/", "esquery_scroll/"),
             module=self.MODULE,
             description=_("scroll滚动查询"),
             before_request=add_esb_info_before_request,
@@ -66,7 +77,7 @@ class _BkLogApi:
 
         self.indices = DataAPI(
             method="GET",
-            url=LOG_SEARCH_APIGATEWAY_ROOT + "esquery_indices/",
+            url=self._build_url("esquery_indices/", "esquery_indices/"),
             module=self.MODULE,
             description=_("获取索引列表"),
             before_request=add_esb_info_before_request,
@@ -75,7 +86,7 @@ class _BkLogApi:
 
         self.cluster = DataAPI(
             method="GET",
-            url=LOG_SEARCH_APIGATEWAY_ROOT + "esquery_cluster/",
+            url=self._build_url("esquery_cluster/", "esquery_cluster/"),
             module=self.MODULE,
             description=_("获取集群信息"),
             before_request=add_esb_info_before_request,
@@ -83,7 +94,8 @@ class _BkLogApi:
 
         self.tail = DataAPI(
             method="GET",
-            url=LOG_SEARCH_APIGATEWAY_ROOT + "databus_collectors/{collector_config_id}/tail/",
+            url=self._build_url("databus_collectors/{collector_config_id}/tail/",
+                                "databus_collectors/{collector_config_id}/tail/"),
             module=self.MODULE,
             url_keys=["collector_config_id"],
             description=_("获取kafka采样"),
@@ -91,7 +103,7 @@ class _BkLogApi:
         )
         self.es_route = DataAPI(
             method="GET",
-            url=LOG_SEARCH_APIGATEWAY_ROOT + "esquery_es_route/",
+            url=self._build_url("esquery_es_route/", "esquery_es_route/"),
             module=self.MODULE,
             description=_("es请求转发"),
             before_request=add_esb_info_before_request,
@@ -99,7 +111,7 @@ class _BkLogApi:
 
         self.connectivity_detect = DataAPI(
             method="POST",
-            url=LOG_SEARCH_APIGATEWAY_ROOT + "databus_storage/connectivity_detect/",
+            url=self._build_url("databus_storage/connectivity_detect/", "databus_storage/connectivity_detect/"),
             module=self.MODULE,
             description=_("连通性测试"),
             before_request=add_esb_info_before_request,

@@ -102,7 +102,7 @@ class Command(BaseCommand):
 
     def handle(self, action=None, concurrency=None, username=None, bk_tenant_id=None, **options):
         if not bk_tenant_id:
-            bk_tenant_id = settings.DEFAULT_TENANT_ID
+            bk_tenant_id = settings.BK_APP_TENANT_ID
         self.iam_client = Permission.get_iam_client(bk_tenant_id)
 
         start_time = time.time()

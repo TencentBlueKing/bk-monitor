@@ -252,8 +252,8 @@ class LogExtractUtils(object):
         return ScheduleStatus.SUCCESS
 
     @staticmethod
-    def _poll_status(task_instance_id, operator, bk_biz_id):
-        return FileServer.query_task_result(task_instance_id, operator, bk_biz_id)
+    def _poll_status(task_instance_id, operator, bk_biz_id, is_platform=False):
+        return FileServer.query_task_result(task_instance_id, operator, bk_biz_id, is_platform)
 
     @staticmethod
     def _get_transit_server(extract_link: ExtractLink, task_id):
@@ -322,7 +322,8 @@ class LogExtractUtils(object):
         bk_biz_id = self.bk_biz_id
         Tasks.objects.filter(task_id=task_id).update(download_status=constants.DownloadStatus.DISTRIBUTING.value)
         task_instance_id = self.task_instance_id
-        query_result = self._poll_status(task_instance_id, operator, bk_biz_id)
+        query_result = self._poll_status(task_instance_id, operator, bk_biz_id,
+                                         is_platform=settings.ENABLE_MULTI_TENANT_MODE)
 
         # 判断脚本是否执行结束
         if not FileServer.is_finished_for_single_ip(query_result):
@@ -408,7 +409,7 @@ class LogExtractUtils(object):
 
     def extract(self):
         logger.info(_("文件提取开始: {}").format(self.task_id))
-        logger.info(_("文件打包ka: {}").format(self.task_id))
+        logger.info(_("文件打包开始: {}").format(self.task_id))
         try:
             self._packing()
             for val in range(MAX_SCHEDULE_TIMES):

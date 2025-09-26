@@ -21,6 +21,8 @@ the project delivered to anyone in the future.
 
 from typing import Union
 
+from django.conf import settings
+
 from apps.exceptions import ApiResultError
 from apps.log_databus.exceptions import ArchiveNotFound, CollectorPluginNotImplemented
 from apps.models import MultiStrSplitByCommaFieldText
@@ -442,6 +444,7 @@ class DataLinkConfig(SoftDeleteModel):
     description = models.TextField(_("备注"), default="", blank=True)
     deploy_options = models.JSONField(_("采集下发选项"), default=dict, blank=True)
     is_edge_transport = models.BooleanField(_("是否为边缘存查链路"), default=False)
+    bk_tenant_id = models.CharField(_("租户ID"), default=settings.BK_APP_TENANT_ID, max_length=128)
 
     class Meta:
         verbose_name = _("数据链路配置")
