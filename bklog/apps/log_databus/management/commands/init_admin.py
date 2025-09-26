@@ -8,3 +8,19 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from blueapps.account import get_user_model
+from django.core.management import BaseCommand
+
+
+class Command(BaseCommand):
+    def add_arguments(self, parser):
+        parser.add_argument("--username", type=str, help="admin user name")
+
+    def handle(self, **options):
+        try:
+            username = options.get("username")
+            user = get_user_model()
+            user.objects.filter(username=username).update(is_superuser=True, is_staff=True)
+            print("[Init Admin Auth] operate SUCCESS!")
+        except Exception as e:
+            print(f"[Init Admin Auth] operate FAILED! details: {str(e)}")
