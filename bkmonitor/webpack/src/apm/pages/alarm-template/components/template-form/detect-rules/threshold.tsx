@@ -42,19 +42,23 @@ interface ThresholdEvents {
 
 interface ThresholdProps {
   data: AlgorithmItem[];
+  defaultUnit: string;
 }
 
 @Component
 export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
   @Prop({ default: () => [] }) data: AlgorithmItem[];
+
+  @Prop({ default: '' }) defaultUnit: string;
+
   @Ref('methodList') methodListRef;
 
   methodInstancePopover = null;
 
   localData: ruleDataItem[] = [
-    { level: 1, show: false, type: AlgorithmEnum.Threshold, config: { method: 'lte', threshold: 0 } },
-    { level: 2, show: false, type: AlgorithmEnum.Threshold, config: { method: 'lte', threshold: 0 } },
-    { level: 3, show: false, type: AlgorithmEnum.Threshold, config: { method: 'lte', threshold: 0 } },
+    { level: 1, show: false, type: AlgorithmEnum.Threshold, unit_prefix: '', config: { method: 'lte', threshold: 0 } },
+    { level: 2, show: false, type: AlgorithmEnum.Threshold, unit_prefix: '', config: { method: 'lte', threshold: 0 } },
+    { level: 3, show: false, type: AlgorithmEnum.Threshold, unit_prefix: '', config: { method: 'lte', threshold: 0 } },
   ];
 
   popoverIndex = 0;
@@ -65,11 +69,15 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
    */
   @Watch('data', { immediate: true })
   watchData(val: AlgorithmItem[]) {
+    const defaultUnit = this.defaultUnit || val.find(item => item.unit_prefix)?.unit_prefix;
     for (const item of this.localData) {
       const data = val.find(i => i.level === item.level);
       if (data) {
         item.show = true;
         item.config = JSON.parse(JSON.stringify(data.config));
+        item.unit_prefix = data.unit_prefix || defaultUnit;
+      } else {
+        item.unit_prefix = defaultUnit;
       }
     }
   }
@@ -92,18 +100,8 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
   }
 
   handleChange() {
-    this.$emit(
-      'change',
-      this.localData
-        .filter(item => item.show)
-        .map(item => {
-          return {
-            level: item.level,
-            type: item.type,
-            config: item.config,
-          };
-        })
-    );
+    const data = this.localData.filter(item => item.show).map(({ show, ...arg }) => arg);
+    this.$emit('change', JSON.parse(JSON.stringify(data)));
   }
 
   handleMethodClick(e: Event, index: number) {
@@ -176,7 +174,6 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
                 key='threshold'
                 class='value-input'
                 behavior='simplicity'
-                max={100}
                 min={0}
                 show-controls={false}
                 type='number'
@@ -192,7 +189,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
                 key='unit'
                 class='unit'
               >
-                %
+                {item.unit_prefix}
               </span>,
             ]}
           </div>
