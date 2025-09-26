@@ -13,6 +13,7 @@ import datetime
 import itertools
 import logging
 import traceback
+import threading
 from abc import ABC
 from collections import defaultdict
 from typing import NamedTuple
@@ -276,6 +277,8 @@ class TopoHandler:
         self.app_name = app_name
         self.datasource = TraceDataSource.objects.filter(app_name=app_name, bk_biz_id=bk_biz_id).first()
         self.application = ApmApplication.get_application(self.bk_biz_id, self.app_name)
+        # 添加实例创建锁
+        self._instance_creation_lock = threading.Lock()
 
     def __str__(self):
         return f"bk_biz_id: {self.bk_biz_id} app_name: {self.app_name}"
@@ -372,11 +375,17 @@ class TopoHandler:
             if handler_instance_map is not None and discover in handler_instance_map:
                 instance = handler_instance_map[discover]
             elif handler_instance_map is not None:
-                # 如果缓存中没有，则调用 get_remain_data 方法获取并缓存
-                instance = discover(self.bk_biz_id, self.app_name)
-                handler_instance_map[discover] = instance
+                # 使用锁来避免并发创建实例
+                with self._instance_creation_lock:
+                    # 双重检查锁定模式
+                    if discover not in handler_instance_map:
+                        instance = discover(self.bk_biz_id, self.app_name)
+                        handler_instance_map[discover] = instance
+                    else:
+                        instance = handler_instance_map[discover]
 
-            instance.discover(spans)
+            if instance:
+                instance.discover(spans)
 
         def _pre_calculate_handle():
             discover.handle(spans)
