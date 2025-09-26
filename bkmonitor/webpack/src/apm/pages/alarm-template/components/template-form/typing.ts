@@ -67,6 +67,7 @@ export const LevelMap = {
 export interface AlgorithmItem {
   level: 1 | 2 | 3;
   type: AlgorithmType;
+  unit_prefix: string;
   config: {
     method: string;
     threshold: number;
@@ -124,6 +125,9 @@ export interface TemplateDetail {
   labels: string[];
   name: string;
   query_template: QueryTemplateDetail;
-  system: TemplateType;
   user_group_list: UserGroupItem[];
+  system: {
+    alias: string;
+    value: TemplateType;
+  };
 }
