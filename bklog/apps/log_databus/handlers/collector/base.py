@@ -1301,7 +1301,7 @@ class CollectorHandler:
             # 创建索引集，并添加到归属索引集中
             index_set = self.data.create_index_set()
             if parent_index_set_ids:
-                IndexSetHandler(index_set.index_set_id).add_to_parent_index_set_list(parent_index_set_ids)
+                IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(parent_index_set_ids)
 
         # add user_operation_record
         operation_record = {

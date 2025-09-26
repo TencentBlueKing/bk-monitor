@@ -1229,3 +1229,23 @@ class UpdateIndexGroupSerializer(serializers.Serializer):
     """
 
     index_set_name = serializers.CharField(label=_("索引组名称"), required=True)
+
+
+class AddChildIndexSetsSerializer(serializers.Serializer):
+    """
+    添加子索引集
+    """
+
+    child_index_set_ids = serializers.ListField(
+        label=_("子索引集ID列表"), child=serializers.IntegerField(), default=list
+    )
+
+
+class RemoveChildIndexSetsSerializer(serializers.Serializer):
+    """
+    移除子索引集
+    """
+
+    child_index_set_ids = serializers.ListField(
+        label=_("子索引集ID列表"), child=serializers.IntegerField(), default=list
+    )

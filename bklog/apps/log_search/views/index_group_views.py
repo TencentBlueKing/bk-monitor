@@ -21,11 +21,23 @@ the project delivered to anyone in the future.
 
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
-from apps.iam.handlers.drf import insert_permission_field, BusinessActionPermission, InstanceActionPermission
+from apps.iam.handlers.drf import (
+    insert_permission_field,
+    BusinessActionPermission,
+    InstanceActionPermission,
+    ViewBusinessPermission,
+)
 from apps.log_search.handlers.index_group import IndexGroupHandler
 from rest_framework.response import Response
 
-from apps.log_search.serializers import IndexGroupListSerializer, CreateIndexGroupSerializer, UpdateIndexGroupSerializer
+from apps.log_search.serializers import (
+    IndexGroupListSerializer,
+    CreateIndexGroupSerializer,
+    UpdateIndexGroupSerializer,
+    AddChildIndexSetsSerializer,
+    RemoveChildIndexSetsSerializer,
+)
+from apps.utils.drf import detail_route
 
 
 class IndexGroupViewSet(APIViewSet):
@@ -40,7 +52,7 @@ class IndexGroupViewSet(APIViewSet):
             return [BusinessActionPermission([ActionEnum.CREATE_INDICES])]
         if self.action in ["update", "destroy"]:
             return [InstanceActionPermission([ActionEnum.MANAGE_INDICES], ResourceEnum.INDICES)]
-        return []
+        return [ViewBusinessPermission()]
 
     @insert_permission_field(
         id_field=lambda d: d.get("index_set_id"),
@@ -91,7 +103,7 @@ class IndexGroupViewSet(APIViewSet):
         }
         """
         params = self.params_valid(CreateIndexGroupSerializer)
-        index_group = IndexGroupHandler.create_index_groups(params)
+        index_group = IndexGroupHandler.create_index_group(params)
         return Response({"index_set_id": index_group.index_set_id})
 
     def update(self, request, index_set_id):
@@ -126,4 +138,42 @@ class IndexGroupViewSet(APIViewSet):
         }
         """
         IndexGroupHandler(index_set_id).delete_index_groups()
+        return Response()
+
+    @detail_route(methods=["POST"], url_path="add_index_sets")
+    def add_child_index_sets(self, request, index_set_id):
+        """
+        @api {post} /index_group/$index_set_id/add_index_sets/ 添加子索引集
+        @apiName add_child_index_sets
+        @apiParam {List} child_index_set_ids 子索引集id列表
+        @apiGroup index_group
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": null,
+            "result": true
+        }
+        """
+        params = self.params_valid(AddChildIndexSetsSerializer)
+        IndexGroupHandler(index_set_id).add_child_index_sets(params["child_index_set_ids"])
+        return Response()
+
+    @detail_route(methods=["POST"], url_path="remove_index_sets")
+    def remove_child_index_sets(self, request, index_set_id):
+        """
+        @api {post} /index_group/$index_set_id/remove_index_sets/ 删除子索引集
+        @apiName remove_child_index_sets
+        @apiParam {List} child_index_set_ids 子索引集id列表
+        @apiGroup index_group
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": null,
+            "result": true
+        }
+        """
+        params = self.params_valid(RemoveChildIndexSetsSerializer)
+        IndexGroupHandler(index_set_id).remove_child_index_sets(params["child_index_set_ids"])
         return Response()

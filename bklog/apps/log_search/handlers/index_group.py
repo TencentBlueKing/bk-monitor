@@ -23,9 +23,15 @@ from django.db import transaction
 from django.db.models import Count
 
 from apps.iam import Permission, ResourceEnum
-from apps.log_search.exceptions import IndexGroupNotExistException, DuplicateIndexGroupException
+from apps.log_search.constants import IndexSetDataType
+from apps.log_search.exceptions import (
+    IndexGroupNotExistException,
+    DuplicateIndexGroupException,
+    ChildIndexSetNotExistException,
+)
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.utils import APIModel
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class IndexGroupHandler(APIModel):
@@ -43,7 +49,7 @@ class IndexGroupHandler(APIModel):
     @staticmethod
     def list_index_groups(params: dict) -> list[dict]:
         """
-        获取索引集组列表
+        获取索引组列表
         """
         index_groups = (
             LogIndexSet.objects.filter(is_group=True, space_uid=params["space_uid"])
@@ -64,7 +70,7 @@ class IndexGroupHandler(APIModel):
         return list(index_groups)
 
     @staticmethod
-    def create_index_groups(params: dict) -> LogIndexSet:
+    def create_index_group(params: dict) -> LogIndexSet:
         """
         创建索引组
         """
@@ -91,7 +97,7 @@ class IndexGroupHandler(APIModel):
 
     def update_index_groups(self, params: dict):
         """
-        更新索引集组
+        更新索引组
         """
         self.data.index_set_name = params["index_set_name"]
         self.data.save(update_fields=["index_set_name"])
@@ -100,7 +106,52 @@ class IndexGroupHandler(APIModel):
     @transaction.atomic
     def delete_index_groups(self):
         """
-        删除索引集组
+        删除索引组
         """
         LogIndexSetData.objects.filter(index_set_id=self.data.index_set_id).delete()
         self.data.delete()
+
+    def add_child_index_sets(self, child_index_set_ids: list):
+        """
+        向索引组中添加索引集
+        """
+
+        # 检查所有子索引集是否存在
+        existing_child_index_set_ids = set(
+            LogIndexSet.objects.filter(
+                index_set_id__in=child_index_set_ids,
+                is_group=False,
+            ).values_list("index_set_id", flat=True)
+        )
+        missing_child_index_set_ids = set(child_index_set_ids) - existing_child_index_set_ids
+        if missing_child_index_set_ids:
+            raise ChildIndexSetNotExistException(
+                ChildIndexSetNotExistException.MESSAGE.format(
+                    child_index_set_id=",".join(str(cid) for cid in missing_child_index_set_ids)
+                )
+            )
+
+        # 创建关联关系，排除已存在的
+        created_child_index_set_ids = set(self.data.get_child_index_set_ids())
+        to_create = [
+            LogIndexSetData(
+                index_set_id=self.index_set_id,
+                result_table_id=cid,
+                scenario_id=self.data.scenario_id,
+                bk_biz_id=space_uid_to_bk_biz_id(self.data.space_uid),
+                type=IndexSetDataType.INDEX_SET.value,
+                apply_status=LogIndexSetData.Status.NORMAL,
+            )
+            for cid in child_index_set_ids
+            if cid not in created_child_index_set_ids
+        ]
+        if to_create:
+            LogIndexSetData.objects.bulk_create(to_create)
+
+    def remove_child_index_sets(self, child_index_set_ids: list):
+        """
+        从索引组中移除索引集
+        """
+        LogIndexSetData.objects.filter(
+            index_set_id=self.data.index_set_id, result_table_id__in=child_index_set_ids
+        ).delete()

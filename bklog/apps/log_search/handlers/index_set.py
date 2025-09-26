@@ -1520,18 +1520,18 @@ class IndexSetHandler(APIModel):
                 )
         return {"index_set_id": self.index_set_id}
 
-    def add_to_parent_index_set_list(self, parent_index_set_ids: list[int]):
+    def add_to_parent_index_sets(self, parent_index_set_ids: list[int]):
         """
         批量添加到归属索引集中
         """
+
         # 检查所有父索引集是否存在
         existing_parent_sets = set(
-            LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True).values_list(
-                "index_set_id", flat=True
-            )
+            LogIndexSet.objects.filter(
+                index_set_id__in=parent_index_set_ids,
+                is_group=True,
+            ).values_list("index_set_id", flat=True)
         )
-
-        # 找出不存在的父索引集
         missing_parents = set(parent_index_set_ids) - existing_parent_sets
         if missing_parents:
             raise ParentIndexSetNotExistException(
@@ -1540,13 +1540,8 @@ class IndexSetHandler(APIModel):
                 )
             )
 
-        # 检查是否已经存在归属关系
-        existing_relations = set(
-            LogIndexSetData.objects.filter(
-                index_set_id__in=parent_index_set_ids, result_table_id=self.index_set_id
-            ).values_list("index_set_id", flat=True)
-        )
-
+        # 创建关联关系，排除已存在的
+        created_parent_ids = set(self.data.get_parent_index_set_ids())
         to_create = [
             LogIndexSetData(
                 index_set_id=pid,
@@ -1557,13 +1552,12 @@ class IndexSetHandler(APIModel):
                 apply_status=LogIndexSetData.Status.NORMAL,
             )
             for pid in parent_index_set_ids
-            if pid not in existing_relations
+            if pid not in created_parent_ids
         ]
-
         if to_create:
             LogIndexSetData.objects.bulk_create(to_create)
 
-    def remove_from_parent_index_set_list(self, parent_index_set_ids: list[int]):
+    def remove_from_parent_index_sets(self, parent_index_set_ids: list[int]):
         """
         批量从归属索引集中移除
         """
@@ -1583,9 +1577,9 @@ class IndexSetHandler(APIModel):
         to_delete = current_parent_index_set_ids - new_parent_index_set_ids
 
         if to_create:
-            self.add_to_parent_index_set_list(list(to_create))
+            self.add_to_parent_index_sets(list(to_create))
         if to_delete:
-            self.remove_from_parent_index_set_list(list(to_delete))
+            self.remove_from_parent_index_sets(list(to_delete))
 
 
 class BaseIndexSetHandler:
@@ -1769,7 +1763,7 @@ class BaseIndexSetHandler:
 
         # 将索引集添加到归属索引集(索引组)中
         if self.parent_index_set_ids:
-            IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).add_to_parent_index_set_list(
+            IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).add_to_parent_index_sets(
                 self.parent_index_set_ids
             )
 
@@ -1992,7 +1986,7 @@ class BaseIndexSetHandler:
         # 归属索引集中删除该索引
         parent_index_set_ids = self.index_set_obj.get_parent_index_set_ids()
         if parent_index_set_ids:
-            IndexSetHandler(self.index_set_obj.index_set_id).remove_from_parent_index_set_list(parent_index_set_ids)
+            IndexSetHandler(self.index_set_obj.index_set_id).remove_from_parent_index_sets(parent_index_set_ids)
 
         self.index_set_obj.delete()
         StorageClusterRecord.objects.filter(index_set_id=self.index_set_obj.index_set_id).delete()

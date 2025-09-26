@@ -545,7 +545,7 @@ class K8sCollectorHandler(CollectorHandler):
             # 创建索引集，并添加到归属索引集中
             index_set = self.data.create_index_set()
             if data.get("parent_index_set_ids"):
-                IndexSetHandler(index_set.index_set_id).add_to_parent_index_set_list(data["parent_index_set_ids"])
+                IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(data["parent_index_set_ids"])
 
             if self.data.yaml_config_enabled:
                 # yaml 模式，先反序列化解出来，再保存

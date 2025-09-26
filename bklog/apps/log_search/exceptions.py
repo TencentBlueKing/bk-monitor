@@ -273,6 +273,11 @@ class DuplicateIndexGroupException(BaseIndexSetException):
     MESSAGE = _("该业务下已存在名称为 [{index_set_name}] 的索引集")
 
 
+class ChildIndexSetNotExistException(BaseIndexSetException):
+    ERROR_CODE = "334"
+    MESSAGE = _("子索引集 [ID:{child_index_set_id}] 不存在")
+
+
 # =================================================
 # 管理-检索
 # =================================================

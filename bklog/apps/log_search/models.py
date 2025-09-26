@@ -462,10 +462,18 @@ class LogIndexSet(SoftDeleteModel):
             type=IndexSetDataType.INDEX_SET.value,
         ).values_list("index_set_id", flat=True)
 
-        if not parent_ids.exists():
-            return []
+        return list(parent_ids)
 
-        return list(LogIndexSet.objects.filter(index_set_id__in=parent_ids).values_list("index_set_id", flat=True))
+    def get_child_index_set_ids(self) -> list:
+        """
+        获取当前索引集的子索引集ID列表
+        """
+        child_ids = LogIndexSetData.objects.filter(
+            index_set_id=self.index_set_id,
+            type=IndexSetDataType.INDEX_SET.value,
+        ).values_list("result_table_id", flat=True)
+
+        return list(child_ids)
 
     @staticmethod
     def no_data_check_time(index_set_id: str):

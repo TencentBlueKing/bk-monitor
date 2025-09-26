@@ -293,9 +293,7 @@ class HostCollectorHandler(CollectorHandler):
                     # 创建索引集，并添加到归属索引集中
                     index_set = self.data.create_index_set()
                     if params.get("parent_index_set_ids"):
-                        IndexSetHandler(index_set.index_set_id).add_to_parent_index_set_list(
-                            params["parent_index_set_ids"]
-                        )
+                        IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(params["parent_index_set_ids"])
                 else:
                     _collector_config_name = copy.deepcopy(self.data.collector_config_name)
                     if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
