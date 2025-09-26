@@ -352,7 +352,26 @@ class QuickAddStrategy extends Mixins(
       conditions: [],
       simple: true,
     }).catch(() => ({ list: [] }));
-    this.templateList = await this.checkTemplateList(data?.list || []);
+    this.templateList = await this.checkTemplateList(
+      (data?.list || []).map(item => {
+        const system = item.system;
+        const category = item.category;
+        const obj: Partial<ITempLateItem> = {};
+        if (typeof system === 'object') {
+          obj.system = system.value || '';
+          obj.system_alias = system.alias || '';
+        }
+        if (typeof category === 'object') {
+          obj.category = category.value || '';
+          obj.category_alias = category.alias || '';
+        }
+        return {
+          ...item,
+          ...obj,
+        };
+      })
+    );
+    console.log(this.templateList);
     if (this.templateList.length) {
       this.handleCursorChange(this.templateList[0].id);
     }
