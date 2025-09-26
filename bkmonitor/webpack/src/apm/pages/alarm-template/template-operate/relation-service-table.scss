@@ -2,6 +2,7 @@
   display: flex;
   flex: 1;
   align-items: stretch;
+  height: 100%;
 
   .mt-14 {
     margin-top: 14px;
@@ -25,6 +26,7 @@
 
   .left-table {
     flex: 1;
+    height: 100%;
     padding: 0;
 
     .bk-tab-header {
@@ -40,7 +42,9 @@
     }
 
     .left-table-content {
-      padding: 0 24px;
+      max-height: calc(-50px + 100%);
+      padding: 0 24px 24px;
+      overflow: auto;
 
       .search-input {
         margin-bottom: 12px;
@@ -89,6 +93,9 @@
         font-size: 12px;
 
         .no-data {
+          width: 65%;
+          max-width: 65%;
+          overflow: hidden;
           color: #c4c6cc;
         }
 
@@ -96,7 +103,9 @@
           width: 65%;
           max-width: 65%;
           overflow: hidden;
+          text-overflow: ellipsis;
           color: #3a84ff;
+          white-space: nowrap;
           cursor: pointer;
         }
 
@@ -172,7 +181,9 @@
 
   .right-preview {
     width: 240px;
+    max-height: 100%;
     padding: 16px;
+    overflow: scroll;
     background: #f5f7fa;
     border-left: 1px solid #dcdee5;
 
