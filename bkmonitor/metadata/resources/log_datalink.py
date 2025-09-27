@@ -15,6 +15,8 @@ from django.db.transaction import atomic
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkm_space.api import SpaceApi
+from bkm_space.define import Space, SpaceTypeEnum
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_request_username
@@ -736,6 +738,14 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
 
         # 推送空间路由
         SpaceTableIDRedis().push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
+
+        # 如果是非bkcc空间，推送关联的bkcc空间路由
+        if space_type != "bkcc":
+            related_space: Space = SpaceApi.get_related_space(f"{space_type}__{space_id}", SpaceTypeEnum.BKCC.value)
+            if related_space:
+                SpaceTableIDRedis().push_space_table_ids(
+                    space_type=related_space.space_type_id, space_id=related_space.space_id, is_publish=True
+                )
 
         # 批量推送ES表详情路由
         if es_table_ids:
