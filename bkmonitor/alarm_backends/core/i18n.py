@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import logging
 import os
@@ -26,7 +24,7 @@ class Singleton(type):
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+            cls._instances[cls] = super().__call__(*args, **kwargs)
         return cls._instances[cls]
 
 
@@ -78,10 +76,10 @@ class I18N(six.with_metaclass(Singleton, object)):
         """
         根据业务ID获取语言
         """
-        from alarm_backends.core.cache.cmdb.business import BusinessManager
-
         if not self.bk_biz_id:
             return self.default_locale
+
+        from alarm_backends.core.cache.cmdb.business import BusinessManager
 
         business = BusinessManager.get(self.bk_biz_id)
 
@@ -94,10 +92,10 @@ class I18N(six.with_metaclass(Singleton, object)):
         """
         根据业务ID获取时区
         """
-        from alarm_backends.core.cache.cmdb.business import BusinessManager
-
         if not self.bk_biz_id:
             return self.default_timezone
+
+        from alarm_backends.core.cache.cmdb.business import BusinessManager
 
         business = BusinessManager.get(self.bk_biz_id)
 

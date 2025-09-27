@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 
 logger = logging.getLogger("service")
 
@@ -20,11 +21,12 @@ class TargetCondition:
     监控目标条件匹配
     """
 
-    def __init__(self, target: list[list[dict]]):
+    def __init__(self, bk_biz_id: int, target: list[list[dict]]):
+        self.bk_biz_id = bk_biz_id
+        self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         self.conditions_list = self.load_target_condition(target)
 
-    @staticmethod
-    def load_target_condition(target: list[list[dict]]):
+    def load_target_condition(self, target: list[list[dict]]):
         """
         加载监控目标条件
         """
@@ -77,9 +79,11 @@ class TargetCondition:
 
                     # 目前仅支持host动态分组
                     # 动态分组对应主机不存在， 此时也需要保证动态分组目标有效，补充一个 0 作为 bk_insta_id
-                    dynamic_groups = DynamicGroupManager.multi_get(list(dynamic_group_ids))
-                    for dynamic_group in dynamic_groups:
-                        if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
+                    dynamic_groups = DynamicGroupManager.mget(
+                        bk_tenant_id=self.bk_tenant_id, dynamic_group_ids=list(dynamic_group_ids)
+                    )
+                    for dynamic_group in dynamic_groups.values():
+                        if dynamic_group.get("bk_obj_id") == "host":
                             target_keys.update([str(bk_inst_id) for bk_inst_id in dynamic_group.get("bk_inst_ids", [])])
                     if not target_keys:
                         target_keys.add(0)

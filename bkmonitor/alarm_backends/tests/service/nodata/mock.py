@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,13 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import copy
 
 import mock  # noqa
 from mock import MagicMock, call, patch  # noqa
 
 from alarm_backends.core.control.item import Item
+from constants.common import DEFAULT_TENANT_ID
 
 
 class MockItem(Item):
@@ -26,8 +25,9 @@ class MockItem(Item):
         self.data_sources = data_sources
 
 
-class MockStrategy(object):
+class MockStrategy:
     def __init__(self, strategy_config):
+        self.bk_tenant_id = strategy_config.get("bk_tenant_id", DEFAULT_TENANT_ID)
         self.id = strategy_config["id"]
         self.config = strategy_config
         self.bk_biz_id = strategy_config["bk_biz_id"]
@@ -43,14 +43,14 @@ class MockStrategy(object):
         return self.config.get("scenario") in ("os", "host_process")
 
 
-class MockTopoNode(object):
+class MockTopoNode:
     def __init__(self, id, **kwargs):
         self.id = id
         for key, value in list(kwargs.items()):
             setattr(self, key, value)
 
 
-class MockHost(object):
+class MockHost:
     def __init__(self, info):
         self.id = "{}|{}".format(info["bk_host_innerip"], info["bk_cloud_id"])
         for key, value in list(info.items()):
@@ -74,7 +74,7 @@ def generate_mock_hosts(host_info):
     return hosts
 
 
-class MockServiceInstance(object):
+class MockServiceInstance:
     def __init__(self, info):
         for key, value in list(info.items()):
             setattr(self, key, value)
@@ -88,16 +88,12 @@ class MockServiceInstance(object):
         setattr(self, "topo_link", topo_link)
 
 
-def generate_mock_services(service_info):
+def generate_mock_services(service_info) -> list[MockServiceInstance]:
     service_info = copy.deepcopy(service_info)
-    services = {}
-    for service in service_info:
-        mock_service = MockServiceInstance(service)
-        services.update({mock_service.service_instance_id: mock_service})
-    return services
+    return [MockServiceInstance(service) for service in service_info]
 
 
-class MockCheckResult(object):
+class MockCheckResult:
     def __init__(self, dimensions):
         self.dimensions = copy.deepcopy(dimensions)
 

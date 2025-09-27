@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import logging
 
@@ -23,14 +21,16 @@ logger = logging.getLogger("access.event")
 
 
 class PingFilter(Filter):
-    def filter(
-        self, event_record  # type: GSEBaseAlarmEventRecord
-    ):
+    def filter(self, event_record: GSEBaseAlarmEventRecord) -> bool:
         ping_server = event_record.raw_data.get("_server_")
         agent_ip = event_record.raw_data.get("_host_")
         bk_cloud_id = event_record.raw_data.get("_cloudid_")
-        host_app = HostManager.get(ping_server, bk_cloud_id, using_mem=True)
-        agent_app = HostManager.get(agent_ip, bk_cloud_id, using_mem=True)
+        host_app = HostManager.get(
+            bk_tenant_id=event_record.bk_tenant_id, ip=ping_server, bk_cloud_id=bk_cloud_id, using_mem=True
+        )
+        agent_app = HostManager.get(
+            bk_tenant_id=event_record.bk_tenant_id, ip=agent_ip, bk_cloud_id=bk_cloud_id, using_mem=True
+        )
         if host_app and agent_app:
             # 直连区域直接告警
             # 非直连区域需要判断pa和agent所属业务是否相同
@@ -81,7 +81,7 @@ class PingEvent(GSEBaseAlarmEventRecord):
     TITLE = _("PING不可达告警-GSE")
 
     def __init__(self, raw_data, strategies):
-        super(PingEvent, self).__init__(raw_data, strategies)
+        super().__init__(raw_data, strategies)
         self.filters.append(PingFilter())
 
     def flat(self):

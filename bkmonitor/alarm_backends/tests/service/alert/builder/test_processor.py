@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import time
 
-import mock
+from unittest import mock
 from django.conf import settings
 from django.test import TestCase
 from elasticsearch.helpers import BulkIndexError
@@ -36,7 +36,7 @@ class TestProcessor(TestCase):
         Alert.RECOVER_WINDOW_SIZE = 0
         self.celery_mock = mock.patch("alarm_backends.service.composite.tasks.check_action_and_composite.delay")
         self.host_ip_mock = mock.patch(
-            "alarm_backends.core.cache.cmdb.host.HostIPManager.multi_get_with_dict",
+            "alarm_backends.core.cache.cmdb.host.HostIPManager.mget",
             return_value={
                 # 单个IP
                 "127.0.0.1": ["127.0.0.1|0"],
@@ -46,7 +46,7 @@ class TestProcessor(TestCase):
         )
 
         self.host_mock = mock.patch(
-            "alarm_backends.core.cache.cmdb.host.HostManager.multi_get_with_dict",
+            "alarm_backends.core.cache.cmdb.host.HostManager.mget",
             return_value={
                 "127.0.0.1|0": Host(
                     attrs={
