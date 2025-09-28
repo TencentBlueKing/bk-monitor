@@ -113,12 +113,7 @@ export default {
       state.flatIndexSetList.length = 0;
       state.flatIndexSetList = (payload ?? []).map(item => [item, item.children ?? []]).flat(2);
     },
-    updateIndexSetItem(state, item) {
-      const index = state.indexSetList.findIndex(item => item.index_set_id === item.index_set_id);
-      if (index > -1) {
-        state.indexSetList.splice(index, 1, item);
-      }
-    },
+
     updateIndexSetLoading(state, payload) {
       state.isIndexSetLoading = payload;
     },
