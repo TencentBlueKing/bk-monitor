@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -15,6 +15,7 @@ import time
 from collections import defaultdict
 from functools import wraps
 
+import settings
 from bkmonitor.utils.local import local
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,11 @@ def is_backend(app_label):
 
 
 backend_router = "monitor_api"
-backend_alert_router = "backend_alert"
+if settings.BACKEND_DATABASE_NAME == "default":
+    backend_alert_router = "default"
+else:
+    backend_alert_router = "backend_alert"
+
 
 BK_MONITOR_MODULE = os.getenv("BK_MONITOR_MODULE", "default")
 

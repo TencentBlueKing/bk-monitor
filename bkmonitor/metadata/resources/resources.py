@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -417,7 +417,7 @@ class ModifyResultTableResource(Resource):
         table_id = validated_request_data.pop("table_id")
         query_alias_settings = validated_request_data.pop("query_alias_settings", None)
         operator = validated_request_data.get("operator", None)
-        bk_tenant_id = validated_request_data.get("bk_tenant_id", DEFAULT_TENANT_ID)
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
 
         # 处理查询别名设置
         self._handle_query_alias_settings(table_id, query_alias_settings, operator, bk_tenant_id)

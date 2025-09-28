@@ -14,7 +14,7 @@
   import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import { translateKeys } from './const-values';
-  import useFieldEgges from './use-field-egges';
+  import useFieldEgges from '@/hooks/use-field-egges';
   import { BK_LOG_STORAGE, FieldInfoItem } from '../../../store/store.type';
   import BatchInput from '../components/batch-input';
   const INPUT_MIN_WIDTH = 12;
@@ -251,8 +251,8 @@
         return Object.assign({}, item, {
           first_name: item.query_alias || item.field_name,
           last_name: item.field_name,
-          matchIndex: fullText.indexOf(searchText),
-          matchType: fullText === searchText ? 2 : 1,
+          matchIndex: item.field_name === '*' ? 0 : fullText.indexOf(searchText),
+          matchType: item.field_name === '*' ? 2 : fullText === searchText ? 2 : 1,
         });
       }
      

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -561,6 +561,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     index_set_id = models.IntegerField("索引集id", null=True)
     index_set_name = models.CharField("索引集名称", max_length=512, null=True)
+
+    def to_json(self):
+        return {**super().to_json(), "index_set_id": self.index_set_id}
 
     @property
     def table_id(self) -> str:

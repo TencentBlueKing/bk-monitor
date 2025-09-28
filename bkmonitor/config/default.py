@@ -1,7 +1,7 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community
 Edition) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 http://opensource.org/licenses/MIT
@@ -481,7 +481,12 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 CUSTOM_REPORT_DEFAULT_PROXY_IP = []
 CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN = []
 CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = []  # 当接收端为 k8s 集群部署时，需要配置这个，支持部署在多个集群内
+CUSTOM_REPORT_K8S_SECRETS_CONFIG = {}  # 自定义上报 K8S 集群中 Secrets 分配逻辑默认配置
+
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
+
+# 集群内上报固定域名
+CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE = "bkm-collector.bkmonitor-operator"
 
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
 BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
@@ -494,8 +499,10 @@ ECOSYSTEM_CODE_ROOT_URL = ""
 
 # APM config
 APM_ACCESS_URL = ""
+APM_DATA_PUSH_URL = ""
 APM_BEST_PRACTICE_URL = ""
 APM_METRIC_DESCRIPTION_URL = ""
+APM_FUNC_INTRODUCTION_URL = ""
 
 APM_APDEX_T_VALUE = 800
 APM_SAMPLING_PERCENTAGE = 100
@@ -1383,6 +1390,12 @@ ALARM_BACKEND_CLUSTER_NAME = os.getenv("BK_MONITOR_ALARM_BACKEND_CLUSTER_NAME", 
 ALARM_BACKEND_CLUSTER_CODE = os.getenv("BK_MONITOR_ALARM_BACKEND_CLUSTER_CODE", 0)
 ALARM_BACKEND_CLUSTER_ROUTING_RULES = []
 
+# 是否开启Consul Lite 模式，精简非必要字段
+ENABLE_CONSUL_LITE_MODE = False
+
+# AI小鲸灰度业务名单
+AI_BIZ_LIST = []
+
 # AIDEV配置
 AIDEV_AGENT_APP_CODE = os.getenv("BK_AIDEV_AGENT_APP_CODE")
 AIDEV_AGENT_APP_SECRET = os.getenv("BK_AIDEV_AGENT_APP_SECRET")
@@ -1394,6 +1407,11 @@ AIDEV_COMMAND_AGENT_MAPPING = {}  # 快捷指令<->Agent映射
 AIDEV_AGENT_ENABLE_LANGFUSE = False  # 是否开启langfuse上报
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
+# 是否开启AI RENAME
+ENABLE_AI_RENAME = False
+
+# 场景-Agent映射配置,用于实现Agent路由
+AIDEV_SCENE_AGENT_CODE_MAPPING = {}
 
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True

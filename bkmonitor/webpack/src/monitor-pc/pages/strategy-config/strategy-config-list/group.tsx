@@ -9,7 +9,7 @@ import type { VNode } from 'vue';
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -114,11 +114,11 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
     return (
       <div class='group-title filter'>
         <div class='title-left'>
-          <i class={['bk-icon icon-angle-right', { expand: this.activeName.includes(item.id) }]} />
+          <i class={['icon-monitor icon-mc-arrow-down', { expand: this.activeName.includes(item.id) }]} />
           <span class='name'>{item.name}</span>
         </div>
         <i
-          class='icon-monitor icon-mc-clear'
+          class='icon-monitor icon-a-Clearqingkong'
           v-bk-tooltips={{ content: this.$t('清除已勾选') }}
           onClick={event => this.handleClearChecked(event, item)}
         />

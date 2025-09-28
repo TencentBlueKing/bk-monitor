@@ -34,8 +34,8 @@ interface IProps {
   searchable: boolean;
   popoverMinWidth: number;
   toggle: (boolean) => void;
-  select: Array<string>;
-  selectList: Array<ISelectOption>;
+  select: string[];
+  selectList: ISelectOption[];
   loading: boolean;
   isActive: boolean;
 }
@@ -51,8 +51,8 @@ export default class ClusterFilter extends tsc<IProps> {
   @Prop({ type: Boolean, default: true }) searchable: boolean;
   @Prop({ type: Number, default: 200 }) popoverMinWidth: number;
   @Prop({ type: Function, default: () => {} }) toggle: (boolean) => void;
-  @Prop({ type: Array, default: () => [] }) select: Array<string>;
-  @Prop({ type: Array, default: () => [] }) selectList: Array<ISelectOption>;
+  @Prop({ type: Array, default: () => [] }) select: string[];
+  @Prop({ type: Array, default: () => [] }) selectList: ISelectOption[];
   @Prop({ type: Boolean, default: false }) loading: boolean;
   @Prop({ type: Boolean, default: false }) isActive: boolean;
   @Ref('clusterSelect') clusterSelectRef: any;
@@ -63,7 +63,7 @@ export default class ClusterFilter extends tsc<IProps> {
   isShowSelectOption = false;
 
   @Watch('select', { immediate: true })
-  watchSelectValue(val: Array<string>) {
+  watchSelectValue(val: string[]) {
     this.selectValue = val;
   }
 
@@ -96,16 +96,17 @@ export default class ClusterFilter extends tsc<IProps> {
     const triggerSlot = () => (
       <div class='filter-box'>
         <span>{this.title}</span>
-        <i class={['bk-icon icon-funnel', { 'is-active': this.isShowSelectOption || this.isActive }]}></i>
+        <i class={['bk-icon icon-funnel', { 'is-active': this.isShowSelectOption || this.isActive }]} />
       </div>
     );
     const selectGroupDom = () => {
       return (
         <div class='group-list'>
-          {!!this.selectList.length ? (
+          {this.selectList.length ? (
             this.selectList.map(option => (
               <bk-option
                 id={option.id}
+                key={option.id}
                 class='group-item'
                 name={option.name}
               >

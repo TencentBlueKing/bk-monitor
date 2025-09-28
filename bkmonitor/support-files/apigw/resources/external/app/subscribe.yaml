@@ -17,6 +17,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: save alert subscription
+  /app/subscribe/bulk_save/:
+    post:
+      operationId: bulk_save_subscribe
+      description: 批量新增或保存告警订阅
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/subscribe/bulk_save/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: bulk save alert subscription
   /app/subscribe/delete/:
     post:
       operationId: delete_subscribe
@@ -35,6 +53,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: delete alert subscription
+  /app/subscribe/bulk_delete/:
+    post:
+      operationId: bulk_delete_subscribe
+      description: 批量删除/取消告警订阅
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/subscribe/bulk_delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: bulk delete alert subscription
   /app/subscribe/list/:
     get:
       operationId: list_subscribe

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -104,6 +104,7 @@ from constants.strategy import (
     SYSTEM_PROC_PORT_METRIC_ID,
     DataTarget,
     TargetFieldType,
+    CUSTOM_PRIORITY_GROUP_PREFIX,
 )
 from core.drf_resource import api
 from core.errors.strategy import CreateStrategyError, StrategyNotExist
@@ -1691,7 +1692,13 @@ class Strategy(AbstractConfig):
         app = serializers.CharField(allow_blank=True, default="")
         path = serializers.CharField(allow_blank=True, default="")
         priority = serializers.IntegerField(min_value=0, required=False, default=None, max_value=10000, allow_null=True)
+        priority_group_key = serializers.CharField(allow_blank=True, default="", max_length=60)
         metric_type = serializers.CharField(allow_blank=True, default="")
+
+        def validate_priority_group_key(self, value):
+            if value.startswith(CUSTOM_PRIORITY_GROUP_PREFIX):
+                return value
+            return ""
 
         def validate(self, attrs):
             name = attrs.get("name")
@@ -1804,6 +1811,7 @@ class Strategy(AbstractConfig):
             if self.priority_group_key:
                 priority_group_key = self.priority_group_key
             else:
+                # 自动生成优先级分组key
                 priority_group_key = self.get_priority_group_key(self.bk_biz_id, self.items)
 
         config = {
@@ -2275,7 +2283,9 @@ class Strategy(AbstractConfig):
             create_user=self._get_username(),
             update_user=self._get_username(),
             priority=self.priority,
-            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else "",
+            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
+            if self.priority is not None
+            else "",
         )
         self.id = strategy.id
 
@@ -2403,7 +2413,9 @@ class Strategy(AbstractConfig):
                 strategy.update_user = self._get_username()
                 strategy.priority = self.priority
                 strategy.priority_group_key = (
-                    self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else ""
+                    self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
+                    if self.priority is not None
+                    else ""
                 )
                 strategy.save()
             else:
@@ -2623,10 +2635,16 @@ class Strategy(AbstractConfig):
         query_config.save()
 
     @classmethod
-    def get_priority_group_key(cls, bk_biz_id: int, items: list[Item]):
+    def get_priority_group_key(cls, bk_biz_id: int, items: list[Item], priority_group_key: str = ""):
         """
         获取优先级分组key
         """
+        if priority_group_key:
+            # 指定优先级分组key的场景，需要判定是自动算的还是用户指定的
+            # 自动算的是16位uuid，用户指定带固定前缀 PGK:
+            if priority_group_key.startswith(CUSTOM_PRIORITY_GROUP_PREFIX):
+                return priority_group_key
+
         query_config_fields = [
             "functions",
             "metric_field",

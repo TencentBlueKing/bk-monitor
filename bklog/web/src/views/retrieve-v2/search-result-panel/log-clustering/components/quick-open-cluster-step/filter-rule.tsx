@@ -28,26 +28,27 @@ import { Component, Prop, Emit, Ref, ModelSync, Watch } from 'vue-property-decor
 import { Component as tsc } from 'vue-tsx-support';
 
 import useFieldNameHook from '@/hooks/use-field-name';
-import { From } from 'bk-magic-vue';
 
 import $http from '../../../../../../api';
 import { formatDate } from '../../../../../../common/util';
 import { handleTransformToTimestamp } from '../../../../../../components/time-range/utils';
 import { BK_LOG_STORAGE } from '../../../../../../store/store.type';
 
+import type { From } from 'bk-magic-vue';
+
 import './filter-rule.scss';
 
 interface IProps {
-  totalFields: Array<any>;
+  totalFields: any[];
 }
 
 const { $i18n } = window.mainComponent;
 
 @Component
 export default class FilterRule extends tsc<IProps> {
-  @ModelSync('value', 'change', { type: Array }) localFilterRule!: Array<any>;
-  @Prop({ type: Array, required: true }) totalFields: Array<any>;
-  @Prop({ type: Array, required: true }) datePickerValue: Array<any>;
+  @ModelSync('value', 'change', { type: Array }) localFilterRule!: any[];
+  @Prop({ type: Array, required: true }) totalFields: any[];
+  @Prop({ type: Array, required: true }) datePickerValue: any[];
   @Prop({ type: Object, required: true }) retrieveParams: object;
   @Ref('quickClusterFrom') quickClusterFromRef: From;
 
@@ -88,12 +89,9 @@ export default class FilterRule extends tsc<IProps> {
 
   get isShowAddFilterIcon() {
     const rules = this.formData.filter_rules;
-    if (
-      !rules.length ||
-      (rules.slice(-1)[0].fields_name !== '' && rules.length === 1) ||
-      rules.slice(-1)[0].value.length > 0
-    )
+    if (!rules.length || (rules.at(-1)?.fields_name !== '' && rules.length === 1) || rules.at(-1)?.value.length > 0) {
       return true;
+    }
     return false;
   }
   get showFieldAlias() {
@@ -140,7 +138,9 @@ export default class FilterRule extends tsc<IProps> {
     this.queryValueList(requestFields);
   }
   async queryValueList(fields = []) {
-    if (!fields.length) return;
+    if (!fields.length) {
+      return;
+    }
     const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
     try {
       const res = await $http.request('retrieve/getAggsTerms', {
@@ -154,15 +154,17 @@ export default class FilterRule extends tsc<IProps> {
           end_time: formatDate(tempList[1]),
         },
       });
-      this.formData.filter_rules.forEach(item => {
+      for (const item of this.formData.filter_rules) {
         item.valueList =
-          res.data.aggs_items[item.fields_name]?.map(item => ({
-            id: item.toString(),
-            name: item.toString(),
+          res.data.aggs_items[item.fields_name]?.map(newItem => ({
+            id: newItem.toString(),
+            name: newItem.toString(),
           })) ?? [];
-      });
-    } catch (err) {
-      this.formData.filter_rules.forEach(item => (item.valueList = []));
+      }
+    } catch {
+      for (const item of this.formData.filter_rules) {
+        item.valueList = [];
+      }
     }
   }
   fieldsKeyStrList() {
@@ -172,15 +174,21 @@ export default class FilterRule extends tsc<IProps> {
     return Array.from(new Set(fieldsStrList));
   }
   handleValueBlur(operateItem, val: string) {
-    if (!operateItem.value.length && !!val) operateItem.value.push(val);
+    if (!operateItem.value.length && !!val) {
+      operateItem.value.push(val);
+    }
   }
   checkFilterRules() {
-    if (this.formData.filter_rules.length === 1 && !this.formData.filter_rules[0].fields_name) return true;
+    if (this.formData.filter_rules.length === 1 && !this.formData.filter_rules[0].fields_name) {
+      return true;
+    }
     return this.formData.filter_rules.every(item => !!item.value.length && item.fields_name);
   }
   checkLIKERules() {
     this.isLikeCorrect = this.formData.filter_rules.every(item => {
-      if (['NOT LIKE', 'LIKE'].includes(item.op) && !!item.value.length) return /%/.test(item.value[0]);
+      if (['NOT LIKE', 'LIKE'].includes(item.op) && !!item.value.length) {
+        return /%/.test(item.value[0]);
+      }
       return true;
     });
     return this.isLikeCorrect;
@@ -206,7 +214,7 @@ export default class FilterRule extends tsc<IProps> {
     try {
       await this.quickClusterFromRef.validate();
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -229,13 +237,16 @@ export default class FilterRule extends tsc<IProps> {
         >
           {!this.isLikeCorrect && (
             <div class='like-error-message'>
-              <i class='bk-icon icon-exclamation-circle-shape error-icon'></i>
+              <i class='bk-icon icon-exclamation-circle-shape error-icon' />
               <span>{$i18n.t('使用LIKE、NOT LINK操作符时请在过滤值前后增加%')}</span>
             </div>
           )}
           <div class='filter-rule'>
             {this.formData.filter_rules.map((item, index) => (
-              <div class='filter-rule filter-rule-item'>
+              <div
+                key={`${index}-${item}`}
+                class='filter-rule filter-rule-item'
+              >
                 {!!this.formData.filter_rules.length && !!index && !!item.fields_name && (
                   <bk-select
                     class='icon-box and-or mr-neg1'
@@ -245,14 +256,15 @@ export default class FilterRule extends tsc<IProps> {
                     {this.comparedList.map(option => (
                       <bk-option
                         id={option.id}
+                        key={option.id}
                         name={option.name}
-                      ></bk-option>
+                      />
                     ))}
                   </bk-select>
                 )}
                 <bk-select
                   ref={`fieldSelectRef-${index}`}
-                  class={['min-100 mr-neg1 above', { 'is-not-error': !!item.fields_name }]}
+                  class={['min-100 above mr-neg1', { 'is-not-error': !!item.fields_name }]}
                   v-model={item.fields_name}
                   clearable={false}
                   popover-min-width={150}
@@ -262,21 +274,22 @@ export default class FilterRule extends tsc<IProps> {
                   {this.filterSelectList.map(option => (
                     <bk-option
                       id={option.id}
+                      key={option.id}
                       name={option.name}
-                    ></bk-option>
+                    />
                   ))}
                   <div
                     style='cursor: pointer'
                     slot='extension'
                     onClick={() => this.handleDeleteSelect(index)}
                   >
-                    <i class='bk-icon icon-close-circle'></i>
+                    <i class='bk-icon icon-close-circle' />
                     <span style='margin-left: 4px;'>{$i18n.t('删除')}</span>
                   </div>
                 </bk-select>
                 {!!item.fields_name && (
                   <bk-select
-                    class='icon-box mr-neg1 condition'
+                    class='icon-box condition mr-neg1'
                     v-model={item.op}
                     clearable={false}
                     popover-min-width={100}
@@ -284,15 +297,16 @@ export default class FilterRule extends tsc<IProps> {
                     {this.conditionList.map(option => (
                       <bk-option
                         id={option.id}
+                        key={option.id}
                         name={option.name}
-                      ></bk-option>
+                      />
                     ))}
                   </bk-select>
                 )}
                 {!!item.fields_name && (
                   <div onClick={() => (this.operateIndex = index)}>
                     <bk-tag-input
-                      class={['mr-neg1 min-100 above', { 'is-not-error': !!item.value.length }]}
+                      class={['min-100 above mr-neg1', { 'is-not-error': !!item.value.length }]}
                       v-model={item.value}
                       content-width={232}
                       list={item.valueList}
@@ -301,17 +315,18 @@ export default class FilterRule extends tsc<IProps> {
                       allow-auto-match
                       allow-create
                       on-blur={v => this.handleValueBlur(item, v)}
-                    ></bk-tag-input>
+                    />
                   </div>
                 )}
               </div>
             ))}
             {this.isShowAddFilterIcon && (
+              // biome-ignore lint/a11y/useButtonType: reason
               <button
                 class='icon-box'
                 onClick={this.handleAddFilterRule}
               >
-                <i class='bk-icon icon-plus-line'></i>
+                <i class='bk-icon icon-plus-line' />
               </button>
             )}
           </div>

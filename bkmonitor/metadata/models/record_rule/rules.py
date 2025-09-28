@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import datetime
 import json
 import logging
+from typing import Any
 
 import yaml
 from django.conf import settings
@@ -57,7 +58,7 @@ class RecordRule(BaseModelWithTime):
         verbose_name_plural = "预计算规则"
 
     @classmethod
-    def transform_bk_sql_and_metrics(cls, rule_config: str) -> dict:
+    def transform_bk_sql_and_metrics(cls, rule_config: str) -> dict[str, Any]:
         """转换原始规则配置到计算平台语句"""
         rule_dict = yaml.safe_load(rule_config)
         rules = rule_dict.get("rules", [])
@@ -86,7 +87,11 @@ class RecordRule(BaseModelWithTime):
             }
             # 如果label存在追加label信息
             if rule.get("labels"):
-                sql["label"] = rule["labels"]
+                label = rule["labels"]
+                # 如果label是字典，则转换为列表
+                if isinstance(label, dict):
+                    label = [{"label_name": k, "label_value": v} for k, v in rule["labels"].items()]
+                sql["label"] = label
             bksql_list.append(sql)
             metrics.update(sql_and_metrics["metrics"])
         return {"bksql": bksql_list, "metrics": metrics, "rule_metrics": rule_metrics}
@@ -338,7 +343,6 @@ class ResultTableFlow(BaseModelWithTime):
             return False
         # 保存记录
         cls.objects.create(
-            bk_tenant_id=bk_tenant_id,
             table_id=table_id,
             flow_id=flow_id,
             config=req_data,

@@ -31,26 +31,31 @@ import { ConditionOperator } from '@/store/condition-operator';
 export default () => {
   const store = useStore();
 
-  let requestTimer;
   const isRequesting = ref(false);
+  const isValidateItem = ref(false);
+
+  let requestTimer;
+
   const taskPool = [];
 
-  const setIsRequesting = val => {
+  const setIsRequesting = (val: boolean) => {
     isRequesting.value = val;
   };
 
-  const isValidateEgges = field => {
-    return ['keyword'].includes(field.field_type);
+  const isValidateEgges = (field: any) => {
+    isValidateItem.value = ['keyword'].includes(field.field_type);
+    return isValidateItem.value;
   };
 
   /**
    * 自动补全提示接口请求任务
    */
-  const requestFieldEgges = (field, value?, callback?, finallyFn?) => {
+  const requestFieldEgges = (field: any, value?: string, callback?: (resp: any) => void, finallyFn?: () => void) => {
     /**
      * 检测字段是否为 flattened 字段
      */
-    if (field.field_name.split('.').length > 1) {
+    if (field.field_type === 'flattened') {
+      setIsRequesting(false);
       return;
     }
 
@@ -82,7 +87,13 @@ export default () => {
       setIsRequesting(true);
 
       const addition = value
-        ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
+        ? [
+            {
+              field: field.field_name,
+              operator: '=~',
+              value: getConditionValue(),
+            },
+          ].map(val => {
             const instance = new ConditionOperator(val);
             return instance.getRequestParam();
           })
@@ -100,9 +111,9 @@ export default () => {
         query_value: value,
       };
 
-      taskPool.forEach(task => {
+      for (const task of taskPool) {
         task.pending = false;
-      });
+      }
 
       taskPool.push(taskArgs);
       store
@@ -129,5 +140,11 @@ export default () => {
     }, 300);
   };
 
-  return { requestFieldEgges, isValidateEgges, isRequesting, setIsRequesting };
+  return {
+    requestFieldEgges,
+    isValidateEgges,
+    isRequesting,
+    setIsRequesting,
+    isValidateItem,
+  };
 };

@@ -25,9 +25,11 @@
  */
 
 import { computed, defineComponent, onMounted, ref } from 'vue';
-import $http from '@/api';
-import { bkInfoBox } from 'bk-magic-vue';
+
 import useLocale from '@/hooks/use-locale';
+import { bkInfoBox } from 'bk-magic-vue';
+
+import $http from '@/api';
 
 import './index.scss';
 
@@ -65,7 +67,11 @@ export default defineComponent({
     });
 
     const dimensionList = computed(() =>
-      props.fingerOperateData.groupList.filter(item => !group.value.includes(item.id)),
+      props.fingerOperateData.groupList.filter(
+        item =>
+          !group.value.includes(item.id) &&
+          !['dtEventTimeStamp', 'time', 'iterationIndex', 'gseIndex'].includes(item.id),
+      ),
     );
 
     const handleInitData = () => {
@@ -169,8 +175,8 @@ export default defineComponent({
         ref={popoverRef}
         width={400}
         disabled={!props.clusterSwitch}
-        tippy-options={tippyOptions.value}
         placement='bottom-start'
+        tippy-options={tippyOptions.value}
         on-show={handleInitData}
       >
         <div
@@ -178,8 +184,8 @@ export default defineComponent({
           on-click={handleShowPopover}
         >
           <log-icon
-            type='dimens'
             class='trigger-icon'
+            type='dimens'
           />
           <span>{t('聚合维度')}</span>
         </div>
@@ -187,16 +193,16 @@ export default defineComponent({
           <div class='dimension-popover'>
             <div class='title-main'>{t('聚合维度')}</div>
             <bk-alert
-              type='info'
               style='color: #4D4F56'
+              type='info'
             >
               <div slot='title'>
                 <i18n path='如需根据某些维度拆分聚类结果，可将字段设置为维度；维度拆分是比较 {0} 的，根据拆分结果填写责任人和备注，较少改动（临时分组需求请使用“{1}”功能）'>
                   <span style='font-weight: 700'>{t('固化')}</span>
                   <bk-button
-                    text
-                    theme='primary'
                     style='font-size: 12px'
+                    theme='primary'
+                    text
                     on-click={() => emit('open-temp-group')}
                   >
                     {t('临时分组')}
@@ -207,9 +213,9 @@ export default defineComponent({
             <div class='piece-item'>
               <span class='title'>{t('维度')}</span>
               <bk-select
-                value={dimension.value}
-                scroll-height={140}
                 ext-popover-cls='quick-filter-selected-ext'
+                scroll-height={140}
+                value={dimension.value}
                 display-tag
                 multiple
                 searchable

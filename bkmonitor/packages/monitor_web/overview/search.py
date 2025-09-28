@@ -235,6 +235,7 @@ class TraceSearchItem(SearchItem):
         qs: UnifyQuerySet = (
             UnifyQuerySet()
             .add_query(q)
+            .time_align(False)
             .start_time(int((now - timedelta(days=7).total_seconds()) * 1000))
             .end_time(now * 1000)
             .limit(limit)

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -175,7 +175,14 @@ class AlertAssigneeManager:
         if not self.match_manager:
             return notify_info, follow_notify_info
 
-        dimensions = self.match_manager.dimensions
+        # 实例化新的dict，避免告警订阅相关处理，影响告警分派
+        dimensions = dict(**self.match_manager.dimensions)
+        # 新增告警级别支持（仅用于告警订阅匹配，告警分配不支持）
+        dimensions.update(
+            {
+                "alert.severity": str(self.match_manager.origin_severity),
+            }
+        )
 
         # 获取该业务下所有订阅用户
         usernames = SubscribeCacheManager.get_users_by_biz(bk_biz_id)

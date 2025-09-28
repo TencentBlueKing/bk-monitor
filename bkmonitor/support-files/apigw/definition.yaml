@@ -74,6 +74,25 @@ grant_permissions:
     #   - resource_name_2
   - bk_app_code: bk_log_search
     grant_dimension: "gateway"
+  - bk_app_code: bk_sops
+    grant_dimension: "resource"
+    resource_names:
+      - add_shield
+      - disable_shield
+      - search_alarm_strategy
+  - bk_app_code: bk_apigateway
+    grant_dimension: "resource"
+    resource_names:
+      - graph_promql_query
+  - bk_app_code: bk_bcs_app
+    grant_dimension: "resource"
+    resource_names:
+      - metadata_create_space
+      - metadata_list_spaces
+      - graph_promql_query
+      - query_bcs_metrics
+      - metadata_query_bcs_related_data_link_info
+      - metadata_query_data_source
 
 # 应用申请指定网关所有资源的权限，待网关管理员审批后，应用才可访问网关资源；
 # 用于命令 `apply_apigw_permissions`

@@ -28,14 +28,14 @@ import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFlatObjValues } from '../../../common/util';
-import TextSegmentation from './text-segmentation.vue';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
+import TextSegmentation from './text-segmentation.vue';
 
 import './original-light-height.scss';
 
 interface IProps {
   originJson: object;
-  visibleFields: Array<any>;
+  visibleFields: any[];
   operatorConfig: object;
 }
 @Component
@@ -65,11 +65,11 @@ export default class OriginalLightHeight extends tsc<IProps> {
   get fieldMapDataObj() {
     const { newObject } = getFlatObjValues(this.originJson || {});
     const visibleObject = {};
-    Object.keys(newObject).forEach(el => {
+    for (const el of Object.keys(newObject)) {
       if (this.visibleFieldsNameList.includes(el)) {
         visibleObject[el] = newObject[el];
       }
-    });
+    }
     const sortObject = this.visibleFields.reduce((pre, cur) => {
       let fieldValue = visibleObject[cur.field_name];
       if (this.operatorConfig?.isShowSourceField && cur?.tag === 'union-source') {
@@ -101,7 +101,7 @@ export default class OriginalLightHeight extends tsc<IProps> {
       <span class='origin-content'>
         {Object.entries(this.fieldMapDataObj).map(([key, value]: any) => {
           return (
-            <span>
+            <span key={key}>
               <span class='black-mark'>&nbsp;{key}:&nbsp;</span>
               <span class='origin-value'>
                 <TextSegmentation

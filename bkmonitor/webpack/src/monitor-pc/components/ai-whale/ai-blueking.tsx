@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -32,6 +32,7 @@ import { random } from 'monitor-common/utils/utils';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
 import { type AIBluekingShortcut, AI_BLUEKING_SHORTCUTS, AI_BLUEKING_SHORTCUTS_ID } from './types';
+import { isPromQL } from '@/utils/promql-detector';
 
 import '@blueking/ai-blueking/dist/vue2/style.css';
 
@@ -81,6 +82,14 @@ export default class AiBluekingWrapper extends tsc<object> {
     if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS) {
       return !!selectedText?.match(/^[0-9a-f]{32}$/);
     }
+    if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS) {
+      return false;
+    }
+    if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.PROMQL_HELPER && selectedText?.length) {
+      if (!isPromQL(selectedText)) {
+        return false;
+      }
+    }
     return true;
   }
   handleShortcutClick(data: { shortcut: AIBluekingShortcut }) {
@@ -114,6 +123,7 @@ export default class AiBluekingWrapper extends tsc<object> {
           }}
           enablePopup={true}
           hideNimbus={true}
+          loadRecentSessionOnMount={true}
           prompts={[]}
           shortcutFilter={this.handleShortcutFilter}
           shortcuts={this.shortcuts}

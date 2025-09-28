@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -533,4 +533,6 @@ export default {
   创建查询模板成功: 'Created metric template successfully',
   编辑查询模板成功: 'Edited metric template successfully',
   '有未生效的变量，是否清空？': 'There are variables that are not in effect, do you want to clear them?',
+
+  修改备注成功: 'Remark modified successfully'
 };

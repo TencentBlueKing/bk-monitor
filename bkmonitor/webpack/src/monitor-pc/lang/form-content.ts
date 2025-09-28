@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -181,7 +181,6 @@ export default {
   '事件分析总结：': 'Event analysis summary:',
   日志分析: 'Log analysis',
   '日志分析总结：': 'Log analysis summary:',
-  事件: 'Event',
   示例事件: 'Example event',
   告警类别: 'Alarm category',
   事件类别: 'Event category',

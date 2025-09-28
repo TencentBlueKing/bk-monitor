@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -106,7 +106,7 @@ class ApplicationConfig(BkCollectorConfig):
                     application_tpl = BkCollectorClusterConfig.sub_config_tpl(
                         cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
                     )
-                    if application_tpl is None:
+                    if not application_tpl:
                         continue
 
                     application_config_context = self.get_application_config()
@@ -147,6 +147,7 @@ class ApplicationConfig(BkCollectorConfig):
         )
         profiles_drop_sampler_config = self.get_profiles_drop_sampler_config()
         traces_drop_sampler_config = self.get_traces_drop_sampler_config()
+        metrics_filter_config = self.get_metrics_filter_config()
 
         if apdex_config:
             config["apdex_config"] = apdex_config.get(self._application.app_name)
@@ -180,6 +181,9 @@ class ApplicationConfig(BkCollectorConfig):
         if db_slow_command_config:
             config["db_slow_command_config"] = db_slow_command_config
 
+        if metrics_filter_config:
+            config["metrics_filter_config"] = metrics_filter_config
+
         service_configs = self.get_sub_configs("service_name", ApdexConfig.SERVICE_LEVEL)
         if service_configs:
             config["service_configs"] = service_configs
@@ -188,6 +192,23 @@ class ApplicationConfig(BkCollectorConfig):
             config["instance_configs"] = instance_configs
 
         return config
+
+    def get_metrics_filter_config(self) -> dict:
+        params = {"bk_biz_id": self._application.bk_biz_id, "app_name": self._application.app_name}
+        json_value = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.CODE_RELABEL_CONFIG)
+
+        if not json_value:
+            return {}
+
+        code_relabel_rules = json.loads(json_value)
+
+        if not isinstance(code_relabel_rules, list):
+            return {}
+
+        if not code_relabel_rules:
+            return {}
+
+        return {"name": "metrics_filter/relabel", "code_relabel": code_relabel_rules}
 
     def get_bk_data_id_config(self):
         data_ids = {}

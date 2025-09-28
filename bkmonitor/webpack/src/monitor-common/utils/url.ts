@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -36,4 +36,27 @@ export const getUrlHashValue = (key: string) => {
   }
   const hashValueObj = new URLSearchParams(hashValue);
   return hashValueObj.get(key);
+};
+
+/**
+ * 将 URLSearchParams 转换为对象
+ * @param params URLSearchParams
+ * @returns 对象
+ */
+export const paramsToObject = (params: URLSearchParams): Record<string, string | string[]> => {
+  const obj: Record<string, string | string[]> = {};
+
+  for (const [key, value] of params.entries()) {
+    if (key in obj) {
+      if (Array.isArray(obj[key])) {
+        (obj[key] as string[]).push(value);
+      } else {
+        obj[key] = [obj[key] as string, value];
+      }
+    } else {
+      obj[key] = value;
+    }
+  }
+
+  return obj;
 };
