@@ -18,8 +18,9 @@ from bkmonitor.models import AlgorithmModel
 from bkmonitor.strategy.serializers import allowed_threshold_method
 
 from . import constants
-from apm_web.models import StrategyTemplate, StrategyInstance
+from apm_web.models import StrategyTemplate, StrategyInstance, Application
 from apm_web.strategy.handler import get_user_groups
+from apm_web.handlers.service_handler import ServiceHandler
 
 
 class DetectSerializer(serializers.Serializer):
@@ -134,6 +135,37 @@ class StrategyTemplateCheckRequestSerializer(BaseAppStrategyTemplateRequestSeria
     strategy_template_ids = serializers.ListField(
         label=_("策略模板 ID 列表"), child=serializers.IntegerField(min_value=1), default=[], allow_empty=True
     )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        # 校验 service_names
+        application = Application.objects.filter(bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"]).first()
+        if not application:
+            attrs["service_names"] = []
+        else:
+            query_service_names: set[str] = set(attrs["service_names"])
+            all_service_names: set[str] = {
+                service_info["topo_key"] for service_info in ServiceHandler.list_services(application)
+            }
+            if not all_service_names:
+                attrs["service_names"] = []
+            elif query_service_names - all_service_names:
+                raise serializers.ValidationError(_("数据异常，对比的服务不存在"))
+            attrs["service_names"] = list(query_service_names or all_service_names)
+        # 校验 strategy_template_ids
+        strategy_template_ids = attrs["strategy_template_ids"]
+        if not strategy_template_ids:
+            attrs["strategy_template_ids"] = list(
+                StrategyTemplate.objects.filter(bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"]).values_list(
+                    "id", flat=True
+                )
+            )
+        else:
+            template_count = StrategyTemplate.objects.filter(
+                bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"], id__in=strategy_template_ids
+            ).count()
+            if template_count != len(strategy_template_ids):
+                raise serializers.ValidationError(_("数据异常，部分策略模板不存在"))
+        return attrs
 
 
 class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
