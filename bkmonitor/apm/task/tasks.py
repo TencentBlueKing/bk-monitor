@@ -20,8 +20,6 @@ from django.db.models import Q, Value
 from django.utils import timezone
 from opentelemetry.trace import get_current_span
 
-from alarm_backends.core.cache import key
-from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
@@ -30,6 +28,7 @@ from apm.core.discover.precalculation.check import PreCalculateCheck
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHandler
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
 from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
 from apm.core.platform_config import PlatformConfig
@@ -74,7 +73,8 @@ def topo_discover_cron():
     for application in to_be_refreshed:
         bk_biz_id, app_name, app_id, create_time = application
         try:
-            with service_lock(key.APM_TOPO_DISCOVER_LOCK, app_id=app_id):
+            apm_cache_handler = ApmCacheHandler()
+            with apm_cache_handler.distributed_lock("topo_discover", app_id=app_id):
                 # 在 settings.APM_APPLICATION_QUICK_REFRESH_DELTA 时间内新创建的应用，每 interval_quick 分钟执行一次拓扑发现
                 if (current_time - create_time) < datetime.timedelta(
                     minutes=settings.APM_APPLICATION_QUICK_REFRESH_DELTA
@@ -137,7 +137,8 @@ def datasource_discover_cron():
     for k, v in datasource_mapping.items():
         app_id = valid_application_mapping[k]["id"]
         try:
-            with service_lock(key.APM_DATASOURCE_DISCOVER_LOCK, app_id=app_id):
+            apm_cache_handler = ApmCacheHandler()
+            with apm_cache_handler.distributed_lock("datasource_discover", app_id=app_id):
                 if app_id % interval == slug:
                     logger.info(f"[datasource_discover_cron] delay task for app_id: {app_id}")
                     datasource_discover_handler.delay(v, interval, current_timestamp)

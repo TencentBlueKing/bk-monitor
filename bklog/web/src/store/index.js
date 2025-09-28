@@ -1183,7 +1183,7 @@ const store = new Vuex.Store({
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
         begin: payload?.isPagination
-          ? (state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
+          ? state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
           : 0,
         index_set_id: item,
       }));
@@ -1241,7 +1241,6 @@ const store = new Vuex.Store({
 
                 if (!payload?.isPagination) {
                   commit('updateIsSetDefaultTableColumn', { list: logList });
-                  // dispatch('requestSearchTotal');
                 }
                 // 更新页数
                 commit('updateSqlQueryFieldList', logList);

@@ -11,16 +11,22 @@ specific language governing permissions and limitations under the License.
 import abc
 import base64
 import json
-from copy import deepcopy
 from typing import Any
 
 import six
 from django.conf import settings
 from rest_framework import serializers
 
-from core.drf_resource import api
 from core.drf_resource.contrib.api import APIResource
 from core.errors.api import BKAPIError
+
+
+def cmsi_gateway_url():
+    return f"{settings.BK_COMPONENT_API_URL}/api/bk-cmsi/prod/"
+
+
+def cmsi_esb_url():
+    return f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/cmsi/"
 
 
 class CMSIBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
@@ -28,11 +34,33 @@ class CMSIBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     CMSI 接口基类
     """
 
+    gateway_type = None
+
     def use_apigw(self):
         """
         是否使用 apigw
         """
+        if self.gateway_type == "apigw":
+            return True
         return settings.ENABLE_MULTI_TENANT_MODE or settings.CMSI_API_BASE_URL
+
+    def switch_apigw(self):
+        """
+        切换到apigw
+        """
+        self.gateway_type = "apigw"
+
+    def switch_esb(self):
+        """
+        切换到esb
+        """
+        self.gateway_type = "esb"
+
+    def switch_default(self):
+        """
+        切换到esb
+        """
+        self.gateway_type = None
 
     @property
     def base_url(self):
@@ -40,12 +68,12 @@ class CMSIBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         if settings.CMSI_API_BASE_URL:
             return settings.CMSI_API_BASE_URL
 
-        # 多租户模式下，使用 apigw 接口
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            return f"{settings.BK_COMPONENT_API_URL}/api/bk-cmsi/prod/"
+        # 指定apigw(多租户模式下)，使用 apigw 接口
+        if self.use_apigw():
+            return cmsi_gateway_url()
 
         # 否则使用旧的接口地址
-        return f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/cmsi/"
+        return cmsi_esb_url()
 
     module_name = "cmsi"
 
@@ -74,8 +102,6 @@ class CheckCMSIResource(CMSIBaseResource):
         """
         发送请求
         """
-        self.message_detail = {}
-
         receivers = self.get_receivers(validated_request_data)
 
         return self.send_request(validated_request_data, receivers)
@@ -109,7 +135,6 @@ class CheckCMSIResource(CMSIBaseResource):
             # invalid: 通知失败的用户名列表
             "username_check": {"invalid": []},
             "message": "发送成功",
-            "message_detail": {},
         }
 
         try:
@@ -124,9 +149,6 @@ class CheckCMSIResource(CMSIBaseResource):
                     # api 返回告诉哪些人失败， 但不一定有， 没有的时候， 默认所有通知人都失败
                     invalid = e.data["data"]["username_check"]["invalid"]
                 except (KeyError, TypeError):
-                    pass
-                if not invalid:
-                    # 如果在错误结果情况下，返回的invalid用户为空的时候，判断所有的用户为失败
                     invalid = receivers
 
             # 通知失败的人员列表
@@ -143,39 +165,6 @@ class CheckCMSIResource(CMSIBaseResource):
             response_data["username_check"]["invalid"] = receivers
             response_data["message"] = str(e)
             return response_data
-
-    @classmethod
-    def get_external_receiver_info(cls, receivers_username: list[str]) -> dict[str, dict[str, str]]:
-        """
-        通过用户名获取用户信息(邮箱和电话号)
-        param
-        ```python
-        receivers_username  # 用户名列表
-        ```
-        return
-        ```python
-        {
-            username: {
-                "email": email | "",
-                "phone": f"[+]{phone_country_code}{phone}" | "",
-            }
-        }
-        ```
-        """
-        fields = "email,phone"
-        param = {"usernames": ",".join(receivers_username), "fields": fields}
-
-        receivers_info = api.bk_login.get_user_sensitive_info(**param)["data"]
-
-        # 转化格式  -> {username: { "email": email, "phone": phone }}
-        # e.g. {"zhangsan": {"email": "zhangsan@qq.com", "phone": "+8612312312345"}}
-        return {
-            receiver["username"]: {
-                "email": receiver["email"],
-                "phone": f"+{receiver['phone_country_code']}{receiver['phone']}" if receiver["phone"] else "",
-            }
-            for receiver in receivers_info
-        }
 
 
 class GetMsgType(CMSIBaseResource):
@@ -421,13 +410,8 @@ class SendMail(CheckCMSIResource):
 
         self.message_detail = {}
 
-        # 如果没有 receiver__username 说明是直接用 receiver 邮箱发送的
-        # 交由父类直接处理
-        if not validated_request_data.get("receiver__username"):
-            return super().perform_request(validated_request_data)
-
-        # 判断是否存在有环境变量 BK_USERINFO_API_BASE_URL 如果存在则可能需要区分内外部用户
-        if not settings.BK_USERINFO_API_BASE_URL:
+        # 如果直接指定邮箱地址，则直接发送
+        if validated_request_data.get("receiver"):
             return super().perform_request(validated_request_data)
 
         # 区分内外部用户
@@ -446,81 +430,21 @@ class SendMail(CheckCMSIResource):
             else:
                 internal_users.append(username)
 
-        response = {}
-        default_response_data = {
+        response_data = {
             # invalid: 通知失败的用户名列表
             "username_check": {"invalid": []},
             "message": "发送成功",
-            "message_detail": {},
         }
-        # 内部用户 针对内部用户直接通过 receiver__username 发送
         if internal_users:
-            request_data = deepcopy(validated_request_data)
-            if not self.use_apigw():
-                request_data["receiver__username"] = ",".join(internal_users)
-            request_data.pop("receiver", None)
-            response = self.send_request(request_data, internal_users)  # type: ignore
-
-        # 外部用户 针对外部用户通过 需要转化成 receiver 邮箱的方式直接发送
-        if external_users:  # <- 以@结尾,还需要转化成邮箱
-            # receivers -> 邮箱
-            receivers = self.get_receivers_with_external_users(external_users)
-            request_data = deepcopy(validated_request_data)
-            if not self.use_apigw():
-                request_data["receiver"] = ",".join(receivers)  # receivers <- 接收邮箱
-            request_data.pop("receiver__username", None)
-            if receivers:
-                external_send_response = self.send_request(request_data, external_users)
-                if response:
-                    # merge response
-                    response["message_detail"].update(external_send_response["message_detail"])
-                    response["username_check"]["invalid"] += external_send_response["username_check"]["invalid"]
-                else:
-                    response = external_send_response
-
-        # 更新 message_detail
-        if self.message_detail:
-            if response:
-                response["message_detail"].update(self.message_detail)
-            else:
-                default_response_data["message_detail"].update(self.message_detail)
-
-        return response or default_response_data
-
-    def get_receivers_with_external_users(self, external_users: list[str]) -> list[str]:
-        """
-        获取接收者
-
-        调用查询用户信息的接口，返回的用户可能
-        receivers: List[str]  # 邮箱不为空用户的邮箱
-        """
-        # 获取外部人员的信息
-        receivers_info = self.get_external_receiver_info(external_users)
-
-        not_exist_usernames = []
-        not_email_usernames = []
-        exist_usernames = []
-        for username in external_users:
-            if username not in receivers_info:
-                not_exist_usernames.append(username)
-                continue
-            if not receivers_info[username]["email"]:
-                not_email_usernames.append(username)
-                continue
-            exist_usernames.append(username)
-
-        # 提前获取失败原因为 "用户不存在" 的用户, 并且不会对他们进行发送
-        self.rich_message_detail_with_usernames(not_exist_usernames, "user not exists")
-        # 提前获取失败原因为 "邮箱不存在" 的用户，并且不会对他们进行发送
-        self.rich_message_detail_with_usernames(not_email_usernames, "user email not exists")
-        # 获取最终的 receivers
-        return [receivers_info[username]["email"] for username in exist_usernames]
-
-    def rich_message_detail_with_usernames(self, usernames: list[str], message_detail):
-        """
-        丰富异常用户的消息详情
-        """
-        self.message_detail.update({username: message_detail for username in usernames})
+            validated_request_data["receiver__username"] = ",".join(internal_users)
+            response_data = super().perform_request(validated_request_data)
+        if external_users:
+            # 外部用户通知
+            self.switch_apigw()
+            external_response_data = super().perform_request(validated_request_data)
+            self.switch_default()
+            response_data["username_check"]["invalid"] += external_response_data["username_check"]["invalid"]
+        return response_data
 
     @classmethod
     def is_external_user(cls, username: str) -> bool:
