@@ -65,7 +65,6 @@ class BkCollectorComp:
         },
         "log": {
             "secret_name_tpl": "bk-collector-subconfig-log-{}-{}",
-            "secret_name_hash_tpl": "bk-collector-subconfig-log-{}",
             "secret_data_key_tpl": "application-{}.conf",
             "secret_data_max_count": 50,  # 这个数值不能随意变动，如需变更，需先清理所有log的secrets再重新下发
             "secret_extra_label": "type=subconfig,source=custom_log",

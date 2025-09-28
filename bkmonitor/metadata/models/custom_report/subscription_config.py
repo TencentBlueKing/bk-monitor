@@ -582,7 +582,7 @@ class LogSubscriptionConfig(models.Model):
                 config_content = Environment().from_string(tpl).render(config_context)
 
                 config_id = int(log_group.bk_data_id)
-                BkCollectorClusterConfig.deploy_to_k8s(cluster_id, config_id, "log", config_content)
+                BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, {config_id: config_content}, "log")
             except Exception as e:  # pylint: disable=broad-except
                 logger.info(f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}) error({e})")
 
