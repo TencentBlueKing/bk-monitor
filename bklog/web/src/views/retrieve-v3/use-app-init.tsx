@@ -224,21 +224,23 @@ export default () => {
     };
 
     const commitIdexId = (idexs: string[], others = {}) => {
-      const [pid, ids] = idexs.reduce(
-        (out, cur) => {
-          if (cur.indexOf('_') > 0) {
-            const [p_id, id] = cur.split('_');
-            out[0].push(p_id);
-            out[1].push(id);
-            return out;
-          }
+      const [pid, ids] = idexs
+        .filter(t => !!t)
+        .reduce(
+          (out, cur) => {
+            if (cur.indexOf('_') > 0) {
+              const [p_id, id] = cur.split('_');
+              out[0].push(p_id);
+              out[1].push(id);
+              return out;
+            }
 
-          out[0].push('#');
-          out[1].push(cur);
-          return out;
-        },
-        [[], []],
-      );
+            out[0].push('#');
+            out[1].push(cur);
+            return out;
+          },
+          [[], []],
+        );
       store.commit('updateIndexItem', { ids, pid, ...(others ?? {}) });
     };
 
