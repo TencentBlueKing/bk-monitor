@@ -51,7 +51,7 @@ export function useNavMenu(options: {
   const topMenu = computed(() => store.state.topMenu);
   const menuList = computed(() => store.state.menuList);
   const spaceUid = computed(() => store.state.spaceUid);
-  const bkBizId = computed(() => store.state.bkBizId);
+  const bkBizId = computed(() => store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID]);
   const mySpaceList = computed(() => store.state.mySpaceList);
   const isExternal = computed(() => store.state.isExternal);
   const externalMenu = computed(() => store.state.externalMenu);

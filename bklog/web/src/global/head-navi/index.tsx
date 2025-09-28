@@ -164,13 +164,12 @@ export default defineComponent({
           name: 'manage',
           query: {
             spaceUid: store.state.spaceUid,
-            bizId: store.state.bizId,
+            bizId: bkBizId.value,
           },
         });
         return;
       }
       router.push({ name: 'retrieve', query: { spaceUid: store.state.spaceUid } });
-      setTimeout(() => emit('reload-router'));
     }
 
     /**
@@ -186,34 +185,24 @@ export default defineComponent({
       const sameMenuHandlers: Record<string, () => void> = {
         retrieve: () => {
           router.push({ name: 'retrieve', query: spaceUidQuery });
-          emit('reload-router');
         },
         extract: () => {
           if (currentRoute.query.create) {
             router.push({ name: 'extract', query: spaceUidQuery });
-          } else {
-            emit('reload-router');
           }
         },
         trace: () => {
           if (currentRoute.name === 'trace-detail') {
             router.push({ name: 'trace-list', query: spaceUidQuery });
-          } else {
-            emit('reload-router');
           }
         },
-        dashboard: () => {
-          router.push({ name: 'dashboard', query: spaceUidQuery });
-          emit('reload-router');
-        },
+
         manage: () => {
           if (currentRoute.name !== 'collection-item') {
             router.push({ name: 'manage', query: spaceUidQuery });
-          } else {
-            emit('reload-router');
           }
         },
-        default: () => emit('reload-router'),
+        default: () => {},
       };
 
       // 不同菜单跳转时的处理策略
@@ -224,6 +213,9 @@ export default defineComponent({
         },
         trace: () => {
           router.push({ name: 'trace-list', query: spaceUidQuery });
+        },
+        dashboard: () => {
+          window.open(`${window.MONITOR_URL}/?bizId=${bkBizId.value}#/grafana`, '_blank');
         },
         default: () => {
           router.push({ name: menu.id, query: spaceUidQuery });
@@ -343,6 +335,37 @@ export default defineComponent({
 
     const dropdownHelpRef = ref();
 
+    /**
+     * 渲染下拉菜单链接的公共方法
+     */
+    function renderDropdownLink(text: string, onClick: () => void, isActive = false) {
+      return (
+        <a
+          class={{ active: isActive }}
+          href='javascript:;'
+          onClick={e => (e.stopPropagation(), onClick())}
+        >
+          {text}
+        </a>
+      );
+    }
+
+    /**
+     * 渲染带图标的语言下拉菜单链接
+     */
+    function renderLanguageLink(item: { id: string; name: string }, onClick: () => void) {
+      return (
+        <a
+          class={{ active: state.language === item.id }}
+          href='javascript:;'
+          onClick={() => onClick()}
+        >
+          <span class={['icon-language', getLanguageClass(item.id)]} />
+          {item.name}
+        </a>
+      );
+    }
+
     // 计算可见菜单（外部版根据 externalMenu 限制）
     const menuList = computed(() => {
       const list =
@@ -425,12 +448,7 @@ export default defineComponent({
                         key={item.id}
                         class='language-btn'
                       >
-                        <a
-                          href='javascript:;'
-                          onClick={() => handleClickGlobalDialog(item.id)}
-                        >
-                          {item.name}
-                        </a>
+                        {renderDropdownLink(item.name, () => handleClickGlobalDialog(item.id))}
                       </li>
                     ))}
                   </ul>
@@ -468,14 +486,7 @@ export default defineComponent({
                       key={item.id}
                       class='language-btn'
                     >
-                      <a
-                        class={{ active: state.language === item.id }}
-                        href='javascript:;'
-                        onClick={() => changeLanguage(item.id)}
-                      >
-                        <span class={['icon-language', getLanguageClass(item.id)]} />
-                        {item.name}
-                      </a>
+                      {renderLanguageLink(item, () => changeLanguage(item.id))}
                     </li>
                   ))}
                 </ul>
@@ -500,26 +511,10 @@ export default defineComponent({
               'dropdown-content': () => (
                 <ul class='bk-dropdown-list'>
                   <li>
-                    <a
-                      href='javascript:;'
-                      onClick={e => (e.stopPropagation(), dropdownHelpTriggerHandler('docCenter'))}
-                    >
-                      {t('产品文档')}
-                    </a>
-                    {!isExternal.value ? (
-                      <a
-                        href='javascript:;'
-                        onClick={e => (e.stopPropagation(), dropdownHelpTriggerHandler('logVersion'))}
-                      >
-                        {t('版本日志')}
-                      </a>
-                    ) : null}
-                    <a
-                      href='javascript:;'
-                      onClick={e => (e.stopPropagation(), dropdownHelpTriggerHandler('feedback'))}
-                    >
-                      {t('问题反馈')}
-                    </a>
+                    {renderDropdownLink(t('产品文档'), () => dropdownHelpTriggerHandler('docCenter'))}
+                    {!isExternal.value &&
+                      renderDropdownLink(t('版本日志'), () => dropdownHelpTriggerHandler('logVersion'))}
+                    {renderDropdownLink(t('问题反馈'), () => dropdownHelpTriggerHandler('feedback'))}
                   </li>
                 </ul>
               ),
@@ -548,30 +543,9 @@ export default defineComponent({
               ),
               'dropdown-content': () => (
                 <ul class='bk-dropdown-list'>
-                  <li>
-                    <a
-                      href='javascript:;'
-                      onClick={handleGoToMyApplication}
-                    >
-                      {t('我申请的')}
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href='javascript:;'
-                      onClick={handleGoToMyReport}
-                    >
-                      {t('我的订阅')}
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href='javascript:;'
-                      onClick={handleQuit}
-                    >
-                      {t('退出登录')}
-                    </a>
-                  </li>
+                  <li>{renderDropdownLink(t('我申请的'), handleGoToMyApplication)}</li>
+                  <li>{renderDropdownLink(t('我的订阅'), handleGoToMyReport)}</li>
+                  <li>{renderDropdownLink(t('退出登录'), handleQuit)}</li>
                 </ul>
               ),
             }}
