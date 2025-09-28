@@ -44,7 +44,6 @@ class BkCollectorComp:
         },
         "apm": {
             "secret_name_tpl": "bk-collector-subconfig-apm-{}-{}",
-            "secret_name_hash_tpl": "bk-collector-subconfig-apm-{}",
             "secret_data_key_tpl": "application-{}.conf",
             "secret_data_max_count": 20,  # 这个数值不能随意变动，如需变更，需先清理所有apm的secrets再重新下发
             "secret_extra_label": "type=subconfig,source=apm",

@@ -111,7 +111,9 @@ class ApplicationConfig(BkCollectorConfig):
 
                     application_config_context = self.get_application_config()
                     application_config = Environment().from_string(application_tpl).render(application_config_context)
-                    BkCollectorClusterConfig.deploy_to_k8s(cluster_id, self._application.id, "apm", application_config)
+                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(
+                        cluster_id, {self._application.id: application_config}, "apm"
+                    )
 
                     s.set_status(trace.StatusCode.OK)
                 except Exception as e:  # pylint: disable=broad-except
