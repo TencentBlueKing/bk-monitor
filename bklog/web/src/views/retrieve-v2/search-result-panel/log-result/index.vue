@@ -45,7 +45,7 @@
               :minWidth="highlightStyle.width" :value="highlightValue" :placeholder="$t('输入后按 Enter...')"
               template="tag-input" @change="handleHighlightEnter">
             </bklogTagChoice>
-            <MatchMode class="bklog-v3-match-mode" :match-mode="matchMode" @change="handleMatchModeChange"></MatchMode>
+            <MatchMode class="bklog-v3-match-mode" :border="true" :match-mode="matchMode" @change="handleMatchModeChange"></MatchMode>
           </div>
 
           <export-log v-if="!isMonitorTrace" :async-export-usable="asyncExportUsable"
@@ -68,7 +68,10 @@
       </div>
     </div>
 
-    <table-log :content-type="contentType" :retrieve-params="retrieveParams" />
+    <TableLog
+      :content-type="contentType"
+      :retrieve-params="retrieveParams"
+    />
   </div>
 </template>
 

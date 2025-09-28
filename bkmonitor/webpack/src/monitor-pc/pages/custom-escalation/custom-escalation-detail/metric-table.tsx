@@ -623,8 +623,9 @@ export default class IndicatorTable extends tsc<any, any> {
       this.copyDescription = '';
       return;
     }
-    await this.updateCustomFields('description', this.copyDescription, metricInfo.name);
-    metricInfo.description = this.copyDescription;
+    const currentDescription = this.copyDescription; // 防止编辑时点击其他input后触发blur 导致copyDescription变化赋值错误
+    await this.updateCustomFields('description', currentDescription, metricInfo.name);
+    metricInfo.description = currentDescription;
   }
 
   handleDescFocus(props) {

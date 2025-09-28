@@ -154,7 +154,7 @@ export default (emit?: (event: string, ...args: any[]) => void, from?: string) =
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
     }
-
+    console.log('type==', type, actualValue);
     // 处理不同类型的操作
     switch (type) {
       case 'highlight':
