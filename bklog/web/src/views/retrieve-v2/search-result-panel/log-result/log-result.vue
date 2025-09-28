@@ -151,15 +151,20 @@ export default {
         });
     },
     handleClickTools(event, row, config, index) {
-      if (event === "ai") {
-        this.$refs.refAiAssitant.open(true, {
-          space_uid: this.$store.getters.spaceUid,
-          index_set_id: this.$store.getters.indexId,
-          log_data: row,
-          index,
-        });
-        return;
-      }
+      if (event === 'ai') {
+          this.$refs.refAiAssitant.open(true, {
+            space_uid: this.$store.getters.spaceUid,
+            index_set_id: this.$store.getters.indexId,
+            log: row,
+            index,
+          });
+          return;
+        }
+
+        if (event === 'add-to-ai') {
+          this.$refs.refAiAssitant.setCiteText(row);
+          return;
+        }
       if (["realTimeLog", "contextLog"].includes(event)) {
         this.currentIndex = index - 1;
         const contextFields = config.contextAndRealtime.extra?.context_fields;
