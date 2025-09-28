@@ -168,10 +168,13 @@ export default defineComponent({
       isPageLoading.value = isSearching;
     });
 
-    addEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
-      hasMoreList.value = true;
-      pageIndex.value = 1;
-    });
+    addEvent(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.TREND_GRAPH_SEARCH],
+      () => {
+        hasMoreList.value = true;
+        pageIndex.value = 1;
+      },
+    );
 
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];
@@ -1033,7 +1036,7 @@ export default defineComponent({
         return 'Loading ...';
       }
 
-      if (!(isRequesting.value || hasMoreList.value) && tableDataSize.value > 0) {
+      if (!(isRequesting.value || hasMoreList.value) || tableDataSize.value < pageSize.value) {
         return ` - 已加载所有数据: 共计 ${tableDataSize.value} 条 - `;
       }
 

@@ -583,7 +583,7 @@ const store = new Vuex.Store({
         state.indexItem.ids.splice(0, state.indexItem.ids.length, ...list.filter(v => v !== null && v !== undefined));
       }
 
-      const unionIndexItemList = state.retrieve.indexSetList.filter(item => list.includes(item.index_set_id));
+      const unionIndexItemList = state.retrieve.flatIndexSetList.filter(item => list.includes(item.index_set_id));
       state.unionIndexItemList.splice(0, state.unionIndexItemList.length, ...unionIndexItemList);
     },
     updateGlobalsData(state, globalsData) {
