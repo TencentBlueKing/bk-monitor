@@ -54,7 +54,7 @@ const isShowClusterSetting = ref(false);
 const indexSetParams = computed(() => store.state.indexItem);
 
 // 索引集列表
-const indexSetList = computed(() => store.state.retrieve.indexSetList);
+const indexSetList = computed(() => store.state.retrieve.flatIndexSetList); // indexSetList
 
 // 索引集选择结果
 const indexSetValue = computed(() => store.state.indexItem.ids);
