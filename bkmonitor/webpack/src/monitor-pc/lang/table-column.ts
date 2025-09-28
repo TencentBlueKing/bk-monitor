@@ -62,6 +62,7 @@ export default {
   最近更新时间: 'Updated at',
   访问时间: 'Access Time',
   失效时间: 'Expire Time',
+  屏蔽失效时间: 'Shield Expiration Time',
   开始时间: 'Start Time',
   屏蔽原因: 'Mute Reason',
   当前周期剩余时长: 'Current cycle remaining',

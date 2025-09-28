@@ -52,7 +52,7 @@ export default defineComponent({
     });
 
     const hasCollectorConfigId = computed(() => {
-      const indexSetList = store.state.retrieve.indexSetList;
+      const indexSetList = store.state.retrieve.flatIndexSetList;
       const indexSetId = store.state.indexId;
       const currentIndexSet = indexSetList.find(item => item.index_set_id === indexSetId);
       return currentIndexSet?.collector_config_id;
