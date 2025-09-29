@@ -40,7 +40,6 @@ import './template-push.scss';
 interface IProps {
   params?: Record<string, any>;
   show?: boolean;
-  showAgain?: boolean;
   onShowChange?: (v: boolean) => void;
   onShowDetails?: (v: Record<string, any>) => void;
 }
@@ -49,8 +48,6 @@ interface IProps {
 export default class TemplatePush extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
-  /* 再次下发已关联的服务，相当于“同步”操作  模板保存成功后续下发步骤样式 */
-  @Prop({ type: Boolean, default: false }) showAgain: boolean;
 
   relationService: IRelationService[] = [];
 
@@ -177,7 +174,6 @@ export default class TemplatePush extends tsc<IProps> {
           <RelationServiceTable
             getCompareData={this.getCompareStrategyTemplate}
             relationService={this.relationService}
-            showAgain={this.showAgain}
             onChangeCheckKeys={this.handleChangeCheckKeys}
             onGoStrategy={this.handleGoStrategy}
             onShowDetails={this.handleShowDetails}

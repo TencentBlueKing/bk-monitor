@@ -77,13 +77,19 @@
       .diff-btn {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-end;
         width: 20%;
         max-width: 20%;
         margin: 0 0 0 auto;
         overflow: hidden;
         color: #3a84ff;
         cursor: pointer;
+      }
+
+      .no-diff {
+        margin: 0 15px 0 auto;
+        overflow: hidden;
+        color: #C4C6CC;
       }
 
       .relation-strategy-content {
