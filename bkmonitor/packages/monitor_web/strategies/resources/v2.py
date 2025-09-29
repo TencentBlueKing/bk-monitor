@@ -3777,7 +3777,7 @@ class ListStrategySubscribeResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        username = serializers.CharField(required=True)
+        sub_username = serializers.CharField(required=True, source="username")
         bk_biz_id = serializers.IntegerField(required=True)
         is_enable = serializers.BooleanField(required=False)
         page = serializers.IntegerField(required=False, default=1, min_value=1)
