@@ -330,7 +330,7 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         ]
 
     @staticmethod
-    def _validate_name(qs: QuerySet[StrategyTemplate], validated_data: dict[str, Any]):
+    def _validate_name(qs: QuerySet[StrategyTemplate], validated_data: dict[str, Any]) -> None:
         if qs.filter(
             bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"], name=validated_data["name"]
         ).exists():
