@@ -89,7 +89,7 @@ def load_settings():
     result_settings = {}
     for key, value in settings.items():
         if os.getenv(f"BKAPP_SETTINGS_{key}"):
-            value = os.getenv(f"BKAPP_DOMAINS_{key}")
+            value = os.getenv(f"BKAPP_SETTINGS_{key}")
         if _has_format(value):
             result_settings[key] = _get_format(value, context)
             continue
