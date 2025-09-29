@@ -341,7 +341,6 @@ export default {
       min-height: 16px;
       padding: 8px 15px 8px 55px;
       margin: 0;
-      // font-family: var(--table-fount-family);
       font-family: "Roboto Mono", monospace;
       font-size: 12px;
       line-height: 24px;
@@ -360,7 +359,7 @@ export default {
       }
 
       &.filter-line {
-        background: #392715;
+        background: #131313;
       }
     }
 
