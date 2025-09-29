@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 from collections.abc import Iterable
 from django.utils.translation import gettext_lazy as _
+from django.db.models import QuerySet
 from rest_framework import serializers
 from django.utils.functional import cached_property
 
@@ -309,8 +310,6 @@ class StrategyTemplateBaseModelSerializer(serializers.ModelSerializer):
 
 
 class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
-    _DUPLICATE_NAME_ERROR = serializers.ValidationError(_("同一应用下策略模板名称不能重复"))
-
     class Meta:
         model = StrategyTemplate
         fields = [
@@ -330,22 +329,19 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
             "applied_service_names",
         ]
 
+    @staticmethod
+    def _validate_name(qs: QuerySet[StrategyTemplate], validated_data: dict[str, Any]):
+        if qs.filter(
+            bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"], name=validated_data["name"]
+        ).exists():
+            raise serializers.ValidationError(_("同一应用下策略模板名称不能重复"))
+
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
-        if (
-            StrategyTemplate.origin_objects.filter(
-                bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"], name=validated_data["name"]
-            )
-            .exclude(pk=instance.pk)
-            .exists()
-        ):
-            raise self._DUPLICATE_NAME_ERROR
+        self._validate_name(StrategyTemplate.origin_objects.exclude(pk=instance.pk), validated_data)
         return super().update(instance, validated_data)
 
     def create(self, validated_data: dict[str, Any]) -> StrategyTemplate:
-        if StrategyTemplate.origin_objects.filter(
-            bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"], name=validated_data["name"]
-        ).exists():
-            raise self._DUPLICATE_NAME_ERROR
+        self._validate_name(StrategyTemplate.origin_objects.all(), validated_data)
         return super().create(validated_data)
 
 
