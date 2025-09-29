@@ -79,6 +79,7 @@ export default defineComponent({
     const store = useStore();
     const { t } = useLocale();
 
+    const logViewRef = ref();
     const dataFilterRef = ref();
     const logResultRef = ref();
     const contextLog = ref();
@@ -95,6 +96,8 @@ export default defineComponent({
     const showType = ref('log');
     const highlightList = ref([]);
     const localParams = ref<any>({});
+    const initialDivide = ref(250);
+    const isFilterEmpty = ref(false);
     const interval = ref({
       prev: 0,
       next: 0,
@@ -134,6 +137,17 @@ export default defineComponent({
         immediate: true,
       },
     );
+
+    watch(activeFilterKey, () => {
+      setTimeout(() => {
+        const lineDomList = Array.from(logViewRef.value?.$el.querySelectorAll('.line') || []);
+        if (lineDomList.length && lineDomList.every((item: any) => item.style.display === 'none')) {
+          isFilterEmpty.value = true;
+          return;
+        }
+        isFilterEmpty.value = false;
+      });
+    });
 
     const initLogValues = () => {
       logLoading.value = false;
@@ -240,10 +254,8 @@ export default defineComponent({
             } else {
               logList.value.push(...formatList.slice(zeroIndex, list.length));
               rawList.push(...list.slice(zeroIndex, list.length));
-
               reverseLogList.value.unshift(...formatList.slice(0, zeroIndex));
               reverseRawList.unshift(...list.slice(0, zeroIndex));
-
               const value = zeroIndex - res.data.count_start;
               nextBegin.value = value + logList.value.length;
               prevBegin.value = value - reverseLogList.value.length;
@@ -385,6 +397,10 @@ export default defineComponent({
       requestContentLog();
     };
 
+    const handleToggleCollapse = (isCollapsed: boolean) => {
+      initialDivide.value = isCollapsed ? 42 : 250;
+    };
+
     onMounted(() => {
       document.addEventListener('keyup', handleKeyup);
       nextTick(() => {
@@ -411,10 +427,9 @@ export default defineComponent({
         <bk-resize-layout
           style='height: 100%'
           border={false}
-          initial-divide={250}
+          initial-divide={initialDivide.value}
+          min={42}
           placement='bottom'
-          auto-minimize
-          collapsible
         >
           <div
             class='context-log-wrapper'
@@ -436,19 +451,33 @@ export default defineComponent({
               <div
                 ref={contextLog}
                 class='dialog-log-markdown'
-                v-bkloading={{ isLoading: logLoading.value, opacity: 0.6 }}
+                v-bkloading={{
+                  isLoading: logLoading.value && !isFilterEmpty.value,
+                  opacity: 0.6,
+                }}
               >
                 {logList.value.length > 0 ? (
-                  <LogView
-                    filter-key={activeFilterKey.value}
-                    filter-type={filterType.value}
-                    ignore-case={ignoreCase.value}
-                    interval={interval.value}
-                    light-list={highlightList.value}
-                    log-list={logList.value}
-                    reverse-log-list={reverseLogList.value}
-                    show-type={showType.value}
-                  />
+                  isFilterEmpty.value ? (
+                    <bk-exception
+                      style='margin-top: 80px'
+                      scene='part'
+                      type='search-empty'
+                    >
+                      <span>{t('搜索结果为空')}</span>
+                    </bk-exception>
+                  ) : (
+                    <LogView
+                      ref={logViewRef}
+                      filter-key={activeFilterKey.value}
+                      filter-type={filterType.value}
+                      ignore-case={ignoreCase.value}
+                      interval={interval.value}
+                      light-list={highlightList.value}
+                      log-list={logList.value}
+                      reverse-log-list={reverseLogList.value}
+                      show-type={showType.value}
+                    />
+                  )
                 ) : !logLoading.value ? (
                   <bk-exception
                     style='margin-top: 80px'
@@ -469,6 +498,7 @@ export default defineComponent({
               logIndex={props.rowIndex}
               retrieveParams={props.retrieveParams}
               on-choose-row={handleChooseRow}
+              on-toggle-collapse={handleToggleCollapse}
             />
           )}
         </bk-resize-layout>
