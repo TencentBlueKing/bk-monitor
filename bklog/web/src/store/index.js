@@ -958,6 +958,7 @@ const store = new Vuex.Store({
               deepUpdateMenu(menu, child);
             }
           });
+
           commit('updateState', { topMenu: menuList });
           commit('updateState', { menuProject: res.data || [] });
 

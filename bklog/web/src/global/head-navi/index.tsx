@@ -535,7 +535,7 @@ export default defineComponent({
                 <div class={['icon-language-container', state.isShowLogoutDropdown && 'active']}>
                   {state.username ? (
                     <span class='username'>
-                      {state.username}
+                      <bk-user-display-name user-id={state.username}></bk-user-display-name>
                       <i class='bk-icon icon-down-shape'></i>
                     </span>
                   ) : null}
