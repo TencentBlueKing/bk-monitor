@@ -3617,7 +3617,7 @@ class SaveStrategySubscribeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=False)
-        username = serializers.CharField(required=True)
+        sub_username = serializers.CharField(required=True, source="username")
         bk_biz_id = serializers.IntegerField(required=True)
         conditions = serializers.ListField(required=True, child=serializers.DictField())
         notice_ways = serializers.ListField(required=True, child=serializers.CharField())
