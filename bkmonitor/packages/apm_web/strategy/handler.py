@@ -135,41 +135,45 @@ class StrategyTemplateCheckHandler:
         return {templ.pk: templ for templ in same_origin_template_qs}
 
     @cached_property
-    def same_origin_instance_qs(self) -> QuerySet[StrategyInstance]:
+    def same_origin_instances(self) -> list[dict[str, Any]]:
         """同源模板的策略实例查询集"""
-        return StrategyInstance.objects.filter(
-            bk_biz_id=self.bk_biz_id,
-            app_name=self.app_name,
-            service_name__in=self.service_names,
-        ).filter(
-            Q(strategy_template_id__in=set(self.strategy_template_ids + self.root_template_ids))
-            | Q(root_strategy_template_id__in=self.root_template_ids)
+        return list(
+            StrategyInstance.objects.filter(
+                bk_biz_id=self.bk_biz_id,
+                app_name=self.app_name,
+                service_name__in=self.service_names,
+            )
+            .filter(
+                Q(strategy_template_id__in=set(self.strategy_template_ids + self.root_template_ids))
+                | Q(root_strategy_template_id__in=self.root_template_ids)
+            )
+            .values("service_name", "strategy_id", "md5", "strategy_template_id", "root_strategy_template_id")
         )
 
     @cached_property
-    def instance_map(self) -> dict[tuple[int, str], StrategyInstance]:
+    def instance_map(self) -> dict[tuple[int, str], dict[str, Any]]:
         """同源模板的策略实例映射
         :key (tuple[int, str]): (root_template_id, service_name)
         :value (StrategyInstance): 同源模板的策略实例
         """
-        instance_dict: dict[tuple[int, str], StrategyInstance] = {}
-        for instance in self.same_origin_instance_qs:
+        instance_map: dict[tuple[int, str], dict[str, Any]] = {}
+        for instance_dict in self.same_origin_instances:
             root_template_id = (
-                instance.root_strategy_template_id
-                if instance.root_strategy_template_id != DEFAULT_ROOT_ID
-                else instance.strategy_template_id
+                instance_dict["root_strategy_template_id"]
+                if instance_dict["root_strategy_template_id"] != DEFAULT_ROOT_ID
+                else instance_dict["strategy_template_id"]
             )
-            map_key: tuple[int, str] = (root_template_id, instance.service_name)
-            if map_key in instance_dict:
+            map_key: tuple[int, str] = (root_template_id, instance_dict["service_name"])
+            if map_key in instance_map:
                 raise serializers.ValidationError(
-                    _(f"数据异常，id 为 {instance.strategy_template_id} 的策略模板存在多个策略实例")
+                    _(f"数据异常，id 为 {instance_dict['strategy_template_id']} 的策略模板存在多个策略实例")
                 )
-            instance_dict[map_key] = instance
-        return instance_dict
+            instance_map[map_key] = instance_dict
+        return instance_map
 
     @cached_property
     def strategy_dict_by_id(self) -> dict[int, dict[str, Any]]:
-        strategy_ids: set[int] = {instance.strategy_id for instance in self.same_origin_instance_qs}
+        strategy_ids: set[int] = {instance_dict["strategy_id"] for instance_dict in self.same_origin_instances}
         strategies: list[dict[str, Any]] = list(
             StrategyModel.objects.filter(bk_biz_id=self.bk_biz_id, id__in=strategy_ids).values("id", "name")
         )
@@ -196,14 +200,14 @@ class StrategyTemplateCheckHandler:
                 root_template_id: int = (
                     template_obj.root_id if template_obj.root_id != DEFAULT_ROOT_ID else template_obj.pk
                 )
-                instance_obj: StrategyInstance | None = self.instance_map.get((root_template_id, service_name))
-                if not instance_obj:
+                instance_dict: dict[str, Any] = self.instance_map.get((root_template_id, service_name))
+                if not instance_dict:
                     continue
 
-                if instance_obj.strategy_template_id == template_id:
+                if instance_dict["strategy_template_id"] == template_id:
                     check_info["has_been_applied"] = True
                 else:
-                    same_origin_template_obj = self.template_obj_by_id.get(instance_obj.strategy_template_id)
+                    same_origin_template_obj = self.template_obj_by_id.get(instance_dict["strategy_template_id"])
                     check_info["same_origin_strategy_template"] = (
                         {
                             "id": same_origin_template_obj.pk,
@@ -213,7 +217,7 @@ class StrategyTemplateCheckHandler:
                         else None
                     )
                 # TODO has_diff 判断： instance_obj 和 template_obj
-                strategy_dict: dict[str, Any] | None = self.strategy_dict_by_id.get(instance_obj.strategy_id)
+                strategy_dict: dict[str, Any] | None = self.strategy_dict_by_id.get(instance_dict["strategy_id"])
                 check_info["strategy"] = (
                     {
                         "id": strategy_dict["id"],
