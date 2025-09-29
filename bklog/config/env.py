@@ -19,10 +19,12 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import importlib
+import json
 import os
 
 import yaml
 
+from apps.utils.log import logger
 
 # V3判断环境的环境变量为BKPAAS_ENVIRONMENT
 if "BKPAAS_ENVIRONMENT" in os.environ:
@@ -89,7 +91,16 @@ def load_settings():
     result_settings = {}
     for key, value in settings.items():
         if os.getenv(f"BKAPP_SETTINGS_{key}"):
-            value = os.getenv(f"BKAPP_SETTINGS_{key}")
+            env_value = os.getenv(f"BKAPP_SETTINGS_{key}")
+            # 尝试解析 JSON
+            try:
+                parsed_value = json.loads(env_value)
+                value = parsed_value
+                logger.debug(f"Successfully parsed JSON for {key}: {value}")
+            except json.JSONDecodeError as e:
+                # JSON 解析失败，保持原字符串值
+                logger.warning(f"Failed to parse JSON for {key}, keeping as string: {e}")
+                value = env_value
         if not value:
             continue
         if _has_format(value):
@@ -98,8 +109,13 @@ def load_settings():
         if key in ["FEATURE_TOGGLE"]:
             original_value = getattr(module, key, {})
             assert isinstance(original_value, dict), "FEATURE_TOGGLE need is a object"
-            original_value.update(value)
-            result_settings[key] = original_value
+            # 确保 value 是字典类型
+            if isinstance(value, dict):
+                original_value.update(value)
+                result_settings[key] = original_value
+            else:
+                logger.warning(f"Value for {key} is not a dictionary: {value}")
+                result_settings[key] = value
             continue
         result_settings[key] = value
     return result_settings
