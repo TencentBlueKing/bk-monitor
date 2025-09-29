@@ -90,6 +90,8 @@ def load_settings():
     for key, value in settings.items():
         if os.getenv(f"BKAPP_SETTINGS_{key}"):
             value = os.getenv(f"BKAPP_SETTINGS_{key}")
+        if not value:
+            continue
         if _has_format(value):
             result_settings[key] = _get_format(value, context)
             continue
