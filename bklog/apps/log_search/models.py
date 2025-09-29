@@ -1263,7 +1263,7 @@ class Space(SoftDeleteModel):
 
     properties = models.JSONField(_("额外属性"), default=dict)
 
-    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.DEFAULT_TENANT_ID, db_index=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.BK_APP_TENANT_ID, db_index=True)
 
     class Meta:
         verbose_name = _("空间信息")

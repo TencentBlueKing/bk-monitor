@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf import settings
 
 """
 数据平台后端权限管理模块
@@ -32,10 +33,21 @@ from config.domains import AUTH_APIGATEWAY_ROOT  # noqa
 class _BkDataAuthApi:
     MODULE = _("数据平台鉴权模块")
 
+    @property
+    def use_apigw(self):
+        return settings.ENABLE_MULTI_TENANT_MODE
+
+    def _build_url(self, new_path, old_path):
+        return (
+            f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v3/auth/{new_path}"
+            if self.use_apigw
+            else f"{AUTH_APIGATEWAY_ROOT}{old_path}"
+        )
+
     def __init__(self):
         self.check_user_perm = DataAPI(
             method="POST",
-            url=AUTH_APIGATEWAY_ROOT + "users/{user_id}/check/",
+            url=self._build_url("users/{user_id}/check/", "users/{user_id}/check/"),
             module=self.MODULE,
             url_keys=["user_id"],
             description="检查用户是否具有指定权限",
@@ -45,7 +57,7 @@ class _BkDataAuthApi:
         )
         self.get_user_perm_scope = DataAPI(
             method="GET",
-            url=AUTH_APIGATEWAY_ROOT + "users/{user_id}/scopes/",
+            url=self._build_url("users/{user_id}/scopes/", "users/{user_id}/scopes/"),
             module=self.MODULE,
             url_keys=["user_id"],
             description="检查用户是否具有指定权限",
@@ -55,7 +67,7 @@ class _BkDataAuthApi:
         )
         self.get_auth_token = DataAPI(
             method="GET",
-            url=AUTH_APIGATEWAY_ROOT + "tokens/{token_id}/",
+            url=self._build_url("tokens/{token_id}/", "tokens/{token_id}/"),
             module=self.MODULE,
             url_keys=["token_id"],
             description="get auth token details",
@@ -65,7 +77,7 @@ class _BkDataAuthApi:
         )
         self.update_auth_token = DataAPI(
             method="PUT",
-            url=AUTH_APIGATEWAY_ROOT + "tokens/{token_id}/",
+            url=self._build_url("tokens/{token_id}/", "tokens/{token_id}/"),
             module=self.MODULE,
             url_keys=["token_id"],
             description="update auth token",
@@ -75,7 +87,7 @@ class _BkDataAuthApi:
         )
         self.add_project_data = DataAPI(
             method="POST",
-            url=AUTH_APIGATEWAY_ROOT + "projects/{project_id}/data/add/",
+            url=self._build_url("projects/{project_id}/data/add/", "projects/{project_id}/data/add/"),
             module=self.MODULE,
             url_keys=["project_id"],
             description="添加项目数据",
@@ -87,7 +99,7 @@ class _BkDataAuthApi:
 
         self.add_cluster_group = DataAPI(
             method="POST",
-            url=AUTH_APIGATEWAY_ROOT + "projects/{project_id}/cluster_group/",
+            url=self._build_url("projects/{project_id}/cluster_group/", "projects/{project_id}/cluster_group/"),
             module=self.MODULE,
             url_keys=["project_id"],
             description="申请资源组",
