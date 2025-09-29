@@ -88,7 +88,6 @@ class GetShareParamsSerializer(serializers.Serializer):
 
 class GetApiTokenSerializer(serializers.Serializer):
     space_uid = serializers.CharField(required=True, label="空间ID")
-    index_set_id = serializers.IntegerField(required=True, label="索引集ID")
     type = serializers.ChoiceField(
         choices=ApiTokenAuthType.get_choices(), default=ApiTokenAuthType.CODECC.value, required=False, label="令牌类型"
     )
