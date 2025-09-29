@@ -105,44 +105,47 @@ class ApplicationConfig(BkCollectorConfig):
 
         # 按集群分组配置，实现批量下发
         for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
-            try:
-                application_tpl = BkCollectorClusterConfig.sub_config_tpl(
-                    cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
-                )
-                if not application_tpl:
-                    continue
-
-                # 收集该集群需要部署的所有配置
-                cluster_config_map = {}
-
-                for bk_biz_id, biz_application_list in biz_applications.items():
-                    need_deploy_bk_biz_ids = {
-                        str(bk_biz_id),
-                        int(bk_biz_id),
-                        BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID,
-                    }
-                    if not set(need_deploy_bk_biz_ids) & set(cc_bk_biz_ids):
+            with tracer.start_as_current_span(f"cluster-id: {cluster_id}") as s:
+                try:
+                    application_tpl = BkCollectorClusterConfig.sub_config_tpl(
+                        cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
+                    )
+                    if not application_tpl:
                         continue
 
-                    # 为该业务下的所有应用生成配置
-                    for application in biz_application_list:
-                        try:
-                            application_config_context = cls(application).get_application_config()
-                            application_config = (
-                                Environment().from_string(application_tpl).render(application_config_context)
-                            )
-                            cluster_config_map[application.id] = application_config
-                        except Exception:  # pylint: disable=broad-except
-                            # 单个失败，继续渲染模板
-                            logger.exception(f"generate config for application({application.app_name})")
+                    # 收集该集群需要部署的所有配置
+                    cluster_config_map = {}
 
-                # 批量下发该集群的所有配置
-                if cluster_config_map:
-                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, cluster_config_map, "apm")
-                    logger.info(f"batch deploy {len(cluster_config_map)} apm configs to k8s cluster({cluster_id})")
+                    for bk_biz_id, biz_application_list in biz_applications.items():
+                        need_deploy_bk_biz_ids = {
+                            str(bk_biz_id),
+                            int(bk_biz_id),
+                            BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID,
+                        }
+                        if not set(need_deploy_bk_biz_ids) & set(cc_bk_biz_ids):
+                            continue
 
-            except Exception:  # pylint: disable=broad-except
-                logger.exception(f"batch refresh apm application config to k8s({cluster_id})")
+                        # 为该业务下的所有应用生成配置
+                        for application in biz_application_list:
+                            try:
+                                application_config_context = cls(application).get_application_config()
+                                application_config = (
+                                    Environment().from_string(application_tpl).render(application_config_context)
+                                )
+                                cluster_config_map[application.id] = application_config
+                            except Exception as e:  # pylint: disable=broad-except
+                                # 单个失败，继续渲染模板
+                                s.record_exception(exception=e)
+                                logger.exception(f"generate config for application({application.app_name})")
+
+                    # 批量下发该集群的所有配置
+                    if cluster_config_map:
+                        BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, cluster_config_map, "apm")
+                        logger.info(f"batch deploy {len(cluster_config_map)} apm configs to k8s cluster({cluster_id})")
+
+                except Exception as e:  # pylint: disable=broad-except
+                    s.record_exception(exception=e)
+                    logger.exception(f"batch refresh apm application config to k8s({cluster_id})")
 
     def get_application_config(self):
         """获取应用配置上下文"""
