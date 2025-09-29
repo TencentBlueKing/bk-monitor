@@ -317,12 +317,14 @@ class CustomReportSubscription(models.Model):
                     tpl = protocol_tpl.get(protocol)
                     if not tpl:
                         continue
-
-                    config_id = int(config_context.get("bk_data_id"))
-                    config_context.setdefault("bk_biz_id", bk_biz_id)
-                    config_content = Environment().from_string(tpl).render(config_context)
-
-                    protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
+                    try:
+                        config_id = int(config_context.get("bk_data_id"))
+                        config_context.setdefault("bk_biz_id", bk_biz_id)
+                        config_content = Environment().from_string(tpl).render(config_context)
+                        protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
+                    except Exception:  # pylint: disable=broad-except
+                        # 单个失败，继续渲染模板
+                        logger.exception(f"render config({config_context})")
 
                 # 分别按协议调用deploy_to_k8s_with_hash
                 for protocol, config_map in protocol_config_maps.items():
@@ -602,17 +604,21 @@ class LogSubscriptionConfig(models.Model):
 
                     # 为该业务下的所有 log_group 生成配置
                     for log_group in biz_log_group_list:
-                        config_context = cls.get_log_config(log_group)
-                        config_content = Environment().from_string(tpl).render(config_context)
-                        config_id = int(log_group.bk_data_id)
-                        cluster_config_map[config_id] = config_content
+                        try:
+                            config_context = cls.get_log_config(log_group)
+                            config_content = Environment().from_string(tpl).render(config_context)
+                            config_id = int(log_group.bk_data_id)
+                            cluster_config_map[config_id] = config_content
+                        except Exception:  # pylint: disable=broad-except
+                            # 单个失败，继续渲染模板
+                            logger.exception(f"generate config for log_group({log_group.log_group_name})")
 
                 # 批量下发该集群的所有配置
                 BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, cluster_config_map, "log")
                 logger.info(f"batch deploy {len(cluster_config_map)} log configs to k8s cluster({cluster_id})")
 
-            except Exception as e:  # pylint: disable=broad-except
-                logger.exception(f"batch refresh custom report config to k8s({cluster_id}) error({e})")
+            except Exception:  # pylint: disable=broad-except
+                logger.exception(f"batch refresh custom report config to k8s({cluster_id})")
 
     @classmethod
     def get_log_config(cls, log_group: "LogGroup") -> dict:

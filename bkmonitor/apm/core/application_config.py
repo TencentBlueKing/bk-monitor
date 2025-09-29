@@ -133,6 +133,7 @@ class ApplicationConfig(BkCollectorConfig):
                             )
                             cluster_config_map[application.id] = application_config
                         except Exception:  # pylint: disable=broad-except
+                            # 单个失败，继续渲染模板
                             logger.exception(f"generate config for application({application.app_name})")
 
                 # 批量下发该集群的所有配置
