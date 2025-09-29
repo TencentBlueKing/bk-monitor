@@ -364,4 +364,10 @@ export default {
   已关联策略: 'Associated strategies',
   下发对象预览: 'Push object preview',
   新关联: 'New relation',
+  暂无差异: 'No difference',
+  '再次下发已关联的服务，相当于“同步”操作。':
+    'Pushing again associated services is equivalent to "synchronization" operation.',
+  当前已关联其他模版: 'Current associated other templates',
+  下发将被覆盖: 'Pushing will override the existing association',
+  查看策略: 'View strategy',
 };

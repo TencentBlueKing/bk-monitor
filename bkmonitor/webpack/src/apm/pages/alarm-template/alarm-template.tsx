@@ -371,6 +371,26 @@ export default class AlarmTemplate extends tsc<object> {
           />
         </div>
 
+        <TemplateDetails
+          defaultTab={this.templateDetailObj.tabActive}
+          metricFunctions={this.metricFunctions}
+          params={this.templateDetailObj.params}
+          show={this.templateDetailObj.show}
+          onShowChange={show => {
+            this.templateDetailObj.show = show;
+          }}
+          onShowEdit={params => {
+            this.templateDetailObj.show = false;
+            this.editTemplateId = params.id;
+            this.editTemplateShow = true;
+          }}
+          onShowPush={params => {
+            this.templatePushObj = {
+              show: true,
+              params,
+            };
+          }}
+        />
         <EditTemplateSlider
           appName={this.requestParam.app_name}
           isShow={this.editTemplateShow}
@@ -382,25 +402,6 @@ export default class AlarmTemplate extends tsc<object> {
           }}
           onSuccess={this.getQueryTemplateList}
         />
-        <TemplateDetails
-          defaultTab={this.templateDetailObj.tabActive}
-          metricFunctions={this.metricFunctions}
-          params={this.templateDetailObj.params}
-          show={this.templateDetailObj.show}
-          onShowChange={show => {
-            this.templateDetailObj.show = show;
-          }}
-          onShowEdit={params => {
-            this.editTemplateId = params.id;
-            this.editTemplateShow = true;
-          }}
-          onShowPush={params => {
-            this.templatePushObj = {
-              show: true,
-              params,
-            };
-          }}
-        />
         <TemplatePush
           params={this.templatePushObj.params}
           show={this.templatePushObj.show}
@@ -408,6 +409,7 @@ export default class AlarmTemplate extends tsc<object> {
             this.templatePushObj.show = show;
           }}
           onShowDetails={params => {
+            this.templatePushObj.show = false;
             this.handleShowDetail({ id: params.id, sliderActiveTab: 'base_info' });
           }}
         />
