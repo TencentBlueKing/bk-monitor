@@ -429,7 +429,7 @@ class Command(BaseCommand):
         """迁移权限信息"""
         self.stdout.write("START migrate permissions")
         migrate_command = IamMigrateCommand()
-        migrate_command.iam_client = Permission.get_iam_client(settings.DEFAULT_TENANT_ID)
+        migrate_command.iam_client = Permission.get_iam_client(settings.BK_APP_TENANT_ID)
         policies_by_actions = {}
         for action in ACTIONS_TO_MIGRATE:
             polices = migrate_command.query_polices(action.id)

@@ -50,7 +50,7 @@ from apps.iam.handlers.compatible import CompatibleIAM
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, _all_resources, get_resource_by_id
 from apps.iam.utils import gen_perms_apply_data
-from apps.utils.local import get_request, get_request_username, get_local_username
+from apps.utils.local import get_request, get_request_username, get_local_username, get_request_tenant_id
 from apps.utils.log import logger
 
 
@@ -69,9 +69,9 @@ class Permission:
                 # web请求
                 if request:
                     self.username = request.user.username
-                    self.bk_tenant_id = request.user.tenant_id
+                    self.bk_tenant_id = get_request_tenant_id()
                 else:
-                    self.bk_tenant_id = settings.DEFAULT_TENANT_ID
+                    self.bk_tenant_id = settings.BK_APP_TENANT_ID
                     logger.warning(
                         "IAM Permission init with local username, use default bk_tenant_id: %s", self.bk_tenant_id
                     )
@@ -80,9 +80,10 @@ class Permission:
                     if self.username is None:
                         raise ValueError("must provide `username` or `request` param to init")
             except Exception:  # pylint: disable=broad-except
+                self.bk_tenant_id = settings.BK_APP_TENANT_ID
                 self.username = get_request_username()
 
-        self.iam_client = self.get_iam_client(bk_tenant_id)
+        self.iam_client = self.get_iam_client(self.bk_tenant_id)
         # 是否跳过权限中心校验
         # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
         self.skip_check = getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False)
