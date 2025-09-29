@@ -1,1 +1,2 @@
 # -*- coding: utf-8 -*-
+blueking.component.ieod>=0.1.6
