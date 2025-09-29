@@ -42,7 +42,6 @@ import './relation-service-table.scss';
 
 interface IProps {
   relationService: IRelationService[];
-  showAgain?: boolean;
   getCompareData?: (params: { service_name: string; strategy_template_id: number }) => Promise<TCompareData>;
   // getStrategyDetails?: (ids: (number | string)[]) => Promise<Map<number | string, TemplateDetail>>;
   onChangeCheckKeys?: (selectKeys: string[]) => void;
@@ -66,8 +65,6 @@ export default class RelationServiceTable extends tsc<IProps> {
   // @Prop({ type: Function, default: () => Promise.resolve(new Map()) }) getStrategyDetails: (
   //   ids: (number | string)[]
   // ) => Promise<Map<number | string, TemplateDetail>>;
-  /* 再次下发已关联的服务，相当于“同步”操作 */
-  @Prop({ type: Boolean, default: false }) showAgain: boolean;
   @Prop({ type: Function, default: () => Promise.resolve({ diff: [] }) }) getCompareData: (params: {
     service_name: string;
     strategy_template_id: number;
@@ -155,6 +152,10 @@ export default class RelationServiceTable extends tsc<IProps> {
   expandContentLoading = false;
 
   tableKey = random(8);
+
+  get isRelation() {
+    return this.activeTab === RelationStatus.relation;
+  }
 
   @Watch('relationService', { immediate: true })
   handleWatchRelationService(newVal: IRelationService[]) {
@@ -298,7 +299,9 @@ export default class RelationServiceTable extends tsc<IProps> {
    */
   setAcrossPageSelection() {
     if (this.getCurServiceObj().selectKeys.size) {
-      if (this.getCurServiceObj().selectKeys.size === this.getCurServiceObj().searchTableData.length) {
+      const len = this.getCurServiceObj().searchTableData.length;
+      const allPage = len / this.getCurServiceObj().pagination.limit;
+      if (this.getCurServiceObj().selectKeys.size === len && allPage > 1) {
         this.pageSelection = SelectType.ALL_SELECTED;
       } else if (this.tableData.every(item => this.getCurServiceObj().selectKeys.has(item.key))) {
         this.pageSelection = SelectType.SELECTED;
@@ -435,10 +438,10 @@ export default class RelationServiceTable extends tsc<IProps> {
     };
     switch (prop) {
       case Columns.service_name:
-        return this.showAgain ? (
+        return this.isRelation ? (
           <span class='service-name'>
             <span>{row.service_name}</span>
-            {diffBtn()}
+            {row.has_diff ? diffBtn() : <span class='no-diff'>{this.$t('暂无差异')}</span>}
           </span>
         ) : (
           <span>{row.service_name}</span>
@@ -555,7 +558,7 @@ export default class RelationServiceTable extends tsc<IProps> {
             ))}
           </bk-tab>
           <div class='left-table-content'>
-            {this.showAgain && (
+            {this.isRelation && (
               <bk-alert
                 class='mt-12'
                 title={this.$t('再次下发已关联的服务，相当于“同步”操作。')}
@@ -564,7 +567,7 @@ export default class RelationServiceTable extends tsc<IProps> {
               />
             )}
             <bk-input
-              class={['search-input', this.showAgain ? 'mt-12' : 'mt-16']}
+              class={['search-input', this.isRelation ? 'mt-12' : 'mt-16']}
               v-model={this.searchValue}
               placeholder={`${this.$t('搜索')} ${this.$t('服务名称')}`}
               right-icon='bk-icon icon-search'
@@ -620,7 +623,7 @@ export default class RelationServiceTable extends tsc<IProps> {
                 type='expand'
               />
               {this.tableColumns
-                .filter(item => (item.prop === Columns.relation ? !this.showAgain : true))
+                .filter(item => (item.prop === Columns.relation ? !this.isRelation : true))
                 .map(item => (
                   <bk-table-column
                     key={item.prop}
