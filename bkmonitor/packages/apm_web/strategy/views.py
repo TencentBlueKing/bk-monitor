@@ -167,8 +167,6 @@ class StrategyTemplateViewSet(GenericViewSet):
         strategy_templates: list[StrategyTemplate] = list(
             self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
         )
-        if len(strategy_templates) != len(set(self.query_data["strategy_template_ids"])):
-            raise ValidationError(_("数据异常，部分策略模板不存在"))
 
         query_template_keys: list[tuple[int, str]] = [
             (obj.query_template["bk_biz_id"], obj.query_template["name"]) for obj in strategy_templates
