@@ -181,10 +181,42 @@ def refresh_all_log_config():
 
     to_be_refreshed = list(models.LogGroup.objects.filter(is_enable=True).values_list("log_group_id", flat=True))
     slug = datetime.datetime.now().minute % interval
+    # 收集当前时间片需要刷新的 log_group_id 列表
+    current_batch_log_group_ids = []
     for index, log_group_id in enumerate(to_be_refreshed):
         if index % interval == slug:
-            logger.info(f"[refresh_custom_log_config]: publish log_group_id [{log_group_id}]")
-            refresh_custom_log_config(log_group_id)
+            current_batch_log_group_ids.append(log_group_id)
+    if not current_batch_log_group_ids:
+        return
+
+    # 批量获取 LogGroup 对象
+    log_groups = list(models.LogGroup.objects.filter(is_enable=True, log_group_id__in=current_batch_log_group_ids))
+    if not log_groups:
+        return
+
+    try:
+        for log_group in log_groups:
+            models.LogSubscriptionConfig.refresh(log_group)
+        logger.info(f"[refresh_all_log_config]: batch refresh {len(log_groups)} log groups")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"[RefreshCustomLogConfigFailed] Err => {str(e)}; LogGroup => {log_groups}")
+
+
+@share_lock()
+def refresh_log_k8s_batch():
+    """
+    刷新所有自定义日志的 K8s 配置（获取全部数据进行批量调度）
+    """
+    # 获取所有启用的日志组
+    log_groups = list(models.LogGroup.objects.filter(is_enable=True))
+    if not log_groups:
+        return
+
+    try:
+        models.LogSubscriptionConfig.refresh_k8s_batch(log_groups)
+        logger.info(f"[refresh_log_k8s_batch]: batch publish k8s config for {len(log_groups)} log groups")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"[RefreshCustomLogK8sConfigFailed] Err => {str(e)}; LogGroup => {log_groups}")
 
 
 @share_lock()
