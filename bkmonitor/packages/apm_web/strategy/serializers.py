@@ -80,7 +80,7 @@ class BaseServiceStrategyTemplateRequestSerializer(BaseAppStrategyTemplateReques
 class BaseEditDataSerializer(serializers.Serializer):
     def validate(self, attrs: dict) -> dict:
         if attrs.get("is_enabled") is False:
-            if attrs.get("is_auto_apply") is True:
+            if attrs.get("is_auto_apply"):
                 raise serializers.ValidationError(_("策略模板禁用时，不允许配置自动下发"))
             attrs["is_auto_apply"] = False
         user_group_list: list[dict[str, int | str]] | None = attrs.pop("user_group_list", None)
