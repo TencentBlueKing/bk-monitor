@@ -18,7 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
@@ -56,38 +56,49 @@ def before_send_cmsi_voice_msg(params):
 class _CmsiApi:
     MODULE = _("CMSI消息管理")
 
+    @property
+    def use_apigw(self):
+        return settings.ENABLE_MULTI_TENANT_MODE
+
+    def _build_url(self, new_path, old_path):
+        return (
+            f"{settings.PAAS_API_HOST}/api/bk-cmsi/{settings.ENVIRONMENT}/v1/{new_path}"
+            if self.use_apigw
+            else f"{CMSI_APIGATEWAY_ROOT_V2}{old_path}"
+        )
+
     def __init__(self):
         self.send_mail = DataAPI(
             method="POST",
-            url=CMSI_APIGATEWAY_ROOT_V2 + "send_mail/",
+            url=self._build_url("send_mail/", "send_mail/"),
             module=self.MODULE,
             description="发送邮件",
             before_request=before_send_cmsi_api,
         )
         self.send_msg = DataAPI(
             method="POST",
-            url=CMSI_APIGATEWAY_ROOT_V2 + "send_msg/",
+            url=self._build_url("send_msg/", "send_msg/"),
             module=self.MODULE,
             description="通用消息发送",
             before_request=before_send_cmsi_api,
         )
         self.send_sms = DataAPI(
             method="POST",
-            url=CMSI_APIGATEWAY_ROOT_V2 + "send_sms/",
+            url=self._build_url("send_sms/", "send_sms/"),
             module=self.MODULE,
             description="发送短信",
             before_request=before_send_cmsi_api,
         )
         self.send_voice_msg = DataAPI(
             method="POST",
-            url=CMSI_APIGATEWAY_ROOT_V2 + "send_voice_msg/",
+            url=self._build_url("send_voice_msg/", "send_voice_msg/"),
             module=self.MODULE,
             description="公共语音通知",
             before_request=before_send_cmsi_voice_msg,
         )
         self.send_weixin = DataAPI(
             method="POST",
-            url=CMSI_APIGATEWAY_ROOT_V2 + "send_weixin",
+            url=self._build_url("send_weixin", "send_weixin"),
             module=self.MODULE,
             description="发送微信消息",
             before_request=before_send_cmsi_wechat,
@@ -95,7 +106,7 @@ class _CmsiApi:
         )
         self.get_msg_type = DataAPI(
             method="GET",
-            url=CMSI_APIGATEWAY_ROOT_V2 + "get_msg_type/",
+            url=self._build_url("get_msg_type/", "get_msg_type/"),
             module=self.MODULE,
             description="查询消息发送类型",
             before_request=add_esb_info_before_request,

@@ -33,6 +33,7 @@ from apps.log_databus.exceptions import (
     StorageNotExistException,
 )
 from apps.log_databus.models import DataLinkConfig
+from apps.utils.local import get_request_tenant_id
 
 
 class DataLinkHandler(object):
@@ -50,7 +51,9 @@ class DataLinkHandler(object):
         """
         获取所有链路信息
         """
-        link_objects = DataLinkConfig.objects.order_by("is_edge_transport", "-updated_at").all()
+        bk_tenant_id = get_request_tenant_id()
+        link_objects = DataLinkConfig.objects.order_by("is_edge_transport", "-updated_at")\
+            .filter(bk_tenant_id=bk_tenant_id)
         if param.get("bk_biz_id"):
             link_objects = link_objects.filter(bk_biz_id__in=[0, param["bk_biz_id"]])
         response = [
@@ -96,18 +99,21 @@ class DataLinkHandler(object):
         es_cluster_ids = params["es_cluster_ids"]
         is_active = params["is_active"]
         description = params["description"]
+        bk_tenant_id = get_request_tenant_id()
 
         model_fields = {
             "link_group_name": link_group_name,
             "bk_biz_id": bk_biz_id,
+            "bk_tenant_id": bk_tenant_id,
             "kafka_cluster_id": kafka_cluster_id,
             "transfer_cluster_id": transfer_cluster_id,
             "es_cluster_ids": es_cluster_ids,
             "is_active": is_active,
             "description": description,
         }
+        links = DataLinkConfig.objects.filter(bk_tenant_id=bk_tenant_id)
         if not self.data:
-            if DataLinkConfig.objects.filter(link_group_name=link_group_name).exists():
+            if links.filter(link_group_name=link_group_name).exists():
                 raise SameLinkNameException
             self.data = DataLinkConfig.objects.create(**model_fields)
         else:
@@ -118,7 +124,7 @@ class DataLinkHandler(object):
             ):
                 raise EditLinkException
             if (
-                DataLinkConfig.objects.filter(link_group_name=link_group_name)
+                links.filter(link_group_name=link_group_name)
                 .exclude(link_group_name=self.data.link_group_name)
                 .exists()
             ):

@@ -48,7 +48,7 @@
   //   return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
   // });
   const indexSetName = computed(() => {
-    const indexSetList = store.state.retrieve.indexSetList || [];
+    const indexSetList = store.state.retrieve.flatIndexSetList || [];
     const indexSetId = store.state.indexId;
     const indexSet = indexSetList.find(item => item.index_set_id == indexSetId);
     return indexSet ? indexSet.index_set_name : ''; // 提供一个默认名称或处理

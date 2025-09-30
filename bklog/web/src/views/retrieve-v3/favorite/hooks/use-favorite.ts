@@ -61,7 +61,7 @@ export const useFavorite = () => {
   const unionIndexList = computed(() => store.state.unionIndexList);
   const indexSetId = computed(() => `${store.getters.indexId}`);
   const favoriteList = computed(() => store.state.favoriteList || []);
-  const indexSetList = computed(() => store.state.retrieve.indexSetList ?? []);
+  const indexSetList = computed(() => store.state.retrieve.flatIndexSetList ?? []);
 
   /**
    * 过滤收藏列表数据

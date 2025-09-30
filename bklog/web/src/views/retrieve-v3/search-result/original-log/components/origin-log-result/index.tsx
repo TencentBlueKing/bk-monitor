@@ -61,11 +61,11 @@ export default defineComponent({
     const store = useStore();
 
     const searchBarRef = ref<any>();
-    const contentMainRef = ref<HTMLElement>();
     const tableRef = ref<HTMLElement>();
     const logList = ref<any[]>([]);
     const choosedIndex = ref(props.logIndex);
     const listLoading = ref(false);
+    const isCollapsed = ref(false);
 
     const fieldsMap = computed(() =>
       (store.state.indexFieldInfo.fields || []).reduce((dataMap, item) => {
@@ -97,6 +97,7 @@ export default defineComponent({
     let isInit = false;
     let begin = 0;
     let size = 50;
+    let total = 0;
 
     watch(
       () => props.logIndex,
@@ -137,6 +138,7 @@ export default defineComponent({
           if (resp.data && !resp.message) {
             readBlobRespToJson(resp.data).then(({ data, result }) => {
               if (result) {
+                total = data.total.toNumber();
                 const list = parseBigNumberList(data.list);
                 logList.value.push(...list);
                 if (!isInit) {
@@ -391,6 +393,10 @@ export default defineComponent({
     };
 
     const handleScrollContent = debounce((e: any) => {
+      if (logList.value.length === total) {
+        return;
+      }
+
       const { scrollTop, scrollHeight, clientHeight } = e.target;
       if (scrollHeight - scrollTop - clientHeight <= 1) {
         if (size !== 50) {
@@ -400,7 +406,6 @@ export default defineComponent({
         } else {
           begin += size;
         }
-
         requestLogList();
       }
     }, 600);
@@ -428,6 +433,11 @@ export default defineComponent({
       }
     };
 
+    const handleCollpaseToggle = () => {
+      isCollapsed.value = !isCollapsed.value;
+      emit('toggle-collapse', isCollapsed.value);
+    };
+
     onMounted(() => {
       addSegmentLightStyle();
     });
@@ -443,6 +453,16 @@ export default defineComponent({
 
     return () => (
       <div class='log-result-main'>
+        <div
+          class='collapse-main'
+          on-click={handleCollpaseToggle}
+        >
+          <log-icon
+            class={{ 'collpase-icon': true, 'is-collapsed': isCollapsed.value }}
+            type='angle-left'
+            common
+          />
+        </div>
         <div class='title-main'>
           <div class='title'>{t('原始日志检索结果')}</div>
           <div class='split-line'></div>
@@ -461,7 +481,6 @@ export default defineComponent({
           />
         </div>
         <div
-          ref={contentMainRef}
           class='content-main'
           on-scroll={handleScrollContent}
         >
