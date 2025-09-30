@@ -23,11 +23,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 def _qs_to_query_params(qs: UnifyQuerySet) -> dict[str, Any]:
-    query_params: dict[str, Any] = qs.config
-    for query_config in query_params["query_configs"]:
-        query_config["where"].append("${CONDITIONS}")
-        query_config["functions"].append("${FUNCTIONS}")
-    return utils.format_query_params(query_params)
+    return utils.format_query_params(qs.config)
 
 
 class LocalQueryTemplateName(CachedEnum):
@@ -35,7 +31,7 @@ class LocalQueryTemplateName(CachedEnum):
 
     @cached_property
     def label(self) -> str:
-        return str({self.RPC_PANIC_LOG: _("服务 Panic 日志")}.get(self, self.value))
+        return str({self.RPC_PANIC_LOG: _("服务 Panic 日志数")}.get(self, self.value))
 
 
 RPC_PANIC_LOG_QUERY_TEMPLATE: dict[str, Any] = {
@@ -50,7 +46,7 @@ RPC_PANIC_LOG_QUERY_TEMPLATE: dict[str, Any] = {
             .data_label(DEFAULT_DATA_LABEL)
             .table("${INDEX_SET_ID}")
             .interval(60)
-            .group_by("${GROUP_BY}")
+            .group_by("resource.server", "resource.namespace", "resource.instance")
             .metric(field="_index", method="COUNT", alias="a")
             .conditions([{"key": "resource.server", "method": "eq", "value": ["${SERVICE_NAME}"], "condition": "and"}])
             .query_string("${QUERY_STRING}")
@@ -76,7 +72,7 @@ RPC_PANIC_LOG_QUERY_TEMPLATE: dict[str, Any] = {
             "name": "QUERY_STRING",
             "alias": str(_("日志关键字")),
             "type": VariableType.CONSTANTS.value,
-            "config": {"default": "\[PANIC\]"},
+            "config": {"default": "\\\\[PANIC\\\\]"},
             "description": str(_("用于检索 Panic 的日志关键字。")),
         },
     ],
