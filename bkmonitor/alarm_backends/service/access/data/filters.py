@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,9 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
-from typing import List
 
 import arrow
 
@@ -19,6 +16,7 @@ from alarm_backends import constants
 from alarm_backends.core.cache.cmdb import HostManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.service.access import base
+from alarm_backends.service.access.data.records import DataRecord
 
 logger = logging.getLogger("access.data")
 
@@ -33,7 +31,7 @@ class ExpireFilter(base.Filter):
         # 丢弃超过max(半个小时 或者 10个周期延迟)的告警
         expire_seconds = max([record.items[0].query_configs[0]["agg_interval"] * 10, 30 * constants.CONST_MINUTES])
         if arrow.utcnow().timestamp - arrow.get(utctime).timestamp > expire_seconds:
-            logger.info("Discard the data(%s) because it takes more than 30 minutes" % record.raw_data)
+            logger.info(f"Discard the data({record.raw_data}) because it takes more than 30 minutes")
             return True
         else:
             return False
@@ -55,7 +53,7 @@ class RangeFilter(base.Filter):
         """
 
         dimensions = record.dimensions
-        items: List[Item] = record.items
+        items: list[Item] = record.items
         for item in items:
             item_id = item.id
             if not record.is_retains[item_id]:
@@ -66,9 +64,7 @@ class RangeFilter(base.Filter):
             is_filtered = not is_match
             if is_filtered:
                 logger.debug(
-                    "Discard the alarm ({}) because it not match strategy({}) item({}) agg_condition".format(
-                        record.raw_data, item.strategy.id, item_id
-                    )
+                    f"Discard the alarm ({record.raw_data}) because it not match strategy({item.strategy.id}) item({item_id}) agg_condition"
                 )
 
             record.is_retains[item_id] = not is_filtered
@@ -82,7 +78,7 @@ class HostStatusFilter(base.Filter):
     主机状态过滤器
     """
 
-    def filter(self, record):
+    def filter(self, record: DataRecord):
         """
         如果主机运营状态为不监控的几种类型，则直接过滤
 
@@ -97,11 +93,14 @@ class HostStatusFilter(base.Filter):
             return True
 
         if record.dimensions.get("bk_host_id"):
-            host = HostManager.get_by_id(bk_host_id=record.dimensions["bk_host_id"], using_mem=True)
+            host = HostManager.get_by_id(
+                bk_tenant_id=record.bk_tenant_id, bk_host_id=record.dimensions["bk_host_id"], using_mem=True
+            )
         elif "bk_target_ip" in record.dimensions and "bk_target_cloud_id" in record.dimensions:
             host = HostManager.get(
+                bk_tenant_id=record.bk_tenant_id,
                 ip=record.dimensions["bk_target_ip"],
-                bk_cloud_id=record.dimensions["bk_target_cloud_id"],
+                bk_cloud_id=int(record.dimensions["bk_target_cloud_id"]),
                 using_mem=True,
             )
         else:
@@ -116,7 +115,6 @@ class HostStatusFilter(base.Filter):
             record.is_retains[item.id] = not is_filtered and record.is_retains[item.id]
         if is_filtered:
             logger.debug(
-                f"Discard the record ({record.raw_data}) "
-                f"because host({host.display_name}) status is {host.bk_state}"
+                f"Discard the record ({record.raw_data}) because host({host.display_name}) status is {host.bk_state}"
             )
         return False

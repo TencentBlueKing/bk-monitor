@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
@@ -19,8 +19,19 @@ from alarm_backends.service.nodata.scenarios.base import (
     ServiceScenario,
     UptimeCheckScenario,
 )
-from alarm_backends.tests.service.nodata.mock import *  # noqa
-from alarm_backends.tests.service.nodata.mock_settings import *  # noqa
+from alarm_backends.tests.service.nodata.mock import (
+    generate_mock_hosts,
+    generate_mock_services,
+    MockCheckResult,
+    MockItem,
+    MockStrategy,
+)
+from alarm_backends.tests.service.nodata.mock_settings import (
+    ALARM_BACKENDS_CORE_CACHE_CMDB_HOSTMANAGER_REFRESH_BY_BIZ,
+    ALARM_BACKENDS_CORE_CACHE_CMDB_SERVICE_INSTANCE_MANAGER_REFRESH_BY_BIZ,
+    ALARM_BACKENDS_CORE_DETECT_RESULT_CHECKRESULT,
+    ALARM_BACKENDS_CORE_DETECT_RESULT_DIMENSIONRANGEFILTER_FILTER,
+)
 
 HOSTS_INFO = [
     {
