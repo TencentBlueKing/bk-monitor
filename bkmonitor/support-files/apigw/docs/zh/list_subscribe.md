@@ -14,7 +14,7 @@ GET
 
 | 字段        | 类型    | 必须 | 默认值 | 描述           |
 |-----------|-------|----|-----|--------------|
-| username  | string| 是  | -   | 用户名          |
+| sub_username  | string| 是  | -   | 用户名          |
 | bk_biz_id | int   | 是  | -   | 业务ID         |
 | is_enable | bool  | 否  | -   | 是否启用过滤       |
 | page      | int   | 否  | 1   | 页码，最小值为1     |
@@ -24,13 +24,13 @@ GET
 
 ```
 # 基本查询
-GET /app/subscribe/list/?username=admin&bk_biz_id=2
+GET /app/subscribe/list/?sub_username=admin&bk_biz_id=2
 
 # 带分页查询
-GET /app/subscribe/list/?username=admin&bk_biz_id=2&page=1&page_size=10
+GET /app/subscribe/list/?sub_username=admin&bk_biz_id=2&page=1&page_size=10
 
 # 带状态过滤和分页
-GET /app/subscribe/list/?username=admin&bk_biz_id=2&is_enable=true&page=2&page_size=20
+GET /app/subscribe/list/?sub_username=admin&bk_biz_id=2&is_enable=true&page=2&page_size=20
 ```
 
 ### 响应参数
