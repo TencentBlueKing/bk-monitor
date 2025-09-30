@@ -149,7 +149,7 @@ def datasource_discover_cron():
 
 def refresh_apm_config():
     """
-    刷新所有 APM 应用配置（将任务打散在 30 分钟内，并支持批量下发）
+    刷新所有 APM 应用配置（将任务打散在 30 分钟内）
     """
     interval = 30
 
@@ -171,8 +171,23 @@ def refresh_apm_config():
     try:
         for application in applications:
             ApplicationConfig(application).refresh()
+        logger.info(f"[refresh_apm_config]: batch refresh {len(applications)} applications: {applications}")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"[RefreshApmApplicationConfigFailed] Err => {str(e)}; Applications => {applications}")
+
+
+def refresh_apm_k8s_batch():
+    """
+    刷新所有 APM 应用的 K8s 配置（获取全部数据进行批量调度）
+    """
+    # 获取所有启用的应用
+    applications = list(ApmApplication.objects.filter(is_enabled=True))
+    if not applications:
+        return
+
+    try:
         ApplicationConfig.refresh_k8s_batch(applications)
-        logger.info(f"[refresh_apm_config]: batch publish {len(applications)} applications: {applications}")
+        logger.info(f"[refresh_apm_k8s_batch]: batch publish k8s config for {len(applications)} applications")
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(f"[RefreshApmApplicationK8sConfigFailed] Err => {str(e)}; Applications => {applications}")
 
