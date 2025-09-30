@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.db import models
+from django.db.models import Q
+
 from bkmonitor.utils.model_manager import AbstractRecordModel
 
 from django.utils.translation import gettext as _
@@ -56,8 +58,6 @@ class StrategyTemplate(AbstractRecordModel):
     query_template = models.JSONField(verbose_name=_("查询模板"), default=dict)
     context = models.JSONField(verbose_name=_("策略模板上下文"), default=dict)
 
-    # TODO md5
-
     class Meta:
         verbose_name = _("告警策略模板")
         verbose_name_plural = _("告警策略模板")
@@ -96,3 +96,22 @@ class StrategyInstance(models.Model):
         verbose_name_plural = _("告警策略模板")
         index_together = [["bk_biz_id", "app_name", "service_name"]]
         unique_together = ["bk_biz_id", "app_name", "service_name", "strategy_template_id"]
+
+    @classmethod
+    def filter_same_origin_instances(
+        cls, qs: models.QuerySet["StrategyInstance"], strategy_template_id: int, root_strategy_template_id: int
+    ) -> models.QuerySet["StrategyInstance"]:
+        """列出同源的策略实例"""
+
+        # 过滤出模板自身下发的实例。
+        q: Q = Q(strategy_template_id=strategy_template_id)
+        if root_strategy_template_id == DEFAULT_ROOT_ID:
+            # 内置模板，同源模板的 root id 即为内置模板 ID。
+            q |= Q(root_strategy_template_id=strategy_template_id)
+        else:
+            # 克隆模板，同源模板为内置模板，或其他具有相同 root id 的克隆模板。
+            q |= Q(root_strategy_template_id=root_strategy_template_id) | Q(
+                strategy_template_id=root_strategy_template_id
+            )
+
+        return qs.filter(q)
