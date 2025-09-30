@@ -320,7 +320,7 @@ export default () => {
           }
 
           if (indexSetItems.length) {
-            commitIdexId(indexSetIds, indexSetItems);
+            commitIdexId(indexSetIds, { items: indexSetItems });
           }
         }
 
