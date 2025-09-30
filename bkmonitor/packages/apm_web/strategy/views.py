@@ -164,20 +164,28 @@ class StrategyTemplateViewSet(GenericViewSet):
 
         strategy_ids: list[int] = []
         template_dispatch_map: dict[int, dict[str, int]] = {}
-        strategy_template_qs: QuerySet[StrategyTemplate] = self.get_queryset().filter(
-            id__in=self.query_data["strategy_template_ids"]
+        strategy_templates: list[StrategyTemplate] = list(
+            self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
         )
-        if len(strategy_template_qs) != len(self.query_data["strategy_template_ids"]):
+        if len(strategy_templates) != len(set(self.query_data["strategy_template_ids"])):
             raise ValidationError(_("数据异常，部分策略模板不存在"))
-        for strategy_template_obj in strategy_template_qs:
-            qtw = QueryTemplateWrapper.from_unique_key(
-                strategy_template_obj.query_template["bk_biz_id"], strategy_template_obj.query_template["name"]
-            )
+
+        query_template_keys: list[tuple[int, str]] = [
+            (obj.query_template["bk_biz_id"], obj.query_template["name"]) for obj in strategy_templates
+        ]
+        query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = QueryTemplateWrapperFactory.get_wrappers(
+            query_template_keys
+        )
+        global_config = DispatchGlobalConfig(**self.query_data["global_config"])
+        for strategy_template_obj in strategy_templates:
+            qtw = query_template_map[
+                (strategy_template_obj.query_template["bk_biz_id"], strategy_template_obj.query_template["name"])
+            ]
             dispatcher = StrategyDispatcher(strategy_template_obj, qtw)
             service_strategy_map: dict[str, int] = dispatcher.dispatch(
                 self.query_data["service_names"],
-                global_config=DispatchGlobalConfig(**self.query_data["global_config"]),
-                extra_configs=extra_configs_map.get(strategy_template_obj.id, []),
+                global_config=global_config,
+                extra_configs=extra_configs_map.get(strategy_template_obj.pk, []),
             )
             strategy_ids.extend(list(service_strategy_map.values()))
             template_dispatch_map[strategy_template_obj.pk] = service_strategy_map
