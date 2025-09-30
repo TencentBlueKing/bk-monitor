@@ -24,6 +24,34 @@ APM_METRIC_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
 APM_TRACE_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?trace_.*")
 
 
+class CachedEnum(Enum):
+    @classmethod
+    @cache
+    def from_value(cls, value):
+        try:
+            return cls(value)
+        except Exception:  # pylint: disable=broad-except
+            return cls.get_default(value)  # 处理未找到的情况
+
+    @classmethod
+    def get_default(cls, value):
+        class _DefaultEnum:
+            def __init__(self):
+                self._value = value
+
+            @property
+            def value(self):
+                return self._value
+
+            def __getattr__(self, item):
+                return getattr(self, item, None)
+
+            def __setattr__(self, item, default_value):
+                object.__setattr__(self, item, default_value)
+
+        return _DefaultEnum()
+
+
 class TraceDataSourceConfig:
     """Trace数据源配置常量"""
 
@@ -902,6 +930,13 @@ class CommonMetricTag:
             {"value": cls.RPC_METHOD, "text": _("RPC 方法")},
         ]
 
+    @classmethod
+    def get_text_or_default(cls, value: str, default: str = "") -> str:
+        for tag in cls.tags():
+            if tag["value"] == value:
+                return tag["text"]
+        return default
+
 
 class RPCMetricTag:
     # 通用
@@ -985,6 +1020,13 @@ class RPCMetricTag:
         ]
 
     @classmethod
+    def get_text_or_default(cls, value: str, default: str = "") -> str:
+        for tag in cls.tags():
+            if tag["value"] == value:
+                return tag["text"]
+        return default
+
+    @classmethod
     def common_tags(cls) -> list[dict[str, str]]:
         return [
             tag
@@ -1036,6 +1078,48 @@ class RPCMetricTag:
     @classmethod
     def callee_tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
         return {tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in ["caller"]}
+
+
+class RPCLogTag(CachedEnum):
+    RESOURCE_ENV = "resource.env"
+    RESOURCE_INSTANCE = "resource.instance"
+    RESOURCE_SERVER = "resource.server"
+    RESOURCE_SERVICE_NAME = "resource.service_name"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [
+            (cls.RESOURCE_ENV.value, cls.RESOURCE_ENV.label),
+            (cls.RESOURCE_INSTANCE.value, cls.RESOURCE_INSTANCE.label),
+            (cls.RESOURCE_SERVER.value, cls.RESOURCE_SERVER.label),
+            (cls.RESOURCE_SERVICE_NAME.value, cls.RESOURCE_SERVICE_NAME.label),
+        ]
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.RESOURCE_ENV: _("用户环境"),
+                self.RESOURCE_INSTANCE: _("实例"),
+                self.RESOURCE_SERVER: _("服务"),
+                self.RESOURCE_SERVICE_NAME: _("服务"),
+            }.get(self, self.value)
+        )
+
+    @classmethod
+    def get_default(cls, value) -> "RPCLogTag":
+        default = super().get_default(value)
+        default.label = value
+        return default
+
+    @cached_property
+    def metric_tag(self) -> str:
+        return {
+            self.RESOURCE_ENV: RPCMetricTag.ENV_NAME,
+            self.RESOURCE_INSTANCE: RPCMetricTag.INSTANCE,
+            self.RESOURCE_SERVER: RPCMetricTag.CALLEE_SERVER,
+            self.RESOURCE_SERVICE_NAME: RPCMetricTag.CALLEE_SERVICE,
+        }.get(self, self.value)
 
 
 class TrpcTagDrillOperation:
@@ -1430,34 +1514,6 @@ class Vendor:
         if not service_sdk:
             return False
         return any(cls.equal(expect_sdk, i.get("name")) for i in service_sdk)
-
-
-class CachedEnum(Enum):
-    @classmethod
-    @cache
-    def from_value(cls, value):
-        try:
-            return cls(value)
-        except Exception:  # pylint: disable=broad-except
-            return cls.get_default(value)  # 处理未找到的情况
-
-    @classmethod
-    def get_default(cls, value):
-        class _DefaultEnum:
-            def __init__(self):
-                self._value = value
-
-            @property
-            def value(self):
-                return self._value
-
-            def __getattr__(self, item):
-                return getattr(self, item, None)
-
-            def __setattr__(self, item, default_value):
-                object.__setattr__(self, item, default_value)
-
-        return _DefaultEnum()
 
 
 class SpanKindCachedEnum(CachedEnum):

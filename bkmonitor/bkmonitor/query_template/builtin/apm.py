@@ -13,7 +13,7 @@ from typing import Any
 
 from django.db.models import Q
 
-from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
+from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict, q_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from constants.apm import DEFAULT_DATA_LABEL, RPCMetricTag, CachedEnum
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -132,7 +132,7 @@ RPC_CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
         .add_query(
             _COMMON_BUILDER.alias("a")
             .metric(field="rpc_server_handled_total", method="SUM", alias="a")
-            .conditions(filter_dict_to_conditions(q_to_dict(Q(code_type="success")), []))
+            .conditions(q_to_conditions(Q(code_type="success")))
         )
         .add_query(_COMMON_BUILDER.alias("b").metric(field="rpc_server_handled_total", method="SUM", alias="b"))
         .expression("(a or b < bool 0) / (b > ${ALARM_THRESHOLD_VALUE}) * 100")
