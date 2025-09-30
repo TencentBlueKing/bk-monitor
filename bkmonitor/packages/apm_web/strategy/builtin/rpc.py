@@ -10,20 +10,32 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 from functools import cached_property
-from constants.apm import CachedEnum
 
 from django.utils.translation import gettext as _
 
 from constants.query_template import GLOBAL_BIZ_ID
 from bkmonitor.query_template.builtin.apm import APMQueryTemplateName
 from apm_web.strategy.query_template import LocalQueryTemplateName
+from constants.apm import RPCMetricTag, CachedEnum, CommonMetricTag
 
 from . import base, utils
 from .. import constants
 
 
-def _get_common_context() -> dict[str, Any]:
-    return {"ALARM_THRESHOLD_VALUE": 10}
+def _get_common_group_by(callee: bool = False) -> list[str]:
+    group_by: list[str] = [
+        CommonMetricTag.APP_NAME,
+        RPCMetricTag.SERVICE_NAME,
+        RPCMetricTag.ENV_NAME,
+        RPCMetricTag.NAMESPACE,
+        RPCMetricTag.CALLEE_METHOD,
+        RPCMetricTag.CALLER_SERVICE if callee else RPCMetricTag.CALLEE_SERVICE,
+    ]
+    return group_by
+
+
+def _get_common_context(callee: bool = False, extra_group_by: list[str] | None = None) -> dict[str, Any]:
+    return {"ALARM_THRESHOLD_VALUE": 10, "GROUP_BY": _get_common_group_by(callee=callee) + (extra_group_by or [])}
 
 
 class RPCStrategyTemplateCode(CachedEnum):
@@ -67,7 +79,7 @@ RPC_CALLEE_SUCCESS_RATE_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.fatal_threshold_algorithm_config(method="lte", threshold=90, suffix="%"),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_SUCCESS_RATE.value},
-    "context": _get_common_context(),
+    "context": _get_common_context(callee=True),
 }
 
 RPC_CALLEE_AVG_TIME_STRATEGY_TEMPLATE: dict[str, Any] = {
@@ -81,7 +93,7 @@ RPC_CALLEE_AVG_TIME_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=4000, suffix="ms"),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_AVG_TIME.value},
-    "context": _get_common_context(),
+    "context": _get_common_context(callee=True),
 }
 
 RPC_CALLEE_P99_STRATEGY_TEMPLATE: dict[str, Any] = {
@@ -95,7 +107,7 @@ RPC_CALLEE_P99_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=5000, suffix="ms"),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_P99.value},
-    "context": _get_common_context(),
+    "context": _get_common_context(callee=True),
 }
 
 RPC_CALLEE_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
@@ -109,7 +121,7 @@ RPC_CALLEE_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=50),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_ERROR_CODE.value},
-    "context": _get_common_context(),
+    "context": _get_common_context(callee=True, extra_group_by=[RPCMetricTag.CODE]),
 }
 
 RPC_CALLER_SUCCESS_RATE_STRATEGY_TEMPLATE: dict[str, Any] = {
@@ -165,13 +177,13 @@ RPC_CALLER_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=50),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_ERROR_CODE.value},
-    "context": _get_common_context(),
+    "context": _get_common_context(extra_group_by=[RPCMetricTag.CODE]),
 }
 
 RPC_ERROR_METRIC_PANIC_STRATEGY_TEMPLATE: dict[str, Any] = {
     "code": RPCStrategyTemplateCode.RPC_ERROR_METRIC_PANIC.value,
     "name": RPCStrategyTemplateCode.RPC_ERROR_METRIC_PANIC.label,
-    "category": constants.StrategyTemplateCategory.RPC_ERROR.value,
+    "category": constants.StrategyTemplateCategory.RPC_METRIC.value,
     "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
     "detect": utils.detect_config(5, 1, 1),
     "algorithms": [
@@ -184,7 +196,7 @@ RPC_ERROR_METRIC_PANIC_STRATEGY_TEMPLATE: dict[str, Any] = {
 RPC_ERROR_LOG_PANIC_STRATEGY_TEMPLATE: dict[str, Any] = {
     "code": RPCStrategyTemplateCode.RPC_ERROR_LOG_PANIC.value,
     "name": RPCStrategyTemplateCode.RPC_ERROR_LOG_PANIC.label,
-    "category": constants.StrategyTemplateCategory.RPC_ERROR.value,
+    "category": constants.StrategyTemplateCategory.RPC_LOG.value,
     "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
     "detect": utils.detect_config(5, 1, 1),
     "algorithms": [
