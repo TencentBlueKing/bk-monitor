@@ -23,7 +23,9 @@ from rest_framework.serializers import Serializer, ValidationError
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.models import StrategyModel
 from bkmonitor.utils.user import get_global_user
+from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.alert import EventStatus
 
 from constants.query_template import GLOBAL_BIZ_ID
@@ -33,6 +35,8 @@ from apm_web.models import StrategyTemplate, StrategyInstance
 from apm_web.strategy.constants import StrategyTemplateType
 from apm_web.strategy.query_template.core import QueryTemplateWrapperFactory
 from apm_web.strategy.handler import StrategyTemplateOptionValues, StrategyInstanceOptionValues
+from apm_web.strategy.dispatch.core import StrategyDispatcher
+from apm_web.strategy.dispatch.base import DispatchExtraConfig, DispatchGlobalConfig
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -153,14 +157,52 @@ class StrategyTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
     def apply(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response(
-                {
-                    "app_name": "demo",
-                    "list": mock_data.STRATEGY_TEMPLATE_APPLY_LIST,
-                }
+        extra_configs_map: dict[int, list[DispatchExtraConfig]] = defaultdict(list)
+        for extra_config in self.query_data["extra_configs"]:
+            strategy_template_id: int = extra_config.pop("strategy_template_id", 0)
+            extra_configs_map[strategy_template_id].append(DispatchExtraConfig(**extra_config))
+
+        strategy_ids: list[int] = []
+        template_dispatch_map: dict[int, dict[str, int]] = {}
+        strategy_template_qs: QuerySet[StrategyTemplate] = self.get_queryset().filter(
+            id__in=self.query_data["strategy_template_ids"]
+        )
+        if len(strategy_template_qs) != len(self.query_data["strategy_template_ids"]):
+            raise ValidationError(_("数据异常，部分策略模板不存在"))
+        for strategy_template_obj in strategy_template_qs:
+            qtw = QueryTemplateWrapper.from_unique_key(
+                strategy_template_obj.query_template["bk_biz_id"], strategy_template_obj.query_template["name"]
             )
-        return Response({})
+            dispatcher = StrategyDispatcher(strategy_template_obj, qtw)
+            service_strategy_map: dict[str, int] = dispatcher.dispatch(
+                self.query_data["service_names"],
+                global_config=DispatchGlobalConfig(**self.query_data["global_config"]),
+                extra_configs=extra_configs_map.get(strategy_template_obj.id, []),
+            )
+            strategy_ids.extend(list(service_strategy_map.values()))
+            template_dispatch_map[strategy_template_obj.pk] = service_strategy_map
+
+        strategies: list[dict[str, Any]] = list(
+            StrategyModel.objects.filter(bk_biz_id=self.query_data["bk_biz_id"], id__in=strategy_ids).values(
+                "id", "name"
+            )
+        )
+        strategy_dict_by_id: dict[int, dict[str, Any]] = {strategy["id"]: strategy for strategy in strategies}
+
+        apply_data: list[dict[str, Any]] = []
+        for strategy_template_id, service_strategy_map in template_dispatch_map.items():
+            for service_name, strategy_id in service_strategy_map.items():
+                apply_data.append(
+                    {
+                        "service_name": service_name,
+                        "strategy_template_id": strategy_template_id,
+                        "strategy": {
+                            "id": strategy_id,
+                            "name": strategy_dict_by_id.get(strategy_id, {}).get("name", ""),
+                        },
+                    }
+                )
+        return Response({"app_name": self.query_data["app_name"], "list": apply_data})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCheckRequestSerializer)
     def check(self, *args, **kwargs) -> Response:
