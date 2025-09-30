@@ -208,11 +208,11 @@ class BkCollectorClusterConfig:
 
         # 计算配置所在的 secret 名字
         # 1-20, 21-40, 41-60, ......
-        secret_config_max_count = secret_config["secret_data_max_count"]
+        secret_config_max_count = secret_config["secret_hash_ring_bucket_count"]
         count_boundary = (config_id - 1) // secret_config_max_count
         min_boundary = count_boundary * secret_config_max_count + 1
         max_boundary = (count_boundary + 1) * secret_config_max_count
-        secret_subconfig_name = secret_config["secret_name_tpl"].format(min_boundary, max_boundary)
+        secret_subconfig_name = secret_config["secret_hash_ring_bucket_name_tpl"].format(min_boundary, max_boundary)
 
         # 计算 secret 中 key 的名字
         subconfig_filename = secret_config["secret_data_key_tpl"].format(config_id)
@@ -301,10 +301,16 @@ class BkCollectorClusterConfig:
         secret_groups = {}
         for config_id, sub_config in config_map.items():
             # 先计算MD5哈希值，转换为整数再取模，确保分布更均匀
-            secret_index = int(count_md5(config_id), 16) % secret_config["secret_data_max_count"]
+            secret_index = int(count_md5(config_id), 16) % secret_config["secret_hash_ring_bucket_count"]
+
+            # 根据secret_hash_ring_bucket_count的位数计算需要补零的位数
+            max_count = secret_config["secret_hash_ring_bucket_count"]
+            zero_padding_width = len(str(max_count))
 
             # 生成secret名称
-            secret_subconfig_name = secret_config["secret_name_hash_tpl"].format(secret_index)
+            secret_subconfig_name = secret_config["secret_hash_ring_bucket_name_tpl"].format(
+                str(secret_index).zfill(zero_padding_width), max_count
+            )
 
             # 计算 secret 中 key 的名字
             subconfig_filename = secret_config["secret_data_key_tpl"].format(config_id)
