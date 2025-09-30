@@ -35,8 +35,11 @@ interface FavoriteFieldsConfig {
 }
 
 export const useFavoriteFieldsState = createGlobalState(() => {
+  // 收藏表格字段配置的key 与用户配置的key保持一致
   const saveKey = shallowRef('');
+  // 主动刷新配置
   const refreshKey = shallowRef('');
+  // 收藏表格字段配置 与用户配置格式一致
   const config = shallowRef({
     displayFields: [],
     fieldsWidth: {},
