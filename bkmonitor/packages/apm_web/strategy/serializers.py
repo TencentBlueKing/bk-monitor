@@ -21,6 +21,7 @@ from bkmonitor.strategy.serializers import allowed_threshold_method
 from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
 from apm_web.strategy.handler import get_user_groups
+from .constants import DEFAULT_ROOT_ID
 
 
 class DetectSerializer(serializers.Serializer):
@@ -126,6 +127,28 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
         label=_("额外编辑的配置"), child=ExtraConfigSerializer(), default=[], allow_empty=True
     )
     global_config = GlobalConfigSerializer(label=_("批量修改的配置"), default={})
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        # 校验 strategy_template_ids 是否有效
+        strategy_templates: list[dict[str, Any]] = list(
+            StrategyTemplate.objects.filter(
+                bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"], id__in=attrs["strategy_template_ids"]
+            ).values("id", "root_id")
+        )
+        if len(strategy_templates) != len(set(attrs["strategy_template_ids"])):
+            raise serializers.ValidationError(_("数据异常，部分策略模板不存在"))
+        # 不允许存在同源的模板
+        root_template_ids: set[int] = set()
+        for strategy_template in strategy_templates:
+            root_template_id = (
+                strategy_template["id"]
+                if strategy_template["root_id"] == DEFAULT_ROOT_ID
+                else strategy_template["root_id"]
+            )
+            if root_template_id in root_template_ids:
+                raise serializers.ValidationError(_("下发模板时，不允许存在同源的模板"))
+            root_template_ids.add(root_template_id)
+        return super().validate(attrs)
 
 
 class StrategyTemplateCheckRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
