@@ -32,7 +32,11 @@ from . import mock_data, serializers
 from apm_web.models import StrategyTemplate, StrategyInstance
 from apm_web.strategy.constants import StrategyTemplateType
 from apm_web.strategy.query_template.core import QueryTemplateWrapperFactory
-from apm_web.strategy.handler import StrategyTemplateOptionValues, StrategyInstanceOptionValues
+from apm_web.strategy.handler import (
+    StrategyTemplateOptionValues,
+    StrategyInstanceOptionValues,
+    StrategyTemplateCheckHandler,
+)
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -164,13 +168,17 @@ class StrategyTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCheckRequestSerializer)
     def check(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response(
-                {
-                    "list": mock_data.CHECK_STRATEGY_INSTANCE_LIST,
-                }
-            )
-        return Response({})
+        return Response(
+            {
+                "list": StrategyTemplateCheckHandler(
+                    bk_biz_id=self.query_data["bk_biz_id"],
+                    app_name=self.query_data["app_name"],
+                    strategy_template_ids=self.query_data["strategy_template_ids"],
+                    service_names=self.query_data["service_names"],
+                    strategy_template_qs=self.get_queryset(),
+                ).get_check_results()
+            }
+        )
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCloneRequestSerializer)
     def clone(self, *args, **kwargs) -> Response:
