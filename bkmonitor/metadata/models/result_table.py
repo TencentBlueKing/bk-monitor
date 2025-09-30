@@ -15,8 +15,9 @@ import logging
 import re
 import time
 import traceback
-from typing import Any
+from typing import Any, Self
 
+import pydantic
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import sql
@@ -237,7 +238,6 @@ class ResultTable(models.Model):
                 return False
         return False
 
-    # TODO： 多租户 应该只允许获取一个租户下的结果表
     @classmethod
     def get_table_id_cutter(cls, table_ids: list | set, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
         """获取结果表是否禁用切分模块"""
@@ -297,7 +297,7 @@ class ResultTable(models.Model):
         label=Label.RESULT_TABLE_LABEL_OTHER,
         external_storage=None,
         is_time_field_only=False,
-        option=None,
+        option: dict[str, Any] | None = None,
         time_alias_name=None,
         time_option=None,
         create_storage=True,
@@ -547,9 +547,13 @@ class ResultTable(models.Model):
                 default_storage_config=default_storage_config,
                 bk_tenant_id=bk_tenant_id,
             )
-        # 6. 更新数据写入 consul
-        result_table.refresh_etl_config()
 
+        # 判断是否需要进行数据接入，比如虚拟结果表
+        if not is_sync_db:
+            return result_table
+
+        # 判断是否需要刷新consul
+        need_refresh_consul = True
         if default_storage == ClusterInfo.TYPE_INFLUXDB:
             # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
             # 2. 如果启用了新版数据链路，且etcl_config在启用的列表中，则使用vm存储，
@@ -557,6 +561,9 @@ class ResultTable(models.Model):
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
                 # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
                 # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
+
+                # 不使用transfer
+                need_refresh_consul = False
                 try:
                     from metadata.task.tasks import access_bkdata_vm
 
@@ -571,13 +578,29 @@ class ResultTable(models.Model):
                     )
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)
-        elif default_storage == ClusterInfo.TYPE_ES:
-            # 因为多个事务嵌套，针对 ES 的操作放在最后执行
-            try:
-                es_storage = ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
-                on_commit(lambda: es_storage.create_es_index(is_sync_db=is_sync_db))
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error("create_result_table: create es storage index error, %s", e)
+        elif default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
+            if option and option.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
+                from metadata.task.datalink import apply_log_datalink
+
+                # 不使用transfer
+                need_refresh_consul = False
+                apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
+            elif default_storage == ClusterInfo.TYPE_ES:
+                # 因为多个事务嵌套，针对 ES 的操作放在最后执行
+                try:
+                    es_storage = ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+                    on_commit(lambda: es_storage.create_es_index(is_sync_db=is_sync_db))
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error("create_result_table: create es storage index error, %s", e)
+            else:
+                # 不支持的存储和选项组合
+                logger.error(
+                    f"create_result_table: not support storage and option, storage: {default_storage}, option: {option}"
+                )
+
+        # 更新consul配置(transfer)
+        if need_refresh_consul:
+            result_table.refresh_etl_config()
 
         return result_table
 
@@ -2694,6 +2717,48 @@ class CMDBLevelRecord(models.Model):
         return DataSource.objects.get(bk_data_id=self.bk_data_id)
 
 
+class LogV4DataLinkOption(pydantic.BaseModel):
+    """日志V4数据链路配置
+
+    注: 修改时需要先前兼容
+    """
+
+    class ESStorageConfig(pydantic.BaseModel):
+        """ES存储配置"""
+
+        unique_field_list: list[str] = pydantic.Field(description="唯一字段列表")
+        timezone: int = pydantic.Field(default=0, description="时区")
+        json_field_list: list[str] = pydantic.Field(
+            default_factory=list, description="JSON字段列表(支持string自动转换为json)"
+        )
+
+    class DorisStorageConfig(pydantic.BaseModel):
+        """Doris存储配置"""
+
+        storage_keys: list[str] = pydantic.Field(description="存储键")
+        json_fields: list[str] = pydantic.Field(description="JSON字段列表", default_factory=list)
+        field_config_group: dict[str, Any] = pydantic.Field(description="字段配置组", default_factory=dict)
+        flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒")
+
+    class CleanRule(pydantic.BaseModel):
+        """清洗规则"""
+
+        input_id: str = pydantic.Field(description="输入字段")
+        output_id: str = pydantic.Field(description="输出字段")
+        operator: dict[str, Any] = pydantic.Field(description="操作符")
+
+    clean_rules: list[CleanRule] = pydantic.Field(min_length=1, description="清洗规则")
+    es_storage_config: ESStorageConfig | None = pydantic.Field(description="ES存储配置")
+    doris_storage_config: DorisStorageConfig | None = pydantic.Field(description="Doris存储配置")
+
+    @pydantic.model_validator(mode="after")
+    def validate_config(self) -> Self:
+        """额外校验"""
+        if not self.es_storage_config and not self.doris_storage_config:
+            raise ValueError(_("日志V4数据链路存储配置不能为空"))
+        return self
+
+
 class ResultTableOption(OptionBase):
     """结果表option配置"""
 
@@ -2706,6 +2771,9 @@ class ResultTableOption(OptionBase):
     OPTION_SEGMENTED_QUERY_ENABLE = "segmented_query_enable"
     OPTION_IS_SPLIT_MEASUREMENT = "is_split_measurement"
     OPTION_ENABLE_FIELD_BLACK_LIST = "enable_field_black_list"
+
+    OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
+    OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
 
     # 选项类型
     TYPE_BOOL = "bool"
@@ -2786,7 +2854,7 @@ class ResultTableOption(OptionBase):
         record.save()
 
         logger.info(
-            f"result_table->[{table_id}] of bk_tenant_id->[{bk_tenant_id}] cmdb_level option->[{record.id}] is updated to->[{value}]"
+            f"result_table->[{table_id}] of bk_tenant_id->[{bk_tenant_id}] cmdb_level option->[{record.pk}] is updated to->[{value}]"
         )
 
         return True
