@@ -116,6 +116,7 @@ export default defineComponent({
       size = isInit ? 50 : props.logIndex > 50 ? props.logIndex + 20 : 50;
       const requestData = {
         ...requestOtherparams,
+        sort_list: store.state.indexFieldInfo.default_sort_list || [],
         size,
         begin,
       };
