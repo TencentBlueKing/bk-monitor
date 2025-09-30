@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 
 from django.conf import settings
@@ -33,7 +33,7 @@ from apps.generic import APIViewSet
 from apps.log_search.constants import FILTER_KEY_LIST, TimeEnum
 from apps.log_search.handlers.meta import MetaHandler
 from apps.log_search.models import GlobalConfig, Scenario
-from apps.log_search.serializers import ProjectSerializer
+from apps.log_search.serializers import ProjectSerializer, SpaceListSerializer
 from apps.utils.context_processors import mysetting
 from apps.utils.db import get_toggle_data
 from apps.utils.drf import list_route
@@ -68,6 +68,10 @@ class MetaViewSet(APIViewSet):
         @api {get} /meta/spaces/mine/ 获取我的项目空间
         @apiName list_meta_spaces_mine
         @apiGroup 01_Meta
+        @apiParam [String] space_uid 空间唯一标识
+        @apiParam [Boolean] has_permission 仅获取有权限的空间
+        @apiParam [Int] page 页数，不传代表不分页
+        @apiParam [Int] page_size 每页条数，不传代表不分页
         @apiSuccess {Int} id 空间自增ID
         @apiSuccess {String} space_uid 空间唯一标识
         @apiSuccess {String} space_type_id 空间类型ID
@@ -99,7 +103,15 @@ class MetaViewSet(APIViewSet):
             "result": true
         }
         """
-        return Response(MetaHandler.get_user_spaces())
+        params = self.params_valid(SpaceListSerializer)
+        return Response(
+            MetaHandler.get_user_spaces(
+                space_uid=params.get("space_uid"),
+                has_permission=params.get("has_permission"),
+                page=params.get("page"),
+                page_size=params.get("page_size"),
+            )
+        )
 
     @list_route(methods=["GET"], url_path="projects")
     def list_projects(self, request):

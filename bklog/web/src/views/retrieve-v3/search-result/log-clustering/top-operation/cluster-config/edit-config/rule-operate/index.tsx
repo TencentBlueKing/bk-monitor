@@ -24,17 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, onMounted, watch, PropType } from 'vue';
-import { useRouter } from 'vue-router/composables';
+import { defineComponent, ref, computed, onMounted, watch, type PropType, nextTick } from 'vue';
+
+import OtherImport from '@/components/import-from-other-index-set';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { base64ToRuleArr } from './util';
 import { bkMessage } from 'bk-magic-vue';
-import $http from '@/api';
 import dayjs from 'dayjs';
-import OtherImport from '@/components/import-from-other-index-set';
-import { type IResponseData } from '@/services/type';
+import { useRouter } from 'vue-router/composables';
+
+import { base64ToRuleArr } from './util';
+import $http from '@/api';
+
 import type { ConfigInfo, RuleTemplate } from '@/services/log-clustering';
+import type { IResponseData } from '@/services/type';
 
 import './index.scss';
 
@@ -49,7 +52,7 @@ export default defineComponent({
       default: () => {},
     },
     ruleList: {
-      type: Array,
+      type: Array<any>,
       default: () => [],
     },
   },
@@ -83,6 +86,8 @@ export default defineComponent({
     const isSameTemplateId = computed(() => props.defaultValue.regex_template_id === templateRuleId.value);
     /** 快速导入的dom */
     let inputDocument: HTMLInputElement;
+    let localRuleType = 'template';
+    let isShowSwitchPopConfirm = false;
 
     const handleRuleTypeChange = (value: string, onlyState = false) => {
       ruleType.value = value;
@@ -104,6 +109,20 @@ export default defineComponent({
         templateRuleId.value = templateList.value[0].id;
         handleSelectTemplate(templateRuleId.value);
       }
+    };
+
+    const handleBeforeRuleTypeChange = (value: string) => {
+      isShowSwitchPopConfirm = true;
+      ruleType.value = value;
+      localRuleType = value;
+      nextTick(() => {
+        ruleType.value = value === 'customize' ? 'template' : 'customize';
+      });
+    };
+
+    const handleRuleTypeChangeConfirm = () => {
+      isShowSwitchPopConfirm = false;
+      handleRuleTypeChange(localRuleType);
     };
 
     const initDefaultConfig = (updateType = true) => {
@@ -132,7 +151,7 @@ export default defineComponent({
     watch(
       () => [props.defaultValue, templateList.value, isCustomize.value],
       () => {
-        if (isCustomize.value) {
+        if (isShowSwitchPopConfirm || isCustomize.value) {
           return;
         }
 
@@ -185,7 +204,7 @@ export default defineComponent({
     const inputFileEvent = () => {
       // 检查文件是否选择:
       if (!inputDocument.value) return;
-      const file = inputDocument.files[0];
+      const file = inputDocument.files![0];
       // 读取文件:
       const reader = new FileReader();
       reader.onload = (e: any) => {
@@ -198,7 +217,7 @@ export default defineComponent({
             };
           });
           emit('rule-list-change', list);
-        } catch (err) {
+        } catch {
           bkMessage({
             theme: 'error',
             message: t('不是有效的json文件'),
@@ -230,7 +249,7 @@ export default defineComponent({
       const time = `${dayjs().format('YYYYMMDDHHmmss')}`;
       eleLink.download = `bk_log_search_download_${time}.json`;
       eleLink.style.display = 'none';
-      const jsonStr = props.ruleList.reduce((pre, cur, index) => {
+      const jsonStr = props.ruleList.reduce<Record<string, any>>((pre, cur, index) => {
         const entriesArr = Object.entries(cur);
         pre[index] = {
           placeholder: entriesArr[0][0],
@@ -283,26 +302,41 @@ export default defineComponent({
 
     return () => (
       <div class='rule-operate-main'>
-        <bk-radio-group
-          class='type-choose-main'
-          value={ruleType.value}
-          on-change={handleRuleTypeChange}
+        <bk-popconfirm
+          width='288'
+          confirm-text={t('确认切换')}
+          content={t('切换后，已有的相关配置将会丢失，请确认。')}
+          placement='bottom'
+          title={t('确认切换配置模式？')}
+          trigger='click'
+          on-cancel={() => {
+            isShowSwitchPopConfirm = false;
+          }}
+          on-confirm={handleRuleTypeChangeConfirm}
         >
-          <bk-radio value='customize'>{t('自定义')}</bk-radio>
-          <bk-radio value='template'>{t('模板')}</bk-radio>
-        </bk-radio-group>
+          <bk-radio-group
+            class='type-choose-main'
+            value={ruleType.value}
+            on-change={handleBeforeRuleTypeChange}
+          >
+            <bk-radio value='customize'>{t('自定义')}</bk-radio>
+            <bk-radio value='template'>{t('模板')}</bk-radio>
+          </bk-radio-group>
+        </bk-popconfirm>
         <div class='right-oprate-main'>
           {isCustomize.value ? (
             <div class='custom-operate-main'>
               <bk-input
-                clearable
                 style='width: 240px'
                 placeholder={t('搜索 占位符')}
                 right-icon='bk-icon icon-search'
                 value={searchValue.value}
-                on-change={value => (searchValue.value = value)}
-                on-enter={handleSearch}
+                clearable
+                on-change={value => {
+                  searchValue.value = value;
+                }}
                 on-clear={handleSearch}
+                on-enter={handleSearch}
                 on-right-icon-click={handleSearch}
               />
               <bk-dropdown-menu>
@@ -329,7 +363,9 @@ export default defineComponent({
                   <li>
                     <a
                       href='javascript:;'
-                      on-click={() => (isShowOtherImport.value = true)}
+                      on-click={() => {
+                        isShowOtherImport.value = true;
+                      }}
                     >
                       {t('其他索引集导入')}
                     </a>
@@ -357,10 +393,10 @@ export default defineComponent({
               <bk-select
                 ref='templateListRef'
                 ext-cls='template-select'
+                clearable={false}
                 ext-popover-cls='template-select-popover'
                 value={templateRuleId.value}
                 searchable
-                clearable={false}
                 on-change={handleSelectTemplate}
               >
                 {templateList.value.map(option => (
@@ -371,9 +407,9 @@ export default defineComponent({
                   />
                 ))}
                 <div
+                  class='template-manage-extension'
                   slot='extension'
                   on-click={() => handleGoTemplateManage()}
-                  class='template-manage-extension'
                 >
                   <log-icon type='shezhi' />
                   {t('模板管理')}
@@ -381,9 +417,9 @@ export default defineComponent({
               </bk-select>
               {templateRuleId.value > 0 && (
                 <bk-button
-                  text
-                  theme='primary'
                   size='small'
+                  theme='primary'
+                  text
                   on-click={() => handleGoTemplateManage(templateRuleId.value)}
                 >
                   <log-icon type='edit' />
@@ -392,8 +428,8 @@ export default defineComponent({
               )}
               <bk-popconfirm
                 width={380}
-                trigger='click'
                 confirm-text={t('解绑')}
+                trigger='click'
                 on-confirm={handleConfirmUnbindTemplate}
               >
                 <div slot='content'>
@@ -415,9 +451,9 @@ export default defineComponent({
                 </div>
                 {isOriginTemplateConfig.value && isSameTemplateId.value && (
                   <bk-button
-                    text
-                    theme='primary'
                     size='small'
+                    theme='primary'
+                    text
                   >
                     <log-icon type='jiebang' />
                     <span style='margin-left: 5px'>{t('解绑')}</span>
@@ -426,9 +462,9 @@ export default defineComponent({
               </bk-popconfirm>
 
               <bk-button
-                text
-                theme='primary'
                 size='small'
+                theme='primary'
+                text
                 on-click={handleRefresh}
               >
                 <log-icon type='refresh-icon' />
@@ -439,8 +475,10 @@ export default defineComponent({
         </div>
         <other-import
           isShow={isShowOtherImport.value}
+          on-show-change={value => {
+            isShowOtherImport.value = value;
+          }}
           on-success={list => emit('rule-list-change', list)}
-          on-show-change={value => (isShowOtherImport.value = value)}
         />
       </div>
     );

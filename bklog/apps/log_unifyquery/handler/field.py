@@ -152,7 +152,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         search_dict = copy.deepcopy(self.base_dict)
         reference_list = []
         for query in search_dict["query_list"]:
-            query["limit"] = limit
+            query["limit"] = limit * 2 + 10
             query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
             # 增加字段不为空的条件
             if len(query["conditions"]["field_list"]) > 0:
@@ -165,9 +165,11 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         search_dict.update({"order_by": ["-_value"], "metric_merge": " or ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
         series = data["series"]
-        return sorted(
-            [[s["group_values"][0], s["values"][0][1]] for s in series[:limit]], key=lambda x: x[1], reverse=True
-        )
+        return [[s["group_values"][0], s["values"][0][1]] for s in sorted(
+            series,
+            key=lambda x: x["values"][0][1],
+            reverse=True
+        )[:limit]]
 
     def get_value_list(self, limit: int = 10):
         """

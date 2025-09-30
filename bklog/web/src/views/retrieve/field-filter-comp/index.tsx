@@ -40,14 +40,14 @@ import './index.scss';
 
 @Component
 export default class FieldFilterComp extends tsc<object> {
-  @Prop({ type: Array, default: () => [] }) totalFields: Array<any>;
-  @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
-  @Prop({ type: Array, default: () => [] }) sortList: Array<any>;
+  @Prop({ type: Array, default: () => [] }) totalFields: any[];
+  @Prop({ type: Array, default: () => [] }) visibleFields: any[];
+  @Prop({ type: Array, default: () => [] }) sortList: any[];
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
   @Prop({ type: Boolean, default: false }) showFieldAlias: object;
   @Prop({ type: Boolean, default: false }) parentLoading: boolean;
   @Prop({ type: Object, default: () => ({}) }) retrieveParams: object;
-  @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
+  @Prop({ type: Array, default: () => [] }) datePickerValue: any[];
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldsData: object;
   @Prop({ type: Object, default: () => ({}) }) indexSetItem: any;
@@ -86,30 +86,30 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 内置字段 */
   get indexSetFields() {
-    const underlineFieldList = []; // 下划线的字段
-    const otherList = []; // 其他字段
+    const underlineFieldList: any[] = []; // 下划线的字段
+    const otherList: any[] = []; // 其他字段
     const { indexHiddenFields } = this.hiddenFilterFields;
     // 类似__xxx__的字段放最后展示
-    indexHiddenFields.forEach(fieldItem => {
+    for (const fieldItem of indexHiddenFields) {
       if (/^[_]{1,2}/g.test(fieldItem.field_name)) {
         underlineFieldList.push(fieldItem);
-        return;
+        continue;
       }
       otherList.push(fieldItem);
-    });
+    }
     return this.sortHiddenList([otherList, underlineFieldList]);
   }
   /** 非已选字段 分别生成内置字段和索引字段 */
   get hiddenFilterFields() {
-    const builtInHiddenFields = [];
-    const indexHiddenFields = [];
-    this.hiddenFields.forEach(item => {
+    const builtInHiddenFields: any[] = [];
+    const indexHiddenFields: any[] = [];
+    for (const item of this.hiddenFields) {
       if (item.field_type === '__virtual__' || item.is_built_in) {
         builtInHiddenFields.push(item);
-        return;
+        continue;
       }
       indexHiddenFields.push(item);
-    });
+    }
     return {
       builtInHiddenFields,
       indexHiddenFields,
@@ -129,7 +129,9 @@ export default class FieldFilterComp extends tsc<object> {
             break;
           }
         }
-        if (!isHeaderItem) acc.filterHeaderBuiltFields.push(cur);
+        if (!isHeaderItem) {
+          acc.filterHeaderBuiltFields.push(cur);
+        }
         return acc;
       },
       {
@@ -175,10 +177,10 @@ export default class FieldFilterComp extends tsc<object> {
     // 过滤的条件数量
     let count = 0;
     if (this.polymerizable !== '0') {
-      count = count + 1;
+      count += 1;
     }
     if (this.fieldType !== 'any') {
-      count = count + 1;
+      count += 1;
     }
     return count;
   }
@@ -206,12 +208,13 @@ export default class FieldFilterComp extends tsc<object> {
       case 'off':
         isFront = true;
         break;
-      default:
+      default: {
         const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG;
         const { field_analysis_config: fieldAnalysisConfig } = (window as any).FEATURE_TOGGLE_WHITE_LIST;
         const scenarioID = this.indexSetItem?.scenario_id;
         isFront = !(scenarioIdWhiteList?.includes(scenarioID) && fieldAnalysisConfig?.includes(Number(this.bkBizId)));
         break;
+      }
     }
     return isFront;
   }
@@ -258,8 +261,8 @@ export default class FieldFilterComp extends tsc<object> {
   // 按过滤条件对字段进行过滤
   filterListByCondition() {
     const { polymerizable, fieldType, searchKeyword } = this;
-    [this.visibleFields, this.hiddenFields].forEach(fieldList => {
-      fieldList.forEach(fieldItem => {
+    for (const fieldList of [this.visibleFields, this.hiddenFields]) {
+      for (const fieldItem of fieldList) {
         fieldItem.filterVisible =
           fieldItem.field_name.includes(searchKeyword) &&
           !(
@@ -269,8 +272,8 @@ export default class FieldFilterComp extends tsc<object> {
             (fieldType === 'date' && !['date', 'date_nanos'].includes(fieldItem.field_type)) ||
             (!['any', 'number', 'date'].includes(fieldType) && fieldItem.field_type !== fieldType)
           );
-      });
-    });
+      }
+    }
   }
   handlePopoverShow() {
     this.showFilterPopover = true;
@@ -289,7 +292,7 @@ export default class FieldFilterComp extends tsc<object> {
     this.$emit('fields-updated', this.dragVisibleFields, undefined, false);
   }
   // 字段显示或隐藏
-  async handleToggleItem(type: string, fieldItem) {
+  handleToggleItem(type: string, fieldItem) {
     const displayFieldNames = this.visibleFields.map(item => item.field_name);
     if (type === 'visible') {
       // 需要隐藏字段
@@ -300,7 +303,9 @@ export default class FieldFilterComp extends tsc<object> {
       displayFieldNames.push(fieldItem.field_name);
     }
     this.$emit('fields-updated', displayFieldNames, undefined, false);
-    if (!displayFieldNames.length) return; // 可以设置为全部隐藏，但是不请求接口
+    if (!displayFieldNames.length) {
+      return;
+    } // 可以设置为全部隐藏，但是不请求接口
     $http
       .request('retrieve/postFieldsConfig', {
         params: { index_set_id: this.$route.params.indexId },
@@ -323,15 +328,15 @@ export default class FieldFilterComp extends tsc<object> {
    * @returns {Array}
    */
   sortHiddenList(list) {
-    const sortList = [];
-    list.forEach(item => {
+    const sortList: any[] = [];
+    for (const item of list) {
       const sortItem = item.sort((a, b) => {
         const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         return sortA.localeCompare(sortB);
       });
       sortList.push(...sortItem);
-    });
+    }
     return sortList;
   }
 
@@ -347,7 +352,7 @@ export default class FieldFilterComp extends tsc<object> {
             right-icon='icon-search'
             clearable
             onChange={this.filterListByCondition}
-          ></bk-input>
+          />
           <bk-popover
             ref='filterPopover'
             animation='slide-toggle'
@@ -366,7 +371,7 @@ export default class FieldFilterComp extends tsc<object> {
                 data-test-id='fieldFilter_div_phrasesSearch'
                 onClick={() => this.closePopoverIfOpened()}
               >
-                <span class='bk-icon icon-funnel'></span>
+                <span class='bk-icon icon-funnel' />
                 <span class='text'>{this.$t('字段类型')}</span>
                 {!!this.filterTypeCount && <span class='count'>{this.filterTypeCount}</span>}
               </div>
@@ -386,7 +391,7 @@ export default class FieldFilterComp extends tsc<object> {
               <span>{this.$t('已添加字段')}</span>
               <FieldSelectConfig on-select-fields-config={this.selectFieldsConfig} />
             </div>
-            {!!this.visibleFields.length ? (
+            {this.visibleFields.length ? (
               <VueDraggable
                 class='filed-list'
                 v-model={this.dragVisibleFields}
@@ -427,6 +432,7 @@ export default class FieldFilterComp extends tsc<object> {
             <ul class='filed-list'>
               {this.showIndexSetFields.map(item => (
                 <FieldItem
+                  key={item}
                   v-show={item.filterVisible}
                   date-picker-value={this.datePickerValue}
                   field-alias-map={this.fieldAliasMap}
@@ -445,7 +451,7 @@ export default class FieldFilterComp extends tsc<object> {
                   class='expand-all'
                   onClick={() => (this.isShowAllIndexSet = !this.isShowAllIndexSet)}
                 >
-                  {!this.isShowAllIndexSet ? this.$t('展开全部') : this.$t('收起')}
+                  {this.isShowAllIndexSet ? this.$t('收起') : this.$t('展开全部')}
                 </div>
               )}
             </ul>
@@ -458,6 +464,7 @@ export default class FieldFilterComp extends tsc<object> {
             <ul class='filed-list'>
               {this.builtInFieldsShowObj.builtInShowFields.map(item => (
                 <FieldItem
+                  key={item}
                   v-show={item.filterVisible}
                   date-picker-value={this.datePickerValue}
                   field-alias-map={this.fieldAliasMap}
@@ -476,7 +483,7 @@ export default class FieldFilterComp extends tsc<object> {
                   class='expand-all'
                   onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
                 >
-                  {!this.isShowAllBuiltIn ? this.$t('展开全部') : this.$t('收起')}
+                  {this.isShowAllBuiltIn ? this.$t('收起') : this.$t('展开全部')}
                 </div>
               )}
             </ul>

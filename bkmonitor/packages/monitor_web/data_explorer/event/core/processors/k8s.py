@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -304,7 +304,11 @@ class K8sEventProcessor(BaseEventProcessor):
             "activeTab": ContainerMonitorTabType.LIST.value,
         }
         filter_by: dict[str, list[str]] = {"namespace": [], "ingress": [], "service": [], "pod": []}
-        group_by = ["namespace", "pod"]
+        group_by = {
+            "Pod": ["namespace", "pod"],
+            "Ingress": ["namespace", "ingress"],
+            "Service": ["namespace", "service"],
+        }
         if level == "cluster":
             return cls._generate_url(k8s_info, start_time, end_time, filter_by, ["namespace"], tab_info)
 
@@ -312,22 +316,22 @@ class K8sEventProcessor(BaseEventProcessor):
             filter_by["namespace"].append(namespace)
 
         if level == "namespace":
-            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by, tab_info)
+            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by["Pod"], tab_info)
 
         if not (name and kind):
             return ""
 
         if kind == "Pod":
             filter_by["pod"].append(name)
-            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by, tab_info)
+            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by["Pod"], tab_info)
 
         if kind == "Ingress":
             filter_by["ingress"].append(name)
-            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by, tab_info)
+            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by["Ingress"], tab_info)
 
         if kind in ["Service", "Endpoints"]:
             filter_by["service"].append(name)
-            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by, tab_info)
+            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by["Service"], tab_info)
 
     @classmethod
     def _generate_capacity_url(cls, k8s_info: dict[str, Any], start_time, end_time, name) -> str:

@@ -39,7 +39,7 @@ except Exception:  # pylint: disable=broad-except
 
 
 def migrate_iam(sender, **kwargs):
-    if Permission.get_iam_client(settings.DEFAULT_TENANT_ID).in_compatibility_mode():
+    if Permission.get_iam_client(settings.BK_APP_TENANT_ID).in_compatibility_mode():
         # 存量部署存在V1的操作时，需要跑该配置将V1操作改名，避免与新名称发生冲突
         IAMMigrator("legacy.json").migrate()
     IAMMigrator("initial.json").migrate()

@@ -17,7 +17,7 @@
   const spaceUid = computed(() => store.state.spaceUid);
   const indexSetId = computed(() => store.state.indexId);
   const indexSetItem = computed(() =>
-    store.state.retrieve.indexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
+    store.state.retrieve.flatIndexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
   );
   const isPopoverShow = ref(false);
 
@@ -43,7 +43,9 @@
     }
   });
 
-  const settingMenuList = ref([{ id: 'clustering', name: $t('日志聚类') }]);
+  const settingMenuList = ref([
+    // { id: 'clustering', name: $t('日志聚类') }
+  ]);
   const detailJumpRouteKey = ref('log');
   /** 日志脱敏路由跳转key */
   const maskingRouteKey = ref('log');

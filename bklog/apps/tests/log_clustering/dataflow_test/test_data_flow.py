@@ -49,50 +49,69 @@ RESULT = (
     "where NOT ( `log` is not null and length(`log`) > 1 and ( `log` LIKE '%ERROR%' or `log` LIKE 'info' ) )",
 )
 
-FILTER_RULES1 = [{"op": "LIKE", "value": "%ERROR%", "fields_name": "log.name", "logic_operator": None}]
-RESULT1 = (
-    "where `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' ) )",
-)
-
-FILTER_RULES2 = [{"op": "LIKE", "value": "%ERROR%", "fields_name": "log", "logic_operator": None}]
-RESULT2 = (
-    "where `log` is not null and length(`log`) > 1 and ( `log` LIKE '%ERROR%' )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and ( `log` LIKE '%ERROR%' ) )",
-)
-
-FILTER_RULES3 = [{"op": "LIKE", "value": ["%ERROR%", "INFO"], "fields_name": "log.name", "logic_operator": None}]
-RESULT3 = (
-    "where `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' or JSON_VALUE(`log`, '$.name') LIKE 'INFO' )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' or JSON_VALUE(`log`, '$.name') LIKE 'INFO' ) )",
-)
-
-FILTER_RULES4 = [
-    {"op": "LIKE", "value": "%ERROR%", "fields_name": "log", "logic_operator": None},
-    {"op": "=", "value": "1.1.1.1", "fields_name": "serverIp", "logic_operator": "and"},
+TEST_CASES = [
+    {
+        "filters": [{"op": "LIKE", "value": "%ERROR%", "fields_name": "log.name", "logic_operator": None}],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' ) )",
+        ),
+    },
+    {
+        "filters": [{"op": "LIKE", "value": "%ERROR%", "fields_name": "log", "logic_operator": None}],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and ( `log` LIKE '%ERROR%' )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and ( `log` LIKE '%ERROR%' ) )",
+        ),
+    },
+    {
+        "filters": [{"op": "LIKE", "value": ["%ERROR%", "INFO"], "fields_name": "log.name", "logic_operator": None}],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' or JSON_VALUE(`log`, '$.name') LIKE 'INFO' )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and ( JSON_VALUE(`log`, '$.name') LIKE '%ERROR%' or JSON_VALUE(`log`, '$.name') LIKE 'INFO' ) )",
+        ),
+    },
+    {
+        "filters": [
+            {"op": "LIKE", "value": "%ERROR%", "fields_name": "log", "logic_operator": None},
+            {"op": "=", "value": "1.1.1.1", "fields_name": "serverIp", "logic_operator": "and"},
+        ],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( `log` LIKE '%ERROR%' and `serverIp` = '1.1.1.1' )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( `log` LIKE '%ERROR%' and `serverIp` = '1.1.1.1' ) )",
+        ),
+    },
+    {
+        "filters": [
+            {"op": "LIKE", "value": ["%ERROR%", "INFO"], "fields_name": "log", "logic_operator": None},
+            {"op": "=", "value": ["1.1.1.1"], "fields_name": "serverIp", "logic_operator": "and"},
+        ],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and `serverIp` = '1.1.1.1' )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and `serverIp` = '1.1.1.1' ) )",
+        ),
+    },
+    {
+        "filters": [
+            {"op": "LIKE", "value": ["%ERROR%", "INFO"], "fields_name": "log", "logic_operator": None},
+            {"op": "=", "value": ["1.1.1.1", "0.0.0.0"], "fields_name": "serverIp", "logic_operator": "and"},
+        ],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and ( `serverIp` = '1.1.1.1' or `serverIp` = '0.0.0.0' ) )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and ( `serverIp` = '1.1.1.1' or `serverIp` = '0.0.0.0' ) ) )",
+        ),
+    },
+    {
+        "filters": [
+            {"op": "not contains", "value": ["ERROR", "INFO"], "fields_name": "log", "logic_operator": None},
+            {"op": "!=", "value": ["1.1.1.1", "0.0.0.0"], "fields_name": "serverIp", "logic_operator": "and"},
+        ],
+        "result": (
+            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` NOT LIKE '%ERROR%' and `log` NOT LIKE '%INFO%' ) and ( `serverIp` <> '1.1.1.1' and `serverIp` <> '0.0.0.0' ) )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` NOT LIKE '%ERROR%' and `log` NOT LIKE '%INFO%' ) and ( `serverIp` <> '1.1.1.1' and `serverIp` <> '0.0.0.0' ) ) )",
+        ),
+    },
 ]
-RESULT4 = (
-    "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( `log` LIKE '%ERROR%' and `serverIp` = '1.1.1.1' )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( `log` LIKE '%ERROR%' and `serverIp` = '1.1.1.1' ) )",
-)
-
-FILTER_RULES5 = [
-    {"op": "LIKE", "value": ["%ERROR%", "INFO"], "fields_name": "log", "logic_operator": None},
-    {"op": "=", "value": ["1.1.1.1"], "fields_name": "serverIp", "logic_operator": "and"},
-]
-RESULT5 = (
-    "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and `serverIp` = '1.1.1.1' )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and `serverIp` = '1.1.1.1' ) )",
-)
-
-FILTER_RULES6 = [
-    {"op": "LIKE", "value": ["%ERROR%", "INFO"], "fields_name": "log", "logic_operator": None},
-    {"op": "=", "value": ["1.1.1.1", "0.0.0.0"], "fields_name": "serverIp", "logic_operator": "and"},
-]
-RESULT6 = (
-    "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and ( `serverIp` = '1.1.1.1' or `serverIp` = '0.0.0.0' ) )",
-    "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and ( `serverIp` = '1.1.1.1' or `serverIp` = '0.0.0.0' ) ) )",
-)
 
 
 class TestPatternSearch(TestCase):
@@ -104,44 +123,10 @@ class TestPatternSearch(TestCase):
         )
         self.assertEqual(result, RESULT)
 
-        ClusteringConfig.objects.filter(index_set_id=30).update(filter_rules=FILTER_RULES1)
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=30)
-        result = DataFlowHandler._init_filter_rule(
-            clustering_config.filter_rules, ALL_FIELDS_DICT, clustering_config.clustering_fields
-        )
-        self.assertEqual(result, RESULT1)
-
-        ClusteringConfig.objects.filter(index_set_id=30).update(filter_rules=FILTER_RULES2)
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=30)
-        result = DataFlowHandler._init_filter_rule(
-            clustering_config.filter_rules, ALL_FIELDS_DICT, clustering_config.clustering_fields
-        )
-        self.assertEqual(result, RESULT2)
-
-        ClusteringConfig.objects.filter(index_set_id=30).update(filter_rules=FILTER_RULES3)
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=30)
-        result = DataFlowHandler._init_filter_rule(
-            clustering_config.filter_rules, ALL_FIELDS_DICT, clustering_config.clustering_fields
-        )
-        self.assertEqual(result, RESULT3)
-
-        ClusteringConfig.objects.filter(index_set_id=30).update(filter_rules=FILTER_RULES4)
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=30)
-        result = DataFlowHandler._init_filter_rule(
-            clustering_config.filter_rules, ALL_FIELDS_DICT, clustering_config.clustering_fields
-        )
-        self.assertEqual(result, RESULT4)
-
-        ClusteringConfig.objects.filter(index_set_id=30).update(filter_rules=FILTER_RULES5)
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=30)
-        result = DataFlowHandler._init_filter_rule(
-            clustering_config.filter_rules, ALL_FIELDS_DICT, clustering_config.clustering_fields
-        )
-        self.assertEqual(result, RESULT5)
-
-        ClusteringConfig.objects.filter(index_set_id=30).update(filter_rules=FILTER_RULES6)
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=30)
-        result = DataFlowHandler._init_filter_rule(
-            clustering_config.filter_rules, ALL_FIELDS_DICT, clustering_config.clustering_fields
-        )
-        self.assertEqual(result, RESULT6)
+        for case in TEST_CASES:
+            ClusteringConfig.objects.filter(index_set_id=30).update(filter_rules=case["filters"])
+            clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=30)
+            result = DataFlowHandler._init_filter_rule(
+                clustering_config.filter_rules, ALL_FIELDS_DICT, clustering_config.clustering_fields
+            )
+            self.assertEqual(result, case["result"])

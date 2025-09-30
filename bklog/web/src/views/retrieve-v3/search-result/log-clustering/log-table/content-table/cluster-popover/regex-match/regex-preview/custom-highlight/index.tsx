@@ -24,13 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
-import './index.scss';
+import { defineComponent } from "vue";
+import "./index.scss";
 
 export default defineComponent({
-  name: 'CustomHighlight',
+  name: "CustomHighlight",
   props: {
-    index: Number,
     text: String,
     colorMap: {
       type: Object,
@@ -38,6 +37,14 @@ export default defineComponent({
     },
   },
   setup(props) {
-    return () => <span style={{ backgroundColor: props.colorMap[props.text] || 'transparent' }}>{props.text}</span>;
+    return () => (
+      <span
+        style={{
+          backgroundColor: props.colorMap[props.text!] || "transparent",
+        }}
+      >
+        {props.text}
+      </span>
+    );
   },
 });

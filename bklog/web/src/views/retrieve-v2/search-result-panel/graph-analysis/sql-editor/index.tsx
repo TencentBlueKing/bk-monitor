@@ -23,15 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, Ref, ref, onMounted } from 'vue';
+import { computed, defineComponent, type Ref, ref, onMounted } from 'vue';
 
 import $http from '@/api/index.js';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import screenfull from 'screenfull';
 import { transactsql, formatDialect } from 'sql-formatter';
 
@@ -211,7 +212,9 @@ export default defineComponent({
     const debounceSyncAdditionToSQL = debounce(handleSyncAdditionToSQL, 500);
 
     const handleFullscreenClick = () => {
-      if (!screenfull.isEnabled) return;
+      if (!screenfull.isEnabled) {
+        return;
+      }
       isFullscreen.value ? screenfull.exit() : screenfull.request(refSqlBox.value);
       isFullscreen.value = !isFullscreen.value;
       editorInstance.value.focus();
@@ -233,7 +236,7 @@ export default defineComponent({
             theme='primary'
             onClick={handleQueryBtnClick}
           >
-            <i class='bklog-icon bklog-bofang'></i>
+            <i class='bklog-icon bklog-bofang' />
           </bk-button>
           <bk-button
             class='sql-editor-view-button'
@@ -252,7 +255,7 @@ export default defineComponent({
             extendParams={props.extendParams}
             search-mode='sqlChart'
             sql={retrieveParams.value.keyword}
-          ></BookmarkPop>
+          />
         </div>
       );
     };
@@ -268,7 +271,7 @@ export default defineComponent({
                 v-bk-tooltips={{ content: $t('格式化') }}
                 onClick={() => formatMonacoSqlCode()}
               >
-                <span class='bk-icon icon-script-file'></span>
+                <span class='bk-icon icon-script-file' />
               </div>
               {isFullscreen.value ? (
                 <div
@@ -276,7 +279,7 @@ export default defineComponent({
                   v-bk-tooltips={{ content: $t('取消全屏') }}
                   onClick={handleFullscreenClick}
                 >
-                  <span class='bk-icon icon-un-full-screen'></span>
+                  <span class='bk-icon icon-un-full-screen' />
                 </div>
               ) : (
                 <div
@@ -284,7 +287,7 @@ export default defineComponent({
                   v-bk-tooltips={{ content: $t('全屏') }}
                   onClick={handleFullscreenClick}
                 >
-                  <span class='bk-icon icon-full-screen'></span>
+                  <span class='bk-icon icon-full-screen' />
                 </div>
               )}
             </div>
@@ -300,7 +303,7 @@ export default defineComponent({
           class={['sql-preview-root', { 'is-show': isPreviewSqlShow.value }]}
         >
           <div class='sql-preview-title'>
-            <span class='bklog-icon bklog-circle-alert-filled'></span>
+            <span class='bklog-icon bklog-circle-alert-filled' />
             {$t('检测到「顶部查询条件」，已自动补充 SQL（与已输入 SQL 语句叠加生效）：')}
           </div>
           <div class='sql-preview-text'>{previewSqlContent.value}</div>
@@ -321,11 +324,11 @@ export default defineComponent({
     /**
      * 监听关联数据变化
      */
-    const onRefereceChange = async args => {
+    const onRefereceChange = args => {
       // 这里表示数据来自图表分析收藏点击回填数据
       if (args?.params?.chart_params?.sql?.length) {
         const old = editorInstance.value?.getValue();
-        if (old != args?.params?.chart_params?.sql) {
+        if (old !== args?.params?.chart_params?.sql) {
           editorInstance.value?.setValue(args?.params?.chart_params?.sql);
         }
         debounceQuery();
@@ -336,15 +339,14 @@ export default defineComponent({
       debounceSyncAdditionToSQL(handleQueryBtnClick);
     };
 
-    // @ts-ignore
-    RetrieveHelper.on(
+    const { addEvent } = useRetrieveEvent();
+    addEvent(
       [
         RetrieveEvent.SEARCH_VALUE_CHANGE,
         RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
         RetrieveEvent.SEARCH_TIME_CHANGE,
         RetrieveEvent.LEFT_FIELD_INFO_UPDATE,
       ],
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       onRefereceChange,
     );
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);

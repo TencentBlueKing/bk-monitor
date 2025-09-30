@@ -332,6 +332,15 @@
         text-overflow: ellipsis;
         white-space: normal;
 
+        .content-detail-type {
+          display: flex;
+          align-items: center;
+
+          svg {
+            margin-right: 4px;
+          }
+        }
+
         .icon-type {
           margin-left: 4px !important;
         }

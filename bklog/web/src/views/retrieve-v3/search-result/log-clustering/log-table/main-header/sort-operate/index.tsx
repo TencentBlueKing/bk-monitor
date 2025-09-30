@@ -33,7 +33,8 @@ export default defineComponent({
   setup(_, { emit, expose }) {
     const sortState = ref([false, false]);
 
-    const handleClickSort = () => {
+    const handleClickSort = (e?: Event) => {
+      e?.stopPropagation();
       if (sortState.value.every(item => !item)) {
         sortState.value = [true, false];
         emit('sort', 'asc');
@@ -56,6 +57,7 @@ export default defineComponent({
       reset: () => {
         sortState.value = [false, false];
       },
+      update: handleClickSort,
     });
 
     return () => (

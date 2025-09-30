@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -122,19 +122,22 @@ class ApmDataSourceConfigBase(models.Model):
             instance.switch_result_table(False)
 
     def switch_result_table(self, is_enable=True):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         resource.metadata.modify_result_table(
             {
                 "table_id": self.result_table_id,
                 "is_enable": is_enable,
-                "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+                "bk_tenant_id": bk_tenant_id,
+                "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             }
         )
 
     def create_data_id(self):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         if self.bk_data_id != -1:
             return self.bk_data_id
         try:
-            data_id_info = resource.metadata.query_data_source({"data_name": self.data_name})
+            data_id_info = resource.metadata.query_data_source(bk_tenant_id=bk_tenant_id, data_name=self.data_name)
         except metadata_models.DataSource.DoesNotExist:
             # 临时支持数据链路
             data_link = DataLink.get_data_link(self.bk_biz_id)
@@ -149,9 +152,10 @@ class ApmDataSourceConfigBase(models.Model):
                         data_link_param["transfer_cluster"] = data_link.trace_transfer_cluster_id
             data_id_info = resource.metadata.create_data_id(
                 {
+                    "bk_tenant_id": bk_tenant_id,
                     "bk_biz_id": self.bk_biz_id,
                     "data_name": self.data_name,
-                    "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+                    "operator": get_global_user(bk_tenant_id=bk_tenant_id),
                     "data_description": self.data_name,
                     **self.DATA_ID_PARAM,
                     **data_link_param,
@@ -233,12 +237,14 @@ class MetricDataSource(ApmDataSourceConfigBase):
         if self.result_table_id != "":
             return
 
-        global_user = get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id))
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        global_user = get_global_user(bk_tenant_id=bk_tenant_id)
         params = {
             "operator": global_user,
             "bk_data_id": self.bk_data_id,
             # 平台级接入，ts_group 业务id对应为0
             "bk_biz_id": self.bk_biz_id,
+            "bk_tenant_id": bk_tenant_id,
             "time_series_group_name": self.event_group_name,
             "label": "application_check",
             "table_id": self.table_id,
@@ -256,6 +262,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
         group_info = resource.metadata.create_time_series_group(params)
         resource.metadata.modify_time_series_group(
             {
+                "bk_tenant_id": bk_tenant_id,
                 "time_series_group_id": group_info["time_series_group_id"],
                 "field_list": [
                     {
@@ -275,11 +282,13 @@ class MetricDataSource(ApmDataSourceConfigBase):
         self.save()
 
     def update_fields(self, field_list):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         return resource.metadata.modify_time_series_group(
             {
+                "bk_tenant_id": bk_tenant_id,
                 "time_series_group_id": self.time_series_group_id,
                 "field_list": field_list,
-                "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+                "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             }
         )
 
@@ -553,6 +562,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
     index_set_id = models.IntegerField("索引集id", null=True)
     index_set_name = models.CharField("索引集名称", max_length=512, null=True)
 
+    def to_json(self):
+        return {**super().to_json(), "index_set_id": self.index_set_id}
+
     @property
     def table_id(self) -> str:
         return self.get_table_id(int(self.bk_biz_id), self.app_name)
@@ -569,11 +581,13 @@ class TraceDataSource(ApmDataSourceConfigBase):
         if self.result_table_id:
             table_id = self.result_table_id
 
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         params = {
             "bk_data_id": self.bk_data_id,
             # 必须为 库名.表名
             "table_id": table_id,
-            "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+            "bk_tenant_id": bk_tenant_id,
+            "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             "is_enable": True,
             "table_name_zh": self.app_name,
             "is_custom_table": True,

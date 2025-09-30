@@ -925,7 +925,7 @@
   import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
   import { mapGetters, mapState } from 'vuex';
   import * as authorityMap from '../../common/authority-map';
-  import { deepClone, deepEqual } from '../../common/util';
+  import { deepEqual } from '../../common/util';
   import fieldTable from './field-table';
 
   export default {
@@ -1247,7 +1247,7 @@
       // 切换可见范围时 恢复缓存或清空业务选择
       'formData.visible_type': {
         handler(val) {
-          this.visibleBkBiz = val !== 'multi_biz' ? [] : JSON.parse(JSON.stringify(this.cacheVisibleList));
+          this.visibleBkBiz = val !== 'multi_biz' ? [] : structuredClone(this.cacheVisibleList);
         },
       },
       'formData.etl_params.retain_original_text': {
@@ -1475,7 +1475,7 @@
               enable_retain_content: true,
               metadata_fields: [],
             },
-            etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
+            etlParams ? structuredClone(etlParams) : {},
           ),
           fields: etlFields,
           visible_type,
@@ -1569,7 +1569,7 @@
           data.etl_fields = fieldTableData;
           // 添加内置字段
           if (!this.builtFieldShow) {
-            const copyBuiltField = deepClone(this.copyBuiltField);
+            const copyBuiltField = structuredClone(this.copyBuiltField);
             copyBuiltField.forEach(field => {
               if (field.hasOwnProperty('expand')) {
                 if (field.expand === false) {
@@ -1911,13 +1911,13 @@
           index_set_id,
         } = this.curCollect;
         const option = { time_zone: '', time_format: '' };
-        const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
+        const copyFields = fields ? structuredClone(fields) : [];
         copyFields.forEach(row => {
           row.value = '';
           if (row.is_delete) {
             const copyRow = Object.assign(
-              JSON.parse(JSON.stringify(this.rowTemplate)),
-              JSON.parse(JSON.stringify(row)),
+              structuredClone(this.rowTemplate),
+              structuredClone(row),
             );
             Object.assign(row, copyRow);
           }
@@ -1954,7 +1954,7 @@
             },
             etlParams
               ? {
-                  ...JSON.parse(JSON.stringify(etlParams)),
+                  ...structuredClone(etlParams),
                   metadata_fields: etlParams.metadata_fields || [],
                 }
               : {},
@@ -2051,10 +2051,11 @@
             if (res.data && res.data.fields) {
               const dataFields = res.data.fields;
               const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
-              dataFields.forEach(item => {
+              dataFields.forEach((item, itemIndex) => {
                 if(item.field_name && !validFieldPattern.test(item.field_name)){
                   item.field_name = JSON.stringify(item.field_name)
                 }
+                item.field_index = itemIndex +1;
                 item.verdict = this.judgeNumber(item);
               });
               const fields = this.formData.fields;
@@ -2063,7 +2064,7 @@
                 if (!this.formData.etl_config || this.formData.etl_config !== etl_config || !newFields.length) {
                   // 如果没有提取方式 || 提取方式发生变化 || 不存在任何字段
                   const list = dataFields.reduce((arr, item) => {
-                    const field = Object.assign({}, JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                    const field = Object.assign({}, structuredClone(this.rowTemplate), item);
                     arr.push(field);
                     return arr;
                   }, []);
@@ -2078,7 +2079,7 @@
                       });
                       item = child
                         ? Object.assign({}, child, item)
-                        : Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                        : Object.assign(structuredClone(this.rowTemplate), item);
                       arr.push(item);
                       return arr;
                     }, []);
@@ -2092,10 +2093,6 @@
                       }, []);
                       list.splice(list.length, 0, ...deletedFileds);
                     }
-
-                    list.forEach((item, itemIndex) => {
-                      item.field_index = itemIndex;
-                    });
                     this.formData.fields.splice(0, fields.length, ...list);
                   }
 
@@ -2123,14 +2120,13 @@
                       // 处理 dataFields 中超出 index 范围的部分
                       if (dataFields.length > index.length) {
                         dataFields.slice(index.length).forEach(item => {
-                          const newItem = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                          const newItem = Object.assign(structuredClone(this.rowTemplate), item);
                           list.push(newItem);
                         });
                       }
                     } else {
                       dataFields.reduce((arr, item) => {
-                        item.field_index = arr.length;
-                        const field = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                        const field = Object.assign(structuredClone(this.rowTemplate), item);
                         arr.push(field);
                         return arr;
                       }, list);
@@ -2352,7 +2348,7 @@
                   },
                   etlParams
                     ? {
-                        ...JSON.parse(JSON.stringify(etlParams)),
+                        ...structuredClone(etlParams),
                         metadata_fields: etlParams.metadata_fields || [],
                       }
                     : {},
@@ -2472,10 +2468,10 @@
       },
       /** json格式新增字段 */
       addNewField() {
-        const fields = deepClone(this.formData.fields);
+        const fields = structuredClone(this.formData.fields);
         const newBaseFieldObj = {
           ...this.baseFieldObj,
-          field_index: this.formData.fields.length,
+          field_index: this.formData.fields.length + 1,
         };
         // 获取table表格编辑的数据 新增新的字段对象
         this.formData.fields.splice(0, fields.length, ...[...this.$refs.fieldTable.getData(), newBaseFieldObj]);
@@ -2619,6 +2615,9 @@
       },
       deleteField(field) {
         this.formData.fields = this.formData.fields.filter(item => item.field_index !== field.field_index);
+        this.formData.fields.forEach((item, index) => {
+          item.field_index = index + 1;
+        });
       },
       addChildrenToBuiltField(builtFieldList, item, name) {
         const field_name = name.split('.')[0].replace(/^_+|_+$/g, '');

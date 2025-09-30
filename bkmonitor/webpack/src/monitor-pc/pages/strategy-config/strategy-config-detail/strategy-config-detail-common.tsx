@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -326,8 +326,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
 
   /** 生效时间 */
   timeRanges = [];
-  /** 关联日历 */
+  /** 关联日历id(排除) */
   calendars = [];
+  /** 关联日历id(包含) */
+  active_calendars = [];
   /** 关联日历可选项列表 */
   calendarList = [];
   /* source数据 此数据与指标数据隔离 */
@@ -346,6 +348,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   };
 
   targetDetailLoading = false;
+
+  get calendarsData() {
+    if (this.calendars.length) return this.calendars;
+    return this.active_calendars;
+  }
 
   /** 预览图描述文档  智能检测算法 | 时序预测 需要展示算法说明 */
   get aiopsModelDescMdGetter() {
@@ -827,9 +834,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       level: item.no_data_config.level || 2,
     };
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const { time_ranges, calendars } = detect.trigger_config.uptime || {};
+    const { time_ranges, calendars, active_calendars } = detect.trigger_config.uptime || {};
     this.timeRanges = time_ranges ? time_ranges : [];
     this.calendars = calendars ? calendars : [];
+    this.active_calendars = active_calendars ? active_calendars : [];
   }
   /**
    * @description 获取告警处理数据
@@ -1310,11 +1318,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                   )}
                   {commonItem(
                     this.$t('关联日历'),
-                    this.calendars.length
-                      ? this.calendars.reduce((str, item, index) => {
+                    this.calendarsData.length
+                      ? `${this.calendars.length ? '排除' : '包含'} ${this.calendarsData.reduce((str, item, index) => {
                           const target = this.calendarList.find(set => set.id === item);
-                          return `${str}${target?.name || item}${index !== this.calendars.length - 1 ? ', ' : ''}`;
-                        }, '')
+                          return `${str}${target?.name || item}${index !== this.calendarsData.length - 1 ? ', ' : ''}`;
+                        }, '')}`
                       : '--'
                   )}
                 </div>

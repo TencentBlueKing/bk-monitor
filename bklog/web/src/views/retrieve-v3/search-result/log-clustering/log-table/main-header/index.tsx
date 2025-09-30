@@ -23,14 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import _ from 'lodash';
-import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
-import SortOperate from './sort-operate';
+
 import FilterOperate from './filter-operate';
-import $http from '@/api';
-import useStore from '@/hooks/use-store';
+// import useStore from "@/hooks/use-store";
 import HeadColumn from './head-column';
+import SortOperate from './sort-operate';
+import $http from '@/api';
+
 import './index.scss';
 
 export default defineComponent({
@@ -53,13 +55,18 @@ export default defineComponent({
       type: String,
       require: true,
     },
+    displayMode: {
+      type: String,
+      default: 'group',
+    },
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    // const store = useStore();
 
-    const tableHeaderWraperRef = ref(null);
-    const columnsRef = Array.from({ length: 10 }).map(() => ref(null));
+    const headRowRef = ref<HTMLBaseElement>();
+    const renderKey = ref(0);
+    const tableHeaderWraperRef = ref<HTMLBaseElement>();
     const ownerList = ref([]);
     const sortColumnRefs = {
       count: ref(null),
@@ -70,11 +77,14 @@ export default defineComponent({
       remark: ref(null),
     };
 
-    const showYOY = computed(() => props.requestData.year_on_year_hour >= 1);
-    const showGroupBy = computed(() => props.requestData.group_by.length > 0);
-    const isAiAssistanceActive = computed(() => store.getters.isAiAssistantActive);
+    const showYOY = computed(() => props.requestData?.year_on_year_hour >= 1);
+    const showGroupBy = computed(() => props.requestData?.group_by.length > 0 && props.displayMode === 'group');
+    const isFlattenMode = computed(() => props.requestData?.group_by.length > 0 && props.displayMode !== 'group');
+    // const isAiAssistanceActive = computed(
+    //   () => store.getters.isAiAssistantActive
+    // );
 
-    const isExternal = window.IS_EXTERNAL === 'true';
+    const isExternal = window.IS_EXTERNAL === true;
     const ownerBaseList = [
       {
         id: 'no_owner',
@@ -96,7 +106,7 @@ export default defineComponent({
     watch(
       () => props.requestData,
       () => {
-        Object.values(sortColumnRefs).forEach(item => {
+        Object.values(sortColumnRefs).forEach((item: any) => {
           item.value?.reset();
         });
       },
@@ -106,17 +116,26 @@ export default defineComponent({
     );
 
     watch(
-      () => [showGroupBy.value, showYOY.value, isAiAssistanceActive.value],
+      () => [
+        showGroupBy.value,
+        showYOY.value,
+        // isAiAssistanceActive.value,
+        props.displayMode,
+      ],
       () => {
         setTimeout(() => {
-          handleResizeColumn();
+          initHeader();
         });
+      },
+      {
+        immediate: true,
+        deep: true,
       },
     );
 
     // 获取当前数据指纹所有的责任人
     const getUserList = () => {
-      const cloneOwnerBase = _.cloneDeep(ownerBaseList);
+      const cloneOwnerBase = structuredClone(ownerBaseList);
       $http
         .request('/logClustering/getOwnerList', {
           params: {
@@ -148,41 +167,60 @@ export default defineComponent({
     };
 
     const handleResizeColumn = () => {
-      emit('resize-column', tableHeaderWraperRef.value.scrollWidth);
+      emit('resize-column', tableHeaderWraperRef.value?.scrollWidth);
+    };
+
+    const initHeader = () => {
+      renderKey.value += 1;
+      setTimeout(() => {
+        handleResizeColumn();
+      });
     };
 
     getUserList();
 
     expose({
-      scroll: (scrollLeft: number) => (tableHeaderWraperRef.value.scrollLeft = scrollLeft),
-      getColumnWidthList: () => columnsRef.map(item => item.value?.getWidth()),
+      scroll: (scrollLeft: number) => {
+        tableHeaderWraperRef.value.scrollLeft = scrollLeft;
+      },
+      getColumnWidthList: () =>
+        Array.from(headRowRef.value.querySelectorAll('th')).map((item: any) =>
+          item.style.width ? item.style.width : item.getBoundingClientRect().width,
+        ),
     });
 
     onMounted(() => {
       setTimeout(() => {
         handleResizeColumn();
       }, 1000);
+      window.addEventListener('resize', initHeader);
+    });
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', initHeader);
     });
 
     return () => (
       <div
-        class='log-table-header-main-wraper'
         ref={tableHeaderWraperRef}
+        class='log-table-header-main-wraper'
       >
-        <table class='log-table-header-main'>
+        <table
+          key={renderKey.value}
+          class='log-table-header-main'
+        >
           <thead>
-            <tr>
+            <tr ref={headRowRef}>
               {showGroupBy.value && <th style='width: 12px'></th>}
               <HeadColumn
-                ref={columnsRef[0]}
-                width={75}
+                width={125}
                 on-resize-width={handleResizeColumn}
               >
                 {t('数据指纹')}
               </HeadColumn>
               <HeadColumn
-                ref={columnsRef[1]}
                 width={props.tableColumnWidth.number}
+                on-click-column={() => sortColumnRefs.count.value?.update()}
                 on-resize-width={handleResizeColumn}
               >
                 <div class='sort-column'>
@@ -194,8 +232,8 @@ export default defineComponent({
                 </div>
               </HeadColumn>
               <HeadColumn
-                ref={columnsRef[2]}
                 width={props.tableColumnWidth.percentage}
+                on-click-column={() => sortColumnRefs.percentage.value?.update()}
                 on-resize-width={handleResizeColumn}
               >
                 <div class='sort-column'>
@@ -208,8 +246,8 @@ export default defineComponent({
               </HeadColumn>
               {showYOY.value && (
                 <HeadColumn
-                  ref={columnsRef[3]}
                   width={props.tableColumnWidth.year_on_year_count}
+                  on-click-column={() => sortColumnRefs.year_on_year_count.value?.update()}
                   on-resize-width={handleResizeColumn}
                 >
                   <div class='sort-column'>
@@ -223,8 +261,8 @@ export default defineComponent({
               )}
               {showYOY.value && (
                 <HeadColumn
-                  ref={columnsRef[4]}
                   width={props.tableColumnWidth.year_on_year_percentage}
+                  on-click-column={() => sortColumnRefs.year_on_year_percentage.value?.update()}
                   on-resize-width={handleResizeColumn}
                 >
                   <div class='sort-column'>
@@ -236,15 +274,22 @@ export default defineComponent({
                   </div>
                 </HeadColumn>
               )}
+              {isFlattenMode.value &&
+                props.requestData.group_by.map(item => (
+                  <HeadColumn
+                    width={100}
+                    on-resize-width={handleResizeColumn}
+                  >
+                    {item}
+                  </HeadColumn>
+                ))}
               <HeadColumn
-                ref={columnsRef[5]}
                 minWidth={350}
                 on-resize-width={handleResizeColumn}
               >
                 Pattern
               </HeadColumn>
               <HeadColumn
-                ref={columnsRef[6]}
                 width={200}
                 customStyle={{ paddingLeft: '10px' }}
                 on-resize-width={handleResizeColumn}
@@ -260,7 +305,6 @@ export default defineComponent({
               </HeadColumn>
               {!isExternal && (
                 <HeadColumn
-                  ref={columnsRef[7]}
                   width={200}
                   on-resize-width={handleResizeColumn}
                 >
@@ -281,7 +325,6 @@ export default defineComponent({
                 </HeadColumn>
               )}
               <HeadColumn
-                ref={columnsRef[8]}
                 width={200}
                 on-resize-width={handleResizeColumn}
               >
@@ -290,19 +333,18 @@ export default defineComponent({
                   <filter-operate
                     ref={sortColumnRefs.remark}
                     list={remarkList}
-                    searchable={false}
                     multiple={false}
+                    searchable={false}
                     on-confirm={value => handleConfirmFilter(value, 'remark')}
                   />
                 </div>
               </HeadColumn>
-              {isAiAssistanceActive.value && (
+              {/* {isAiAssistanceActive.value && (
                 <HeadColumn
-                  ref={columnsRef[9]}
                   width={60}
                   on-resize-width={handleResizeColumn}
                 ></HeadColumn>
-              )}
+              )} */}
               {showGroupBy.value && <th style='width: 12px'></th>}
             </tr>
           </thead>

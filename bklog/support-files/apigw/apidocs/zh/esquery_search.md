@@ -4,19 +4,12 @@
 
 ### 请求参数
 
-#### 通用参数
-|   参数名称   |    参数类型  |  必须  |     参数说明     |
-| ------------ | ------------ | ------ | ---------------- |
-|   app_code   |   string     |   是   |  蓝鲸应用编码    |
-|   app_secret |   string     |   是   |  蓝鲸应用私密key |
-|   access_token |   string     |   是   |  用户态access token |
-
 #### 接口参数
 
 | 字段      |  类型      | 必选   |  描述      |
 |-----------|------------|--------|------------|
-| scenario_id         |  string    | 否     | ES接入场景(非必填） 默认为log，蓝鲸数据平台：bkdata 原生ES：es 日志采集：log |
 | indices         |  string    | 是     | 索引列表 |
+| scenario_id         |  string    | 否     | ES接入场景(非必填） 默认为log，原生ES：es 日志采集：log |
 | storage_cluster_id  |  int   | 否     | 当scenario_id为es或log时候需要传入 |
 | time_field  |  string   | 否     | 时间字段（非必填，bkdata内部为dtEventTimeStamp，外部如果传入时间范围需要指定时间字段） |
 | start_time  |  string   | 否     | 开始时间 |
@@ -25,122 +18,132 @@
 | query_string  |  string   | 否     | 搜索语句query_string(非必填，默认为*) |
 | filter  |  list   | 否     | 搜索过滤条件（非必填，默认为没有过滤，默认的操作符是is） 操作符支持 is、is one of、is not、is not one of |
 | start  |  int   | 否     | 起始位置（非必填，类似数组切片，默认为0） |
-| size  |  int   | 否     | 条数（非必填，控制返回条目，默认为500） |
+| size  |  int   | 否     | 条数（非必填，控制返回条目） |
 | aggs  |  dict   | 否     | ES的聚合参数 |
 | highlight  |  dict   | 否     | 高亮参数 |
 
+### 请求头示例
 
-### 调用示例
-
-```python
-from bkapigw.log_search.shortcuts import get_client_by_request
-headers = {
-    'Content-Type': 'application/json; chartset=utf-8'
+X-Bkapi-Authorization (权限校验)
+```json
+{
+    "bk_app_code": "replace_me_with_bk_app_code",
+    "bk_app_secret": "replace_me_with_bk_app_secret",
+    "bk_username": "replace_me_with_bk_username",
 }
-client = get_client_by_request(request, headers=headers)
-kwargs = {
-   "scenario_id": "bkdata",
-   "indices": "result_table_name",
-    "start_time": "2019-06-11 00:00:00",
-    "end_time": "2019-06-12 11:11:11",
+```
+
+
+X-Bk-Tenant-Id (租户ID)
+
+
+### 请求参数示例
+
+```json
+{
+    "indices": "2_bklog.bk_log_search_api",
+    "scenario_id": "log",
+    "storage_cluster_id": 3,
+    "use_time_range": true,
     "time_range": "customized",
-    "query_string": "error",
-    "filter": [
-        {
-            "field": "ip",
-            "operator": "is",
-            "value": "127.0.0.1"
-        }
-    ],
+    "time_field": "dtEventTimeStamp",
+    "start_time": "2022-03-14 18:26:33",
+    "end_time": "2022-03-14 18:41:33",
+    "query_string": "*",
+    "filter": [],
     "sort_list": [
-        ["field_a", "desc"],
-        ["field_b", "asc"]
+        [
+            "dtEventTimeStamp",
+            "desc"
+        ],
+        [
+            "gseIndex",
+            "desc"
+        ],
+        [
+            "iterationIndex",
+            "desc"
+        ]
     ],
     "start": 0,
-    "size": 15,
-    "aggs": {
-        "docs_per_minute": {
-            "date_histogram": {
-                "field": "dtEventTimeStamp",
-                "interval": "1m",
-                "time_zone": "+08: 00"
-            }
-        },
-        "top_ip": {
-            "terms": {
-                "field": "ip",
-                "size": 5
-            }
-        }
-    },
+    "size": 1,
+    "aggs": {},
     "highlight": {
         "pre_tags": [
-            "&lt;mark&gt;"
+            "<mark>"
         ],
         "post_tags": [
-            "&lt;/mark&gt;"
+            "</mark>"
         ],
         "fields": {
             "*": {
+                "number_of_fragments": 0
             }
         },
         "require_field_match": false
     }
 }
-result = client.api.esquery_search(kwargs)
 ```
 
-### 返回结果
+### 响应参数
+
+| 字段    | 类型   | 描述         |
+| ------- | ------ | ------------ |
+| result  | bool   | 请求是否成功 |
+| code    | int    | 返回的状态码 |
+| message | string | 描述信息     |
+| data    | dict   | 返回日志内容  |
+| request_id | string   | 请求ID |
+
+
+### 返回日志内容字段
+| 字段    | 类型   | 描述         |
+| ------- | ------ | ------------ |
+| took  | int   | 耗时 |
+| timed_out    | bool    | 是否超时 |
+| _shards | dict | shards请求状态     |
+| hits    | dict   | ES中原始日志内容  |
+
+
+### 返回结果示例
 
 ```json
 {
     "result": true,
-    "message": "查询成功",
     "data": {
+        "took": 17,
+        "timed_out": false,
+        "_shards": {
+            "total": 3,
+            "successful": 3,
+            "skipped": 0,
+            "failed": 0
+        },
         "hits": {
+            "total": 13606,
+            "max_score": null,
             "hits": [
                 {
-                    "_score": 2,
-                    "_type": "xx",
-                    "_id": "xxx",
+                    "_index": "v2_2_bklog_bk_log_search_api_20220310_0",
+                    "_type": "_doc",
+                    "_id": "1603fe2e851dd02b76cff2681052e0da",
+                    "_score": null,
                     "_source": {
-                        "dtEventTimeStamp": 1565453112000,
-                        "report_time": "2019-08-11 00:05:12",
-                        "log": "xxxxxx",
-                        "ip": "127.0.0.1",
-                        "gseindex": 5857918,
-                        "_iteration_idx": 3,
-                        "path": "xxxxx"
+                        "cloudId": 0,
+                        "dtEventTimeStamp": "1647254492000",
+                        "gseIndex": 41041,
+                        "iterationIndex": 9,
+                        "log": "i am log message",
+                        "path": "/host/path/log/type.log",
+                        "serverIp": "127.0.0.1",
+                        "time": "1647254492000"
                     },
-                    "_index": "xxxxxxxx"
-                },
-                {
-                    "_score": 2,
-                    "_type": "xxxx",
-                    "_id": "xxxxx",
-                    "_source": {
-                        "dtEventTimeStamp": 1565453113000,
-                        "report_time": "2019-08-11 00:05:13",
-                        "log": "xxxxxxx",
-                        "ip": "127.0.0.1",
-                        "gseindex": 5857921,
-                        "_iteration_idx": 2,
-                        "path": "xxxxxxxxx"
-                    },
-                    "_index": "xxxxxxx"
                 }
-            ],
-            "total": 8429903,
-            "max_score": 2
-        },
-        "_shards": {
-            "successful": 9,
-            "failed": 0,
-            "total": 9
-        },
-        "took": 136,
-        "timed_out": false
+            ]
+        }
     },
-    "code": 0
+    "code": 0,
+    "message": "",
+    "request_id": "ce9d1b034d9a423cb736af285041b978"
 }
 ```

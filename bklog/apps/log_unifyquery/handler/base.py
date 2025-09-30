@@ -33,9 +33,11 @@ from apps.log_search.constants import (
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
     MAX_ASYNC_COUNT,
-    SCROLL, MAX_QUICK_EXPORT_ASYNC_COUNT,
+    SCROLL,
+    MAX_QUICK_EXPORT_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
 )
-from apps.log_search.exceptions import BaseSearchResultAnalyzeException, TokenInvalidException
+from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
@@ -71,8 +73,6 @@ from apps.api import MonitorApi
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_search.constants import ASYNC_SORTED
-from apps.log_commons.models import ApiAuthToken
-from apps.log_commons.token import CodeccTokenHandler
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -240,6 +240,19 @@ class UnifyQueryHandler:
                 raise handle_es_query_error(e)
             return {"list": []}
 
+    @staticmethod
+    def query_ts_raw_with_scroll(search_dict, raise_exception=True):
+        """
+        日志下载
+        """
+        try:
+            return UnifyQueryApi.query_ts_raw_with_scroll(search_dict)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("query ts raw with scroll error: %s, search params: %s", e, search_dict)
+            if raise_exception:
+                raise e
+            return {"list": []}
+
     def _enhance(self):
         """
         语法增强
@@ -257,12 +270,14 @@ class UnifyQueryHandler:
             return "1m"
 
         # 兼容毫秒查询
-        hour_interval = (arrow.get(int(self.end_time)) - arrow.get(int(self.start_time))).total_seconds() / 3600
-        if hour_interval <= 1:
+        hour_interval = (arrow.get(int(self.end_time)) - arrow.get(int(self.start_time))).total_seconds()
+        if hour_interval <= 1 * 60:
+            return "1s"
+        if hour_interval <= 1 * 3600:
             return "1m"
-        elif hour_interval <= 6:
+        elif hour_interval <= 6 * 3600:
             return "5m"
-        elif hour_interval <= 24 * 3:
+        elif hour_interval <= 24 * 3 * 3600:
             return "1h"
         else:
             return "1d"
@@ -577,7 +592,7 @@ class UnifyQueryHandler:
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "down_sample_range": "",
-            "timezone": "UTC",  # 仅用于提供给 unify-query 生成读别名，对应存储入库时区
+            "timezone": self.search_params.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE),
             "bk_biz_id": self.bk_biz_id,
         }
 
@@ -835,7 +850,6 @@ class UnifyQueryHandler:
             q["time_aggregation"] = {}
         params["step"] = interval
         params["order_by"] = []
-        params["timezone"] = get_local_param("time_zone", settings.TIME_ZONE)
         response = self.query_ts_reference(params)
         return_data = {"aggs": {}}
         if not response["series"]:
@@ -993,8 +1007,9 @@ class UnifyQueryHandler:
         search_dict["limit"] = max_result_window
         search_dict["trace_id"] = scroll_result["trace_id"]
         search_dict["scroll"] = scroll
-        while scroll_size >= max_result_window and\
-                result_size < max(index_set.max_async_count, MAX_QUICK_EXPORT_ASYNC_COUNT):
+        while scroll_size >= max_result_window and result_size < max(
+            index_set.max_async_count, MAX_QUICK_EXPORT_ASYNC_COUNT
+        ):
             search_dict["result_table_options"] = scroll_result["result_table_options"]
             scroll_result = UnifyQueryApi.query_ts_raw(search_dict)
             scroll_size = len(scroll_result["list"])
@@ -1023,6 +1038,7 @@ class UnifyQueryHandler:
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = size
         search_dict["scroll"] = scroll
+        search_dict["is_search_after"] = True
         result = UnifyQueryApi.query_ts_raw(search_dict)
         return result
 
@@ -1050,12 +1066,40 @@ class UnifyQueryHandler:
         # 参数补充
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = max_result_window
+        search_dict["is_search_after"] = True
         while search_after_size >= max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
             search_dict["result_table_options"] = search_result["result_table_options"]
             search_result = UnifyQueryApi.query_ts_raw(search_dict)
             search_after_size = len(search_result["list"])
             result_size += search_after_size
             yield self._deal_query_result(search_result)
+
+    def export_data(self, is_quick_export: bool = False):
+        """
+        轮询滚动查询接口导出数据
+        """
+        search_params = copy.deepcopy(self.base_dict)
+        search_params["limit"] = MAX_RESULT_WINDOW
+        search_params["scroll"] = SCROLL
+        # 全文下载不分片
+        search_params["slice_max"] = MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT if is_quick_export else 0
+
+        max_result_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        total_count = 0
+        while total_count < max_result_count:
+            # 首次请求清空缓存
+            search_params["clear_cache"] = total_count == 0
+            search_result = UnifyQueryHandler.query_ts_raw_with_scroll(search_params)
+            if not search_result.get("list"):
+                break
+
+            yield self._deal_query_result(search_result)
+
+            total_count += len(search_result["list"])
+
+            # done为true代表已经获取完所有数据，可以结束查询
+            if search_result.get("done", False):
+                break
 
     def _get_user_sorted_list(self, sorted_fields):
         index_set_id = self.index_info_list[0]["index_set_id"]
@@ -1301,42 +1345,27 @@ class UnifyQueryHandler:
             },
         )
 
-    @staticmethod
-    def search_log_for_code(token: str, params: dict[str, Any]) -> dict[str, Any]:
+    @classmethod
+    def search_log_for_code(cls, index_set_id: int, params: dict[str, Any]) -> dict[str, Any]:
         """
         根据codecc token查询日志
         参数:
-            token (str): token
+            index_set_id (int): 索引集ID
             params (dict): 完整的查询参数，直接传给 query ts raw
         返回值:
             dict: 查询结果
         """
-        # 1. 根据token查询record
-        try:
-            record = ApiAuthToken.objects.get(token=token)
-        except ApiAuthToken.DoesNotExist:
-            raise TokenInvalidException()
-
-        # 2. 从token记录中解析参数
-        index_set_id = record.params.get("index_set_id")
-        space_uid = record.space_uid
-        bk_biz_id = space_uid_to_bk_biz_id(space_uid) if space_uid else None
-        if not bk_biz_id:
-            raise ValueError(f"无法从space_uid {space_uid} 获取有效的bk_biz_id")
-
-        # 3. 权限验证
-        CodeccTokenHandler.check_index_set_search_permission(record.created_by, index_set_id)
-
-        # 4. 获取table_id
+        # 1. 获取table_id
         table_id = BaseIndexSetHandler.get_data_label(index_set_id)
+        index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
 
-        # 5. 直接使用传入的参数，填充必要的table_id和bk_biz_id参数信息
+        # 2. 直接使用传入的参数，填充必要的table_id和bk_biz_id参数信息
         search_dict = params.copy()
-        search_dict["bk_biz_id"] = bk_biz_id
+        search_dict["bk_biz_id"] = space_uid_to_bk_biz_id(index_set.space_uid)
         if "query_list" in search_dict and search_dict["query_list"]:
             for query_item in search_dict["query_list"]:
                 if isinstance(query_item, dict):
                     query_item["table_id"] = table_id
 
-        # 6. 执行查询
+        # 3. 执行查询
         return UnifyQueryApi.query_ts_raw(search_dict)

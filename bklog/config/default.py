@@ -543,7 +543,7 @@ REDIRECT_FIELD_NAME = "c_url"
 # 验证登录的cookie名
 BK_COOKIE_NAME = "bk_token"
 
-BK_SUPPLIER_ACCOUNT = os.getenv("BKAPP_BK_SUPPLIER_ACCOUNT", "")
+BK_SUPPLIER_ACCOUNT = os.getenv("BKAPP_BK_SUPPLIER_ACCOUNT", "0")
 
 # 数据库初始化 管理员列表
 ADMIN_USERNAME_LIST = ["admin"]
@@ -1243,15 +1243,27 @@ UNIFYQUERY_APIGATEWAY_ROOT = os.getenv("BKAPP_UNIFYQUERY_APIGATEWAY_ROOT", "")
 # AIDEV
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
+# aidev的apigw地址 新版ai小鲸sdk使用
+BK_AIDEV_APIGW_ENDPOINT = os.getenv("BK_AIDEV_APIGW_ENDPOINT", "")
+# aidev智能体
+BK_AIDEV_AGENT_APP_CODE = os.getenv("BK_AIDEV_AGENT_APP_CODE", "")
+BK_AIDEV_AGENT_APP_SECRET = os.getenv("BK_AIDEV_AGENT_APP_SECRET", "")
+# langfuse llm观测服务
+LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "")
+LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY", "")
+LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")
 
 # 是否启用多租户模式
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
 # 为了统一多租户和非多租户场景的逻辑，默认使用system租户
-DEFAULT_TENANT_ID = "system"
+BK_APP_TENANT_ID = "system"
+ALL_TENANT_SET_ID = 1
 # 已经初始化的租户列表
-INITIALIZED_TENANT_LIST = [DEFAULT_TENANT_ID]
+INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
+# 兼容非多租户模式
+APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or 'test' in sys.argv)
 
 # 预查询时间, 默认6h小时, 0代表禁用
 try:

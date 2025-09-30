@@ -151,7 +151,7 @@
         location.reload();
       },
       closeAuth() {
-        this.$store.commit('updateAuthDialogData', null);
+        this.$store.commit('updateState', {'authDialogData': null});
       },
     },
   };

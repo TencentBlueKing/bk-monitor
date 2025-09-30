@@ -1,7 +1,7 @@
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
-Copyright (C) 2022 THL A29 Limited,
+Copyright (C) 2017-2025 Tencent,
 a Tencent company. All rights reserved.
 Licensed under the MIT License (the "License");
 you may not use this file except in compliance with the License.
@@ -150,7 +150,7 @@ class TraceQuery(BaseQuery):
         )
 
         start_time, end_time = cls._get_time_range(retention, start_time, end_time)
-        queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time)
+        queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time).time_align(False)
         for result_table_id in result_table_ids:
             q: QueryConfigBuilder = base_q.table(result_table_id)
             queryset: UnifyQuerySet = queryset.add_query(q)

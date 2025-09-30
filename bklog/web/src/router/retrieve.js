@@ -32,7 +32,6 @@ const RetrieveView = {
 // 检索模块各组件异步声明（用于路由懒加载）
 const Retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-hub');
 const ExternalAuth = () => import(/* webpackChunkName: 'externalAuth' */ '@/views/authorization/authorization-list');
-const Playground = () => import('@/views/playground');
 const ShareLink = () => import(/* webpackChunkName: 'share-link' */ '@/views/share/index.tsx');
 const DataIdUrl = () => import(/* webpackChunkName: 'data-id-url' */ '@/views/data-id-url/index.tsx');
 const TemplateManage = () => import('@/views/retrieve-v3/search-result/template-manage/index.tsx');
@@ -64,6 +63,12 @@ const getRetrieveRoutes = () => [
       },
     ],
   },
+  // 模版管理
+  {
+    path: '/template-manage',
+    name: 'templateManage',
+    component: TemplateManage,
+  },
   // 授权列表
   {
     path: '/external-auth/:activeNav?',
@@ -84,12 +89,7 @@ const getRetrieveRoutes = () => [
       navId: 'share',
     },
   },
-  // Playground
-  {
-    path: '/playground',
-    name: 'playground',
-    component: Playground,
-  },
+
   // 根据 bk_data_id 获取采集项和索引集信息
   {
     path: '/data_id/:id?',

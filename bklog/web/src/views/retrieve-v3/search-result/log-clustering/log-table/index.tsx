@@ -23,18 +23,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, onMounted, onBeforeUnmount } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import MainHeader from './main-header';
-import $http from '@/api';
-import ClusteringLoader from '@/skeleton/clustering-loader.vue';
-import AiAssitant from '@/global/ai-assitant.tsx';
-import ContentTable from './content-table';
-import { type LogPattern } from '@/services/log-clustering';
-import { type IResponseData } from '@/services/type';
+import {
+  computed,
+  defineComponent,
+  ref,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+} from "vue";
+import useStore from "@/hooks/use-store";
+import useLocale from "@/hooks/use-locale";
+import MainHeader from "./main-header";
+import $http from "@/api";
+import ClusteringLoader from "@/skeleton/clustering-loader.vue";
+import AiAssitant from "@/global/ai-assitant.tsx";
+import ContentTable from "./content-table";
+import { type LogPattern } from "@/services/log-clustering";
+import { type IResponseData } from "@/services/type";
 
-import './index.scss';
+import "./index.scss";
 
 export interface TableInfo {
   group: string[];
@@ -42,7 +49,7 @@ export interface TableInfo {
 }
 
 export default defineComponent({
-  name: 'LogTable',
+  name: "LogTable",
   components: {
     MainHeader,
     ClusteringLoader,
@@ -50,10 +57,6 @@ export default defineComponent({
     AiAssitant,
   },
   props: {
-    retrieveParams: {
-      type: Object,
-      required: true,
-    },
     clusterSwitch: {
       type: Boolean,
       default: false,
@@ -71,7 +74,7 @@ export default defineComponent({
       require: true,
     },
   },
-  setup(props, { expose }) {
+  setup(props, { expose, emit }) {
     const store = useStore();
     const { t } = useLocale();
 
@@ -81,50 +84,66 @@ export default defineComponent({
         remark: [],
       },
       sort: {
-        count: '',
-        percentage: '',
-        year_on_year_count: '',
-        year_on_year_percentage: '',
+        count: "",
+        percentage: "",
+        year_on_year_count: "",
+        year_on_year_percentage: "",
       },
     });
 
-    const logTableRef = ref(null);
-    const tablesRef = ref([]);
-    const globalScrollbarWraperRef = ref(null);
-    const globalScrollbarRef = ref(null);
-    const mainHeaderRef = ref(null);
-    const aiAssitantRef = ref(null);
+    const logTableRef = ref<HTMLElement>();
+    const tablesRef = ref<any[]>([]);
+    const globalScrollbarWraperRef = ref<HTMLElement>();
+    const globalScrollbarRef = ref<HTMLElement>();
+    const mainHeaderRef = ref<any>();
+    const aiAssitantRef = ref<any>(null);
     const tableLoading = ref(false);
     const tablesInfoList = ref<TableInfo[]>([]);
     const widthList = ref<string[]>([]);
     const filterSortMap = ref(initFilterSortMap());
+    const displayType = ref("group");
 
-    const showGroupBy = computed(() => props.requestData.group_by.length > 0);
+    const retrieveParams = computed(() => store.getters.retrieveParams);
+    const showGroupBy = computed(
+      () =>
+        props.requestData?.group_by.length > 0 && displayType.value === "group"
+    );
+    const isFlattenMode = computed(
+      () =>
+        props.requestData?.group_by.length > 0 && displayType.value !== "group"
+    );
     const smallLoaderWidthList = computed(() => {
-      return props.requestData.year_on_year_hour > 0 ? loadingWidthList.compared : loadingWidthList.notCompared;
+      return props.requestData?.year_on_year_hour > 0
+        ? loadingWidthList.compared
+        : loadingWidthList.notCompared;
     });
 
-    const tableColumnWidth = computed(() => (store.getters.isEnLanguage ? enTableWidth : cnTableWidth));
+    const tableColumnWidth = computed(() =>
+      store.getters.isEnLanguage ? enTableWidth : cnTableWidth
+    );
 
     const loadingWidthList = {
       // loading表头宽度列表
-      global: [''],
-      notCompared: [150, 90, 90, ''],
-      compared: [150, 90, 90, 100, 100, ''],
+      global: [""],
+      notCompared: [150, 90, 90, ""],
+      compared: [150, 90, 90, 100, 100, ""],
     };
 
     const enTableWidth = {
-      number: '110',
-      percentage: '116',
-      year_on_year_count: '171',
-      year_on_year_percentage: '171',
+      number: "110",
+      percentage: "116",
+      year_on_year_count: "171",
+      year_on_year_percentage: "171",
     };
     const cnTableWidth = {
-      number: '91',
-      percentage: '96',
-      year_on_year_count: '101',
-      year_on_year_percentage: '101',
+      number: "91",
+      percentage: "96",
+      year_on_year_count: "101",
+      year_on_year_percentage: "101",
     };
+
+    let localTotalList: LogPattern[] = [];
+    let localTablesInfoList: TableInfo[] = [];
 
     watch(
       () => props.requestData,
@@ -133,37 +152,51 @@ export default defineComponent({
       },
       {
         deep: true,
-      },
+      }
     );
 
-    watch(
-      () => props.retrieveParams,
-      () => {
-        refreshTable();
-      },
-      { deep: true },
-    );
+    watch(retrieveParams, () => {
+      refreshTable();
+    });
 
     const refreshTable = () => {
       // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
-      if (tableLoading.value || !props.clusterSwitch || !props.isClusterActive) {
+      if (
+        tableLoading.value ||
+        !props.clusterSwitch ||
+        !props.isClusterActive
+      ) {
         return;
       }
       const {
         start_time,
         end_time,
-        addition,
         size,
-        keyword = '*',
+        keyword = "*",
         ip_chooser,
         host_scopes,
         interval,
         timezone,
-      } = props.retrieveParams;
+      } = retrieveParams.value;
+      const addition = retrieveParams.value.addition.reduce((list, item) => {
+        if (!item.disabled) {
+          list.push({
+            field: item.field,
+            operator: item.operator,
+            value:
+              item.hidden_values && item.hidden_values.length > 0
+                ? item.value.filter(
+                    (value) => !item.hidden_values.includes(value)
+                  )
+                : item.value,
+          });
+        }
+        return list;
+      }, []);
       tableLoading.value = true;
       (
         $http.request(
-          '/logClustering/clusterSearch',
+          "/logClustering/clusterSearch",
           {
             params: {
               index_set_id: props.indexId,
@@ -181,12 +214,13 @@ export default defineComponent({
               ...props.requestData,
             },
           },
-          { cancelWhenRouteChange: false },
+          { cancelWhenRouteChange: false }
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
-        .then(res => {
+        .then((res) => {
+          localTotalList = res.data;
           const keyValueSetList: Array<Set<string>> = [];
-          props.requestData.group_by.forEach((_, index) => {
+          props.requestData?.group_by.forEach((_, index) => {
             keyValueSetList[index] = new Set();
           });
           res.data.forEach((item, index) => {
@@ -195,13 +229,15 @@ export default defineComponent({
               keyValueSetList[index].add(item.group[index]);
             });
           });
-          const keyValueList = keyValueSetList.map(item => Array.from(item).sort());
-          let valueList = [];
-          keyValueList.forEach(values => {
-            let tmpValueList = [];
-            values.forEach(value => {
+          const keyValueList = keyValueSetList.map((item) =>
+            Array.from(item).sort()
+          );
+          let valueList: any[] = [];
+          keyValueList.forEach((values) => {
+            let tmpValueList: any[] = [];
+            values.forEach((value) => {
               if (valueList.length) {
-                valueList.forEach(existValue => {
+                valueList.forEach((existValue) => {
                   const arr = [...existValue, value];
                   tmpValueList.push(arr);
                 });
@@ -213,13 +249,13 @@ export default defineComponent({
           });
           valueList.sort((a, b) => a[0] - b[0]);
           tablesInfoList.value = [];
-          valueList.forEach(values => {
+          valueList.forEach((values: string[]) => {
             const tableInfo: TableInfo = {
               group: values,
               dataList: [],
             };
-            res.data.forEach(item => {
-              if (item.group.join(',') === values.join(',')) {
+            res.data.forEach((item) => {
+              if (item.group.join(",") === values.join(",")) {
                 tableInfo.dataList.push(item);
               }
             });
@@ -230,6 +266,8 @@ export default defineComponent({
           if (!tablesInfoList.value.length) {
             tablesInfoList.value.push({ group: [], dataList: res.data });
           }
+
+          localTablesInfoList = structuredClone(tablesInfoList.value);
         })
         .finally(() => {
           tableLoading.value = false;
@@ -241,9 +279,9 @@ export default defineComponent({
     };
 
     const handleColumnSort = (field: string, order: string) => {
-      Object.keys(filterSortMap.value.sort).forEach(key => {
+      Object.keys(filterSortMap.value.sort).forEach((key) => {
         if (key !== field) {
-          filterSortMap.value.sort[key] = '';
+          filterSortMap.value.sort[key] = "";
         }
       });
       filterSortMap.value.sort[field] = order;
@@ -259,49 +297,74 @@ export default defineComponent({
     };
 
     const handleHeaderResizeColumn = (scrollWidth: number) => {
-      globalScrollbarRef.value.style.width = `${scrollWidth}px`;
+      globalScrollbarRef.value!.style.width = `${scrollWidth}px`;
       widthList.value = mainHeaderRef.value.getColumnWidthList();
     };
 
     const handleGlobalScrollbarScroll = (e: Event) => {
       const { scrollLeft } = e.target as HTMLDivElement;
       mainHeaderRef.value.scroll(scrollLeft);
-      tablesRef.value.forEach(item => item?.scroll(scrollLeft));
+      tablesRef.value.forEach((item) => item?.scroll(scrollLeft));
     };
 
     const setTableItemRef = (index: number) => (el: HTMLElement | null) => {
       tablesRef.value[index] = el;
     };
 
-    const handleGlobalScroll = (e: any) => {
+    const handleGlobalwheel = (e: any) => {
       e.preventDefault();
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        if (globalScrollbarWraperRef.value.scrollWidth === globalScrollbarWraperRef.value.clientWidth) {
+        if (
+          globalScrollbarWraperRef.value!.scrollWidth ===
+          globalScrollbarWraperRef.value!.clientWidth
+        ) {
           return;
         }
 
-        if (e.deltaX < 0) {
-          globalScrollbarWraperRef.value.scrollLeft -= 5;
-        } else {
-          globalScrollbarWraperRef.value.scrollLeft += 5;
+        if (e.deltaX !== 0) {
+          globalScrollbarWraperRef.value!.scrollLeft += e.deltaX;
         }
         return;
       }
 
-      if (e.deltaY < 0) {
-        logTableRef.value.scrollTop -= 10;
+      if (e.deltaY !== 0) {
+        logTableRef.value!.scrollTop += e.deltaY;
+      }
+    };
+
+    const handleDisplayTypeChange = (value: string) => {
+      displayType.value = value;
+      if (value === "flatten") {
+        tablesInfoList.value = [{ group: [], dataList: localTotalList }];
       } else {
-        logTableRef.value.scrollTop += 10;
+        tablesInfoList.value = localTablesInfoList;
+      }
+      setTimeout(() => {
+        logTableRef.value!.scrollTop = 0;
+      });
+    };
+
+    const handleGlobalScroll = (e: any) => {
+      const { scrollHeight, clientHeight, scrollTop } = e.target;
+      if (scrollHeight === clientHeight) {
+        return;
+      }
+      if (clientHeight + scrollTop === scrollHeight) {
+        tablesRef.value[0].bottomAppendList();
       }
     };
 
     onMounted(() => {
       refreshTable();
-      logTableRef.value.addEventListener('wheel', handleGlobalScroll, { passive: false });
+      logTableRef.value!.addEventListener("wheel", handleGlobalwheel, {
+        passive: false,
+      });
+      logTableRef.value!.addEventListener("scroll", handleGlobalScroll);
     });
 
     onBeforeUnmount(() => {
-      logTableRef.value.removeEventListener('wheel', handleGlobalScroll);
+      logTableRef.value!.removeEventListener("wheel", handleGlobalwheel);
+      logTableRef.value!.removeEventListener("scroll", handleGlobalScroll);
     });
 
     expose({
@@ -309,24 +372,38 @@ export default defineComponent({
     });
     return () => (
       <div
-        class='log-table-main'
+        class="log-table-main"
         style={{
-          height: showGroupBy.value ? 'calc(100% - 90px)' : 'calc(100% - 60px)',
+          height:
+            showGroupBy.value || isFlattenMode.value
+              ? "calc(100% - 90px)"
+              : "calc(100% - 60px)",
         }}
       >
+        {props.requestData?.group_by.length > 0 && (
+          <bk-radio-group
+            class="display-type-main"
+            value={displayType.value}
+            on-change={handleDisplayTypeChange}
+          >
+            <bk-radio value="flatten">{t("平铺模式")}</bk-radio>
+            <bk-radio value="group">{t("分组模式")}</bk-radio>
+          </bk-radio-group>
+        )}
         <main-header
           ref={mainHeaderRef}
           requestData={props.requestData}
           tableColumnWidth={tableColumnWidth.value}
           indexId={props.indexId}
+          displayMode={displayType.value}
           on-column-filter={handleColumnFilter}
           on-column-sort={handleColumnSort}
           on-resize-column={handleHeaderResizeColumn}
         />
         <div
           ref={logTableRef}
-          class='table-list-content'
-          style={{ padding: props.requestData.group_by.length > 0 ? '0 12px' : '0px' }}
+          class="table-list-content"
+          style={{ padding: showGroupBy.value ? "0 12px" : "0px" }}
           v-bkloading={{ isLoading: tableLoading.value }}
         >
           {tableLoading.value ? (
@@ -334,43 +411,40 @@ export default defineComponent({
               width-list={smallLoaderWidthList.value}
               is-loading
             />
-          ) : tablesInfoList.value.length > 0 && tablesInfoList.value.every(item => item.dataList.length > 0) ? (
+          ) : tablesInfoList.value.length > 0 &&
+            tablesInfoList.value.every((item) => item.dataList.length > 0) ? (
             tablesInfoList.value.map((info, index) => (
               <ContentTable
                 ref={setTableItemRef(index)}
                 tableInfo={info}
                 widthList={widthList.value}
+                displayMode={displayType.value}
                 index={index}
                 filterSortMap={filterSortMap.value}
                 requestData={props.requestData}
                 tableColumnWidth={tableColumnWidth.value}
                 indexId={props.indexId}
                 on-open-ai={handleOpenAi}
+                on-open-cluster-config={() => emit("open-cluster-config")}
               />
             ))
           ) : (
-            <bk-exception
-              type='empty'
-              scene='part'
-              style='margin-top: 80px'
-            >
-              <span>{props.retrieveParams.addition.length > 0 ? t('搜索结果为空') : t('暂无数据')}</span>
+            <bk-exception type="empty" scene="part" style="margin-top: 80px">
+              <span>
+                {retrieveParams.value.addition.length > 0
+                  ? t("搜索结果为空")
+                  : t("暂无数据")}
+              </span>
             </bk-exception>
           )}
         </div>
-        <AiAssitant
-          ref={aiAssitantRef}
-          on-close='handleAiClose'
-        />
+        <AiAssitant ref={aiAssitantRef} on-close="handleAiClose" />
         <div
-          class='global-scrollbar-wraper'
+          class="global-scrollbar-wraper"
           ref={globalScrollbarWraperRef}
           on-scroll={handleGlobalScrollbarScroll}
         >
-          <div
-            class='global-scrollbar'
-            ref={globalScrollbarRef}
-          ></div>
+          <div class="global-scrollbar" ref={globalScrollbarRef}></div>
         </div>
       </div>
     );

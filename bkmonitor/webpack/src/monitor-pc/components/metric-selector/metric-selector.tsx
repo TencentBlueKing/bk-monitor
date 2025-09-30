@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -250,6 +250,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
 
   beforeDestroy() {
     clearTimeout(this.timer);
+    document.removeEventListener('keydown', this.handleSelectItem);
   }
 
   @Watch('show')
@@ -345,7 +346,10 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
    * @param page 分页
    */
   async getMetricList(page = 1) {
-    page === 1 && (this.currentIndex = this.search ? 0 : null);
+    if (page === 1) {
+      this.currentIndex = this.search ? 0 : null;
+    }
+
     const { pageSize, total } = this.pagination;
     if (page > 1 && (page - 1) * pageSize >= total) return;
     if (page === 1) {
@@ -402,7 +406,10 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
           const metricList = metric_list.map(item => new MetricDetail(item));
           this.metricList = page === 1 ? metricList : [...this.metricList, ...metricList];
           this.getSelectedMetric();
-          page > 1 && (this.pagination.page += 1);
+          if (page > 1) {
+            this.pagination.page += 1;
+          }
+
           this.pagination.total = count;
           if (this.tag.value) {
             if (tag_list.findIndex(item => item.id === this.tag.value) < 0) {

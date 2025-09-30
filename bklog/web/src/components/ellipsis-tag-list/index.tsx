@@ -23,11 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onUnmounted, PropType, Ref, ref, watch } from 'vue';
-import useResizeObserve from '../../hooks/use-resize-observe';
-import './index.scss';
+import { defineComponent, onUnmounted, type PropType, type Ref, ref, watch } from 'vue';
+
 import PopInstanceUtil from '../../global/pop-instance-util';
-import { Placement } from 'tippy.js';
+import useResizeObserve from '../../hooks/use-resize-observe';
+
+import type { Placement } from 'tippy.js';
+
+import './index.scss';
 
 export default defineComponent({
   props: {
@@ -75,6 +78,7 @@ export default defineComponent({
 
     const { observeElement, stopObserve, isStoped } = useResizeObserve(
       () => refContainerElement.value,
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
       () => {
         if (refContainerElement.value) {
           const { scrollWidth, offsetWidth } = refRootElement.value;
@@ -88,18 +92,18 @@ export default defineComponent({
             let stop = false;
             let hiddenItemCount = 0;
 
-            childElements.forEach(item => {
+            for (const item of childElements) {
               if (item.classList.contains(props.hiddenClassName)) {
                 item.classList.remove(props.hiddenClassName);
               }
-            });
+            }
 
             while (!stop && index > 0) {
               const node = childElements[index];
               if (node !== refEllipsisNumElement.value) {
                 hiddenWidth += node.offsetWidth;
                 hiddenItemCount += 1;
-                index = index - 1;
+                index -= 1;
                 node.classList.add(props.hiddenClassName);
 
                 if (hiddenWidth > overflowWidth) {
@@ -141,35 +145,29 @@ export default defineComponent({
       toolTipInstance?.hide();
     };
 
+    const addEventMouseFunc = () => {
+      if (!addedMouseHoverEvent.value) {
+        refRootElement.value?.addEventListener('mouseenter', handleMouseenter);
+        refRootElement.value?.addEventListener('mouseleave', handleMouseleave);
+        addedMouseHoverEvent.value = true;
+      }
+    };
+    const removeEventMouseFunc = () => {
+      if (addedMouseHoverEvent.value) {
+        refRootElement.value?.removeEventListener('mouseenter', handleMouseenter);
+        refRootElement.value?.removeEventListener('mouseleave', handleMouseleave);
+        addedMouseHoverEvent.value = false;
+      }
+    };
     const addMouseHoverEvent = () => {
       if (props.showFullTooltip !== 'disable') {
-        if (props.showFullTooltip === 'auto') {
-          if (showMoreItemNum.value) {
-            if (!addedMouseHoverEvent.value) {
-              refRootElement.value?.addEventListener('mouseenter', handleMouseenter);
-              refRootElement.value?.addEventListener('mouseleave', handleMouseleave);
-              addedMouseHoverEvent.value = true;
-            }
-
-            return;
-          }
-        }
-
-        if (props.showFullTooltip === 'enable') {
-          if (!addedMouseHoverEvent.value) {
-            refRootElement.value?.addEventListener('mouseenter', handleMouseenter);
-            refRootElement.value?.addEventListener('mouseleave', handleMouseleave);
-            addedMouseHoverEvent.value = true;
-          }
-
+        const isAddEvent =
+          (props.showFullTooltip === 'auto' && showMoreItemNum.value) || props.showFullTooltip === 'enable';
+        if (isAddEvent) {
+          addEventMouseFunc();
           return;
         }
-
-        if (addedMouseHoverEvent.value) {
-          refRootElement.value?.removeEventListener('mouseenter', handleMouseenter);
-          refRootElement.value?.removeEventListener('mouseleave', handleMouseleave);
-          addedMouseHoverEvent.value = false;
-        }
+        removeEventMouseFunc();
       }
     };
 
@@ -180,7 +178,7 @@ export default defineComponent({
           observeElement();
         }
 
-        if (!props.activeEllipsisCount && !isStoped.value) {
+        if (!(props.activeEllipsisCount || isStoped.value)) {
           stopObserve();
         }
       },
@@ -214,8 +212,8 @@ export default defineComponent({
         </div>
         {showMoreItemNum.value && props.list.length > 1 ? (
           <span
-            class='bklog-v3-ellipsis-num'
             ref={refEllipsisNumElement}
+            class='bklog-v3-ellipsis-num'
           >
             +{moreItemNum.value}
           </span>

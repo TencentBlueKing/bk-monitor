@@ -123,6 +123,7 @@ export default defineComponent({
           }}
         >
           <bk-checkbox
+            class='new-class-checkbox'
             value={isNear24.value}
             disabled={!props.clusterSwitch || !props.strategyHaveSubmit}
             false-value={false}

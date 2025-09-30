@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -75,14 +75,14 @@ def check_skip_debug(need_debug):
 
 
 class BasePluginManager:
-    def __init__(self, plugin: CollectorPluginMeta, operator: str, tmp_path=None):
+    def __init__(self, plugin: CollectorPluginMeta, operator: str, tmp_path=None, plugin_configs=None):
         self.plugin = plugin
         self.operator = operator
         self.tmp_path = tmp_path
         self.version: PluginVersionHistory | None = PluginVersionHistory.objects.filter(
             bk_tenant_id=self.plugin.bk_tenant_id, plugin_id=self.plugin.plugin_id
         ).last()
-        self.plugin_configs: dict[str, bytes] | None = None
+        self.plugin_configs: dict[str, bytes] | None = plugin_configs
 
     def _update_version_params(
         self, data, version: PluginVersionHistory, current_version: PluginVersionHistory, stag=None
@@ -439,17 +439,21 @@ class PluginManager(BasePluginManager):
     # 插件数据校验类
     serializer_class = None
 
-    def __init__(self, plugin, operator, tmp_path=None):
+    def __init__(self, plugin, operator, tmp_path=None, plugin_configs=None):
         """
         :param plugin: CollectorPluginMeta Instance
         """
         super().__init__(plugin, operator, tmp_path)
 
         self.tmp_path: str = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4())) if not tmp_path else tmp_path
+        self.plugin_configs = plugin_configs
         self.filename_list = []
-        for dir_path, _, filename_list in os.walk(self.tmp_path):
-            for filename in filename_list:
-                self.filename_list.append(os.path.join(dir_path, filename))
+        if plugin_configs:
+            self.filename_list = list(self.plugin_configs.keys())
+        else:
+            for dir_path, _, filename_list in os.walk(self.tmp_path):
+                for filename in filename_list:
+                    self.filename_list.append(os.path.join(dir_path, filename))
 
     def _render_config(self, config_version, config_name, context):
         """
@@ -745,18 +749,16 @@ class PluginManager(BasePluginManager):
             plugin_params = info_path
         else:
             read_filename_list = []
-            for dir_path, dirname, filename_list in os.walk(self.tmp_path):
-                if dir_path.endswith(os.path.join(self.plugin.plugin_id, "info")) and len(dirname) == 0:
-                    plugin_info_path = dir_path
-                    read_filename_list = [os.path.join(plugin_info_path, filename) for filename in filename_list]
-                    break
+            for filename in self.filename_list:
+                if str(filename.parent).endswith("info"):
+                    read_filename_list.append(filename)
 
             if not read_filename_list:
                 raise PluginParseError({"msg": gettext("不存在info文件夹，无法解析插件包")})
 
             plugin_params = {}
             for file_instance in read_filename_list:
-                plugin_params[os.path.basename(file_instance)] = self._read_file(file_instance)
+                plugin_params[os.path.basename(file_instance)] = self.plugin_configs[file_instance]
 
         self._get_meta_info(plugin_params)
         self._get_config_mes(plugin_params)
@@ -906,6 +908,7 @@ class PluginManager(BasePluginManager):
         self.version = PluginVersionHistory(
             bk_tenant_id=self.plugin.bk_tenant_id, plugin_id=self.plugin.plugin_id, config=config, info=info
         )
+        self.version.tmp_plugin = self.plugin
         self._parse_info_path(info_path)
         self.version.update_diff_fields()
 

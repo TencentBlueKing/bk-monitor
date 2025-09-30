@@ -63,7 +63,9 @@ module.exports = async (baseConfig, { production, app }) => {
               __VUE_PROD_DEVTOOLS__: 'false',
               __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
             }
-          : {}),
+          : {
+              __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
+            }),
         process: {
           env: {
             NODE_ENV: JSON.stringify('development'),
@@ -104,6 +106,7 @@ module.exports = async (baseConfig, { production, app }) => {
   if (['apm', 'fta', 'pc', 'mobile'].includes(app)) {
     vueAlias = {
       vue$: path.resolve(`./src/${appDirName}/node_modules/vue/dist/vue.runtime.common.js`),
+      'vue-i18n': path.resolve(__dirname, `./src/${appDirName}/node_modules/vue-i18n/dist/vue-i18n.esm.js`),
     };
   } else if (app === 'trace') {
     vueAlias = {

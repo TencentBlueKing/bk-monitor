@@ -28,7 +28,8 @@ import { DateRange } from '@blueking/date-picker/vue2';
 import dayjs from 'dayjs';
 
 import i18n from '../../language/i18n';
-import { TimeRangeType } from './time-range';
+
+import type { TimeRangeType } from './time-range';
 
 /** 相对时间范围格式正则 */
 export const CUSTOM_TIME_RANGE_REG = /^now(([-+])(\d+)([m|h|d|w|M|y|Y]))?(\/[m|h|d|w|M|y|Y|fy])?/;
@@ -71,7 +72,7 @@ export class TimeRange {
 /** 字符串的时间戳(毫秒)转为数字类型 */
 export const intTimestampStr = (str): null | number => {
   const isTimestamp = /^\d{1}$|^([1-9]\d{1,12})$/.test(str);
-  return isTimestamp ? parseInt(str, 10) : str;
+  return isTimestamp ? Number.parseInt(str, 10) : str;
 };
 
 /** 将格式为 ['now-1d', 'now'] 转换为 ['YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD HH:mm:ss'] */

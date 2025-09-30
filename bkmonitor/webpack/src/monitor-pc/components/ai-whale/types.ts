@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -39,15 +39,16 @@ export type AIBluekingShortcuts = AIBluekingShortcut[];
 
 // 组件配置类型
 export interface ComponentConfig {
-  default?: string;
+  default?: number | string;
   fillBack: boolean;
+  hide?: boolean;
   key: string;
   name: string | TranslateResult; // 兼容 i18n 翻译结果
   options?: ComponentOption[];
   placeholder: string | TranslateResult; // 兼容 i18n 翻译结果
   required?: boolean;
   selectedText?: string;
-  type: 'select' | 'textarea';
+  type: 'input' | 'select' | 'textarea';
 }
 
 // 组件选项类型
@@ -61,6 +62,7 @@ export const AI_BLUEKING_SHORTCUTS_ID = {
   PROMQL_HELPER: 'promql_helper',
   METADATA_DIAGNOSIS: 'metadata_diagnosis',
   TRACING_ANALYSIS: 'tracing_analysis',
+  PROFILING_ANALYSIS: 'profiling_analysis',
 } as const;
 export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
 export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
@@ -74,6 +76,7 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         key: 'content',
         name: window.i18n.t('内容'),
         fillBack: true,
+        required: true,
         placeholder: window.i18n.t('请输入需要解读的内容'),
       },
     ],
@@ -117,39 +120,65 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         name: window.i18n.t('指标/PromQL语句'),
         placeholder: window.i18n.t('请输入指标/PromQL语句'),
       },
+      // {
+      //   type: 'textarea',
+      //   key: 'user-demand',
+      //   fillBack: false,
+      //   required: true,
+      //   name: window.i18n.t('用户指令'),
+      //   placeholder: window.i18n.t('请输入用户指令'),
+      // },
+    ],
+  },
+  {
+    id: AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS,
+    name: window.i18n.t('Trace 助手'),
+    // icon: 'icon-monitor icon-mc-help-fill',
+    components: [
       {
-        type: 'textarea',
-        key: 'user-demand',
+        type: 'input',
+        key: 'trace_id',
+        fillBack: true,
+        required: false,
+        name: 'Trace ID',
+        placeholder: window.i18n.t('请输入Trace ID'),
+      },
+      {
+        type: 'input',
+        key: 'app_name',
         fillBack: false,
-        required: true,
-        name: window.i18n.t('用户指令'),
-        placeholder: window.i18n.t('请输入用户指令'),
+        required: false,
+        hide: true,
+        name: window.i18n.t('应用名称'),
+        placeholder: window.i18n.t('请输入应用名称'),
+      },
+      {
+        type: 'input',
+        key: 'bk_biz_id',
+        fillBack: false,
+        required: false,
+        hide: true,
+        name: window.i18n.t('业务ID'),
+        placeholder: window.i18n.t('请输入业务ID'),
       },
     ],
   },
-  // {
-  //   id: AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS,
-  //   name: window.i18n.t('Trace 助手'),
-  //   // icon: 'icon-monitor icon-mc-help-fill',
-  //   components: [
-  //     {
-  //       type: 'textarea',
-  //       key: 'trace_id',
-  //       fillBack: true,
-  //       required: true,
-  //       name: window.i18n.t('Trace ID'),
-  //       placeholder: window.i18n.t('请输入Trace ID'),
-  //     },
-  //     {
-  //       type: 'textarea',
-  //       key: 'app_name',
-  //       fillBack: false,
-  //       required: true,
-  //       name: window.i18n.t('应用名称'),
-  //       placeholder: window.i18n.t('请输入应用名称'),
-  //     },
-  //   ],
-  // },
+  {
+    id: AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS,
+    name: window.i18n.t('Profiling 助手'),
+    // icon: 'icon-monitor icon-mc-help-fill',
+    components: [
+      {
+        type: 'input',
+        key: 'query_params',
+        fillBack: true,
+        required: false,
+        hide: false,
+        name: window.i18n.t('Profiling 查询参数'),
+        placeholder: window.i18n.t('请输入Profiling 查询参数'),
+      },
+    ],
+  },
   // {
   //   id: AI_BLUEKING_SHORTCUTS_ID.METADATA_DIAGNOSIS,
   //   name: window.i18n.t('链路排障'),
@@ -165,3 +194,9 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
   //   ],
   // },
 ];
+
+export const getAIBluekingShortcutTips = (id: AIBluekingShortcutId) => {
+  return (
+    AI_BLUEKING_SHORTCUTS.find(shortcut => shortcut.id === id)?.name.toString() || window.i18n.t('AI 小鲸').toString()
+  );
+};

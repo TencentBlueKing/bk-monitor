@@ -253,6 +253,11 @@ class IndexSetTagNameExistException(BaseIndexSetException):
     MESSAGE = _("标签名称: [{name}] 已存在")
 
 
+class IndexSetAliasSettingsException(BaseIndexSetException):
+    ERROR_CODE = "330"
+    MESSAGE = _("别名冲突: {conflict_info}")
+
+
 # =================================================
 # 管理-检索
 # =================================================
@@ -538,6 +543,11 @@ class ParseDateFieldException(BaseSearchException):
     MESSAGE = _("日志检索失败，解析日期字段失败，请检查日期字段格式")
 
 
+class GetAllFieldsException(BaseSearchException):
+    ERROR_CODE = "457"
+    MESSAGE = _("索引集({index_set_id}),获取字段信息异常, 原因: {e}")
+
+
 # =================================================
 # 导出
 # =================================================
@@ -566,6 +576,11 @@ class PreCheckAsyncExportException(BaseException):
 class BKBaseExportException(BaseException):
     ERROR_CODE = "505"
     MESSAGE = _("计算平台索引集暂不支持快速下载")
+
+
+class DuplicateUnifyQueryExportException(BaseException):
+    ERROR_CODE = "506"
+    MESSAGE = _("已有相同检索参数正在下载中，请勿重复下载")
 
 
 # =================================================

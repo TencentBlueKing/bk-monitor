@@ -46,11 +46,25 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 
 class MetaHandler(APIModel):
     @classmethod
-    def get_user_spaces(cls):
+    def get_user_spaces(
+        cls,
+        space_uid: str = None,
+        has_permission: bool = True,
+        page: int = None,
+        page_size: int = None,
+    ):
+        """
+        获取用户空间列表
+        :param space_uid: 空间uid
+        :param has_permission: 是否过滤有权限的空间
+        :param page: 页码
+        :param page_size: 每页条数
+        :return: 空间列表
+        """
         username = get_request_username()
         bk_tenant_id = get_request_tenant_id()
         # 获取业务列表
-        spaces = Space.get_all_spaces(bk_tenant_id=bk_tenant_id)
+        spaces = Space.get_all_spaces(bk_tenant_id=bk_tenant_id, space_uid=space_uid)
         allowed_spaces = Permission(username).filter_space_list_by_action(
             ActionEnum.VIEW_BUSINESS, bk_tenant_id, spaces
         )
@@ -81,6 +95,9 @@ class MetaHandler(APIModel):
         result = []
         space_type_translation = {}
         for space in spaces:
+            if has_permission and space["bk_biz_id"] not in allowed_space_mapping:
+                continue
+
             if space["space_type_id"] not in space_type_translation:
                 # 最多仅做一次翻译，提高遍历性能
                 space_type_translation[space["space_type_id"]] = _(space["space_type_name"])
@@ -100,6 +117,11 @@ class MetaHandler(APIModel):
                     "bk_tenant_id": space["bk_tenant_id"],
                 }
             )
+
+        # 分页处理
+        if page and page_size:
+            result = result[(page - 1) * page_size : page * page_size]
+
         return result
 
     @classmethod
@@ -184,6 +206,7 @@ class MetaHandler(APIModel):
             "time_zone": data.get("time_zone", "Asia/Shanghai"),
             "chname": data.get("chname", username),
             "operator": username,
+            "bk_tenant_id": data.get("tenant_id"),
         }
 
     @classmethod

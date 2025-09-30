@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -97,7 +97,9 @@ def check_event_update():
     )
     storage_cluster_table_ids: dict[tuple[str, int], list[str]] = {}
     for storage in (
-        models.ESStorage.objects.filter(table_id__in=table_ids).values("storage_cluster_id", "table_id").iterator()
+        models.ESStorage.objects.filter(table_id__in=table_ids)
+        .values("storage_cluster_id", "table_id", "bk_tenant_id")
+        .iterator()
     ):
         storage_cluster_table_ids.setdefault((storage["bk_tenant_id"], storage["storage_cluster_id"]), []).append(
             storage["table_id"]

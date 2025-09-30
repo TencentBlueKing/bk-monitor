@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 export class TaskPool {
   public poolList: [() => void, ...args: any, mark?: unknown][];
   public isRunning: boolean;

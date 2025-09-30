@@ -90,7 +90,7 @@
                       :class="getFieldEditDisabled(props.row)?'participle-icon-color':''"
                     >
                       <i
-                      style ='color: #3A84FF;margin: 0 10px;'
+                      style ='margin: 0 10px;color: #3A84FF;'
                       class="bk-icon bklog-icon bklog-yingshe"
                     ></i>
                     </div>
@@ -324,7 +324,6 @@
 </template>
 <script>
   import { mapGetters } from 'vuex';
-  import { cloneDeep } from 'lodash';
   export default {
     name: 'SettingTable',
     props: {
@@ -510,7 +509,7 @@
     methods: {
       reset() {
         let arr = [];
-        const copyFields = cloneDeep(this.fields); // option指向地址bug
+        const copyFields = structuredClone(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
           typeErr: false,
@@ -555,7 +554,7 @@
         this.$emit('reset');
       },
       batchAddField() {
-        const indexSetList = this.$store.state.retrieve.indexSetList;
+        const indexSetList = this.$store.state.retrieve.flatIndexSetList;
         const indexSetId = this.$route.params?.indexId;
         const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
 
@@ -667,7 +666,7 @@
         return value && value !== ' ' ? isNaN(value) : true;
       },
       getData() {
-        const data = cloneDeep(this.changeTableList);
+        const data = structuredClone(this.changeTableList);
 
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
@@ -684,7 +683,7 @@
         return data;
       },
       getAllData() {
-        const data = cloneDeep(this.tableAllList);
+        const data = structuredClone(this.tableAllList);
         data.forEach(field => {
           if (field.hasOwnProperty('expand')) {
             if (field.expand === false) {
@@ -949,7 +948,7 @@
         }
       },
       addObject(){
-        const fieldsObjectData = cloneDeep(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
+        const fieldsObjectData = structuredClone(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
         fieldsObjectData.forEach(item => {
           let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
           item.is_objectKey = true
@@ -1020,9 +1019,7 @@
         .cell {
           display: contents;
           height: 100%;
-
-          /* stylelint-disable-next-line declaration-no-important */
-          padding: 0 !important;
+          padding: 0;
 
           .tooltips-icon {
             top: 24px;
@@ -1031,46 +1028,55 @@
           .overflow-tips {
             padding: 10px 15px;
           }
+
           .field-name-overflow-tips{
             .ext-btn{
-              cursor: pointer;
-              font-size: 18px;
               position: absolute;
               left: 0;
+              font-size: 18px;
+              cursor: pointer;
             }
+
             .bklog-subnode{
               font-size: 16px;
             }
+
             .rotate{
               transform: rotate(-90deg);
             }
+
             .field-name{
                 margin: 15px 10px 15px 15px;
             }
+
             .field-name-box{
               display: flex;
-              height: 100%;
               align-items: center;
+              height: 100%;
+
               .alias-name{
-                padding-left: 15px;
-                width: 50%
+                width: 50%;
+                padding-left: 15px
               }
+
               .participle-icon{
-                font-size: 18px;
-                left: 40%;
-                width: 10%;
                 position: absolute;
-                z-index: 999
+                left: 40%;
+                z-index: 999;
+                width: 10%;
+                font-size: 18px
               }
+
               .participle-icon-color{
-                background-color: rgb(250, 251, 253) !important;
+                background-color: rgb(250, 251, 253);
               }
+
               .tooltips-icon{
                 position: absolute;
                 z-index: 10;
+                font-size: 16px;
                 color: #ea3636;
                 cursor: pointer;
-                font-size: 16px;
               }
             }
           }
@@ -1084,8 +1090,7 @@
 
       :deep(.participle-disabled-input) {
         .bk-form-input[disabled] {
-          /* stylelint-disable-next-line declaration-no-important */
-          border-color: transparent !important;
+          border-color: transparent;
         }
       }
 
@@ -1231,8 +1236,7 @@
   }
 
   .header {
-    /* stylelint-disable-next-line declaration-no-important */
-    white-space: normal !important;
+    white-space: normal;
   }
 
   .participle-form {

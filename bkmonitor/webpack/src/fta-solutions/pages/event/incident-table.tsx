@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -36,14 +36,14 @@ import { handleToAlertList } from './event-detail/action-detail';
 
 import type { TType as TSliderType } from './event-detail/event-detail-slider';
 // import { getStatusInfo } from './event-detail/type';
-import type { eventPanelType, IPagination, SearchType } from './typings/event';
+import type { eventPanelType, IEventItem, IPagination, SearchType } from './typings/event';
 import type { TranslateResult } from 'vue-i18n';
 
 import './incident-table.scss';
 
 export interface IShowDetail {
   activeTab?: string;
-  bizId: string;
+  bizId: number;
   id: string;
   type: TSliderType;
 }
@@ -70,14 +70,14 @@ interface IEventStatusMap {
   name: string | TranslateResult;
 }
 interface IEventTableEvent {
-  onAlarmDispatch?: IncidentItem;
-  onAlertConfirm?: IncidentItem;
+  onAlarmDispatch?: IIncidentItem;
+  onAlertConfirm?: IIncidentItem;
   onBatchSet: string;
-  onChatGroup?: IncidentItem;
+  onChatGroup?: IIncidentItem;
   onLimitChange: number;
-  onManualProcess?: IncidentItem;
+  onManualProcess?: IIncidentItem;
   onPageChange: number;
-  onQuickShield?: IncidentItem;
+  onQuickShield?: IIncidentItem;
   onSelectChange: string[];
   onShowDetail?: { id: string; type: TSliderType };
   onSortChange: string;
@@ -89,34 +89,21 @@ interface IEventTableProps {
   pagination: IPagination;
   searchType: SearchType;
   selectedList?: string[];
-  tableData: IncidentItem[];
+  tableData: IIncidentItem[];
 }
-interface IncidentItem {
-  alert_count: number;
-  assignees: string[];
-  begin_time: string;
-  bk_biz_id: string;
-  create_time: number | string;
-  duration: string;
-  end_time: number | string;
-  event_time: string;
-  id: string;
-  incident_reason: string;
-  labels: string[] | { key: string; value: string }[];
-  last_time: string;
-  level: string;
-  severity: number;
-  status: string;
+interface IIncidentItem extends IEventItem {
+  incident_reason?: string;
+  level?: number;
 }
 
-// const alertStoreKey = '__ALERT_EVENT_COLUMN__' ;
-// const actionStoreKey = '__ACTION_EVENT_COLUMN__';
+const incidentKey = '__INCIDENT_EVENT_COLUMN__';
+
 type TableSizeType = 'large' | 'medium' | 'small';
 @Component({
   // components: { Popover, Pagination, Checkbox }
 })
 export default class IncidentTable extends tsc<IEventTableProps, IEventTableEvent> {
-  @Prop({ required: true }) tableData: IncidentItem[];
+  @Prop({ required: true }) tableData: IIncidentItem[];
   @Prop({ required: true }) pagination: IPagination;
   @Prop({ default: false }) loading: boolean;
   @Prop({ default: () => [] }) bizIds: number[];
@@ -160,6 +147,12 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
    * @return {*}
    */
   get tableColumn(): IColumnItem[] {
+    let storeColumnList: any = localStorage.getItem(incidentKey) || '';
+    try {
+      storeColumnList = JSON.parse(storeColumnList) || [];
+    } catch {
+      storeColumnList = [];
+    }
     return (
       [
         {
@@ -227,7 +220,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           props: {
             width: 120,
             minWidth: 120,
-            formatter: (row: IncidentItem) => {
+            formatter: (row: IIncidentItem) => {
               return (
                 <div class='tag-column-wrap'>
                   <div class='tag-column'>
@@ -274,7 +267,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
             width: 174,
             minWidth: 150,
             // sortable: 'curstom',
-            formatter: (row: IncidentItem) => {
+            formatter: (row: IIncidentItem) => {
               return (
                 <span>
                   {this.formatterTime(row.begin_time)} / <br />
@@ -293,7 +286,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
             width: 100,
             minWidth: 100,
             // sortable: 'curstom',
-            formatter: (row: IncidentItem) => {
+            formatter: (row: IIncidentItem) => {
               return row.duration || '--';
             },
           },
@@ -306,7 +299,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           props: {
             width: 150,
             minWidth: 150,
-            formatter: (row: IncidentItem) => {
+            formatter: (row: IIncidentItem) => {
               return (
                 (row?.assignees || []).map(name => (
                   <bk-user-display-name
@@ -327,11 +320,16 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           props: {
             width: 240,
             showOverflowTooltip: true,
-            formatter: (row: IncidentItem) => row.incident_reason || '--', // row.content.text || '--'
+            formatter: (row: IIncidentItem) => row.incident_reason || '--', // row.content.text || '--'
           },
         },
       ] as IColumnItem[]
-    ).filter(Boolean);
+    )
+      .filter(Boolean)
+      .map(item => ({
+        ...item,
+        checked: storeColumnList?.length ? storeColumnList.includes(item.id) : item.checked,
+      }));
   }
 
   @Watch('tableData')
@@ -444,7 +442,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
    * @return {*}
    */
   @Emit('showDetail')
-  handleShowDetail(item: IncidentItem, activeTab = ''): IShowDetail {
+  handleShowDetail(item: IIncidentItem, activeTab = ''): IShowDetail {
     const typeMap = {
       alert: 'eventDetail',
       action: 'handleDetail',
@@ -471,7 +469,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   }
 
   @Emit('selectChange')
-  handleSelectChange(selectList: IncidentItem[]) {
+  handleSelectChange(selectList: IIncidentItem[]) {
     this.selectedCount = selectList?.length || 0;
     return selectList.map(item => item.id);
   }
@@ -608,7 +606,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
     return '--';
   }
   // 跳转关联事件
-  handleClickEventCount(item: IncidentItem) {
+  handleClickEventCount(item: IIncidentItem) {
     this.handleShowDetail(item, 'FailureView');
   }
   /**
@@ -616,7 +614,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
    * @param {string} id
    * @return {*}
    */
-  handleClickActionCount(type: 'defense' | 'trigger', row: IncidentItem) {
+  handleClickActionCount(type: 'defense' | 'trigger', row: IIncidentItem) {
     // const data = { queryString: `action_id : ${id}`, timeRange }
     const { id, create_time: createTime, end_time: endTime } = row;
     handleToAlertList(
@@ -703,7 +701,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         prop={column.id}
         {...{ props: column.props }}
         scopedSlots={{
-          default: ({ row }: { row: IncidentItem }) => (
+          default: ({ row }: { row: IIncidentItem }) => (
             <a
               class={`event-status status-${row.severity} id-column ${row.level}_id`}
               v-bk-overflow-tips
@@ -779,7 +777,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         prop={column.id}
         {...{ props: column.props }}
         scopedSlots={{
-          default: ({ row }: { row: IncidentItem }) =>
+          default: ({ row }: { row: IIncidentItem }) =>
             row.alert_count > -1 ? (
               <bk-button
                 text={true}
@@ -793,6 +791,22 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         }}
       />
     );
+  }
+  /**
+   * @description: 设置表字段显示
+   * @param {*} param1
+   * @return {*}
+   */
+  handleSettingChange({ size, fields }) {
+    this.tableSize = size;
+    for (const item of this.tableColumn) {
+      item.checked = fields.some(field => field.id === item.id);
+    }
+    localStorage.setItem(
+      incidentKey,
+      JSON.stringify(this.tableColumn.filter(item => item.checked || item.disabled).map(item => item.id))
+    );
+    this.tableKey = random(10);
   }
   // 表格column设置
   handleGetColumns() {
@@ -841,6 +855,19 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           on-sort-change={this.handleSortChange}
         >
           {this.handleGetColumns()}
+          <bk-table-column
+            key={`${this.tableKey}_${this.searchType}`}
+            type='setting'
+          >
+            <bk-table-setting-content
+              class='event-table-setting'
+              fields={this.tableColumn}
+              label-key='name'
+              selected={this.tableColumn.filter(item => item.checked || item.disabled)}
+              value-key='id'
+              on-setting-change={this.handleSettingChange}
+            />
+          </bk-table-column>
         </bk-table>
       </div>
     );
