@@ -24,11 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-const RetrieveView = {
-  name: 'RetrieveView',
-  template: '<router-view></router-view>',
-};
-
 // 检索模块各组件异步声明（用于路由懒加载）
 const Retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-hub');
 const ExternalAuth = () => import(/* webpackChunkName: 'externalAuth' */ '@/views/authorization/authorization-list');
@@ -40,28 +35,13 @@ const TemplateManage = () => import('@/views/retrieve-v3/search-result/template-
 const getRetrieveRoutes = () => [
   // 检索主页面
   {
-    path: '/retrieve',
+    path: '/retrieve/:indexId?',
     name: 'retrieve',
-    redirect: {
-      name: 'retrieve-index',
+    component: Retrieve,
+    meta: {
+      title: '检索',
+      navId: 'retrieve',
     },
-    component: RetrieveView,
-    children: [
-      {
-        path: 'index/:indexId?',
-        name: 'retrieve-index',
-        component: Retrieve,
-        meta: {
-          title: '检索',
-          navId: 'retrieve',
-        },
-      },
-      {
-        path: 'template-manage',
-        name: 'templateManage',
-        component: TemplateManage,
-      },
-    ],
   },
   // 模版管理
   {
