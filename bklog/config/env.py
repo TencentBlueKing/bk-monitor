@@ -96,10 +96,8 @@ def load_settings():
             try:
                 parsed_value = json.loads(env_value)
                 value = parsed_value
-                logger.debug(f"Successfully parsed JSON for {key}: {value}")
             except json.JSONDecodeError as e:
                 # JSON 解析失败，保持原字符串值
-                logger.warning(f"Failed to parse JSON for {key}, keeping as string: {e}")
                 value = env_value
         if not value:
             continue
