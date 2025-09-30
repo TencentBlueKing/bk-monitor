@@ -77,53 +77,81 @@ Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 Vue.use(VueVirtualScroller);
 
+window.bus = bus;
+
 const mountedVueInstance = () => {
   window.mainComponent = {
     $t: function (key, params) {
       return i18n.t(key, params);
     },
   };
+
   preload({ http, store }).then(([spaceRequest]) => {
     const space = spaceRequest.value;
     const spaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
-
+    const router = getRouter(spaceUid, bkBizId, externalMenu);
+    setRouterErrorHandle(router);
     let externalMenu = [];
     if (window.IS_EXTERNAL && space) {
       externalMenu = getExternalMenuListBySpace(space) ?? [];
-      store.commit('updateState', {'externalMenu': externalMenu});
+      store.commit('updateState', { externalMenu: externalMenu });
     }
 
-    store.dispatch('requestMenuList', spaceUid);
-    const router = getRouter(spaceUid, bkBizId, externalMenu);
-    setRouterErrorHandle(router);
+    store.dispatch('requestMenuList', spaceUid).then(() => {
+      const menuList = store.state.topMenu ?? [];
+      menuList
+        .find(item => item.id === 'manage')
+        ?.children?.forEach(group => {
+          group?.children?.forEach(nav => {
+            if (nav.id === 'log-collection') {
+              Object.assign(nav, {
+                children: [
+                  {
+                    id: 'collection-item',
+                    name: i18n.t('采集项'),
+                    project_manage: nav.project_manage,
+                  },
+                  {
+                    id: 'log-index-set',
+                    name: i18n.t('索引集'),
+                    project_manage: nav.project_manage,
+                  },
+                ],
+              });
+            }
+          });
+        });
 
-    window.mainComponent = new Vue({
-      el: '#app',
-      router,
-      store,
-      i18n,
-      components: {
-        App,
-      },
-      mounted() {
-        // 对于手动输入URL，直接刷新页面重置所有参数和状态
-        window.addEventListener('hashchange', this.reset);
-        getAllSpaceList(http, store);
-      },
-      beforeUnmount() {
-        window.removeEventListener('hashchange', this.reset);
-      },
-      methods: {
-        reset() {
-          window.location.reload();
+      const copyMenu = structuredClone(menuList);
+      store.commit('updateState', { topMenu: copyMenu });
+
+      window.mainComponent = new Vue({
+        el: '#app',
+        router,
+        store,
+        i18n,
+        components: {
+          App,
         },
-      },
-      template: '<App/>',
+        mounted() {
+          // 对于手动输入URL，直接刷新页面重置所有参数和状态
+          window.addEventListener('hashchange', this.reset);
+          getAllSpaceList(http, store);
+        },
+        beforeUnmount() {
+          window.removeEventListener('hashchange', this.reset);
+        },
+        methods: {
+          reset() {
+            window.location.reload();
+          },
+        },
+        template: '<App/>',
+      });
     });
   });
 };
-window.bus = bus;
 
 if (process.env.NODE_ENV === 'development') {
   http.request('meta/getEnvConstant').then(res => {

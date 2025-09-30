@@ -211,7 +211,7 @@ export default ({
       // 可选，当输入为空时，显示的文本，默认为 '--'
       emptyText: '--',
     });
-    store.commit('updateUserMeta', resp.data);
+
     return resp.data;
   });
 

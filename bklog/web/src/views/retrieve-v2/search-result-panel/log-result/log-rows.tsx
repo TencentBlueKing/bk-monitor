@@ -1037,7 +1037,7 @@ export default defineComponent({
         return 'Loading ...';
       }
 
-      if (!(isRequesting.value || hasMoreList.value) && tableDataSize.value > 0) {
+      if (!(isRequesting.value || hasMoreList.value) || tableDataSize.value < pageSize.value) {
         return ` - 已加载所有数据: 共计 ${tableDataSize.value} 条 - `;
       }
 

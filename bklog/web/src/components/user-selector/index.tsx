@@ -28,7 +28,6 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import BkUserSelector from '@blueking/bk-user-selector/vue2';
-import _ from 'lodash';
 
 import './index.scss';
 
@@ -85,7 +84,7 @@ export default defineComponent({
     watch(
       () => props.value,
       () => {
-        localValue.value = _.cloneDeep(props.value);
+        localValue.value = structuredClone(props.value);
       },
       {
         immediate: true,
@@ -109,7 +108,7 @@ export default defineComponent({
 
     return () => (
       <div class='validate-user-selector'>
-        <BkUserSelector
+        <bk-user-selector
           style={props.customStyle}
           class={isError.value ? 'is-error' : ''}
           api-base-url={apiBaseUrl}
