@@ -18,8 +18,7 @@ from django.utils import timezone
 from . import rpc, metric, base
 from .. import constants
 
-from apm_web.models import Application
-from apm_web.models.strategy import StrategyTemplate
+from apm_web.models import Application, StrategyTemplate
 
 from bkmonitor.action.serializers import UserGroupDetailSlz
 from bkmonitor.models import UserGroup

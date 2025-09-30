@@ -96,7 +96,7 @@ class StrategyTemplateSystem(CachedEnum):
         )
 
     @classmethod
-    def get_default(cls, value) -> "StrategyTemplateType":
+    def get_default(cls, value) -> "StrategyTemplateSystem":
         default = super().get_default(value)
         default.label = value
         return default
@@ -108,7 +108,8 @@ class StrategyTemplateCategory(CachedEnum):
     DEFAULT = "DEFAULT"
     RPC_CALLEE = "RPC_CALLEE"
     RPC_CALLER = "RPC_CALLER"
-    RPC_ERROR = "RPC_ERROR"
+    RPC_METRIC = "RPC_METRIC"
+    RPC_LOG = "RPC_LOG"
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
@@ -116,7 +117,8 @@ class StrategyTemplateCategory(CachedEnum):
             (cls.DEFAULT.value, cls.DEFAULT.label),
             (cls.RPC_CALLEE.value, cls.RPC_CALLEE.label),
             (cls.RPC_CALLER.value, cls.RPC_CALLER.label),
-            (cls.RPC_ERROR.value, cls.RPC_ERROR.label),
+            (cls.RPC_METRIC.value, cls.RPC_METRIC.label),
+            (cls.RPC_LOG.value, cls.RPC_LOG.label),
         ]
 
     @cached_property
@@ -126,7 +128,8 @@ class StrategyTemplateCategory(CachedEnum):
                 self.DEFAULT: _("默认"),
                 self.RPC_CALLEE: _("被调"),
                 self.RPC_CALLER: _("主调"),
-                self.RPC_ERROR: _("异常"),
+                self.RPC_METRIC: _("自定义指标"),
+                self.RPC_LOG: _("日志"),
             }.get(self, self.value)
         )
 
