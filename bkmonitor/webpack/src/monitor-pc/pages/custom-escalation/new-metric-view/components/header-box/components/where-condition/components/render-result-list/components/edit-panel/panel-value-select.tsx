@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 import ValueTagSelector from 'monitor-pc/components/retrieval-filter/value-tag-selector';
 
+import customEscalationViewStore from '../../../../../../../../../../../store/modules/custom-escalation-view';
 import { getCustomTsDimensionValues } from '../../../../../../../../services/scene_view_new';
 import { methodMap } from './index';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './panel-value-select.scss';
 
@@ -48,6 +48,8 @@ interface IProps {
 
 @Component
 export default class PanelValueSelect extends tsc<IProps, IEmit> {
+  @InjectReactive('routeParams') routeParams: Record<string, string>;
+
   @Prop({ type: String }) readonly keyName: IProps['keyName'];
   @Prop({ type: String }) readonly method: IProps['method'];
   @Prop({ type: Array }) readonly value: IProps['value'];
@@ -87,7 +89,7 @@ export default class PanelValueSelect extends tsc<IProps, IEmit> {
     if (this.valueListMemo.length < 1) {
       const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
       const result = await getCustomTsDimensionValues({
-        time_series_group_id: Number(this.$route.params.id),
+        time_series_group_id: Number(this.routeParams.id),
         dimension: this.keyName,
         start_time: startTime || 0,
         end_time: endTime || 0,

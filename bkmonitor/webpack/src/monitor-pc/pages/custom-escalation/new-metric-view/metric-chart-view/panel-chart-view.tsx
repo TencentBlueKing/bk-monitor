@@ -58,6 +58,7 @@ interface IPanelChartViewProps {
 
 @Component
 export default class PanelChartView extends tsc<IPanelChartViewProps> {
+  @InjectReactive('routeParams') routeParams: Record<string, string>;
   // 相关配置
   @Prop({ default: () => ({}) }) config: IMetricAnalysisConfig;
   @Prop({ type: Boolean, default: false }) readonly showStatisticalValue: IPanelChartViewProps['showStatisticalValue'];
@@ -158,7 +159,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   /** 获取图表配置 */
   @Debounce(300)
   getGroupList() {
-    if (!this.$route.params.id) {
+    if (!this.routeParams.id) {
       return;
     }
     if (this.config.metrics.length < 1) {
@@ -172,7 +173,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       ...this.config,
-      time_series_group_id: Number(this.$route.params.id),
+      time_series_group_id: Number(this.routeParams.id),
       start_time: startTime,
       end_time: endTime,
     };

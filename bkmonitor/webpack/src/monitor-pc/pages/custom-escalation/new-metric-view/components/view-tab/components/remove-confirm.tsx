@@ -77,7 +77,7 @@ export default class RemoveConfirm extends tsc<IProps, IEmit> {
           onShow: this.handleShow,
           onHidden: this.handleHidden,
         }}
-        theme='light'
+        theme='light common-monitor'
         trigger='click'
       >
         <div

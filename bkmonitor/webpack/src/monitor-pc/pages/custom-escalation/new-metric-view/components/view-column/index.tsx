@@ -77,7 +77,7 @@ export default class ViewColumn extends tsc<object, IEmit> {
           placement: 'bottom-end',
           arrow: false,
           distance: 8,
-          theme: 'light new-metric-view-view-column',
+          theme: 'light new-metric-view-view-column common-monitor',
           trigger: 'click',
         }}
       >

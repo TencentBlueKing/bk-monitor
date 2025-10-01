@@ -23,27 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 
 import customEscalationViewStore from '../../../store/modules/custom-escalation-view';
 import HeaderBox from './components/header-box/index';
 import MetricsSelect from './components/metrics-select/index';
-import PageHeadr from './components/page-header/index';
-import ViewColumn from './components/view-column/index';
+import ViewColumn from './components/view-column';
 import ViewTab from './components/view-tab/index';
 import PanelChartView from './metric-chart-view/panel-chart-view';
 import { getCustomTsMetricGroups } from './services/scene_view_new';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { IViewOptions } from 'monitor-pc/pages/custom-escalation/new-metric-view/metric-chart-view/types';
 
 import './new-metric-view.scss';
-Component.registerHooks(['beforeRouteEnter']);
 
 @Component
-export default class NewMetricView extends tsc<object> {
+export default class ApmCustomMetric extends tsc<object> {
   currentView = 'default';
   dimenstionParams: Record<string, any> = {};
   showStatisticalValue = false;
@@ -54,27 +51,17 @@ export default class NewMetricView extends tsc<object> {
     viewColumn: 2,
   };
   cacheTimeRange = [];
-  @ProvideReactive('routeParams') routeParams: Record<string, string> = {};
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
-  @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
-  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
-  @ProvideReactive('showRestore') showRestore = false;
+  @InjectReactive('viewOptions') readonly viewOptions: IViewOptions;
+  @ProvideReactive('routeParams') routeParams: Record<string, any> = {};
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+
   @ProvideReactive('containerScrollTop') containerScrollTop = 0;
-  @ProvideReactive('refreshInterval') refreshInterval = -1;
+
   @Ref('panelChartView') panelChartView!: PanelChartView;
 
-  @Provide('handleChartDataZoom')
-  handleChartDataZoom(value) {
-    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
-      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-      this.timeRange = value;
-      this.showRestore = true;
-    }
-  }
-  @Provide('handleRestoreEvent')
-  handleRestoreEvent() {
-    this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
-    this.showRestore = false;
+  @Watch('timeRange')
+  handleTimeRangeChange(timeRange: TimeRangeType) {
+    customEscalationViewStore.updateTimeRange(timeRange);
   }
 
   @Watch('isCustomTsMetricGroupsLoading')
@@ -85,14 +72,15 @@ export default class NewMetricView extends tsc<object> {
       });
     }
   }
-  beforeRouteEnter(to, _from, next) {
-    next(vm => {
-      vm.routeParams = {
-        id: Number(to.params.id),
-        ...to.params,
-      };
-    });
+
+  @Watch('$route.params', { immediate: true, deep: true })
+  routeParamsChange() {
+    this.routeParams = {
+      ...this.$route.params,
+      id: 469, // 开发分支 测试固定469
+    };
   }
+
   initScroll() {
     const container = document.querySelector('.metric-view-dashboard-container') as HTMLElement;
     if (container) {
@@ -178,10 +166,6 @@ export default class NewMetricView extends tsc<object> {
     }
   }
 
-  handleTimeRangeChange(timeRange: TimeRangeType) {
-    customEscalationViewStore.updateTimeRange(timeRange);
-    this.timeRange = timeRange;
-  }
   // 刷新视图
   handleImmediateRefresh() {
     this.dimenstionParams = Object.freeze({ ...this.dimenstionParams });
@@ -193,9 +177,6 @@ export default class NewMetricView extends tsc<object> {
 
   handleMetricsSelectReset() {
     this.dimenstionParams = {};
-  }
-  handleRefreshChange(value: number) {
-    this.refreshInterval = value;
   }
 
   created() {
@@ -215,11 +196,11 @@ export default class NewMetricView extends tsc<object> {
     return (
       <div
         style={{
-          '--apm-tab-height': '32px',
+          '--apm-tab-height': '12px',
         }}
         class='bk-monitor-new-metric-view'
       >
-        <PageHeadr>
+        {/* <PageHeadr>
           <DashboardTools
             isSplitPanel={false}
             refreshInterval={this.refreshInterval}
@@ -229,15 +210,17 @@ export default class NewMetricView extends tsc<object> {
             onRefreshChange={this.handleRefreshChange}
             onTimeRangeChange={this.handleTimeRangeChange}
           />
-        </PageHeadr>
+        </PageHeadr> */}
         <div
           key={this.timeSeriesGroupId}
+          class='bk-monitor-new-metric-view-content'
           v-bkloading={{ isLoading: this.isCustomTsMetricGroupsLoading }}
         >
           {!this.isCustomTsMetricGroupsLoading && (
             <ViewTab
               v-model={this.currentView}
               graphConfigPayload={this.graphConfigParams}
+              isAPM={true}
               onPayloadChange={this.handleDimensionParamsChange}
             >
               <bk-resize-layout

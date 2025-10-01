@@ -171,7 +171,7 @@ export default class ViewSave extends tsc<IProps, IEmit> {
             zIndex: 999,
           }}
           placement='bottom'
-          theme='light metric-view-view-save-panel'
+          theme='light metric-view-view-save-panel common-monitor'
           trigger='manual'
         >
           <i class='icon-monitor icon-a-savebaocun' />
