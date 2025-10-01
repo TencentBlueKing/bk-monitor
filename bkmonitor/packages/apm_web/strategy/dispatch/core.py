@@ -149,7 +149,11 @@ class StrategyDispatcher:
 
             tag_key_map: dict[str, str] = {}
             dispatch_config: DispatchConfig = service_config_map[service_name]
-            group_by: list[str] = dispatch_config.context.get("GROUP_BY") or []
+            group_by: list[str] = dispatch_config.context.get("GROUP_BY") or [
+                "resource.server",
+                "resource.env",
+                "resource.instance",
+            ]
             if self.strategy_template.category == StrategyTemplateCategory.RPC_LOG.value:
                 try:
                     first_index_set_id: int = service_indexes_map[service_name][0]["index_set_id"]
@@ -321,9 +325,14 @@ class StrategyDispatcher:
 
         return service_strategy_id_map
 
-    def preview(self, service_name: list[str]) -> dict[str, Any]:
+    def check(self, service_names: list[str]) -> dict[str, dict[str, Any]]:
+        """检查某个服务的策略下发结果
+        pass
+        """
+
+    def preview(self, service_names: list[str]) -> dict[str, Any]:
         """预览某个服务的策略下发结果
-        :param service_name: 服务名
+        :param service_names: 服务列表
         :return: 策略模板详情
         """
 

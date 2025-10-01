@@ -12,6 +12,7 @@ import copy
 from typing import Any
 from collections.abc import Callable
 from apm_web.models import StrategyTemplate
+from apm_web.strategy.constants import StrategyTemplateSystem
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
 
@@ -109,7 +110,7 @@ class StrategyBuilder:
         return {
             "bk_biz_id": self.strategy_template.bk_biz_id,
             "service_name": self.service_name,
-            "name": f"{self.strategy_template.name} [{app_name}/{self.service_name}]",
+            "name": f"[{StrategyTemplateSystem.from_value(self.strategy_template.system).label}] {self.strategy_template.name} [{app_name}/{self.service_name}]",
             "labels": [
                 f"APM-APP({app_name})",
                 f"APM-SERVICE({self.service_name})",

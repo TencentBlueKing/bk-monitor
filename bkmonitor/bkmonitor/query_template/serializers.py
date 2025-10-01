@@ -131,7 +131,7 @@ class QueryConfigSerializer(serializers.Serializer):
     data_type_label = serializers.CharField(label=_("数据类型标签"))
     data_source_label = serializers.CharField(label=_("数据源标签"))
     interval = serializers.IntegerField(label=_("汇聚周期（秒）"), required=False)
-    index_set_id = serializers.IntegerField(label=_("索引集 ID"), required=False, min_value=1)
+    index_set_id = serializers.CharField(label=_("索引集 ID"), required=False)
     metric_id = serializers.CharField(label=_("指标 ID"), required=False)
     promql = serializers.CharField(label=_("PromQL 查询语句"), required=False, allow_blank=True, default="")
     metrics = serializers.ListField(label=_("指标"), required=False, default=[], child=MetricSerializer())
