@@ -50,7 +50,7 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['update:old-pattern', 'update:show-dialog', 'cancel'],
+  emits: ['update', 'cancel'],
 
   setup(props, { emit }) {
     const EN_LABEL_WIDTH = 215;
@@ -89,10 +89,10 @@ export default defineComponent({
     });
 
     const handleSave = () => {
-      emit('update:old-pattern', formData.value.multiline_pattern);
+      emit('update', formData.value.multiline_pattern);
     };
     const handleValueChange = val => {
-      emit('update:show-dialog', val);
+      emit('cancel', val);
       if (val) {
         // 打开时填入采集页行首正则内容
         formData.value.multiline_pattern = props.oldPattern;

@@ -78,7 +78,7 @@ export default defineComponent({
           },
           {
             name: t('标准输出'),
-            value: 'stdout',
+            value: 'std_log_config',
             icon: 'IO',
           },
         ],

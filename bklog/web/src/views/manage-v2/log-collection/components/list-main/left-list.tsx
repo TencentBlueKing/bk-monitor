@@ -30,7 +30,7 @@ import useLocale from '@/hooks/use-locale';
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
-import { useCollectList } from '../../hook/useCollectList';
+import { useOperation } from '../../hook/useOperation';
 import { showMessage } from '../../utils';
 import AddIndexSet from '../business-comp/step2/add-index-set';
 import ListItem from './list-item';
@@ -53,7 +53,7 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const { spaceUid } = useCollectList();
+    const { indexGroupLoading, getIndexGroupList } = useOperation();
     const activeKey = ref<number | string>('all');
     const addPanelRef = ref();
     const addIndexSetRef = ref();
@@ -63,7 +63,6 @@ export default defineComponent({
     let tippyInstance: Instance | null = null;
     const searchValue = ref<string>('');
     const listData = ref<IListItemData[]>([]);
-    const loading = ref(false);
 
     const baseItem = computed(() => [
       {
@@ -115,20 +114,10 @@ export default defineComponent({
      * 获取列表数据
      */
     const getListData = () => {
-      loading.value = true;
-      $http
-        .request('collect/getIndexGroupList', {
-          query: {
-            space_uid: spaceUid.value,
-          },
-        })
-        .then(res => {
-          listData.value = res.data;
-          initActionPop();
-        })
-        .finally(() => {
-          loading.value = false;
-        });
+      getIndexGroupList(data => {
+        listData.value = data;
+        initActionPop();
+      });
     };
 
     const initActionPop = () => {
@@ -173,7 +162,7 @@ export default defineComponent({
      * @returns
      */
     const renderListMain = () => {
-      if (loading.value) {
+      if (indexGroupLoading.value) {
         return (
           <ItemSkeleton
             style={{ padding: '0 16px' }}

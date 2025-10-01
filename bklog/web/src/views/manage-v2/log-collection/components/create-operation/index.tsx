@@ -44,9 +44,9 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const mainRef = ref<HTMLDivElement>();
-    const DEFAULT_STEP = 3;
+    const DEFAULT_STEP = 2;
     const step = ref(DEFAULT_STEP);
-    const typeKey = ref('wineventlog');
+    const typeKey = ref('host_log');
     const firstStep = { title: t('索引集分类'), icon: 1, components: StepClassify };
     const { goListPage } = useCollectList();
     const dataConfig = ref({});
@@ -125,7 +125,7 @@ export default defineComponent({
     };
 
     return () => {
-      const Component = currentStep.value.find(item => item.icon === step.value).components;
+      const Component = currentStep.value.find(item => item.icon === step.value)?.components;
       return (
         <div
           ref={mainRef}

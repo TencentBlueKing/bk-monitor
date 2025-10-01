@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { defineComponent, type PropType } from 'vue';
 
 import './input-add-group.scss';
 
@@ -32,7 +32,7 @@ export default defineComponent({
   name: 'InputAddGroup',
   props: {
     valueList: {
-      type: Array,
+      type: Array as PropType<{ value: string }[]>,
       default: () => [''],
     },
   },
@@ -48,7 +48,7 @@ export default defineComponent({
      */
     const handleChange = (index: number, val: any) => {
       const nextList = [...props.valueList];
-      nextList[index] = String(val);
+      nextList[index].value = String(val);
       emit('update', nextList);
     };
     /**
@@ -59,14 +59,14 @@ export default defineComponent({
       if (nextList.length > 1) {
         nextList.splice(index, 1);
       } else {
-        nextList[0] = '';
+        nextList[0].value = '';
       }
       emit('update', nextList);
     };
-    const renderInputItem = (item: string, index: number) => (
+    const renderInputItem = (item: { value: string }, index: number) => (
       <div class='input-add-group-item'>
         <bk-input
-          value={item}
+          value={item.value}
           onInput={(val: any) => handleChange(index, val)}
         />
         <span
@@ -81,7 +81,7 @@ export default defineComponent({
     );
     return () => (
       <div class='input-add-group-main'>
-        {props.valueList.map((item: string, index: number) => renderInputItem(item, index))}
+        {props.valueList.map((item: { value: string }, index: number) => renderInputItem(item, index))}
       </div>
     );
   },

@@ -24,11 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, onMounted, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
+import { useOperation } from '../../../hook/useOperation';
 import AddIndexSet from './add-index-set';
+
+import type { IListItemData } from '../../../type';
 
 import './index-set-select.scss';
 
@@ -49,38 +52,56 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
+    const { indexGroupLoading, getIndexGroupList } = useOperation();
     const isAdd = ref(false);
     const addIndexSetRef = ref();
-    const selectArr = ref([]);
+    const selectArr = ref<number[]>([]);
+    const list = ref<IListItemData[]>([]);
+    /**
+     * 新增
+     */
     const handleAdd = () => {
       isAdd.value = true;
       setTimeout(() => {
         addIndexSetRef.value?.autoFocus?.();
       });
     };
+
+    const getData = () => {
+      getIndexGroupList((data: IListItemData[]) => {
+        list.value = data;
+      });
+    };
     const handleCancel = () => {
       isAdd.value = false;
     };
     const handleSubmit = () => {
+      getData();
       handleCancel();
+      // emit('select', selectArr.value);
+    };
+    const handleSelect = (val: number[]) => {
+      selectArr.value = val;
       emit('select', selectArr.value);
     };
-    const handleSelect = val => {
-      selectArr.value = val;
-    };
+    onMounted(() => {
+      getData();
+    });
     return () => (
       <bk-select
         class='index-set-select-box'
+        loading={indexGroupLoading.value}
         value={props.value}
+        display-tag
         multiple
         searchable
         onChange={val => handleSelect(val)}
       >
-        {(props.list || []).map(option => (
+        {(list.value || []).map((option: IListItemData) => (
           <bk-option
-            id={option.id}
-            key={option.id}
-            name={option.name}
+            id={option.index_set_id}
+            key={option.index_set_id}
+            name={option.index_set_name}
           />
         ))}
         <div
@@ -91,6 +112,7 @@ export default defineComponent({
           {isAdd.value ? (
             <AddIndexSet
               ref={addIndexSetRef}
+              isAdd={true}
               isFrom={false}
               on-cancel={handleCancel}
               on-submit={handleSubmit}

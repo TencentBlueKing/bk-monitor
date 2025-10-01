@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, onMounted } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
 import InfoTips from '../../common-comp/info-tips';
+import $http from '@/api';
 
 import './device-metadata.scss';
 /**
@@ -47,11 +48,52 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const selectList = ref([
-      { id: 1, name: 'bk_module_id(模块ID)' },
-      { id: 2, name: 'bk_set_id(集群ID)' },
-    ]);
-    const searchValue = ref([]);
+    const extraLabelList = ref([]);
+    const groupList = ref([]);
+    const selectValue = ref([]);
+
+    onMounted(() => {
+      getDeviceMetaData();
+    });
+
+    // 获取元数据
+    const getDeviceMetaData = async () => {
+      try {
+        const res = await $http.request('linkConfiguration/getSearchObjectAttribute');
+        const { scope = [], host = [] } = res.data;
+        groupList.value.push(
+          ...scope.map(item => {
+            item.key = 'scope';
+            return item;
+          }),
+        );
+        groupList.value.push(
+          ...host.map(item => {
+            item.key = 'host';
+            return item;
+          }),
+        );
+        selectValue.value = props.valueList.map(item => {
+          if (item.key.startsWith('host.')) {
+            return item.key.slice(5);
+          }
+        });
+        extraLabelList.value = props.valueList
+          .filter(metadataItem => {
+            const isDuplicate = groupList.value.some(groupItem => groupItem.field === metadataItem.key.slice(5));
+            return !isDuplicate;
+          })
+          .map(item => {
+            return {
+              key: item.key,
+              value: item.value,
+              duplicateKey: false,
+            };
+          });
+      } catch (e) {
+        console.warn(e);
+      }
+    };
     const handleAdd = () => {
       emit('update', [...props.valueList, '']);
     };
@@ -66,7 +108,7 @@ export default defineComponent({
       emit('update', nextList);
     };
     const handleSelect = value => {
-      searchValue.value = value;
+      selectValue.value = value;
     };
     const renderInputItem = (item, index) => (
       <div class='device-metadata-input-item'>
@@ -92,24 +134,24 @@ export default defineComponent({
     return () => (
       <div class='device-metadata-main'>
         <bk-select
-          value={searchValue.value}
+          value={selectValue.value}
           display-tag
           multiple
           searchable
           on-selected={handleSelect}
         >
-          {selectList.value.map(item => (
+          {groupList.value.map(item => (
             <bk-option
-              id={item.id}
-              key={item.id}
+              id={item.field}
+              key={item.field}
               class='device-metadata-option'
-              name={item.name}
+              name={`${item.field}(${item.name})`}
             >
               <bk-checkbox
                 class='mr-5'
-                value={searchValue.value.includes(item.id)}
+                value={selectValue.value.includes(item.field)}
               />
-              {item.name}
+              {`${item.field}(${item.name})`}
             </bk-option>
           ))}
         </bk-select>

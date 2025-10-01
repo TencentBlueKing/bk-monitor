@@ -29,10 +29,9 @@
  */
 import { computed, ref } from 'vue';
 
-import * as authorityMap from '@/common/authority-map';
+import useStore from '@/hooks/use-store';
 
 import $http from '@/api';
-// import useStore from '@/hooks/use-store';
 export type CardItem = {
   key: number | string;
   title: string;
@@ -40,10 +39,14 @@ export type CardItem = {
 };
 
 export const useOperation = () => {
-  // const store = useStore();
-  // const spaceUid = computed(() => store.getters.spaceUid);
+  const store = useStore();
+  const spaceUid = computed(() => store.getters.spaceUid);
   // const bkBizId = computed(() => store.getters.bkBizId);
   const tableLoading = ref(false);
+  /**
+   * 获取采集项列表loading
+   */
+  const indexGroupLoading = ref(false);
   const cardRender = (cardConfig: CardItem[]) => (
     <div class='classify-main-box'>
       {cardConfig.map(item => (
@@ -75,100 +78,32 @@ export const useOperation = () => {
       tableLoading.value = false;
     }
   };
-  /**
-   * 通用权限判断函数
-   * 判断项目是否拥有管理ES源的权限
-   * @param {Object} item - 待判断权限的项目对象（存储项或集群）
-   * @returns {boolean} 是否拥有管理权限
-   */
-  const hasManageEsPermission = item => {
-    return item.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH];
-  };
 
   /**
-   * 按权限排序数据的通用函数
-   * 将有权限的项目排在前面，无权限的排在后面
-   * @param {Array} data - 待排序的数据数组
-   * @returns {Array} 按权限排序后的数组
+   * 获取列表数据
    */
-  const sortByPermission = data => {
-    const withPermission = [];
-    const withoutPermission = [];
-
-    for (const item of data) {
-      if (hasManageEsPermission(item)) {
-        withPermission.push(item);
-      } else {
-        withoutPermission.push(item);
-      }
-    }
-
-    return [...withPermission, ...withoutPermission];
-  };
-
-  /**
-   * 获取存储列表数据
-   * 功能：请求存储数据并按权限排序，处理加载状态和错误提示
-   */
-  const getStorage = async () => {
-    const queryParams = { bk_biz_id: bkBizId.value };
-
-    try {
-      loading.value = true;
-      const response = await $http.request('collect/getStorage', { query: queryParams });
-
-      if (response.data) {
-        // 调用通用排序函数处理数据
-        storageList.value = sortByPermission(response.data);
-      }
-    } catch (error) {
-      showMessage(error.message, 'error');
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  /**
-   * 获取集群列表数据
-   * 功能：请求集群数据，按权限排序，过滤平台集群，处理路由参数
-   */
-  const fetchPageData = async () => {
-    try {
-      clusterLoading.value = true;
-      const clusterRes = await $http.request('/source/logList', {
+  const getIndexGroupList = callback => {
+    indexGroupLoading.value = true;
+    $http
+      .request('collect/getIndexGroupList', {
         query: {
-          bk_biz_id: bkBizId.value,
-          scenario_id: 'es',
+          space_uid: spaceUid.value,
         },
+      })
+      .then(res => {
+        callback?.(res.data);
+      })
+      .finally(() => {
+        indexGroupLoading.value = false;
       });
-
-      if (clusterRes.data) {
-        // 调用通用排序函数并过滤非平台集群
-        clusterList.value = sortByPermission(clusterRes.data).filter(cluster => !cluster.is_platform);
-
-        // 处理路由参数设置默认集群
-        const targetClusterId = route.query.cluster;
-        if (targetClusterId) {
-          const numericClusterId = Number(targetClusterId);
-          const isClusterValid = clusterList.value.some(cluster => cluster.storage_cluster_id === numericClusterId);
-
-          if (isClusterValid) {
-            configData.value.storage_cluster_id = numericClusterId;
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('获取集群列表失败:', error);
-    } finally {
-      clusterLoading.value = false;
-    }
   };
 
   return {
     tableLoading,
+    indexGroupLoading,
     // 具体的方法
     cardRender,
     handleMultipleSelected,
-    sortByPermission,
+    getIndexGroupList,
   };
 };

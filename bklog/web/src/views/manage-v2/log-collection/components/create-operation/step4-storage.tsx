@@ -250,11 +250,19 @@ export default defineComponent({
         });
     };
     /**
+     * 采集场景提交
+     */
+    const handleNormalSubmit = () => {
+      console.log('props.configData', props.configData);
+    };
+    /**
      * 保存配置
      */
     const handleSubmit = () => {
       if (props.scenarioId === 'custom_report') {
         handleCustomSubmit();
+      } else {
+        handleNormalSubmit();
       }
     };
     return () => (

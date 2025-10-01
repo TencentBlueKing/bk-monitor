@@ -34,7 +34,14 @@ import IndexSetSelect from './index-set-select';
 
 import './base-info.scss';
 
-export type IBaseInfo = { index_set_name: string; custom_type?: string };
+export type IBaseInfo = {
+  index_set_name?: string;
+  custom_type?: string;
+  parent_index_set_ids?: number[];
+  collector_config_name_en?: string;
+  collector_config_name?: string;
+  description?: string;
+};
 
 export default defineComponent({
   name: 'BaseInfo',
@@ -53,7 +60,7 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
-    const formData = ref<IBaseInfo>({ index_set_name: '' });
+    const formData = ref<IBaseInfo>({ index_set_name: '', parent_index_set_ids: [] });
     /** 展示数据名的key */
     const showNameKey = ['default', 'custom'];
     /** 展示备注说明的key */
@@ -254,7 +261,8 @@ export default defineComponent({
         <bk-form-item label={t('所属索引集')}>
           <IndexSetSelect
             on-select={val => {
-              console.log(val);
+              formData.value.parent_index_set_ids = val;
+              handleChange();
             }}
           />
         </bk-form-item>
