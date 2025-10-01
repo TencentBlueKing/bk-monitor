@@ -871,8 +871,6 @@ export default defineComponent({
       handleClearRetrievalFilter,
       handleCopyWhereQueryString,
       handleSetCommonWhereToFavoriteCache,
-      handleGetResidentSettingUserConfig,
-      handleSetResidentSettingUserConfig,
     };
   },
   render() {
@@ -916,8 +914,6 @@ export default defineComponent({
                 fields={this.retrievalFields as any[]}
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
-                handleGetUserConfig={this.handleGetResidentSettingUserConfig}
-                handleSetUserConfig={this.handleSetResidentSettingUserConfig}
                 isDefaultResidentSetting={this.isDefaultResidentSetting}
                 isShowClear={true}
                 isShowCopy={true}
