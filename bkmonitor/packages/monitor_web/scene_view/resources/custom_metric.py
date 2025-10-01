@@ -17,7 +17,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel, MetricType
 from core.drf_resource import Resource, api, resource
 from monitor_web.models import CustomTSField, CustomTSTable
 
@@ -60,7 +60,7 @@ class GetCustomTsMetricGroups(Resource):
         )
 
         fields = table.get_and_sync_fields()
-        metrics = [field for field in fields if field.type == CustomTSField.MetricType.METRIC]
+        metrics = [field for field in fields if field.type == MetricType.METRIC]
 
         # 维度描述
         hidden_dimensions = set()
@@ -69,7 +69,7 @@ class GetCustomTsMetricGroups(Resource):
         common_dimensions = []
         for field in fields:
             # 如果不是维度，则跳过
-            if field.type != CustomTSField.MetricType.DIMENSION:
+            if field.type != MetricType.DIMENSION:
                 continue
 
             dimension_descriptions[field.name] = field.description
@@ -485,13 +485,13 @@ class GetCustomTsGraphConfig(Resource):
         )
         metrics = CustomTSField.objects.filter(
             time_series_group_id=params["time_series_group_id"],
-            type=CustomTSField.MetricType.METRIC,
+            type=MetricType.METRIC,
             name__in=params["metrics"],
         )
 
         dimension_names: dict[str, str] = {}
         for dimension in CustomTSField.objects.filter(
-            type=CustomTSField.MetricType.DIMENSION, time_series_group_id=params["time_series_group_id"]
+            type=MetricType.DIMENSION, time_series_group_id=params["time_series_group_id"]
         ):
             dimension_names[dimension.name] = dimension.description
         compare_config = params.get("compare", {})
