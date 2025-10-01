@@ -95,13 +95,13 @@ export const VariableTypeEnum = {
 } as const;
 
 export const VariableTypeMap = {
-  [VariableTypeEnum.FUNCTIONS]: window.i18n.tc('函数变量'),
-  [VariableTypeEnum.GROUP_BY]: window.i18n.tc('维度变量'),
-  [VariableTypeEnum.TAG_VALUES]: window.i18n.tc('维度值变量'),
-  [VariableTypeEnum.METHOD]: window.i18n.tc('汇聚变量'),
-  [VariableTypeEnum.CONDITIONS]: window.i18n.tc('条件变量'),
-  [VariableTypeEnum.CONSTANTS]: window.i18n.tc('常规变量'),
-  [VariableTypeEnum.EXPRESSION_FUNCTIONS]: window.i18n.tc('表达式函数变量'),
+  [VariableTypeEnum.FUNCTIONS]: window.i18n.t('函数变量'),
+  [VariableTypeEnum.GROUP_BY]: window.i18n.t('维度变量'),
+  [VariableTypeEnum.TAG_VALUES]: window.i18n.t('维度值变量'),
+  [VariableTypeEnum.METHOD]: window.i18n.t('汇聚变量'),
+  [VariableTypeEnum.CONDITIONS]: window.i18n.t('条件变量'),
+  [VariableTypeEnum.CONSTANTS]: window.i18n.t('常规变量'),
+  [VariableTypeEnum.EXPRESSION_FUNCTIONS]: window.i18n.t('表达式函数变量'),
 };
 
 const ConditionMethodNameMap = {
