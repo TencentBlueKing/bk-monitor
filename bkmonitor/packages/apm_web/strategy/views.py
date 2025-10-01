@@ -32,20 +32,19 @@ from constants.query_template import GLOBAL_BIZ_ID
 
 from . import mock_data, serializers
 from apm_web.models import StrategyTemplate, StrategyInstance
-from apm_web.strategy.constants import StrategyTemplateType
-from apm_web.strategy.query_template.core import QueryTemplateWrapperFactory
-from apm_web.strategy.handler import StrategyTemplateOptionValues, StrategyInstanceOptionValues
-from apm_web.strategy.dispatch.core import StrategyDispatcher
-from apm_web.strategy.dispatch.base import DispatchExtraConfig, DispatchGlobalConfig
+from .constants import StrategyTemplateType
+from .query_template import QueryTemplateWrapperFactory
+from .handler import StrategyTemplateOptionValues, StrategyInstanceOptionValues
+from .dispatch.core import StrategyDispatcher, DispatchExtraConfig, DispatchGlobalConfig
 
 
 class StrategyTemplateViewSet(GenericViewSet):
     queryset = StrategyTemplate.objects.all()
     serializer_class = serializers.StrategyTemplateModelSerializer
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self._query_data = None
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     @property
     def query_data(self) -> dict:
