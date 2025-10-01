@@ -342,7 +342,7 @@ class QueryTemplateWrapper(BaseQuery):
             )
 
         return {
-            "name": self.name,
+            "name": self.alias or self.name,
             "query_configs": query_configs,
             "functions": query_instance_dict["functions"],
             "expression": query_instance_dict["expression"],
