@@ -42,7 +42,7 @@ class StrategyTemplateViewSet(GenericViewSet):
     queryset = StrategyTemplate.objects.all()
     serializer_class = serializers.StrategyTemplateModelSerializer
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self._query_data = None
         super().__init__(**kwargs)
 
