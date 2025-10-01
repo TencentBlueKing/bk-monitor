@@ -24,59 +24,55 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
 import LeftList from './components/list-main/left-list';
 import TableList from './components/list-main/table-list';
-// import { mockList } from './data.ts';
-// import $http from '@/api';
+
+import type { IListItemData } from './type';
 
 import './index.scss';
 
 export default defineComponent({
   name: 'V2LogCollection',
 
-  emits: ['width-change'],
-
-  setup(props, { emit }) {
-    const LOADING_TIMEOUT_MS = 1200;
+  setup() {
     const { t } = useLocale();
     const isShowLeft = ref(true);
-    const listLoading = ref(false);
-    const currentIndexSet = ref({ label: t('全部采集项'), count: 1124, key: 'all' });
-    const list = [
-      { label: 'bk_apm_trace', count: 11, key: 'bk_apm_trace', isDelete: false },
-      { label: 'bk_aiop', count: 23, key: 'bk_apm_trace1', isDelete: true },
-      { label: 'bk_apm_trace', count: 164, key: 'bk_apm_trace2', isDelete: true },
-      { label: '容器日志采集示例', count: 99, key: 'bk_apm_trace3', isDelete: true },
-      { label: '默认索引集', count: 11, key: 'bk_apm_trace4', isDelete: true },
-      { label: '主机采集示例', count: 101, key: 'bk_apm_trace5', isDelete: true },
-    ];
+    const listTotal = ref(0);
+    const currentIndexSet = ref<IListItemData>({
+      index_set_name: t('全部采集项'),
+      index_count: 0,
+      index_set_id: 'all',
+    });
     /** 展开/收起左侧采集项列表 */
     const handleShowLeft = () => {
       isShowLeft.value = !isShowLeft.value;
     };
     /** 选中索引集 */
-    const handleChoose = item => {
+    const handleChoose = (item: IListItemData) => {
       currentIndexSet.value = item;
     };
 
-    onMounted(() => {
-      listLoading.value = true;
-      setTimeout(() => {
-        listLoading.value = false;
-      }, LOADING_TIMEOUT_MS);
-    });
+    /**
+     * 获取列表数据total
+     * @param total
+     */
+    const handleTotal = (total: number) => {
+      listTotal.value = total;
+      if (currentIndexSet.value.index_set_id === 'all') {
+        currentIndexSet.value.index_count = total;
+      }
+    };
 
     return () => (
       <div class='v2-log-collection-main'>
         {isShowLeft.value && (
           <div class='v2-log-collection-left'>
             <LeftList
-              list={list}
-              loading={listLoading.value}
+              total={listTotal.value}
               on-choose={handleChoose}
             />
           </div>
@@ -88,7 +84,10 @@ export default defineComponent({
           >
             <i class={`bk-icon icon-angle-${isShowLeft.value ? 'left' : 'right'} right-btn`} />
           </span>
-          <TableList indexSet={currentIndexSet.value} />
+          <TableList
+            indexSet={currentIndexSet.value}
+            on-data={handleTotal}
+          />
         </div>
       </div>
     );

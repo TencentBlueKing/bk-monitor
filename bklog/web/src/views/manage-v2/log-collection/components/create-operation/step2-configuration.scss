@@ -90,6 +90,28 @@
           }
         }
       }
+      .log-type-box {
+        width: 100%;
+        .bk-form-checkbox {
+          width: 146px;
+          display: block;
+          margin-top: 8px;
+          margin-bottom: 12px;
+          &.other{
+            margin-top: 16px;
+            margin-bottom: 2px;
+          }
+        }
+        .species-item {
+          position: relative;
+        }
+        .bk-tag-selector  {
+          position: absolute;
+          width: 320px;
+          left: 56px;
+          bottom: -6px;
+        }
+      }
     }
   }
 }

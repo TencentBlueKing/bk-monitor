@@ -98,10 +98,11 @@ export default defineComponent({
               baseInfoRef.value
                 .validate()
                 .then(() => {
-                  emit('next', configData.value);
+                  // emit('next', configData.value);
                 })
                 .catch(() => {
-                  showMessage(t('请完善基本信息'), 'error');
+                  console.log('error');
+                  // showMessage(t('请完善基本信息'), 'error');
                 });
             }}
           >

@@ -78,24 +78,9 @@ export default defineComponent({
       storage_cluster_id: null,
       scenario_id: props.scenarioId,
       category_id: 'application_check',
-      indexes: [
-        // {
-        //   result_table_id: '100605_bcs_file_log_oICV',
-        //   result_table_name_alias: 'bcs_file_log_oICV',
-        //   bk_biz_id: '100605',
-        //   scenarioId: 'bkdata',
-        // },
-        // {
-        //   result_table_id: '100605_bcs_file_log_uat8',
-        //   result_table_name_alias: 'bcs_file_log_uat8',
-        //   bk_biz_id: '100605',
-        //   scenarioId: 'bkdata',
-        // },
-      ],
+      indexes: [],
       target_fields: [],
       sort_fields: [],
-      // target_fields: ['container_id', 'dtEventTimeStamp'],
-      // sort_fields: ['container_id', 'log'],
     });
 
     const getTimeFiled = computed(() => timeIndex.value?.time_field || '--');

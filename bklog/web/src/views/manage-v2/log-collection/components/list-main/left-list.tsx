@@ -30,8 +30,13 @@ import useLocale from '@/hooks/use-locale';
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
+import { useCollectList } from '../../hook/useCollectList';
+import { showMessage } from '../../utils';
 import AddIndexSet from '../business-comp/step2/add-index-set';
 import ListItem from './list-item';
+import $http from '@/api';
+
+import type { IListItemData } from '../../type';
 
 import './left-list.scss';
 import 'tippy.js/themes/light.css';
@@ -39,48 +44,92 @@ import 'tippy.js/themes/light.css';
 export default defineComponent({
   name: 'LeftList',
   props: {
-    list: {
-      type: Array,
-      default: () => [],
-    },
-    loading: {
-      type: Boolean,
-      default: false,
+    total: {
+      type: Number,
+      default: 0,
     },
   },
   emits: ['choose'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const activeKey = ref('all');
+    const { spaceUid } = useCollectList();
+    const activeKey = ref<number | string>('all');
     const addPanelRef = ref();
     const addIndexSetRef = ref();
     const rootRef = ref();
-    const formData = ref({ label: '' });
+    const formData = ref<IListItemData>({ index_set_name: '' });
     const isHover = ref(false);
     let tippyInstance: Instance | null = null;
-    const searchValue = ref('');
+    const searchValue = ref<string>('');
+    const listData = ref<IListItemData[]>([]);
+    const loading = ref(false);
 
     const baseItem = computed(() => [
-      { label: t('全部采集项'), count: 1124, key: 'all', icon: 'all2', unEditable: true },
-      // { label: t('未归属索引集'), count: 23, key: 'unassigned', icon: 'weiguishu', unEditable: true },
+      {
+        index_set_name: t('全部采集项'),
+        index_count: props.total,
+        index_set_id: 'all',
+        icon: 'all2',
+        unEditable: true,
+      },
     ]);
     /** 过滤后的数据 */
-    const filterDataList = computed(() => (props.list || []).filter(item => item.label.includes(searchValue.value)));
+    const filterDataList = computed(() =>
+      (listData.value || []).filter((item: IListItemData) => (item.index_set_name ?? '').includes(searchValue.value)),
+    );
 
     /** 选中索引集 */
-    const handleItem = item => {
-      activeKey.value = item.key;
+    const handleItem = (item: IListItemData) => {
+      activeKey.value = item.index_set_id ?? '';
       emit('choose', item);
     };
 
-    const renderBaseItem = item => (
+    const handelDelItem = (item: IListItemData) => {
+      $http
+        .request('collect/delIndexGroup', {
+          params: {
+            index_set_id: item.index_set_id,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            showMessage(t('删除成功'));
+            getListData();
+          }
+        })
+        .catch(err => {
+          console.log(err);
+        });
+    };
+
+    const renderBaseItem = (item: IListItemData) => (
       <ListItem
         activeKey={activeKey.value}
         data={item}
         on-choose={handleItem}
+        on-delete={handelDelItem}
       />
     );
+    /**
+     * 获取列表数据
+     */
+    const getListData = () => {
+      loading.value = true;
+      $http
+        .request('collect/getIndexGroupList', {
+          query: {
+            space_uid: spaceUid.value,
+          },
+        })
+        .then(res => {
+          listData.value = res.data;
+          initActionPop();
+        })
+        .finally(() => {
+          loading.value = false;
+        });
+    };
 
     const initActionPop = () => {
       tippyInstance = tippy(rootRef.value as SingleTarget, {
@@ -103,16 +152,57 @@ export default defineComponent({
     const handleEditGroupCancel = () => {
       tippyInstance?.hide();
     };
+    /**
+     * 新增/修改索引集
+     */
     const handleEditGroupSubmit = () => {
-      tippyInstance?.hide();
+      getListData();
     };
 
-    onMounted(initActionPop);
+    onMounted(() => {
+      handleItem(baseItem.value[0]);
+      getListData();
+    });
 
     onBeforeUnmount(() => {
       tippyInstance?.hide();
       tippyInstance?.destroy();
     });
+    /**
+     * 列表内容render
+     * @returns
+     */
+    const renderListMain = () => {
+      if (loading.value) {
+        return (
+          <ItemSkeleton
+            style={{ padding: '0 16px' }}
+            rowHeight={'30px'}
+            rows={6}
+            widths={['100%']}
+          />
+        );
+      }
+      if (filterDataList.value.length > 0) {
+        return (filterDataList.value || []).map(item => renderBaseItem(item));
+      }
+      return (
+        <bk-exception
+          class='list-main-empty'
+          type={searchValue.value ? 'search-empty' : 'empty'}
+        >
+          {searchValue.value && <span>{t('搜索结果为空')}</span>}
+          <span
+            class='list-main-empty-text'
+            on-click={() => {
+              searchValue.value = '';
+            }}
+          >
+            {t('清空筛选条件')}
+          </span>
+        </bk-exception>
+      );
+    };
 
     return () => (
       <div class='log-collection-left-list'>
@@ -134,7 +224,13 @@ export default defineComponent({
               placeholder={t('搜索 索引集名称')}
               right-icon='bk-icon icon-search'
               value={searchValue.value}
-              onInput={val => (searchValue.value = val)}
+              clearable
+              onClear={() => {
+                searchValue.value = '';
+              }}
+              onInput={val => {
+                searchValue.value = val;
+              }}
             />
           </div>
           <div style='display: none'>
@@ -148,18 +244,7 @@ export default defineComponent({
               />
             </div>
           </div>
-          <div class='list-main-content'>
-            {props.loading ? (
-              <ItemSkeleton
-                style={{ padding: '0 16px' }}
-                rowHeight={'30px'}
-                rows={6}
-                widths={['100%']}
-              />
-            ) : (
-              (filterDataList.value || []).map(item => renderBaseItem(item))
-            )}
-          </div>
+          <div class='list-main-content'>{renderListMain()}</div>
         </div>
       </div>
     );

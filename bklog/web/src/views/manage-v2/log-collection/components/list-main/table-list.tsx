@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, computed } from 'vue';
+import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, computed, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 // import useStore from '@/hooks/use-store';
@@ -38,6 +38,8 @@ import { useCollectList } from '../../hook/useCollectList';
 import { STATUS_ENUM, SETTING_FIELDS, MENU_LIST, GLOBAL_CATEGORIES_ENUM, COLLECTOR_SCENARIO_ENUM } from '../../utils';
 import TagMore from '../common-comp/tag-more';
 
+import type { IListItemData } from '../../type';
+
 import './table-list.scss';
 
 export type SearchKeyItem = {
@@ -50,7 +52,7 @@ export default defineComponent({
   name: 'TableList',
   props: {
     indexSet: {
-      type: Object,
+      type: Object as PropType<IListItemData>,
       default: () => ({}),
     },
     data: {
@@ -63,9 +65,9 @@ export default defineComponent({
     },
   },
 
-  emits: ['width-change'],
+  emits: ['data'],
 
-  setup(props) {
+  setup(props, { emit }) {
     const { t } = useLocale();
     // const router = useRouter();
     // const store = useStore();
@@ -297,6 +299,13 @@ export default defineComponent({
       },
       { immediate: true },
     );
+    watch(
+      () => props.indexSet,
+      () => {
+        pagination.value.current = 1;
+        getTableList();
+      },
+    );
 
     /** 渲染操作下拉列表 */
     const initMenuPop = () => {
@@ -348,20 +357,30 @@ export default defineComponent({
     onBeforeUnmount(() => {
       destroyTippyInstances();
     });
+    /**
+     * 获取列表数据
+     */
     const getTableList = async () => {
       try {
         listLoading.value = true;
         const { current, limit } = pagination.value;
+        const params = {
+          space_uid: spaceUid.value,
+          page: current,
+          pagesize: limit,
+        };
+        if (props.indexSet.index_set_id !== 'all') {
+          Object.assign(params, {
+            parent_index_set_id: props.indexSet.index_set_id,
+          });
+        }
         const res = await $http.request('collect/newCollectList', {
-          data: {
-            space_uid: spaceUid.value,
-            page: current,
-            pagesize: limit,
-          },
+          data: params,
         });
         console.log(res, 'res');
         tableList.value = res.data?.list || [];
         pagination.value.count = res.data?.total || 0;
+        emit('data', pagination.value.count);
       } catch (e) {
         console.warn(e);
       } finally {
@@ -371,7 +390,9 @@ export default defineComponent({
 
     const handleMenuClick = (key: string, row: any) => {
       // 关闭 tippy
-      tippyInstances.forEach(i => i?.hide());
+      for (const i of tippyInstances) {
+        i?.hide();
+      }
       // 业务处理
       console.log(key, row);
     };
@@ -486,8 +507,8 @@ export default defineComponent({
     return () => (
       <div class='v2-log-collection-table'>
         <div class='v2-log-collection-table-header'>
-          {props.indexSet.label}
-          <span class='table-header-count'>{props.indexSet.count}</span>
+          {props.indexSet.index_set_name}
+          <span class='table-header-count'>{props.indexSet.index_count}</span>
         </div>
         <div class='v2-log-collection-table-tool'>
           <div class='tool-btns'>
@@ -498,12 +519,6 @@ export default defineComponent({
             >
               {t('采集项')}
             </bk-button>
-            {/* <bk-button
-              class='ml-8'
-              theme='default'
-            >
-              {t('批量编辑')}
-            </bk-button> */}
           </div>
           <bk-search-select
             class='tool-search-select'
@@ -518,10 +533,7 @@ export default defineComponent({
             // key={tableKey.value}
             ext-cls='collection-table-box'
             data={tableList.value}
-            // pagination={pagination.value}
             on-filter-change={handleFilterChange}
-            // on-page-change={handlePageChange}
-            // on-page-limit-change={handlePageLimitChange}
           >
             {columns.value.map((item, ind) => (
               <bk-table-column

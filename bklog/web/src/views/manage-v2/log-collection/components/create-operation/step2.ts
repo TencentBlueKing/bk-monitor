@@ -288,3 +288,61 @@ export const step2 = {
   custom_name: "容器日志上报",
   table_id_prefix: "100605_bklog_",
 };
+
+export const windowsEvent = {
+  collector_config_name: "windows-events-0928",
+  collector_config_name_en: "windows_events_0928",
+  collector_scenario_id: "wineventlog",
+  description: "windows-events-0928 开发联调",
+  environment: "windows",
+  data_link_id: 6,
+  category_id: "host_process",
+  target_node_type: "INSTANCE",
+  target_object_type: "HOST",
+  target_nodes: [
+    {
+      bk_host_id: 2000059165,
+    },
+  ],
+  data_encoding: "UTF-8",
+  params: {
+    winlog_name: ["Application", "Security", "System"],
+    winlog_level: ["hello"],
+  },
+  bk_biz_id: "100605",
+};
+export const windowsEventEdit = {
+  collector_config_name: "windows-events-0928",
+  collector_config_name_en: "windows_events_0928",
+  collector_scenario_id: "wineventlog",
+  description: "windows-events-0928 开发联调",
+  environment: "windows",
+  data_link_id: 6,
+  target_node_type: "INSTANCE",
+  target_object_type: "HOST",
+  target_nodes: [
+    {
+      bk_host_id: 2000059165,
+    },
+  ],
+  data_encoding: "UTF-8",
+  params: {
+    winlog_name: ["Application", "Security", "System", "1111"],
+    winlog_level: ["hello"],
+    winlog_event_id: ["444"],
+    winlog_source: ["666"],
+    winlog_content: ["9999"],
+  },
+  collector_config_id: 3236,
+  bk_biz_id: "100605",
+};
+
+// {
+//   "collector_config_id": 3237,
+//   "collector_config_name": "wind-0930",
+//   "bk_data_id": 1577593,
+//   "subscription_id": 33576,
+//   "task_id_list": [
+//       "29027593"
+//   ]
+// }

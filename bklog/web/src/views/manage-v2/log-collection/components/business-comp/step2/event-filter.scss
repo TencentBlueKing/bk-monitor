@@ -1,0 +1,28 @@
+.event-filter-main {
+    width: 100%;
+    height: 100%;
+    .event-filter-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        .event-filter-select {
+            width: 120px;
+            margin-right: 8px;
+        }
+        .event-filter-tag-input {
+            flex: 1;
+        }
+        .item-tool {
+           .icons {
+                color: #979BA5;
+                font-size: 18px;
+                cursor: pointer;
+                margin-left: 10px;
+           } 
+           .disabled {
+                color: #dcdee5;
+                cursor: not-allowed;
+           }
+        }
+    }
+}

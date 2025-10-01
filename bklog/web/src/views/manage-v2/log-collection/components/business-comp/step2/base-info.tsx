@@ -67,7 +67,7 @@ export default defineComponent({
     const enNameRegex = /^[A-Za-z0-9_]+$/;
     const checkEnNameValidator = val => {
       isTextValid.value = enNameRegex.test(val);
-      console.log(val, isTextValid.value, 'eeeeee');
+      console.log(val, isTextValid.value, 'eeeeee', enNameRegex.test(val));
       return isTextValid.value;
     };
     const ruleData = ref({
@@ -82,6 +82,7 @@ export default defineComponent({
         // 采集数据名称
         {
           required: true,
+          message: t('必填项'),
           trigger: 'blur',
         },
         {
@@ -95,7 +96,7 @@ export default defineComponent({
           trigger: 'blur',
         },
         {
-          validator: checkEnNameValidator,
+          validator: val => checkEnNameValidator(val),
           message: t('只支持输入字母，数字，下划线'),
           trigger: 'blur',
         },
@@ -156,7 +157,6 @@ export default defineComponent({
           .validate()
           .then(() => {
             isTextValid.value = true;
-            console.log('success');
           })
           .catch(() => {
             console.log('fail');

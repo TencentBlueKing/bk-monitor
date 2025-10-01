@@ -57,7 +57,7 @@ export default defineComponent({
           },
           {
             name: t('windows events 日志'),
-            value: 'windows_events',
+            value: 'wineventlog',
             icon: 'windows',
           },
           // {

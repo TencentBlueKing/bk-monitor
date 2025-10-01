@@ -24,11 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType, ref, nextTick } from 'vue';
+import { defineComponent, type PropType, ref, nextTick, computed, onMounted } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 
-import type { ListItemData } from '../../../type';
+import { showMessage } from '../../../utils';
+import $http from '@/api';
+
+import type { IListItemData } from '../../../type';
 
 import './add-index-set.scss';
 
@@ -37,7 +41,7 @@ export default defineComponent({
   name: 'AddIndexSet',
   props: {
     data: {
-      type: Object as PropType<ListItemData>,
+      type: Object as PropType<IListItemData>,
       default: () => ({}),
     },
     isFrom: {
@@ -51,14 +55,76 @@ export default defineComponent({
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
+    const store = useStore();
     const inputRef = ref<any>();
     const editFormRef = ref();
-    const editFormRules = {};
-    const handleEditGroupSubmit = () => {
-      editFormRef.value?.validate().then(() => {
-        emit('submit');
-      });
+    const editFormRules = {
+      index_set_name: [
+        {
+          required: true,
+          message: t('请输入索引集名称'),
+          trigger: 'blur',
+        },
+        {
+          min: 1,
+          max: 50,
+          message: t('索引集名称长度应在1-50个字符之间'),
+          trigger: 'blur',
+        },
+      ],
     };
+    const editData = ref<IListItemData>({
+      index_set_name: '',
+    });
+    const spaceUid = computed(() => store.getters.spaceUid);
+
+    onMounted(() => {
+      editData.value = { ...props.data };
+    });
+    /**
+     *
+     * @param config
+     */
+    const handleRequest = async (config: { method: string; params?: any; data?: any; message: string }) => {
+      const res = await $http.request(config.method, {
+        params: config.params,
+        data: config.data,
+      });
+
+      if (res.result) {
+        showMessage(config.message);
+        emit('submit', editData.value);
+        handleEditGroupCancel();
+      }
+    };
+
+    /**
+     * 编辑索引集提交
+     */
+    const handleEditGroupSubmit = async () => {
+      try {
+        await editFormRef.value?.validate();
+        const { index_set_id, index_set_name } = editData.value;
+        const message = props.isAdd ? t('新增成功') : t('更新成功');
+        const config = props.isAdd
+          ? {
+              method: 'collect/addIndexGroup',
+              data: { space_uid: spaceUid.value, index_set_name },
+              message,
+            }
+          : {
+              method: 'collect/updateIndexGroup',
+              params: { index_set_id },
+              data: { index_set_name },
+              message,
+            };
+
+        await handleRequest(config);
+      } catch (error) {
+        console.error('操作失败:', error);
+      }
+    };
+
     const handleEditGroupCancel = () => {
       emit('cancel');
     };
@@ -107,7 +173,7 @@ export default defineComponent({
     };
 
     // 新增/修改索引集名称
-    const renderAddIndexSet = (item: ListItemData) => (
+    const renderAddIndexSet = () => (
       <div class={props.isFrom ? 'popover-add-index-set' : 'add-index-set-input-main'}>
         {props.isFrom && <div class='title'>{props.isAdd ? t('新建索引集') : t('重命名')}</div>}
         <bk-form
@@ -116,23 +182,25 @@ export default defineComponent({
           form-type='vertical'
           {...{
             props: {
-              model: item,
+              model: editData.value,
               rules: editFormRules,
             },
           }}
         >
           <bk-form-item
             label={props.isFrom ? t('索引集名称') : ''}
-            property='group_name'
+            property='index_set_name'
             required
           >
             <bk-input
               ref={inputRef}
+              maxlength={50}
               placeholder={props.isFrom ? t('请输入') : t('请输入索引集名称')}
-              // size={!props.isFrom && 'small'}
-              value={item.label}
+              value={editData.value.index_set_name}
               clearable
-              onInput={val => (item.label = val)}
+              onInput={val => {
+                editData.value.index_set_name = val;
+              }}
             />
           </bk-form-item>
         </bk-form>
@@ -140,6 +208,6 @@ export default defineComponent({
       </div>
     );
 
-    return () => <div class='add-index-set-box'>{renderAddIndexSet(props.data)}</div>;
+    return () => <div class='add-index-set-box'>{renderAddIndexSet()}</div>;
   },
 });

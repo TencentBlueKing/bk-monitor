@@ -235,6 +235,36 @@ const newCollectList = {
   url: '/databus/log_access/collector/',
   method: 'post',
 };
+/**
+ * 获取左侧索引集列表
+ */
+const getIndexGroupList = {
+  url: '/index_group/',
+  method: 'get',
+};
+
+/**
+ * 新增左侧索引集
+ */
+const addIndexGroup = {
+  url: '/index_group/',
+  method: 'post',
+};
+/**
+ * 更新左侧索引集
+ */
+const updateIndexGroup = {
+  url: '/index_group/:index_set_id/',
+  method: 'put',
+};
+
+/**
+ * 删除左侧索引集
+ */
+const delIndexGroup = {
+  url: '/index_group/:index_set_id/',
+  method: 'delete',
+};
 
 export {
   getStorage,
@@ -276,5 +306,10 @@ export {
   getCheckInfos,
   reviewToken,
   getStorageUsage,
+  /** 新版采集管理 */
   newCollectList,
+  getIndexGroupList,
+  addIndexGroup,
+  updateIndexGroup,
+  delIndexGroup,
 };

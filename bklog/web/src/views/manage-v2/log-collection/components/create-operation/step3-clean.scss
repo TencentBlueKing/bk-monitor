@@ -121,9 +121,12 @@
     }
     .select-box {
       flex: 1;
-      min-width: 320px;
+      min-width: 240px;
       border-left: none;
       border-radius: 0 2px 2px 0;
+    }
+    .select-input {
+      width: 170px;
     }
   }
   .clean-setting {
@@ -137,6 +140,9 @@
       .bk-icon {
         color: #3a84ff;
       }
+    }
+    .mt-5 {
+      margin-top: 5px;
     }
     .example-box {
       margin-bottom: 8px;

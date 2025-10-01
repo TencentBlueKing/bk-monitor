@@ -62,7 +62,9 @@ export const useCollectList = () => {
   const collectProject = computed(() =>
     projectManages(store.state.topMenu, "collection-item")
   );
-
+  /**
+   * 跳转到采集项列表
+   */
   const goListPage = () => {
     router.push({
       name: "collection-item-list",
@@ -73,9 +75,10 @@ export const useCollectList = () => {
     });
   };
 
-  /** 是否有创建权限 */
+  /**
+   * 是否有创建权限
+   */
   const checkCreateAuth = async () => {
-    console.log(store.getters, "store");
     try {
       const res = await store.dispatch("checkAllowed", {
         action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
@@ -92,6 +95,10 @@ export const useCollectList = () => {
       isAllowedCreate.value = false;
     }
   };
+  /**
+   * 获取授权数据
+   * @param paramData
+   */
   const getOptionApplyData = async (paramData) => {
     try {
       isTableLoading.value = true;

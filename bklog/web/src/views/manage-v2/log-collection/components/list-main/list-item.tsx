@@ -31,30 +31,23 @@ import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 import AddIndexSet from '../business-comp/step2/add-index-set';
 
-import './list-item.scss';
+import type { IListItemData } from '../../type';
 
-type ListItemData = {
-  key: string;
-  label: string;
-  count?: number;
-  icon?: string;
-  unEditable?: boolean;
-  [key: string]: any;
-};
+import './list-item.scss';
 
 export default defineComponent({
   name: 'ListItem',
   props: {
     data: {
-      type: Object as PropType<ListItemData>,
+      type: Object as PropType<IListItemData>,
       required: true,
     },
     activeKey: {
-      type: String,
+      type: [String, Number],
       default: 'all',
     },
   },
-  emits: ['choose'],
+  emits: ['choose', 'delete'],
   setup(props, { emit }) {
     const DEBOUNCE_DELAY_MS = 100;
     const { t } = useLocale();
@@ -64,7 +57,8 @@ export default defineComponent({
     const delPanelRef = ref<HTMLDivElement>();
     const addIndexSetRef = ref<any>();
     const isHover = ref(false);
-    const isProcessing = ref(false); // 防止重复操作
+     // 防止重复操作
+    const isProcessing = ref(false);
     const clickTimer = ref<NodeJS.Timeout | null>(null); // 点击防抖定时器
 
     const popoverOptions = {
@@ -223,6 +217,7 @@ export default defineComponent({
     /** 确认删除 */
     const handleDelSubmit = () => {
       handleDelCancel();
+      emit('delete', props.data);
     };
 
     // 防抖处理的项目点击
@@ -249,7 +244,7 @@ export default defineComponent({
         class='popover-operations-box'
       >
         {menuList.map(menu => {
-          const isCanDel = menu.key === 'delete' && !props.data.isDelete;
+          const isCanDel = menu.key === 'delete' && !!props.data.isDelete;
           return (
             <span
               key={menu.key}
@@ -273,7 +268,7 @@ export default defineComponent({
     );
 
     // 新增/修改索引集名称
-    const renderAddIndexSet = (item: ListItemData) => (
+    const renderAddIndexSet = (item: IListItemData) => (
       <AddIndexSet
         ref={addIndexSetRef}
         data={item}
@@ -283,7 +278,7 @@ export default defineComponent({
     );
 
     // 删除索引集
-    const renderDelIndexSet = (item: ListItemData) => (
+    const renderDelIndexSet = (item: IListItemData) => (
       <div class='popover-del-index-set'>
         <div class='title'>{t('确认删除该索引集？')}</div>
         <div class='del-content'>
@@ -318,12 +313,12 @@ export default defineComponent({
         }}
       >
         <div
-          class={['base-item', { active: props.activeKey === props.data.key }]}
+          class={['base-item', { active: props.activeKey === props.data.index_set_id }]}
           on-Click={handleItem}
         >
           <i class={`bklog-icon item-icon bklog-${props.data.icon || 'file-close'}`} />
-          <div class='item-label'>{props.data.label}</div>
-          <div class='item-count'>{props.data.count}</div>
+          <div class='item-label'>{props.data.index_set_name}</div>
+          <div class='item-count'>{props.data.index_count}</div>
         </div>
         {isEnableGroupAction.value && (
           <span

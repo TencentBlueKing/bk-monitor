@@ -45,6 +45,22 @@
       width: 100%;
       height: calc(100% - 88px);
       overflow-y: auto;
+      .list-main-empty {
+        width: 100%;
+        margin-top: 40px;
+        .exception-image {
+          height: 100px;
+        }
+        .page-text {
+          font-size: 12px;
+        }
+        .list-main-empty-text {
+          display: block;
+          cursor: pointer;
+          color: #3a84ff;
+          margin-top: 8px;
+        }
+      }
     }
   }
 }

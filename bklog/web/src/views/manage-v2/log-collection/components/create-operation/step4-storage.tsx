@@ -32,7 +32,6 @@ import { useCollectList } from '../../hook/useCollectList';
 import { useOperation } from '../../hook/useOperation';
 import { showMessage } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
-// import { step4Data } from './data';
 import $http from '@/api';
 
 import './step4-storage.scss';
@@ -43,6 +42,10 @@ export default defineComponent({
     configData: {
       type: Object,
       default: () => ({}),
+    },
+    scenarioId: {
+      type: String,
+      default: '',
     },
   },
 
@@ -211,13 +214,18 @@ export default defineComponent({
         renderFn: renderStorage,
       },
     ];
-    const handleSubmit = () => {
+    /**
+     * 自定义上报存储保存
+     * @returns
+     */
+    const handleCustomSubmit = () => {
       if (!clusterSelect.value) {
         showMessage(t('请选择集群'), 'error');
         return;
       }
       submitLoading.value = true;
-      $http.request(`custom/${isEdit.value ? 'setCustom' : 'createCustom'}`, {
+      $http
+        .request(`custom/${isEdit.value ? 'setCustom' : 'createCustom'}`, {
           params: {
             collector_config_id: props.configData.collectorId,
           },
@@ -240,6 +248,14 @@ export default defineComponent({
         .finally(() => {
           submitLoading.value = false;
         });
+    };
+    /**
+     * 保存配置
+     */
+    const handleSubmit = () => {
+      if (props.scenarioId === 'custom_report') {
+        handleCustomSubmit();
+      }
     };
     return () => (
       <div class='operation-step4-storage'>
@@ -270,6 +286,6 @@ export default defineComponent({
           </bk-button>
         </div>
       </div>
-    )
+    );
   },
 });

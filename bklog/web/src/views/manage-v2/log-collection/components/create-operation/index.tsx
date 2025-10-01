@@ -44,9 +44,9 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const mainRef = ref<HTMLDivElement>();
-    const DEFAULT_STEP = 1;
+    const DEFAULT_STEP = 3;
     const step = ref(DEFAULT_STEP);
-    const typeKey = ref('es');
+    const typeKey = ref('wineventlog');
     const firstStep = { title: t('索引集分类'), icon: 1, components: StepClassify };
     const { goListPage } = useCollectList();
     const dataConfig = ref({});
