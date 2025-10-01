@@ -87,6 +87,8 @@ const TRACE_EXPLORE_APPLICATION_ID_THUMBTACK = 'trace_explore_application_id_thu
 
 updateTimezone(window.timezone);
 
+import { useFavoriteFieldsState } from './components/trace-explore-table/utils/favorite-fields';
+
 import './trace-explore.scss';
 export default defineComponent({
   name: 'TraceExplore',
@@ -96,10 +98,11 @@ export default defineComponent({
     const { handleGetUserConfig: handleGetThumbtackUserConfig, handleSetUserConfig: handleSetThumbtackUserConfig } =
       useUserConfig();
     const {
-      handleGetUserConfig: handleGetResidentSettingUserConfig,
-      handleSetUserConfig: handleSetResidentSettingUserConfig,
-    } = useUserConfig();
-
+      saveKey: saveTableFieldsKey,
+      config: tableFieldsConfig,
+      setConfig: setFavoriteTableConfig,
+      refreshConfig: refreshTableFieldsConfig,
+    } = useFavoriteFieldsState();
     const { t } = useI18n();
     const route = useRoute();
     const router = useRouter();
@@ -644,6 +647,16 @@ export default defineComponent({
         commonWhere.value = favoriteConfig?.componentData?.commonWhere || [];
         queryString.value = favoriteConfig?.queryParams?.query || '';
         filterMode.value = favoriteConfig?.componentData?.filterMode || EMode.ui;
+        if (favoriteConfig?.componentData?.tableFieldsConfig?.key) {
+          setFavoriteTableConfig(
+            favoriteConfig.componentData.tableFieldsConfig.key,
+            favoriteConfig.componentData.tableFieldsConfig?.config || {
+              displayFields: [],
+              fieldsWidth: {},
+            }
+          );
+          refreshTableFieldsConfig();
+        }
         store.init({
           mode: favoriteConfig?.queryParams?.mode || 'span',
           appName: favoriteConfig?.queryParams?.app_name || store.appName,
@@ -687,6 +700,11 @@ export default defineComponent({
             commonWhere: commonWhere.value,
             timeRange: store.timeRange,
             refreshInterval: store.refreshInterval,
+            tableFieldsConfig: {
+              // 表格显示字段也需要收藏
+              key: saveTableFieldsKey.value,
+              config: tableFieldsConfig.value,
+            },
           },
           queryParams: {
             app_name: store.appName,

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type VNode, computed, reactive } from 'vue';
+import { type VNode, computed, reactive, watch } from 'vue';
 import type { DeepReadonly, MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
@@ -50,6 +50,7 @@ import {
   type TableCellRenderer,
   ExploreTableColumnTypeEnum,
 } from '../typing';
+import { useFavoriteFieldsState } from '../utils/favorite-fields';
 
 import type { IDimensionField } from '../../../typing';
 import type { SortInfo, TableSort } from '@blueking/tdesign-ui';
@@ -90,6 +91,21 @@ export function useExploreColumnConfig({
   const { t } = useI18n();
   const store = useTraceExploreStore();
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
+  const {
+    saveKey: favoriteTableConfigKey,
+    config: favoriteTableConfig,
+    refreshKey: favoriteTableConfigRefreshKey,
+    setConfig: setFavoriteConfig,
+  } = useFavoriteFieldsState();
+
+  watch(
+    () => favoriteTableConfigRefreshKey.value,
+    () => {
+      if (favoriteTableConfigKey.value === customDisplayColumnFieldsCacheKey.value) {
+        getCustomDisplayColumnFields();
+      }
+    }
+  );
 
   /** 用户自定义配置 table 显示列后缓存的显示列配置数据 */
   const customDisplayColumnFieldsConfig = reactive<CustomDisplayColumnFieldsConfig>({
@@ -213,6 +229,13 @@ export function useExploreColumnConfig({
       .filter(Boolean);
   });
 
+  function handleSetFavoriteFields() {
+    setFavoriteConfig(customDisplayColumnFieldsCacheKey.value, {
+      displayFields: customDisplayColumnFieldsConfig.displayFields,
+      fieldsWidth: customDisplayColumnFieldsConfig.fieldsWidth,
+    });
+  }
+
   /**
    * @description: 获取 table 表格列配置
    *
@@ -221,17 +244,27 @@ export function useExploreColumnConfig({
     customDisplayColumnFieldsConfig.displayFields = [];
     customDisplayColumnFieldsConfig.fieldsWidth = {};
     if (!props.appName || !props.mode) return;
-    const customCacheConfig = (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value)) || {
+    let customCacheConfig: any = {
       displayFields: [],
       fieldsWidth: {},
     };
+    if (favoriteTableConfigKey.value === customDisplayColumnFieldsCacheKey.value) {
+      // 优先取收藏配置
+      customCacheConfig = favoriteTableConfig.value;
+    } else {
+      customCacheConfig = (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value)) || {
+        displayFields: [],
+        fieldsWidth: {},
+      };
+    }
     // 原来只缓存了展示字段，且是数组结构，目前改为对象结构需向前兼容
     if (Array.isArray(customCacheConfig)) {
       customDisplayColumnFieldsConfig.displayFields = customCacheConfig;
-      return;
+    } else {
+      customDisplayColumnFieldsConfig.displayFields = customCacheConfig.displayFields;
+      customDisplayColumnFieldsConfig.fieldsWidth = customCacheConfig.fieldsWidth;
     }
-    customDisplayColumnFieldsConfig.displayFields = customCacheConfig.displayFields;
-    customDisplayColumnFieldsConfig.fieldsWidth = customCacheConfig.fieldsWidth;
+    handleSetFavoriteFields();
   }
 
   /**
@@ -242,12 +275,14 @@ export function useExploreColumnConfig({
     customDisplayColumnFieldsConfig.displayFields = displayFields;
     // 缓存列配置
     handleSetUserConfig(JSON.stringify(customDisplayColumnFieldsConfig));
+    handleSetFavoriteFields();
   }
 
   function handleDisplayColumnResize(context: { columnsWidth: { [colKey: string]: number } }) {
     customDisplayColumnFieldsConfig.fieldsWidth = context?.columnsWidth || {};
     // 缓存列配置
     handleSetUserConfig(JSON.stringify(customDisplayColumnFieldsConfig));
+    handleSetFavoriteFields();
   }
 
   /**

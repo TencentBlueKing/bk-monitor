@@ -230,6 +230,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
         ],
       },
     ]);
+    this.setPanelConfigAndRefresh('interval', payload.interval || 'auto');
     this.panelData.targets[0].function = !compare.type ? {} : { time_compare: compare.offset };
     this.isHasCompare = compare.offset.length > 0;
     this.compare = compare.offset || [];

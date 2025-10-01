@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { graphDrillDown } from 'monitor-api/modules/scene_view';
@@ -33,6 +33,7 @@ import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 import { updateTimezone } from 'monitor-pc/i18n/dayjs';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import DrillAnalysisFilter from './drill-analysis-filter';
 import DrillAnalysisTable from './drill-analysis-table';
@@ -41,7 +42,7 @@ import { refreshList } from './utils';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import type { IDimensionItem, IRefreshItem, IResultItem } from '../type';
-import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
+import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './drill-analysis-view.scss';
 
@@ -62,6 +63,9 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   @Prop({ default: () => ({}) }) timeRangeData: TimeRangeType;
   /** 当前汇聚方法 */
   @Prop({ default: '' }) currentMethod: string;
+
+  @InjectReactive('viewOptions') viewOptions: IViewOptions;
+
   @Ref('rootRef') rootRef: HTMLElement;
   @Ref('drillMain') drillMainRef: HTMLDivElement;
 
@@ -105,6 +109,8 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   /** 自动刷新定时器 */
   timer = null;
   cacheTimeRange = [];
+  interval: number | string = 'auto';
+
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
@@ -136,6 +142,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   }
 
   mounted() {
+    this.interval = this.viewOptions?.interval || 'auto';
     this.timeRange = this.timeRangeData;
     window.addEventListener('keydown', this.handleKeydown);
     this.refreshList = refreshList;
@@ -325,10 +332,11 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       group_by: this.filterConfig.drill_group_by,
     };
     const params = len > 0 ? { ...baseParams, ...{ function: this.filterConfig.function } } : baseParams;
-    // biome-ignore lint/performance/noDelete: <explanation>
     len === 0 && delete this.panelData.targets[0].function;
-
-    graphDrillDown({ ...this.panelData.targets[0], ...params })
+    const _variableService = new VariablesService({
+      interval: this.interval || 'auto',
+    });
+    graphDrillDown(_variableService.transformVariables({ ...this.panelData.targets[0], ...params }))
       .then(res => {
         this.tableList = (res || []).map(item => {
           const compareValues = {};
@@ -363,6 +371,25 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       concatFilter[key] = item.value;
     });
     this.setPanelConfigAndRefresh('filter_dict.concat_filter', concatFilter);
+  }
+  /** 修改时间间隔 */
+  handleIntervalChange(val: number | string) {
+    this.interval = val;
+    this.panelData = deepClone({
+      ...this.panelData,
+      targets: [
+        {
+          ...this.panelData.targets[0],
+          query_configs: [
+            {
+              ...this.panelData.targets[0].query_configs[0],
+              interval: this.interval || 'auto',
+            },
+          ],
+        },
+      ],
+    });
+    this.getTableList();
   }
   render() {
     return (
@@ -404,11 +431,13 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         </div>
         <DrillAnalysisFilter
           filterConfig={this.filterConfig}
+          interval={this.interval}
           refreshInterval={this.refreshInterval}
           timeRange={this.timeRange}
           onComparTypeChange={this.handleComparTypeChange}
           onConditionChange={this.handleConditionChange}
           onGroupByChange={this.handleGroupByChange}
+          onIntervalChange={this.handleIntervalChange}
           onLimitChange={this.handleLimitChange}
         />
         <div

@@ -15,7 +15,7 @@ POST
 | 字段         | 类型              | 必须 | 描述                     |
 |------------|-----------------|----|------------------------|
 | id         | int             | 否  | 订阅ID，存在则更新             |
-| username   | string          | 是  | 用户名                    |
+| sub_username   | string          | 是  | 用户名                    |
 | bk_biz_id  | int             | 是  | 业务ID                   |
 | conditions | list[condition] | 是  | 条件列表                   |
 | notice_ways| list[string]    | 是  | 通知方式，支持：weixin,rtx,wecom_robot,mail,sms,voice,wxwork-bot,bkchat               |
@@ -29,7 +29,7 @@ POST
 |----------|-----------|----|------------------------------------|
 | field    | string    | 是  | 过滤字段，例如 `alert.strategy_id`         |
 | value    | list      | 是  | 取值列表，例如 `[15070, 16763]`            |
-| method   | string    | 是  | 匹配方式，例如 `include`                   |
+| method   | string    | 是  | 匹配方式，例如 `eq`                   |
 | condition| string    | 是  | 条件连接符，`and` 或 `or`                 |
 
 #### 请求示例
@@ -37,11 +37,11 @@ POST
 ```json
 {
   "id": 123,
-  "username": "admin",
+  "sub_username": "admin",
   "bk_biz_id": 2,
   "conditions": [
-    {"field": "alert.strategy_id", "value": [15070, 16763], "method": "include", "condition": "and"},
-    {"field": "alert.strategy_id", "value": [15111, 16763], "method": "include", "condition": "and"}
+    {"field": "alert.strategy_id", "value": [15070, 16763], "method": "eq", "condition": "and"},
+    {"field": "alert.severity", "value": [1, 2], "method": "eq", "condition": "and"}
   ],
   "notice_ways": ["rtx", "mail"],
   "priority": 111,
@@ -85,8 +85,8 @@ POST
     "username": "admin",
     "bk_biz_id": 2,
     "conditions": [
-      {"field": "alert.strategy_id", "value": [15070, 16763], "method": "include", "condition": "and"},
-      {"field": "alert.strategy_id", "value": [15111, 16763], "method": "include", "condition": "and"}
+      {"field": "alert.strategy_id", "value": [15070, 16763], "method": "eq", "condition": "and"},
+      {"field": "alert.severity", "value": [1, 2], "method": "eq", "condition": "and"}
     ],
     "notice_ways": ["rtx", "mail"],
     "priority": 111,

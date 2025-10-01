@@ -25,14 +25,12 @@
  */
 
 import { defineComponent, ref, reactive, computed, watch, onMounted } from 'vue';
-
 import * as authorityMap from '@/common/authority-map';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import ValidateUserSelector from '@/views/manage/manage-extract/manage-extract-permission/validate-user-selector.vue';
-import { InfoBox, Message } from 'bk-magic-vue';
-
 import http from '@/api';
+import { InfoBox, Message } from 'bk-magic-vue';
+import ValidateUserSelector from '@/components/user-selector';
 
 import './restore-slider.scss';
 
@@ -69,7 +67,6 @@ export default defineComponent({
 
     const confirmLoading = ref(false); // 确认按钮加载状态
     const sliderLoading = ref(false); // 侧滑内容加载状态
-    const userApi = ref((window as any).BK_LOGIN_URL); // 用户API
     const archiveList = ref<any[]>([]); // 归档列表
     const retentionDaysList = ref<any[]>([]); // 过期天数列表
 
@@ -434,13 +431,11 @@ export default defineComponent({
                     required
                   >
                     <ValidateUserSelector
-                      style='width: 500px'
-                      api={userApi.value}
-                      data-test-id='addNewRestore_input_notifiedUser'
-                      disabled={isEdit.value}
-                      // @ts-expect-error
+                      customStyle='width: 500px'
                       value={formData.notice_user}
-                      onChange={(val: any) => (formData.notice_user = val)}
+                      onChange={(val: string[]) => (formData.notice_user = val)}
+                      disabled={isEdit.value}
+                      data-test-id='addNewRestore_input_notifiedUser'
                     />
                   </bk-form-item>
 

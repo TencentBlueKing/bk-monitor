@@ -24,17 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted } from "vue";
-import useLocale from "@/hooks/use-locale";
-import $http from "@/api";
-import dayjs from "dayjs";
-import { useRoute, useRouter } from "vue-router/composables";
-import CreateTemplate from "./create-template";
-import { type RuleTemplate } from "@/services/log-clustering";
+import { defineComponent, onMounted, ref } from "vue";
+
+import OtherImport from "@/components/import-from-other-index-set";
 import RuleConfigOperate from "@/components/rule-config-operate";
 import RuleTable from "@/components/rule-table";
+import useLocale from "@/hooks/use-locale";
+import { type RuleTemplate } from "@/services/log-clustering";
 import { bkMessage } from "bk-magic-vue";
-import OtherImport from "@/components/import-from-other-index-set";
+import dayjs from "dayjs";
+import { useRoute, useRouter } from "vue-router/composables";
+
+import $http from "@/api";
+import CreateTemplate from "./create-template";
 import IndexSetList from "./index-set-list";
 import TemplateList from "./template-list";
 
@@ -94,6 +96,7 @@ export default defineComponent({
           );
           currentRuleList.value = list;
         } catch (err) {
+          console.error(err);
           bkMessage({
             theme: "error",
             message: t("不是有效的json文件"),
@@ -204,7 +207,7 @@ export default defineComponent({
       <div class="retrieve-template-manage-page">
         <div class="header-main">
           <span on-click={handleClickRouteBack}>
-            <log-icon common class="back-icon" type="arrows-left" />
+            <log-icon class="back-icon" type="arrows-left" common />
           </span>
           <span class="title">{t("模板管理")}</span>
         </div>
@@ -259,16 +262,16 @@ export default defineComponent({
                     </bk-button>
                   </div>
                   <bk-input
-                    clearable
                     style="width: 480px"
                     placeholder={t("搜索 占位符")}
                     right-icon="bk-icon icon-search"
                     value={searchPlaceholderValue.value}
+                    clearable
                     on-change={(value) =>
                       (searchPlaceholderValue.value = value)
                     }
-                    on-enter={handleSearchPlaceholder}
                     on-clear={handleSearchPlaceholder}
+                    on-enter={handleSearchPlaceholder}
                     on-right-icon-click={handleSearchPlaceholder}
                   />
                 </div>
@@ -285,8 +288,8 @@ export default defineComponent({
             </div>
             <rule-config-operate
               ref={ruleConfigOperateRef}
-              ruleList={currentRuleList.value}
               collectorConfigId={collectorConfigId}
+              ruleList={currentRuleList.value}
               on-reset={handleReset}
               on-submit={handleSubmit}
             />
@@ -294,8 +297,8 @@ export default defineComponent({
         </div>
         <other-import
           isShow={isShowOtherImport.value}
-          on-success={handleConfirmFromOtherIndexSet}
           on-show-change={(value) => (isShowOtherImport.value = value)}
+          on-success={handleConfirmFromOtherIndexSet}
         />
       </div>
     );
