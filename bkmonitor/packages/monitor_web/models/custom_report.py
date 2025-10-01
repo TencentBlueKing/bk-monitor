@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import re
 import time
 
@@ -19,7 +19,7 @@ from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.user import get_backend_username
 from constants.common import DEFAULT_TENANT_ID
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel, METRIC_TYPE_CHOICES, MetricType
 from core.drf_resource import api
 from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import OperateRecordModelBase
@@ -75,15 +75,6 @@ class CustomTSField(models.Model):
     """
     自定义时序字段
     """
-
-    METRIC_TYPE_CHOICES = (
-        ("metric", "指标"),
-        ("dimension", "维度"),
-    )
-
-    class MetricType:
-        METRIC = "metric"
-        DIMENSION = "dimension"
 
     MetricConfigFields = ["unit", "hidden", "aggregate_method", "function", "interval", "label", "dimensions"]
     DimensionConfigFields = ["common", "hidden"]

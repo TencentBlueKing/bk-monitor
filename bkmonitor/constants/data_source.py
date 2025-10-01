@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -12,14 +11,14 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _lazy
 
 
-class LabelType(object):
+class LabelType:
     DataSourceLabel = "source_label"  # 数据源标签
     DataTypeLabel = "type_label "  # 数据类型标签
     ResultTableLabel = "result_table_label"  # 结果表分类标签
 
 
 # 数据来源标签，例如：计算平台(bk_data)，监控采集器(bk_monitor_collector)
-class DataSourceLabel(object):
+class DataSourceLabel:
     BK_MONITOR_COLLECTOR = "bk_monitor"
     BK_DATA = "bk_data"
     CUSTOM = "custom"
@@ -33,7 +32,7 @@ class DataSourceLabel(object):
     BK_MONITOR_COLLECTOR_NEW = "bk_monitor_new"
 
 
-DATA_SOURCE_LABEL_ALIAS={
+DATA_SOURCE_LABEL_ALIAS = {
     DataSourceLabel.BK_MONITOR_COLLECTOR: _lazy("监控采集指标"),
     DataSourceLabel.BK_DATA: _lazy("计算平台指标"),
     DataSourceLabel.CUSTOM: _lazy("自定义指标"),
@@ -47,7 +46,7 @@ DATA_SOURCE_LABEL_ALIAS={
 
 
 # 数据类型标签，例如：时序数据(time_series)，事件数据(event)，日志数据(log)
-class DataTypeLabel(object):
+class DataTypeLabel:
     TIME_SERIES = "time_series"
     EVENT = "event"
     LOG = "log"
@@ -160,7 +159,7 @@ DATA_CATEGORY = [
 
 
 # 主机标签
-class HostResultTableLabel(object):
+class HostResultTableLabel:
     os = "os"
     host_process = "host_process"
     host_device = "host_device"
@@ -171,31 +170,31 @@ class KubernetesResultTableLabel:
 
 
 # 应用标签
-class ApplicationsResultTableLabel(object):
+class ApplicationsResultTableLabel:
     application_check = "application_check"
     uptimecheck = "uptimecheck"
     apm = "apm"
 
 
 # 服务标签
-class ServicesResultTableLabel(object):
+class ServicesResultTableLabel:
     component = "component"
     service_module = "service_module"
     service_process = "service_process"
 
 
 # 数据中心标签
-class DataCenterResultTableLabel(object):
+class DataCenterResultTableLabel:
     hardware_device = "hardware_device"
 
 
 # 其他标签
-class OthersResultTableLabel(object):
+class OthersResultTableLabel:
     other_rt = "other_rt"
 
 
 # 标签
-class ResultTableLabelObj(object):
+class ResultTableLabelObj:
     HostObject = HostResultTableLabel
     KubernetesObject = KubernetesResultTableLabel
     ServicesObj = ServicesResultTableLabel
@@ -220,6 +219,17 @@ LABEL_ORDER_LIST = [
     ResultTableLabelObj.KubernetesObject.kubernetes,
 ]
 
+METRIC_TYPE_CHOICES = (
+    ("metric", "指标"),
+    ("dimension", "维度"),
+)
+
+
+class MetricType:
+    METRIC = "metric"
+    DIMENSION = "dimension"
+
+
 # 视图最大维度取值数
 # 单图最大展示线条数
 GRAPH_MAX_SLIMIT = 2000
@@ -243,6 +253,6 @@ GrayUnifyQueryDataSources = [
 ]
 
 # V3链路版本
-DATA_LINK_V3_VERSION_NAME = 'V3'
+DATA_LINK_V3_VERSION_NAME = "V3"
 # V4链路版本
-DATA_LINK_V4_VERSION_NAME = 'V4'
+DATA_LINK_V4_VERSION_NAME = "V4"
