@@ -131,7 +131,7 @@ export default class CompareType extends tsc<IProps, IEmit> {
             distance: 8,
             hideOnClick: true,
           }}
-          theme='light new-metric-view-compare-type'
+          theme='light new-metric-view-compare-type common-monitor'
           trigger='click'
         >
           <div style='display: flex; align-items: center; height: 34px; padding: 0 6px; cursor: pointer'>

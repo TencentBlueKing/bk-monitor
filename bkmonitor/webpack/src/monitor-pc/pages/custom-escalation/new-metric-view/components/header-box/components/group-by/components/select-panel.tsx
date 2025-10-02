@@ -202,7 +202,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
           onShow: this.handlePopoverShow,
           onHidden: this.handlePopoverhide,
         }}
-        theme='light group-by-select-panel'
+        theme='light group-by-select-panel common-monitor'
         trigger='manual'
       >
         <div

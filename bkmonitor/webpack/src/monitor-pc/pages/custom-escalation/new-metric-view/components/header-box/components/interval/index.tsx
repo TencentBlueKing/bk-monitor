@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import CycleInput from '@/components/cycle-input/cycle-input';
+import CycleInput from '../../../../../../../components/cycle-input/cycle-input';
 
 import './index.scss';
 
