@@ -56,8 +56,14 @@ class MetricField(models.Model):
             logger.info(f"bk_biz_id({bk_biz_id}) app({app_name}) metric data source is disabled")
             return
 
-        old_fields = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
-
+        fields = {
+            (o.scope_name, o.name): o
+            for o in cls.objects.filter(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                # TODO service_name=service_name 暂时去掉该条件，待数据源支持
+            )
+        }
         results = api.metadata.get_time_series_group(time_series_group_id=app.time_series_group_id)
         for table in results:
             for metric_info in table["metric_info_list"]:
@@ -91,11 +97,11 @@ class MetricField(models.Model):
                 scope_name = "default"
                 metric_name = metric_info["field_name"]
 
-                old_metric = old_fields.get((scope_name, metric_name))
+                old_metric = fields.get((scope_name, metric_name))
                 if old_metric:
                     pass
                 else:
-                    cls.objects.create(
+                    fields[(scope_name, metric_name)] = cls.objects.create(
                         bk_biz_id=bk_biz_id,
                         app_name=app_name,
                         service_name=service_name,
@@ -107,23 +113,23 @@ class MetricField(models.Model):
                             "unit": metric_info["unit"],
                             "label": [],
                         },
-                        description=metric_info["description"],
-                        disabled=metric_info["is_disabled"],
+                        alias=metric_info["description"],
+                        is_disabled=metric_info["is_disabled"],
                     )
 
                 for dim in metric_info["tag_list"]:
-                    old_dim = old_fields.get((scope_name, dim["field_name"]))
+                    old_dim = fields.get((scope_name, dim["field_name"]))
                     if old_dim:
                         pass
                     else:
-                        cls.objects.create(
+                        fields[(scope_name, dim["field_name"])] = cls.objects.create(
                             bk_biz_id=bk_biz_id,
                             app_name=app_name,
                             service_name=service_name,
                             scope_name=scope_name,
                             name=dim["field_name"],
                             type=MetricType.DIMENSION,
-                            description=dim["description"],
+                            alias=dim["description"],
                         )
                 pass
 
@@ -134,12 +140,13 @@ class MetricField(models.Model):
             logger.info(f"bk_biz_id({bk_biz_id}) app({app_name}) not found")
             return
 
-        old_fields = {
+        fields = {
             (o.scope_name, o.name): o
             for o in cls.objects.filter(
                 bk_biz_id=bk_biz_id,
-                app_name=app_name,  # TODO service_name=service_name 暂时去掉该条件，待数据源支持
-            ).values_list("scope_name", "type", "name")
+                app_name=app_name,
+                # TODO service_name=service_name 暂时去掉该条件，待数据源支持
+            )
         }
         from metadata.models import AccessVMRecord, BCSClusterInfo
 
@@ -190,11 +197,11 @@ class MetricField(models.Model):
             metric_name = md["name"]
             dimensions = md["dimensions"]
 
-            old_f = old_fields.get((scope_name, metric_name))
+            old_f = fields.get((scope_name, metric_name))
             if old_f:
                 pass
             else:
-                cls.objects.create(
+                fields[(scope_name, metric_name)] = cls.objects.create(
                     bk_biz_id=bk_biz_id,
                     app_name=app_name,
                     service_name=service_name,
@@ -204,11 +211,11 @@ class MetricField(models.Model):
                 )
 
             for dim in dimensions:
-                old_dim = old_fields.get((scope_name, dim["name"]))
+                old_dim = fields.get((scope_name, dim["name"]))
                 if old_dim:
                     pass
                 else:
-                    cls.objects.create(
+                    fields[(scope_name, dim["name"])] = cls.objects.create(
                         bk_biz_id=bk_biz_id,
                         app_name=app_name,
                         service_name=service_name,
