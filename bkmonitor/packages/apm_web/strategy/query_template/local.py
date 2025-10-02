@@ -13,7 +13,7 @@ from typing import Any
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.query_template.constants import VariableType, Namespace
-from constants.apm import DEFAULT_DATA_LABEL, CachedEnum
+from constants.apm import CachedEnum
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.query_template import GLOBAL_BIZ_ID
 from bkmonitor.query_template.builtin import utils
@@ -28,10 +28,18 @@ def _qs_to_query_params(qs: UnifyQuerySet) -> dict[str, Any]:
 
 class LocalQueryTemplateName(CachedEnum):
     RPC_PANIC_LOG = "apm_rpc_panic_log"
+    TRACE_SPAN_TOTAL = "apm_trace_span_total"
+    LOG_TOTAL = "apm_log_total"
 
     @cached_property
     def label(self) -> str:
-        return str({self.RPC_PANIC_LOG: _("服务 Panic 日志数")}.get(self, self.value))
+        return str(
+            {
+                self.RPC_PANIC_LOG: _("服务 Panic 日志数"),
+                self.TRACE_SPAN_TOTAL: _("调用链 Span 数"),
+                self.LOG_TOTAL: _("日志数"),
+            }.get(self, self.value)
+        )
 
 
 RPC_PANIC_LOG_QUERY_TEMPLATE: dict[str, Any] = {
@@ -43,7 +51,6 @@ RPC_PANIC_LOG_QUERY_TEMPLATE: dict[str, Any] = {
         UnifyQuerySet()
         .add_query(
             QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_LOG_SEARCH))
-            .data_label(DEFAULT_DATA_LABEL)
             .table("${INDEX_SET_ID}")
             .index_set_id("${INDEX_SET_ID}")
             .interval(60)
@@ -59,14 +66,14 @@ RPC_PANIC_LOG_QUERY_TEMPLATE: dict[str, Any] = {
             "name": "INDEX_SET_ID",
             "alias": str(_("日志索引集 ID")),
             "type": VariableType.CONSTANTS.value,
-            "config": {"default": "0"},
+            "config": {"default": "<无需填写，下发时自动补充>"},
             "description": str(_("日志索引集 ID")),
         },
         {
             "name": "SERVICE_NAME",
             "alias": str(_("服务名称")),
             "type": VariableType.CONSTANTS.value,
-            "config": {"default": ""},
+            "config": {"default": "<无需填写，下发时自动补充>"},
             "description": str(_("服务名")),
         },
         {
@@ -79,10 +86,88 @@ RPC_PANIC_LOG_QUERY_TEMPLATE: dict[str, Any] = {
     ],
 }
 
+TRACE_SPAN_TOTAL_QUERY_TEMPLATE: dict[str, Any] = {
+    "bk_biz_id": GLOBAL_BIZ_ID,
+    "name": LocalQueryTemplateName.TRACE_SPAN_TOTAL.value,
+    "alias": LocalQueryTemplateName.TRACE_SPAN_TOTAL.label,
+    "description": str(_("调用链 Span 数是指在指定时间范围内所上报的 Span 总数。")),
+    **_qs_to_query_params(
+        UnifyQuerySet()
+        .add_query(
+            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_LOG_SEARCH))
+            .table("${INDEX_SET_ID}")
+            .index_set_id("${INDEX_SET_ID}")
+            .interval(60)
+            .group_by("resource.service.name")
+            .metric(field="_index", method="COUNT", alias="a")
+            .conditions(
+                [{"key": "resource.service.name", "method": "eq", "value": ["${SERVICE_NAME}"], "condition": "and"}]
+            )
+        )
+        .expression("a or vector(0)")
+    ),
+    "variables": [
+        {
+            "name": "INDEX_SET_ID",
+            "alias": str(_("日志索引集 ID")),
+            "type": VariableType.CONSTANTS.value,
+            "config": {"default": "<无需填写，下发时自动补充>"},
+            "description": str(_("日志索引集 ID")),
+        },
+        {
+            "name": "SERVICE_NAME",
+            "alias": str(_("服务名称")),
+            "type": VariableType.CONSTANTS.value,
+            "config": {"default": "<无需填写，下发时自动补充>"},
+            "description": str(_("服务名")),
+        },
+    ],
+}
+
+LOG_TOTAL_QUERY_TEMPLATE: dict[str, Any] = {
+    "bk_biz_id": GLOBAL_BIZ_ID,
+    "name": LocalQueryTemplateName.LOG_TOTAL.value,
+    "alias": LocalQueryTemplateName.LOG_TOTAL.label,
+    "description": str(_("日志数是指在指定时间范围内所上报的日志总数。")),
+    **_qs_to_query_params(
+        UnifyQuerySet()
+        .add_query(
+            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_LOG_SEARCH))
+            .table("${INDEX_SET_ID}")
+            .index_set_id("${INDEX_SET_ID}")
+            .interval(60)
+            .group_by("resource.service.name")
+            .metric(field="_index", method="COUNT", alias="a")
+            .conditions(
+                [{"key": "resource.service.name", "method": "eq", "value": ["${SERVICE_NAME}"], "condition": "and"}]
+            )
+        )
+        .expression("a")
+    ),
+    "variables": [
+        {
+            "name": "INDEX_SET_ID",
+            "alias": str(_("日志索引集 ID")),
+            "type": VariableType.CONSTANTS.value,
+            "config": {"default": "<无需填写，下发时自动补充>"},
+            "description": str(_("日志索引集 ID")),
+        },
+        {
+            "name": "SERVICE_NAME",
+            "alias": str(_("服务名称")),
+            "type": VariableType.CONSTANTS.value,
+            "config": {"default": "<无需填写，下发时自动补充>"},
+            "description": str(_("服务名")),
+        },
+    ],
+}
+
 
 class LocalQueryTemplateSet(QueryTemplateSet):
     NAMESPACE: str = Namespace.DEFAULT
 
     QUERY_TEMPLATES = [
         RPC_PANIC_LOG_QUERY_TEMPLATE,
+        TRACE_SPAN_TOTAL_QUERY_TEMPLATE,
+        LOG_TOTAL_QUERY_TEMPLATE,
     ]

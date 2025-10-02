@@ -15,40 +15,40 @@ from typing import Any
 
 from django.utils.translation import gettext as _
 
-from bkmonitor.query_template.builtin import APMQueryTemplateName
 from constants.apm import CachedEnum
 from constants.query_template import GLOBAL_BIZ_ID
 from . import base, utils
 from .. import constants
+from ..query_template import LocalQueryTemplateName
 
 
-class MetricStrategyTemplateCode(CachedEnum):
-    METRIC_NODATA = "metric_nodata"
+class TraceStrategyTemplateCode(CachedEnum):
+    TRACE_NODATA = "trace_nodata"
 
     @cached_property
     def label(self) -> str:
-        return str({self.METRIC_NODATA: _("无数据告警")}.get(self, self.value))
+        return str({self.TRACE_NODATA: _("无数据告警")}.get(self, self.value))
 
 
-METRIC_NODATA_STRATEGY_TEMPLATE = {
-    "name": MetricStrategyTemplateCode.METRIC_NODATA.label,
-    "code": MetricStrategyTemplateCode.METRIC_NODATA.value,
+TRACE_NODATA_STRATEGY_TEMPLATE = {
+    "name": TraceStrategyTemplateCode.TRACE_NODATA.label,
+    "code": TraceStrategyTemplateCode.TRACE_NODATA.value,
     "category": constants.StrategyTemplateCategory.DEFAULT.value,
     "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
     "detect": utils.detect_config(5, 5, 5),
     "algorithms": [utils.fatal_threshold_algorithm_config(method="eq", threshold=0)],
-    "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.SPAN_TOTAL.value},
+    "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": LocalQueryTemplateName.TRACE_SPAN_TOTAL.value},
     "context": {},
 }
 
 
-class MetricStrategyTemplateSet(base.StrategyTemplateSet):
-    SYSTEM: constants.StrategyTemplateSystem = constants.StrategyTemplateSystem.METRIC
+class TraceStrategyTemplateSet(base.StrategyTemplateSet):
+    SYSTEM: constants.StrategyTemplateSystem = constants.StrategyTemplateSystem.TRACE
 
     ENABLED_CODES: list[str] = [
-        MetricStrategyTemplateCode.METRIC_NODATA.value,
+        TraceStrategyTemplateCode.TRACE_NODATA.value,
     ]
 
     STRATEGY_TEMPLATES: list[dict[str, Any]] = [
-        METRIC_NODATA_STRATEGY_TEMPLATE,
+        TRACE_NODATA_STRATEGY_TEMPLATE,
     ]
