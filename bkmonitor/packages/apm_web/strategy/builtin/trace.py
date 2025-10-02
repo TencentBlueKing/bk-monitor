@@ -37,7 +37,7 @@ TRACE_NODATA_STRATEGY_TEMPLATE = {
     "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
     "detect": utils.detect_config(5, 5, 5),
     "algorithms": [utils.fatal_threshold_algorithm_config(method="eq", threshold=0)],
-    "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": LocalQueryTemplateName.LOG_TOTAL.value},
+    "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": LocalQueryTemplateName.TRACE_SPAN_TOTAL.value},
     "context": {},
 }
 

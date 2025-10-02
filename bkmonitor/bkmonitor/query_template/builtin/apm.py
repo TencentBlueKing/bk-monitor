@@ -39,7 +39,7 @@ class APMQueryTemplateName(CachedEnum):
     RPC_CALLER_REQ_TOTAL = "apm_rpc_caller_req_total"
     RPC_CALLER_ERROR_CODE = "apm_rpc_caller_error_code"
     CUSTOM_METRIC_PANIC = "apm_custom_metric_panic"
-    TRACE_SPAN_TOTAL = "apm_trace_span_total"
+    SPAN_TOTAL = "apm_span_total"
 
     @cached_property
     def label(self) -> str:
@@ -56,7 +56,7 @@ class APMQueryTemplateName(CachedEnum):
                 self.RPC_CALLER_REQ_TOTAL: _("[调用分析] 主调请求总数"),
                 self.RPC_CALLER_ERROR_CODE: _("[调用分析] 主调错误数"),
                 self.CUSTOM_METRIC_PANIC: _("[自定义指标] 服务 Panic 次数"),
-                self.TRACE_SPAN_TOTAL: _("[调用链] Span 总数"),
+                self.SPAN_TOTAL: _("[调用链] Span 总数"),
             }.get(self, self.value)
         )
 
@@ -351,8 +351,8 @@ CUSTOM_METRIC_PANIC_QUERY_TEMPLATE: dict[str, Any] = {
 
 TRACE_SPAN_TOTAL_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": APMQueryTemplateName.TRACE_SPAN_TOTAL.value,
-    "alias": APMQueryTemplateName.TRACE_SPAN_TOTAL.label,
+    "name": APMQueryTemplateName.SPAN_TOTAL.value,
+    "alias": APMQueryTemplateName.SPAN_TOTAL.label,
     "description": "调用链 Span 数是指在指定时间范围内所上报的 Span 总数。",
     **_qs_to_query_params(
         UnifyQuerySet()
