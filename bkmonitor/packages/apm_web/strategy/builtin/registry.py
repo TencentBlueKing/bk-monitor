@@ -15,7 +15,7 @@ import six
 from typing import Any
 from django.utils import timezone
 
-from . import rpc, metric, base
+from . import rpc, metric, k8s, trace, log, base
 from .. import constants
 
 from apm_web.models import Application, StrategyTemplate
@@ -30,6 +30,9 @@ class BuiltinStrategyTemplateRegistry:
     _BUILTIN_STRATEGY_TEMPLATES: list[base.StrategyTemplateSet] = [
         rpc.RPCStrategyTemplateSet,
         metric.MetricStrategyTemplateSet,
+        k8s.K8SStrategyTemplateSet,
+        trace.TraceStrategyTemplateSet,
+        log.LogStrategyTemplateSet,
     ]
 
     def __init__(self, application: Application) -> None:
