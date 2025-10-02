@@ -110,7 +110,8 @@ class StrategyBuilder:
         return {
             "bk_biz_id": self.strategy_template.bk_biz_id,
             "service_name": self.service_name,
-            "name": f"[{StrategyTemplateSystem.from_value(self.strategy_template.system).label}] {self.strategy_template.name} [{app_name}/{self.service_name}]",
+            "name": f"[{StrategyTemplateSystem.from_value(self.strategy_template.system).label}] "
+            f"{self.strategy_template.name} [{app_name}/{self.service_name}]",
             "labels": [
                 f"APM-APP({app_name})",
                 f"APM-SERVICE({self.service_name})",

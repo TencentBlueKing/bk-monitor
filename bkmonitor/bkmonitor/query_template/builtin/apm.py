@@ -39,6 +39,7 @@ class APMQueryTemplateName(CachedEnum):
     RPC_CALLER_REQ_TOTAL = "apm_rpc_caller_req_total"
     RPC_CALLER_ERROR_CODE = "apm_rpc_caller_error_code"
     CUSTOM_METRIC_PANIC = "apm_custom_metric_panic"
+    TRACE_SPAN_TOTAL = "apm_trace_span_total"
 
     @cached_property
     def label(self) -> str:
@@ -55,12 +56,16 @@ class APMQueryTemplateName(CachedEnum):
                 self.RPC_CALLER_REQ_TOTAL: _("[调用分析] 主调请求总数"),
                 self.RPC_CALLER_ERROR_CODE: _("[调用分析] 主调错误数"),
                 self.CUSTOM_METRIC_PANIC: _("[自定义指标] 服务 Panic 次数"),
+                self.TRACE_SPAN_TOTAL: _("[调用链] Span 总数"),
             }.get(self, self.value)
         )
 
 
 def _get_common_variables(
-    group_by: list[str], related_metric_fields: list[str], is_need_threshold_value: bool = True
+    group_by: list[str],
+    related_metric_fields: list[str],
+    is_need_functions: bool = True,
+    is_need_threshold_value: bool = True,
 ) -> list[dict[str, Any]]:
     related_metrics: list[dict[str, str]] = [
         {"metric_field": metric_field, "metric_id": f"custom.{_TABLE}.{metric_field}"}
@@ -82,14 +87,17 @@ def _get_common_variables(
             "config": {"related_metrics": related_metrics},
             "description": "维度过滤是指在监控数据中对数据进行筛选的条件。",
         },
-        {
-            "name": "FUNCTIONS",
-            "alias": "函数",
-            "type": constants.VariableType.FUNCTIONS.value,
-            "config": {"default": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}]},
-            "description": "Oteam SDK 指标类型为 Counter，需要使用 increase 计算周期间差值，其他 SDK 请根据实际情况选择函数。",
-        },
     ]
+    if is_need_functions:
+        variables.append(
+            {
+                "name": "FUNCTIONS",
+                "alias": "函数",
+                "type": constants.VariableType.FUNCTIONS.value,
+                "config": {"default": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}]},
+                "description": "Oteam SDK 指标类型为 Counter，需要使用 increase 计算周期间差值，其他 SDK 请根据实际情况选择函数。",
+            }
+        )
     if is_need_threshold_value:
         variables.append(
             {
@@ -341,6 +349,25 @@ CUSTOM_METRIC_PANIC_QUERY_TEMPLATE: dict[str, Any] = {
     "unit": "",
 }
 
+TRACE_SPAN_TOTAL_QUERY_TEMPLATE: dict[str, Any] = {
+    "bk_biz_id": GLOBAL_BIZ_ID,
+    "name": APMQueryTemplateName.TRACE_SPAN_TOTAL.value,
+    "alias": APMQueryTemplateName.TRACE_SPAN_TOTAL.label,
+    "description": "调用链 Span 数是指在指定时间范围内所上报的 Span 总数。",
+    **_qs_to_query_params(
+        UnifyQuerySet()
+        .add_query(_COMMON_BUILDER.alias("a").metric(field="bk_apm_count", method="SUM", alias="a"))
+        .expression("a or vector(0)")
+    ),
+    "variables": _get_common_variables(
+        group_by=["service_name"],
+        related_metric_fields=["bk_apm_count"],
+        is_need_functions=False,
+        is_need_threshold_value=False,
+    ),
+    "unit": "",
+}
+
 
 class APMQueryTemplateSet(QueryTemplateSet):
     """APM 内置查询模板集"""
@@ -359,4 +386,5 @@ class APMQueryTemplateSet(QueryTemplateSet):
         RPC_CALLER_REQ_TOTAL_TEMPLATE,
         RPC_CALLER_ERROR_CODE_QUERY_TEMPLATE,
         CUSTOM_METRIC_PANIC_QUERY_TEMPLATE,
+        TRACE_SPAN_TOTAL_QUERY_TEMPLATE,
     ]
