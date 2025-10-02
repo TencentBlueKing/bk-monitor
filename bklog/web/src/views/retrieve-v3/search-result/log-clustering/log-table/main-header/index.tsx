@@ -62,7 +62,6 @@ export default defineComponent({
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    // const store = useStore();
 
     const headRowRef = ref<HTMLBaseElement>();
     const renderKey = ref(0);
@@ -80,9 +79,6 @@ export default defineComponent({
     const showYOY = computed(() => props.requestData?.year_on_year_hour >= 1);
     const showGroupBy = computed(() => props.requestData?.group_by.length > 0 && props.displayMode === 'group');
     const isFlattenMode = computed(() => props.requestData?.group_by.length > 0 && props.displayMode !== 'group');
-    // const isAiAssistanceActive = computed(
-    //   () => store.getters.isAiAssistantActive
-    // );
 
     const isExternal = window.IS_EXTERNAL === true;
     const ownerBaseList = [
@@ -184,9 +180,10 @@ export default defineComponent({
         tableHeaderWraperRef.value.scrollLeft = scrollLeft;
       },
       getColumnWidthList: () =>
-        Array.from(headRowRef.value.querySelectorAll('th')).map((item: any) =>
-          item.style.width ? item.style.width : item.getBoundingClientRect().width,
-        ),
+        Array.from(headRowRef.value.querySelectorAll('th')).map((item: HTMLElement) => [
+          item.getAttribute('data-field-name'),
+          item.getBoundingClientRect().width,
+        ]),
     });
 
     onMounted(() => {
@@ -215,6 +212,7 @@ export default defineComponent({
               <HeadColumn
                 width={125}
                 on-resize-width={handleResizeColumn}
+                fieldName='signature'
               >
                 {t('数据指纹')}
               </HeadColumn>
@@ -222,6 +220,7 @@ export default defineComponent({
                 width={props.tableColumnWidth.number}
                 on-click-column={() => sortColumnRefs.count.value?.update()}
                 on-resize-width={handleResizeColumn}
+                fieldName='number'
               >
                 <div class='sort-column'>
                   {t('数量')}
@@ -235,6 +234,7 @@ export default defineComponent({
                 width={props.tableColumnWidth.percentage}
                 on-click-column={() => sortColumnRefs.percentage.value?.update()}
                 on-resize-width={handleResizeColumn}
+                fieldName='percentage'
               >
                 <div class='sort-column'>
                   {t('占比')}
@@ -249,6 +249,7 @@ export default defineComponent({
                   width={props.tableColumnWidth.year_on_year_count}
                   on-click-column={() => sortColumnRefs.year_on_year_count.value?.update()}
                   on-resize-width={handleResizeColumn}
+                  fieldName='year_on_year_count'
                 >
                   <div class='sort-column'>
                     {t('同比数量')}
@@ -264,6 +265,7 @@ export default defineComponent({
                   width={props.tableColumnWidth.year_on_year_percentage}
                   on-click-column={() => sortColumnRefs.year_on_year_percentage.value?.update()}
                   on-resize-width={handleResizeColumn}
+                  fieldName='year_on_year_percentage'
                 >
                   <div class='sort-column'>
                     {t('同比变化')}
@@ -279,6 +281,7 @@ export default defineComponent({
                   <HeadColumn
                     width={100}
                     on-resize-width={handleResizeColumn}
+                    fieldName='item'
                   >
                     {item}
                   </HeadColumn>
@@ -286,6 +289,7 @@ export default defineComponent({
               <HeadColumn
                 minWidth={350}
                 on-resize-width={handleResizeColumn}
+                fieldName='pattern'
               >
                 Pattern
               </HeadColumn>
@@ -293,6 +297,7 @@ export default defineComponent({
                 width={200}
                 customStyle={{ paddingLeft: '10px' }}
                 on-resize-width={handleResizeColumn}
+                fieldName='owners'
               >
                 <div class='sort-column'>
                   <span>{t('责任人')}</span>
@@ -307,6 +312,7 @@ export default defineComponent({
                 <HeadColumn
                   width={200}
                   on-resize-width={handleResizeColumn}
+                  fieldName='alert_option'
                 >
                   <div class='sort-column'>
                     <span>{t('创建告警策略')}</span>
@@ -327,6 +333,7 @@ export default defineComponent({
               <HeadColumn
                 width={200}
                 on-resize-width={handleResizeColumn}
+                fieldName='remark'
               >
                 <div class='sort-column'>
                   <span>{t('备注')}</span>
