@@ -50,12 +50,44 @@ class GetCustomTsMetricGroups(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务")
-        time_series_group_id = serializers.IntegerField(label="自定义指标ID")
 
-    def perform_request(self, params: dict) -> list[dict]:
+        # 场景：集成 -> 自定义指标
+        time_series_group_id = serializers.IntegerField(label="自定义指标ID", required=False)
+
+        # 场景：APM -> 自定义指标
+        apm_app_name = serializers.CharField(label="APM 应用名称", required=False, allow_null=True)
+        apm_service_name = serializers.CharField(label="APM 服务名称", required=False, allow_null=True)
+
+    def perform_request(self, params: dict) -> dict[str, list]:
+        bk_biz_id = params["bk_biz_id"]
+        if params.get("apm_app_name"):
+            app_name = params.get("apm_app_name")
+            service_name = params.get("apm_service_name")
+            return self.get_custom_metric_groups_from_apm(bk_biz_id, app_name, service_name)
+        else:
+            time_series_group_id = params.get("time_series_group_id")
+            return self.get_custom_metric_groups_from_global(bk_biz_id, time_series_group_id)
+
+    @classmethod
+    def get_custom_metric_groups_from_apm(cls, bk_biz_id: int, app_name: str, service_name: str) -> dict[str, list]:
+        from apm_web.models import Application
+
+        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            logger.info(f"bk_biz_id({bk_biz_id}) app({app_name}) not found")
+            return {"common_dimensions": [], "metric_groups": []}
+
+        if not app.time_series_group_id:
+            logger.info(f"bk_biz_id({bk_biz_id}) app({app_name}) metric data source is disabled")
+            return {"common_dimensions": [], "metric_groups": []}
+
+        return cls.get_custom_metric_groups_from_global(bk_biz_id, app.time_series_group_id)
+
+    @classmethod
+    def get_custom_metric_groups_from_global(cls, bk_biz_id: int, time_series_group_id: int) -> dict[str, list]:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-            pk=params["time_series_group_id"],
+            models.Q(bk_biz_id=bk_biz_id) | models.Q(is_platform=True),
+            pk=time_series_group_id,
             bk_tenant_id=get_request_tenant_id(),
         )
 
