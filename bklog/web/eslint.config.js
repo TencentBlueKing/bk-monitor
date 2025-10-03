@@ -54,6 +54,10 @@ module.exports = [
       prettier: require('eslint-plugin-prettier')
     },
     rules: {
+      // 统一使用单引号
+      quotes: ['error', 'single', { avoidEscape: true, allowTemplateLiterals: false }],
+      // JSX 属性使用单引号
+      'jsx-quotes': ['error', 'prefer-single'],
       'no-param-reassign': 'off',
       'prefer-destructuring': 'off',
       'no-underscore-dangle': 'off',
@@ -63,7 +67,8 @@ module.exports = [
       'arrow-body-style': 'off',
       'no-restricted-properties': 'off',
       'function-paren-newline': 'off',
-      'prettier/prettier': 'error'
+      // 同步 prettier 的单引号策略
+      'prettier/prettier': ['error', { singleQuote: true, jsxSingleQuote: true }]
     }
   },
 

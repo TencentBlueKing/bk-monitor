@@ -31,26 +31,26 @@ import {
   onMounted,
   shallowRef,
   set,
-} from "vue";
-import useStore from "@/hooks/use-store";
-import useLocale from "@/hooks/use-locale";
-import MainHeader from "./main-header";
-import $http from "@/api";
-import ClusteringLoader from "@/skeleton/clustering-loader.vue";
-import AiAssitant from "@/global/ai-assitant.tsx";
-import ContentTable, { IPagination, GroupListState } from "./content-table";
-import { type LogPattern } from "@/services/log-clustering";
-import { type IResponseData } from "@/services/type";
+} from 'vue';
+import useStore from '@/hooks/use-store';
+import useLocale from '@/hooks/use-locale';
+import MainHeader from './main-header';
+import $http from '@/api';
+import ClusteringLoader from '@/skeleton/clustering-loader.vue';
+import AiAssitant from '@/global/ai-assitant.tsx';
+import ContentTable, { IPagination, GroupListState } from './content-table';
+import { type LogPattern } from '@/services/log-clustering';
+import { type IResponseData } from '@/services/type';
 
-import useRetrieveEvent from "@/hooks/use-retrieve-event";
-import { RetrieveEvent } from "@/views/retrieve-helper";
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import { RetrieveEvent } from '@/views/retrieve-helper';
 
-import { orderBy, debounce } from "lodash-es";
-import useIntersectionObserver from "@/hooks/use-intersection-observer";
-import ScrollTop from "@/views/retrieve-v2/components/scroll-top";
-import ScrollXBar from "@/views/retrieve-v2/components/scroll-x-bar";
-import useWheel from "@/hooks/use-wheel";
-import "./index.scss";
+import { orderBy, debounce } from 'lodash-es';
+import useIntersectionObserver from '@/hooks/use-intersection-observer';
+import ScrollTop from '@/views/retrieve-v2/components/scroll-top';
+import ScrollXBar from '@/views/retrieve-v2/components/scroll-x-bar';
+import useWheel from '@/hooks/use-wheel';
+import './index.scss';
 
 export interface TableInfo {
   group: string[];
@@ -69,7 +69,7 @@ export interface ITableItem {
 }
 
 export default defineComponent({
-  name: "LogTable",
+  name: 'LogTable',
   components: {
     MainHeader,
     ClusteringLoader,
@@ -106,10 +106,10 @@ export default defineComponent({
         remark: [],
       },
       sort: {
-        count: "",
-        percentage: "",
-        year_on_year_count: "",
-        year_on_year_percentage: "",
+        count: '',
+        percentage: '',
+        year_on_year_count: '',
+        year_on_year_percentage: '',
       },
     });
 
@@ -120,7 +120,7 @@ export default defineComponent({
     const tableLoading = ref(false);
     const widthList = ref<Record<string, string>>({});
     const filterSortMap = ref(initFilterSortMap());
-    const displayType = ref("group");
+    const displayType = ref('group');
     const paginationRef = ref<HTMLElement>();
 
     const rootElement = ref<HTMLElement>();
@@ -144,7 +144,7 @@ export default defineComponent({
     const retrieveParams = computed(() => store.getters.retrieveParams);
     const showGroupBy = computed(
       () =>
-        props.requestData?.group_by.length > 0 && displayType.value === "group",
+        props.requestData?.group_by.length > 0 && displayType.value === 'group',
     );
 
     const smallLoaderWidthList = computed(() => {
@@ -159,22 +159,22 @@ export default defineComponent({
 
     const loadingWidthList = {
       // loading表头宽度列表
-      global: [""],
-      notCompared: [150, 90, 90, ""],
-      compared: [150, 90, 90, 100, 100, ""],
+      global: [''],
+      notCompared: [150, 90, 90, ''],
+      compared: [150, 90, 90, 100, 100, ''],
     };
 
     const enTableWidth = {
-      number: "110",
-      percentage: "116",
-      year_on_year_count: "171",
-      year_on_year_percentage: "171",
+      number: '110',
+      percentage: '116',
+      year_on_year_count: '171',
+      year_on_year_percentage: '171',
     };
     const cnTableWidth = {
-      number: "91",
-      percentage: "96",
-      year_on_year_count: "101",
-      year_on_year_percentage: "101",
+      number: '91',
+      percentage: '96',
+      year_on_year_count: '101',
+      year_on_year_percentage: '101',
     };
 
     watch(
@@ -191,7 +191,7 @@ export default defineComponent({
      * 加载更多触发元素隐藏操作
      */
     const debounceHiddenPaginationLoading = debounce(() => {
-      paginationRef.value?.style?.setProperty("visibility", "hidden");
+      paginationRef.value?.style?.setProperty('visibility', 'hidden');
     }, 120);
 
     /**
@@ -199,7 +199,7 @@ export default defineComponent({
      */
     useIntersectionObserver(paginationRef, (entry) => {
       if (entry.isIntersecting) {
-        paginationRef.value?.style?.setProperty("visibility", "visible");
+        paginationRef.value?.style?.setProperty('visibility', 'visible');
         if (
           pagination.value.current * pagination.value.limit <
           pagination.value.count
@@ -241,7 +241,7 @@ export default defineComponent({
 
       // 组合为 53 位整数（JavaScript 安全整数范围）
       const combined = (h1 & 0x1fffff) * 0x1000000000 + (h2 & 0xfffffff);
-      return combined.toString(36).padStart(length, "0").slice(-length);
+      return combined.toString(36).padStart(length, '0').slice(-length);
     }
 
     /**
@@ -276,8 +276,8 @@ export default defineComponent({
 
         if (sortObj) {
           const [field, order] = sortObj;
-          const sortField = order === "none" ? "index" : `data.${field}`;
-          const orders = (order === "none" ? "asc" : order) as "asc" | "desc";
+          const sortField = order === 'none' ? 'index' : `data.${field}`;
+          const orders = (order === 'none' ? 'asc' : order) as 'asc' | 'desc';
           childList = orderBy(childList, [sortField], orders);
         }
 
@@ -314,6 +314,7 @@ export default defineComponent({
       const sortObj = Object.entries(filterSortMap.value.sort).find(
         (item) => !!item[1],
       );
+
       for (let i = 0; i < targetList.length; i++) {
         const item = targetList[i];
         if (item.isGroupRow) {
@@ -325,8 +326,8 @@ export default defineComponent({
 
       if (sortObj) {
         const [field, order] = sortObj;
-        const sortField = order === "none" ? "index" : `data.${field}`;
-        const orders = (order === "none" ? "asc" : order) as "asc" | "desc";
+        const sortField = order === 'none' ? 'index' : `data.${field}`;
+        const orders = (order === 'none' ? 'asc' : order) as 'asc' | 'desc';
 
         childList = orderBy(childList, [sortField], orders);
       }
@@ -351,7 +352,7 @@ export default defineComponent({
       const targetList = list ?? tableList.value;
       const owners = filterSortMap.value.filter.owners;
       const remark = filterSortMap.value.filter.remark;
-      const isRemarked = remark[0] === "remarked";
+      const isRemarked = remark[0] === 'remarked';
       const ownersMap = owners.reduce<Record<string, boolean>>(
         (map, item) => Object.assign(map, { [item]: true }),
         {},
@@ -359,7 +360,7 @@ export default defineComponent({
 
       const filterOwners = owners.length > 0;
       const filterRemark = remark.length > 0;
-      const noOwner = owners.length === 1 && owners[0] === "no_owner";
+      const noOwner = owners.length === 1 && owners[0] === 'no_owner';
 
       /**
        * 检索当前行是否满足过滤条件
@@ -384,7 +385,7 @@ export default defineComponent({
       };
 
       if (
-        displayType.value === "group" &&
+        displayType.value === 'group' &&
         props.requestData.group_by?.length > 0
       ) {
         tableList.value = sortGroupList(targetList, filterFn);
@@ -399,7 +400,7 @@ export default defineComponent({
      * @returns
      */
     const setPaginationCount = () => {
-      if (displayType.value === "group") {
+      if (displayType.value === 'group') {
         pagination.value.count =
           pagination.value.groupCount + pagination.value.childCount;
         return;
@@ -421,7 +422,7 @@ export default defineComponent({
         start_time,
         end_time,
         size,
-        keyword = "*",
+        keyword = '*',
         ip_chooser,
         host_scopes,
         interval,
@@ -448,7 +449,7 @@ export default defineComponent({
       pagination.value.count = 0;
       (
         $http.request(
-          "/logClustering/clusterSearch",
+          '/logClustering/clusterSearch',
           {
             params: {
               index_set_id: props.indexId,
@@ -475,10 +476,10 @@ export default defineComponent({
 
           res.data.forEach((item) => {
             const groupList = item.group?.map(
-              (g, i) => `${props.requestData?.group_by[i] ?? "#"}=${g}`,
-            ) ?? ["#"];
+              (g, i) => `${props.requestData?.group_by[i] ?? '#'}=${g}`,
+            ) ?? ['#'];
 
-            const groupKey = groupList.length ? groupList.join(" | ") : "#";
+            const groupKey = groupList.length ? groupList.join(' | ') : '#';
             if (!listMap.has(groupKey)) {
               listMap.set(groupKey, []);
               groupKeys.push(groupKey);
@@ -564,7 +565,7 @@ export default defineComponent({
     const handleColumnSort = (field: string, order: string) => {
       Object.keys(filterSortMap.value.sort).forEach((key) => {
         if (key !== field) {
-          filterSortMap.value.sort[key] = "";
+          filterSortMap.value.sort[key] = '';
         }
       });
       filterSortMap.value.sort[field] = order;
@@ -586,7 +587,7 @@ export default defineComponent({
     const handleHeaderResizeColumn = () => {
       const columnWidth = mainHeaderRef.value.getColumnWidthList() ?? [];
       columnWidth.forEach(([name, width]) => {
-        if (name !== null && name !== "null") {
+        if (name !== null && name !== 'null') {
           set(widthList.value, name, width);
         }
       });
@@ -600,7 +601,7 @@ export default defineComponent({
     const handleScrollXChange = (event) => {
       const scrollLeft = (event.target as HTMLElement)?.scrollLeft || 0;
       for (const element of rootElement.value.querySelectorAll(
-        ".bklog-fill-offset-x",
+        '.bklog-fill-offset-x',
       )) {
         element.scrollLeft = scrollLeft;
       }
@@ -700,8 +701,8 @@ export default defineComponent({
       const owners = filterSortMap.value.filter.owners;
       const remark = filterSortMap.value.filter.remark;
       const option = {
-        type: "empty",
-        text: t("暂无数据"),
+        type: 'empty',
+        text: t('暂无数据'),
       };
 
       if (
@@ -709,31 +710,31 @@ export default defineComponent({
         owners.length > 0 ||
         remark.length > 0
       ) {
-        option.type = "search-empty";
-        option.text = t("搜索结果为空");
+        option.type = 'search-empty';
+        option.text = t('搜索结果为空');
       }
 
       return (
-        <bk-exception type={option.type} scene="part" style="margin-top: 80px">
+        <bk-exception type={option.type} scene='part' style='margin-top: 80px'>
           <span>{option.text}</span>
         </bk-exception>
       );
     };
 
     return () => (
-      <div class="log-table-main" ref={rootElement}>
+      <div class='log-table-main' ref={rootElement}>
         {props.requestData?.group_by.length > 0 && (
           <bk-radio-group
-            class="display-type-main"
+            class='display-type-main'
             value={displayType.value}
             on-change={handleDisplayTypeChange}
           >
-            <bk-radio value="flatten">{t("平铺模式")}</bk-radio>
-            <bk-radio value="group">{t("分组模式")}</bk-radio>
+            <bk-radio value='flatten'>{t('平铺模式')}</bk-radio>
+            <bk-radio value='group'>{t('分组模式')}</bk-radio>
           </bk-radio-group>
         )}
         <main-header
-          class="bklog-fill-offset-x"
+          class='bklog-fill-offset-x'
           ref={mainHeaderRef}
           requestData={props.requestData}
           tableColumnWidth={tableColumnWidth.value}
@@ -745,8 +746,8 @@ export default defineComponent({
         />
         <div
           ref={logTableRef}
-          class="table-list-content"
-          style={{ padding: showGroupBy.value ? "0 12px" : "0px" }}
+          class='table-list-content'
+          style={{ padding: showGroupBy.value ? '0 12px' : '0px' }}
           v-bkloading={{ isLoading: tableLoading.value }}
         >
           {tableLoading.value ? (
@@ -758,7 +759,7 @@ export default defineComponent({
             [
               <ContentTable
                 ref={tablesRef}
-                class="bklog-fill-offset-x"
+                class='bklog-fill-offset-x'
                 tableList={tableList.value}
                 widthList={widthList.value}
                 displayMode={displayType.value}
@@ -768,11 +769,11 @@ export default defineComponent({
                 pagination={pagination.value}
                 indexId={props.indexId}
                 on-open-ai={handleOpenAi}
-                on-open-cluster-config={() => emit("open-cluster-config")}
+                on-open-cluster-config={() => emit('open-cluster-config')}
                 on-group-state-change={handleGroupStateChange}
               />,
-              <div ref={paginationRef} style="width: 100%;">
-                <div style="display: flex; justify-content: center;width: 100%; padding: 4px;">
+              <div ref={paginationRef} style='width: 100%;'>
+                <div style='display: flex; justify-content: center;width: 100%; padding: 4px;'>
                   loading ...
                 </div>
               </div>,
@@ -781,7 +782,7 @@ export default defineComponent({
             getExceptionOption()
           )}
         </div>
-        <AiAssitant ref={aiAssitantRef} on-close="handleAiClose" />
+        <AiAssitant ref={aiAssitantRef} on-close='handleAiClose' />
         <ScrollTop on-scroll-top={handleScrollTop}></ScrollTop>
         <ScrollXBar
           ref={refScrollXBar}
