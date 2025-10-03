@@ -1,11 +1,18 @@
 {
   "name": "@blueking/monitor-vue3-components",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "blueking monitor vue3 components builder",
   "scripts": {},
   "files": [
     "index.mjs",
-    "index.css"
+    "index.css",
+    "readme.md"
+  ],
+  "author": "bkfe",
+  "license": "MIT",
+  "keywords": [
+    "@blueking",
+    "@blueking/monitor-vue3-components"
   ],
   "dependencies": {
     "@blueking/tdesign-ui": "^0.0.1-beta.92",

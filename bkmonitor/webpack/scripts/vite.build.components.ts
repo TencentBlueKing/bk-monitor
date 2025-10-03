@@ -39,6 +39,10 @@ export default defineConfig({
           src: resolve(__dirname, './package.json'),
           dest: outputDir,
         },
+        {
+          src: resolve(__dirname, '../src/trace/components/retrieval-filter/readme.md'),
+          dest: outputDir,
+        },
       ],
     }),
     analyzer(),
