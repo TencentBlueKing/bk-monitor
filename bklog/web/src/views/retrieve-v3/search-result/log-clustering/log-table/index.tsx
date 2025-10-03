@@ -23,28 +23,34 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, onMounted, shallowRef, set } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import MainHeader from './main-header';
-import $http from '@/api';
-import ClusteringLoader from '@/skeleton/clustering-loader.vue';
-import AiAssitant from '@/global/ai-assitant.tsx';
-import ContentTable, { IPagination } from './content-table';
-import { type LogPattern } from '@/services/log-clustering';
-import { type IResponseData } from '@/services/type';
+import {
+  computed,
+  defineComponent,
+  ref,
+  watch,
+  onMounted,
+  shallowRef,
+  set,
+} from "vue";
+import useStore from "@/hooks/use-store";
+import useLocale from "@/hooks/use-locale";
+import MainHeader from "./main-header";
+import $http from "@/api";
+import ClusteringLoader from "@/skeleton/clustering-loader.vue";
+import AiAssitant from "@/global/ai-assitant.tsx";
+import ContentTable, { IPagination, GroupListState } from "./content-table";
+import { type LogPattern } from "@/services/log-clustering";
+import { type IResponseData } from "@/services/type";
 
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
-import { RetrieveEvent } from '@/views/retrieve-helper';
-import { GroupListState } from './content-table';
+import useRetrieveEvent from "@/hooks/use-retrieve-event";
+import { RetrieveEvent } from "@/views/retrieve-helper";
 
-import { orderBy } from 'lodash-es';
-import useIntersectionObserver from '@/hooks/use-intersection-observer';
-import ScrollTop from '@/views/retrieve-v2/components/scroll-top';
-import ScrollXBar from '@/views/retrieve-v2/components/scroll-x-bar';
-
-import './index.scss';
-import useWheel from '@/hooks/use-wheel';
+import { orderBy, debounce } from "lodash-es";
+import useIntersectionObserver from "@/hooks/use-intersection-observer";
+import ScrollTop from "@/views/retrieve-v2/components/scroll-top";
+import ScrollXBar from "@/views/retrieve-v2/components/scroll-x-bar";
+import useWheel from "@/hooks/use-wheel";
+import "./index.scss";
 
 export interface TableInfo {
   group: string[];
@@ -63,7 +69,7 @@ export interface ITableItem {
 }
 
 export default defineComponent({
-  name: 'LogTable',
+  name: "LogTable",
   components: {
     MainHeader,
     ClusteringLoader,
@@ -82,11 +88,12 @@ export default defineComponent({
     requestData: {
       type: Object,
       require: true,
-      default: () => ({})
+      default: () => ({}),
     },
     indexId: {
       type: String,
       require: true,
+      default: undefined,
     },
   },
   setup(props, { expose, emit }) {
@@ -99,10 +106,10 @@ export default defineComponent({
         remark: [],
       },
       sort: {
-        count: '',
-        percentage: '',
-        year_on_year_count: '',
-        year_on_year_percentage: '',
+        count: "",
+        percentage: "",
+        year_on_year_count: "",
+        year_on_year_percentage: "",
       },
     });
 
@@ -113,7 +120,7 @@ export default defineComponent({
     const tableLoading = ref(false);
     const widthList = ref<Record<string, string>>({});
     const filterSortMap = ref(initFilterSortMap());
-    const displayType = ref('group');
+    const displayType = ref("group");
     const paginationRef = ref<HTMLElement>();
 
     const rootElement = ref<HTMLElement>();
@@ -133,32 +140,39 @@ export default defineComponent({
     const groupListState = ref<GroupListState>({});
 
     const retrieveParams = computed(() => store.getters.retrieveParams);
-    const showGroupBy = computed(() => props.requestData?.group_by.length > 0 && displayType.value === 'group');
+    const showGroupBy = computed(
+      () =>
+        props.requestData?.group_by.length > 0 && displayType.value === "group",
+    );
 
     const smallLoaderWidthList = computed(() => {
-      return props.requestData?.year_on_year_hour > 0 ? loadingWidthList.compared : loadingWidthList.notCompared;
+      return props.requestData?.year_on_year_hour > 0
+        ? loadingWidthList.compared
+        : loadingWidthList.notCompared;
     });
 
-    const tableColumnWidth = computed(() => (store.getters.isEnLanguage ? enTableWidth : cnTableWidth));
+    const tableColumnWidth = computed(() =>
+      store.getters.isEnLanguage ? enTableWidth : cnTableWidth,
+    );
 
     const loadingWidthList = {
       // loading表头宽度列表
-      global: [''],
-      notCompared: [150, 90, 90, ''],
-      compared: [150, 90, 90, 100, 100, ''],
+      global: [""],
+      notCompared: [150, 90, 90, ""],
+      compared: [150, 90, 90, 100, 100, ""],
     };
 
     const enTableWidth = {
-      number: '110',
-      percentage: '116',
-      year_on_year_count: '171',
-      year_on_year_percentage: '171',
+      number: "110",
+      percentage: "116",
+      year_on_year_count: "171",
+      year_on_year_percentage: "171",
     };
     const cnTableWidth = {
-      number: '91',
-      percentage: '96',
-      year_on_year_count: '101',
-      year_on_year_percentage: '101',
+      number: "91",
+      percentage: "96",
+      year_on_year_count: "101",
+      year_on_year_percentage: "101",
     };
 
     watch(
@@ -174,19 +188,27 @@ export default defineComponent({
     const { addEvent } = useRetrieveEvent();
 
     /**
+     * 加载更多触发元素隐藏操作
+     */
+    const debounceHiddenPaginationLoading = debounce(() => {
+      paginationRef.value.style.setProperty("visibility", "hidden");
+    }, 120);
+
+    /**
      * 分页器观察器
      */
-    useIntersectionObserver(paginationRef, entry => {
+    useIntersectionObserver(paginationRef, (entry) => {
       if (entry.isIntersecting) {
-        paginationRef.value.style.setProperty('visibility', 'visible');
-        if (pagination.value.current * pagination.value.limit < pagination.value.count) {
-          pagination.value.current++;
+        paginationRef.value.style.setProperty("visibility", "visible");
+        if (
+          pagination.value.current * pagination.value.limit <
+          pagination.value.count
+        ) {
+          pagination.value.current += 1;
         }
       }
 
-      setTimeout(() => {
-        paginationRef.value.style.setProperty('visibility', 'hidden');
-      }, 300);
+      debounceHiddenPaginationLoading();
     });
 
     /**
@@ -219,7 +241,7 @@ export default defineComponent({
 
       // 组合为 53 位整数（JavaScript 安全整数范围）
       const combined = (h1 & 0x1fffff) * 0x1000000000 + (h2 & 0xfffffff);
-      return combined.toString(36).padStart(length, '0').slice(-length);
+      return combined.toString(36).padStart(length, "0").slice(-length);
     }
 
     /**
@@ -227,26 +249,33 @@ export default defineComponent({
      * @param list
      */
     const updateTableList = (list?: ITableItem[]) => {
-      let targetList = list ?? tableList.value;
-      const sortObj = Object.entries(filterSortMap.value.sort).find(item => !!item[1]);
+      const targetList = list ?? tableList.value;
+      const sortObj = Object.entries(filterSortMap.value.sort).find(
+        (item) => !!item[1],
+      );
       const owners = filterSortMap.value.filter.owners;
       const remark = filterSortMap.value.filter.remark;
-      const isRemarked = remark[0] === 'remarked';
-      const ownersMap = owners.reduce<Record<string, boolean>>((map, item) => Object.assign(map, { [item]: true }), {});
+      const isRemarked = remark[0] === "remarked";
+      const ownersMap = owners.reduce<Record<string, boolean>>(
+        (map, item) => Object.assign(map, { [item]: true }),
+        {},
+      );
 
       const filterOwners = owners.length > 0;
       const filterRemark = remark.length > 0;
-      const noOwner = owners.length === 1 && owners[0] === 'no_owner';
+      const noOwner = owners.length === 1 && owners[0] === "no_owner";
       const filterFn = (item: ITableItem) => {
         let result = true;
         if (filterOwners) {
           result = noOwner
             ? (item.data?.owners?.value.length ?? 0) > 0
-            : (item.data?.owners.value ?? []).some(item => !!ownersMap[item]);
+            : (item.data?.owners.value ?? []).some((item) => !!ownersMap[item]);
         }
 
         if (filterRemark && result) {
-          result = isRemarked ? (item.data?.remark ?? []).length > 0 : !item.data?.remark.length;
+          result = isRemarked
+            ? (item.data?.remark ?? []).length > 0
+            : !item.data?.remark.length;
         }
 
         return result;
@@ -254,17 +283,21 @@ export default defineComponent({
 
       const copyList = [];
 
-      for (const item of targetList) {
+      for (let i = 0; i < targetList.length; i++) {
+        const item = targetList[i];
         if (item.isGroupRow) {
           copyList.push(item);
-          let childList = targetList.filter(d => d.groupKey === item.groupKey && !d.isGroupRow) ?? [];
+          let childList = targetList.slice(
+            item.index,
+            item.index + item.childCount,
+          );
           if (sortObj) {
             const [field, order] = sortObj;
             childList = orderBy(childList, [`data.${field}`], order as any);
           }
 
           let isHiddenGroup = true;
-          childList.forEach(c => {
+          childList.forEach((c) => {
             c.hidden = !filterFn(c);
             copyList.push(c);
 
@@ -273,8 +306,10 @@ export default defineComponent({
             }
           });
           item.hidden = isHiddenGroup;
+          i = i + item.childCount;
         }
       }
+
       tableList.value = copyList;
     };
 
@@ -283,8 +318,9 @@ export default defineComponent({
      * @returns
      */
     const setPaginationCount = () => {
-      if (displayType.value === 'group') {
-        pagination.value.count = pagination.value.groupCount + pagination.value.childCount;
+      if (displayType.value === "group") {
+        pagination.value.count =
+          pagination.value.groupCount + pagination.value.childCount;
         return;
       }
 
@@ -293,14 +329,18 @@ export default defineComponent({
 
     const refreshTable = () => {
       // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
-      if (tableLoading.value || !props.clusterSwitch || !props.isClusterActive) {
+      if (
+        tableLoading.value ||
+        !props.clusterSwitch ||
+        !props.isClusterActive
+      ) {
         return;
       }
       const {
         start_time,
         end_time,
         size,
-        keyword = '*',
+        keyword = "*",
         ip_chooser,
         host_scopes,
         interval,
@@ -313,7 +353,9 @@ export default defineComponent({
             operator: item.operator,
             value:
               item.hidden_values && item.hidden_values.length > 0
-                ? item.value.filter(value => !item.hidden_values.includes(value))
+                ? item.value.filter(
+                    (value) => !item.hidden_values.includes(value),
+                  )
                 : item.value,
           });
         }
@@ -325,7 +367,7 @@ export default defineComponent({
       pagination.value.count = 0;
       (
         $http.request(
-          '/logClustering/clusterSearch',
+          "/logClustering/clusterSearch",
           {
             params: {
               index_set_id: props.indexId,
@@ -346,11 +388,13 @@ export default defineComponent({
           { cancelWhenRouteChange: false },
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
-        .then(res => {
-          const listMap = new Map<string, LogPattern[]>();
-          res.data.forEach(item => {
-            const groupList = item.group?.map((g, i) => `${props.requestData?.group_by[i] ?? '#'}=${g}`) ?? ['#'];
-            const groupKey = groupList.length ? groupList.join(' | ') : '#';
+        .then((res) => {
+          let listMap = new Map<string, LogPattern[]>();
+          res.data.forEach((item) => {
+            const groupList = item.group?.map(
+              (g, i) => `${props.requestData?.group_by[i] ?? "#"}=${g}`,
+            ) ?? ["#"];
+            const groupKey = groupList.length ? groupList.join(" | ") : "#";
             if (!listMap.has(groupKey)) {
               listMap.set(groupKey, []);
             }
@@ -363,10 +407,10 @@ export default defineComponent({
           const groupState = {};
           const tempList = [];
 
-          groupKeys.forEach(key => {
+          groupKeys.forEach((key) => {
             const children = listMap.get(key) ?? [];
             const hashKey = fastHash(key);
-            index++;
+            index += 1;
             tempList.push({
               groupKey: key,
               isGroupRow: true,
@@ -382,13 +426,16 @@ export default defineComponent({
               },
             });
 
-            children.forEach(item => {
-              index++;
+            children.forEach((item) => {
+              index += 1;
               tempList.push({
                 groupKey: key,
                 hashKey,
                 isGroupRow: false,
-                data: Object.assign(item, { id: index, owners: ref(item.owners) }),
+                data: Object.assign(item, {
+                  id: index,
+                  owners: ref(item.owners),
+                }),
                 index,
               });
             });
@@ -400,13 +447,18 @@ export default defineComponent({
           pagination.value.childCount = res.data.length;
           setPaginationCount();
           setTimeout(computedScrollXWidth);
+          listMap.clear();
+          listMap = null;
         })
         .finally(() => {
           tableLoading.value = false;
         });
     };
 
-    addEvent([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE], refreshTable);
+    addEvent(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE],
+      refreshTable,
+    );
 
     const handleColumnFilter = (field: string, value: any) => {
       filterSortMap.value.filter[field] = value;
@@ -414,9 +466,9 @@ export default defineComponent({
     };
 
     const handleColumnSort = (field: string, order: string) => {
-      Object.keys(filterSortMap.value.sort).forEach(key => {
+      Object.keys(filterSortMap.value.sort).forEach((key) => {
         if (key !== field) {
-          filterSortMap.value.sort[key] = '';
+          filterSortMap.value.sort[key] = "";
         }
       });
       filterSortMap.value.sort[field] = order;
@@ -438,7 +490,7 @@ export default defineComponent({
     const handleHeaderResizeColumn = () => {
       const columnWidth = mainHeaderRef.value.getColumnWidthList() ?? [];
       columnWidth.forEach(([name, width]) => {
-        if (name !== null && name !== 'null') {
+        if (name !== null && name !== "null") {
           set(widthList.value, name, width);
         }
       });
@@ -449,9 +501,11 @@ export default defineComponent({
       pagination.value.current = 1;
     };
 
-    const handleScrollXChange = event => {
+    const handleScrollXChange = (event) => {
       const scrollLeft = (event.target as HTMLElement)?.scrollLeft || 0;
-      for (const element of rootElement.value.querySelectorAll('.bklog-fill-offset-x')) {
+      for (const element of rootElement.value.querySelectorAll(
+        ".bklog-fill-offset-x",
+      )) {
         element.scrollLeft = scrollLeft;
       }
     };
@@ -461,7 +515,8 @@ export default defineComponent({
     useWheel({
       target: rootElement,
       callback: (event: WheelEvent) => {
-        const maxOffset = scrollXBarInnerWidth.value - scrollXBarOuterWidth.value;
+        const maxOffset =
+          scrollXBarInnerWidth.value - scrollXBarOuterWidth.value;
         let scrollLeft = 0;
         // 检查是否按住 shift 键
         if (event.shiftKey) {
@@ -472,9 +527,13 @@ export default defineComponent({
             event.preventDefault();
 
             // 使用系统默认的滚动行为，通过 refScrollXBar 执行横向滚动
-            const currentScrollLeft = refScrollXBar.value.getScrollLeft?.() || 0;
+            const currentScrollLeft =
+              refScrollXBar.value.getScrollLeft?.() || 0;
             const scrollStep = event.deltaY || event.deltaX;
-            const newScrollLeft = Math.max(0, Math.min(maxOffset, currentScrollLeft + scrollStep));
+            const newScrollLeft = Math.max(
+              0,
+              Math.min(maxOffset, currentScrollLeft + scrollStep),
+            );
 
             refScrollXBar.value.scrollLeft(newScrollLeft);
             scrollLeft = newScrollLeft;
@@ -525,7 +584,8 @@ export default defineComponent({
         });
       }
 
-      groupListState.value[row.hashKey].isOpen = !groupListState.value[row.hashKey].isOpen;
+      groupListState.value[row.hashKey].isOpen =
+        !groupListState.value[row.hashKey].isOpen;
     };
 
     onMounted(() => {
@@ -536,22 +596,19 @@ export default defineComponent({
       refreshTable,
     });
     return () => (
-      <div
-        class='log-table-main'
-        ref={rootElement}
-      >
+      <div class="log-table-main" ref={rootElement}>
         {props.requestData?.group_by.length > 0 && (
           <bk-radio-group
-            class='display-type-main'
+            class="display-type-main"
             value={displayType.value}
             on-change={handleDisplayTypeChange}
           >
-            <bk-radio value='flatten'>{t('平铺模式')}</bk-radio>
-            <bk-radio value='group'>{t('分组模式')}</bk-radio>
+            <bk-radio value="flatten">{t("平铺模式")}</bk-radio>
+            <bk-radio value="group">{t("分组模式")}</bk-radio>
           </bk-radio-group>
         )}
         <main-header
-          class='bklog-fill-offset-x'
+          class="bklog-fill-offset-x"
           ref={mainHeaderRef}
           requestData={props.requestData}
           tableColumnWidth={tableColumnWidth.value}
@@ -563,8 +620,8 @@ export default defineComponent({
         />
         <div
           ref={logTableRef}
-          class='table-list-content'
-          style={{ padding: showGroupBy.value ? '0 12px' : '0px' }}
+          class="table-list-content"
+          style={{ padding: showGroupBy.value ? "0 12px" : "0px" }}
           v-bkloading={{ isLoading: tableLoading.value }}
         >
           {tableLoading.value ? (
@@ -575,7 +632,7 @@ export default defineComponent({
           ) : tableList.value.length > 0 ? (
             <ContentTable
               ref={tablesRef}
-              class='bklog-fill-offset-x'
+              class="bklog-fill-offset-x"
               tableList={tableList.value}
               widthList={widthList.value}
               displayMode={displayType.value}
@@ -585,29 +642,25 @@ export default defineComponent({
               pagination={pagination.value}
               indexId={props.indexId}
               on-open-ai={handleOpenAi}
-              on-open-cluster-config={() => emit('open-cluster-config')}
+              on-open-cluster-config={() => emit("open-cluster-config")}
               on-group-state-change={handleGroupStateChange}
             />
           ) : (
-            <bk-exception
-              type='empty'
-              scene='part'
-              style='margin-top: 80px'
-            >
-              <span>{retrieveParams.value.addition.length > 0 ? t('搜索结果为空') : t('暂无数据')}</span>
+            <bk-exception type="empty" scene="part" style="margin-top: 80px">
+              <span>
+                {retrieveParams.value.addition.length > 0
+                  ? t("搜索结果为空")
+                  : t("暂无数据")}
+              </span>
             </bk-exception>
           )}
-          <div
-            ref={paginationRef}
-            style='width: 100%;'
-          >
-            <div style='display: flex; justify-content: center;width: 100%; padding: 4px;'>loading ...</div>
+          <div ref={paginationRef} style="width: 100%;">
+            <div style="display: flex; justify-content: center;width: 100%; padding: 4px;">
+              loading ...
+            </div>
           </div>
         </div>
-        <AiAssitant
-          ref={aiAssitantRef}
-          on-close='handleAiClose'
-        />
+        <AiAssitant ref={aiAssitantRef} on-close="handleAiClose" />
         <ScrollTop on-scroll-top={handleScrollTop}></ScrollTop>
         <ScrollXBar
           ref={refScrollXBar}
