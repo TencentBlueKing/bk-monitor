@@ -27,11 +27,13 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { random } from 'monitor-common/utils/utils';
 
-import MetricSelector from '../../../../components/metric-selector/metric-selector';
+// import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { getMetricTip } from '../utils/metric-tip';
-import SelectWrap from '../utils/select-wrap';
+// import SelectWrap from '../utils/select-wrap';
+import MetricSelector from './components/metric-selector';
 
 import type { MetricDetailV2 } from '../../typings/metric';
 import type { MetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
@@ -68,12 +70,32 @@ export default class MetricCreator extends tsc<IProps> {
     this.showSelect = false;
     this.$emit('selectMetric', metric.rawMetric);
   }
+  async handleGetMetricList() {
+    const data = await getMetricListV2({
+      conditions: [
+        {
+          key: 'query',
+          value: '',
+        },
+      ],
+      data_type_label: 'time_series',
+      tag: '',
+      page: 1,
+      page_size: 20,
+    });
+    console.log('data', data);
+    return data?.metric_list || [];
+  }
 
   render() {
     return (
       <div class='template-metric-creator-component'>
         <div class='metric-label'>{this.$t('指标')}</div>
-        <SelectWrap
+        <MetricSelector
+          getMetricList={this.handleGetMetricList}
+          loading={this.loading}
+        />
+        {/* <SelectWrap
           id={this.selectId}
           backgroundColor={'#FDF4E8'}
           expanded={this.showSelect}
@@ -98,7 +120,7 @@ export default class MetricCreator extends tsc<IProps> {
           onShowChange={val => {
             this.showSelect = val;
           }}
-        />
+        /> */}
       </div>
     );
   }

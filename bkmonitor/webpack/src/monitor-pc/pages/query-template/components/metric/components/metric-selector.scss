@@ -1,0 +1,10 @@
+.metric-selector {
+  display: flex;
+  align-items: center;
+
+  &-content {
+    display: flex;
+    width: fit-content;
+    height: fit-content;
+  }
+}

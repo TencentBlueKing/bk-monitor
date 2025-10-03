@@ -352,4 +352,5 @@ export default {
   'Profiling 查询参数': 'Profiling query parameters',
   调用拓扑: 'Call topology',
   查看指引: 'View guide',
+  '{0} 试试': 'Try {0}',
 };
