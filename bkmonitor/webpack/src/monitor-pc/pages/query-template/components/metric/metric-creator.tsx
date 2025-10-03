@@ -27,14 +27,13 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils/utils';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
 
-import MetricSelector from '../../../../components/metric-selector/metric-selector';
-import { getMetricTip } from '../utils/metric-tip';
-import SelectWrap from '../utils/select-wrap';
+// import SelectWrap from '../utils/select-wrap';
+import MetricSelector from './components/metric-selector';
 
 import type { MetricDetailV2 } from '../../typings/metric';
-import type { MetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
+import type { IGetMetricListData, IGetMetricListParams } from './components/types';
 
 import './metric-creator.scss';
 
@@ -46,34 +45,53 @@ interface IProps {
 @Component
 export default class MetricCreator extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) metricDetail: MetricDetailV2;
-  /* 指标选择器目标id */
-  selectId = '';
-  /* 指标选择器是否显示 */
-  showSelect = false;
+
   loading = false;
 
-  get metricTips() {
-    return getMetricTip(this.metricDetail);
-  }
+  abortController: AbortController | null = null;
 
-  created() {
-    this.selectId = `metric-selector-${random(8)}`;
+  handleSelectMetric(metric: MetricDetailV2[]) {
+    this.$emit('selectMetric', metric[0]);
   }
-
-  handleClick() {
-    this.showSelect = true;
-  }
-
-  handleSelectMetric(metric: MetricDetail) {
-    this.showSelect = false;
-    this.$emit('selectMetric', metric.rawMetric);
+  async handleGetMetricData(params: IGetMetricListParams) {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+    this.abortController = new AbortController();
+    const data = await getMetricListV2<IGetMetricListData>(
+      {
+        conditions: [
+          {
+            key: 'query',
+            value: '',
+          },
+        ],
+        data_type_label: 'time_series',
+        tag: '',
+        page: 1,
+        page_size: 20,
+        ...params,
+      },
+      {
+        signal: this.abortController.signal,
+      }
+    );
+    console.log('data', data);
+    return data;
   }
 
   render() {
     return (
       <div class='template-metric-creator-component'>
         <div class='metric-label'>{this.$t('指标')}</div>
-        <SelectWrap
+        <MetricSelector
+          getMetricList={this.handleGetMetricData}
+          selectedMetric={this.metricDetail}
+          triggerLoading={this.loading}
+          onConfirm={this.handleSelectMetric}
+        />
+        {/* <SelectWrap
           id={this.selectId}
           backgroundColor={'#FDF4E8'}
           expanded={this.showSelect}
@@ -98,7 +116,7 @@ export default class MetricCreator extends tsc<IProps> {
           onShowChange={val => {
             this.showSelect = val;
           }}
-        />
+        /> */}
       </div>
     );
   }

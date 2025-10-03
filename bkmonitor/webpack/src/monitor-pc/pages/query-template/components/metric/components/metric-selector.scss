@@ -1,0 +1,16 @@
+.metric-selector {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  width: 100%;
+
+  &-trigger {
+    width: 100%;
+  }
+
+  &-content {
+    display: flex;
+    width: fit-content;
+    height: fit-content;
+  }
+}

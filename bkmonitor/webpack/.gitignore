@@ -100,3 +100,5 @@ src/mermaid/
 /packages
 /.codecc
 .codecc
+
+monitor-vue3-components

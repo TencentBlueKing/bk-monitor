@@ -6,6 +6,7 @@
   "author": "bkfe",
   "license": "MIT",
   "scripts": {
+    "build:vue3-components": "npx vite build -c ./scripts/vite.build.components.ts",
     "debug": "node node_modules/@blueking/bkmonitor-cli/dist/index.js dev -t",
     "preinstall": "npx only-allow pnpm",
     "install-build": "pnpm i",
@@ -47,6 +48,7 @@
     "@blueking/stylelint-config": "0.0.3",
     "@eslint/js": "^9.35.0",
     "@types/throttle-debounce": "^5.0.2",
+    "@vitejs/plugin-vue-jsx": "^5.1.1",
     "cross-env": "^10.0.0",
     "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.8",
@@ -74,6 +76,9 @@
     "taze": "^19.6.0",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.44.0",
+    "vite": "^7.1.7",
+    "vite-bundle-analyzer": "^1.2.3",
+    "vite-plugin-static-copy": "^3.1.2",
     "vue": "v2-latest"
   },
   "nodemonConfig": {
