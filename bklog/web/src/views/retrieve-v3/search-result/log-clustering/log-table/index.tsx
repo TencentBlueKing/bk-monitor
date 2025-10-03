@@ -138,6 +138,7 @@ export default defineComponent({
 
     const tableList = shallowRef<ITableItem[]>([]);
     const groupListState = ref<GroupListState>({});
+    const { addEvent } = useRetrieveEvent();
 
     const retrieveParams = computed(() => store.getters.retrieveParams);
     const showGroupBy = computed(
@@ -184,8 +185,6 @@ export default defineComponent({
         deep: true,
       },
     );
-
-    const { addEvent } = useRetrieveEvent();
 
     /**
      * 加载更多触发元素隐藏操作
@@ -245,14 +244,104 @@ export default defineComponent({
     }
 
     /**
+     * 分组模式排序
+     */
+    const sortGroupList = (
+      targetList: ITableItem[],
+      filterFn: (_arg: ITableItem) => boolean,
+    ) => {
+      const groupList: ITableItem[] = [];
+      const sortObj = Object.entries(filterSortMap.value.sort).find(
+        (item) => !!item[1],
+      );
+      const groupMap = new Map<string, ITableItem[]>();
+
+      for (const item of targetList) {
+        if (!groupMap.has(item.hashKey)) {
+          groupMap.set(item.hashKey, []);
+        }
+        if (item.isGroupRow) {
+          groupList.push(item);
+        } else {
+          groupMap.get(item.hashKey).push(item);
+        }
+      }
+
+      const resultList: ITableItem[] = [];
+      for (const group of groupList) {
+        resultList.push(group);
+        let childList = groupMap.get(group.hashKey);
+
+        if (sortObj) {
+          const [field, order] = sortObj;
+          const sortField = order === "none" ? "index" : `data.${field}`;
+          const orders = (order === "none" ? "asc" : order) as "asc" | "desc";
+          childList = orderBy(childList, [sortField], orders);
+        }
+
+        let isHiddenGroup = true;
+        childList.forEach((c) => {
+          c.hidden = !filterFn(c);
+          resultList.push(c);
+
+          if (!c.hidden) {
+            isHiddenGroup = false;
+          }
+        });
+        group.hidden = isHiddenGroup;
+      }
+
+      groupMap.clear();
+
+      return resultList;
+    };
+
+    /**
+     * 平铺模式排序
+     * @param targetList
+     * @param filterFn
+     */
+    const sortFlattenList = (
+      targetList: ITableItem[],
+      filterFn: (_arg: ITableItem) => boolean,
+    ) => {
+      const copyList = [];
+      let childList = [];
+
+      const sortObj = Object.entries(filterSortMap.value.sort).find(
+        (item) => !!item[1],
+      );
+      for (let i = 0; i < targetList.length; i++) {
+        const item = targetList[i];
+        if (item.isGroupRow) {
+          copyList.push(item);
+        } else {
+          childList.push(item);
+        }
+      }
+
+      if (sortObj) {
+        const [field, order] = sortObj;
+        const sortField = order === "none" ? "index" : `data.${field}`;
+        const orders = (order === "none" ? "asc" : order) as "asc" | "desc";
+
+        childList = orderBy(childList, [sortField], orders);
+      }
+
+      childList.forEach((c) => {
+        c.hidden = !filterFn(c);
+        copyList.push(c);
+      });
+
+      return copyList;
+    };
+
+    /**
      * 排序 | 过滤时更新列表数据
      * @param list
      */
     const updateTableList = (list?: ITableItem[]) => {
       const targetList = list ?? tableList.value;
-      const sortObj = Object.entries(filterSortMap.value.sort).find(
-        (item) => !!item[1],
-      );
       const owners = filterSortMap.value.filter.owners;
       const remark = filterSortMap.value.filter.remark;
       const isRemarked = remark[0] === "remarked";
@@ -281,36 +370,12 @@ export default defineComponent({
         return result;
       };
 
-      const copyList = [];
-
-      for (let i = 0; i < targetList.length; i++) {
-        const item = targetList[i];
-        if (item.isGroupRow) {
-          copyList.push(item);
-          let childList = targetList.slice(
-            item.index,
-            item.index + item.childCount,
-          );
-          if (sortObj) {
-            const [field, order] = sortObj;
-            childList = orderBy(childList, [`data.${field}`], order as any);
-          }
-
-          let isHiddenGroup = true;
-          childList.forEach((c) => {
-            c.hidden = !filterFn(c);
-            copyList.push(c);
-
-            if (!c.hidden) {
-              isHiddenGroup = false;
-            }
-          });
-          item.hidden = isHiddenGroup;
-          i = i + item.childCount;
-        }
+      if (displayType.value === "group") {
+        tableList.value = sortGroupList(targetList, filterFn);
+        return;
       }
 
-      tableList.value = copyList;
+      tableList.value = sortFlattenList(targetList, filterFn);
     };
 
     /**
@@ -390,22 +455,26 @@ export default defineComponent({
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
         .then((res) => {
           let listMap = new Map<string, LogPattern[]>();
+          let groupKeys = [];
+
           res.data.forEach((item) => {
             const groupList = item.group?.map(
               (g, i) => `${props.requestData?.group_by[i] ?? "#"}=${g}`,
             ) ?? ["#"];
+
             const groupKey = groupList.length ? groupList.join(" | ") : "#";
             if (!listMap.has(groupKey)) {
               listMap.set(groupKey, []);
+              groupKeys.push(groupKey);
             }
 
             listMap.get(groupKey).push(item);
           });
 
-          const groupKeys = Array.from(listMap.keys()).sort();
           let index = 0;
-          const groupState = {};
-          const tempList = [];
+          const groupState: GroupListState = {};
+          const tempList: ITableItem[] = [];
+          let hasOpenedGroup = false;
 
           groupKeys.forEach((key) => {
             const children = listMap.get(key) ?? [];
@@ -420,11 +489,16 @@ export default defineComponent({
               index,
             });
 
+            const isOpen = groupListState.value[hashKey]?.isOpen ?? false;
             Object.assign(groupState, {
               [hashKey]: {
-                isOpen: groupListState.value[hashKey]?.isOpen ?? false,
+                isOpen,
               },
             });
+
+            if (isOpen) {
+              hasOpenedGroup = true;
+            }
 
             children.forEach((item) => {
               index += 1;
@@ -442,6 +516,11 @@ export default defineComponent({
           });
 
           updateTableList(tempList);
+
+          if (!hasOpenedGroup) {
+            groupState[tempList[0].hashKey]!.isOpen = true;
+          }
+
           groupListState.value = groupState;
           pagination.value.groupCount = groupKeys.length;
           pagination.value.childCount = res.data.length;
@@ -449,6 +528,7 @@ export default defineComponent({
           setTimeout(computedScrollXWidth);
           listMap.clear();
           listMap = null;
+          groupKeys = null;
         })
         .finally(() => {
           tableLoading.value = false;
