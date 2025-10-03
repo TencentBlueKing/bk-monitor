@@ -26,12 +26,12 @@
 
 import { computed, defineComponent, onMounted, ref, nextTick, onBeforeMount } from 'vue';
 
-import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector';
+import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector'; // 日志IP选择器组件
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
-import { useCollectList } from '../../hook/useCollectList';
-import { useOperation } from '../../hook/useOperation';
+import { useCollectList } from '../../hook/useCollectList'; // 收集列表相关功能
+import { useOperation } from '../../hook/useOperation'; // 操作相关功能
 import {
   showMessage,
   TARGET_TYPES,
@@ -39,30 +39,45 @@ import {
   LOG_SPECIES_LIST,
   LOG_TYPE_LIST,
   COLLECT_METHOD_LIST,
-} from '../../utils';
+} from '../../utils'; // 工具函数
+
 import BaseInfo from '../business-comp/step2/base-info';
-import DeviceMetadata from '../business-comp/step2/device-metadata';
-import EventFilter from '../business-comp/step2/event-filter';
-import LogFilter from '../business-comp/step2/log-filter';
-import MultilineRegDialog from '../business-comp/step2/multiline-reg-dialog';
-import InfoTips from '../common-comp/info-tips';
-import InputAddGroup from '../common-comp/input-add-group';
-import { HOST_COLLECTION_CONFIG, CONTAINER_COLLECTION_CONFIG } from './defaultConfig';
-import $http from '@/api';
 
-import './step2-configuration.scss';
+import type { IFormData } from '../../type'; // 基础信息组件
+import DeviceMetadata from '../business-comp/step2/device-metadata'; // 设备元数据组件
+import EventFilter from '../business-comp/step2/event-filter'; // 事件过滤器组件
+import LogFilter from '../business-comp/step2/log-filter'; // 日志过滤器组件
+import MultilineRegDialog from '../business-comp/step2/multiline-reg-dialog'; // 多行正则对话框组件
+import InfoTips from '../common-comp/info-tips'; // 信息提示组件
+import InputAddGroup from '../common-comp/input-add-group'; // 输入框组组件
+import AppendLogTags from '../business-comp/step2/container-collection/append-log-tags'; // 附加日志标签组件
+import ConfigurationItemList from '../business-comp/step2/container-collection/configuration-item-list'; // 配置项组件
+import { HOST_COLLECTION_CONFIG, CONTAINER_COLLECTION_CONFIG } from './defaultConfig'; // 默认配置
+import $http from '@/api'; // API请求封装
 
+import './step2-configuration.scss'; // 样式文件
+
+/**
+ * 目标类型定义
+ */
 type TargetType = (typeof TARGET_TYPES)[keyof typeof TARGET_TYPES];
 
+/**
+ * 目标值类型定义
+ */
 type TargetValue = {
-  host_list?: any[];
-  node_list?: any[];
-  service_template_list?: any[];
-  set_template_list?: any[];
-  dynamic_group_list?: any[];
+  host_list?: any[]; // 主机列表
+  node_list?: any[]; // 节点列表
+  service_template_list?: any[]; // 服务模板列表
+  set_template_list?: any[]; // 集群模板列表
+  dynamic_group_list?: any[]; // 动态分组列表
 };
 
+/**
+ * 目标选择结果类型定义
+ */
 type TargetSelectionResult = {
+  // 目标类型
   type: TargetType;
   nodes: any[];
 };
@@ -156,7 +171,7 @@ export default defineComponent({
         parent_index_set_ids: [],
       };
     });
-    const formData = ref({
+    const formData = ref<IFormData>({
       ...baseFormData.value,
     });
 
@@ -637,17 +652,21 @@ export default defineComponent({
         )}
         {showClusterListKeys.includes(props.scenarioId) && (
           <div>
-            <div class='label-form-box'>
+            <div class='label-form-box large-width'>
               <span class='label-title'>{t('配置项')}</span>
-              <div class='form-box mt-5'>1</div>
+              <div class='form-box mt-5'>
+                <ConfigurationItemList data={formData.value.configs} />
+              </div>
             </div>
             <div class='label-form-box'>
               <span class='label-title no-require'>{t('附加日志标签')}</span>
               <div class='form-box mt-5'>
-                <div class='checkbox-group'>
-                  <bk-checkbox> {t('自动添加 Pod 中的 label')}</bk-checkbox>
-                  <bk-checkbox> {t('自动添加 Pod 中的 annotation')}</bk-checkbox>
-                </div>
+                <AppendLogTags
+                  config={formData.value}
+                  on-change={data => {
+                    formData.value = { ...formData.value, ...data };
+                  }}
+                />
               </div>
             </div>
           </div>

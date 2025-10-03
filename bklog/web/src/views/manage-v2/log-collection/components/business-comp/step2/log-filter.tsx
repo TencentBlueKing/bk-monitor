@@ -45,23 +45,26 @@ import $http from '@/api';
 
 import './log-filter.scss';
 
+/**
+ * 过滤条件配置类型定义
+ */
 type IConditions = {
-  type: 'match' | 'none' | 'separator';
-  separator?: string;
-  separator_filters?: ITableRowItem[];
-  match_content?: string;
-  match_type?: string;
+  type: 'match' | 'none' | 'separator'; // 过滤类型
+  separator?: string; // 分隔符（仅separator类型使用）
+  separator_filters?: ITableRowItem[]; // 分隔符过滤规则
+  match_content?: string; // 匹配内容（仅match类型使用）
+  match_type?: string; // 匹配类型（仅match类型使用）
 };
 
 export default defineComponent({
   name: 'LogFilter',
   props: {
-    // 过滤条件配置
+    // 过滤条件配置，用于初始化组件
     conditions: {
       type: Object as () => IConditions,
       default: () => ({ type: 'none' }),
     },
-    // 是否为克隆或更新操作
+    // 是否为克隆或更新操作，影响日志数据加载逻辑
     isCloneOrUpdate: {
       type: Boolean,
       default: false,
@@ -74,11 +77,20 @@ export default defineComponent({
     const { t } = useLocale();
     const store = useStore();
 
-    // 响应式数据
-    const filterSwitcher = ref<boolean>(false); // 过滤器开关状态
-    const isFirstClickFilterType = ref<boolean>(true); // 是否首次点击过滤类型
-    const activeType = ref<btnType>('match'); // 当前过滤类型
-    const separator = ref<string>('|'); // 分隔符
+    // -------------------------- 响应式数据 --------------------------
+    /** 过滤器开关状态 */
+    const filterSwitcher = ref<boolean>(false);
+    /** 是否首次切换到分隔符过滤类型 */
+    const isFirstSwitchToSeparator = ref<boolean>(true);
+    /** 当前激活的过滤类型（match/separator） */
+    const activeFilterType = ref<btnType>('match');
+    /** 分隔符（默认|） */
+    const separator = ref<string>('|');
+    /**
+     * 过滤规则数据结构：
+     * 外层数组表示过滤组（组间为OR关系）
+     * 内层数组表示组内规则（组内为AND关系）
+     */
     const filterData = ref<ITableRowItem[][]>([
       [
         {
@@ -89,74 +101,65 @@ export default defineComponent({
         },
       ],
     ]);
-    const catchFilterData = ref({
-      // 缓存不同过滤类型的数据
+    /** 缓存不同过滤类型的规则数据，切换类型时恢复 */
+    const filterDataCache = ref({
       match: structuredClone(filterData.value),
       separator: structuredClone(filterData.value),
     });
-    const originalFilterItemSelect = ref<ISelectItem[]>([]); // 原始日志字段选择项
-    const logOriginal = ref<string>(''); // 原始日志内容
-    const logOriginalLoading = ref<boolean>(false); // 原始日志加载状态
+    /** 原始日志字段选择项（从日志样例解析而来） */
+    const originalFilterItemSelect = ref<ISelectItem[]>([]);
+    /** 原始日志内容（用于调试分隔符） */
+    const logOriginal = ref<string>('');
+    /** 原始日志加载状态 */
+    const logOriginalLoading = ref<boolean>(false);
+    /** 验证器组件引用集合 */
     const validatorInputRefs = ref<Record<string, any>>({});
 
-    // 计算属性
+    // -------------------------- 计算属性 --------------------------
+    /** 全局数据分隔符选项（从store获取） */
     const globalDataDelimiter = computed<ISelectItem[]>(() => {
       return store.getters['globals/globalsData']?.data_delimiter || [];
     });
 
-    const curCollect = computed<any>(() => {
+    /** 当前选中的采集配置（从store获取） */
+    const currentCollect = computed<any>(() => {
       return store.getters['collect/curCollect'] || {};
     });
 
+    /** 是否为匹配类型过滤 */
     const isMatchType = computed<boolean>(() => {
-      return activeType.value === 'match';
+      return activeFilterType.value === 'match';
     });
 
-    const shouldWatchValue = computed<{
+    /** 需要监听的响应式数据集合（用于触发条件变更） */
+    const watchTarget = computed<{
       filterData: ITableRowItem[][];
       switcher: boolean;
       separator: string;
-    }>(() => {
-      return {
-        filterData: filterData.value,
-        switcher: filterSwitcher.value,
-        separator: separator.value,
-      };
-    });
+    }>(() => ({
+      filterData: filterData.value,
+      switcher: filterSwitcher.value,
+      separator: separator.value,
+    }));
 
-    const operatorShowSelectList = computed<ISelectItem[]>(() => {
-      const showSelect = structuredClone(operatorSelectList);
+    /** 操作符选择列表（根据当前过滤类型动态调整） */
+    const operatorOptions = computed<ISelectItem[]>(() => {
       const targetId = isMatchType.value ? 'include' : 'eq';
-
-      return showSelect.map(el => {
-        if (el.id === targetId) {
-          return { ...el, id: '=' };
-        }
-        return el;
-      });
+      return operatorSelectList.map(option => (option.id === targetId ? { ...option, id: '=' } : option));
     });
 
+    // -------------------------- 核心方法 --------------------------
     /**
-     * 向上传递条件变化
+     * 向父组件传递过滤条件变更
      */
-    const conditionsChange = () => {
-      emit('conditions-change', getSubmitConditionsData());
+    const emitConditionsChange = () => {
+      emit('conditions-change', getSubmitConditions());
     };
 
-    watch(
-      () => shouldWatchValue.value,
-      () => {
-        debounce(100, () => {
-          conditionsChange();
-        });
-      },
-      { deep: true, immediate: true },
-    );
-
     /**
-     * 初始化容器数据
+     * 初始化过滤数据（根据props.conditions）
      */
-    const initContainerData = () => {
+    const initFilterData = () => {
       const { type, separator: sep, separator_filters, match_content, match_type } = props.conditions;
 
       switch (type) {
@@ -164,33 +167,10 @@ export default defineComponent({
           filterSwitcher.value = false;
           break;
         case 'match':
-          filterSwitcher.value = true;
-          activeType.value = type;
-          // 处理旧数据兼容
-          if (separator_filters?.length) {
-            filterData.value = splitFilters(separator_filters);
-          } else {
-            const op = match_type === 'include' ? 'include' : '=';
-            filterData.value = [
-              [
-                {
-                  fieldindex: '-1',
-                  word: match_content || '',
-                  op,
-                  tableIndex: 0,
-                },
-              ],
-            ];
-          }
+          handleMatchTypeInit(separator_filters, match_content, match_type);
           break;
         case 'separator':
-          filterSwitcher.value = true;
-          activeType.value = type;
-          separator.value = sep || '|';
-          filterData.value = separator_filters ? splitFilters(separator_filters) : [[tableRowBaseObj]];
-          if (props.isCloneOrUpdate) {
-            getLogOriginal();
-          }
+          handleSeparatorTypeInit(sep, separator_filters);
           break;
         default:
           break;
@@ -198,30 +178,73 @@ export default defineComponent({
     };
 
     /**
-     * 分割过滤器为分组
-     * @param filters - 过滤器数组
-     * @returns 分组后的过滤器数据
+     * 初始化匹配类型过滤数据
      */
-    const splitFilters = (filters: ITableRowItem[]): ITableRowItem[][] => {
+    const handleMatchTypeInit = (separatorFilters?: ITableRowItem[], matchContent?: string, matchType?: string) => {
+      filterSwitcher.value = true;
+      activeFilterType.value = 'match';
+
+      // 兼容旧数据格式
+      if (separatorFilters?.length) {
+        filterData.value = splitFiltersIntoGroups(separatorFilters);
+      } else {
+        const op = matchType === 'include' ? 'include' : '=';
+        filterData.value = [
+          [
+            {
+              fieldindex: '-1',
+              word: matchContent || '',
+              op,
+              tableIndex: 0,
+            },
+          ],
+        ];
+      }
+    };
+
+    /**
+     * 初始化分隔符类型过滤数据
+     */
+    const handleSeparatorTypeInit = (sep?: string, separatorFilters?: ITableRowItem[]) => {
+      filterSwitcher.value = true;
+      activeFilterType.value = 'separator';
+      separator.value = sep || '|';
+      filterData.value = separatorFilters
+        ? splitFiltersIntoGroups(separatorFilters)
+        : [[{ ...tableRowBaseObj, tableIndex: 0 }]];
+
+      // 克隆/更新操作时加载原始日志
+      if (props.isCloneOrUpdate) {
+        fetchLogOriginal();
+      }
+    };
+
+    /**
+     * 将扁平的过滤规则拆分为分组结构
+     * @param filters 扁平的过滤规则数组
+     * @returns 分组后的规则（组间OR，组内AND）
+     */
+    const splitFiltersIntoGroups = (filters: ITableRowItem[]): ITableRowItem[][] => {
       const groups: ITableRowItem[][] = [];
       let currentGroup: ITableRowItem[] = [];
 
       filters.forEach((filter, index) => {
-        const mappingFilter: ITableRowItem = {
+        // 映射操作符并设置组索引
+        const mappedFilter: ITableRowItem = {
           ...filter,
           op: operatorMapping[filter.op] ?? filter.op,
           tableIndex: groups.length,
         };
-        currentGroup.push(mappingFilter);
+        currentGroup.push(mappedFilter);
 
-        // 遇到or逻辑或最后一个元素时结束当前分组
+        // 遇到OR逻辑或最后一个元素时，结束当前分组
         if (filters[index + 1]?.logic_op === 'or' || index === filters.length - 1) {
           groups.push(currentGroup);
           currentGroup = [];
         }
       });
 
-      // 处理剩余元素
+      // 处理剩余未分组的规则
       if (currentGroup.length > 0) {
         groups.push(currentGroup);
       }
@@ -230,30 +253,38 @@ export default defineComponent({
     };
 
     /**
-     * 删除过滤器分组
-     * @param index - 分组索引
+     * 更新所有规则的组索引（删除分组后调用）
      */
-    const handleClickDeleteGroup = (index: number) => {
-      if (filterData.value.length === 1) {
-        return;
-      }
-      filterData.value.splice(index, 1);
-      // 重新设置分组索引
-      const data = filterData.value; // 缓存外层数组，避免重复访问 .value
-      for (const [fIndex, fItem] of data.entries()) {
-        for (const item of fItem) {
-          item.tableIndex = fIndex;
+    const updateTableIndexes = () => {
+      filterData.value.forEach((group, groupIndex) => {
+        for (const item of group) {
+          item.tableIndex = groupIndex;
         }
-      }
+      });
     };
 
     /**
-     * 新增过滤器分组
+     * 删除过滤组
+     * @param groupIndex 要删除的组索引
      */
-    const handleClickNewGroupBtn = () => {
+    const deleteFilterGroup = (groupIndex: number) => {
+      // 至少保留一个组
+      if (filterData.value.length === 1) {
+        return;
+      }
+
+      filterData.value.splice(groupIndex, 1);
+      updateTableIndexes();
+    };
+
+    /**
+     * 新增过滤组（最多10个）
+     */
+    const addFilterGroup = () => {
       if (filterData.value.length >= 10) {
         return;
       }
+
       filterData.value.push([
         {
           ...tableRowBaseObj,
@@ -263,16 +294,18 @@ export default defineComponent({
     };
 
     /**
-     * 组内新增或删除行
-     * @param rowIndex - 行索引
-     * @param tableIndex - 表格索引
-     * @param operateType - 操作类型
+     * 在组内添加/删除规则行
+     * @param rowIndex 行索引
+     * @param groupIndex 组索引
+     * @param operation 操作类型（add/delete）
      */
-    const handleAddNewSeparator = (rowIndex: number, tableIndex: number, operateType: 'add' | 'delete' = 'add') => {
-      const currentGroup = filterData.value[tableIndex];
-      if (operateType === 'add') {
-        currentGroup.push({ ...tableRowBaseObj, tableIndex });
+    const modifyGroupRows = (rowIndex: number, groupIndex: number, operation: 'add' | 'delete' = 'add') => {
+      const currentGroup = filterData.value[groupIndex];
+
+      if (operation === 'add') {
+        currentGroup.push({ ...tableRowBaseObj, tableIndex: groupIndex });
       } else {
+        // 每组至少保留一行
         if (currentGroup.length === 1) {
           return;
         }
@@ -281,127 +314,122 @@ export default defineComponent({
     };
 
     /**
-     * 切换过滤类型
-     * @param type - 过滤类型
+     * 切换过滤类型（match/separator）
+     * @param type 目标过滤类型
      */
-    const handleClickFilterType = (type: btnType) => {
+    const switchFilterType = (type: btnType) => {
       // 缓存当前类型数据
-      catchFilterData.value[activeType.value] = structuredClone(filterData.value);
-      // 切换到新类型数据
-      filterData.value = catchFilterData.value[type];
-      activeType.value = type;
+      filterDataCache.value[activeFilterType.value] = structuredClone(filterData.value);
+      // 切换到目标类型数据
+      filterData.value = filterDataCache.value[type];
+      activeFilterType.value = type;
 
-      // 首次切换到分隔符类型时获取原始日志
-      if (props.isCloneOrUpdate && isFirstClickFilterType.value && type === 'separator') {
-        isFirstClickFilterType.value = false;
-        getLogOriginal(false);
+      // 首次切换到分隔符类型且为克隆/更新操作时，加载日志样例
+      if (props.isCloneOrUpdate && isFirstSwitchToSeparator.value && type === 'separator') {
+        isFirstSwitchToSeparator.value = false;
+        fetchLogOriginal(false);
       }
     };
 
     /**
-     * 输入框数据验证
-     * @returns Promise验证结果
+     * 验证输入合法性
+     * @returns 验证结果Promise
      */
-    const inputValidate = (): Promise<boolean> => {
-      return new Promise(async (resolve, reject) => {
-        if (!filterSwitcher.value) {
-          resolve(true);
-          return;
+    const validateInputs = (): Promise<boolean> => {
+      if (!filterSwitcher.value) {
+        return Promise.resolve(true);
+      }
+
+      const validatePromises: Promise<boolean>[] = [];
+
+      // 遍历所有规则行进行验证
+      for (const group of filterData.value) {
+        for (const _row of group) {
+          // 实际项目中需替换为真实验证逻辑
+          validatePromises.push(Promise.resolve(true));
         }
+      }
 
-        let isCanSubmit = true;
-        const validatePromises: Promise<boolean>[] = [];
-
-        filterData.value.forEach(group => {
-          group.forEach((row, rowIndex) => {
-            validatePromises.push(Promise.resolve(true));
-          });
-        });
-
-        try {
-          const results = await Promise.all(validatePromises);
-          isCanSubmit = results.every(result => result);
-          isCanSubmit ? resolve(true) : reject(new Error('验证失败'));
-        } catch (error) {
-          reject(error);
+      return Promise.all(validatePromises).then(results => {
+        if (results.every(Boolean)) {
+          return true;
         }
+        throw new Error(t('验证失败'));
       });
     };
 
     /**
-     * 获取提交的过滤条件数据
-     * @returns 格式化后的条件数据
+     * 格式化提交的过滤条件数据
+     * @returns 符合接口要求的过滤条件
      */
-    const getSubmitConditionsData = (): IConditions => {
-      // 过滤空数据
-      const filteredData = filterData.value
-        .map(fItem => fItem.filter(item => !!item.word))
-        .filter(item => item.length > 0);
+    const getSubmitConditions = (): IConditions => {
+      // 过滤空规则（word为空的行）
+      const validGroups = filterData.value
+        .map(group => group.filter(row => !!row.word))
+        .filter(group => group.length > 0);
 
-      // 格式化数据逻辑
-      let submitFlatData: Array<ITableRowItem & { logic_op: string }> = filteredData.flatMap((fItem, fIndex) => {
-        return fItem.map((item, index) => {
-          const { tableIndex, ...reset } = item;
-          // 第一组或非首行使用and，其他组首行使用or
+      if (!filterSwitcher.value || validGroups.length === 0) {
+        return { type: 'none' };
+      }
+
+      // 扁平化规则并添加逻辑运算符（组间OR，组内AND）
+      let flatConditions: Array<ITableRowItem & { logic_op: string }> = validGroups.flatMap((group, groupIndex) => {
+        return group.map((row, rowIndex) => {
+          const { tableIndex, ...rest } = row;
           return {
-            ...reset,
-            logic_op: fIndex === 0 || index !== 0 ? 'and' : 'or',
+            ...rest,
+            // 第一组或组内非首行用AND，其他组首行用OR
+            logic_op: groupIndex === 0 || rowIndex !== 0 ? 'and' : 'or',
           };
         });
       });
 
-      // 字符串类型特殊处理字段索引
+      // 匹配类型特殊处理：固定字段索引为-1
       if (isMatchType.value) {
-        submitFlatData = submitFlatData.map(item => ({
+        flatConditions = flatConditions.map(item => ({
           ...item,
           fieldindex: '-1',
         }));
       }
 
-      if (filterSwitcher.value && submitFlatData.length) {
-        return {
-          separator: separator.value,
-          separator_filters: submitFlatData,
-          type: activeType.value,
-        };
-      }
-      return { type: 'none' };
+      return {
+        type: activeFilterType.value,
+        separator: separator.value,
+        separator_filters: flatConditions,
+      };
     };
 
     /**
-     * 获取原始日志数据
-     * @param isDebug - 是否进行调试
+     * 获取原始日志数据（用于分隔符调试）
+     * @param isDebug 是否在获取后自动调试
      */
-    const getLogOriginal = async (isDebug = true) => {
+    const fetchLogOriginal = async (isDebug = true) => {
       try {
         const res = await $http.request(
           'source/dataList',
           {
             params: {
-              collector_config_id: curCollect.value.collector_config_id,
+              collector_config_id: currentCollect.value.collector_config_id,
             },
           },
-          {
-            catchIsShowMessage: false,
-          },
+          { catchIsShowMessage: false },
         );
 
         if (res.data?.length) {
-          const firstData = res.data[0];
-          logOriginal.value = firstData.etl.data || '';
+          logOriginal.value = res.data[0].etl.data || '';
           if (logOriginal.value && isDebug) {
-            logOriginDebug();
+            debugLogOrigin();
           }
         }
       } catch (error) {
-        console.warn('获取原始日志失败:', error);
+        console.warn(t('获取原始日志失败:'), error);
       }
     };
 
     /**
-     * 原始日志调试，获取字段列表
+     * 调试原始日志，解析字段列表
      */
-    const logOriginDebug = async () => {
+    const debugLogOrigin = async () => {
       try {
         logOriginalLoading.value = true;
         const res = await $http.request('clean/getEtlPreview', {
@@ -412,55 +440,66 @@ export default defineComponent({
           },
         });
 
+        // 格式化字段选择项
         originalFilterItemSelect.value = res.data.fields.map((item: any) => ({
-          name: t('第{n}行', { n: item.field_index }) + ` | ${item.value}`,
+          name: t('第{n}列', { n: item.field_index }) + ` | ${item.value}`,
           id: String(item.field_index),
           value: item.value,
         }));
       } catch (error) {
-        console.warn('日志调试失败:', error);
+        console.warn(t('日志调试失败:'), error);
       } finally {
         logOriginalLoading.value = false;
       }
     };
 
     /**
-     * 检查操作符是否可禁用
+     * 检查操作符是否可禁用（组内仅一行时删除按钮禁用）
+     * @param rowIndex 行索引
+     * @param groupIndex 组索引
+     * @returns 是否禁用
      */
-    const getOperatorDisabled = (index: number, tableIndex: number): boolean => {
-      return index === 0 && filterData.value[tableIndex].length === 1;
+    const isOperatorDisabled = (rowIndex: number, groupIndex: number): boolean => {
+      return rowIndex === 0 && filterData.value[groupIndex].length === 1;
     };
 
     /**
-     * 设置验证器引用
+     * 注册验证器组件引用
+     * @param el 组件实例
+     * @param key 唯一标识
      */
-    const setValidatorRef = (el: any, key: string) => {
+    const registerValidatorRef = (el: any, key: string) => {
       if (el) {
         validatorInputRefs.value[key] = el;
       }
     };
 
-    // 生命周期
+    // -------------------------- 生命周期 --------------------------
     onMounted(() => {
-      initContainerData();
-      // 如果已有过滤条件，开启开关
+      initFilterData();
+      // 根据初始条件自动开启过滤器
       if (props.conditions?.type && props.conditions.type !== 'none') {
         filterSwitcher.value = true;
       }
     });
 
-    // 暴露方法给父组件
+    // -------------------------- 监听逻辑 --------------------------
+    // 监听目标数据变化，防抖触发条件变更事件
+    watch(() => watchTarget.value, debounce(100, emitConditionsChange), { deep: true, immediate: true });
+
+    // -------------------------- 暴露方法 --------------------------
     expose({
-      inputValidate,
+      validateInputs,
     });
 
+    // -------------------------- 渲染辅助方法 --------------------------
     /**
-     * 渲染字段索引输入框
+     * 渲染字段索引输入框（仅分隔符类型显示）
      */
-    const renderFieldIndexInput = (groupid: number, row: ITableRowItem, index: number) => (
+    const renderFieldIndexInput = (groupIndex: number, row: ITableRowItem, rowIndex: number) => (
       <ValidatorInput
-        ref={(el: any) => setValidatorRef(el, `match-${groupid}-${row.tableIndex}-${index}`)}
-        active-type={activeType.value}
+        ref={(el: any) => registerValidatorRef(el, `match-${groupIndex}-${row.tableIndex}-${rowIndex}`)}
+        active-type={activeFilterType.value}
         input-type={'number'}
         original-filter-item-select={originalFilterItemSelect.value}
         placeholder={t('请输入列数')}
@@ -469,7 +508,7 @@ export default defineComponent({
         value={row.fieldindex}
         on-change={(val: string) => {
           row.fieldindex = val;
-          conditionsChange();
+          emitConditionsChange();
         }}
       />
     );
@@ -477,16 +516,16 @@ export default defineComponent({
     /**
      * 渲染值输入框
      */
-    const renderValueInput = (groupId: number, row: ITableRowItem, index: number) => (
+    const renderValueInput = (groupIndex: number, row: ITableRowItem, rowIndex: number) => (
       <ValidatorInput
-        ref={(el: any) => setValidatorRef(el, `value-${groupId}-${row.tableIndex}-${index}`)}
-        active-type={activeType.value}
+        ref={(el: any) => registerValidatorRef(el, `value-${groupIndex}-${row.tableIndex}-${rowIndex}`)}
+        active-type={activeFilterType.value}
         placeholder={['regex', 'nregex'].includes(row.op) ? t('支持正则匹配，如18*123') : t('请输入')}
         row-data={row}
         value={row.word}
         on-change={(val: string) => {
           row.word = val;
-          conditionsChange();
+          emitConditionsChange();
         }}
       />
     );
@@ -501,10 +540,10 @@ export default defineComponent({
         value={row.op}
         on-selected={(val: string) => {
           row.op = val;
-          conditionsChange();
+          emitConditionsChange();
         }}
       >
-        {operatorShowSelectList.value.map(option => (
+        {operatorOptions.value.map(option => (
           <bk-option
             id={option.id}
             key={option.id}
@@ -515,22 +554,17 @@ export default defineComponent({
     );
 
     /**
-     * 渲染操作按钮
+     * 渲染行操作按钮（添加/删除行）
      */
-    const renderOperatorButtons = (row: ITableRowItem, index: number) => (
+    const renderRowOperators = (row: ITableRowItem, rowIndex: number) => (
       <div class='item-tool btns-group'>
         <i
           class='bk-icon icon-plus-circle-shape icons'
-          on-Click={() => handleAddNewSeparator(index, row.tableIndex, 'add')}
+          on-Click={() => modifyGroupRows(rowIndex, row.tableIndex, 'add')}
         />
         <i
-          class={[
-            'bk-icon icon-minus-circle-shape icons',
-            {
-              disabled: getOperatorDisabled(index, row.tableIndex),
-            },
-          ]}
-          on-Click={() => handleAddNewSeparator(index, row.tableIndex, 'delete')}
+          class={['bk-icon icon-minus-circle-shape icons', { disabled: isOperatorDisabled(rowIndex, row.tableIndex) }]}
+          on-Click={() => modifyGroupRows(rowIndex, row.tableIndex, 'delete')}
         />
       </div>
     );
@@ -555,23 +589,24 @@ export default defineComponent({
         {!isMatchType.value && <div class='item-default'>{renderFieldIndexInput(groupIndex, row, rowIndex)}</div>}
         <div class='item-default'>{renderOperatorSelect(row)}</div>
         <div class='item-default'>{renderValueInput(groupIndex, row, rowIndex)}</div>
-        {renderOperatorButtons(row, rowIndex)}
+        {renderRowOperators(row, rowIndex)}
       </div>
     );
 
     /**
-     * 渲染表格内容
+     * 渲染过滤组内容
      */
-    const renderTableContent = (group: ITableRowItem[], groupIndex: number) => (
+    const renderFilterGroup = (group: ITableRowItem[], groupIndex: number) => (
       <div class='table-box-main'>
         {renderTableHeader()}
         <div class='custom-table-body'>{group.map((row, rowIndex) => renderTableRow(row, rowIndex, groupIndex))}</div>
       </div>
     );
 
+    // -------------------------- 主渲染函数 --------------------------
     return () => (
       <div class='log-filter-main'>
-        {/* 开关控制区域 */}
+        {/* 过滤器开关区域 */}
         <div class='switch-box'>
           <bk-switcher
             size='large'
@@ -579,7 +614,7 @@ export default defineComponent({
             value={filterSwitcher.value}
             on-change={(val: boolean) => {
               filterSwitcher.value = val;
-              conditionsChange();
+              emitConditionsChange();
             }}
           />
           <InfoTips
@@ -588,24 +623,24 @@ export default defineComponent({
           />
         </div>
 
-        {/* 过滤器配置区域 */}
+        {/* 过滤器配置区域（开关开启时显示） */}
         {filterSwitcher.value && (
           <div class='log-filter-box'>
-            {/* 过滤类型切换 */}
+            {/* 过滤类型切换按钮组 */}
             <div class='bk-button-group'>
               {btnGroupList.map(item => (
                 <bk-button
                   key={item.id}
-                  class={{ 'is-selected': activeType.value === item.id }}
+                  class={{ 'is-selected': activeFilterType.value === item.id }}
                   size='small'
-                  on-Click={() => handleClickFilterType(item.id as btnType)}
+                  on-Click={() => switchFilterType(item.id as btnType)}
                 >
                   {item.name}
                 </bk-button>
               ))}
             </div>
 
-            {/* 分隔符配置区域 */}
+            {/* 分隔符配置区域（仅分隔符类型显示） */}
             {!isMatchType.value && (
               <div class='separator-box'>
                 <div class='separator-box-top'>
@@ -628,7 +663,7 @@ export default defineComponent({
                   <bk-button
                     disabled={!(logOriginal.value && separator.value) || logOriginalLoading.value}
                     theme='primary'
-                    on-Click={logOriginDebug}
+                    on-Click={debugLogOrigin}
                   >
                     {t('调试')}
                   </bk-button>
@@ -649,7 +684,7 @@ export default defineComponent({
               </div>
             )}
 
-            {/* 过滤器分组表格 - 使用自定义表格实现 */}
+            {/* 过滤规则分组列表 */}
             {filterData.value.map((group, groupIndex) => (
               <div
                 key={groupIndex}
@@ -659,17 +694,17 @@ export default defineComponent({
                   <span>{t('第{n}组', { n: groupIndex + 1 })}</span>
                   <i
                     class='bk-icon icon-delete del-icons'
-                    on-Click={() => handleClickDeleteGroup(groupIndex)}
+                    on-Click={() => deleteFilterGroup(groupIndex)}
                   />
                 </div>
-                {renderTableContent(group, groupIndex)}
+                {renderFilterGroup(group, groupIndex)}
               </div>
             ))}
 
-            {/* 新增分组按钮 */}
+            {/* 新增过滤组按钮 */}
             <div
               class='add-new-group-btn'
-              on-Click={handleClickNewGroupBtn}
+              on-Click={addFilterGroup}
             >
               <i class='bk-icon icon-plus-line icons' />
               <span>{t('新增过滤组')}</span>

@@ -29,14 +29,14 @@ import { defineComponent, ref, watch, computed } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import { useRouter, useRoute } from 'vue-router/composables';
 
-import { useCollectList } from '../../hook/useCollectList';
-import { useOperation } from '../../hook/useOperation';
-import { showMessage } from '../../utils';
-import BaseInfo from '../business-comp/step2/base-info';
-import BkdataSelectDialog from '../business-comp/step2/third-party-logs/bkdata-select-dialog';
-import EsSelectDialog from '../business-comp/step2/third-party-logs/es-select-dialog';
-import DragTag from '../common-comp/drag-tag';
-import InfoTips from '../common-comp/info-tips';
+import { useCollectList } from '../../hook/useCollectList'; // 收集列表钩子
+import { useOperation } from '../../hook/useOperation'; // 操作相关钩子
+import { showMessage } from '../../utils'; // 消息提示工具
+import BaseInfo from '../business-comp/step2/base-info'; // 基础信息组件
+import BkdataSelectDialog from '../business-comp/step2/third-party-logs/bkdata-select-dialog'; // 蓝鲸数据选择对话框
+import EsSelectDialog from '../business-comp/step2/third-party-logs/es-select-dialog'; // ES选择对话框
+import DragTag from '../common-comp/drag-tag'; // 拖拽标签组件
+import InfoTips from '../common-comp/info-tips'; // 信息提示组件
 import $http from '@/api';
 
 import './step2-bk-data-collection.scss';
@@ -49,7 +49,7 @@ export default defineComponent({
       default: 'host_log',
     },
   },
-
+  // 组件可触发的事件
   emits: ['next', 'prev', 'cancel'],
 
   setup(props, { emit }) {

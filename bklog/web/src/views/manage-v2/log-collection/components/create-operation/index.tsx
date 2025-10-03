@@ -46,7 +46,7 @@ export default defineComponent({
     const mainRef = ref<HTMLDivElement>();
     const DEFAULT_STEP = 2;
     const step = ref(DEFAULT_STEP);
-    const typeKey = ref('host_log');
+    const typeKey = ref('std_log_config');
     const firstStep = { title: t('索引集分类'), icon: 1, components: StepClassify };
     const { goListPage } = useCollectList();
     const dataConfig = ref({});

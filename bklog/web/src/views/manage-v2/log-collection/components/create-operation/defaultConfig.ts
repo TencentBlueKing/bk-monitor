@@ -1,6 +1,7 @@
 /**
  * 主机采集配置
  */
+
 export const HOST_COLLECTION_CONFIG = {
   params: {
     // 行首正则, char
@@ -41,7 +42,13 @@ export const CONTAINER_COLLECTION_CONFIG = {
   bcs_cluster_id: '',
   add_pod_label: false,
   add_pod_annotation: false,
-  extra_labels: [],
+  extra_labels: [
+    // 附加日志标签
+    {
+      key: '',
+      value: '',
+    },
+  ],
   configs: [
     {
       container: {
