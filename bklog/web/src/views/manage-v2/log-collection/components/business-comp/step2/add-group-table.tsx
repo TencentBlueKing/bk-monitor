@@ -28,6 +28,8 @@ import { computed, defineComponent } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
+import { OPERATOR_SELECT_LIST } from '../../../utils';
+
 import './add-group-table.scss';
 
 export default defineComponent({
@@ -37,6 +39,10 @@ export default defineComponent({
       type: Array,
       default: () => [[], []],
     },
+    activeType: {
+      type: String,
+      default: 'match',
+    },
   },
 
   emits: ['update'],
@@ -44,6 +50,23 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const length = computed(() => props.list.length);
+    /** 是否是字符串类型 */
+    const isMatchType = computed(() => props.activeType === 'match');
+    /**
+     * 操作符列表
+     */
+    const operatorShowSelectList = computed(() => {
+      const showSelect = structuredClone(OPERATOR_SELECT_LIST);
+      for (const el of showSelect) {
+        if (isMatchType.value && el.id === 'include') {
+          el.id = '=';
+        }
+        if (!isMatchType.value && el.id === 'eq') {
+          el.id = '=';
+        }
+      }
+      return showSelect;
+    });
     const handleAddGroup = () => {
       emit('update', [...props.list, []]);
     };
@@ -64,9 +87,17 @@ export default defineComponent({
     };
     const renderTableItem = (item, index) => (
       <div class='table-box-item'>
-        <bk-input class='item-default' />
+        {!isMatchType.value && <bk-input class='item-default' />}
         <div class='item-default'>
-          <bk-select class='item-select' />
+          <bk-select class='item-select'>
+            {(operatorShowSelectList.value || []).map(option => (
+              <bk-option
+                id={option.id}
+                key={option.id}
+                name={option.name}
+              />
+            ))}
+          </bk-select>
         </div>
         <bk-input
           class='item-default'
@@ -98,7 +129,7 @@ export default defineComponent({
         </div>
         <div class='table-box-main'>
           <div class='table-box-head'>
-            <div class='item-default'>{t('过滤参数')}</div>
+            {!isMatchType.value && <div class='item-default'>{t('过滤参数')}</div>}
             <div class='item-default'>{t('操作符')}</div>
             <div class='item-default'>Value</div>
             <div class='item-tool'>{t('操作')}</div>

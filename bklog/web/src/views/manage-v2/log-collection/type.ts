@@ -6,3 +6,9 @@ export interface IListItemData {
   unEditable?: boolean;
   [key: string]: any;
 }
+
+export interface ISelectItem {
+  id: string;
+  name: string;
+  value?: string;
+}

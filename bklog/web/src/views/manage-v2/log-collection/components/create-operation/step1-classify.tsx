@@ -73,7 +73,7 @@ export default defineComponent({
         children: [
           {
             name: t('文件采集'),
-            value: 'file',
+            value: 'file_log_config',
             icon: 'file',
           },
           {

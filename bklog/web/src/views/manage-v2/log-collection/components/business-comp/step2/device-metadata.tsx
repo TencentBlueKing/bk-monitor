@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted } from 'vue';
+import { defineComponent, ref, onMounted, nextTick, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -32,29 +32,68 @@ import InfoTips from '../../common-comp/info-tips';
 import $http from '@/api';
 
 import './device-metadata.scss';
+
+type IExtraLabel = {
+  key: string;
+  value: string;
+  duplicateKey: boolean;
+};
+
+type IGroupItem = {
+  field: string;
+  name: string;
+  group_name: string;
+  key: string;
+};
+type IMetaItem = {
+  key: string;
+  value: string;
+};
 /**
  * 设备元数据
  */
 export default defineComponent({
   name: 'DeviceMetadata',
   props: {
-    valueList: {
-      type: Array,
+    metadata: {
+      type: Array as PropType<IMetaItem[]>,
       default: () => [],
     },
   },
 
-  emits: ['update'],
+  emits: ['extra-labels-change'],
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const extraLabelList = ref([]);
-    const groupList = ref([]);
-    const selectValue = ref([]);
+    // 自定义标签列表
+    const extraLabelList = ref<IExtraLabel[]>([]);
+    // 元数据分组列表
+    const groupList = ref<IGroupItem[]>([]);
+    // 选中的元数据字段
+    const selectValue = ref<IMetaItem[]>([]);
+    // 开关状态
+    const switcherValue = ref(false);
+    // 自定义标签验证错误状态
+    const isExtraError = ref(false);
 
     onMounted(() => {
       getDeviceMetaData();
+      // 如果已有元数据，则开启开关
+      if (props.metadata.filter(item => item.key).length) {
+        switcherValue.value = true;
+      }
     });
+    /**
+     * 是否打开switcher
+     * @param val
+     */
+    const switcherChange = (val: boolean) => {
+      switcherValue.value = val;
+      if (!val) {
+        // 关闭开关时清空数据
+        emit('extra-labels-change', []);
+      }
+    };
 
     // 获取元数据
     const getDeviceMetaData = async () => {
@@ -62,7 +101,7 @@ export default defineComponent({
         const res = await $http.request('linkConfiguration/getSearchObjectAttribute');
         const { scope = [], host = [] } = res.data;
         groupList.value.push(
-          ...scope.map(item => {
+          ...scope.map((item: IGroupItem) => {
             item.key = 'scope';
             return item;
           }),
@@ -73,17 +112,18 @@ export default defineComponent({
             return item;
           }),
         );
-        selectValue.value = props.valueList.map(item => {
+        const sliceLen = 5;
+        selectValue.value = (props.metadata || []).map((item: IMetaItem) => {
           if (item.key.startsWith('host.')) {
-            return item.key.slice(5);
+            return item.key.slice(sliceLen);
           }
         });
-        extraLabelList.value = props.valueList
-          .filter(metadataItem => {
+        extraLabelList.value = props.metadata
+          .filter((metadataItem: IExtraLabel) => {
             const isDuplicate = groupList.value.some(groupItem => groupItem.field === metadataItem.key.slice(5));
             return !isDuplicate;
           })
-          .map(item => {
+          .map((item: IExtraLabel) => {
             return {
               key: item.key,
               value: item.value,
@@ -94,79 +134,228 @@ export default defineComponent({
         console.warn(e);
       }
     };
-    const handleAdd = () => {
-      emit('update', [...props.valueList, '']);
+
+    /**
+     * 处理自定义标签变化并提交
+     */
+    const handleExtraLabelsChange = () => {
+      if (!switcherValue.value) {
+        return;
+      }
+
+      const result = [
+        // 选中的元数据
+        ...groupList.value
+          .filter((item: IGroupItem) => selectValue.value.includes(item.field))
+          .map((item: IGroupItem) => ({
+            key: `host.${item.field}`,
+            value: item.name,
+          })),
+        // 自定义标签
+        ...extraLabelList.value
+          .filter(item => item.key && item.value) // 只包含有效数据
+          .map(item => ({
+            key: item.key,
+            value: item.value,
+          })),
+      ];
+
+      emit('extra-labels-change', result);
     };
-    const handleDel = index => {
-      const nextList = [...props.valueList];
-      nextList.splice(index, 1);
-      emit('update', nextList);
+    /**
+     * 添加自定义标签
+     */
+    const handleAddExtraLabel = () => {
+      extraLabelList.value.push({
+        key: '',
+        value: '',
+        duplicateKey: false,
+      });
     };
-    const handleChange = (index: number, val: any, key: string) => {
-      const nextList = [...props.valueList];
-      nextList[index][key] = String(val);
-      emit('update', nextList);
+    /**
+     * 删除自定义标签
+     * @param index - 要删除的索引
+     */
+    const handleDeleteExtraLabel = (index: number) => {
+      extraLabelList.value.splice(index, 1);
+      // 删除后重新验证并提交数据
+      nextTick(() => {
+        handleExtraLabelsChange();
+      });
     };
+    /**
+     * 自定义标签输入变化处理
+     * @param index - 标签索引
+     * @param field - 字段名 ('key' | 'value')
+     * @param value - 输入值
+     */
+    const handleExtraLabelChange = (index: number, field: string, value: string) => {
+      extraLabelList.value[index][field] = value;
+
+      // 实时检查key是否重复
+      if (field === 'key') {
+        const isDuplicate = groupList.value.some(groupItem => groupItem.field === value);
+        extraLabelList.value[index].duplicateKey = isDuplicate;
+      }
+
+      // 延迟提交变化，避免频繁触发
+      nextTick(() => {
+        handleExtraLabelsChange();
+      });
+    };
+    /**
+     * 向上传递元数据变化
+     */
+    const emitExtraLabels = () => {
+      // 合并选中的元数据和自定义标签
+      const result = groupList.value.reduce((accumulator: IMetaItem[], item) => {
+        if (selectValue.value.includes(item.field)) {
+          accumulator.push({
+            key: `host.${item.field}`,
+            value: item.name,
+          });
+        }
+        return accumulator;
+      }, []);
+      emit('extra-labels-change', result);
+    };
+    /**
+     * 下拉框选择的时候
+     * @param value
+     */
     const handleSelect = value => {
       selectValue.value = value;
+      emitExtraLabels();
     };
-    const renderInputItem = (item, index) => (
+
+    /**
+     * 自定义标签验证
+     * @returns 验证是否通过
+     */
+    const extraLabelsValidate = (): boolean => {
+      if (!switcherValue.value) {
+        return true;
+      }
+
+      isExtraError.value = false;
+
+      // 检查自定义标签
+      if (extraLabelList.value.length) {
+        // biome-ignore lint/complexity/noForEach: <explanation>
+        extraLabelList.value.forEach(item => {
+          // 检查必填项
+          if (item.key === '' || item.value === '') {
+            isExtraError.value = true;
+          }
+
+          // 检查key是否重复
+          if (groupList.value.find(group => group.field === item.key)) {
+            item.duplicateKey = true;
+            isExtraError.value = true;
+          }
+        });
+      }
+
+      if (isExtraError.value) {
+        return false;
+      }
+
+      // 验证通过时提交数据
+      handleExtraLabelsChange();
+      return true;
+    };
+
+    // 暴露方法给父组件
+    expose({
+      extraLabelsValidate,
+    });
+    const renderInputItem = (item: IExtraLabel, index) => (
       <div class='device-metadata-input-item'>
-        <bk-input
-          value={item.key}
-          onInput={(val: any) => handleChange(index, val, 'key')}
-        />
+        <div class='item-left'>
+          <bk-input
+            class={{ 'extra-error': item.key === '' && isExtraError.value }}
+            value={item.key}
+            onBlur={() => {
+              isExtraError.value = false;
+              item.duplicateKey = false;
+            }}
+            onInput={(val: string) => handleExtraLabelChange(index, 'key', val)}
+          />
+          {item.duplicateKey && (
+            <i
+              class='bk-icon icon-exclamation-circle-shape tooltips-icon'
+              v-bk-tooltips={{ content: t('自定义标签key与元数据key重复'), placement: 'top' }}
+            />
+          )}
+        </div>
         <span class='symbol'>=</span>
         <bk-input
+          class={{ 'extra-error': item.value === '' && isExtraError.value }}
           value={item.value}
-          onInput={(val: any) => handleChange(index, val, 'value')}
+          onBlur={() => {
+            isExtraError.value = false;
+          }}
+          onInput={(val: string) => handleExtraLabelChange(index, 'value', val)}
         />
         <span
           class='bk-icon icon-plus-circle-shape icons'
-          on-Click={handleAdd}
+          on-Click={handleAddExtraLabel}
         />
         <span
           class='bk-icon icon-minus-circle-shape icons'
-          on-Click={() => handleDel(index)}
+          on-Click={handleDeleteExtraLabel}
         />
       </div>
     );
     return () => (
       <div class='device-metadata-main'>
-        <bk-select
-          value={selectValue.value}
-          display-tag
-          multiple
-          searchable
-          on-selected={handleSelect}
-        >
-          {groupList.value.map(item => (
-            <bk-option
-              id={item.field}
-              key={item.field}
-              class='device-metadata-option'
-              name={`${item.field}(${item.name})`}
+        <div class='switcher-container'>
+          <bk-switcher
+            size='large'
+            theme='primary'
+            value={switcherValue.value}
+            onChange={switcherChange}
+          />
+          <InfoTips tips={t('该设置可以将采集设备的元数据信息补充至日志中')} />
+        </div>
+        {switcherValue.value && (
+          <div class='device-metadata-input-container'>
+            <bk-select
+              value={selectValue.value}
+              display-tag
+              multiple
+              searchable
+              on-selected={handleSelect}
             >
-              <bk-checkbox
-                class='mr-5'
-                value={selectValue.value.includes(item.field)}
-              />
-              {`${item.field}(${item.name})`}
-            </bk-option>
-          ))}
-        </bk-select>
-        <div class='device-metadata-tips-box'>
-          <span
-            class='form-link'
-            on-click={handleAdd}
-          >
-            {t('添加自定义标签')}
-          </span>
-          <InfoTips tips={t('如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果')} />
-        </div>
-        <div class='device-metadata-input-list'>
-          {props.valueList.map((item: string, index: number) => renderInputItem(item, index))}
-        </div>
+              {groupList.value.map(item => (
+                <bk-option
+                  id={item.field}
+                  key={item.field}
+                  class='device-metadata-option'
+                  name={`${item.field}(${item.name})`}
+                >
+                  <bk-checkbox
+                    class='mr-5'
+                    value={selectValue.value.includes(item.field)}
+                  />
+                  {`${item.field}(${item.name})`}
+                </bk-option>
+              ))}
+            </bk-select>
+            <div class='device-metadata-tips-box'>
+              <span
+                class='form-link'
+                on-click={handleAddExtraLabel}
+              >
+                {t('添加自定义标签')}
+              </span>
+              <InfoTips tips={t('如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果')} />
+            </div>
+            <div class='device-metadata-input-list'>
+              {extraLabelList.value.map((item: IExtraLabel, index: number) => renderInputItem(item, index))}
+            </div>
+          </div>
+        )}
       </div>
     );
   },

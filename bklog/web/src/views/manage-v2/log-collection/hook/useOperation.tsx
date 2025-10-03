@@ -29,6 +29,7 @@
  */
 import { computed, ref } from 'vue';
 
+import * as authorityMap from '@/common/authority-map';
 import useStore from '@/hooks/use-store';
 
 import $http from '@/api';
@@ -80,6 +81,35 @@ export const useOperation = () => {
   };
 
   /**
+   * 通用权限判断函数
+   * 判断项目是否拥有管理ES源的权限
+   * @param {Object} item - 待判断权限的项目对象（存储项或集群）
+   * @returns {boolean} 是否拥有管理权限
+   */
+  const hasManageEsPermission = item => {
+    return item.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH];
+  };
+  /**
+   * 按权限排序数据的通用函数
+   * 将有权限的项目排在前面，无权限的排在后面
+   * @param {Array} data - 待排序的数据数组
+   * @returns {Array} 按权限排序后的数组
+   */
+  const sortByPermission = data => {
+    const withPermission = [];
+    const withoutPermission = [];
+
+    for (const item of data) {
+      if (hasManageEsPermission(item)) {
+        withPermission.push(item);
+      } else {
+        withoutPermission.push(item);
+      }
+    }
+
+    return [...withPermission, ...withoutPermission];
+  };
+  /**
    * 获取列表数据
    */
   const getIndexGroupList = callback => {
@@ -105,5 +135,6 @@ export const useOperation = () => {
     cardRender,
     handleMultipleSelected,
     getIndexGroupList,
+    sortByPermission,
   };
 };

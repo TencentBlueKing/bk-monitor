@@ -14,6 +14,47 @@
       width: 70%;
       min-width: 700px;
     }
+    .collect-method-item {
+      display: flex;
+      align-items: center;
+      min-width: 160px;
+      height: 40px;
+      font-size: 12px;
+      line-height: 40px;
+      color: #4D4F56;
+      background: #FFFFFF;
+      border: 1px solid #C4C6CC;
+      border-radius: 2px;
+      margin-right: 8px;
+      padding: 0 8px;
+      cursor: pointer;
+      &:hover {
+        background: #E1ECFF;
+        border: 1px solid #3A84FF;
+        color: #3A84FF;
+      }
+      .img-box {
+        display: inline-block;
+        width: 28px;
+        height: 28px;
+        margin-right: 6px;
+      }
+      &.active {
+        background: #E1ECFF;
+        border: 1px solid #3A84FF;
+        color: #3A84FF;
+        .img-box {
+          color: #3A84FF;
+        }
+      }
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      color: #4D4F56;
+      gap: 30px;
+    }
   }
   .label-form-box {
     .form-box {
