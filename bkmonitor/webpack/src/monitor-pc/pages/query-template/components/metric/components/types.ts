@@ -26,6 +26,8 @@
 
 import { MetricType } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
+import type { MetricDetailV2 } from '@/pages/query-template/typings';
+
 export type MetricSearchTag = {
   id: string;
   name: string;
@@ -120,3 +122,58 @@ export const MetricDataSourceLabelMap = {
     { id: 'bk_fta', name: window.i18n.t('第三方告警'), count: 0 },
   ],
 };
+
+/** 指标维度 */
+/** 数据源项 */
+export interface IDataSourceItem {
+  count: number;
+  data_source_label: string;
+  data_type_label: string;
+  id: string;
+  name: string;
+}
+
+/** 触发器默认配置 */
+export interface IDefaultTriggerConfig {
+  check_window: number;
+  count: number;
+}
+
+/** 获取指标列表数据结构 */
+export interface IGetMetricListData {
+  count: number;
+  data_source_list: IDataSourceItem[];
+  metric_list: MetricDetailV2[];
+  scenario_list: IScenarioItem[];
+  tag_list: ITagItem[];
+}
+
+export interface IGetMetricListParams {
+  conditions?: Record<string, unknown>[];
+  data_type_label?: string;
+  keyword?: string;
+  page: number;
+  page_size: number;
+  tag?: string;
+}
+
+/** 指标维度 */
+export interface IMetricDimension {
+  id: string;
+  is_dimension: boolean;
+  name: string;
+  type: string;
+}
+
+/** 场景项 */
+export interface IScenarioItem {
+  count: number;
+  id: string;
+  name: string;
+}
+
+/** 标签项 */
+export interface ITagItem {
+  id: string;
+  name: string;
+}

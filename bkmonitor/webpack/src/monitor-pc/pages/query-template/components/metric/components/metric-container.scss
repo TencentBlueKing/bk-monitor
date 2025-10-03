@@ -146,10 +146,34 @@
             color: #a3b1cc;
           }
 
+          .is-keyword {
+            color: #3a84ff;
+          }
+
+          &:focus,
           &:hover {
             cursor: pointer;
             background: #f5f7fa;
           }
+        }
+      }
+
+      .metric-list-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 40px;
+
+        .bk-loading {
+          position: initial;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
+          margin: 0;
+          margin-right: 6px;
         }
       }
     }
@@ -173,18 +197,23 @@
     background: #fafbfd;
     border-top: 1px solid #dddee5;
 
+    .selected-title {
+      z-index: 1;
+      display: inline-flex;
+      margin-top: 9px;
+      background-color: #fafbfd;
+    }
+
     .selected-metrics-wrapper {
       display: flex;
       flex: 1;
       flex-wrap: wrap;
       height: 100%;
       min-height: 32px;
+      max-height: 82px;
       padding-top: 4px;
-
-      .selected-title {
-        display: inline-flex;
-        margin-top: 4px;
-      }
+      margin-right: 10px;
+      overflow: auto;
 
       .bk-tag-closable {
         display: inline-flex;
@@ -194,6 +223,12 @@
           margin-top: 2px;
         }
       }
+    }
+
+    .buttons-wrapper {
+      display: flex;
+      align-items: flex-end;
+      margin-left: auto;
     }
 
     .confirm-btn {

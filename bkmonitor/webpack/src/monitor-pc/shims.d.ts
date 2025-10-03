@@ -56,7 +56,11 @@ declare module 'vue/types/vue' {
     $bkLoading?: any;
     $bkInfo?: (p: Partial<IBkInfoProps>) => { close: () => void };
     $bkMessage?: (p: Partial<object>) => void;
-    $bkPopover?: (...object) => void;
+    $bkPopover?: (...object) => {
+      destroy: () => void;
+      hide: () => void;
+      show: () => void;
+    };
     $bkToPinyin?: (str: string, lowerCase?: boolean, separator?: string) => string;
   }
 }

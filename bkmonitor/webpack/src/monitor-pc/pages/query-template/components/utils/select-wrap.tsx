@@ -170,6 +170,7 @@ export default class SelectWrap extends tsc<IProps> {
             placements: this.tipsPlacements,
             disabled: !this.tips,
             delay: [300, 0],
+            theme: 'tippy-metric',
           }}
         >
           {this.$slots.default || ''}
