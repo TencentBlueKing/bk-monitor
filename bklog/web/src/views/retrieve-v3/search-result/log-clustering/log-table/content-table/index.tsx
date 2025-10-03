@@ -66,6 +66,9 @@ export interface IPagination {
   // 所有非分组数据行数
   // response.data.length
   childCount: number;
+
+  // 可见行数据
+  visibleCount: number;
 }
 
 export default defineComponent({
@@ -473,17 +476,13 @@ export default defineComponent({
         );
       }
 
-      if (isFlattenMode.value) {
-        return (
-          <div class="list-count-main">
-            <i18n path="共有 {0} 条数据">
-              <span style="font-weight:700">{props.pagination.childCount}</span>
-            </i18n>
-          </div>
-        );
-      }
-
-      return null;
+      return (
+        <div class="list-count-main">
+          <i18n path="共有 {0} 条数据">
+            <span style="font-weight:700">{props.pagination.childCount}</span>
+          </i18n>
+        </div>
+      );
     };
 
     /**
@@ -493,7 +492,10 @@ export default defineComponent({
      */
     const renderGroupRow = (row: ITableItem) => {
       // 平铺模式
-      if (isFlattenMode.value && row.index === 1) {
+      if (
+        (isFlattenMode.value || props.requestData?.group_by.length === 0) &&
+        row.index === 1
+      ) {
         return (
           <tr class="is-row-group is-flatten-count">
             <td colspan={columnLength.value}>{renderGroupItem(row)}</td>

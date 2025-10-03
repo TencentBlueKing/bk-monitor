@@ -134,6 +134,7 @@ export default defineComponent({
       count: 0,
       groupCount: 0,
       childCount: 0,
+      visibleCount: 0,
     });
 
     const tableList = shallowRef<ITableItem[]>([]);
@@ -190,7 +191,7 @@ export default defineComponent({
      * 加载更多触发元素隐藏操作
      */
     const debounceHiddenPaginationLoading = debounce(() => {
-      paginationRef.value.style.setProperty("visibility", "hidden");
+      paginationRef.value?.style?.setProperty("visibility", "hidden");
     }, 120);
 
     /**
@@ -198,7 +199,7 @@ export default defineComponent({
      */
     useIntersectionObserver(paginationRef, (entry) => {
       if (entry.isIntersecting) {
-        paginationRef.value.style.setProperty("visibility", "visible");
+        paginationRef.value?.style?.setProperty("visibility", "visible");
         if (
           pagination.value.current * pagination.value.limit <
           pagination.value.count
@@ -255,6 +256,7 @@ export default defineComponent({
         (item) => !!item[1],
       );
       const groupMap = new Map<string, ITableItem[]>();
+      pagination.value.visibleCount = 0;
 
       for (const item of targetList) {
         if (!groupMap.has(item.hashKey)) {
@@ -280,19 +282,19 @@ export default defineComponent({
         }
 
         let isHiddenGroup = true;
-        childList.forEach((c) => {
+        for (const c of childList) {
           c.hidden = !filterFn(c);
           resultList.push(c);
 
           if (!c.hidden) {
             isHiddenGroup = false;
+            pagination.value.visibleCount += 1;
           }
-        });
+        }
         group.hidden = isHiddenGroup;
       }
 
       groupMap.clear();
-
       return resultList;
     };
 
@@ -307,6 +309,7 @@ export default defineComponent({
     ) => {
       const copyList = [];
       let childList = [];
+      pagination.value.visibleCount = 0;
 
       const sortObj = Object.entries(filterSortMap.value.sort).find(
         (item) => !!item[1],
@@ -328,10 +331,14 @@ export default defineComponent({
         childList = orderBy(childList, [sortField], orders);
       }
 
-      childList.forEach((c) => {
+      for (const c of childList) {
         c.hidden = !filterFn(c);
         copyList.push(c);
-      });
+
+        if (!c.hidden) {
+          pagination.value.visibleCount += 1;
+        }
+      }
 
       return copyList;
     };
@@ -353,6 +360,12 @@ export default defineComponent({
       const filterOwners = owners.length > 0;
       const filterRemark = remark.length > 0;
       const noOwner = owners.length === 1 && owners[0] === "no_owner";
+
+      /**
+       * 检索当前行是否满足过滤条件
+       * @param item
+       * @returns
+       */
       const filterFn = (item: ITableItem) => {
         let result = true;
         if (filterOwners) {
@@ -370,7 +383,10 @@ export default defineComponent({
         return result;
       };
 
-      if (displayType.value === "group") {
+      if (
+        displayType.value === "group" &&
+        props.requestData.group_by?.length > 0
+      ) {
         tableList.value = sortGroupList(targetList, filterFn);
         return;
       }
@@ -675,6 +691,35 @@ export default defineComponent({
     expose({
       refreshTable,
     });
+
+    /**
+     * 可渲染结果为空的时候展示错误文本和类型
+     * @returns
+     */
+    const getExceptionOption = () => {
+      const owners = filterSortMap.value.filter.owners;
+      const remark = filterSortMap.value.filter.remark;
+      const option = {
+        type: "empty",
+        text: t("暂无数据"),
+      };
+
+      if (
+        retrieveParams.value.addition.length > 0 ||
+        owners.length > 0 ||
+        remark.length > 0
+      ) {
+        option.type = "search-empty";
+        option.text = t("搜索结果为空");
+      }
+
+      return (
+        <bk-exception type={option.type} scene="part" style="margin-top: 80px">
+          <span>{option.text}</span>
+        </bk-exception>
+      );
+    };
+
     return () => (
       <div class="log-table-main" ref={rootElement}>
         {props.requestData?.group_by.length > 0 && (
@@ -709,36 +754,32 @@ export default defineComponent({
               width-list={smallLoaderWidthList.value}
               is-loading
             />
-          ) : tableList.value.length > 0 ? (
-            <ContentTable
-              ref={tablesRef}
-              class="bklog-fill-offset-x"
-              tableList={tableList.value}
-              widthList={widthList.value}
-              displayMode={displayType.value}
-              requestData={props.requestData}
-              tableColumnWidth={tableColumnWidth.value}
-              groupListState={groupListState.value}
-              pagination={pagination.value}
-              indexId={props.indexId}
-              on-open-ai={handleOpenAi}
-              on-open-cluster-config={() => emit("open-cluster-config")}
-              on-group-state-change={handleGroupStateChange}
-            />
+          ) : pagination.value.visibleCount > 0 ? (
+            [
+              <ContentTable
+                ref={tablesRef}
+                class="bklog-fill-offset-x"
+                tableList={tableList.value}
+                widthList={widthList.value}
+                displayMode={displayType.value}
+                requestData={props.requestData}
+                tableColumnWidth={tableColumnWidth.value}
+                groupListState={groupListState.value}
+                pagination={pagination.value}
+                indexId={props.indexId}
+                on-open-ai={handleOpenAi}
+                on-open-cluster-config={() => emit("open-cluster-config")}
+                on-group-state-change={handleGroupStateChange}
+              />,
+              <div ref={paginationRef} style="width: 100%;">
+                <div style="display: flex; justify-content: center;width: 100%; padding: 4px;">
+                  loading ...
+                </div>
+              </div>,
+            ]
           ) : (
-            <bk-exception type="empty" scene="part" style="margin-top: 80px">
-              <span>
-                {retrieveParams.value.addition.length > 0
-                  ? t("搜索结果为空")
-                  : t("暂无数据")}
-              </span>
-            </bk-exception>
+            getExceptionOption()
           )}
-          <div ref={paginationRef} style="width: 100%;">
-            <div style="display: flex; justify-content: center;width: 100%; padding: 4px;">
-              loading ...
-            </div>
-          </div>
         </div>
         <AiAssitant ref={aiAssitantRef} on-close="handleAiClose" />
         <ScrollTop on-scroll-top={handleScrollTop}></ScrollTop>
