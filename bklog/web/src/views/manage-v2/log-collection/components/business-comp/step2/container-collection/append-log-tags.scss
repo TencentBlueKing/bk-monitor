@@ -19,6 +19,10 @@
             font-size: 18px;
             margin-left: 8px;
             cursor: pointer;
+            &.disabled {
+                cursor: not-allowed;
+                color: #c4c6cc;
+            }
         }
         .extra-error {
             .bk-form-input {

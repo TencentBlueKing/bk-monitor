@@ -32,6 +32,30 @@
             background-color: #F5F7FA;
             padding: 16px;
             font-size: 12px;
+            .item-content-child-bg {
+                width: 100%;
+                background-color: #fff;
+                border-radius: 2px;
+                margin-bottom: 16px;
+                padding-bottom: 5px;
+            }
+            .item-content-child {
+                margin-bottom: 24px;
+                width: 100%;
+            }
+            .line-rule-tmp {
+                background: #fff !important;
+            }
+            .small-width {
+                width: 60% !important;
+            }
+            .encoding-select {
+                background: #fff;
+            }
+            .item-content-title {
+                color: #4D4F56;
+                margin-bottom: 10px; 
+            }
         }
     }
     .add-btn {

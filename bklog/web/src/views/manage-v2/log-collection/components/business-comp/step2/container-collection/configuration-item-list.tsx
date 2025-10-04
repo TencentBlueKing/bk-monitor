@@ -24,9 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, computed } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+
+// import InfoTips from '../../../common-comp/info-tips';
+import LineRuleConfig from '../line-rule-config';
+import LogFilter from '../log-filter';
+import LogPathConfig from '../log-path-config';
 
 import './configuration-item-list.scss';
 
@@ -43,6 +49,10 @@ export default defineComponent({
       type: Array,
       default: () => [],
     },
+    scenarioId: {
+      type: String,
+      default: '',
+    },
   },
 
   emits: ['change'], // 组件触发的事件，当宽度改变时触发
@@ -50,26 +60,86 @@ export default defineComponent({
   setup(props, { emit }) {
     // 使用国际化翻译函数
     const { t } = useLocale();
-    // 打印日志，包含翻译文本、组件属性和事件触发函数
-    console.log(t('v2.logCollection.title'), props, emit);
+    const store = useStore();
+    // 获取全局数据
+    const globalsData = computed(() => store.getters['globals/globalsData']);
     // 添加索引转字母的函数
     const indexToLetter = (index: number): string => {
       // 65 是 'A' 的 ASCII 码
       const asciiCode = 65;
       return String.fromCharCode(asciiCode + index);
     };
+
+    const handleDataChange = () => {
+      console.log(props.data);
+      emit('change', props.data);
+    };
     const renderItem = (item, ind) => (
       <div class='item-box'>
         <div class='item-header'>
           <span>{indexToLetter(ind)}</span>
-          {ind !== 0 && (
+          {props.data.length > 1 && (
             <i
               class='bk-icon icon-delete del-icons'
               // on-Click={() => deleteFilterGroup(groupIndex)}
             />
           )}
         </div>
-        <div class='item-content'>{ind}</div>
+        <div class='item-content'>
+          <div class='item-content-child-bg'>1</div>
+          {/* 行首正则 */}
+          <div class='item-content-child-bg'>
+            <LineRuleConfig
+              class='line-rule-tmp small-width'
+              data={item.params}
+              on-update={val => {
+                item.params = val;
+                handleDataChange();
+              }}
+            />
+          </div>
+          {/* 日志路径 */}
+          <div class='item-content-child small-width'>
+            <LogPathConfig
+              excludeFiles={item.params.exclude_files}
+              paths={item.params.paths}
+              on-update={(key, val) => {
+                item.params[key] = val;
+                handleDataChange();
+              }}
+            />
+          </div>
+          <div class='item-content-child small-width'>
+            <div class='item-content-title'>{t('字符集')}</div>
+            <bk-select
+              class='encoding-select'
+              clearable={false}
+              value={item.data_encoding}
+              searchable
+              on-selected={val => {
+                item.data_encoding = val;
+              }}
+            >
+              {globalsData.value.data_encoding.map(option => (
+                <bk-option
+                  id={option.id}
+                  key={option.id}
+                  name={option.name}
+                />
+              ))}
+            </bk-select>
+          </div>
+          <div class='item-content-child'>
+            <div class='item-content-title'>{t('日志过滤')}</div>
+            <LogFilter
+              conditions={item.params.conditions}
+              // isCloneOrUpdate={isCloneOrUpdate.value}
+              on-conditions-change={val => {
+                item.params.conditions = val;
+              }}
+            />
+          </div>
+        </div>
       </div>
     );
     // 组件渲染函数

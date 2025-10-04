@@ -618,6 +618,7 @@ export default defineComponent({
               <span class='label-title'>{t('字符集')}</span>
               <bk-select
                 class='form-box'
+                clearable={false}
                 value={formData.value.data_encoding}
                 searchable
                 on-selected={val => {

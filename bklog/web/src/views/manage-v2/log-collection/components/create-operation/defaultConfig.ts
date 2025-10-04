@@ -64,8 +64,8 @@ export const CONTAINER_COLLECTION_CONFIG = {
       match_expressions: [],
       data_encoding: 'UTF-8',
       params: {
-        paths: [],
-        exclude_files: [],
+        paths: [{ value: '' }],
+        exclude_files: [{ value: '' }],
         conditions: {
           type: 'none',
         },
@@ -73,6 +73,12 @@ export const CONTAINER_COLLECTION_CONFIG = {
         winlog_level: [],
         winlog_event_id: [],
         extra_labels: [],
+        // 行首正则, char
+        multiline_pattern: '',
+        // 最多匹配行数, int
+        multiline_max_lines: '50',
+        // 最大耗时, int
+        multiline_timeout: '2',
       },
       collector_type: 'container_log_config',
       namespaces: ['blueking'],

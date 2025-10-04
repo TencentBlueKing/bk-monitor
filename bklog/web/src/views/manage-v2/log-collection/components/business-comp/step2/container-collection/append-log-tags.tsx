@@ -183,10 +183,10 @@ export default defineComponent({
                 />
                 <i
                   style={{ cursor: localData.value.extra_labels.length === 1 ? 'not-allowed' : 'pointer' }}
-                  class={[
-                    'bk-icon icon-minus-circle-shape icons ml9',
-                    { disable: localData.value.extra_labels.length === 1 },
-                  ].join(' ')}
+                  class={{
+                    'bk-icon icon-minus-circle-shape icons ml9': true,
+                    disabled: localData.value.extra_labels.length === 1,
+                  }}
                   on-Click={() => handleDeleteExtraLabel(index)}
                 />
               </div>

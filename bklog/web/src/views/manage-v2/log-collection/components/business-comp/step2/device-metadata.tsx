@@ -302,7 +302,7 @@ export default defineComponent({
           on-Click={handleAddExtraLabel}
         />
         <span
-          class='bk-icon icon-minus-circle-shape icons'
+          class={{ 'bk-icon icon-minus-circle-shape icons': true, disabled: extraLabelList.value.length === 1 }}
           on-Click={handleDeleteExtraLabel}
         />
       </div>

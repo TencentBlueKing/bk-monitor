@@ -1,0 +1,53 @@
+.log-path-config-main {
+    width: 100%;
+    .config-title-box {
+        display: flex;
+        align-items: center;
+        margin-bottom: 2px;
+    }
+    .config-title {
+        display: inline-block;
+        color: #4d4f56;
+        font-size: 12px;
+        padding-right: 22px;
+        position: relative;
+        &::after {
+          height: 8px;
+          line-height: 1;
+          content: "*";
+          color: #ea3636;
+          font-size: 12px;
+          position: absolute;
+          display: inline-block;
+          vertical-align: middle;
+          top: 50%;
+          -webkit-transform: translate(3px, -50%);
+          transform: translate(3px, -50%);
+        }
+        &.no-require {
+          &::after {
+            content: "";
+          }
+        }
+    }
+    .config-link {
+        cursor: pointer;
+        color: #3a84ff;
+        font-size: 12px;
+        margin-right: 12px;
+        position: relative;
+        padding-left: 20px;
+        .link-icon {
+            font-size: 14px;
+            margin-right: 3px;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+        .bklog-expand-small, .bklog-collapse-small {
+            font-size: 20px;
+            left: 0;
+            top: -3px;
+        }
+    }
+}

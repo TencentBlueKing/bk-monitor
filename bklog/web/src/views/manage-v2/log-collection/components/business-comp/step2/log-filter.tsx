@@ -563,7 +563,10 @@ export default defineComponent({
           on-Click={() => modifyGroupRows(rowIndex, row.tableIndex, 'add')}
         />
         <i
-          class={['bk-icon icon-minus-circle-shape icons', { disabled: isOperatorDisabled(rowIndex, row.tableIndex) }]}
+          class={{
+            'bk-icon icon-minus-circle-shape icons': true,
+            disabled: isOperatorDisabled(rowIndex, row.tableIndex),
+          }}
           on-Click={() => modifyGroupRows(rowIndex, row.tableIndex, 'delete')}
         />
       </div>
@@ -692,10 +695,12 @@ export default defineComponent({
               >
                 <div class='table-box-header'>
                   <span>{t('第{n}组', { n: groupIndex + 1 })}</span>
-                  <i
-                    class='bk-icon icon-delete del-icons'
-                    on-Click={() => deleteFilterGroup(groupIndex)}
-                  />
+                  {filterData.value.length > 1 && (
+                    <i
+                      class='bk-icon icon-delete del-icons'
+                      on-Click={() => deleteFilterGroup(groupIndex)}
+                    />
+                  )}
                 </div>
                 {renderFilterGroup(group, groupIndex)}
               </div>

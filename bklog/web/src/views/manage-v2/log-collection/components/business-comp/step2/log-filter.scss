@@ -63,6 +63,7 @@
                         border: none;
                         height: 100%;
                         line-height: 42px;
+                        background: #fff;
                         .bk-select-dropdown, .bk-tooltip-ref, .bk-select-name {
                             height: 100%;
                             line-height: 42px;
@@ -97,6 +98,10 @@
                         cursor: pointer;
                         color: #c4c6cb;
                         margin-right: 14px;
+                        &.disabled {
+                            color: #dcdee5;
+                            cursor: not-allowed;
+                        }
                     }
                 }
                 .btns-group {
