@@ -285,7 +285,7 @@ export default class MetricSelectorContainer extends tsc<
           {this.isMultiple && (
             <span onClick={e => e.stopPropagation()}>
               <bk-checkbox
-                checked={this.localSelectedMetrics.includes(metric)}
+                checked={this.localSelectedMetrics.some(item => item.metric_id === metric.metric_id)}
                 size='small'
                 onChange={(v: boolean) => this.handleSelectMetric(metric, v)}
               />
@@ -299,7 +299,7 @@ export default class MetricSelectorContainer extends tsc<
           />
           <span class='item-title-readable-name'>{this.getSearchNode(metric.readable_name)}</span>
           {metric.metric_field_name && metric.metric_field_name !== metric.metric_field && (
-            <span class='item-title-alias'>{metric.metric_field_name}</span>
+            <span class='item-title-alias'>{this.getSearchNode(metric.metric_field_name)}</span>
           )}
         </div>
         <div class='item-subtitle'>
@@ -319,8 +319,10 @@ export default class MetricSelectorContainer extends tsc<
           <bk-input
             ref='searchInputRef'
             class='search-input'
+            placeholder={this.$t('搜索指标')}
             right-icon='bk-icon icon-search'
             value={this.searchValue}
+            clearable
             onChange={this.handleSearchValueChange}
           />
           <div class='search-refresh'>

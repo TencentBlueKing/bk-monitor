@@ -36,6 +36,17 @@ import type { IFunctionOptionsItem } from '../type/query-config';
 
 import './query-panel.scss';
 
+export const QueryPanelEmits = [
+  'add',
+  'delete',
+  'selectMetric',
+  'changeMethod',
+  'changeDimension',
+  'changeFunction',
+  'changeInterval',
+  'changeCondition',
+  'createVariable',
+];
 interface IProps {
   hasAdd?: boolean;
   hasDelete?: boolean;

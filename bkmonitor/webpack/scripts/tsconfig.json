@@ -6,7 +6,6 @@
     "moduleResolution": "nodeNext",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "sourceMap": true,
-    "outDir": "./dist"
+    "sourceMap": true
   }
 }
