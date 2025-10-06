@@ -8,7 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.db.models import Q
+
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from bkmonitor.data_source import q_to_conditions
 from typing import Any
 from constants.data_source import DataTypeLabel, DataSourceLabel
 from constants.apm import CachedEnum
@@ -139,11 +142,12 @@ def _cpu_usage_templ(usage_type: str) -> dict[str, Any]:
                 _COMMON_BUILDER.alias("a")
                 .func(_id="rate", params=[{"id": "window", "value": "1m"}])
                 .metric(field="container_cpu_usage_seconds_total", method="${METHOD}", alias="a")
+                .conditions(q_to_conditions(Q(container_name__neq="POD")))
             )
             .add_query(
-                _COMMON_BUILDER.alias("b").metric(
-                    field=f"kube_pod_container_resource_{usage_type}s_cpu_cores", method="${METHOD}", alias="b"
-                )
+                _COMMON_BUILDER.alias("b")
+                .metric(field=f"kube_pod_container_resource_{usage_type}s_cpu_cores", method="${METHOD}", alias="b")
+                .conditions(q_to_conditions(Q(container_name__neq="POD")))
             )
             .expression("(a / b) * 100")
         ),
@@ -167,13 +171,13 @@ def _memory_usage_templ(usage_type: str) -> dict[str, Any]:
             UnifyQuerySet()
             .add_query(
                 _COMMON_BUILDER.alias("a")
-                .func(_id="rate", params=[{"id": "window", "value": "1m"}])
                 .metric(field="container_memory_working_set_bytes", method="${METHOD}", alias="a")
+                .conditions(q_to_conditions(Q(container_name__neq="POD")))
             )
             .add_query(
-                _COMMON_BUILDER.alias("b").metric(
-                    field=f"kube_pod_container_resource_{usage_type}s_memory_bytes", method="${METHOD}", alias="b"
-                )
+                _COMMON_BUILDER.alias("b")
+                .metric(field=f"kube_pod_container_resource_{usage_type}s_memory_bytes", method="${METHOD}", alias="b")
+                .conditions(q_to_conditions(Q(container_name__neq="POD")))
             )
             .expression("(a / b) * 100")
         ),

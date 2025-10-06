@@ -10,10 +10,11 @@ specific language governing permissions and limitations under the License.
 
 from .base import DispatchExtraConfig, DispatchGlobalConfig, DispatchConfig
 
-from .core import StrategyDispatcher
-
+from .dispatcher import StrategyDispatcher
+from .entity import EntitySet
 
 __all__ = [
+    "EntitySet",
     "DispatchConfig",
     "DispatchGlobalConfig",
     "DispatchExtraConfig",
