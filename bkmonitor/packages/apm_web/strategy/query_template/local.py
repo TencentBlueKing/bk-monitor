@@ -91,21 +91,18 @@ TRACE_SPAN_TOTAL_QUERY_TEMPLATE: dict[str, Any] = {
     "name": LocalQueryTemplateName.TRACE_SPAN_TOTAL.value,
     "alias": LocalQueryTemplateName.TRACE_SPAN_TOTAL.label,
     "description": str(_("调用链 Span 数是指在指定时间范围内所上报的 Span 总数。")),
-    **_qs_to_query_params(
-        UnifyQuerySet()
-        .add_query(
-            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_LOG_SEARCH))
-            .table("${INDEX_SET_ID}")
-            .index_set_id("${INDEX_SET_ID}")
-            .interval(60)
-            .group_by("resource.service.name")
-            .metric(field="_index", method="COUNT", alias="a")
-            .conditions(
-                [{"key": "resource.service.name", "method": "eq", "value": ["${SERVICE_NAME}"], "condition": "and"}]
-            )
-        )
-        .expression("a or vector(0)")
-    ),
+    "table": "",
+    "query_configs": [
+        {
+            "table": "",
+            "data_source_label": "prometheus",
+            "data_type_label": "time_series",
+            "alias": "a",
+            "interval": 60,
+            "promql": "sum(count_over_time(bklog:bklog_index_set_${INDEX_SET_ID}:"
+            '_index{resource__bk_46__service__bk_46__name="${SERVICE_NAME}"}[1m]))',
+        }
+    ],
     "variables": [
         {
             "name": "INDEX_SET_ID",
@@ -129,21 +126,20 @@ LOG_TOTAL_QUERY_TEMPLATE: dict[str, Any] = {
     "name": LocalQueryTemplateName.LOG_TOTAL.value,
     "alias": LocalQueryTemplateName.LOG_TOTAL.label,
     "description": str(_("日志数是指在指定时间范围内所上报的日志总数。")),
-    **_qs_to_query_params(
-        UnifyQuerySet()
-        .add_query(
-            QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_LOG_SEARCH))
-            .table("${INDEX_SET_ID}")
-            .index_set_id("${INDEX_SET_ID}")
-            .interval(60)
-            .group_by("resource.service.name")
-            .metric(field="_index", method="COUNT", alias="a")
-            .conditions(
-                [{"key": "resource.service.name", "method": "eq", "value": ["${SERVICE_NAME}"], "condition": "and"}]
-            )
-        )
-        .expression("a")
-    ),
+    "query_configs": [
+        {
+            "table": "",
+            "data_source_label": "prometheus",
+            "data_type_label": "time_series",
+            "alias": "a",
+            "interval": 60,
+            # 为什么用 PromQL？
+            # 目前日志数据源不支持 or vector(0) 的补 0 写法，暂时通过 PromQL 直接复用 UnifyQuery 的能力。
+            # 等后续 SaaS 数据源统一切换到 UnifyQuery 时，改回结构体。
+            "promql": "sum(count_over_time(bklog:bklog_index_set_${INDEX_SET_ID}:"
+            '_index{resource__bk_46__service__bk_46__name="${SERVICE_NAME}"}[1m]))',
+        }
+    ],
     "variables": [
         {
             "name": "INDEX_SET_ID",

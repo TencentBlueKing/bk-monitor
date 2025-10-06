@@ -321,6 +321,19 @@ class QueryTemplateWrapper(BaseQuery):
         query_configs: list[dict[str, Any]] = []
         query_instance_dict: dict[str, Any] = self.render(context)
         for query_config in query_instance_dict["query_configs"]:
+            if query_config.get("promql"):
+                query_configs.append(
+                    {
+                        "data_label": query_config["data_label"],
+                        "data_source_label": query_config["data_source_label"],
+                        "data_type_label": query_config["data_type_label"],
+                        "promql": query_config["promql"],
+                        "agg_interval": query_config["interval"],
+                        "alias": query_config.get("alias") or "a",
+                    }
+                )
+                continue
+
             query_configs.append(
                 {
                     "data_label": query_config["data_label"],

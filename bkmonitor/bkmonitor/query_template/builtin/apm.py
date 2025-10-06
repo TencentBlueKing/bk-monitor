@@ -146,7 +146,7 @@ RPC_CALLEE_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
         .expression("(a or b < bool 0) / (b > ${ALARM_THRESHOLD_VALUE}) * 100")
     ),
     "variables": _get_common_variables(
-        group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLER_SERVICE, RPCMetricTag.CALLEE_METHOD],
+        group_by=[RPCMetricTag.SERVICE_NAME.value, RPCMetricTag.CALLER_SERVICE.value, RPCMetricTag.CALLEE_METHOD.value],
         related_metric_fields=["rpc_server_handled_total"],
     ),
     "unit": "percent",
@@ -164,7 +164,7 @@ RPC_CALLEE_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
         .expression("b == 0 or (a / (b > ${ALARM_THRESHOLD_VALUE})) * 1000")
     ),
     "variables": _get_common_variables(
-        group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLER_SERVICE, RPCMetricTag.CALLEE_METHOD],
+        group_by=[RPCMetricTag.SERVICE_NAME.value, RPCMetricTag.CALLER_SERVICE.value, RPCMetricTag.CALLEE_METHOD.value],
         related_metric_fields=["rpc_server_handled_seconds_count"],
     ),
     "unit": "ms",
@@ -188,7 +188,7 @@ RPC_CALLEE_P99_QUERY_TEMPLATE: dict[str, Any] = {
         .expression("(b > bool ${ALARM_THRESHOLD_VALUE}) * a * 1000")
     ),
     "variables": _get_common_variables(
-        group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLER_SERVICE, RPCMetricTag.CALLEE_METHOD],
+        group_by=[RPCMetricTag.SERVICE_NAME.value, RPCMetricTag.CALLER_SERVICE.value, RPCMetricTag.CALLEE_METHOD.value],
         related_metric_fields=["rpc_server_handled_total"],
     ),
     "unit": "ms",
@@ -205,7 +205,7 @@ RPC_CALLEE_REQ_TOTAL_TEMPLATE: dict[str, Any] = {
         .expression("(a > bool ${ALARM_THRESHOLD_VALUE}) * a")
     ),
     "variables": _get_common_variables(
-        group_by=[RPCMetricTag.SERVICE_NAME], related_metric_fields=["rpc_server_handled_total"]
+        group_by=[RPCMetricTag.SERVICE_NAME.value], related_metric_fields=["rpc_server_handled_total"]
     ),
     "unit": "",
 }
@@ -226,7 +226,8 @@ RPC_CALLEE_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
         .expression("(b > bool ${ALARM_THRESHOLD_VALUE}) * a")
     ),
     "variables": _get_common_variables(
-        group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CODE], related_metric_fields=["rpc_server_handled_total"]
+        group_by=[RPCMetricTag.SERVICE_NAME.value, RPCMetricTag.CODE.value],
+        related_metric_fields=["rpc_server_handled_total"],
     ),
     "unit": "",
 }
@@ -247,7 +248,7 @@ RPC_CALLER_SUCCESS_RATE_QUERY_TEMPLATE: dict[str, Any] = {
         .expression("(a or b < bool 0) / (b > ${ALARM_THRESHOLD_VALUE}) * 100")
     ),
     "variables": _get_common_variables(
-        group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLEE_SERVICE, RPCMetricTag.CALLEE_METHOD],
+        group_by=[RPCMetricTag.SERVICE_NAME.value, RPCMetricTag.CALLEE_SERVICE.value, RPCMetricTag.CALLEE_METHOD.value],
         related_metric_fields=["rpc_client_handled_total"],
     ),
     "unit": "percent",
@@ -265,7 +266,7 @@ RPC_CALLER_AVG_TIME_QUERY_TEMPLATE: dict[str, Any] = {
         .expression("b == 0 or (a / (b > ${ALARM_THRESHOLD_VALUE})) * 1000")
     ),
     "variables": _get_common_variables(
-        group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLEE_SERVICE, RPCMetricTag.CALLEE_METHOD],
+        group_by=[RPCMetricTag.SERVICE_NAME.value, RPCMetricTag.CALLEE_SERVICE.value, RPCMetricTag.CALLEE_METHOD.value],
         related_metric_fields=["rpc_client_handled_seconds_count"],
     ),
     "unit": "ms",
@@ -288,7 +289,7 @@ RPC_CALLER_P99_QUERY_TEMPLATE: dict[str, Any] = {
         .expression("(b > bool ${ALARM_THRESHOLD_VALUE}) * a * 1000")
     ),
     "variables": _get_common_variables(
-        group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CALLEE_SERVICE, RPCMetricTag.CALLEE_METHOD],
+        group_by=[RPCMetricTag.SERVICE_NAME.value, RPCMetricTag.CALLEE_SERVICE.value, RPCMetricTag.CALLEE_METHOD.value],
         related_metric_fields=["rpc_client_handled_total"],
     ),
     "unit": "ms",
@@ -305,7 +306,7 @@ RPC_CALLER_REQ_TOTAL_TEMPLATE: dict[str, Any] = {
         .expression("(a > bool ${ALARM_THRESHOLD_VALUE}) * a")
     ),
     "variables": _get_common_variables(
-        group_by=[RPCMetricTag.SERVICE_NAME], related_metric_fields=["rpc_client_handled_total"]
+        group_by=[RPCMetricTag.SERVICE_NAME.value], related_metric_fields=["rpc_client_handled_total"]
     ),
     "unit": "",
 }
@@ -326,7 +327,8 @@ RPC_CALLER_ERROR_CODE_QUERY_TEMPLATE: dict[str, Any] = {
         .expression("(b > bool ${ALARM_THRESHOLD_VALUE}) * a")
     ),
     "variables": _get_common_variables(
-        group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.CODE], related_metric_fields=["rpc_client_handled_total"]
+        group_by=[RPCMetricTag.SERVICE_NAME.value, RPCMetricTag.CODE.value],
+        related_metric_fields=["rpc_client_handled_total"],
     ),
     "unit": "",
 }
@@ -342,7 +344,12 @@ CUSTOM_METRIC_PANIC_QUERY_TEMPLATE: dict[str, Any] = {
         .expression("a")
     ),
     "variables": _get_common_variables(
-        group_by=[RPCMetricTag.SERVICE_NAME, RPCMetricTag.ENV_NAME, RPCMetricTag.NAMESPACE, RPCMetricTag.INSTANCE],
+        group_by=[
+            RPCMetricTag.SERVICE_NAME.value,
+            RPCMetricTag.ENV_NAME.value,
+            RPCMetricTag.NAMESPACE.value,
+            RPCMetricTag.INSTANCE.value,
+        ],
         related_metric_fields=["trpc_PanicNum"],
         is_need_threshold_value=False,
     ),
@@ -357,7 +364,7 @@ TRACE_SPAN_TOTAL_QUERY_TEMPLATE: dict[str, Any] = {
     **_qs_to_query_params(
         UnifyQuerySet()
         .add_query(_COMMON_BUILDER.alias("a").metric(field="bk_apm_count", method="SUM", alias="a"))
-        .expression("a or vector(0)")
+        .expression("a")
     ),
     "variables": _get_common_variables(
         group_by=["service_name"],

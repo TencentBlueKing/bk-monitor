@@ -35,7 +35,7 @@ from apm_web.models import StrategyTemplate, StrategyInstance
 from .constants import StrategyTemplateType
 from .query_template import QueryTemplateWrapperFactory
 from .handler import StrategyTemplateOptionValues, StrategyInstanceOptionValues
-from .dispatch.core import StrategyDispatcher, DispatchExtraConfig, DispatchGlobalConfig
+from .dispatch import StrategyDispatcher, DispatchExtraConfig, DispatchGlobalConfig, EntitySet
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -161,18 +161,21 @@ class StrategyTemplateViewSet(GenericViewSet):
             strategy_template_id: int = extra_config.pop("strategy_template_id", 0)
             extra_configs_map[strategy_template_id].append(DispatchExtraConfig(**extra_config))
 
-        strategy_ids: list[int] = []
-        template_dispatch_map: dict[int, dict[str, int]] = {}
+        entity_set: EntitySet = EntitySet(
+            self.query_data["bk_biz_id"], self.query_data["app_name"], self.query_data["service_names"]
+        )
         strategy_templates: list[StrategyTemplate] = list(
             self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
         )
-
         query_template_keys: list[tuple[int, str]] = [
             (obj.query_template["bk_biz_id"], obj.query_template["name"]) for obj in strategy_templates
         ]
         query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = QueryTemplateWrapperFactory.get_wrappers(
             query_template_keys
         )
+
+        strategy_ids: list[int] = []
+        template_dispatch_map: dict[int, dict[str, int]] = {}
         global_config = DispatchGlobalConfig(**self.query_data["global_config"])
         for strategy_template_obj in strategy_templates:
             qtw = query_template_map[
@@ -180,9 +183,9 @@ class StrategyTemplateViewSet(GenericViewSet):
             ]
             dispatcher = StrategyDispatcher(strategy_template_obj, qtw)
             service_strategy_map: dict[str, int] = dispatcher.dispatch(
-                self.query_data["service_names"],
-                global_config=global_config,
-                extra_configs=extra_configs_map.get(strategy_template_obj.pk, []),
+                entity_set,
+                global_config,
+                extra_configs_map.get(strategy_template_obj.pk, []),
             )
             strategy_ids.extend(list(service_strategy_map.values()))
             template_dispatch_map[strategy_template_obj.pk] = service_strategy_map
