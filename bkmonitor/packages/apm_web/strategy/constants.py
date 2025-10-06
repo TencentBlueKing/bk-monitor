@@ -32,11 +32,7 @@ class ThresholdLevel(CachedEnum):
 
     @classmethod
     def choices(cls) -> list[tuple[int, str]]:
-        return [
-            (cls.FATAL.value, cls.FATAL.label),
-            (cls.WARNING.value, cls.WARNING.label),
-            (cls.REMINDER.value, cls.REMINDER.label),
-        ]
+        return [(member.value, member.label) for member in cls]
 
     @cached_property
     def label(self) -> str:
@@ -51,10 +47,7 @@ class StrategyTemplateType(CachedEnum):
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
-        return [
-            (cls.APP_TEMPLATE.value, cls.APP_TEMPLATE.label),
-            (cls.BUILTIN_TEMPLATE.value, cls.BUILTIN_TEMPLATE.label),
-        ]
+        return [(member.value, member.label) for member in cls]
 
     @cached_property
     def label(self) -> str:
@@ -73,14 +66,7 @@ class StrategyTemplateSystem(CachedEnum):
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
-        return [
-            (cls.RPC.value, cls.RPC.label),
-            (cls.K8S.value, cls.K8S.label),
-            (cls.LOG.value, cls.LOG.label),
-            (cls.TRACE.value, cls.TRACE.label),
-            (cls.EVENT.value, cls.EVENT.label),
-            (cls.METRIC.value, cls.METRIC.label),
-        ]
+        return [(member.value, member.label) for member in cls]
 
     @cached_property
     def label(self) -> str:
@@ -95,12 +81,6 @@ class StrategyTemplateSystem(CachedEnum):
             }.get(self, self.value)
         )
 
-    @classmethod
-    def get_default(cls, value) -> "StrategyTemplateSystem":
-        default = super().get_default(value)
-        default.label = value
-        return default
-
 
 class StrategyTemplateCategory(CachedEnum):
     """策略模板分类"""
@@ -113,13 +93,7 @@ class StrategyTemplateCategory(CachedEnum):
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
-        return [
-            (cls.DEFAULT.value, cls.DEFAULT.label),
-            (cls.RPC_CALLEE.value, cls.RPC_CALLEE.label),
-            (cls.RPC_CALLER.value, cls.RPC_CALLER.label),
-            (cls.RPC_METRIC.value, cls.RPC_METRIC.label),
-            (cls.RPC_LOG.value, cls.RPC_LOG.label),
-        ]
+        return [(member.value, member.label) for member in cls]
 
     @cached_property
     def label(self) -> str:
@@ -132,12 +106,6 @@ class StrategyTemplateCategory(CachedEnum):
                 self.RPC_LOG: _("日志"),
             }.get(self, self.value)
         )
-
-    @classmethod
-    def get_default(cls, value) -> "StrategyTemplateCategory":
-        default = super().get_default(value)
-        default.label = value
-        return default
 
 
 class StrategyTemplateMonitorType(CachedEnum):
@@ -156,13 +124,7 @@ class StrategyTemplateMonitorType(CachedEnum):
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
-        return [
-            (cls.DEFAULT.value, cls.DEFAULT.label),
-            (cls.P99.value, cls.P99.label),
-            (cls.AVG.value, cls.AVG.label),
-            (cls.SUCCESS_RATE.value, cls.SUCCESS_RATE.label),
-            (cls.CICD.value, cls.CICD.label),
-        ]
+        return [(member.value, member.label) for member in cls]
 
     @cached_property
     def label(self) -> str:
@@ -176,12 +138,6 @@ class StrategyTemplateMonitorType(CachedEnum):
             }.get(self, self.value)
         )
 
-    @classmethod
-    def get_default(cls, value) -> "StrategyTemplateMonitorType":
-        default = super().get_default(value)
-        default.label = value
-        return default
-
 
 class StrategyTemplateIsEnabled(CachedEnum):
     """策略模板启用状态"""
@@ -191,10 +147,7 @@ class StrategyTemplateIsEnabled(CachedEnum):
 
     @classmethod
     def choices(cls) -> list[tuple[bool, str]]:
-        return [
-            (cls.ENABLED.value, cls.ENABLED.label),
-            (cls.DISABLED.value, cls.DISABLED.label),
-        ]
+        return [(member.value, member.label) for member in cls]
 
     @cached_property
     def label(self) -> str:
@@ -205,12 +158,6 @@ class StrategyTemplateIsEnabled(CachedEnum):
             }.get(self, str(self.value))
         )
 
-    @classmethod
-    def get_default(cls, value) -> "StrategyTemplateIsEnabled":
-        default = super().get_default(value)
-        default.label = value
-        return default
-
 
 class StrategyTemplateIsAutoApply(CachedEnum):
     """新服务自动下发状态"""
@@ -220,10 +167,7 @@ class StrategyTemplateIsAutoApply(CachedEnum):
 
     @classmethod
     def choices(cls) -> list[tuple[bool, str]]:
-        return [
-            (cls.ENABLED.value, cls.ENABLED.label),
-            (cls.DISABLED.value, cls.DISABLED.label),
-        ]
+        return [(member.value, member.label) for member in cls]
 
     @cached_property
     def label(self) -> str:
@@ -233,9 +177,3 @@ class StrategyTemplateIsAutoApply(CachedEnum):
                 self.DISABLED: _("未启用新服务自动下发"),
             }.get(self, str(self.value))
         )
-
-    @classmethod
-    def get_default(cls, value) -> "StrategyTemplateIsAutoApply":
-        default = super().get_default(value)
-        default.label = value
-        return default

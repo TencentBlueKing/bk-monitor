@@ -83,7 +83,7 @@ class RPCStrategyOptions(serializers.Serializer):
 
 
 class RPCStrategyGroup(base.BaseStrategyGroup):
-    _NOT_SUPPORT_FILTER_RPC_DIMENSIONS: list[str] = ["time", RPCMetricTag.TARGET, RPCMetricTag.SERVICE_NAME]
+    _NOT_SUPPORT_FILTER_RPC_DIMENSIONS: list[str] = ["time", RPCMetricTag.TARGET.value, RPCMetricTag.SERVICE_NAME.value]
 
     DEPLOYMENT_POD_NAME_PATTERN = re.compile("^([a-z0-9-]+?)(-[a-z0-9]{5,10}-[a-z0-9]{5})$")
     STATEFUL_SET_POD_NAME_PATTERN = re.compile(r"^([a-z0-9-]+?)-\d+$")
@@ -233,10 +233,10 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         service_config: dict[str, Any] = (
             settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{self.bk_biz_id}-{self.app_name}") or {}
         )
-        config_server_field: str = service_config.get("server_field") or RPCMetricTag.SERVICE_NAME
+        config_server_field: str = service_config.get("server_field") or RPCMetricTag.SERVICE_NAME.value
         if config_server_field == MetricTemporality.DYNAMIC_SERVER_FIELD:
-            caller_server_field: str = RPCMetricTag.CALLER_SERVER
-            callee_server_field: str = RPCMetricTag.CALLEE_SERVER
+            caller_server_field: str = RPCMetricTag.CALLER_SERVER.value
+            callee_server_field: str = RPCMetricTag.CALLEE_SERVER.value
         else:
             caller_server_field: str = config_server_field
             callee_server_field: str = config_server_field
@@ -253,7 +253,9 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         )
 
         group: metric_group.TrpcMetricGroup = self.rpc_metric_group_constructor()
-        with_app_attr_services: set[str] = set(group.fetch_server_list(filter_dict={f"{RPCMetricTag.SERVER}__neq": ""}))
+        with_app_attr_services: set[str] = set(
+            group.fetch_server_list(filter_dict={f"{RPCMetricTag.SERVER.value}__neq": ""})
+        )
 
         service_infos: list[dict[str, Any]] = []
         for service in ServiceHandler.list_nodes(self.bk_biz_id, self.app_name):
@@ -357,9 +359,9 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                 _group_by: list[str] = list(
                     set(self.options[kind]["group_by"]) - set(self._NOT_SUPPORT_FILTER_RPC_DIMENSIONS)
                 )
-                _perspective_group_by: set[str] = {RPCMetricTag.CALLEE_METHOD} | set(_group_by)
+                _perspective_group_by: set[str] = {RPCMetricTag.CALLEE_METHOD.value} | set(_group_by)
                 if _cal_type == CalculationType.SUCCESS_RATE:
-                    _perspective_group_by.add(RPCMetricTag.CODE)
+                    _perspective_group_by.add(RPCMetricTag.CODE.value)
 
                 _url_templ: str = self._get_caller_callee_url_template(
                     kind, _service_name, _group_by, list(_perspective_group_by)
@@ -399,7 +401,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             if service_info["language"] != TelemetrySdkLanguageValues.GO.value:
                 continue
 
-            if service_info["server_fields"][SeriesAliasType.CALLEE.value] == RPCMetricTag.TARGET:
+            if service_info["server_fields"][SeriesAliasType.CALLEE.value] == RPCMetricTag.TARGET.value:
                 with_target_attr_services.append(service_info["name"])
             else:
                 with_service_name_attr_services.append(service_info["name"])
@@ -427,8 +429,8 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             strategies.append(_strategy)
 
         # Panic 告警规则相对单一，此处聚合上报行为相同的服务为同一条告警策略，减少内置策略数
-        _handle(list(with_target_attr_services), RPCMetricTag.TARGET, MetricTemporality.DELTA)
-        _handle(list(with_service_name_attr_services), RPCMetricTag.SERVICE_NAME, MetricTemporality.CUMULATIVE)
+        _handle(list(with_target_attr_services), RPCMetricTag.TARGET.value, MetricTemporality.DELTA)
+        _handle(list(with_service_name_attr_services), RPCMetricTag.SERVICE_NAME.value, MetricTemporality.CUMULATIVE)
         return strategies
 
     def _list_resource(self, cal_type_config_mapping: dict[str, dict[str, Any]]) -> list[StrategyT]:
