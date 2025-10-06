@@ -24,12 +24,12 @@ from .. import constants
 
 def _get_common_group_by(callee: bool = False) -> list[str]:
     group_by: list[str] = [
-        CommonMetricTag.APP_NAME,
-        RPCMetricTag.SERVICE_NAME,
-        RPCMetricTag.ENV_NAME,
-        RPCMetricTag.NAMESPACE,
-        RPCMetricTag.CALLEE_METHOD,
-        RPCMetricTag.CALLER_SERVICE if callee else RPCMetricTag.CALLEE_SERVICE,
+        CommonMetricTag.APP_NAME.value,
+        RPCMetricTag.SERVICE_NAME.value,
+        RPCMetricTag.ENV_NAME.value,
+        RPCMetricTag.NAMESPACE.value,
+        RPCMetricTag.CALLER_SERVICE.value if callee else RPCMetricTag.CALLEE_SERVICE.value,
+        RPCMetricTag.CALLEE_METHOD.value,
     ]
     return group_by
 
@@ -42,7 +42,7 @@ class RPCStrategyTemplateCode(CachedEnum):
     RPC_CALLEE_SUCCESS_RATE = "rpc_callee_success_rate"
     RPC_CALLEE_AVG_TIME = "rpc_callee_avg_time"
     RPC_CALLEE_P99 = "rpc_callee_p99"
-    RPC_CALLEE_ERROR_CODE = "rpc_caller_error_code"
+    RPC_CALLEE_ERROR_CODE = "rpc_callee_error_code"
     RPC_CALLER_SUCCESS_RATE = "rpc_caller_success_rate"
     RPC_CALLER_AVG_TIME = "rpc_caller_avg_time"
     RPC_CALLER_P99 = "rpc_caller_p99"
@@ -121,7 +121,7 @@ RPC_CALLEE_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=50),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_ERROR_CODE.value},
-    "context": _get_common_context(callee=True, extra_group_by=[RPCMetricTag.CODE]),
+    "context": _get_common_context(callee=True, extra_group_by=[RPCMetricTag.CODE.value]),
 }
 
 RPC_CALLER_SUCCESS_RATE_STRATEGY_TEMPLATE: dict[str, Any] = {
@@ -177,7 +177,7 @@ RPC_CALLER_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=50),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_ERROR_CODE.value},
-    "context": _get_common_context(extra_group_by=[RPCMetricTag.CODE]),
+    "context": _get_common_context(extra_group_by=[RPCMetricTag.CODE.value]),
 }
 
 RPC_ERROR_METRIC_PANIC_STRATEGY_TEMPLATE: dict[str, Any] = {
