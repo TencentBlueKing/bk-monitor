@@ -16,7 +16,8 @@ from django.db.models import Q
 from bkmonitor.data_source import q_to_conditions
 
 from bkmonitor.query_template.builtin import K8SQueryTemplateName
-from constants.apm import CachedEnum
+
+from constants.apm import CachedEnum, K8SMetricTag
 
 from django.utils.translation import gettext as _
 
@@ -54,7 +55,7 @@ K8S_CPU_USAGE_STRATEGY_TEMPLATE = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=90, suffix="%"),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": K8SQueryTemplateName.CPU_LIMIT_USAGE.value},
-    "context": {},
+    "context": {"CONDITIONS": []},
 }
 
 K8S_MEMORY_USAGE_STRATEGY_TEMPLATE = {
@@ -68,7 +69,7 @@ K8S_MEMORY_USAGE_STRATEGY_TEMPLATE = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=90, suffix="%"),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": K8SQueryTemplateName.MEMORY_LIMIT_USAGE.value},
-    "context": {},
+    "context": {"CONDITIONS": []},
 }
 
 K8S_ABNORMAL_RESTART_STRATEGY_TEMPLATE = {
@@ -81,7 +82,10 @@ K8S_ABNORMAL_RESTART_STRATEGY_TEMPLATE = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=1),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": K8SQueryTemplateName.ABNORMAL_RESTART.value},
-    "context": {},
+    "context": {
+        "CONDITIONS": [],
+        "GROUP_BY": [K8SMetricTag.BCS_CLUSTER_ID.value, K8SMetricTag.NAMESPACE.value, K8SMetricTag.POD_NAME.value],
+    },
 }
 
 K8S_OOM_KILLED_STRATEGY_TEMPLATE = {

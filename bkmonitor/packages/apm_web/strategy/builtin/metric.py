@@ -38,7 +38,7 @@ METRIC_NODATA_STRATEGY_TEMPLATE = {
     "detect": utils.detect_config(5, 5, 5),
     "algorithms": [utils.fatal_threshold_algorithm_config(method="eq", threshold=0)],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.SPAN_TOTAL.value},
-    "context": {},
+    "context": {"GROUP_BY": []},
 }
 
 
