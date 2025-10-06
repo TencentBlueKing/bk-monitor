@@ -1,0 +1,169 @@
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
+
+from typing import Any
+
+from django.db import models, transaction
+from apm_web.models import StrategyTemplate, StrategyInstance
+from bkmonitor.query_template.core import QueryTemplateWrapper
+from core.drf_resource import resource
+from .base import DispatchExtraConfig, DispatchGlobalConfig, DispatchConfig, calculate_strategy_md5_by_dispatch_config
+from .builder import StrategyBuilder
+from .enricher import ENRICHERS, BaseEnricher
+from .entity import EntitySet
+
+
+class StrategyDispatcher:
+    def __init__(self, strategy_template: StrategyTemplate, query_template_wrapper: QueryTemplateWrapper) -> None:
+        self.bk_biz_id: int = strategy_template.bk_biz_id
+        self.app_name: str = strategy_template.app_name
+        self.strategy_template: StrategyTemplate = strategy_template
+        self.query_template_wrapper: QueryTemplateWrapper = query_template_wrapper
+
+    def dispatch(
+        self,
+        entity_set: EntitySet,
+        global_config: DispatchGlobalConfig | None = None,
+        extra_configs: list[DispatchExtraConfig] | None = None,
+    ) -> dict[str, int]:
+        """批量下发策略到服务
+        :param entity_set: 实体集
+        :param global_config: 全局下发配置
+        :param extra_configs: 额外的下发配置
+        :return: {service_name: strategy_id}
+        """
+
+        service_config_map: dict[str, DispatchConfig] = {}
+        global_config: DispatchGlobalConfig = global_config or DispatchGlobalConfig()
+        service_extra_config_map: dict[str, DispatchExtraConfig] = {
+            extra_config.service_name: extra_config for extra_config in extra_configs or {}
+        }
+        query_template_context: dict[str, Any] = self.query_template_wrapper.get_default_context()
+
+        for service_name in entity_set.service_names:
+            extra_config: DispatchExtraConfig = service_extra_config_map.get(
+                service_name, DispatchExtraConfig(service_name=service_name)
+            )
+            service_config_map[service_name] = DispatchConfig.from_configs(
+                global_config, extra_config, self.strategy_template, query_template_context
+            )
+
+        enricher: BaseEnricher = ENRICHERS[self.strategy_template.system](
+            entity_set, self.strategy_template, self.query_template_wrapper
+        )
+        enricher.enrich(service_config_map)
+
+        # 组装告警策略参数
+        service_strategy_params_map: dict[str, dict[str, Any]] = {}
+        for service_name, dispatch_config in service_config_map.items():
+            builder: StrategyBuilder = StrategyBuilder(
+                service_name=service_name,
+                dispatch_config=dispatch_config,
+                strategy_template=self.strategy_template,
+                query_template_wrapper=self.query_template_wrapper,
+            )
+            service_strategy_params_map[service_name] = builder.build()
+
+        # 获取已下发的同源实例
+        service_strategy_instance_map: dict[str, dict[str, Any]] = {}
+        qs: models.QuerySet[StrategyInstance] = StrategyInstance.objects.filter(
+            bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=list(service_strategy_params_map.keys())
+        )
+        for strategy_instance in StrategyInstance.filter_same_origin_instances(
+            qs, self.strategy_template.id, self.strategy_template.root_id
+        ).values("id", "strategy_id", "service_name", "strategy_template_id", "root_strategy_template_id"):
+            service_strategy_instance_map[strategy_instance["service_name"]] = strategy_instance
+
+        to_be_created_strategies: list[dict[str, Any]] = []
+        to_be_updated_strategies: list[dict[str, Any]] = []
+        to_be_deleted_strategy_instance_ids: list[int] = []
+        to_be_created_strategy_instance_objs: list[StrategyInstance] = []
+        to_be_updated_strategy_instance_objs: list[StrategyInstance] = []
+        for service_name, strategy_params in service_strategy_params_map.items():
+            service_config: DispatchConfig = service_config_map[service_name]
+            strategy_instance: dict[str, Any] | None = service_strategy_instance_map.get(service_name)
+            if strategy_instance is None:
+                # 没有已下发实例，直接新增。
+                to_be_created_strategies.append(strategy_params)
+            else:
+                # 记录 ID，用于更新。
+                strategy_params["id"] = strategy_instance["strategy_id"]
+                to_be_updated_strategies.append(strategy_params)
+                if strategy_instance["strategy_template_id"] != self.strategy_template.id:
+                    # 当前模板的同源模板已下发，需删除实例记录。
+                    to_be_deleted_strategy_instance_ids.append(strategy_instance["id"])
+                else:
+                    # 当前模板已下发，更新实例记录。
+                    to_be_updated_strategy_instance_objs.append(
+                        StrategyInstance(
+                            id=strategy_instance["id"],
+                            detect=service_config.detect,
+                            algorithms=service_config.algorithms,
+                            user_group_ids=service_config.user_group_ids,
+                            context=service_config.context,
+                            md5=calculate_strategy_md5_by_dispatch_config(service_config, self.query_template_wrapper),
+                        )
+                    )
+                    continue
+
+            to_be_created_strategy_instance_objs.append(
+                StrategyInstance(
+                    bk_biz_id=self.bk_biz_id,
+                    app_name=self.app_name,
+                    service_name=service_name,
+                    strategy_id=strategy_params.get("id", 0),
+                    strategy_template_id=self.strategy_template.id,
+                    root_strategy_template_id=self.strategy_template.root_id,
+                    detect=service_config.detect,
+                    algorithms=service_config.algorithms,
+                    user_group_ids=service_config.user_group_ids,
+                    context=service_config.context,
+                    md5=calculate_strategy_md5_by_dispatch_config(service_config, self.query_template_wrapper),
+                )
+            )
+
+        # 下发告警策略：更新 or 创建策略，并收集 ID 映射关系。
+        service_strategy_id_map: dict[str, int] = {}
+        for strategy_params in to_be_created_strategies + to_be_updated_strategies:
+            strategy_id: int = resource.strategies.save_strategy_v2(**strategy_params)["id"]
+            service_strategy_id_map[strategy_params["service_name"]] = strategy_id
+
+        for strategy_instance_obj in to_be_created_strategy_instance_objs:
+            strategy_instance_obj.strategy_id = service_strategy_id_map[strategy_instance_obj.service_name]
+
+        with transaction.atomic():
+            StrategyInstance.objects.filter(
+                bk_biz_id=self.bk_biz_id, app_name=self.app_name, id__in=to_be_deleted_strategy_instance_ids
+            ).delete()
+            if to_be_created_strategy_instance_objs:
+                StrategyInstance.objects.bulk_create(to_be_created_strategy_instance_objs, batch_size=500)
+            if to_be_updated_strategy_instance_objs:
+                StrategyInstance.objects.bulk_update(
+                    to_be_updated_strategy_instance_objs,
+                    fields=["detect", "algorithms", "user_group_ids", "context", "md5"],
+                    batch_size=500,
+                )
+
+        return service_strategy_id_map
+
+    def check(self, service_names: list[str]) -> dict[str, dict[str, Any]]:
+        """检查某个服务的策略下发结果
+        pass
+        """
+
+    def preview(self, service_names: list[str]) -> dict[str, Any]:
+        """预览某个服务的策略下发结果
+        :param service_names: 服务列表
+        :return: 策略模板详情
+        """
+
+        # 1. 场景识别（RPC、容器、索引集）：
+        # - 补充 context
+        pass
