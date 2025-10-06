@@ -221,7 +221,7 @@ class RPCEnricher(BaseEnricher):
             encoded_params = encoded_params.replace(k, v)
         return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"?bizId={self.bk_biz_id}#/apm/service?{encoded_params}")
 
-    def _entity_info_tmpl(self, service_name: str) -> str:
+    def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
         return ""
 
     def _links_tmpl(self, dispatch_config: DispatchConfig) -> str:
@@ -339,13 +339,12 @@ class LogEnricher(BaseEnricher):
 
     def validate(self, raise_exception: bool = False) -> list[str]:
         if not self._get_index_set_id_or_none() and raise_exception:
-            if raise_exception:
-                raise ValueError(
-                    _("应用[{app_name}]未配置{system}数据源，无法下发「{system}」类告警").format(
-                        app_name=self.app_name,
-                        system=StrategyTemplateCategory.from_value(self._strategy_template.category).label,
-                    )
+            raise ValueError(
+                _("应用[{app_name}]未配置{system}数据源，无法下发「{system}」类告警").format(
+                    app_name=self.app_name,
+                    system=StrategyTemplateCategory.from_value(self._strategy_template.category).label,
                 )
+            )
 
         return self._entity_set.service_names
 
