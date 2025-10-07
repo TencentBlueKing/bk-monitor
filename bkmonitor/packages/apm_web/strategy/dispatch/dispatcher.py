@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 from typing import Any
 
 from django.db import models, transaction
@@ -18,6 +19,7 @@ from .base import DispatchExtraConfig, DispatchGlobalConfig, DispatchConfig, cal
 from .builder import StrategyBuilder
 from .enricher import ENRICHERS, BaseEnricher
 from .entity import EntitySet
+from .. import core, serializers
 
 
 class StrategyDispatcher:
@@ -27,19 +29,13 @@ class StrategyDispatcher:
         self.strategy_template: StrategyTemplate = strategy_template
         self.query_template_wrapper: QueryTemplateWrapper = query_template_wrapper
 
-    def dispatch(
+    def _enrich(
         self,
         entity_set: EntitySet,
         global_config: DispatchGlobalConfig | None = None,
         extra_configs: list[DispatchExtraConfig] | None = None,
-    ) -> dict[str, int]:
-        """批量下发策略到服务
-        :param entity_set: 实体集
-        :param global_config: 全局下发配置
-        :param extra_configs: 额外的下发配置
-        :return: {service_name: strategy_id}
-        """
-
+    ) -> dict[str, DispatchConfig]:
+        """丰富下发配置"""
         service_config_map: dict[str, DispatchConfig] = {}
         global_config: DispatchGlobalConfig = global_config or DispatchGlobalConfig()
         service_extra_config_map: dict[str, DispatchExtraConfig] = {
@@ -59,9 +55,23 @@ class StrategyDispatcher:
             entity_set, self.strategy_template, self.query_template_wrapper
         )
         enricher.enrich(service_config_map)
+        return service_config_map
 
+    def dispatch(
+        self,
+        entity_set: EntitySet,
+        global_config: DispatchGlobalConfig | None = None,
+        extra_configs: list[DispatchExtraConfig] | None = None,
+    ) -> dict[str, int]:
+        """批量下发策略到服务
+        :param entity_set: 实体集
+        :param global_config: 全局下发配置
+        :param extra_configs: 额外的下发配置
+        :return: {service_name: strategy_id}
+        """
         # 组装告警策略参数
         service_strategy_params_map: dict[str, dict[str, Any]] = {}
+        service_config_map: dict[str, DispatchConfig] = self._enrich(entity_set, global_config, extra_configs)
         for service_name, dispatch_config in service_config_map.items():
             builder: StrategyBuilder = StrategyBuilder(
                 service_name=service_name,
@@ -153,17 +163,21 @@ class StrategyDispatcher:
 
         return service_strategy_id_map
 
-    def check(self, service_names: list[str]) -> dict[str, dict[str, Any]]:
-        """检查某个服务的策略下发结果
+    def check(self, entity_set: EntitySet) -> dict[str, dict[str, Any]]:
+        """检查某个服务的策略下发结果"""
         pass
-        """
 
-    def preview(self, service_names: list[str]) -> dict[str, Any]:
+    def preview(self, entity_set: EntitySet) -> dict[str, dict[str, Any]]:
         """预览某个服务的策略下发结果
-        :param service_names: 服务列表
-        :return: 策略模板详情
+        :param entity_set: 实体集
+        :return: 服务<>策略模板详情
         """
-
-        # 1. 场景识别（RPC、容器、索引集）：
-        # - 补充 context
-        pass
+        strategy_template_detail: dict[str, Any] = core.format2strategy_template_detail(
+            self.strategy_template, serializers.StrategyTemplateModelSerializer
+        )
+        service_strategy_template_detail: dict[str, dict[str, Any]] = {}
+        for service_name, dispatch_config in self._enrich(entity_set).items():
+            copy_strategy_template_detail: dict[str, Any] = copy.deepcopy(strategy_template_detail)
+            copy_strategy_template_detail["context"] = dispatch_config.context
+            service_strategy_template_detail[service_name] = copy_strategy_template_detail
+        return service_strategy_template_detail
