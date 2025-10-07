@@ -126,9 +126,15 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
     extra_configs = serializers.ListField(
         label=_("额外编辑的配置"), child=ExtraConfigSerializer(), default=[], allow_empty=True
     )
+    # TODO(crayon) 联调临时代码，前端参数正确传入后删除。
+    extra = serializers.ListField(
+        label=_("额外编辑的配置"), child=ExtraConfigSerializer(), default=[], allow_empty=True
+    )
+
     global_config = GlobalConfigSerializer(label=_("批量修改的配置"), default={})
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs["extra_configs"] = attrs["extra"]
         # 校验 strategy_template_ids 是否有效
         strategy_templates: list[dict[str, Any]] = list(
             StrategyTemplate.objects.filter(
