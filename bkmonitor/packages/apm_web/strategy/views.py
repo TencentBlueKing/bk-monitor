@@ -28,14 +28,13 @@ from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.alert import EventStatus
 
-from constants.query_template import GLOBAL_BIZ_ID
-
 from . import mock_data, serializers
 from apm_web.models import StrategyTemplate, StrategyInstance
 from .constants import StrategyTemplateType
 from .query_template import QueryTemplateWrapperFactory
 from .handler import StrategyTemplateOptionValues, StrategyInstanceOptionValues
 from .dispatch import StrategyDispatcher, DispatchExtraConfig, DispatchGlobalConfig, EntitySet
+from .core import format2strategy_template_detail
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -73,14 +72,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         )
 
     def retrieve(self, *args, **kwargs) -> Response:
-        strategy_template_data: dict[str, Any] = self.serializer_class(self.get_object()).data
-        query_template_data: dict[str, Any] = strategy_template_data["query_template"]
-        qtw = QueryTemplateWrapperFactory.get_wrapper(
-            query_template_data.get("bk_biz_id", GLOBAL_BIZ_ID), query_template_data.get("name", "")
-        )
-        if qtw is not None:
-            query_template_data.update(qtw.to_dict())
-        return Response(strategy_template_data)
+        return Response(format2strategy_template_detail(self.get_object(), self.serializer_class))
 
     def destroy(self, *args, **kwargs) -> Response:
         strategy_template_obj: StrategyTemplate = self.get_object()
@@ -150,9 +142,18 @@ class StrategyTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplatePreviewRequestSerializer)
     def preview(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response(mock_data.CALLEE_SUCCESS_RATE_STRATEGY_PREVIEW)
-        return Response({})
+        strategy_template_id: int = self.query_data["strategy_template_id"]
+        strategy_template_obj: StrategyTemplate = get_object_or_404(self.get_queryset(), id=strategy_template_id)
+        dispatcher: StrategyDispatcher = StrategyDispatcher(
+            strategy_template=strategy_template_obj,
+            query_template_wrapper=QueryTemplateWrapperFactory.get_wrapper(
+                strategy_template_obj.query_template["bk_biz_id"], strategy_template_obj.query_template["name"]
+            ),
+        )
+
+        service_name: str = self.query_data["service_name"]
+        entity_set: EntitySet = EntitySet(self.query_data["bk_biz_id"], self.query_data["app_name"], [service_name])
+        return Response(dispatcher.preview(entity_set)[service_name])
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
     def apply(self, *args, **kwargs) -> Response:
