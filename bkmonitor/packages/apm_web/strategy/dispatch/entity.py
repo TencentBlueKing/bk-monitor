@@ -36,7 +36,7 @@ class EntitySet:
                 service_node_map[service_name] = node
                 nodes.append(node)
 
-        miss_service_names: set[str] = set(service_node_map.keys()) - {node["topo_key"] for node in nodes}
+        miss_service_names: set[str] = duplicated_service_names - {node["topo_key"] for node in nodes}
         if miss_service_names:
             raise ValueError(_("部分服务不存在：{}").format(", ".join(miss_service_names)))
 

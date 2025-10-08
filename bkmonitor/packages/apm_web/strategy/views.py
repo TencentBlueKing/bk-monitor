@@ -245,7 +245,7 @@ class StrategyTemplateViewSet(GenericViewSet):
 
         def _set_name(_result: dict[str, Any], _field: str, _id_info_map: dict[int, dict[str, Any]]) -> None:
             try:
-                _result[_field]["name"] = _id_info_map[result[_field]["id"]]["name"]
+                _result[_field]["name"] = _id_info_map[_result[_field]["id"]]["name"]
             except (KeyError, TypeError):
                 pass
 
