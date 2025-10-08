@@ -15,10 +15,7 @@ from django.db import models, transaction
 from apm_web.models import StrategyTemplate, StrategyInstance
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from core.drf_resource import resource
-from .base import DispatchExtraConfig, DispatchGlobalConfig, DispatchConfig, calculate_strategy_md5_by_dispatch_config
-from .builder import StrategyBuilder
-from .enricher import ENRICHERS, BaseEnricher
-from .entity import EntitySet
+from . import entity, enricher, builder, base
 from .. import core, serializers
 
 
@@ -31,37 +28,43 @@ class StrategyDispatcher:
 
     def _enrich(
         self,
-        entity_set: EntitySet,
-        global_config: DispatchGlobalConfig | None = None,
-        extra_configs: list[DispatchExtraConfig] | None = None,
-    ) -> dict[str, DispatchConfig]:
+        entity_set: entity.EntitySet,
+        global_config: base.DispatchGlobalConfig | None = None,
+        extra_configs: list[base.DispatchExtraConfig] | None = None,
+    ) -> dict[str, base.DispatchConfig]:
         """丰富下发配置"""
-        service_config_map: dict[str, DispatchConfig] = {}
-        global_config: DispatchGlobalConfig = global_config or DispatchGlobalConfig()
-        service_extra_config_map: dict[str, DispatchExtraConfig] = {
+        service_config_map: dict[str, base.DispatchConfig] = {}
+        global_config: base.DispatchGlobalConfig = global_config or base.DispatchGlobalConfig()
+        service_extra_config_map: dict[str, base.DispatchExtraConfig] = {
             extra_config.service_name: extra_config for extra_config in extra_configs or {}
         }
         query_template_context: dict[str, Any] = self.query_template_wrapper.get_default_context()
 
         for service_name in entity_set.service_names:
-            extra_config: DispatchExtraConfig = service_extra_config_map.get(
-                service_name, DispatchExtraConfig(service_name=service_name)
+            extra_config: base.DispatchExtraConfig = service_extra_config_map.get(
+                service_name, base.DispatchExtraConfig(service_name=service_name)
             )
-            service_config_map[service_name] = DispatchConfig.from_configs(
+            service_config_map[service_name] = base.DispatchConfig.from_configs(
                 global_config, extra_config, self.strategy_template, query_template_context
             )
 
-        enricher: BaseEnricher = ENRICHERS[self.strategy_template.system](
+        enricher.ENRICHERS[self.strategy_template.system](
             entity_set, self.strategy_template, self.query_template_wrapper
-        )
-        enricher.enrich(service_config_map)
+        ).enrich(service_config_map)
         return service_config_map
+
+    def _is_same_origin_instance(self, instance: dict[str, Any]) -> bool:
+        """判断是否为同源模板的下发实例
+        :param instance: 下发实例
+        :return:
+        """
+        return instance["strategy_template_id"] != self.strategy_template.id
 
     def dispatch(
         self,
-        entity_set: EntitySet,
-        global_config: DispatchGlobalConfig | None = None,
-        extra_configs: list[DispatchExtraConfig] | None = None,
+        entity_set: entity.EntitySet,
+        global_config: base.DispatchGlobalConfig | None = None,
+        extra_configs: list[base.DispatchExtraConfig] | None = None,
     ) -> dict[str, int]:
         """批量下发策略到服务
         :param entity_set: 实体集
@@ -71,20 +74,19 @@ class StrategyDispatcher:
         """
         # 组装告警策略参数
         service_strategy_params_map: dict[str, dict[str, Any]] = {}
-        service_config_map: dict[str, DispatchConfig] = self._enrich(entity_set, global_config, extra_configs)
+        service_config_map: dict[str, base.DispatchConfig] = self._enrich(entity_set, global_config, extra_configs)
         for service_name, dispatch_config in service_config_map.items():
-            builder: StrategyBuilder = StrategyBuilder(
+            service_strategy_params_map[service_name] = builder.StrategyBuilder(
                 service_name=service_name,
                 dispatch_config=dispatch_config,
                 strategy_template=self.strategy_template,
                 query_template_wrapper=self.query_template_wrapper,
-            )
-            service_strategy_params_map[service_name] = builder.build()
+            ).build()
 
         # 获取已下发的同源实例
         service_strategy_instance_map: dict[str, dict[str, Any]] = {}
         qs: models.QuerySet[StrategyInstance] = StrategyInstance.objects.filter(
-            bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=list(service_strategy_params_map.keys())
+            bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=entity_set.service_names
         )
         for strategy_instance in StrategyInstance.filter_same_origin_instances(
             qs, self.strategy_template.id, self.strategy_template.root_id
@@ -97,7 +99,7 @@ class StrategyDispatcher:
         to_be_created_strategy_instance_objs: list[StrategyInstance] = []
         to_be_updated_strategy_instance_objs: list[StrategyInstance] = []
         for service_name, strategy_params in service_strategy_params_map.items():
-            service_config: DispatchConfig = service_config_map[service_name]
+            service_config: base.DispatchConfig = service_config_map[service_name]
             strategy_instance: dict[str, Any] | None = service_strategy_instance_map.get(service_name)
             if strategy_instance is None:
                 # 没有已下发实例，直接新增。
@@ -106,7 +108,7 @@ class StrategyDispatcher:
                 # 记录 ID，用于更新。
                 strategy_params["id"] = strategy_instance["strategy_id"]
                 to_be_updated_strategies.append(strategy_params)
-                if strategy_instance["strategy_template_id"] != self.strategy_template.id:
+                if self._is_same_origin_instance(strategy_instance):
                     # 当前模板的同源模板已下发，需删除实例记录。
                     to_be_deleted_strategy_instance_ids.append(strategy_instance["id"])
                 else:
@@ -118,7 +120,9 @@ class StrategyDispatcher:
                             algorithms=service_config.algorithms,
                             user_group_ids=service_config.user_group_ids,
                             context=service_config.context,
-                            md5=calculate_strategy_md5_by_dispatch_config(service_config, self.query_template_wrapper),
+                            md5=base.calculate_strategy_md5_by_dispatch_config(
+                                service_config, self.query_template_wrapper
+                            ),
                         )
                     )
                     continue
@@ -135,7 +139,7 @@ class StrategyDispatcher:
                     algorithms=service_config.algorithms,
                     user_group_ids=service_config.user_group_ids,
                     context=service_config.context,
-                    md5=calculate_strategy_md5_by_dispatch_config(service_config, self.query_template_wrapper),
+                    md5=base.calculate_strategy_md5_by_dispatch_config(service_config, self.query_template_wrapper),
                 )
             )
 
@@ -163,11 +167,57 @@ class StrategyDispatcher:
 
         return service_strategy_id_map
 
-    def check(self, entity_set: EntitySet) -> dict[str, dict[str, Any]]:
+    def check(self, entity_set: entity.EntitySet, is_check_diff: bool = False) -> list[dict[str, Any]]:
         """检查某个服务的策略下发结果"""
-        pass
 
-    def preview(self, entity_set: EntitySet) -> dict[str, dict[str, Any]]:
+        # 获取已下发的同源实例
+        service_strategy_instance_map: dict[str, dict[str, Any]] = {}
+        qs: models.QuerySet[StrategyInstance] = StrategyInstance.objects.filter(
+            bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=entity_set.service_names
+        )
+        for strategy_instance in StrategyInstance.filter_same_origin_instances(
+            qs, self.strategy_template.id, self.strategy_template.root_id
+        ).values("id", "strategy_id", "service_name", "strategy_template_id", "root_strategy_template_id", "md5"):
+            service_strategy_instance_map[strategy_instance["service_name"]] = strategy_instance
+
+        results: list[dict[str, Any]] = []
+        for service_name in entity_set.service_names:
+            result: dict[str, Any] = {
+                "service_name": service_name,
+                "strategy_template_id": self.strategy_template.id,
+                "same_origin_strategy_template": None,
+                "strategy": None,
+                "has_been_applied": False,
+            }
+            strategy_instance: dict[str, Any] | None = service_strategy_instance_map.get(service_name)
+            if strategy_instance is None:
+                results.append(result)
+                continue
+
+            if self._is_same_origin_instance(strategy_instance):
+                result["same_origin_strategy_template"] = {"id": strategy_instance["strategy_template_id"]}
+            else:
+                result["strategy"] = {"id": strategy_instance["strategy_id"]}
+                result["has_been_applied"] = True
+
+            results.append(result)
+
+        if not is_check_diff:
+            return results
+
+        service_result_map: dict[str, dict[str, Any]] = {result["service_name"]: result for result in results}
+        for service_name, dispatch_config in self._enrich(entity_set).items():
+            result: dict[str, Any] = service_result_map[service_name]
+            if result.get("strategy") is None:
+                # 没有下发实例，无需对比。
+                result["has_diff"] = False
+                continue
+
+            md5: str = base.calculate_strategy_md5_by_dispatch_config(dispatch_config, self.query_template_wrapper)
+            result["has_diff"] = service_strategy_instance_map[service_name]["md5"] != md5
+        return results
+
+    def preview(self, entity_set: entity.EntitySet) -> dict[str, dict[str, Any]]:
         """预览某个服务的策略下发结果
         :param entity_set: 实体集
         :return: 服务<>策略模板详情

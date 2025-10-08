@@ -92,22 +92,3 @@ def calculate_strategy_md5_by_dispatch_config(
             "query_template": {"name": query_template_wrapper.name, "bk_biz_id": query_template_wrapper.bk_biz_id},
         }
     )
-
-
-def calculate_strategy_md5_by_template(
-    strategy_template: StrategyTemplate, query_template_wrapper: QueryTemplateWrapper
-) -> str:
-    # 策略模板未声明的 context，需要通过查询模板的默认 context 补全。
-    context: dict[str, Any] = query_template_wrapper.get_default_context()
-    for k, v in strategy_template.context.items():
-        context[k] = v
-
-    return count_md5(
-        {
-            "detect": strategy_template.detect,
-            "algorithms": strategy_template.algorithms,
-            "user_group_ids": strategy_template.user_group_ids,
-            "context": context,
-            "query_template": {"name": query_template_wrapper.name, "bk_biz_id": query_template_wrapper.bk_biz_id},
-        }
-    )

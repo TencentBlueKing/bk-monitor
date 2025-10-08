@@ -158,6 +158,8 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
 
 
 class StrategyTemplateCheckRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
+    # TODO 默认值暂时改为 true 以供联调
+    is_check_diff = serializers.BooleanField(label=_("是否检查变更"), default=True)
     service_names = serializers.ListField(
         label=_("服务名称列表"), child=serializers.CharField(), default=[], allow_empty=True
     )
