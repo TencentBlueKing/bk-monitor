@@ -288,14 +288,6 @@ class ApplicationConfig(BkCollectorConfig):
             bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
         )
         for item in query:
-            # 添加容错处理，跳过不支持的类型
-            if item.type not in CustomServiceConfig.DISCOVER_KEYS:
-                logger.warning(
-                    f"Unsupported custom service type '{item.type}' for application "
-                    f"({self._application.bk_biz_id}){self._application.app_name}, skipping"
-                )
-                continue
-
             config = CustomServiceConfig.DISCOVER_KEYS[item.type]
 
             res.append(

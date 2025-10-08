@@ -20,7 +20,6 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
-from alarm_backends.service.scheduler.app import app
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.models import QueryConfigModel
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -185,7 +184,7 @@ def refresh_all_log_config():
     for index, log_group_id in enumerate(to_be_refreshed):
         if index % interval == slug:
             logger.info(f"[refresh_custom_log_config]: publish log_group_id [{log_group_id}]")
-            refresh_custom_log_config.delay(log_group_id)
+            refresh_custom_log_config(log_group_id)
 
 
 @share_lock()
@@ -205,7 +204,7 @@ def refresh_all_log_config_to_k8s():
         logger.exception(f"[RefreshCustomLogK8sConfigFailed] Err => {str(e)}; LogGroup => {log_groups}")
 
 
-@app.task(ignore_result=True, queue="celery_cron")
+@share_lock()
 def refresh_custom_log_config(log_group_id=None):
     """
     下发单个自定义日志配置
