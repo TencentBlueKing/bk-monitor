@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from collections import defaultdict
 from typing import Any
+from collections.abc import Iterable
 
 from django.db.models import Q, QuerySet
 from django.utils import timezone
@@ -28,13 +29,8 @@ from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.alert import EventStatus
 
-from . import mock_data, serializers
 from apm_web.models import StrategyTemplate, StrategyInstance
-from .constants import StrategyTemplateType
-from .query_template import QueryTemplateWrapperFactory
-from .handler import StrategyTemplateOptionValues, StrategyInstanceOptionValues
-from .dispatch import StrategyDispatcher, DispatchExtraConfig, DispatchGlobalConfig, EntitySet
-from .core import format2strategy_template_detail
+from . import mock_data, serializers, handler, dispatch, core, query_template, constants
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -72,11 +68,11 @@ class StrategyTemplateViewSet(GenericViewSet):
         )
 
     def retrieve(self, *args, **kwargs) -> Response:
-        return Response(format2strategy_template_detail(self.get_object(), self.serializer_class))
+        return Response(core.format2strategy_template_detail(self.get_object(), self.serializer_class))
 
     def destroy(self, *args, **kwargs) -> Response:
         strategy_template_obj: StrategyTemplate = self.get_object()
-        if strategy_template_obj.type == StrategyTemplateType.BUILTIN_TEMPLATE.value:
+        if strategy_template_obj.type == constants.StrategyTemplateType.BUILTIN_TEMPLATE.value:
             raise ValidationError(_("内置模板不允许删除"))
         if StrategyInstance.objects.filter(strategy_template_id=strategy_template_obj.id).exists():
             raise ValidationError(_("已下发的模板不允许删除"))
@@ -144,25 +140,32 @@ class StrategyTemplateViewSet(GenericViewSet):
     def preview(self, *args, **kwargs) -> Response:
         strategy_template_id: int = self.query_data["strategy_template_id"]
         strategy_template_obj: StrategyTemplate = get_object_or_404(self.get_queryset(), id=strategy_template_id)
-        dispatcher: StrategyDispatcher = StrategyDispatcher(
+        dispatcher: dispatch.StrategyDispatcher = dispatch.StrategyDispatcher(
             strategy_template=strategy_template_obj,
-            query_template_wrapper=QueryTemplateWrapperFactory.get_wrapper(
+            query_template_wrapper=query_template.QueryTemplateWrapperFactory.get_wrapper(
                 strategy_template_obj.query_template["bk_biz_id"], strategy_template_obj.query_template["name"]
             ),
         )
 
         service_name: str = self.query_data["service_name"]
-        entity_set: EntitySet = EntitySet(self.query_data["bk_biz_id"], self.query_data["app_name"], [service_name])
+        entity_set: dispatch.EntitySet = dispatch.EntitySet(
+            self.query_data["bk_biz_id"], self.query_data["app_name"], [service_name]
+        )
         return Response(dispatcher.preview(entity_set)[service_name])
+
+    @classmethod
+    def _get_id_strategy_map(cls, ids: Iterable[int]) -> dict[int, dict[str, Any]]:
+        # TODO 直接依赖模型不合理，这里要改成 resource 调用。
+        return {strategy["id"]: strategy for strategy in StrategyModel.objects.filter(id__in=ids).values("id", "name")}
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
     def apply(self, *args, **kwargs) -> Response:
-        extra_configs_map: dict[int, list[DispatchExtraConfig]] = defaultdict(list)
+        extra_configs_map: dict[int, list[dispatch.DispatchExtraConfig]] = defaultdict(list)
         for extra_config in self.query_data["extra_configs"]:
             strategy_template_id: int = extra_config.pop("strategy_template_id", 0)
-            extra_configs_map[strategy_template_id].append(DispatchExtraConfig(**extra_config))
+            extra_configs_map[strategy_template_id].append(dispatch.DispatchExtraConfig(**extra_config))
 
-        entity_set: EntitySet = EntitySet(
+        entity_set: dispatch.EntitySet = dispatch.EntitySet(
             self.query_data["bk_biz_id"], self.query_data["app_name"], self.query_data["service_names"]
         )
         strategy_templates: list[StrategyTemplate] = list(
@@ -171,18 +174,18 @@ class StrategyTemplateViewSet(GenericViewSet):
         query_template_keys: list[tuple[int, str]] = [
             (obj.query_template["bk_biz_id"], obj.query_template["name"]) for obj in strategy_templates
         ]
-        query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = QueryTemplateWrapperFactory.get_wrappers(
-            query_template_keys
+        query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = (
+            query_template.QueryTemplateWrapperFactory.get_wrappers(query_template_keys)
         )
 
         strategy_ids: list[int] = []
         template_dispatch_map: dict[int, dict[str, int]] = {}
-        global_config = DispatchGlobalConfig(**self.query_data["global_config"])
+        global_config = dispatch.DispatchGlobalConfig(**self.query_data["global_config"])
         for strategy_template_obj in strategy_templates:
             qtw = query_template_map[
                 (strategy_template_obj.query_template["bk_biz_id"], strategy_template_obj.query_template["name"])
             ]
-            dispatcher = StrategyDispatcher(strategy_template_obj, qtw)
+            dispatcher = dispatch.StrategyDispatcher(strategy_template_obj, qtw)
             service_strategy_map: dict[str, int] = dispatcher.dispatch(
                 entity_set,
                 global_config,
@@ -191,14 +194,8 @@ class StrategyTemplateViewSet(GenericViewSet):
             strategy_ids.extend(list(service_strategy_map.values()))
             template_dispatch_map[strategy_template_obj.pk] = service_strategy_map
 
-        strategies: list[dict[str, Any]] = list(
-            StrategyModel.objects.filter(bk_biz_id=self.query_data["bk_biz_id"], id__in=strategy_ids).values(
-                "id", "name"
-            )
-        )
-        strategy_dict_by_id: dict[int, dict[str, Any]] = {strategy["id"]: strategy for strategy in strategies}
-
         apply_data: list[dict[str, Any]] = []
+        id_strategy_map = self._get_id_strategy_map(strategy_ids)
         for strategy_template_id, service_strategy_map in template_dispatch_map.items():
             for service_name, strategy_id in service_strategy_map.items():
                 apply_data.append(
@@ -207,7 +204,7 @@ class StrategyTemplateViewSet(GenericViewSet):
                         "strategy_template_id": strategy_template_id,
                         "strategy": {
                             "id": strategy_id,
-                            "name": strategy_dict_by_id.get(strategy_id, {}).get("name", ""),
+                            "name": id_strategy_map.get(strategy_id, {}).get("name", ""),
                         },
                     }
                 )
@@ -215,13 +212,53 @@ class StrategyTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCheckRequestSerializer)
     def check(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response(
-                {
-                    "list": mock_data.CHECK_STRATEGY_INSTANCE_LIST,
-                }
+        entity_set: dispatch.EntitySet = dispatch.EntitySet(
+            self.query_data["bk_biz_id"], self.query_data["app_name"], self.query_data["service_names"]
+        )
+        strategy_templates: list[StrategyTemplate] = list(
+            self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
+        )
+        query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = (
+            query_template.QueryTemplateWrapperFactory.get_wrappers(
+                [(obj.query_template["bk_biz_id"], obj.query_template["name"]) for obj in strategy_templates]
             )
-        return Response({})
+        )
+
+        # 批量进行模板下发检查
+        # TODO 此处可以改成多线程
+        results: list[dict[str, Any]] = []
+        for strategy_template_obj in strategy_templates:
+            qtw = query_template_map[
+                (strategy_template_obj.query_template["bk_biz_id"], strategy_template_obj.query_template["name"])
+            ]
+            dispatcher: dispatch.StrategyDispatcher = dispatch.StrategyDispatcher(strategy_template_obj, qtw)
+            results.extend(dispatcher.check(entity_set, self.query_data["is_check_diff"]))
+
+        # 填充模板、策略信息
+        strategy_ids: set[int] = set()
+        strategy_template_ids: set[int] = set()
+        for result in results:
+            if result.get("strategy"):
+                strategy_ids.add(result["strategy"]["id"])
+            if result.get("same_origin_strategy_template"):
+                strategy_template_ids.add(result["same_origin_strategy_template"]["id"])
+
+        def _set_name(_result: dict[str, Any], _field: str, _id_info_map: dict[int, dict[str, Any]]) -> None:
+            try:
+                _result[_field]["name"] = _id_info_map[_result[_field]["id"]]["name"]
+            except (KeyError, TypeError):
+                pass
+
+        id_strategy_map: dict[int, dict[str, Any]] = self._get_id_strategy_map(strategy_ids)
+        id_strategy_template_map: dict[int, dict[str, Any]] = {
+            strategy_template["id"]: strategy_template
+            for strategy_template in self.get_queryset().filter(id__in=strategy_template_ids).values("id", "name")
+        }
+        for result in results:
+            _set_name(result, "strategy", id_strategy_map)
+            _set_name(result, "same_origin_strategy_template", id_strategy_template_map)
+
+        return Response({"list": results})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCloneRequestSerializer)
     def clone(self, *args, **kwargs) -> Response:
@@ -233,9 +270,9 @@ class StrategyTemplateViewSet(GenericViewSet):
                 "bk_biz_id": self.query_data["bk_biz_id"],
                 "app_name": self.query_data["app_name"],
                 "parent_id": source_obj.id,
-                "type": StrategyTemplateType.APP_TEMPLATE.value,
+                "type": constants.StrategyTemplateType.APP_TEMPLATE.value,
                 "root_id": source_obj.id
-                if source_obj.type == StrategyTemplateType.BUILTIN_TEMPLATE.value
+                if source_obj.type == constants.StrategyTemplateType.BUILTIN_TEMPLATE.value
                 else source_obj.root_id,
             }
         )
@@ -333,9 +370,9 @@ class StrategyTemplateViewSet(GenericViewSet):
         template_fields: list[str] = []
         instance_fields: list[str] = []
         for field_name in self.query_data["fields"]:
-            if StrategyTemplateOptionValues.is_matched(field_name):
+            if handler.StrategyTemplateOptionValues.is_matched(field_name):
                 template_fields.append(field_name)
-            elif StrategyInstanceOptionValues.is_matched(field_name):
+            elif handler.StrategyInstanceOptionValues.is_matched(field_name):
                 instance_fields.append(field_name)
 
         strategy_template_qs = self.get_queryset()
@@ -343,7 +380,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         option_values: dict[str, list[dict[str, Any]]] = {}
         if template_fields:
             option_values.update(
-                StrategyTemplateOptionValues(strategy_template_qs).get_fields_option_values(template_fields)
+                handler.StrategyTemplateOptionValues(strategy_template_qs).get_fields_option_values(template_fields)
             )
         if instance_fields:
             strategy_instance_qs = StrategyInstance.objects.filter(
@@ -352,7 +389,7 @@ class StrategyTemplateViewSet(GenericViewSet):
                 strategy_template_id__in=list(strategy_template_qs.values_list("id", flat=True)),
             )
             option_values.update(
-                StrategyInstanceOptionValues(strategy_instance_qs).get_fields_option_values(instance_fields)
+                handler.StrategyInstanceOptionValues(strategy_instance_qs).get_fields_option_values(instance_fields)
             )
 
         return Response(option_values)
