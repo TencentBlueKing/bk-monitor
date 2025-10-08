@@ -27,11 +27,12 @@ class EntitySet:
         self.app_name: str = app_name
 
         nodes: list[dict[str, Any]] = []
+        is_all_scope: bool = not service_names
         service_node_map: dict[str, dict[str, Any]] = {}
         duplicated_service_names: set[str] = set(service_names)
         for node in ServiceHandler.list_nodes(self.bk_biz_id, self.app_name):
             service_name: str = node.get("topo_key", "")
-            if service_name in duplicated_service_names:
+            if service_name in duplicated_service_names or is_all_scope:
                 service_node_map[service_name] = node
                 nodes.append(node)
 
@@ -40,7 +41,7 @@ class EntitySet:
             raise ValueError(_("部分服务不存在：{}").format(", ".join(miss_service_names)))
 
         self.nodes: list[dict[str, Any]] = nodes
-        self.service_names: list[str] = list(duplicated_service_names)
+        self.service_names: list[str] = list(service_node_map.keys())
         self._service_node_map: dict[str, dict[str, Any]] = service_node_map
 
         # 缓存关联数据初始化一个锁用于保证懒加载仅执行一次。
