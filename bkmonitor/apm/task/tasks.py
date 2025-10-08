@@ -148,32 +148,15 @@ def datasource_discover_cron():
 
 
 def refresh_apm_config():
-    """
-    刷新所有 APM 应用配置（将任务打散在 30 分钟内）
-    """
+    # 30分钟刷新一次
     interval = 30
-
-    to_be_refreshed = list(ApmApplication.objects.filter(is_enabled=True).values_list("id", flat=True))
+    to_be_refreshed = list(ApmApplication.objects.filter(is_enabled=True).values_list("bk_biz_id", "app_name"))
     slug = datetime.datetime.now().minute % interval
-    # 收集当前时间片需要刷新的应用 ID 列表
-    current_batch_application_ids = []
-    for index, app_id in enumerate(to_be_refreshed):
+    for index, application in enumerate(to_be_refreshed):
+        bk_biz_id, app_name = application
         if index % interval == slug:
-            current_batch_application_ids.append(app_id)
-    if not current_batch_application_ids:
-        return
-
-    # 批量获取 ApmApplication 对象
-    applications = list(ApmApplication.objects.filter(is_enabled=True, id__in=current_batch_application_ids))
-    if not applications:
-        return
-
-    try:
-        for application in applications:
-            ApplicationConfig(application).refresh()
-        logger.info(f"[refresh_apm_config]: batch refresh {len(applications)} applications: {applications}")
-    except Exception as e:  # pylint: disable=broad-except
-        logger.exception(f"[RefreshApmApplicationConfigFailed] Err => {str(e)}; Applications => {applications}")
+            logger.info(f"[refresh_apm_config]: publish application [{bk_biz_id}]({app_name})")
+            refresh_apm_application_config.delay(bk_biz_id, app_name)
 
 
 def refresh_apm_k8s_batch():
@@ -208,7 +191,6 @@ def refresh_apm_platform_config():
 def refresh_apm_application_config(bk_biz_id, app_name):
     _app = ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
     ApplicationConfig(_app).refresh()
-    ApplicationConfig(_app).refresh_k8s()
 
 
 @app.task(ignore_result=True, queue="celery_cron")
