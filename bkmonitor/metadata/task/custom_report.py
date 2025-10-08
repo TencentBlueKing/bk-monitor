@@ -20,6 +20,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
+from alarm_backends.service.scheduler.app import app
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.models import QueryConfigModel
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -181,29 +182,14 @@ def refresh_all_log_config():
 
     to_be_refreshed = list(models.LogGroup.objects.filter(is_enable=True).values_list("log_group_id", flat=True))
     slug = datetime.datetime.now().minute % interval
-    # 收集当前时间片需要刷新的 log_group_id 列表
-    current_batch_log_group_ids = []
     for index, log_group_id in enumerate(to_be_refreshed):
         if index % interval == slug:
-            current_batch_log_group_ids.append(log_group_id)
-    if not current_batch_log_group_ids:
-        return
-
-    # 批量获取 LogGroup 对象
-    log_groups = list(models.LogGroup.objects.filter(is_enable=True, log_group_id__in=current_batch_log_group_ids))
-    if not log_groups:
-        return
-
-    try:
-        for log_group in log_groups:
-            models.LogSubscriptionConfig.refresh(log_group)
-        logger.info(f"[refresh_all_log_config]: batch refresh {len(log_groups)} log groups")
-    except Exception as e:  # pylint: disable=broad-except
-        logger.exception(f"[RefreshCustomLogConfigFailed] Err => {str(e)}; LogGroup => {log_groups}")
+            logger.info(f"[refresh_custom_log_config]: publish log_group_id [{log_group_id}]")
+            refresh_custom_log_config.delay(log_group_id)
 
 
 @share_lock()
-def refresh_log_k8s_batch():
+def refresh_all_log_config_to_k8s():
     """
     刷新所有自定义日志的 K8s 配置（获取全部数据进行批量调度）
     """
@@ -213,13 +199,13 @@ def refresh_log_k8s_batch():
         return
 
     try:
-        models.LogSubscriptionConfig.refresh_k8s_batch(log_groups)
-        logger.info(f"[refresh_log_k8s_batch]: batch publish k8s config for {len(log_groups)} log groups")
+        models.LogSubscriptionConfig.refresh_k8s(log_groups)
+        logger.info(f"[refresh_all_log_config_to_k8s]: batch publish k8s config for {len(log_groups)} log groups")
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(f"[RefreshCustomLogK8sConfigFailed] Err => {str(e)}; LogGroup => {log_groups}")
 
 
-@share_lock()
+@app.task(ignore_result=True, queue="celery_cron")
 def refresh_custom_log_config(log_group_id=None):
     """
     下发单个自定义日志配置
@@ -234,7 +220,6 @@ def refresh_custom_log_config(log_group_id=None):
 
     try:
         models.LogSubscriptionConfig.refresh(log_group)
-        models.LogSubscriptionConfig.refresh_k8s(log_group)
     except Exception as err:  # pylint: disable=broad-except
         logger.exception("[RefreshCustomLogConfigFailed] Err => %s; LogGroup => %s", str(err), log_group.log_group_id)
 

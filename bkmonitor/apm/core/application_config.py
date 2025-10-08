@@ -80,12 +80,8 @@ class ApplicationConfig(BkCollectorConfig):
         except Exception:  # noqa
             logger.exception("auto deploy bk-collector application config error")
 
-    def refresh_k8s(self):
-        """单个应用的 k8s 配置刷新，保持向后兼容"""
-        self.refresh_k8s_batch([self._application])
-
     @classmethod
-    def refresh_k8s_batch(cls, applications: list[ApmApplication]) -> None:
+    def refresh_k8s(cls, applications: list[ApmApplication]) -> None:
         """批量刷新多个应用的 k8s 配置"""
         if not applications:
             return

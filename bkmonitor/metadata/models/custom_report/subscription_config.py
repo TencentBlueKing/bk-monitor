@@ -559,12 +559,7 @@ class LogSubscriptionConfig(models.Model):
             logger.exception(f"auto deploy bk-collector log config error ({e})")
 
     @classmethod
-    def refresh_k8s(cls, log_group: "LogGroup") -> None:
-        """单个 log_group 的 k8s 配置刷新，保持向后兼容"""
-        cls.refresh_k8s_batch([log_group])
-
-    @classmethod
-    def refresh_k8s_batch(cls, log_groups: list["LogGroup"]) -> None:
+    def refresh_k8s(cls, log_groups: list["LogGroup"]) -> None:
         """批量刷新多个 log_group 的 k8s 配置"""
         if not log_groups:
             return

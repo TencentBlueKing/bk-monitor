@@ -66,7 +66,7 @@ def refresh_custom_report_config(bk_biz_id=None):
 def refresh_custom_log_report_config(log_group_id=None):
     from metadata.task.custom_report import refresh_custom_log_config
 
-    refresh_custom_log_config(log_group_id=log_group_id)
+    refresh_custom_log_config.delay(log_group_id=log_group_id)
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")

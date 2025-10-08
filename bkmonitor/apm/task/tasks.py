@@ -159,7 +159,7 @@ def refresh_apm_config():
             refresh_apm_application_config.delay(bk_biz_id, app_name)
 
 
-def refresh_apm_k8s_batch():
+def refresh_apm_config_to_k8s():
     """
     刷新所有 APM 应用的 K8s 配置（获取全部数据进行批量调度）
     """
@@ -169,8 +169,8 @@ def refresh_apm_k8s_batch():
         return
 
     try:
-        ApplicationConfig.refresh_k8s_batch(applications)
-        logger.info(f"[refresh_apm_k8s_batch]: batch publish k8s config for {len(applications)} applications")
+        ApplicationConfig.refresh_k8s(applications)
+        logger.info(f"[refresh_apm_config_to_k8s]: batch publish k8s config for {len(applications)} applications")
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(f"[RefreshApmApplicationK8sConfigFailed] Err => {str(e)}; Applications => {applications}")
 
