@@ -40,7 +40,6 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException, TokenInvalidException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
-from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import (
     LogIndexSet,
@@ -52,6 +51,7 @@ from apps.log_search.models import (
 from apps.log_search.permission import Permission
 from apps.log_search.utils import handle_es_query_error
 from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT
+from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -422,7 +422,7 @@ class UnifyQueryHandler:
         else:
             search_ip_list = []
 
-        final_fields_list, _ = MappingHandlers(
+        final_fields_list, _ = UnifyQueryMappingHandler(
             index_set_id=index_info["index_set_id"],
             indices=index_info["origin_indices"],
             scenario_id=index_info["origin_scenario_id"],
@@ -505,7 +505,7 @@ class UnifyQueryHandler:
                     return sort_list
         # 安全措施, 用户未设置排序规则，且未创建默认配置时, 使用默认排序规则
         index_info = self.index_info_list[0]
-        return MappingHandlers(
+        return UnifyQueryMappingHandler(
             indices=index_info["scenario_id"],
             index_set_id=index_info["index_set_id"],
             scenario_id=index_info["scenario_id"],
@@ -513,6 +513,28 @@ class UnifyQueryHandler:
         ).get_default_sort_list(
             index_set_id=index_set_id,
             scenario_id=index_info["scenario_id"],
+            default_sort_tag=self.search_params.get("default_sort_tag", False),
+        )
+
+    def _get_default_sort_list(self):
+        """获取默认排序配置"""
+        index_info = self.index_info_list[0]
+        index_set_id = index_info["index_set_id"]
+        scenario_id = index_info["origin_scenario_id"]
+        time_field, time_field_type, time_field_unit = self.init_time_field(index_set_id, scenario_id)
+        mapping_handlers = UnifyQueryMappingHandler(
+            index_info["origin_indices"],
+            index_info["index_set_id"],
+            index_info["origin_scenario_id"],
+            index_info["storage_cluster_id"],
+            time_field,
+            start_time=self.start_time,
+            end_time=self.end_time,
+            time_zone=get_local_param("time_zone", settings.TIME_ZONE),
+        )
+        return mapping_handlers.get_default_sort_list(
+            index_set_id=index_set_id,
+            scenario_id=scenario_id,
             default_sort_tag=self.search_params.get("default_sort_tag", False),
         )
 
@@ -1123,7 +1145,7 @@ class UnifyQueryHandler:
         scenario_id = index_info["origin_scenario_id"]
         is_union_search = self.search_params.get("is_union_search", False)
         time_field, time_field_type, time_field_unit = self.init_time_field(index_set_id, scenario_id)
-        mapping_handlers = MappingHandlers(
+        mapping_handlers = UnifyQueryMappingHandler(
             index_info["origin_indices"],
             index_info["index_set_id"],
             index_info["origin_scenario_id"],
@@ -1138,7 +1160,7 @@ class UnifyQueryHandler:
         )
 
         if not is_union_search:
-            sort_list: list = MappingHandlers.get_sort_list_by_index_id(index_set_id=index_set_id, scope=scope)
+            sort_list: list = UnifyQueryMappingHandler.get_sort_list_by_index_id(index_set_id=index_set_id, scope=scope)
         else:
             sort_list = list()
 
@@ -1151,6 +1173,7 @@ class UnifyQueryHandler:
 
         result_dict: dict = {
             "fields": field_result,
+            "default_sort_list": self._get_default_sort_list(),
             "display_fields": display_fields,
             "sort_list": sort_field_list,
             "time_field": time_field,
@@ -1160,6 +1183,7 @@ class UnifyQueryHandler:
         }
 
         if is_union_search:
+            result_dict["config"].append(self.analyze_fields(field_result))
             return result_dict
 
         for _fields_config in [
@@ -1249,7 +1273,7 @@ class UnifyQueryHandler:
         # 设置了自定义排序字段的，默认认为支持上下文
         if self.index_set["index_set_obj"].target_fields and self.index_set["index_set_obj"].sort_fields:
             return True, {"reason": "", "context_fields": []}
-        result = MappingHandlers.analyze_fields(field_result)
+        result = UnifyQueryMappingHandler.analyze_fields(field_result)
         if result["context_search_usable"]:
             return True, {"reason": "", "context_fields": result.get("context_fields", [])}
         return False, {"reason": result["usable_reason"]}
@@ -1276,14 +1300,14 @@ class UnifyQueryHandler:
         @return:
         """
         sort_fields = self.index_set["index_set_obj"].sort_fields if self.index_set else []
-        result = MappingHandlers.async_export_fields(field_result, scenario_id, sort_fields)
+        result = UnifyQueryMappingHandler.async_export_fields(field_result, scenario_id, sort_fields)
         if result["async_export_usable"]:
             return True, {"fields": result["async_export_fields"]}
         return False, {"usable_reason": result["async_export_usable_reason"]}
 
     @fields_config("ip_topo_switch")
     def ip_topo_switch(self, index_set_id):
-        return MappingHandlers.init_ip_topo_switch(index_set_id)
+        return UnifyQueryMappingHandler.init_ip_topo_switch(index_set_id)
 
     @fields_config("apm_relation")
     def apm_relation(self, index_set_id):
