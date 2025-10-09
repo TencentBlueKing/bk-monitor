@@ -191,25 +191,33 @@ export default defineComponent({
      * 加载更多触发元素隐藏操作
      */
     const debounceHiddenPaginationLoading = debounce(() => {
-      paginationRef.value?.style?.setProperty('visibility', 'hidden');
-    }, 120);
+      (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty(
+        'visibility',
+        'hidden',
+      );
+    }, 180);
 
     /**
      * 分页器观察器
      */
-    useIntersectionObserver(paginationRef, (entry) => {
-      if (entry.isIntersecting) {
-        paginationRef.value?.style?.setProperty('visibility', 'visible');
-        if (
-          pagination.value.current * pagination.value.limit <
-          pagination.value.count
-        ) {
-          pagination.value.current += 1;
+    useIntersectionObserver(
+      () => paginationRef.value,
+      (entry) => {
+        if (entry.isIntersecting) {
+          (
+            paginationRef.value?.childNodes[0] as HTMLElement
+          )?.style?.setProperty('visibility', 'visible');
+          if (
+            pagination.value.current * pagination.value.limit <
+            pagination.value.count
+          ) {
+            pagination.value.current += 1;
+          }
         }
-      }
 
-      debounceHiddenPaginationLoading();
-    });
+        debounceHiddenPaginationLoading();
+      },
+    );
 
     /**
      * 计算自定义横向滚动条宽度
@@ -772,15 +780,15 @@ export default defineComponent({
                 on-open-cluster-config={() => emit('open-cluster-config')}
                 on-group-state-change={handleGroupStateChange}
               />,
-              <div ref={paginationRef} style='width: 100%;'>
-                <div style='display: flex; justify-content: center;width: 100%; padding: 4px;'>
-                  loading ...
-                </div>
-              </div>,
             ]
           ) : (
             getExceptionOption()
           )}
+        </div>
+        <div ref={paginationRef} style='width: 100%;'>
+          <div style='display: flex; justify-content: center;width: 100%; padding: 4px; visibility: hidden;'>
+            <span>loading ...</span>
+          </div>
         </div>
         <AiAssitant ref={aiAssitantRef} on-close='handleAiClose' />
         <ScrollTop on-scroll-top={handleScrollTop}></ScrollTop>
