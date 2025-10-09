@@ -63,7 +63,8 @@ class ApplicationConfig(BkCollectorConfig):
         bk_biz_id = self._application.bk_biz_id
 
         # 1. 获取应用配置上下文
-        application_config = self.get_application_config()
+        config_cache = self._batch_preload_configs([self._application])
+        application_config = self.get_application_config_with_cache(config_cache)
 
         # 2.1 获取指定租户指定业务下的主机
         proxy_target_hosts = self.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id)
@@ -103,6 +104,9 @@ class ApplicationConfig(BkCollectorConfig):
             for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
                 cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
 
+        # 批量预加载所有应用的配置数据
+        config_cache = cls._batch_preload_configs(applications)
+
         # 按集群分组配置，实现批量下发
         for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
             with tracer.start_as_current_span(f"cluster-id: {cluster_id}") as s:
@@ -134,7 +138,10 @@ class ApplicationConfig(BkCollectorConfig):
                         # 为该业务下的所有应用生成配置
                         for application in biz_application_list:
                             try:
-                                application_config_context = cls(application).get_application_config()
+                                # 使用预加载的配置缓存
+                                application_config_context = cls(application).get_application_config_with_cache(
+                                    config_cache
+                                )
                                 # 使用预编译的模板
                                 application_config = compiled_template.render(application_config_context)
                                 cluster_config_map[application.id] = application_config
@@ -152,43 +159,130 @@ class ApplicationConfig(BkCollectorConfig):
                     s.record_exception(exception=e)
                     logger.exception(f"batch refresh apm application config to k8s({cluster_id})")
 
-    def get_application_config(self):
-        """获取应用配置上下文"""
+    @classmethod
+    def _batch_preload_configs(cls, applications: list[ApmApplication]) -> dict:
+        """批量预加载所有应用的配置数据，避免N+1查询问题"""
+        if not applications:
+            return {}
+
+        # 收集所有需要查询的业务ID
+        bk_biz_ids = list(set(app.bk_biz_id for app in applications))
+
+        config_cache = {
+            "custom_service_configs": {},
+            "apdex_configs": {},
+            "sampler_configs": {},
+            "qps_configs": {},
+            "license_configs": {},
+            "normal_type_configs": {},
+            "probe_configs": {},
+            "instance_discover_configs": {},
+            "metric_dimension_configs": {},
+            "global_instance_discover": None,
+        }
+
+        try:
+            # 批量查询自定义服务配置
+            custom_service_qs = CustomServiceConfig.objects.filter(bk_biz_id__in=bk_biz_ids)
+            for config in custom_service_qs:
+                key = (config.bk_biz_id, config.app_name)
+                config_cache["custom_service_configs"].setdefault(key, []).append(config)
+
+            # 批量查询 Apdex 配置
+            apdex_qs = ApdexConfig.objects.filter(bk_biz_id__in=bk_biz_ids)
+            for config in apdex_qs:
+                key = (config.bk_biz_id, config.app_name, config.config_level)
+                config_cache["apdex_configs"].setdefault(key, []).append(config)
+
+            # 批量查询采样配置
+            sampler_qs = SamplerConfig.objects.filter(bk_biz_id__in=bk_biz_ids)
+            for config in sampler_qs:
+                key = (config.bk_biz_id, config.app_name, config.config_level)
+                config_cache["sampler_configs"].setdefault(key, []).append(config)
+
+            # 批量查询 QPS 配置
+            qps_qs = QpsConfig.objects.filter(bk_biz_id__in=bk_biz_ids)
+            for config in qps_qs:
+                key = (config.bk_biz_id, config.app_name)
+                config_cache["qps_configs"][key] = config
+
+            # 批量查询许可证配置
+            license_qs = LicenseConfig.objects.filter(bk_biz_id__in=bk_biz_ids)
+            for config in license_qs:
+                key = (config.bk_biz_id, config.app_name)
+                config_cache["license_configs"][key] = config
+
+            # 批量查询普通类型值配置
+            normal_type_qs = NormalTypeValueConfig.objects.filter(bk_biz_id__in=bk_biz_ids)
+            for config in normal_type_qs:
+                key = (config.bk_biz_id, config.app_name, config.type)
+                config_cache["normal_type_configs"][key] = config
+
+            # 批量查询探针配置
+            probe_qs = ProbeConfig.objects.filter(bk_biz_id__in=bk_biz_ids)
+            for config in probe_qs:
+                key = (config.bk_biz_id, config.app_name)
+                config_cache["probe_configs"][key] = config
+
+            # 批量查询实例发现配置
+            instance_discover_qs = ApmInstanceDiscover.objects.filter(bk_biz_id__in=bk_biz_ids).order_by("rank")
+            for config in instance_discover_qs:
+                key = (config.bk_biz_id, config.app_name)
+                config_cache["instance_discover_configs"].setdefault(key, []).append(config)
+
+            # 批量查询指标维度配置
+            metric_dimension_qs = ApmMetricDimension.objects.filter(bk_biz_id__in=bk_biz_ids)
+            for config in metric_dimension_qs:
+                key = (config.bk_biz_id, config.app_name)
+                config_cache["metric_dimension_configs"].setdefault(key, []).append(config)
+
+            # 查询全局实例发现配置（只需要查询一次）
+            global_instance_discover = list(
+                ApmInstanceDiscover.objects.filter(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID).values("discover_key")
+            )
+            config_cache["global_instance_discover"] = [item["discover_key"] for item in global_instance_discover]
+
+        except Exception as e:
+            logger.exception(f"batch preload configs error: {e}")
+
+        return config_cache
+
+    def get_application_config_with_cache(self, config_cache: dict):
+        """使用预加载的配置缓存获取应用配置上下文"""
         config = {
             "bk_biz_id": self._application.bk_biz_id,
             "bk_app_name": self._application.app_name,
         }
         config.update(self.get_bk_data_id_config())
         config["bk_data_token"] = self._application.get_bk_data_token()
-        config["resource_filter_config"] = self.get_resource_filter_config()
+        config["resource_filter_config"] = self.get_resource_filter_config_with_cache(config_cache)
         config["resource_filter_config_logs"] = self.get_resource_filter_config_logs()
 
-        apdex_config = self.get_apdex_config(ApdexConfig.APP_LEVEL)
-        sampler_config = self.get_random_sampler_config(ApdexConfig.APP_LEVEL)
-        # dimensions_config = self.get_dimensions_config()
+        apdex_config = self.get_apdex_config_with_cache(config_cache, ApdexConfig.APP_LEVEL)
+        sampler_config = self.get_random_sampler_config_with_cache(config_cache, ApdexConfig.APP_LEVEL)
 
-        custom_service_config = self.get_custom_service_config()
-        qps_config = self.get_qps_config()
-        license_config = self.get_license_config()
-        queue_config = self.get_queue_config()
-        attribute_config = self.get_config(ConfigTypes.DB_CONFIG, DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG)
-        attribute_config_logs = self.get_config(
-            ConfigTypes.ATTRIBUTES_CONFIG_LOGS, DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG
+        custom_service_config = self.get_custom_service_config_with_cache(config_cache)
+        qps_config = self.get_qps_config_with_cache(config_cache)
+        license_config = self.get_license_config_with_cache(config_cache)
+        queue_config = self.get_queue_config_with_cache(config_cache)
+        attribute_config = self.get_config_with_cache(
+            config_cache, ConfigTypes.DB_CONFIG, DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG
         )
-        sdk_config, sdk_config_scope = self.get_probe_config()
-        db_slow_command_config = self.get_config(
-            ConfigTypes.DB_SLOW_COMMAND_CONFIG, DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG
+        attribute_config_logs = self.get_config_with_cache(
+            config_cache, ConfigTypes.ATTRIBUTES_CONFIG_LOGS, DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG
+        )
+        sdk_config, sdk_config_scope = self.get_probe_config_with_cache(config_cache)
+        db_slow_command_config = self.get_config_with_cache(
+            config_cache, ConfigTypes.DB_SLOW_COMMAND_CONFIG, DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG
         )
         profiles_drop_sampler_config = self.get_profiles_drop_sampler_config()
         traces_drop_sampler_config = self.get_traces_drop_sampler_config()
-        metrics_filter_config = self.get_metrics_filter_config()
+        metrics_filter_config = self.get_metrics_filter_config_with_cache(config_cache)
 
         if apdex_config:
             config["apdex_config"] = apdex_config.get(self._application.app_name)
         if sampler_config:
             config["sampler_config"] = sampler_config.get(self._application.app_name)
-        # if dimensions_config:
-        #     config["dimensions_config"] = dimensions_config
         if custom_service_config:
             config["custom_service_config"] = custom_service_config
         if qps_config:
@@ -218,31 +312,30 @@ class ApplicationConfig(BkCollectorConfig):
         if metrics_filter_config:
             config["metrics_filter_config"] = metrics_filter_config
 
-        service_configs = self.get_sub_configs("service_name", ApdexConfig.SERVICE_LEVEL)
+        service_configs = self.get_sub_configs_with_cache(config_cache, "service_name", ApdexConfig.SERVICE_LEVEL)
         if service_configs:
             config["service_configs"] = service_configs
-        instance_configs = self.get_sub_configs("id", ApdexConfig.INSTANCE_LEVEL)
+        instance_configs = self.get_sub_configs_with_cache(config_cache, "id", ApdexConfig.INSTANCE_LEVEL)
         if instance_configs:
             config["instance_configs"] = instance_configs
 
         return config
 
-    def get_metrics_filter_config(self) -> dict:
-        params = {"bk_biz_id": self._application.bk_biz_id, "app_name": self._application.app_name}
-        json_value = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.CODE_RELABEL_CONFIG)
+    def get_metrics_filter_config_with_cache(self, config_cache: dict) -> dict:
+        """使用缓存获取指标过滤配置"""
+        key = (self._application.bk_biz_id, self._application.app_name, ConfigTypes.CODE_RELABEL_CONFIG)
+        config = config_cache["normal_type_configs"].get(key)
 
-        if not json_value:
+        if not config:
             return {}
 
-        code_relabel_rules = json.loads(json_value)
-
-        if not isinstance(code_relabel_rules, list):
+        try:
+            code_relabel_rules = json.loads(config.value)
+            if not isinstance(code_relabel_rules, list) or not code_relabel_rules:
+                return {}
+            return {"name": "metrics_filter/relabel", "code_relabel": code_relabel_rules}
+        except (json.JSONDecodeError, TypeError):
             return {}
-
-        if not code_relabel_rules:
-            return {}
-
-        return {"name": "metrics_filter/relabel", "code_relabel": code_relabel_rules}
 
     def get_bk_data_id_config(self):
         data_ids = {}
@@ -264,41 +357,58 @@ class ApplicationConfig(BkCollectorConfig):
 
         return data_ids
 
-    def get_qps_config(self):
-        qps = QpsConfig.get_application_qps(self._application.bk_biz_id, app_name=self._application.app_name)
-        if not qps:
+    def get_qps_config_with_cache(self, config_cache: dict):
+        """使用缓存获取 QPS 配置"""
+        key = (self._application.bk_biz_id, self._application.app_name)
+        config = config_cache["qps_configs"].get(key)
+
+        if not config:
             return None
 
-        return {"name": "rate_limiter/token_bucket", "type": "token_bucket", "qps": qps}
+        return {"name": "rate_limiter/token_bucket", "type": "token_bucket", "qps": config.qps}
 
-    def get_queue_config(self):
-        params = {"bk_biz_id": self._application.bk_biz_id, "app_name": self._application.app_name}
-
-        log_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_LOGS_BATCH_SIZE)
-        metric_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_METRIC_BATCH_SIZE)
-        trace_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_TRACES_BATCH_SIZE)
-        profile_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_PROFILES_BATCH_SIZE)
+    def get_queue_config_with_cache(self, config_cache: dict):
+        """使用缓存获取队列配置"""
+        log_size_key = (self._application.bk_biz_id, self._application.app_name, ConfigTypes.QUEUE_LOGS_BATCH_SIZE)
+        metric_size_key = (self._application.bk_biz_id, self._application.app_name, ConfigTypes.QUEUE_METRIC_BATCH_SIZE)
+        trace_size_key = (self._application.bk_biz_id, self._application.app_name, ConfigTypes.QUEUE_TRACES_BATCH_SIZE)
+        profile_size_key = (
+            self._application.bk_biz_id,
+            self._application.app_name,
+            ConfigTypes.QUEUE_PROFILES_BATCH_SIZE,
+        )
 
         res = {}
-        if log_size:
-            res["logs_batch_size"] = log_size
-        if metric_size:
-            res["metrics_batch_size"] = metric_size
-        if trace_size:
-            res["traces_batch_size"] = trace_size
-        if profile_size:
-            res["profiles_batch_size"] = profile_size
+
+        log_config = config_cache["normal_type_configs"].get(log_size_key)
+        if log_config:
+            res["logs_batch_size"] = int(log_config.value)
+
+        metric_config = config_cache["normal_type_configs"].get(metric_size_key)
+        if metric_config:
+            res["metrics_batch_size"] = int(metric_config.value)
+
+        trace_config = config_cache["normal_type_configs"].get(trace_size_key)
+        if trace_config:
+            res["traces_batch_size"] = int(trace_config.value)
+
+        profile_config = config_cache["normal_type_configs"].get(profile_size_key)
+        if profile_config:
+            res["profiles_batch_size"] = int(profile_config.value)
 
         return res
 
-    def get_custom_service_config(self):
-        res = []
-        query = CustomServiceConfig.objects.filter(
-            bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
-        )
-        for item in query:
-            config = CustomServiceConfig.DISCOVER_KEYS[item.type]
+    def get_custom_service_config_with_cache(self, config_cache: dict):
+        """使用缓存获取自定义服务配置"""
+        key = (self._application.bk_biz_id, self._application.app_name)
+        configs = config_cache["custom_service_configs"].get(key, [])
 
+        if not configs:
+            return {}
+
+        res = []
+        for item in configs:
+            config = CustomServiceConfig.DISCOVER_KEYS[item.type]
             res.append(
                 {
                     **config,
@@ -309,9 +419,6 @@ class ApplicationConfig(BkCollectorConfig):
                     **self._get_match_groups(item),
                 }
             )
-
-        if not res:
-            return {}
 
         return {"name": "service_discover/common", "rules": res}
 
@@ -336,48 +443,17 @@ class ApplicationConfig(BkCollectorConfig):
 
         return {}
 
-    def get_instance_name_config(self):
-        """获取应用实例名配置"""
-        return list(
-            ApmInstanceDiscover.objects.filter(
-                bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
-            )
-            .order_by("rank")
-            .values("discover_key", "rank")
-        )
+    def get_resource_filter_config_with_cache(self, config_cache: dict):
+        """使用缓存获取资源过滤配置"""
+        key = (self._application.bk_biz_id, self._application.app_name)
+        instance_configs = config_cache["instance_discover_configs"].get(key, [])
 
-    def get_dimensions_config(self):
-        """获取应用汇聚维度配置"""
-        mapping = {}
-        qs = ApmMetricDimension.objects.filter(
-            bk_biz_id=self._application.bk_biz_id,
-            app_name=self._application.app_name,
-        )
+        if not instance_configs:
+            # 使用全局配置
+            instance_id_assemble_keys = config_cache["global_instance_discover"] or []
+        else:
+            instance_id_assemble_keys = [config.discover_key for config in instance_configs]
 
-        for item in qs:
-            # 同一个span_kind和predicate_key进行归类
-            mapping.setdefault((item.span_kind, item.predicate_key), []).append(item.dimension_key)
-
-        res = []
-        for key, dimensions in mapping.items():
-            res.append({"span_kind": key[0], "predicate_key": key[1], "dimensions": dimensions})
-
-        return res
-
-    def get_resource_filter_config(self):
-        """获取bk.instance.id是由哪几个字段组成"""
-        from apm.models.config import ApmInstanceDiscover
-
-        instance_id_assemble_keys = [
-            q.discover_key
-            for q in ApmInstanceDiscover.objects.filter(
-                bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
-            )
-        ]
-        if not instance_id_assemble_keys:
-            instance_id_assemble_keys = [
-                q.discover_key for q in ApmInstanceDiscover.objects.filter(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID)
-            ]
         return {
             "name": "resource_filter/instance_id",
             "assemble": [{"destination": "bk.instance.id", "separator": ":", "keys": instance_id_assemble_keys}],
@@ -394,9 +470,10 @@ class ApplicationConfig(BkCollectorConfig):
             "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
         }
 
-    def get_sub_configs(self, unique_key: str, config_level):
-        apdex_configs = self.get_apdex_config(config_level)
-        sampler_configs = self.get_random_sampler_config(config_level)
+    def get_sub_configs_with_cache(self, config_cache: dict, unique_key: str, config_level):
+        """使用缓存获取子配置"""
+        apdex_configs = self.get_apdex_config_with_cache(config_cache, config_level)
+        sampler_configs = self.get_random_sampler_config_with_cache(config_cache, config_level)
         keys = set(sampler_configs.keys()) | set(apdex_configs.keys())
         configs = []
         for key in sorted(keys):
@@ -411,15 +488,21 @@ class ApplicationConfig(BkCollectorConfig):
             configs.append(config)
         return configs
 
-    def get_apdex_config(self, config_level):
-        rules = ApdexConfig.configs(self._application.bk_biz_id, self._application.app_name, config_level)
+    def get_apdex_config_with_cache(self, config_cache: dict, config_level):
+        """使用缓存获取 Apdex 配置"""
+        key = (self._application.bk_biz_id, self._application.app_name, config_level)
+        configs = config_cache["apdex_configs"].get(key, [])
+
         apdex_config = defaultdict(lambda: {"name": "apdex_calculator/standard", "type": "standard", "rules": []})
-        for config in rules:
+        for config in configs:
             apdex_config[config.config_key]["rules"].append(config.to_config_json())
         return apdex_config
 
-    def get_random_sampler_config(self, config_level):
-        configs = SamplerConfig.configs(self._application.bk_biz_id, self._application.app_name, config_level)
+    def get_random_sampler_config_with_cache(self, config_cache: dict, config_level):
+        """使用缓存获取随机采样配置"""
+        key = (self._application.bk_biz_id, self._application.app_name, config_level)
+        configs = config_cache["sampler_configs"].get(key, [])
+
         sampler_config = {}
         for config in configs:
             sampler_config[config.config_key] = config.to_config_json()
@@ -439,14 +522,43 @@ class ApplicationConfig(BkCollectorConfig):
             "enabled": not self._application.is_enabled,
         }
 
-    def get_license_config(self):
-        license_config = LicenseConfig.get_application_license_config(
-            bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
-        )
-        if not license_config:
+    def get_license_config_with_cache(self, config_cache: dict):
+        """使用缓存获取许可证配置"""
+        key = (self._application.bk_biz_id, self._application.app_name)
+        config = config_cache["license_configs"].get(key)
+
+        if not config:
             return {}
 
-        return license_config
+        return config.to_config_json()
+
+    def get_config_with_cache(self, config_cache: dict, config_type: str, default_config: dict):
+        """使用缓存获取配置"""
+        key = (self._application.bk_biz_id, self._application.app_name, config_type)
+        config = config_cache["normal_type_configs"].get(key)
+
+        if not config:
+            return {}
+
+        try:
+            value = json.loads(config.value)
+            result_config = default_config.copy()
+            result_config.update(value)
+            return result_config
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+    def get_probe_config_with_cache(self, config_cache: dict):
+        """使用缓存获取探针配置"""
+        key = (self._application.bk_biz_id, self._application.app_name)
+        config = config_cache["probe_configs"].get(key)
+
+        if not config:
+            return {}, {}
+
+        sdk_config = self.get_sdk_config(config)
+        sdk_config_scope = self.get_sdk_config_scope(config)
+        return sdk_config, sdk_config_scope
 
     def get_config(self, config_type: str, config: dict):
         """
@@ -467,20 +579,6 @@ class ApplicationConfig(BkCollectorConfig):
         config.update(value)
 
         return config
-
-    def get_probe_config(self):
-        """
-        获取探针配置
-        :return:
-        """
-
-        config = ProbeConfig.get_config(bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name)
-        if not config:
-            return {}, {}
-
-        sdk_config = self.get_sdk_config(config)
-        sdk_config_scope = self.get_sdk_config_scope(config)
-        return sdk_config, sdk_config_scope
 
     @staticmethod
     def get_sdk_config(sdk_config):
