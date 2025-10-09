@@ -587,7 +587,7 @@ class LogSubscriptionConfig(models.Model):
 
                 # 收集该集群需要部署的所有配置
                 cluster_config_map = {}
-
+                compiled_template = jinja_env.from_string(tpl)
                 for bk_biz_id, biz_log_group_list in biz_log_groups.items():
                     need_deploy_bk_biz_ids = {
                         str(bk_biz_id),
@@ -601,7 +601,7 @@ class LogSubscriptionConfig(models.Model):
                     for log_group in biz_log_group_list:
                         try:
                             config_context = cls.get_log_config(log_group)
-                            config_content = jinja_env.from_string(tpl).render(config_context)
+                            config_content = compiled_template.render(config_context)
                             config_id = int(log_group.bk_data_id)
                             cluster_config_map[config_id] = config_content
                         except Exception:  # pylint: disable=broad-except
