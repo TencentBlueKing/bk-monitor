@@ -33,7 +33,7 @@
       float: none;
       display: block;
       border-top: 1px solid #fafbfd !important;
-      border-right: none;
+      border-right: none !important;
     }
 
     .bk-tab-section {
@@ -45,6 +45,29 @@
       max-height: calc(-50px + 100%);
       padding: 0 24px 24px;
       overflow: auto;
+
+      .info-tips {
+        display: flex;
+        align-items: center;
+        height: 32px;
+        padding: 8px 10px;
+        color: #4D4F56;
+        background: #F0F5FF;
+        border: 1px solid #A3C5FD;
+        border-radius: 2px;
+
+        .icon-hint {
+          margin-right: 8px;
+          color: #3a84ff;
+        }
+
+        .icon-mc-close {
+          margin: 0 0 0 auto;
+          font-size: 18px;
+          color: #C4C6CC;
+          cursor: pointer;
+        }
+      }
 
       .search-input {
         margin-bottom: 12px;
