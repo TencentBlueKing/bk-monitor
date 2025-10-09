@@ -42,14 +42,14 @@ import {
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
+import { MENU_LISTS } from '@/global/head-navi/complete-menu.ts';
 import DOMPurify from 'dompurify';
 import * as pinyin from 'tiny-pinyin';
 import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
 import Vuex from 'vuex';
 
-import { menuArr } from '../components/nav/complete-menu';
-import collect from './collect';
-import { ConditionOperator } from './condition-operator';
+import collect from './collect.js';
+import { ConditionOperator } from './condition-operator.ts';
 if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
   pinyin.patchDict(patcher56L);
 }
@@ -60,15 +60,15 @@ import {
   IndexItem,
   IndexSetQueryResult,
   URL_ARGS,
+  createFieldItem,
   getDefaultRetrieveParams,
   getStorageOptions,
   indexSetClusteringData,
-  createFieldItem,
 } from './default-values.ts';
-import globals from './globals';
-import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper';
-import RequestPool from './request-pool';
-import retrieve from './retrieve';
+import globals from './globals.js';
+import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper.ts';
+import RequestPool from './request-pool.ts';
+import retrieve from './retrieve.js';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
 import http, { axiosInstance } from '@/api';
 Vue.use(Vuex);
@@ -953,11 +953,12 @@ const store = new Vuex.Store({
 
           menuList.forEach(child => {
             child.id = routeMap[child.id] || child.id;
-            const menu = menuArr.find(menuItem => menuItem.id === child.id);
+            const menu = MENU_LISTS.find(menuItem => menuItem.id === child.id);
             if (menu) {
               deepUpdateMenu(menu, child);
             }
           });
+
           commit('updateState', { topMenu: menuList });
           commit('updateState', { menuProject: res.data || [] });
 
