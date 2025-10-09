@@ -114,7 +114,7 @@ class ApplicationConfig(BkCollectorConfig):
                         continue
 
                     # 使用函数级别的模板缓存
-                    cache_key = f"{cluster_id}:{hash(application_tpl)}"
+                    cache_key = cluster_id
                     if cache_key not in template_cache:
                         template_cache[cache_key] = jinja_env.from_string(application_tpl)
                     compiled_template = template_cache[cache_key]
