@@ -32,6 +32,7 @@ import QueryConfigCreator from '../query-config/query-config-creator';
 import type { AggCondition, AggFunction } from '../../typings';
 import type { IVariableModel, MetricDetailV2, QueryConfig } from '../../typings';
 import type { VariableModelType } from '../../variables';
+import type { IGetMetricListData, IGetMetricListParams } from '../metric/components/types';
 import type { IFunctionOptionsItem } from '../type/query-config';
 
 import './query-panel.scss';
@@ -42,6 +43,7 @@ interface IProps {
   metricFunctions?: IFunctionOptionsItem[];
   queryConfig?: QueryConfig;
   variables?: VariableModelType[];
+  getMetricList: (params: IGetMetricListParams) => Promise<IGetMetricListData>;
   onAdd?: () => void;
   onChangeCondition?: (val: AggCondition[]) => void;
   onChangeDimension?: (val: string[]) => void;
@@ -60,6 +62,9 @@ export default class QueryPanel extends tsc<IProps> {
   @Prop({ default: false }) hasDelete: boolean;
   @Prop({ default: false }) hasAdd: boolean;
   @Prop({ default: () => null }) queryConfig: QueryConfig;
+  @Prop({ required: true, type: Function }) getMetricList: (
+    params: IGetMetricListParams
+  ) => Promise<IGetMetricListData>;
 
   handleCreateVariable(val: IVariableModel) {
     this.$emit('createVariable', val);
@@ -97,6 +102,7 @@ export default class QueryPanel extends tsc<IProps> {
     return (
       <div class='template-query-panel-component'>
         <QueryConfigCreator
+          getMetricList={this.getMetricList}
           metricFunctions={this.metricFunctions}
           queryConfig={this.queryConfig}
           variables={this.variables}

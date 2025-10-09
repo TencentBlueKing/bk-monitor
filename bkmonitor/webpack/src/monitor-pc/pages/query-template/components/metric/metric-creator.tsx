@@ -27,8 +27,6 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getMetricListV2 } from 'monitor-api/modules/strategies';
-
 // import SelectWrap from '../utils/select-wrap';
 import MetricSelector from './components/metric-selector';
 
@@ -39,12 +37,16 @@ import './metric-creator.scss';
 
 interface IProps {
   metricDetail?: MetricDetailV2;
+  getMetricList: (params: IGetMetricListParams) => Promise<IGetMetricListData>;
   onSelectMetric?: (metric: MetricDetailV2) => void;
 }
 
 @Component
 export default class MetricCreator extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) metricDetail: MetricDetailV2;
+  @Prop({ type: Function, required: true }) getMetricList: (
+    params: IGetMetricListParams
+  ) => Promise<IGetMetricListData>;
 
   loading = false;
 
@@ -53,40 +55,13 @@ export default class MetricCreator extends tsc<IProps> {
   handleSelectMetric(metric: MetricDetailV2[]) {
     this.$emit('selectMetric', metric[0]);
   }
-  async handleGetMetricData(params: IGetMetricListParams) {
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
-    }
-    this.abortController = new AbortController();
-    const data = await getMetricListV2<IGetMetricListData>(
-      {
-        conditions: [
-          {
-            key: 'query',
-            value: '',
-          },
-        ],
-        data_type_label: 'time_series',
-        tag: '',
-        page: 1,
-        page_size: 20,
-        ...params,
-      },
-      {
-        signal: this.abortController.signal,
-      }
-    );
-    console.log('data', data);
-    return data;
-  }
 
   render() {
     return (
       <div class='template-metric-creator-component'>
         <div class='metric-label'>{this.$t('指标')}</div>
         <MetricSelector
-          getMetricList={this.handleGetMetricData}
+          getMetricList={this.getMetricList}
           selectedMetric={this.metricDetail}
           triggerLoading={this.loading}
           onConfirm={this.handleSelectMetric}
