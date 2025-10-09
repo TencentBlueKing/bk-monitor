@@ -45,6 +45,7 @@ from core.drf_resource import api
 logger = logging.getLogger("apm")
 
 tracer = trace.get_tracer(__name__)
+jinja_env = Environment()
 
 
 class ApplicationConfig(BkCollectorConfig):
@@ -86,10 +87,6 @@ class ApplicationConfig(BkCollectorConfig):
         if not applications:
             return
 
-        # 函数级别的模板缓存
-        template_cache = {}
-        jinja_env = Environment()
-
         # 按业务ID分组，因为不同业务可能需要部署到不同的集群
         biz_applications = {}
         for application in applications:
@@ -113,12 +110,6 @@ class ApplicationConfig(BkCollectorConfig):
                     if not application_tpl:
                         continue
 
-                    # 使用函数级别的模板缓存
-                    cache_key = cluster_id
-                    if cache_key not in template_cache:
-                        template_cache[cache_key] = jinja_env.from_string(application_tpl)
-                    compiled_template = template_cache[cache_key]
-
                     # 收集该集群需要部署的所有配置
                     cluster_config_map = {}
 
@@ -135,8 +126,9 @@ class ApplicationConfig(BkCollectorConfig):
                         for application in biz_application_list:
                             try:
                                 application_config_context = cls(application).get_application_config()
-                                # 使用预编译的模板
-                                application_config = compiled_template.render(application_config_context)
+                                application_config = jinja_env.from_string(application_tpl).render(
+                                    application_config_context
+                                )
                                 cluster_config_map[application.id] = application_config
                             except Exception as e:  # pylint: disable=broad-except
                                 # 单个失败，继续渲染模板

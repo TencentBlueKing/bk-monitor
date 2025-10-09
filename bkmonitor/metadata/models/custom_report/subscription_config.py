@@ -34,7 +34,7 @@ MAX_REQ_LENGTH = 500 * 1024  # 最大请求Body大小，500KB
 MAX_REQ_THROUGHPUT = 4000  # 最大的请求数(单位：秒)
 MAX_DATA_ID_THROUGHPUT = 1000  # 单个dataid最大的上报频率(条/min)、在bk-collector模式下，是 条/秒
 MAX_FUTURE_TIME_OFFSET = 3600  # 支持的最大未来时间，超过这个偏移值，则丢弃
-
+jinja_env = Environment()
 
 if TYPE_CHECKING:
     from metadata.models.custom_report.event import EventGroup
@@ -303,28 +303,24 @@ class CustomReportSubscription(models.Model):
 
             # 按协议分组收集配置
             protocol_config_maps = {}
-            jinja_env = Environment()
             try:
-                protocol_tpl = {}  # 直接存储编译后的模板对象
+                protocol_tpl = {}
                 for config_context, protocol in data_id_configs:
                     tpl_name = BkCollectorComp.CONFIG_MAP_NAME_MAP.get(protocol)
                     if tpl_name is None:
                         logger.info(f"can not find protocol({protocol}) sub config template name")
                         continue
 
-                    # 如果协议模板还未缓存，则获取并编译
                     if protocol not in protocol_tpl:
                         tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+                        if not tpl_str:
+                            continue
                         protocol_tpl[protocol] = jinja_env.from_string(tpl_str)
-
-                    compiled_template = protocol_tpl.get(protocol)
-                    if not compiled_template:
-                        continue
 
                     try:
                         config_id = int(config_context.get("bk_data_id"))
                         config_context.setdefault("bk_biz_id", bk_biz_id)
-                        config_content = compiled_template.render(config_context)
+                        config_content = protocol_tpl.get(protocol).render(config_context)
                         protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
                     except Exception:  # pylint: disable=broad-except
                         # 单个失败，继续渲染模板
@@ -568,10 +564,6 @@ class LogSubscriptionConfig(models.Model):
         if not log_groups:
             return
 
-        # 函数级别的模板缓存
-        template_cache = {}
-        jinja_env = Environment()
-
         # 按业务ID分组，因为不同业务可能需要部署到不同的集群
         biz_log_groups = {}
         for log_group in log_groups:
@@ -593,12 +585,6 @@ class LogSubscriptionConfig(models.Model):
                 if not tpl:
                     continue
 
-                # 使用函数级别的模板缓存
-                cache_key = cluster_id
-                if cache_key not in template_cache:
-                    template_cache[cache_key] = jinja_env.from_string(tpl)
-                compiled_template = template_cache[cache_key]
-
                 # 收集该集群需要部署的所有配置
                 cluster_config_map = {}
 
@@ -615,8 +601,7 @@ class LogSubscriptionConfig(models.Model):
                     for log_group in biz_log_group_list:
                         try:
                             config_context = cls.get_log_config(log_group)
-                            # 使用缓存的编译模板进行渲染
-                            config_content = compiled_template.render(config_context)
+                            config_content = jinja_env.from_string(tpl).render(config_context)
                             config_id = int(log_group.bk_data_id)
                             cluster_config_map[config_id] = config_content
                         except Exception:  # pylint: disable=broad-except
