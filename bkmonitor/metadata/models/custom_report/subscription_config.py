@@ -314,13 +314,18 @@ class CustomReportSubscription(models.Model):
                     if protocol not in protocol_tpl:
                         tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
                         if not tpl_str:
-                            continue
-                        protocol_tpl[protocol] = jinja_env.from_string(tpl_str)
+                            protocol_tpl[protocol] = None
+                        else:
+                            protocol_tpl[protocol] = jinja_env.from_string(tpl_str)
+
+                    compiled_template = protocol_tpl.get(protocol)
+                    if not compiled_template:
+                        continue
 
                     try:
                         config_id = int(config_context.get("bk_data_id"))
                         config_context.setdefault("bk_biz_id", bk_biz_id)
-                        config_content = protocol_tpl.get(protocol).render(config_context)
+                        config_content = compiled_template.render(config_context)
                         protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
                     except Exception:  # pylint: disable=broad-except
                         # 单个失败，继续渲染模板
