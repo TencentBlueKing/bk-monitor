@@ -50,10 +50,6 @@ tracer = trace.get_tracer(__name__)
 class ApplicationConfig(BkCollectorConfig):
     PLUGIN_APPLICATION_CONFIG_TEMPLATE_NAME = "bk-collector-application.conf"
 
-    # 类级别的模板缓存
-    _template_cache = {}
-    _jinja_env = Environment()
-
     def __init__(self, application):
         self._application: ApmApplication = application
 
@@ -90,6 +86,10 @@ class ApplicationConfig(BkCollectorConfig):
         if not applications:
             return
 
+        # 函数级别的模板缓存
+        template_cache = {}
+        jinja_env = Environment()
+
         # 按业务ID分组，因为不同业务可能需要部署到不同的集群
         biz_applications = {}
         for application in applications:
@@ -113,11 +113,11 @@ class ApplicationConfig(BkCollectorConfig):
                     if not application_tpl:
                         continue
 
-                    # 使用缓存的编译模板
+                    # 使用函数级别的模板缓存
                     cache_key = f"{cluster_id}:{hash(application_tpl)}"
-                    if cache_key not in cls._template_cache:
-                        cls._template_cache[cache_key] = cls._jinja_env.from_string(application_tpl)
-                    compiled_template = cls._template_cache[cache_key]
+                    if cache_key not in template_cache:
+                        template_cache[cache_key] = jinja_env.from_string(application_tpl)
+                    compiled_template = template_cache[cache_key]
 
                     # 收集该集群需要部署的所有配置
                     cluster_config_map = {}

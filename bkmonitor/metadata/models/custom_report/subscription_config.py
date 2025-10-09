@@ -63,10 +63,6 @@ class CustomReportSubscription(models.Model):
 
     config = JsonField(verbose_name="订阅配置")
 
-    # 预编译所有需要的模板
-    _template_cache = {}
-    _jinja_env = Environment()
-
     class Meta:
         verbose_name = "自定义上报订阅配置v2"
         verbose_name_plural = "自定义上报订阅配置v2"
@@ -295,6 +291,7 @@ class CustomReportSubscription(models.Model):
         bk_biz_id: int,
         data_id_configs: list[tuple[dict[str, Any], str]],
     ):
+        
         cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
         if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             # 补充中心化集群
@@ -307,44 +304,27 @@ class CustomReportSubscription(models.Model):
 
             # 按协议分组收集配置
             protocol_config_maps = {}
+            jinja_env = Environment()
             try:
-                protocol_tpl = {}
+                protocol_tpl = {}  # 直接存储编译后的模板对象
                 for config_context, protocol in data_id_configs:
                     tpl_name = BkCollectorComp.CONFIG_MAP_NAME_MAP.get(protocol)
                     if tpl_name is None:
                         logger.info(f"can not find protocol({protocol}) sub config template name")
                         continue
 
+                    # 如果协议模板还未缓存，则获取并编译
                     if protocol not in protocol_tpl:
-                        protocol_tpl[protocol] = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+                        tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+                        protocol_tpl[protocol] = jinja_env.from_string(tpl_str)
 
-                    tpl = protocol_tpl.get(protocol)
-                    if not tpl:
-                        continue
-
-                    # 使用缓存的编译模板
-                    cache_key = f"{cluster_id}:{protocol}:{hash(tpl)}"
-                    if cache_key not in cls._template_cache:
-                        cls._template_cache[cache_key] = cls._jinja_env.from_string(tpl)
-
-                # 使用预编译的模板进行渲染
-                for config_context, protocol in data_id_configs:
-                    tpl_name = BkCollectorComp.CONFIG_MAP_NAME_MAP.get(protocol)
-                    if tpl_name is None:
-                        continue
-
-                    tpl = protocol_tpl.get(protocol)
-                    if not tpl:
-                        continue
-
-                    cache_key = f"{cluster_id}:{protocol}:{hash(tpl)}"
-                    if cache_key not in cls._template_cache:
+                    compiled_template = protocol_tpl.get(protocol)
+                    if not compiled_template:
                         continue
 
                     try:
                         config_id = int(config_context.get("bk_data_id"))
                         config_context.setdefault("bk_biz_id", bk_biz_id)
-                        compiled_template = cls._template_cache[cache_key]
                         config_content = compiled_template.render(config_context)
                         protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
                     except Exception:  # pylint: disable=broad-except
@@ -553,10 +533,6 @@ class LogSubscriptionConfig(models.Model):
     # Template Name
     PLUGIN_LOG_CONFIG_TEMPLATE_NAME = "bk-collector-application.conf"
 
-    # 类级别的模板缓存
-    _template_cache = {}
-    _jinja_env = Environment()
-
     @classmethod
     def refresh(cls, log_group: "LogGroup") -> None:
         """
@@ -593,6 +569,10 @@ class LogSubscriptionConfig(models.Model):
         if not log_groups:
             return
 
+        # 函数级别的模板缓存
+        template_cache = {}
+        jinja_env = Environment()
+
         # 按业务ID分组，因为不同业务可能需要部署到不同的集群
         biz_log_groups = {}
         for log_group in log_groups:
@@ -614,11 +594,11 @@ class LogSubscriptionConfig(models.Model):
                 if not tpl:
                     continue
 
-                # 使用缓存的编译模板
+                # 使用函数级别的模板缓存
                 cache_key = f"{cluster_id}:{hash(tpl)}"
-                if cache_key not in cls._template_cache:
-                    cls._template_cache[cache_key] = cls._jinja_env.from_string(tpl)
-                compiled_template = cls._template_cache[cache_key]
+                if cache_key not in template_cache:
+                    template_cache[cache_key] = jinja_env.from_string(tpl)
+                compiled_template = template_cache[cache_key]
 
                 # 收集该集群需要部署的所有配置
                 cluster_config_map = {}
