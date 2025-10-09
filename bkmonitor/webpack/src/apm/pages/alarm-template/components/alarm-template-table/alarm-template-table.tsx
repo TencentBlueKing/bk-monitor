@@ -31,6 +31,7 @@ import { random } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
+import { type IPagination } from 'monitor-pc/pages/query-template/typings';
 
 import {
   ALARM_TEMPLATE_TABLE_FILTER_FIELDS,
@@ -68,6 +69,8 @@ interface AlarmTemplateTableEmits {
   onClearSearch: () => void;
   /** 克隆事件回调 */
   onCloneTemplate: (templateId: AlarmTemplateListItem['id']) => void;
+  /** 表格当前页码变化时的回调 */
+  onCurrentPageChange: (currentPage: number) => void;
   /** 删除查询模板事件回调 */
   onDeleteTemplate: (templateId: AlarmTemplateListItem['id'], confirmEvent: AlarmDeleteConfirmEvent) => void;
   /** 下发事件回调 */
@@ -76,6 +79,8 @@ interface AlarmTemplateTableEmits {
   onEditTemplate: (templateId: AlarmTemplateListItem['id']) => void;
   /** 筛选条件变更事件回调 */
   onFilterChange: (filters: AlarmTemplateConditionParamItem[]) => void;
+  /** 表格每页条数变化时的回调 */
+  onPageSizeChange: (pageSize: number) => void;
   /** 行勾选事件回调 */
   onSelectedChange: (selectedRowKeys: AlarmTemplateListItem['id'][]) => void;
   /** 打开告警模板详情抽屉页 */
@@ -88,16 +93,22 @@ interface AlarmTemplateTableEmits {
 interface AlarmTemplateTableProps {
   /** 当前应用名称 */
   appName: string;
+  /** 当前页码 */
+  current: number;
   /** 空数据类型 */
   emptyType: 'empty' | 'search-empty';
   /** 表格加载状态 */
   loading: boolean;
+  /** 每页条数 */
+  pageSize: number;
   /** 搜索关键字 */
   searchKeyword: AlarmTemplateConditionParamItem[];
   /** 候选值映射表 */
   selectOptionMap: Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>;
   /** 表格数据 */
   tableData: AlarmTemplateListItem[];
+  /** 总数 */
+  total: number;
 }
 
 @Component
@@ -106,6 +117,12 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
 
   /** 当前应用名称 */
   @Prop({ type: String }) appName: string;
+  /** 当前页码 */
+  @Prop({ type: Number }) current: number;
+  /** 每页条数 */
+  @Prop({ type: Number, default: 50 }) pageSize: number;
+  /** 总数 */
+  @Prop({ type: Number }) total: number;
   /** 表格加载状态 */
   @Prop({ type: Boolean }) loading: boolean;
   /** 表格数据 */
@@ -226,6 +243,16 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     });
   }
 
+  /** 表格分页器配置 */
+  get pagination(): IPagination {
+    return {
+      current: this.current,
+      limit: this.pageSize,
+      count: this.total,
+      showTotalCount: true,
+    };
+  }
+
   /**
    * @description 行勾选事件回调
    */
@@ -292,6 +319,22 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   @Emit('deleteTemplate')
   handleDeleteTemplate(id: AlarmTemplateListItem['id']) {
     return id;
+  }
+
+  /**
+   * @description 表格当前页码变化时的回调
+   */
+  @Emit('currentPageChange')
+  handleCurrentPageChange(currentPage: number) {
+    return currentPage;
+  }
+
+  /**
+   * @description 表格每页条数变化时的回调
+   */
+  @Emit('pageSizeChange')
+  handlePageSizeChange(pageSize: number) {
+    return pageSize;
   }
 
   /**
@@ -731,7 +774,10 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
           border={false}
           data={this.tableData}
           outer-border={false}
+          pagination={this.pagination}
           on-filter-change={this.handleFilterChange}
+          on-page-change={this.handleCurrentPageChange}
+          on-page-limit-change={this.handlePageSizeChange}
           on-selection-change={this.handleSelectedChange}
         >
           <bk-table-column
