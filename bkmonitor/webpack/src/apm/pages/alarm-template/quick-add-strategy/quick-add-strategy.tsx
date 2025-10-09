@@ -70,9 +70,9 @@ class QuickAddStrategy extends Mixins(
   alarmGroupLoading = false;
   cursorId: number = null;
   cursorItem: ITempLateItem = null;
-  /** 模板详情 */
+  /** 模板详情数据 */
   templateDetail: Record<number, TemplateDetail> = {};
-  /** 模板表单值 */
+  /** 模板详情表单值 */
   templateFormData: Record<number, EditTemplateFormData> = {};
   /** 记录哪些模板修改了哪些值 */
   editTemplateFormData: Record<number, Partial<EditTemplateFormData & { context: Record<string, any> }>> = {};
@@ -93,6 +93,11 @@ class QuickAddStrategy extends Mixins(
   handleWatchShowChange(v: boolean) {
     if (v) {
       this.getTemplateList();
+    } else {
+      this.templateDetail = {};
+      this.templateFormData = {};
+      this.editTemplateFormData = {};
+      this.variablesList = {};
     }
   }
 
@@ -259,7 +264,7 @@ class QuickAddStrategy extends Mixins(
       app_name: this.params?.app_name,
       service_names: [this.params?.service_name],
       strategy_template_ids: this.checkedList,
-      extra: Object.keys(this.editTemplateFormData).reduce((pre, cur) => {
+      extra_configs: Object.keys(this.editTemplateFormData).reduce((pre, cur) => {
         if (Object.keys(this.editTemplateFormData[cur]).length > 0) {
           pre.push({
             ...this.editTemplateFormData[cur],
@@ -269,7 +274,7 @@ class QuickAddStrategy extends Mixins(
         }
         return pre;
       }, []),
-      global: this.globalParams || undefined,
+      global_config: this.globalParams || undefined,
     };
     const res = await applyStrategyTemplate(params)
       .then(() => {
@@ -374,7 +379,6 @@ class QuickAddStrategy extends Mixins(
         };
       })
     );
-    console.log(this.templateList);
     if (this.templateList.length) {
       this.handleCursorChange(this.templateList[0].id);
     }
@@ -471,7 +475,12 @@ class QuickAddStrategy extends Mixins(
               >
                 <span class='header-title'>{this.$t('预览')}</span>
                 <span class='split-line' />
-                <span class='header-desc'>{this.cursorItem?.name || '--'}</span>
+                <span
+                  class='header-desc'
+                  v-bk-overflow-tips
+                >
+                  {this.cursorItem?.name || '--'}
+                </span>
                 <span
                   class='header-right-link'
                   onClick={this.handleShowTemplateDetails}

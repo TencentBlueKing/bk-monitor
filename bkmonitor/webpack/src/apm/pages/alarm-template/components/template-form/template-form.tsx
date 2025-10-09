@@ -203,7 +203,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         value.map(id => {
           return {
             id,
-            name: this.alarmGroupList.find(item => item.id === id)?.name,
+            name: this.showAlarmGroupList.find(item => item.id === id)?.name,
           };
         })
       );
