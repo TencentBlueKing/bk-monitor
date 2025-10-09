@@ -200,24 +200,19 @@ export default defineComponent({
     /**
      * 分页器观察器
      */
-    useIntersectionObserver(
-      () => paginationRef.value,
-      (entry) => {
-        if (entry.isIntersecting) {
-          (
-            paginationRef.value?.childNodes[0] as HTMLElement
-          )?.style?.setProperty('visibility', 'visible');
-          if (
-            pagination.value.current * pagination.value.limit <
-            pagination.value.count
-          ) {
-            pagination.value.current += 1;
-          }
+    useIntersectionObserver(paginationRef, (entry) => {
+      if (entry.isIntersecting) {
+        (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty('visibility', 'visible');
+        if (
+          pagination.value.current * pagination.value.limit <
+          pagination.value.count
+        ) {
+          pagination.value.current += 1;
         }
+      }
 
-        debounceHiddenPaginationLoading();
-      },
-    );
+      debounceHiddenPaginationLoading();
+    });
 
     /**
      * 计算自定义横向滚动条宽度
