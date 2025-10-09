@@ -1,11 +1,11 @@
 <script setup>
-  import { ref, computed, watch, nextTick } from 'vue';
+  import { computed, nextTick, ref, watch } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
-  import useStore from '@/hooks/use-store';
-  import { RetrieveUrlResolver } from '@/store/url-resolver';
-  import { useRoute, useRouter } from 'vue-router/composables';
-  import PopInstanceUtil from '../../../global/pop-instance-util';
+import useStore from '@/hooks/use-store';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
+import { useRoute, useRouter } from 'vue-router/composables';
+import PopInstanceUtil from '../../../global/pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
@@ -14,20 +14,20 @@
   // #endif
 
   import { ConditionOperator } from '@/store/condition-operator';
-  import { bkMessage } from 'bk-magic-vue';
+import { bkMessage } from 'bk-magic-vue';
 
-  import $http from '../../../api';
-  import { copyMessage } from '../../../common/util';
-  import useResizeObserve from '../../../hooks/use-resize-observe';
-  import CommonFilterSelect from './common-filter-select.vue';
-  import { withoutValueConditionList } from './const.common';
-  import SqlQuery from './sql-query';
-  import UiInput from './ui-input';
-  import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-  import { getCommonFilterAddition, clearStorageCommonFilterAddition } from '../../../store/helper';
-  import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
   import { handleTransformToTimestamp } from '@/components/time-range/utils';
-  import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import $http from '../../../api';
+import { copyMessage } from '../../../common/util';
+import useResizeObserve from '../../../hooks/use-resize-observe';
+import { clearStorageCommonFilterAddition, getCommonFilterAddition } from '../../../store/helper';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import CommonFilterSelect from './common-filter-select.vue';
+import { withoutValueConditionList } from './const.common';
+import SqlQuery from './sql-query';
+import UiInput from './ui-input';
 
   const props = defineProps({
     // activeFavorite: {
@@ -200,10 +200,51 @@
       store.dispatch('requestIndexSetQuery');
     }
 
-    setRouteParams();
-  };
+const requestIndexSetList = () => {
+  if (route.query.tab === 'origin' || !route.query.tab) {
+    store.dispatch("requestIndexSetQuery");
+  }
+}
 
-  const handleBtnQueryClick = () => {
+const beforeQueryBtnClick = () => {
+  // 功能完善后再放开
+  return Promise.resolve(true);
+  // return $http
+  //   .request('favorite/checkKeywords', {
+  //     data: {
+  //       keyword: sqlQueryValue.value,
+  //       fields: totalFields.value.map(item => ({
+  //         field_name: item.field_name,
+  //         is_analyzed: item.is_analyzed,
+  //         field_type: item.field_type,
+  //       })),
+  //     },
+  //   })
+  //   .then(resp => {
+  //     if (resp.result) {
+  //       Object.assign(inspectResponse.value, resp.data);
+  //       return resp.data;
+  //     }
+
+  //     return Promise.reject(resp);
+  //   });
+};
+
+const getBtnQueryResult = () => {
+  store.commit("updateIndexItemParams", {
+    addition: uiQueryValue.value.filter((val) => !val.is_focus_input),
+    keyword: sqlQueryValue.value ?? "",
+    ip_chooser:
+      uiQueryValue.value.find((item) => item.field === "_ip-select_")
+        ?.value?.[0] ?? {},
+  });
+
+  requestIndexSetList();
+  setRouteParams();
+};
+
+const handleBtnQueryClick = () => {
+  if (isGloalUsage.value) {
     if (!isInputLoading.value) {
       const { datePickerValue, format } = store.state.indexItem;
       const result = handleTransformToTimestamp(datePickerValue, format);
@@ -231,17 +272,19 @@
           keyword: value,
         });
 
-        store.dispatch('requestIndexSetQuery');
+        requestIndexSetList();
         setRouteParams();
         RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
       });
       return;
     }
 
-    store.dispatch('requestIndexSetQuery');
+    requestIndexSetList();
     setRouteParams();
     RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
-  };
+    return;
+  }
+};
 
   const handleSqlQueryChange = value => {
     store.commit('updateIndexItemParams', {
@@ -250,7 +293,9 @@
 
     inspectResponse.value.is_legal = true;
     setRouteParams();
-  };
+    return;
+  }
+};
 
   const handleClearBtnClick = () => {
     if (!isCopyBtnActive.value || isInputLoading.value) {
