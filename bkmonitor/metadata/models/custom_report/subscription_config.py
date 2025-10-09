@@ -291,7 +291,6 @@ class CustomReportSubscription(models.Model):
         bk_biz_id: int,
         data_id_configs: list[tuple[dict[str, Any], str]],
     ):
-        
         cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
         if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             # 补充中心化集群
