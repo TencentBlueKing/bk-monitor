@@ -28,7 +28,7 @@ import { Component, InjectReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFunctions } from 'monitor-api/modules/grafana';
-import { Debounce, random } from 'monitor-common/utils';
+import { commonPageSizeGet, commonPageSizeSet, Debounce, random } from 'monitor-common/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
 import AlarmTemplateTable from './components/alarm-template-table/alarm-template-table';
@@ -70,6 +70,12 @@ import './alarm-template.scss';
 export default class AlarmTemplate extends tsc<object> {
   /** 下发重新请求接口数据标志 */
   refreshKey = random(8);
+  /** 当前页码 */
+  current = 1;
+  /** 每页条数 */
+  pageSize = 50;
+  /** 总条数 */
+  total = 0;
   /** 列表请求状态 loading */
   tableLoading = false;
   /** 表格数据 */
@@ -119,6 +125,8 @@ export default class AlarmTemplate extends tsc<object> {
       refreshKey: this.refreshKey,
       app_name: this.viewOptions.filters?.app_name,
       conditions,
+      page: this.current,
+      page_size: this.pageSize,
       simple: false,
     };
 
@@ -135,7 +143,7 @@ export default class AlarmTemplate extends tsc<object> {
     this.abortRequest();
     this.tableLoading = true;
     this.abortController = new AbortController();
-    const { templateList, isAborted } = await fetchAlarmTemplateList(this.requestParam, {
+    const { templateList, isAborted, total } = await fetchAlarmTemplateList(this.requestParam, {
       signal: this.abortController.signal,
     });
     if (isAborted) {
@@ -143,12 +151,17 @@ export default class AlarmTemplate extends tsc<object> {
     }
     await this.getSelectOptions();
     this.tableData = templateList;
+    this.total = total;
     this.tableLoading = false;
     this.selectedRowKeys = [];
   }
   /** 获取函数列表 */
   async handleGetMetricFunctions() {
     this.metricFunctions = await getFunctions().catch(() => []);
+  }
+
+  created() {
+    this.pageSize = commonPageSizeGet();
   }
 
   mounted() {
@@ -185,6 +198,7 @@ export default class AlarmTemplate extends tsc<object> {
    */
   handleQuickStatusChange(status: 'all' | AlarmTemplateTypeEnumType) {
     this.quickStatus = status;
+    this.handleCurrentPageChange(1);
   }
   /**
    * @description 批量操作按钮点击事件
@@ -199,6 +213,7 @@ export default class AlarmTemplate extends tsc<object> {
    * @param {AlarmTemplateConditionParamItem[]} keyword 筛选值改变后的值
    **/
   handleSearchChange(keyword: AlarmTemplateConditionParamItem[]) {
+    this.handleCurrentPageChange(1);
     this.searchKeyword = keyword;
   }
 
@@ -308,11 +323,29 @@ export default class AlarmTemplate extends tsc<object> {
         });
       });
   }
+  /**
+   * @description 表格分页页码改变事件回调
+   * @param {number} currentPage 改值后的页码
+   */
+  handleCurrentPageChange(currentPage: number) {
+    this.current = currentPage;
+  }
+
+  /**
+   * @description 表格分页每页条数改变事件回调
+   * @param {number} pageSize 改值后的每页条数
+   */
+  handlePageSizeChange(pageSize: number) {
+    this.pageSize = pageSize;
+    this.handleCurrentPageChange(1);
+    commonPageSizeSet(this.pageSize);
+  }
 
   /**
    * @description 刷新表格数据
    */
   handleRefresh() {
+    this.handleCurrentPageChange(1);
     this.refreshKey = random(8);
   }
 
@@ -351,18 +384,23 @@ export default class AlarmTemplate extends tsc<object> {
         <div class='alarm-template-main'>
           <AlarmTemplateTable
             appName={this.viewOptions.filters?.app_name}
+            current={this.current}
             emptyType={this.searchKeyword?.length ? 'search-empty' : 'empty'}
             loading={this.tableLoading}
+            pageSize={this.pageSize}
             searchKeyword={this.searchKeyword}
             selectOptionMap={this.selectOptionsMap}
             tableData={this.tableData}
+            total={this.total}
             onBatchUpdate={this.handleBatchUpdate}
             onClearSearch={() => this.handleSearchChange([])}
             onCloneTemplate={this.handleCloneTemplate}
+            onCurrentPageChange={this.handleCurrentPageChange}
             onDeleteTemplate={this.deleteTemplateById}
             onDispatch={this.handleDispatch}
             onEditTemplate={this.handleEditTemplate}
             onFilterChange={this.handleSearchChange}
+            onPageSizeChange={this.handlePageSizeChange}
             onSelectedChange={this.handleTableSelectedChange}
             onShowDetail={this.handleShowDetail}
           />
@@ -397,7 +435,7 @@ export default class AlarmTemplate extends tsc<object> {
           onShowChange={show => {
             this.editTemplateShow = show;
           }}
-          onSuccess={this.getQueryTemplateList}
+          onSuccess={this.handleRefresh}
         />
         <TemplatePush
           params={this.templatePushObj.params}
