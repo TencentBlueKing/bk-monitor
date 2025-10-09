@@ -66,6 +66,7 @@ class IndexGroupHandler(APIModel):
         index_counts_dict = {x["index_set_id"]: x["count"] for x in index_counts}
         for x in index_groups:
             x["index_count"] = index_counts_dict.get(x["index_set_id"], 0)
+            x["deletable"] = True  # TODO: 先给前端一个字段，后续需要判断索引组是否可以删除
 
         return list(index_groups)
 
