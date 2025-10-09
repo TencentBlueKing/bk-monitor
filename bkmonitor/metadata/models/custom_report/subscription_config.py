@@ -63,6 +63,10 @@ class CustomReportSubscription(models.Model):
 
     config = JsonField(verbose_name="订阅配置")
 
+    # 预编译所有需要的模板
+    _template_cache = {}
+    _jinja_env = Environment()
+
     class Meta:
         verbose_name = "自定义上报订阅配置v2"
         verbose_name_plural = "自定义上报订阅配置v2"
@@ -317,10 +321,31 @@ class CustomReportSubscription(models.Model):
                     tpl = protocol_tpl.get(protocol)
                     if not tpl:
                         continue
+
+                    # 使用缓存的编译模板
+                    cache_key = f"{cluster_id}:{protocol}:{hash(tpl)}"
+                    if cache_key not in cls._template_cache:
+                        cls._template_cache[cache_key] = cls._jinja_env.from_string(tpl)
+
+                # 使用预编译的模板进行渲染
+                for config_context, protocol in data_id_configs:
+                    tpl_name = BkCollectorComp.CONFIG_MAP_NAME_MAP.get(protocol)
+                    if tpl_name is None:
+                        continue
+
+                    tpl = protocol_tpl.get(protocol)
+                    if not tpl:
+                        continue
+
+                    cache_key = f"{cluster_id}:{protocol}:{hash(tpl)}"
+                    if cache_key not in cls._template_cache:
+                        continue
+
                     try:
                         config_id = int(config_context.get("bk_data_id"))
                         config_context.setdefault("bk_biz_id", bk_biz_id)
-                        config_content = Environment().from_string(tpl).render(config_context)
+                        compiled_template = cls._template_cache[cache_key]
+                        config_content = compiled_template.render(config_context)
                         protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
                     except Exception:  # pylint: disable=broad-except
                         # 单个失败，继续渲染模板
@@ -528,6 +553,10 @@ class LogSubscriptionConfig(models.Model):
     # Template Name
     PLUGIN_LOG_CONFIG_TEMPLATE_NAME = "bk-collector-application.conf"
 
+    # 类级别的模板缓存
+    _template_cache = {}
+    _jinja_env = Environment()
+
     @classmethod
     def refresh(cls, log_group: "LogGroup") -> None:
         """
@@ -585,6 +614,12 @@ class LogSubscriptionConfig(models.Model):
                 if not tpl:
                     continue
 
+                # 使用缓存的编译模板
+                cache_key = f"{cluster_id}:{hash(tpl)}"
+                if cache_key not in cls._template_cache:
+                    cls._template_cache[cache_key] = cls._jinja_env.from_string(tpl)
+                compiled_template = cls._template_cache[cache_key]
+
                 # 收集该集群需要部署的所有配置
                 cluster_config_map = {}
 
@@ -601,7 +636,8 @@ class LogSubscriptionConfig(models.Model):
                     for log_group in biz_log_group_list:
                         try:
                             config_context = cls.get_log_config(log_group)
-                            config_content = Environment().from_string(tpl).render(config_context)
+                            # 使用缓存的编译模板进行渲染
+                            config_content = compiled_template.render(config_context)
                             config_id = int(log_group.bk_data_id)
                             cluster_config_map[config_id] = config_content
                         except Exception:  # pylint: disable=broad-except

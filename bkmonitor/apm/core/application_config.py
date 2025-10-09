@@ -50,6 +50,10 @@ tracer = trace.get_tracer(__name__)
 class ApplicationConfig(BkCollectorConfig):
     PLUGIN_APPLICATION_CONFIG_TEMPLATE_NAME = "bk-collector-application.conf"
 
+    # 类级别的模板缓存
+    _template_cache = {}
+    _jinja_env = Environment()
+
     def __init__(self, application):
         self._application: ApmApplication = application
 
@@ -109,6 +113,12 @@ class ApplicationConfig(BkCollectorConfig):
                     if not application_tpl:
                         continue
 
+                    # 使用缓存的编译模板
+                    cache_key = f"{cluster_id}:{hash(application_tpl)}"
+                    if cache_key not in cls._template_cache:
+                        cls._template_cache[cache_key] = cls._jinja_env.from_string(application_tpl)
+                    compiled_template = cls._template_cache[cache_key]
+
                     # 收集该集群需要部署的所有配置
                     cluster_config_map = {}
 
@@ -125,9 +135,8 @@ class ApplicationConfig(BkCollectorConfig):
                         for application in biz_application_list:
                             try:
                                 application_config_context = cls(application).get_application_config()
-                                application_config = (
-                                    Environment().from_string(application_tpl).render(application_config_context)
-                                )
+                                # 使用预编译的模板
+                                application_config = compiled_template.render(application_config_context)
                                 cluster_config_map[application.id] = application_config
                             except Exception as e:  # pylint: disable=broad-except
                                 # 单个失败，继续渲染模板
