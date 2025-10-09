@@ -656,15 +656,20 @@ defineExpose({
           v-if="activeIndex === 0"
           v-model="uiQueryValue"
           @change="handleBtnQueryClick"
-        ></UiInput>
+        >
+        <slot></slot>
+      </UiInput>
         <SqlQuery
           v-if="activeIndex === 1"
           v-model="sqlQueryValue"
           @retrieve="handleSqlRetrieve"
           @change="handleSqlQueryChange"
-        ></SqlQuery>
+        >
+          <slot></slot>
+        </SqlQuery>
         <div ref="refPopTraget" class="hidden-focus-pointer"></div>
         <div class="search-tool items" v-if="isShowSearchTools">
+          <slot name="search-tool"></slot>
           <div
             v-show="!inspectResponse.is_legal"
             style="color: #ea3636"
@@ -744,7 +749,7 @@ defineExpose({
         <div class="search-tool search-btn" @click="handleBtnQueryClick">
           <bk-button
             :loading="isInputLoading"
-            icon="search"
+            icon="search"  
             size="small"
             theme="primary"
           />

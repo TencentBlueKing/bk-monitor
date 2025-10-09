@@ -252,6 +252,7 @@
       v-show="isEmptySqlString"
       >{{ placeholderText }}</span
     >
+    <slot></slot>
     <div style="display: none">
       <SqlQueryOptions
         ref="refSqlQueryOption"

@@ -642,6 +642,7 @@ const handleBatchInputChange = (isShow) => {
         @keyup.enter.stop="handleInputValueEnter"
       />
     </li>
+    <slot></slot>
     <div style="display: none">
       <UiInputOptions
         ref="refPopInstance"
