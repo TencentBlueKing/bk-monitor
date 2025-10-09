@@ -184,12 +184,9 @@ class CacheCronJobCheck(CheckStep):
                 key = cmdb_cache_manager.get_cache_key(bk_tenant_id)
                 ttl = cast(int, cmdb_cache_manager.cache.ttl(key))
 
-                # 如果缓存不存在，则认为缓存任务未正常运行
+                # 如果缓存不存在，则不进行判定
                 if ttl < 0:
-                    p = CMDBCacheCronError(
-                        f"cmdb缓存任务{cache_type}未正常运行, 租户: {bk_tenant_id}, key: {key}", self.story
-                    )
-                    p_list.append(p)
+                    self.story.info(f"cmdb缓存任务{cache_type}缓存不存在，请关注, 租户: {bk_tenant_id}, key: {key}")
                     continue
 
                 # 检查缓存是否在6小时内未刷新
