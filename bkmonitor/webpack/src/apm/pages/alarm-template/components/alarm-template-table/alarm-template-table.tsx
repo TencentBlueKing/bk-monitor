@@ -141,7 +141,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       id: 'system',
       label: this.$t('模板类型'),
       minWidth: 110,
-      filters: [],
+      // filters: [],
       filterMultiple: true,
       formatter: (row, column) => row?.[column.columnKey]?.alias || '--',
     },
@@ -171,7 +171,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       id: 'user_group_list',
       label: this.$t('告警组'),
       width: 258,
-      filters: [],
+      // filters: [],
       filterMultiple: true,
       showOverflowTooltip: false,
       formatter: this.userGroupColRenderer,
@@ -180,7 +180,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       id: 'is_enabled',
       label: this.$t('启用 / 禁用'),
       width: 120,
-      filters: [],
+      // filters: [],
       // filterMultiple: false,
       filterMultiple: true,
       formatter: this.switcherColRenderer,
@@ -189,7 +189,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       id: 'is_auto_apply',
       label: this.$t('自动下发'),
       width: 120,
-      filters: [],
+      // filters: [],
       // filterMultiple: false,
       filterMultiple: true,
       formatter: this.switcherColRenderer,
@@ -212,13 +212,15 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   get tableColumns() {
     return TABLE_DEFAULT_DISPLAY_FIELDS.map(field => {
       const columnItem = { ...this.allTableColumns[field] };
-      if (columnItem?.filters) {
+      if (ALARM_TEMPLATE_TABLE_FILTER_FIELDS.has(columnItem.id)) {
         const selectOptionsItem = this.selectOptionMap?.[AlarmTemplateTableFieldToFilterFieldMap?.[field] ?? field];
         columnItem.filters =
           selectOptionsItem?.map?.(e => ({
             text: e.name,
             value: e.id,
-          })) || columnItem?.filters;
+          })) ||
+          columnItem?.filters ||
+          [];
       }
       return columnItem;
     });
