@@ -49,7 +49,11 @@ module.exports = async (baseConfig, { production, app }) => {
         overlay: false,
       },
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': `http://${devConfig.host}:${devPort}`,
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+        'Access-Control-Allow-Headers':
+          'traceparent, x-csrftoken, cookie, x-requested-with, source-app, authorization, content-type, accept, accept-encoding, accept-language, cache-control, pragma, origin, referer, user-agent, dnt',
+        'Access-Control-Allow-Credentials': true,
       },
       open: false,
       static: [],
