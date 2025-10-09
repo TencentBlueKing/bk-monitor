@@ -544,7 +544,7 @@ class Alarm(BaseContextObject):
         host = self.parent.target.host
         if host:
             topo_string = "{}({}) {}({})".format(_("集群"), host.set_string, _("模块"), host.module_string)
-            if host.bk_env_string:
+            if getattr(host, "bk_env_string", ""):
                 topo_string += " {}({})".format(_("环境类型"), host.bk_env_string)
         return ""
 
