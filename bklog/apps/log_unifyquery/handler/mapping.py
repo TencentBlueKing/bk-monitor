@@ -20,21 +20,13 @@ the project delivered to anyone in the future.
 """
 
 import copy
-import datetime
-import functools
-import re
-from collections import defaultdict
 from typing import Any
 
-import arrow
-import pytz
 from django.conf import settings
-from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
-from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
+from apps.api import BkDataStorekitApi, TransferApi, UnifyQueryApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import (
@@ -48,34 +40,24 @@ from apps.log_search.constants import (
     LOG_ASYNC_FIELDS,
     OPERATORS,
     FieldBuiltInEnum,
-    FieldDataTypeEnum,
     SearchScopeEnum,
-)
-from apps.log_search.exceptions import (
-    FieldsDateNotExistException,
-    MultiFieldsErrorException,
 )
 from apps.log_search.models import (
     IndexSetFieldsConfig,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
-    StorageClusterRecord,
     UserIndexSetFieldsConfig,
 )
 from apps.log_search.utils import split_object_fields
 from apps.utils.cache import cache_one_minute, cache_ten_minute
-from apps.utils.codecs import unicode_str_encode
-from apps.utils.drf import custom_params_valid
 from apps.utils.local import (
     get_local_param,
     get_request_app_code,
     get_request_external_username,
     get_request_username,
 )
-from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
-from apps.utils.time_handler import generate_time_range
 
 INNER_COMMIT_FIELDS = ["dteventtime", "report_time"]
 INNER_PRODUCE_FIELDS = [
@@ -123,24 +105,6 @@ class UnifyQueryMappingHandler:
         self.only_search = only_search
 
         self._index_set = index_set
-
-    def is_nested_field(self, field):
-        parent_path, *_ = field.split(".")
-        return parent_path in self.nested_fields
-
-    @cached_property
-    def nested_fields(self):
-        """
-        nested_fields
-        @return:
-        """
-        mapping_list: list = self._get_mapping()
-        property_dict: dict = self.find_merged_property(mapping_list)
-        nested_fields = set()
-        for key, value in property_dict.items():
-            if FieldDataTypeEnum.NESTED.value == value.get("type", ""):
-                nested_fields.add(key)
-        return nested_fields
 
     def _get_sub_fields(self, conflict_result, properties, last_key):
         for property_key, property_define in properties.items():
@@ -430,135 +394,7 @@ class UnifyQueryMappingHandler:
         ]
         return type_keyword_fields[:2]
 
-    def _get_mapping(self):
-        # 当没有指定时间范围时，默认获取最近一天的mapping
-        if not self.start_time and not self.end_time:
-            start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
-        else:
-            try:
-                start_time = arrow.get(int(self.start_time)).to(self.time_zone)
-                end_time = arrow.get(int(self.end_time)).to(self.time_zone)
-            except ValueError:
-                start_time = arrow.get(self.start_time, tzinfo=self.time_zone)
-                end_time = arrow.get(self.end_time, tzinfo=self.time_zone)
-
-        start_time_format = start_time.floor("hour").strftime("%Y-%m-%d %H:%M:%S")
-        end_time_format = end_time.ceil("hour").strftime("%Y-%m-%d %H:%M:%S")
-
-        return self._get_latest_mapping(
-            indices=self.indices,
-            start_time=start_time_format,
-            end_time=end_time_format,
-            only_search=self.only_search,
-        )
-
-    def _direct_latest_mapping(self, params):
-        from apps.log_esquery.esquery.esquery import EsQuery
-        from apps.log_esquery.serializers import EsQueryMappingAttrSerializer
-
-        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.bk_biz_id):
-            data = custom_params_valid(EsQueryMappingAttrSerializer, params)
-            latest_mapping = EsQuery(data).mapping()
-        else:
-            latest_mapping = BkLogApi.mapping(params)
-        return latest_mapping
-
-    @cache_one_minute("latest_mapping_key_{indices}_{start_time}_{end_time}_{only_search}", need_md5=True)
-    def _get_latest_mapping(self, indices, start_time, end_time, only_search=False):  # noqa
-        storage_cluster_record_objs = StorageClusterRecord.objects.none()
-
-        if self.start_time:
-            try:
-                tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-                if isinstance(self.start_time, int | float) or (
-                    isinstance(self.start_time, str) and self.start_time.isdigit()
-                ):
-                    start_datetime = arrow.get(int(self.start_time)).to(tz=tz_info).datetime
-                else:
-                    start_datetime = arrow.get(self.start_time).replace(tzinfo=tz_info).datetime
-                storage_cluster_record_objs = StorageClusterRecord.objects.filter(
-                    index_set_id=int(self.index_set_id), created_at__gt=(start_datetime - datetime.timedelta(hours=1))
-                ).exclude(storage_cluster_id=self.storage_cluster_id)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.exception(f"[_multi_mappings] parse time error -> e: {e}")
-
-        params = {
-            "indices": self.indices,
-            "scenario_id": self.scenario_id,
-            "storage_cluster_id": self.storage_cluster_id,
-            "time_zone": self.time_zone,
-            "start_time": start_time,
-            "end_time": end_time,
-            "add_settings_details": False if only_search else True,
-        }
-        if not storage_cluster_record_objs.exists():
-            return self._direct_latest_mapping(params)
-        multi_execute_func = MultiExecuteFunc()
-        multi_num = 1
-        storage_cluster_ids = {self.storage_cluster_id}
-
-        # 获取当前使用的存储集群数据
-        multi_execute_func.append(
-            result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=params
-        )
-
-        # 获取历史使用的存储集群数据
-        for storage_cluster_record_obj in storage_cluster_record_objs:
-            if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
-                multi_params = copy.deepcopy(params)
-                multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
-                multi_num += 1
-                multi_execute_func.append(
-                    result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=multi_params
-                )
-                storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
-
-        multi_result = multi_execute_func.run()
-
-        # 合并多个集群的检索结果
-        merge_result = list()
-        try:
-            for _key, _result in multi_result.items():
-                merge_result.extend(_result)
-        except Exception as e:
-            logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
-            raise MultiFieldsErrorException()
-        return merge_result
-
-    @staticmethod
-    def _get_context_fields(final_fields_list):
-        for _field in final_fields_list:
-            if _field["field_name"] == "log":
-                _field["is_display"] = True
-                return final_fields_list, ["log"]
-        return final_fields_list, []
-
-    @classmethod
-    def is_case_sensitive(cls, field_dict: dict[str, Any]) -> bool:
-        # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer和analyzer_details
-        if not field_dict.get("analyzer"):
-            return False
-        if not field_dict.get("analyzer_details"):
-            return False
-        return "lowercase" not in field_dict["analyzer_details"].get("filter", [])
-
-    @classmethod
-    def tokenize_on_chars(cls, field_dict: dict[str, Any]) -> str:
-        # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer,analyzer_details,tokenizer_details
-        if not field_dict.get("analyzer_details"):
-            return ""
-        # tokenizer_details在analyzer_details中
-        if not field_dict["analyzer_details"].get("tokenizer_details", {}):
-            return ""
-        if not field_dict.get("analyzer"):
-            return ""
-        elif field_dict.get("analyzer") == "bkbase_custom":
-            return field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", "")
-        result = "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
-        return unicode_str_encode(result)
-
     def get_all_index_fields(self):
-        from apps.api import UnifyQueryApi
         from apps.log_search.handlers.index_set import BaseIndexSetHandler
 
         params = {
@@ -568,63 +404,8 @@ class UnifyQueryMappingHandler:
             "table_id": BaseIndexSetHandler.get_data_label(self.index_set_id),
             "bk_biz_id": self.bk_biz_id,
         }
-        return UnifyQueryApi.query_field_map(params)["data"]
-
-    @classmethod
-    def get_all_index_fields_by_mapping(cls, properties_dict: dict) -> list:
-        """
-        通过mapping集合获取所有的index下的fields
-        :return:
-        """
-        fields_result: list = list()
-        for key in properties_dict.keys():
-            k_keys: list = properties_dict[key].keys()
-            if "properties" in k_keys:
-                fields_result.extend(cls.get_fields_recursively(p_key=key, properties_dict=properties_dict[key]))
-                continue
-            if "type" in k_keys:
-                field_type: str = properties_dict[key]["type"]
-                latest_field_type: str = properties_dict[key]["latest_field_type"]
-                doc_values_farther_dict: dict = properties_dict[key]
-                doc_values = False
-
-                if isinstance(doc_values_farther_dict, dict):
-                    doc_values = doc_values_farther_dict.get("doc_values", True)
-
-                es_doc_values = doc_values
-                if field_type in ["text", "object"]:
-                    es_doc_values = False
-
-                is_case_sensitive = cls.is_case_sensitive(properties_dict[key])
-                tokenize_on_chars = cls.tokenize_on_chars(properties_dict[key])
-
-                # @TODO tag：兼容前端代码，后面需要删除
-                tag = "metric"
-                if field_type == "date":
-                    tag = "timestamp"
-                elif es_doc_values:
-                    tag = "dimension"
-
-                data: dict[str, Any] = dict()
-                data.update(
-                    {
-                        "field_type": field_type,
-                        "field_name": key,
-                        "field_alias": "",
-                        "description": "",
-                        "es_doc_values": es_doc_values,
-                        "tag": tag,
-                        "is_analyzed": cls._is_analyzed(latest_field_type),
-                        "latest_field_type": latest_field_type,
-                        "is_case_sensitive": is_case_sensitive,
-                        "tokenize_on_chars": tokenize_on_chars,
-                    }
-                )
-                if field_type == "alias":
-                    data["path"] = properties_dict[key]["path"]
-                fields_result.append(data)
-                continue
-        return fields_result
+        result = UnifyQueryApi.query_field_map(params)
+        return result.get("data")
 
     @staticmethod
     def _is_analyzed(field_type: str):
@@ -689,91 +470,6 @@ class UnifyQueryMappingHandler:
                         cls.get_fields_recursively(p_key=f"{p_key}.{key}", properties_dict=properties_dict[key])
                     )
         return fields_result
-
-    @staticmethod
-    def compare_indices_by_date(index_a, index_b):
-        """
-        compare_indices_by_date
-        @param index_a:
-        @param index_b:
-        @return:
-        """
-        index_a = list(index_a.keys())[0]
-        index_b = list(index_b.keys())[0]
-
-        def convert_to_normal_date_tuple(index_name) -> tuple:
-            # example 1: 2_bklog_xxxx_20200321_1 -> (20200321, 1)
-            # example 2: 2_xxxx_2020032101 -> (20200321, 1)
-            result = re.findall(r"(\d{8})_(\d{1,7})$", index_name) or re.findall(r"(\d{8})(\d{2})$", index_name)
-            if result:
-                return result[0][0], int(result[0][1])
-            # not match
-            return index_name, 0
-
-        converted_index_a = convert_to_normal_date_tuple(index_a)
-        converted_index_b = convert_to_normal_date_tuple(index_b)
-
-        return (converted_index_a > converted_index_b) - (converted_index_a < converted_index_b)
-
-    def find_merged_property(self, mapping_result) -> dict:
-        """
-        find_merged_property
-        @param mapping_result:
-        @return:
-        """
-        return self._merge_property(self._get_all_property(mapping_result))
-
-    def _get_all_property(self, mapping_result):
-        index_es_rt: str = self.indices.replace(".", "_")
-        index_es_rts = index_es_rt.split(",")
-        mapping_group: dict = self._mapping_group(index_es_rts, mapping_result)
-        return [self.find_property_dict(mapping_list) for mapping_list in mapping_group.values()]
-
-    @classmethod
-    def _merge_property(cls, propertys: list):
-        merge_dict = {}
-        for property in propertys:
-            for property_key, property_define in property.items():
-                if property_key not in merge_dict:
-                    merge_dict[property_key] = property_define
-                    # 这里由于该函数会被调用两次，所以只有在第一次调用且为最新mapping的时候来赋值
-                    if not merge_dict[property_key].get("latest_field_type"):
-                        merge_dict[property_key]["latest_field_type"] = property_define["type"]
-                    continue
-        return {property_key: property for property_key, property in merge_dict.items()}
-
-    def _mapping_group(self, index_result_tables: list, mapping_result: list):
-        # 第三方不合并mapping
-        if self.scenario_id in [Scenario.ES]:
-            return {"es": mapping_result}
-        mapping_group = defaultdict(list)
-        # 排序rt表 最长的在前面保障类似 bk_test_test, bk_test
-        index_result_tables.sort(key=lambda s: len(s), reverse=True)
-        # 数平rt和索引对应不区分大小写
-        if self.scenario_id in [Scenario.BKDATA]:
-            index_result_tables = [index.lower() for index in index_result_tables]
-        for mapping in mapping_result:
-            index: str = next(iter(mapping.keys()))
-            for index_es_rt in index_result_tables:
-                if index_es_rt in index:
-                    mapping_group[index_es_rt].append(mapping)
-                    break
-        return mapping_group
-
-    @classmethod
-    def find_property_dict(cls, result_list: list) -> dict:
-        """
-        获取最新索引mapping
-        :param result_list:
-        :return:
-        """
-        sorted_result_list = sorted(result_list, key=functools.cmp_to_key(cls.compare_indices_by_date), reverse=True)
-        property_list = []
-        for _inner_dict in sorted_result_list:
-            property_dict = cls.get_property_dict(_inner_dict)
-            if property_dict:
-                property_list.append(property_dict)
-        return cls._merge_property(property_list)
 
     def _combine_description_field(self, fields_list=None, scope=None):
         if fields_list is None:
@@ -992,24 +688,6 @@ class UnifyQueryMappingHandler:
         final_fields_list.extend(produce_list)
         return final_fields_list
 
-    @staticmethod
-    def _sort_display_fields(display_fields: list) -> list:
-        """
-        检索字段显示时间排序规则: 默认dtEventTimeStamp放前面，time放最后
-        :param display_fields:
-        :return:
-        """
-        if "dtEventTimeStamp" in display_fields:
-            dt_time_index = display_fields.index("dtEventTimeStamp")
-            if dt_time_index != 0:
-                display_fields[0], display_fields[dt_time_index] = "dtEventTimeStamp", display_fields[0]
-
-        if "time" in display_fields:
-            time_index = display_fields.index("time")
-            if time_index != len(display_fields) - 1:
-                display_fields[-1], display_fields[time_index] = "time", display_fields[-1]
-        return display_fields
-
     @classmethod
     def get_sort_list_by_index_id(cls, index_set_id, scope: str = SearchScopeEnum.DEFAULT.value):
         """
@@ -1142,36 +820,6 @@ class UnifyQueryMappingHandler:
                 return _("必须iterationIndex或者_iteration_idx字段")
             return ""
         return _("必须gseindex或者gseIndex字段")
-
-    @classmethod
-    def get_date_candidate(cls, mapping_list: list):
-        """
-        1、校验索引mapping字段类型是否一致；
-        2、获取可供选择的时间字段（long&data类型）
-        """
-        date_field_list: list = []
-        for item in mapping_list:
-            property_dict = cls.get_property_dict(item)
-            if property_dict:
-                item_data_field = []
-                for key, info in property_dict.items():
-                    field_type = info.get("type", "")
-                    if field_type in settings.FEATURE_TOGGLE.get("es_date_candidate", ["date", "long"]):
-                        item_data_field.append(f"{key}:{field_type}")
-                # 校验是否有相同的时间字段（long和date类型)
-                if not date_field_list:
-                    date_field_list = item_data_field
-                date_field_list = list(set(date_field_list).intersection(item_data_field))
-                if not date_field_list:
-                    raise FieldsDateNotExistException()
-        if not date_field_list:
-            raise FieldsDateNotExistException()
-
-        date_candidate = []
-        for _field in date_field_list:
-            field_name, field_type = _field.split(":")
-            date_candidate.append({"field_name": field_name, "field_type": field_type})
-        return date_candidate
 
     @classmethod
     def get_property_dict(cls, dict_item, prefix_key="", match_key="properties"):
