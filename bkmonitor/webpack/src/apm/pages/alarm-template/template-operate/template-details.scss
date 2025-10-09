@@ -10,10 +10,12 @@
     .header-left {
       display: flex;
       align-items: center;
+      overflow: hidden;
 
       .header-title {
         font-size: 16px;
         color: #313238;
+        white-space: nowrap;
       }
 
       .split-line {
@@ -24,12 +26,17 @@
       }
 
       .header-desc {
+        overflow: hidden;
+        text-overflow: ellipsis;
         font-size: 14px;
         color: #979BA5;
+        white-space: nowrap;
       }
     }
 
     .header-right {
+      display: flex;
+      align-items: center;
       margin: 0 40px 0 auto;
     }
   }
