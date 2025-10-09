@@ -368,10 +368,10 @@ class RetrieveHelper extends RetrieveBase {
 
   /**
    * 检索值变化
-   * @param type 检索类型：ui/sql/filter
+   * @param type 检索类型：ui/sql/filter/cluster
    * @param value
    */
-  searchValueChange(type: 'filter' | 'sql' | 'ui', value: Array<any> | string) {
+  searchValueChange(type: 'filter' | 'sql' | 'ui' | 'cluster', value: Array<any> | string) {
     this.runEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, { type, value });
   }
 
