@@ -43,7 +43,13 @@ interface IRowSendData {
   type: string;
 }
 export default defineComponent({
-  setup(_props, { expose }) {
+  props: {
+    isExternal: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup(props, { expose }) {
     const aiBlueking = ref<InstanceType<typeof AIBlueking> | null>(null);
 
     let chatid = random(10);
@@ -75,14 +81,20 @@ export default defineComponent({
         aiBlueking.value?.handleShow();
         aiBlueking.value?.addNewSession().finally(() => {
           const shortcut = structuredClone(AI_BLUEKING_SHORTCUTS[0]);
-          shortcut.components.forEach(comp => {
+          shortcut.components.forEach((comp) => {
             const value = args[comp.key];
             if (value) {
-              comp.default = typeof value === 'object' ? JSON.stringify(value).replace(/<\/?mark>/gim, '') : value;
+              comp.default =
+                typeof value === 'object'
+                  ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
+                  : value;
             }
           });
 
-          aiBlueking.value?.handleShortcutClick?.({ shortcut, source: 'popup' });
+          aiBlueking.value?.handleShortcutClick?.({
+            shortcut,
+            source: 'popup',
+          });
         });
       }
     };
@@ -134,32 +146,33 @@ export default defineComponent({
       setCiteText,
     });
 
-    return () => (
-      <div class='ai-blueking-wrapper'>
-        <AIBlueking
-          ref={aiBlueking}
-          requestOptions={{
-            beforeRequest: data => {
-              return {
-                ...data,
-                headers: {
-                  ...(data?.headers || {}),
-                  Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
-                },
-              };
-            },
-          }}
-          enablePopup={false}
-          hideNimbus={true}
-          prompts={[]}
-          shortcutFilter={handleShortcutFilter}
-          shortcuts={shortcuts.value}
-          showHistoryIcon={false}
-          url={apiUrl}
-          onClose={hiddenAiAssistant}
-          onShow={displayAiAssistant}
-        />
-      </div>
-    );
+    return () =>
+      props.isExternal ? null : (
+        <div class='ai-blueking-wrapper'>
+          <AIBlueking
+            ref={aiBlueking}
+            requestOptions={{
+              beforeRequest: (data) => {
+                return {
+                  ...data,
+                  headers: {
+                    ...(data?.headers || {}),
+                    Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
+                  },
+                };
+              },
+            }}
+            enablePopup={false}
+            hideNimbus={true}
+            prompts={[]}
+            shortcutFilter={handleShortcutFilter}
+            shortcuts={shortcuts.value}
+            showHistoryIcon={false}
+            url={apiUrl}
+            onClose={hiddenAiAssistant}
+            onShow={displayAiAssistant}
+          />
+        </div>
+      );
   },
 });
