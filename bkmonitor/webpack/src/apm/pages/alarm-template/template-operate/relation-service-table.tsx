@@ -62,9 +62,6 @@ const RelationStatus = {
 @Component
 export default class RelationServiceTable extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) relationService: IRelationService[];
-  // @Prop({ type: Function, default: () => Promise.resolve(new Map()) }) getStrategyDetails: (
-  //   ids: (number | string)[]
-  // ) => Promise<Map<number | string, TemplateDetail>>;
   @Prop({ type: Function, default: () => Promise.resolve({ diff: [] }) }) getCompareData: (params: {
     service_name: string;
     strategy_template_id: number;
@@ -73,7 +70,19 @@ export default class RelationServiceTable extends tsc<IProps> {
   /* 搜索值 */
   searchValue = '';
   /* tab列表 */
-  tabList = [];
+  tabList = [
+    {
+      name: RelationStatus.relation,
+      label: window.i18n.t('已关联的服务'),
+      count: 0,
+    },
+    {
+      name: RelationStatus.unRelation,
+      label: window.i18n.t('未关联的服务'),
+      count: 0,
+    },
+  ];
+  // 选中tab
   activeTab: string = RelationStatus.relation;
   relationServiceObj = {
     list: [],
@@ -150,8 +159,8 @@ export default class RelationServiceTable extends tsc<IProps> {
     type: 'current' | 'relation';
   }[] = [];
   expandContentLoading = false;
-
   tableKey = random(8);
+  showTips = true;
 
   get isRelation() {
     return this.activeTab === RelationStatus.relation;
@@ -160,8 +169,8 @@ export default class RelationServiceTable extends tsc<IProps> {
   @Watch('relationService', { immediate: true })
   handleWatchRelationService(newVal: IRelationService[]) {
     if (newVal.length) {
-      this.relationServiceObj.list = newVal.filter(item => item.same_origin_strategy_template);
-      this.unRelationServiceObj.list = newVal.filter(item => !item.same_origin_strategy_template);
+      this.relationServiceObj.list = newVal.filter(item => item.has_been_applied);
+      this.unRelationServiceObj.list = newVal.filter(item => !item.has_been_applied);
       this.tabList = [
         {
           name: RelationStatus.relation,
@@ -547,7 +556,7 @@ export default class RelationServiceTable extends tsc<IProps> {
           >
             {this.tabList.map(item => (
               <bk-tab-panel
-                key={item.name}
+                key={`${item.name}_${item.count}`}
                 name={item.name}
               >
                 <template slot='label'>
@@ -558,13 +567,17 @@ export default class RelationServiceTable extends tsc<IProps> {
             ))}
           </bk-tab>
           <div class='left-table-content'>
-            {this.isRelation && (
-              <bk-alert
-                class='mt-12'
-                title={this.$t('再次下发已关联的服务，相当于“同步”操作。')}
-                type='info'
-                closable
-              />
+            {this.isRelation && this.showTips && (
+              <div class='info-tips mt-12'>
+                <span class='icon-monitor icon-hint' />
+                <span>{this.$t('再次下发已关联的服务，相当于“同步”操作。')}</span>
+                <span
+                  class='icon-monitor icon-mc-close'
+                  onClick={() => {
+                    this.showTips = false;
+                  }}
+                />
+              </div>
             )}
             <bk-input
               class={['search-input', this.isRelation ? 'mt-12' : 'mt-16']}
