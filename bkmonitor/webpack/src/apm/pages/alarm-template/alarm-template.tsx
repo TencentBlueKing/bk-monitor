@@ -141,6 +141,7 @@ export default class AlarmTemplate extends tsc<object> {
     if (isAborted) {
       return;
     }
+    await this.getSelectOptions();
     this.tableData = templateList;
     this.tableLoading = false;
     this.selectedRowKeys = [];
@@ -156,10 +157,6 @@ export default class AlarmTemplate extends tsc<object> {
     if (detailsId) {
       this.handleShowDetail({ id: Number(detailsId), sliderActiveTab: 'base_info' });
     }
-  }
-
-  beforeMount() {
-    this.getSelectOptions();
   }
 
   /**

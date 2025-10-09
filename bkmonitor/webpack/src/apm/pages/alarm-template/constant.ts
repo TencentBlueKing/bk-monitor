@@ -119,7 +119,7 @@ export const SEARCH_SELECT_OPTIONS = [
   },
   {
     name: window.i18n.t('关联服务'),
-    id: 'applied_service_names',
+    id: 'applied_service_name',
     multiple: true,
     children: [],
   },
@@ -148,6 +148,7 @@ export const AlarmTemplateTableFieldToFilterFieldMap: Record<string, string> = {
   user_group_list: 'user_group_id',
   is_enabled: 'is_enabled',
   is_auto_apply: 'is_auto_apply',
+  applied_service_names: 'applied_service_name',
 };
 
 /** 告警模板类型 Map */
