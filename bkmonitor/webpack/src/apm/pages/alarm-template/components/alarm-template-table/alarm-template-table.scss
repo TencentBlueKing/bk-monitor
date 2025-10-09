@@ -20,7 +20,8 @@
     &.table-loading-active {
       .bk-table-body-wrapper,
       .bk-table-fixed,
-      .bk-table-fixed-right {
+      .bk-table-fixed-right,
+      .bk-table-pagination-wrapper {
         display: none;
       }
     }
