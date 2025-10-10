@@ -8,7 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from venv import logger
+import logging
+logger = logging.getLogger(__name__)
 from django.utils import translation
 from django.utils.functional import cached_property
 
