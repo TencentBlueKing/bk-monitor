@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Inject, InjectReactive, Model, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
@@ -35,6 +35,8 @@ import { optimizedDeepEqual } from '../../metric-chart-view/utils';
 import ViewManage from './components/view-manage';
 import ViewSave from './components/view-save';
 
+import type { IRouteParams } from '../../type';
+
 import './index.scss';
 
 interface IEmit {
@@ -43,19 +45,14 @@ interface IEmit {
 
 interface IProps {
   graphConfigPayload: Record<string, any>;
-  isAPM: boolean;
 }
 
 const DEFAULT_VALUE = 'default';
 
 @Component
 export default class ViewTab extends tsc<IProps, IEmit> {
-  @InjectReactive('routeParams') routeParams: Record<string, string>;
-  @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (
-    customRouteQuery: Record<string, number | string>
-  ) => void;
+  @InjectReactive('routeParams') routeParams: IRouteParams;
   @Prop({ type: Object, default: () => ({}) }) readonly graphConfigPayload: IProps['graphConfigPayload'];
-  @Prop({ type: Boolean, default: false }) readonly isAPM: boolean;
 
   @Model('change', { type: String, default: DEFAULT_VALUE }) readonly value: string;
 
@@ -74,7 +71,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
   }
 
   get sceneId() {
-    return `custom_metric_v2_${this.routeParams.id}`;
+    return `custom_metric_v2_${this.routeParams.idParams.time_series_group_id}`;
   }
 
   get currentSelectViewInfo() {
@@ -84,13 +81,6 @@ export default class ViewTab extends tsc<IProps, IEmit> {
   @Watch('graphConfigPayload')
   graphConfigPayloadChange(val, old) {
     if (optimizedDeepEqual(val, old)) {
-      return;
-    }
-    if (this.isAPM) {
-      this.handleCustomRouteQueryChange?.({
-        viewTab: this.viewTab,
-        viewPayload: JSON.stringify(this.graphConfigPayload),
-      });
       return;
     }
     this.$router.replace({
@@ -232,36 +222,35 @@ export default class ViewTab extends tsc<IProps, IEmit> {
   render() {
     return (
       <div>
-        {!this.isAPM && (
-          <div
-            class='bk-monitor-new-metric-view-view-tab'
-            v-bkloading={{ isListLoading: this.isListLoading }}
-          >
-            {this.isTabListInit && (
-              <bk-tab
-                ref='tabRef'
-                active={this.viewTab}
-                labelHeight={42}
-                sortable={true}
-                type='unborder-card'
-                {...{ on: { 'update:active': this.handleTabChange, 'sort-change': this.handleSortChange } }}
-              >
+        <div
+          class='bk-monitor-new-metric-view-view-tab'
+          v-bkloading={{ isListLoading: this.isListLoading }}
+        >
+          {this.isTabListInit && (
+            <bk-tab
+              ref='tabRef'
+              active={this.viewTab}
+              labelHeight={42}
+              sortable={true}
+              type='unborder-card'
+              {...{ on: { 'update:active': this.handleTabChange, 'sort-change': this.handleSortChange } }}
+            >
+              <bk-tab-panel
+                label={this.$t('默认')}
+                name='default'
+                sortable={false}
+              />
+              {this.viewList.map(item => (
                 <bk-tab-panel
-                  label={this.$t('默认')}
-                  name='default'
-                  sortable={false}
-                />
-                {this.viewList.map(item => (
-                  <bk-tab-panel
-                    key={item.id}
-                    name={item.id}
-                  >
-                    <template slot='label'>
-                      {/* <div class='drag-flag'>
+                  key={item.id}
+                  name={item.id}
+                >
+                  <template slot='label'>
+                    {/* <div class='drag-flag'>
                       <i class='icon-monitor icon-mc-tuozhuai' />
                     </div> */}
-                      <span>{item.name}</span>
-                      {/* <RemoveConfirm
+                    <span>{item.name}</span>
+                    {/* <RemoveConfirm
                       data={item}
                       onSubmit={() => this.handleRemoveView(item.id)}
                     >
@@ -269,33 +258,32 @@ export default class ViewTab extends tsc<IProps, IEmit> {
                         <i class='icon-monitor icon-mc-clear' />
                       </span>
                     </RemoveConfirm> */}
-                    </template>
-                  </bk-tab-panel>
-                ))}
-              </bk-tab>
-            )}
-            <div class='extend-action'>
-              {this.viewList.length > 0 && (
-                <ViewManage
-                  payload={this.graphConfigPayload}
-                  sceneId={this.sceneId}
-                  viewList={this.viewList}
-                  onSuccess={() => {
-                    this.isTabListInit = false;
-                    this.handleViewSaveSuccess();
-                  }}
-                />
-              )}
-              <ViewSave
+                  </template>
+                </bk-tab-panel>
+              ))}
+            </bk-tab>
+          )}
+          <div class='extend-action'>
+            {this.viewList.length > 0 && (
+              <ViewManage
                 payload={this.graphConfigPayload}
                 sceneId={this.sceneId}
-                viewId={this.viewTab}
                 viewList={this.viewList}
-                onSuccess={this.handleViewSaveSuccess}
+                onSuccess={() => {
+                  this.isTabListInit = false;
+                  this.handleViewSaveSuccess();
+                }}
               />
-            </div>
+            )}
+            <ViewSave
+              payload={this.graphConfigPayload}
+              sceneId={this.sceneId}
+              viewId={this.viewTab}
+              viewList={this.viewList}
+              onSuccess={this.handleViewSaveSuccess}
+            />
           </div>
-        )}
+        </div>
         <div v-bkloading={{ isLoading: this.isViewDetailLoading }}>{this.$slots.default}</div>
       </div>
     );

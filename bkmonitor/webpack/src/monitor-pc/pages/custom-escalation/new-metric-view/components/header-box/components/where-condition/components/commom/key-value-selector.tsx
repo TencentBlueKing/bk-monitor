@@ -32,6 +32,8 @@ import KvSelector from 'monitor-pc/components/retrieval-filter/setting-kv-select
 import customEscalationViewStore from '../../../../../../../../../store/modules/custom-escalation-view';
 import { getCustomTsDimensionValues } from '../../../../../../services/scene_view_new';
 
+import type { IRouteParams } from '../../../../../../type';
+
 interface IEmit {
   onChange: (value: IProps['data']) => void;
 }
@@ -47,7 +49,7 @@ interface IProps {
 
 @Component
 export default class FilterConditions extends tsc<IProps, IEmit> {
-  @InjectReactive('routeParams') routeParams: Record<string, string>;
+  @InjectReactive('routeParams') routeParams: IRouteParams;
 
   @Prop({ type: Object, required: true }) readonly data: IProps['data'];
 
@@ -62,7 +64,7 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
     if (this.valueListMemo.length < 1) {
       const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
       const result = await getCustomTsDimensionValues({
-        time_series_group_id: Number(this.routeParams.id),
+        ...this.routeParams.idParams,
         dimension: this.data.key,
         start_time: startTime || 0,
         end_time: endTime || 0,

@@ -31,11 +31,13 @@ import { copyText } from 'monitor-common/utils/utils';
 
 import customEscalationViewStore from '../../../../../store/modules/custom-escalation-view';
 
+import type { IRouteParams } from '../../type';
+
 import './index.scss';
 
 @Component
 export default class PageHeader extends tsc<object> {
-  @InjectReactive('routeParams') routeParams: Record<string, string>;
+  @InjectReactive('routeParams') routeParams: IRouteParams;
   customTimeSeriesList: Readonly<{ data_label: string; name: string; time_series_group_id: number }[]> = [];
 
   currentCustomTimeSeriesId = 0;
@@ -89,7 +91,7 @@ export default class PageHeader extends tsc<object> {
 
   created() {
     this.fetchData();
-    this.currentCustomTimeSeriesId = Number(this.routeParams.id);
+    this.currentCustomTimeSeriesId = Number(this.routeParams.idParams.time_series_group_id);
   }
 
   render() {

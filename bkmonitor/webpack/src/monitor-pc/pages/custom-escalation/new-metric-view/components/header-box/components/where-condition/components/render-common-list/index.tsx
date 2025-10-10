@@ -30,6 +30,8 @@ import _ from 'lodash';
 
 import KeyValueSelector from '../commom/key-value-selector';
 
+import type { IRouteParams } from '@/pages/custom-escalation/new-metric-view/type';
+
 import './index.scss';
 
 interface IEmit {
@@ -47,7 +49,7 @@ interface IProps {
 
 @Component
 export default class FilterConditions extends tsc<IProps, IEmit> {
-  @InjectReactive('routeParams') routeParams: Record<string, string>;
+  @InjectReactive('routeParams') routeParams: IRouteParams;
 
   @Prop({ type: Array, required: true }) readonly data: IProps['data'];
 
@@ -62,7 +64,10 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
   handleGoToSetDimension() {
     if (window.__POWERED_BY_BK_WEWEB__) {
       window.open(
-        location.href.replace(location.hash, `#/custom-escalation-detail/timeseries/${this.routeParams.id}/dimension`),
+        location.href.replace(
+          location.hash,
+          `#/custom-escalation-detail/timeseries/${this.routeParams.idParams.time_series_group_id}/dimension`
+        ),
         '_blank'
       );
       return;
@@ -70,7 +75,7 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
     const route = this.$router.resolve({
       name: 'custom-detail-timeseries',
       params: {
-        id: this.routeParams.id,
+        id: this.routeParams.idParams.time_series_group_id.toString(),
         activeTab: 'dimension',
       },
     });
