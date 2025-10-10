@@ -91,7 +91,7 @@ class EventTimeSeriesResource(EventBaseResource):
     DEFAULT_RESPONSE_DATA = {}
     RequestSerializer = serializers.EventTimeSeriesRequestSerializer
 
-    def _perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         result: dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
         for series in result["series"]:
             dimensions = series["dimensions"]
@@ -106,7 +106,7 @@ class EventLogsResource(EventBaseResource):
     DEFAULT_RESPONSE_DATA = {"list": []}
     RequestSerializer = serializers.EventLogsRequestSerializer
 
-    def _perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         # 构建统一查询集
         queryset = (
             get_qs_from_req_data(validated_request_data)
@@ -169,7 +169,7 @@ class EventViewConfigResource(EventBaseResource):
     def is_return_default_early(cls, validated_request_data: dict[str, Any]) -> bool:
         return not validated_request_data.get("data_sources")
 
-    def _perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         tables = [data_source["table"] for data_source in validated_request_data["data_sources"]]
         dimension_metadata_map = self.get_dimension_metadata_map(validated_request_data["bk_biz_id"], tables)
         fields = self.sort_fields(dimension_metadata_map)
@@ -262,7 +262,7 @@ class EventTopKResource(EventBaseResource):
     DEFAULT_RESPONSE_DATA = []
     RequestSerializer = serializers.EventTopKRequestSerializer
 
-    def _perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         lock = threading.Lock()
         fields = validated_request_data["fields"]
         # 计算事件总数
@@ -488,7 +488,7 @@ class EventTotalResource(EventBaseResource):
     DEFAULT_RESPONSE_DATA = {"total": 0}
     RequestSerializer = serializers.EventTotalRequestSerializer
 
-    def _perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         alias: str = "a"
         # 构建查询列表
         queries = [
@@ -510,7 +510,7 @@ class EventStatisticsGraphResource(EventBaseResource):
     DEFAULT_RESPONSE_DATA = {"series": [{"datapoints": []}]}
     RequestSerializer = serializers.EventStatisticsGraphRequestSerializer
 
-    def _perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         """
         param:field[values]:list
                 1）当字段类型为 integer 时，包含字段的最小值、最大值、枚举数量和区间数量。具体结构如下：
@@ -644,7 +644,7 @@ class EventStatisticsInfoResource(EventBaseResource):
     }
     RequestSerializer = serializers.EventStatisticsInfoRequestSerializer
 
-    def _perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         queries = [
             get_q_from_query_config(query_config).alias("a") for query_config in validated_request_data["query_configs"]
         ]
@@ -740,7 +740,7 @@ class EventGenerateQueryStringResource(EventBaseResource):
     def is_return_default_early(cls, validated_request_data: dict[str, Any]) -> bool:
         return False
 
-    def _perform_request(self, data):
+    def perform_request(self, data):
         generator = QueryStringGenerator(Operation.QueryStringOperatorMapping)
         for f in data["where"]:
             generator.add_filter(
@@ -756,7 +756,7 @@ class EventTagDetailResource(EventBaseResource):
     DEFAULT_RESPONSE_DATA = {"total": 0, "list": []}
     RequestSerializer = serializers.EventTagDetailRequestSerializer
 
-    def _perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         def _collect(_key: str, _req_data: dict[str, Any]):
             result[_key] = self.get_tag_detail(_req_data)
             pass

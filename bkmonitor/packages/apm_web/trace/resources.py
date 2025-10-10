@@ -1344,7 +1344,7 @@ class TraceFieldsTopKResource(BaseTraceFaultTolerantResource):
 
     RequestSerializer = TraceFieldsTopkRequestSerializer
 
-    def _perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data):
         return DimensionStatisticsAPIHandler.get_api_topk_data(validated_request_data)
 
     def handle_response_data(self, validated_request_data: dict[str, Any]) -> Any:
@@ -1366,7 +1366,7 @@ class TraceFieldStatisticsInfoResource(BaseTraceFaultTolerantResource):
 
     RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
 
-    def _perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data):
         if validated_request_data["field"]["field_name"] in {
             OtlpKey.ELAPSED_TIME,
             PreCalculateSpecificField.TRACE_DURATION,
@@ -1389,7 +1389,7 @@ class TraceFieldStatisticsGraphResource(BaseTraceFaultTolerantResource):
 
     RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
 
-    def _perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data):
         field_info = validated_request_data["field"]
         # 边界场景，数值字段最小值，最大值为 None 时，直接返回空数据
         if field_info["field_type"] in {
@@ -1409,7 +1409,7 @@ class ListFlattenSpanResource(BaseTraceFaultTolerantResource):
 
     RequestSerializer = QuerySerializer
 
-    def _perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data):
         response = ListSpanResource().get_span_list_api_data(validated_request_data)
         response["data"] = [flatten_es_dict_data(data_dict) for data_dict in response["data"]]
         return response
@@ -1420,7 +1420,7 @@ class ListFlattenTraceResource(BaseTraceFaultTolerantResource):
 
     RequestSerializer = QuerySerializer
 
-    def _perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data):
         response = ListTraceResource().get_trace_list_api_data(validated_request_data)
         data_list = []
         for trace_data_dict in response["data"]:
