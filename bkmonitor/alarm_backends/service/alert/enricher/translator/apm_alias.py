@@ -94,6 +94,6 @@ class ApmAliasTranslator(BaseTranslator):
                 continue
             alias = alias_map.get(name)
             if alias:
-                field.display_name = str(_(alias))
+                field.display_name = alias
 
         return data
