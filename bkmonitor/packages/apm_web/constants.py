@@ -58,6 +58,8 @@ component_filter_mapping = {
 COLUMN_KEY_PROFILING_DATA_COUNT = "profiling_data_count"
 COLUMN_KEY_PROFILING_DATA_STATUS = "profiling_data_status"
 
+APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION = "1.0"
+
 
 class TraceKind:
     # 所有trace

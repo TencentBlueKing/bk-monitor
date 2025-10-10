@@ -26,6 +26,8 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
+from apm_web.strategy.builtin.registry import BuiltinStrategyTemplateRegistry
+from monitor.models import GlobalConfig
 from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip, deserialize_and_decompress
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.tenant import set_local_tenant_id
@@ -33,6 +35,7 @@ from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
 from constants.apm import TelemetryDataType
 from core.drf_resource import api
+from .constants import APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
 
 
 class APMEvent(Enum):
@@ -288,3 +291,16 @@ def refresh_apm_app_state_snapshot():
         all_data_status[application["application_id"]] = data_status
     key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=(datetime.now() - timedelta(days=1)).strftime("%Y%m%d"))
     cache.set(key, json.dumps(all_data_status), 7 * 24 * 60 * 60)
+
+
+@shared_task(ignore_result=True)
+def auto_apply_apm_builtin_strategy_template():
+    config_key = "apm_apply_builtin_strategy_template_version"
+    config_obj, _ = GlobalConfig.objects.get_or_create(key=config_key)
+    if config_obj.value == APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION:
+        return
+    apps = Application.objects.filter(is_enabled=True)
+    for app in apps:
+        BuiltinStrategyTemplateRegistry(app).register()
+    config_obj.value = APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
+    config_obj.save()
