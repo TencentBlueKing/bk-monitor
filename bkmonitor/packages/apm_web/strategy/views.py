@@ -157,18 +157,12 @@ class StrategyTemplateViewSet(GenericViewSet):
         return Response(self._preview(strategy_template_obj, self.query_data["service_name"]))
 
     def _get_id_strategy_map(self, ids: Iterable[int]) -> dict[int, dict[str, Any]]:
-        id_list: list[int] = list(ids)
-        strategy_result: dict[str, Any] = resource.strategies.get_strategy_list_v2(
-            {
-                "bk_biz_id": self.query_data["bk_biz_id"],
-                "conditions": [{"key": "strategy_id", "value": id_list}],
-                "page": 1,
-                "page_size": len(id_list),
-            }
+        strategies: list[dict[str, Any]] = resource.strategies.plain_strategy_list_v2(
+            {"bk_biz_id": self.query_data["bk_biz_id"], "ids": list(ids)}
         )
         return {
             strategy_dict["id"]: {"id": strategy_dict["id"], "name": strategy_dict["name"]}
-            for strategy_dict in strategy_result["strategy_config_list"]
+            for strategy_dict in strategies
         }
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
@@ -313,7 +307,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         strategy_template_obj: StrategyTemplate = get_object_or_404(
             self.get_queryset(), id=self.query_data["strategy_template_id"]
         )
-        applied_instance_obj: StrategyInstance = StrategyInstance.filter_same_origin_instances(
+        applied_instance_obj: StrategyInstance | None = StrategyInstance.filter_same_origin_instances(
             StrategyInstance.objects.filter(
                 bk_biz_id=self.query_data["bk_biz_id"], app_name=self.query_data["app_name"]
             ),
@@ -333,22 +327,33 @@ class StrategyTemplateViewSet(GenericViewSet):
             else:
                 current = current_dict.get(field_name)
                 applied = getattr(applied_instance_obj, field_name)
+
             if count_md5(current) == count_md5(applied):
                 continue
-            if field_name == "context":
-                current_variables: list[dict[str, Any]] = []
-                applied_variables: list[dict[str, Any]] = []
-                for variable_dict in current_dict["query_template"]["variables"]:
-                    default_value = variable_dict.get("config", {}).get("default")
-                    current_variables.append(
-                        {**variable_dict, "value": current.get(variable_dict["name"], default_value)}
-                    )
-                    applied_variables.append(
-                        {**variable_dict, "value": applied.get(variable_dict["name"], default_value)}
-                    )
-                diff_data.append({"field": "variables", "current": current_variables, "applied": applied_variables})
-            else:
+
+            if field_name != "context":
                 diff_data.append({"field": field_name, "current": current, "applied": applied})
+                continue
+
+            current_variables: list[dict[str, Any]] = []
+            for variable_dict in current_dict["query_template"]["variables"]:
+                current_variables.append({**variable_dict, "value": current[variable_dict["name"]]})
+
+            applied_variables: list[dict[str, Any]] = []
+            name_variable_map: dict[str, dict[str, Any]] = {
+                variable_dict["name"]: variable_dict for variable_dict in current_dict["query_template"]["variables"]
+            }
+            for applied_variable_name, applied_variable_value in applied.items():
+                if applied_variable_name in name_variable_map:
+                    applied_variables.append(
+                        {**name_variable_map[applied_variable_name], "value": applied_variable_value}
+                    )
+                else:
+                    applied_variables.append(
+                        {"name": applied_variable_name, "alias": f"[变量不存在] {applied_variable_name}", "value": "--"}
+                    )
+            diff_data.append({"field": "variables", "current": current_variables, "applied": applied_variables})
+
         strategy_id: int = applied_instance_obj.strategy_id
         strategy_name: str = self._get_id_strategy_map(ids=[strategy_id]).get(strategy_id, {}).get("name", "")
         return Response(
