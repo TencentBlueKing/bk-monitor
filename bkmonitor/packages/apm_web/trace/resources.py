@@ -1344,8 +1344,8 @@ class TraceFieldsTopKResource(BaseTraceFaultTolerantResource):
 
     RequestSerializer = TraceFieldsTopkRequestSerializer
 
-    def perform_request(self, validated_request_data):
-        return DimensionStatisticsAPIHandler.get_api_topk_data(validated_request_data)
+    def perform_request(self, validated_data):
+        return DimensionStatisticsAPIHandler.get_api_topk_data(validated_data)
 
     def handle_response_data(self, validated_request_data: dict[str, Any]) -> Any:
         return [
