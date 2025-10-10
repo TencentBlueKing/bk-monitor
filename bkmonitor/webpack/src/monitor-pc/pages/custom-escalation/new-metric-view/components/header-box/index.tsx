@@ -41,7 +41,7 @@ interface IEmit {
 }
 
 interface IProps {
-  dimenstionParams?: Record<string, any>;
+  dimensionParams?: Record<string, any>;
   exclude?: string[];
   isShowExpand?: boolean;
   offsetSingle?: boolean;
@@ -94,7 +94,7 @@ export const createDefaultParams = (): IResult => ({
 
 @Component
 export default class HeaderBox extends tsc<IProps, IEmit> {
-  @Prop({ type: Object, default: false }) readonly dimenstionParams: IProps['dimenstionParams'];
+  @Prop({ type: Object, default: false }) readonly dimensionParams: IProps['dimensionParams'];
   @Prop({ type: Boolean, default: true }) readonly isShowExpand: boolean;
   @Prop({ type: Array, default: () => [] }) readonly exclude: string[];
   @Prop({ type: Boolean, default: true }) readonly splitable: IProps['splitable'];
@@ -105,20 +105,20 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   params = createDefaultParams();
   calcLableWidth: () => void;
 
-  @Watch('dimenstionParams', { immediate: true })
+  @Watch('dimensionParams', { immediate: true })
   dimenstionParamsChange() {
-    if (!this.dimenstionParams) {
+    if (!this.dimensionParams) {
       return;
     }
 
-    if (Object.keys(this.dimenstionParams).length < 1) {
+    if (Object.keys(this.dimensionParams).length < 1) {
       this.params = createDefaultParams();
       return;
     }
 
     for (const key of Object.keys(this.params)) {
-      if (this.dimenstionParams[key]) {
-        this.params[key] = Object.freeze(this.dimenstionParams[key]);
+      if (this.dimensionParams[key]) {
+        this.params[key] = Object.freeze(this.dimensionParams[key]);
       }
     }
   }

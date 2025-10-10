@@ -29,6 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import customEscalationViewStore from '../../../../../store/modules/custom-escalation-view';
 import RenderMetricsGroup from './components/render-metrics-group';
 
+import type { IRouteParams } from '@/pages/custom-escalation/new-metric-view/type';
+
 import './index.scss';
 
 interface IEmit {
@@ -37,7 +39,7 @@ interface IEmit {
 
 @Component
 export default class HeaderFilter extends tsc<object, IEmit> {
-  @InjectReactive('routeParams') routeParams: Record<string, string>;
+  @InjectReactive('routeParams') routeParams: IRouteParams;
 
   @Ref('metricGroupRef') metricGroupRef: RenderMetricsGroup;
 
@@ -72,7 +74,10 @@ export default class HeaderFilter extends tsc<object, IEmit> {
   handleGoToSettings() {
     if (window.__POWERED_BY_BK_WEWEB__) {
       window.open(
-        location.href.replace(location.hash, `#/custom-escalation-detail/timeseries/${this.routeParams.id}`),
+        location.href.replace(
+          location.hash,
+          `#/custom-escalation-detail/timeseries/${this.routeParams.idParams.time_series_group_id}`
+        ),
         '_blank'
       );
       return;

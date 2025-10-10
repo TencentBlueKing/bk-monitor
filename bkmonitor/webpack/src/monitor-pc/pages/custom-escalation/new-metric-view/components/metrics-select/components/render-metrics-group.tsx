@@ -33,6 +33,8 @@ import customEscalationViewStore from '../../../../../../store/modules/custom-es
 import { getCustomTsMetricGroups } from '../../../services/scene_view_new';
 import RenderMetric from './render-metric';
 
+import type { IRouteParams } from '../../../type';
+
 import './render-metrics-group.scss';
 
 export interface IMetric {
@@ -69,7 +71,7 @@ export const encodeRegexp = (paramStr: string) => {
 
 @Component
 export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
-  @InjectReactive('routeParams') routeParams: Record<string, string>;
+  @InjectReactive('routeParams') routeParams: IRouteParams;
 
   @Prop({ type: String, default: '' }) readonly searchKey: IProps['searchKey'];
 
@@ -112,7 +114,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     this.isLoading = true;
     try {
       const result = await getCustomTsMetricGroups({
-        time_series_group_id: Number(this.routeParams.id),
+        ...this.routeParams.idParams,
       });
       customEscalationViewStore.updateCommonDimensionList(result.common_dimensions);
       customEscalationViewStore.updateMetricGroupList(result.metric_groups);

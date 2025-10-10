@@ -33,6 +33,8 @@ import customEscalationViewStore from '../../../../../../../../../../../store/mo
 import { getCustomTsDimensionValues } from '../../../../../../../../services/scene_view_new';
 import { methodMap } from './index';
 
+import type { IRouteParams } from '../../../../../../../../type';
+
 import './panel-value-select.scss';
 
 interface IEmit {
@@ -48,7 +50,7 @@ interface IProps {
 
 @Component
 export default class PanelValueSelect extends tsc<IProps, IEmit> {
-  @InjectReactive('routeParams') routeParams: Record<string, string>;
+  @InjectReactive('routeParams') routeParams: IRouteParams;
 
   @Prop({ type: String }) readonly keyName: IProps['keyName'];
   @Prop({ type: String }) readonly method: IProps['method'];
@@ -89,7 +91,7 @@ export default class PanelValueSelect extends tsc<IProps, IEmit> {
     if (this.valueListMemo.length < 1) {
       const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
       const result = await getCustomTsDimensionValues({
-        time_series_group_id: Number(this.routeParams.id),
+        ...this.routeParams.idParams,
         dimension: this.keyName,
         start_time: startTime || 0,
         end_time: endTime || 0,

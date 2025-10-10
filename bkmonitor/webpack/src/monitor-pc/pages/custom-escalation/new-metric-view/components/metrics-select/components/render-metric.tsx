@@ -28,6 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { modifyCustomTsFields } from 'monitor-api/modules/custom_report';
 
+import type { IRouteParams } from '../../../type';
+
 import './render-metric.scss';
 
 interface IEmit {
@@ -45,7 +47,7 @@ interface IProps {
 
 @Component
 export default class RenderMetric extends tsc<IProps, IEmit> {
-  @InjectReactive('routeParams') routeParams: Record<string, string>;
+  @InjectReactive('routeParams') routeParams: IRouteParams;
 
   @Prop({ type: Object, required: true }) readonly data: IProps['data'];
   @Prop({ type: Boolean, default: false }) readonly checked: IProps['checked'];
@@ -91,7 +93,7 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
     try {
       await this.fromRef.validate();
       await modifyCustomTsFields({
-        time_series_group_id: this.routeParams.id,
+        ...this.routeParams.idParams,
         update_fields: [
           {
             type: 'metric',
