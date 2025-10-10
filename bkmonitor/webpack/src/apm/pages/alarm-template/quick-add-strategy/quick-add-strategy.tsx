@@ -98,6 +98,10 @@ class QuickAddStrategy extends Mixins(
       this.templateFormData = {};
       this.editTemplateFormData = {};
       this.variablesList = {};
+      this.templateList = [];
+      this.checkedList = [];
+      this.cursorId = null;
+      this.cursorItem = null;
     }
   }
 
@@ -521,7 +525,7 @@ class QuickAddStrategy extends Mixins(
           >
             {this.$t('一键生成')}
           </bk-button>
-          <bk-button>{this.$t('取消')}</bk-button>
+          <bk-button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</bk-button>
         </div>
       </bk-sideslider>
     );
