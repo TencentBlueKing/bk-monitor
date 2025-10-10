@@ -1366,18 +1366,15 @@ class TraceFieldStatisticsInfoResource(BaseTraceFaultTolerantResource):
 
     RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
 
-    def perform_request(self, validated_request_data):
-        if validated_request_data["field"]["field_name"] in {
-            OtlpKey.ELAPSED_TIME,
-            PreCalculateSpecificField.TRACE_DURATION,
-        }:
-            validated_request_data["exclude_property"] = [
+    def perform_request(self, validated_data):
+        if validated_data["field"]["field_name"] in {OtlpKey.ELAPSED_TIME, PreCalculateSpecificField.TRACE_DURATION}:
+            validated_data["exclude_property"] = [
                 StatisticsProperty.MEDIAN.value,
                 StatisticsProperty.TOTAL_COUNT.value,
                 StatisticsProperty.FIELD_COUNT.value,
                 StatisticsProperty.DISTINCT_COUNT.value,
             ]
-        return DimensionStatisticsAPIHandler.get_api_statistics_info_data(validated_request_data)
+        return DimensionStatisticsAPIHandler.get_api_statistics_info_data(validated_data)
 
 
 class TraceFieldStatisticsGraphResource(BaseTraceFaultTolerantResource):
@@ -1389,8 +1386,8 @@ class TraceFieldStatisticsGraphResource(BaseTraceFaultTolerantResource):
 
     RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
 
-    def perform_request(self, validated_request_data):
-        field_info = validated_request_data["field"]
+    def perform_request(self, validated_data):
+        field_info = validated_data["field"]
         # 边界场景，数值字段最小值，最大值为 None 时，直接返回空数据
         if field_info["field_type"] in {
             EnabledStatisticsDimension.INTEGER.value,
@@ -1401,7 +1398,7 @@ class TraceFieldStatisticsGraphResource(BaseTraceFaultTolerantResource):
             if min_value is None or max_value is None:
                 return self.EMPTY_DATA
 
-        return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_request_data)
+        return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_data)
 
 
 class ListFlattenSpanResource(BaseTraceFaultTolerantResource):
@@ -1409,8 +1406,8 @@ class ListFlattenSpanResource(BaseTraceFaultTolerantResource):
 
     RequestSerializer = QuerySerializer
 
-    def perform_request(self, validated_request_data):
-        response = ListSpanResource().get_span_list_api_data(validated_request_data)
+    def perform_request(self, data):
+        response = ListSpanResource().get_span_list_api_data(data)
         response["data"] = [flatten_es_dict_data(data_dict) for data_dict in response["data"]]
         return response
 
@@ -1420,8 +1417,8 @@ class ListFlattenTraceResource(BaseTraceFaultTolerantResource):
 
     RequestSerializer = QuerySerializer
 
-    def perform_request(self, validated_request_data):
-        response = ListTraceResource().get_trace_list_api_data(validated_request_data)
+    def perform_request(self, data):
+        response = ListTraceResource().get_trace_list_api_data(data)
         data_list = []
         for trace_data_dict in response["data"]:
             data_list.append(flatten_es_dict_data(trace_data_dict))
