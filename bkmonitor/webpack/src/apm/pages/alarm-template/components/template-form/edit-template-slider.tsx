@@ -79,7 +79,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
       }).catch(() => ({ detailData: null, variablesList: [] }));
       this.detailData = detailData;
       this.formData = {
-        name: `${this.detailData?.name}_copy`,
+        name: this.scene === 'clone' ? `${this.detailData?.name}_copy` : this.detailData?.name,
         system: this.detailData?.system,
         algorithms: this.detailData?.algorithms,
         detect: this.detailData?.detect,
