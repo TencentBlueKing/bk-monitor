@@ -8,8 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import abc
 import copy
 import logging
+from typing import Any
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -57,7 +59,7 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource, api, FaultTolerantResource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.prometheus.base import OPERATION_REGISTRY
@@ -70,6 +72,10 @@ from .diagram.service_topo import trace_data_to_service_topo
 from .diagram.topo import trace_data_to_topo_data
 
 logger = logging.getLogger(__name__)
+
+
+class BaseTraceFaultTolerantResource(FaultTolerantResource, abc.ABC):
+    pass
 
 
 class TraceChatsResource(Resource):
@@ -1331,40 +1337,60 @@ class ListTraceViewConfigResource(Resource):
         }
 
 
-class TraceFieldsTopKResource(Resource):
+class TraceFieldsTopKResource(BaseTraceFaultTolerantResource):
     """获取 trace 字段的 topk 数据"""
+
+    DEFAULT_RESPONSE_DATA = []
 
     RequestSerializer = TraceFieldsTopkRequestSerializer
 
-    def perform_request(self, validated_data):
-        return DimensionStatisticsAPIHandler.get_api_topk_data(validated_data)
+    def _perform_request(self, validated_request_data):
+        return DimensionStatisticsAPIHandler.get_api_topk_data(validated_request_data)
+
+    def handle_response_data(self, validated_request_data: dict[str, Any]) -> Any:
+        return [
+            {"total": 0, "distinct_count": 0, "field": field, "list": []} for field in validated_request_data["fields"]
+        ]
 
 
-class TraceFieldStatisticsInfoResource(Resource):
+class TraceFieldStatisticsInfoResource(BaseTraceFaultTolerantResource):
     """获取 trace 字段的维度统计信息"""
+
+    DEFAULT_RESPONSE_DATA = {
+        "total_count": 0,
+        "field_count": 0,
+        "distinct_count": 0,
+        "field_percent": 0,
+        "value_analysis": {},
+    }
 
     RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
 
-    def perform_request(self, validated_data):
-        if validated_data["field"]["field_name"] in {OtlpKey.ELAPSED_TIME, PreCalculateSpecificField.TRACE_DURATION}:
-            validated_data["exclude_property"] = [
+    def _perform_request(self, validated_request_data):
+        if validated_request_data["field"]["field_name"] in {
+            OtlpKey.ELAPSED_TIME,
+            PreCalculateSpecificField.TRACE_DURATION,
+        }:
+            validated_request_data["exclude_property"] = [
                 StatisticsProperty.MEDIAN.value,
                 StatisticsProperty.TOTAL_COUNT.value,
                 StatisticsProperty.FIELD_COUNT.value,
                 StatisticsProperty.DISTINCT_COUNT.value,
             ]
-        return DimensionStatisticsAPIHandler.get_api_statistics_info_data(validated_data)
+        return DimensionStatisticsAPIHandler.get_api_statistics_info_data(validated_request_data)
 
 
-class TraceFieldStatisticsGraphResource(Resource):
+class TraceFieldStatisticsGraphResource(BaseTraceFaultTolerantResource):
     """获取 trace 字段的维度统计图表"""
-
-    RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
 
     EMPTY_DATA = {"series": [{"datapoints": []}]}
 
-    def perform_request(self, validated_data):
-        field_info = validated_data["field"]
+    DEFAULT_RESPONSE_DATA = EMPTY_DATA
+
+    RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
+
+    def _perform_request(self, validated_request_data):
+        field_info = validated_request_data["field"]
         # 边界场景，数值字段最小值，最大值为 None 时，直接返回空数据
         if field_info["field_type"] in {
             EnabledStatisticsDimension.INTEGER.value,
@@ -1375,23 +1401,27 @@ class TraceFieldStatisticsGraphResource(Resource):
             if min_value is None or max_value is None:
                 return self.EMPTY_DATA
 
-        return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_data)
+        return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_request_data)
 
 
-class ListFlattenSpanResource(Resource):
+class ListFlattenSpanResource(BaseTraceFaultTolerantResource):
+    DEFAULT_RESPONSE_DATA = {"data": []}
+
     RequestSerializer = QuerySerializer
 
-    def perform_request(self, data):
-        response = ListSpanResource().get_span_list_api_data(data)
+    def _perform_request(self, validated_request_data):
+        response = ListSpanResource().get_span_list_api_data(validated_request_data)
         response["data"] = [flatten_es_dict_data(data_dict) for data_dict in response["data"]]
         return response
 
 
-class ListFlattenTraceResource(Resource):
+class ListFlattenTraceResource(BaseTraceFaultTolerantResource):
+    DEFAULT_RESPONSE_DATA = {"data": []}
+
     RequestSerializer = QuerySerializer
 
-    def perform_request(self, data):
-        response = ListTraceResource().get_trace_list_api_data(data)
+    def _perform_request(self, validated_request_data):
+        response = ListTraceResource().get_trace_list_api_data(validated_request_data)
         data_list = []
         for trace_data_dict in response["data"]:
             data_list.append(flatten_es_dict_data(trace_data_dict))

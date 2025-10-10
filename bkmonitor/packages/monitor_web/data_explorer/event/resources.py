@@ -19,18 +19,15 @@ from typing import Any
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
-from opentelemetry import trace
-from opentelemetry.trace.status import Status, StatusCode
 
 from bkmonitor.data_source.data_source import dict_to_q, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
-from bkmonitor.utils.request import get_request_tenant_id, get_request_username
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from core.drf_resource import Resource, resource
-from core.drf_resource.exceptions import record_exception
+from core.drf_resource import FaultTolerantResource, resource
 
 from . import serializers
 from .constants import (
@@ -83,37 +80,11 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 
-class EventBaseResource(Resource, abc.ABC):
-    DEFAULT_RESPONSE_DATA: Any = None
-
-    @abc.abstractmethod
-    def _perform_request(self, validated_request_data: dict[str, Any]):
-        raise NotImplementedError
-
+class EventBaseResource(FaultTolerantResource, abc.ABC):
     @classmethod
     def is_return_default_early(cls, validated_request_data: dict[str, Any]) -> bool:
         """判断是否提前返回默认数据"""
         return not validated_request_data.get("query_configs")
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        if self.is_return_default_early(validated_request_data):
-            return self.DEFAULT_RESPONSE_DATA
-
-        try:
-            return self._perform_request(validated_request_data)
-        except Exception as exc:  # pylint: disable=broad-except
-            # Record the exception and set status in the current span.
-            span = trace.get_current_span()
-            # 内部调用 xx.perform_request 时，需要补充上 user.username，便于快速定位触发用户。
-            span.set_attribute("user.username", get_request_username())
-            span.set_status(
-                Status(
-                    status_code=StatusCode.ERROR,
-                    description=f"{type(exc).__name__}: {exc}",
-                )
-            )
-            record_exception(span, exc, out_limit=10)
-            return self.DEFAULT_RESPONSE_DATA
 
 
 class EventTimeSeriesResource(EventBaseResource):
