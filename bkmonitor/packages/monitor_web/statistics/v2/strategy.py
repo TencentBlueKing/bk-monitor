@@ -192,7 +192,7 @@ class StrategyCollector(BaseCollector):
                             level=EVENT_SEVERITY_DICT.get(detect["level"], detect["level"]),
                         ).inc()
         except Exception as e:
-            logger.exception(f"strategy_detect_algorithm_count error: {e}")
+            logger.exception(f"strategy_level_count error: {e}")
 
         translation.activate(language)
 
