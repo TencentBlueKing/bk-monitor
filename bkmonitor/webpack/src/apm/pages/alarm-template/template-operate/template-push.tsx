@@ -192,7 +192,7 @@ export default class TemplatePush extends tsc<IProps> {
           >
             {this.$t('一键生成')}
           </bk-button>
-          <bk-button>{this.$t('取消')}</bk-button>
+          <bk-button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</bk-button>
         </div>
       </bk-sideslider>
     );

@@ -13,7 +13,9 @@
 
     .template-list {
       width: 449px;
-      padding: 12px 24px 0;
+      max-height: 100%;
+      padding: 12px 24px;
+      overflow: auto;
 
       .template-list-loading {
         margin-bottom: 24px;
