@@ -109,14 +109,14 @@ export default defineComponent({
       },
     );
 
-    const requestLogList = () => {
+    const requestLogList = (isManualSearch = true) => {
       listLoading.value = true;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const searchUrl = `/search/index_set/${props.indexSetId}/search/`;
       size = isInit ? 50 : props.logIndex > 50 ? props.logIndex + 20 : 50;
       const requestData = {
         ...requestOtherparams,
-        sort_list: store.state.indexFieldInfo.default_sort_list || [],
+        sort_list: store.state.indexFieldInfo.default_sort_list.filter(item => item.length > 0 && !!item[1]) || [],
         size,
         begin,
       };
@@ -142,6 +142,10 @@ export default defineComponent({
                 total = data.total.toNumber();
                 const list = parseBigNumberList(data.list);
                 logList.value.push(...list);
+                if (isManualSearch) {
+                  choosedIndex.value = -1;
+                  handleChooseRow(0);
+                }
                 if (!isInit) {
                   setTimeout(() => {
                     // 自动定位到选中行
@@ -307,11 +311,7 @@ export default defineComponent({
       }
     };
 
-    const handleSearch = (mode: string) => {
-      handleModeChange(mode);
-    };
-
-    const handleModeChange = (mode: string) => {
+    const handleSearch = (mode: string, isManualSearch = true) => {
       if (!isInit) {
         const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
         searchBarRef.value.setLocalMode(modeIndex);
@@ -359,7 +359,7 @@ export default defineComponent({
         handleReset();
       }
 
-      requestLogList();
+      requestLogList(isManualSearch);
     };
 
     const handleChooseRow = (index: number) => {
@@ -448,7 +448,7 @@ export default defineComponent({
     });
 
     expose({
-      init: () => handleModeChange(requestOtherparams.search_mode),
+      init: () => handleSearch(requestOtherparams.search_mode, false),
       reset: handleReset,
     });
 
@@ -477,7 +477,7 @@ export default defineComponent({
             showFavorites={false}
             showQuerySetting={false}
             usageType='local'
-            on-mode-change={handleModeChange}
+            on-mode-change={handleSearch}
             on-search={handleSearch}
           />
         </div>
