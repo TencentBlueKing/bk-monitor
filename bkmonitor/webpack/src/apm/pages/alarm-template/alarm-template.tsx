@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFunctions } from 'monitor-api/modules/grafana';
@@ -68,6 +68,13 @@ import './alarm-template.scss';
 
 @Component
 export default class AlarmTemplate extends tsc<object> {
+  // 同步route query
+  @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (
+    customRouteQuery: Record<string, number | string>
+  ) => void;
+
+  @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
+
   /** 下发重新请求接口数据标志 */
   refreshKey = random(8);
   /** 当前页码 */
@@ -154,6 +161,10 @@ export default class AlarmTemplate extends tsc<object> {
     this.total = total;
     this.tableLoading = false;
     this.selectedRowKeys = [];
+    this.handleCustomRouteQueryChange({
+      quickStatus: this.quickStatus,
+      searchKeyword: JSON.stringify(this.searchKeyword),
+    })
   }
   /** 获取函数列表 */
   async handleGetMetricFunctions() {
@@ -162,6 +173,13 @@ export default class AlarmTemplate extends tsc<object> {
 
   created() {
     this.pageSize = commonPageSizeGet();
+    const { quickStatus = 'all', searchKeyword = '[]'} = this.customRouteQuery;
+    this.quickStatus = quickStatus;
+    try {
+      this.searchKeyword = JSON.parse(searchKeyword);
+    } catch (error) {
+      this.searchKeyword = [];
+    }
   }
 
   mounted() {
