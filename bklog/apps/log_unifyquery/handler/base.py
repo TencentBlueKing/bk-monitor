@@ -516,28 +516,6 @@ class UnifyQueryHandler:
             default_sort_tag=self.search_params.get("default_sort_tag", False),
         )
 
-    def _get_default_sort_list(self):
-        """获取默认排序配置"""
-        index_info = self.index_info_list[0]
-        index_set_id = index_info["index_set_id"]
-        scenario_id = index_info["origin_scenario_id"]
-        time_field, time_field_type, time_field_unit = self.init_time_field(index_set_id, scenario_id)
-        mapping_handlers = UnifyQueryMappingHandler(
-            index_info["origin_indices"],
-            index_info["index_set_id"],
-            index_info["origin_scenario_id"],
-            index_info["storage_cluster_id"],
-            time_field,
-            start_time=self.start_time,
-            end_time=self.end_time,
-            time_zone=get_local_param("time_zone", settings.TIME_ZONE),
-        )
-        return mapping_handlers.get_default_sort_list(
-            index_set_id=index_set_id,
-            scenario_id=scenario_id,
-            default_sort_tag=self.search_params.get("default_sort_tag", False),
-        )
-
     def _init_desensitize(self) -> bool:
         is_desensitize = self.search_params.get("is_desensitize", True)
 
@@ -1153,10 +1131,14 @@ class UnifyQueryHandler:
             time_field,
             start_time=self.start_time,
             end_time=self.end_time,
-            time_zone=get_local_param("time_zone", settings.TIME_ZONE),
         )
         field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
+        )
+        default_sort_list = mapping_handlers.get_default_sort_list(
+            index_set_id=index_set_id,
+            scenario_id=scenario_id,
+            default_sort_tag=self.search_params.get("default_sort_tag", False),
         )
 
         if not is_union_search:
@@ -1173,7 +1155,7 @@ class UnifyQueryHandler:
 
         result_dict: dict = {
             "fields": field_result,
-            "default_sort_list": self._get_default_sort_list(),
+            "default_sort_list": default_sort_list,
             "display_fields": display_fields,
             "sort_list": sort_field_list,
             "time_field": time_field,

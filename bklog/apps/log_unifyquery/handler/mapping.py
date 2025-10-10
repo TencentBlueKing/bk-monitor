@@ -52,7 +52,6 @@ from apps.log_search.models import (
 from apps.log_search.utils import split_object_fields
 from apps.utils.cache import cache_one_minute, cache_ten_minute
 from apps.utils.local import (
-    get_local_param,
     get_request_app_code,
     get_request_external_username,
     get_request_username,
@@ -87,7 +86,6 @@ class UnifyQueryMappingHandler:
         bk_biz_id=None,
         only_search=False,
         index_set=None,
-        time_zone=None,
     ):
         self.indices = indices
         self.index_set_id = index_set_id
@@ -97,7 +95,6 @@ class UnifyQueryMappingHandler:
         self.time_field = time_field
         self.start_time = start_time
         self.end_time = end_time
-        self.time_zone: str = time_zone or get_local_param("time_zone", settings.TIME_ZONE)
         # 最终字段
         self._final_fields = None
 
@@ -176,7 +173,6 @@ class UnifyQueryMappingHandler:
     def get_final_fields(self):
         """获取最终字段"""
         fields_result = self.get_all_index_fields()
-        built_in_fields = FieldBuiltInEnum.get_choices()
         fields_list: list = [
             {
                 "field_type": field["field_type"],
@@ -184,6 +180,7 @@ class UnifyQueryMappingHandler:
                 "field_alias": field.get("field_alias", ""),
                 "is_display": False,
                 "is_editable": True,
+                "tag": field.get("tag", ""),
                 "origin_field": field.get("origin_field", ""),
                 "es_doc_values": field.get("is_agg", False),
                 "is_analyzed": field.get("is_analyzed", False),
@@ -193,17 +190,8 @@ class UnifyQueryMappingHandler:
             }
             for field in fields_result
         ]
-        fields_list = self.add_clustered_fields(fields_list)
-        fields_list = self.virtual_fields(fields_list)
-        if not self.only_search:
-            fields_list = self._combine_description_field(fields_list)
-        fields_list = self._combine_fields(fields_list)
 
         for field in fields_list:
-            # 判断是否为内置字段
-            field_name = field.get("field_name", "").lower()
-            field["is_built_in"] = field_name in built_in_fields or field_name.startswith("__ext.")
-
             # @TODO tag：兼容前端代码，后面需要删除
             tag = "metric"
             if field.get("field_type") == "date":
@@ -211,6 +199,18 @@ class UnifyQueryMappingHandler:
             elif field.get("es_doc_values"):
                 tag = "dimension"
             field["tag"] = tag
+
+        fields_list = self.add_clustered_fields(fields_list)
+        fields_list = self.virtual_fields(fields_list)
+        if not self.only_search:
+            fields_list = self._combine_description_field(fields_list)
+        fields_list = self._combine_fields(fields_list)
+
+        built_in_fields = FieldBuiltInEnum.get_choices()
+        for field in fields_list:
+            # 判断是否为内置字段
+            field_name = field.get("field_name", "").lower()
+            field["is_built_in"] = field_name in built_in_fields or field_name.startswith("__ext.")
 
         return fields_list
 
@@ -390,11 +390,11 @@ class UnifyQueryMappingHandler:
         from apps.log_search.handlers.index_set import BaseIndexSetHandler
 
         params = {
-            "data_source": "bklog",
+            "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "table_id": BaseIndexSetHandler.get_data_label(self.index_set_id),
-            "bk_biz_id": self.bk_biz_id,
+            "bk_biz_id": self.bk_biz_id,  # 发送请求时，需要使用bk_biz_id获取bk_tenant_id
         }
         result = UnifyQueryApi.query_field_map(params)
         return result.get("data", [])
