@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-logger = logging.getLogger(__name__)
+
 from django.utils import translation
 from django.utils.functional import cached_property
 
@@ -24,6 +24,8 @@ from constants.data_source import DataSourceLabel
 from core.drf_resource import resource
 from core.statistics.metric import Metric, register
 from monitor_web.statistics.v2.base import BaseCollector
+
+logger = logging.getLogger(__name__)
 
 
 class StrategyCollector(BaseCollector):
