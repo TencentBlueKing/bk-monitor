@@ -106,14 +106,6 @@ class UnifyQueryMappingHandler:
 
         self._index_set = index_set
 
-    def _get_sub_fields(self, conflict_result, properties, last_key):
-        for property_key, property_define in properties.items():
-            if "properties" in property_define:
-                self._get_sub_fields(conflict_result, property_define["properties"], f"{last_key}.{property_key}")
-                continue
-            key = f"{last_key}.{property_key}" if last_key else property_key
-            conflict_result[key].add(property_define["type"])
-
     def add_clustered_fields(self, field_list):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
         if clustering_config and clustering_config.clustered_rt:
@@ -189,7 +181,7 @@ class UnifyQueryMappingHandler:
             {
                 "field_type": field["field_type"],
                 "field_name": field["field_name"],
-                "field_alias": field.get("field_alias"),
+                "field_alias": field.get("field_alias", ""),
                 "is_display": False,
                 "is_editable": True,
                 "origin_field": field.get("origin_field", ""),
@@ -197,7 +189,7 @@ class UnifyQueryMappingHandler:
                 "is_analyzed": field.get("is_analyzed", False),
                 "field_operator": OPERATORS.get(field["field_type"], []),
                 "is_case_sensitive": field.get("is_case_sensitive", False),
-                "tokenize_on_chars": field.get("tokenize_on_chars", ""),
+                "tokenize_on_chars": "".join(field.get("tokenize_on_chars", [])),
             }
             for field in fields_result
         ]
@@ -394,7 +386,7 @@ class UnifyQueryMappingHandler:
         ]
         return type_keyword_fields[:2]
 
-    def get_all_index_fields(self):
+    def get_all_index_fields(self) -> list:
         from apps.log_search.handlers.index_set import BaseIndexSetHandler
 
         params = {
@@ -405,71 +397,11 @@ class UnifyQueryMappingHandler:
             "bk_biz_id": self.bk_biz_id,
         }
         result = UnifyQueryApi.query_field_map(params)
-        return result.get("data")
+        return result.get("data", [])
 
     @staticmethod
     def _is_analyzed(field_type: str):
         return field_type == "text"
-
-    @classmethod
-    def get_fields_recursively(cls, p_key, properties_dict: dict, field_types=None) -> list:
-        """
-        递归拿取mapping集合获取所有的index下的fields
-        :param p_key:
-        :param properties_dict:
-        :param field_types:
-        :return:
-        """
-        fields_result: list = list()
-        common_index: int = 1
-        for key in properties_dict.keys():
-            if "properties" in key:
-                fields_result.extend(cls.get_fields_recursively(p_key=p_key, properties_dict=properties_dict[key]))
-            else:
-                if key in ["include_in_all"] or not isinstance(properties_dict[key], dict):
-                    continue
-                k_keys: list = properties_dict[key].keys()
-                filed_name: str = f"{p_key}.{key}"
-                if "type" in k_keys:
-                    field_type: str = properties_dict[key]["type"]
-                    if field_types and field_type not in field_types:
-                        continue
-                    doc_values_farther_dict: dict = properties_dict[key]
-                    doc_values = None
-                    if isinstance(doc_values_farther_dict, dict):
-                        doc_values = doc_values_farther_dict.get("doc_values", True)
-
-                    es_doc_values = doc_values
-                    if field_type in ["text", "object"]:
-                        es_doc_values = False
-
-                    # @TODO tag：兼容前端代码，后面需要删除
-                    tag = "metric"
-                    if field_type == "date":
-                        tag = "timestamp"
-                    elif es_doc_values:
-                        tag = "dimension"
-
-                    data = dict()
-                    data.update(
-                        {
-                            "field_type": field_type,
-                            "field_name": filed_name,
-                            "es_index": common_index,
-                            # "analyzed": analyzed,
-                            "field_alias": "",
-                            "description": "",
-                            "es_doc_values": es_doc_values,
-                            "tag": tag,
-                            "is_analyzed": cls._is_analyzed(field_type),
-                        }
-                    )
-                    fields_result.append(data)
-                elif "properties" in k_keys:
-                    fields_result.extend(
-                        cls.get_fields_recursively(p_key=f"{p_key}.{key}", properties_dict=properties_dict[key])
-                    )
-        return fields_result
 
     def _combine_description_field(self, fields_list=None, scope=None):
         if fields_list is None:
@@ -820,31 +752,6 @@ class UnifyQueryMappingHandler:
                 return _("必须iterationIndex或者_iteration_idx字段")
             return ""
         return _("必须gseindex或者gseIndex字段")
-
-    @classmethod
-    def get_property_dict(cls, dict_item, prefix_key="", match_key="properties"):
-        """
-        根据ES-mapping递归获取所有properties的字段列表
-        """
-        result = {}
-        if match_key in dict_item:
-            property_dict = dict_item[match_key]
-            for k, v in property_dict.items():
-                p_key = k
-                if prefix_key:
-                    p_key = f"{prefix_key}.{k}"
-                if match_key in v:
-                    result.update(cls.get_property_dict(v, prefix_key=p_key, match_key=match_key))
-                else:
-                    result[p_key] = v
-            return result
-
-        for _key, _value in dict_item.items():
-            if isinstance(_value, dict):
-                result = cls.get_property_dict(_value, prefix_key, match_key)
-                if result:
-                    return result
-        return None
 
     @classmethod
     def async_export_fields(cls, final_fields_list: list[dict[str, Any]], scenario_id: str, sort_fields: list) -> dict:
