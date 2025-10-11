@@ -186,6 +186,10 @@ class GetMsgType(CMSIBaseResource):
             if "label" not in msg_type:
                 msg_type["label"] = msg_type["name"]
 
+            # 接口适配，新的网关接口返回的是enabled而不是is_active
+            if "enabled" in msg_type:
+                msg_type["is_active"] = msg_type["enabled"]
+
         if settings.WXWORK_BOT_WEBHOOK_URL:
             response_data.append(
                 {

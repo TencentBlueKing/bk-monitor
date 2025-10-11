@@ -438,7 +438,7 @@ class BkCollectorClusterConfig:
             else:
                 # update secret
                 bcs_client.client_request(
-                    bcs_client.core_api.patch_namespaced_secret,
+                    bcs_client.core_api.replace_namespaced_secret,
                     name=secret.metadata.name,
                     namespace=namespace,
                     body=secret,
