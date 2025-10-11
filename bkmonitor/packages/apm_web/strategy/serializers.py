@@ -71,7 +71,6 @@ class AlgorithmSerializer(serializers.Serializer):
 class BaseAppStrategyTemplateRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
     app_name = serializers.CharField(label=_("应用名称"), max_length=50)
-    is_mock = serializers.BooleanField(label=_("是否为 mock 数据"), default=True)
 
 
 class BaseServiceStrategyTemplateRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
