@@ -42,6 +42,9 @@ def register_builtin_plugins(sender, **kwargs):
     with open(initial_file, encoding="utf-8") as f:
         plugins = json.loads(f.read())
         for plugin in plugins:
+            # 多租户情况下禁用itsmv3插件
+            if plugin["plugin_key"] == "itsm" and settings.ENABLE_MULTI_TENANT_MODE:
+                continue
             instance, created = ActionPlugin.origin_objects.update_or_create(
                 id=plugin.pop("id"), is_builtin=True, defaults=plugin
             )
