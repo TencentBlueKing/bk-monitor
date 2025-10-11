@@ -303,14 +303,13 @@ def auto_apply_apm_builtin_strategy_template():
     applied_version_map: dict[str, dict[str, str]] = {}
     for app in apps:
         try:
-            current_version = current_version_map.get(str(app.bk_biz_id), {}).get(app.app_name, "")
-            applied_version_map.setdefault(str(app.bk_biz_id), {}).setdefault(app.app_name, current_version)
+            map_key = f"{app.bk_biz_id}-{app.app_name}"
+            current_version = current_version_map.get(map_key, "")
+            applied_version_map.setdefault(map_key, current_version)
             if not BuiltinStrategyTemplateRegistry.is_need_register(current_version):
                 continue
             BuiltinStrategyTemplateRegistry(app).register()
-            applied_version_map[str(app.bk_biz_id)][app.app_name] = (
-                BuiltinStrategyTemplateRegistry.APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
-            )
+            applied_version_map[map_key] = BuiltinStrategyTemplateRegistry.APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
         except Exception as e:
             logger.warning(f"[AUTO_APPLY_APM_BUILTIN_STRATEGY_TEMPLATE] apply failed: {e}")
 
