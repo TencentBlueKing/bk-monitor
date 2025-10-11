@@ -336,6 +336,16 @@ class OriginalSearchAttrSerializer(serializers.Serializer):
     size = serializers.IntegerField(required=False, default=3, max_value=10)
 
 
+class SearchFieldsSerializer(serializers.Serializer):
+    start_time = DateTimeFieldWithEpoch(label=_("开始时间"), required=False)
+    end_time = DateTimeFieldWithEpoch(label=_("结束时间"), required=False)
+    scope = serializers.ChoiceField(
+        label=_("类型"), choices=SearchScopeEnum.get_choices(), default=SearchScopeEnum.DEFAULT.value
+    )
+    custom_indices = serializers.CharField(label=_("自定义索引"), default="")
+    is_realtime = serializers.BooleanField(label=_("是否实时"), default=False)
+
+
 class UnionConfigSerializer(serializers.Serializer):
     index_set_id = serializers.IntegerField(label=_("索引集ID"), required=True)
     begin = serializers.IntegerField(required=False, default=0)
