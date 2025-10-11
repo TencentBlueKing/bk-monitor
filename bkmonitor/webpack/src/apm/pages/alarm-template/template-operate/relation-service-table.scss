@@ -174,9 +174,57 @@
               margin-bottom: 16px;
               color: #313238;
 
+              &.flex-wrap {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+              }
+
               .light {
                 font-weight: 700;
                 color: #3a84ff;
+              }
+
+              .user-tag-item {
+                height: 22px;
+                padding: 0 8px;
+                margin: 0 4px 2px 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-size: 12px;
+                line-height: 22px;
+                color: rgb(77 79 86);
+                white-space: nowrap;
+                background: rgb(240 241 245);
+                border-radius: 2px;
+              }
+
+              .condition-select-detail {
+                .condition-tag {
+                  max-width: 100%;
+                  margin: 0 4px 2px 0;
+                  overflow: hidden;
+
+                  .key-wrap {
+                    .key-name {
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                      white-space: nowrap;
+                    }
+                  }
+
+                  .value-wrap {
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+
+                    .value-name {
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                      white-space: nowrap;
+                    }
+                  }
+                }
               }
             }
           }
