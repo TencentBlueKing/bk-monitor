@@ -16,7 +16,7 @@ from enum import Enum
 from celery import shared_task
 from django.conf import settings
 from django.core.cache import caches, cache
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
@@ -35,7 +35,6 @@ from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
 from constants.apm import TelemetryDataType
 from core.drf_resource import api
-from .constants import APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
 
 
 class APMEvent(Enum):
@@ -295,12 +294,25 @@ def refresh_apm_app_state_snapshot():
 
 @shared_task(ignore_result=True)
 def auto_apply_apm_builtin_strategy_template():
+    logger.info("[AUTO_APPLY_APM_BUILTIN_STRATEGY_TEMPLATE] task start")
+
     config_key = "apm_apply_builtin_strategy_template_version"
     config_obj, _ = GlobalConfig.objects.get_or_create(key=config_key)
-    if config_obj.value == APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION:
-        return
-    apps = Application.objects.filter(is_enabled=True)
+    apps: QuerySet[Application] = Application.objects.filter(is_enabled=True)
+    app_version_map: dict[int, dict[str, str]] = config_obj.value if isinstance(config_obj.value, dict) else {}
     for app in apps:
-        BuiltinStrategyTemplateRegistry(app).register()
-    config_obj.value = APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
+        try:
+            app_version_map.setdefault(app.bk_biz_id, {}).setdefault(app.app_name, "")
+            if not BuiltinStrategyTemplateRegistry.is_need_register(app_version_map[app.bk_biz_id][app.app_name]):
+                continue
+            BuiltinStrategyTemplateRegistry(app).register()
+            app_version_map[app.bk_biz_id][app.app_name] = (
+                BuiltinStrategyTemplateRegistry.APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
+            )
+        except Exception as e:
+            logger.warning(f"[AUTO_APPLY_APM_BUILTIN_STRATEGY_TEMPLATE] apply failed: {e}")
+
+    config_obj.value = app_version_map
     config_obj.save()
+
+    logger.info("[AUTO_APPLY_APM_BUILTIN_STRATEGY_TEMPLATE] task finished")
