@@ -27,6 +27,7 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
+from bkmonitor.query_template.constants import VariableType
 from constants.alert import EventStatus
 from utils import count_md5
 
@@ -350,7 +351,12 @@ class StrategyTemplateViewSet(GenericViewSet):
                     )
                 else:
                     applied_variables.append(
-                        {"name": applied_variable_name, "alias": f"[变量不存在] {applied_variable_name}", "value": "--"}
+                        {
+                            "name": applied_variable_name,
+                            "type": VariableType.CONSTANTS.value,
+                            "alias": _("[变量已失效] {}").format(applied_variable_name),
+                            "value": "--",
+                        }
                     )
             diff_data.append({"field": "variables", "current": current_variables, "applied": applied_variables})
 
