@@ -296,8 +296,7 @@ def refresh_apm_app_state_snapshot():
 def auto_apply_apm_builtin_strategy_template():
     logger.info("[AUTO_APPLY_APM_BUILTIN_STRATEGY_TEMPLATE] task start")
 
-    config_key = "apm_apply_builtin_strategy_template_version"
-    config_obj, _ = GlobalConfig.objects.get_or_create(key=config_key)
+    config_obj, _ = GlobalConfig.objects.get_or_create(key="apm_apply_builtin_strategy_template_version")
     apps: QuerySet[Application] = Application.objects.filter(is_enabled=True)
     current_version_map: dict[str, dict[str, str]] = config_obj.value if isinstance(config_obj.value, dict) else {}
     applied_version_map: dict[str, dict[str, str]] = {}
@@ -305,7 +304,7 @@ def auto_apply_apm_builtin_strategy_template():
         try:
             map_key = f"{app.bk_biz_id}-{app.app_name}"
             current_version = current_version_map.get(map_key, "")
-            applied_version_map.setdefault(map_key, current_version)
+            applied_version_map[map_key] = current_version
             if not BuiltinStrategyTemplateRegistry.is_need_register(current_version):
                 continue
             BuiltinStrategyTemplateRegistry(app).register()
