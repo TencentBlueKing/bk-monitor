@@ -76,17 +76,15 @@
     },
 
     computed: {
-      ...mapState(['topMenu', 'spaceUid', 'bkBizId']),
-      ...mapState('globals', ['globalsData'], 'isExternal'),
+      ...mapState(['topMenu', 'spaceUid', 'bkBizId', 'isExternal', 'globals']),
       ...mapGetters({
-        pageLoading: 'pageLoading',
         authPageInfo: 'globals/authContainerInfo',
       }),
       manageNavList() {
         return this.topMenu.find(item => item.id === 'manage')?.children || [];
       },
       menuList() {
-        const list = this.topMenu.find(item => item.id === 'manage')?.children;
+        const list = this.manageNavList;
         if (this.isExternal) {
           // 外部版只保留【日志提取】菜单
           return list.filter(menu => menu.id === 'manage-extract-strategy');
