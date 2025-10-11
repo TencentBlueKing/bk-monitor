@@ -73,7 +73,7 @@ export default class VariableValueDetail extends tsc<VariableValueDetailProps> {
       case VariableTypeEnum.CONDITIONS:
         return <ConditionSelectDetail variable={this.variable as ConditionVariableModel} />;
       default:
-        return this.variable.defaultValue || '--';
+        return this.variable.value || '--';
     }
   }
 

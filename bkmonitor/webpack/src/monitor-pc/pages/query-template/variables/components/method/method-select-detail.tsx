@@ -44,8 +44,6 @@ export default class MethodSelectDetail extends tsc<MethodSelectDetailProps> {
   }
 
   render() {
-    return (
-      this.methodList.find(item => item.id === this.variable.defaultValue)?.name || this.variable.defaultValue || '--'
-    );
+    return this.methodList.find(item => item.id === this.variable.data.value)?.name || this.variable.data.value || '--';
   }
 }

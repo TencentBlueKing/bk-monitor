@@ -29,7 +29,7 @@
 
     &.submit-btns {
       margin-top: 32px;
-      
+
       .bk-button {
         min-width: 88px;
       }
@@ -51,11 +51,11 @@
 
 .template-form-skeleton-wrap {
   padding-left: 40px;
-  
+
   .skeleton-element {
     height: 20px;
 
-    &+.skeleton-element {
+    & + .skeleton-element {
       margin-top: 16px;
     }
   }
