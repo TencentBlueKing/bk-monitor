@@ -21,16 +21,18 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.generics import get_object_or_404
 from rest_framework.serializers import Serializer, ValidationError
 
+from core.drf_resource import resource
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.models import StrategyModel
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
+from bkmonitor.query_template.constants import VariableType
 from constants.alert import EventStatus
+from utils import count_md5
 
 from apm_web.models import StrategyTemplate, StrategyInstance
-from . import mock_data, serializers, handler, dispatch, core, query_template, constants
+from . import serializers, handler, dispatch, core, query_template, constants
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -136,27 +138,33 @@ class StrategyTemplateViewSet(GenericViewSet):
             }
         )
 
-    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplatePreviewRequestSerializer)
-    def preview(self, *args, **kwargs) -> Response:
-        strategy_template_id: int = self.query_data["strategy_template_id"]
-        strategy_template_obj: StrategyTemplate = get_object_or_404(self.get_queryset(), id=strategy_template_id)
+    def _preview(self, strategy_template_obj: StrategyTemplate, service_name: str) -> dict[str, Any]:
         dispatcher: dispatch.StrategyDispatcher = dispatch.StrategyDispatcher(
             strategy_template=strategy_template_obj,
             query_template_wrapper=query_template.QueryTemplateWrapperFactory.get_wrapper(
                 strategy_template_obj.query_template["bk_biz_id"], strategy_template_obj.query_template["name"]
             ),
         )
-
-        service_name: str = self.query_data["service_name"]
         entity_set: dispatch.EntitySet = dispatch.EntitySet(
             self.query_data["bk_biz_id"], self.query_data["app_name"], [service_name]
         )
-        return Response(dispatcher.preview(entity_set)[service_name])
+        return dispatcher.preview(entity_set)[service_name]
 
-    @classmethod
-    def _get_id_strategy_map(cls, ids: Iterable[int]) -> dict[int, dict[str, Any]]:
-        # TODO 直接依赖模型不合理，这里要改成 resource 调用。
-        return {strategy["id"]: strategy for strategy in StrategyModel.objects.filter(id__in=ids).values("id", "name")}
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplatePreviewRequestSerializer)
+    def preview(self, *args, **kwargs) -> Response:
+        strategy_template_obj: StrategyTemplate = get_object_or_404(
+            self.get_queryset(), id=self.query_data["strategy_template_id"]
+        )
+        return Response(self._preview(strategy_template_obj, self.query_data["service_name"]))
+
+    def _get_id_strategy_map(self, ids: Iterable[int]) -> dict[int, dict[str, Any]]:
+        strategies: list[dict[str, Any]] = resource.strategies.plain_strategy_list_v2(
+            {"bk_biz_id": self.query_data["bk_biz_id"], "ids": list(ids)}
+        )
+        return {
+            strategy_dict["id"]: {"id": strategy_dict["id"], "name": strategy_dict["name"]}
+            for strategy_dict in strategies
+        }
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
     def apply(self, *args, **kwargs) -> Response:
@@ -297,9 +305,73 @@ class StrategyTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)
     def compare(self, *args, **kwargs) -> Response:
-        if self.query_data.get("is_mock"):
-            return Response(mock_data.COMPARE_STRATEGY_INSTANCE)
-        return Response({})
+        strategy_template_obj: StrategyTemplate = get_object_or_404(
+            self.get_queryset(), id=self.query_data["strategy_template_id"]
+        )
+        applied_instance_obj: StrategyInstance | None = StrategyInstance.filter_same_origin_instances(
+            StrategyInstance.objects.filter(
+                bk_biz_id=self.query_data["bk_biz_id"], app_name=self.query_data["app_name"]
+            ),
+            strategy_template_id=strategy_template_obj.pk,
+            root_strategy_template_id=strategy_template_obj.root_id,
+        ).first()
+        if not applied_instance_obj:
+            return Response({})
+
+        diff_data: list[dict[str, Any]] = []
+        current_dict: dict[str, Any] = self._preview(strategy_template_obj, self.query_data["service_name"])
+        for field_name in ["detect", "algorithms", "user_group_list", "context"]:
+            if field_name == "user_group_list":
+                current = current_dict.get("user_group_list", [])
+                applied_user_group_ids: set[int] = set(applied_instance_obj.user_group_ids)
+                applied = list(handler.get_user_groups(applied_user_group_ids).values())
+            else:
+                current = current_dict.get(field_name)
+                applied = getattr(applied_instance_obj, field_name)
+
+            if count_md5(current) == count_md5(applied):
+                continue
+
+            if field_name != "context":
+                diff_data.append({"field": field_name, "current": current, "applied": applied})
+                continue
+
+            current_variables: list[dict[str, Any]] = []
+            for variable_dict in current_dict["query_template"]["variables"]:
+                current_variables.append({**variable_dict, "value": current[variable_dict["name"]]})
+
+            applied_variables: list[dict[str, Any]] = []
+            name_variable_map: dict[str, dict[str, Any]] = {
+                variable_dict["name"]: variable_dict for variable_dict in current_dict["query_template"]["variables"]
+            }
+            for applied_variable_name, applied_variable_value in applied.items():
+                if applied_variable_name in name_variable_map:
+                    applied_variables.append(
+                        {**name_variable_map[applied_variable_name], "value": applied_variable_value}
+                    )
+                else:
+                    applied_variables.append(
+                        {
+                            "name": applied_variable_name,
+                            "type": VariableType.CONSTANTS.value,
+                            "alias": _("[变量已失效] {}").format(applied_variable_name),
+                            "value": "--",
+                        }
+                    )
+            diff_data.append({"field": "variables", "current": current_variables, "applied": applied_variables})
+
+        strategy_id: int = applied_instance_obj.strategy_id
+        strategy_name: str = self._get_id_strategy_map(ids=[strategy_id]).get(strategy_id, {}).get("name", "")
+        return Response(
+            {
+                "current": {"strategy_template_id": strategy_template_obj.pk},
+                "applied": {
+                    "strategy_template_id": applied_instance_obj.strategy_template_id,
+                    "strategy": {"id": applied_instance_obj.strategy_id, "name": strategy_name},
+                },
+                "diff": diff_data,
+            }
+        )
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateAlertsRequestSerializer)
     def alerts(self, *args, **kwargs) -> Response:
