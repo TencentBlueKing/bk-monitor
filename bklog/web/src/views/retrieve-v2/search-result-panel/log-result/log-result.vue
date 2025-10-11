@@ -47,7 +47,7 @@
       :row-index="currentIndex"
       @close-dialog="hideDialog"
     />
-    <AiAssitant ref="refAiAssitant" @close="handleAiClose"></AiAssitant>
+    <AiAssitant ref="refAiAssitant" :is-external="isExternal" @close="handleAiClose"></AiAssitant>
   </div>
 </template>
 
@@ -94,7 +94,11 @@ export default {
       currentIndex: 0,
     };
   },
-
+  computed: {
+    isExternal() {
+      return this.$store.state.isExternal;
+    },
+  },
   methods: {
     handleAiClose() {
       this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
