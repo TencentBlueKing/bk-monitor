@@ -1356,7 +1356,10 @@ class PlainStrategyListV2Resource(Resource):
     """获取轻量的策略列表"""
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+        ids = serializers.ListField(
+            label=_("策略 ID 列表"), child=serializers.IntegerField(min_value=1), default=[], allow_empty=True
+        )
 
     @staticmethod
     def get_label_msg(scenario: str, labels: list) -> dict:
@@ -1380,9 +1383,11 @@ class PlainStrategyListV2Resource(Resource):
 
     def perform_request(self, validated_request_data):
         # 获取指定业务下启用的策略
-        bk_biz_id = validated_request_data.get("bk_biz_id")
+        q = Q(bk_biz_id=validated_request_data["bk_biz_id"])
+        if validated_request_data["ids"]:
+            q &= Q(id__in=validated_request_data["ids"])
         strategies = (
-            StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+            StrategyModel.objects.filter(q)
             .values("id", "name", "scenario", "is_enabled")
             .order_by("-is_enabled", "-update_time")
         )

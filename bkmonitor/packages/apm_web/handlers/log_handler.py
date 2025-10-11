@@ -193,12 +193,15 @@ class ServiceLogHandler:
         return []
 
     @classmethod
-    def get_log_relations(cls, bk_biz_id, app_name, service_name):
-        return LogServiceRelation.objects.filter(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            service_name=service_name,
-            log_type=ServiceRelationLogTypeChoices.BK_LOG,
+    def get_log_relations(cls, bk_biz_id: int, app_name: str, service_names: list[str]) -> list[LogServiceRelation]:
+        """获取服务关联的日志"""
+        return list(
+            LogServiceRelation.objects.filter(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                log_type=ServiceRelationLogTypeChoices.BK_LOG,
+                service_name__in=service_names,
+            )
         )
 
     @classmethod

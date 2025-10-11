@@ -48,6 +48,7 @@ export default {
   修改告警风暴开关: 'Edit Alarm-storm',
   修改通知升级: 'Edit Notification Upgrade',
   修改算法: 'Modify Algorithm',
+  修改检测规则: 'Modify Detection Rule',
   批量删除策略: 'Delete Rules',
   批量修改状态: 'Edit State',
   批量替换成: 'Bulk Replace',

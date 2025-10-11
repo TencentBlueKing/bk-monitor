@@ -26,9 +26,9 @@
 import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
+import { CP_METHOD_LIST, METHOD_LIST } from '../../../../../constant/constant';
 import VariableFormMixin from '../../mixins/VariableFormMixin';
 import VariableCommonForm from '../common-form/variable-common-form';
-import { CP_METHOD_LIST, METHOD_LIST } from '@/constant/constant';
 
 import type { IVariableFormEvents } from '../../../typings';
 import type { MethodVariableModel } from '../../index';

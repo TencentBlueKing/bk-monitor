@@ -78,6 +78,7 @@ def register_builtin_templates() -> None:
             "is_deleted",
             "update_time",
             "update_user",
+            "unit",
         ],
         batch_size=500,
     )

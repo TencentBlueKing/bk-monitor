@@ -42,6 +42,7 @@ interface FunctionValueEvents {
 
 interface FunctionValueProps {
   metricFunctions: any[];
+  showLabel?: boolean;
   variable: FunctionVariableModel;
 }
 
@@ -49,6 +50,7 @@ interface FunctionValueProps {
 export default class EditFunctionVariableValue extends tsc<FunctionValueProps, FunctionValueEvents> {
   @Prop({ type: Object, required: true }) variable!: FunctionVariableModel;
   @Prop({ default: () => [] }) metricFunctions!: any[];
+  @Prop({ default: true }) showLabel!: boolean;
 
   get isUseExpression() {
     return this.variable.type === VariableTypeEnum.EXPRESSION_FUNCTIONS;
@@ -69,7 +71,10 @@ export default class EditFunctionVariableValue extends tsc<FunctionValueProps, F
 
   render() {
     return (
-      <EditVariableValue data={this.variable.data}>
+      <EditVariableValue
+        data={this.variable.data}
+        showLabel={this.showLabel}
+      >
         <FunctionCreator
           isExpSupport={this.isUseExpression}
           needClear={false}

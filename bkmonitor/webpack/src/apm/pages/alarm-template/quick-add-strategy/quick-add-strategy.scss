@@ -1,0 +1,102 @@
+.quick-add-strategy-side-component {
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .ml-24 {
+    margin-left: 24px;
+  }
+
+  .quick-add-strategy-content {
+    display: flex;
+    height: calc(-100px + 100vh);
+
+    .template-list {
+      width: 449px;
+      max-height: 100%;
+      padding: 12px 24px;
+      overflow: auto;
+
+      .template-list-loading {
+        margin-bottom: 24px;
+
+        .template-list-loading-item {
+          width: auto;
+          height: 32px;
+          margin-bottom: 4px;
+        }
+      }
+    }
+
+    .template-preview {
+      flex: 1;
+      padding: 12px 0;
+      overflow: hidden;
+      background: #FAFBFD;
+      border-left: 1px solid #DCDEE5;
+
+      .template-preview-header {
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+
+        .header-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #313238;
+          white-space: nowrap;
+        }
+
+        .split-line {
+          width: 1px;
+          height: 14px;
+          margin: 0 8px;
+          background: #C4C6CC;
+        }
+
+        .header-desc {
+          margin-right: 4px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          color: #4D4F56;
+          white-space: nowrap;
+        }
+
+        .header-right-link {
+          display: flex;
+          align-items: center;
+          margin: 0 0 0 auto;
+          line-height: 12px;
+          color: #3A84FF;
+          white-space: nowrap;
+          cursor: pointer;
+
+          .icon-fenxiang {
+            margin-left: 5px;
+            font-size: 12px;
+          }
+        }
+      }
+
+      .template-preview-content {
+        height: calc(100% - 20px);
+        padding: 0 24px 0 12px;
+        margin-top: 19px;
+        overflow: auto;
+
+        .template-form-skeleton-wrap {
+          padding: 0 20px;
+        }
+      }
+    }
+  }
+
+  .quick-add-strategy-footer {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 48px;
+    background: #FAFBFD;
+    border-top: 1px solid #DCDEE5;
+  }
+}

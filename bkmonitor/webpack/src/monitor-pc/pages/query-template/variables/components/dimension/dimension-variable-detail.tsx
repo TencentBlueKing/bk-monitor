@@ -52,6 +52,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
+import VariableValueDetail from '../variable-panel/variable-value-detail';
 
 import type { DimensionVariableModel } from '../../index';
 interface DimensionDetailProps {
@@ -98,18 +99,7 @@ export default class DimensionVariableDetail extends tsc<DimensionDetailProps> {
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
             <div class='form-item-value'>
-              <div class='tag-list'>
-                {this.defaultValueMap.length
-                  ? this.defaultValueMap.map(item => (
-                      <div
-                        key={item.id}
-                        class='tag-item'
-                      >
-                        {item.name}
-                      </div>
-                    ))
-                  : '--'}
-              </div>
+              <VariableValueDetail variable={this.variable} />
             </div>
           </div>
         </VariableCommonFormDetail>

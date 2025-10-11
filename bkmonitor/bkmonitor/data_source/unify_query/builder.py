@@ -140,6 +140,11 @@ class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
         clone.query.set_interval(interval)
         return clone
 
+    def index_set_id(self, index_set_id: str) -> "QueryConfigBuilder":
+        clone = self._clone()
+        clone = clone.dsl_index_set_id(index_set_id)
+        return clone
+
     """以下只是显示声明支持方法，同时供 IDE 补全"""
 
     def table(self, table_name: str) -> "QueryConfigBuilder":
@@ -294,6 +299,8 @@ class UnifyQueryCompiler(SQLCompiler):
             }
             if query_config_obj.interval:
                 query_config["interval"] = query_config_obj.interval
+            if query_config_obj.index_set_id:
+                query_config["index_set_id"] = query_config_obj.index_set_id
             query_configs.append(query_config)
 
         query_configs = query_configs or [{"order_by": "", "reference_name": "a", "dimension_fields": []}]

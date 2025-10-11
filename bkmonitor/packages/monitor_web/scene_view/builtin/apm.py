@@ -31,7 +31,7 @@ from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from constants.apm import MetricTemporality, TelemetryDataType, Vendor
+from constants.apm import MetricTemporality, TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
@@ -41,30 +41,7 @@ from monitor_web.scene_view.builtin.utils import gen_string_md5
 logger = logging.getLogger(__name__)
 
 
-def discover_config_from_node_or_none(node: dict[str, Any]) -> dict[str, Any] | None:
-    is_trpc: bool = False
-    rpc_system: str = metric_group.GroupEnum.TRPC
-    for meta in node.get("system") or []:
-        if meta.get("name") == metric_group.GroupEnum.TRPC:
-            is_trpc = True
-        extra_data: dict[str, Any] = meta.get("extra_data") or {}
-        if extra_data.get("rpc_system"):
-            rpc_system = extra_data["rpc_system"]
-            break
-
-    if not is_trpc:
-        logger.info("[apm][discover_config_from_node_or_none] system not found: node -> %s", node)
-        return None
-
-    # G 和 Tars 框架的指标类型为 Gauge。
-    temporality: str = (MetricTemporality.CUMULATIVE, MetricTemporality.DELTA)[
-        Vendor.has_sdk(node.get("sdk"), Vendor.G) or rpc_system == "tars"
-    ]
-    logger.info("[apm][discover_config_from_node_or_none] temporality -> %s, node -> %s", temporality, node)
-    return MetricTemporality.get_metric_config(temporality)
-
-
-def discover_config_from_metric_or_none(
+def get_rpc_service_config_from_metric_or_none(
     bk_biz_id: int, app_name: str, table_id: str, service_name: str
 ) -> dict[str, Any] | None:
     metric_fields: list[str] = [
@@ -79,7 +56,7 @@ def discover_config_from_metric_or_none(
         metric_field__in=metric_fields,
     ).exists()
     if not metric_exists:
-        logger.info("[apm][discover_config_from_metric_or_none] rpc metric not found: table_id -> %s", table_id)
+        logger.info("[apm][get_rpc_service_config_from_metric_or_none] rpc metric not found: table_id -> %s", table_id)
         return None
 
     def _fetch_server_list():
@@ -101,7 +78,7 @@ def discover_config_from_metric_or_none(
     if "server_config" not in discover_result:
         _get_server_config()
 
-    logger.info("[apm][discover_config_from_metric_or_none] discover_result -> %s", discover_result)
+    logger.info("[apm][get_rpc_service_config_from_metric_or_none] discover_result -> %s", discover_result)
     if service_name not in discover_result["server_list"]:
         return None
 
@@ -137,9 +114,9 @@ def discover_caller_callee(
         logger.info("[apm][discover_caller_callee] node not found: %s / %s / %s", bk_biz_id, app_name, service_name)
         return discover_result
 
-    server_config: dict[str, Any] | None = discover_config_from_node_or_none(
+    server_config: dict[str, Any] | None = ServiceHandler.get_rpc_service_config_or_none(
         node
-    ) or discover_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
+    ) or get_rpc_service_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
     if not server_config:
         return discover_result
 
@@ -164,6 +141,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     filenames = [
         # ⬇️ APM观测场景视图
+        "apm_application-alarm_template",
         "apm_application-endpoint",
         "apm_application-error",
         "apm_application-overview",
@@ -726,7 +704,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 bk_biz_id=bk_biz_id,
                 scene_id=scene_id,
                 type="",
-                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error"]},
+                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error", "alarm_template"]},
             )
         if scene_id == f"{cls.SCENE_ID}_service":
             SceneViewOrderModel.objects.update_or_create(
