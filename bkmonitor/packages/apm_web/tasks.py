@@ -16,7 +16,7 @@ from enum import Enum
 from celery import shared_task
 from django.conf import settings
 from django.core.cache import caches, cache
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
@@ -26,6 +26,8 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
+from apm_web.strategy.builtin.registry import BuiltinStrategyTemplateRegistry
+from monitor.models import GlobalConfig
 from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip, deserialize_and_decompress
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.tenant import set_local_tenant_id
@@ -288,3 +290,29 @@ def refresh_apm_app_state_snapshot():
         all_data_status[application["application_id"]] = data_status
     key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=(datetime.now() - timedelta(days=1)).strftime("%Y%m%d"))
     cache.set(key, json.dumps(all_data_status), 7 * 24 * 60 * 60)
+
+
+@shared_task(ignore_result=True)
+def auto_apply_apm_builtin_strategy_template():
+    logger.info("[AUTO_APPLY_APM_BUILTIN_STRATEGY_TEMPLATE] task start")
+
+    config_obj, _ = GlobalConfig.objects.get_or_create(key="apm_apply_builtin_strategy_template_version")
+    apps: QuerySet[Application] = Application.objects.filter(is_enabled=True)
+    current_version_map: dict[str, dict[str, str]] = config_obj.value if isinstance(config_obj.value, dict) else {}
+    applied_version_map: dict[str, dict[str, str]] = {}
+    for app in apps:
+        try:
+            map_key = f"{app.bk_biz_id}-{app.app_name}"
+            current_version = current_version_map.get(map_key, "")
+            applied_version_map[map_key] = current_version
+            if not BuiltinStrategyTemplateRegistry.is_need_register(current_version):
+                continue
+            BuiltinStrategyTemplateRegistry(app).register()
+            applied_version_map[map_key] = BuiltinStrategyTemplateRegistry.APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
+        except Exception as e:
+            logger.warning(f"[AUTO_APPLY_APM_BUILTIN_STRATEGY_TEMPLATE] apply failed: {e}")
+
+    config_obj.value = applied_version_map
+    config_obj.save()
+
+    logger.info("[AUTO_APPLY_APM_BUILTIN_STRATEGY_TEMPLATE] task finished")
