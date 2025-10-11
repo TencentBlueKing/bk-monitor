@@ -1,0 +1,26 @@
+.alert-metric-detail-component {
+  display: flex;
+  color: #757880;
+
+  .metric-label {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 50px;
+    text-align: right;
+  }
+
+  .metric-colon {
+    display: inline-flex;
+    flex-shrink: 0;
+    margin-right: 10px;
+    margin-left: 2px;
+  }
+
+  .metric-name {
+    display: inline-block;
+    flex-basis: auto;
+    min-width: 0;
+    color: #313238;
+    word-break: break-all;
+  }
+}
