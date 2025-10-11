@@ -449,7 +449,17 @@ export default class RelationServiceTable extends tsc<IProps> {
       case Columns.service_name:
         return this.isRelation ? (
           <span class='service-name'>
-            <span>{row.service_name}</span>
+            <span class='service-name-text'>{row.service_name}</span>
+            {row?.strategy?.id ? (
+              <span
+                class='strategy-link-relation'
+                onClick={() => this.handleGoStrategy(row.strategy.id as number)}
+              >
+                {this.$t('查看策略')}
+              </span>
+            ) : (
+              <span class='strategy-link-relation' />
+            )}
             {row.has_diff ? diffBtn() : <span class='no-diff'>{this.$t('暂无差异')}</span>}
           </span>
         ) : (
