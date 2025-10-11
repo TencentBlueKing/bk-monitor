@@ -687,12 +687,6 @@ GRAFANA_ADMIN_USERNAME = os.getenv("BKAPP_GRAFANA_ADMIN_USERNAME", "admin")
 # 降噪时间窗口
 NOISE_REDUCE_TIMEDELTA = 5
 
-# 故障自愈是否已完成迁移
-IS_FTA_MIGRATED = False
-
-# 已经迁移完成的业务
-FTA_MIGRATE_BIZS = []
-
 # 指标上报默认任务标志
 DEFAULT_METRIC_PUSH_JOB = "SLI"
 # 运营指标上报任务标志

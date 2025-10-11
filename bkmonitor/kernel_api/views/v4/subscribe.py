@@ -22,4 +22,6 @@ class SubscribeViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.strategies.detail_strategy_subscribe, endpoint="detail"),
         ResourceRoute("POST", resource.strategies.save_strategy_subscribe, endpoint="save"),
         ResourceRoute("POST", resource.strategies.delete_strategy_subscribe, endpoint="delete"),
+        ResourceRoute("POST", resource.strategies.bulk_save_strategy_subscribe, endpoint="bulk_save"),
+        ResourceRoute("POST", resource.strategies.bulk_delete_strategy_subscribe, endpoint="bulk_delete"),
     ]

@@ -159,6 +159,22 @@ def refresh_apm_config():
             refresh_apm_application_config.delay(bk_biz_id, app_name)
 
 
+def refresh_apm_config_to_k8s():
+    """
+    刷新所有 APM 应用的 K8s 配置（获取全部数据进行批量调度）
+    """
+    # 获取所有启用的应用
+    applications = list(ApmApplication.objects.filter(is_enabled=True))
+    if not applications:
+        return
+
+    try:
+        ApplicationConfig.refresh_k8s(applications)
+        logger.info(f"[refresh_apm_config_to_k8s]: batch publish k8s config for {len(applications)} applications")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"[RefreshApmApplicationK8sConfigFailed] Err => {str(e)}; Applications => {applications}")
+
+
 def refresh_apm_platform_config():
     # 每个租户下发一份平台配置
     for tenant in api.bk_login.list_tenant():
@@ -175,7 +191,6 @@ def refresh_apm_platform_config():
 def refresh_apm_application_config(bk_biz_id, app_name):
     _app = ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
     ApplicationConfig(_app).refresh()
-    ApplicationConfig(_app).refresh_k8s()
 
 
 @app.task(ignore_result=True, queue="celery_cron")

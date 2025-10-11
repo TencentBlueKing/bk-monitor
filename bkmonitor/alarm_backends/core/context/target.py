@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.utils.functional import cached_property
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.cmdb import (
     BusinessManager,
@@ -76,7 +77,24 @@ class Target(BaseContextObject):
                 set_names.add(topo_link[1].bk_inst_name)
         result.module_string = ",".join(module_names)
         result.set_string = ",".join(set_names)
+        result.bk_env_string = self.get_host_env_string(result)
         return result
+
+    def get_host_env_string(self, host):
+        environment_mapping = {"1": _("测试"), "2": _("体验"), "3": _("正式")}
+        env_set = set()
+        for set_id in host.bk_set_ids:
+            bk_set = SetManager.get(set_id)
+            if not bk_set:
+                continue
+            # 检查bk_set_env是否存在且不为None，允许"0"等值
+            if bk_set.bk_set_env is None or bk_set.bk_set_env == "":
+                continue
+            # 确保bk_set_env是字符串类型
+            env_value = str(bk_set.bk_set_env)
+            bk_env_name = environment_mapping.get(env_value, env_value)
+            env_set.add(bk_env_name)
+        return ",".join(sorted(env_set))
 
     @cached_property
     def hosts(self) -> MultiInstanceDisplay:
@@ -103,6 +121,7 @@ class Target(BaseContextObject):
                         set_names.add(topo_link[1].bk_inst_name)
                 host.module_string = module_names
                 host.set_string = set_names
+                host.bk_env_string = self.get_host_env_string(host)
                 hosts.append(host)
 
         return MultiInstanceDisplay(hosts)
