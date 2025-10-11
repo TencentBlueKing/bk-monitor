@@ -48,6 +48,7 @@ export default defineComponent({
       '-webkit-text-fill-color': 'transparent',
       'color': 'transparent',
       'font-size': '12px',
+      'cursor': 'pointer',
     };
 
     const aiBtnStyle = {
@@ -56,11 +57,20 @@ export default defineComponent({
       'width': 'max-content',
       'background-image': 'linear-gradient(-79deg, #F1EDFA 0%, #EBF0FF 100%)',
       'border-radius': '12px',
-      'padding': '4px 12px',
+      'padding': '4px 8px',
       'display': 'flex',
       'align-items': 'center',
       'gap': '4px',
       'cursor': 'pointer',
+      'margin-right': '8px',
+    };
+
+    const aiSpanWrapperStyle = {
+      'display': 'flex',
+      'align-items': 'center',
+      'gap': '4px',
+      'font-size': '12px',
+      'color': '#c4c6cc',
     };
 
     /**
@@ -112,11 +122,14 @@ export default defineComponent({
         {...{
           scopedSlots: {
             'custom-placeholder': () => (
-              <span
-                style={aiSpanStyle}
-                onClick={handleAiSpanClick}
-              >
-                {t('使用AI编辑')}
+              <span style={aiSpanWrapperStyle}>
+                { t('或') }
+                <span
+                  style={aiSpanStyle}
+                  onClick={handleAiSpanClick}
+                >
+                  {t('使用AI编辑')}
+                </span>
               </span>
             ),
             'search-tool': () => (

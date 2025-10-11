@@ -273,10 +273,12 @@
       color: #c4c6cc;
       pointer-events: none;
       transform: translateY(-50%);
+      display: flex;
 
       .custom-placeholder {
         pointer-events: all;
         cursor: pointer;
+        padding-left: 4px;
       }
     }
 
@@ -304,7 +306,6 @@
             .ͼb {
               font-weight: bold;
               color: #7c609e;
-              // eslint-disable-next-line
               font-family: RobotoMono-BoldItalic;
               font-style: italic;
             }

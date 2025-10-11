@@ -36,8 +36,8 @@ const morePopoverRefs = ref([]);
 
 const language = (jsCookie.get('blueking_language') || 'zh-cn');
     const aiSpanPadding = ({
-      'en': '140px',
-      'zh-cn': '120px',
+      'en': '126px',
+      'zh-cn': '94px',
     });
     const paddingLeft = aiSpanPadding[language];
 const setPopoverRef = (el, parentIndex, childIndex) => {
