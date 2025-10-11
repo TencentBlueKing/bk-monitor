@@ -123,3 +123,76 @@ class LogAnalysisCommandHandler(CommandHandler):
 {{ context }}
 ## 上下文内容结束 ##
         """
+
+
+@local_command_handler("querystring_generate")
+class QuerystringGenerateCommandHandler(CommandHandler):
+    """
+    生成查询语句命令处理器
+    """
+
+    @classmethod
+    def _get_index_set_fields(cls, index_set_id: int) -> dict:
+        """
+        获取索引集的字段信息
+
+        Args:
+            index_set_id: 索引集ID
+
+        Returns:
+            dict: 字段信息字典，格式为 {field_name: {type: str, query_alias?: str}}
+        """
+        from apps.log_search.models import LogIndexSet
+
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if not index_set_obj:
+            return {}
+
+        fields_info = index_set_obj.get_fields(use_snapshot=True)
+        if not fields_info.get("fields"):
+            return {}
+
+        fields = {}
+        for field_info in fields_info.get("fields"):
+            field_data = {"type": field_info["field_type"]}
+            if field_info.get("query_alias"):
+                field_data["query_alias"] = field_info["query_alias"]
+            fields[field_info["field_name"]] = field_data
+
+        return fields
+
+    def process_content(self, context: list[dict]) -> str:
+        template = self.get_template()
+        variables = self.extract_context_vars(context)
+
+        index_set_id = int(variables["index_set_id"])
+        description = variables["description"]
+        domain = variables["domain"]
+
+        fields = self._get_index_set_fields(index_set_id)
+        variables["fields"] = json.dumps(fields)
+
+        return self.jinja_env.render(
+            template,
+            {
+                "description": description,
+                "fields": fields,
+                "domain": domain,
+                "index_set_id": index_set_id,
+            },
+        )
+
+    def get_template(self) -> str:
+        return """
+## 检索需求
+{{ description }}
+
+## 字段信息
+{{ fields }}
+
+## 平台域名
+{{ domain }}
+
+## 索引集ID
+{{ index_set_id }}
+        """
