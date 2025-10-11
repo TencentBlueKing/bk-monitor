@@ -210,6 +210,12 @@ const setRouteParams = () => {
   });
 };
 
+const requestIndexSetList = () => {
+  if (route.query.tab === 'origin') {
+    store.dispatch("requestIndexSetQuery");
+  }
+}
+
 const beforeQueryBtnClick = () => {
   // 功能完善后再放开
   return Promise.resolve(true);
@@ -243,10 +249,7 @@ const getBtnQueryResult = () => {
         ?.value?.[0] ?? {},
   });
 
-  if (route.query.tab !== "graphAnalysis") {
-    store.dispatch("requestIndexSetQuery");
-  }
-
+  requestIndexSetList();
   setRouteParams();
 };
 
@@ -294,19 +297,18 @@ const handleSqlRetrieve = (value) => {
           keyword: value,
         });
 
-        store.dispatch("requestIndexSetQuery");
+        requestIndexSetList();
         setRouteParams();
         RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
       });
       return;
     }
 
-    store.dispatch("requestIndexSetQuery");
+    requestIndexSetList();
     setRouteParams();
     RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
     return;
   }
-  // emit('search', 'sql', sqlQueryValue.value);
 };
 
 const handleSqlQueryChange = (value) => {
@@ -319,8 +321,6 @@ const handleSqlQueryChange = (value) => {
     setRouteParams();
     return;
   }
-  // 本地模式
-  // emit('search', 'sql', sqlQueryValue.value);
 };
 
 const handleClearBtnClick = () => {

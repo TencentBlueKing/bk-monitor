@@ -34,7 +34,7 @@ MAX_REQ_LENGTH = 500 * 1024  # 最大请求Body大小，500KB
 MAX_REQ_THROUGHPUT = 4000  # 最大的请求数(单位：秒)
 MAX_DATA_ID_THROUGHPUT = 1000  # 单个dataid最大的上报频率(条/min)、在bk-collector模式下，是 条/秒
 MAX_FUTURE_TIME_OFFSET = 3600  # 支持的最大未来时间，超过这个偏移值，则丢弃
-
+jinja_env = Environment()
 
 if TYPE_CHECKING:
     from metadata.models.custom_report.event import EventGroup
@@ -312,17 +312,24 @@ class CustomReportSubscription(models.Model):
                         continue
 
                     if protocol not in protocol_tpl:
-                        protocol_tpl[protocol] = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+                        tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+                        if not tpl_str:
+                            protocol_tpl[protocol] = None
+                        else:
+                            protocol_tpl[protocol] = jinja_env.from_string(tpl_str)
 
-                    tpl = protocol_tpl.get(protocol)
-                    if not tpl:
+                    compiled_template = protocol_tpl.get(protocol)
+                    if not compiled_template:
                         continue
 
-                    config_id = int(config_context.get("bk_data_id"))
-                    config_context.setdefault("bk_biz_id", bk_biz_id)
-                    config_content = Environment().from_string(tpl).render(config_context)
-
-                    protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
+                    try:
+                        config_id = int(config_context.get("bk_data_id"))
+                        config_context.setdefault("bk_biz_id", bk_biz_id)
+                        config_content = compiled_template.render(config_context)
+                        protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
+                    except Exception:  # pylint: disable=broad-except
+                        # 单个失败，继续渲染模板
+                        logger.exception(f"render config({config_context})")
 
                 # 分别按协议调用deploy_to_k8s_with_hash
                 for protocol, config_map in protocol_config_maps.items():
@@ -557,8 +564,16 @@ class LogSubscriptionConfig(models.Model):
             logger.exception(f"auto deploy bk-collector log config error ({e})")
 
     @classmethod
-    def refresh_k8s(cls, log_group: "LogGroup") -> None:
-        bk_biz_id = log_group.bk_biz_id
+    def refresh_k8s(cls, log_groups: list["LogGroup"]) -> None:
+        """批量刷新多个 log_group 的 k8s 配置"""
+        if not log_groups:
+            return
+
+        # 按业务ID分组，因为不同业务可能需要部署到不同的集群
+        biz_log_groups = {}
+        for log_group in log_groups:
+            bk_biz_id = log_group.bk_biz_id
+            biz_log_groups.setdefault(bk_biz_id, []).append(log_group)
 
         cluster_mapping: dict = BkCollectorClusterConfig.get_cluster_mapping()
         if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
@@ -566,11 +581,8 @@ class LogSubscriptionConfig(models.Model):
             for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
                 cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
 
+        # 按集群分组配置，实现批量下发
         for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
-            need_deploy_bk_biz_ids = {str(bk_biz_id), int(bk_biz_id), BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID}
-            if not set(need_deploy_bk_biz_ids) & set(cc_bk_biz_ids):
-                continue
-
             try:
                 tpl = BkCollectorClusterConfig.sub_config_tpl(
                     cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
@@ -578,13 +590,35 @@ class LogSubscriptionConfig(models.Model):
                 if not tpl:
                     continue
 
-                config_context = cls.get_log_config(log_group)
-                config_content = Environment().from_string(tpl).render(config_context)
+                # 收集该集群需要部署的所有配置
+                cluster_config_map = {}
+                compiled_template = jinja_env.from_string(tpl)
+                for bk_biz_id, biz_log_group_list in biz_log_groups.items():
+                    need_deploy_bk_biz_ids = {
+                        str(bk_biz_id),
+                        int(bk_biz_id),
+                        BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID,
+                    }
+                    if not set(need_deploy_bk_biz_ids) & set(cc_bk_biz_ids):
+                        continue
 
-                config_id = int(log_group.bk_data_id)
-                BkCollectorClusterConfig.deploy_to_k8s(cluster_id, config_id, "log", config_content)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.info(f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}) error({e})")
+                    # 为该业务下的所有 log_group 生成配置
+                    for log_group in biz_log_group_list:
+                        try:
+                            config_context = cls.get_log_config(log_group)
+                            config_content = compiled_template.render(config_context)
+                            config_id = int(log_group.bk_data_id)
+                            cluster_config_map[config_id] = config_content
+                        except Exception:  # pylint: disable=broad-except
+                            # 单个失败，继续渲染模板
+                            logger.exception(f"generate config for log_group({log_group.log_group_name})")
+
+                # 批量下发该集群的所有配置
+                BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, cluster_config_map, "log")
+                logger.info(f"batch deploy {len(cluster_config_map)} log configs to k8s cluster({cluster_id})")
+
+            except Exception:  # pylint: disable=broad-except
+                logger.exception(f"batch refresh custom report config to k8s({cluster_id})")
 
     @classmethod
     def get_log_config(cls, log_group: "LogGroup") -> dict:
