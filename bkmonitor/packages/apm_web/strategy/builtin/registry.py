@@ -15,8 +15,7 @@ import six
 from typing import Any
 from django.utils import timezone
 
-from . import rpc, metric, k8s, trace, log, base
-from .. import constants
+from . import rpc, metric, k8s, trace, log, base, serializers
 
 from apm_web.models import Application, StrategyTemplate
 
@@ -127,18 +126,21 @@ class BuiltinStrategyTemplateRegistry:
                 # TODO 开放配置项，允许根据应用场景，内置更多模板。
                 if template["code"] not in builtin.ENABLED_CODES:
                     continue
-
-                obj: StrategyTemplate = StrategyTemplate(
-                    **template,
-                    user_group_ids=[user_group_id],
-                    type=constants.StrategyTemplateType.BUILTIN_TEMPLATE.value,
+                s = serializers.BuiltinStrategyTemplateSerializer(
+                    data={
+                        **template,
+                        "user_group_ids": [user_group_id],
+                        "bk_biz_id": self.bk_biz_id,
+                        "app_name": self.app_name,
+                        "system": builtin.SYSTEM.value,
+                    }
                 )
-                obj.bk_biz_id, obj.app_name, obj.system = self.bk_biz_id, self.app_name, builtin.SYSTEM.value
+                s.is_valid(raise_exception=True)
+                obj: StrategyTemplate = StrategyTemplate(**s.validated_data)
                 if obj.code not in code_tmpl_map:
-                    obj.create_user = obj.update_user = "system"
                     to_be_created.append(obj)
                 # 被用户更新过的，不再进行更新
-                elif obj.code in code_tmpl_map and code_tmpl_map[obj.code]["update_user"] == "system":
+                elif obj.code in code_tmpl_map and code_tmpl_map[obj.code]["update_user"] == obj.update_user:
                     obj.update_time = timezone.now()
                     obj.pk = code_tmpl_map[obj.code]["id"]
                     to_be_updated.append(obj)
@@ -161,7 +163,6 @@ class BuiltinStrategyTemplateRegistry:
                     "user_group_ids",
                     "query_template",
                     "context",
-                    "update_user",
                     "update_time",
                 ],
             )
