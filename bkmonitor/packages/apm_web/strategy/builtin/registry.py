@@ -45,9 +45,9 @@ class BuiltinStrategyTemplateRegistry:
         self.application: Application = application
 
     @classmethod
-    def is_need_register(cls, app_apply_version: str) -> bool:
+    def is_need_register(cls, app_applied_version: str) -> bool:
         """判断是否需要注册内置策略模板"""
-        return app_apply_version != cls.APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
+        return app_applied_version != cls.APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
 
     @classmethod
     def _add_member_to_notice_group(
