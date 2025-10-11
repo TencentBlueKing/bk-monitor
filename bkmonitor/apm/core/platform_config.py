@@ -110,6 +110,7 @@ class PlatformConfig(BkCollectorConfig):
             "metric_configs": cls.list_metric_config(),
             "license_config": cls.get_license_config(),
             "attribute_config": cls.get_attribute_config(),
+            "field_normalizer_config": cls.get_field_normalizer_config(),
         }
 
         if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
@@ -256,6 +257,123 @@ class PlatformConfig(BkCollectorConfig):
     @classmethod
     def get_license_config(cls):
         return {"name": "license_checker/common", **DEFAULT_PLATFORM_LICENSE_CONFIG}
+
+    @classmethod
+    def get_field_normalizer_config(cls):
+        return {
+            "name": "field_normalizer/otel_mapping",
+            "fields": [
+                {
+                    "predicate_key": "attributes.http.method,attributes.http.request.method",
+                    "rules": [
+                        {"key": "attributes.http.method", "values": ["attributes.http.request.method"]},
+                        {"key": "attributes.http.status_code", "values": ["attributes.http.response.status_code"]},
+                        {"key": "attributes.http.url", "values": ["attributes.url.full"]},
+                        {"key": "attributes.http.scheme", "values": ["attributes.url.scheme"]},
+                        {"key": "attributes.http.client_ip", "values": ["attributes.client.address"]},
+                        {"key": "attributes.http.target", "values": ["attributes.url.path"]},
+                        {"key": "attributes.net.sock.peer.addr", "values": ["attributes.network.peer.address"]},
+                        {"key": "attributes.net.sock.peer.port", "values": ["attributes.network.peer.port"]},
+                        {"key": "attributes.net.sock.host.addr", "values": ["attributes.network.local.address"]},
+                        {"key": "attributes.net.sock.host.port", "values": ["attributes.network.local.port"]},
+                    ],
+                },
+                {
+                    "kind": "SPAN_KIND_SERVER",
+                    "predicate_key": "attributes.http.method,attributes.http.request.method",
+                    "rules": [
+                        {
+                            "key": "attributes.net.peer.name",
+                            "op": "concat",
+                            "values": ["attributes.client.address", "attributes.client.port"],
+                        },
+                        {"key": "attributes.net.peer.ip", "values": ["attributes.client.address"]},
+                        {"key": "attributes.net.peer.port", "values": ["attributes.client.port"]},
+                        {
+                            "key": "attributes.net.host.name",
+                            "op": "concat",
+                            "values": ["attributes.server.address", "attributes.server.port"],
+                        },
+                        {"key": "attributes.net.host.ip", "values": ["attributes.server.address"]},
+                        {"key": "attributes.net.host.port", "values": ["attributes.server.port"]},
+                    ],
+                },
+                {
+                    "kind": "SPAN_KIND_CLIENT",
+                    "predicate_key": "attributes.http.method,attributes.http.request.method",
+                    "rules": [
+                        {
+                            "key": "attributes.net.peer.name",
+                            "op": "concat",
+                            "values": ["attributes.server.address", "attributes.server.port"],
+                        },
+                        {
+                            "key": "attributes.net.peer.ip",
+                            "op": "or",
+                            "values": ["attributes.server.address", "attributes.network.peer.address"],
+                        },
+                        {
+                            "key": "attributes.net.peer.port",
+                            "op": "or",
+                            "values": ["attributes.server.port", "attributes.network.peer.port"],
+                        },
+                        {
+                            "key": "attributes.net.host.name",
+                            "op": "concat",
+                            "values": ["attributes.client.address", "attributes.client.port"],
+                        },
+                        {"key": "attributes.net.host.ip", "values": ["attributes.client.address"]},
+                        {"key": "attributes.net.host.port", "values": ["attributes.client.port"]},
+                    ],
+                },
+                {
+                    "kind": "SPAN_KIND_CLIENT",
+                    "predicate_key": "attributes.db.system,attributes.db.system.name",
+                    "rules": [
+                        {
+                            "key": "attributes.net.peer.name",
+                            "op": "concat",
+                            "values": ["attributes.server.address", "attributes.server.port"],
+                        },
+                        {
+                            "key": "attributes.net.peer.ip",
+                            "op": "or",
+                            "values": ["attributes.server.address", "attributes.network.peer.address"],
+                        },
+                        {
+                            "key": "attributes.net.peer.port",
+                            "op": "or",
+                            "values": ["attributes.server.port", "attributes.network.peer.port"],
+                        },
+                        {
+                            "key": "attributes.net.host.name",
+                            "op": "concat",
+                            "values": ["attributes.client.address", "attributes.client.port"],
+                        },
+                        {"key": "attributes.net.host.ip", "values": ["attributes.client.address"]},
+                        {"key": "attributes.net.host.port", "values": ["attributes.client.port"]},
+                    ],
+                },
+                {
+                    "predicate_key": "attributes.db.system,attributes.db.system.name",
+                    "rules": [
+                        {"key": "attributes.net.sock.peer.addr", "values": ["attributes.network.peer.address"]},
+                        {"key": "attributes.net.sock.peer.port", "values": ["attributes.network.peer.port"]},
+                        {"key": "attributes.db.name", "values": ["attributes.db.namespace"]},
+                        {"key": "attributes.db.statement", "values": ["attributes.db.query.text"]},
+                        {"key": "attributes.db.sql.table", "values": ["attributes.db.collection.name"]},
+                    ],
+                },
+                {
+                    "predicate_key": "attributes.messaging.system",
+                    "rules": [
+                        {"key": "attributes.net.sock.peer.addr", "values": ["attributes.network.peer.address"]},
+                        {"key": "attributes.net.sock.peer.port", "values": ["attributes.network.peer.port"]},
+                        {"key": "attributes.topic", "values": ["attributes.messaging.destination.name"]},
+                    ],
+                },
+            ],
+        }
 
     @classmethod
     def get_token_checker_config(cls, bcs_cluster_id=None):
