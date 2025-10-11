@@ -15,8 +15,7 @@ import six
 from typing import Any
 from django.utils import timezone
 
-from . import rpc, metric, k8s, trace, log, base
-from .. import constants
+from . import rpc, metric, k8s, trace, log, base, serializers
 
 from apm_web.models import Application, StrategyTemplate
 
@@ -111,39 +110,40 @@ class BuiltinStrategyTemplateRegistry:
 
         # TODO 识别应用的框架、语言，再决定注册哪些内置模板。
         systems: list[str] = [builtin.SYSTEM.value for builtin in self._BUILTIN_STRATEGY_TEMPLATES]
-        tmpl_code__id_map: dict[str, int] = {
-            tmpl["code"]: tmpl["id"]
+        code_tmpl_map: dict[str, dict[str, Any]] = {
+            tmpl["code"]: tmpl
             for tmpl in StrategyTemplate.origin_objects.filter(bk_biz_id=self.bk_biz_id, system__in=systems).values(
-                "code", "id"
+                "code", "id", "update_user"
             )
         }
 
         to_be_created: list[StrategyTemplate] = []
         to_be_updated: list[StrategyTemplate] = []
         local_tmpl_codes: set[str] = set()
-        remote_tmpl_codes: set[str] = set(tmpl_code__id_map.keys())
+        remote_tmpl_codes: set[str] = set(code_tmpl_map.keys())
         for builtin in self._BUILTIN_STRATEGY_TEMPLATES:
             for template in builtin.STRATEGY_TEMPLATES:
                 # TODO 开放配置项，允许根据应用场景，内置更多模板。
                 if template["code"] not in builtin.ENABLED_CODES:
                     continue
-
-                obj: StrategyTemplate = StrategyTemplate(
-                    **template,
-                    user_group_ids=[user_group_id],
-                    type=constants.StrategyTemplateType.BUILTIN_TEMPLATE.value,
+                s = serializers.BuiltinStrategyTemplateSerializer(
+                    data={
+                        **template,
+                        "user_group_ids": [user_group_id],
+                        "bk_biz_id": self.bk_biz_id,
+                        "app_name": self.app_name,
+                        "system": builtin.SYSTEM.value,
+                    }
                 )
-                obj.bk_biz_id, obj.app_name, obj.system = self.bk_biz_id, self.app_name, builtin.SYSTEM.value
-                if obj.code in tmpl_code__id_map:
-                    # TODO 被用户更新过的，不再进行更新
-                    obj.update_user = "system"
-                    obj.update_time = timezone.now()
-                    obj.pk = tmpl_code__id_map[obj.code]
-                    to_be_updated.append(obj)
-                else:
-                    obj.create_user = obj.update_user = "system"
+                s.is_valid(raise_exception=True)
+                obj: StrategyTemplate = StrategyTemplate(**s.validated_data)
+                if obj.code not in code_tmpl_map:
                     to_be_created.append(obj)
-
+                # 被用户更新过的，不再进行更新
+                elif obj.code in code_tmpl_map and code_tmpl_map[obj.code]["update_user"] == obj.update_user:
+                    obj.update_time = timezone.now()
+                    obj.pk = code_tmpl_map[obj.code]["id"]
+                    to_be_updated.append(obj)
                 local_tmpl_codes.add(obj.code)
 
         if to_be_created:
@@ -163,7 +163,6 @@ class BuiltinStrategyTemplateRegistry:
                     "user_group_ids",
                     "query_template",
                     "context",
-                    "update_user",
                     "update_time",
                 ],
             )
