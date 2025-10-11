@@ -118,27 +118,31 @@ class EntitySet:
         with self._lock:
             return self._service_workloads_map.get(service_name, [])
 
+    def get_datasource_index_set_id_or_none(self, datasource: str) -> int | None:
+        """
+        获取应用数据源索引集 ID
+        :param datasource: 数据源类型，支持 "log" 或 "trace"
+        :return: 索引集 ID 或 None
+        """
+        try:
+            with self._lock:
+                return self._application_info[f"{datasource}_config"]["index_set_id"]
+        except (KeyError, TypeError):
+            return None
+
     def get_log_datasource_index_set_id_or_none(self) -> int | None:
         """
         获取应用日志数据源索引集 ID
         :return: 日志索引集 ID 或 None
         """
-        try:
-            with self._lock:
-                return self._application_info["log_config"]["index_set_id"]
-        except (KeyError, TypeError):
-            return None
+        return self.get_datasource_index_set_id_or_none("log")
 
     def get_trace_datasource_index_set_id_or_none(self) -> int | None:
         """
         获取应用调用链数据源索引集 ID
         :return: 调用链索引集 ID 或 None
         """
-        try:
-            with self._lock:
-                return self._application_info["trace_config"]["index_set_id"]
-        except (KeyError, TypeError):
-            return None
+        return self.get_datasource_index_set_id_or_none("trace")
 
     def get_rpc_service_config_or_none(self, service_name: str) -> dict[str, Any] | None:
         """

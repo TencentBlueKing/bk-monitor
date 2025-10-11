@@ -30,7 +30,7 @@
 
     .template-preview {
       flex: 1;
-      padding: 12px 24px 12px 0;
+      padding: 12px 0;
       overflow: hidden;
       background: #FAFBFD;
       border-left: 1px solid #DCDEE5;
@@ -80,6 +80,7 @@
 
       .template-preview-content {
         height: calc(100% - 20px);
+        padding: 0 24px 0 12px;
         margin-top: 19px;
         overflow: auto;
 

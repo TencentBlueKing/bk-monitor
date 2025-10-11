@@ -36,8 +36,8 @@ interface DimensionSelectDetailProps {
 export default class DimensionSelectDetail extends tsc<DimensionSelectDetailProps> {
   @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
 
-  get defaultValueMap() {
-    return this.variable.data.defaultValue.map(
+  get valueMap() {
+    return this.variable.data.value.map(
       item => this.variable.dimensionOptionsMap.find(i => i.id === item) || { id: item, name: item }
     );
   }
@@ -45,8 +45,8 @@ export default class DimensionSelectDetail extends tsc<DimensionSelectDetailProp
   render() {
     return (
       <div class='tag-list'>
-        {this.defaultValueMap.length
-          ? this.defaultValueMap.map(item => (
+        {this.valueMap.length
+          ? this.valueMap.map(item => (
               <div
                 key={item.id}
                 class='tag-item'

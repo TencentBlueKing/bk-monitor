@@ -43,8 +43,8 @@ export default class FunctionSelectDetail extends tsc<FunctionSelectDetailProps>
   render() {
     return (
       <span>
-        {this.variable.defaultValue.length
-          ? this.variable.defaultValue.map(item => (
+        {this.variable.value.length
+          ? this.variable.value.map(item => (
               <FunctionTag
                 key={item.id}
                 data={item}
