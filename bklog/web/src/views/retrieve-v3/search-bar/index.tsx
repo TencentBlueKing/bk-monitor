@@ -29,9 +29,9 @@ import { defineComponent, ref } from 'vue';
 import RetrieveHelper from '../../retrieve-helper';
 import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
 import useLocale from '@/hooks/use-locale';
-
-import './index.scss';
 import useElementEvent from '@/hooks/use-element-event';
+import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
+import './index.scss';
 
 export default defineComponent({
   name: 'V3Searchbar',
@@ -56,6 +56,11 @@ export default defineComponent({
       'width': 'max-content',
       'background-image': 'linear-gradient(-79deg, #F1EDFA 0%, #EBF0FF 100%)',
       'border-radius': '12px',
+      'padding': '4px 12px',
+      'display': 'flex',
+      'align-items': 'center',
+      'gap': '4px',
+      'cursor': 'pointer',
     };
 
     /**
@@ -89,7 +94,7 @@ export default defineComponent({
         defaultLeft: left,
         defaultTop: top,
         defaultWidth: width,
-        defaultHeight: 400,
+        defaultHeight: 560,
         draggable: false,
         title: t('AI编辑'),
       });
@@ -116,6 +121,7 @@ export default defineComponent({
             ),
             'search-tool': () => (
               <span onClick={handleAiSpanClick} style={aiBtnStyle}>
+                <img src={aiBluekingSvg} alt="AI编辑" style={{ width: '16px', height: '16px' }} />
                 {t('AI编辑')}
               </span>
             ),
