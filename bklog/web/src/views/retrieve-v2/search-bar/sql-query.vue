@@ -26,7 +26,6 @@
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
   const editorFocusPosition = ref(null);
-  const refPopElement = ref(null);
 
   // SQL查询提示选中可选项索引
   const sqlActiveParamsIndex = ref(null);
@@ -190,7 +189,7 @@
     hideTippyInstance();
   };
 
-  const handleEditorClick = () => {
+  const handleEditorClick = (e) => {
     if (editorInstance === null) {
       createEditorInstance();
     }
@@ -228,6 +227,9 @@
     });
   };
 
+  const handleCustomPlaceholderClick = () => {
+  };
+
   onMounted(() => {
     createEditorInstance();
     document.addEventListener('click', handleDocumentClick);
@@ -238,31 +240,20 @@
   });
 </script>
 <template>
-  <div
-    class="search-sql-query"
-    @click="handleEditorClick"
-  >
-    <div
-      ref="refEditorParent"
-      class="search-sql-editor"
-    ></div>
-    <span
-      ref="refPopElement"
-      class="empty-placeholder-text"
-      v-show="isEmptySqlString"
-      >{{ placeholderText }}</span
-    >
-    <slot></slot>
+  <div class="search-sql-query" @click="handleEditorClick">
+    <div ref="refEditorParent" class="search-sql-editor"></div>
+    <span class="empty-placeholder-text" v-show="isEmptySqlString">
+      {{ placeholderText }}
+      <span
+        class="custom-placeholder"
+        @click.stop="handleCustomPlaceholderClick">
+        <slot name="custom-placeholder"></slot>
+      </span>
+    </span>
     <div style="display: none">
-      <SqlQueryOptions
-        ref="refSqlQueryOption"
-        :focus-position="editorFocusPosition"
-        :value="modelValue"
-        @active-change="handleSqlParamsActiveChange"
-        @cancel="handleCancel"
-        @change="handleQueryChange"
-        @retrieve="closeAndRetrieve"
-      ></SqlQueryOptions>
+      <SqlQueryOptions ref="refSqlQueryOption" :focus-position="editorFocusPosition" :value="modelValue"
+        @active-change="handleSqlParamsActiveChange" @cancel="handleCancel" @change="handleQueryChange"
+        @retrieve="closeAndRetrieve"></SqlQueryOptions>
     </div>
   </div>
 </template>
@@ -282,6 +273,11 @@
       color: #c4c6cc;
       pointer-events: none;
       transform: translateY(-50%);
+
+      .custom-placeholder {
+        pointer-events: all;
+        cursor: pointer;
+      }
     }
 
     .search-sql-editor {

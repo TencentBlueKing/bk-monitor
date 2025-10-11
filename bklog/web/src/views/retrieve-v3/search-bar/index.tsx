@@ -28,27 +28,100 @@ import { defineComponent, ref } from 'vue';
 
 import RetrieveHelper from '../../retrieve-helper';
 import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
+import useLocale from '@/hooks/use-locale';
 
 import './index.scss';
+import useElementEvent from '@/hooks/use-element-event';
 
 export default defineComponent({
   name: 'V3Searchbar',
   setup() {
+    const { t } = useLocale();
+
     const searchBarHeight = ref(0);
+    const searchBarRef = ref<any>(null);
+
+    const aiSpanStyle = {
+      'background': 'linear-gradient(115deg, #235DFA 0%, #E28BED 100%)',
+      '-webkit-background-clip': 'text',
+      'background-clip': 'text',
+      '-webkit-text-fill-color': 'transparent',
+      'color': 'transparent',
+      'font-size': '12px',
+    };
+
+    const aiBtnStyle = {
+      'font-size': '12px',
+      'color': '#313238',
+      'width': 'max-content',
+      'background-image': 'linear-gradient(-79deg, #F1EDFA 0%, #EBF0FF 100%)',
+      'border-radius': '12px',
+    };
+
+    /**
+     * 用于处理搜索栏高度变化
+     * @param height 搜索栏高度
+     */
     const handleHeightChange = height => {
       searchBarHeight.value = height;
       RetrieveHelper.setSearchBarHeight(height);
+      // update ai assitant options
     };
 
+    /**
+     * 添加事件
+     */
+    const { addElementEvent } = useElementEvent();
+    addElementEvent(document.body, 'click', (e: MouseEvent) => {
+      RetrieveHelper.aiAssitantHelper.closeAiAssitantWithSearchBar(e);
+    });
+
+    const handleAiSpanClick = (e: MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const rect = searchBarRef.value?.getRect();
+      const left = rect?.left;
+      const top = rect?.top + rect?.height + 4;
+      const width = rect?.width;
+
+      RetrieveHelper.aiAssitantHelper.showAiAssitant({
+        defaultLeft: left,
+        defaultTop: top,
+        defaultWidth: width,
+        defaultHeight: 400,
+        draggable: false,
+        title: t('AI编辑'),
+      });
+    };
+
+    /**
+     * 渲染搜索栏
+     * @returns 
+     */
     return () => (
       <V2SearchBar
         class='v3-search-bar-root'
+        ref={searchBarRef}
         on-height-change={handleHeightChange}
-        scoped-slots={{
-          default: () => <div>11111</div>,
+        {...{
+          scopedSlots: {
+            'custom-placeholder': () => (
+              <span
+                style={aiSpanStyle}
+                onClick={handleAiSpanClick}
+              >
+                {t('使用AI编辑')}
+              </span>
+            ),
+            'search-tool': () => (
+              <span onClick={handleAiSpanClick} style={aiBtnStyle}>
+                {t('AI编辑')}
+              </span>
+            ),
+          },
         }}
       >
-
       </V2SearchBar>
     );
   },

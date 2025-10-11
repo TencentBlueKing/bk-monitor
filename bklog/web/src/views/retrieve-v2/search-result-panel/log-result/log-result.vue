@@ -47,7 +47,7 @@
       :row-index="currentIndex"
       @close-dialog="hideDialog"
     />
-    <AiAssitant ref="refAiAssitant" @close="handleAiClose"></AiAssitant>
+    <!-- <AiAssitant ref="refAiAssitant" @close="handleAiClose"></AiAssitant> -->
   </div>
 </template>
 
@@ -58,17 +58,12 @@ import RetrieveLoader from "@/skeleton/retrieve-loader";
 import ContextLog from "@/views/retrieve-v3/search-result/original-log/context-log/index.tsx";
 import RealTimeLog from "@/views/retrieve-v3/search-result/original-log/real-time-log";
 import LogRows from "./log-rows.tsx";
-// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import AiAssitant from "@/global/ai-assitant.tsx";
-// #else
-// #code const AiAssitant = () => null;
-// #endif
+import RetrieveHelper from "@/views/retrieve-helper";
 export default {
   components: {
     RetrieveLoader,
     ContextLog,
     RealTimeLog,
-    AiAssitant,
     LogRows,
   },
   props: {
@@ -96,9 +91,9 @@ export default {
   },
 
   methods: {
-    handleAiClose() {
-      this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
-    },
+    // handleAiClose() {
+    //   this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
+    // },
     // 打开实时日志或上下文弹窗
     openLogDialog(row, type, indexSetId) {
       this.logDialog.data = row;
@@ -152,7 +147,7 @@ export default {
     },
     handleClickTools(event, row, config, index) {
       if (event === 'ai') {
-          this.$refs.refAiAssitant.open(true, {
+        RetrieveHelper.aiAssitantHelper.openAiAssitant(true, {
             space_uid: this.$store.getters.spaceUid,
             index_set_id: this.$store.getters.indexId,
             log: row,
@@ -162,7 +157,7 @@ export default {
         }
 
         if (event === 'add-to-ai') {
-          this.$refs.refAiAssitant.setCiteText(row);
+          RetrieveHelper.aiAssitantHelper.setCiteText(row);
           return;
         }
       if (["realTimeLog", "contextLog"].includes(event)) {

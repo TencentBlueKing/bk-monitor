@@ -128,6 +128,11 @@ enum RetrieveEvent {
    * 打开别名配置
    */
   ALIAS_CONFIG_OPEN = 'alias_config_open',
+
+  /**
+   * AI 关闭
+   */
+  AI_CLOSE = 'ai-close',
 }
 
 export default RetrieveEvent;

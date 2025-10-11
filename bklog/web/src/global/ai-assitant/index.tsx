@@ -23,17 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, computed } from 'vue';
+import { defineComponent, ref, computed, nextTick } from 'vue';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
 
-import { random } from '../common/util';
+import { random } from '@/common/util';
 import { AI_BLUEKING_SHORTCUTS } from './ai-type';
 
 import './ai-assistant.scss';
 import '@blueking/ai-blueking/dist/vue2/style.css';
+import { isEqual } from 'lodash-es';
 
-interface IRowSendData {
+export interface IRowSendData {
   space_uid: string;
   index_set_id: string;
   log: string;
@@ -42,13 +43,47 @@ interface IRowSendData {
   index: number;
   type: string;
 }
+
+export interface IAssitantOptions {
+  defaultWidth: number;
+  defaultHeight: number;
+  defaultTop: number;
+  defaultLeft: number;
+  draggable: boolean;
+  title: string;
+}
+
+export interface IAssitantInstance {
+  open: (sendMsg: boolean, args: IRowSendData) => void;
+  close: () => void;
+  sendMessage: (msg: string) => void;
+  setCiteText: (text: string) => void;
+  show: () => void;
+  updateOptions: (options: Partial<IAssitantOptions>) => Promise<boolean>;
+  getOptions: () => IAssitantOptions;
+  isShown: () => boolean;
+}
+
 export default defineComponent({
-  setup(_props, { expose }) {
+
+  setup(_props, { expose, emit }) {
     const aiBlueking = ref<InstanceType<typeof AIBlueking> | null>(null);
 
     let chatid = random(10);
 
     const isShow = ref(false);
+    const isUpdated = ref(true);
+
+    const defaultOptions = {
+      defaultWidth: 400,
+      defaultHeight: undefined,
+      defaultTop: 0,
+      defaultLeft: undefined,
+      draggable: true,
+      title: undefined,
+    };
+
+    const aiAssitantOptions = ref<IAssitantOptions>({ ...defaultOptions });
 
     const apiUrl = `${window.AJAX_URL_PREFIX || '/api/v1'}ai_assistant`;
     const shortcuts = computed(() => {
@@ -62,7 +97,8 @@ export default defineComponent({
 
     const hiddenAiAssistant = () => {
       isShow.value = false;
-      aiBlueking.value?.hide?.();
+      aiBlueking.value?.handleClose?.();
+      emit('close');
     };
 
     const displayAiAssistant = () => {
@@ -127,38 +163,77 @@ export default defineComponent({
       aiBlueking.value?.setCiteText(text);
     };
 
+    const isSameOptions = (options: Partial<IAssitantOptions> = {}) => {
+      return isEqual(aiAssitantOptions.value, options);
+    };
+
+    const updateOptions = (options: Partial<IAssitantOptions> = {}) => {
+      const newOptions = {
+        ...defaultOptions,
+        ...options,
+      };
+
+      if (isSameOptions(newOptions)) {
+        return Promise.resolve(true);
+      }
+
+      isUpdated.value = false;
+      isShow.value = false;
+
+      return new Promise((resolve) => {
+        aiAssitantOptions.value = newOptions;
+        nextTick(() => {
+          isUpdated.value = true;
+          resolve(true);
+        });
+      });
+    };
+
     expose({
       open: showAiAssistant,
       close: hiddenAiAssistant,
       sendMessage,
       setCiteText,
+      show: () => aiBlueking.value?.handleShow(),
+      updateOptions,
+      getOptions: () => aiAssitantOptions.value,
+      isShown: () => isShow.value,
+      isShow
     });
 
     return () => (
       <div class='ai-blueking-wrapper'>
-        <AIBlueking
-          ref={aiBlueking}
-          requestOptions={{
-            beforeRequest: data => {
-              return {
-                ...data,
-                headers: {
-                  ...(data?.headers || {}),
-                  Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
-                },
-              };
-            },
-          }}
-          enablePopup={false}
-          hideNimbus={true}
-          prompts={[]}
-          shortcutFilter={handleShortcutFilter}
-          shortcuts={shortcuts.value}
-          showHistoryIcon={false}
-          url={apiUrl}
-          onClose={hiddenAiAssistant}
-          onShow={displayAiAssistant}
-        />
+        {isUpdated.value && (
+          <AIBlueking
+            ref={aiBlueking}
+            requestOptions={{
+              beforeRequest: data => {
+                return {
+                  ...data,
+                  headers: {
+                    ...(data?.headers || {}),
+                    Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
+                  },
+                };
+              },
+            }}
+            enablePopup={false}
+            hideNimbus={true}
+            prompts={[]}
+            shortcutFilter={handleShortcutFilter}
+            shortcuts={shortcuts.value}
+            showHistoryIcon={false}
+            url={apiUrl}
+            onClose={hiddenAiAssistant}
+            onShow={displayAiAssistant}
+            defaultWidth={aiAssitantOptions.value.defaultWidth}
+            defaultHeight={aiAssitantOptions.value.defaultHeight}
+            defaultTop={aiAssitantOptions.value.defaultTop}
+            defaultLeft={aiAssitantOptions.value.defaultLeft}
+            draggable={aiAssitantOptions.value.draggable}
+            title={aiAssitantOptions.value.title}
+          />
+        )}
       </div>
     );
   },

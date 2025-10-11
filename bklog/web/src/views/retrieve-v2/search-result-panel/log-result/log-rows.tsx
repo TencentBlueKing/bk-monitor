@@ -660,6 +660,10 @@ export default defineComponent({
       handleResultBoxResize,
     );
 
+    addEvent(RetrieveEvent.AI_CLOSE, () => {
+      refResultRowBox.value?.querySelector(".ai-active")?.classList.remove("ai-active");
+    })
+
     const handleColumnWidthChange = (w, col) => {
       const width = w > 40 ? w : 40;
       const longFiels = visibleFields.value.filter(
