@@ -134,16 +134,14 @@ class BuiltinStrategyTemplateRegistry:
                     type=constants.StrategyTemplateType.BUILTIN_TEMPLATE.value,
                 )
                 obj.bk_biz_id, obj.app_name, obj.system = self.bk_biz_id, self.app_name, builtin.SYSTEM.value
-                if obj.code in code_tmpl_map:
-                    if code_tmpl_map[obj.code]["update_user"] == "system":
-                        # TODO 被用户更新过的，不再进行更新
-                        obj.update_time = timezone.now()
-                        obj.pk = code_tmpl_map[obj.code]["id"]
-                        to_be_updated.append(obj)
-                else:
+                if obj.code not in code_tmpl_map:
                     obj.create_user = obj.update_user = "system"
                     to_be_created.append(obj)
-
+                # 被用户更新过的，不再进行更新
+                elif obj.code in code_tmpl_map and code_tmpl_map[obj.code]["update_user"] == "system":
+                    obj.update_time = timezone.now()
+                    obj.pk = code_tmpl_map[obj.code]["id"]
+                    to_be_updated.append(obj)
                 local_tmpl_codes.add(obj.code)
 
         if to_be_created:
