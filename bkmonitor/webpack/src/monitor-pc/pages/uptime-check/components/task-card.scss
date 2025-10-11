@@ -77,6 +77,8 @@
     }
 
     .title-url {
+      display: inline-block;
+      vertical-align: middle;
       font-size: 12px;
       color: #979ba5;
       line-height: 20px;
@@ -160,4 +162,8 @@
       }
     }
   }
+}
+
+.card-info-tooltips__value {
+  margin-top: 5px;
 }
