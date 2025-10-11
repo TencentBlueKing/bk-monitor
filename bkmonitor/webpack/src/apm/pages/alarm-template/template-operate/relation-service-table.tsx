@@ -579,7 +579,12 @@ export default class RelationServiceTable extends tsc<IProps> {
                 {item.variablesList.map((v, index) => [
                   <div
                     key={`${index}-01`}
-                    class='title'
+                    class='title tips'
+                    v-bk-tooltips={{
+                      width: 320,
+                      content: `${this.$tc('变量名')}: ${v.variableName}<br />${this.$tc('变量别名')}: ${v.alias}<br />${this.$tc('变量描述')}: ${v.description}`,
+                      allowHTML: true,
+                    }}
                   >
                     {v.alias || v.name}
                   </div>,
