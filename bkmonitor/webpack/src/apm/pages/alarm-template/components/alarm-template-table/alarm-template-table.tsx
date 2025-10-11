@@ -31,7 +31,6 @@ import { random } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
-import { type IPagination } from 'monitor-pc/pages/query-template/typings';
 
 import {
   ALARM_TEMPLATE_TABLE_FILTER_FIELDS,
@@ -39,6 +38,8 @@ import {
   AlarmTemplateTableFieldToFilterFieldMap,
   AlarmTemplateTypeEnum,
   AlarmTemplateTypeMap,
+  DISABLE_TARGET_DOM,
+  SCROLL_CONTAINER_DOM,
   TABLE_DEFAULT_DISPLAY_FIELDS,
 } from '../../constant';
 import AlarmDeleteConfirm, { type AlarmDeleteConfirmEvent } from '../alarm-delete-confirm/alarm-delete-confirm';
@@ -55,6 +56,7 @@ import type {
   AlarmTemplateListItem,
   AlarmTemplateOptionsItem,
 } from '../../typing';
+import type { IPagination } from 'monitor-pc/pages/query-template/typings';
 
 import './alarm-template-table.scss';
 
@@ -144,6 +146,10 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   deletePopoverInstance = null;
   /** 删除二次确认 popover 延迟打开定时器 */
   deletePopoverDelayTimer = null;
+  /** 滚动容器Dom实例 */
+  scrollContainer: HTMLElement = null;
+  /** 滚动结束后回调逻辑执行计时器  */
+  scrollTimer = null;
   /** 表格所有列配置 */
   allTableColumns = {
     name: {
@@ -358,14 +364,59 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
 
   @Watch('tableData')
   handleDataChange() {
+    this.removeScrollListener();
     this.refreshKey = random(8);
+    this.$nextTick(() => {
+      this.addScrollListener();
+    });
   }
 
   mounted() {
-    this.$el.addEventListener('wheel', this.handleDeletePopoverHide);
+    this.addScrollListener();
   }
   beforeDestroy() {
-    this.$el.removeEventListener('wheel', this.handleDeletePopoverHide);
+    this.removeScrollListener();
+  }
+
+  /**
+   * @description 添加滚动监听
+   */
+  addScrollListener() {
+    this.removeScrollListener();
+    this.scrollContainer = this.$el.querySelector(SCROLL_CONTAINER_DOM);
+    this.scrollContainer.addEventListener('scroll', this.handleScroll);
+  }
+
+  /**
+   * @description 移除滚动监听
+   */
+  removeScrollListener() {
+    if (!this.scrollContainer) return;
+    this.scrollContainer.removeEventListener('scroll', this.handleScroll);
+    this.scrollTimer && clearTimeout(this.scrollTimer);
+    this.scrollContainer = null;
+  }
+
+  /**
+   * @description 处理滚动事件
+   */
+  handleScroll() {
+    this.handleDeletePopoverHide();
+    const childrenArr = this.$el.querySelectorAll(DISABLE_TARGET_DOM);
+    if (!childrenArr?.length) {
+      return;
+    }
+    const setDomPointerEvents = (val: 'auto' | 'none') => {
+      // @ts-ignore
+      for (const children of childrenArr) {
+        children.style.pointerEvents = val;
+      }
+    };
+    setDomPointerEvents('none');
+    this.scrollTimer && clearTimeout(this.scrollTimer);
+    this.scrollTimer = setTimeout(() => {
+      setDomPointerEvents('auto');
+    }, 600);
   }
 
   /**
