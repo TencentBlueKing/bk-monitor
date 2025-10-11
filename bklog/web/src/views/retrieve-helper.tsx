@@ -48,6 +48,7 @@ class RetrieveHelper extends RetrieveBase {
   scrollEventAdded = false;
   mousedownEvent = null;
   aiAssitantHelper: typeof AiAssitantHelper;
+
   constructor({ isFavoriteShow = false, isViewCurrentIndex = true, favoriteWidth = 0 }) {
     super();
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;

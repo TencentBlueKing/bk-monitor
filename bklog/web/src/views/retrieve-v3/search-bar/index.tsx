@@ -80,7 +80,14 @@ export default defineComponent({
     const handleHeightChange = height => {
       searchBarHeight.value = height;
       RetrieveHelper.setSearchBarHeight(height);
-      // update ai assitant options
+
+      if (RetrieveHelper.aiAssitantHelper.isShown()) {
+        const rect = searchBarRef.value?.getRect();
+        const left = rect?.left;
+        const top = rect?.top + rect?.height + 4;
+
+        RetrieveHelper.aiAssitantHelper.setPosition(left, top);
+      }
     };
 
     /**
@@ -123,7 +130,7 @@ export default defineComponent({
           scopedSlots: {
             'custom-placeholder': () => (
               <span style={aiSpanWrapperStyle}>
-                { t('或') }
+                {t('或')}
                 <span
                   style={aiSpanStyle}
                   onClick={handleAiSpanClick}

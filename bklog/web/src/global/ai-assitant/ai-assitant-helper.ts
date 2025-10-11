@@ -90,6 +90,28 @@ class AiAssitantHelper {
       this.aiAssitantRef.value?.close();
     }
   }
+
+  /**
+   * 设置位置
+   * @param x x轴坐标
+   * @param y y轴坐标
+   * @param width 宽度
+   * @param height 高度
+   */
+  setPosition(x?: number, y?: number, width?: number, height?: number) {
+    this.aiAssitantRef.value?.setPosition(x, y, width, height);
+  }
+
+  /**
+   * 判断 AI 助手是否显示
+   * @returns 
+   */
+  isShown() {
+    return this.aiAssitantRef.value?.isShown();
+  }
 }
 
+/**
+ * 单例
+ */
 export default new AiAssitantHelper();

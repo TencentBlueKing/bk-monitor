@@ -62,6 +62,7 @@ export interface IAssitantInstance {
   updateOptions: (options: Partial<IAssitantOptions>) => Promise<boolean>;
   getOptions: () => IAssitantOptions;
   isShown: () => boolean;
+  setPosition: (x?: number, y?: number, width?: number, height?: number) => void;
 }
 
 export default defineComponent({
@@ -189,6 +190,27 @@ export default defineComponent({
       });
     };
 
+    /**
+     * 设置位置
+     * @param x 
+     * @param y 
+     * @param width 
+     * @param height 
+     */
+    const setPosition = (x?: number, y?: number, width?: number, height?: number) => {
+      if (x !== undefined && y !== undefined) {
+        aiBlueking.value?.updatePosition(x, y);
+        aiAssitantOptions.value.defaultLeft = x;
+        aiAssitantOptions.value.defaultTop = y;
+      }
+
+      if (width !== undefined && height !== undefined) {
+        aiBlueking.value?.updateSize(width, height);
+        aiAssitantOptions.value.defaultWidth = width;
+        aiAssitantOptions.value.defaultHeight = height;
+      }
+    };
+
     expose({
       open: showAiAssistant,
       close: hiddenAiAssistant,
@@ -198,6 +220,7 @@ export default defineComponent({
       updateOptions,
       getOptions: () => aiAssitantOptions.value,
       isShown: () => isShow.value,
+      setPosition,
       isShow
     });
 
