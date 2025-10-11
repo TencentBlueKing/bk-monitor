@@ -51,9 +51,9 @@
         align-items: center;
         height: 32px;
         padding: 8px 10px;
-        color: #4D4F56;
-        background: #F0F5FF;
-        border: 1px solid #A3C5FD;
+        color: #4d4f56;
+        background: #f0f5ff;
+        border: 1px solid #a3c5fd;
         border-radius: 2px;
 
         .icon-hint {
@@ -64,7 +64,7 @@
         .icon-mc-close {
           margin: 0 0 0 auto;
           font-size: 18px;
-          color: #C4C6CC;
+          color: #c4c6cc;
           cursor: pointer;
         }
       }
@@ -92,11 +92,6 @@
         }
       }
 
-      .service-name {
-        display: flex;
-        align-items: center;
-      }
-
       .diff-btn {
         display: flex;
         align-items: center;
@@ -104,15 +99,17 @@
         width: 20%;
         max-width: 20%;
         margin: 0 0 0 auto;
-        overflow: hidden;
+        overflow: visible;
         color: #3a84ff;
+        white-space: nowrap;
         cursor: pointer;
       }
 
       .no-diff {
         margin: 0 15px 0 auto;
-        overflow: hidden;
-        color: #C4C6CC;
+        overflow: visible;
+        color: #c4c6cc;
+        white-space: nowrap;
       }
 
       .relation-strategy-content {
@@ -171,15 +168,68 @@
             & > .title {
               margin-bottom: 4px;
               color: #979ba5;
+
+              &.tips {
+                display: inline-block;
+                border-bottom: 1px dashed #979ba5;
+              }
             }
 
             & > .content {
               margin-bottom: 16px;
               color: #313238;
 
+              &.flex-wrap {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+              }
+
               .light {
                 font-weight: 700;
                 color: #3a84ff;
+              }
+
+              .user-tag-item {
+                height: 22px;
+                padding: 0 8px;
+                margin: 0 4px 2px 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-size: 12px;
+                line-height: 22px;
+                color: rgb(77 79 86);
+                white-space: nowrap;
+                background: rgb(240 241 245);
+                border-radius: 2px;
+              }
+
+              .condition-select-detail {
+                .condition-tag {
+                  max-width: 100%;
+                  margin: 0 4px 2px 0;
+                  overflow: hidden;
+
+                  .key-wrap {
+                    .key-name {
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                      white-space: nowrap;
+                    }
+                  }
+
+                  .value-wrap {
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+
+                    .value-name {
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                      white-space: nowrap;
+                    }
+                  }
+                }
               }
             }
           }
@@ -203,6 +253,32 @@
           width: 100%;
           height: 140px;
           margin: auto;
+        }
+      }
+
+      .service-name {
+        display: flex;
+        align-items: center;
+
+        .service-name-text {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .strategy-link-relation {
+          margin: 0 42px 0 auto;
+          color: #3a84ff;
+          white-space: nowrap;
+          cursor: pointer;
+        }
+
+        .no-diff {
+          margin: 0 15px 0 0;
+        }
+
+        .diff-btn {
+          margin: 0;
         }
       }
     }
