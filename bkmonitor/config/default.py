@@ -419,6 +419,11 @@ WXWORK_BOT_WEBHOOK_URL = ""
 WXWORK_BOT_NAME = ""
 WXWORK_BOT_SEND_IMAGE = True
 
+# 企业微信 layouts 模块化消息配置
+WXWORK_BOT_USE_LAYOUTS = False  # 是否启用 layouts 格式
+WXWORK_BOT_LAYOUTS_BIZ_WHITE_LIST = []  # 启用 layouts 的业务ID白名单
+WXWORK_BOT_LAYOUTS_STRATEGY_WHITE_LIST = []  # 启用 layouts 的策略ID白名单
+
 # 执行流控的 APP 白名单
 THROTTLE_APP_WHITE_LIST = []
 

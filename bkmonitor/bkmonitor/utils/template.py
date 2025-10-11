@@ -287,6 +287,50 @@ class AlarmOperateNoticeTemplate(AlarmNoticeTemplate):
     ]
 
 
+class WxworkLayoutsTemplate(AlarmNoticeTemplate):
+    """
+    企业微信 Layouts 模版
+    专门用于渲染 layouts 格式的消息模版
+    """
+
+    @staticmethod
+    def render_layouts(context, action_signal="abnormal", language_suffix=None):
+        """
+        渲染 layouts 模版并解析为 JSON
+        :param context: 上下文字典
+        :param action_signal: 告警信号（abnormal/recovered/closed） 暂时只支持abnormal
+        :param language_suffix: 语言后缀
+        :return: layouts 列表，如果渲染失败返回 None
+        """
+        try:
+            # 模版路径：notice/{signal}/action/wxwork-bot_layouts.jinja
+            template_path = f"notice/{action_signal}/action/wxwork-bot_layouts.jinja"
+
+            # 渲染模版
+            layouts_template = WxworkLayoutsTemplate(template_path, language_suffix=language_suffix)
+            layouts_json_str = layouts_template.render(context)
+
+            # 解析 JSON
+            layouts = json.loads(layouts_json_str)
+
+            logger.info(
+                "render layouts template success for signal: %s, action: %s",
+                action_signal,
+                context.get("action").id if context.get("action") else "NULL",
+            )
+            return layouts
+
+        except TemplateDoesNotExist:
+            logger.warning(f"layouts template not found: {template_path}")
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(f"layouts template is not valid JSON, error: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"render layouts template failed, error: {e}", exc_info=True)
+            return None
+
+
 class UndefinedSilently(Undefined):
     def _fail_with_undefined_error(self, *args, **kwargs):
         return UndefinedSilently()
