@@ -41,8 +41,8 @@ export default class DimensionValueSelectDetail extends tsc<DimensionValueSelect
 
   valueList = [];
 
-  get defaultValueMap() {
-    return this.variable.data.defaultValue.map(
+  get valueMap() {
+    return this.variable.data.value.map(
       item => this.valueList.find(i => i.value === item) || { value: item, label: item }
     );
   }
@@ -65,8 +65,8 @@ export default class DimensionValueSelectDetail extends tsc<DimensionValueSelect
   render() {
     return (
       <div class='tag-list'>
-        {this.defaultValueMap.length
-          ? this.defaultValueMap.map(item => (
+        {this.valueMap.length
+          ? this.valueMap.map(item => (
               <div
                 key={item.value}
                 class='tag-item'
