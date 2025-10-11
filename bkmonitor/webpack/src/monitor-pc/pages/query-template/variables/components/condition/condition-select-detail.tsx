@@ -38,7 +38,7 @@ export default class ConditionSelectDetail extends tsc<ConditionSelectDetailProp
   @Prop({ type: Object, required: true }) variable!: ConditionVariableModel;
 
   get transformDefaultValue() {
-    return this.variable.defaultValue.map(item => {
+    return this.variable.data.value.map(item => {
       const name = this.variable.dimensionList.find(dim => dim.id === item.key)?.name || item.key;
       const operation = STRING_CONDITION_METHOD_LIST.find(method => method.id === item.method);
       return {

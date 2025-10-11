@@ -391,6 +391,11 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         {this.variablesList.map((variable, index) => (
           <bk-form-item
             key={variable.id}
+            desc={{
+              width: 320,
+              content: `${this.$tc('变量名')}: ${variable.variableName}<br />${this.$tc('变量别名')}: ${variable.alias}<br />${this.$tc('变量描述')}: ${variable.description}`,
+              allowHTML: true,
+            }}
             label={variable.alias || variable.variableName}
           >
             <VariablePanel
