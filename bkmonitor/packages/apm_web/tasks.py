@@ -299,20 +299,22 @@ def auto_apply_apm_builtin_strategy_template():
     config_key = "apm_apply_builtin_strategy_template_version"
     config_obj, _ = GlobalConfig.objects.get_or_create(key=config_key)
     apps: QuerySet[Application] = Application.objects.filter(is_enabled=True)
-    app_version_map: dict[int, dict[str, str]] = config_obj.value if isinstance(config_obj.value, dict) else {}
+    current_version_map: dict[str, dict[str, str]] = config_obj.value if isinstance(config_obj.value, dict) else {}
+    applied_version_map: dict[str, dict[str, str]] = {}
     for app in apps:
         try:
-            app_version_map.setdefault(app.bk_biz_id, {}).setdefault(app.app_name, "")
-            if not BuiltinStrategyTemplateRegistry.is_need_register(app_version_map[app.bk_biz_id][app.app_name]):
+            current_version = current_version_map.get(str(app.bk_biz_id), {}).get(app.app_name, "")
+            applied_version_map.setdefault(str(app.bk_biz_id), {}).setdefault(app.app_name, current_version)
+            if not BuiltinStrategyTemplateRegistry.is_need_register(current_version):
                 continue
             BuiltinStrategyTemplateRegistry(app).register()
-            app_version_map[app.bk_biz_id][app.app_name] = (
+            applied_version_map[str(app.bk_biz_id)][app.app_name] = (
                 BuiltinStrategyTemplateRegistry.APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
             )
         except Exception as e:
             logger.warning(f"[AUTO_APPLY_APM_BUILTIN_STRATEGY_TEMPLATE] apply failed: {e}")
 
-    config_obj.value = app_version_map
+    config_obj.value = applied_version_map
     config_obj.save()
 
     logger.info("[AUTO_APPLY_APM_BUILTIN_STRATEGY_TEMPLATE] task finished")
