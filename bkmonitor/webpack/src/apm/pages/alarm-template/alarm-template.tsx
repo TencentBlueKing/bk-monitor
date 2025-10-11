@@ -164,7 +164,7 @@ export default class AlarmTemplate extends tsc<object> {
     this.handleCustomRouteQueryChange({
       quickStatus: this.quickStatus,
       searchKeyword: JSON.stringify(this.searchKeyword),
-    })
+    });
   }
   /** 获取函数列表 */
   async handleGetMetricFunctions() {
@@ -173,11 +173,11 @@ export default class AlarmTemplate extends tsc<object> {
 
   created() {
     this.pageSize = commonPageSizeGet();
-    const { quickStatus = 'all', searchKeyword = '[]'} = this.customRouteQuery;
+    const { quickStatus = 'all', searchKeyword = '[]' } = this.customRouteQuery;
     this.quickStatus = quickStatus;
     try {
       this.searchKeyword = JSON.parse(searchKeyword);
-    } catch (error) {
+    } catch (_error) {
       this.searchKeyword = [];
     }
   }
@@ -456,6 +456,7 @@ export default class AlarmTemplate extends tsc<object> {
           onSuccess={this.handleRefresh}
         />
         <TemplatePush
+          metricFunctions={this.metricFunctions}
           params={this.templatePushObj.params}
           show={this.templatePushObj.show}
           onShowChange={show => {

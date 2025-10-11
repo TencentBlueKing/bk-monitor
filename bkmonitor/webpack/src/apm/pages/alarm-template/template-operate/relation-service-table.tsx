@@ -31,6 +31,8 @@ import { Debounce, random } from 'monitor-common/utils';
 import AcrossPageSelection from 'monitor-pc/components/across-page-selection/across-page-selection';
 import { type SelectTypeEnum, SelectType } from 'monitor-pc/components/across-page-selection/typing';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import { type VariableModelType, getVariableModel } from 'monitor-pc/pages/query-template/variables';
+import VariableValueDetail from 'monitor-pc/pages/query-template/variables/components/variable-panel/variable-value-detail';
 
 import DetectionAlgorithmsGroup from '../components/detection-algorithms-group/detection-algorithms-group';
 
@@ -41,6 +43,7 @@ import type { EmptyStatusOperationType } from 'monitor-pc/components/empty-statu
 import './relation-service-table.scss';
 
 interface IProps {
+  metricFunctions?: any[];
   relationService: IRelationService[];
   getCompareData?: (params: { service_name: string; strategy_template_id: number }) => Promise<TCompareData>;
   // getStrategyDetails?: (ids: (number | string)[]) => Promise<Map<number | string, TemplateDetail>>;
@@ -66,6 +69,7 @@ export default class RelationServiceTable extends tsc<IProps> {
     service_name: string;
     strategy_template_id: number;
   }) => Promise<TCompareData>;
+  @Prop({ default: () => [] }) metricFunctions: any[];
 
   /* 搜索值 */
   searchValue = '';
@@ -157,6 +161,8 @@ export default class RelationServiceTable extends tsc<IProps> {
     algorithms: TemplateDetail['algorithms'][];
     detect: TemplateDetail['detect'];
     type: 'current' | 'relation';
+    userGroupList: { id: number; name: string }[];
+    variablesList: VariableModelType[];
   }[] = [];
   expandContentLoading = false;
   tableKey = random(8);
@@ -366,16 +372,26 @@ export default class RelationServiceTable extends tsc<IProps> {
       const diffData = data.diff;
       const detectData = diffData.find(d => d.field === 'detect');
       const algorithms = diffData.find(d => d.field === 'algorithms');
+      const variablesList = diffData.find(d => d.field === 'variables');
+      const userGroupList = diffData.find(d => d.field === 'user_group_list');
       this.expandContent = [
         {
           type: 'current',
           algorithms: algorithms?.current || [],
           detect: detectData?.current || {},
+          variablesList: (variablesList?.current || []).map(v => {
+            return getVariableModel({ ...v, defaultValue: v?.value || v?.config?.default });
+          }),
+          userGroupList: userGroupList?.current || [],
         },
         {
           type: 'relation',
           algorithms: algorithms?.applied || [],
           detect: detectData?.applied || {},
+          variablesList: (variablesList?.applied || []).map(v => {
+            return getVariableModel({ ...v, defaultValue: v?.value || v?.config?.default });
+          }),
+          userGroupList: userGroupList?.applied || [],
         },
       ];
     } else {
@@ -449,7 +465,17 @@ export default class RelationServiceTable extends tsc<IProps> {
       case Columns.service_name:
         return this.isRelation ? (
           <span class='service-name'>
-            <span>{row.service_name}</span>
+            <span class='service-name-text'>{row.service_name}</span>
+            {row?.strategy?.id ? (
+              <span
+                class='strategy-link-relation'
+                onClick={() => this.handleGoStrategy(row.strategy.id as number)}
+              >
+                {this.$t('查看策略')}
+              </span>
+            ) : (
+              <span class='strategy-link-relation' />
+            )}
             {row.has_diff ? diffBtn() : <span class='no-diff'>{this.$t('暂无差异')}</span>}
           </span>
         ) : (
@@ -538,6 +564,41 @@ export default class RelationServiceTable extends tsc<IProps> {
                     <span class='light mr-2 ml-2'>{item.detect?.config?.trigger_check_window}</span>
                   </i18n>
                 </div>
+                <div class='title'>{this.$t('告警组')}</div>
+                <div class='content flex-wrap'>
+                  {item.userGroupList.map(u => (
+                    <div
+                      key={`${u.id}`}
+                      class='user-tag-item'
+                      v-bk-overflow-tips
+                    >
+                      {u.name}
+                    </div>
+                  ))}
+                </div>
+                {item.variablesList.map((v, index) => [
+                  <div
+                    key={`${index}-01`}
+                    class='title tips'
+                    v-bk-tooltips={{
+                      width: 320,
+                      content: `${this.$tc('变量名')}: ${v.variableName}<br />${this.$tc('变量别名')}: ${v.alias}<br />${this.$tc('变量描述')}: ${v.description}`,
+                      allowHTML: true,
+                    }}
+                  >
+                    {v.alias || v.name}
+                  </div>,
+                  <div
+                    key={`${index}-02`}
+                    class='content'
+                  >
+                    <VariableValueDetail
+                      key={v.id}
+                      metricFunctions={this.metricFunctions}
+                      variable={v}
+                    />
+                  </div>,
+                ])}
               </div>
             </div>
           ))
@@ -556,14 +617,12 @@ export default class RelationServiceTable extends tsc<IProps> {
           >
             {this.tabList.map(item => (
               <bk-tab-panel
-                key={`${item.name}_${item.count}`}
+                key={item.name}
+                render-label={h => {
+                  return h('span', {}, [item.label, h('span', {}, `(${item.count})`)]);
+                }}
                 name={item.name}
-              >
-                <template slot='label'>
-                  <span>{item.label}</span>
-                  <span>{`(${item.count})`}</span>
-                </template>
-              </bk-tab-panel>
+              />
             ))}
           </bk-tab>
           <div class='left-table-content'>

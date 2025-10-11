@@ -41,14 +41,18 @@ export default class FunctionSelectDetail extends tsc<FunctionSelectDetailProps>
   @Prop({ default: () => [] }) metricFunctions!: any[];
 
   render() {
-    return this.variable.value.length
-      ? this.variable.value.map(item => (
-          <FunctionTag
-            key={item.id}
-            data={item}
-            metricFunctions={this.metricFunctions}
-          />
-        ))
-      : '--';
+    return (
+      <span>
+        {this.variable.value.length
+          ? this.variable.value.map(item => (
+              <FunctionTag
+                key={item.id}
+                data={item}
+                metricFunctions={this.metricFunctions}
+              />
+            ))
+          : '--'}
+      </span>
+    );
   }
 }

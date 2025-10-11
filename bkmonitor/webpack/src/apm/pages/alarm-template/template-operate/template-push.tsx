@@ -38,6 +38,7 @@ import type { IRelationService, TCompareData } from './typings';
 import './template-push.scss';
 
 interface IProps {
+  metricFunctions?: any[];
   params?: Record<string, any>;
   show?: boolean;
   onShowChange?: (v: boolean) => void;
@@ -48,6 +49,7 @@ interface IProps {
 export default class TemplatePush extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
+  @Prop({ default: () => [] }) metricFunctions: any[];
 
   relationService: IRelationService[] = [];
 
@@ -60,6 +62,10 @@ export default class TemplatePush extends tsc<IProps> {
   handleWatchShowChange(v: boolean) {
     if (v) {
       this.getCheckStrategyTemplate();
+    } else {
+      this.relationService = [];
+      this.compareDataMap.clear();
+      this.selectKeys = [];
     }
   }
 
@@ -173,6 +179,7 @@ export default class TemplatePush extends tsc<IProps> {
         >
           <RelationServiceTable
             getCompareData={this.getCompareStrategyTemplate}
+            metricFunctions={this.metricFunctions}
             relationService={this.relationService}
             onChangeCheckKeys={this.handleChangeCheckKeys}
             onGoStrategy={this.handleGoStrategy}
@@ -192,7 +199,7 @@ export default class TemplatePush extends tsc<IProps> {
           >
             {this.$t('一键生成')}
           </bk-button>
-          <bk-button>{this.$t('取消')}</bk-button>
+          <bk-button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</bk-button>
         </div>
       </bk-sideslider>
     );
