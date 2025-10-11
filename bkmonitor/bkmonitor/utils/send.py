@@ -22,7 +22,7 @@ from django.template.loader import get_template
 from django.utils.translation import gettext as _
 
 from bkmonitor.models import GlobalConfig
-from bkmonitor.utils.template import AlarmNoticeTemplate, AlarmOperateNoticeTemplate
+from bkmonitor.utils.template import AlarmNoticeTemplate, AlarmOperateNoticeTemplate, WxworkLayoutsTemplate
 from bkmonitor.utils.text import (
     cut_line_str_by_max_bytes,
     cut_str_by_max_bytes,
@@ -485,8 +485,22 @@ class Sender(BaseSender):
     @staticmethod
     def send_wxwork_layouts(msgtype, content, chat_ids, layouts: list, mentioned_users=None, mentioned_title=None):
         """
-        模块化消息推送(未启用)
+        模块化消息推送
         """
+        # 如果没有 @用户，可以批量发送
+        if not mentioned_users:
+            params = {
+                "msgtype": "message",
+                "chatid": "|".join(chat_ids),
+                "layouts": layouts,
+            }
+            try:
+                response = requests.post(settings.WXWORK_BOT_WEBHOOK_URL, json=params).json()
+                return {"errcode": response["errcode"], "errmsg": response.get("errmsg", "")}
+            except Exception as error:
+                return {"errcode": -1, "errmsg": str(error)}
+
+        # 有 @用户时，逐个发送
         send_result = {"errcode": 0, "errmsg": []}
         for chat_id in chat_ids:
             # 每个chatid的通知人员可能不一样，需要根据不同的chatid进行拆分
@@ -496,7 +510,27 @@ class Sender(BaseSender):
                 mentioned_users_string = "".join([f"<@{user}>" for user in chat_mentioned_users])
                 mentioned_users_string = f"**{mentioned_title or _('告警关注者')}: **{mentioned_users_string}"
             chat_layouts = copy.deepcopy(layouts)
-            chat_layouts.insert(0, Sender.split_layout_content(msgtype, content, mentioned_users_string))
+
+            # 将 @用户 信息插入到第一个 layout 中
+            if mentioned_users_string:
+                # 在第一个 column_layout 的 components 中插入 @用户 markdown 组件
+                if chat_layouts and chat_layouts[0].get("type") == "column_layout":
+                    # 在 divider 之前插入 @用户
+                    components = chat_layouts[0].get("components", [])
+                    # 找到 divider 的位置
+                    divider_index = None
+                    for i, comp in enumerate(components):
+                        if comp.get("type") == "divider":
+                            divider_index = i
+                            break
+
+                    mention_component = {"type": "markdown", "text": mentioned_users_string}
+
+                    if divider_index is not None:
+                        components.insert(divider_index, mention_component)
+                    else:
+                        components.append(mention_component)
+
             params = {
                 "msgtype": "message",
                 "chatid": chat_id,
@@ -511,6 +545,59 @@ class Sender(BaseSender):
                 send_result["errmsg"].append(f"send to {chat_id} failed: {str(error)}")
         send_result["errmsg"] = ",".join(send_result["errmsg"])
         return send_result
+
+    def _should_use_layouts(self):
+        """
+        判断是否应该使用 layouts 格式，灰度后可移除
+        """
+        # 1. 全局开关
+        if not settings.WXWORK_BOT_USE_LAYOUTS:
+            return False
+
+        # 2. 只支持 abnormal 类型
+        action = self.context.get("action")
+        if not action or getattr(action, "signal", None) != "abnormal":
+            return False
+
+        # 3. 白名单判断（OR 逻辑：业务ID 或 策略ID 满足任一即可）
+        bk_biz_id = self.bk_biz_id
+        strategy_id = None
+
+        # 获取策略ID
+        if action:
+            strategy_id = getattr(action, "strategy_id", None)
+
+        # 如果没有配置白名单，则不启用
+        if not settings.WXWORK_BOT_LAYOUTS_BIZ_WHITE_LIST and not settings.WXWORK_BOT_LAYOUTS_STRATEGY_WHITE_LIST:
+            return False
+
+        # 判断业务ID白名单
+        if settings.WXWORK_BOT_LAYOUTS_BIZ_WHITE_LIST and bk_biz_id in settings.WXWORK_BOT_LAYOUTS_BIZ_WHITE_LIST:
+            return True
+
+        # 判断策略ID白名单
+        if (
+            settings.WXWORK_BOT_LAYOUTS_STRATEGY_WHITE_LIST
+            and strategy_id in settings.WXWORK_BOT_LAYOUTS_STRATEGY_WHITE_LIST
+        ):
+            return True
+
+        return False
+
+    def _render_layouts_template(self):
+        """
+        渲染 layouts 模版
+        复用项目统一的模版渲染器 WxworkLayoutsTemplate
+        :return: layouts 列表，如果渲染失败返回 None
+        """
+
+        # 获取 action signal
+        action = self.context.get("action")
+        action_signal = getattr(action, "signal", "abnormal") if action else "abnormal"
+
+        # 调用统一的 layouts 渲染器
+        context_dict = self.get_context_dict()
+        return WxworkLayoutsTemplate.render_layouts(context_dict, action_signal)
 
     def send_wxwork_bot(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
         """
@@ -540,8 +627,32 @@ class Sender(BaseSender):
             return finish_send_wxork_bot(_("未配置企业微信群id，请联系管理员"), False)
 
         try:
-            # 如果不是，保留以前的发送格式
-            response = self.send_wxwork_content(self.msg_type, self.content, notice_receivers, self.mentioned_users)
+            # 判断是否使用 layouts 格式
+            use_layouts = self._should_use_layouts()
+
+            if use_layouts:
+                # 使用 layouts 格式发送
+                layouts = self._render_layouts_template()
+
+                if layouts:
+                    logger.info("send.wxwork_group({}): using layouts format".format(",".join(notice_receivers)))
+                    response = self.send_wxwork_layouts(
+                        self.msg_type, self.content, notice_receivers, layouts, self.mentioned_users
+                    )
+                else:
+                    # layouts 渲染失败，降级到 markdown
+                    logger.warning(
+                        "send.wxwork_group({}): layouts render failed, fallback to markdown".format(
+                            ",".join(notice_receivers)
+                        )
+                    )
+                    response = self.send_wxwork_content(
+                        self.msg_type, self.content, notice_receivers, self.mentioned_users
+                    )
+            else:
+                # 使用原有的 markdown 格式
+                response = self.send_wxwork_content(self.msg_type, self.content, notice_receivers, self.mentioned_users)
+
             if response["errcode"] != 0:
                 result = False
                 message = response["errmsg"]

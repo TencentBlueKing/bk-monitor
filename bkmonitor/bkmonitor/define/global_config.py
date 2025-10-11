@@ -562,6 +562,9 @@ STANDARD_CONFIGS = OrderedDict(
         ("PER_ROUND_SPAN_MAX_SIZE", slz.IntegerField(label=_("拓扑发现允许的最大 Span 数量"), default=1000)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),
+        ("WXWORK_BOT_USE_LAYOUTS", slz.BooleanField(label=_("蓝鲸监控机器人使用模块化消息推送"), default=False)),
+        ("WXWORK_BOT_LAYOUTS_BIZ_WHITE_LIST", slz.ListField(label=_("模块化消息推送业务白名单"), default=[])),
+        ("WXWORK_BOT_LAYOUTS_STRATEGY_WHITE_LIST", slz.ListField(label=_("模块化消息推送策略ID白名单"), default=[])),
         ("COLLECTING_CONFIG_FILE_MAXSIZE", slz.IntegerField(label=_("采集配置文件参数最大值(M)"), default=2)),
         (
             "UNIFY_QUERY_URL",
