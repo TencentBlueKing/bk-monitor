@@ -866,7 +866,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
                     "kind": "ResultTable"
                 },
                 "storage": {
-                    "name": "{{storage_cluster_name}}}",
+                    "name": "{{storage_cluster_name}}",
                     "namespace": "{{namespace}}",
                     "kind": "Doris"
                 },
