@@ -152,61 +152,90 @@ class DetectMixin(object):
         info_collection["anomaly"].update({str(level): anomaly_info})
         return info_collection
 
-    def _update_monitor_d_checkpoint(self, records, anomaly_records, level):
-        redis_pipeline = None
-        last_checkpoints = {}
-        anomaly_record_ids = {i.data_point.record_id for i in anomaly_records}
-        latest_point_with_all = 0
-        try:
-            strategy_ttl = self.get_detect_result_expire_ttl()
-        except Exception:
-            strategy_ttl = None
-        for d in records:
-            # data_record 的record_id规则： {dimensions_md5}.{timestamp}
-            dimensions_md5, timestamp = d.record_id.split(".")
-            timestamp = int(timestamp)
-            latest_point_with_all = max([latest_point_with_all, d.timestamp])
+   def _update_monitor_d_checkpoint(self, records, anomaly_records, level):
+       redis_pipeline = None
+       last_checkpoints = {}
+       anomaly_record_ids = {i.data_point.record_id for i in anomaly_records}
+       latest_point_with_all = 0
 
-            check_result = CheckResult(self.strategy.id, self.id, dimensions_md5, level)
-            if redis_pipeline is None:
-                redis_pipeline = check_result.CHECK_RESULT
+       try:
+           strategy_ttl = self.get_detect_result_expire_ttl()
+       except Exception:
+           strategy_ttl = None
 
-            if d.record_id in anomaly_record_ids:
-                name = "{}|{}".format(timestamp, ANOMALY_LABEL)
-            else:
-                name = "{}|{}".format(timestamp, str(d.value))
+       for d in records:
+           # data_record 的 record_id 规则： {dimensions_md5}.{timestamp}
+           dimensions_md5, timestamp = d.record_id.split(".")
+           timestamp = int(timestamp)
+           latest_point_with_all = max([latest_point_with_all, d.timestamp])
 
-            try:
-                # 1. 缓存数据(检测结果缓存) type:SortedSet
-                kwargs = {name: timestamp}
-                check_result.add_check_result_cache(ttl=strategy_ttl, **kwargs)
+           check_result = CheckResult(self.strategy.id, self.id, dimensions_md5, level)
+           if redis_pipeline is None:
+               redis_pipeline = check_result.CHECK_RESULT
 
-                # 2. 缓存最后checkpoint type:Hash，先放到内存里，最后再一次性写入redis
-                last_point = last_checkpoints.setdefault(dimensions_md5, 0)
-                if last_point < timestamp:
-                    last_checkpoints[dimensions_md5] = timestamp
+           if d.record_id in anomaly_record_ids:
+               name = "{}|{}".format(timestamp, ANOMALY_LABEL)
+           else:
+               name = "{}|{}".format(timestamp, str(d.value))
 
-            except Exception as e:
-                msg = "set check result cache error:%s" % e
-                logger.exception(msg)
+           try:
+               # 检测结果缓存 (SortedSet)
+               kwargs = {name: timestamp}
+               check_result.add_check_result_cache(ttl=strategy_ttl, **kwargs)
 
-        if redis_pipeline:
-            check_result.expire_key_to_dimension()
-            redis_pipeline.execute()
+               # 记录每个维度的最新检测点
+               last_point = last_checkpoints.setdefault(dimensions_md5, 0)
+               if last_point < timestamp:
+                   last_checkpoints[dimensions_md5] = timestamp
 
-        if latest_point_with_all:
-            last_checkpoints[LATEST_POINT_WITH_ALL_KEY] = latest_point_with_all
+           except Exception as e:
+               logger.exception("set check result cache error: %s", e)
 
-        # 更新last_checkpoint
-        last_checkpoint_cache_key = LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=self.strategy.id, item_id=self.id)
+       if redis_pipeline:
+           check_result.expire_key_to_dimension()
+           redis_pipeline.execute()
 
-        for chunked_points in chunks(list(last_checkpoints.items()), 5000):
-            set_mapping = {}
-            for _dimensions_md5, point_timestamp in chunked_points:
-                last_checkpoint_cache_field = LAST_CHECKPOINTS_CACHE_KEY.get_field(
-                    dimensions_md5=_dimensions_md5,
-                    level=level,
-                )
-                set_mapping[last_checkpoint_cache_field] = point_timestamp
-            LAST_CHECKPOINTS_CACHE_KEY.client.hmset(last_checkpoint_cache_key, set_mapping)
-        CheckResult.expire_last_checkpoint_cache(strategy_id=self.strategy.id, item_id=self.id)
+       if latest_point_with_all:
+           last_checkpoints[LATEST_POINT_WITH_ALL_KEY] = latest_point_with_all
+
+       last_checkpoint_cache_key = LAST_CHECKPOINTS_CACHE_KEY.get_key(
+           strategy_id=self.strategy.id,
+           item_id=self.id,
+       )
+
+       # 获取所有维度的字段 key
+       all_fields = [
+           LAST_CHECKPOINTS_CACHE_KEY.get_field(dimensions_md5=k, level=level)
+           for k in last_checkpoints.keys()
+       ]
+
+       try:
+           existing_values = (
+               LAST_CHECKPOINTS_CACHE_KEY.client.hmget(last_checkpoint_cache_key, all_fields)
+           )
+           redis_existing = dict(zip(all_fields, existing_values))
+       except Exception as e:
+           logger.warning("failed to read existing checkpoints from redis: %s", e)
+           redis_existing = {}
+
+       for chunked_points in chunks(list(last_checkpoints.items()), 5000):
+           set_mapping = {}
+           for _dimensions_md5, point_timestamp in chunked_points:
+               field = LAST_CHECKPOINTS_CACHE_KEY.get_field(
+                   dimensions_md5=_dimensions_md5,
+                   level=level,
+               )
+               existing_timestamp = redis_existing.get(field)
+               if existing_timestamp is not None:
+                   try:
+                       existing_timestamp = int(existing_timestamp)
+                   except (TypeError, ValueError):
+                       existing_timestamp = 0
+               else:
+                   existing_timestamp = 0
+               if point_timestamp > existing_timestamp:
+                   set_mapping[field] = point_timestamp
+
+           if set_mapping:
+               LAST_CHECKPOINTS_CACHE_KEY.client.hmset(last_checkpoint_cache_key, set_mapping)
+       CheckResult.expire_last_checkpoint_cache(strategy_id=self.strategy.id, item_id=self.id)
