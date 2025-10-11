@@ -116,7 +116,6 @@
         return 'bk-icon icon-home-shape';
       },
       handleClickNavItem(id) {
-        debugger;
         this.$router.push({
           name: id,
           query: {
