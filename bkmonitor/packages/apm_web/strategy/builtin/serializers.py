@@ -24,12 +24,12 @@ class BuiltinStrategyTemplateSerializer(BaseAppStrategyTemplateRequestSerializer
     code = serializers.CharField(label=_("策略模板代号"), max_length=128)
     category = serializers.ChoiceField(
         label=_("策略模板分类"),
-        choices=StrategyTemplateCategory.choices,
+        choices=StrategyTemplateCategory.choices(),
         default=StrategyTemplateCategory.DEFAULT.value,
     )
     monitor_type = serializers.ChoiceField(
         label=_("监控类型"),
-        choices=StrategyTemplateMonitorType.choices,
+        choices=StrategyTemplateMonitorType.choices(),
         default=StrategyTemplateMonitorType.DEFAULT.value,
     )
     detect = DetectSerializer(label=_("判断条件"))
@@ -38,7 +38,7 @@ class BuiltinStrategyTemplateSerializer(BaseAppStrategyTemplateRequestSerializer
     context = serializers.DictField(label=_("查询模板的变量上下文"), default={})
     type = serializers.ChoiceField(
         label=_("策略模板类型"),
-        choices=StrategyTemplateType.choices,
+        choices=StrategyTemplateType.choices(),
         default=StrategyTemplateType.BUILTIN_TEMPLATE.value,
     )
     system = serializers.CharField(label=_("模板类型"), max_length=64)
