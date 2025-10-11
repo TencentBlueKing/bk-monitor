@@ -57,10 +57,10 @@ export default class TemplateFormDetail extends tsc<TemplateFormDetailProps> {
     return this.data?.query_template?.name;
   }
 
-  formItem(label: string, content) {
+  formItem(label, content) {
     return (
       <div class='form-item'>
-        <div class='label'>{label}</div>
+        <div class='form-item-label'>{label}</div>
         <div class='content'>{content}</div>
       </div>
     );
@@ -97,7 +97,16 @@ export default class TemplateFormDetail extends tsc<TemplateFormDetailProps> {
         )}
         {this.variablesList.map(item =>
           this.formItem(
-            item.alias || item.name,
+            <span
+              class='tooltips-label'
+              v-bk-tooltips={{
+                width: 320,
+                content: `${this.$tc('变量名')}: ${item.variableName}<br />${this.$tc('变量别名')}: ${item.alias}<br />${this.$tc('变量描述')}: ${item.description}`,
+                allowHTML: true,
+              }}
+            >
+              {item.alias || item.name}
+            </span>,
             <VariableValueDetail
               key={item.id}
               metricFunctions={this.metricFunctions}
