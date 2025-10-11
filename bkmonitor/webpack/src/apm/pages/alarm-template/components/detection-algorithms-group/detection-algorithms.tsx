@@ -51,7 +51,7 @@ export default class DetectionAlgorithm extends tsc<DetectionAlgorithmProps> {
           <span class='method'>{ConditionMethodAliasMap[this.algorithm?.config?.method]}</span>
           <span class='threshold'>
             {this.algorithm?.config?.threshold}
-            {this.algorithm?.unit_prefix || '%'}
+            {this.algorithm?.unit_prefix}
           </span>
           <span>,</span>
         </div>
