@@ -23,11 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '../../../../../store/modules/custom-escalation-view';
 import RenderMetricsGroup from './components/render-metrics-group';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
+
+import type { IRouteParams } from '@/pages/custom-escalation/new-metric-view/type';
 
 import './index.scss';
 
@@ -37,6 +39,8 @@ interface IEmit {
 
 @Component
 export default class HeaderFilter extends tsc<object, IEmit> {
+  @InjectReactive('routeParams') routeParams: IRouteParams;
+
   @Ref('metricGroupRef') metricGroupRef: RenderMetricsGroup;
 
   searchKey = '';
@@ -67,6 +71,29 @@ export default class HeaderFilter extends tsc<object, IEmit> {
     }
   }
 
+  handleGoToSettings() {
+    if (window.__POWERED_BY_BK_WEWEB__) {
+      window.open(
+        location.href.replace(
+          location.hash,
+          `#/custom-escalation-detail/timeseries/${this.routeParams.idParams.time_series_group_id}`
+        ),
+        '_blank'
+      );
+      return;
+    }
+  }
+  handleGoToDataRetrieval() {
+    if (window.__POWERED_BY_BK_WEWEB__) {
+      window.open(location.href.replace(location.hash, '#/data-retrieval'), '_blank');
+      return;
+    }
+    const route = this.$router.resolve({
+      name: 'data-retrieval',
+    });
+    window.open(route.href, '_blank');
+  }
+
   render() {
     return (
       <div class='new-metric-view-metrics-select'>
@@ -77,27 +104,20 @@ export default class HeaderFilter extends tsc<object, IEmit> {
             right-icon='bk-icon icon-search'
           />
           <div class='action-box'>
-            <router-link
+            <span
               style='color: #3a84ff;'
-              to={{
-                name: 'custom-detail-timeseries',
-                id: this.$route.params.id,
-              }}
-              target='_blank'
+              onClick={this.handleGoToSettings}
             >
               <i class='icon-monitor icon-mc-goto' />
               {this.$t('指标管理')}
-            </router-link>
-            <router-link
+            </span>
+            <span
               style='color: #3a84ff; margin-left: 16px;'
-              to={{
-                name: 'data-retrieval',
-              }}
-              target='_blank'
+              onClick={this.handleGoToDataRetrieval}
             >
               <i class='icon-monitor icon-mc-goto' />
               {this.$t('指标计算')}
-            </router-link>
+            </span>
             {this.isExpandAll ? (
               <div
                 style='display: inline-block; margin-left: auto; cursor: pointer'

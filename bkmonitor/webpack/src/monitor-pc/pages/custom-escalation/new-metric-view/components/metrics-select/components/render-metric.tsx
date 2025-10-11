@@ -23,10 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { modifyCustomTsFields } from 'monitor-api/modules/custom_report';
+
+import type { IRouteParams } from '../../../type';
 
 import './render-metric.scss';
 
@@ -45,6 +47,8 @@ interface IProps {
 
 @Component
 export default class RenderMetric extends tsc<IProps, IEmit> {
+  @InjectReactive('routeParams') routeParams: IRouteParams;
+
   @Prop({ type: Object, required: true }) readonly data: IProps['data'];
   @Prop({ type: Boolean, default: false }) readonly checked: IProps['checked'];
 
@@ -89,7 +93,7 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
     try {
       await this.fromRef.validate();
       await modifyCustomTsFields({
-        time_series_group_id: this.$route.params.id,
+        ...this.routeParams.idParams,
         update_fields: [
           {
             type: 'metric',

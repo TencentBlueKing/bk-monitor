@@ -28,9 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 
+import customEscalationViewStore from '../../../../../../../../../store/modules/custom-escalation-view';
 import { formatTipsContent } from '../../../../../../metric-chart-view/utils';
 import EditPanel, { type IMetrics, type IValue, methodMap } from './components/edit-panel/index';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './index.scss';
 

@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 
 import KeyValueSelector from '../commom/key-value-selector';
+
+import type { IRouteParams } from '@/pages/custom-escalation/new-metric-view/type';
 
 import './index.scss';
 
@@ -47,6 +49,8 @@ interface IProps {
 
 @Component
 export default class FilterConditions extends tsc<IProps, IEmit> {
+  @InjectReactive('routeParams') routeParams: IRouteParams;
+
   @Prop({ type: Array, required: true }) readonly data: IProps['data'];
 
   handleChange(payload: IProps['data'][number]) {
@@ -55,6 +59,27 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
     latestValue.splice(index, 1, payload);
 
     this.$emit('change', latestValue);
+  }
+
+  handleGoToSetDimension() {
+    if (window.__POWERED_BY_BK_WEWEB__) {
+      window.open(
+        location.href.replace(
+          location.hash,
+          `#/custom-escalation-detail/timeseries/${this.routeParams.idParams.time_series_group_id}/dimension`
+        ),
+        '_blank'
+      );
+      return;
+    }
+    const route = this.$router.resolve({
+      name: 'custom-detail-timeseries',
+      params: {
+        id: this.routeParams.idParams.time_series_group_id.toString(),
+        activeTab: 'dimension',
+      },
+    });
+    window.open(route.href, '_blank');
   }
 
   render() {
@@ -69,38 +94,24 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
           />
         ))}
         {this.data.length > 0 && (
-          <router-link
+          <span
             style='color: #3a84ff;'
-            to={{
-              name: 'custom-detail-timeseries',
-              params: {
-                id: this.$route.params.id,
-                activeTab: 'dimension',
-              },
-            }}
-            target='_blank'
+            onClick={this.handleGoToSetDimension}
           >
             <span class='filter-conditions-setting'>
               {this.$t('设置')}
               <i class='icon-monitor icon-mc-goto setting-icon' />
             </span>
-          </router-link>
+          </span>
         )}
         {this.data.length < 1 && (
           <i18n path='(暂未设置常驻筛选，请前往 {0} 设置)'>
-            <router-link
+            <span
               style='color: #3a84ff;'
-              to={{
-                name: 'custom-detail-timeseries',
-                params: {
-                  id: this.$route.params.id,
-                  activeTab: 'dimension',
-                },
-              }}
-              target='_blank'
+              onClick={this.handleGoToSetDimension}
             >
               {this.$t('维度管理')}
-            </router-link>
+            </span>
           </i18n>
         )}
       </div>

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,22 +7,22 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import re
 from collections import defaultdict
-from typing import Dict, List, Tuple
 
 from django.db import models
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.request import get_request_tenant_id
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel, MetricType
 from monitor_web.models import CustomTSField, CustomTSGroupingRule, CustomTSTable
 from monitor_web.models.scene_view import SceneViewModel
 from monitor_web.scene_view.builtin.collect import CollectBuiltinProcessor
 from monitor_web.scene_view.builtin.utils import get_variable_filter_dict, sort_panels
 
 
-def get_order_config(view: SceneViewModel) -> List:
+def get_order_config(view: SceneViewModel) -> list:
     """
     获取排序配置
     """
@@ -36,9 +35,7 @@ def get_order_config(view: SceneViewModel) -> List:
         pk=custom_metric_id,
         bk_tenant_id=get_request_tenant_id(),
     )
-    fields = CustomTSField.objects.filter(
-        time_series_group_id=table.time_series_group_id, type=CustomTSField.MetricType.METRIC
-    )
+    fields = CustomTSField.objects.filter(time_series_group_id=table.time_series_group_id, type=MetricType.METRIC)
     groups = CustomTSGroupingRule.objects.filter(time_series_group_id=table.time_series_group_id)
     group_map = {group.name: group for group in groups}
 
@@ -85,7 +82,7 @@ def get_order_config(view: SceneViewModel) -> List:
     ]
 
 
-def get_panels(view: SceneViewModel) -> List[Dict]:
+def get_panels(view: SceneViewModel) -> list[dict]:
     """
     获取指标信息，包含指标信息及该指标需要使用的聚合方法、聚合维度、聚合周期等
     """
@@ -146,7 +143,7 @@ def get_panels(view: SceneViewModel) -> List[Dict]:
 
 class CustomMetricBuiltinProcessor(CollectBuiltinProcessor):
     @classmethod
-    def get_auto_view_panels(cls, view: SceneViewModel) -> Tuple[List[Dict], List[Dict]]:
+    def get_auto_view_panels(cls, view: SceneViewModel) -> tuple[list[dict], list[dict]]:
         """
         获取平铺视图配置
         """

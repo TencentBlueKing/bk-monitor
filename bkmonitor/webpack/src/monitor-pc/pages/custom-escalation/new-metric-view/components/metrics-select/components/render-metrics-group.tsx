@@ -23,15 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 import { makeMap } from 'monitor-common/utils/make-map';
 
+import customEscalationViewStore from '../../../../../../store/modules/custom-escalation-view';
 import { getCustomTsMetricGroups } from '../../../services/scene_view_new';
 import RenderMetric from './render-metric';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
+
+import type { IRouteParams } from '../../../type';
 
 import './render-metrics-group.scss';
 
@@ -69,6 +71,8 @@ export const encodeRegexp = (paramStr: string) => {
 
 @Component
 export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
+  @InjectReactive('routeParams') routeParams: IRouteParams;
+
   @Prop({ type: String, default: '' }) readonly searchKey: IProps['searchKey'];
 
   isLoading = false;
@@ -110,7 +114,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     this.isLoading = true;
     try {
       const result = await getCustomTsMetricGroups({
-        time_series_group_id: Number(this.$route.params.id),
+        ...this.routeParams.idParams,
       });
       customEscalationViewStore.updateCommonDimensionList(result.common_dimensions);
       customEscalationViewStore.updateMetricGroupList(result.metric_groups);

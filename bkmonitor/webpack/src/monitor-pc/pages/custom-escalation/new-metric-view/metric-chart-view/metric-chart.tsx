@@ -51,6 +51,7 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-p
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
+import customEscalationViewStore from '../../../../store/modules/custom-escalation-view';
 import {
   convertTimestamp,
   handleGetMinPrecision,
@@ -58,7 +59,6 @@ import {
   handleYAxisLabelFormatter,
   timeToDayNum,
 } from './utils';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import type { IMetricAnalysisConfig } from '../type';
 import type { IChartTitleMenuEvents } from 'monitor-ui/chart-plugins/components/chart-title/chart-title-menu';
@@ -117,7 +117,16 @@ class NewMetricChart extends CommonSimpleChart {
   methodList = APM_CUSTOM_METHODS.map(method => ({
     id: method,
     name: method,
-  }));
+  }))
+    .concat(
+      window.__POWERED_BY_BK_WEWEB__
+        ? {
+            id: 'INC',
+            name: 'INC',
+          }
+        : undefined
+    )
+    .filter(Boolean);
   contextmenuInfo = {
     options: [{ id: 'drill', name: window.i18n.tc('维度下钻') }],
     sliceStartTime: 0, // 当前切片起始时间

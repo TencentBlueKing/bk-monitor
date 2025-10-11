@@ -28,9 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 
+import customEscalationViewStore from '../../../../../../../store/modules/custom-escalation-view';
 import { formatTipsContent } from '../../../../metric-chart-view/utils';
 import SelectPanel from './components/select-panel';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './index.scss';
 
@@ -125,9 +125,9 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
         const selectBtnWidth = 60;
         const clearBtnWidth = 30;
 
-        const allTagEleList = Array.from(this.calcTagListRef!.querySelectorAll('.value-item'));
+        const allTagEleList = Array.from(this.calcTagListRef?.querySelectorAll('.value-item'));
         if (
-          this.calcTagListRef!.getBoundingClientRect().width + selectBtnWidth + labelWidth + clearBtnWidth <=
+          this.calcTagListRef?.getBoundingClientRect().width + selectBtnWidth + labelWidth + clearBtnWidth <=
             maxWidth ||
           this.localValueList.length === 1
         ) {
@@ -265,7 +265,7 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
               </div>
             ))}
             {this.moreValueCount > 0 && (
-              <bk-popover theme='light new-metric-view-group-by-more'>
+              <bk-popover theme='light new-metric-view-group-by-more common-monitor'>
                 <div
                   key='more'
                   class='value-item'
