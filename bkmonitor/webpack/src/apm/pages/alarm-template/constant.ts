@@ -207,3 +207,8 @@ export const BATCH_OPERATION_LIST = [
 // 支持初始化时弹出策略模板详情侧栏
 export const TEMPLATE_DETAILS_ROUTER_QUERY_KEY = 'strategy_template_details_id';
 export const APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS = [TEMPLATE_DETAILS_ROUTER_QUERY_KEY];
+
+/** 表格滚动容器元素 */
+export const SCROLL_CONTAINER_DOM = '.bk-table-body-wrapper';
+/** 表格滚动时需要禁用事件触发的元素 */
+export const DISABLE_TARGET_DOM = '.bk-table-body';
