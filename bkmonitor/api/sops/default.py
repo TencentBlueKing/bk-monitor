@@ -22,7 +22,7 @@ from core.errors.alarm_backends import EmptyAssigneeError
 from core.errors.api import BKAPIError
 
 
-class SopsBaseResource(APIResource, abc.ABCMeta):
+class SopsBaseResource(APIResource, metaclass=abc.ABCMeta):
     module_name = "sops"
 
     @property
