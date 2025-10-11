@@ -566,14 +566,12 @@ export default class RelationServiceTable extends tsc<IProps> {
           >
             {this.tabList.map(item => (
               <bk-tab-panel
-                key={`${item.name}_${item.count}`}
+                key={item.name}
+                render-label={h => {
+                  return h('span', {}, [item.label, h('span', {}, `(${item.count})`)]);
+                }}
                 name={item.name}
-              >
-                <template slot='label'>
-                  <span>{item.label}</span>
-                  <span>{`(${item.count})`}</span>
-                </template>
-              </bk-tab-panel>
+              />
             ))}
           </bk-tab>
           <div class='left-table-content'>

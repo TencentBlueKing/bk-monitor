@@ -60,6 +60,8 @@ export default class TemplatePush extends tsc<IProps> {
   handleWatchShowChange(v: boolean) {
     if (v) {
       this.getCheckStrategyTemplate();
+    } else {
+      this.relationService = [];
     }
   }
 
