@@ -32,7 +32,7 @@ from constants.alert import EventStatus
 from utils import count_md5
 
 from apm_web.models import StrategyTemplate, StrategyInstance
-from . import serializers, handler, dispatch, core, query_template, constants
+from . import serializers, handler, dispatch, helper, query_template, constants
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -70,7 +70,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         )
 
     def retrieve(self, *args, **kwargs) -> Response:
-        return Response(core.format2strategy_template_detail(self.get_object(), self.serializer_class))
+        return Response(helper.format2strategy_template_detail(self.get_object(), self.serializer_class))
 
     def destroy(self, *args, **kwargs) -> Response:
         strategy_template_obj: StrategyTemplate = self.get_object()
@@ -324,7 +324,7 @@ class StrategyTemplateViewSet(GenericViewSet):
             if field_name == "user_group_list":
                 current = current_dict.get("user_group_list", [])
                 applied_user_group_ids: set[int] = set(applied_instance_obj.user_group_ids)
-                applied = list(handler.get_user_groups(applied_user_group_ids).values())
+                applied = list(helper.get_user_groups(applied_user_group_ids).values())
             else:
                 current = current_dict.get(field_name)
                 applied = getattr(applied_instance_obj, field_name)
