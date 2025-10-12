@@ -3,16 +3,8 @@ from collections.abc import Iterable
 
 from django.db.models import QuerySet
 
-from bkmonitor.models import UserGroup
 from constants.apm import CachedEnum
-from apm_web.strategy.constants import StrategyTemplateSystem, StrategyTemplateIsEnabled, StrategyTemplateIsAutoApply
-
-
-def get_user_groups(user_group_ids: Iterable[int]) -> dict[int, dict[str, int | str]]:
-    return {
-        user_group["id"]: user_group
-        for user_group in UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
-    }
+from . import constants, helper
 
 
 class OptionValues:
@@ -45,9 +37,9 @@ class OptionValues:
 class StrategyTemplateOptionValues(OptionValues):
     _SUPPORT_FIELDS: list[str] = ["system", "user_group_id", "update_user", "is_enabled", "is_auto_apply"]
     _FIELD_ALIAS: dict[str, CachedEnum] = {
-        "system": StrategyTemplateSystem,
-        "is_enabled": StrategyTemplateIsEnabled,
-        "is_auto_apply": StrategyTemplateIsAutoApply,
+        "system": constants.StrategyTemplateSystem,
+        "is_enabled": constants.StrategyTemplateIsEnabled,
+        "is_auto_apply": constants.StrategyTemplateIsAutoApply,
     }
 
     def get_user_group_id(self) -> list[dict[str, Any]]:
@@ -56,7 +48,7 @@ class StrategyTemplateOptionValues(OptionValues):
             user_group_ids.update(partial_user_group_ids)
         return [
             {"value": user_group_id, "alias": user_group["name"]}
-            for user_group_id, user_group in get_user_groups(user_group_ids).items()
+            for user_group_id, user_group in helper.get_user_groups(user_group_ids).items()
         ]
 
     def get_system(self) -> list[dict[str, str]]:

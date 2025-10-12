@@ -20,8 +20,14 @@ class BuiltinStrategyTemplateSerializer(BaseAppStrategyTemplateRequestSerializer
         bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
         name = serializers.CharField(label=_("查询模板名称"))
 
-    name = serializers.CharField(label=_("策略模板名称"), max_length=128)
     code = serializers.CharField(label=_("策略模板代号"), max_length=128)
+    name = serializers.CharField(label=_("策略模板名称"), max_length=128)
+    type = serializers.ChoiceField(
+        label=_("策略模板类型"),
+        choices=StrategyTemplateType.choices(),
+        default=StrategyTemplateType.BUILTIN_TEMPLATE.value,
+    )
+    system = serializers.CharField(label=_("模板类型"), max_length=64)
     category = serializers.ChoiceField(
         label=_("策略模板分类"),
         choices=StrategyTemplateCategory.choices(),
@@ -34,13 +40,12 @@ class BuiltinStrategyTemplateSerializer(BaseAppStrategyTemplateRequestSerializer
     )
     detect = DetectSerializer(label=_("判断条件"))
     algorithms = serializers.ListField(label=_("检测算法列表"), child=AlgorithmSerializer())
+    user_group_ids = serializers.ListField(
+        label=_("告警用户组 ID 列表"), child=serializers.IntegerField(min_value=1), min_length=1
+    )
+
     query_template = QueryTemplateSerializer(label=_("查询模板"))
     context = serializers.DictField(label=_("查询模板的变量上下文"), default={})
-    type = serializers.ChoiceField(
-        label=_("策略模板类型"),
-        choices=StrategyTemplateType.choices(),
-        default=StrategyTemplateType.BUILTIN_TEMPLATE.value,
-    )
-    system = serializers.CharField(label=_("模板类型"), max_length=64)
+
     create_user = serializers.CharField(label=_("创建人"), max_length=32, default="system")
     update_user = serializers.CharField(label=_("最后修改人"), max_length=32, default="system")

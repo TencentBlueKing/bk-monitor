@@ -13,6 +13,8 @@ import copy
 import six
 
 from typing import Any
+
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from . import rpc, metric, k8s, trace, log, base, serializers
@@ -102,6 +104,9 @@ class BuiltinStrategyTemplateRegistry:
             group_name=str(_("【APM】{app_name} 告警组".format(app_name=application.app_name))),
         )
 
+    def _get_strategy_template_qs(self) -> QuerySet[StrategyTemplate]:
+        return StrategyTemplate.origin_objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+
     def register(self):
         """注册内置告警策略模板"""
 
@@ -112,9 +117,7 @@ class BuiltinStrategyTemplateRegistry:
         systems: list[str] = [builtin.SYSTEM.value for builtin in self._BUILTIN_STRATEGY_TEMPLATES]
         code_tmpl_map: dict[str, dict[str, Any]] = {
             tmpl["code"]: tmpl
-            for tmpl in StrategyTemplate.origin_objects.filter(bk_biz_id=self.bk_biz_id, system__in=systems).values(
-                "code", "id", "update_user"
-            )
+            for tmpl in self._get_strategy_template_qs().filter(system__in=systems).values("code", "id", "update_user")
         }
 
         to_be_created: list[StrategyTemplate] = []
@@ -169,6 +172,4 @@ class BuiltinStrategyTemplateRegistry:
 
         to_be_deleted: list[str] = list(remote_tmpl_codes - local_tmpl_codes)
         if to_be_deleted:
-            StrategyTemplate.origin_objects.filter(bk_biz_id=self.bk_biz_id, code__in=to_be_deleted).update(
-                is_deleted=True
-            )
+            self._get_strategy_template_qs().filter(code__in=to_be_deleted).update(is_deleted=True)
