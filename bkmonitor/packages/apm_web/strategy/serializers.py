@@ -20,7 +20,7 @@ from bkmonitor.strategy.serializers import allowed_threshold_method
 
 from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
-from apm_web.strategy.handler import get_user_groups
+from apm_web.strategy.helper import get_user_groups
 from .constants import DEFAULT_ROOT_ID
 
 
