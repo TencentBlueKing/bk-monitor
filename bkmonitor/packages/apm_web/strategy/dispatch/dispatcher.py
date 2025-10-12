@@ -16,7 +16,7 @@ from apm_web.models import StrategyTemplate, StrategyInstance
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from core.drf_resource import resource
 from . import entity, enricher, builder, base
-from .. import core, serializers
+from .. import helper, serializers
 
 
 class StrategyDispatcher:
@@ -31,6 +31,7 @@ class StrategyDispatcher:
         entity_set: entity.EntitySet,
         global_config: base.DispatchGlobalConfig | None = None,
         extra_configs: list[base.DispatchExtraConfig] | None = None,
+        raise_exception: bool = True,
     ) -> dict[str, base.DispatchConfig]:
         """丰富下发配置"""
         service_config_map: dict[str, base.DispatchConfig] = {}
@@ -48,10 +49,12 @@ class StrategyDispatcher:
                 global_config, extra_config, self.strategy_template, query_template_context
             )
 
-        enricher.ENRICHERS[self.strategy_template.system](
+        validated_service_names: list[str] = enricher.ENRICHERS[self.strategy_template.system](
             entity_set, self.strategy_template, self.query_template_wrapper
-        ).enrich(service_config_map)
-        return service_config_map
+        ).enrich(service_config_map, raise_exception=raise_exception)
+
+        # 仅保留通过校验的服务
+        return {service_name: service_config_map[service_name] for service_name in validated_service_names}
 
     def _is_same_origin_instance(self, instance: dict[str, Any]) -> bool:
         """判断是否为同源模板的下发实例
@@ -205,8 +208,12 @@ class StrategyDispatcher:
         if not is_check_diff:
             return results
 
+        # raise_exception=False：跳过不符合当前模板所属系统类型的服务，并且对 results 进行二次过滤。
+        service_config_map: dict[str, base.DispatchConfig] = self._enrich(entity_set, raise_exception=False)
+        results = [result for result in results if result["service_name"] in service_config_map]
+
         service_result_map: dict[str, dict[str, Any]] = {result["service_name"]: result for result in results}
-        for service_name, dispatch_config in self._enrich(entity_set).items():
+        for service_name, dispatch_config in service_config_map.items():
             result: dict[str, Any] = service_result_map[service_name]
             if result.get("strategy") is None:
                 # 没有下发实例，无需对比。
@@ -222,7 +229,7 @@ class StrategyDispatcher:
         :param entity_set: 实体集
         :return: 服务<>策略模板详情
         """
-        strategy_template_detail: dict[str, Any] = core.format2strategy_template_detail(
+        strategy_template_detail: dict[str, Any] = helper.format2strategy_template_detail(
             self.strategy_template, serializers.StrategyTemplateModelSerializer
         )
         service_strategy_template_detail: dict[str, dict[str, Any]] = {}

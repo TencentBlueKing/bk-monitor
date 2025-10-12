@@ -29,7 +29,85 @@ from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants import apm as apm_constants
 
 
+class BaseSystemDiscoverer(abc.ABC):
+    """策略模板系统服务发现器基类"""
+
+    SYSTEM: str = ""
+
+    def _fetch_service_names(self) -> list[str]:
+        return self._entity_set.service_names
+
+    def __init__(self, entity_set: EntitySet) -> None:
+        self._entity_set: EntitySet = entity_set
+
+    @abc.abstractmethod
+    def discover(self) -> list[str]:
+        raise NotImplementedError
+
+
+class RPCSystemDiscoverer(BaseSystemDiscoverer):
+    SYSTEM: str = StrategyTemplateSystem.RPC.value
+
+    def _get_related_data(self, service_name: str) -> Any:
+        return self._entity_set.get_rpc_service_config_or_none(service_name)
+
+    def discover(self) -> list[str]:
+        service_names: list[str] = []
+        for service_name in self._fetch_service_names():
+            related_data: Any = self._get_related_data(service_name)
+            if related_data:
+                service_names.append(service_name)
+        return service_names
+
+
+class K8SSystemDiscoverer(RPCSystemDiscoverer):
+    SYSTEM: str = StrategyTemplateSystem.K8S.value
+
+    def _get_related_data(self, service_name: str) -> Any:
+        return self._entity_set.get_workloads(service_name)
+
+
+class LogSystemDiscoverer(BaseSystemDiscoverer):
+    SYSTEM: str = StrategyTemplateSystem.LOG.value
+
+    def _get_index_set_id_or_none(self) -> str | None:
+        return self._entity_set.get_log_datasource_index_set_id_or_none()
+
+    def discover(self) -> list[str]:
+        if not self._get_index_set_id_or_none():
+            return []
+        return self._fetch_service_names()
+
+
+class TraceSystemDiscoverer(LogSystemDiscoverer):
+    SYSTEM: str = StrategyTemplateSystem.TRACE.value
+
+    def _get_index_set_id_or_none(self) -> str | None:
+        return self._entity_set.get_trace_datasource_index_set_id_or_none()
+
+
+class MetricSystemDiscoverer(BaseSystemDiscoverer):
+    SYSTEM: str = StrategyTemplateSystem.METRIC.value
+
+    def discover(self) -> list[str]:
+        return self._fetch_service_names()
+
+
+DISCOVERERS: dict[str, type[BaseSystemDiscoverer]] = {
+    RPCSystemDiscoverer.SYSTEM: RPCSystemDiscoverer,
+    K8SSystemDiscoverer.SYSTEM: K8SSystemDiscoverer,
+    LogSystemDiscoverer.SYSTEM: LogSystemDiscoverer,
+    TraceSystemDiscoverer.SYSTEM: TraceSystemDiscoverer,
+    MetricSystemDiscoverer.SYSTEM: MetricSystemDiscoverer,
+}
+
+
 class BaseEnricher(abc.ABC):
+    """告警下发配置丰富器基类
+    借助模板模式（Template Method Design Pattern）的设计思路，将处理流程（enrich、validate、upsert_message_template）作为
+    模板方法在基类固定，而具体的处理步骤（_enrich、_handle_invalid_services_exception 等）由子类实现。
+    """
+
     SYSTEM: str = ""
 
     _TAG_ENUMS: list[type[apm_constants.CachedEnum]] = [apm_constants.CommonMetricTag]
@@ -53,21 +131,48 @@ class BaseEnricher(abc.ABC):
         self._entity_set: EntitySet = entity_set
         self._strategy_template: StrategyTemplate = strategy_template
         self._query_template_wrapper: QueryTemplateWrapper = query_template_wrapper
+        self._discoverer: BaseSystemDiscoverer = DISCOVERERS[self.SYSTEM](entity_set)
 
     @abc.abstractmethod
-    def validate(self, raise_exception: bool = False) -> list[str]:
+    def _handle_invalid_services_exception(self, invalid_service_names: list[str]) -> Exception:
+        """
+        非法服务异常处理
+        :param invalid_service_names: 不合法的服务名称列表
+        :return:
+        """
+        raise NotImplementedError
+
+    def validate(self, raise_exception: bool = True) -> list[str]:
         """
         校验实体集在当前策略模板系统下的合法性
         :param raise_exception: 是否抛出异常。
         :return:
         """
-        raise NotImplementedError
+        service_names: list[str] = self._discoverer.discover()
+        invalid_service_names: list[str] = list(set(self._entity_set.service_names) - set(service_names))
+        if invalid_service_names and raise_exception:
+            raise self._handle_invalid_services_exception(invalid_service_names)
+        return service_names
 
-    @abc.abstractmethod
-    def enrich(self, service_config_map: dict[str, DispatchConfig]) -> None:
+    def enrich(self, service_config_map: dict[str, DispatchConfig], raise_exception: bool = True) -> list[str]:
         """
         丰富服务配置。
         :param service_config_map: 服务<>配置映射关系。
+        :param raise_exception: 是否抛出异常，不抛出异常时，直接跳过不满足模板系统要求的服务。
+        :return:
+        """
+        # 记录有效服务
+        validated_service_names: list[str] = self.validate(raise_exception=raise_exception)
+        for service_name in validated_service_names:
+            self._enrich(service_name, service_config_map[service_name])
+        return validated_service_names
+
+    @abc.abstractmethod
+    def _enrich(self, service_name: str, dispatch_config: DispatchConfig) -> None:
+        """
+        丰富单个服务配置。
+        :param service_name: 服务名称。
+        :param dispatch_config: 服务配置。
         :return:
         """
         raise NotImplementedError
@@ -153,26 +258,13 @@ class RPCEnricher(BaseEnricher):
         apm_constants.RPCMetricTag.SERVICE_NAME.value,
     ]
 
-    def validate(self, raise_exception: bool = False) -> list[str]:
-        service_names: list[str] = []
-        invalid_service_names: list[str] = []
-        for service_name in self._entity_set.service_names:
-            rpc_service_config: dict[str, Any] | None = self._entity_set.get_rpc_service_config_or_none(service_name)
-            if not rpc_service_config:
-                invalid_service_names.append(service_name)
-                continue
-
-            service_names.append(service_name)
-
-        if invalid_service_names and raise_exception:
-            raise ValueError(
-                _("部分服务非 RPC 服务，无法下发「{system}」类告警：{service_names}").format(
-                    system=StrategyTemplateCategory.from_value(self._strategy_template.category).label,
-                    service_names=", ".join(invalid_service_names),
-                )
+    def _handle_invalid_services_exception(self, invalid_service_names: list[str]) -> Exception:
+        return ValueError(
+            _("部分服务非 RPC 服务，无法下发「{system}」类告警：{service_names}").format(
+                system=StrategyTemplateCategory.from_value(self._strategy_template.category).label,
+                service_names=", ".join(invalid_service_names),
             )
-
-        return service_names
+        )
 
     def _get_rpc_url_template(self, dispatch_config: DispatchConfig) -> str:
         call_filter: list[dict[str, Any]] = []
@@ -227,63 +319,37 @@ class RPCEnricher(BaseEnricher):
     def _links_tmpl(self, dispatch_config: DispatchConfig) -> str:
         return str(_(f"#调用分析# [查看]({self._get_rpc_url_template(dispatch_config)})"))
 
-    def enrich(self, service_config_map: dict[str, DispatchConfig]) -> None:
-        self.validate(raise_exception=True)
-        for service_name in self._entity_set.service_names:
-            dispatch_config: DispatchConfig = service_config_map[service_name]
-            if self._strategy_template.category == StrategyTemplateCategory.RPC_LOG.value:
-                dispatch_config.context.update(
-                    {
-                        "SERVICE_NAME": service_name,
-                        "GROUP_BY": [
-                            apm_constants.RPCLogTag.RESOURCE_SERVER.value,
-                            apm_constants.RPCLogTag.RESOURCE_ENV.value,
-                            apm_constants.RPCLogTag.RESOURCE_INSTANCE.value,
-                        ],
-                        "INDEX_SET_ID": self._entity_set.get_first_log_index_set_id_or_none(service_name),
-                    }
-                )
-            else:
-                # 在用户填写的基础上，增加服务、应用维度，用于限定监控范围。
-                self.upsert_group_by(dispatch_config, self._UPSERT_TAGS)
-                self.upsert_conditions(dispatch_config, Q(app_name=self.app_name) & Q(service_name=service_name))
+    def _enrich(self, service_name: str, dispatch_config: DispatchConfig) -> None:
+        if self._strategy_template.category == StrategyTemplateCategory.RPC_LOG.value:
+            dispatch_config.context.update(
+                {
+                    "SERVICE_NAME": service_name,
+                    "GROUP_BY": [
+                        apm_constants.RPCLogTag.RESOURCE_SERVER.value,
+                        apm_constants.RPCLogTag.RESOURCE_ENV.value,
+                        apm_constants.RPCLogTag.RESOURCE_INSTANCE.value,
+                    ],
+                    "INDEX_SET_ID": self._entity_set.get_first_log_index_set_id_or_none(service_name),
+                }
+            )
+        else:
+            # 在用户填写的基础上，增加服务、应用维度，用于限定监控范围。
+            self.upsert_group_by(dispatch_config, self._UPSERT_TAGS)
+            self.upsert_conditions(dispatch_config, Q(app_name=self.app_name) & Q(service_name=service_name))
 
-                rpc_service_config: dict[str, Any] | None = self._entity_set.get_rpc_service_config_or_none(
-                    service_name
-                )
-                if rpc_service_config["temporality"] == apm_constants.MetricTemporality.DELTA:
-                    dispatch_config.context["FUNCTIONS"] = []
+            rpc_service_config: dict[str, Any] | None = self._entity_set.get_rpc_service_config_or_none(service_name)
+            if rpc_service_config["temporality"] == apm_constants.MetricTemporality.DELTA:
+                dispatch_config.context["FUNCTIONS"] = []
 
-            self.upsert_message_template(dispatch_config)
-            if self._strategy_template.category == StrategyTemplateCategory.RPC_LOG.value:
-                dispatch_config.context.pop("GROUP_BY", None)
+        self.upsert_message_template(dispatch_config)
+        if self._strategy_template.category == StrategyTemplateCategory.RPC_LOG.value:
+            dispatch_config.context.pop("GROUP_BY", None)
 
 
 class K8SEnricher(BaseEnricher):
     SYSTEM: str = StrategyTemplateSystem.K8S.value
 
     _TAG_ENUMS: list[type[apm_constants.CachedEnum]] = [apm_constants.K8SMetricTag]
-
-    def validate(self, raise_exception: bool = False) -> list[str]:
-        service_names: list[str] = []
-        invalid_service_names: list[str] = []
-        for service_name in self._entity_set.service_names:
-            workloads: list[dict[str, Any]] = self._entity_set.get_workloads(service_name)
-            if not workloads:
-                invalid_service_names.append(service_name)
-                continue
-
-            service_names.append(service_name)
-
-        if invalid_service_names and raise_exception:
-            raise ValueError(
-                _("部分服务没有关联容器，无法下发「{system}」类告警：{service_names}").format(
-                    system=StrategyTemplateCategory.from_value(self._strategy_template.category).label,
-                    service_names=", ".join(invalid_service_names),
-                )
-            )
-
-        return service_names
 
     @classmethod
     def _filter_by_workloads(cls, workloads: list[dict[str, Any]]) -> Q:
@@ -321,14 +387,17 @@ class K8SEnricher(BaseEnricher):
                 break
         return q
 
-    def enrich(self, service_config_map: dict[str, DispatchConfig]) -> None:
-        self.validate(raise_exception=True)
-        for service_name in self._entity_set.service_names:
-            dispatch_config: DispatchConfig = service_config_map[service_name]
-            self.upsert_conditions(
-                dispatch_config, self._filter_by_workloads(self._entity_set.get_workloads(service_name))
+    def _handle_invalid_services_exception(self, invalid_service_names: list[str]) -> Exception:
+        return ValueError(
+            _("部分服务未关联容器，无法下发「{system}」类告警：{service_names}").format(
+                system=StrategyTemplateCategory.from_value(self._strategy_template.category).label,
+                service_names=", ".join(invalid_service_names),
             )
-            self.upsert_message_template(dispatch_config)
+        )
+
+    def _enrich(self, service_name: str, dispatch_config: DispatchConfig) -> None:
+        self.upsert_conditions(dispatch_config, self._filter_by_workloads(self._entity_set.get_workloads(service_name)))
+        self.upsert_message_template(dispatch_config)
 
 
 class LogEnricher(BaseEnricher):
@@ -337,25 +406,17 @@ class LogEnricher(BaseEnricher):
     def _get_index_set_id_or_none(self):
         return self._entity_set.get_log_datasource_index_set_id_or_none()
 
-    def validate(self, raise_exception: bool = False) -> list[str]:
-        if not self._get_index_set_id_or_none() and raise_exception:
-            raise ValueError(
-                _("应用[{app_name}]未配置{system}数据源，无法下发「{system}」类告警").format(
-                    app_name=self.app_name,
-                    system=StrategyTemplateCategory.from_value(self._strategy_template.category).label,
-                )
+    def _handle_invalid_services_exception(self, invalid_service_names: list[str]) -> Exception:
+        raise ValueError(
+            _("应用[{app_name}]未配置{system}数据源，无法下发「{system}」类告警").format(
+                app_name=self.app_name,
+                system=StrategyTemplateCategory.from_value(self._strategy_template.category).label,
             )
+        )
 
-        return self._entity_set.service_names
-
-    def enrich(self, service_config_map: dict[str, DispatchConfig]) -> None:
-        self.validate(raise_exception=True)
-        for service_name in self._entity_set.service_names:
-            dispatch_config: DispatchConfig = service_config_map[service_name]
-            dispatch_config.context.update(
-                {"SERVICE_NAME": service_name, "INDEX_SET_ID": self._get_index_set_id_or_none()}
-            )
-            self.upsert_message_template(dispatch_config)
+    def _enrich(self, service_name: str, dispatch_config: DispatchConfig) -> None:
+        dispatch_config.context.update({"SERVICE_NAME": service_name, "INDEX_SET_ID": self._get_index_set_id_or_none()})
+        self.upsert_message_template(dispatch_config)
 
     def _dimension_tmpl(self, dispatch_config: DispatchConfig) -> str:
         return "{{content.dimension}}"
@@ -378,16 +439,18 @@ class MetricEnricher(BaseEnricher):
         apm_constants.RPCMetricTag.SERVICE_NAME.value,
     ]
 
-    def validate(self, raise_exception: bool = False) -> list[str]:
-        return self._entity_set.service_names
+    def _handle_invalid_services_exception(self, invalid_service_names: list[str]) -> Exception:
+        raise ValueError(
+            _("应用[{app_name}]未配置{system}数据源，无法下发「{system}」类告警").format(
+                app_name=self.app_name,
+                system=StrategyTemplateCategory.from_value(self._strategy_template.category).label,
+            )
+        )
 
-    def enrich(self, service_config_map: dict[str, DispatchConfig]) -> None:
-        self.validate(raise_exception=True)
-        for service_name in self._entity_set.service_names:
-            dispatch_config: DispatchConfig = service_config_map[service_name]
-            # 在用户填写的基础上，增加服务、应用作为过滤条件，用于限定监控范围。
-            self.upsert_conditions(dispatch_config, Q(app_name=self.app_name) & Q(service_name=service_name))
-            self.upsert_message_template(dispatch_config)
+    def _enrich(self, service_name: str, dispatch_config: DispatchConfig) -> None:
+        # 在用户填写的基础上，增加服务、应用作为过滤条件，用于限定监控范围。
+        self.upsert_conditions(dispatch_config, Q(app_name=self.app_name) & Q(service_name=service_name))
+        self.upsert_message_template(dispatch_config)
 
 
 ENRICHERS: dict[str, type[BaseEnricher]] = {
