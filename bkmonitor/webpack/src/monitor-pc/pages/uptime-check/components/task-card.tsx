@@ -109,12 +109,9 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
     if (config.ip_list?.length) {
       // 有端口号则显示方式变为[ip]: 端口号
       const ipList = config.ip_list.map(ip => config.port ? `[${ip}]:${config.port}` : ip);
-      
-      // 最多显示3个，超出3个后面追加省略号...
-      // const displayIps = ipList.length > 3 ? `${ipList.slice(0, 3).join('<br />  ●')}...` : ipList.join('<br />  ●');
       const displayIps = ipList;
       titleData.push({
-        name: '固定IP',
+        name: this.$t('固定IP'),
         value: displayIps,
         total: config.ip_list.length,
       });
@@ -124,11 +121,9 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
     if (config.url_list?.length) {
       // 有端口号则显示方式变为[ip]: 端口号
       const urlList = config.url_list.map(ip => config.port ? `[${ip}]:${config.port}` : ip);
-      // 最多显示3个，超出3个后面追加省略号...
-      // const displayUrls = urlList.length > 3 ? `${urlList.slice(0, 3).join('<br />  ●')}...` : urlList.join('<br />  ●');
       const displayUrls = urlList;
       titleData.push({
-        name: protocol === 'HTTP' ? 'url' : '域名',
+        name: protocol === 'HTTP' ? 'URL' : this.$t('域名'),
         value: displayUrls,
         total: config.url_list.length,
       });
@@ -139,17 +134,17 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
       let name = '';
       // ip-静态拓扑 
       if ('bk_host_id' in config.node_list[0]) {
-        name = 'ip-静态拓扑';
+        name = this.$t('IP-静态拓扑') as string;
       } else if ('bk_obj_id' in config.node_list[0]) {
         switch (config.node_list[0].bk_obj_id.toUpperCase()) {
           case 'SET':
-            name = '动态拓扑';
+            name = this.$t('动态拓扑') as string;
             break;
           case 'SERVICE_TEMPLATE':
-            name = '服务模板';
+            name = this.$t('服务模板') as string;
             break;
           case 'SET_TEMPLATE':
-            name = '集群模板';
+            name = this.$t('集群模板') as string;
             break;
           default:
             break;
@@ -169,7 +164,7 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
       for (const item of url) {
         urlDataMap.set(item, (urlDataMap.get(item) || 0) + 1);
       }
-      // 通过排除固定ip列表(ip_list)和域名列表(url_list)数据，来推算出CMBD数据（固定ip列表数据可能有重复，且与CMBD数据重复）
+      // 通过在url字段里排除固定ip列表(ip_list)和域名列表(url_list)数据，来推算出CMBD数据（固定ip列表数据可能有重复，且有可能与CMBD数据重复）
       /**
        * @param item // 后端返回总数据的item
        * @param countInArrTotal // 后端返回总数据的重复的次数
