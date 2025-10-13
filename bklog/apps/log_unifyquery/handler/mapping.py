@@ -178,6 +178,7 @@ class UnifyQueryMappingHandler:
                 "field_type": field["field_type"],
                 "field_name": field["field_name"],
                 "field_alias": field.get("field_alias", ""),
+                "query_alias": field.get("alias_name", ""),
                 "is_display": False,
                 "is_editable": True,
                 "tag": field.get("tag", ""),
