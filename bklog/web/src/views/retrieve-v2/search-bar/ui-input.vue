@@ -4,11 +4,11 @@ import { ref, computed, set } from "vue";
 import {
   getOperatorKey,
   formatDateTimeField,
-  getOsCommandLabel,
 } from "@/common/util";
 import useFieldNameHook from "@/hooks/use-field-name";
 import useLocale from "@/hooks/use-locale";
 import useStore from "@/hooks/use-store";
+import jsCookie from 'js-cookie';
 
 import {
   getInputQueryDefaultItem,
@@ -33,6 +33,13 @@ const store = useStore();
 const { t } = useLocale();
 const popoverRefs = ref(new Map());
 const morePopoverRefs = ref([]);
+
+const language = (jsCookie.get('blueking_language') || 'zh-cn');
+    const aiSpanPadding = ({
+      'en': '126px',
+      'zh-cn': '94px',
+    });
+    const paddingLeft = aiSpanPadding[language];
 const setPopoverRef = (el, parentIndex, childIndex) => {
   const key = `${parentIndex}-${childIndex}`;
   if (el) {
@@ -641,6 +648,9 @@ const handleBatchInputChange = (isShow) => {
         @keyup.delete="handleDeleteItem"
         @keyup.enter.stop="handleInputValueEnter"
       />
+    </li>
+    <li class="search-item" :style="{'margin-left': paddingLeft}">
+      <slot name="custom-placeholder"></slot>
     </li>
     <div style="display: none">
       <UiInputOptions
