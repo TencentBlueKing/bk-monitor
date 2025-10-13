@@ -138,6 +138,33 @@ class _MonitorApi:
             default_return_value=None,
             before_request=add_esb_info_before_request,
         )
+        self.get_dashboard_directory_tree = DataAPI(
+            method="GET",
+            url=self._build_url("dashboard/get_dashboard_directory_tree/", "get_dashboard_directory_tree"),
+            module=self.MODULE,
+            description="获取仪表盘目录树",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
+        )
+        self.create_dashboard_or_folder = DataAPI(
+            method="POST",
+            url=self._build_url("dashboard/create_dashboard_or_folder/", "create_dashboard_or_folder"),
+            module=self.MODULE,
+            description="创建仪表盘或目录",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
+        )
+        self.save_to_dashboard = DataAPI(
+            method="POST",
+            url=self._build_url("dashboard/save_to_dashboard/", "save_to_dashboard"),
+            module=self.MODULE,
+            description="保存到仪表盘",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
+        )
 
     @property
     def use_apigw(self):
