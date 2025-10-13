@@ -49,7 +49,7 @@
       <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
       <div class="manage-container">
         <div class="manage-main">
-          <sub-nav></sub-nav>
+          <sub-nav :sub-nav-list="menuList"></sub-nav>
           <router-view class="manage-content" :key="refreshKey"></router-view>
         </div>
       </div>
@@ -60,7 +60,7 @@
 
 <script>
   import SubNav from '@/components/nav/manage-nav';
-  import { mapState, mapGetters } from 'vuex';
+import { mapGetters, mapState } from 'vuex';
 
   export default {
     name: 'ManageIndex',
