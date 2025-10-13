@@ -46,6 +46,7 @@ class LogQueryResource(ApiAuthResource):
         result_table_id = serializers.CharField(label="结果表ID", default="", allow_blank=True)
         where = serializers.ListField(label="过滤条件", default=lambda: [])
         filter_dict = serializers.DictField(default=lambda: {})
+
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
         limit = serializers.IntegerField(label="查询条数", default=10)
