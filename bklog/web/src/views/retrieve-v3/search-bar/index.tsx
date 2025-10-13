@@ -31,7 +31,6 @@ import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
 import useLocale from '@/hooks/use-locale';
 import useElementEvent from '@/hooks/use-element-event';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
-import { BK_LOG_STORAGE } from '@/store/store.type';
 import useStore from '@/hooks/use-store';
 
 import './index.scss';
