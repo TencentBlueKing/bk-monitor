@@ -31,7 +31,11 @@ import { Debounce, random } from 'monitor-common/utils';
 import AcrossPageSelection from 'monitor-pc/components/across-page-selection/across-page-selection';
 import { type SelectTypeEnum, SelectType } from 'monitor-pc/components/across-page-selection/typing';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
-import { type VariableModelType, getVariableModel } from 'monitor-pc/pages/query-template/variables';
+import {
+  type VariableModelType,
+  getCreateVariableParams,
+  getVariableModel,
+} from 'monitor-pc/pages/query-template/variables';
 import VariableValueDetail from 'monitor-pc/pages/query-template/variables/components/variable-panel/variable-value-detail';
 
 import DetectionAlgorithmsGroup from '../components/detection-algorithms-group/detection-algorithms-group';
@@ -39,6 +43,7 @@ import DetectionAlgorithmsGroup from '../components/detection-algorithms-group/d
 import type { TemplateDetail } from '../components/template-form/typing';
 import type { IRelationService, TCompareData } from './typings';
 import type { EmptyStatusOperationType } from 'monitor-pc/components/empty-status/types';
+import type { MetricDetailV2 } from 'monitor-pc/pages/query-template/typings/metric';
 
 import './relation-service-table.scss';
 
@@ -167,6 +172,9 @@ export default class RelationServiceTable extends tsc<IProps> {
   expandContentLoading = false;
   tableKey = random(8);
   showTips = true;
+
+  // 差异对比的变量展示需要此数据
+  metricsDetailList: MetricDetailV2[] = [];
 
   get isRelation() {
     return this.activeTab === RelationStatus.relation;
@@ -364,6 +372,17 @@ export default class RelationServiceTable extends tsc<IProps> {
    */
   async getDiffData(row: IRelationService) {
     this.expandContentLoading = true;
+    const setMetricsDetailListFn = list => {
+      const metricsDetailList = [];
+      const sets = new Set(this.metricsDetailList.map(item => item.metric_id));
+      for (const item of list) {
+        if (item?.metric_id && !sets.has(item.metric_id)) {
+          metricsDetailList.push(item);
+          sets.add(item.metric_id);
+        }
+      }
+      this.metricsDetailList.push(...metricsDetailList);
+    };
     const data = await this.getCompareData({
       service_name: row.service_name,
       strategy_template_id: row.strategy_template_id as number,
@@ -374,23 +393,25 @@ export default class RelationServiceTable extends tsc<IProps> {
       const algorithms = diffData.find(d => d.field === 'algorithms');
       const variablesList = diffData.find(d => d.field === 'variables');
       const userGroupList = diffData.find(d => d.field === 'user_group_list');
+      const currentVariablesList = await getCreateVariableParams(variablesList?.current || [], this.metricsDetailList);
+      const currentVariables = currentVariablesList.map(v => getVariableModel(v));
+      setMetricsDetailListFn(currentVariables.map(v => v?.metric).filter(Boolean));
+      const appliedVariablesList = await getCreateVariableParams(variablesList?.applied || [], this.metricsDetailList);
+      const appliedVariables = appliedVariablesList.map(v => getVariableModel(v));
+      setMetricsDetailListFn(appliedVariables.map(v => v?.metric).filter(Boolean));
       this.expandContent = [
         {
           type: 'current',
           algorithms: algorithms ? algorithms?.current || [] : null,
           detect: detectData ? detectData?.current || {} : null,
-          variablesList: (variablesList?.current || []).map(v => {
-            return getVariableModel({ ...v, defaultValue: v?.value || v?.config?.default });
-          }),
+          variablesList: currentVariables,
           userGroupList: userGroupList ? userGroupList?.current || [] : null,
         },
         {
           type: 'relation',
           algorithms: algorithms ? algorithms?.applied || [] : null,
           detect: detectData ? detectData?.applied || {} : null,
-          variablesList: (variablesList?.applied || []).map(v => {
-            return getVariableModel({ ...v, defaultValue: v?.value || v?.config?.default });
-          }),
+          variablesList: appliedVariables,
           userGroupList: userGroupList ? userGroupList?.applied || [] : null,
         },
       ];
@@ -582,8 +603,8 @@ export default class RelationServiceTable extends tsc<IProps> {
                         class='content'
                       >
                         <i18n path='{0}个周期内累积满足{1}次检测算法'>
-                          <span class='light mr-2'>{item.detect?.config?.trigger_count}</span>
-                          <span class='light mr-2 ml-2'>{item.detect?.config?.trigger_check_window}</span>
+                          <span class='light mr-2'>{item.detect?.config?.trigger_check_window}</span>
+                          <span class='light mr-2 ml-2'>{item.detect?.config?.trigger_count}</span>
                         </i18n>
                       </div>,
                     ]
