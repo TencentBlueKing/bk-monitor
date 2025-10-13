@@ -96,6 +96,7 @@ from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGro
 from constants.aiops import SDKDetectStatus
 from constants.data_source import DATA_SOURCE_LABEL_ALIAS, DataSourceLabel, DataTypeLabel
 from constants.strategy import (
+    CUSTOM_PRIORITY_GROUP_PREFIX,
     DATALINK_SOURCE,
     HOST_SCENARIO,
     SERVICE_SCENARIO,
@@ -103,7 +104,6 @@ from constants.strategy import (
     SYSTEM_PROC_PORT_METRIC_ID,
     DataTarget,
     TargetFieldType,
-    CUSTOM_PRIORITY_GROUP_PREFIX,
 )
 from core.drf_resource import api
 from core.errors.strategy import CreateStrategyError, StrategyNotExist
