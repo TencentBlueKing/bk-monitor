@@ -148,6 +148,16 @@ export const AI_BLUEKING_QUERY_STRING = [
         hide: true,
         default: '',
       },
+      {
+        type: 'textarea',
+        key: 'fields',
+        name: 'fields',
+        fillBack: true,
+        required: true,
+        hide: true,
+        placeholder: 'fields',
+        default: '',
+      }
     ],
   },
 ];

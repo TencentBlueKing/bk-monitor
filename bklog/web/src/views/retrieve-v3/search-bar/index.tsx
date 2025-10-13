@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 
 import RetrieveHelper from '../../retrieve-helper';
 import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
@@ -78,6 +78,23 @@ export default defineComponent({
     };
 
     /**
+     * 获取字段配置
+     */
+    const fieldsJsonValue = computed(() => {
+      const fieldConfig = store.state.indexFieldInfo.fields.reduce((acc, field) => {
+        return {
+          ...acc,
+          [field.field_name]: {
+            type: field.field_type,
+            ...(field.query_alias ? { query_alias: field.query_alias } : {}),
+          },
+        };
+      }, {});
+
+      return JSON.stringify(fieldConfig);
+    });
+
+    /**
      * 用于处理搜索栏高度变化
      * @param height 搜索栏高度
      */
@@ -122,6 +139,7 @@ export default defineComponent({
         index_set_id: store.state.indexItem.ids[0],
         description: '',
         domain: window.location.origin,
+        fields: fieldsJsonValue.value,
       });
     };
 

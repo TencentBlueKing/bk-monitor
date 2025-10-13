@@ -48,6 +48,7 @@ export interface IQueryStringSendData {
   index_set_id: string;
   description: string;
   domain: string;
+  fields: string;
 }
 
 export interface IAssitantOptions {
