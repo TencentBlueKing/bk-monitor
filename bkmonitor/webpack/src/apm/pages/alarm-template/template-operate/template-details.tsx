@@ -167,7 +167,7 @@ export default class TemplateDetails extends tsc<IProps> {
     window.open(
       location.href.replace(
         location.hash,
-        `#/event-center?queryString=${`metric : "${id}"`}&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`
+        `#/event-center?queryString=${`strategy_id : "${id}"`}&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`
       )
     );
   }
