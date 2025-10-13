@@ -120,7 +120,7 @@ export default defineComponent({
         draggable: false,
         title: t('AI编辑'),
       }, {
-        index_set_id: store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID],
+        index_set_id: store.state.indexItem.ids[0],
         description: '',
         domain: window.location.origin,
       });

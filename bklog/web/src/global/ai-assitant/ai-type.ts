@@ -57,7 +57,7 @@ export interface ComponentOption {
 }
 export const AI_BLUEKING_SHORTCUTS_ID = {
   LOG_ANALYSIS: 'log_analysis',
-  QUERY_STRING_GENERATE: 'query_string_generate',
+  QUERY_STRING_GENERATE: 'querystring_generate',
 } as const;
 
 export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
