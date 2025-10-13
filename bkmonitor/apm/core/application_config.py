@@ -45,6 +45,7 @@ from core.drf_resource import api
 logger = logging.getLogger("apm")
 
 tracer = trace.get_tracer(__name__)
+jinja_env = Environment()
 
 
 class ApplicationConfig(BkCollectorConfig):
@@ -111,7 +112,7 @@ class ApplicationConfig(BkCollectorConfig):
 
                     # 收集该集群需要部署的所有配置
                     cluster_config_map = {}
-
+                    compiled_template = jinja_env.from_string(application_tpl)
                     for bk_biz_id, biz_application_list in biz_applications.items():
                         need_deploy_bk_biz_ids = {
                             str(bk_biz_id),
@@ -125,9 +126,7 @@ class ApplicationConfig(BkCollectorConfig):
                         for application in biz_application_list:
                             try:
                                 application_config_context = cls(application).get_application_config()
-                                application_config = (
-                                    Environment().from_string(application_tpl).render(application_config_context)
-                                )
+                                application_config = compiled_template.render(application_config_context)
                                 cluster_config_map[application.id] = application_config
                             except Exception as e:  # pylint: disable=broad-except
                                 # 单个失败，继续渲染模板

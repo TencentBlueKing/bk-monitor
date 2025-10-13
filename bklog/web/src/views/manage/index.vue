@@ -49,7 +49,7 @@
       <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
       <div class="manage-container">
         <div class="manage-main">
-          <sub-nav></sub-nav>
+          <sub-nav :sub-nav-list="menuList"></sub-nav>
           <router-view class="manage-content" :key="refreshKey"></router-view>
         </div>
       </div>
@@ -60,7 +60,7 @@
 
 <script>
   import SubNav from '@/components/nav/manage-nav';
-  import { mapState, mapGetters } from 'vuex';
+import { mapGetters, mapState } from 'vuex';
 
   export default {
     name: 'ManageIndex',
@@ -76,17 +76,15 @@
     },
 
     computed: {
-      ...mapState(['topMenu', 'spaceUid', 'bkBizId']),
-      ...mapState('globals', ['globalsData'], 'isExternal'),
+      ...mapState(['topMenu', 'spaceUid', 'bkBizId', 'isExternal', 'globals']),
       ...mapGetters({
-        pageLoading: 'pageLoading',
         authPageInfo: 'globals/authContainerInfo',
       }),
       manageNavList() {
         return this.topMenu.find(item => item.id === 'manage')?.children || [];
       },
       menuList() {
-        const list = this.topMenu.find(item => item.id === 'manage')?.children;
+        const list = this.manageNavList;
         if (this.isExternal) {
           // 外部版只保留【日志提取】菜单
           return list.filter(menu => menu.id === 'manage-extract-strategy');

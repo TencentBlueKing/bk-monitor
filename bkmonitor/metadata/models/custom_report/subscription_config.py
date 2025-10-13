@@ -34,7 +34,7 @@ MAX_REQ_LENGTH = 500 * 1024  # 最大请求Body大小，500KB
 MAX_REQ_THROUGHPUT = 4000  # 最大的请求数(单位：秒)
 MAX_DATA_ID_THROUGHPUT = 1000  # 单个dataid最大的上报频率(条/min)、在bk-collector模式下，是 条/秒
 MAX_FUTURE_TIME_OFFSET = 3600  # 支持的最大未来时间，超过这个偏移值，则丢弃
-
+jinja_env = Environment()
 
 if TYPE_CHECKING:
     from metadata.models.custom_report.event import EventGroup
@@ -312,15 +312,20 @@ class CustomReportSubscription(models.Model):
                         continue
 
                     if protocol not in protocol_tpl:
-                        protocol_tpl[protocol] = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+                        tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+                        if not tpl_str:
+                            protocol_tpl[protocol] = None
+                        else:
+                            protocol_tpl[protocol] = jinja_env.from_string(tpl_str)
 
-                    tpl = protocol_tpl.get(protocol)
-                    if not tpl:
+                    compiled_template = protocol_tpl.get(protocol)
+                    if not compiled_template:
                         continue
+
                     try:
                         config_id = int(config_context.get("bk_data_id"))
                         config_context.setdefault("bk_biz_id", bk_biz_id)
-                        config_content = Environment().from_string(tpl).render(config_context)
+                        config_content = compiled_template.render(config_context)
                         protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
                     except Exception:  # pylint: disable=broad-except
                         # 单个失败，继续渲染模板
@@ -587,7 +592,7 @@ class LogSubscriptionConfig(models.Model):
 
                 # 收集该集群需要部署的所有配置
                 cluster_config_map = {}
-
+                compiled_template = jinja_env.from_string(tpl)
                 for bk_biz_id, biz_log_group_list in biz_log_groups.items():
                     need_deploy_bk_biz_ids = {
                         str(bk_biz_id),
@@ -601,7 +606,7 @@ class LogSubscriptionConfig(models.Model):
                     for log_group in biz_log_group_list:
                         try:
                             config_context = cls.get_log_config(log_group)
-                            config_content = Environment().from_string(tpl).render(config_context)
+                            config_content = compiled_template.render(config_context)
                             config_id = int(log_group.bk_data_id)
                             cluster_config_map[config_id] = config_content
                         except Exception:  # pylint: disable=broad-except

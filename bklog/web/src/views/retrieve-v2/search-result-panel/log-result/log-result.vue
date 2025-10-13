@@ -89,7 +89,11 @@ export default {
       currentIndex: 0,
     };
   },
-
+  computed: {
+    isExternal() {
+      return this.$store.state.isExternal;
+    },
+  },
   methods: {
     // handleAiClose() {
     //   this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
