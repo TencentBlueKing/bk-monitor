@@ -312,7 +312,7 @@ class StrategyTemplateViewSet(GenericViewSet):
             StrategyInstance.objects.filter(
                 bk_biz_id=self.query_data["bk_biz_id"],
                 app_name=self.query_data["app_name"],
-                sevice_name=self.query_data["service_name"],
+                service_name=self.query_data["service_name"],
             ),
             strategy_template_id=strategy_template_obj.pk,
             root_strategy_template_id=strategy_template_obj.root_id,
