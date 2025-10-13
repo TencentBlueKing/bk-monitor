@@ -173,7 +173,7 @@ class QuerystringGenerateCommandHandler(CommandHandler):
             template,
             {
                 "description": variables["description"],
-                "fields": variables["fields"],
+                "fields": variables.get("fields", "{}"),
                 "domain": variables["domain"],
                 "index_set_id": variables["index_set_id"],
                 "current_datetime": current_datetime,
