@@ -61,14 +61,6 @@ class UserGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
             setattr(request, "notice_user_detail", True)
         return self.serializer_class
 
-    def get_serializer_context(self):
-        """
-        添加额外的上下文信息
-        """
-        context = super().get_serializer_context()
-        context["action"] = self.action
-        return context
-
     @action(detail=False, methods=["post"])
     def bulk_update(self, request, *args, **kwargs):
         params = request.data
