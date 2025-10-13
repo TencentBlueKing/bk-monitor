@@ -57,6 +57,7 @@ export interface ComponentOption {
 }
 export const AI_BLUEKING_SHORTCUTS_ID = {
   LOG_ANALYSIS: 'log_analysis',
+  QUERY_STRING_GENERATE: 'query_string_generate',
 } as const;
 
 export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
@@ -105,6 +106,47 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         fillBack: true,
         required: true,
         placeholder: window.$t('请输入需要解读的内容'),
+      },
+    ],
+  },
+];
+
+/**
+ * 自然语言转查询语句
+ */
+export const AI_BLUEKING_QUERY_STRING = [
+  {
+    id: AI_BLUEKING_SHORTCUTS_ID.QUERY_STRING_GENERATE,
+    name: window.$t('自然语言转查询语句'),
+    components: [
+      {
+        type: 'textarea',
+        key: 'index_set_id',
+        name: 'index_set_id',
+        fillBack: true,
+        required: true,
+        hide: true,
+        placeholder: window.$t('index_set_id'),
+        default: '',
+      },
+      {
+        type: 'textarea',
+        key: 'description',
+        name: window.$t('检索需求'),
+        fillBack: true,
+        required: true,
+        hide: false,
+        placeholder: window.$t('请输入检索需求'),
+        default: '',
+      },
+      {
+        type: 'textarea',
+        key: 'domain',
+        name: 'domain',
+        fillBack: true,
+        required: true,
+        hide: true,
+        default: '',
       },
     ],
   },

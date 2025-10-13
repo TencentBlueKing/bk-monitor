@@ -31,12 +31,17 @@ import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
 import useLocale from '@/hooks/use-locale';
 import useElementEvent from '@/hooks/use-element-event';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
+import { BK_LOG_STORAGE } from '@/store/store.type';
+import useStore from '@/hooks/use-store';
+
 import './index.scss';
+
 
 export default defineComponent({
   name: 'V3Searchbar',
   setup() {
     const { t } = useLocale();
+    const store = useStore();
 
     const searchBarHeight = ref(0);
     const searchBarRef = ref<any>(null);
@@ -114,6 +119,10 @@ export default defineComponent({
         defaultHeight: 560,
         draggable: false,
         title: t('AI编辑'),
+      }, {
+        index_set_id: store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID],
+        description: '',
+        domain: window.location.origin,
       });
     };
 

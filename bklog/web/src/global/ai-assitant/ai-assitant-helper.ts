@@ -1,5 +1,5 @@
 import { Ref, ref } from "vue";
-import { IAssitantInstance, IAssitantOptions, IRowSendData } from ".";
+import { IAssitantInstance, IAssitantOptions, IAssitantOptionsType, IQueryStringSendData, IRowSendData } from ".";
 
 /**
  * AI 助手工具类
@@ -33,10 +33,10 @@ class AiAssitantHelper {
    * 搜索栏显示 AI 助手
    * @param options 
    */
-  showAiAssitant(options: Partial<IAssitantOptions> = {}) {
-    this.updateAiAssitantOptions(options).then(() => {
+  showAiAssitant(options: Partial<IAssitantOptions> = {}, args: IQueryStringSendData) {
+    this.updateAiAssitantOptions(options, 'query_string_generate').then(() => {
       this.activePosition = 'search-bar';
-      this.aiAssitantRef.value?.show();
+      this.aiAssitantRef.value?.queryStringShowAiAssistant(args);
     });
   }
 
@@ -44,8 +44,8 @@ class AiAssitantHelper {
    * 更新 AI 助手实例的选项
    * @param options 
    */
-  updateAiAssitantOptions(options: Partial<IAssitantOptions> = {}) {
-    return this.aiAssitantRef.value?.updateOptions(options);
+  updateAiAssitantOptions(options: Partial<IAssitantOptions> = {}, type: IAssitantOptionsType = 'log_analysis') {
+    return this.aiAssitantRef.value?.updateOptions(options, type);
   }
 
   /**
@@ -54,7 +54,7 @@ class AiAssitantHelper {
    * @param args 
    */
   openAiAssitant(sendMsg: boolean, args: IRowSendData) {
-    this.updateAiAssitantOptions().then(() => {
+    this.updateAiAssitantOptions(undefined, 'log_analysis').then(() => {
       this.activePosition = 'row-box';
       this.aiAssitantRef.value?.open(sendMsg, args);
     });
@@ -65,7 +65,7 @@ class AiAssitantHelper {
    * @param text 
    */
   setCiteText(text: string) {
-    this.updateAiAssitantOptions().then(() => {
+    this.updateAiAssitantOptions(undefined, 'log_analysis').then(() => {
       this.activePosition = 'text-selection';
       this.aiAssitantRef.value?.setCiteText(text);
     });
@@ -78,7 +78,7 @@ class AiAssitantHelper {
    */
   isClickAiAssitant(e: MouseEvent) {
     const target = e.target as HTMLElement;
-    return target.closest('.ai-blueking-container-wrapper');
+    return target?.classList?.contains('ai-blueking-button-text') || target?.closest('.ai-blueking-container-wrapper');
   }
 
   /**

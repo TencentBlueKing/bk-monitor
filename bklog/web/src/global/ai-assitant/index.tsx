@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, computed, nextTick } from 'vue';
+import { defineComponent, ref, nextTick } from 'vue';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
 
 import { random } from '@/common/util';
-import { AI_BLUEKING_SHORTCUTS } from './ai-type';
+import { AI_BLUEKING_QUERY_STRING, AI_BLUEKING_SHORTCUTS } from './ai-type';
 
 import './ai-assistant.scss';
 import '@blueking/ai-blueking/dist/vue2/style.css';
@@ -44,6 +44,12 @@ export interface IRowSendData {
   type: string;
 }
 
+export interface IQueryStringSendData {
+  index_set_id: string;
+  description: string;
+  domain: string;
+}
+
 export interface IAssitantOptions {
   defaultWidth: number;
   defaultHeight: number;
@@ -53,16 +59,19 @@ export interface IAssitantOptions {
   title: string;
 }
 
+export type IAssitantOptionsType = 'log_analysis' | 'query_string_generate';
+
 export interface IAssitantInstance {
   open: (sendMsg: boolean, args: IRowSendData) => void;
   close: () => void;
   sendMessage: (msg: string) => void;
   setCiteText: (text: string) => void;
   show: () => void;
-  updateOptions: (options: Partial<IAssitantOptions>) => Promise<boolean>;
+  updateOptions: (options: Partial<IAssitantOptions>, type: IAssitantOptionsType) => Promise<boolean>;
   getOptions: () => IAssitantOptions;
   isShown: () => boolean;
   setPosition: (x?: number, y?: number, width?: number, height?: number) => void;
+  queryStringShowAiAssistant: (args: IQueryStringSendData) => void;
 }
 
 export default defineComponent({
@@ -87,9 +96,7 @@ export default defineComponent({
     const aiAssitantOptions = ref<IAssitantOptions>({ ...defaultOptions });
 
     const apiUrl = `${window.AJAX_URL_PREFIX || '/api/v1'}ai_assistant`;
-    const shortcuts = computed(() => {
-      return [...AI_BLUEKING_SHORTCUTS];
-    });
+    const shortcuts = ref<any[]>([...AI_BLUEKING_SHORTCUTS]);
 
     // 暂停聊天
     const handleStop = () => {
@@ -168,7 +175,19 @@ export default defineComponent({
       return isEqual(aiAssitantOptions.value, options);
     };
 
-    const updateOptions = (options: Partial<IAssitantOptions> = {}) => {
+    /**
+     * 更新选项
+     * @param options 选项
+     * @param type 类型 log_analysis 日志解读，query_string_generate 自然语言转查询语句
+     * @returns 
+     */
+    const updateOptions = (options: Partial<IAssitantOptions> = {}, type: IAssitantOptionsType = 'log_analysis') => {
+      if (type === 'query_string_generate') {
+        shortcuts.value = [...AI_BLUEKING_QUERY_STRING];
+      } else {
+        shortcuts.value = [...AI_BLUEKING_SHORTCUTS];
+      }
+
       const newOptions = {
         ...defaultOptions,
         ...options,
@@ -211,6 +230,29 @@ export default defineComponent({
       }
     };
 
+    /**
+     * 自然语言转查询语句
+     * @param args 
+     */
+    const queryStringShowAiAssistant = (args: IQueryStringSendData) => {
+      aiBlueking.value?.handleShow();
+      aiBlueking.value?.addNewSession().finally(() => {
+        const shortcut = structuredClone(AI_BLUEKING_QUERY_STRING[0]);
+        shortcut.components.forEach(comp => {
+          const value = args[comp.key];
+          if (value) {
+            comp.default = typeof value === 'object' ? JSON.stringify(value).replace(/<\/?mark>/gim, '') : value;
+          }
+        });
+
+        try {
+          aiBlueking.value?.handleShortcutClick?.({ shortcut, source: 'popup' });
+        } catch (error) {
+          console.error(error);
+        }
+      });
+    };
+
     expose({
       open: showAiAssistant,
       close: hiddenAiAssistant,
@@ -221,7 +263,8 @@ export default defineComponent({
       getOptions: () => aiAssitantOptions.value,
       isShown: () => isShow.value,
       setPosition,
-      isShow
+      queryStringShowAiAssistant,
+      isShow,
     });
 
     return () => (
