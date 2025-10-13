@@ -1,5 +1,7 @@
 import json
 
+import arrow
+
 from ai_agent.services.local_command_handler import (
     CommandHandler,
     local_command_handler,
@@ -165,20 +167,16 @@ class QuerystringGenerateCommandHandler(CommandHandler):
         template = self.get_template()
         variables = self.extract_context_vars(context)
 
-        index_set_id = int(variables["index_set_id"])
-        description = variables["description"]
-        domain = variables["domain"]
-
-        fields = self._get_index_set_fields(index_set_id)
-        variables["fields"] = json.dumps(fields)
+        current_datetime = arrow.now().floor("minute").format("YYYY-MM-DD HH:mm:ss")
 
         return self.jinja_env.render(
             template,
             {
-                "description": description,
-                "fields": fields,
-                "domain": domain,
-                "index_set_id": index_set_id,
+                "description": variables["description"],
+                "fields": variables.get("fields", "{}"),
+                "domain": variables["domain"],
+                "index_set_id": variables["index_set_id"],
+                "current_datetime": current_datetime,
             },
         )
 
@@ -195,4 +193,7 @@ class QuerystringGenerateCommandHandler(CommandHandler):
 
 ## 索引集ID
 {{ index_set_id }}
+
+## 当前时间
+{{ current_datetime }}
         """
