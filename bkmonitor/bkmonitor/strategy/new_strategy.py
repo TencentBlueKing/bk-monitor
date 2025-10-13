@@ -14,7 +14,7 @@ import json
 import logging
 import traceback
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import partial, reduce
 from itertools import chain, permutations
 from typing import Any
@@ -2112,9 +2112,9 @@ class Strategy(AbstractConfig):
         update_time = config.get("update_time")
         create_time = config.get("create_time")
         if isinstance(update_time, int):
-            config["update_time"] = datetime.utcfromtimestamp(update_time)
+            config["update_time"] = datetime.fromtimestamp(update_time, UTC)
         if isinstance(create_time, int):
-            config["create_time"] = datetime.utcfromtimestamp(create_time)
+            config["create_time"] = datetime.fromtimestamp(create_time, UTC)
 
         # 适配extend_fields为字符串的情况
         if isinstance(item.get("extend_fields"), str):
