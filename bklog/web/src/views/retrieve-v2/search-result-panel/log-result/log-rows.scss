@@ -25,21 +25,6 @@
     }
   }
 
-  .bklog-scroll-x {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    z-index: 4;
-    height: 14px;
-    overflow-x: auto;
-    background-color: transparent;
-
-    > div {
-      height: 1px;
-      background-color: transparent;
-    }
-  }
-
   .bklog-row-box {
     z-index: 1;
     display: flex;

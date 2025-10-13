@@ -108,9 +108,9 @@ export function randomColor(baseColor, count) {
   for (let i = 0; i < count; i++) {
     ret[i] = `#${Math.floor(segments[0] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
       16,
-    )}${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
-      16,
-    )}${Math.floor(segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}`;
+    )}${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}${Math.floor(
+      segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20,
+    ).toString(16)}`;
   }
   return ret;
 }
@@ -545,11 +545,11 @@ export function formatFileSize(size, dropFractionIfInteger = false) {
 export function readBlobResponse(response) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = function () {
+    reader.onload = () => {
       resolve(reader.result);
     };
 
-    reader.onerror = function () {
+    reader.onerror = () => {
       reject(reader.error);
     };
 
@@ -1165,27 +1165,34 @@ export const formatNumberWithRegex = number => {
   return parts.join('.');
 };
 /** 上下文，实时日志高亮颜色 */
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const contextHighlightColor = [
   {
-    dark: '#FFB401',
-    light: '#FFF6E1',
+    dark: 'rgb(255, 209, 138)',
+    light: 'rgb(255, 235, 204)',
   },
   {
-    dark: '#1CAB88',
-    light: '#E8FFF5',
+    dark: 'rgb(164, 235, 202)',
+    light: 'rgb(206, 235, 222)',
   },
   {
-    dark: '#3A84FF',
-    light: '#F0F5FF',
+    dark: 'rgb(171, 221, 245)',
+    light: 'rgb(215, 235, 245)',
   },
   {
-    dark: '#FF5656',
-    light: '#FFEEEE',
+    dark: 'rgb(179, 190, 255)',
+    light: 'rgb(224, 229, 255)',
   },
   {
-    dark: '#00CBCB',
-    light: '#E1FCFD',
+    dark: 'rgb(243, 179, 255)',
+    light: 'rgb(249, 219, 255)',
+  },
+  {
+    dark: 'rgb(255, 179, 191)',
+    light: 'rgb(255, 224, 230)',
+  },
+  {
+    dark: 'rgb(199, 240, 153)',
+    light: 'rgb(226, 240, 211)',
   },
 ];
 

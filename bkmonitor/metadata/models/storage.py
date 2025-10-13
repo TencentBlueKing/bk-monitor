@@ -175,7 +175,7 @@ class ClusterInfo(models.Model):
     class Meta:
         verbose_name = "集群配置信息"
         verbose_name_plural = "集群配置信息"
-        unique_together = (("bk_tenant_id", "cluster_name"),)
+        unique_together = (("bk_tenant_id", "cluster_type", "cluster_name"),)
 
     def to_dict(self, fields: list | None = None, exclude: list | None = None) -> dict:
         data = {}

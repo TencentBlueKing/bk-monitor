@@ -45,7 +45,7 @@ _ORG_CACHE = {}
 _USER_CACHE = {}
 
 
-def get_or_create_user(username: str) -> dict:
+def get_or_create_user(username: str, display_name: str | None = None) -> dict:
     """
     创建用户
     """
@@ -64,9 +64,15 @@ def get_or_create_user(username: str) -> dict:
                 login=username,
                 version=0,
                 email=email,
+                name=display_name or "",
             )
         except IntegrityError:
             user = User.objects.get(login=username)
+
+    # 更新用户名
+    if display_name and user.name != display_name:
+        user.name = display_name
+        user.save()
 
     _USER_CACHE[username] = {
         "id": user.id,

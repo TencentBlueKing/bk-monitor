@@ -273,16 +273,16 @@
       justify-content: end;
     }
 
-    &::before {
-      position: absolute;
-      top: 0;
-      right: 0;
-      left: 0;
-      height: 50px;
-      content: '';
-      background-color: #f4f7fa;
-      transform: translateY(-100%);
-    }
+    // &::before {
+    //   position: absolute;
+    //   top: 0;
+    //   right: 0;
+    //   left: 0;
+    //   height: 50px;
+    //   content: '';
+    //   background-color: #f4f7fa;
+    //   transform: translateY(-100%);
+    // }
 
     &.readonly {
       &::after {

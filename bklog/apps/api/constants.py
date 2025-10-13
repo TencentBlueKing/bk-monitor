@@ -21,3 +21,4 @@ the project delivered to anyone in the future.
 
 # 缓存时间,1天
 CACHE_TIME_ONE_DAY = 60 * 60 * 24
+CACHE_TIME_FIVE_MINUTES = 60 * 5

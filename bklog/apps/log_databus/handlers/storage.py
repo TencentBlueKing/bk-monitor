@@ -943,6 +943,7 @@ class StorageHandler(object):
         @cache_five_minute("connect_info_{cluster_id}")
         def _cache_status_and_stats(*, cluster_id, bk_biz_id):
             cluster_stats_info = None
+            _status = False
             try:
                 _status = BkLogApi.connectivity_detect(
                     params={"bk_biz_id": bk_biz_id, "cluster_id": cluster_id, "default_auth": True},
@@ -954,7 +955,6 @@ class StorageHandler(object):
                     cluster_stats_info = StorageHandler._build_cluster_stats(cluster_stats)
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(f"[storage] get cluster status failed => [{e}]")
-                _status = False
             # connectivity_detect连通性正常返回的事[True, Version], 失败的时候返回的是False
             if isinstance(_status, list):
                 _status = _status[0]
@@ -969,8 +969,8 @@ class StorageHandler(object):
         nodes_count = cluster_stats["nodes"]["count"]
         return {
             "node_count": cluster_stats["nodes"]["count"]["total"],
-            "shards_total": cluster_stats["indices"]["shards"]["total"],
-            "shards_pri": cluster_stats["indices"]["shards"]["primaries"],
+            "shards_total": cluster_stats["indices"]["shards"].get("total", 0),
+            "shards_pri": cluster_stats["indices"]["shards"].get("primaries", 0),
             "data_node_count": nodes_count.get("data_hot") or nodes_count.get("data_content") or nodes_count["data"],
             "indices_count": cluster_stats["indices"]["count"],
             "indices_docs_count": cluster_stats["indices"]["docs"]["count"],

@@ -76,7 +76,7 @@ export default defineComponent({
 
     const isExternal = computed(() => store.state.isExternal);
     const demoUid = computed(() => store.getters.demoUid);
-    const demoId = computed(() => mySpaceList.value.find(item => item.space_uid === demoUid.value)?.id || '');
+    const demoSpace = computed(() => mySpaceList.value.find(item => item.space_uid === demoUid.value));
 
     const menuSearchInput = ref();
     const bizListRef = ref();
@@ -304,15 +304,6 @@ export default defineComponent({
       store.commit('updateStorage', { [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: cacheIds.slice(0, maxLen) });
     };
 
-    // 点击体验demo按钮
-    const experienceDemo = () => {
-      showBizList.value = false;
-      checkSpaceChange(demoUid.value); // 切换到demo业务
-      if (demoId.value) {
-        updateCacheBizId(Number(demoId.value));
-      } // 更新常用业务缓存
-    };
-
     // 下拉框内容渲染
     const dropdownContent = () => {
       return (
@@ -377,7 +368,7 @@ export default defineComponent({
                   class='menu-select-extension-item'
                   onMousedown={e => {
                     e.stopPropagation();
-                    experienceDemo();
+                    handleClickMenuItem(demoSpace.value);
                   }}
                 >
                   <span class='icon bklog-icon bklog-app-store' />

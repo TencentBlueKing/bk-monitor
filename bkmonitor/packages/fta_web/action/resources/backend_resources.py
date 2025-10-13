@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import logging
@@ -30,6 +30,7 @@ from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models.fta import ActionConfig, ActionInstance, ActionPlugin
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.template import CustomTemplateRenderer, Jinja2Renderer
+from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
 from constants.action import ActionSignal
 from core.drf_resource import Resource
@@ -119,6 +120,7 @@ class BatchCreateActionResource(Resource):
                     generate_uuid=generate_uuid,
                 )
 
+                display_name = get_user_display_name(creator)
                 action_logs.append(
                     AlertLog(
                         **dict(
@@ -126,14 +128,13 @@ class BatchCreateActionResource(Resource):
                             alert_id=action.alerts,
                             description=_("{creator}通过页面创建{plugin_name}任务【{action_name}】进行告警处理").format(
                                 plugin_name=action_config.get("plugin_name", _("手动处理")),
-                                creator=creator,
-                                action_name=action_config.get(
-                                    "name",
-                                ),
+                                creator=display_name,
+                                action_name=action_config.get("name"),
                             ),
                             time=int(time.time()),
                             create_time=int(time.time()),
-                            event_id="{}{}".format(int(action.create_time.timestamp()), action.id),
+                            event_id=f"{int(action.create_time.timestamp())}{action.id}",
+                            operator=creator,
                         )
                     )
                 )

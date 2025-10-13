@@ -599,6 +599,7 @@ class K8sCollectorHandler(CollectorHandler):
                 data_name=self.build_bk_data_name(self.data.get_bk_biz_id(), data["collector_config_name_en"]),
                 description=collector_config_params["description"],
                 encoding=META_DATA_ENCODING,
+                bk_biz_id=self.data.get_bk_biz_id()
             )
             self.data.task_id_list = list(
                 ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).values_list(
@@ -982,6 +983,7 @@ class K8sCollectorHandler(CollectorHandler):
             if collector_config_params["description"]
             else collector_config_params["collector_config_name_en"],
             encoding=META_DATA_ENCODING,
+            bk_biz_id=self.data.bk_biz_id
         )
         self.data.save()
 

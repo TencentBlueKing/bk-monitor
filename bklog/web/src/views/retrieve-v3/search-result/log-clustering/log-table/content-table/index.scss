@@ -1,4 +1,6 @@
 .log-content-table-main {
+  overflow-x: hidden;
+
   .collpase-main {
     width: 100%;
     height: 36px;
@@ -70,7 +72,6 @@
 
   .log-content-table-wraper {
     width: 100%;
-    overflow-x: hidden;
 
     .log-content-table {
       width: 100%;
@@ -118,6 +119,19 @@
                 display: block;
               }
             }
+          }
+
+          &.is-row-group {
+            border: none;
+            border-bottom: none;
+            td {
+              padding-left: 0;
+              padding: 0;
+            }
+          }
+
+          &.is-flatten-count {
+            height: 24px;
           }
         }
         td {
@@ -301,7 +315,7 @@
     }
 
     &.is-scroll-mode {
-      max-height: 600px;
+      // max-height: 600px;
       overflow-y: auto;
     }
   }

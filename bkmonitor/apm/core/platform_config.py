@@ -470,7 +470,7 @@ class PlatformConfig(BkCollectorConfig):
     @classmethod
     def deploy_to_k8s(cls, cluster_id, platform_config):
         secret_info_platform = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, "platform") or {}
-        secret_name = secret_info_platform.get("secret_name_tpl") or secret_info_platform.get("secret_name_hash_tpl")
+        secret_name = secret_info_platform.get("secret_name_tpl")
         secret_data_key = secret_info_platform.get("secret_data_key_tpl")
         if not secret_name or not secret_data_key:
             logger.info("has no secret platform config, please check if your platform config has been initialized")

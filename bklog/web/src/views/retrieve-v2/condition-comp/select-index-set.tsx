@@ -158,7 +158,7 @@ export default class SelectIndexSet extends tsc<object> {
   @Ref('checkInputForm') private readonly checkInputFormRef: any;
 
   get indexSetList() {
-    return this.$store.state.retrieve.indexSetList;
+    return this.$store.state.retrieve.flatIndexSetList;
   }
 
   get basicLoading() {

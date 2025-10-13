@@ -40,7 +40,7 @@ from django.conf import settings
 class ResourceApiDispatcher(DjangoBasicResourceApiDispatcher):
     def _get_options(self, request):
         options = super()._get_options(request)
-        options["bk_tenant_id"] = request.META.get("HTTP_X_BK_TENANT_ID", settings.DEFAULT_TENANT_ID)
+        options["bk_tenant_id"] = request.META.get("HTTP_X_BK_TENANT_ID", settings.BK_APP_TENANT_ID)
         return options
 
 
@@ -310,7 +310,7 @@ class EsSourceResourceProvider(BaseResourceProvider):
 
         bk_tenant_id = options["bk_tenant_id"]
         clusters = self.list_clusters(bk_tenant_id=bk_tenant_id)
-        iam_client = Permission.get_iam_client(settings.DEFAULT_TENANT_ID)
+        iam_client = Permission.get_iam_client(settings.BK_APP_TENANT_ID)
 
         filtered_clusters = []
 

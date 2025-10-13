@@ -23,19 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  computed,
-  defineComponent,
-  onMounted,
-  ref,
-  nextTick,
-  onBeforeUnmount,
-} from "vue";
+import { computed, defineComponent, onMounted, ref, nextTick, onBeforeUnmount } from 'vue';
 
-import interactjs from "interactjs";
+import interactjs from 'interactjs';
 
 export default defineComponent({
-  name: "HeadColumn",
+  name: 'HeadColumn',
   props: {
     width: {
       type: [String, Number],
@@ -43,7 +36,7 @@ export default defineComponent({
     },
     minWidth: {
       type: [String, Number],
-      default: "atuo",
+      default: 'atuo',
     },
     resize: {
       type: Boolean,
@@ -53,14 +46,18 @@ export default defineComponent({
       type: Object,
       default: () => ({}),
     },
+    fieldName: {
+      type: String,
+      default: '',
+    },
   },
   setup(props, { slots, emit }) {
     const refRoot = ref();
 
     const cellStyle = computed(() => {
-      if (["default", "100%"].includes(props.width as string)) {
+      if (['default', '100%'].includes(props.width as string)) {
         return {
-          width: "100%",
+          width: '100%',
           minWidth: `${props.minWidth}px`,
         };
       }
@@ -68,7 +65,7 @@ export default defineComponent({
       const style = {
         width: `${props.width}px`,
         minWidth:
-          typeof props.minWidth === "number"
+          typeof props.minWidth === 'number'
             ? Number(props.width) < Number(props.minWidth)
               ? `${props.width}px`
               : `${props.minWidth}px`
@@ -85,14 +82,10 @@ export default defineComponent({
     onMounted(() => {
       if (props.resize) {
         nextTick(() => {
-          const container = refRoot.value?.closest(
-            ".log-table-header-main"
-          ) as HTMLElement;
-          const guideLineElement = container?.querySelector(
-            ".resize-guide-line"
-          ) as HTMLElement;
+          const container = refRoot.value?.closest('.log-table-header-main') as HTMLElement;
+          const guideLineElement = container?.querySelector('.resize-guide-line') as HTMLElement;
 
-          const setGuidLeft = (event) => {
+          const setGuidLeft = event => {
             const client = event.client;
             const containerRect = container?.getBoundingClientRect();
 
@@ -107,10 +100,10 @@ export default defineComponent({
             listeners: {
               start(event) {
                 if (guideLineElement) {
-                  guideLineElement.style.display = "block";
+                  guideLineElement.style.display = 'block';
                 }
 
-                document.body.classList.add("no-user-select");
+                document.body.classList.add('no-user-select');
                 setGuidLeft(event);
               },
               move(event) {
@@ -133,12 +126,12 @@ export default defineComponent({
                 });
 
                 if (guideLineElement) {
-                  guideLineElement.style.display = "none";
+                  guideLineElement.style.display = 'none';
                 }
 
-                document.body.classList.remove("no-user-select");
+                document.body.classList.remove('no-user-select');
                 setTimeout(() => {
-                  emit("resize-width", refRoot.value.style.width);
+                  emit('resize-width', refRoot.value.style.width);
                 });
               },
             },
@@ -158,7 +151,8 @@ export default defineComponent({
       <th
         ref={refRoot}
         style={{ ...cellStyle.value, ...props.customStyle }}
-        on-click={() => emit("click-column")}
+        on-click={() => emit('click-column')}
+        data-field-name={props.fieldName}
       >
         {slots.default?.()}
       </th>

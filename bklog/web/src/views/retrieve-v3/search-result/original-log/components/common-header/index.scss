@@ -1,0 +1,48 @@
+.common-header-main {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 52px;
+  background: #ffffff;
+  box-shadow: 0 3px 4px 0 #0000000a;
+
+  .dialog-title {
+    margin: 0 16px;
+    font-size: 20px;
+    line-height: 20px;
+    color: #313238;
+  }
+
+  .subtitle-list-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+
+    .subtitle-main {
+      display: flex;
+      align-items: center;
+      margin-right: 8px;
+      position: relative;
+
+      &::before {
+        content: "";
+        width: 1px;
+        height: 12px;
+        background: #dcdee5;
+        margin-right: 8px;
+      }
+
+      .title {
+        color: #979ba5;
+      }
+
+      .content {
+        max-width: 250px;
+        color: #4d4f56;
+      }
+    }
+  }
+}

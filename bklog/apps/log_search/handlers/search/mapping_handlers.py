@@ -250,7 +250,11 @@ class MappingHandlers:
         mapping_list: list = self._get_mapping()
         # 未获取到mapping信息 提前返回
         if not mapping_list:
+            # 如果一个字段都不存在，就用快照字段兜底
+            if self.index_set.fields_snapshot:
+                return self.index_set.fields_snapshot.get("fields", [])
             return []
+
         property_dict: dict = self.find_merged_property(mapping_list)
         fields_result: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
         built_in_fields = FieldBuiltInEnum.get_choices()

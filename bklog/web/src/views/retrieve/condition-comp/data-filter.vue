@@ -82,7 +82,8 @@
         >
         </bk-input>
         <span>{{ $t('行') }}</span>
-        <span>{{ $t(', 后') }}</span>
+        <span>，</span>
+        <span>{{ $t('后') }}</span>
         <bk-input
           v-model="interval.next"
           style="width: 74px; margin-right: 10px"

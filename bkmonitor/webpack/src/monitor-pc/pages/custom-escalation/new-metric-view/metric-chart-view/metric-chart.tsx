@@ -526,6 +526,9 @@ class NewMetricChart extends CommonSimpleChart {
                   };
                 })
               );
+            if (res.query_config) {
+              this.panel.setRawQueryConfigs(item, res.query_config);
+            }
             this.clearErrorMsg();
             return true;
           })
@@ -722,7 +725,10 @@ class NewMetricChart extends CommonSimpleChart {
       api: 'grafana.graphUnifyQuery',
       data: {
         expression: item.expression,
-        query_configs: item.query_configs,
+        query_configs: item.query_configs.map(config => ({
+          ...config,
+          interval: this.viewOptions?.interval || 'auto',
+        })),
       },
     }));
 

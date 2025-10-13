@@ -55,7 +55,7 @@ import {
   SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
-import ScrollXBar from './scroll-x-bar';
+import ScrollXBar from '../../components/scroll-x-bar';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
 
@@ -168,10 +168,13 @@ export default defineComponent({
       isPageLoading.value = isSearching;
     });
 
-    addEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
-      hasMoreList.value = true;
-      pageIndex.value = 1;
-    });
+    addEvent(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.TREND_GRAPH_SEARCH],
+      () => {
+        hasMoreList.value = true;
+        pageIndex.value = 1;
+      },
+    );
 
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];
@@ -447,6 +450,7 @@ export default defineComponent({
 
     // 替换原有的handleMenuClick
     const handleMenuClick = (option, isLink, fieldOption?: { row: any; field: any }) => {
+      console.log('handleMenuClick = ', option);
       const timeTypes = ['date', 'date_nanos'];
 
       handleOperation(option.operation, {
@@ -1033,7 +1037,7 @@ export default defineComponent({
         return 'Loading ...';
       }
 
-      if (!(isRequesting.value || hasMoreList.value) && tableDataSize.value > 0) {
+      if (!(isRequesting.value || hasMoreList.value) || tableDataSize.value < pageSize.value) {
         return ` - 已加载所有数据: 共计 ${tableDataSize.value} 条 - `;
       }
 

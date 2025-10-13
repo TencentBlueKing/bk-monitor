@@ -22,7 +22,7 @@
   const bkBizId = computed(() => store.state.bkBizId);
 
   const indexSetItem = computed(() =>
-    store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
+    store.state.retrieve.flatIndexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
   );
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
@@ -82,7 +82,7 @@
       dimension: [], // 监控维度
       condition: [], // 监控条件
     };
-    const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId);
+    const indexSet = (store.state.retrieve.flatIndexSetList ?? []).find(item => item.index_set_id === indexSetId);
     if (indexSet) {
       params.scenarioId = indexSet.category_id;
     }

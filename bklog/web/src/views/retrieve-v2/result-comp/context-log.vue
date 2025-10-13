@@ -113,7 +113,7 @@
         :light-list="highlightList"
       />
     </div>
-    <log-view-control
+    <logViewControl
       ref="viewControlRef"
       :show-type="showType"
       :light-list="highlightList"
@@ -171,9 +171,9 @@
       const id = 'fields-config-tippy';
       return {
         logLoading: false,
-        totalFields: [], // 所有字段信息
+        // totalFields: [], // 所有字段信息
         totalFieldNames: [], // 所有的字段名
-        displayFields: [], // 按顺序展示的字段信息
+        // displayFields: [], // 按顺序展示的字段信息
         displayFieldNames: [], // 展示的字段名
         isConfigLoading: false,
         fieldsConfigId: id,
@@ -276,7 +276,7 @@
           this.isConfigLoading = true;
           const res = await this.$http.request('retrieve/getLogTableHead', {
             params: {
-              index_set_id: this.indexSetId
+              index_set_id: this.indexSetId,
             },
             query: {
               scope: 'search_context',
@@ -286,13 +286,13 @@
             },
           });
           this.currentConfigID = res.data.config_id;
-          this.totalFields = res.data.fields;
+          // this.totalFields = res.data.fields;
           const { getFieldNames, getFieldName } = useFieldNameHook({ store: this.$store });
           this.displayFieldNames = res.data.display_fields.map(item => getFieldName(item));
           this.totalFieldNames = getFieldNames(res.data.fields);
-          this.displayFields = res.data.display_fields.map(fieldName => {
-            return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);
-          });
+          // this.displayFields = res.data.display_fields.map(fieldName => {
+          //   return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);
+          // });
           return true;
         } catch (err) {
           console.warn(err);
@@ -321,7 +321,7 @@
           this.logLoading = true;
           const res = await this.$http.request('retrieve/getContentLog', {
             params: {
-              index_set_id: this.indexSetId
+              index_set_id: this.indexSetId,
             },
             data,
           });
@@ -360,7 +360,7 @@
           console.warn(e);
         } finally {
           this.logLoading = false;
-          if (this.highlightList.length) this.$refs.viewControlRef.initLightItemList(undefined,direction);
+          if (this.highlightList.length) this.$refs.viewControlRef.initLightItemList(undefined, direction);
           if (this.zero) {
             this.$nextTick(() => {
               this.initLogScrollPosition();
@@ -396,7 +396,7 @@
         try {
           const configRes = await this.$http.request('retrieve/getFieldsConfigByContextLog', {
             params: {
-              index_set_id:this.indexSetId,
+              index_set_id: this.indexSetId,
               config_id: this.currentConfigID,
             },
           });
@@ -404,7 +404,7 @@
             sort_list: configRes.data.sort_list,
             name: configRes.data.name,
             config_id: this.currentConfigID,
-            index_set_id:this.indexSetId,
+            index_set_id: this.indexSetId,
           });
           await this.$http.request('retrieve/updateFieldsConfig', {
             data,

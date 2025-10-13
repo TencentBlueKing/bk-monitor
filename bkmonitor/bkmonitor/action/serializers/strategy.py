@@ -649,12 +649,14 @@ class UserGroupSlz(serializers.ModelSerializer):
 
     def __new__(cls, *args, **kwargs):
         request = kwargs.get("context", {}).get("request")
+        action = kwargs.get("context", {}).get("action")
         if kwargs.get("many", False):
             # 带排除详细信息的接口不获取策略相关内容
             groups = list(args[0] if args else kwargs.get("instance", []))
             group_user_mappings = defaultdict(list)
-            cls.get_group_duty_users(groups, group_user_mappings)
-            cls.get_group_users_without_duty(groups, group_user_mappings)
+            if action == "retrieve":
+                cls.get_group_duty_users(groups, group_user_mappings)
+                cls.get_group_users_without_duty(groups, group_user_mappings)
             kwargs["group_user_mappings"] = group_user_mappings
             if not (request and request.query_params.get("exclude_detail_info", "0") != "0"):
                 user_group_ids = [group.id for group in groups]

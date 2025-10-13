@@ -17,7 +17,7 @@ from django.db import transaction
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.utils.cipher import transform_data_id_to_token
-from constants.common import DEFAULT_TENANT_ID
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.prometheus import metrics
 from metadata.models import (
     ClusterInfo,
@@ -73,13 +73,23 @@ def sync_relation_redis_data():
         space_type, space_id = key.split("__")
 
         # 转义业务ID，非业务类型ID为负数
-        biz_id: int = int(space_id) if space_type == "bkcc" else Space.objects.get_biz_id_by_space(space_type, space_id)
+        if space_type == "bkcc":
+            biz_id = int(space_id)
+        else:
+            biz_id = Space.objects.get_biz_id_by_space(space_type, space_id)
+            if not biz_id:
+                logger.error(
+                    "sync_relation_redis_data: space not found, space_type->[%s], space_id->[%s]", space_type, space_id
+                )
+                continue
+
         data_name = f"{biz_id}_{space_type}_built_in_time_series"
         table_id = f"{biz_id}_{space_type}_built_in_time_series.__default__"  # table_id有限制，必须以业务ID数字开头
         token = value_dict.get("token")  # Redis缓存中的Token数据
 
         logger.info("sync_relation_redis_data start sync builtin redis data, field=%s", key)
 
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(biz_id)
         rt = existing_rts_dict.get(table_id)
         if rt:
             try:
@@ -124,6 +134,7 @@ def sync_relation_redis_data():
                 with transaction.atomic():
                     # field下对应RT不存在且Token不存在，创建新DS与RT,使用事务保证实例同时成功创建
                     ds = DataSource.create_data_source(
+                        bk_tenant_id=bk_tenant_id,
                         data_name=data_name,
                         operator="system",
                         type_label="time_series",
@@ -144,7 +155,7 @@ def sync_relation_redis_data():
                         default_storage_config={
                             ClusterInfo.TYPE_INFLUXDB,
                         },
-                        bk_tenant_id=DEFAULT_TENANT_ID,
+                        bk_tenant_id=bk_tenant_id,
                     )
                     generated_token = transform_data_id_to_token(
                         metric_data_id=ds.bk_data_id,
