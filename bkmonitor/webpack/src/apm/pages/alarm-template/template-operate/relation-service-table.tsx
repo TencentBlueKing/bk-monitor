@@ -377,21 +377,21 @@ export default class RelationServiceTable extends tsc<IProps> {
       this.expandContent = [
         {
           type: 'current',
-          algorithms: algorithms?.current || [],
-          detect: detectData?.current || {},
+          algorithms: algorithms ? algorithms?.current || [] : null,
+          detect: detectData ? detectData?.current || {} : null,
           variablesList: (variablesList?.current || []).map(v => {
             return getVariableModel({ ...v, defaultValue: v?.value || v?.config?.default });
           }),
-          userGroupList: userGroupList?.current || [],
+          userGroupList: userGroupList ? userGroupList?.current || [] : null,
         },
         {
           type: 'relation',
-          algorithms: algorithms?.applied || [],
-          detect: detectData?.applied || {},
+          algorithms: algorithms ? algorithms?.applied || [] : null,
+          detect: detectData ? detectData?.applied || {} : null,
           variablesList: (variablesList?.applied || []).map(v => {
             return getVariableModel({ ...v, defaultValue: v?.value || v?.config?.default });
           }),
-          userGroupList: userGroupList?.applied || [],
+          userGroupList: userGroupList ? userGroupList?.applied || [] : null,
         },
       ];
     } else {
@@ -548,34 +548,74 @@ export default class RelationServiceTable extends tsc<IProps> {
             >
               <div class='content-header'>{item.type === 'current' ? this.$t('当前策略') : this.$t('已关联策略')}</div>
               <div class='content-content'>
-                <div class='title'>{this.$t('检测算法')}</div>
-                <div class='content'>
-                  <DetectionAlgorithmsGroup
-                    algorithms={item?.algorithms?.map(a => ({
-                      ...a,
-                      ...(a?.config || {}),
-                    }))}
-                  />
-                </div>
-                <div class='title'>{this.$t('判断条件')}</div>
-                <div class='content'>
-                  <i18n path='{0}个周期内累积满足{1}次检测算法'>
-                    <span class='light mr-2'>{item.detect?.config?.trigger_count}</span>
-                    <span class='light mr-2 ml-2'>{item.detect?.config?.trigger_check_window}</span>
-                  </i18n>
-                </div>
-                <div class='title'>{this.$t('告警组')}</div>
-                <div class='content flex-wrap'>
-                  {item.userGroupList.map(u => (
-                    <div
-                      key={`${u.id}`}
-                      class='user-tag-item'
-                      v-bk-overflow-tips
-                    >
-                      {u.name}
-                    </div>
-                  ))}
-                </div>
+                {item?.algorithms
+                  ? [
+                      <div
+                        key={'algorithm-01'}
+                        class='title'
+                      >
+                        {this.$t('检测算法')}
+                      </div>,
+                      <div
+                        key={'algorithm-02'}
+                        class='content'
+                      >
+                        <DetectionAlgorithmsGroup
+                          algorithms={item?.algorithms?.map(a => ({
+                            ...a,
+                            ...(a?.config || {}),
+                          }))}
+                        />
+                      </div>,
+                    ]
+                  : undefined}
+                {item.detect
+                  ? [
+                      <div
+                        key={'detect-01'}
+                        class='title'
+                      >
+                        {this.$t('判断条件')}
+                      </div>,
+                      <div
+                        key={'detect-02'}
+                        class='content'
+                      >
+                        <i18n path='{0}个周期内累积满足{1}次检测算法'>
+                          <span class='light mr-2'>{item.detect?.config?.trigger_count}</span>
+                          <span class='light mr-2 ml-2'>{item.detect?.config?.trigger_check_window}</span>
+                        </i18n>
+                      </div>,
+                    ]
+                  : undefined}
+                {item.userGroupList
+                  ? [
+                      <div
+                        key={'user-group-01'}
+                        class='title'
+                      >
+                        {this.$t('告警组')}
+                      </div>,
+                      <div
+                        key={'user-group-02'}
+                        class='content flex-wrap'
+                      >
+                        {item.userGroupList.length ? (
+                          item.userGroupList.map(u => (
+                            <div
+                              key={`${u.id}`}
+                              class='user-tag-item'
+                              v-bk-overflow-tips
+                            >
+                              {u.name}
+                            </div>
+                          ))
+                        ) : (
+                          <span>--</span>
+                        )}
+                      </div>,
+                    ]
+                  : undefined}
                 {item.variablesList.map((v, index) => [
                   <div
                     key={`${index}-01`}
