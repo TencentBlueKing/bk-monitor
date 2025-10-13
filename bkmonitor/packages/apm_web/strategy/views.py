@@ -32,6 +32,7 @@ from constants.alert import EventStatus
 from utils import count_md5
 
 from apm_web.models import StrategyTemplate, StrategyInstance
+from apm_web.decorators import user_visit_record
 from . import serializers, handler, dispatch, helper, query_template, constants
 
 
@@ -123,6 +124,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         return queryset[start_index:end_index]
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateSearchRequestSerializer)
+    @user_visit_record
     def search(self, *args, **kwargs) -> Response:
         queryset = self._filter_by_conditions(self.get_queryset(), self.query_data["conditions"])
         total = queryset.count()
@@ -167,6 +169,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         }
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
+    @user_visit_record
     def apply(self, *args, **kwargs) -> Response:
         extra_configs_map: dict[int, list[dispatch.DispatchExtraConfig]] = defaultdict(list)
         for extra_config in self.query_data["extra_configs"]:
