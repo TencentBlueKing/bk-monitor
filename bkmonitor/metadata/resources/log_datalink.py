@@ -647,7 +647,7 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
         """创建新的结果表"""
         # 如果结果表不启用，则不创建
         is_enable = table_info.get("is_enable", True)
-        if not is_enable:
+        if is_enable is False:
             return
 
         # 创建结果表
