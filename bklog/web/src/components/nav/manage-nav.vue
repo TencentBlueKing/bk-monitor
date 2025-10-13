@@ -62,8 +62,7 @@
 </template>
 
 <script>
-  import { mapState } from 'vuex';
-
+  
   export default {
     props: {
       name: {
@@ -107,7 +106,6 @@
       };
     },
     computed: {
-      ...mapState(['activeManageSubNav']),
       isShowDetailName() {
         // 是否需要展示详情名称
         return this.baseRouteNameList.includes(this.$route.name);
