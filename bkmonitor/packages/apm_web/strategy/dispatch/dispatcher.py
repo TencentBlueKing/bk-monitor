@@ -196,10 +196,10 @@ class StrategyDispatcher:
             if strategy_instance is None:
                 results.append(result)
                 continue
+            result["strategy"] = {"id": strategy_instance["strategy_id"]}
 
             if self._is_same_origin_instance(strategy_instance):
                 result["same_origin_strategy_template"] = {"id": strategy_instance["strategy_template_id"]}
-                result["strategy"] = {"id": strategy_instance["strategy_id"]}
             else:
                 result["has_been_applied"] = True
 
