@@ -34,6 +34,7 @@ export interface ICategoryItem {
   category_alias?: string;
   checked: boolean;
   children?: ITempLateItem[];
+  indeterminate: boolean;
   system: string;
   system_alias?: string;
 }

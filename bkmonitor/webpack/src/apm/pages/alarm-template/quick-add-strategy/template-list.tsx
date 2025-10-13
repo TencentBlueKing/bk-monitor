@@ -79,14 +79,14 @@ export default class TemplateList extends tsc<IProps> {
         const systemItem = templateTree.find(child => child.system === item.system);
         if (systemItem?.children) {
           const secondChild = systemItem.children.find(child => child.category === item.category);
-          if ((secondChild as ICategoryItem)?.children) {
-            (secondChild as ICategoryItem).children.push({
+          if ((secondChild as unknown as ICategoryItem)?.children) {
+            (secondChild as unknown as ICategoryItem).children.push({
               ...item,
               checked: checkedSet.has(item.id),
               icon: iconFn(item.monitor_type),
             });
           } else {
-            (systemItem as TTemplateList<ICategoryItem>).children.push({
+            (systemItem as unknown as TTemplateList<ICategoryItem>).children.push({
               category: item.category,
               system: item.system,
               system_alias: item.system_alias,
@@ -99,10 +99,11 @@ export default class TemplateList extends tsc<IProps> {
                 },
               ],
               checked: false,
+              indeterminate: false,
             });
           }
         } else {
-          (templateTree as TTemplateList<ICategoryItem>[]).push({
+          (templateTree as unknown as TTemplateList<ICategoryItem>[]).push({
             name: item.system,
             system: item.system,
             system_alias: item.system_alias,
@@ -120,13 +121,19 @@ export default class TemplateList extends tsc<IProps> {
                   },
                 ],
                 checked: false,
+                indeterminate: false,
               },
             ],
           });
         }
         for (const child of systemItem?.children || []) {
-          if ((child as ICategoryItem).children) {
-            (child as ICategoryItem).checked = (child as ICategoryItem).children.every(c => c.checked);
+          if ((child as unknown as ICategoryItem).children) {
+            (child as unknown as ICategoryItem).checked = (child as unknown as ICategoryItem).children.every(
+              c => c.checked
+            );
+            (child as unknown as ICategoryItem).indeterminate =
+              !(child as unknown as ICategoryItem).checked &&
+              (child as unknown as ICategoryItem).children.some(c => c.checked);
           }
         }
       } else {
@@ -169,8 +176,8 @@ export default class TemplateList extends tsc<IProps> {
     const checkedList = [];
     for (const item of this.templateTree) {
       for (const child of item.children) {
-        if ((child as ICategoryItem)?.children) {
-          for (const c of (child as ICategoryItem).children) {
+        if ((child as unknown as ICategoryItem)?.children) {
+          for (const c of (child as unknown as ICategoryItem).children) {
             if (c.checked) {
               checkedList.push(c.id);
             }
@@ -182,7 +189,6 @@ export default class TemplateList extends tsc<IProps> {
         }
       }
     }
-    console.log(checkedList);
     this.$emit('checkedChange', checkedList);
   }
 
@@ -251,7 +257,7 @@ export default class TemplateList extends tsc<IProps> {
           >
             <div class='system-name'>{item?.system_alias || item.name}</div>
             {item.children.map(child => {
-              if ((child as ICategoryItem)?.children) {
+              if ((child as unknown as ICategoryItem)?.children) {
                 return (
                   <div
                     key={child.category}
@@ -259,16 +265,17 @@ export default class TemplateList extends tsc<IProps> {
                   >
                     <bk-checkbox
                       class='category-item-checkbox'
+                      indeterminate={(child as unknown as ICategoryItem).indeterminate}
                       value={child.checked}
                       onChange={v => {
-                        this.handleChangeCategoryChecked(child as ICategoryItem, v);
+                        this.handleChangeCategoryChecked(child as unknown as ICategoryItem, v);
                       }}
                     >
                       {child?.category_alias || child.category}(
-                      {`${(child as ICategoryItem).children.filter(c => c.checked).length} / ${(child as ICategoryItem).children.length}`}
+                      {`${(child as unknown as ICategoryItem).children.filter(c => c.checked).length} / ${(child as unknown as ICategoryItem).children.length}`}
                       )
                     </bk-checkbox>
-                    {(child as ICategoryItem).children.map(c => renderTemplateItem(c))}
+                    {(child as unknown as ICategoryItem).children.map(c => renderTemplateItem(c))}
                   </div>
                 );
               } else {
