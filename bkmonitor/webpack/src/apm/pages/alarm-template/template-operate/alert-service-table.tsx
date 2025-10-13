@@ -113,6 +113,33 @@ export default class AlertServiceTable extends tsc<IProps> {
     this.$emit('goTemplatePush');
   }
 
+  handleOperation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      this.searchValue = '';
+      this.getFilterTableData();
+    }
+  }
+
+  getFilterTableData() {
+    const { prop, order } = this.sortInfo;
+    const searchTable = this.searchValue
+      ? [...this.strategies].filter(item => {
+          const searchLower = this.searchValue.toLocaleLowerCase();
+          return item.service_name.toLocaleLowerCase().includes(searchLower);
+        })
+      : [...this.strategies];
+    if (prop === Columns.alert_number && order) {
+      this.tableData = searchTable.sort((a, b) => {
+        if (order === 'ascending') {
+          return a[prop] - b[prop];
+        }
+        return b[prop] - a[prop];
+      });
+    } else {
+      this.tableData = searchTable;
+    }
+  }
+
   tableFormatter(row: IStrategiesItem, prop: string) {
     switch (prop) {
       case Columns.service_name:
@@ -135,33 +162,6 @@ export default class AlertServiceTable extends tsc<IProps> {
         );
       default:
         return '';
-    }
-  }
-
-  handleOperation(type: EmptyStatusOperationType) {
-    if (type === 'clear-filter') {
-      this.searchValue = '';
-      this.getFilterTableData();
-    }
-  }
-
-  getFilterTableData() {
-    const { column, prop, order } = this.sortInfo;
-    const searchTable = this.searchValue
-      ? [...this.strategies].filter(item => {
-          const searchLower = this.searchValue.toLocaleLowerCase();
-          return item.service_name.toLocaleLowerCase().includes(searchLower);
-        })
-      : [...this.strategies];
-    if (column === 'alert_number') {
-      this.tableData = searchTable.sort((a, b) => {
-        if (order === 'ascending') {
-          return a[prop] - b[prop];
-        }
-        return b[prop] - a[prop];
-      });
-    } else {
-      this.tableData = searchTable;
     }
   }
 
@@ -188,6 +188,10 @@ export default class AlertServiceTable extends tsc<IProps> {
           onChange={this.handleSearchChange}
         />
         <bk-table
+          default-sort={{
+            prop: Columns.alert_number,
+            order: 'descending',
+          }}
           data={this.tableData}
           on-sort-change={this.handleSortChange}
         >
