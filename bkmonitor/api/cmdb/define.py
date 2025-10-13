@@ -737,6 +737,18 @@ class ServiceInstance:
     def __repr__(self):
         return f"<ServiceInstance: {self.name}({self.service_instance_id})>"
 
+    def to_dict(self):
+        return {
+            "service_instance_id": self.service_instance_id,
+            "name": self.name,
+            "bk_host_id": self.bk_host_id,
+            "bk_module_id": self.bk_module_id,
+            "service_category_id": self.service_category_id,
+            "labels": self.labels,
+            "topo_link": self.topo_link,
+            **self._extra_attr,
+        }
+
 
 class ServiceCategoryNode:
     """
