@@ -55,7 +55,7 @@ import {
   SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
-import ScrollXBar from './scroll-x-bar';
+import ScrollXBar from '../../components/scroll-x-bar';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
 

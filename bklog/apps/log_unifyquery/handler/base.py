@@ -37,7 +37,7 @@ from apps.log_search.constants import (
     MAX_QUICK_EXPORT_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
 )
-from apps.log_search.exceptions import BaseSearchResultAnalyzeException, TokenInvalidException
+from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
@@ -73,8 +73,6 @@ from apps.api import MonitorApi
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_search.constants import ASYNC_SORTED
-from apps.log_commons.models import ApiAuthToken
-from apps.log_commons.token import CodeccTokenHandler
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -1347,42 +1345,27 @@ class UnifyQueryHandler:
             },
         )
 
-    @staticmethod
-    def search_log_for_code(token: str, params: dict[str, Any]) -> dict[str, Any]:
+    @classmethod
+    def search_log_for_code(cls, index_set_id: int, params: dict[str, Any]) -> dict[str, Any]:
         """
         根据codecc token查询日志
         参数:
-            token (str): token
+            index_set_id (int): 索引集ID
             params (dict): 完整的查询参数，直接传给 query ts raw
         返回值:
             dict: 查询结果
         """
-        # 1. 根据token查询record
-        try:
-            record = ApiAuthToken.objects.get(token=token)
-        except ApiAuthToken.DoesNotExist:
-            raise TokenInvalidException()
-
-        # 2. 从token记录中解析参数
-        index_set_id = record.params.get("index_set_id")
-        space_uid = record.space_uid
-        bk_biz_id = space_uid_to_bk_biz_id(space_uid) if space_uid else None
-        if not bk_biz_id:
-            raise ValueError(f"无法从space_uid {space_uid} 获取有效的bk_biz_id")
-
-        # 3. 权限验证
-        CodeccTokenHandler.check_index_set_search_permission(record.created_by, index_set_id)
-
-        # 4. 获取table_id
+        # 1. 获取table_id
         table_id = BaseIndexSetHandler.get_data_label(index_set_id)
+        index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
 
-        # 5. 直接使用传入的参数，填充必要的table_id和bk_biz_id参数信息
+        # 2. 直接使用传入的参数，填充必要的table_id和bk_biz_id参数信息
         search_dict = params.copy()
-        search_dict["bk_biz_id"] = bk_biz_id
+        search_dict["bk_biz_id"] = space_uid_to_bk_biz_id(index_set.space_uid)
         if "query_list" in search_dict and search_dict["query_list"]:
             for query_item in search_dict["query_list"]:
                 if isinstance(query_item, dict):
                     query_item["table_id"] = table_id
 
-        # 6. 执行查询
+        # 3. 执行查询
         return UnifyQueryApi.query_ts_raw(search_dict)

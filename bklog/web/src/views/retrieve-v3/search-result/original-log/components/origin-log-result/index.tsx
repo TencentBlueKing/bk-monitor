@@ -61,11 +61,11 @@ export default defineComponent({
     const store = useStore();
 
     const searchBarRef = ref<any>();
-    const contentMainRef = ref<HTMLElement>();
     const tableRef = ref<HTMLElement>();
     const logList = ref<any[]>([]);
     const choosedIndex = ref(props.logIndex);
     const listLoading = ref(false);
+    const isCollapsed = ref(false);
 
     const fieldsMap = computed(() =>
       (store.state.indexFieldInfo.fields || []).reduce((dataMap, item) => {
@@ -97,6 +97,7 @@ export default defineComponent({
     let isInit = false;
     let begin = 0;
     let size = 50;
+    let total = 0;
 
     watch(
       () => props.logIndex,
@@ -108,13 +109,14 @@ export default defineComponent({
       },
     );
 
-    const requestLogList = () => {
+    const requestLogList = (isManualSearch = true) => {
       listLoading.value = true;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const searchUrl = `/search/index_set/${props.indexSetId}/search/`;
       size = isInit ? 50 : props.logIndex > 50 ? props.logIndex + 20 : 50;
       const requestData = {
         ...requestOtherparams,
+        sort_list: store.state.indexFieldInfo.default_sort_list.filter(item => item.length > 0 && !!item[1]) || [],
         size,
         begin,
       };
@@ -137,8 +139,13 @@ export default defineComponent({
           if (resp.data && !resp.message) {
             readBlobRespToJson(resp.data).then(({ data, result }) => {
               if (result) {
+                total = data.total.toNumber();
                 const list = parseBigNumberList(data.list);
                 logList.value.push(...list);
+                if (isManualSearch) {
+                  choosedIndex.value = -1;
+                  handleChooseRow(0);
+                }
                 if (!isInit) {
                   setTimeout(() => {
                     // 自动定位到选中行
@@ -304,11 +311,7 @@ export default defineComponent({
       }
     };
 
-    const handleSearch = (mode: string) => {
-      handleModeChange(mode);
-    };
-
-    const handleModeChange = (mode: string) => {
+    const handleSearch = (mode: string, isManualSearch = true) => {
       if (!isInit) {
         const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
         searchBarRef.value.setLocalMode(modeIndex);
@@ -356,7 +359,7 @@ export default defineComponent({
         handleReset();
       }
 
-      requestLogList();
+      requestLogList(isManualSearch);
     };
 
     const handleChooseRow = (index: number) => {
@@ -391,6 +394,10 @@ export default defineComponent({
     };
 
     const handleScrollContent = debounce((e: any) => {
+      if (logList.value.length === total) {
+        return;
+      }
+
       const { scrollTop, scrollHeight, clientHeight } = e.target;
       if (scrollHeight - scrollTop - clientHeight <= 1) {
         if (size !== 50) {
@@ -400,7 +407,6 @@ export default defineComponent({
         } else {
           begin += size;
         }
-
         requestLogList();
       }
     }, 600);
@@ -428,6 +434,11 @@ export default defineComponent({
       }
     };
 
+    const handleCollpaseToggle = () => {
+      isCollapsed.value = !isCollapsed.value;
+      emit('toggle-collapse', isCollapsed.value);
+    };
+
     onMounted(() => {
       addSegmentLightStyle();
     });
@@ -437,12 +448,22 @@ export default defineComponent({
     });
 
     expose({
-      init: () => handleModeChange(requestOtherparams.search_mode),
+      init: () => handleSearch(requestOtherparams.search_mode, false),
       reset: handleReset,
     });
 
     return () => (
       <div class='log-result-main'>
+        <div
+          class='collapse-main'
+          on-click={handleCollpaseToggle}
+        >
+          <log-icon
+            class={{ 'collpase-icon': true, 'is-collapsed': isCollapsed.value }}
+            type='angle-left'
+            common
+          />
+        </div>
         <div class='title-main'>
           <div class='title'>{t('原始日志检索结果')}</div>
           <div class='split-line'></div>
@@ -456,12 +477,11 @@ export default defineComponent({
             showFavorites={false}
             showQuerySetting={false}
             usageType='local'
-            on-mode-change={handleModeChange}
+            on-mode-change={handleSearch}
             on-search={handleSearch}
           />
         </div>
         <div
-          ref={contentMainRef}
           class='content-main'
           on-scroll={handleScrollContent}
         >

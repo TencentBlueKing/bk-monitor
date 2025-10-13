@@ -3617,7 +3617,7 @@ class SaveStrategySubscribeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=False)
-        username = serializers.CharField(required=True)
+        sub_username = serializers.CharField(required=True, source="username")
         bk_biz_id = serializers.IntegerField(required=True)
         conditions = serializers.ListField(required=True, child=serializers.DictField())
         notice_ways = serializers.ListField(required=True, child=serializers.CharField())
@@ -3777,9 +3777,9 @@ class ListStrategySubscribeResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        username = serializers.CharField(required=True)
+        sub_username = serializers.CharField(required=True, source="username")
         bk_biz_id = serializers.IntegerField(required=True)
-        is_enable = serializers.BooleanField(required=False)
+        is_enable = serializers.BooleanField(required=False, default=True)
         page = serializers.IntegerField(required=False, default=1, min_value=1)
         page_size = serializers.IntegerField(required=False, default=100, min_value=1, max_value=500)
 

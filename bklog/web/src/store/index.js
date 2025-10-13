@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -1421,6 +1419,9 @@ const store = new Vuex.Store({
       const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
 
+      // 请求来源 origin | cluster
+      const from = newQueryList[0].from ?? 'origin';
+
       const getTargetField = field => {
         return state.visibleFields?.find(item => item.field_name === field);
       };
@@ -1565,7 +1566,9 @@ const store = new Vuex.Store({
         if (searchMode === 'ui') {
           const startIndex = state.indexItem.addition.length;
           state.indexItem.addition.splice(startIndex, 0, ...filterQueryList);
-          dispatch('requestIndexSetQuery');
+          if (from === 'origin') {
+            dispatch('requestIndexSetQuery');
+          }
         }
 
         if (searchMode === 'sql') {
@@ -1583,7 +1586,10 @@ const store = new Vuex.Store({
 
           const newSearchKeyword = (keywords ?? []).concat(newSearchKeywords).join('AND ');
           state.indexItem.keyword = newSearchKeyword;
-          dispatch('requestIndexSetQuery');
+
+          if (from === 'origin') {
+            dispatch('requestIndexSetQuery');
+          }
         }
       }
       return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);
