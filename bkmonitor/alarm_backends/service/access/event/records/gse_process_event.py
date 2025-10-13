@@ -85,7 +85,6 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
 
     def __init__(self, raw_data, strategies):
         super().__init__(raw_data=raw_data, strategies=strategies)
-
         self.strategies = strategies
 
     def check(self):

@@ -14,6 +14,7 @@ import gzip
 import logging
 import os
 from dataclasses import dataclass
+from datetime import UTC
 from io import BytesIO
 
 import requests
@@ -85,7 +86,7 @@ class CollectorHandler:
         server_url = f"{collector_http_host}/pyroscope/ingest"
 
         def _get_stamp_by_ns(time_ns: int) -> int:
-            return int(datetime.datetime.fromtimestamp(time_ns / 1e9, datetime.UTC).timestamp())
+            return int(datetime.datetime.fromtimestamp(time_ns / 1e9, UTC).timestamp())
 
         # simulating as pyroscope agent
         params = {

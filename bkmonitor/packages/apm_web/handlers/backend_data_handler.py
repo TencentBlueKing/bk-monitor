@@ -480,9 +480,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
                 if "timestamp" not in log_record:
                     continue
                 timestamp_s = log_record["timestamp"] / 1000
-                localized_dt = (
-                    datetime.fromtimestamp(timestamp_s, UTC).replace(tzinfo=pytz.utc).astimezone(target_timezone)
-                )
+                localized_dt = datetime.fromtimestamp(timestamp_s, UTC).astimezone(target_timezone)
                 # 格式化为指定的字符串格式
                 formatted_time = localized_dt.strftime("%Y-%m-%d %H:%M:%S%z")
                 formatted_time_with_colon = f"{formatted_time[:-2]}:{formatted_time[-2:]}"
