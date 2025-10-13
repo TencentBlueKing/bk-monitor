@@ -31,7 +31,7 @@ class Command(BaseCommand):
         if options["init_type"] in ["True", "true"]:
             call_command("init_space_type")
         if options["sync_bkcc"] in ["True", "true"]:
-            call_command("sync_cmdb_space", bk_tenant_id="system")
+            call_command("sync_cmdb_space")
         if options["sync_bcs"] in ["True", "true"]:
             call_command("sync_bcs_space")
         if options["init_redis"] in ["True", "true"]:
