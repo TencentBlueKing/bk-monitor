@@ -1,4 +1,4 @@
-ARG PYTHON_BASE_IMAGE=tencentos/tencentos4-minimal:latest
+ARG PYTHON_BASE_IMAGE=tencentos/tencentos4-minimal:4.4-v20250922
 
 FROM ${PYTHON_BASE_IMAGE} AS python-base
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
