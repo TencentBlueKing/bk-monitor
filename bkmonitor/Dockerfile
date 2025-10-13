@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/app/fonts \
     && install -m644 /app/fonts/* /usr/share/fonts/truetype/
 
 # install tools
-RUN dnf install -y vim chromium wget strace graphviz tini https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
+RUN dnf install -y vim wget strace graphviz tini https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
 
 # build python packages
 FROM python-base AS python-builder
