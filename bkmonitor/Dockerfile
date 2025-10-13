@@ -1,4 +1,6 @@
-FROM tencentos/tencentos4-rt-python3.11:latest AS python-base
+ARG PYTHON_BASE_IMAGE=tencentos/tencentos4-minimal:latest
+
+FROM ${PYTHON_BASE_IMAGE} AS python-base
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # variables
@@ -17,7 +19,7 @@ RUN --mount=type=cache,target=/app/fonts \
     && install -m644 /app/fonts/* /usr/share/fonts/truetype/
 
 # install tools
-RUN yum install --assumeyes epel-release && yum -y update && yum install -y vim chromium wget strace graphviz tini
+RUN dnf install -y vim chromium wget strace graphviz tini https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
 
 # build python packages
 FROM python-base AS python-builder
