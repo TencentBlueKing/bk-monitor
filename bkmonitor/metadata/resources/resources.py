@@ -2479,13 +2479,14 @@ class KafkaTailResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=False, label="结果表ID")
         bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
         size = serializers.IntegerField(required=False, label="拉取条数", default=10)
         namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
 
     def perform_request(self, validated_request_data):
-        bk_tenant_id = cast(str, get_request_tenant_id())
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
         bk_data_id = validated_request_data.get("bk_data_id")
         result_table = None
 

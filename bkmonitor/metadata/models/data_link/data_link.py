@@ -43,6 +43,7 @@ from metadata.models.storage import ClusterInfo
 
 if TYPE_CHECKING:
     from metadata.models import DataSource
+    from metadata.models.data_link.data_link_configs import DataLinkResourceConfigBase
 
 logger = logging.getLogger("metadata")
 
@@ -76,7 +77,7 @@ class DataLink(models.Model):
     )
 
     # 各个套餐所需要的链路资源
-    STRATEGY_RELATED_COMPONENTS = {
+    STRATEGY_RELATED_COMPONENTS: dict[str, list[type["DataLinkResourceConfigBase"]]] = {
         BK_STANDARD_V2_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
         BK_EXPORTER_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
         BK_STANDARD_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
