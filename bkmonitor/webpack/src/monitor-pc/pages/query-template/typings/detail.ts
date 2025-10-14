@@ -51,6 +51,7 @@ export interface QueryTemplateDetail {
   alias: string;
   can_delete: boolean;
   can_edit: boolean;
+  description: string;
   expression: string;
   functions: (AggFunction | string)[];
   id: number;
