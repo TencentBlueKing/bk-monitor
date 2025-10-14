@@ -74,6 +74,11 @@ export default class AlarmTemplate extends tsc<object> {
   ) => void;
 
   @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
+  @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+  /** 自动刷新间隔 */
+  @InjectReactive('refreshInterval') refreshInterval: number;
+  /** 手动刷新 */
+  @InjectReactive('refreshImmediate') refreshImmediate: number;
 
   /** 下发重新请求接口数据标志 */
   refreshKey = random(8);
@@ -115,9 +120,10 @@ export default class AlarmTemplate extends tsc<object> {
     params: {},
   };
 
+  /** 函数列表 */
   metricFunctions = [];
-
-  @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+  /** 自动刷新定时器 */
+  refreshIntervalInstance = null;
 
   /** 告警列表接口请求参数 */
   get requestParam() {
@@ -139,6 +145,24 @@ export default class AlarmTemplate extends tsc<object> {
 
     delete param.refreshKey;
     return param as unknown as AlarmListRequestParams;
+  }
+
+  /** 自动刷新间隔 */
+  @Watch('refreshInterval')
+  handleRefreshIntervalChange(v: number) {
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
+    }
+    if (v == null || v <= 0) return;
+    this.refreshIntervalInstance = window.setInterval(() => {
+      this.getQueryTemplateList();
+    }, this.refreshInterval);
+  }
+
+  /** 手动刷新 */
+  @Watch('refreshImmediate')
+  handleRefreshImmediateChange() {
+    this.getQueryTemplateList();
   }
 
   /**

@@ -69,11 +69,11 @@ export default class TemplateFormDetail extends tsc<TemplateFormDetailProps> {
   render() {
     return (
       <div class='template-form-detail'>
-        {this.formItem(this.$tc('监控数据'), <span>{this.monitorData}</span>)}
-        {this.formItem(this.$tc('模板类型'), <span>{this.data?.system.alias}</span>)}
-        {this.formItem(this.$tc('检测算法'), <DetectionAlgorithmsGroup algorithms={this.data?.algorithms} />)}
+        {this.formItem(this.$t('监控数据'), <span>{this.monitorData}</span>)}
+        {this.formItem(this.$t('模板类型'), <span>{this.data?.system.alias}</span>)}
+        {this.formItem(this.$t('检测算法'), <DetectionAlgorithmsGroup algorithms={this.data?.algorithms} />)}
         {this.formItem(
-          this.$tc('判断条件'),
+          this.$t('判断条件'),
           <i18n
             class='detect-text'
             path='在{0}个周期内累计满足{1}次检测算法'
@@ -83,7 +83,7 @@ export default class TemplateFormDetail extends tsc<TemplateFormDetailProps> {
           </i18n>
         )}
         {this.formItem(
-          this.$tc('告警组'),
+          this.$t('告警组'),
           <div class='tag-list'>
             {this.data?.user_group_list.map(item => (
               <div
@@ -101,7 +101,7 @@ export default class TemplateFormDetail extends tsc<TemplateFormDetailProps> {
               class='tooltips-label'
               v-bk-tooltips={{
                 width: 320,
-                content: `${this.$tc('变量名')}: ${item.variableName}<br />${this.$tc('变量别名')}: ${item.alias}<br />${this.$tc('变量描述')}: ${item.description}`,
+                content: `${this.$t('变量名')}: ${item.variableName}<br />${this.$t('变量别名')}: ${item.alias}<br />${this.$t('变量描述')}: ${item.description}`,
                 allowHTML: true,
               }}
             >
@@ -115,7 +115,7 @@ export default class TemplateFormDetail extends tsc<TemplateFormDetailProps> {
           )
         )}
         {this.formItem(
-          this.$tc('自动下发'),
+          this.$t('自动下发'),
           <bk-switcher
             theme='primary'
             value={this.data?.is_auto_apply}
