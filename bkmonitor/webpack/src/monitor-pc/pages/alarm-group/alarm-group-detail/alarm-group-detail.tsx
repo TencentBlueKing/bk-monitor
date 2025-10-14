@@ -596,8 +596,7 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                           ]}
                         </div>
                         <span class='person-name'>
-                          <bk-user-display-name user-id={item.id} />
-                          {`(${item.display_name})`}
+                          <bk-user-display-name user-id={item.display_name} />
                         </span>
                       </div>
                     ));
