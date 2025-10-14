@@ -48,9 +48,9 @@
     <div class="navigation-content">
       <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
       <div class="manage-container">
-        <div v-if="!pageLoading" class="manage-main">
-          <sub-nav></sub-nav>
-          <router-view class="manage-content"></router-view>
+        <div class="manage-main">
+          <sub-nav :sub-nav-list="menuList"></sub-nav>
+          <router-view class="manage-content" :key="refreshKey"></router-view>
         </div>
       </div>
     </div>
@@ -60,7 +60,7 @@
 
 <script>
   import SubNav from '@/components/nav/manage-nav';
-  import { mapState, mapGetters } from 'vuex';
+import { mapGetters, mapState } from 'vuex';
 
   export default {
     name: 'ManageIndex',
@@ -71,6 +71,7 @@
       return {
         navThemeColor: '#2c354d',
         isExpand: true,
+        refreshKey: ''
       };
     },
 
@@ -88,8 +89,12 @@
           // 外部版只保留【日志提取】菜单
           return list.filter(menu => menu.id === 'manage-extract-strategy');
         }
-        return list;
+        return list ?? [];
       },
+      activeManageNav() {
+        const childList = this.menuList.map(m => m.children).flat(2);
+        return childList.find(t => t.id === this.$route.meta.navId) ?? {};
+      }
     },
     watch: {
       '$route.query.spaceUid'(newSpaceUid, oldSpaceUid) {
@@ -104,6 +109,8 @@
               spaceUid: this.spaceUid,
               bizId: this.bkBizId,
             },
+          }).then(() => {
+            this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`
           });
         }
       },
@@ -162,6 +169,8 @@
           spaceUid: spaceUid,
           ...this.$route.query,
         },
+      }).then(() => {
+        this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`
       });
     },
   };
