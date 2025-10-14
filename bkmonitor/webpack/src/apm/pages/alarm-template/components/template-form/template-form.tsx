@@ -72,7 +72,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
   @Prop({ default: false }) loading!: boolean;
 
   /** 模板表单 */
-  @Ref('templateForm') templateFormRef;
+  @Ref('form') formRef;
 
   /** 用户组列表loading */
   alarmGroupLoading = false;
@@ -83,28 +83,33 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     name: [
       {
         required: true,
-        message: this.$tc('模板名称必填'),
+        message: this.$t('模板名称必填'),
         trigger: 'blur',
       },
     ],
     algorithms: [
       {
         required: true,
-        message: this.$tc('检测规则必须开启一个级别'),
+        message: this.$t('检测规则必须开启一个级别'),
         trigger: 'change',
+      },
+      {
+        validator: this.validAlgorithms,
+        message: this.$t('检测算法填写不完整，请完善后添加'),
+        trigger: 'blur',
       },
     ],
     detect: [
       {
         validator: this.validateDetect,
-        message: this.$tc('触发周期数 >=1 且 >= 检测数'),
+        message: this.$t('触发周期数 >=1 且 >= 检测数'),
         trigger: 'blur',
       },
     ],
     selectUserGroup: [
       {
         required: true,
-        message: this.$tc('告警组必填'),
+        message: this.$t('告警组必填'),
         trigger: 'change',
       },
     ],
@@ -125,6 +130,10 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
   /** 已选择的用户组id */
   get selectUserGroup() {
     return this.data?.user_group_list?.map(item => item.id) || [];
+  }
+
+  validAlgorithms() {
+    return this.data.algorithms.every(item => item.config.threshold || item.config.threshold === 0);
   }
 
   validateDetect(val: DetectConfig) {
@@ -155,7 +164,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     if (JSON.stringify(value) !== JSON.stringify(this.data.algorithms)) {
       this.$emit('algorithmsChange', value);
       this.$nextTick(() => {
-        this.templateFormRef?.validateField('algorithms');
+        this.formRef?.validateField('algorithms');
       });
     }
   }
@@ -229,7 +238,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
 
   /** 提交 */
   handleSubmit() {
-    this.templateFormRef.validate().then(() => {
+    this.formRef.validate().then(() => {
       this.$emit('submit');
     });
   }
@@ -277,7 +286,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
 
     return (
       <bk-form
-        ref='templateForm'
+        ref='form'
         class='template-form'
         {...{
           props: {
@@ -292,20 +301,28 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
       >
         <bk-form-item
           class='form-item-text'
-          label={this.$tc('监控数据')}
+          label={this.$t('监控数据')}
         >
-          <span class='text'>{this.monitorData}</span>
+          <span
+            class='text monitor-data'
+            v-bk-tooltips={{
+              content: this.data?.query_template?.description,
+              disabled: !this.data?.query_template?.description,
+            }}
+          >
+            {this.monitorData}
+          </span>
         </bk-form-item>
         <bk-form-item
           class='form-item-text mt16'
-          label={this.$tc('模板类型')}
+          label={this.$t('模板类型')}
         >
           <span class='text'>{this.data?.system.alias}</span>
         </bk-form-item>
         <bk-form-item
           class='mt16'
           error-display-type='normal'
-          label={this.$tc('模板名称')}
+          label={this.$t('模板名称')}
           property='name'
           required
         >
@@ -322,20 +339,19 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         <bk-form-item
           class='mt24'
           error-display-type='normal'
-          label={this.$tc('检测规则')}
+          label={this.$t('检测规则')}
           property='algorithms'
           required
         >
           <Threshold
             data={this.data?.algorithms}
-            defaultUnit={this.data?.query_template?.unit}
             onChange={this.handleAlgorithmsChange}
           />
         </bk-form-item>
         <bk-form-item
           class='mt24'
           error-display-type='normal'
-          label={this.$tc('判断条件')}
+          label={this.$t('判断条件')}
           property='detect'
           required
         >
@@ -365,7 +381,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         <bk-form-item
           class='mt24'
           error-display-type='normal'
-          label={this.$tc('告警组')}
+          label={this.$t('告警组')}
           property='selectUserGroup'
           required
         >
@@ -393,7 +409,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
             key={variable.id}
             desc={{
               width: 320,
-              content: `${this.$tc('变量名')}: ${variable.variableName}<br />${this.$tc('变量别名')}: ${variable.alias}<br />${this.$tc('变量描述')}: ${variable.description}`,
+              content: `${this.$t('变量名')}: ${variable.variableName}<br />${this.$t('变量别名')}: ${variable.alias}<br />${this.$t('变量描述')}: ${variable.description}`,
               allowHTML: true,
             }}
             label={variable.alias || variable.variableName}
@@ -413,7 +429,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         {this.scene === 'edit' && (
           <bk-form-item
             class='mt24'
-            label={this.$tc('自动下发')}
+            label={this.$t('自动下发')}
             property='is_auto_apply'
           >
             <bk-switcher
@@ -434,13 +450,13 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
               theme='primary'
               onClick={this.handleSubmit}
             >
-              {this.$tc('保存')}
+              {this.$t('保存')}
             </bk-button>
             <bk-button
               class='cancel-btn'
               onClick={this.handleCancel}
             >
-              {this.$tc('取消')}
+              {this.$t('取消')}
             </bk-button>
           </bk-form-item>
         )}

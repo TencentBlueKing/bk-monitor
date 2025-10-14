@@ -28,7 +28,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { cloneStrategyTemplate, updateStrategyTemplate } from 'monitor-api/modules/model';
 
-import { validTemplateDataIsEdit } from '../../quick-add-strategy/utils';
 import { getAlarmTemplateDetail } from '../../service';
 import TemplateForm from './template-form';
 
@@ -131,28 +130,8 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
     }
   }
 
-  /** 校验表单是否编辑过 */
-  validFormIsEdit() {
-    const variableIsEdit = this.variablesList.some(variable => {
-      /** 如果当前变量值和详情接口的context值一样，说明没有修改 */
-      if (Object.hasOwn(this.detailData.context, variable.variableName)) {
-        return variable.value !== this.detailData.context[variable.variableName];
-      }
-      return true;
-    });
-    return variableIsEdit || validTemplateDataIsEdit(this.formData, this.detailData).isEdit;
-  }
-
   /** 克隆 */
   handleCloneSubmit() {
-    if (!this.validFormIsEdit() || this.formData.name === this.detailData.name) {
-      this.$bkMessage({
-        message: this.$t('克隆配置不能和源模板一致'),
-        theme: 'error',
-      });
-      return;
-    }
-
     cloneStrategyTemplate({
       app_name: this.appName,
       source_id: this.templateId,
@@ -220,7 +199,7 @@ export default class EditTemplateSlider extends tsc<EditTemplateSliderProps, Edi
           class='edit-template-slider-header'
           slot='header'
         >
-          <span class='title'>{this.$tc(this.scene === 'edit' ? '编辑模板' : '克隆模板')}</span>
+          <span class='title'>{this.$t(this.scene === 'edit' ? '编辑模板' : '克隆模板')}</span>
           <span class='desc'>{this.detailData?.query_template?.name}</span>
         </div>
         <div

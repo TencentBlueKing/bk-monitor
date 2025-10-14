@@ -108,6 +108,7 @@ export interface AlarmTemplateListItem {
 export interface AlarmTemplateOptionsItem {
   id: string;
   name: string;
+  value: boolean | number | string;
 }
 
 export interface AlarmUserGroupItem {
