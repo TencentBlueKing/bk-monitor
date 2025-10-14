@@ -583,8 +583,8 @@ export default class FieldAnalysis extends Vue {
     }
   }
 
-  getChartsCancelFn = () => {};
-  getInfoCancelFn = () => {};
+  getChartsCancelFn = () => { };
+  getInfoCancelFn = () => { };
 
   // 添加防抖处理
   legendWheel = (event: WheelEvent) => {
@@ -788,10 +788,11 @@ export default class FieldAnalysis extends Vue {
                     v-bk-tooltips={window.mainComponent.$t('下载')}
                     on-Click={this.downloadFieldStatistics}
                   ></span>
-                  {/* <span
-                    class='fn-btn bk-icon icon-apps'
+                  <span
+                    class='bklog-icon bklog-yibiaopan'
                     v-bk-tooltips='查看仪表盘'
-                  ></span> */}
+                    style={{ marginLeft: '5px',cursor: 'pointer' }}
+                  ></span>
                 </div>
               </div>
 
