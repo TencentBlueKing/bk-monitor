@@ -65,7 +65,7 @@ abstract class VariableBase {
   abstract defaultValue: any;
   description = '';
   id = '';
-  /** value值是否编辑过 */
+  /** value值是否编辑过，该字段不能自动判断是否编辑，需要手动修改 */
   isValueEditable = false;
   name = '';
   type: VariableTypeEnumType;

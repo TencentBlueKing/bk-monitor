@@ -237,13 +237,19 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       const columnItem = { ...this.allTableColumns[field] };
       if (ALARM_TEMPLATE_TABLE_FILTER_FIELDS.has(columnItem.id)) {
         const selectOptionsItem = this.selectOptionMap?.[AlarmTemplateTableFieldToFilterFieldMap?.[field] ?? field];
-        columnItem.filters =
+        const filters =
           selectOptionsItem?.map?.(e => ({
             text: e.name,
-            value: e.id,
+            value: typeof e.id === 'boolean' ? `${e.id}` : e.id,
+            originValue: e.id,
           })) ||
           columnItem?.filters ||
           [];
+        if (filters.length > 1) {
+          columnItem.filters = filters;
+        } else {
+          delete columnItem.filters;
+        }
       }
       return columnItem;
     });
@@ -275,15 +281,22 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     const targetItem = Object.entries(filter)[0];
     const targetKey = AlarmTemplateTableFieldToFilterFieldMap?.[targetItem[0]] ?? targetItem[0];
     const targetValue = targetItem[1];
+    /**
+     * 这里需要对值进行判断,因为这里值的原始值可能是布尔类型
+     */
+    const columns = this.tableColumns.find(item => item.id === targetKey);
+    const value = targetValue.map(item => {
+      return columns.filters.find(filter => filter.value === item).originValue;
+    });
     const targetIndex = filters.findIndex(e => e.key === targetKey);
     if (targetIndex > -1) {
-      if (targetValue?.length === 0) {
+      if (value?.length === 0) {
         filters.splice(targetIndex, 1);
       } else {
-        filters[targetIndex].value = targetValue;
+        filters[targetIndex].value = value;
       }
-    } else if (targetValue?.length > 0) {
-      filters.push({ key: targetKey, value: targetValue });
+    } else if (value?.length > 0) {
+      filters.push({ key: targetKey, value: value });
     }
     return filters;
   }
@@ -790,7 +803,9 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     let filteredValue = null;
     if (ALARM_TEMPLATE_TABLE_FILTER_FIELDS.has(column.id)) {
       const filterField = AlarmTemplateTableFieldToFilterFieldMap?.[column.id] ?? column.id;
-      filteredValue = this.searchKeyword.find(item => item.key === filterField)?.value || [];
+      const value = this.searchKeyword.find(item => item.key === filterField)?.value || [];
+      /** table组件对于布尔值的筛选功能会出现bug，需要处理成其他类型 */
+      filteredValue = value.map(item => (typeof item === 'boolean' ? `${item}` : item));
     }
     return (
       <bk-table-column
@@ -813,7 +828,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       />
     );
   }
-
+  value = [];
   render() {
     return (
       <div class='alarm-template-container'>
