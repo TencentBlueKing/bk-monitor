@@ -174,18 +174,19 @@ class PlatformConfig(BkCollectorConfig):
                     {"metric_name": "bk_apm_duration_delta", "type": "delta_duration", "rules": metric_dimension_rules}
                 ],
             },
-            "metric_bk_apm_duration_bucket_config": {
-                "name": "traces_deriver/bucket",
-                "operations": [
-                    {
-                        "metric_name": "bk_apm_duration_bucket",
-                        "type": "bucket",
-                        "rules": metric_dimension_rules,
-                        # todo buckets 交由用户配置 暂时传递默认值
-                        "buckets": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
-                    }
-                ],
-            },
+            # 2025-10-13 临时去掉 bk_apm_duration_bucket 指标，待新方案上线后再放开，预计半年后
+            # "metric_bk_apm_duration_bucket_config": {
+            #     "name": "traces_deriver/bucket",
+            #     "operations": [
+            #         {
+            #             "metric_name": "bk_apm_duration_bucket",
+            #             "type": "bucket",
+            #             "rules": metric_dimension_rules,
+            #             # todo buckets 交由用户配置 暂时传递默认值
+            #             "buckets": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+            #         }
+            #     ],
+            # },
         }
 
     @classmethod

@@ -62,6 +62,7 @@ export default class NoticeStatusTable extends tsc<IProps> {
           outer-border={false}
         >
           <bk-table-column
+            formatter={row => (row.target ? <bk-user-display-name user-id={row.target} /> : '--')}
             label={window.i18n.t('通知对象')}
             prop={'target'}
             resizable={false}
