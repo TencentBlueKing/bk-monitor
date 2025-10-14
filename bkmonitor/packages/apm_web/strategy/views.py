@@ -273,9 +273,43 @@ class StrategyTemplateViewSet(GenericViewSet):
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCloneRequestSerializer)
     def clone(self, *args, **kwargs) -> Response:
-        # TODO 比较两个模板是否一致
-        source_obj = get_object_or_404(self.get_queryset(), id=self.query_data["source_id"])
+        compare_field_names: list[str] = [
+            "algorithms",
+            "detect",
+            "user_group_ids",
+            "context",
+            "is_enabled",
+            "is_auto_apply",
+        ]
+        source_compare_data: dict[str, Any] = {}
+        edit_compare_data: dict[str, Any] = {}
+        source_obj: StrategyTemplate = get_object_or_404(self.get_queryset(), id=self.query_data["source_id"])
         edit_data: dict[str, Any] = self.query_data["edit_data"]
+        for field_name in compare_field_names:
+            source_compare_data[field_name] = getattr(source_obj, field_name)
+            edit_compare_data[field_name] = edit_data[field_name]
+
+        qtw: QueryTemplateWrapper = query_template.QueryTemplateWrapperFactory.get_wrapper(
+            bk_biz_id=source_obj.query_template["bk_biz_id"], name=source_obj.query_template["name"]
+        )
+        default_context: dict[str, Any] = qtw.get_default_context()
+        source_context: dict[str, Any] = {**default_context, **source_compare_data["context"]}
+        edit_context: dict[str, Any] = {**default_context, **edit_compare_data["context"]}
+        # 去掉失效的 context
+        for variable_name in list(source_context):
+            if variable_name not in edit_context:
+                source_context.pop(variable_name, None)
+        # 同步空值
+        for variable_name, variable_value in edit_context.items():
+            if source_context.get(variable_name) or variable_value:
+                continue
+            source_context[variable_name] = variable_value
+
+        source_compare_data["context"] = source_context
+        edit_compare_data["context"] = edit_context
+        if count_md5(source_compare_data) == count_md5(edit_compare_data):
+            raise ValidationError(_("克隆配置不能和源模板一致"))
+
         edit_data.update(
             {
                 "bk_biz_id": self.query_data["bk_biz_id"],
