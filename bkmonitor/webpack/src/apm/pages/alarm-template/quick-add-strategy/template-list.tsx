@@ -213,6 +213,13 @@ export default class TemplateList extends tsc<IProps> {
           onClick={() => this.handleClickTemplateItem(item)}
         >
           <span
+            v-bk-tooltips={{
+              content: this.$t('再次勾选「已配置」的策略，可重新下发，覆盖原有的策略'),
+              width: 188,
+              placement: 'left',
+              distance: 18,
+              disabled: !item?.has_been_applied,
+            }}
             onClick={e => {
               e.stopPropagation();
             }}
