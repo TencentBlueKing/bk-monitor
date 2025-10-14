@@ -323,6 +323,9 @@ class QuickAddStrategy extends Mixins(
       title: this.$t('批量创建策略成功'),
       okText: this.$t('留在当前页'),
       width: 480,
+      closeFn: () => {
+        return true;
+      },
       cancelFn: () => {
         window.open(location.href.replace(location.hash, '#/strategy-config'));
         return true;
@@ -361,7 +364,12 @@ class QuickAddStrategy extends Mixins(
     this.templateListLoading = true;
     const data = await searchStrategyTemplate({
       app_name: this.params?.app_name,
-      conditions: [],
+      conditions: [
+        {
+          key: 'is_enabled',
+          value: [true],
+        },
+      ],
       simple: true,
     }).catch(() => ({ list: [] }));
     this.templateList = await this.checkTemplateList(
