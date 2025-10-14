@@ -31,6 +31,7 @@ import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../.
 import { isEn } from '../../../../i18n/lang';
 import { fetchMetricDimensionValueList } from '../../service/dimension';
 import { isVariableName } from '../../variables/template/utils';
+import { CONDITIONS } from './condition-condition-tag';
 import ConditionCreatorSelector from './condition-creator-selector';
 import { EFieldType } from './typing';
 
@@ -91,7 +92,7 @@ export default class ConditionCreator extends tsc<IProps> {
       const keyName = curField?.alias || item.key;
       const methodName = curField?.supported_operations?.find(s => s.value === item.method)?.alias || item.method;
       return {
-        condition: { id: item.condition, name: item.condition },
+        condition: { id: item.condition, name: CONDITIONS.find(c => c.id === item.condition)?.name || item.condition },
         key: { id: item.key, name: keyName },
         method: { id: item.method, name: methodName },
         value: item.value.map(v => ({ id: v, name: v, isVariable: this.hasVariableOperate && isVariableName(v) })),
