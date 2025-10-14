@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
+import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import { getFunctions } from 'monitor-api/modules/grafana';
@@ -64,6 +64,7 @@ class QuickAddStrategy extends Mixins(
 ) {
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
+  @Ref('templateForm') templateFormRef: TemplateForm;
 
   templateList: ITempLateItem[] = [];
   alarmGroupList: IAlarmGroupList[] = [];
@@ -306,6 +307,9 @@ class QuickAddStrategy extends Mixins(
    * @returns {Promise<void>} 无返回值
    */
   async handleSubmit() {
+    const valid = await this.templateFormRef.formRef?.validate?.().catch(() => false);
+    if (!valid) return;
+
     const h = this.$createElement;
 
     const isSuccess = await this.applyStrategyTemplate();
@@ -439,7 +443,7 @@ class QuickAddStrategy extends Mixins(
   render() {
     return (
       <bk-sideslider
-        width={1024}
+        width={1200}
         ext-cls={'quick-add-strategy-side-component'}
         before-close={() => {
           this.handleShowChange(false);
@@ -506,8 +510,9 @@ class QuickAddStrategy extends Mixins(
                 class='template-preview-content'
               >
                 <TemplateForm
+                  ref='templateForm'
                   data={this.templateFormData[this.cursorId]}
-                  labelWidth={94}
+                  labelWidth={120}
                   loading={this.templateDetailLoading}
                   metricFunctions={this.metricFunctions}
                   scene='view'

@@ -42,7 +42,7 @@ interface ThresholdEvents {
 
 interface ThresholdProps {
   data: AlgorithmItem[];
-  defaultUnit: string;
+  defaultUnit?: string;
 }
 
 @Component
@@ -134,6 +134,18 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
     this.handleChange();
   }
 
+  /**
+   * 校验格式是否正确
+   * @returns 返回错误信息，如果为空则表示格式正确
+   */
+  validate() {
+    const showRules = this.localData.filter(item => item.show);
+    if (showRules.length === 0) return this.$t('检测规则必须开启一个级别');
+    if (showRules.some(item => !item.config.threshold && item.config.threshold !== 0))
+      return this.$t('检测算法填写不完整，请完善后添加');
+    return '';
+  }
+
   destroyPopover() {
     this.methodInstancePopover?.hide();
     this.methodInstancePopover?.destroy();
@@ -158,7 +170,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
             />
             <span class='level-icon'>
               <i class={['icon-monitor', ['icon-danger', 'icon-mind-fill', 'icon-tips'][item.level - 1]]} />
-              <span>{LevelMap[item.level]}：</span>
+              <span class='text'>{LevelMap[item.level]}：</span>
             </span>
             {item.show && [
               <div
@@ -194,7 +206,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
             ]}
           </div>
         ))}
-
+        {}
         <div style='display: none'>
           <div
             ref='methodList'

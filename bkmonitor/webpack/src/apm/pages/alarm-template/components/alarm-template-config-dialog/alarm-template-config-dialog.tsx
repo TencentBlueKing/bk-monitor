@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listUserGroup } from 'monitor-api/modules/model';
@@ -85,6 +85,8 @@ export default class AlarmTemplateConfigDialog extends tsc<
   /** 当前操作的模板 id */
   @Prop({ type: Number }) templateId: AlarmTemplateListItem['id'];
 
+  @Ref('form') formRef;
+
   /** dialog 中操作的值 */
   value: AlarmTemplateListItem['algorithms'] | AlarmTemplateListItem['user_group_list'] = [];
   /** dialog 窗口中loading状态 */
@@ -107,6 +109,29 @@ export default class AlarmTemplateConfigDialog extends tsc<
     );
   }
 
+  get rules() {
+    if (this.activeType === 'algorithms')
+      return {
+        value: [
+          {
+            required: true,
+            message: this.$t('检测规则必须开启一个级别'),
+            trigger: 'change',
+          },
+          {
+            validator: this.validAlgorithms,
+            message: this.$t('检测算法填写不完整，请完善后添加'),
+            trigger: 'blur',
+          },
+        ],
+      };
+    return {};
+  }
+
+  validAlgorithms(value: AlarmTemplateListItem['algorithms']) {
+    return value.every(item => item.config.threshold || item.config.threshold === 0);
+  }
+
   @Watch('dialogShow')
   async dialogShowChange() {
     if (!this.dialogShow) {
@@ -122,7 +147,10 @@ export default class AlarmTemplateConfigDialog extends tsc<
   /**
    * @description 保存事件回调
    */
-  handleConfirm() {
+  async handleConfirm() {
+    const valid = await this.formRef?.validate().catch(() => false);
+    if (!valid) return;
+
     this.loading = true;
     let successCallback = null;
     let errorCallback = null;
@@ -198,6 +226,7 @@ export default class AlarmTemplateConfigDialog extends tsc<
       case 'user_group_list':
         return (
           <AlarmGroup
+            hasAddGroup={false}
             list={this.alarmGroupList}
             showAddTip={false}
             value={(this.value as AlarmTemplateListItem['user_group_list'])?.map(item => item.id)}
@@ -226,13 +255,27 @@ export default class AlarmTemplateConfigDialog extends tsc<
         on-after-leave={this.handleCancel}
         on-confirm={this.handleConfirm}
       >
-        <div
+        <bk-form
+          ref='form'
           class='alarm-template-dialog-wrap'
           v-bkloading={{ isLoading: this.loading }}
+          {...{
+            props: {
+              model: {
+                value: this.value,
+              },
+              rules: this.rules,
+            },
+          }}
         >
-          <div class='edit-label'>{`${label}:`}</div>
-          <div class='edit-operator'>{this.getAllTypeComponent()}</div>
-        </div>
+          <bk-form-item
+            error-display-type='normal'
+            label={label}
+            property='value'
+          >
+            {this.getAllTypeComponent()}
+          </bk-form-item>
+        </bk-form>
         <div slot='footer'>
           <bk-button
             disabled={this.loading}

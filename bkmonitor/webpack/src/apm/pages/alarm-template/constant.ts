@@ -137,6 +137,13 @@ export const SEARCH_SELECT_OPTIONS = [
     onlyRecommendChildren: true,
     children: [],
   },
+  {
+    name: window.i18n.t('自动下发'),
+    id: 'is_auto_apply',
+    multiple: true,
+    onlyRecommendChildren: true,
+    children: [],
+  },
 ];
 
 /** 告警模板列表-表格表头允许筛选操作的字段 */
