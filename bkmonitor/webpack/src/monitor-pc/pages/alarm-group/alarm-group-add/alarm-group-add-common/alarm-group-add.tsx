@@ -948,7 +948,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
                   item.show && (
                     <div
                       class={[
-                        'type-card abc123',
+                        'type-card',
                         item.selected && 'selected-card',
                         this.channels.length === 1 && 'select-disabled',
                       ]}
