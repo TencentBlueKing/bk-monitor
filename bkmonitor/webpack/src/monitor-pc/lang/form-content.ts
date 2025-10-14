@@ -88,6 +88,7 @@ export default {
 
   轮值: 'Rotation',
   内部通知对象: 'notify object',
+  默认通知渠道: 'Default Notification Channel',
   群机器人: 'Group robots',
   同比策略: 'YoY Strategy',
   环比策略: 'MoM Strategy',
