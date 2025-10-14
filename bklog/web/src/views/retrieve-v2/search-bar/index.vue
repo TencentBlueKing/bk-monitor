@@ -210,8 +210,13 @@
     });
   };
 
+  /**
+   * 增加索引集列表请求限定范围
+   * 1. 如果 tab 为 origin，则请求索引集列表
+   * 2. 如果 tab 为 undefined | null | ''，说明当前为原始日志，则请求索引集列表
+   */
   const requestIndexSetList = () => {
-    if (route.query.tab === 'origin') {
+    if (route.query.tab === 'origin' || !route.query.tab) {
       store.dispatch("requestIndexSetQuery");
     }
   }
@@ -253,6 +258,9 @@
     setRouteParams();
   };
 
+  /**
+   * UI 模式点击查询按钮
+   */
   const handleBtnQueryClick = () => {
     if (isGloalUsage.value) {
       if (!isInputLoading.value) {
@@ -289,6 +297,10 @@
     );
   };
 
+  /**
+   * SQL 模式点击查询按钮
+   * @param value 
+   */
   const handleSqlRetrieve = (value) => {
     if (isGloalUsage.value) {
       if (value !== "*") {

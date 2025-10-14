@@ -105,13 +105,17 @@ export default defineComponent({
     };
 
     const hiddenAiAssistant = () => {
-      isShow.value = false;
       aiBlueking.value?.handleClose?.();
+    };
+
+    const handleClose = () => {
+      isShow.value = false;
       emit('close');
     };
 
-    const displayAiAssistant = () => {
+    const handleShow = () => {
       isShow.value = true;
+      emit('show');
     };
 
     const setAiStart = (sendMsg = false, args: IRowSendData) => {
@@ -291,8 +295,8 @@ export default defineComponent({
             shortcuts={shortcuts.value}
             showHistoryIcon={false}
             url={apiUrl}
-            onClose={hiddenAiAssistant}
-            onShow={displayAiAssistant}
+            onClose={handleClose}
+            onShow={handleShow}
             defaultWidth={aiAssitantOptions.value.defaultWidth}
             defaultHeight={aiAssitantOptions.value.defaultHeight}
             defaultTop={aiAssitantOptions.value.defaultTop}
