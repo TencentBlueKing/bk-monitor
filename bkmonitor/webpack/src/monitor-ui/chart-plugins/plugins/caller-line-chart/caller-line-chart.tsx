@@ -1222,6 +1222,15 @@ class CallerLineChart extends CommonSimpleChart {
   handleQuickAddStrategyShowChange(v: boolean) {
     this.quickAddStrategyObj.show = v;
   }
+  /** 获取告警数据参数 */
+  getFetchItemStatusParams() {
+    return {
+      labels: [
+        `APM-APP(${this.viewOptions.filters?.app_name})`,
+        `APM-SERVICE(${this.viewOptions.filters?.service_name})`,
+      ],
+    };
+  }
 
   render() {
     return (
@@ -1235,6 +1244,7 @@ class CallerLineChart extends CommonSimpleChart {
           customArea={true}
           description={this.panel.description}
           dragging={this.panel.dragging}
+          getFetchItemStatusParams={this.getFetchItemStatusParams}
           isInstant={this.panel.instant}
           menuList={this.menuList as any}
           metrics={this.metrics}
