@@ -373,6 +373,10 @@ export default class AlarmTemplate extends tsc<object> {
     this.editTemplateSliderScene = 'edit';
   }
 
+  handleShowTemplatePush(show: boolean) {
+    this.templatePushObj.show = show;
+  }
+
   render() {
     return (
       <div class='alarm-template'>
@@ -459,13 +463,12 @@ export default class AlarmTemplate extends tsc<object> {
           metricFunctions={this.metricFunctions}
           params={this.templatePushObj.params}
           show={this.templatePushObj.show}
-          onShowChange={show => {
-            this.templatePushObj.show = show;
-          }}
+          onShowChange={show => this.handleShowTemplatePush(show)}
           onShowDetails={params => {
             this.templatePushObj.show = false;
             this.handleShowDetail({ id: params.id, sliderActiveTab: 'base_info' });
           }}
+          onSuccess={() => this.handleRefresh()}
         />
       </div>
     );
