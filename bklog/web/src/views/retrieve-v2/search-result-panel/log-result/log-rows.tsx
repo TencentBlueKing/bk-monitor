@@ -169,10 +169,11 @@ export default defineComponent({
     });
 
     addEvent(
-      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.TREND_GRAPH_SEARCH],
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.TREND_GRAPH_SEARCH,RetrieveEvent.AUTO_REFRESH],
       () => {
         hasMoreList.value = true;
         pageIndex.value = 1;
+       store.dispatch("requestIndexSetQuery");
       },
     );
 
