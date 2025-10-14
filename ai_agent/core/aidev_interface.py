@@ -32,7 +32,7 @@ class AIDevInterface:
         try:
             data = res.get("data", {}) if isinstance(res, dict) else None
             if isinstance(data, dict) and "prompt_setting" in data:
-                # TODO：AIDEV平台改造完成后移除,不返回 prompt_setting，避免提示词泄漏
+                # 避免提示词泄漏
                 del data["prompt_setting"]
         except Exception as e:  # 出现异常不应影响主流程
             logger.warning("get_agent_info: failed to strip prompt_setting: %s", e)
@@ -45,14 +45,19 @@ class AIDevInterface:
         session_code = params["session_code"]
         session_res = self.api_client.api.create_chat_session(json=params, headers={"X-BKAIDEV-USER": username})
 
-        # TODO：监控&日志 场景下，目前只存在单Prompt场景，后续需要规范Prompt的插入时机和行为
-        self.create_chat_session_content(
-            params={
-                "session_code": session_code,
-                "role": "hidden-role",
-                "content": session_res["data"]["role_info"]["role_content"][0]["content"],
-            }
-        )
+        # System Prompt 的插入交由后端完成,在创建Session时完成
+        try:
+            self.create_chat_session_content(
+                params={
+                    "session_code": session_code,
+                    "role": "hidden-role",
+                    "content": session_res["data"]["role_info"]["role_content"][0]["content"],
+                }
+            )
+        except Exception as e:
+            logger.error("create_chat_session: failed to add system prompt for session_code->[%s]: %s", session_code, e)
+            raise e
+
         logger.info(
             "create_chat_session: create session and add system prompt successfully,session_code->[%s]", session_code
         )
