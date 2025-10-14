@@ -726,7 +726,6 @@ class UploadPackageResource(Resource):
                     # 日志关键字类导入不存储插件信息，在创建时需要新建（它是虚拟插件）
                     pass
             else:
-                pass
                 ImportParse.objects.create(
                     name=parse_result["name"],
                     label=parse_result["collect_config"].get("label", ""),
@@ -790,7 +789,7 @@ class UploadPackageResource(Resource):
         strategy_configs: dict[Path, dict] = {}
         view_configs: dict[Path, dict] = {}
         for file_path, content in file_path_content_map.items():
-            config_directory_name = Path(file_path).parent.name
+            config_directory_name = Path(file_path).parts[0]
             file_path = Path(Path(file_path).relative_to(config_directory_name))
 
             # 过滤 dotfiles
