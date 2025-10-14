@@ -294,16 +294,9 @@ class StrategyTemplateViewSet(GenericViewSet):
         )
         default_context: dict[str, Any] = qtw.get_default_context()
         edit_context: dict[str, Any] = {**default_context, **edit_compare_data["context"]}
-        # 去掉失效的 variable_name
         source_context: dict[str, Any] = {
             k: v for k, v in {**default_context, **source_compare_data["context"]}.items() if k in edit_context
         }
-        # 同步空值
-        for variable_name, variable_value in edit_context.items():
-            if source_context.get(variable_name) or variable_value:
-                continue
-            source_context[variable_name] = variable_value
-
         source_compare_data["context"] = source_context
         edit_compare_data["context"] = edit_context
         if count_md5(source_compare_data) == count_md5(edit_compare_data):
