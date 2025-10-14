@@ -293,12 +293,12 @@ class StrategyTemplateViewSet(GenericViewSet):
             bk_biz_id=source_obj.query_template["bk_biz_id"], name=source_obj.query_template["name"]
         )
         default_context: dict[str, Any] = qtw.get_default_context()
-        edit_context: dict[str, Any] = {**default_context, **edit_compare_data["context"]}
-        source_context: dict[str, Any] = {
-            k: v for k, v in {**default_context, **source_compare_data["context"]}.items() if k in edit_context
+        edit_compare_data["context"] = {**default_context, **edit_compare_data["context"]}
+        source_compare_data["context"] = {
+            k: v
+            for k, v in {**default_context, **source_compare_data["context"]}.items()
+            if k in edit_compare_data["context"]
         }
-        source_compare_data["context"] = source_context
-        edit_compare_data["context"] = edit_context
         if count_md5(source_compare_data) == count_md5(edit_compare_data):
             raise ValidationError(_("克隆配置不能和源模板一致"))
 
