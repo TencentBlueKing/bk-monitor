@@ -66,6 +66,7 @@ class QueryInstance(BaseQuery):
 
 class BaseVariableRender(abc.ABC):
     TYPE: str = None
+    _DEFAULT_VALUE: Any = None
 
     def __init__(self, variables: list[dict[str, Any]], query_instance: QueryInstance | None = None):
         self._variables: list[dict[str, Any]] = [variable for variable in variables if variable["type"] == self.TYPE]
@@ -77,7 +78,10 @@ class BaseVariableRender(abc.ABC):
 
     @classmethod
     def _get_default(cls, variable: dict[str, Any]) -> Any:
-        return variable["config"].get("default")
+        default_value = variable["config"].get("default")
+        if default_value is None:
+            return cls._DEFAULT_VALUE
+        return default_value
 
     @classmethod
     def get_value(cls, context: dict[str, Any], variable: dict[str, Any]) -> Any:
@@ -133,12 +137,11 @@ class ConstantVariableRender(BaseVariableRender):
 
 class GroupByVariableRender(BaseVariableRender):
     TYPE = constants.VariableType.GROUP_BY.value
+    _DEFAULT_VALUE = []
 
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
         for variable in self._variables:
-            value: list[str] | None = self.get_value(context, variable)
-            if value is None:
-                continue
+            value: list[str] = self.get_value(context, variable)
 
             val_tmpl: str = self.to_template(variable["name"])
             for query_config in self._query_instance.query_configs:
@@ -154,12 +157,11 @@ class GroupByVariableRender(BaseVariableRender):
 
 class TagValuesVariableRender(BaseVariableRender):
     TYPE = constants.VariableType.TAG_VALUES.value
+    _DEFAULT_VALUE = []
 
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
         for variable in self._variables:
-            value: list[str] | None = self.get_value(context, variable)
-            if value is None:
-                continue
+            value: list[str] = self.get_value(context, variable)
 
             val_tmpl: str = self.to_template(variable["name"])
             for query_config in self._query_instance.query_configs:
@@ -183,12 +185,11 @@ class TagValuesVariableRender(BaseVariableRender):
 class ConditionsVariableRender(BaseVariableRender):
     _VARIABLE_FIELD: str = "where"
     TYPE = constants.VariableType.CONDITIONS.value
+    _DEFAULT_VALUE = []
 
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
         for variable in self._variables:
-            value: list[dict[str, Any]] | None = self.get_value(context, variable)
-            if value is None:
-                continue
+            value: list[dict[str, Any]] = self.get_value(context, variable)
 
             val_tmpl: str = self.to_template(variable["name"])
             for query_config in self._query_instance.query_configs:
@@ -236,12 +237,11 @@ class MethodVariableRender(BaseVariableRender):
 
 class ExpressionFunctionsVariableRender(BaseVariableRender):
     TYPE = constants.VariableType.EXPRESSION_FUNCTIONS.value
+    _DEFAULT_VALUE = []
 
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
         for variable in self._variables:
-            value: list[dict[str, Any]] | None = self.get_value(context, variable)
-            if value is None:
-                continue
+            value: list[dict[str, Any]] = self.get_value(context, variable)
 
             result_functions: list[dict[str, Any]] = []
             val_tmpl: str = self.to_template(variable["name"])
