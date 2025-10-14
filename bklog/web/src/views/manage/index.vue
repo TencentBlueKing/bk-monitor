@@ -48,9 +48,9 @@
     <div class="navigation-content">
       <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
       <div class="manage-container">
-        <div class="manage-main">
-          <sub-nav :sub-nav-list="menuList"></sub-nav>
-          <router-view class="manage-content" :key="refreshKey"></router-view>
+        <div v-if="!pageLoading" class="manage-main">
+          <sub-nav></sub-nav>
+          <router-view class="manage-content"></router-view>
         </div>
       </div>
     </div>
@@ -60,7 +60,7 @@
 
 <script>
   import SubNav from '@/components/nav/manage-nav';
-import { mapGetters, mapState } from 'vuex';
+  import { mapState, mapGetters } from 'vuex';
 
   export default {
     name: 'ManageIndex',
@@ -71,30 +71,27 @@ import { mapGetters, mapState } from 'vuex';
       return {
         navThemeColor: '#2c354d',
         isExpand: true,
-        refreshKey: ''
       };
     },
 
     computed: {
-      ...mapState(['topMenu', 'spaceUid', 'bkBizId', 'isExternal', 'globals']),
+      ...mapState(['topMenu', 'activeManageNav', 'spaceUid', 'bkBizId']),
+      ...mapState('globals', ['globalsData'], 'isExternal'),
       ...mapGetters({
+        pageLoading: 'pageLoading',
         authPageInfo: 'globals/authContainerInfo',
       }),
       manageNavList() {
         return this.topMenu.find(item => item.id === 'manage')?.children || [];
       },
       menuList() {
-        const list = this.manageNavList;
+        const list = this.topMenu.find(item => item.id === 'manage')?.children;
         if (this.isExternal) {
           // 外部版只保留【日志提取】菜单
           return list.filter(menu => menu.id === 'manage-extract-strategy');
         }
-        return list ?? [];
+        return list;
       },
-      activeManageNav() {
-        const childList = this.menuList.map(m => m.children).flat(2);
-        return childList.find(t => t.id === this.$route.meta.navId) ?? {};
-      }
     },
     watch: {
       '$route.query.spaceUid'(newSpaceUid, oldSpaceUid) {
@@ -109,8 +106,6 @@ import { mapGetters, mapState } from 'vuex';
               spaceUid: this.spaceUid,
               bizId: this.bkBizId,
             },
-          }).then(() => {
-            this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`
           });
         }
       },
@@ -169,8 +164,6 @@ import { mapGetters, mapState } from 'vuex';
           spaceUid: spaceUid,
           ...this.$route.query,
         },
-      }).then(() => {
-        this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`
       });
     },
   };

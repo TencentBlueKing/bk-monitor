@@ -62,7 +62,8 @@
 </template>
 
 <script>
-  
+  import { mapState } from 'vuex';
+
   export default {
     props: {
       name: {
@@ -106,22 +107,10 @@
       };
     },
     computed: {
+      ...mapState(['activeManageNav', 'activeManageSubNav']),
       isShowDetailName() {
         // 是否需要展示详情名称
         return this.baseRouteNameList.includes(this.$route.name);
-      },
-      activeManageNav() {
-        const childList = this.subNavList.map(m => m.children).flat(2);
-        return childList.find(t => t.id === this.$route.meta.navId) ?? {};
-      },
-      activeManageSubNav() {
-        // log-index-set: log-index-set-list
-        // collection-item: collection-item-list
-        const idmap = {
-          'log-index-set': 'log-index-set-list',
-          'collection-item': 'collection-item-list',
-        }
-        return this.activeManageNav?.children?.find(t => idmap[t.id] === this.$route.name) ?? {};
       },
     },
     methods: {
