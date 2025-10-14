@@ -673,6 +673,7 @@ export default class RelationServiceTable extends tsc<IProps> {
       <div class='template-details-relation-service-table'>
         <div class='left-table'>
           <bk-tab
+            class='relation-service-tab'
             active={this.activeTab}
             on-tab-change={this.handleChangeTab}
           >
@@ -680,7 +681,10 @@ export default class RelationServiceTable extends tsc<IProps> {
               <bk-tab-panel
                 key={item.name}
                 render-label={h => {
-                  return h('span', {}, [item.label, h('span', {}, `(${item.count})`)]);
+                  return h('span', { class: 'tab-label' }, [
+                    item.label,
+                    h('span', { class: 'tab-count' }, `(${item.count})`),
+                  ]);
                 }}
                 name={item.name}
               />
