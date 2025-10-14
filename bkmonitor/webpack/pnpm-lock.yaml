@@ -351,8 +351,8 @@ importers:
         specifier: 1.0.3-beta.5
         version: 1.0.3-beta.5
       '@blueking/bk-user-selector':
-        specifier: 0.0.35-beta.1
-        version: 0.0.35-beta.1(@blueking/bkui-library@0.0.0-beta.4)
+        specifier: 0.0.38-beta.1
+        version: 0.0.38-beta.1(@blueking/bkui-library@0.0.0-beta.4)
       '@blueking/bk-weweb':
         specifier: 0.0.35-beta.7
         version: 0.0.35-beta.7
@@ -605,8 +605,8 @@ importers:
         specifier: 1.0.3-beta.3
         version: 1.0.3-beta.3
       '@blueking/bk-user-selector':
-        specifier: 0.0.35-beta.1
-        version: 0.0.35-beta.1(@blueking/bkui-library@0.0.0-beta.6)
+        specifier: 0.0.38-beta.1
+        version: 0.0.38-beta.1(@blueking/bkui-library@0.0.0-beta.6)
       '@blueking/date-picker':
         specifier: 2.0.0-beta.48
         version: 2.0.0-beta.48(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@3.5.15(typescript@5.9.2)))(dayjs@1.11.18)(vue@3.5.15(typescript@5.9.2))
@@ -1482,8 +1482,8 @@ packages:
   '@blueking/bk-user-display-name@1.0.3-beta.5':
     resolution: {integrity: sha512-Qzlu8rf5hbi7/p72+oJacZ38WNcN6MMsIbhfH9NNNZ1jAUZgwHC2dX8P5c839ugkP1TvNvQ90uALfIPfgcjf3A==}
 
-  '@blueking/bk-user-selector@0.0.35-beta.1':
-    resolution: {integrity: sha512-7izFZWS6ZSh2lKpisdSB5E0MM6fQChMGBuCahwg6MZm1N6rX9yT3y00I3X+gcB5ULMcoOjuDurOMsNig/jl5rA==}
+  '@blueking/bk-user-selector@0.0.38-beta.1':
+    resolution: {integrity: sha512-RzdNVsqjru61wXKY8/fVggTK+9Tg/sUW+UtO7oFg7wcmryJrh8WH0a4ObkO1kkzdbqsGPgqIprcD4KwAYfNdOg==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
@@ -9574,13 +9574,13 @@ snapshots:
 
   '@blueking/bk-user-display-name@1.0.3-beta.5': {}
 
-  '@blueking/bk-user-selector@0.0.35-beta.1(@blueking/bkui-library@0.0.0-beta.4)':
+  '@blueking/bk-user-selector@0.0.38-beta.1(@blueking/bkui-library@0.0.0-beta.4)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
       lodash: 4.17.21
       sortablejs: 1.15.6
 
-  '@blueking/bk-user-selector@0.0.35-beta.1(@blueking/bkui-library@0.0.0-beta.6)':
+  '@blueking/bk-user-selector@0.0.38-beta.1(@blueking/bkui-library@0.0.0-beta.6)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       lodash: 4.17.21
