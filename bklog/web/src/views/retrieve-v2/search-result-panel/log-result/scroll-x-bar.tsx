@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, onMounted, onBeforeUnmount, type Ref, ref } from 'vue';
-import './index.scss';
 
 export default defineComponent({
   props: {
@@ -36,17 +35,12 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
-    right: {
-      type: Number,
-      default: 0,
-    },
   },
   emits: ['scroll-change'],
   setup(props, { emit, expose }) {
     const scrollXElementStyle = computed(() => {
       return {
         width: `${props.outerWidth}px`,
-        '--right': `${props.right}px`,
       };
     });
 
