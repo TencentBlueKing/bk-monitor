@@ -43,6 +43,7 @@ interface IProps {
   show?: boolean;
   onShowChange?: (v: boolean) => void;
   onShowDetails?: (v: Record<string, any>) => void;
+  onSuccess?: () => void;
 }
 
 @Component
@@ -95,6 +96,7 @@ export default class TemplatePush extends tsc<IProps> {
             theme: 'success',
           });
           this.handleShowChange(false);
+          this.$emit('success');
         })
         .catch(() => {
           this.$bkMessage({

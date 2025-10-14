@@ -78,9 +78,11 @@ export default class JudgmentConditions extends tsc<IProps> {
   handleChange() {
     const params = {
       detect: {
-        recovery_check_window: this.detectConfig.checkWindow,
-        trigger_check_window: this.detectConfig.checkWindow,
-        trigger_count: this.detectConfig.count,
+        type: 'default',
+        config: {
+          trigger_check_window: Number(this.detectConfig.checkWindow),
+          trigger_count: Number(this.detectConfig.count),
+        },
       },
       user_group_list: this.userParams,
     };

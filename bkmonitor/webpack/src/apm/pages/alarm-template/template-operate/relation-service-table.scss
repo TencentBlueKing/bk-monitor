@@ -29,16 +29,32 @@
     height: 100%;
     padding: 0;
 
-    .bk-tab-header {
-      float: none;
-      display: block;
-      border-top: 1px solid #fafbfd !important;
-      border-right: none !important;
-    }
+    .relation-service-tab {
+      margin-top: -1px;
 
-    .bk-tab-section {
-      padding: 0;
-      border-bottom: none;
+      .bk-tab-header {
+        float: none;
+        display: block;
+        border-top: 1px solid #fafbfd !important;
+        border-right: none !important;
+
+        .bk-tab-label {
+          .tab-label {
+            font-family: MicrosoftYaHei, Arial, sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+
+            .tab-count {
+              font-weight: 400;
+            }
+          }
+        }
+      }
+
+      .bk-tab-section {
+        padding: 0;
+        border-bottom: none;
+      }
     }
 
     .left-table-content {
@@ -278,6 +294,7 @@
         }
 
         .diff-btn {
+          width: auto;
           margin: 0;
         }
       }
@@ -286,6 +303,7 @@
 
   .right-preview {
     width: 240px;
+    min-width: 240px;
     max-height: 100%;
     padding: 16px;
     overflow: scroll;

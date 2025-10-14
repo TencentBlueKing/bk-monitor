@@ -53,14 +53,14 @@ export default class ConditionSelectDetail extends tsc<ConditionSelectDetailProp
     return (
       <div class='condition-select-detail'>
         {this.transformDefaultValue.length
-          ? this.transformDefaultValue.map(item => (
+          ? this.transformDefaultValue.map((item, index) => (
               <div
-                key={item.name}
+                key={`${item.name}__${index}`}
                 class='condition-tag'
               >
                 <div class='key-wrap'>
                   <span class='key-name'>{item.name}</span>
-                  <span class={['key-method', item.operation?.id]}>{item.operation.name}</span>
+                  <span class={['key-method', item.operation?.id]}>{item.operation?.name}</span>
                 </div>
                 <div class='value-wrap'>
                   {item.value.map((item, index) => [

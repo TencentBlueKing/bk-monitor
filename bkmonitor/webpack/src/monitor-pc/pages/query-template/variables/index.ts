@@ -359,12 +359,17 @@ export async function getCreateVariableParams(
       alias,
       description,
       config: { default: defaultValue, related_metrics, related_tag, options },
+      value,
     } = item;
 
     let metric = null;
     if (related_metrics) {
       const [{ metric_id }] = related_metrics;
       metric = metrics.find(item => item.metric_id === metric_id);
+    }
+    let curValue = null;
+    if (value) {
+      curValue = value;
     }
 
     return {
@@ -376,6 +381,7 @@ export async function getCreateVariableParams(
       metric,
       related_tag,
       options: options ? (options.length ? options : ['all']) : undefined,
+      value: curValue || undefined,
     };
   });
 }
