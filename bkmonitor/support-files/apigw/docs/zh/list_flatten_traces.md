@@ -2,7 +2,7 @@
 
 获取 Trace 列表数据
 
-### 接口参数
+### 请求参数
 
 | 字段名        | 类型      | 必选 | 描述      |
 |------------| --------- | ---- |---------|
@@ -103,7 +103,7 @@ title:(quick brown)`
 | collections.span_name                   | 接口名称         |
 | status.code                             | 状态           |
 
-#### 示例数据
+### 请求参数示例
 
 ```json
 {
@@ -197,7 +197,7 @@ title:(quick brown)`
 | kind_statistics.unspecified | int  | 未知调用数量       |
 
 
-#### 示例响应
+### 响应参数示例
 
 ```json
 {
