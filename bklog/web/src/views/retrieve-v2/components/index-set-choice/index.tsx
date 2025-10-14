@@ -24,7 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch, type PropType, type Ref } from 'vue';
+import {
+  computed,
+  defineComponent,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+  type PropType,
+  type Ref,
+} from 'vue';
 
 import { getOsCommandLabel } from '../../../../common/util';
 import BklogPopover from '../../../../components/bklog-popover';
@@ -120,7 +129,11 @@ export default defineComponent({
         isOpened.value = false;
 
         if (props.activeTab === 'union') {
-          emit('value-change', unionListValue.length ? unionListValue : props.indexSetValue, 'union');
+          emit(
+            'value-change',
+            unionListValue.length ? unionListValue : props.indexSetValue,
+            'union',
+          );
         }
       },
     } as any;
@@ -128,7 +141,9 @@ export default defineComponent({
     const rootStyle = computed(() => {
       return {
         '--indexset-root-h': `${props.height}px`,
-        '--indexset-root-w': /^\d+\.?\d*$/.test(`${props.width}`) ? `${props.width}px` : props.width,
+        '--indexset-root-w': /^\d+\.?\d*$/.test(`${props.width}`)
+          ? `${props.width}px`
+          : props.width,
         '--indexset-root-max-w': `${props.maxWidth}px`,
         '--indexset-root-min-w': `${props.minWidth}px`,
       };
@@ -137,7 +152,8 @@ export default defineComponent({
     /**
      * 扁平化树形列表
      */
-    const getFlatList = () => (props.indexSetList ?? []).map((t: any) => [t, t.children]).flat(3);
+    const getFlatList = () =>
+      (props.indexSetList ?? []).map((t: any) => [t, t.children]).flat(3);
 
     /**
      * 查询选中结果值，新版索引ID格式为： pid_childId, 如果为根节点，格式为： #_childId
@@ -145,10 +161,12 @@ export default defineComponent({
      */
     const getSelectedValues = () => {
       const flatList = getFlatList();
-      let values = props.indexSetValue.map(v => {
+      const values = props.indexSetValue.map((v) => {
         const target = flatList.find((i: any) => `${i.unique_id}` === `${v}`);
         if (!target) {
-          return flatList.find((i: any) => `${i.index_set_id}` === `${v.split('_').at(-1)}`);
+          return flatList.find(
+            (i: any) => `${i.index_set_id}` === `${v.split('_').at(-1)}`,
+          );
         }
 
         return target;
@@ -177,7 +195,11 @@ export default defineComponent({
      * @param value
      * @returns
      */
-    const handleValueChange = (value: any, type: 'single' | 'union', id: number | string) => {
+    const handleValueChange = (
+      value: any,
+      type: 'single' | 'union',
+      id: number | string,
+    ) => {
       // 如果是单选操作直接抛出事件
       if (['single', 'history', 'favorite'].includes(props.activeTab)) {
         emit('value-change', value, type, id);
@@ -189,10 +211,14 @@ export default defineComponent({
       // 在弹出关闭时抛出事件，触发外部事件监听
       if (props.activeTab === 'union') {
         unionListValue = value;
+        const flatList = getFlatList();
+        selectedValues.value = value.map((v) =>
+          flatList.find((i) => i.unique_id === v),
+        );
       }
     };
 
-    const handleKeyDown = event => {
+    const handleKeyDown = (event) => {
       // 检查是否按下了 ⌘/⌘/Ctrl + O 或 Cmd + O
       const isCtrlO = event.ctrlKey && event.key === 'o';
       const isCmdO = event.metaKey && event.key === 'o';
@@ -223,7 +249,7 @@ export default defineComponent({
       };
     });
 
-    const handleAuthRequest = item => {
+    const handleAuthRequest = (item) => {
       emit('auth-request', item);
       refRootElement.value?.hide();
     };
@@ -235,7 +261,10 @@ export default defineComponent({
           style={rootStyle.value}
           class={[
             'bklog-v3-indexset-container',
-            { 'is-opened': isOpened.value, 'is-multi': props.indexSetValue.length > 1 },
+            {
+              'is-opened': isOpened.value,
+              'is-multi': props.indexSetValue.length > 1,
+            },
           ]}
           data-shortcut-key={shortcutKey}
           options={tippyOptions}
@@ -266,7 +295,7 @@ export default defineComponent({
             placement='right'
             {...{
               scopedSlots: {
-                item: v => (
+                item: (v) => (
                   <span class='index-set-value-item'>
                     <span class='index-set-name'>{v.index_set_name}</span>
                     <span class='index-set-lighten-name'>{v.lightenName}</span>
