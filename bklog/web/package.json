@@ -26,7 +26,7 @@
     "@babel/runtime": "7.26.10",
     "@blueking/ai-blueking": "1.2.6-beta.3",
     "@blueking/bk-user-display-name": "1.0.3-beta.5",
-    "@blueking/bk-user-selector": "^0.0.35",
+    "@blueking/bk-user-selector": "0.0.38-beta.5",
     "@blueking/bkmonitor-cli": "^7.0.1",
     "@blueking/bkui-library": "0.0.0-beta.5",
     "@blueking/date-picker": "^2.0.0-beta.48",
