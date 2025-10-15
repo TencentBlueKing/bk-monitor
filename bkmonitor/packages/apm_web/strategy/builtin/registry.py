@@ -205,7 +205,6 @@ class BuiltinStrategyTemplateRegistry:
                     "user_group_ids",
                     "query_template",
                     "context",
-                    "update_user",
                     "update_time",
                 ],
             )
