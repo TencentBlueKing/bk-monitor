@@ -134,7 +134,10 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
         data_id_status.message = str(e)
         return data_id_status
     data_id_status.kafka_data_exists = bool(result)
-    data_id_status.kafka_latest_timestamp = result[0].get("timestamp", 0)
+    if isinstance(result, list) and len(result) > 0:
+        data_id_status.kafka_latest_timestamp = result[0].get("timestamp", 0)
+    else:
+        data_id_status.kafka_latest_timestamp = 0
     if with_detail:
         data_id_status.kafka_latest_data = result
 
