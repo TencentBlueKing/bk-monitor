@@ -76,6 +76,7 @@ import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
 import { useCandidateValue } from './hooks/use-candidate-value';
+import MonitorVue2 from './monitor-vue2';
 import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
@@ -86,6 +87,8 @@ const TRACE_EXPLORE_DEFAULT_APPLICATION = 'TRACE_EXPLORE_DEFAULT_APPLICATION';
 const TRACE_EXPLORE_APPLICATION_ID_THUMBTACK = 'trace_explore_application_id_thumbtack';
 
 updateTimezone(window.timezone);
+
+import { type MetricDetailV2, QueryConfig } from '@blueking/monitor-vue2-components';
 
 import { useFavoriteFieldsState } from './components/trace-explore-table/utils/favorite-fields';
 
@@ -812,8 +815,14 @@ export default defineComponent({
         };
       }
     }
+    const queryConfig = shallowRef<QueryConfig>({});
+    const handleSelectMetric = (val: MetricDetailV2) => {
+      queryConfig.value = new QueryConfig(val);
+      console.log(val);
+    };
 
     return {
+      queryConfig,
       t,
       isCollapsed,
       defaultApplication,
@@ -871,11 +880,16 @@ export default defineComponent({
       handleClearRetrievalFilter,
       handleCopyWhereQueryString,
       handleSetCommonWhereToFavoriteCache,
+      handleSelectMetric,
     };
   },
   render() {
     return (
       <div class='trace-explore'>
+        <MonitorVue2
+          queryConfig={this.queryConfig}
+          onSelectMetric={this.handleSelectMetric}
+        />
         <div
           style={{ display: this.isShowFavorite ? 'block' : 'none' }}
           class='favorite-panel'

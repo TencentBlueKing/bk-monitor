@@ -23,26 +23,38 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import vueTsx from '@vitejs/plugin-vue-jsx';
+
+import { getBabelOutputPlugin } from '@rollup/plugin-babel';
+import vueTsx from '@vitejs/plugin-vue2-jsx';
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import { analyzer } from 'vite-bundle-analyzer';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
-
-const outputDir = resolve(__dirname, '../monitor-vue3-components');
+const outputDir = resolve(__dirname, '../monitor-vue2-components');
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, '../src/monitor-pc'),
+    },
+  },
   plugins: [
-    vueTsx({}),
+    vueTsx({
+      babelPlugins: [
+        ['@babel/plugin-proposal-decorators', { legacy: true }],
+        ['@babel/plugin-proposal-class-properties', { loose: true }],
+      ],
+    }),
     viteStaticCopy({
       targets: [
         {
-          src: resolve(__dirname, './package.json'),
+          src: resolve(__dirname, './package.vue2.json'),
           dest: outputDir,
+          rename: 'package.json',
         },
-        {
-          src: resolve(__dirname, '../src/trace/components/retrieval-filter/readme.md'),
-          dest: outputDir,
-        },
+        // {
+        //   src: resolve(__dirname, '../src/trace/components/retrieval-filter/readme.md'),
+        //   dest: outputDir,
+        // },
       ],
     }),
     analyzer(),
@@ -53,18 +65,42 @@ export default defineConfig({
     outDir: outputDir,
     minify: false,
     lib: {
-      entry: resolve(__dirname, '../src/trace/components.ts'),
-      name: 'monitor-vue3-components',
+      entry: resolve(__dirname, '../src/monitor-pc/components.ts'),
+      name: 'monitor-vue2-components',
       fileName: 'index',
       formats: ['es'],
     },
     rollupOptions: {
-      external: ['vue', 'bkui-vue', '@blueking/tdesign-ui', 'tdesign-vue-next', 'vue-i18n', /^dayjs[/]?\w*/],
-      output: {
-        globals: {
-          vue: 'Vue',
-        },
-      },
+      plugins: [
+        getBabelOutputPlugin({
+          presets: [
+            [
+              '@babel/preset-env',
+              {
+                targets: {
+                  browsers: ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead'],
+                  node: 'current',
+                },
+                useBuiltIns: 'usage',
+                corejs: 3,
+                debug: false,
+              },
+            ],
+            [
+              '@vue/babel-preset-jsx',
+              {
+                compositionAPI: 'native',
+                functional: true,
+                injectH: true,
+                vModel: true,
+                vOn: true,
+              },
+            ],
+          ],
+          plugins: ['@babel/plugin-transform-runtime'],
+        }),
+      ],
+      external: [/^dayjs[/]?\w*/],
     },
   },
 });
