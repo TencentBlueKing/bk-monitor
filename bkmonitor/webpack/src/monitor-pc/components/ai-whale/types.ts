@@ -120,14 +120,15 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         name: window.i18n.t('指标/PromQL语句'),
         placeholder: window.i18n.t('请输入指标/PromQL语句'),
       },
-      // {
-      //   type: 'textarea',
-      //   key: 'user-demand',
-      //   fillBack: false,
-      //   required: true,
-      //   name: window.i18n.t('用户指令'),
-      //   placeholder: window.i18n.t('请输入用户指令'),
-      // },
+      {
+        type: 'textarea',
+        key: 'user_demand',
+        fillBack: false,
+        required: false,
+        default: '请根据我提供的PromQL语句，进行解释或者优化',
+        name: window.i18n.t('用户指令'),
+        placeholder: window.i18n.t('请输入用户指令'),
+      },
     ],
   },
   {
