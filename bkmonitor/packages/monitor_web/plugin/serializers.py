@@ -14,11 +14,12 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
-from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.request import get_request
 from bkmonitor.utils.serializers import (
     MetricJsonBaseSerializer,
     MetricJsonSerializer,
     StrictCharField,
+    TenantIdField,
 )
 from monitor_web.commons.data_access import PluginDataAccessor
 from monitor_web.models.plugin import (
@@ -91,6 +92,7 @@ class CollectorPluginMixin(MetricJsonBaseSerializer):
 class CollectorMetaSerializer(serializers.ModelSerializer, CollectorPluginMixin):
     COLLECTOR_PLUGIN_META_FIELDS = ["plugin_id", "plugin_type", "bk_biz_id", "bk_supplier_id", "tag", "label"]
 
+    bk_tenant_id = TenantIdField(label="租户ID")
     plugin_id = serializers.RegexField(required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=30, label="插件ID")
     data_label = serializers.CharField(required=False, default="", label="数据标签", allow_blank=True)
     bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -106,7 +108,7 @@ class CollectorMetaSerializer(serializers.ModelSerializer, CollectorPluginMixin)
         create_data = {
             key: validated_data.get(key) for key in self.COLLECTOR_PLUGIN_META_FIELDS if validated_data.get(key)
         }
-        plugin = CollectorPluginMeta.objects.create(bk_tenant_id=get_request_tenant_id(), **create_data)
+        plugin = CollectorPluginMeta.objects.create(bk_tenant_id=validated_data["bk_tenant_id"], **create_data)
         return plugin
 
     def update(self, instance, validated_data):
