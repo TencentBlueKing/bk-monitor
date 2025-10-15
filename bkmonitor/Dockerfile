@@ -26,6 +26,8 @@ FROM python-base AS python-builder
 
 WORKDIR /app
 
+RUN dnf install -y gcc python3-devel
+
 # install python packages
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
