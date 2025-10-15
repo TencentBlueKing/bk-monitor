@@ -8,17 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from .base import DispatchExtraConfig, DispatchGlobalConfig, DispatchConfig
+from typing import Any
 
-from .dispatcher import StrategyDispatcher
-from .entity import EntitySet
-from .enricher import SystemChecker
+from ... import constants
 
-__all__ = [
-    "EntitySet",
-    "SystemChecker",
-    "DispatchConfig",
-    "DispatchGlobalConfig",
-    "DispatchExtraConfig",
-    "StrategyDispatcher",
-]
+
+class StrategyTemplateSet:
+    """策略模板集合"""
+
+    SYSTEM: constants.StrategyTemplateSystem = None
+
+    ENABLED_CODES: list[str] = []
+
+    STRATEGY_TEMPLATES: list[dict[str, Any]] = []
