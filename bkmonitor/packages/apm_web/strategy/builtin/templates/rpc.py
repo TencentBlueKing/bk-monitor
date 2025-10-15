@@ -18,8 +18,9 @@ from bkmonitor.query_template.builtin.apm import APMQueryTemplateName
 from apm_web.strategy.query_template import LocalQueryTemplateName
 from constants.apm import RPCMetricTag, CachedEnum, CommonMetricTag
 
-from . import base, utils
-from .. import constants
+from . import base
+from .. import utils
+from ... import constants
 
 
 def _get_common_group_by(callee: bool = False) -> list[str]:
