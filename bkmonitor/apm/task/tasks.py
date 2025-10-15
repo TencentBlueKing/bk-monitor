@@ -296,7 +296,7 @@ def create_application_async(application_id, storage_config, options, cur_retry_
     except Exception as e:  # pylint: disable=broad-except
         logger.error(f"[create_application_async] occur exception of app_id:{application_id} error: {e}")
         EventReportHelper.report(
-            f"[异步创建任务] 应用 ID {application_id} 异步创建失败，需要人工介入，重试次数({cur_retry_times})，错误详情：{e}"
+            f"[异步创建任务] 应用 ID {application_id} 异步创建失败，需要人工介入，当前重试次数({cur_retry_times})，错误详情：{e}"
         )
         next_retry_times = cur_retry_times + 1
         if next_retry_times <= 2:
