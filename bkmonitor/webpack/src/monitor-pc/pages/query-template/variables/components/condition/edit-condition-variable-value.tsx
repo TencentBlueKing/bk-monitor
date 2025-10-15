@@ -42,6 +42,7 @@ interface ConditionValueEvents {
 }
 
 interface ConditionValueProps {
+  showConditionTag?: boolean;
   showLabel?: boolean;
   variable: ConditionVariableModel;
 }
@@ -50,6 +51,8 @@ interface ConditionValueProps {
 export default class EditConditionVariableValue extends tsc<ConditionValueProps, ConditionValueEvents> {
   @Prop({ type: Object, required: true }) variable!: ConditionVariableModel;
   @Prop({ default: true }) showLabel!: boolean;
+  /** condition类型是否展示and/or tag */
+  @Prop({ default: false, type: Boolean }) showConditionTag: boolean;
 
   @Emit('valueChange')
   handleValueChange(value: IConditionVariableModel['value']) {
@@ -75,6 +78,7 @@ export default class EditConditionVariableValue extends tsc<ConditionValueProps,
           hasVariableOperate={false}
           metricDetail={this.variable.metric}
           options={this.variable.dimensionOptionsMap as IConditionOptionsItem[]}
+          showConditionTag={this.showConditionTag}
           showLabel={false}
           value={this.variable.data.value}
           onChange={this.handleValueChange}
