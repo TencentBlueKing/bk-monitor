@@ -68,7 +68,7 @@ export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeo
 export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
   {
     id: AI_BLUEKING_SHORTCUTS_ID.EXPLANATION,
-    name: window.i18n.t('解读'),
+    name: window.i18n.t('问问小鲸'),
     // icon: 'bkai-help',
     components: [
       {
