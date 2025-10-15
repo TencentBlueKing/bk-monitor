@@ -9,9 +9,9 @@
   border: 1px solid transparent;
   border-radius: 2px;
 
-  > :not(.vm) {
+  /* > :not(.vm) {
     z-index: 1;
-  }
+  } */
 
   &.hover-style {
     box-shadow: 0 2px 4px 0 rgb(25 25 41 / 5%);
