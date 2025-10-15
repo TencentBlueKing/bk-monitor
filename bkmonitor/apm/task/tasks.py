@@ -286,7 +286,7 @@ def k8s_bk_collector_discover_cron():
 
 
 @app.task(ignore_result=True, queue="celery_cron")
-def create_application_async(application_id, storage_config, options):
+def create_application_async(application_id, storage_config, options, cur_retry_times=0):
     """后台创建应用"""
 
     try:
@@ -295,7 +295,15 @@ def create_application_async(application_id, storage_config, options):
         EventReportHelper.report(f"[异步创建任务] 业务：{application.bk_biz_id}，应用{application.app_name}，创建成功")
     except Exception as e:  # pylint: disable=broad-except
         logger.error(f"[create_application_async] occur exception of app_id:{application_id} error: {e}")
-        EventReportHelper.report(f"[异步创建任务] 应用 ID {application_id} 异步创建失败，需要人工介入，错误详情：{e}")
+        EventReportHelper.report(
+            f"[异步创建任务] 应用 ID {application_id} 异步创建失败，需要人工介入，当前重试次数({cur_retry_times})，错误详情：{e}"
+        )
+        next_retry_times = cur_retry_times + 1
+        if next_retry_times <= 2:
+            create_application_async.apply_async(
+                args=(application_id, storage_config, options, next_retry_times),
+                countdown=next_retry_times * 60,
+            )
 
     # 异步分派预计算任务
     bmw_task_cron.apply_async(countdown=60)

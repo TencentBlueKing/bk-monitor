@@ -7,6 +7,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 ARG username=bkmonitor
 ARG pypi_index_url=https://pypi.org/simple/
 
+# install tools
+RUN dnf install -y vim wget strace graphviz tini https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
+
 # install chinese fonts
 RUN --mount=type=cache,target=/app/fonts \
     if [ ! -f /app/fonts/SourceHanSansSC-VF.ttf ]; then \
@@ -18,13 +21,12 @@ RUN --mount=type=cache,target=/app/fonts \
     && mkdir -p /usr/share/fonts/truetype/ \
     && install -m644 /app/fonts/* /usr/share/fonts/truetype/
 
-# install tools
-RUN dnf install -y vim wget strace graphviz tini https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
-
 # build python packages
 FROM python-base AS python-builder
 
 WORKDIR /app
+
+RUN dnf install -y gcc python3-devel
 
 # install python packages
 RUN --mount=type=cache,target=/root/.cache/uv \
