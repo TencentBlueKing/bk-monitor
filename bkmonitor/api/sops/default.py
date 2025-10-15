@@ -269,3 +269,6 @@ class GetCommonTemplateInfoResource(SopsBaseResource):
         return "get_common_template_info"
 
     method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        template_id = serializers.IntegerField(label="模板ID", required=True)
