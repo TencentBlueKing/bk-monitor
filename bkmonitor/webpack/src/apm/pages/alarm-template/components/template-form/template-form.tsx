@@ -417,6 +417,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
             <VariablePanel
               metricFunctions={this.metricFunctions}
               scene='edit'
+              showConditionTag={true}
               showLabel={false}
               variable={variable}
               variableList={this.variablesList}

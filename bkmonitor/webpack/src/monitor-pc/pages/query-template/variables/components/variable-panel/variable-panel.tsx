@@ -68,6 +68,7 @@ interface VariablePanelProps {
   isUseVariable?: boolean;
   metricFunctions?: any[];
   scene?: 'create' | 'detail' | 'edit';
+  showConditionTag?: boolean;
   showLabel?: boolean;
   variable: VariableModelType;
   variableList?: VariableModelType[];
@@ -81,6 +82,8 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
   /** 变量是否使用 */
   @Prop({ default: false, type: Boolean }) isUseVariable: boolean;
   @Prop({ default: true }) showLabel!: boolean;
+  /** condition类型是否展示and/or tag */
+  @Prop({ default: false, type: Boolean }) showConditionTag: boolean;
   /** 变量列表,目前用于判断变量名是否重复 */
   @ProvideReactive('variableList')
   @Prop({ type: Array, default: () => [] })
@@ -273,6 +276,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
       case VariableTypeEnum.CONDITIONS:
         return (
           <EditConditionVariableValue
+            showConditionTag={this.showConditionTag}
             showLabel={this.showLabel}
             variable={this.variable as ConditionVariableModel}
             onBlur={this.handleEditValueBlur}
