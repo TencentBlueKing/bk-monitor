@@ -1,0 +1,14 @@
+{
+  "name": "@blueking/monitor-vue2-components",
+  "version": "0.0.0-beta.4",
+  "description": "blueking monitor vue2 components builder",
+  "scripts": {},
+  "files": ["index.mjs", "index.css", "readme.md"],
+  "author": "bkfe",
+  "license": "MIT",
+  "main": "index.mjs",
+  "keywords": ["@blueking", "@blueking/monitor-vue2-components"],
+  "dependencies": {
+    "dayjs": "^1.11.18"
+  }
+}

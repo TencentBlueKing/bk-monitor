@@ -54,6 +54,17 @@ interface IProps {
   onDelete?: () => void;
   onSelectMetric?: (metric: MetricDetailV2) => void;
 }
+export const QueryPanelEmits = [
+  'createVariable',
+  'add',
+  'delete',
+  'selectMetric',
+  'changeMethod',
+  'changeDimension',
+  'changeFunction',
+  'changeInterval',
+  'changeCondition',
+];
 
 @Component
 export default class QueryPanel extends tsc<IProps> {

@@ -24,9 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import RetrievalFilter from './components/retrieval-filter/retrieval-filter';
+import i18n from './i18n/i18n';
+import Vue2 from 'vue';
 
-import './static/scss/global.scss';
-import 'monitor-pc/static/css/reset.scss';
+import './common/import-magicbox-ui';
+
+import QueryPanel, { QueryPanelEmits } from './pages/query-template/components/query-panel/query-panel';
+
+import './static/css/global.scss';
+import './static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
-export { RetrievalFilter };
+export * from './pages/query-template/typings';
+
+export { i18n, QueryPanel, QueryPanelEmits, Vue2 };

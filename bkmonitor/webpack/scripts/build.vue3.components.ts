@@ -23,10 +23,56 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import vueTsx from '@vitejs/plugin-vue-jsx';
+import { resolve } from 'node:path';
+import { defineConfig } from 'vite';
+import { analyzer } from 'vite-bundle-analyzer';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
 
-import RetrievalFilter from './components/retrieval-filter/retrieval-filter';
-
-import './static/scss/global.scss';
-import 'monitor-pc/static/css/reset.scss';
-import 'monitor-static/icons/monitor-icons.css';
-export { RetrievalFilter };
+const outputDir = resolve(__dirname, '../monitor-vue3-components');
+export default defineConfig({
+  plugins: [
+    vueTsx({}),
+    viteStaticCopy({
+      targets: [
+        {
+          src: resolve(__dirname, './package.json'),
+          dest: outputDir,
+        },
+        {
+          src: resolve(__dirname, '../src/trace/components/retrieval-filter/readme.md'),
+          dest: outputDir,
+        },
+      ],
+    }),
+    analyzer(),
+  ],
+  build: {
+    copyPublicDir: false,
+    emptyOutDir: true,
+    outDir: outputDir,
+    minify: false,
+    lib: {
+      entry: resolve(__dirname, '../src/trace/components.ts'),
+      name: 'monitor-vue3-components',
+      fileName: 'index',
+      formats: ['es'],
+    },
+    rollupOptions: {
+      external: [
+        'vue',
+        'bkui-vue',
+        '@blueking/tdesign-ui',
+        'tdesign-vue-next',
+        'vue-i18n',
+        /^dayjs[/]?\w*/,
+        'vue-tippy',
+      ],
+      output: {
+        globals: {
+          vue: 'Vue',
+        },
+      },
+    },
+  },
+});

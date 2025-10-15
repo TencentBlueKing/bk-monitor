@@ -1,6 +1,6 @@
 {
   "name": "@blueking/monitor-vue3-components",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "blueking monitor vue3 components builder",
   "scripts": {},
   "files": [
@@ -8,6 +8,7 @@
     "index.css",
     "readme.md"
   ],
+  "main": "index.mjs",
   "author": "bkfe",
   "license": "MIT",
   "keywords": [
@@ -18,6 +19,7 @@
     "@blueking/tdesign-ui": "^0.0.1-beta.92",
     "bkui-vue": "^2.0.2-beta.63",
     "dayjs": "^1.11.18",
-    "vue": "^3.5.15"
+    "vue": "^3.5.15",
+    "vue-tippy": "^6.3.7"
   }
 }

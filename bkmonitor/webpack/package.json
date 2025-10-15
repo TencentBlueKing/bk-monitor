@@ -6,7 +6,8 @@
   "author": "bkfe",
   "license": "MIT",
   "scripts": {
-    "build:vue3-components": "npx vite build -c ./scripts/vite.build.components.ts",
+    "build:vue3-components": "npx vite build -c ./scripts/build.vue3.components.ts",
+    "build:vue2-components": "npx vite build -c ./scripts/build.vue2.components.ts",
     "debug": "node node_modules/@blueking/bkmonitor-cli/dist/index.js dev -t",
     "preinstall": "npx only-allow pnpm",
     "install-build": "pnpm i",
@@ -43,12 +44,16 @@
     "commit-msg": "node ./bkmonitor/webpack/webpack/verify-commit.js $1"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-class-properties": "^7.18.6",
+    "@babel/plugin-proposal-decorators": "^7.28.0",
     "@biomejs/biome": "^2.2.4",
-    "@blueking/bkmonitor-cli": "7.0.1-beta.8",
+    "@blueking/bkmonitor-cli": "7.0.2",
     "@blueking/stylelint-config": "0.0.3",
     "@eslint/js": "^9.35.0",
+    "@rollup/plugin-babel": "^6.0.4",
     "@types/throttle-debounce": "^5.0.2",
     "@vitejs/plugin-vue-jsx": "^5.1.1",
+    "@vitejs/plugin-vue2-jsx": "^1.1.1",
     "cross-env": "^10.0.0",
     "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.8",
