@@ -302,7 +302,7 @@ def get_query_router_status(
             query_router_status.result_table_exists = True
 
             # 检查结果表详情中的指标信息
-            result_table_detail = json.loads(result_table_detail.decode("utf-8"))
+            result_table_detail = json.loads(result_table_detail)
             if with_detail:
                 query_router_status.result_table_detail = result_table_detail
         else:
