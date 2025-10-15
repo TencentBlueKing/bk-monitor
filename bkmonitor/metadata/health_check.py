@@ -191,10 +191,10 @@ def get_datalink_status(bk_tenant_id: str, data_link_name: str, with_detail: boo
                 status_ok = False
                 continue
 
-            component_status = component_config.get("status", {}).get("phase")
+            phase = component_config.get("status", {}).get("phase")
 
             # 检查组件状态
-            if component_status.status != DataLinkResourceStatus.OK.value:
+            if phase != DataLinkResourceStatus.OK.value:
                 datalink_status.message += f"数据链路 Kind:{component.kind} Name:{component.name}状态异常\n"
                 status_ok = False
                 continue
