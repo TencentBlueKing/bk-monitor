@@ -14,7 +14,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
-from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.request import get_request
 from bkmonitor.utils.serializers import (
     MetricJsonBaseSerializer,
     MetricJsonSerializer,
@@ -108,7 +108,7 @@ class CollectorMetaSerializer(serializers.ModelSerializer, CollectorPluginMixin)
         create_data = {
             key: validated_data.get(key) for key in self.COLLECTOR_PLUGIN_META_FIELDS if validated_data.get(key)
         }
-        plugin = CollectorPluginMeta.objects.create(bk_tenant_id=get_request_tenant_id(), **create_data)
+        plugin = CollectorPluginMeta.objects.create(bk_tenant_id=validated_data["bk_tenant_id"], **create_data)
         return plugin
 
     def update(self, instance, validated_data):
