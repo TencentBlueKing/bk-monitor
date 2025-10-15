@@ -169,14 +169,20 @@ export default defineComponent({
     });
 
     addEvent(
-      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.TREND_GRAPH_SEARCH,RetrieveEvent.AUTO_REFRESH],
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.TREND_GRAPH_SEARCH],
       () => {
         hasMoreList.value = true;
         pageIndex.value = 1;
-       store.dispatch("requestIndexSetQuery");
       },
     );
-
+    addEvent(
+      RetrieveEvent.AUTO_REFRESH,
+      () => {
+        hasMoreList.value = true;
+        pageIndex.value = 1;
+        store.dispatch("requestIndexSetQuery");
+      },
+    );
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];
       const endIndex = length ?? tableDataSize.value;

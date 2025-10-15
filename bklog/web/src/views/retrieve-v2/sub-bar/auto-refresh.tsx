@@ -1,11 +1,12 @@
 import { defineComponent, ref, watch, onUnmounted } from 'vue';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper.tsx';
-
+import useLocale from '@/hooks/use-locale';
 export default defineComponent({
   name: 'AutoRefresh',
-  setup() {
+  setup() {''
+    const { $t } = useLocale();
     const datasource = ref([
-      { label: '关闭(off)', value: 'off' },
+      { label: `${$t('关闭')}(off)`, value: 'off' },
       { label: '1m', value: '1m' }, // 1分钟
       { label: '5m', value: '5m' }, // 5分钟
       { label: '15m', value: '15m' }, // 15分钟
@@ -47,7 +48,7 @@ export default defineComponent({
       return amount * unitMap[unit];
     };
 
-    const doRefresh = () => {
+    const handleRefresh = () => {
       // store.dispatch("requestIndexSetQuery");
       RetrieveHelper.fire(RetrieveEvent.AUTO_REFRESH);
     };
@@ -67,7 +68,7 @@ export default defineComponent({
       const interval = getTimeInMs(timeValue);
 
       if (interval > 0) {
-        refreshTimer = setInterval(doRefresh, interval);
+        refreshTimer = setInterval(handleRefresh, interval);
       }
     };
 
@@ -91,7 +92,7 @@ export default defineComponent({
       setRefreshTimer,
       clearRefreshTimer,
       getTimeInMs,
-      doRefresh,
+      handleRefresh,
     };
   },
   render() {
@@ -104,10 +105,9 @@ export default defineComponent({
         <bk-select
           disabled={false}
           v-model={this.selectedValue}
-          style='width: 100px'
+          style='width: 110px'
           ext-cls='select-custom'
           ext-popover-cls='select-popover-custom'
-          searchable
         >
           {this.datasource.map((option) => (
             <bk-option
@@ -120,7 +120,7 @@ export default defineComponent({
         <span
           class='icon bklog-icon bklog-refresh2'
           style='font-size:20px;margin:0 5px 0 5px;cursor:pointer'
-          onClick={this.doRefresh}
+          onClick={this.handleRefresh}
         ></span>
       </div>
     );
