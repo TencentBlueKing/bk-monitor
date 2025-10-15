@@ -34,6 +34,7 @@ import {
   EMethod,
 } from '../../../../components/retrieval-filter/utils';
 import VariableName from '../utils/variable-name';
+import ConditionConditionTag, { CONDITIONS } from './condition-condition-tag';
 import ConditionCreatorOptions from './condition-creator-options';
 import KvTag from './kv-tag';
 
@@ -231,6 +232,11 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
     this.$emit('createValueVariable', val);
   }
 
+  handleConditionChange(index: number, id: ECondition) {
+    this.localValue[index].condition = { id, name: CONDITIONS.find(item => item.id === id)?.name || '' };
+    this.handleChange();
+  }
+
   render() {
     return (
       <div
@@ -238,7 +244,14 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
         onMouseenter={this.handleMouseEnter}
         onMouseleave={this.handleMouseLeave}
       >
-        {this.localValue.map((item, index) =>
+        {this.localValue.map((item, index) => [
+          index > 0 && (
+            <ConditionConditionTag
+              key={`${index}_condition`}
+              value={item}
+              onChange={id => this.handleConditionChange(index, id)}
+            />
+          ),
           item?.options?.isVariable ? (
             <div
               key={`${index}_kv`}
@@ -262,8 +275,8 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
               onDelete={() => this.handleDeleteTag(index)}
               onUpdate={event => this.handleUpdateTag(event, index)}
             />
-          )
-        )}
+          ),
+        ])}
 
         <div
           class='add-btn'
