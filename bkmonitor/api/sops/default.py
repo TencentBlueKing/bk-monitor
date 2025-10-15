@@ -16,7 +16,9 @@ from django.http import HttpRequest
 from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bkmonitor.utils.user import get_admin_username
 from core.drf_resource.contrib.api import APIResource
 from core.errors.alarm_backends import EmptyAssigneeError
 from core.errors.api import BKAPIError
@@ -56,7 +58,10 @@ class SopsBaseResource(APIResource, metaclass=abc.ABCMeta):
             pass
         assignee = validated_request_data.pop("assignee", None)
         if assignee is None:
-            assignee = [settings.COMMON_USERNAME]
+            bk_tenant_id = get_request_tenant_id(peaceful=True) or bk_biz_id_to_bk_tenant_id(
+                validated_request_data["bk_biz_id"]
+            )
+            assignee = [get_admin_username(bk_tenant_id)]
         if not assignee:
             self.report_api_failure_metric(
                 error_code=EmptyAssigneeError.code, exception_type=EmptyAssigneeError.__name__
@@ -93,7 +98,7 @@ class GetUserProjectDetailResource(SopsBaseResource):
     @property
     def action(self) -> str:
         if self.use_apigw:
-            return "/get_user_project_detail/{bk_biz_id}/"
+            return "/system/get_user_project_detail/{bk_biz_id}/"
         return "get_user_project_detail"
 
     method = "GET"
@@ -110,7 +115,7 @@ class GetTemplateListResource(SopsBaseResource):
     @property
     def action(self) -> str:
         if self.use_apigw:
-            return "/get_template_list/{bk_biz_id}/"
+            return "/system/get_template_list/{bk_biz_id}/"
         return "get_template_list"
 
     method = "GET"
@@ -128,7 +133,7 @@ class GetTemplateInfoResource(SopsBaseResource):
     @property
     def action(self) -> str:
         if self.use_apigw:
-            return "/get_template_info/{template_id}/{bk_biz_id}/"
+            return "/system/get_template_info/{template_id}/{bk_biz_id}/"
         return "get_template_info"
 
     method = "GET"
@@ -147,7 +152,7 @@ class PreviewTaskTreeIResource(SopsBaseResource):
     @property
     def action(self) -> str:
         if self.use_apigw:
-            return "/preview_task_tree/{bk_biz_id}/{template_id}/"
+            return "/system/preview_task_tree/{bk_biz_id}/{template_id}/"
         return "preview_task_tree"
 
     method = "POST"
@@ -165,7 +170,7 @@ class CreateTaskResource(SopsBaseResource):
     @property
     def action(self) -> str:
         if self.use_apigw:
-            return "/create_task/{template_id}/{bk_biz_id}/"
+            return "/system/create_task/{template_id}/{bk_biz_id}/"
         return "create_task"
 
     method = "post"
@@ -187,7 +192,7 @@ class StartTaskResource(SopsBaseResource):
     @property
     def action(self) -> str:
         if self.use_apigw:
-            return "/start_task/{task_id}/{bk_biz_id}/"
+            return "/system/start_task/{task_id}/{bk_biz_id}/"
         return "start_task"
 
     method = "post"
@@ -206,7 +211,7 @@ class GetTaskStatusResource(SopsBaseResource):
     @property
     def action(self) -> str:
         if self.use_apigw:
-            return "/get_task_status/{task_id}/{bk_biz_id}/"
+            return "/system/get_task_status/{task_id}/{bk_biz_id}/"
         return "get_task_status"
 
     method = "get"
@@ -224,7 +229,7 @@ class ImportProjectTemplate(SopsBaseResource):
     @property
     def action(self) -> str:
         if self.use_apigw:
-            return "/import_project_template/{bk_biz_id}/"
+            return "/system/import_project_template/{bk_biz_id}/"
         return "import_project_template"
 
     method = "post"
