@@ -85,8 +85,9 @@ class JMXPluginManager(PluginManager):
             if os.path.basename(str(filename)) == file_name:
                 config_yaml_path = filename
                 break
+
         if not config_yaml_path:
-            raise PluginParseError({"msg": _("无法获取JMX对应的配置文件")})
+            raise PluginParseError({"msg": _(f"无法获取JMX对应的配置文件'{file_name}'")})
 
         content = self._decode_file(self.plugin_configs[config_yaml_path])
         jmx_collector_json = {
