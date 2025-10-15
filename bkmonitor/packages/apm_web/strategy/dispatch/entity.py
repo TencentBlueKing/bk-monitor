@@ -22,14 +22,14 @@ from monitor_web.data_explorer.event.constants import EventCategory
 
 
 class EntitySet:
-    def __init__(self, bk_biz_id: int, app_name: str, service_names: list[str]):
+    def __init__(self, bk_biz_id: int, app_name: str, service_names: list[str] | None = None):
         self.bk_biz_id: int = bk_biz_id
         self.app_name: str = app_name
 
         nodes: list[dict[str, Any]] = []
         is_all_scope: bool = not service_names
         service_node_map: dict[str, dict[str, Any]] = {}
-        duplicated_service_names: set[str] = set(service_names)
+        duplicated_service_names: set[str] = set(service_names or [])
         for node in ServiceHandler.list_nodes(self.bk_biz_id, self.app_name):
             service_name: str = node.get("topo_key", "")
             if service_name in duplicated_service_names or is_all_scope:
@@ -151,7 +151,3 @@ class EntitySet:
         :return: RPC 配置或 None
         """
         return ServiceHandler.get_rpc_service_config_or_none(self._service_node_map[service_name])
-
-    def check_system(self) -> list[str]:
-        # TODO 检查可以内置哪些模板
-        return []

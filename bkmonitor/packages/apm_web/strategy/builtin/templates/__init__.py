@@ -8,16 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
+from .base import StrategyTemplateSet
 
-from .. import constants
+from . import rpc, metric, k8s, trace, log
 
+BUILTIN_STRATEGY_TEMPLATE: list[type[StrategyTemplateSet]] = [
+    rpc.RPCStrategyTemplateSet,
+    metric.MetricStrategyTemplateSet,
+    k8s.K8SStrategyTemplateSet,
+    trace.TraceStrategyTemplateSet,
+    log.LogStrategyTemplateSet,
+]
 
-class StrategyTemplateSet:
-    """策略模板集合"""
-
-    SYSTEM: constants.StrategyTemplateSystem = None
-
-    ENABLED_CODES: list[str] = []
-
-    STRATEGY_TEMPLATES: list[dict[str, Any]] = []
+__all__ = ["BUILTIN_STRATEGY_TEMPLATE", "StrategyTemplateSet"]

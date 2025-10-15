@@ -14,27 +14,29 @@ import six
 
 from typing import Any
 
-from django.db.models import QuerySet
+
+import logging
+
+from django.db.models import QuerySet, Q
 from django.utils import timezone
 
-from . import rpc, metric, k8s, trace, log, base, serializers
+from . import serializers, templates
 
-from apm_web.models import Application, StrategyTemplate
+from apm_web.models import Application, StrategyTemplate, StrategyInstance
 
 from bkmonitor.action.serializers import UserGroupDetailSlz
 from bkmonitor.models import UserGroup
 from constants.alert import PUBLIC_NOTICE_CONFIG
 from django.utils.translation import gettext_lazy as _
 
+from .. import dispatch, constants
+
+
+logger = logging.getLogger(__name__)
+
 
 class BuiltinStrategyTemplateRegistry:
-    _BUILTIN_STRATEGY_TEMPLATES: list[base.StrategyTemplateSet] = [
-        rpc.RPCStrategyTemplateSet,
-        metric.MetricStrategyTemplateSet,
-        k8s.K8SStrategyTemplateSet,
-        trace.TraceStrategyTemplateSet,
-        log.LogStrategyTemplateSet,
-    ]
+    _BUILTIN_STRATEGY_TEMPLATES: list[type[templates.StrategyTemplateSet]] = templates.BUILTIN_STRATEGY_TEMPLATE
 
     def __init__(self, application: Application) -> None:
         self.app_name: str = application.app_name
@@ -104,27 +106,55 @@ class BuiltinStrategyTemplateRegistry:
             group_name=str(_("【APM】{app_name} 告警组".format(app_name=application.app_name))),
         )
 
-    def _get_strategy_template_qs(self) -> QuerySet[StrategyTemplate]:
-        return StrategyTemplate.origin_objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+    def _get_strategy_template_qs(self, only_builtin: bool = False) -> QuerySet[StrategyTemplate]:
+        qs: QuerySet[StrategyTemplate] = StrategyTemplate.origin_objects.filter(
+            bk_biz_id=self.bk_biz_id, app_name=self.app_name
+        )
+        if only_builtin:
+            qs = qs.filter(type=constants.StrategyTemplateType.BUILTIN_TEMPLATE.value)
+        return qs
+
+    def _get_supported_builtin_templ_sets(self) -> list[type[templates.StrategyTemplateSet]]:
+        supported_systems: list[str] = dispatch.SystemChecker(
+            dispatch.EntitySet(self.bk_biz_id, self.app_name)
+        ).check_systems()
+
+        return [builtin for builtin in self._BUILTIN_STRATEGY_TEMPLATES if builtin.SYSTEM.value in supported_systems]
 
     def register(self):
         """注册内置告警策略模板"""
 
         # 创建/更新默认告警组
         user_group_id: int = self.apply_default_notice_group(self.application)
+        supported_builtin_templ_sets = self._get_supported_builtin_templ_sets()
+        systems: list[str] = [builtin.SYSTEM.value for builtin in supported_builtin_templ_sets]
+        if not systems:
+            logger.info(
+                "[BuiltinStrategyTemplateRegistry] no supported system, skip register: bk_biz_id=%s, app_name=%s",
+                self.bk_biz_id,
+                self.app_name,
+            )
+            return
 
-        # TODO 识别应用的框架、语言，再决定注册哪些内置模板。
-        systems: list[str] = [builtin.SYSTEM.value for builtin in self._BUILTIN_STRATEGY_TEMPLATES]
+        logger.info(
+            "[BuiltinStrategyTemplateRegistry] start register: bk_biz_id=%s, app_name=%s, systems=%s",
+            self.bk_biz_id,
+            self.app_name,
+            systems,
+        )
+
         code_tmpl_map: dict[str, dict[str, Any]] = {
             tmpl["code"]: tmpl
-            for tmpl in self._get_strategy_template_qs().filter(system__in=systems).values("code", "id", "update_user")
+            for tmpl in self._get_strategy_template_qs(only_builtin=True)
+            .filter(system__in=systems)
+            .values("code", "id", "update_user")
         }
 
         to_be_created: list[StrategyTemplate] = []
         to_be_updated: list[StrategyTemplate] = []
         local_tmpl_codes: set[str] = set()
         remote_tmpl_codes: set[str] = set(code_tmpl_map.keys())
-        for builtin in self._BUILTIN_STRATEGY_TEMPLATES:
+        for builtin in supported_builtin_templ_sets:
             for template in builtin.STRATEGY_TEMPLATES:
                 # TODO 开放配置项，允许根据应用场景，内置更多模板。
                 if template["code"] not in builtin.ENABLED_CODES:
@@ -170,6 +200,50 @@ class BuiltinStrategyTemplateRegistry:
                 ],
             )
 
-        to_be_deleted: list[str] = list(remote_tmpl_codes - local_tmpl_codes)
-        if to_be_deleted:
-            self._get_strategy_template_qs().filter(code__in=to_be_deleted).update(is_deleted=True)
+        to_be_deleted: set[int] = {code_tmpl_map[code]["id"] for code in list(remote_tmpl_codes - local_tmpl_codes)}
+        if not to_be_deleted:
+            logger.info(
+                "[BuiltinStrategyTemplateRegistry] finish register: "
+                "bk_biz_id=%s, app_name=%s, to_be_created=%s, to_be_updated=%s",
+                self.bk_biz_id,
+                self.app_name,
+                len(to_be_created),
+                len(to_be_updated),
+            )
+            return
+
+        # 模板已下发或被克隆（且副本没有被删除）时，不再删除。
+        has_been_cloned: set[int] = set(
+            self._get_strategy_template_qs()
+            .filter(root_id__in=to_be_deleted, is_deleted=False)
+            .values_list("root_id", flat=True)
+        )
+        has_been_applied: set[int] = set(
+            StrategyInstance.objects.filter(strategy_template_id__in=to_be_deleted).values_list(
+                "strategy_template_id", flat=True
+            )
+        )
+        need_to_delete: set[int] = to_be_deleted - has_been_cloned - has_been_applied
+        logger.info(
+            "[BuiltinStrategyTemplateRegistry] handle delete: bk_biz_id=%s, app_name=%s, "
+            "to_be_deleted=%s, has_been_cloned=%s, has_been_applied=%s, need_to_delete=%s",
+            self.bk_biz_id,
+            self.app_name,
+            to_be_deleted,
+            has_been_cloned,
+            has_been_applied,
+            need_to_delete,
+        )
+
+        if need_to_delete:
+            self._get_strategy_template_qs().filter(Q(id__in=need_to_delete) | Q(root_id__in=need_to_delete)).delete()
+
+        logger.info(
+            "[BuiltinStrategyTemplateRegistry] finish register: "
+            "bk_biz_id=%s, app_name=%s, to_be_created=%s, to_be_updated=%s, need_to_delete=%s",
+            self.bk_biz_id,
+            self.app_name,
+            len(to_be_created),
+            len(to_be_updated),
+            len(need_to_delete),
+        )

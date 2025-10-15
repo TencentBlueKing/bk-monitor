@@ -49,7 +49,7 @@ class StrategyDispatcher:
                 global_config, extra_config, self.strategy_template, query_template_context
             )
 
-        validated_service_names: list[str] = enricher.ENRICHERS[self.strategy_template.system](
+        validated_service_names: list[str] = enricher.ENRICHER_CLASSES[self.strategy_template.system](
             entity_set, self.strategy_template, self.query_template_wrapper
         ).enrich(service_config_map, raise_exception=raise_exception)
 
