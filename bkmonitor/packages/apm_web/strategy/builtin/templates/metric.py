@@ -28,7 +28,7 @@ class MetricStrategyTemplateCode(CachedEnum):
 
     @cached_property
     def label(self) -> str:
-        return str({self.METRIC_NODATA: _("无数据告警")}.get(self, self.value))
+        return str({self.METRIC_NODATA: _("指标无数据告警")}.get(self, self.value))
 
 
 METRIC_NODATA_STRATEGY_TEMPLATE = {

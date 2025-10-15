@@ -23,20 +23,19 @@ from .. import utils
 from ... import constants
 
 
-def _get_common_group_by(callee: bool = False) -> list[str]:
+def _get_common_group_by() -> list[str]:
     group_by: list[str] = [
         CommonMetricTag.APP_NAME.value,
         RPCMetricTag.SERVICE_NAME.value,
         RPCMetricTag.ENV_NAME.value,
         RPCMetricTag.NAMESPACE.value,
-        RPCMetricTag.CALLER_SERVICE.value if callee else RPCMetricTag.CALLEE_SERVICE.value,
         RPCMetricTag.CALLEE_METHOD.value,
     ]
     return group_by
 
 
-def _get_common_context(callee: bool = False, extra_group_by: list[str] | None = None) -> dict[str, Any]:
-    return {"ALARM_THRESHOLD_VALUE": 10, "GROUP_BY": _get_common_group_by(callee=callee) + (extra_group_by or [])}
+def _get_common_context(extra_group_by: list[str] | None = None) -> dict[str, Any]:
+    return {"ALARM_THRESHOLD_VALUE": 10, "GROUP_BY": _get_common_group_by() + (extra_group_by or [])}
 
 
 class RPCStrategyTemplateCode(CachedEnum):
@@ -76,11 +75,11 @@ RPC_CALLEE_SUCCESS_RATE_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.SUCCESS_RATE.value,
     "detect": utils.detect_config(5, 5, 3),
     "algorithms": [
-        utils.warning_threshold_algorithm_config(method="lte", threshold=95, suffix="%"),
-        utils.fatal_threshold_algorithm_config(method="lte", threshold=90, suffix="%"),
+        utils.warning_threshold_algorithm_config(method="lte", threshold=99, suffix="%"),
+        utils.fatal_threshold_algorithm_config(method="lte", threshold=95, suffix="%"),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_SUCCESS_RATE.value},
-    "context": _get_common_context(callee=True),
+    "context": _get_common_context(),
 }
 
 RPC_CALLEE_AVG_TIME_STRATEGY_TEMPLATE: dict[str, Any] = {
@@ -94,7 +93,7 @@ RPC_CALLEE_AVG_TIME_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=4000, suffix="ms"),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_AVG_TIME.value},
-    "context": _get_common_context(callee=True),
+    "context": _get_common_context(),
 }
 
 RPC_CALLEE_P99_STRATEGY_TEMPLATE: dict[str, Any] = {
@@ -108,7 +107,7 @@ RPC_CALLEE_P99_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=5000, suffix="ms"),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_P99.value},
-    "context": _get_common_context(callee=True),
+    "context": _get_common_context(),
 }
 
 RPC_CALLEE_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
@@ -122,7 +121,7 @@ RPC_CALLEE_ERROR_CODE_STRATEGY_TEMPLATE: dict[str, Any] = {
         utils.fatal_threshold_algorithm_config(method="gte", threshold=50),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLEE_ERROR_CODE.value},
-    "context": _get_common_context(callee=True, extra_group_by=[RPCMetricTag.CODE.value]),
+    "context": _get_common_context(extra_group_by=[RPCMetricTag.CODE.value]),
 }
 
 RPC_CALLER_SUCCESS_RATE_STRATEGY_TEMPLATE: dict[str, Any] = {
@@ -132,8 +131,8 @@ RPC_CALLER_SUCCESS_RATE_STRATEGY_TEMPLATE: dict[str, Any] = {
     "monitor_type": constants.StrategyTemplateMonitorType.SUCCESS_RATE.value,
     "detect": utils.detect_config(5, 5, 3),
     "algorithms": [
-        utils.warning_threshold_algorithm_config(method="lte", threshold=95, suffix="%"),
-        utils.fatal_threshold_algorithm_config(method="lte", threshold=90, suffix="%"),
+        utils.warning_threshold_algorithm_config(method="lte", threshold=99, suffix="%"),
+        utils.fatal_threshold_algorithm_config(method="lte", threshold=95, suffix="%"),
     ],
     "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": APMQueryTemplateName.RPC_CALLER_SUCCESS_RATE.value},
     "context": _get_common_context(),

@@ -15,6 +15,7 @@ from typing import Any
 from django.utils.translation import gettext_lazy as _
 
 from core.drf_resource import api
+from apm_web.constants import TopoNodeKind
 from apm_web.event.handler import EventHandler
 from apm_web.handlers.log_handler import ServiceLogHandler
 from apm_web.handlers.service_handler import ServiceHandler
@@ -31,6 +32,11 @@ class EntitySet:
         service_node_map: dict[str, dict[str, Any]] = {}
         duplicated_service_names: set[str] = set(service_names or [])
         for node in ServiceHandler.list_nodes(self.bk_biz_id, self.app_name):
+            # 策略只针对真实服务做下发，忽略虚拟节点。
+            kind: str | None = node.get("extra_data", {}).get("kind")
+            if kind != TopoNodeKind.SERVICE:
+                continue
+
             service_name: str = node.get("topo_key", "")
             if service_name in duplicated_service_names or is_all_scope:
                 service_node_map[service_name] = node
