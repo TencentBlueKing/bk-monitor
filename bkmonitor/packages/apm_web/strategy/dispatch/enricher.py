@@ -24,7 +24,7 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from apm_web.models import StrategyTemplate
 from apm_web.strategy.constants import StrategyTemplateCategory, StrategyTemplateSystem
-from bkmonitor.data_source import q_to_conditions
+from bkmonitor.data_source import q_to_conditions, conditions_to_q
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants import apm as apm_constants
@@ -230,7 +230,8 @@ class BaseEnricher(abc.ABC):
         :param q: 额外的查询条件。
         :return:
         """
-        dispatch_config.context.setdefault("CONDITIONS", []).extend(q_to_conditions(q))
+        conditions: list[dict[str, Any]] = dispatch_config.context.get("CONDITIONS", [])
+        dispatch_config.context["CONDITIONS"] = q_to_conditions(conditions_to_q(conditions) & q)
 
     def upsert_message_template(self, dispatch_config: DispatchConfig) -> None:
         """设置告警通知模板"""

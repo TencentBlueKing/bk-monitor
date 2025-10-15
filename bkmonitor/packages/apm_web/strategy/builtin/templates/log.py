@@ -27,7 +27,7 @@ class LogStrategyTemplateCode(CachedEnum):
 
     @cached_property
     def label(self) -> str:
-        return str({self.LOG_NODATA: _("无数据告警")}.get(self, self.value))
+        return str({self.LOG_NODATA: _("日志无数据告警")}.get(self, self.value))
 
 
 LOG_NODATA_STRATEGY_TEMPLATE = {

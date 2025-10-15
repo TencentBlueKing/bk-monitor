@@ -27,7 +27,7 @@ class TraceStrategyTemplateCode(CachedEnum):
 
     @cached_property
     def label(self) -> str:
-        return str({self.TRACE_NODATA: _("无数据告警")}.get(self, self.value))
+        return str({self.TRACE_NODATA: _("调用链无数据告警")}.get(self, self.value))
 
 
 TRACE_NODATA_STRATEGY_TEMPLATE = {
