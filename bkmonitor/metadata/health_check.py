@@ -367,8 +367,8 @@ def check_health(
     elif scene == "system":
         data_names = [
             f"{bk_tenant_id}_{bk_biz_id}_sys_base",
-            "base_{bk_biz_id}_system_proc_port",
-            "base_{bk_biz_id}_system_proc_perf",
+            f"base_{bk_biz_id}_system_proc_port",
+            f"base_{bk_biz_id}_system_proc_perf",
         ]
         data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, data_name__in=data_names)
         for data_source in data_sources:
