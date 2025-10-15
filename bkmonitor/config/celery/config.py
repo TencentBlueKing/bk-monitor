@@ -124,4 +124,9 @@ class Config:
             "schedule": crontab(minute=0, hour=2),  # 每天凌晨2点执行
             "enabled": True,
         },
+        "apm_web.tasks.auto_apply_apm_builtin_strategy_template": {
+            "task": "apm_web.tasks.auto_apply_apm_builtin_strategy_template",
+            "schedule": crontab(minute="*/30"),
+            "enabled": True,
+        },
     }
