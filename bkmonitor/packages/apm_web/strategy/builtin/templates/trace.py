@@ -17,9 +17,9 @@ from django.utils.translation import gettext as _
 
 from constants.apm import CachedEnum
 from constants.query_template import GLOBAL_BIZ_ID
-from . import base, utils
-from .. import constants
-from ..query_template import LocalQueryTemplateName
+from . import base
+from .. import utils
+from ... import query_template, constants
 
 
 class TraceStrategyTemplateCode(CachedEnum):
@@ -37,7 +37,10 @@ TRACE_NODATA_STRATEGY_TEMPLATE = {
     "monitor_type": constants.StrategyTemplateMonitorType.DEFAULT.value,
     "detect": utils.detect_config(5, 5, 5),
     "algorithms": [utils.fatal_threshold_algorithm_config(method="eq", threshold=0)],
-    "query_template": {"bk_biz_id": GLOBAL_BIZ_ID, "name": LocalQueryTemplateName.TRACE_SPAN_TOTAL.value},
+    "query_template": {
+        "bk_biz_id": GLOBAL_BIZ_ID,
+        "name": query_template.LocalQueryTemplateName.TRACE_SPAN_TOTAL.value,
+    },
     "context": {},
 }
 

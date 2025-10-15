@@ -26,6 +26,7 @@ from apm_web.models import StrategyTemplate
 from apm_web.strategy.constants import StrategyTemplateCategory, StrategyTemplateSystem
 from bkmonitor.data_source import q_to_conditions
 from bkmonitor.query_template.core import QueryTemplateWrapper
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants import apm as apm_constants
 
 
@@ -93,13 +94,41 @@ class MetricSystemDiscoverer(BaseSystemDiscoverer):
         return self._fetch_service_names()
 
 
-DISCOVERERS: dict[str, type[BaseSystemDiscoverer]] = {
+DISCOVERER_CLASSES: dict[str, type[BaseSystemDiscoverer]] = {
     RPCSystemDiscoverer.SYSTEM: RPCSystemDiscoverer,
     K8SSystemDiscoverer.SYSTEM: K8SSystemDiscoverer,
     LogSystemDiscoverer.SYSTEM: LogSystemDiscoverer,
     TraceSystemDiscoverer.SYSTEM: TraceSystemDiscoverer,
     MetricSystemDiscoverer.SYSTEM: MetricSystemDiscoverer,
 }
+
+
+class SystemChecker:
+    """策略模板系统检查器"""
+
+    def __init__(self, entity_set: EntitySet) -> None:
+        self._entity_set: EntitySet = entity_set
+
+    def _check(self, discoverer_cls: type[BaseSystemDiscoverer]) -> dict[str, list[str] | str]:
+        return {
+            "system": discoverer_cls.SYSTEM,
+            "service_names": discoverer_cls(self._entity_set).discover(),
+        }
+
+    def check(self) -> dict[str, list[str]]:
+        """检查实体集支持的策略模板系统"""
+        pool: ThreadPool = ThreadPool(5)
+        discover_iters = pool.imap_unordered(
+            lambda discoverer_cls: self._check(discoverer_cls),
+            [discoverer_cls for system, discoverer_cls in DISCOVERER_CLASSES.items()],
+        )
+        pool.close()
+
+        return {result["system"]: result["service_names"] for result in discover_iters}
+
+    def check_systems(self) -> list[str]:
+        """返回实体集支持的策略模板系统列表"""
+        return [system for system, service_names in self.check().items() if service_names]
 
 
 class BaseEnricher(abc.ABC):
@@ -131,7 +160,7 @@ class BaseEnricher(abc.ABC):
         self._entity_set: EntitySet = entity_set
         self._strategy_template: StrategyTemplate = strategy_template
         self._query_template_wrapper: QueryTemplateWrapper = query_template_wrapper
-        self._discoverer: BaseSystemDiscoverer = DISCOVERERS[self.SYSTEM](entity_set)
+        self._discoverer: BaseSystemDiscoverer = DISCOVERER_CLASSES[self.SYSTEM](entity_set)
 
     @abc.abstractmethod
     def _handle_invalid_services_exception(self, invalid_service_names: list[str]) -> Exception:
@@ -453,7 +482,7 @@ class MetricEnricher(BaseEnricher):
         self.upsert_message_template(dispatch_config)
 
 
-ENRICHERS: dict[str, type[BaseEnricher]] = {
+ENRICHER_CLASSES: dict[str, type[BaseEnricher]] = {
     RPCEnricher.SYSTEM: RPCEnricher,
     K8SEnricher.SYSTEM: K8SEnricher,
     LogEnricher.SYSTEM: LogEnricher,

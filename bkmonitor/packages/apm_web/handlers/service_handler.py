@@ -686,7 +686,7 @@ class ServiceHandler:
                 break
 
         if not is_trpc:
-            logger.info("[apm][get_rpc_service_config_or_none] system not found: node -> %s", node)
+            logger.info("[apm][get_rpc_service_config_or_none] system not found: service_name -> %s", node["topo_key"])
             return None
 
         # G 和 Tars 框架的指标类型为 Gauge。
@@ -694,5 +694,7 @@ class ServiceHandler:
             Vendor.has_sdk(node.get("sdk"), Vendor.G) or rpc_system == "tars"
         ]
 
-        logger.info("[apm][get_rpc_service_config_or_none] temporality -> %s, node -> %s", temporality, node)
+        logger.info(
+            "[apm][get_rpc_service_config_or_none] service_name -> %s, temporality -> %s", node["topo_key"], temporality
+        )
         return MetricTemporality.get_metric_config(temporality)
