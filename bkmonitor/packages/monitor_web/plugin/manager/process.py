@@ -204,9 +204,6 @@ class ProcessPluginManager(BuiltInPluginManager):
         接入数据源
         """
         for ts_name in self.metric_info:
-            data_label = f"process.{ts_name},process"
-            is_split_measurement = True
-
             # 检查数据源是否存在
             try:
                 self.get_data_id(bk_biz_id, ts_name)
@@ -219,8 +216,8 @@ class ProcessPluginManager(BuiltInPluginManager):
                 "name": f"process_{ts_name}",
                 "scenario": self.label,
                 "metric_info_list": self.get_metric_info_list(ts_name),
-                "data_label": data_label,
-                "is_split_measurement": is_split_measurement,
+                "data_label": f"process.{ts_name},process",
+                "is_split_measurement": True,
             }
 
             # 创建自定义上报
