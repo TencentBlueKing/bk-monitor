@@ -22,8 +22,9 @@ from constants.apm import CachedEnum, K8SMetricTag
 from django.utils.translation import gettext as _
 
 from constants.query_template import GLOBAL_BIZ_ID
-from . import base, utils
-from .. import constants
+from . import base
+from .. import utils
+from ... import constants
 
 
 class K8SStrategyTemplateCode(CachedEnum):

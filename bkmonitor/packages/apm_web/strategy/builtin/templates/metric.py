@@ -18,8 +18,9 @@ from django.utils.translation import gettext as _
 from bkmonitor.query_template.builtin import APMQueryTemplateName
 from constants.apm import CachedEnum
 from constants.query_template import GLOBAL_BIZ_ID
-from . import base, utils
-from .. import constants
+from . import base
+from .. import utils
+from ... import constants
 
 
 class MetricStrategyTemplateCode(CachedEnum):
