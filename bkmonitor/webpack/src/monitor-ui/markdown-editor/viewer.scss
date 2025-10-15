@@ -1,4 +1,8 @@
 .markdown-viewer {
+  .toastui-editor-contents {
+    font-family: unset;
+  }
+
   &.md-veiwer-flowchart-wrap,
   &.md-editor-flowchart-wrap {
     pre {

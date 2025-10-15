@@ -30,14 +30,14 @@ class EventTimeSeriesResource(Resource):
     RequestSerializer = serializers.EventTimeSeriesRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        return event_resources.EventTimeSeriesResource().perform_request(validated_request_data)
+        return event_resources.EventTimeSeriesResource().request(validated_request_data)
 
 
 class EventLogsResource(Resource):
     RequestSerializer = serializers.EventLogsRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        return event_resources.EventLogsResource().perform_request(validated_request_data)
+        return event_resources.EventLogsResource().request(validated_request_data)
 
 
 class EventViewConfigResource(Resource):
@@ -48,7 +48,7 @@ class EventViewConfigResource(Resource):
         for related_source in validated_request_data["related_sources"]:
             sources.append({"value": related_source, "alias": EventSource.from_value(related_source).label})
 
-        view_config: dict[str, Any] = event_resources.EventViewConfigResource().perform_request(validated_request_data)
+        view_config: dict[str, Any] = event_resources.EventViewConfigResource().request(validated_request_data)
         view_config["sources"] = sources
         return view_config
 
@@ -57,21 +57,21 @@ class EventTopKResource(Resource):
     RequestSerializer = serializers.EventTopKRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
-        return event_resources.EventTopKResource().perform_request(validated_request_data)
+        return event_resources.EventTopKResource().request(validated_request_data)
 
 
 class EventTotalResource(Resource):
     RequestSerializer = serializers.EventTotalRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        return event_resources.EventTotalResource().perform_request(validated_request_data)
+        return event_resources.EventTotalResource().request(validated_request_data)
 
 
 class EventTagDetailResource(Resource):
     RequestSerializer = serializers.EventTagDetailRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        return event_resources.EventTagDetailResource().perform_request(validated_request_data)
+        return event_resources.EventTagDetailResource().request(validated_request_data)
 
 
 class EventGetTagConfigResource(Resource):
@@ -155,11 +155,11 @@ class EventStatisticsGraphResource(Resource):
     RequestSerializer = serializers.EventStatisticsGraphRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        return event_resources.EventStatisticsGraphResource().perform_request(validated_request_data)
+        return event_resources.EventStatisticsGraphResource().request(validated_request_data)
 
 
 class EventStatisticsInfoResource(Resource):
     RequestSerializer = serializers.EventStatisticsInfoRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        return event_resources.EventStatisticsInfoResource().perform_request(validated_request_data)
+        return event_resources.EventStatisticsInfoResource().request(validated_request_data)
