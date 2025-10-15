@@ -48,8 +48,14 @@ class EventHandler:
             relations: list[dict[str, Any]] = service_relations.get(service_name, [])
             table_relation_map: dict[str, dict[str, Any]] = {relation["table"]: relation for relation in relations}
             k8s_event_relation: dict[str, Any] | None = table_relation_map.get(EventCategory.K8S_EVENT.value)
-            if k8s_event_relation and not k8s_event_relation["options"].get("is_auto"):
+            if (
+                k8s_event_relation
+                and not k8s_event_relation["options"].get("is_auto")
+                and k8s_event_relation.get("relations")
+            ):
+                # 没有配置自动发现，且手动关联了具体的 workload，直接使用手动配置的关联关系。
                 processed_service_relations[service_name] = list(table_relation_map.values())
+                continue
 
             try:
                 workloads: list[dict[str, Any]] = get_node(bk_biz_id, app_name, service_name)["platform"]["workloads"]
