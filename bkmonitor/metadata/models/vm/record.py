@@ -116,7 +116,7 @@ class SpaceVMInfo(BaseModel):
     vm_retention_time = models.CharField("保存时间", max_length=16, null=True, blank=True, default=VM_RETENTION_TIME)
     status = models.CharField("状态", max_length=16, null=True, blank=True)
 
-    objects = SpaceVMInfoManager()
+    objects: SpaceVMInfoManager = SpaceVMInfoManager()
 
     class Meta:
         verbose_name = "空间接入 VM 信息"

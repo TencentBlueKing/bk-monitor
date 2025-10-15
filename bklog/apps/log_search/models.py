@@ -961,7 +961,7 @@ class FavoriteGroup(OperateRecordModel):
             space_uid=space_uid,
             created_by=username,
             source_app_code=source_app_code,
-            name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value)),
+            defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value))},
         )
         return obj
 
@@ -972,7 +972,7 @@ class FavoriteGroup(OperateRecordModel):
             group_type=FavoriteGroupType.UNGROUPED.value,
             space_uid=space_uid,
             source_app_code=source_app_code,
-            name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value)),
+            defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value))},
         )
         return obj
 
@@ -1263,7 +1263,7 @@ class Space(SoftDeleteModel):
 
     properties = models.JSONField(_("额外属性"), default=dict)
 
-    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.DEFAULT_TENANT_ID, db_index=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.BK_APP_TENANT_ID, db_index=True)
 
     class Meta:
         verbose_name = _("空间信息")

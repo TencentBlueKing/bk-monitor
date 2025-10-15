@@ -345,8 +345,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 1.2.5-beta.4
-        version: 1.2.5-beta.4(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+        specifier: 1.2.8-beta.3
+        version: 1.2.8-beta.3(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
       '@blueking/bk-user-display-name':
         specifier: 1.0.3-beta.5
         version: 1.0.3-beta.5
@@ -620,8 +620,8 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@blueking/monitor-trace-log':
-        specifier: 2.0.5
-        version: 2.0.5
+        specifier: 2.0.6
+        version: 2.0.6
       '@blueking/tdesign-ui':
         specifier: 0.0.1-beta.32
         version: 0.0.1-beta.32(vue@3.5.15(typescript@5.9.2))
@@ -753,7 +753,7 @@ importers:
         version: 0.14.10(vue@3.5.15(typescript@5.9.2))
       vue-echarts:
         specifier: ^7.0.3
-        version: 7.0.3(@vue/runtime-core@3.5.21)(echarts@5.6.0)(vue@3.5.15(typescript@5.9.2))
+        version: 7.0.3(@vue/runtime-core@3.5.22)(echarts@5.6.0)(vue@3.5.15(typescript@5.9.2))
       vue-i18n:
         specifier: ^11.1.10
         version: 11.1.10(vue@3.5.15(typescript@5.9.2))
@@ -1458,15 +1458,15 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@1.2.5-beta.4':
-    resolution: {integrity: sha512-e+FAPtiKT1+KA0pKR/vBP/FEFljO0F5GTnCM/7K6UtYoYPo7aUPpHR0UtdxOOcpZGYJmoYMDZC9PDnicqGKbjg==}
+  '@blueking/ai-blueking@1.2.8-beta.3':
+    resolution: {integrity: sha512-j7OIUAaazCWRw0JwstYT8BSUu3ZGtTsnkwSO9TGPRuvuTBe0y6KtoU9leVeNjon0wUT/5HNdSpHE+y1A+M5pow==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
       markdown-it: ^13.0.1
 
-  '@blueking/ai-ui-sdk@0.1.12-beta.53':
-    resolution: {integrity: sha512-KDKFcDgqiNBGBM9ftaRV55owZ6T3JYl4DV8daH66ZdmUb6xbqFxI98fq9aAs2Irg+1YW950117pojh/X/V89dQ==}
+  '@blueking/ai-ui-sdk@0.1.18-beta.18':
+    resolution: {integrity: sha512-MvVCcz5/ofMi2pgF5iUxtWm2R8kI1UAkOEfyOIHKtvZpyA5ng3bPZxAyig9PBVk3mndgbjq5+3+InvW93oNaLg==}
     peerDependencies:
       bkui-vue: '*'
       dayjs: ^1.11.13
@@ -1548,8 +1548,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-log@2.0.5':
-    resolution: {integrity: sha512-+VsoUUNrbi4zG97qIPZSG4fF6ivjz81JKVBe7RO6lyBnkXST6zOJCipWqt0rXZ3WE3LJRIVjknPWyWiZaMkz/A==}
+  '@blueking/monitor-trace-log@2.0.6':
+    resolution: {integrity: sha512-sxAyBABKHwgrnnfX3nYjDCn5eJJffrxDZ3N23vw49KnE7etcNTCfZa8d/Olik/1X4AGXZl/WT7Rya9HBUHyQ/Q==}
 
   '@blueking/notice-component-vue2@2.0.7':
     resolution: {integrity: sha512-DUMedO1/Z1VHz0elcaY6riAPbXi5oCFSg4x8MvwIkT2MFl21K8xkbg65OgXuB5ePa3Bsij2+IKvTTByYMLLd3g==}
@@ -2761,20 +2761,20 @@ packages:
   '@vue/reactivity@3.5.15':
     resolution: {integrity: sha512-GaA5VUm30YWobCwpvcs9nvFKf27EdSLKDo2jA0IXzGS344oNpFNbEQ9z+Pp5ESDaxyS8FcH0vFN/XSe95BZtHQ==}
 
-  '@vue/reactivity@3.5.21':
-    resolution: {integrity: sha512-3ah7sa+Cwr9iiYEERt9JfZKPw4A2UlbY8RbbnH2mGCE8NwHkhmlZt2VsH0oDA3P08X3jJd29ohBDtX+TbD9AsA==}
+  '@vue/reactivity@3.5.22':
+    resolution: {integrity: sha512-f2Wux4v/Z2pqc9+4SmgZC1p73Z53fyD90NFWXiX9AKVnVBEvLFOWCEgJD3GdGnlxPZt01PSlfmLqbLYzY/Fw4A==}
 
   '@vue/runtime-core@3.5.15':
     resolution: {integrity: sha512-CZAlIOQ93nj0OPpWWOx4+QDLCMzBNY85IQR4Voe6vIID149yF8g9WQaWnw042f/6JfvLttK7dnyWlC1EVCRK8Q==}
 
-  '@vue/runtime-core@3.5.21':
-    resolution: {integrity: sha512-+DplQlRS4MXfIf9gfD1BOJpk5RSyGgGXD/R+cumhe8jdjUcq/qlxDawQlSI8hCKupBlvM+3eS1se5xW+SuNAwA==}
+  '@vue/runtime-core@3.5.22':
+    resolution: {integrity: sha512-EHo4W/eiYeAzRTN5PCextDUZ0dMs9I8mQ2Fy+OkzvRPUYQEyK9yAjbasrMCXbLNhF7P0OUyivLjIy0yc6VrLJQ==}
 
   '@vue/runtime-dom@3.5.15':
     resolution: {integrity: sha512-wFplHKzKO/v998up2iCW3RN9TNUeDMhdBcNYZgs5LOokHntrB48dyuZHspcahKZczKKh3v6i164gapMPxBTKNw==}
 
-  '@vue/runtime-dom@3.5.21':
-    resolution: {integrity: sha512-3M2DZsOFwM5qI15wrMmNF5RJe1+ARijt2HM3TbzBbPSuBHOQpoidE+Pa+XEaVN+czbHf81ETRoG1ltztP2em8w==}
+  '@vue/runtime-dom@3.5.22':
+    resolution: {integrity: sha512-Av60jsryAkI023PlN7LsqrfPvwfxOd2yAwtReCjeuugTJTkgrksYJJstg1e12qle0NarkfhfFu1ox2D+cQotww==}
 
   '@vue/server-renderer@3.5.15':
     resolution: {integrity: sha512-Gehc693kVTYkLt6QSYEjGvqvdK2zZ/gf/D5zkgmvBdeB30dNnVZS8yY7+IlBmHRd1rR/zwaqeu06Ij04ZxBscg==}
@@ -2784,8 +2784,8 @@ packages:
   '@vue/shared@3.5.15':
     resolution: {integrity: sha512-bKvgFJJL1ZX9KxMCTQY6xD9Dhe3nusd1OhyOb1cJYGqvAr0Vg8FIjHPMOEVbJ9GDT9HG+Bjdn4oS8ohKP8EvoA==}
 
-  '@vue/shared@3.5.21':
-    resolution: {integrity: sha512-+2k1EQpnYuVuu3N7atWyG3/xoFWIVJZq4Mz8XNOdScFI0etES75fbny/oU4lKWk/577P1zmg0ioYvpGEDZ3DLw==}
+  '@vue/shared@3.5.22':
+    resolution: {integrity: sha512-F4yc6palwq3TT0u+FYf0Ns4Tfl9GRFURDN2gWG7L1ecIaS/4fCIuFOjMTnCyjsu/OK6vaDKLCrGAa+KvvH+h4w==}
 
   '@vueuse/core@10.11.1':
     resolution: {integrity: sha512-guoy26JQktXPcz+0n3GukWIy/JDNKti9v6VEMu6kV2sYBsWuGiTU8OWdg+ADfUbHg3/3DlqySDe7JmdHrktiww==}
@@ -9410,9 +9410,9 @@ snapshots:
   '@biomejs/cli-win32-x64@2.2.4':
     optional: true
 
-  '@blueking/ai-blueking@1.2.5-beta.4(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-blueking@1.2.8-beta.3(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
-      '@blueking/ai-ui-sdk': 0.1.12-beta.53(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+      '@blueking/ai-ui-sdk': 0.1.18-beta.18(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
       '@blueking/bkui-library': 0.0.0-beta.6
       dayjs: 1.11.18
       dompurify: 3.2.6
@@ -9432,7 +9432,7 @@ snapshots:
       - vue
       - vue-router
 
-  '@blueking/ai-ui-sdk@0.1.12-beta.53(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-ui-sdk@0.1.18-beta.18(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       bkui-vue: 2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16)
       dayjs: 1.11.18
@@ -9610,7 +9610,7 @@ snapshots:
 
   '@blueking/bkui-library@0.0.0-beta.4':
     dependencies:
-      '@vue/runtime-dom': 3.5.21
+      '@vue/runtime-dom': 3.5.22
 
   '@blueking/bkui-library@0.0.0-beta.6':
     dependencies:
@@ -9683,7 +9683,7 @@ snapshots:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-log@2.0.5': {}
+  '@blueking/monitor-trace-log@2.0.6': {}
 
   '@blueking/notice-component-vue2@2.0.7(dompurify@3.2.6)':
     dependencies:
@@ -11172,19 +11172,19 @@ snapshots:
     dependencies:
       '@vue/shared': 3.5.15
 
-  '@vue/reactivity@3.5.21':
+  '@vue/reactivity@3.5.22':
     dependencies:
-      '@vue/shared': 3.5.21
+      '@vue/shared': 3.5.22
 
   '@vue/runtime-core@3.5.15':
     dependencies:
       '@vue/reactivity': 3.5.15
       '@vue/shared': 3.5.15
 
-  '@vue/runtime-core@3.5.21':
+  '@vue/runtime-core@3.5.22':
     dependencies:
-      '@vue/reactivity': 3.5.21
-      '@vue/shared': 3.5.21
+      '@vue/reactivity': 3.5.22
+      '@vue/shared': 3.5.22
 
   '@vue/runtime-dom@3.5.15':
     dependencies:
@@ -11193,11 +11193,11 @@ snapshots:
       '@vue/shared': 3.5.15
       csstype: 3.1.3
 
-  '@vue/runtime-dom@3.5.21':
+  '@vue/runtime-dom@3.5.22':
     dependencies:
-      '@vue/reactivity': 3.5.21
-      '@vue/runtime-core': 3.5.21
-      '@vue/shared': 3.5.21
+      '@vue/reactivity': 3.5.22
+      '@vue/runtime-core': 3.5.22
+      '@vue/shared': 3.5.22
       csstype: 3.1.3
 
   '@vue/server-renderer@3.5.15(vue@3.5.15(typescript@5.9.2))':
@@ -11208,7 +11208,7 @@ snapshots:
 
   '@vue/shared@3.5.15': {}
 
-  '@vue/shared@3.5.21': {}
+  '@vue/shared@3.5.22': {}
 
   '@vueuse/core@10.11.1(vue@2.7.16)':
     dependencies:
@@ -17032,13 +17032,13 @@ snapshots:
     dependencies:
       vue: 2.7.16
 
-  vue-echarts@7.0.3(@vue/runtime-core@3.5.21)(echarts@5.6.0)(vue@3.5.15(typescript@5.9.2)):
+  vue-echarts@7.0.3(@vue/runtime-core@3.5.22)(echarts@5.6.0)(vue@3.5.15(typescript@5.9.2)):
     dependencies:
       echarts: 5.6.0
       vue: 3.5.15(typescript@5.9.2)
       vue-demi: 0.13.11(vue@3.5.15(typescript@5.9.2))
     optionalDependencies:
-      '@vue/runtime-core': 3.5.21
+      '@vue/runtime-core': 3.5.22
     transitivePeerDependencies:
       - '@vue/composition-api'
 

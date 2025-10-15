@@ -121,6 +121,7 @@ export default () => {
 
   const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
   const fromMonitor = computed(() => route.query.from === 'monitor');
+  const flatIndexSetList = computed(() => store.state.retrieve.flatIndexSetList);
 
   const stickyStyle = computed(() => {
     return {
@@ -214,20 +215,49 @@ export default () => {
       is_error: false,
     });
 
+    const filterFn = (id: string, item: Record<string, unknown>) => {
+      if (id.indexOf('_') > 0) {
+        return `${item.unique_id ?? item.index_set_id}` === `${id}`;
+      }
+
+      return `${item.index_set_id}` === `${id}`;
+    };
+
+    const commitIdexId = (idexs: string[], others = {}) => {
+      const [pid, ids] = idexs
+        .filter(t => !!t)
+        .reduce(
+          (out, cur) => {
+            if (cur.indexOf('_') > 0) {
+              const [p_id, id] = cur.split('_');
+              out[0].push(p_id);
+              out[1].push(id);
+              return out;
+            }
+
+            out[0].push('#');
+            out[1].push(cur);
+            return out;
+          },
+          [[], []],
+        );
+      store.commit('updateIndexItem', { ids, pid, ...(others ?? {}) });
+    };
+
     return store
       .dispatch('retrieve/getIndexSetList', {
         spaceUid: spaceUid.value,
         bkBizId: bkBizId.value,
         is_group: true,
       })
-      .then(resp => {
+      .then(() => {
         isPreApiLoaded.value = true;
 
         // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
         // tags 是 BCS索引集注入内置标签特殊检索
         if (!indexSetIdList.value.length && route.query.tags?.length) {
           const tagList = Array.isArray(route.query.tags) ? route.query.tags : route.query.tags.split(',');
-          const indexSetMatch = resp[1]
+          const indexSetMatch = flatIndexSetList.value
             .filter(item => item.tags.some(tag => tagList.includes(tag.name)))
             .map(val => val.index_set_id);
           if (indexSetMatch.length) {
@@ -245,10 +275,10 @@ export default () => {
           const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
           if (lastIndexSetIds?.length) {
             const validateIndexSetIds = lastIndexSetIds.filter(id =>
-              resp[1].some(item => `${item.index_set_id}` === `${id}`),
+              flatIndexSetList.value.some(item => filterFn(id, item)),
             );
             if (validateIndexSetIds.length) {
-              store.commit('updateIndexItem', { ids: validateIndexSetIds });
+              commitIdexId(validateIndexSetIds);
               store.commit('updateStorage', {
                 [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: validateIndexSetIds.length > 1 ? 'union' : 'single',
               });
@@ -269,7 +299,7 @@ export default () => {
 
         if (indexSetIdList.value.length) {
           indexSetIdList.value.forEach(id => {
-            const item = resp[1].find(item => `${item.index_set_id}` === `${id}`);
+            const item = flatIndexSetList.value.find(item => filterFn(id, item));
             if (!item) {
               emptyIndexSetList.push(id);
             }
@@ -290,25 +320,21 @@ export default () => {
           }
 
           if (indexSetItems.length) {
-            store.commit('updateIndexItem', {
-              ids: [...indexSetIds],
-              items: [...indexSetItems],
-            });
+            commitIdexId(indexSetIds, { items: indexSetItems });
           }
         }
 
         // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
         if (!indexSetIdList.value.length) {
-          const respIndexSetList = resp[1];
           const defIndexItem =
-            respIndexSetList.find(
+            flatIndexSetList.value.find(
               item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
-            ) ?? respIndexSetList[0];
-          const defaultId = [defIndexItem?.index_set_id].filter(Boolean);
+            ) ?? flatIndexSetList.value[0];
+          const defaultId = [defIndexItem?.index_set_id];
 
           if (defaultId) {
-            const strId = `${defaultId}`;
-            store.commit('updateIndexItem', { ids: [strId], items: [defIndexItem].filter(Boolean) });
+            const strId = `${defIndexItem?.index_set_id}`;
+            commitIdexId(defaultId, { items: [defIndexItem] });
             store.commit('updateState', { indexId: strId });
           }
         }
@@ -372,11 +398,11 @@ export default () => {
         }
 
         if (!indexSetIdList.value.length) {
-          const defaultId = [resp[1][0]?.index_set_id];
+          const defaultId = flatIndexSetList.value[0]?.index_set_id;
 
           if (defaultId) {
             const strId = `${defaultId}`;
-            store.commit('updateIndexItem', { ids: [strId], items: [resp[1][0]] });
+            store.commit('updateIndexItem', { ids: [strId], items: [flatIndexSetList.value[0]] });
             store.commit('updateState', { indexId: strId });
           }
         }

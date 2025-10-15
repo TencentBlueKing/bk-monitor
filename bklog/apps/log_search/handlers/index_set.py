@@ -1483,34 +1483,35 @@ class IndexSetHandler(APIModel):
                 )
 
         if doris_table_id := self.data.doris_table_id:
-            doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
-            analysis_params = {
-                    "query_alias_settings": alias_settings,
-                    "space_type": self.data.space_uid.split("__")[0],
-                    "space_id": self.data.space_uid.split("__")[-1],
-                    "storage_type": "doris",
-                    "source_type": "bkdata",
-                    "bkbase_table_id": doris_result_table,
-                    "data_label": f"bklog_index_set_{self.index_set_id}_analysis",
-                    "table_id": f"bklog_index_set_{self.index_set_id}_{doris_result_table}.__analysis__",
-                    "need_create_index": False,
-                }
-            # Doris图表分析路由接入
-            multi_execute_func.append(
-                result_key=self.data.index_set_id,
-                func=TransferApi.create_or_update_log_router,
-                params=analysis_params,
-            )
-            if is_doris:
-                doris_params = analysis_params.copy()
-                doris_params["data_label"] = f"bklog_index_set_{self.index_set_id}"
-                doris_params["table_id"] = f"bklog_index_set_{self.index_set_id}_{doris_result_table}.__doris__"
-                # Doris存储路由接入
+            for doris_result_table in doris_table_id.split(","):
+                doris_result_table = doris_result_table.rsplit(".", maxsplit=1)[0]
+                analysis_params = {
+                        "query_alias_settings": alias_settings,
+                        "space_type": self.data.space_uid.split("__")[0],
+                        "space_id": self.data.space_uid.split("__")[-1],
+                        "storage_type": "doris",
+                        "source_type": "bkdata",
+                        "bkbase_table_id": doris_result_table,
+                        "data_label": f"bklog_index_set_{self.index_set_id}_analysis",
+                        "table_id": f"bklog_index_set_{self.index_set_id}_{doris_result_table}.__analysis__",
+                        "need_create_index": False,
+                    }
+                # Doris图表分析路由接入
                 multi_execute_func.append(
                     result_key=self.data.index_set_id,
                     func=TransferApi.create_or_update_log_router,
-                    params=doris_params,
+                    params=analysis_params,
                 )
+                if is_doris:
+                    doris_params = analysis_params.copy()
+                    doris_params["data_label"] = f"bklog_index_set_{self.index_set_id}"
+                    doris_params["table_id"] = f"bklog_index_set_{self.index_set_id}_{doris_result_table}.__doris__"
+                    # Doris存储路由接入
+                    multi_execute_func.append(
+                        result_key=self.data.index_set_id,
+                        func=TransferApi.create_or_update_log_router,
+                        params=doris_params,
+                    )
         multi_result = multi_execute_func.run(return_exception=True)
         for ret in multi_result.values():
             if isinstance(ret, Exception):

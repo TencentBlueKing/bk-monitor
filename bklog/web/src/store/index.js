@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -42,14 +40,14 @@ import {
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
+import { MENU_LISTS } from '@/global/head-navi/complete-menu.ts';
 import DOMPurify from 'dompurify';
 import * as pinyin from 'tiny-pinyin';
 import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
 import Vuex from 'vuex';
 
-import { menuArr } from '../components/nav/complete-menu';
-import collect from './collect';
-import { ConditionOperator } from './condition-operator';
+import collect from './collect.js';
+import { ConditionOperator } from './condition-operator.ts';
 if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
   pinyin.patchDict(patcher56L);
 }
@@ -60,15 +58,15 @@ import {
   IndexItem,
   IndexSetQueryResult,
   URL_ARGS,
+  createFieldItem,
   getDefaultRetrieveParams,
   getStorageOptions,
   indexSetClusteringData,
-  createFieldItem,
 } from './default-values.ts';
-import globals from './globals';
-import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper';
-import RequestPool from './request-pool';
-import retrieve from './retrieve';
+import globals from './globals.js';
+import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper.ts';
+import RequestPool from './request-pool.ts';
+import retrieve from './retrieve.js';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
 import http, { axiosInstance } from '@/api';
 Vue.use(Vuex);
@@ -583,7 +581,7 @@ const store = new Vuex.Store({
         state.indexItem.ids.splice(0, state.indexItem.ids.length, ...list.filter(v => v !== null && v !== undefined));
       }
 
-      const unionIndexItemList = state.retrieve.indexSetList.filter(item => list.includes(item.index_set_id));
+      const unionIndexItemList = state.retrieve.flatIndexSetList.filter(item => list.includes(item.index_set_id));
       state.unionIndexItemList.splice(0, state.unionIndexItemList.length, ...unionIndexItemList);
     },
     updateGlobalsData(state, globalsData) {
@@ -953,11 +951,12 @@ const store = new Vuex.Store({
 
           menuList.forEach(child => {
             child.id = routeMap[child.id] || child.id;
-            const menu = menuArr.find(menuItem => menuItem.id === child.id);
+            const menu = MENU_LISTS.find(menuItem => menuItem.id === child.id);
             if (menu) {
               deepUpdateMenu(menu, child);
             }
           });
+
           commit('updateState', { topMenu: menuList });
           commit('updateState', { menuProject: res.data || [] });
 
@@ -1241,7 +1240,6 @@ const store = new Vuex.Store({
 
                 if (!payload?.isPagination) {
                   commit('updateIsSetDefaultTableColumn', { list: logList });
-                  // dispatch('requestSearchTotal');
                 }
                 // 更新页数
                 commit('updateSqlQueryFieldList', logList);
@@ -1421,6 +1419,9 @@ const store = new Vuex.Store({
       const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
 
+      // 请求来源 origin | cluster
+      const from = newQueryList[0].from ?? 'origin';
+
       const getTargetField = field => {
         return state.visibleFields?.find(item => item.field_name === field);
       };
@@ -1565,7 +1566,9 @@ const store = new Vuex.Store({
         if (searchMode === 'ui') {
           const startIndex = state.indexItem.addition.length;
           state.indexItem.addition.splice(startIndex, 0, ...filterQueryList);
-          dispatch('requestIndexSetQuery');
+          if (from === 'origin') {
+            dispatch('requestIndexSetQuery');
+          }
         }
 
         if (searchMode === 'sql') {
@@ -1583,7 +1586,10 @@ const store = new Vuex.Store({
 
           const newSearchKeyword = (keywords ?? []).concat(newSearchKeywords).join('AND ');
           state.indexItem.keyword = newSearchKeyword;
-          dispatch('requestIndexSetQuery');
+
+          if (from === 'origin') {
+            dispatch('requestIndexSetQuery');
+          }
         }
       }
       return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);

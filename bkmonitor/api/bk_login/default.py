@@ -290,4 +290,12 @@ class BatchQueryUserDisplayInfoResource(BkUserApiResource):
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
-        bk_usernames = serializers.CharField(required=True)
+        bk_usernames = serializers.ListField(required=True)
+
+    def perform_request(self, params: dict):
+        if not settings.ENABLE_MULTI_TENANT_MODE:
+            return [{"bk_username": username, "display_name": username} for username in params["bk_usernames"]]
+
+        # 参数格式转换
+        params["bk_usernames"] = ",".join(params["bk_usernames"])
+        return super().perform_request(params)

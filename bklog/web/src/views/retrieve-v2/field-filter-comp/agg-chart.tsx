@@ -220,6 +220,7 @@ export default class AggChart extends tsc<object> {
           })
           .then(() => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+            RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
           });
       });
   };

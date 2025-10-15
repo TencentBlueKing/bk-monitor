@@ -55,7 +55,7 @@ import {
   SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
-import ScrollXBar from './scroll-x-bar';
+import ScrollXBar from '../../components/scroll-x-bar';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
 
@@ -163,12 +163,18 @@ export default defineComponent({
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
 
-    const handleSearchingChange = isSearching => {
-      isPageLoading.value = isSearching;
-    };
-
     const { addEvent } = useRetrieveEvent();
-    addEvent(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+    addEvent(RetrieveEvent.SEARCHING_CHANGE, isSearching => {
+      isPageLoading.value = isSearching;
+    });
+
+    addEvent(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.TREND_GRAPH_SEARCH],
+      () => {
+        hasMoreList.value = true;
+        pageIndex.value = 1;
+      },
+    );
 
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];
@@ -444,6 +450,7 @@ export default defineComponent({
 
     // 替换原有的handleMenuClick
     const handleMenuClick = (option, isLink, fieldOption?: { row: any; field: any }) => {
+      console.log('handleMenuClick = ', option);
       const timeTypes = ['date', 'date_nanos'];
 
       handleOperation(option.operation, {
@@ -717,14 +724,12 @@ export default defineComponent({
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(resp => {
-            if (resp?.data?.list?.length === pageSize.value) {
-              pageIndex.value++;
-              handleResultBoxResize();
-              return;
-            }
-
-            hasMoreList.value = false;
+            pageIndex.value++;
             handleResultBoxResize(false);
+
+            if (resp?.length !== pageSize.value) {
+              hasMoreList.value = false;
+            }
           })
           .finally(() => {
             debounceSetLoading(0);
@@ -746,6 +751,7 @@ export default defineComponent({
       pageIndex.value = 1;
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
       renderList = renderList.slice(0, maxLength);
+      localUpdateCounter.value++;
     };
 
     // 监听滚动条滚动位置
@@ -1031,7 +1037,7 @@ export default defineComponent({
         return 'Loading ...';
       }
 
-      if (!(isRequesting.value || hasMoreList.value) && tableDataSize.value > 0) {
+      if (!(isRequesting.value || hasMoreList.value) || tableDataSize.value < pageSize.value) {
         return ` - 已加载所有数据: 共计 ${tableDataSize.value} 条 - `;
       }
 
