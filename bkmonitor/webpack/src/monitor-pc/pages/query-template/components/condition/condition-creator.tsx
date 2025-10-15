@@ -56,6 +56,7 @@ interface IProps {
   hasVariableOperate?: boolean;
   metricDetail?: MetricDetailV2;
   options?: IConditionOptionsItem[];
+  showConditionTag?: boolean;
   showLabel?: boolean;
   value?: AggCondition[];
   variables?: IVariablesItem[];
@@ -80,6 +81,8 @@ export default class ConditionCreator extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) dimensionValueVariables: { name: string }[];
   /* 所有变量，用于校验变量名是否重复 */
   @Prop({ default: () => [] }) allVariables: { name: string }[];
+  /** 是否展示条件标签 */
+  @Prop({ default: false, type: Boolean }) showConditionTag: boolean;
 
   cacheDimensionValues = new Map();
 
@@ -228,6 +231,7 @@ export default class ConditionCreator extends tsc<IProps> {
           fields={this.fields as IFilterField[]}
           getValueFn={this.getValueFn}
           hasVariableOperate={this.hasVariableOperate}
+          showConditionTag={this.showConditionTag}
           value={this.localValue}
           onChange={this.handleChange}
           onCreateValueVariable={this.handleCreateValueVariable}

@@ -26,9 +26,13 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { CONDITIONS } from 'monitor-pc/pages/query-template/constants';
+
 import { STRING_CONDITION_METHOD_LIST } from '../../../../../constant/constant';
 
 import type { ConditionVariableModel } from '../../index';
+
+import './condition-select-detail.scss';
 interface ConditionSelectDetailProps {
   variable: ConditionVariableModel;
 }
@@ -41,7 +45,9 @@ export default class ConditionSelectDetail extends tsc<ConditionSelectDetailProp
     return this.variable.data.value.map(item => {
       const name = this.variable.dimensionList.find(dim => dim.id === item.key)?.name || item.key;
       const operation = STRING_CONDITION_METHOD_LIST.find(method => method.id === item.method);
+      const condition = CONDITIONS.find(cond => cond.id === item.condition)?.name || 'AND';
       return {
+        condition,
         name,
         operation,
         value: item.value,
@@ -53,7 +59,15 @@ export default class ConditionSelectDetail extends tsc<ConditionSelectDetailProp
     return (
       <div class='condition-select-detail'>
         {this.transformDefaultValue.length
-          ? this.transformDefaultValue.map((item, index) => (
+          ? this.transformDefaultValue.map((item, index) => [
+              index > 0 ? (
+                <div
+                  key={`${item.name}__${index}_condition`}
+                  class='condition-condition'
+                >
+                  <span class='name-wrap'>{item.condition}</span>
+                </div>
+              ) : undefined,
               <div
                 key={`${item.name}__${index}`}
                 class='condition-tag'
@@ -80,8 +94,8 @@ export default class ConditionSelectDetail extends tsc<ConditionSelectDetailProp
                     </span>,
                   ])}
                 </div>
-              </div>
-            ))
+              </div>,
+            ])
           : '--'}
       </div>
     );
