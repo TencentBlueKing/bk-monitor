@@ -352,6 +352,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         diff_data: list[dict[str, Any]] = []
         current_dict: dict[str, Any] = self._preview(strategy_template_obj, self.query_data["service_name"])
         for field_name in ["detect", "algorithms", "user_group_list", "context"]:
+            # 第一步取值
             if field_name == "user_group_list":
                 current = current_dict.get("user_group_list", [])
                 applied_user_group_ids: set[int] = set(applied_instance_obj.user_group_ids)
@@ -360,32 +361,42 @@ class StrategyTemplateViewSet(GenericViewSet):
                 current = current_dict.get(field_name)
                 applied = getattr(applied_instance_obj, field_name)
 
+            # 第二步比较
             if count_md5(current) == count_md5(applied):
                 continue
+
+            # 第三步对差异值进行排序处理
+            if field_name == "algorithms":
+                current.sort(key=lambda x: x["level"])
+                applied.sort(key=lambda x: x["level"])
+            elif field_name == "user_group_list":
+                current.sort(key=lambda x: x["id"])
+                applied.sort(key=lambda x: x["id"])
 
             if field_name != "context":
                 diff_data.append({"field": field_name, "current": current, "applied": applied})
                 continue
 
-            current_variables: list[dict[str, Any]] = []
-            for variable_dict in current_dict["query_template"]["variables"]:
-                current_variables.append({**variable_dict, "value": current[variable_dict["name"]]})
-
-            applied_variables: list[dict[str, Any]] = []
+            # 根据 context 字段处理 variables
             name_variable_map: dict[str, dict[str, Any]] = {
                 variable_dict["name"]: variable_dict for variable_dict in current_dict["query_template"]["variables"]
             }
-            for applied_variable_name, applied_variable_value in applied.items():
-                if applied_variable_name in name_variable_map:
-                    applied_variables.append(
-                        {**name_variable_map[applied_variable_name], "value": applied_variable_value}
-                    )
-                else:
+            current_variables: list[dict[str, Any]] = []
+            applied_variables: list[dict[str, Any]] = []
+            for variable_name, variable_dict in name_variable_map.items():
+                if variable_name in applied:
+                    if count_md5(current.get(variable_name)) == count_md5(applied.get(variable_name)):
+                        continue
+                    applied_variables.append({**variable_dict, "value": applied.get(variable_name)})
+                current_variables.append({**variable_dict, "value": current.get(variable_name)})
+
+            for variable_name in applied:
+                if variable_name not in name_variable_map:
                     applied_variables.append(
                         {
-                            "name": applied_variable_name,
+                            "name": variable_name,
                             "type": VariableType.CONSTANTS.value,
-                            "alias": _("[变量已失效] {}").format(applied_variable_name),
+                            "alias": _("[变量已失效] {}").format(variable_name),
                             "value": "--",
                         }
                     )
