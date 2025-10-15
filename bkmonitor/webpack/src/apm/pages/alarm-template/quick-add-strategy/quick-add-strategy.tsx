@@ -331,7 +331,15 @@ class QuickAddStrategy extends Mixins(
         return true;
       },
       cancelFn: () => {
-        window.open(location.href.replace(location.hash, '#/strategy-config'));
+        const filtersStr = JSON.stringify([
+          {
+            key: 'label_name',
+            value: [`/APM-APP(${this.params?.app_name})/`],
+          },
+        ]);
+        window.open(
+          location.href.replace(location.hash, `#/strategy-config?page=1&pageSize=100&filters=${filtersStr}`)
+        );
         return true;
       },
       subHeader: hasBeenApplied
