@@ -472,7 +472,7 @@ class GrafanaViewSet(APIViewSet):
         data = GrafanaQueryHandler(params["bk_biz_id"]).get_variable_value(params["type"], params["params"])
         return Response(data)
 
-    @list_route(methods=["get"])
+    @list_route(methods=["GET"])
     def get_dashboard_directory_tree(self, request):
         """
         @api {get} /grafana/get_dashboard_directory_tree/ 09_获取仪表盘目录树
@@ -518,7 +518,7 @@ class GrafanaViewSet(APIViewSet):
         data = MonitorApi.get_dashboard_directory_tree(params)
         return Response(data)
 
-    @detail_route(methods=["post"])
+    @list_route(methods=["POST"])
     def create_dashboard_or_folder(self, request):
         """
         @api {post} /grafana/create_dashboard_or_folder/ 10_创建仪表盘或目录
@@ -542,7 +542,7 @@ class GrafanaViewSet(APIViewSet):
         data = MonitorApi.create_dashboard_or_folder(params)
         return Response(data)
 
-    @detail_route(methods=["post"])
+    @list_route(methods=["POST"])
     def save_to_dashboard(self, request):
         """
         @api {post} /grafana/save_to_dashboard/ 11_保存到仪表盘
