@@ -3,7 +3,8 @@ import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
-import { copyText, xssFilter } from 'monitor-common/utils';
+import { copyText } from 'monitor-common/utils';
+import { xssFilter } from 'monitor-common/utils/xss';
 import { ETagsType } from 'monitor-pc/components/biz-select/list';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 /*
