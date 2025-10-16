@@ -16,21 +16,18 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "bk_biz_id": 2
 }
 ```
 
 ### 响应参数
 
-| 字段    | 类型   | 描述         |
-| ------- | ------ | ------------ |
+| 字段    | 类型     | 描述         |
+| ------- |--------| ------------ |
 | result  | Bool   | 请求是否成功 |
 | code    | Int    | 返回的状态码 |
 | message | String | 描述信息     |
-| data    | List   | 处理套餐信息 |
+| data    | Dict   | 处理套餐信息 |
 
 #### data字段说明
 

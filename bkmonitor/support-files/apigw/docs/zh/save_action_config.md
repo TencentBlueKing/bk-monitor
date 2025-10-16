@@ -85,9 +85,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "execute_config": {
         "template_detail": {
             "method": "GET",
@@ -126,12 +123,12 @@
 
 ### 响应参数
 
-| 字段    | 类型   | 描述           |
-| ------- | ------ | -------------- |
+| 字段    | 类型     | 描述           |
+| ------- |--------| -------------- |
 | result  | bool   | 请求是否成功   |
 | code    | int    | 返回的状态码   |
 | message | string | 描述信息       |
-| data    | Int    | 处理套餐配置id |
+| data    | Dict   | 处理套餐配置id |
 
 ### 响应参数示例
 
