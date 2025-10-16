@@ -2,24 +2,18 @@
 
 策略订阅详情
 
-#### 请求方法
-
-GET
-
-#### 请求路径
-
-`/app/subscribe/detail/`
-
-#### 接口参数
+### 请求参数
 
 | 字段 | 类型 | 必须 | 描述   |
 |----|----|----|------|
 | id | int | 是  | 订阅ID |
 | bk_biz_id  | int   | 是  | 业务ID   |
 
-#### 请求示例
+### 请求参数示例
 
-`GET /app/subscribe/detail/?id=1&bk_biz_id=2`
+```python
+GET /app/subscribe/detail/?id=1&bk_biz_id=2
+```
 
 ### 响应参数
 
@@ -44,7 +38,7 @@ GET
 | user_type  | string       | 用户类型   |
 | is_enable  | bool         | 是否启用   |
 
-#### 示例数据
+### 响应参数示例
 
 ```json
 {
