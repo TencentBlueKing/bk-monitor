@@ -160,6 +160,7 @@
               class="reset-width custom-cycle"
               :need-auto="false"
               default-unit="m"
+              @change="validateField(info.timeout, rules.timeout)"
             />
           </verify-input>
         </div>
