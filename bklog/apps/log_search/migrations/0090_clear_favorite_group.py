@@ -20,9 +20,15 @@ def forwards_func(apps, schema_editor):
             key = f"{group.source_app_code}_{group.space_uid}_{group.group_type}_{group.created_by}"
         if key in checked_groups:
             # 如果已经存在相同的分组，检查是否有数据，有则将数据转移到第一个遇到的分组
-            if favorite_model.objects.filter(group_id=group.id).exists():
+            items = favorite_model.objects.filter(group_id=group.id)
+            if items:
                 print(f"group: {group.name} has data, moving to group_id: {checked_groups[key]}")
-                favorite_model.objects.filter(group_id=group.id).update(group_id=checked_groups[key])
+                for item in items:
+                    item.group_id = checked_groups[key]
+                    try:
+                        item.save(update_fields=["group_id"])
+                    except Exception as e:
+                        print(f"Error moving item: {item.id} - {item.name}, error: {e}")
             groups_to_delete.append(group.id)
         else:
             # 记录第一个遇到的分组ID
