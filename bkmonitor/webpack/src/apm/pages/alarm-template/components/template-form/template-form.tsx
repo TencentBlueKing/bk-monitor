@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listUserGroup } from 'monitor-api/modules/model';
@@ -74,6 +74,9 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
   /** 模板表单 */
   @Ref('form') formRef;
 
+  /** 检测规则单位 */
+  algorithmsUnit = '';
+
   /** 用户组列表loading */
   alarmGroupLoading = false;
   /** 用户组列表 */
@@ -108,7 +111,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     ],
     selectUserGroup: [
       {
-        required: true,
+        validator: this.validateAlarmGroup,
         message: this.$t('告警组必填'),
         trigger: 'change',
       },
@@ -132,10 +135,22 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     return this.data?.user_group_list?.map(item => item.id) || [];
   }
 
+  @Watch('data')
+  handleDataChange(val: EditTemplateFormData) {
+    this.algorithmsUnit = val.algorithms[0]?.unit_prefix;
+  }
+
+  /** 校验告警组 */
+  validateAlarmGroup() {
+    return this.selectUserGroup.length > 0;
+  }
+
+  /** 校验检测规则 */
   validAlgorithms() {
     return this.data.algorithms.every(item => item.config.threshold || item.config.threshold === 0);
   }
 
+  /** 校验判断条件 */
   validateDetect(val: DetectConfig) {
     return !(
       val.config.trigger_check_window < 1 ||
@@ -163,9 +178,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
   handleAlgorithmsChange(value: AlgorithmItem[]) {
     if (JSON.stringify(value) !== JSON.stringify(this.data.algorithms)) {
       this.$emit('algorithmsChange', value);
-      this.$nextTick(() => {
-        this.formRef?.validateField('algorithms');
-      });
+      this.formRef?.validateField('algorithms');
     }
   }
 
@@ -290,10 +303,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         class='template-form'
         {...{
           props: {
-            model: {
-              ...this.data,
-              selectUserGroup: this.selectUserGroup,
-            },
+            model: this.data,
             rules: this.rules,
           },
         }}
@@ -345,6 +355,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         >
           <Threshold
             data={this.data?.algorithms}
+            defaultUnit={this.algorithmsUnit}
             onChange={this.handleAlgorithmsChange}
           />
         </bk-form-item>
