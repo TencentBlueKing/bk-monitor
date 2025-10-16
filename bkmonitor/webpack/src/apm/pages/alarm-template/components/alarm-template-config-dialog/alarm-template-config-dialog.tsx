@@ -32,7 +32,7 @@ import AlarmGroup from 'monitor-pc/pages/strategy-config/strategy-config-set-new
 import Threshold from '../template-form/detect-rules/threshold';
 
 import type { IAlarmGroupList } from '../../quick-add-strategy/typing';
-import type { AlarmTemplateListItem } from '../../typing';
+import type { AlarmAlgorithmItem, AlarmTemplateListItem } from '../../typing';
 import type { AlarmDeleteConfirmEvent } from '../alarm-delete-confirm/alarm-delete-confirm';
 
 import './alarm-template-config-dialog.scss';
@@ -220,6 +220,7 @@ export default class AlarmTemplateConfigDialog extends tsc<
         return (
           <Threshold
             data={this.value as AlarmTemplateListItem['algorithms']}
+            defaultUnit={(this.defaultValue?.[0] as AlarmAlgorithmItem)?.unit_prefix}
             onChange={this.handleDefaultChange}
           />
         );

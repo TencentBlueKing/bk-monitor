@@ -69,7 +69,18 @@ export default class TemplateFormDetail extends tsc<TemplateFormDetailProps> {
   render() {
     return (
       <div class='template-form-detail'>
-        {this.formItem(this.$t('监控数据'), <span>{this.monitorData}</span>)}
+        {this.formItem(
+          this.$t('监控数据'),
+          <span
+            class='monitor-data'
+            v-bk-tooltips={{
+              content: this.data?.query_template?.description,
+              disabled: !this.data?.query_template?.description,
+            }}
+          >
+            {this.monitorData}
+          </span>
+        )}
         {this.formItem(this.$t('模板类型'), <span>{this.data?.system.alias}</span>)}
         {this.formItem(this.$t('检测算法'), <DetectionAlgorithmsGroup algorithms={this.data?.algorithms} />)}
         {this.formItem(

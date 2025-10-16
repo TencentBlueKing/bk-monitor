@@ -27,7 +27,10 @@
       }
 
       .monitor-data {
+        display: inline-block;
+        line-height: 20px;
         cursor: pointer;
+        border-bottom: 1px dashed #979ba5;
       }
     }
 
