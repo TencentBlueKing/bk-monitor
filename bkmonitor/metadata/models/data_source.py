@@ -350,6 +350,22 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
+    def register_to_bkbase(self, bk_biz_id: int):
+        """
+        将当前data_id注册到计算平台
+        """
+
+        from metadata.models.data_link import DataIdConfig, utils
+
+        bkbase_data_name = utils.compose_bkdata_data_id_name(self.data_name)
+        logger.info("register_to_bkbase: bkbase_data_name: %s", bkbase_data_name)
+        namespace = "bklog" if self.etl_config in LOG_EVENT_ETL_CONFIGS else "bkmonitor"
+        data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
+            name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=self.bk_tenant_id
+        )
+        data_id_config = data_id_config_ins.compose_predefined_config(data_source=self)
+        api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)
+
     # TODO：多租户,需要等待BkBase接口协议,理论上需要补充租户ID,不再有默认接入者概念
     @classmethod
     def apply_for_data_id_from_bkdata(
