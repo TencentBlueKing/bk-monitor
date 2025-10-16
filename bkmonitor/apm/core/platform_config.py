@@ -110,8 +110,13 @@ class PlatformConfig(BkCollectorConfig):
             "metric_configs": cls.list_metric_config(),
             "license_config": cls.get_license_config(),
             "attribute_config": cls.get_attribute_config(),
-            "field_normalizer_config": cls.get_field_normalizer_config(),
         }
+
+        # 根据settings配置决定是否添加字段标准化配置
+        if settings.APM_FIELD_NORMALIZER_ENABLED:
+            field_normalizer_config = cls.get_field_normalizer_config()
+            if field_normalizer_config:
+                plat_config["field_normalizer_config"] = field_normalizer_config
 
         if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             resource_fill_dimensions_config = cls.get_resource_fill_dimensions_config(bcs_cluster_id)
