@@ -37,12 +37,11 @@ from apps.log_search.constants import (
     IndexSetType,
 )
 from apps.log_search.exceptions import (
-    BKBaseExportException,
     MissAsyncExportException,
     PreCheckAsyncExportException,
 )
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler, UnionSearchHandler
-from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
+from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.tasks.async_export import async_export, union_async_export
 from apps.models import model_to_dict
 from apps.utils.db import array_chunk
@@ -85,9 +84,6 @@ class AsyncExportHandlers:
         self.export_file_type = export_file_type
 
     def async_export(self, is_quick_export: bool = False):
-        # 计算平台暂不支持快速下载
-        if is_quick_export and self.search_handler.scenario_id == Scenario.BKDATA:
-            raise BKBaseExportException()
         # 判断fields是否支持
         fields = self._pre_check_fields()
         # 获取排序字段
@@ -303,10 +299,6 @@ class UnionAsyncExportHandlers:
         self.export_file_type = export_file_type
 
     def async_export(self, is_quick_export: bool = False):
-        for index_set in self.union_search_handler.index_sets:
-            # 计算平台暂不支持快速下载
-            if is_quick_export and index_set.scenario_id == Scenario.BKDATA:
-                raise BKBaseExportException()
         # 获取排序字段
         sort_fields_mappings = {}
         for index_set_id in self.index_set_ids:
