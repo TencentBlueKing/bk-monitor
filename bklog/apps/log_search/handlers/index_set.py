@@ -1748,7 +1748,7 @@ class BaseIndexSetHandler:
                 doris_params = {
                     "space_type": index_set.space_uid.split("__")[0],
                     "space_id": index_set.space_uid.split("__")[-1],
-                    "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
+                    "data_label": self.get_data_label(index_set.index_set_id),
                     "table_info": table_info,
                 }
                 if query_alias_settings := index_set.query_alias_settings:
