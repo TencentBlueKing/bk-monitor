@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 AbnormalCluster：离群检测算法基于计算平台的计算结果，再基于结果表的is_anomaly数量来进行判断。
 """
@@ -17,7 +17,6 @@ import json
 import logging
 import time
 from collections import Counter
-from typing import Dict, List
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -42,7 +41,7 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
     GROUP_PREDICT_FUNC = api.aiops_sdk.acd_group_predict
     PREDICT_FUNC = api.aiops_sdk.acd_predict
 
-    def pre_detect(self, data_points: List[DataPoint]) -> None:
+    def pre_detect(self, data_points: list[DataPoint]) -> None:
         """生成按照dimension划分的预测输入数据，调用SDK API进行批量分组预测.
 
         :param data_points: 待预测的数据
@@ -58,8 +57,11 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
         if not item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
             return
 
+        # 分组字段
         cluster_fields = set(self.validated_config.get("group", []))
+        # 维度字段
         dimension_fields = set(data_points[0].dimension_fields)
+        # 分群字段
         not_cluster_fields = list(dimension_fields - cluster_fields)
         predict_args = {
             "nsigma": self.validated_config["args"].get("$sensitivity", 5),
@@ -98,26 +100,39 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
 
         start_time = time.time()
         tasks = []
+        task_dimensions_map = {}  # 存储任务ID到cluster_dimensions的映射
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=settings.AIOPS_SDK_PREDICT_CONCURRENCY) as executor:
             for cluster_set in predict_inputs.values():
                 for clsuter_timed_data in cluster_set["cluster_data"].values():
-                    tasks.append(
-                        executor.submit(
-                            self.PREDICT_FUNC,
-                            **clsuter_timed_data,
-                            predict_args=predict_args,
-                        )
+                    # 保存分组字段-cluster_dimensions信息
+                    cluster_dimensions = clsuter_timed_data["dimensions"]
+                    future = executor.submit(
+                        self.PREDICT_FUNC,
+                        **clsuter_timed_data,
+                        predict_args=predict_args,
                     )
+                    # 将future对象和对应的cluster_dimensions关联起来
+                    task_dimensions_map[future] = cluster_dimensions
+                    tasks.append(future)
 
         anomaly_results = {}
         error_counter = Counter()
         for future in concurrent.futures.as_completed(tasks):
             try:
                 predict_result = future.result()
+                # 补充该任务对应的分组字段维度值-cluster_dimensions
+                cluster_dimensions = task_dimensions_map.get(future) or {}
                 for output_data in predict_result:
                     if output_data["is_anomaly"]:
                         if output_data["timestamp"] not in anomaly_results:
                             anomaly_results[output_data["timestamp"]] = []
+                        # 添加cluster_dimensions信息到返回数据中
+                        for cluster_key, cluster_val in cluster_dimensions.items():
+                            if cluster_key not in output_data:
+                                output_data["cluster_key"] = cluster_val
+                        # 作为整体记录到 _cluster_dimensions 中
+                        output_data["_cluster_dimensions"] = json.dumps(cluster_dimensions)
                         anomaly_results[output_data["timestamp"]].append(output_data)
             except Exception as e:
                 # 统计检测异常的策略
@@ -160,33 +175,40 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
             ),
         )
 
-    def generate_cluster_hash(self, cluster_dimensions: Dict) -> str:
+    def generate_cluster_hash(self, cluster_dimensions: dict) -> str:
         """生成分群hash.
 
         :param cluster_dimensions: 分组维度
         :return: 曲线ID
         """
         sorted_key_list = sorted(cluster_dimensions.keys())
-        key_values = ":".join("{}_{}".format(k, str(cluster_dimensions[k])) for k in sorted_key_list)
+        key_values = ":".join(f"{k}_{str(cluster_dimensions[k])}" for k in sorted_key_list)
         md5 = hashlib.md5()
         md5.update(key_values.encode("utf8"))
         return md5.hexdigest()
 
     def get_context(self, data_point):
-        context = super(AbnormalCluster, self).get_context(data_point)
-        abnormal_clusters = parse_cluster(data_point.values["cluster"])
+        context = super().get_context(data_point)
+        abnormal_clusters = parse_cluster(
+            data_point.values["cluster"], data_point.values.get("_cluster_dimensions") or "{}"
+        )
         context.update({"abnormal_clusters": abnormal_clusters})
         return context
 
     def anomaly_message_template_tuple(self, data_point):
-        prefix, suffix = super(AbnormalCluster, self).anomaly_message_template_tuple(data_point)
+        prefix, suffix = super().anomaly_message_template_tuple(data_point)
         return prefix, ""
 
 
-def parse_cluster(cluster_str):
+def parse_cluster(cluster_str, group_str):
+    groups = json.loads(f"[{group_str}]")
     clusters = json.loads(f"[{cluster_str}]")
     result = []
-    for key, value in clusters[0].items():
-        result.append("{}({})".format(key, value))
+    if groups:
+        for key, value in groups[0].items():
+            result.append(f"{key}({value})")
+    if clusters:
+        for key, value in clusters[0].items():
+            result.append(f"{key}({value})")
     result = "[{}]".format("-".join(result))
     return result
