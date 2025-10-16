@@ -325,11 +325,21 @@ class StrategyTemplateViewSet(GenericViewSet):
         update_user: str | None = get_global_user()
         if not update_user:
             raise ValueError(_("未获取到用户信息"))
-        edit_data: dict[str, Any] = self.query_data["edit_data"]
-        edit_data["update_user"] = update_user
-        edit_data["update_time"] = timezone.now()
-        strategy_template_qs = self.get_queryset().filter(id__in=self.query_data["ids"])
-        strategy_template_qs.update(**edit_data)
+
+        bk_biz_id: int = self.query_data["bk_biz_id"]
+        app_name: str = self.query_data["app_name"]
+        edit_data: dict[str, Any] = {
+            **self.query_data["edit_data"],
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "update_user": update_user,
+            "update_time": timezone.now(),
+        }
+
+        strategy_template_qs = self.get_queryset().filter(
+            bk_biz_id=bk_biz_id, app_name=app_name, id__in=self.query_data["ids"]
+        )
+        serializers.StrategyTemplateModelSerializer().batch_update(strategy_template_qs, edit_data)
         return Response({"ids": list(strategy_template_qs.values_list("id", flat=True))})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)

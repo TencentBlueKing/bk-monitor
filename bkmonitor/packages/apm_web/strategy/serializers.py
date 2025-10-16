@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 from collections.abc import Iterable
 from django.utils.translation import gettext_lazy as _
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 from rest_framework import serializers
 from django.utils.functional import cached_property
 
@@ -355,6 +355,35 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         ]
 
     @staticmethod
+    def _validate_is_auto_apply(strategy_templates: list[dict[str, Any]] | None, validated_data: dict[str, Any]):
+        """传入要更新的 queryset 和 validated_data"""
+        if not validated_data.get("is_auto_apply"):
+            return
+        if strategy_templates is None:
+            other_same_origin_qs: QuerySet[StrategyTemplate] = StrategyTemplate.objects.filter(
+                Q(root_id=validated_data["root_id"]) | Q(id=validated_data["root_id"])
+            )
+        else:
+            update_ids: list[int] = []
+            root_template_ids: set[int] = set()
+            for template_dict in strategy_templates:
+                update_ids.append(template_dict["id"])
+                if template_dict["root_id"] == DEFAULT_ROOT_ID:
+                    root_template_id = template_dict["id"]
+                else:
+                    root_template_id = template_dict["root_id"]
+                if root_template_id in root_template_ids:
+                    raise serializers.ValidationError(_("批量更新时，不允许选择两个同源的模板"))
+                root_template_ids.add(root_template_id)
+            other_same_origin_qs: QuerySet[StrategyTemplate] = StrategyTemplate.objects.filter(
+                Q(id__in=root_template_ids) | Q(root_id__in=root_template_ids)
+            ).exclude(id__in=update_ids)
+        if other_same_origin_qs.filter(
+            bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"], is_auto_apply=True
+        ).exists():
+            raise serializers.ValidationError(_("同源模板间只能有一个自动下发模板"))
+
+    @staticmethod
     def _validate_name(qs: QuerySet[StrategyTemplate], validated_data: dict[str, Any]) -> None:
         if qs.filter(
             bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"], name=validated_data["name"]
@@ -363,11 +392,17 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
 
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
         self._validate_name(StrategyTemplate.origin_objects.exclude(pk=instance.pk), validated_data)
+        self._validate_is_auto_apply([{"id": instance.pk, "root_id": instance.root_id}], validated_data)
         return super().update(instance, validated_data)
 
     def create(self, validated_data: dict[str, Any]) -> StrategyTemplate:
         self._validate_name(StrategyTemplate.origin_objects.all(), validated_data)
+        self._validate_is_auto_apply(None, validated_data)
         return super().create(validated_data)
+
+    def batch_update(self, qs: QuerySet[StrategyTemplate], validated_data: dict[str, Any]):
+        self._validate_is_auto_apply(list(qs.values("id", "root_id")), validated_data)
+        qs.update(**validated_data)
 
 
 class StrategyTemplateSearchModelSerializer(StrategyTemplateBaseModelSerializer):
