@@ -75,7 +75,10 @@
     overflow-y: hidden;
 
     .bk-big-tree-node {
-      height: 28px;
+      min-height: 28px; 
+      height: fit-content; 
+      line-height: 28px;     
+      overflow: visible;  
     }
 
     .is-leaf {
@@ -88,7 +91,12 @@
       display: none;
     }
   }
-
+  .multi-level-tree{
+    .tree-wrapper {
+      width: calc(100% + var(--level) * 16px);
+      overflow-y: scroll;
+    }
+  }
   .field-filter-container-new {
     height: calc(100vh - var(--top-searchbar-height) - 210px);
     overflow-y: auto;
