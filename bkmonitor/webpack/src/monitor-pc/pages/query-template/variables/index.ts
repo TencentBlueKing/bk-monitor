@@ -331,7 +331,7 @@ export async function getCreateVariableParams(
   /** 需要获取详情的指标id列表 */
   const metricIds = [];
   for (const variable of params) {
-    const { related_metrics } = variable.config;
+    const { related_metrics } = variable?.config || {};
     if (related_metrics) {
       for (const metric of related_metrics) {
         /** 去重且已有指标详情列表中不含有该指标 */
@@ -353,14 +353,9 @@ export async function getCreateVariableParams(
   }
 
   return params.map(item => {
-    const {
-      type,
-      name,
-      alias,
-      description,
-      config: { default: defaultValue, related_metrics, related_tag, options },
-      value,
-    } = item;
+    const { type, name, alias, description, value } = item;
+
+    const { default: defaultValue, related_metrics, related_tag, options } = item?.config || {};
 
     let metric = null;
     if (related_metrics) {
@@ -376,7 +371,7 @@ export async function getCreateVariableParams(
       name: `\${${name}}`,
       type,
       alias,
-      description,
+      description: description || '--',
       defaultValue,
       metric,
       related_tag,
