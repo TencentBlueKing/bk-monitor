@@ -3,7 +3,7 @@ import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
-import { copyText } from 'monitor-common/utils';
+import { copyText, xssFilter } from 'monitor-common/utils';
 import { ETagsType } from 'monitor-pc/components/biz-select/list';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 /*
@@ -270,7 +270,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       extCls: 'event-relation-dialog',
       title: this.$t('关联日志'),
       subHeader: h(
-        'div', // 使用 div 元素包装整个内容
+        'div',
         { class: 'json-view-content' },
         [
           h('i', {
@@ -293,8 +293,18 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               data: relationInfo,
               deep: 5,
               showIcon: true,
-              // showLine: false
             },
+            scopedSlots: {
+              nodeValue: ({node, defaultValue}) => {
+                // value是url时 增加跳转功能
+                if (node.content?.startsWith('http')) {
+                  return (
+                    <a class='vjs-value vjs-value-string' href={xssFilter(node.content)} target='_blank' rel='noopener noreferrer'>"{xssFilter(node.content)}"</a>
+                  );
+                }
+                return defaultValue;
+              },
+            }
           }),
         ]
       ),
