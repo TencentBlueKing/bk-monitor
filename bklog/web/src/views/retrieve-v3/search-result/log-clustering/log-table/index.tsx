@@ -559,7 +559,7 @@ export default defineComponent({
     };
 
     addEvent(
-      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE],
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE,RetrieveEvent.AUTO_REFRESH],
       refreshTable,
     );
 

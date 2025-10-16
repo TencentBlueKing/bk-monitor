@@ -1,12 +1,10 @@
 import { defineComponent, ref, watch, onUnmounted } from 'vue';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper.tsx';
-import useLocale from '@/hooks/use-locale';
 export default defineComponent({
   name: 'AutoRefresh',
   setup() {''
-    const { $t } = useLocale();
     const datasource = ref([
-      { label: `${$t('关闭')}(off)`, value: 'off' },
+      { label: '关闭(off)', value: 'off' },
       { label: '1m', value: '1m' }, // 1分钟
       { label: '5m', value: '5m' }, // 5分钟
       { label: '15m', value: '15m' }, // 15分钟
