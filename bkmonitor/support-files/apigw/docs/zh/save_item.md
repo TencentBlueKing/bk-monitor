@@ -135,9 +135,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
 	"name": "新建事项",
     "calendar_id": 1,
     "start_time": 1641340800,

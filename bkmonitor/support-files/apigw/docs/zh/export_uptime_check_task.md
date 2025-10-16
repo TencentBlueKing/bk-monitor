@@ -16,9 +16,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "biz_id": 2,
     "task_ids": "60",
     "protocol": "TCP"

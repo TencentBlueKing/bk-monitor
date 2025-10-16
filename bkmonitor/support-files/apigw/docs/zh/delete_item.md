@@ -134,9 +134,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "id": 1,
     "start_time": 1647043200,
     "end_time": 1647052200,

@@ -15,9 +15,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "name": "测试日历",
     "deep_color": "#BBFFFF",
     "light_color": "#111111"

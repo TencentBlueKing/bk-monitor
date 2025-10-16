@@ -15,9 +15,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "calendar_ids": [1],
     "time": 1642381200
 }

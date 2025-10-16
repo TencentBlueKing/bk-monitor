@@ -15,9 +15,7 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx"
+    "page":1
 }
 ```
 

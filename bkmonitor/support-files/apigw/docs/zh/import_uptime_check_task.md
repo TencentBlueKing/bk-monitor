@@ -201,9 +201,6 @@
 
 ```json
 {   
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "bk_biz_id": 2,
     "conf_list": [
         {

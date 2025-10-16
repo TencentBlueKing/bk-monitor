@@ -86,9 +86,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "execute_config": {
         "template_detail": {
             "method": "GET",

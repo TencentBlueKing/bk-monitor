@@ -138,9 +138,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "id": 1,
 	"name": "新建事项111",
     "change_type"：0
@@ -151,9 +148,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "id": 1,
     "name": "新建事项222",
     "change_type": 1
@@ -164,9 +158,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "id": 1,
     "name": "新建事项333",
 	"start_time": 1641517200,

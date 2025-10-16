@@ -12,9 +12,6 @@
 ### 请求参数示例
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "group_id": 10001
 }
 ```
