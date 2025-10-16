@@ -158,5 +158,5 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "平台配置",
             },
         ),
-        migrations.RunPython(load_default_otel_mapping_config, migrations.RunPython.noop),
+        migrations.RunPython(load_default_otel_mapping_config),
     ]
