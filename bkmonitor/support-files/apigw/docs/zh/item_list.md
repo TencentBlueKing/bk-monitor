@@ -7,6 +7,7 @@
 
 | 字段名       | 类型      | 必选 | 描述                                             |
 | ------------ | --------- | ---- | ------------------------------------------------ |
+| bk_tenant_id | Int       | 是   | 租户ID     |
 | calendar_ids | List(int) | 是   | 日历列表                                         |
 | start_time   | Int       | 是   | 日历查询范围开始时间                             |
 | end_time     | Int       | 是   | 日历查询范围结束时间                             |
@@ -17,6 +18,7 @@
 
 ```json
 {
+    "bk_tenant_id": "xxx",
 	"calendar_ids": [1],
     "start_time": 1640966400,
     "end_time": 1672502400
