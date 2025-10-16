@@ -4,6 +4,142 @@ import bkmonitor.utils.db.fields
 from django.db import migrations, models
 
 
+def load_default_otel_mapping_config(apps, schema_editor):
+    """加载默认的 OTEL 映射配置"""
+    PlatformConfig = apps.get_model("apm", "PlatformConfig")
+
+    default_config = {
+        "name": "field_normalizer/otel_mapping",
+        "fields": [
+            {
+                "kind": "",
+                "predicate_key": "attributes.http.method,attributes.http.request.method",
+                "rules": [
+                    {"key": "attributes.http.method", "op": "or", "values": ["attributes.http.request.method"]},
+                    {
+                        "key": "attributes.http.status_code",
+                        "op": "or",
+                        "values": ["attributes.http.response.status_code"],
+                    },
+                    {"key": "attributes.http.url", "op": "or", "values": ["attributes.url.full"]},
+                    {"key": "attributes.http.scheme", "op": "or", "values": ["attributes.url.scheme"]},
+                    {"key": "attributes.http.client_ip", "op": "or", "values": ["attributes.client.address"]},
+                    {"key": "attributes.http.target", "op": "or", "values": ["attributes.url.path"]},
+                    {"key": "attributes.net.sock.peer.addr", "op": "or", "values": ["attributes.network.peer.address"]},
+                    {"key": "attributes.net.sock.peer.port", "op": "or", "values": ["attributes.network.peer.port"]},
+                    {
+                        "key": "attributes.net.sock.host.addr",
+                        "op": "or",
+                        "values": ["attributes.network.local.address"],
+                    },
+                    {"key": "attributes.net.sock.host.port", "op": "or", "values": ["attributes.network.local.port"]},
+                ],
+            },
+            {
+                "kind": "SPAN_KIND_SERVER",
+                "predicate_key": "attributes.http.method,attributes.http.request.method",
+                "rules": [
+                    {
+                        "key": "attributes.net.peer.name",
+                        "op": "concat",
+                        "values": ["attributes.client.address", "attributes.client.port"],
+                    },
+                    {"key": "attributes.net.peer.ip", "op": "or", "values": ["attributes.client.address"]},
+                    {"key": "attributes.net.peer.port", "op": "or", "values": ["attributes.client.port"]},
+                    {
+                        "key": "attributes.net.host.name",
+                        "op": "concat",
+                        "values": ["attributes.server.address", "attributes.server.port"],
+                    },
+                    {"key": "attributes.net.host.ip", "op": "or", "values": ["attributes.server.address"]},
+                    {"key": "attributes.net.host.port", "op": "or", "values": ["attributes.server.port"]},
+                ],
+            },
+            {
+                "kind": "SPAN_KIND_CLIENT",
+                "predicate_key": "attributes.http.method,attributes.http.request.method",
+                "rules": [
+                    {
+                        "key": "attributes.net.peer.name",
+                        "op": "concat",
+                        "values": ["attributes.server.address", "attributes.server.port"],
+                    },
+                    {
+                        "key": "attributes.net.peer.ip",
+                        "op": "or",
+                        "values": ["attributes.server.address", "attributes.network.peer.address"],
+                    },
+                    {
+                        "key": "attributes.net.peer.port",
+                        "op": "or",
+                        "values": ["attributes.server.port", "attributes.network.peer.port"],
+                    },
+                    {
+                        "key": "attributes.net.host.name",
+                        "op": "concat",
+                        "values": ["attributes.client.address", "attributes.client.port"],
+                    },
+                    {"key": "attributes.net.host.ip", "op": "or", "values": ["attributes.client.address"]},
+                    {"key": "attributes.net.host.port", "op": "or", "values": ["attributes.client.port"]},
+                ],
+            },
+            {
+                "kind": "SPAN_KIND_CLIENT",
+                "predicate_key": "attributes.db.system,attributes.db.system.name",
+                "rules": [
+                    {
+                        "key": "attributes.net.peer.name",
+                        "op": "concat",
+                        "values": ["attributes.server.address", "attributes.server.port"],
+                    },
+                    {
+                        "key": "attributes.net.peer.ip",
+                        "op": "or",
+                        "values": ["attributes.server.address", "attributes.network.peer.address"],
+                    },
+                    {
+                        "key": "attributes.net.peer.port",
+                        "op": "or",
+                        "values": ["attributes.server.port", "attributes.network.peer.port"],
+                    },
+                    {
+                        "key": "attributes.net.host.name",
+                        "op": "concat",
+                        "values": ["attributes.client.address", "attributes.client.port"],
+                    },
+                    {"key": "attributes.net.host.ip", "op": "or", "values": ["attributes.client.address"]},
+                    {"key": "attributes.net.host.port", "op": "or", "values": ["attributes.client.port"]},
+                ],
+            },
+            {
+                "kind": "",
+                "predicate_key": "attributes.db.system,attributes.db.system.name",
+                "rules": [
+                    {"key": "attributes.net.sock.peer.addr", "op": "or", "values": ["attributes.network.peer.address"]},
+                    {"key": "attributes.net.sock.peer.port", "op": "or", "values": ["attributes.network.peer.port"]},
+                    {"key": "attributes.db.name", "op": "or", "values": ["attributes.db.namespace"]},
+                    {"key": "attributes.db.statement", "op": "or", "values": ["attributes.db.query.text"]},
+                    {"key": "attributes.db.sql.table", "op": "or", "values": ["attributes.db.collection.name"]},
+                ],
+            },
+            {
+                "kind": "",
+                "predicate_key": "attributes.messaging.system",
+                "rules": [
+                    {"key": "attributes.net.sock.peer.addr", "op": "or", "values": ["attributes.network.peer.address"]},
+                    {"key": "attributes.net.sock.peer.port", "op": "or", "values": ["attributes.network.peer.port"]},
+                    {"key": "attributes.topic", "op": "or", "values": ["attributes.messaging.destination.name"]},
+                ],
+            },
+        ],
+    }
+
+    # 创建或更新配置
+    PlatformConfig.objects.update_or_create(
+        config_type="field_normalizer/otel_mapping", defaults={"config_data": default_config}
+    )
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("apm", "0050_toponode_is_permanent"),
@@ -21,5 +157,6 @@ class Migration(migrations.Migration):
                 "verbose_name": "平台配置",
                 "verbose_name_plural": "平台配置",
             },
-        )
+        ),
+        migrations.RunPython(load_default_otel_mapping_config, migrations.RunPython.noop),
     ]
