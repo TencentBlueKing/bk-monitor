@@ -2450,6 +2450,22 @@ class DeleteRestoreResultTableSnapshotResource(Resource):
         return validated_request_data
 
 
+class RetryRestoreResultTableSnapshotResource(Resource):
+    """
+    快照恢复重试接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        restore_id = serializers.IntegerField(required=True, label="快照恢复任务id")
+        operator = serializers.CharField(required=True, label="操作者")
+        indices = serializers.ListField(required=False, label="重试索引列表",  default=[])
+        is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+        is_force = serializers.BooleanField(required=False, label="是否强制重试", default=False)
+
+    def perform_request(self, validated_request_data):
+        return models.EsSnapshotRestore.retry_restore(**validated_request_data)
+
+
 class ListRestoreResultTableSnapshotResource(Resource):
     """
     快照恢复任务list接口
@@ -2484,6 +2500,18 @@ class GetRestoreResultTableSnapshotStateResource(Resource):
 
     def perform_request(self, validated_request_data):
         return models.EsSnapshotRestore.batch_get_state(**validated_request_data)
+
+
+class GetRestoreResultTableSnapshotIndicesResource(Resource):
+    """
+    快照回溯任务索引回溯详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        restore_ids = serializers.ListField(required=True, label="快照回溯任务ids")
+
+    def perform_request(self, validated_request_data):
+        return models.EsSnapshotRestore.batch_get_indices(**validated_request_data)
 
 
 class EsRouteResource(Resource):
