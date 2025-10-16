@@ -487,6 +487,7 @@ class ReportHandler:
                 if "*" in render_args["contents"][0]["graphs"][0][0]["graph_tag"]:
                     content_template_path = "report/report_full.jinja"
             sender = Sender(
+                bk_tenant_id=self.bk_tenant_id,
                 title_template_path="report/report_title.jinja",
                 content_template_path=content_template_path,
                 context=render_args,

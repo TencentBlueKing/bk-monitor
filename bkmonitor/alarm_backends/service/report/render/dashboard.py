@@ -173,7 +173,7 @@ async def wait_for_panel_render(page: Page, timeout: int = 60):
             break
 
         if time.time() - start_time > timeout:
-            raise TimeoutError("[render_dashboard_panel] wait for dashboard panel render timeout")
+            return
 
         # 等待图表渲染动画完成
         time.sleep(1)

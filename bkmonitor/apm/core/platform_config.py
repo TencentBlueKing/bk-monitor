@@ -277,7 +277,7 @@ class PlatformConfig(BkCollectorConfig):
             else settings.BK_DATA_AES_IV,
         }
 
-        if bcs_cluster_id:
+        if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             # 集群内默认上报 APM 应用
             default_app_relation = BcsClusterDefaultApplicationRelation.objects.filter(
                 cluster_id=bcs_cluster_id

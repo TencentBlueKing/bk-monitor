@@ -125,6 +125,7 @@ export default class AiBluekingWrapper extends tsc<object> {
             },
           }}
           enablePopup={true}
+          hideDefaultTrigger={true}
           hideNimbus={true}
           loadRecentSessionOnMount={true}
           prompts={[]}

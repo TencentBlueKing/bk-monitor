@@ -29,6 +29,7 @@ from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSIO
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR
 from metadata.models.space.constants import (
     LOG_EVENT_ETL_CONFIGS,
     SPACE_UID_HYPHEN,
@@ -349,6 +350,22 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
+    def register_to_bkbase(self, bk_biz_id: int):
+        """
+        将当前data_id注册到计算平台
+        """
+
+        from metadata.models.data_link import DataIdConfig, utils
+
+        bkbase_data_name = utils.compose_bkdata_data_id_name(self.data_name)
+        logger.info("register_to_bkbase: bkbase_data_name: %s", bkbase_data_name)
+        namespace = "bklog" if self.etl_config in LOG_EVENT_ETL_CONFIGS else "bkmonitor"
+        data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
+            name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=self.bk_tenant_id
+        )
+        data_id_config = data_id_config_ins.compose_predefined_config(data_source=self)
+        api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)
+
     # TODO：多租户,需要等待BkBase接口协议,理论上需要补充租户ID,不再有默认接入者概念
     @classmethod
     def apply_for_data_id_from_bkdata(
@@ -366,8 +383,13 @@ class DataSource(models.Model):
         from metadata.models.data_link.constants import DataLinkResourceStatus
         from metadata.models.data_link.service import apply_data_id_v2, get_data_id_v2
 
+        # 根据数据类型确定命名空间
+        namespace = BKBASE_NAMESPACE_BK_LOG if event_type == "log" else BKBASE_NAMESPACE_BK_MONITOR
+
         try:
-            apply_data_id_v2(data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type)
+            apply_data_id_v2(
+                data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type, namespace=namespace
+            )
             # 写入记录
         except BKAPIError as e:
             logger.error("apply data id from bkdata error: %s", e)
@@ -377,7 +399,7 @@ class DataSource(models.Model):
             # 等待 3s 后查询一次，减少请求次数
             time.sleep(3)
             try:
-                data = get_data_id_v2(data_name=data_name, is_base=is_base, bk_biz_id=bk_biz_id)
+                data = get_data_id_v2(data_name=data_name, is_base=is_base, bk_biz_id=bk_biz_id, namespace=namespace)
             except BKAPIError as e:
                 logger.error("get data id from bkdata error: %s", e)
                 continue

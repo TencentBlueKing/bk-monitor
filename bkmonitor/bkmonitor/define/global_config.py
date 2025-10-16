@@ -434,7 +434,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[])),
-        ("PROCESS_INDEPENDENT_DATAID_BIZ_IDS", slz.ListField(label="进程采集独立数据源模式业务ID列表", default=[])),
     ]
 )
 
