@@ -255,12 +255,20 @@ class ListResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ListResultTableSnapshotResource)]
 
 
+class RetryResultTableSnapshotViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.RetryResultTableSnapshotResource)]
+
+
 class ListResultTableSnapshotIndicesViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ListResultTableSnapshotIndicesResource)]
 
 
 class GetResultTableSnapshotStateViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.GetResultTableSnapshotStateResource)]
+
+
+class GetResultTableSnapshotRecentStateViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.GetResultTableSnapshotRecentStateResource)]
 
 
 class RestoreResultTableSnapshotViewSet(MetaViewSet):
