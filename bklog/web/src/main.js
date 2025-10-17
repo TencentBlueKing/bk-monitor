@@ -43,7 +43,10 @@ import { renderHeader, xssFilter } from './common/util';
 import './directives/index';
 import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
-import preload, { getAllSpaceList, getExternalMenuListBySpace } from './preload';
+import preload, {
+  getAllSpaceList,
+  getExternalMenuListBySpace,
+} from './preload';
 import getRouter from './router';
 import store from './store';
 import { BK_LOG_STORAGE } from './store/store.type';
@@ -53,14 +56,15 @@ import './scss/theme/theme-dark.scss';
 import './scss/theme/theme-light.scss';
 import './static/font-face/index.css';
 import './static/style.css';
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 import '@blueking/bk-user-selector/vue2/vue2.css';
+
+// import { localSettings } from './local.po';
 
 Vue.prototype.$renderHeader = renderHeader;
 Vue.prototype.$xss = xssFilter;
 
-const setRouterErrorHandle = router => {
-  router.onError(err => {
+const setRouterErrorHandle = (router) => {
+  router.onError((err) => {
     const pattern = /Loading (CSS chunk|chunk) (\d)+ failed/g;
     const isChunkLoadFailed = err.message.match(pattern);
     const targetPath = router.history?.pending?.fullPath;
@@ -80,8 +84,10 @@ Vue.use(VueVirtualScroller);
 window.bus = bus;
 
 const mountedVueInstance = () => {
+  // Object.assign(window, localSettings);
+
   window.mainComponent = {
-    $t: function (key, params) {
+    $t(key, params) {
       return i18n.t(key, params);
     },
   };
@@ -90,20 +96,22 @@ const mountedVueInstance = () => {
     const space = spaceRequest.value;
     const spaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
-    const router = getRouter(spaceUid, bkBizId, externalMenu);
-    setRouterErrorHandle(router);
+
     let externalMenu = [];
     if (window.IS_EXTERNAL && space) {
       externalMenu = getExternalMenuListBySpace(space) ?? [];
-      store.commit('updateState', { externalMenu: externalMenu });
+      store.commit('updateState', { externalMenu });
     }
+
+    const router = getRouter(spaceUid, bkBizId, externalMenu);
+    setRouterErrorHandle(router);
 
     store.dispatch('requestMenuList', spaceUid).then(() => {
       const menuList = store.state.topMenu ?? [];
       menuList
-        .find(item => item.id === 'manage')
-        ?.children?.forEach(group => {
-          group?.children?.forEach(nav => {
+        .find((item) => item.id === 'manage')
+        ?.children?.forEach((group) => {
+          group?.children?.forEach((nav) => {
             if (nav.id === 'log-collection') {
               Object.assign(nav, {
                 children: [
@@ -154,13 +162,15 @@ const mountedVueInstance = () => {
 };
 
 if (process.env.NODE_ENV === 'development') {
-  http.request('meta/getEnvConstant').then(res => {
+  http.request('meta/getEnvConstant').then((res) => {
     const { data } = res;
-    Object.keys(data).forEach(key => {
+    Object.keys(data).forEach((key) => {
       window[key] = data[key];
     });
     window.FEATURE_TOGGLE = JSON.parse(data.FEATURE_TOGGLE);
-    window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
+    window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(
+      data.FEATURE_TOGGLE_WHITE_LIST,
+    );
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
     mountedVueInstance();

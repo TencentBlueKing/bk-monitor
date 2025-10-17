@@ -89,3 +89,4 @@ src/views/playground/*
 /monitor-retrieve/*
 /monitor-apm-retrieve/*
 /monitor-trace-retrieve/*
+src/local.**
