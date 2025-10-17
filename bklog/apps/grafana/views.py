@@ -525,11 +525,10 @@ class GrafanaViewSet(APIViewSet):
         @apiName grafana_create_dashboard_or_folder
         @apiDescription 创建仪表盘或目录
         @apiGroup 30_Grafana
-        @apiParam {String} bk_biz_id 业务Id
+        @apiParam {Int} bk_biz_id 业务Id
         @apiParam {String} title 仪表盘或目录名称
         @apiParam {String} type 类型，dashboard或folder
-        @apiParam {String} folderId 目录Id，创建仪表盘时必填
-        @apiSuccessExample {json} 成功返回:
+        @apiParam {Int} folderId 目录Id，创建仪表盘时必填
         @apiSuccessExample {json} 成功返回:
         {
             "message": "",
@@ -549,9 +548,9 @@ class GrafanaViewSet(APIViewSet):
         @apiName grafana_save_to_dashboard
         @apiDescription 保存到仪表盘
         @apiGroup 30_Grafana
-        @apiParam {String} bk_biz_id 业务Id
-        @apiParam {String} panels 面板列表
-        @apiParam {String} dashboard_uids 仪表盘UID列表
+        @apiParam {Int} bk_biz_id 业务Id
+        @apiParam {List} panels 面板列表
+        @apiParam {List} dashboard_uids 仪表盘UID列表
         @apiSuccessExample {json} 成功返回:
         {
             "message": "",
