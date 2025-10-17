@@ -98,15 +98,29 @@ export default class AiSettingsPage extends tsc<object> {
   /**
    * 获取默认方案列表用于展示详细信息
    */
-  async getSchemeList() {
-    // 获取单指标
-    this.schemeList = await IntelligentModelsStore.getListIntelligentModels({
-      algorithm: IntelligentModelsType.IntelligentDetect,
-    });
-    // 获取多场景
-    this.multipleSchemeList = await IntelligentModelsStore.getListIntelligentModels({
-      algorithm: IntelligentModelsType.MultivariateAnomalyDetection,
-    });
+  getSchemeList() {
+    return Promise.all([
+      // 获取单指标
+      IntelligentModelsStore.getListIntelligentModels({
+        algorithm: IntelligentModelsType.IntelligentDetect,
+      })
+        .then(list => {
+          this.schemeList = list;
+        })
+        .catch(() => {
+          this.schemeList = [];
+        }),
+      // 获取多场景
+      IntelligentModelsStore.getListIntelligentModels({
+        algorithm: IntelligentModelsType.MultivariateAnomalyDetection,
+      })
+        .then(list => {
+          this.multipleSchemeList = list;
+        })
+        .catch(() => {
+          this.multipleSchemeList = [];
+        }),
+    ]);
   }
 
   /** *
