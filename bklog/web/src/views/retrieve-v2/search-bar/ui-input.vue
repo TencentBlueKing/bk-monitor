@@ -39,7 +39,14 @@ const language = (jsCookie.get('blueking_language') || 'zh-cn');
       'en': '126px',
       'zh-cn': '94px',
     });
-    const paddingLeft = aiSpanPadding[language];
+    
+const paddingLeft = computed(() => {
+  if (inputValueLength.value === 0) {
+    return aiSpanPadding[language];
+  }
+
+  return '0px';
+}) 
 const setPopoverRef = (el, parentIndex, childIndex) => {
   const key = `${parentIndex}-${childIndex}`;
   if (el) {
@@ -650,7 +657,7 @@ const handleBatchInputChange = (isShow) => {
       />
     </li>
     <li class="search-item" :style="{'margin-left': paddingLeft}">
-      <slot name="custom-placeholder"></slot>
+      <slot name="custom-placeholder" :isEmptyText="inputValueLength === 0"></slot>
     </li>
     <div style="display: none">
       <UiInputOptions

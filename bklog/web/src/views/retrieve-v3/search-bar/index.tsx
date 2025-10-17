@@ -154,17 +154,20 @@ export default defineComponent({
         on-height-change={handleHeightChange}
         {...{
           scopedSlots: {
-            'custom-placeholder': () => (
-              <span style={aiSpanWrapperStyle}>
-                {t('或')}
-                <span
-                  style={aiSpanStyle}
-                  onClick={handleAiSpanClick}
-                >
-                  {t('使用AI编辑')}
+            'custom-placeholder': function (slotProps) {
+              console.log('isEmptyText', slotProps);
+              return (
+                <span style={aiSpanWrapperStyle}>
+                  { slotProps.isEmptyText ? t('或') : '' }
+                  <span
+                    style={aiSpanStyle}
+                    onClick={handleAiSpanClick}
+                  >
+                    {t('使用AI编辑')}
+                  </span>
                 </span>
-              </span>
-            ),
+              )
+            },
             'search-tool': () => (
               <span onClick={handleAiSpanClick} style={aiBtnStyle}>
                 <img src={aiBluekingSvg} alt="AI编辑" style={{ width: '16px', height: '16px' }} />

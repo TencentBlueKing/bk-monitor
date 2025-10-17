@@ -247,7 +247,7 @@
       <span
         class="custom-placeholder"
         @click.stop="handleCustomPlaceholderClick">
-        <slot name="custom-placeholder"></slot>
+        <slot name="custom-placeholder" :isEmptyText="isEmptySqlString"></slot>
       </span>
     </span>
     <div style="display: none">

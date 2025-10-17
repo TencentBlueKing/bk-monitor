@@ -668,14 +668,14 @@
       </div>
       <div class="search-input" :class="{ disabled: isInputLoading }">
         <UiInput class="search-input-section" v-if="activeIndex === 0" v-model="uiQueryValue" @change="handleBtnQueryClick">
-          <template #custom-placeholder>
-            <slot name="custom-placeholder"></slot>
+          <template #custom-placeholder="{ isEmptyText }">
+            <slot name="custom-placeholder" :isEmptyText="isEmptyText"></slot>
           </template>
         </UiInput>
         <SqlQuery class="search-input-section" v-if="activeIndex === 1" v-model="sqlQueryValue" @retrieve="handleSqlRetrieve"
           @change="handleSqlQueryChange">
-          <template #custom-placeholder>
-            <slot name="custom-placeholder"></slot>
+          <template #custom-placeholder="{ isEmptyText }">
+            <slot name="custom-placeholder" :isEmptyText="isEmptyText"></slot>
           </template>
         </SqlQuery>
         <div ref="refPopTraget" class="hidden-focus-pointer"></div>
