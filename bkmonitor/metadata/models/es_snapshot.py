@@ -629,12 +629,13 @@ class EsSnapshotRestore(models.Model):
         logger.info("restore -> [%s] need delete indices [%s]", self.restore_id, ",".join(indices))
         for indices_chunk in indices_chunks:
             try:
-                es_client.indices.delete(utils.to_csv(indices_chunk))
+                # 静默跳过不存在的索引，因indices每次操作可能是不幂等的，含有实际已删除的索引时将一直异常
+                es_client.indices.delete(utils.to_csv(indices_chunk), ignore_unavailable=True)
             except Exception as e:
                 logger.error(
                     "restore -> [%s] delete indices [%s] failed -> %s", self.restore_id, ",".join(indices_chunk), e
                 )
-                continue
+                raise ValueError(_("回溯索引删除失败"))
             logger.info("restore -> [%s] has delete indices [%s]", self.restore_id, ",".join(indices_chunk))
 
         logger.info("restore -> [%s] has clean complete maybe expired or delete", self.restore_id)
