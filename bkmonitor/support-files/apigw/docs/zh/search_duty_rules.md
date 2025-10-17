@@ -3,20 +3,17 @@
 查询轮值规则列表
 
 
-#### 接口参数
+### 请求参数
 
 | 字段         | 类型   | 必选  | 描述     |
 |------------|------|-----|--------|
 | bk_biz_ids | list | 否   | 业务ID   |
 | ids        | list | 否   | 轮值规则ID |
 
-#### 示例数据
+### 请求参数示例
 
 ```json
 {
-  "bk_app_code": "xxx",
-  "bk_app_secret": "xxxxx",
-  "bk_token": "xxxx",
   "bk_biz_ids": [
     2
   ],
@@ -50,9 +47,7 @@
 | delete_allowed | bool      | 是   | 是否可删除                                |
 | edit_allowed   | bool      | 是   | 是否可编辑                                |
 
-
-
-#### 示例数据
+### 响应参数示例
 
 ```json
 {

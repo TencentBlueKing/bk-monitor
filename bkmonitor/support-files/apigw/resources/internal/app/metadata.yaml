@@ -1907,3 +1907,23 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: modify cluster by vmrts
+  /app/metadata/query_bcs_related_data_link_info/:
+    get:
+      operationId: metadata_query_bcs_related_data_link_info
+      description: 查询 bcs 集群相关数据链路信息
+      tags:
+        - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_bcs_cluster_related_data_link/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query bcs related data link info

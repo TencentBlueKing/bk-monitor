@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { type IDragStatus, filterTaskAlarmColor, isTaskDisable } from '../uptime-check-data';
 
 import './task-card.scss';
+import { xssFilter } from 'monitor-common/utils/xss';
 
 export type IOptionTypes = 'clone' | 'delete' | 'edit' | 'enable' | 'stop';
 const options: { id: IOptionTypes; name: string }[] = [
@@ -57,6 +58,13 @@ export interface IData {
   task_duration?: number; // 平均响应时长
   task_duration_alarm?: boolean; // 数字颜色是否变为红色
   url?: string[];
+  config: {
+    ip_list?: string[]; // 固定ip集合
+    node_list?: {bk_host_id?: number}[] | {bk_obj_id?: string}[]; // cmbd查询参数
+    url_list?: string[]; // 域名集合
+    port?: string; // 端口号，存在此配置时，域名和ip的展示方式为[域名/ip]: 端口号
+  }
+  protocol: string; // 协议类型
 }
 interface ITaskCardEvents {
   onCardClick?: number;
@@ -93,6 +101,109 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
   @Ref('popoverContent') popoverContentRef: HTMLDivElement;
 
   popoverInstance = null;
+
+  get titleUrl() {
+    const { config, url, protocol } = this.data;
+    const titleData = [];
+    // 固定IP
+    if (config.ip_list?.length) {
+      // 有端口号则显示方式变为[ip]: 端口号
+      const ipList = config.ip_list.map(ip => config.port ? `[${ip}]:${config.port}` : ip);
+      const displayIps = ipList;
+      titleData.push({
+        name: this.$t('固定IP'),
+        value: displayIps,
+        total: config.ip_list.length,
+      });
+    }
+
+    // 域名
+    if (config.url_list?.length) {
+      // 有端口号则显示方式变为[ip]: 端口号
+      const urlList = config.url_list.map(ip => config.port ? `[${ip}]:${config.port}` : ip);
+      const displayUrls = urlList;
+      titleData.push({
+        name: protocol === 'HTTP' ? 'URL' : this.$t('域名'),
+        value: displayUrls,
+        total: config.url_list.length,
+      });
+    }
+
+    // CMBD
+    if (config.node_list?.length) {
+      let name = '';
+      // ip-静态拓扑 
+      if ('bk_host_id' in config.node_list[0]) {
+        name = this.$t('IP-静态拓扑') as string;
+      } else if ('bk_obj_id' in config.node_list[0]) {
+        switch (config.node_list[0].bk_obj_id.toUpperCase()) {
+          case 'SET':
+            name = this.$t('动态拓扑') as string;
+            break;
+          case 'SERVICE_TEMPLATE':
+            name = this.$t('服务模板') as string;
+            break;
+          case 'SET_TEMPLATE':
+            name = this.$t('集群模板') as string;
+            break;
+          default:
+            break;
+        }
+      }
+      // 处理CMBD数据
+      const displayCMBDData = [];
+
+      // 统计ipList重复项目和次数
+      const ipListMap = new Map();
+      for (const item of config.ip_list) {
+        ipListMap.set(item, (ipListMap.get(item) || 0) + 1);
+      }
+
+      // 统计url数据重复项目和次数
+      const urlDataMap = new Map();
+      for (const item of url) {
+        urlDataMap.set(item, (urlDataMap.get(item) || 0) + 1);
+      }
+      // 通过在url字段里排除固定ip列表(ip_list)和域名列表(url_list)数据，来推算出CMBD数据（固定ip列表数据可能有重复，且有可能与CMBD数据重复）
+      /**
+       * @param item // 后端返回总数据的item
+       * @param countInArrTotal // 后端返回总数据的重复的次数
+       * @param ipListMap  // 固定ip列表数据的重复项目和次数
+       * @param config // 是否包含端口，后端返回url的数据仅显示方式不同
+       * @returns 
+       */
+      const shouldDisplayItem = (item, countInArrTotal, ipListMap, config) => {
+        let address = item;
+        // 如果配置有端口，将带有端口的显示改为普通ip/域名显示([1.1.1.1]:8080 → 1.1.1.1)，然后进行匹配
+        if (config.port) {
+          const match = item.match(/\[([^\]]+)\]:\d+/); // 去除中括号和端口号的正则
+          if (match) {
+            address = match[1];
+          } else {
+            return false; // 没有匹配到，跳过
+          }
+        }
+        const countInIpList = ipListMap.get(address) || 0;
+        // 当前项在固定ip列表和总数据都有出现，且总数据内重复的次数大于固定ip列表内重复的次数，表明当前项是CMBD内的数据
+        // 或者 当前项没在固定ip列表内出现过，也不在域名列表内出现过，也表明是CMBD内的数据
+        return (countInArrTotal > countInIpList && countInIpList !== 0) || (countInIpList === 0 && !config.url_list.includes(address));
+      };
+      // 放入符合条件的数据
+      for (const [item, countInArrTotal] of urlDataMap) {
+        if (shouldDisplayItem(item, countInArrTotal, ipListMap, config)) {
+          displayCMBDData.push(item);
+        }
+      }
+      titleData.push({
+        name,
+        // value: displayCMBDData.length > 3 ? `${displayCMBDData.slice(0, 3).join('<br />  ●')}...` : displayCMBDData.join('<br />  ●'),
+        value: displayCMBDData,
+        total: displayCMBDData.length,
+      });
+    }
+    return titleData;
+  }
+
   handleDragStart() {
     const status = {
       taskId: this.data.id,
@@ -144,6 +255,21 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
     return this.data.id;
   }
 
+  renderCardTooltips() {
+    return (
+      `<div class='card-info-tooltips'>
+        ${this.titleUrl.map(item => (
+          `<div>
+            <div>【${xssFilter(item.name)}】共${xssFilter(item.total)}个</div>
+            ${item.total > 3
+              ? item.value.slice(0, 3).map((v, index) => `<div class='card-info-tooltips__value'>&nbsp;●&nbsp;${xssFilter(v)}${index === 2 ? '...' : ''}</div>`).join('')
+              : item.value.map(v => `<div class='card-info-tooltips__value'>&nbsp;●&nbsp;${xssFilter(v)}</div>`).join('')}
+          </div>`
+        )).join('<br />')}
+      </div>`
+    );
+  }
+
   render() {
     return (
       <div
@@ -167,9 +293,17 @@ export default class TaskCard extends tsc<ITaskCardProps, ITaskCardEvents> {
           </div>
           <div
             class='title-url'
-            v-bk-overflow-tips
+            v-bk-tooltips={{
+              content: this.renderCardTooltips(),
+              allowHTML: true,
+            }}
           >
-            {this.data.url.join(',')}
+            {
+              // this.data.url.join(',')
+              this.titleUrl.map(item => (
+                `${item.name}（${item.total}）`
+              )).join('、')
+            }
           </div>
           <span
             class='title-icon'

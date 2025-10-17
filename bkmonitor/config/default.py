@@ -687,12 +687,6 @@ GRAFANA_ADMIN_USERNAME = os.getenv("BKAPP_GRAFANA_ADMIN_USERNAME", "admin")
 # 降噪时间窗口
 NOISE_REDUCE_TIMEDELTA = 5
 
-# 故障自愈是否已完成迁移
-IS_FTA_MIGRATED = False
-
-# 已经迁移完成的业务
-FTA_MIGRATE_BIZS = []
-
 # 指标上报默认任务标志
 DEFAULT_METRIC_PUSH_JOB = "SLI"
 # 运营指标上报任务标志
@@ -1173,6 +1167,7 @@ BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 # 通过 apigw 访问日志平台 api 的地址
 BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
+BKSOPS_API_BASE_URL = os.getenv("BKAPP_BKSOPS_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
 # 用户信息
@@ -1668,8 +1663,8 @@ ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
 # 用户管理web api地址
 BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"
 
-# 进程采集独立数据源模式业务ID列表
-PROCESS_INDEPENDENT_DATAID_BIZ_IDS = []
-
+# GSE消息槽
+GSE_SLOT_ID = int(os.getenv("GSE_SLOT_ID", 0))
+GSE_SLOT_TOKEN = os.getenv("GSE_SLOT_TOKEN", "")
 # 是否开启公共拨测节点鉴权
 ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH = False

@@ -1487,6 +1487,6 @@ class DataBusCleanDebug(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     method = "POST"
 
     class RequestSerializer(CommonRequestSerializer):
-        input = serializers.JSONField(required=True, label="输入数据")
-        rules = serializers.JSONField(required=True, label="清洗规则")
-        filter_rules = serializers.ListField(required=False, label="过滤规则")
+        input = serializers.CharField(required=True, label="输入数据")
+        rules = serializers.ListField(required=True, label="清洗规则")
+        filter_rules = serializers.CharField(label="过滤规则", default="True")

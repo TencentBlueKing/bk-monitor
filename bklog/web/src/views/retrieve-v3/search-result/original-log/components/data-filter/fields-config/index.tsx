@@ -46,7 +46,9 @@ export default defineComponent({
     const displayFieldNames = ref<string[]>([]); // 展示的字段名
     const confirmLoading = ref(false);
 
-    const totalFieldNames = computed(() => store.state.indexFieldInfo.fields.map(item => item.field_name));
+    const pageVisibleFields = computed(() => store.state.visibleFields.map(item => item.field_name));
+    const totalFiels = computed(() => store.state.indexFieldInfo.fields);
+    const totalFieldNames = computed(() => totalFiels.value.map(item => item.field_name));
     const restFieldNames = computed(() =>
       totalFieldNames.value.filter(field => !displayFieldNames.value.includes(field)),
     );
@@ -66,7 +68,19 @@ export default defineComponent({
         if (fields?.length > 0) {
           displayFieldNames.value = fields;
         } else {
-          displayFieldNames.value = totalFieldNames.value.includes('log') ? ['log'] : totalFieldNames.value;
+          // 优先展示log字段
+          if (totalFieldNames.value.includes('log')) {
+            displayFieldNames.value = ['log'];
+            return;
+          }
+          // 其次展示text类型字段
+          const textTypeFields = totalFiels.value.filter(item => item.field_type === 'text');
+          if (textTypeFields.length > 0) {
+            displayFieldNames.value = textTypeFields.map(item => item.field_name);
+            return;
+          }
+          // 最后用页面可见字段兜底
+          displayFieldNames.value = pageVisibleFields.value;
         }
         setTimeout(() => {
           emit('success', displayFieldNames.value);

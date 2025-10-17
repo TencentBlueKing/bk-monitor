@@ -290,7 +290,7 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
     const dataItem = data.find(d => d.id === id);
     item.duty_plans.forEach((plans, pIndex) => {
       const users = plans.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
-      const userStr = users.map(u => `${u.id}(${u.name})`).join(', ');
+      // const userStr = users.map(u => `${u.id}(${u.name})`).join(', ');
       timeRangeMerger(plans.work_times).forEach(w => {
         dataItem.data.push({
           users,
@@ -298,7 +298,7 @@ export function setPreviewDataOfServer(params: IDutyPreviewParams[], dutyList: I
           timeRange: [w.start_time, w.end_time],
           other: {
             time: '',
-            users: userStr,
+            users: users,
           },
         });
       });

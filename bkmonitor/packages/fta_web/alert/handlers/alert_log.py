@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
-from typing import List
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -17,6 +16,7 @@ from django.utils.translation import gettext_lazy as _lazy
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.models import NO_DATA_TAG_DIMENSION
 from bkmonitor.utils.time_tools import utc2datetime
+from bkmonitor.utils.user import get_user_display_name
 from constants.alert import EVENT_SEVERITY_DICT, EventSeverity
 
 
@@ -42,7 +42,7 @@ class AlertLogHandler:
         self.alert = AlertDocument.get(alert_id)
         self.log_records = []
 
-    def search(self, operate_list: List = None, offset: int = None, limit: int = None):
+    def search(self, operate_list: list = None, offset: int = None, limit: int = None):
         self.log_records = []
 
         search_object = (
@@ -120,7 +120,9 @@ class AlertLogHandler:
             else:
                 trigger_config = detect["trigger_config"]
                 contents.append(
-                    _(" 达到了触发告警条件（{}周期内满足{}次检测算法）").format(trigger_config["check_window"], trigger_config["count"])
+                    _(" 达到了触发告警条件（{}周期内满足{}次检测算法）").format(
+                        trigger_config["check_window"], trigger_config["count"]
+                    )
                 )
         record.update({"source_time": source_time, "index": 0, "contents": contents})
         self.log_records.append(record)
@@ -135,7 +137,12 @@ class AlertLogHandler:
 
     def add_record_delay_recover(self, hit, record):
         record.update(
-            {"contents": [hit.description, _("根据系统配置，告警将于 {} 延时恢复").format(utc2datetime(hit.next_status_time))]}
+            {
+                "contents": [
+                    hit.description,
+                    _("根据系统配置，告警将于 {} 延时恢复").format(utc2datetime(hit.next_status_time)),
+                ]
+            }
         )
         self.log_records.append(record)
 
@@ -151,10 +158,14 @@ class AlertLogHandler:
         self.log_records.append(record)
 
     def add_record_ack(self, hit, record):
+        display_name = ""
+        if hit.operator:
+            display_name = get_user_display_name(hit.operator)
+
         if hit.description:
-            contents = [_("{}确认了该告警事件并备注：").format(hit.operator), hit.description]
+            contents = [_("{}确认了该告警事件并备注：").format(display_name), hit.description]
         else:
-            contents = [_("{}确认了该告警事件").format(hit.operator)]
+            contents = [_("{}确认了该告警事件").format(display_name)]
         record.update({"contents": contents})
         self.log_records.append(record)
 
@@ -183,7 +194,10 @@ class AlertLogHandler:
         self.log_records.append(record)
 
     def add_record_event_drop(self, hit, record):
-        contents = [hit.description, _("告警级别【{}】低于当前告警触发级别，系统已忽略").format(EventSeverity.get_display_name(hit.severity))]
+        contents = [
+            hit.description,
+            _("告警级别【{}】低于当前告警触发级别，系统已忽略").format(EventSeverity.get_display_name(hit.severity)),
+        ]
         self.record_collect(hit, record, AlertLog.OpType.EVENT_DROP, contents)
 
     def add_record_converge(self, hit, record):
@@ -242,7 +256,11 @@ class AlertLogHandler:
     def add_record_severity_up(self, hit, record):
         record.update(
             {
-                "contents": [_("收到了更高级别的事件，告警级别上升为：{}").format(EVENT_SEVERITY_DICT.get(hit.severity, hit.severity))],
+                "contents": [
+                    _("收到了更高级别的事件，告警级别上升为：{}").format(
+                        EVENT_SEVERITY_DICT.get(hit.severity, hit.severity)
+                    )
+                ],
             }
         )
         self.log_records.append(record)

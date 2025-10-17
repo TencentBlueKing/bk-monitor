@@ -3,20 +3,17 @@
 删除规则组及对应的规则
 
 
-#### 接口参数
+### 请求参数
 
 | 字段       | 类型 | 必选 | 描述 |
 | --------- | ---- | ---- |--|
 | bk_biz_id | list | 否   | 业务ID |
 | group_ids       | list | 否   | 分派组 |
 
-#### 示例数据
+### 请求参数示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "bk_biz_ids": [2],
     "group_ids": [7]
 }
@@ -31,7 +28,7 @@
 | message | string | 描述信息   |
 | data    | object | 分派组    |
 
-#### 示例数据
+### 响应参数示例
 
 ```json
 {

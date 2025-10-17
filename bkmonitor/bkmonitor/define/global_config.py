@@ -205,8 +205,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE", slz.IntegerField(label="APM预计算存储ES分片大小", default=100)),
         ("APM_APP_PRE_CALCULATE_STORAGE_RETENTION", slz.IntegerField(label="APM预计算存储ES过期时间", default=15)),
         ("APM_APP_PRE_CALCULATE_STORAGE_SHARDS", slz.IntegerField(label="APM预计算存储ES分片数", default=3)),
-        ("IS_FTA_MIGRATED", slz.BooleanField(label="是否已经迁移自愈", default=False)),
-        ("FTA_MIGRATE_BIZS", slz.ListField(label="已经迁移的业务名单", default=[])),
         ("APM_APP_QUERY_TRACE_MAX_COUNT", slz.IntegerField(label="APM单次查询TraceID最大的数量", default=10)),
         ("APM_V4_METRIC_DATA_STATUS_CONFIG", slz.DictField(label="APMv4链路metric数据状态配置", default={})),
         (
@@ -436,7 +434,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[])),
-        ("PROCESS_INDEPENDENT_DATAID_BIZ_IDS", slz.ListField(label="进程采集独立数据源模式业务ID列表", default=[])),
     ]
 )
 

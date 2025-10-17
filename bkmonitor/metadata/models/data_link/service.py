@@ -65,6 +65,7 @@ def get_data_id_v2(
     bk_biz_id: int,
     namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     is_base: bool = False,
+    with_detail: bool = False,
 ) -> dict:
     """
     获取数据源对应的 data_id
@@ -93,11 +94,15 @@ def get_data_id_v2(
         data_id_config_ins.status = phase
         data_id_config_ins.save()
         logger.info("get_data_id: request data_name -> [%s] now is ok", data_name)
+        if with_detail:
+            return {"status": phase, "data_id": data_id, "data_id_config": data_id_config}
         return {"status": phase, "data_id": data_id}
 
     data_id_config_ins.status = phase
     data_id_config_ins.save()
     logger.info("get_data_id: request data_name -> [%s] ,phase->[%s]", data_name, phase)
+    if with_detail:
+        return {"status": phase, "data_id": None, "data_id_config": data_id_config}
     return {"status": phase, "data_id": None}
 
 

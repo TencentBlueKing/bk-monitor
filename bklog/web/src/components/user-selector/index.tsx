@@ -28,7 +28,6 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import BkUserSelector from '@blueking/bk-user-selector/vue2';
-import _ from 'lodash';
 
 import './index.scss';
 
@@ -80,12 +79,12 @@ export default defineComponent({
     const tenantId = computed(() => store.state.userMeta.bk_tenant_id);
 
     // 开发环境放自己的本地测试地址即可
-    const apiBaseUrl = process.env.NODE_ENV === 'development' ? '' : window.BK_LOGIN_URL;
+    const apiBaseUrl = window.BK_LOGIN_URL;
 
     watch(
       () => props.value,
       () => {
-        localValue.value = _.cloneDeep(props.value);
+        localValue.value = structuredClone(props.value);
       },
       {
         immediate: true,
@@ -95,7 +94,7 @@ export default defineComponent({
 
     // 处理选择变化
     const handleChange = (val: string[]) => {
-      const realVal = val.filter(item => item !== undefined);
+      const realVal = val.filter((item) => item !== undefined);
       localValue.value = realVal;
       isError.value = !realVal.length;
       emit('change', realVal);
@@ -109,7 +108,7 @@ export default defineComponent({
 
     return () => (
       <div class='validate-user-selector'>
-        <BkUserSelector
+        <bk-user-selector
           style={props.customStyle}
           class={isError.value ? 'is-error' : ''}
           api-base-url={apiBaseUrl}
