@@ -168,7 +168,7 @@ class StrategyTemplateHandler:
             pool_key: str = count_md5(to_be_applied_service_names)
             entity_set: EntitySet | None = entity_set_pool.get(pool_key)
             if not entity_set:
-                entity_set: EntitySet = EntitySet(bk_biz_id, app_name, to_be_applied_service_names)
+                entity_set = EntitySet(bk_biz_id, app_name, to_be_applied_service_names)
                 entity_set_pool[pool_key] = entity_set
 
             qtw: QueryTemplateWrapper | None = cls.get_query_template_or_none(strategy_template, query_template_map)

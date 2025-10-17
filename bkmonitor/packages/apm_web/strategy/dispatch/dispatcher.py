@@ -74,12 +74,14 @@ class StrategyDispatcher:
         :param entity_set: 实体集
         :param global_config: 全局下发配置
         :param extra_configs: 额外的下发配置
-        :param raise_exception:
+        :param raise_exception: 是否在服务校验过程中抛出异
         :return: {service_name: strategy_id}
         """
         # 组装告警策略参数
         service_strategy_params_map: dict[str, dict[str, Any]] = {}
-        service_config_map: dict[str, base.DispatchConfig] = self._enrich(entity_set, global_config, extra_configs)
+        service_config_map: dict[str, base.DispatchConfig] = self._enrich(
+            entity_set, global_config, extra_configs, raise_exception
+        )
         for service_name, dispatch_config in service_config_map.items():
             service_strategy_params_map[service_name] = builder.StrategyBuilder(
                 service_name=service_name,
