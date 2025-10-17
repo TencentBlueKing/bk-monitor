@@ -995,13 +995,6 @@ class CallerLineChart extends CommonSimpleChart {
    */
   handleAllMetricClick() {
     this.quickAddStrategyObj.show = true;
-    // const configs = this.panel.toStrategy(null);
-    // if (configs) {
-    //   this.handleAddStrategy(this.panel, null, {});
-    //   return;
-    // }
-    // const copyPanel = this.getCopyPanel();
-    // this.handleAddStrategy(copyPanel as any, null, {}, true);
   }
 
   getTimeShiftCompareValue() {
@@ -1111,17 +1104,39 @@ class CallerLineChart extends CommonSimpleChart {
     const metricIds = this.metrics.map(item => item.metric_id);
     switch (alarmStatus.status) {
       case 0:
-        this.handleAddStrategy(this.panel, null, this.viewOptions, true);
+        this.handleAllMetricClick();
         break;
       case 1:
-        window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
+        window.open(
+          location.href.replace(
+            location.hash,
+            `#/strategy-config?filters=${encodeURIComponent(
+              JSON.stringify([
+                {
+                  key: 'metric_id',
+                  value: Array.from(new Set(metricIds)),
+                },
+                {
+                  key: 'label_name',
+                  value: this.getFetchItemStatusParams()
+                    ?.labels?.filter(item => item.includes('APM-SERVICE'))
+                    .map(item => `/${item}/`),
+                },
+              ])
+            )}`
+          )
+        );
         break;
       case 2: {
         const eventTargetStr = alarmStatus.targetStr;
         window.open(
           location.href.replace(
             location.hash,
-            `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
+            `#/event-center?queryString=${Array.from(new Set(metricIds))
+              .map(item => `metric : "${item}"`)
+              .join(' AND ')} AND ${this.getFetchItemStatusParams()
+              ?.labels?.map(item => `策略标签 : "${item}"`)
+              .join(' AND ')}${
               eventTargetStr ? ` AND ${eventTargetStr}` : ''
             }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
           )
