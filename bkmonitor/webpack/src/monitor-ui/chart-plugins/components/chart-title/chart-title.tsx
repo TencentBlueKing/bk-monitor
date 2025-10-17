@@ -91,6 +91,8 @@ export interface IChartTitleProps {
   subtitle?: string;
   // 主标题
   title: string;
+  // 获取告警数据参数
+  getFetchItemStatusParams?: (metrics?: IExtendMetricData[]) => Record<string, any>;
 }
 
 interface IChartTitleEvent {
@@ -132,6 +134,8 @@ export default class ChartTitle extends tsc<
   @Prop({ type: String, default: '' }) collectIntervalDisplay: string;
   /** title的内容是否需要hover才展示 */
   @Prop({ type: Boolean, default: false }) isHoverShow: boolean;
+  // 获取告警数据参数
+  @Prop({ type: Function }) getFetchItemStatusParams: (metrics?: IExtendMetricData[]) => Record<string, any>;
 
   @Ref('chartTitle') chartTitleRef: HTMLDivElement;
   // 是否只读模式
@@ -192,7 +196,7 @@ export default class ChartTitle extends tsc<
   }
 
   get currentMetricsIds() {
-    return this.metrics[0].metric_id || `${this.metrics[0].result_table_id}.${this.metrics[0].metric_field}`;
+    return this.metrics?.[0]?.metric_id || `${this.metrics?.[0]?.result_table_id}.${this.metrics?.[0]?.metric_field}`;
   }
   get showAddStrategy() {
     return !this.$route.name.includes('strategy');
@@ -201,11 +205,13 @@ export default class ChartTitle extends tsc<
     return /Macintosh|Mac/.test(navigator.userAgent);
   }
   @Watch('metrics', { immediate: true })
-  async handleMetricChange(v, o) {
-    if (this.metrics?.length !== 1) return;
-    const oldId = o?.length ? o[0].metric_id || `${o[0].result_table_id}.${o[0].metric_field}` : '';
+  async handleMetricChange(_v, o) {
+    if (this.metrics?.length < 1) {
+      return;
+    }
+    const oldId = o?.length ? o[0]?.metric_id || `${o[0]?.result_table_id}.${o[0]?.metric_field}` : '';
     if (this.currentMetricsIds === oldId) return;
-    !this.readonly && this.handleFetchItemStatus();
+    !this.readonly && (await this.handleFetchItemStatus());
     this.allowUpdateStatus = true;
   }
 
@@ -235,6 +241,7 @@ export default class ChartTitle extends tsc<
       metric_ids: [ids],
       ...otherParams,
       bk_biz_id: this.viewOptions?.filters?.bk_biz_id || this.$store.getters.bizId,
+      ...(this.getFetchItemStatusParams?.(this.metrics) || {}),
     };
     const data = await fetchItemStatus(params).catch(() => ({ [ids]: 0 }));
     this.alarmStatus = data?.[ids];

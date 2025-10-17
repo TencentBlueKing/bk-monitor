@@ -34,6 +34,7 @@ import {
   EMethod,
 } from '../../../../components/retrieval-filter/utils';
 import VariableName from '../utils/variable-name';
+import ConditionConditionTag, { CONDITIONS } from './condition-condition-tag';
 import ConditionCreatorOptions from './condition-creator-options';
 import KvTag from './kv-tag';
 
@@ -47,6 +48,7 @@ interface IProps {
   dimensionValueVariables?: { name: string }[];
   fields?: IFilterField[];
   hasVariableOperate?: boolean;
+  showConditionTag?: boolean;
   value?: IFilterItem[];
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onAddVariableOpenChange?: (val: boolean) => void;
@@ -74,6 +76,8 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) dimensionValueVariables: { name: string }[];
   /* 所有变量，用于校验变量名是否重复 */
   @Prop({ default: () => [] }) allVariables: { name: string }[];
+  /** 是否展示条件标签 */
+  @Prop({ default: false, type: Boolean }) showConditionTag: boolean;
   @Ref('selector') selectorRef: HTMLDivElement;
 
   /* 是否显示弹出层 */
@@ -231,6 +235,11 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
     this.$emit('createValueVariable', val);
   }
 
+  handleConditionChange(index: number, id: ECondition) {
+    this.localValue[index].condition = { id, name: CONDITIONS.find(item => item.id === id)?.name || '' };
+    this.handleChange();
+  }
+
   render() {
     return (
       <div
@@ -238,7 +247,14 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
         onMouseenter={this.handleMouseEnter}
         onMouseleave={this.handleMouseLeave}
       >
-        {this.localValue.map((item, index) =>
+        {this.localValue.map((item, index) => [
+          this.showConditionTag && index > 0 ? (
+            <ConditionConditionTag
+              key={`${index}_condition`}
+              value={item}
+              onChange={id => this.handleConditionChange(index, id)}
+            />
+          ) : undefined,
           item?.options?.isVariable ? (
             <div
               key={`${index}_kv`}
@@ -262,8 +278,8 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
               onDelete={() => this.handleDeleteTag(index)}
               onUpdate={event => this.handleUpdateTag(event, index)}
             />
-          )
-        )}
+          ),
+        ])}
 
         <div
           class='add-btn'
