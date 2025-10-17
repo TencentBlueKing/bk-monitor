@@ -4,9 +4,11 @@
   align-items: center;
 
   .type-choose-main {
-    width: 120px;
+    // width: 120px;
     display: flex;
-    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+
   }
 
   .right-oprate-main {
