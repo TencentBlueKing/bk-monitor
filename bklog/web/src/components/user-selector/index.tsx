@@ -79,7 +79,7 @@ export default defineComponent({
     const tenantId = computed(() => store.state.userMeta.bk_tenant_id);
 
     // 开发环境放自己的本地测试地址即可
-    const apiBaseUrl = process.env.NODE_ENV === 'development' ? '' : window.BK_LOGIN_URL;
+    const apiBaseUrl = window.BK_LOGIN_URL;
 
     watch(
       () => props.value,
@@ -94,7 +94,7 @@ export default defineComponent({
 
     // 处理选择变化
     const handleChange = (val: string[]) => {
-      const realVal = val.filter(item => item !== undefined);
+      const realVal = val.filter((item) => item !== undefined);
       localValue.value = realVal;
       isError.value = !realVal.length;
       emit('change', realVal);

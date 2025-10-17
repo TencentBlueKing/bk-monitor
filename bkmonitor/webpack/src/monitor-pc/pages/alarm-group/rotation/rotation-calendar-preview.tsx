@@ -209,10 +209,11 @@ export default class RotationCalendarPreview extends tsc<IProps> {
               <div class='time'>{this.popover.time}</div>
               <div class='users'>
                 {this.popover.users.map((u, index, arr) => [
-                  `${u.id}(`,
-                  <bk-user-display-name user-id={u.name} />,
-                  ')',
-                  index !== arr.length - 1 && ',',
+                  <bk-user-display-name
+                    key={`${u.id}-${index}`}
+                    user-id={u.name}
+                  />,
+                  index < arr.length - 1 && ', ',
                 ])}
               </div>
             </div>
