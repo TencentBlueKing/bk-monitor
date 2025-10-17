@@ -8,8 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 from typing import Any
 from collections.abc import Iterable
+
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.db.models import QuerySet
 from rest_framework import serializers
@@ -238,6 +241,15 @@ class StrategyTemplateCloneRequestSerializer(BaseAppStrategyTemplateRequestSeria
 
 
 class StrategyTemplateBatchPartialUpdateRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
+    EDITABLE_FIELDS: list[str] = [
+        "user_group_ids",
+        "algorithms",
+        "is_enabled",
+        "is_auto_apply",
+        "update_user",
+        "update_time",
+    ]
+
     class EditDataSerializer(BaseEditDataSerializer):
         user_group_list = serializers.ListField(label=_("用户组列表"), child=UserGroupSerializer(), required=False)
         algorithms = serializers.ListField(label=_("检测算法列表"), child=AlgorithmSerializer(), required=False)
@@ -361,8 +373,18 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         ).exists():
             raise serializers.ValidationError(_("同一应用下策略模板名称不能重复"))
 
+    @classmethod
+    def set_auto_apply(
+        cls, data: dict[str, Any], instance: StrategyTemplate, auto_applied_at: datetime.datetime | None = None
+    ):
+        """设置自动下发相关字段"""
+        is_to_be_auto_applied: bool = data.get("is_auto_apply") and not instance.is_auto_apply
+        if is_to_be_auto_applied:
+            data["auto_applied_at"] = auto_applied_at or timezone.now()
+
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
         self._validate_name(StrategyTemplate.origin_objects.exclude(pk=instance.pk), validated_data)
+        self.set_auto_apply(validated_data, instance)
         return super().update(instance, validated_data)
 
     def create(self, validated_data: dict[str, Any]) -> StrategyTemplate:

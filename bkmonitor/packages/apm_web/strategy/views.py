@@ -182,20 +182,15 @@ class StrategyTemplateViewSet(GenericViewSet):
         strategy_templates: list[StrategyTemplate] = list(
             self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
         )
-        query_template_keys: list[tuple[int, str]] = [
-            (obj.query_template["bk_biz_id"], obj.query_template["name"]) for obj in strategy_templates
-        ]
-        query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = (
-            query_template.QueryTemplateWrapperFactory.get_wrappers(query_template_keys)
-        )
 
         strategy_ids: list[int] = []
         template_dispatch_map: dict[int, dict[str, int]] = {}
+        query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = (
+            handler.StrategyTemplateHandler.get_query_template_map(strategy_templates)
+        )
         global_config = dispatch.DispatchGlobalConfig(**self.query_data["global_config"])
         for strategy_template_obj in strategy_templates:
-            qtw = query_template_map[
-                (strategy_template_obj.query_template["bk_biz_id"], strategy_template_obj.query_template["name"])
-            ]
+            qtw = handler.StrategyTemplateHandler.get_query_template_or_none(strategy_template_obj, query_template_map)
             dispatcher = dispatch.StrategyDispatcher(strategy_template_obj, qtw)
             service_strategy_map: dict[str, int] = dispatcher.dispatch(
                 entity_set,
@@ -325,12 +320,26 @@ class StrategyTemplateViewSet(GenericViewSet):
         update_user: str | None = get_global_user()
         if not update_user:
             raise ValueError(_("未获取到用户信息"))
+
         edit_data: dict[str, Any] = self.query_data["edit_data"]
         edit_data["update_user"] = update_user
         edit_data["update_time"] = timezone.now()
-        strategy_template_qs = self.get_queryset().filter(id__in=self.query_data["ids"])
-        strategy_template_qs.update(**edit_data)
-        return Response({"ids": list(strategy_template_qs.values_list("id", flat=True))})
+
+        editable_fields: list[str] = serializers.StrategyTemplateBatchPartialUpdateRequestSerializer.EDITABLE_FIELDS
+        strategy_template_objs: list[StrategyTemplate] = list(
+            self.get_queryset().filter(id__in=self.query_data["ids"]).only(*editable_fields, "id", "auto_applied_at")
+        )
+        for obj in strategy_template_objs:
+            serializers.StrategyTemplateModelSerializer.set_auto_apply(edit_data, obj, edit_data["update_time"])
+
+            # 设置更新字段。
+            for field_name in edit_data:
+                setattr(obj, field_name, edit_data[field_name])
+
+        StrategyTemplate.objects.bulk_update(
+            strategy_template_objs, fields=editable_fields + ["auto_applied_at"], batch_size=500
+        )
+        return Response({"ids": [obj.id for obj in strategy_template_objs]})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)
     def compare(self, *args, **kwargs) -> Response:
