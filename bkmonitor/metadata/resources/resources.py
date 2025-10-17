@@ -2248,6 +2248,28 @@ class DeleteResultTableSnapshotResource(Resource):
         return validated_request_data
 
 
+class RetryResultTableSnapshotResource(Resource):
+    """
+    重试es快照配置
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        table_id = serializers.CharField(required=True, label="结果表ID")
+        is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+
+    def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("RetryResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
+        models.EsSnapshot.retry_snapshot(**validated_request_data)
+        return validated_request_data
+
+
 class ListResultTableSnapshotResource(Resource):
     """
     Es结果表快照列表
@@ -2330,6 +2352,28 @@ class GetResultTableSnapshotStateResource(Resource):
         )
 
 
+class GetResultTableSnapshotRecentStateResource(Resource):
+    """
+    Es结果表最近一次快照状态
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        table_ids = serializers.ListField(required=True, label="结果表ids")
+
+    def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info(
+                "GetResultTableSnapshotRecentStateResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+            )
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
+        return models.EsSnapshot.batch_get_recent_state(**validated_request_data)
+
+
 class RestoreResultTableSnapshotResource(Resource):
     """
     创建快照恢复接口
@@ -2406,6 +2450,22 @@ class DeleteRestoreResultTableSnapshotResource(Resource):
         return validated_request_data
 
 
+class RetryRestoreResultTableSnapshotResource(Resource):
+    """
+    快照恢复重试接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        restore_id = serializers.IntegerField(required=True, label="快照恢复任务id")
+        operator = serializers.CharField(required=True, label="操作者")
+        indices = serializers.ListField(required=False, label="重试索引列表",  default=[])
+        is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+        is_force = serializers.BooleanField(required=False, label="是否强制重试", default=False)
+
+    def perform_request(self, validated_request_data):
+        return models.EsSnapshotRestore.retry_restore(**validated_request_data)
+
+
 class ListRestoreResultTableSnapshotResource(Resource):
     """
     快照恢复任务list接口
@@ -2440,6 +2500,18 @@ class GetRestoreResultTableSnapshotStateResource(Resource):
 
     def perform_request(self, validated_request_data):
         return models.EsSnapshotRestore.batch_get_state(**validated_request_data)
+
+
+class GetRestoreResultTableSnapshotIndicesResource(Resource):
+    """
+    快照回溯任务索引回溯详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        restore_ids = serializers.ListField(required=True, label="快照回溯任务ids")
+
+    def perform_request(self, validated_request_data):
+        return models.EsSnapshotRestore.batch_get_indices(**validated_request_data)
 
 
 class EsRouteResource(Resource):

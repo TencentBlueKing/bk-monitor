@@ -251,6 +251,10 @@ class DeleteResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.DeleteResultTableSnapshotResource)]
 
 
+class RetryResultTableSnapshotViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.RetryResultTableSnapshotResource)]
+
+
 class ListResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ListResultTableSnapshotResource)]
 
@@ -261,6 +265,10 @@ class ListResultTableSnapshotIndicesViewSet(MetaViewSet):
 
 class GetResultTableSnapshotStateViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.GetResultTableSnapshotStateResource)]
+
+
+class GetResultTableSnapshotRecentStateViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.GetResultTableSnapshotRecentStateResource)]
 
 
 class RestoreResultTableSnapshotViewSet(MetaViewSet):
@@ -275,12 +283,20 @@ class DeleteRestoreResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.DeleteRestoreResultTableSnapshotResource)]
 
 
+class RetryRestoreResultTableSnapshotViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.RetryRestoreResultTableSnapshotResource)]
+
+
 class ListRestoreResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ListRestoreResultTableSnapshotResource)]
 
 
 class GetRestoreResultTableSnapshotStateViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.GetRestoreResultTableSnapshotStateResource)]
+
+
+class GetRestoreResultTableSnapshotIndicesViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.GetRestoreResultTableSnapshotIndicesResource)]
 
 
 class ModifyDatasourceResultTable(MetaViewSet):
