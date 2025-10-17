@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 class BuiltinStrategyTemplateRegistry:
     # 内置策略模板版本，用于定时任务执行时，判断是否需要执行。
     # 如果更新了内置策略模板，需要更新该版本号。
-    APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION = "1.0.0"
+    BUILTIN_STRATEGY_TEMPLATE_VERSION = "1.0.0"
 
     _BUILTIN_STRATEGY_TEMPLATES: list[type[templates.StrategyTemplateSet]] = templates.BUILTIN_STRATEGY_TEMPLATE
 
@@ -50,7 +50,7 @@ class BuiltinStrategyTemplateRegistry:
     @classmethod
     def is_need_register(cls, app_applied_version: str) -> bool:
         """判断是否需要注册内置策略模板"""
-        return app_applied_version != cls.APM_APPLY_BUILTIN_STRATEGY_TEMPLATE_VERSION
+        return app_applied_version != cls.BUILTIN_STRATEGY_TEMPLATE_VERSION
 
     @classmethod
     def _add_member_to_notice_group(

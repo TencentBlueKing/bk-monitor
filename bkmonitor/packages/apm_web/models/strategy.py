@@ -35,6 +35,7 @@ class StrategyTemplate(AbstractRecordModel):
     # 功能启用信息
     is_enabled = models.BooleanField(verbose_name=_("是否启用"), default=True)
     is_auto_apply = models.BooleanField(verbose_name=_("是否自动下发到新服务"), default=False)
+    auto_applied_at = models.DateTimeField(verbose_name=_("最后一次自动下发时间"), null=True, blank=True)
 
     # 继承关系
     root_id = models.IntegerField(verbose_name=_("根模板 ID"), default=DEFAULT_ROOT_ID, db_index=True)
@@ -74,12 +75,10 @@ class StrategyInstance(models.Model):
     strategy_id = models.IntegerField(verbose_name=_("策略实例 ID"), db_index=True)
     # 为什么模板不记录 md5？
     # 模板的 md5 可能会跟随模板内容变更而变更，实例的 md5 只跟创建时的内容有关。
-    # TODO query_template + context -> query_instance
     # [(detects, algorithms, user_group_ids), (query_template, context)]
     md5 = models.CharField(verbose_name=_("策略实例 MD5"), max_length=32, default="", db_index=True)
 
     # 模板
-    # TODO 模板被同源模板覆盖时，需删除实例，并使用原 strategy_id 下发。
     strategy_template_id = models.IntegerField(verbose_name=_("策略模板 ID"), db_index=True)
     root_strategy_template_id = models.IntegerField(verbose_name=_("根模板 ID"), default=0, db_index=True)
 
@@ -93,7 +92,7 @@ class StrategyInstance(models.Model):
 
     class Meta:
         verbose_name = _("告警策略实例")
-        verbose_name_plural = _("告警策略模板")
+        verbose_name_plural = _("告警策略实例")
         index_together = [["bk_biz_id", "app_name", "service_name"]]
         unique_together = ["bk_biz_id", "app_name", "service_name", "strategy_template_id"]
 

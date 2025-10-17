@@ -14,6 +14,7 @@ from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
+from bkmonitor.utils.cache import lru_cache_with_ttl
 from core.drf_resource import api
 from apm_web.constants import TopoNodeKind
 from apm_web.event.handler import EventHandler
@@ -150,6 +151,7 @@ class EntitySet:
         """
         return self.get_datasource_index_set_id_or_none("trace")
 
+    @lru_cache_with_ttl(ttl=60, maxsize=128)
     def get_rpc_service_config_or_none(self, service_name: str) -> dict[str, Any] | None:
         """
         获取服务 RPC 配置

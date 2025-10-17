@@ -68,11 +68,13 @@ class StrategyDispatcher:
         entity_set: entity.EntitySet,
         global_config: base.DispatchGlobalConfig | None = None,
         extra_configs: list[base.DispatchExtraConfig] | None = None,
+        raise_exception: bool = True,
     ) -> dict[str, int]:
         """批量下发策略到服务
         :param entity_set: 实体集
         :param global_config: 全局下发配置
         :param extra_configs: 额外的下发配置
+        :param raise_exception:
         :return: {service_name: strategy_id}
         """
         # 组装告警策略参数
