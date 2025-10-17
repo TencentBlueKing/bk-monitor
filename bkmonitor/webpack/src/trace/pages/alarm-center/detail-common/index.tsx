@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, watch } from 'vue';
+import { type PropType, defineComponent, watch } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { Tab, Loading } from 'bkui-vue';
+import { Loading, Tab } from 'bkui-vue';
 import { alertDetail } from 'monitor-api/modules/alert';
+import { useI18n } from 'vue-i18n';
 
 import AlarmAlert from './components/alarm-alert';
 import AlarmInfo from './components/alarm-info';

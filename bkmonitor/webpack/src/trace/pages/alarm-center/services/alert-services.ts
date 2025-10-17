@@ -826,7 +826,7 @@ export class AlertService extends AlarmService {
                   metric_field_name: metricDetail?.name || '',
                   dimensions: Object.entries(source.agg_dimension).map(([key, value]) => ({
                     id: key,
-                    // @ts-ignore
+                    // @ts-expect-error
                     name: value?.display_name || '',
                   })),
                 }),
