@@ -45,14 +45,13 @@ from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from common.context_processors import Platform
 from constants.alert import IGNORED_TAGS, EventTargetType
-from constants.apm import ApmMetricProcessor
+from constants.apm import APM_TRACE_TABLE_REGEX, ApmMetricProcessor
 from constants.data_source import (
     DataSourceLabel,
     DataTypeLabel,
     OthersResultTableLabel,
     ResultTableLabelObj,
 )
-from constants.apm import APM_TRACE_TABLE_REGEX
 from constants.event import ALL_EVENT_PLUGIN_METRIC, EVENT_PLUGIN_METRIC_PREFIX
 from constants.strategy import (
     HOST_SCENARIO,
@@ -1529,8 +1528,13 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
             db_name_list = [f"{plugin[0]}_{plugin[1]}".lower() for plugin in plugin_data]
             for name in db_name_list:
                 # 插件默认都是全局数据
-                group_list = api.metadata.query_time_series_group.request.refresh(
+                group_list: list[dict[str, Any]] = api.metadata.query_time_series_group.request.refresh(
                     bk_tenant_id=self.bk_tenant_id, bk_biz_id=0, time_series_group_name=name
+                )
+                group_list.extend(
+                    api.metadata.query_time_series_group.request.refresh(
+                        bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id, time_series_group_name=name
+                    )
                 )
                 if not group_list:
                     continue
