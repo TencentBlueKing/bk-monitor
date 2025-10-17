@@ -39,6 +39,9 @@ import '@blueking/ai-blueking/dist/vue2/style.css';
 @Component
 export default class AiBluekingWrapper extends tsc<object> {
   @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
+  // 是否处于临时会话
+  isInTemporarySession = false;
+
   get apiUrl() {
     return '/ai_whale/chat';
   }
@@ -76,7 +79,10 @@ export default class AiBluekingWrapper extends tsc<object> {
       const newSession = (
         [AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS, AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS] as string[]
       ).includes(shortcut.id);
-      await this.aiBluekingRef.handleShow(undefined, newSession);
+      await this.aiBluekingRef.handleShow(undefined, {
+        isTemporary: newSession,
+      });
+      this.isInTemporarySession = newSession;
       this.aiBluekingRef.handleShortcutClick?.({ shortcut, source: 'popup' }, newSession);
     }
   }
@@ -114,8 +120,20 @@ export default class AiBluekingWrapper extends tsc<object> {
           ref='aiBlueking'
           requestOptions={{
             beforeRequest: data => {
+              const isChatCompletion = data.url.includes('chat/chat_completion');
               return {
                 ...data,
+                data: {
+                  ...Object.assign(
+                    {},
+                    data?.data || {},
+                    isChatCompletion
+                      ? {
+                          is_temporary: this.isInTemporarySession,
+                        }
+                      : {}
+                  ),
+                },
                 headers: {
                   ...(data?.headers || {}),
                   Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
