@@ -133,9 +133,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     const scrollHeight =
       this.canvasBodyStyle.scrollTop < this.sqlEditorHeight ? this.canvasBodyStyle.scrollTop : this.sqlEditorHeight;
 
+      const announcementHeight = this.$store.state.showAlert ? 40 : 0;
+
     return {
       '--exception-width': `${this.canvasBodyStyle.with}px`,
-      '--exception-height': `${this.canvasBodyStyle.height - this.sqlEditorHeight + scrollHeight}px`,
+      '--exception-height': `${this.canvasBodyStyle.height - this.sqlEditorHeight + scrollHeight - announcementHeight}px`,
       '--exception-right': `${this.rightOptionWidth + 10}px`,
     };
   }
