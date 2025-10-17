@@ -294,7 +294,7 @@ def refresh_apm_app_state_snapshot():
 
 
 @shared_task(ignore_result=True)
-def auto_apply_apm_builtin_strategy_template():
+def auto_register_apm_builtin_strategy_template():
     logger.info("[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] task start")
 
     config_obj, _ = GlobalConfig.objects.get_or_create(key="apm_register_builtin_strategy_template_version")
