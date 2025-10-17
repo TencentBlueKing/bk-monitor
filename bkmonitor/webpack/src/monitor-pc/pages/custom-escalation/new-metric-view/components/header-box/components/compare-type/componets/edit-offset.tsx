@@ -30,7 +30,7 @@ import Dayjs from 'dayjs';
 import _ from 'lodash';
 import { makeMap } from 'monitor-common/utils/make-map';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import customEscalationViewStore from '../../../../../../../../store/modules/custom-escalation-view';
 
 import './edit-offset.scss';
 
@@ -96,7 +96,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     const customDay = _.find(this.value, item => !constValueMap[item]);
     if (customDay) {
       this.isCustom = true;
-      this.customDate = Dayjs().subtract(Number.parseInt(customDay), 'day').format('YYYY-MM-DD');
+      this.customDate = Dayjs().subtract(Number.parseInt(customDay, 10), 'day').format('YYYY-MM-DD');
     }
   }
 
@@ -111,7 +111,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     }
 
     const compareDay = (day: string) => {
-      return Dayjs(value).isSame(Dayjs().subtract(Number.parseInt(day), 'day'), 'day');
+      return Dayjs(value).isSame(Dayjs().subtract(Number.parseInt(day, 10), 'day'), 'day');
     };
 
     if (tempValueMap['1d'] && compareDay('1d')) {
@@ -133,7 +133,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
       return `${format(Dayjs.unix(startTime).subtract(1, 'hour'))} ~ ${format(Dayjs.unix(endTime).subtract(1, 'hour'))}`;
     }
     if (['1d', '7d', '30d'].includes(offset)) {
-      const dayOffset = Number.parseInt(offset);
+      const dayOffset = Number.parseInt(offset, 10);
       return `${format(Dayjs.unix(startTime).subtract(dayOffset, 'day'))} ~ ${format(Dayjs.unix(endTime).subtract(dayOffset, 'day'))}`;
     }
     return '';
@@ -347,7 +347,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
             onHidden: this.handleSubmitEdit,
             onShow: this.handleShowEdit,
           }}
-          theme='light compare-type-time-edit-offset'
+          theme='light compare-type-time-edit-offset common-monitor'
           trigger='click'
         >
           <div class='append-btn'>

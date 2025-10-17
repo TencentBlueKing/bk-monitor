@@ -17,7 +17,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel, MetricType
 from core.drf_resource import Resource, api, resource
 from monitor_web.models import CustomTSField, CustomTSTable
 
@@ -50,17 +50,49 @@ class GetCustomTsMetricGroups(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务")
-        time_series_group_id = serializers.IntegerField(label="自定义指标ID")
 
-    def perform_request(self, params: dict) -> list[dict]:
+        # 场景：集成 -> 自定义指标
+        time_series_group_id = serializers.IntegerField(label="自定义指标ID", required=False)
+
+        # 场景：APM -> 自定义指标
+        apm_app_name = serializers.CharField(label="APM 应用名称", required=False, allow_null=True)
+        apm_service_name = serializers.CharField(label="APM 服务名称", required=False, allow_null=True)
+
+    def perform_request(self, params: dict) -> dict[str, list]:
+        bk_biz_id = params["bk_biz_id"]
+        if params.get("apm_app_name"):
+            app_name = params.get("apm_app_name")
+            service_name = params.get("apm_service_name")
+            return self.get_custom_metric_groups_from_apm(bk_biz_id, app_name, service_name)
+        else:
+            time_series_group_id = params.get("time_series_group_id")
+            return self.get_custom_metric_groups_from_global(bk_biz_id, time_series_group_id)
+
+    @classmethod
+    def get_custom_metric_groups_from_apm(cls, bk_biz_id: int, app_name: str, service_name: str) -> dict[str, list]:
+        from apm_web.models import Application
+
+        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            logger.info(f"bk_biz_id({bk_biz_id}) app({app_name}) not found")
+            return {"common_dimensions": [], "metric_groups": []}
+
+        if not app.time_series_group_id:
+            logger.info(f"bk_biz_id({bk_biz_id}) app({app_name}) metric data source is disabled")
+            return {"common_dimensions": [], "metric_groups": []}
+
+        return cls.get_custom_metric_groups_from_global(bk_biz_id, app.time_series_group_id)
+
+    @classmethod
+    def get_custom_metric_groups_from_global(cls, bk_biz_id: int, time_series_group_id: int) -> dict[str, list]:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-            pk=params["time_series_group_id"],
+            models.Q(bk_biz_id=bk_biz_id) | models.Q(is_platform=True),
+            pk=time_series_group_id,
             bk_tenant_id=get_request_tenant_id(),
         )
 
         fields = table.get_and_sync_fields()
-        metrics = [field for field in fields if field.type == CustomTSField.MetricType.METRIC]
+        metrics = [field for field in fields if field.type == MetricType.METRIC]
 
         # 维度描述
         hidden_dimensions = set()
@@ -69,7 +101,7 @@ class GetCustomTsMetricGroups(Resource):
         common_dimensions = []
         for field in fields:
             # 如果不是维度，则跳过
-            if field.type != CustomTSField.MetricType.DIMENSION:
+            if field.type != MetricType.DIMENSION:
                 continue
 
             dimension_descriptions[field.name] = field.description
@@ -123,7 +155,13 @@ class GetCustomTsDimensionValues(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务")
-        time_series_group_id = serializers.IntegerField(label="自定义指标ID")
+        # 场景：集成 -> 自定义指标
+        time_series_group_id = serializers.IntegerField(label="自定义指标ID", required=False)
+
+        # 场景：APM -> 自定义指标
+        apm_app_name = serializers.CharField(label="APM 应用名称", required=False, allow_null=True)
+        apm_service_name = serializers.CharField(label="APM 服务名称", required=False, allow_null=True)
+
         dimension = serializers.CharField(label="维度")
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
@@ -134,9 +172,43 @@ class GetCustomTsDimensionValues(Resource):
         if not params["metrics"]:
             return []
 
+        bk_biz_id = params["bk_biz_id"]
+        if params.get("apm_app_name"):
+            app_name = params.get("apm_app_name")
+            service_name = params.get("apm_service_name")
+            return self.get_custom_ts_dimension_values_from_apm(
+                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name, params=params
+            )
+        else:
+            time_series_group_id = params.get("time_series_group_id")
+            return self.get_custom_ts_dimension_values_from_global(
+                bk_biz_id=bk_biz_id, time_series_group_id=time_series_group_id, params=params
+            )
+
+    @classmethod
+    def get_custom_ts_dimension_values_from_apm(
+        cls, bk_biz_id: int, app_name: str, service_name: str, params: dict
+    ) -> list[dict]:
+        from apm_web.models import Application
+
+        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            logger.info(f"bk_biz_id({bk_biz_id}) app({app_name}) not found")
+            return []
+
+        if not app.time_series_group_id:
+            logger.info(f"bk_biz_id({bk_biz_id}) app({app_name}) metric data source is disabled")
+            return []
+
+        return cls.get_custom_ts_dimension_values_from_global(bk_biz_id, app.time_series_group_id, params)
+
+    @classmethod
+    def get_custom_ts_dimension_values_from_global(
+        cls, bk_biz_id: int, time_series_group_id: int, params: dict
+    ) -> list[dict]:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-            pk=params["time_series_group_id"],
+            models.Q(bk_biz_id=bk_biz_id) | models.Q(is_platform=True),
+            pk=time_series_group_id,
             bk_tenant_id=get_request_tenant_id(),
         )
 
@@ -184,7 +256,14 @@ class GetCustomTsGraphConfig(Resource):
             condition = serializers.ChoiceField(choices=["and", "or"], label="条件", default="and")
 
         bk_biz_id = serializers.IntegerField(label="业务")
-        time_series_group_id = serializers.IntegerField(label="自定义时序ID")
+
+        # 场景：集成 -> 自定义指标
+        time_series_group_id = serializers.IntegerField(label="自定义指标ID", required=False)
+
+        # 场景：APM -> 自定义指标
+        apm_app_name = serializers.CharField(label="APM 应用名称", required=False, allow_null=True)
+        apm_service_name = serializers.CharField(label="APM 服务名称", required=False, allow_null=True)
+
         metrics = serializers.ListField(label="查询的指标", allow_empty=True)
         where = ConditionSerializer(label="过滤条件", many=True, allow_empty=True, default=list)
         group_by = GroupBySerializer(label="聚合维度", many=True, allow_empty=True, default=list)
@@ -478,27 +557,59 @@ class GetCustomTsGraphConfig(Resource):
         if not params["metrics"]:
             return {"groups": []}
 
+        bk_biz_id = params["bk_biz_id"]
+        if params.get("apm_app_name"):
+            app_name = params.get("apm_app_name")
+            service_name = params.get("apm_service_name")
+            return self.get_custom_ts_graph_config_from_apm(
+                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name, params=params
+            )
+        else:
+            time_series_group_id = params.get("time_series_group_id")
+            return self.get_custom_ts_graph_config_from_global(
+                bk_biz_id=bk_biz_id, time_series_group_id=time_series_group_id, params=params
+            )
+
+    @classmethod
+    def get_custom_ts_graph_config_from_apm(
+        cls, bk_biz_id: int, app_name: str, service_name: str, params: dict
+    ) -> dict:
+        from apm_web.models import Application
+
+        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            logger.info(f"bk_biz_id({bk_biz_id}) app({app_name}) not found")
+            return {"groups": []}
+
+        if not app.time_series_group_id:
+            logger.info(f"bk_biz_id({bk_biz_id}) app({app_name}) metric data source is disabled")
+            return {"groups": []}
+
+        return cls.get_custom_ts_graph_config_from_global(bk_biz_id, app.time_series_group_id, params)
+
+    @classmethod
+    def get_custom_ts_graph_config_from_global(cls, bk_biz_id: int, time_series_group_id: int, params: dict) -> dict:
         table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-            pk=params["time_series_group_id"],
+            models.Q(bk_biz_id=bk_biz_id) | models.Q(is_platform=True),
+            pk=time_series_group_id,
             bk_tenant_id=get_request_tenant_id(),
         )
         metrics = CustomTSField.objects.filter(
-            time_series_group_id=params["time_series_group_id"],
-            type=CustomTSField.MetricType.METRIC,
+            time_series_group_id=time_series_group_id,
+            type=MetricType.METRIC,
             name__in=params["metrics"],
         )
 
         dimension_names: dict[str, str] = {}
         for dimension in CustomTSField.objects.filter(
-            type=CustomTSField.MetricType.DIMENSION, time_series_group_id=params["time_series_group_id"]
+            type=MetricType.DIMENSION, time_series_group_id=time_series_group_id
         ):
             dimension_names[dimension.name] = dimension.description
         compare_config = params.get("compare", {})
         if not compare_config or compare_config.get("type") == "time":
-            groups = self.time_or_no_compare(table, metrics, params, dimension_names)
+            groups = cls.time_or_no_compare(table, metrics, params, dimension_names)
         elif compare_config.get("type") == "metric":
-            groups = self.metric_compare(table, metrics, params, dimension_names)
+            groups = cls.metric_compare(table, metrics, params, dimension_names)
         else:
             raise ValueError(f"Invalid compare config type: {compare_config.get('type')}")
 

@@ -24,17 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Model, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 import { deleteSceneView, getSceneView, getSceneViewList, updateSceneView } from 'monitor-api/modules/scene_view';
 
+import customEscalationViewStore from '../../../../../store/modules/custom-escalation-view';
 import { optimizedDeepEqual } from '../../metric-chart-view/utils';
-import RemoveConfirm from './components/remove-confirm';
 import ViewManage from './components/view-manage';
 import ViewSave from './components/view-save';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
+
+import type { IRouteParams } from '../../type';
 
 import './index.scss';
 
@@ -50,6 +51,7 @@ const DEFAULT_VALUE = 'default';
 
 @Component
 export default class ViewTab extends tsc<IProps, IEmit> {
+  @InjectReactive('routeParams') routeParams: IRouteParams;
   @Prop({ type: Object, default: () => ({}) }) readonly graphConfigPayload: IProps['graphConfigPayload'];
 
   @Model('change', { type: String, default: DEFAULT_VALUE }) readonly value: string;
@@ -69,7 +71,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
   }
 
   get sceneId() {
-    return `custom_metric_v2_${this.$route.params.id}`;
+    return `custom_metric_v2_${this.routeParams.idParams.time_series_group_id}`;
   }
 
   get currentSelectViewInfo() {
@@ -97,7 +99,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
       const result = await getSceneViewList({
         scene_id: this.sceneId,
         type: 'detail',
-      });
+      }).catch(() => []);
       this.viewList = Object.freeze(result);
       this.sortViewIdList = Object.freeze(result.map(item => item.id));
       if (!result.find(item => item.id === this.viewTab)) {
@@ -111,8 +113,8 @@ export default class ViewTab extends tsc<IProps, IEmit> {
 
   async fetchViewData() {
     this.isViewDetailLoading = true;
-    this.tabRef.updateActiveBarPosition(this.viewTab);
-    this.tabRef.checkActiveName();
+    this.tabRef?.updateActiveBarPosition(this.viewTab);
+    this.tabRef?.checkActiveName();
 
     const updateCurrentSelectedMetricNameList = (metricNameList: string[]) => {
       // 视图保存的 metric 可能被隐藏，需要过滤掉不存在 metric
