@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,10 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 
-from alarm_backends.core.cache.cmdb.host import HostManager
 from alarm_backends.service.access.event.records.custom_event import (
     GseCustomStrEventRecord,
 )
@@ -27,7 +24,7 @@ class GSEBaseAlarmEventRecord(GseCustomStrEventRecord):
     TITLE = ""
 
     def __init__(self, raw_data, strategies):
-        super(GSEBaseAlarmEventRecord, self).__init__(raw_data=raw_data, strategies=strategies)
+        super().__init__(raw_data=raw_data, strategies=strategies)
         self.strategies = strategies
 
     @property
@@ -40,39 +37,11 @@ class GSEBaseAlarmEventRecord(GseCustomStrEventRecord):
 
     def check(self):
         if len(self.raw_data["value"]) == 1:
-            logger.debug("GSE alarm value: %s" % self.raw_data)
+            logger.debug(f"GSE alarm value: {self.raw_data}")
             return True
         else:
-            logger.warning("GSE alarm value check fail: %s" % self.raw_data)
+            logger.warning(f"GSE alarm value check fail: {self.raw_data}")
             return False
-
-    def get_plat_info(self, alarm):
-        """获取单机告警中的plat_id, company_id, ip等字段"""
-        bk_cloud_id = alarm.get("_cloudid_") or 0
-        company_id = alarm.get("_bizid_") or 0  # 这里bizid存储的是companyid，而不是真实的bizid
-        ip = alarm.get("_host_")
-        agent_id = alarm.get("_agent_id_")
-
-        # 如果ip不为空，则直接返回
-        if ip:
-            return bk_cloud_id, company_id, ip
-
-        # 如果agent_id为空则直接返回
-        if not agent_id:
-            return bk_cloud_id, company_id, ip
-
-        # 如果agent_id中包含冒号，则说明是兼容的agent_id格式，直接解析
-        if ":" in agent_id:
-            bk_cloud_id, ip = agent_id.split(":")
-            return bk_cloud_id, company_id, ip
-
-        # 从缓存中获取agent_id对应的主机信息
-        host = HostManager.get_by_agent_id(agent_id)
-        if host:
-            bk_cloud_id = host.bk_cloud_id
-            ip = host.bk_host_innerip
-
-        return bk_cloud_id, company_id, ip
 
     def flat(self):
         try:

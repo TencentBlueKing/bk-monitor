@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,15 +8,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 from itertools import chain
 
 import arrow
+from django.conf import settings
 from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.cmdb import HostManager
+from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.service.access.event.records.base import EventRecord
+from api.cmdb.define import Host
+from constants.common import DEFAULT_TENANT_ID
 
 logger = logging.getLogger("access.event")
 
@@ -70,37 +72,49 @@ class GseCustomStrEventRecord(EventRecord):
     METRIC_ID = "bk_monitor.gse_custom_event"
     TITLE = _("自定义字符型")
 
-    def __init__(self, raw_data, strategies):
-        super(GseCustomStrEventRecord, self).__init__(raw_data=raw_data)
+    def __init__(self, raw_data, strategies: dict[int, dict[int, "Strategy"]]):
+        super().__init__(raw_data=raw_data)
 
         self.strategies = strategies
 
     def check(self):
         if len(self.raw_data["_value_"]) >= 1:
-            logger.debug("custom event value: %s" % self.raw_data)
+            logger.debug(f"custom event value: {self.raw_data}")
             return True
         else:
-            logger.warning("custom event value check fail: %s" % self.raw_data)
+            logger.warning(f"custom event value check fail: {self.raw_data}")
             return False
 
-    def get_plat_info(self, alarm):
-        """获取单机告警中的plat_id, company_id, ip等字段"""
-        bk_cloud_id = alarm.get("_cloudid_") or 0
-        company_id = alarm.get("_bizid_") or 0  # 这里bizid存储的是companyid，而不是真实的bizid
-        ip = alarm["_server_"]
-        return bk_cloud_id, company_id, ip
+    def get_host(self, alarm: dict) -> Host | None:
+        # 多租户模式下，bk_tenant_id为None进行跨租户查询
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = None
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        agent_id = alarm.get("_agent_id_")
+
+        if agent_id and ":" in agent_id:
+            bk_cloud_id, ip = agent_id.split(":")
+            agent_id = ""
+            bk_cloud_id = int(bk_cloud_id)
+        else:
+            ip = alarm.get("_host_")
+            bk_cloud_id = alarm.get("_cloudid_") or 0
+
+        host = None
+        if agent_id:
+            host = HostManager.get_by_agent_id(bk_agent_id=agent_id, bk_tenant_id=bk_tenant_id)
+        elif ip and bk_tenant_id:
+            # 基于ip的查询仅在单租户模式下生效
+            host = HostManager.get(bk_tenant_id=bk_tenant_id, ip=ip, bk_cloud_id=bk_cloud_id, using_mem=True)
+
+        return host
 
     def full(self):
         alarm = self.raw_data
-        bk_cloud_id, company_id, ip = self.get_plat_info(alarm)
-        try:
-            host_obj = HostManager.get(ip, bk_cloud_id, using_mem=True)
-        except Exception as e:
-            logger.exception(
-                "{}, get host error, bk_cloud_id({}), " "ip({}), except({})".format(self.NAME, bk_cloud_id, ip, e)
-            )
-            return []
 
+        host_obj = self.get_host(alarm)
         if not host_obj:
             return []
 
@@ -124,7 +138,7 @@ class GseCustomStrEventRecord(EventRecord):
             if host_obj.topo_link:
                 dimensions["bk_topo_node"] = sorted({node.id for node in chain(*list(host_obj.topo_link.values()))})
         except Exception as e:
-            logger.exception("{} full error {}, {}".format(self.__class__.__name__, alarm, e))
+            logger.exception(f"{self.__class__.__name__} full error {alarm}, {e}")
             return []
 
         new_record_list = []
@@ -170,7 +184,7 @@ class GseCustomStrEventRecord(EventRecord):
         return self.event_time
 
     def clean_record_id(self):
-        return "{md5_dimension}.{timestamp}".format(md5_dimension=self.md5_dimension, timestamp=self.event_time)
+        return f"{self.md5_dimension}.{self.event_time}"
 
     def clean_dimensions(self):
         dimensions = self.raw_data["dimensions"].copy()
@@ -192,13 +206,7 @@ class GseCustomStrEventRecord(EventRecord):
         """
         {md5_dimension}.{timestamp}.{strategy_id}.{item_id}.{level}"
         """
-        return "{md5_dimension}.{timestamp}.{strategy_id}.{item_id}.{level}".format(
-            md5_dimension=self.md5_dimension,
-            timestamp=self.event_time,
-            strategy_id=self._strategy_id,
-            item_id=self._item_id,
-            level=self.level,
-        )
+        return f"{self.md5_dimension}.{self.event_time}.{self._strategy_id}.{self._item_id}.{self.level}"
 
     def clean_anomaly_message(self):
         return self.raw_data["_title_"]

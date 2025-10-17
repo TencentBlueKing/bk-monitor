@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 from django.utils.translation import gettext as _
 
@@ -36,7 +34,7 @@ class TopoNodeTranslator(BaseTranslator):
         if not bk_host_id:
             return data
 
-        host = HostManager.get_by_id(bk_host_id.value)
+        host = HostManager.get_by_id(bk_tenant_id=self.bk_tenant_id, bk_host_id=bk_host_id.value)
         if not host:
             return data
 
@@ -75,20 +73,19 @@ class TopoNodeTranslator(BaseTranslator):
         translated_nodes = []
 
         # 拼接 key，然后进行批量查询
-        keys = []
+        keys: list[tuple[str, int]] = []
         for node in nodes:
             bk_obj_id, bk_inst_id = node.split("|")
-            keys.append(TopoManager.key_to_internal_value(bk_obj_id, bk_inst_id))
+            keys.append((bk_obj_id, int(bk_inst_id)))
 
         if not keys:
             field.display_value = []
             return data
 
-        node_infos = TopoManager.multi_get(keys)
+        node_infos = TopoManager.mget(bk_tenant_id=self.bk_tenant_id, topo_nodes=keys)
 
-        for index, node in enumerate(nodes):
-            node_info = node_infos[index]
-            bk_obj_id, bk_inst_id = node.split("|")
+        for bk_obj_id, bk_inst_id in keys:
+            node_info = node_infos.get((bk_obj_id, bk_inst_id))
             # 如果在缓存中获取不到节点信息，则直接使用ID
             if not node_info:
                 bk_obj_name = bk_obj_id
@@ -112,7 +109,9 @@ class TopoNodeTranslator(BaseTranslator):
         bk_obj_id = data["bk_obj_id"]
         bk_inst_id = data["bk_inst_id"]
 
-        node = TopoManager.get(bk_obj_id.value, bk_inst_id.value)
+        node = TopoManager.get(
+            bk_tenant_id=self.bk_tenant_id, bk_obj_id=bk_obj_id.value, bk_inst_id=int(bk_inst_id.value)
+        )
 
         bk_obj_id.display_name = _("模型名称")
         bk_inst_id.display_name = _("模型实例名称")
