@@ -1,0 +1,29 @@
+.alarm-center-header-comp {
+  width: 100%;
+
+  .alarm-type-nav-bar {
+    display: flex;
+    height: 100%;
+    margin-right: auto;
+    line-height: 52px;
+
+    &-item {
+      padding: 0 16px;
+      cursor: pointer;
+
+      &.active {
+        .bar-name {
+          color: #3a84ff;
+          border-bottom: 2px solid #3a84ff;
+        }
+      }
+
+      .bar-name {
+        height: 100%;
+        font-size: 16px;
+        color: #313238;
+        letter-spacing: 0;
+      }
+    }
+  }
+}
