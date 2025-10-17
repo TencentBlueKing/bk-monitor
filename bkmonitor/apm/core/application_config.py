@@ -152,6 +152,7 @@ class ApplicationConfig(BkCollectorConfig):
         config["bk_data_token"] = self._application.get_bk_data_token()
         config["resource_filter_config"] = self.get_resource_filter_config()
         config["resource_filter_config_logs"] = self.get_resource_filter_config_logs()
+        config["resource_filter_config_metrics"] = self.get_resource_filter_config_metrics()
 
         apdex_config = self.get_apdex_config(ApdexConfig.APP_LEVEL)
         sampler_config = self.get_random_sampler_config(ApdexConfig.APP_LEVEL)
@@ -382,6 +383,25 @@ class ApplicationConfig(BkCollectorConfig):
         return {
             "name": "resource_filter/logs",
             "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
+        }
+
+    @classmethod
+    def get_resource_filter_config_metrics(cls, bcs_cluster_id=None):
+        """
+        维度补充配置
+        """
+        if bcs_cluster_id is None:
+            return {}
+
+        if bcs_cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            # 中心化集群，可以接收到所有的数据，不对中心化集群做维度补充逻辑
+            return {}
+
+        return {
+            "name": "resource_filter/metrics",
+            "drop": {"keys": ["resource.bk.data.token", "resource.process.pid", "resource.tps.tenant.id"]},
+            "from_token": {"keys": ["app_name"]},
+            "from_cache": {"key": "request.client.ip", "cache_name": "k8s_cache"},
         }
 
     def get_sub_configs(self, unique_key: str, config_level):
