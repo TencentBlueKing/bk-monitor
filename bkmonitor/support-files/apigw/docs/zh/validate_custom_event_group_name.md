@@ -40,7 +40,7 @@
 | detail        | str | 细节信息 |
 | popup_message | str | 弹框颜色 |
 
-#### 响应示例: 校验通过
+### 响应参数示例: 校验通过
 
 ```json
 {
