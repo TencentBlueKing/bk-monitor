@@ -10,16 +10,16 @@ specific language governing permissions and limitations under the License.
 
 import logging
 import operator
-import time
 import re
-from datetime import datetime, timezone
+import time
 from collections import defaultdict
+from datetime import datetime, timezone
 from functools import reduce
 from itertools import chain
 
+from django.db.models import Q as DQ
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
-from django.db.models import Q as DQ
 from elasticsearch_dsl import Q
 from elasticsearch_dsl.response.aggs import BucketData
 from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
@@ -31,7 +31,6 @@ from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import hms_string
-from fta_web.alert.utils import is_include_promql
 from constants.action import ConvergeStatus
 from constants.alert import (
     EVENT_SEVERITY,
@@ -48,6 +47,7 @@ from constants.data_source import (
     OthersResultTableLabel,
 )
 from core.drf_resource import resource
+from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.base import (
     AlertDimensionFormatter,
     BaseBizQueryHandler,
@@ -61,7 +61,7 @@ from fta_web.alert.handlers.translator import (
     PluginTranslator,
     StrategyTranslator,
 )
-from fta_web.alert.handlers.action import ActionQueryHandler
+from fta_web.alert.utils import is_include_promql
 
 logger = logging.getLogger(__name__)
 
@@ -739,8 +739,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
             dimension_tuple: tuple = tuple(dimensions.items())
             result[dimension_tuple] = aggregation
 
-    def date_histogram(self, interval: str = "auto", group_by: list[str] = None):
-        interval = self.calculate_agg_interval(self.start_time, self.end_time, interval)
+    def date_histogram(self, interval: str = "auto", group_by: list[str] | None = None, bucket_size: int = 100):
+        new_interval: int = self.calculate_agg_interval(self.start_time, self.end_time, interval)
 
         # 默认按status聚合
         if group_by is None:
@@ -764,9 +764,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
         group_by = sorted(group_by, key=lambda x: x.startswith("tags."))
 
         # 查询时间对齐
-        start_time = self.start_time // interval * interval
-        end_time = self.end_time // interval * interval + interval
-        now_time = int(time.time()) // interval * interval + interval
+        start_time = self.start_time // new_interval * new_interval
+        end_time = self.end_time // new_interval * new_interval + new_interval
+        now_time = int(time.time()) // new_interval * new_interval + new_interval
 
         search_object = self.get_search_object(start_time=start_time, end_time=end_time)
         search_object = self.add_conditions(search_object)
@@ -787,24 +787,24 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         # 时间聚合
         ended_object = ended_object.bucket(
-            "time", "date_histogram", field="end_time", fixed_interval=f"{interval}s"
+            "time", "date_histogram", field="end_time", fixed_interval=f"{new_interval}s"
         ).bucket("status", "terms", field="status")
         new_anomaly_object = new_anomaly_object.bucket(
-            "time", "date_histogram", field="begin_time", fixed_interval=f"{interval}s"
+            "time", "date_histogram", field="begin_time", fixed_interval=f"{new_interval}s"
         )
 
         # 维度聚合
         for field in group_by:
-            ended_object = self.add_agg_bucket(ended_object, field)
-            new_anomaly_object = self.add_agg_bucket(new_anomaly_object, field)
-            old_anomaly_object = self.add_agg_bucket(old_anomaly_object, field)
+            ended_object = self.add_agg_bucket(ended_object, field, size=bucket_size)
+            new_anomaly_object = self.add_agg_bucket(new_anomaly_object, field, size=bucket_size)
+            old_anomaly_object = self.add_agg_bucket(old_anomaly_object, field, size=bucket_size)
 
         # 查询
         search_result = search_object[:0].execute()
 
         result = defaultdict(
             lambda: {
-                status: {ts * 1000: 0 for ts in range(start_time, min(now_time, end_time), interval)}
+                status: {ts * 1000: 0 for ts in range(start_time, min(now_time, end_time), new_interval)}
                 for status in EVENT_STATUS_DICT
             }
         )
