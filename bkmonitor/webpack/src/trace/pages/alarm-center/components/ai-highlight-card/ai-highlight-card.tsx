@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -25,22 +25,34 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
-import AiHighlightCard from '@/pages/alarm-center/components/ai-highlight-card/ai-highlight-card';
+import AIFavicon from '../../../../static/img/failure/AI.png';
+
+import './ai-highlight-card.scss';
 
 export default defineComponent({
-  name: 'PanelHost',
+  name: 'AiHighlightCard',
   props: {
-    id: String as PropType<string>,
+    title: {
+      type: String,
+    },
+    content: {
+      type: [String, Object] as PropType<string | unknown>,
+    },
   },
-  setup(props) {
-    console.log(props.id);
-    return () => (
-      <div class='alarm-center-detail-panel-alarm'>
-        <div>hello alarm</div>
-        <AiHighlightCard
-          content='该模块哈哈哈哈哈，我是一段随意的文本占位。'
-          title='AI 分析结论：'
-        />
+  setup() {},
+  render() {
+    return (
+      <div class='ai-highlight-card'>
+        <div class='ai-favicon'>
+          <img
+            alt='ai-favicon'
+            src={AIFavicon}
+          />
+        </div>
+        <div class='ai-highlight-card-main'>
+          <div class='card-main-title'>{this.$slots?.title?.(this.title) ?? this.title}</div>
+          <div class='card-main-content'>{this.$slots?.content?.(this.content) ?? this.content}</div>
+        </div>
       </div>
     );
   },
