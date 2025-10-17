@@ -175,7 +175,14 @@ export default defineComponent({
         pageIndex.value = 1;
       },
     );
-
+    addEvent(
+      RetrieveEvent.AUTO_REFRESH,
+      () => {
+        hasMoreList.value = true;
+        pageIndex.value = 1;
+        store.dispatch("requestIndexSetQuery");
+      },
+    );
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];
       const endIndex = length ?? tableDataSize.value;

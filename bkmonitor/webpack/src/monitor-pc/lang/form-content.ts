@@ -190,4 +190,5 @@ export default {
   '示例日志：': 'Example log:',
   '（共 {0} 条日志）': ' (total {0} logs)',
   独立查看: 'View independently',
+  '在{0}个周期内累计满足{1}次检测算法': 'In {0} cycles, the detection algorithm is met {1} times',
 };

@@ -18,8 +18,10 @@ from django.db.models import Q
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _
+from apm_web.handlers import metric_group
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
+from constants.apm import MetricTemporality, TelemetryDataType, Vendor
 
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
@@ -39,7 +41,7 @@ from bkmonitor.utils import group_by
 from bkmonitor.utils.cache import CacheType, lru_cache_with_ttl, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
-from constants.apm import OtlpKey, TelemetryDataType
+from constants.apm import OtlpKey
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 
@@ -663,3 +665,36 @@ class ServiceHandler:
                 res[i["topo_key"]].update({})
 
         return res
+
+    @classmethod
+    def get_rpc_service_config_or_none(cls, node: dict[str, Any]) -> dict[str, Any] | None:
+        """
+        通过节点信息获取 RPC 服务的指标配置
+        :param node: 节点信息
+        :return:
+        - None: 非 RPC 服务
+        - 指标配置信息: RPC 服务的指标配置
+        """
+        is_trpc: bool = False
+        rpc_system: str = metric_group.GroupEnum.TRPC
+        for meta in node.get("system") or []:
+            if meta.get("name") == metric_group.GroupEnum.TRPC:
+                is_trpc = True
+            extra_data: dict[str, Any] = meta.get("extra_data") or {}
+            if extra_data.get("rpc_system"):
+                rpc_system = extra_data["rpc_system"]
+                break
+
+        if not is_trpc:
+            logger.info("[apm][get_rpc_service_config_or_none] system not found: service_name -> %s", node["topo_key"])
+            return None
+
+        # G 和 Tars 框架的指标类型为 Gauge。
+        temporality: str = (MetricTemporality.CUMULATIVE, MetricTemporality.DELTA)[
+            Vendor.has_sdk(node.get("sdk"), Vendor.G) or rpc_system == "tars"
+        ]
+
+        logger.info(
+            "[apm][get_rpc_service_config_or_none] service_name -> %s, temporality -> %s", node["topo_key"], temporality
+        )
+        return MetricTemporality.get_metric_config(temporality)

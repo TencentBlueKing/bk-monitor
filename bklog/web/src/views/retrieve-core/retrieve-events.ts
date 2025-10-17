@@ -133,6 +133,11 @@ enum RetrieveEvent {
    * AI 关闭
    */
   AI_CLOSE = 'ai-close',
+
+  /**
+   * 自动刷新日志
+   */
+  AUTO_REFRESH = 'auto-refresh',
 }
 
 export default RetrieveEvent;

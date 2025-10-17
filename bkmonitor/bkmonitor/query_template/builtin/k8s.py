@@ -8,15 +8,44 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.db.models import Q
+
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from bkmonitor.data_source import q_to_conditions
 from typing import Any
 from constants.data_source import DataTypeLabel, DataSourceLabel
-from constants.apm import DEFAULT_DATA_LABEL
+from constants.apm import CachedEnum
 from constants.query_template import GLOBAL_BIZ_ID
 
 from . import utils
 from .base import QueryTemplateSet
 from .. import constants
+
+
+class K8SQueryTemplateName(CachedEnum):
+    CPU_LIMIT_USAGE = "k8s_cpu_limit_usage"
+    CPU_REQUEST_USAGE = "k8s_cpu_request_usage"
+    MEMORY_LIMIT_USAGE = "k8s_memory_limit_usage"
+    MEMORY_REQUEST_USAGE = "k8s_memory_request_usage"
+    CPU_USAGE = "k8s_cpu_usage"
+    MEMORY_USAGE = "k8s_memory_usage"
+    TERMINATE_REASON = "k8s_terminate_reason"
+    ABNORMAL_RESTART = "k8s_abnormal_restart"
+
+    @property
+    def label(self) -> str:
+        return str(
+            {
+                self.CPU_LIMIT_USAGE: "[容器] CPU limit 使用率（%）",
+                self.CPU_REQUEST_USAGE: "[容器] CPU request 使用率（%）",
+                self.MEMORY_LIMIT_USAGE: "[容器] 内存 limit 使用率（%）",
+                self.MEMORY_REQUEST_USAGE: "[容器] 内存 request 使用率（%）",
+                self.CPU_USAGE: "[容器] CPU 使用量",
+                self.MEMORY_USAGE: "[容器] 内存使用量",
+                self.TERMINATE_REASON: "[容器] 异常终止数",
+                self.ABNORMAL_RESTART: "[容器] 异常重启数",
+            }.get(self, self.value)
+        )
 
 
 def _get_related_metrics(related_metric_fields: list[str]) -> list[dict[str, str]]:
@@ -94,7 +123,6 @@ _TABLE: str = ""
 
 _COMMON_BUILDER: QueryConfigBuilder = (
     QueryConfigBuilder((DataTypeLabel.TIME_SERIES, DataSourceLabel.BK_MONITOR_COLLECTOR))
-    .data_label(DEFAULT_DATA_LABEL)
     .table(_TABLE)
     .interval(60)
     .group_by("${GROUP_BY}")
@@ -114,11 +142,12 @@ def _cpu_usage_templ(usage_type: str) -> dict[str, Any]:
                 _COMMON_BUILDER.alias("a")
                 .func(_id="rate", params=[{"id": "window", "value": "1m"}])
                 .metric(field="container_cpu_usage_seconds_total", method="${METHOD}", alias="a")
+                .conditions(q_to_conditions(Q(container_name__neq="POD")))
             )
             .add_query(
-                _COMMON_BUILDER.alias("b").metric(
-                    field=f"kube_pod_container_resource_{usage_type}s_cpu_cores", method="${METHOD}", alias="b"
-                )
+                _COMMON_BUILDER.alias("b")
+                .metric(field=f"kube_pod_container_resource_{usage_type}s_cpu_cores", method="${METHOD}", alias="b")
+                .conditions(q_to_conditions(Q(container_name__neq="POD")))
             )
             .expression("(a / b) * 100")
         ),
@@ -128,6 +157,7 @@ def _cpu_usage_templ(usage_type: str) -> dict[str, Any]:
             group_by_options=["bcs_cluster_id", "namespace", "pod_name", "container_name"],
             conditions_options=["bcs_cluster_id", "namespace", "pod_name", "container_name"],
         ),
+        "unit": "percent",
     }
 
 
@@ -141,13 +171,13 @@ def _memory_usage_templ(usage_type: str) -> dict[str, Any]:
             UnifyQuerySet()
             .add_query(
                 _COMMON_BUILDER.alias("a")
-                .func(_id="rate", params=[{"id": "window", "value": "1m"}])
                 .metric(field="container_memory_working_set_bytes", method="${METHOD}", alias="a")
+                .conditions(q_to_conditions(Q(container_name__neq="POD")))
             )
             .add_query(
-                _COMMON_BUILDER.alias("b").metric(
-                    field=f"kube_pod_container_resource_{usage_type}s_memory_bytes", method="${METHOD}", alias="b"
-                )
+                _COMMON_BUILDER.alias("b")
+                .metric(field=f"kube_pod_container_resource_{usage_type}s_memory_bytes", method="${METHOD}", alias="b")
+                .conditions(q_to_conditions(Q(container_name__neq="POD")))
             )
             .expression("(a / b) * 100")
         ),
@@ -157,6 +187,7 @@ def _memory_usage_templ(usage_type: str) -> dict[str, Any]:
             group_by_options=["bcs_cluster_id", "namespace", "pod_name", "container_name"],
             conditions_options=["bcs_cluster_id", "namespace", "pod_name", "container_name"],
         ),
+        "unit": "percent",
     }
 
 
@@ -170,8 +201,8 @@ MEMORY_REQUEST_USAGE: dict[str, Any] = _memory_usage_templ("request")
 
 CPU_USAGE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "k8s_cpu_usage",
-    "alias": "[容器] CPU 使用量",
+    "name": K8SQueryTemplateName.CPU_USAGE.value,
+    "alias": K8SQueryTemplateName.CPU_USAGE.label,
     "description": "CPU 使用量表示容器实际使用的 CPU 资源，单位为核。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -203,12 +234,13 @@ CPU_USAGE: dict[str, Any] = {
             "container_name",
         ],
     ),
+    "unit": "",
 }
 
 MEMORY_USAGE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "name": "k8s_memory_usage",
-    "alias": "[容器] 内存使用量",
+    "name": K8SQueryTemplateName.MEMORY_USAGE.value,
+    "alias": K8SQueryTemplateName.MEMORY_USAGE.label,
     "description": "内存使用量表示容器实际使用的内存资源，单位为字节。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -240,12 +272,13 @@ MEMORY_USAGE: dict[str, Any] = {
             "container_name",
         ],
     ),
+    "unit": "bytes",
 }
 
 TERMINATE_REASON: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "alias": "[容器] 异常终止数",
-    "name": "k8s_terminate_reason",
+    "name": K8SQueryTemplateName.TERMINATE_REASON.value,
+    "alias": K8SQueryTemplateName.TERMINATE_REASON.label,
     "description": "异常终止数表示容器因异常原因（如 OOMKilled）终止的次数。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -267,12 +300,13 @@ TERMINATE_REASON: dict[str, Any] = {
             options=["bcs_cluster_id", "namespace", "pod_name", "container_name", "reason"],
         ),
     ],
+    "unit": "",
 }
 
 ABNORMAL_RESTART: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
-    "alias": "[容器] 异常重启数",
-    "name": "k8s_abnormal_restart",
+    "name": K8SQueryTemplateName.ABNORMAL_RESTART.value,
+    "alias": K8SQueryTemplateName.ABNORMAL_RESTART.label,
     "description": "异常重启数表示容器在非正常状态下的重启次数。",
     **_qs_to_query_params(
         UnifyQuerySet()
@@ -294,6 +328,7 @@ ABNORMAL_RESTART: dict[str, Any] = {
             options=["bcs_cluster_id", "namespace", "pod_name", "container_name"],
         ),
     ],
+    "unit": "",
 }
 
 

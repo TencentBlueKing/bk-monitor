@@ -179,12 +179,20 @@ export default {
   模板别名: 'Template Alias',
   模板说明: 'Template Description',
   消费场景: 'Consumption Scenario',
-  
 
-  
+
+
   被调服务: 'Called server',
   被调service: 'Called service',
   被调接口: 'Called interface',
   返回码: 'Return code',
-  
+
+
+  // APM-应用-告警
+  告警模板: 'Alarm Template',
+  模板类型: 'Template Type',
+  最近更新: 'Last Update',
+  关联服务: 'Associated Service',
+  '启用 / 禁用': 'Enable / Disable',
+  自动下发: 'Auto Deploy',
 };

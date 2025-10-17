@@ -200,7 +200,10 @@ export default defineComponent({
      */
     useIntersectionObserver(paginationRef, (entry) => {
       if (entry.isIntersecting) {
-        (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty('visibility', 'visible');
+        (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty(
+          'visibility',
+          'visible',
+        );
         if (
           pagination.value.current * pagination.value.limit <
           pagination.value.count
@@ -554,7 +557,7 @@ export default defineComponent({
     };
 
     addEvent(
-      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE],
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE,RetrieveEvent.AUTO_REFRESH],
       refreshTable,
     );
 
