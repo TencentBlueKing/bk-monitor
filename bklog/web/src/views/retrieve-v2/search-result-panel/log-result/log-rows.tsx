@@ -55,7 +55,7 @@ import {
   SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
-import ScrollXBar from './scroll-x-bar';
+import ScrollXBar from '../../components/scroll-x-bar';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
 
@@ -1037,7 +1037,7 @@ export default defineComponent({
         return 'Loading ...';
       }
 
-      if (!(isRequesting.value || hasMoreList.value) && tableDataSize.value > 0) {
+      if (!(isRequesting.value || hasMoreList.value) || tableDataSize.value < pageSize.value) {
         return ` - 已加载所有数据: 共计 ${tableDataSize.value} 条 - `;
       }
 

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { ref, computed, watch } from 'vue';
+import { computed, ref } from 'vue';
 
 import * as authorityMap from '@/common/authority-map';
 import useRoute from '@/hooks/use-route';
@@ -50,23 +50,56 @@ export function useNavMenu(options: {
   // computed
   const topMenu = computed(() => store.state.topMenu);
   const menuList = computed(() => store.state.menuList);
-  const activeTopMenu = computed(() => store.state.activeTopMenu);
   const spaceUid = computed(() => store.state.spaceUid);
-  const bkBizId = computed(() => store.state.bkBizId);
+  const bkBizId = computed(() => store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID]);
   const mySpaceList = computed(() => store.state.mySpaceList);
   const isExternal = computed(() => store.state.isExternal);
   const externalMenu = computed(() => store.state.externalMenu);
 
-  // watch query.from
-  watch(
-    () => route.query.from,
-    fromValue => {
-      if (fromValue) {
-        store.commit('updateIframeQuery', { from: fromValue });
-      }
-    },
-    { immediate: true, deep: true },
-  );
+  /**
+   * 将空间对象标准化为字符串字段，返回是否拥有 view_business_v2 权限
+   */
+  function normalizeSpaceAndCheckPermission(space: any): boolean {
+    space.bk_biz_id = `${space.bk_biz_id}`;
+    space.space_uid = `${space.space_uid}`;
+    space.space_full_code_name = `${space.space_name}(#${space.space_id})`;
+    return Boolean(space.permission?.view_business_v2);
+  }
+
+  /**
+   * 依据 query / storage 确定要切换的 spaceUid
+   */
+  function resolveTargetSpaceUid(spaceList: any[], queryObj: any, storageSpaceUid: string | undefined, demoId: string) {
+    const { bizId, spaceUid: querySpaceUid } = queryObj;
+    const firstRealSpaceUid = spaceList.find((item: any) => item.bk_biz_id !== demoId)?.space_uid;
+    if (querySpaceUid || bizId) {
+      const matched = spaceList.find((item: any) => item.space_uid === querySpaceUid || item.bk_biz_id === `${bizId}`);
+      return matched ? matched.space_uid : firstRealSpaceUid;
+    }
+    if (storageSpaceUid) {
+      const exists = spaceList.some((item: any) => item.space_uid === storageSpaceUid);
+      if (exists) return storageSpaceUid;
+    }
+    return firstRealSpaceUid;
+  }
+
+  /**
+   * 获取查看业务权限的申请地址
+   */
+  async function fetchViewBusinessApplyUrl(query: any) {
+    const res = await store.dispatch('getApplyData', {
+      action_ids: [authorityMap.VIEW_BUSINESS],
+      resources: query?.space_uid
+        ? [
+            {
+              type: 'space',
+              id: query.space_uid,
+            },
+          ]
+        : [],
+    });
+    return res?.data?.apply_url;
+  }
 
   // methods
   const getDemoProjectUrl = (id: string) => {
@@ -119,102 +152,33 @@ export function useNavMenu(options: {
     if (isExternal.value) {
       updateExternalMenuBySpace(newSpaceUid);
     }
-    try {
-      const menuListData = await store.dispatch('requestMenuList', newSpaceUid);
-
-      const manageGroupNavList = menuListData.find((item: any) => item.id === 'manage')?.children || [];
-      const manageNavList: any[] = [];
-      for (const group of manageGroupNavList) {
-        manageNavList.push(...group.children);
+    if (isExternal.value && route.name === 'retrieve' && !externalMenu.value.includes('retrieve')) {
+      router.push({ name: 'extract-home' });
+    } else if (
+      isExternal.value &&
+      ['extract-home', 'extract-create', 'extract-clone'].includes(route.name as string) &&
+      !externalMenu.value.includes('manage')
+    ) {
+      router.push({ name: 'retrieve' });
+    } else if (route.name !== 'retrieve' && !isFirstLoad.value) {
+      const { name, meta, params, query } = route as any;
+      const routingHop = meta.needBack && !isFirstLoad.value ? meta.backName : name ? name : 'retrieve';
+      const newQuery = {
+        ...query,
+        spaceUid,
+      };
+      if (query.bizId) {
+        newQuery.spaceUid = spaceUid;
       }
-      const logCollectionNav = manageNavList.find((nav: any) => nav.id === 'log-collection');
-
-      if (logCollectionNav) {
-        logCollectionNav.children = [
-          {
-            id: 'collection-item',
-            name: t('采集项'),
-            project_manage: logCollectionNav.project_manage,
-          },
-          {
-            id: 'log-index-set',
-            name: t('索引集'),
-            project_manage: logCollectionNav.project_manage,
-          },
-        ];
-      }
-
-      // 监听路由 name
-      watch(
-        () => route.name,
-        () => {
-          const matchedList = (route as any).matched;
-          const newActiveTopMenu =
-            menuListData.find((item: any) => {
-              return matchedList.some((record: any) => record.name === item.id);
-            }) || {};
-          store.commit('updateState', { activeTopMenu: newActiveTopMenu });
-          const topMenuList = newActiveTopMenu.children?.length ? newActiveTopMenu.children : [];
-          const topMenuChildren = topMenuList.reduce((pre: any[], cur: any) => {
-            if (cur.children?.length) {
-              pre.push(...cur.children);
-            }
-            return pre;
-          }, []);
-          const activeManageNav =
-            topMenuChildren.find((item: any) => {
-              return matchedList.some((record: any) => record.name === item.id);
-            }) || {};
-          store.commit('updateState', { activeManageNav: activeManageNav });
-
-          const activeManageSubNav = activeManageNav.children
-            ? activeManageNav.children.find((item: any) => {
-                return matchedList.some((record: any) => record.name === item.id);
-              })
-            : {};
-          store.commit('updateState', { activeManageSubNav: activeManageSubNav });
+      const { bizId: removedBizId, ...otherNewQuery } = newQuery;
+      const { indexId: removedIndexId, ...otherParams } = params;
+      router.push({
+        name: routingHop,
+        params: {
+          ...otherParams,
         },
-        { immediate: true },
-      );
-
-      return menuListData;
-    } catch (e) {
-      console.warn(e);
-    } finally {
-      if (isExternal.value && route.name === 'retrieve' && !externalMenu.value.includes('retrieve')) {
-        router.push({ name: 'extract-home' });
-      } else if (
-        isExternal.value &&
-        ['extract-home', 'extract-create', 'extract-clone'].includes(route.name as string) &&
-        !externalMenu.value.includes('manage')
-      ) {
-        router.push({ name: 'retrieve' });
-      } else if (route.name !== 'retrieve' && !isFirstLoad.value) {
-        const { name, meta, params, query } = route as any;
-        const RoutingHop = meta.needBack && !isFirstLoad.value ? meta.backName : name ? name : 'retrieve';
-        const newQuery = {
-          ...query,
-          spaceUid,
-        };
-        if (query.bizId) {
-          newQuery.spaceUid = spaceUid;
-        }
-        const { bizId: _bizId, ...otherNewQuery } = newQuery;
-        const { indexId: _indexId, ...otherParams } = params;
-        store.commit('updateState', { pageLoading: true });
-        router.push({
-          name: RoutingHop,
-          params: {
-            ...otherParams,
-          },
-          query: otherNewQuery,
-        });
-      }
-      setTimeout(() => {
-        store.commit('updateState', { pageLoading: false });
-        isFirstLoad.value = false;
-        store.commit('updateState', { showRouterLeaveTip: false });
-      }, 0);
+        query: otherNewQuery,
+      });
     }
   };
 
@@ -274,12 +238,8 @@ export function useNavMenu(options: {
 
       const spaceList = store.state.mySpaceList;
       let isHaveViewBusiness = false;
-
       for (const item of spaceList) {
-        item.bk_biz_id = `${item.bk_biz_id}`;
-        item.space_uid = `${item.space_uid}`;
-        item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
-        item.permission.view_business_v2 && (isHaveViewBusiness = true);
+        if (normalizeSpaceAndCheckPermission(item)) isHaveViewBusiness = true;
       }
 
       const { bizId, spaceUid: newSpaceUid } = queryObj;
@@ -303,41 +263,28 @@ export function useNavMenu(options: {
         }
         if (newSpaceUid || bizId) {
           const query = newSpaceUid ? { space_uid: newSpaceUid } : { bk_biz_id: bizId };
-          const [betaRes, authRes] = await Promise.all([
+          const [betaRes, applyUrl] = await Promise.all([
             http.request('/meta/getMaintainerApi', { query }),
-            store.dispatch('getApplyData', {
-              action_ids: [authorityMap.VIEW_BUSINESS],
-              resources: [],
-            }),
+            fetchViewBusinessApplyUrl(undefined),
           ]);
           args.getAccess.businessName = betaRes.data.bk_biz_name;
-          args.getAccess.url = authRes.data.apply_url;
+          args.getAccess.url = applyUrl;
         } else {
-          const authRes = await store.dispatch('getApplyData', {
-            action_ids: [authorityMap.VIEW_BUSINESS],
-            resources: [],
-          });
-          args.getAccess.url = authRes.data.apply_url;
+          args.getAccess.url = await fetchViewBusinessApplyUrl(undefined);
         }
-        store.commit('updateState', { pageLoading: false });
         checkSpaceChange();
         emit?.('welcome', args);
       } else {
-        const firstRealSpaceUid = spaceList.find((item: any) => item.bk_biz_id !== demoId).space_uid;
-        if (newSpaceUid || bizId) {
-          const matchProject = spaceList.find(
-            (item: any) => item.space_uid === newSpaceUid || item.bk_biz_id === bizId,
-          );
-          checkSpaceChange(matchProject ? matchProject.space_uid : firstRealSpaceUid);
-        } else {
-          const storageSpaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
-          const hasSpace = storageSpaceUid ? spaceList.some((item: any) => item.space_uid === storageSpaceUid) : false;
-          checkSpaceChange(hasSpace ? storageSpaceUid : firstRealSpaceUid);
-        }
+        const targetSpaceUid = resolveTargetSpaceUid(
+          spaceList,
+          queryObj,
+          store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+          demoId,
+        );
+        checkSpaceChange(targetSpaceUid);
       }
     } catch (e) {
       console.warn(e);
-      store.commit('updateState', { pageLoading: false });
     }
   };
 
@@ -345,7 +292,6 @@ export function useNavMenu(options: {
     // state
     topMenu,
     menuList,
-    activeTopMenu,
     spaceUid,
     bkBizId,
     mySpaceList,
@@ -358,7 +304,6 @@ export function useNavMenu(options: {
     spaceChange,
     checkSpaceAuth,
     updateExternalMenuBySpace,
-    setRouter,
     isFirstLoad,
   };
 }

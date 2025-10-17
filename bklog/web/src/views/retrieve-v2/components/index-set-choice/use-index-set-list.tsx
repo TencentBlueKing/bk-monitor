@@ -29,8 +29,13 @@ export default (props, { emit }) => {
   /**
    * 索引集列表过滤标签
    */
-  const indexSetTagList: ComputedRef<{ tag_id: number; name: string; color: string }[]> = computed(() => {
-    const listMap: Map<number, { tag_id: number; name: string; color: string }> = props.list.reduce((acc, item) => {
+  const indexSetTagList: ComputedRef<
+    { tag_id: number; name: string; color: string }[]
+  > = computed(() => {
+    const listMap: Map<
+      number,
+      { tag_id: number; name: string; color: string }
+    > = props.list.reduce((acc, item) => {
       for (const tag of item.tags) {
         if (!acc.has(tag.tag_id) && tag.tag_id !== 4) {
           acc.set(tag.tag_id, tag);
@@ -63,7 +68,7 @@ export default (props, { emit }) => {
     if (isChecked) {
       for (const v of props.value) {
         if (!storeList.includes(v)) {
-          targetValue.push(v);
+          targetValue.push(v.unique_id);
         }
       }
       targetValue.push(item.unique_id);
@@ -73,7 +78,8 @@ export default (props, { emit }) => {
 
     // 如果是取消选中
     for (const v of props.value) {
-      if (v !== item.unique_id) {
+      const uniqueId = v?.unique_id ?? v;
+      if (uniqueId !== item.unique_id) {
         targetValue.push(v);
       }
     }

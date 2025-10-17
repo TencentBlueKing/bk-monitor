@@ -26,7 +26,7 @@
 
 import i18n from '@/language/i18n';
 
-export const menuArr = [
+export const MENU_LISTS = [
   {
     name: i18n.t('检索'),
     id: 'retrieve',

@@ -220,4 +220,7 @@ export default {
     'An application typically has an independent site, composed of multiple services, providing complete product functionality with its own software architecture. From a technical perspective, an application is a storage isolation for Trace data, where data within the same application is aggregated and monitored.',
   返回码重定义: 'Redefine return code',
   返回码备注说明: 'Return code remark description',
+  固定IP: 'Static IP',
+  'IP-静态拓扑': 'IP-Static Topo',
+  问问小鲸: 'Ask AI',
 };

@@ -3,7 +3,7 @@
 修改日历
 
 
-#### 接口参数
+### 请求参数
 
 | 字段名      | 类型   | 必选 | 描述         |
 | ----------- | ------ | ---- | ------------ |
@@ -12,13 +12,10 @@
 | deep_color  | String | 否   | 日历深色底色 |
 | light_color | String | 否   | 日历浅色底色 |
 
-#### 示例数据
+### 请求参数示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "id": 1,
     "name": "测试日历"
 }
@@ -46,7 +43,7 @@
 | classify    | String | 日历分类（内置："default"，自定义："defined"） |
 | color       | String | 日历颜色                                       |
 
-#### 示例数据
+### 响应参数示例
 
 ```json
 {

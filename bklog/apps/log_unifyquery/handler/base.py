@@ -36,6 +36,7 @@ from apps.log_search.constants import (
     SCROLL,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
+    ASYNC_EXPORT_SCROLL,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -1080,7 +1081,7 @@ class UnifyQueryHandler:
         """
         search_params = copy.deepcopy(self.base_dict)
         search_params["limit"] = MAX_RESULT_WINDOW
-        search_params["scroll"] = SCROLL
+        search_params["scroll"] = ASYNC_EXPORT_SCROLL
         # 全文下载不分片
         search_params["slice_max"] = MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT if is_quick_export else 0
 

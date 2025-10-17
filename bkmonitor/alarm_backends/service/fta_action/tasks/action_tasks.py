@@ -14,6 +14,7 @@ import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
+from django.db import router
 from django.db.models import Q
 from django.utils.translation import gettext as _
 
@@ -416,14 +417,15 @@ def clear_mysql_action_data(days=7, count=5000):
     """
     expire_datetime = datetime.now(timezone.utc) - timedelta(days=days)
 
-    first_item = ActionInstance.objects.order_by("id").first()
+    first_item = ActionInstance.objects.only("id").order_by("id").first()
     if not first_item:
         return
 
-    del_count, _ = (
+    using = router.db_for_write(ActionInstance)
+    del_count = (
         ActionInstance.objects.filter(id__lt=first_item.id + count, create_time__lte=expire_datetime)
         .only("id")
-        .delete()
+        ._raw_delete(using)
     )
 
     logger.info(

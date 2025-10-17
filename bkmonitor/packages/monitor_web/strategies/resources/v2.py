@@ -3714,6 +3714,7 @@ class BulkDeleteStrategySubscribeResource(Resource):
             child=serializers.IntegerField(), required=True, allow_empty=False, help_text="要删除的订阅ID列表"
         )
         bk_biz_id = serializers.IntegerField(required=True)
+        sub_username = serializers.CharField(required=False, source="username", default="")
 
     def perform_request(self, params):
         ids = params["ids"]
@@ -3721,6 +3722,8 @@ class BulkDeleteStrategySubscribeResource(Resource):
 
         # 查询要删除的订阅记录
         qs = NoticeSubscribe.objects.filter(id__in=ids, bk_biz_id=bk_biz_id)
+        if params["username"]:
+            qs = qs.filter(username=params["username"])
 
         # 获取实际存在的订阅ID，用于返回结果
         existing_ids = list(qs.values_list("id", flat=True))
@@ -3755,10 +3758,11 @@ class DeleteStrategySubscribeResource(Resource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True)
         bk_biz_id = serializers.IntegerField(required=True)
+        sub_username = serializers.CharField(required=False, source="username", default="")
 
     def perform_request(self, params):
         # 复用批量删除的逻辑
-        batch_params = {"ids": [params["id"]], "bk_biz_id": params["bk_biz_id"]}
+        batch_params = {"ids": [params["id"]], "bk_biz_id": params["bk_biz_id"], "sub_username": params["username"]}
 
         # 调用批量删除资源
         batch_resource = BulkDeleteStrategySubscribeResource()
