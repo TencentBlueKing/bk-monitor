@@ -32,9 +32,8 @@ from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW 
 
 
 def save_to_dashboard_after(response_result):
-    if "data" in response_result and isinstance(response_result["data"], list):
-        with ignored(Exception):
-            response_result["data"] = [item["data"] for item in response_result["data"]]
+    with ignored(Exception):
+        response_result["data"] = [item["data"] for item in response_result["data"]]
     return response_result
 
 
