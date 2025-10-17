@@ -1669,6 +1669,17 @@
   path: /v2/monitor_v3/metadata_delete_restore_result_table_snapshot/
   method: POST
 
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/retry_restore_result_table_snapshot/
+  is_hidden: true
+  label: 重试快照回溯
+  label_en: retry restore result table snapshot
+  name: retry_restore_result_table_snapshot
+  path: /v2/monitor_v3/metadata_retry_restore_result_table_snapshot/
+  method: POST
+
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -1689,6 +1700,17 @@
   label_en: restore result table snapshot state
   name: get_restore_result_table_snapshot_state
   path: /v2/monitor_v3/metadata_get_restore_result_table_snapshot_state/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/get_restore_result_table_snapshot_indices/
+  is_hidden: true
+  label: 快照回溯索引详情
+  label_en: restore result table snapshot indices
+  name: get_restore_result_table_snapshot_indices
+  path: /v2/monitor_v3/metadata_get_restore_result_table_snapshot_indices/
   method: POST
 
 
