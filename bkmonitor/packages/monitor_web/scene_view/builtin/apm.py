@@ -32,7 +32,7 @@ from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from constants.apm import MetricTemporality, TelemetryDataType, CommonMetricTag
+from constants.apm import MetricTemporality, TelemetryDataType, CommonMetricTag, DEFAULT_DATA_LABEL
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
@@ -368,8 +368,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             if server_config.get("enable_global_metric"):
                 # 设置 data_label 并替换 table_id
-                cls._set_query_config_param(view_config, "data_label", "APM")
-                view_config = cls._replace_variable(view_config, table_id, "APM.__default__")
+                cls._set_query_config_param(view_config, "data_label", DEFAULT_DATA_LABEL)
+                view_config = cls._replace_variable(view_config, table_id, f"{DEFAULT_DATA_LABEL}.__default__")
 
                 # 增加 app_name 过滤条件。
                 extra_cond: dict[str, Any] = {
