@@ -366,28 +366,27 @@ class FetchItemStatus(Resource):
             return strategy_numbers
 
         # 找到配置所有 labels 的策略 ID
-        if labels:
-            # 必须给定初始值，避免仅存在部分的场景误判为存在全部标签的策略。
-            strategy_ids_gby_label: dict[str, list[int]] = {f"/{label}/": [] for label in labels}
-            for strategy_id, label in StrategyLabel.objects.filter(
-                bk_biz_id=bk_biz_id, strategy_id__in=strategy_ids, label_name__in=[f"/{label}/" for label in labels]
-            ).values_list("strategy_id", "label_name"):
-                strategy_ids_gby_label[label].append(strategy_id)
+        labels = [StrategyLabelResource.gen_label_name(label) for label in labels]
 
-            for label, partial_strategy_ids in strategy_ids_gby_label.items():
-                strategy_ids = strategy_ids & set(partial_strategy_ids)
+        # 必须给定初始值，避免仅存在部分的场景误判为存在全部标签的策略。
+        strategy_ids_gby_label: dict[str, list[int]] = {label: [] for label in labels}
+        for strategy_id, label in StrategyLabel.objects.filter(
+            bk_biz_id=bk_biz_id, strategy_id__in=strategy_ids, label_name__in=labels
+        ).values_list("strategy_id", "label_name"):
+            strategy_ids_gby_label[label].append(strategy_id)
 
-            if not strategy_ids or not strategy_ids_gby_label:
-                # 没有任何策略包含这些标签，直接返回空结果。
-                return {}
+        for label, partial_strategy_ids in strategy_ids_gby_label.items():
+            strategy_ids = strategy_ids & set(partial_strategy_ids)
+
+        if not strategy_ids:
+            # 没有任何策略包含这些标签，直接返回空结果。
+            return {}
 
         # 基于标签过滤策略
         return {
             metric_id: list(set(partial_strategy_ids) & strategy_ids)
             for metric_id, partial_strategy_ids in strategy_numbers.items()
         }
-
-        return strategy_numbers
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
