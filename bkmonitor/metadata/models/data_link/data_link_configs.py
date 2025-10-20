@@ -243,14 +243,14 @@ class ResultTableConfig(DataLinkResourceConfigBase):
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
+                    {% if fields %}
+                    "fields": {{fields}},
+                    {% endif %}
                     "alias": "{{name}}",
                     "bizId": {{monitor_biz_id}},
                     "dataType": "{{data_type}}",
                     "description": "{{name}}",
                     "maintainers": {{maintainers}}
-                    {% if fields %}
-                    "fields": {{fields}},
-                    {% endif %}
                 }
             }
             """
