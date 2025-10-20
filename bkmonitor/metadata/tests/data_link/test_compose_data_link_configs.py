@@ -19,7 +19,7 @@ from metadata.models.data_link.constants import DataLinkKind
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
     DataIdConfig,
-    VMResultTableConfig,
+    ResultTableConfig,
     VMStorageBindingConfig,
 )
 from metadata.tests.common_utils import consul_client
@@ -84,7 +84,7 @@ def test_compose_data_id_config(create_or_delete_records):
 @pytest.mark.django_db(databases="__all__")
 def test_compose_vm_result_table_config(create_or_delete_records):
     """
-    测试VMResultTableConfig能否正确生成
+    测试ResultTableConfig能否正确生成
     """
     # 单租户模式
     settings.ENABLE_MULTI_TENANT_MODE = False
@@ -106,7 +106,7 @@ def test_compose_vm_result_table_config(create_or_delete_records):
         '"admin"]}}'
     )
 
-    vm_table_id_ins, _ = VMResultTableConfig.objects.get_or_create(
+    vm_table_id_ins, _ = ResultTableConfig.objects.get_or_create(
         name=bkbase_vmrt_name, data_link_name=bkbase_data_name, namespace="bkmonitor", bk_biz_id=111
     )
     content = vm_table_id_ins.compose_config()
@@ -177,11 +177,11 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
 @pytest.mark.django_db(databases="__all__")
 def test_compose_log_result_table_config(create_or_delete_records):
     """
-    测试LogResultTableConfig能否正确生成
+    测试ResultTableConfig能否正确生成
     """
     # 单租户模式
     settings.ENABLE_MULTI_TENANT_MODE = False
-    log_result_table_ins, _ = models.LogResultTableConfig.objects.get_or_create(
+    log_result_table_ins, _ = models.ResultTableConfig.objects.get_or_create(
         name="base_1_agent_event",
         namespace="bkmonitor",
         bk_biz_id=1,
@@ -450,7 +450,7 @@ def test_compose_log_databus_config(create_or_delete_records):
     """
     # 单租户模式
     settings.ENABLE_MULTI_TENANT_MODE = False
-    log_databus_ins, _ = models.LogDataBusConfig.objects.get_or_create(
+    log_databus_ins, _ = models.DataBusConfig.objects.get_or_create(
         bk_tenant_id="system",
         bk_biz_id=1,
         name="base_1_agent_event",
