@@ -33,6 +33,7 @@ import { GradeFieldValueType, type GradeConfiguration, type GradeSetting } from 
 import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
 import RetrieveEvent from './retrieve-core/retrieve-events';
 import { RouteQueryTab } from './retrieve-v3/index.type';
+import AiAssitantHelper from '@/global/ai-assitant/ai-assitant-helper';
 
 export enum STORAGE_KEY {
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
@@ -46,6 +47,7 @@ const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 class RetrieveHelper extends RetrieveBase {
   scrollEventAdded = false;
   mousedownEvent = null;
+  aiAssitantHelper: typeof AiAssitantHelper;
 
   constructor({ isFavoriteShow = false, isViewCurrentIndex = true, favoriteWidth = 0 }) {
     super();
@@ -54,6 +56,7 @@ class RetrieveHelper extends RetrieveBase {
     this.isViewCurrentIndex = isViewCurrentIndex;
     this.favoriteWidth = favoriteWidth;
     this.mousedownEvent = null;
+    this.aiAssitantHelper = AiAssitantHelper;
   }
 
   /**

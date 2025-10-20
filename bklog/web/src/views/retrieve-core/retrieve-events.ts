@@ -130,9 +130,14 @@ enum RetrieveEvent {
   ALIAS_CONFIG_OPEN = 'alias_config_open',
 
   /**
+   * AI 关闭
+   */
+  AI_CLOSE = 'ai-close',
+
+  /**
    * 自动刷新日志
    */
-  AUTO_REFRESH = 'auto_refresh',
+  AUTO_REFRESH = 'auto-refresh',
 }
 
 export default RetrieveEvent;
