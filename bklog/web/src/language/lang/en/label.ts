@@ -861,4 +861,5 @@ export default {
   日志解读: 'Log interpretation',
   请输入需要解读的内容: 'Please enter the content to be interpreted',
   引用至小鲸: 'Quote to AI',
+  自动刷新设置: 'Auto Refresh Settings',
 };
