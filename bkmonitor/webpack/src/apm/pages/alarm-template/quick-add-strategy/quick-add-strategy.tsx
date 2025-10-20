@@ -66,6 +66,7 @@ class QuickAddStrategy extends Mixins(
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
   @Ref('templateForm') templateFormRef: TemplateForm;
 
+  loading = false;
   templateList: ITempLateItem[] = [];
   alarmGroupList: IAlarmGroupList[] = [];
   alarmGroupLoading = false;
@@ -311,8 +312,9 @@ class QuickAddStrategy extends Mixins(
     if (!valid) return;
 
     const h = this.$createElement;
-
+    this.loading = true;
     const isSuccess = await this.applyStrategyTemplate();
+    this.loading = false;
     if (!isSuccess) {
       return;
     }
@@ -541,6 +543,7 @@ class QuickAddStrategy extends Mixins(
           <bk-button
             class='mr-8 ml-24'
             disabled={!this.checkedList.length}
+            loading={this.loading}
             theme='primary'
             onClick={this.handleSubmit}
           >

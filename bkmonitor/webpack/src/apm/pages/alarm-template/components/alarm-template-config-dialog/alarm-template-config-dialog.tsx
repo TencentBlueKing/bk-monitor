@@ -94,6 +94,8 @@ export default class AlarmTemplateConfigDialog extends tsc<
   // 告警组可选项数据
   alarmGroupList: IAlarmGroupList[] = [];
 
+  alarmGroupLoading = false;
+
   /** dialog 是否显示 */
   get dialogShow() {
     return this.templateId && ['algorithms', 'user_group_list'].includes(this.activeType);
@@ -186,12 +188,14 @@ export default class AlarmTemplateConfigDialog extends tsc<
    * @description 获取告警组数据
    */
   async getAlarmGroupList() {
+    this.alarmGroupLoading = true;
     const data = await listUserGroup().catch(() => []);
     this.alarmGroupList = data.map(item => ({
       id: item.id,
       name: item.name,
       receiver: item.users?.map(rec => rec.display_name) || [],
     }));
+    this.alarmGroupLoading = false;
   }
 
   /**
@@ -225,9 +229,11 @@ export default class AlarmTemplateConfigDialog extends tsc<
           />
         );
       case 'user_group_list':
+        if (this.alarmGroupLoading) return <div class='skeleton-element alarm-group-skeleton' />;
         return (
           <AlarmGroup
             hasAddGroup={false}
+            isOpenEditNewPage={true}
             list={this.alarmGroupList}
             showAddTip={false}
             value={(this.value as AlarmTemplateListItem['user_group_list'])?.map(item => item.id)}
