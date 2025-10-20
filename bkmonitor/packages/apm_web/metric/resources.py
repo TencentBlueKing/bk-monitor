@@ -519,6 +519,9 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
             query_config["table"] = result["table_id"]
             query_config["metrics"][0]["field"] = result["metric"]
 
+            # 去掉可能存在的 data_label
+            query_config.pop("data_label", None)
+
         if is_pre_cal_hit and not is_time_shift_exists:
             query_params["start_time"], query_params["end_time"] = helper.adjust_time_range(
                 query_params["start_time"], query_params["end_time"]

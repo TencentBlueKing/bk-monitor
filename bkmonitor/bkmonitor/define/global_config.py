@@ -646,6 +646,15 @@ STANDARD_CONFIGS = OrderedDict(
         ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
         # APM UnifyQuery 查询业务黑名单，在此列表内的业务，检索能力不切换到 UnifyQuery。
         ("APM_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询业务黑名单"), default=[])),
+        # APM 调用分析启用全局指标的应用列表，在此列表内的应用，调用分析将使用带 data_label（APM）的全局指标进行出图。
+        # 背景：APM 策略模板基于「查询模板」能力进行开发，查询模板定义指标查询、计算方式来固化部分通用计算场景，
+        # 为避免模板管理复杂度及保障导入导出、仪表盘配置、asCode 等的易用性，使用 data_label 屏蔽原有指标表名带「应用名」所带来的差异性。
+        # 为了得到更准确的告警关联，需要和策略模板保持一致，使用全局指标进行出图，全局指标依赖 bk-collector 新版本，
+        # 考虑到升级节奏问题，提供该配置项进行灰度控制。
+        (
+            "APM_RPC_GLOBAL_METRIC_ENABLE_APP_LIST",
+            slz.ListField(label=_("APM 调用分析启用全局指标的应用列表"), default=[]),
+        ),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关
