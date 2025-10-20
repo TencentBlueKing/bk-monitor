@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,22 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
 
-import { Button } from 'bkui-vue';
+import { defineComponent } from 'vue';
+
 import { useI18n } from 'vue-i18n';
 
-import RetrievalFilter from '../../../../../components/retrieval-filter/retrieval-filter';
-import IndexSetSelector from './index-set-selector/index-set-selector';
-import LogTable from './log-table/log-table';
-
-import './index.scss';
-
+import './log-table.scss';
 export default defineComponent({
-  name: 'PanelLog',
-  props: {
-    id: String as PropType<string>,
-  },
+  name: 'LogTable',
   setup() {
     const { t } = useI18n();
     return {
@@ -46,24 +38,6 @@ export default defineComponent({
     };
   },
   render() {
-    return (
-      <div class='alarm-center-detail-panel-alarm-log'>
-        <div class='panel-log-header'>
-          <IndexSetSelector />
-          <Button
-            class='ml-16'
-            theme='primary'
-            text
-          >
-            <span>{this.t('更多日志')}</span>
-            <span class='icon-monitor icon-fenxiang ml-5' />
-          </Button>
-        </div>
-        <div class='panel-log-filter'>
-          <RetrievalFilter />
-        </div>
-        <LogTable />
-      </div>
-    );
+    return <div class='panel-log-log-table' />;
   },
 });

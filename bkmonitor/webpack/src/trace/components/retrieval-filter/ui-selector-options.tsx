@@ -124,7 +124,7 @@ export default defineComponent({
     });
     /* 是否选择了耗时 */
     const isDurationKey = computed(() => {
-      return checkedItem.value.type === EFieldType.duration;
+      return checkedItem.value?.type === EFieldType.duration;
     });
     /* 是否选择了无需检索值的操作符 */
     const notValueOfMethod = computed(() => {
