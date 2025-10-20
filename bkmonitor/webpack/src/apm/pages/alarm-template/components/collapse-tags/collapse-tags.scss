@@ -1,0 +1,44 @@
+.bk-common-v2-tag-show {
+  position: relative;
+  display: flex;
+  column-gap: var(--tag-col-gap);
+  align-items: center;
+  width: 100%;
+  height: 100%;
+
+  .item-tags {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px var(--tag-col-gap);
+    overflow: hidden;
+
+    .bk-tag {
+      flex-shrink: 0;
+      margin: 0;
+    }
+  }
+
+  .collapse-tag {
+    display: inline-block;
+    height: 20px;
+    padding: 0 5px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+    white-space: nowrap;
+    background: #f0f1f5;
+    border-radius: 2px;
+  }
+
+  .collapse-tag-fill {
+    position: absolute;
+    top: -9999px;
+    visibility: hidden;
+    white-space: nowrap;
+  }
+}
+
+.bk-common-v2-tag-empty-placeholder {
+  display: flex;
+  align-items: center;
+}

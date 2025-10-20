@@ -37,6 +37,11 @@ import './alarm-group.scss';
 interface IAlarmList {
   disabled?: boolean;
   disabledList?: number[];
+<<<<<<< HEAD
+=======
+  hasAddGroup?: boolean;
+  isOpenEditNewPage?: boolean; // 点击编辑按钮新开页
+>>>>>>> 1d388b2a5d52b5fda6eb7cc4e763b0e29f0cb10a
   isOpenNewPage?: boolean; // 点击创建按钮新开页
   isRefresh?: boolean;
   isSimple?: boolean; // 简洁模式（无预览，无回填）
@@ -69,6 +74,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
   @Prop({ default: false, type: Boolean }) isSimple: boolean; // 简洁模式（无预览，无回填）
   @Prop({ default: null, type: Function }) tagClick: (id: number, e: Event) => void;
   @Prop({ default: false, type: Boolean }) isOpenNewPage: boolean; // 点击创建按钮新开页
+  @Prop({ default: false, type: Boolean }) isOpenEditNewPage: boolean; // 点击编辑按钮新开页
 
   // @Inject('authority') authority
   // @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail
@@ -160,6 +166,11 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
    * 跳转编辑告警组
    */
   handleEditAlarmGroup(id) {
+    if (this.isOpenEditNewPage) {
+      const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/alarm-group/edit/${id}`;
+      window.open(url);
+      return;
+    }
     this.detail.show = false;
     this.$router.push({
       name: 'alarm-group-edit',
