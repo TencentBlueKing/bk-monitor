@@ -65,7 +65,7 @@ export default defineComponent({
      * @returns 
      */
     const renderAiAssitant = () => {
-      if (store.state.isExternal) {
+      if (!store.state.features.isAiAssistantActive) {
         return null;
       }
 
