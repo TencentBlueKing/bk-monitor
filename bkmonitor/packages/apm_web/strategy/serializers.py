@@ -250,8 +250,12 @@ class StrategyTemplateBatchPartialUpdateRequestSerializer(BaseAppStrategyTemplat
     ]
 
     class EditDataSerializer(BaseEditDataSerializer):
-        user_group_list = serializers.ListField(label=_("用户组列表"), child=UserGroupSerializer(), required=False)
-        algorithms = serializers.ListField(label=_("检测算法列表"), child=AlgorithmSerializer(), required=False)
+        user_group_list = serializers.ListField(
+            label=_("用户组列表"), child=UserGroupSerializer(), required=False, allow_empty=False
+        )
+        algorithms = serializers.ListField(
+            label=_("检测算法列表"), child=AlgorithmSerializer(), required=False, allow_empty=False
+        )
         is_enabled = serializers.BooleanField(label=_("是否启用"), required=False)
         is_auto_apply = serializers.BooleanField(label=_("是否自动下发"), required=False)
 
