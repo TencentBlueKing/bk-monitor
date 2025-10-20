@@ -223,4 +223,7 @@ export default {
   固定IP: 'Static IP',
   'IP-静态拓扑': 'IP-Static Topo',
   问问小鲸: 'Ask AI',
+
+  主机检索: 'Host Search',
+  'AI 分析结论': 'AI Analysis Conclusion',
 };

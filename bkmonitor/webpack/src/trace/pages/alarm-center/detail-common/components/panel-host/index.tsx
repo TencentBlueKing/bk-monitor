@@ -27,20 +27,33 @@ import { type PropType, defineComponent } from 'vue';
 
 import AiHighlightCard from '@/pages/alarm-center/components/ai-highlight-card/ai-highlight-card';
 
+import './index.scss';
+
 export default defineComponent({
   name: 'PanelHost',
   props: {
     id: String as PropType<string>,
   },
-  setup(props) {
-    console.log(props.id);
-    return () => (
-      <div class='alarm-center-detail-panel-alarm'>
-        <div>hello alarm</div>
-        <AiHighlightCard
-          content='该模块哈哈哈哈哈，我是一段随意的文本占位。'
-          title='AI 分析结论：'
-        />
+  setup(_props) {
+    return {};
+  },
+  render() {
+    return (
+      <div class='alarm-center-detail-panel-host'>
+        <div class='panel-host-white-bg-container'>
+          <div class='host-selector-wrap'>
+            <div class='host-selector'>host-selector</div>
+            <div class='host-explore-link-btn'>
+              <span class='link-text'>{window.i18n.t('主机检索')}</span>
+              <i class='icon-monitor icon-mc-goto' />
+            </div>
+          </div>
+          <AiHighlightCard
+            content='该模块哈哈哈哈哈，我是一段随意的文本占位。'
+            title={`${window.i18n.t('AI 分析结论')}：`}
+          />
+        </div>
+        <div class='panel-host-chart-warp'>chart-wrapper</div>
       </div>
     );
   },
