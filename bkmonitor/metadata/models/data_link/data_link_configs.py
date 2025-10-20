@@ -55,7 +55,6 @@ class DataLinkResourceConfigBase(models.Model):
 
     class Meta:
         abstract: ClassVar[bool] = True
-        unique_together = (("bk_tenant_id", "namespace", "name"),)
 
     @property
     def component_status(self):
@@ -103,6 +102,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
     class Meta:
         verbose_name = "数据源配置"
         verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
 
     def compose_predefined_config(self, data_source: "DataSource") -> dict[str, Any]:
         """
@@ -226,6 +226,7 @@ class ResultTableConfig(DataLinkResourceConfigBase):
         verbose_name = "结果表配置"
         verbose_name_plural = verbose_name
         db_table = "metadata_vmresulttableconfig"
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
 
     def compose_config(self, fields: list[dict[str, Any]] | None = None) -> dict:
         """
@@ -274,21 +275,6 @@ class ResultTableConfig(DataLinkResourceConfigBase):
             render_params=render_params,
             err_msg_prefix="compose bkdata es table_id config",
         )
-
-
-@deprecated("已废弃，统一使用ResultTableConfig替代")
-class LogResultTableConfig(DataLinkResourceConfigBase):
-    """
-    日志链路结果表配置（已废弃）
-    """
-
-    kind = DataLinkKind.RESULTTABLE.value
-    name = models.CharField(verbose_name="结果表名称", max_length=64, db_index=True, unique=True)
-    data_type = models.CharField(verbose_name="结果表类型", max_length=64, default="log")
-
-    class Meta:
-        verbose_name = "日志结果表配置"
-        verbose_name_plural = verbose_name
 
 
 class ESStorageBindingConfig(DataLinkResourceConfigBase):
@@ -399,6 +385,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
     class Meta:
         verbose_name = "VM存储配置"
         verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
 
     def compose_config(
         self,
@@ -477,6 +464,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
     class Meta:
         verbose_name = "清洗任务配置"
         verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
 
     def compose_config(
         self,
@@ -701,6 +689,7 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
     class Meta:
         verbose_name = "条件处理配置"
         verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
 
     def compose_conditional_sink_config(self, conditions: list) -> dict:
         """
@@ -747,21 +736,6 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
         )
 
 
-@deprecated("已废弃，统一使用DataBusConfig替代")
-class LogDataBusConfig(DataLinkResourceConfigBase):
-    """
-    日志/事件/Trace 等非时序链路清洗总线配置
-    """
-
-    kind = DataLinkKind.DATABUS.value
-    name = models.CharField(verbose_name="清洗任务名称", max_length=64, db_index=True, unique=True)
-    data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
-
-    class Meta:
-        verbose_name = "非指标数据清洗总线配置"
-        verbose_name_plural = verbose_name
-
-
 class DorisStorageBindingConfig(DataLinkResourceConfigBase):
     """
     Doris存储绑定配置
@@ -789,6 +763,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
     class Meta:
         verbose_name: ClassVar[str] = "Doris存储绑定配置"
         verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
 
     def compose_config(
         self,
@@ -854,3 +829,34 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             render_params=render_params,
             err_msg_prefix="compose doris storage binding config",
         )
+
+
+@deprecated("已废弃，统一使用DataBusConfig替代")
+class LogDataBusConfig(DataLinkResourceConfigBase):
+    """
+    日志/事件/Trace 等非时序链路清洗总线配置
+    """
+
+    kind = DataLinkKind.DATABUS.value
+    name = models.CharField(verbose_name="清洗任务名称", max_length=64, db_index=True, unique=True)
+    data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
+
+    class Meta:
+        verbose_name = "非指标数据清洗总线配置"
+        verbose_name_plural = verbose_name
+
+
+@deprecated("已废弃，统一使用ResultTableConfig替代")
+class LogResultTableConfig(DataLinkResourceConfigBase):
+    """
+    日志链路结果表配置（已废弃）
+    """
+
+    kind = DataLinkKind.RESULTTABLE.value
+    name = models.CharField(verbose_name="结果表名称", max_length=64, db_index=True, unique=True)
+    data_type = models.CharField(verbose_name="结果表类型", max_length=64, default="log")
+
+    class Meta:
+        verbose_name = "日志结果表配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
