@@ -29,7 +29,6 @@ def merge_datalink_config(apps, schema_editor):
 
         # 创建新的ResultTableConfig记录
         ResultTableConfig.objects.create(
-            kind=log_rt_config.kind,
             name=log_rt_config.name,
             namespace=log_rt_config.namespace,
             status=log_rt_config.status,
@@ -57,7 +56,6 @@ def merge_datalink_config(apps, schema_editor):
 
         # 创建新的DataBusConfig记录
         DataBusConfig.objects.create(
-            kind=log_db_config.kind,
             name=log_db_config.name,
             namespace=log_db_config.namespace,
             status=log_db_config.status,
