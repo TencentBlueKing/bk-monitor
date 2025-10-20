@@ -428,9 +428,8 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         self._validate_name(StrategyTemplate.origin_objects.all(), validated_data)
         self.validate_is_auto_apply(None, validated_data)
         instance: StrategyTemplate = super().create(validated_data)
-        self.set_auto_apply(validated_data, instance, instance.create_time)
-        if validated_data.get("auto_applied_at"):
-            StrategyTemplate.objects.filter(id=instance.pk).update(auto_applied_at=validated_data["auto_applied_at"])
+        if instance.is_auto_apply:
+            StrategyTemplate.objects.filter(id=instance.pk).update(auto_applied_at=instance.create_time)
         return instance
 
 
