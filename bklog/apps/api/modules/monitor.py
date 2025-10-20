@@ -22,12 +22,12 @@ the project delivered to anyone in the future.
 """
 MONITOR 模块，调用接口汇总
 """
-from apps.utils.function import ignored
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter  # noqa
+from apps.utils.function import ignored
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW  # noqa
 
 
