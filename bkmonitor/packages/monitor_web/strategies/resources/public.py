@@ -344,16 +344,49 @@ class FetchItemStatus(Resource):
         return search_object
 
     @staticmethod
-    def get_strategy_numbers(bk_biz_id: int, metric_ids: list) -> dict:
+    def get_strategy_numbers(bk_biz_id: int, metric_ids: list[str], labels: list[str]) -> dict[str, list[int]]:
         """获得指标关联的告警策略 ."""
-        # 获得业务下的Item
-        strategy_ids = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True).distinct()
+
+        # 获得业务下的 Item
+        all_strategy_ids: list[int] = list(
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True).distinct()
+        )
+
         # 获得指标关联的告警策略
-        query_configs = QueryConfigModel.objects.filter(strategy_id__in=strategy_ids, metric_id__in=metric_ids)
+        strategy_ids: set[int] = set()
         strategy_numbers = defaultdict(list)
-        for query_config in query_configs:
-            strategy_numbers[query_config.metric_id].append(query_config.strategy_id)
-        return strategy_numbers
+        for metric_id, strategy_id in QueryConfigModel.objects.filter(
+            strategy_id__in=all_strategy_ids, metric_id__in=metric_ids
+        ).values_list("metric_id", "strategy_id"):
+            strategy_ids.add(strategy_id)
+            strategy_numbers[metric_id].append(strategy_id)
+
+        if not labels or not strategy_ids:
+            # 如果没有标签过滤条件，或者没有找到任何策略，直接返回结果。
+            return strategy_numbers
+
+        # 找到配置所有 labels 的策略 ID
+        labels = [StrategyLabelResource.gen_label_name(label) for label in labels]
+
+        # 必须给定初始值，避免仅存在部分的场景误判为存在全部标签的策略。
+        strategy_ids_gby_label: dict[str, list[int]] = {label: [] for label in labels}
+        for strategy_id, label in StrategyLabel.objects.filter(
+            bk_biz_id=bk_biz_id, strategy_id__in=strategy_ids, label_name__in=labels
+        ).values_list("strategy_id", "label_name"):
+            strategy_ids_gby_label[label].append(strategy_id)
+
+        for label, partial_strategy_ids in strategy_ids_gby_label.items():
+            strategy_ids = strategy_ids & set(partial_strategy_ids)
+
+        if not strategy_ids:
+            # 没有任何策略包含这些标签，直接返回空结果。
+            return {}
+
+        # 基于标签过滤策略
+        return {
+            metric_id: list(set(partial_strategy_ids) & strategy_ids)
+            for metric_id, partial_strategy_ids in strategy_numbers.items()
+        }
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -361,7 +394,7 @@ class FetchItemStatus(Resource):
         # 获得当前目标下未恢复告警事件，若无当前目标则获取所有未恢复告警事件
         strategy_alert_num = self.get_alarm_event_num(validated_request_data)
         # 获得指标关联的告警策略
-        strategy_numbers = self.get_strategy_numbers(bk_biz_id, metric_ids)
+        strategy_numbers = self.get_strategy_numbers(bk_biz_id, metric_ids, validated_request_data.get("labels", []))
         # 返回结果
         # strategy_number：已设置的告警数
         # alarm_num：告警数
