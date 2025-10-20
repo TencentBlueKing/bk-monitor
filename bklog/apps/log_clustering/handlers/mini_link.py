@@ -16,7 +16,9 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 class MiniLinkAccessHandler:
     def __init__(self, index_set_id: int):
         self.index_set: LogIndexSet = LogIndexSet.objects.get(pk=index_set_id)
-        self.default_conf: dict = FeatureToggleObject.toggle(MINI_CLUSTERING_CONFIG).feature_config or {}
+        self.default_conf = {}
+        if feature_obj := FeatureToggleObject.toggle(MINI_CLUSTERING_CONFIG):
+            self.default_conf = feature_obj.feature_config
 
         if not self.index_set.collector_config_id:
             raise ClusteringAccessNotSupportedException()

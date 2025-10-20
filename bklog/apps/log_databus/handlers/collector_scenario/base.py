@@ -169,7 +169,7 @@ class CollectorScenario:
                 "type_label": "log",
                 "mq_config": mq_config,
                 "option": default_option,
-                "bk_biz_id": bk_biz_id
+                "bk_biz_id": bk_biz_id,
             }
             if data_link_id:
                 data_link = DataLinkConfig.objects.filter(data_link_id=data_link_id).first()
@@ -224,7 +224,9 @@ class CollectorScenario:
         :param clustering_config: 聚类配置
         :return: dict
         """
-        feature_config = FeatureToggleObject.toggle(MINI_CLUSTERING_CONFIG).feature_config or {}
+        feature_config = {}
+        if feature_obj := FeatureToggleObject.toggle(MINI_CLUSTERING_CONFIG):
+            feature_config = feature_obj.feature_config
 
         options = {
             "log_cluster": {

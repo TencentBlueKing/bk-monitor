@@ -1076,7 +1076,7 @@ class EtlStorage:
                     "tag": "metric",
                     "alias_name": "pattern",
                     "description": "pattern",
-                    "option": build_es_option_type("text", es_version),
+                    "option": build_es_option_type("keyword", es_version),
                 },
                 {
                     "field_name": "signature",
