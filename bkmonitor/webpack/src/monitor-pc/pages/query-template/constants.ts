@@ -123,3 +123,14 @@ export const AggMethodMap = [...METHOD_LIST, ...CP_METHOD_LIST].reduce((prev, cu
   prev[curr.id] = curr.name;
   return prev;
 }, {});
+
+export const CONDITIONS = [
+  {
+    id: 'and',
+    name: 'AND',
+  },
+  {
+    id: 'or',
+    name: 'OR',
+  },
+];

@@ -37,10 +37,10 @@ from .tools.environment import (
     ROLE,
 )
 from .tools.mysql import (
+    get_backend_alert_mysql_settings,
     get_backend_mysql_settings,
     get_grafana_mysql_settings,
     get_saas_mysql_settings,
-    get_backend_alert_mysql_settings,
 )
 from .tools.service import get_service_url
 
@@ -349,6 +349,7 @@ ACTIVE_VIEWS = {
         "apm_event": "apm_web.event.views",
         "apm_profile": "apm_web.profile.views",
         "apm_container": "apm_web.container.views",
+        "apm_strategy": "apm_web.strategy.views",
     },
 }
 
@@ -1625,6 +1626,9 @@ K8S_V2_BIZ_LIST = []
 
 # APM UnifyQuery 查询业务黑名单
 APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
+
+# APM 调用分析启用全局指标的应用列表
+APM_RPC_GLOBAL_METRIC_ENABLE_APP_LIST = []
 
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"

@@ -613,7 +613,7 @@ def check_datalink_health(
         protocols = [protocol.lower() for protocol in protocols]
         messages.append(f"当前业务 {bk_biz_id} 已创建了 {'、'.join(protocols)} 四种类型的拨测任务")
     elif scene == DataScene.HOST:
-        messages.append("主机监控的数据链路是按业务进行创建，包括系统基础指标、进程端口和进程性能指标")
+        messages.append("主机的数据链路是按业务进行创建，包括系统基础指标、进程端口和进程性能指标")
     elif scene == DataScene.K8S:
         messages.append("k8s监控的数据链路是按集群进行创建，包括k8s指标和自定义指标")
 

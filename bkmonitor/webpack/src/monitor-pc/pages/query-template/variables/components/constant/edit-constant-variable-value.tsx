@@ -38,12 +38,14 @@ interface ConstantValueEvents {
 }
 
 interface ConstantValueProps {
+  showLabel?: boolean;
   variable: ConstantVariableModel;
 }
 
 @Component
 export default class EditConstantVariableValue extends tsc<ConstantValueProps, ConstantValueEvents> {
   @Prop({ type: Object, required: true }) variable!: ConstantVariableModel;
+  @Prop({ default: true }) showLabel!: boolean;
 
   @Emit('valueChange')
   handleValueChange(value: string) {
@@ -61,7 +63,10 @@ export default class EditConstantVariableValue extends tsc<ConstantValueProps, C
 
   render() {
     return (
-      <EditVariableValue data={this.variable.data}>
+      <EditVariableValue
+        data={this.variable.data}
+        showLabel={this.showLabel}
+      >
         <bk-input
           clearable={false}
           value={this.variable.data.value}
