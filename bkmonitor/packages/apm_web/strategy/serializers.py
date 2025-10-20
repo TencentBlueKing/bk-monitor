@@ -14,7 +14,7 @@ from collections.abc import Iterable
 
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 from rest_framework import serializers
 from django.utils.functional import cached_property
 
@@ -24,7 +24,6 @@ from bkmonitor.strategy.serializers import allowed_threshold_method
 from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
 from apm_web.strategy.helper import get_user_groups
-from .constants import DEFAULT_ROOT_ID
 
 
 class DetectSerializer(serializers.Serializer):
@@ -145,7 +144,7 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
         for strategy_template in strategy_templates:
             root_template_id = (
                 strategy_template["id"]
-                if strategy_template["root_id"] == DEFAULT_ROOT_ID
+                if strategy_template["root_id"] == constants.DEFAULT_ROOT_ID
                 else strategy_template["root_id"]
             )
             if root_template_id in root_template_ids:
@@ -367,6 +366,39 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         ]
 
     @staticmethod
+    def validate_is_auto_apply(strategy_template_objs: list[StrategyTemplate] | None, validated_data: dict[str, Any]):
+        """传入要更新的 queryset 和 validated_data"""
+        if not validated_data.get("is_auto_apply"):
+            return
+
+        if strategy_template_objs is None:
+            other_same_origin_qs: QuerySet[StrategyTemplate] = StrategyTemplate.objects.filter(
+                Q(root_id=validated_data["root_id"]) | Q(id=validated_data["root_id"])
+            )
+        else:
+            update_ids: list[int] = []
+            root_template_ids: set[int] = set()
+            for template_obj in strategy_template_objs:
+                update_ids.append(template_obj.pk)
+
+                root_template_id = (
+                    template_obj.pk if template_obj.root_id == constants.DEFAULT_ROOT_ID else template_obj.root_id
+                )
+                if root_template_id in root_template_ids:
+                    raise serializers.ValidationError(_("批量更新时，不允许选择两个同源的模板"))
+
+                root_template_ids.add(root_template_id)
+
+            other_same_origin_qs: QuerySet[StrategyTemplate] = StrategyTemplate.objects.filter(
+                Q(id__in=root_template_ids) | Q(root_id__in=root_template_ids)
+            ).exclude(id__in=update_ids)
+
+        if other_same_origin_qs.filter(
+            bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"], is_auto_apply=True
+        ).exists():
+            raise serializers.ValidationError(_("同源模板间只能有一个自动下发模板"))
+
+    @staticmethod
     def _validate_name(qs: QuerySet[StrategyTemplate], validated_data: dict[str, Any]) -> None:
         if qs.filter(
             bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"], name=validated_data["name"]
@@ -384,12 +416,18 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
 
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
         self._validate_name(StrategyTemplate.origin_objects.exclude(pk=instance.pk), validated_data)
+        self.validate_is_auto_apply([instance], validated_data)
         self.set_auto_apply(validated_data, instance)
         return super().update(instance, validated_data)
 
     def create(self, validated_data: dict[str, Any]) -> StrategyTemplate:
         self._validate_name(StrategyTemplate.origin_objects.all(), validated_data)
-        return super().create(validated_data)
+        self.validate_is_auto_apply(None, validated_data)
+        instance: StrategyTemplate = super().create(validated_data)
+        self.set_auto_apply(validated_data, instance, instance.create_time)
+        if validated_data.get("auto_applied_at"):
+            StrategyTemplate.objects.filter(id=instance.pk).update(auto_applied_at=validated_data["auto_applied_at"])
+        return instance
 
 
 class StrategyTemplateSearchModelSerializer(StrategyTemplateBaseModelSerializer):
