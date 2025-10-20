@@ -77,6 +77,8 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
         item.config = JSON.parse(JSON.stringify(data.config));
         item.unit_prefix = data.unit_prefix || defaultUnit;
       } else {
+        item.show = false;
+        item.config = { method: 'lte', threshold: 0 };
         item.unit_prefix = defaultUnit;
       }
     }

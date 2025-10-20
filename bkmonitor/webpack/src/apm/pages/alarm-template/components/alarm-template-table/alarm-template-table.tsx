@@ -420,7 +420,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       return;
     }
     const setDomPointerEvents = (val: 'auto' | 'none') => {
-      // @ts-ignore
+      // @ts-expect-error
       for (const children of childrenArr) {
         children.style.pointerEvents = val;
       }
@@ -461,7 +461,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         this.handleDeletePopoverHide();
       },
     });
-    // @ts-ignore
+    // @ts-expect-error
     instance.deleteConfirmConfig = {
       id: row.id,
       templateName: row.name,
@@ -828,7 +828,6 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       />
     );
   }
-  value = [];
   render() {
     return (
       <div class='alarm-template-container'>
