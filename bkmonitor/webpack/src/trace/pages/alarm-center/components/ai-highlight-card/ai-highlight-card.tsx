@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 
 import AIFavicon from '../../../../static/img/failure/AI.png';
 
@@ -32,27 +32,46 @@ import './ai-highlight-card.scss';
 export default defineComponent({
   name: 'AiHighlightCard',
   props: {
+    /** Ai 高亮提示块组件标题 */
     title: {
       type: String,
     },
+    /** Ai 高亮提示块组件内容 */
     content: {
       type: [String, Object] as PropType<string | unknown>,
     },
+    /** Ai 高亮提示块组件图标大小 */
+    faviconSize: {
+      type: Number,
+      default: 20,
+    },
   },
-  setup() {},
+  setup(props) {
+    /** css 变量 */
+    const cssVar = computed(() => ({
+      /** Ai 高亮提示块组件图标大小 */
+      '--ai-favicon-size': `${props.faviconSize}px`,
+    }));
+    return {
+      cssVar,
+    };
+  },
   render() {
     return (
-      <div class='ai-highlight-card'>
-        <div class='ai-favicon'>
-          <img
-            alt='ai-favicon'
-            src={AIFavicon}
-          />
+      <div
+        style={this.cssVar}
+        class='ai-highlight-card'
+      >
+        <div class='ai-highlight-card-header'>
+          <div class='ai-favicon'>
+            <img
+              alt='ai-favicon'
+              src={AIFavicon}
+            />
+          </div>
+          <div class='ai-highlight-card-header-title'>{this.$slots?.title?.(this.title) ?? this.title}</div>
         </div>
-        <div class='ai-highlight-card-main'>
-          <div class='card-main-title'>{this.$slots?.title?.(this.title) ?? this.title}</div>
-          <div class='card-main-content'>{this.$slots?.content?.(this.content) ?? this.content}</div>
-        </div>
+        <div class='ai-highlight-card-main'>{this.$slots?.content?.(this.content) ?? this.content}</div>
       </div>
     );
   },
