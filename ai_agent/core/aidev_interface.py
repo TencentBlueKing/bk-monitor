@@ -193,6 +193,8 @@ class AIDevInterface:
     ):
         """发起流式/非流式会话"""
         callbacks = [get_langfuse_callback()]  # 添加Langfuse回调
+        session_info = self.retrieve_chat_session(session_code=session_code)
+        is_temporary = session_info.get("data",{}).get("is_temporary", False)
         agent_instance = AgentInstanceFactory.build_agent(
             agent_code=agent_code,
             build_type=AgentBuildType.SESSION,
@@ -201,6 +203,7 @@ class AIDevInterface:
             callbacks=callbacks,
             temperature=temperature,
             switch_agent_by_scene=switch_agent_by_scene,
+            is_temporary=is_temporary,
         )  # 工厂方法构建Agent实例
         if execute_kwargs.get("stream", False):
             # 使用增强的流式处理函数
