@@ -91,4 +91,32 @@ class Migration(migrations.Migration):
             name="bk_biz_id",
             field=models.BigIntegerField(verbose_name="业务ID"),
         ),
+        migrations.AlterUniqueTogether(
+            name="conditionalsinkconfig",
+            unique_together={("bk_tenant_id", "namespace", "name")},
+        ),
+        migrations.AlterUniqueTogether(
+            name="databusconfig",
+            unique_together={("bk_tenant_id", "namespace", "name")},
+        ),
+        migrations.AlterUniqueTogether(
+            name="dataidconfig",
+            unique_together={("bk_tenant_id", "namespace", "name")},
+        ),
+        migrations.AlterUniqueTogether(
+            name="dorisstoragebindingconfig",
+            unique_together={("bk_tenant_id", "namespace", "name")},
+        ),
+        migrations.AlterUniqueTogether(
+            name="logresulttableconfig",
+            unique_together={("bk_tenant_id", "namespace", "name")},
+        ),
+        migrations.AlterUniqueTogether(
+            name="resulttableconfig",
+            unique_together={("bk_tenant_id", "namespace", "name")},
+        ),
+        migrations.AlterUniqueTogether(
+            name="vmstoragebindingconfig",
+            unique_together={("bk_tenant_id", "namespace", "name")},
+        ),
     ]
