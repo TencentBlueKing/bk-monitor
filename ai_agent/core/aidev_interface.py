@@ -15,6 +15,7 @@ from aidev_agent.services.agent import AgentInstanceFactory
 from aidev_agent.enums import AgentBuildType
 from ai_agent.utils import get_langfuse_callback, handle_streaming_response_with_metrics
 from ai_agent.services.local_command_handler import LocalCommandProcessor
+from aidev_agent.core.extend.agent.qa import CommonQAAgent
 
 logger = logging.getLogger("ai_whale")
 
@@ -194,7 +195,7 @@ class AIDevInterface:
         """发起流式/非流式会话"""
         callbacks = [get_langfuse_callback()]  # 添加Langfuse回调
         session_info = self.retrieve_chat_session(session_code=session_code)
-        is_temporary = session_info.get("data",{}).get("is_temporary", False)
+        is_temporary = session_info.get("data", {}).get("is_temporary", False)
         agent_instance = AgentInstanceFactory.build_agent(
             agent_code=agent_code,
             build_type=AgentBuildType.SESSION,
@@ -204,6 +205,7 @@ class AIDevInterface:
             temperature=temperature,
             switch_agent_by_scene=switch_agent_by_scene,
             is_temporary=is_temporary,
+            agent_cls=CommonQAAgent,  # 显式传入正确的类
         )  # 工厂方法构建Agent实例
         if execute_kwargs.get("stream", False):
             # 使用增强的流式处理函数
