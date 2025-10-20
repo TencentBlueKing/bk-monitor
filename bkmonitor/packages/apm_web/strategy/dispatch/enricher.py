@@ -250,7 +250,7 @@ class BaseEnricher(abc.ABC):
 
     def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
         """实体信息模板"""
-        return _("#APM 应用# {app_name}\n#服务# {service_name}").format(
+        return _("#APM 应用# {app_name}\n#APM 服务# {service_name}").format(
             app_name=self.app_name, service_name=dispatch_config.service_name
         )
 
@@ -307,7 +307,7 @@ class RPCEnricher(BaseEnricher):
                 {
                     "key": key,
                     "method": "eq",
-                    "value": f"{{{{alarm.dimensions['{tag}'].display_value}}}}",
+                    "value": [f"{{{{alarm.dimensions['{tag}'].display_value}}}}"],
                     "condition": "and",
                 }
             )
