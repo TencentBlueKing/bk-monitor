@@ -152,6 +152,7 @@ class ApplicationConfig(BkCollectorConfig):
         config["bk_data_token"] = self._application.get_bk_data_token()
         config["resource_filter_config"] = self.get_resource_filter_config()
         config["resource_filter_config_logs"] = self.get_resource_filter_config_logs()
+        config["resource_filter_config_metrics"] = self.get_resource_filter_config_metrics()
 
         apdex_config = self.get_apdex_config(ApdexConfig.APP_LEVEL)
         sampler_config = self.get_random_sampler_config(ApdexConfig.APP_LEVEL)
@@ -383,6 +384,35 @@ class ApplicationConfig(BkCollectorConfig):
             "name": "resource_filter/logs",
             "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
         }
+
+    def get_resource_filter_config_metrics(self, bcs_cluster_id=None):
+        """
+        维度补充配置
+        """
+        if bcs_cluster_id is None:
+            return {}
+
+        if bcs_cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            # 中心化集群，可以接收到所有的数据，不对中心化集群做维度补充逻辑
+            return {}
+
+        enabled_apps = settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS
+
+        # 只有在白名单中的应用才启用该功能
+        if enabled_apps and self._application.app_name in enabled_apps.get(self._application.bk_biz_id, []):
+            return {
+                "name": "resource_filter/metrics",
+                "drop": {"keys": ["resource.bk.data.token", "resource.process.pid", "resource.tps.tenant.id"]},
+                "from_token": {"keys": ["app_name"]},
+                "from_record": [
+                    {
+                        "source": "request.client.ip",
+                        "destination": "resource.net.host.ip",
+                    }
+                ],
+                "from_cache": {"key": "resource.net.host.ip", "cache_name": "k8s_cache"},
+            }
+        return {}
 
     def get_sub_configs(self, unique_key: str, config_level):
         apdex_configs = self.get_apdex_config(config_level)

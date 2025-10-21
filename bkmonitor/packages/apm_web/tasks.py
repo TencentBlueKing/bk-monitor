@@ -298,27 +298,32 @@ def auto_register_apm_builtin_strategy_template():
     logger.info("[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] task start")
 
     config_obj, _ = GlobalConfig.objects.get_or_create(key="apm_register_builtin_strategy_template_version")
-    current_version_map: dict[str, str] = config_obj.value if isinstance(config_obj.value, dict) else {}
-    applied_version_map: dict[str, str] = {}
+    current_map: dict[str, str] = config_obj.value if isinstance(config_obj.value, dict) else {}
+    applied_map: dict[str, str] = {}
     for app in Application.objects.filter(is_enabled=True):
         map_key = f"{app.bk_biz_id}-{app.app_name}"
-        current_version = current_version_map.get(map_key, "")
-        applied_version_map[map_key] = current_version
+        current = current_map.get(map_key, "-")
         try:
-            if not BuiltinStrategyTemplateRegistry.is_need_register(current_version):
+            current_version, current_system_str = current.rsplit("-", 1) if "-" in current else ("", "")
+            current_systems: list[str] = current_system_str.split("|") if current_system_str else []
+            applied_map[map_key] = current
+            registry = BuiltinStrategyTemplateRegistry(app)
+            if not registry.is_need_register(current_version, current_systems):
                 continue
-            BuiltinStrategyTemplateRegistry(app).register()
-            applied_version_map[map_key] = BuiltinStrategyTemplateRegistry.BUILTIN_STRATEGY_TEMPLATE_VERSION
+            registry.register()
+            applied_map[map_key] = (
+                f"{BuiltinStrategyTemplateRegistry.BUILTIN_STRATEGY_TEMPLATE_VERSION}-{'|'.join(registry.systems)}"
+            )
         except Exception as e:
             logger.exception(
                 f"[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] apply failed: "
                 f"bk_biz_id={app.bk_biz_id}, app_name={app.app_name}, "
-                f"current_version={current_version}, "
+                f"current={current}, "
                 f"expect_version={BuiltinStrategyTemplateRegistry.BUILTIN_STRATEGY_TEMPLATE_VERSION}, "
                 f"error_info => {e}"
             )
 
-    config_obj.value = applied_version_map
+    config_obj.value = applied_map
     config_obj.save()
 
     logger.info("[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] task finished")

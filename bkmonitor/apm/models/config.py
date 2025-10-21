@@ -870,3 +870,24 @@ class ProbeConfig(AppConfigBase):
             return None
 
         return config
+
+
+class FieldNormalizerConfig(models.Model):
+    """
+    字段标准化配置
+    用于管理 field_normalizer 的配置规则
+    """
+
+    kind = models.CharField("Span类型", max_length=50, help_text="例如: SPAN_KIND_SERVER, SPAN_KIND_CLIENT 等")
+    predicate_key = models.CharField(
+        "判断字段", max_length=255, help_text="用于判断是否应用该规则的字段，多个字段用逗号分隔"
+    )
+    rules = JsonField(verbose_name="字段映射规则", help_text="字段标准化的具体规则配置")
+
+    class Meta:
+        verbose_name = "字段标准化配置"
+        verbose_name_plural = "字段标准化配置"
+
+    def to_json(self):
+        """转换为JSON格式"""
+        return {"kind": self.kind, "predicate_key": self.predicate_key, "rules": self.rules}
